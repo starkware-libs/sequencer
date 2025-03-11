@@ -7,6 +7,29 @@ on:
       - main-v[0-9].**
     tags:
       - v[0-9].**
+<<<<<<< HEAD:.github/workflows/committer_and_os_cli_push.yml
+||||||| c28b2909b:.github/workflows/committer_cli_push.yml
+    paths:
+      - '.github/workflows/committer_cli_push.yml'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'crates/committer_cli/**'
+      - 'crates/starknet_api/**'
+      - 'crates/starknet_committer/**'
+      - 'crates/starknet_patricia/**'
+      - 'scripts/dependencies.sh'
+=======
+    paths:
+      - '.github/workflows/committer_cli_push.yml'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'crates/committer_cli/**'
+      - 'crates/starknet_api/**'
+      - 'crates/starknet_committer/**'
+      - 'crates/starknet_patricia/**'
+      - 'rust-toolchain.toml'
+      - 'scripts/dependencies.sh'
+>>>>>>> origin/main-v0.13.5:.github/workflows/committer_cli_push.yml
 
   pull_request:
     types:
@@ -27,6 +50,13 @@ on:
       - 'crates/starknet_committer/**'
       - 'crates/starknet_os/**'
       - 'crates/starknet_patricia/**'
+<<<<<<< HEAD:.github/workflows/committer_and_os_cli_push.yml
+||||||| c28b2909b:.github/workflows/committer_cli_push.yml
+      - 'scripts/dependencies.sh'
+=======
+      - 'rust-toolchain.toml'
+      - 'scripts/dependencies.sh'
+>>>>>>> origin/main-v0.13.5:.github/workflows/committer_cli_push.yml
 
 env:
   RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"

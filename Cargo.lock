@@ -1832,7 +1832,13 @@ dependencies = [
 
 [[package]]
 name = "blockifier"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "anyhow",
  "ark-ec 0.4.2",
@@ -1884,7 +1890,13 @@ dependencies = [
 
 [[package]]
 name = "blockifier_reexecution"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "assert_matches",
  "blockifier",
@@ -3011,10 +3023,18 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
 name = "colored"
 version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fde0e0ec90c9dfb3b4b1a0891a7dcd0e2bffde2f7efed5fe7c9bb00e5bfb915e"
+||||||| c28b2909b
+name = "committer_cli"
+version = "0.14.0-rc.1"
+=======
+name = "committer_cli"
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "windows-sys 0.59.0",
 ]
@@ -6966,7 +6986,13 @@ dependencies = [
 
 [[package]]
 name = "mempool_test_utils"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "assert_matches",
  "blockifier_test_utils",
@@ -7267,7 +7293,13 @@ dependencies = [
 
 [[package]]
 name = "native_blockifier"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "blockifier",
  "cached",
@@ -7805,7 +7837,13 @@ dependencies = [
 
 [[package]]
 name = "papyrus_base_layer"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "alloy",
  "async-trait",
@@ -7829,7 +7867,13 @@ dependencies = [
 
 [[package]]
 name = "papyrus_common"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "assert_matches",
  "base64 0.13.1",
@@ -7848,7 +7892,13 @@ dependencies = [
 
 [[package]]
 name = "papyrus_config"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "assert_matches",
  "clap",
@@ -7867,8 +7917,136 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
+||||||| c28b2909b
+name = "papyrus_consensus"
+version = "0.14.0-rc.1"
+dependencies = [
+ "async-trait",
+ "clap",
+ "enum-as-inner",
+ "fs2",
+ "futures",
+ "lazy_static",
+ "lru",
+ "metrics 0.21.1",
+ "mockall",
+ "nix 0.20.2",
+ "papyrus_common",
+ "papyrus_config",
+ "papyrus_network",
+ "papyrus_network_types",
+ "papyrus_protobuf",
+ "papyrus_storage",
+ "papyrus_test_utils",
+ "serde",
+ "starknet-types-core",
+ "starknet_api",
+ "test-case",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "validator",
+]
+
+[[package]]
+name = "papyrus_consensus_orchestrator"
+version = "0.14.0-rc.1"
+dependencies = [
+ "async-trait",
+ "blockifier",
+ "chrono",
+ "futures",
+ "indexmap 2.7.0",
+ "lazy_static",
+ "mockall",
+ "papyrus_consensus",
+ "papyrus_network",
+ "papyrus_protobuf",
+ "papyrus_storage",
+ "papyrus_test_utils",
+ "serde",
+ "serde_json",
+ "starknet-types-core",
+ "starknet_api",
+ "starknet_batcher_types",
+ "starknet_infra_utils",
+ "test-case",
+ "tokio",
+ "tokio-util",
+ "tracing",
+]
+
+[[package]]
+=======
+name = "papyrus_consensus"
+version = "0.14.0-rc.3"
+dependencies = [
+ "async-trait",
+ "clap",
+ "enum-as-inner",
+ "fs2",
+ "futures",
+ "lazy_static",
+ "lru",
+ "metrics 0.21.1",
+ "mockall",
+ "nix 0.20.2",
+ "papyrus_common",
+ "papyrus_config",
+ "papyrus_network",
+ "papyrus_network_types",
+ "papyrus_protobuf",
+ "papyrus_storage",
+ "papyrus_test_utils",
+ "serde",
+ "starknet-types-core",
+ "starknet_api",
+ "test-case",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "validator",
+]
+
+[[package]]
+name = "papyrus_consensus_orchestrator"
+version = "0.14.0-rc.3"
+dependencies = [
+ "async-trait",
+ "blockifier",
+ "chrono",
+ "futures",
+ "indexmap 2.7.0",
+ "lazy_static",
+ "mockall",
+ "papyrus_consensus",
+ "papyrus_network",
+ "papyrus_protobuf",
+ "papyrus_storage",
+ "papyrus_test_utils",
+ "serde",
+ "serde_json",
+ "starknet-types-core",
+ "starknet_api",
+ "starknet_batcher_types",
+ "starknet_infra_utils",
+ "test-case",
+ "tokio",
+ "tokio-util",
+ "tracing",
+]
+
+[[package]]
+>>>>>>> origin/main-v0.13.5
 name = "papyrus_execution"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "anyhow",
  "assert_matches",
@@ -7897,7 +8075,13 @@ dependencies = [
 
 [[package]]
 name = "papyrus_load_test"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "anyhow",
  "assert_matches",
@@ -7915,7 +8099,13 @@ dependencies = [
 
 [[package]]
 name = "papyrus_monitoring_gateway"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "axum",
  "hyper 0.14.32",
@@ -7938,7 +8128,13 @@ dependencies = [
 
 [[package]]
 name = "papyrus_network"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "assert_matches",
  "async-stream",
@@ -7972,7 +8168,13 @@ dependencies = [
 
 [[package]]
 name = "papyrus_network_types"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "libp2p",
  "papyrus_test_utils",
@@ -7982,7 +8184,13 @@ dependencies = [
 
 [[package]]
 name = "papyrus_node"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "anyhow",
  "clap",
@@ -8026,7 +8234,13 @@ dependencies = [
 
 [[package]]
 name = "papyrus_p2p_sync"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "assert_matches",
  "async-stream",
@@ -8063,7 +8277,13 @@ dependencies = [
 
 [[package]]
 name = "papyrus_proc_macros"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "metrics 0.24.1",
  "metrics-exporter-prometheus",
@@ -8077,7 +8297,13 @@ dependencies = [
 
 [[package]]
 name = "papyrus_protobuf"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "bytes",
  "indexmap 2.7.0",
@@ -8101,7 +8327,13 @@ dependencies = [
 
 [[package]]
 name = "papyrus_rpc"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "anyhow",
  "assert_matches",
@@ -8154,7 +8386,13 @@ dependencies = [
 
 [[package]]
 name = "papyrus_state_reader"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "assert_matches",
  "blockifier",
@@ -8172,7 +8410,13 @@ dependencies = [
 
 [[package]]
 name = "papyrus_storage"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "assert_matches",
  "byteorder",
@@ -8224,7 +8468,13 @@ dependencies = [
 
 [[package]]
 name = "papyrus_sync"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "assert_matches",
  "async-stream",
@@ -8261,7 +8511,13 @@ dependencies = [
 
 [[package]]
 name = "papyrus_test_utils"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "cairo-lang-casm",
  "cairo-lang-starknet-classes",
@@ -10829,7 +11085,13 @@ dependencies = [
 
 [[package]]
 name = "starknet_api"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "assert_matches",
  "bitvec",
@@ -10860,7 +11122,13 @@ dependencies = [
 
 [[package]]
 name = "starknet_batcher"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "apollo_reverts",
  "assert_matches",
@@ -10898,7 +11166,13 @@ dependencies = [
 
 [[package]]
 name = "starknet_batcher_types"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "async-trait",
  "blockifier",
@@ -10914,8 +11188,16 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
 name = "starknet_class_manager"
 version = "0.0.0"
+||||||| c28b2909b
+name = "starknet_class_manager_types"
+version = "0.14.0-rc.1"
+=======
+name = "starknet_class_manager_types"
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "async-trait",
  "hex",
@@ -10954,7 +11236,13 @@ dependencies = [
 
 [[package]]
 name = "starknet_client"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "assert_matches",
  "async-trait",
@@ -10989,7 +11277,13 @@ dependencies = [
 
 [[package]]
 name = "starknet_committer"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "hex",
  "pretty_assertions",
@@ -11005,6 +11299,7 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
 name = "starknet_committer_and_os_cli"
 version = "0.0.0"
 dependencies = [
@@ -11042,6 +11337,13 @@ dependencies = [
 [[package]]
 name = "starknet_consensus"
 version = "0.0.0"
+||||||| c28b2909b
+name = "starknet_consensus_manager"
+version = "0.14.0-rc.1"
+=======
+name = "starknet_consensus_manager"
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "async-trait",
  "clap",
@@ -11145,7 +11447,13 @@ dependencies = [
 
 [[package]]
 name = "starknet_gateway"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "assert_matches",
  "async-trait",
@@ -11192,7 +11500,13 @@ dependencies = [
 
 [[package]]
 name = "starknet_gateway_types"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "async-trait",
  "enum-assoc",
@@ -11210,7 +11524,13 @@ dependencies = [
 
 [[package]]
 name = "starknet_http_server"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "axum",
  "blockifier",
@@ -11240,7 +11560,13 @@ dependencies = [
 
 [[package]]
 name = "starknet_infra_utils"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "assert-json-diff",
  "colored 3.0.0",
@@ -11256,7 +11582,13 @@ dependencies = [
 
 [[package]]
 name = "starknet_integration_tests"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "alloy",
  "anyhow",
@@ -11340,7 +11672,13 @@ dependencies = [
 
 [[package]]
 name = "starknet_l1_provider"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "alloy",
  "assert_matches",
@@ -11366,7 +11704,13 @@ dependencies = [
 
 [[package]]
 name = "starknet_l1_provider_types"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "async-trait",
  "mockall",
@@ -11381,7 +11725,13 @@ dependencies = [
 
 [[package]]
 name = "starknet_mempool"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "assert_matches",
  "async-trait",
@@ -11413,7 +11763,13 @@ dependencies = [
 
 [[package]]
 name = "starknet_mempool_p2p"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "async-trait",
  "futures",
@@ -11439,7 +11795,13 @@ dependencies = [
 
 [[package]]
 name = "starknet_mempool_p2p_types"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "async-trait",
  "mockall",
@@ -11453,7 +11815,13 @@ dependencies = [
 
 [[package]]
 name = "starknet_mempool_types"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "async-trait",
  "mockall",
@@ -11467,7 +11835,13 @@ dependencies = [
 
 [[package]]
 name = "starknet_monitoring_endpoint"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "axum",
  "hyper 0.14.32",
@@ -11515,7 +11889,13 @@ dependencies = [
 
 [[package]]
 name = "starknet_patricia"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "async-recursion",
  "derive_more 0.99.18",
@@ -11568,7 +11948,13 @@ dependencies = [
 
 [[package]]
 name = "starknet_sequencer_infra"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "assert_matches",
  "async-trait",
@@ -11610,7 +11996,13 @@ dependencies = [
 
 [[package]]
 name = "starknet_sequencer_node"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "anyhow",
  "apollo_reverts",
@@ -11658,7 +12050,13 @@ dependencies = [
 
 [[package]]
 name = "starknet_sierra_multicompile"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "assert_matches",
  "async-trait",
@@ -11684,8 +12082,16 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
 name = "starknet_sierra_multicompile_types"
 version = "0.0.0"
+||||||| c28b2909b
+name = "starknet_state_sync"
+version = "0.14.0-rc.1"
+=======
+name = "starknet_state_sync"
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "async-trait",
  "mockall",
@@ -11729,7 +12135,13 @@ dependencies = [
 
 [[package]]
 name = "starknet_state_sync_types"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "async-trait",
  "futures",
@@ -11745,7 +12157,13 @@ dependencies = [
 
 [[package]]
 name = "starknet_task_executor"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "futures",
  "rstest",
@@ -13488,7 +13906,13 @@ dependencies = [
 
 [[package]]
 name = "workspace_tests"
+<<<<<<< HEAD
 version = "0.0.0"
+||||||| c28b2909b
+version = "0.14.0-rc.1"
+=======
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "serde",
  "toml",

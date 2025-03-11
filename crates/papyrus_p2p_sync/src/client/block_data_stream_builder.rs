@@ -74,10 +74,54 @@ where
         internal_blocks_received: &'a mut HashMap<BlockNumber, Self::Output>,
         internal_block_receiver: &'a mut Option<Receiver<SyncBlock>>,
         current_block_number: BlockNumber,
+<<<<<<< HEAD:crates/papyrus_p2p_sync/src/client/block_data_stream_builder.rs
     ) -> BoxFuture<'a, Self::Output> {
         async move {
             if let Some(block) = internal_blocks_received.remove(&current_block_number) {
                 return block;
+||||||| c28b2909b:crates/papyrus_p2p_sync/src/client/stream_builder.rs
+    ) -> Option<Self::Output> {
+        if let Some(block) = internal_blocks_received.remove(&current_block_number) {
+            return Some(block);
+        }
+        let Some(internal_block_receiver) = internal_block_receiver else { return None };
+        while let Some((block_number, sync_block)) = internal_block_receiver
+            .next()
+            .now_or_never()
+            .map(|now_or_never_res| now_or_never_res.expect("Internal block receiver closed"))
+        {
+            if block_number >= current_block_number {
+                let block_data =
+                    match Self::convert_sync_block_to_block_data(block_number, sync_block) {
+                        Some(block_data) => block_data,
+                        // If None is received then we don't use internal blocks for this stream
+                        // TODO(Eitan): Remove this once we have a class manager component.
+                        None => return None,
+                    };
+                if block_number == current_block_number {
+                    return Some(block_data);
+                }
+                internal_blocks_received.insert(block_number, block_data);
+=======
+    ) -> Option<Self::Output> {
+        if let Some(block) = internal_blocks_received.remove(&current_block_number) {
+            return Some(block);
+        }
+        let Some(internal_block_receiver) = internal_block_receiver else { return None };
+        while let Some((block_number, sync_block)) = internal_block_receiver
+            .next()
+            .now_or_never()
+            .map(|now_or_never_res| now_or_never_res.expect("Internal block receiver closed"))
+        {
+            if block_number >= current_block_number {
+                // If None is received then we don't use internal blocks for this stream
+                // TODO(Eitan): Remove this once we have a class manager component.
+                let block_data = Self::convert_sync_block_to_block_data(block_number, sync_block)?;
+                if block_number == current_block_number {
+                    return Some(block_data);
+                }
+                internal_blocks_received.insert(block_number, block_data);
+>>>>>>> origin/main-v0.13.5:crates/papyrus_p2p_sync/src/client/stream_builder.rs
             }
             let internal_block_receiver =
                 internal_block_receiver.as_mut().expect("Internal block receiver not set");

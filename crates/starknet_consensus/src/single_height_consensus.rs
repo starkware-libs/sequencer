@@ -548,6 +548,7 @@ impl SingleHeightConsensus {
                 old, vote
             )));
         }
+<<<<<<< HEAD:crates/starknet_consensus/src/single_height_consensus.rs
         *last_vote = match last_vote {
             None => Some(vote.clone()),
             Some(last_vote) if round > last_vote.round => Some(vote.clone()),
@@ -564,6 +565,19 @@ impl SingleHeightConsensus {
 
         info!("Broadcasting {vote:?}");
         context.broadcast(vote).await?;
+||||||| c28b2909b:crates/sequencing/papyrus_consensus/src/single_height_consensus.rs
+        context.broadcast(ConsensusMessage::Vote(vote.clone())).await?;
+        if last_vote.as_ref().map_or(false, |last| round < last.round) {
+            return Ok(Vec::new());
+        }
+        *last_vote = Some(vote);
+=======
+        context.broadcast(ConsensusMessage::Vote(vote.clone())).await?;
+        if last_vote.as_ref().is_some_and(|last| round < last.round) {
+            return Ok(Vec::new());
+        }
+        *last_vote = Some(vote);
+>>>>>>> origin/main-v0.13.5:crates/sequencing/papyrus_consensus/src/single_height_consensus.rs
         Ok(vec![task])
     }
 

@@ -6,10 +6,11 @@ use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use rstest::rstest;
+use starknet_api::core::ClassHash;
 use starknet_sierra_multicompile::config::DEFAULT_MAX_CPU_TIME;
 use starknet_sierra_multicompile::errors::CompilationUtilError;
 
-use crate::blockifier::config::CairoNativeRunConfig;
+use crate::blockifier::config::{CairoNativeRunConfig, NativeClassesWhitelist};
 use crate::execution::contract_class::{CompiledClassV1, RunnableCompiledClass};
 use crate::state::global_cache::{
     CachedCairoNative,
@@ -43,6 +44,10 @@ fn create_test_request_from_contract(test_contract: FeatureContract) -> Compilat
     (class_hash, sierra, casm)
 }
 
+fn get_test_contract_class_hash() -> ClassHash {
+    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)).get_class_hash()
+}
+
 fn create_test_request() -> CompilationRequest {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
     create_test_request_from_contract(test_contract)
@@ -64,9 +69,9 @@ fn create_faulty_request() -> CompilationRequest {
 fn test_start(#[case] run_cairo_native: bool, #[case] wait_on_native_compilation: bool) {
     let native_config =
         CairoNativeRunConfig { run_cairo_native, wait_on_native_compilation, ..Default::default() };
-    let manager = NativeClassManager::create_for_testing(native_config);
+    let manager = NativeClassManager::create_for_testing(native_config.clone());
 
-    assert_eq!(manager.cairo_native_run_config, native_config);
+    assert_eq!(manager.cairo_native_run_config.clone(), native_config);
     if run_cairo_native {
         if wait_on_native_compilation {
             assert!(
@@ -151,6 +156,7 @@ fn test_send_compilation_request_channel_disconnected() {
         run_cairo_native: true,
         wait_on_native_compilation: false,
         channel_size: TEST_CHANNEL_SIZE,
+        ..CairoNativeRunConfig::default()
     };
     let (sender, receiver) = sync_channel(native_config.channel_size);
     let manager = NativeClassManager {
@@ -174,6 +180,7 @@ fn test_send_compilation_request_channel_full() {
         run_cairo_native: true,
         wait_on_native_compilation: false,
         channel_size: 0,
+        ..CairoNativeRunConfig::default()
     };
     let manager = NativeClassManager::create_for_testing(native_config);
     let request = create_test_request();
@@ -199,6 +206,7 @@ fn test_process_compilation_request(
         wait_on_native_compilation: true,
         run_cairo_native: true,
         channel_size: TEST_CHANNEL_SIZE,
+        ..CairoNativeRunConfig::default()
     });
     let res = process_compilation_request(
         manager.clone().cache,
@@ -222,5 +230,40 @@ fn test_process_compilation_request(
             manager.cache.get(&request.0).unwrap(),
             CachedClass::V1Native(CachedCairoNative::CompilationFailed(_))
         );
+    }
+}
+
+#[rstest]
+#[case::all_classes(NativeClassesWhitelist::All, true)]
+#[case::only_selected_class_hash(NativeClassesWhitelist::Limited(vec![get_test_contract_class_hash()]), true)]
+#[case::no_allowed_classes(NativeClassesWhitelist::Limited(vec![]), false)]
+// Test the config that allows us to run only limited selection of class hashes in native.
+fn test_native_classes_whitelist(
+    #[case] whitelist: NativeClassesWhitelist,
+    #[case] allow_run_native: bool,
+) {
+    let native_config = CairoNativeRunConfig {
+        run_cairo_native: true,
+        wait_on_native_compilation: true,
+        channel_size: TEST_CHANNEL_SIZE,
+        native_classes_whitelist: whitelist,
+    };
+    let manager = NativeClassManager::create_for_testing(native_config);
+
+    let (class_hash, sierra, casm) = create_test_request();
+
+    manager.set_and_compile(class_hash, CachedClass::V1(casm, sierra));
+
+    match allow_run_native {
+        true => assert_matches!(
+            manager.get_runnable(&class_hash),
+            Some(RunnableCompiledClass::V1Native(_))
+        ),
+        false => {
+            assert_matches!(
+                manager.get_runnable(&class_hash).unwrap(),
+                RunnableCompiledClass::V1(_)
+            )
+        }
     }
 }
