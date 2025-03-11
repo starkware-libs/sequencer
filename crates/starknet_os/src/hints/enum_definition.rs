@@ -422,12 +422,11 @@ define_hint_enum!(
     )
     ids.is_leaf = 1 if isinstance(bytecode_segment_structure, BytecodeLeaf) else 0"#}
     ),
-    // TODO(Meshi): Update implementation to reflect changes in hint.
     (
         WriteUseKzgDaToMemory,
         write_use_kzg_da_to_memory,
         indoc! {r#"
-    memory[fp + 15] = to_felt_or_relocatable(syscall_handler.block_info.use_kzg_da and (
+    memory[fp + 17] = to_felt_or_relocatable(syscall_handler.block_info.use_kzg_da and (
         not os_input.full_output
     ))"#}
     ),
@@ -1305,11 +1304,10 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
             ids.res = log2_ceil(ids.value)"#
         }
     ),
-    // TODO(Meshi): Update implementation to reflect changes in hint.
     (
         WriteFullOutputToMemory,
         write_full_output_to_memory,
-        indoc! {r#"memory[fp + 16] = to_felt_or_relocatable(os_input.full_output)"#}
+        indoc! {r#"memory[fp + 18] = to_felt_or_relocatable(os_input.full_output)"#}
     ),
     (
         ConfigureKzgManager,
