@@ -2,7 +2,7 @@ use std::net::{SocketAddr, ToSocketAddrs};
 
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::{L1HandlerTransaction, TransactionHash};
 use starknet_http_server::test_utils::HttpTestClient;
 use starknet_monitoring_endpoint::test_utils::MonitoringClient;
 use tracing::info;
@@ -45,9 +45,19 @@ impl SequencerSimulator {
     ) {
         info!("Sending transactions");
         let send_rpc_tx_fn = &mut |tx| self.assert_add_tx_success(tx);
-        let tx_hashes =
-            send_consensus_txs(tx_generator, sender_account, test_scenario, send_rpc_tx_fn).await;
-        assert_eq!(tx_hashes.len(), test_scenario.n_txs());
+        // TODO(Arni): Create an actual function that sends L1 handlers in the simulator. Requires
+        // setting up L1.
+        let send_l1_handler_tx_fn =
+            &mut |_l1_handler_tx: L1HandlerTransaction| async { TransactionHash::default() };
+        let tx_hashes = send_consensus_txs(
+            tx_generator,
+            sender_account,
+            test_scenario,
+            send_rpc_tx_fn,
+            send_l1_handler_tx_fn,
+        )
+        .await;
+        assert_eq!(tx_hashes.len(), test_scenario.n_rpc_txs());
     }
 
     pub async fn await_txs_accepted(&self, sequencer_idx: usize, target_n_batched_txs: usize) {

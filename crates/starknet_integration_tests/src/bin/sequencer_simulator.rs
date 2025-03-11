@@ -9,7 +9,7 @@ use starknet_integration_tests::sequencer_simulator_utils::SequencerSimulator;
 use starknet_integration_tests::utils::{
     create_integration_test_tx_generator,
     BootstrapTxs,
-    InvokeTxs,
+    ConsensusTxs,
     ACCOUNT_ID_0,
     N_TXS_IN_FIRST_BLOCK,
 };
@@ -69,7 +69,15 @@ async fn run_simulation(
     let mut i = 1;
     loop {
         sequencer_simulator
-            .send_txs(tx_generator, &InvokeTxs { n_invoke_txs: N_TXS }, ACCOUNT_ID_0)
+            .send_txs(
+                tx_generator,
+                &ConsensusTxs {
+                    n_invoke_txs: N_TXS,
+                    // TODO(Arni): Add non-zero value.
+                    n_l1_handler_txs: 0,
+                },
+                ACCOUNT_ID_0,
+            )
             .await;
         sequencer_simulator.await_txs_accepted(0, i * N_TXS + N_TXS_IN_FIRST_BLOCK).await;
 
