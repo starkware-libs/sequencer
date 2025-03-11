@@ -30,33 +30,6 @@ pub(crate) fn write_full_output_to_memory<S: StateReader>(
     insert_nondet_hint_value(vm, AllHints::OsHint(OsHint::WriteFullOutputToMemory), full_output)
 }
 
-// pub const CONFIGURE_KZG_MANAGER: &str = indoc! {r#"__serialize_data_availability_create_pages__ =
-// True kzg_manager = execution_helper.kzg_manager"#};
-
-// pub fn configure_kzg_manager(
-//     vm: &mut VirtualMachine,
-//     exec_scopes: &mut ExecutionScopes,
-//     ids_data: &HashMap<String, HintReference>,
-//     ap_tracking: &ApTracking,
-//     constants: &HashMap<String, Felt252>,
-// ) -> Result<(), HintError> { execute_coroutine(configure_kzg_manager_async(vm, exec_scopes,
-//   ids_data, ap_tracking, constants))?
-// }
-// pub async fn configure_kzg_manager_async(
-//     _vm: &mut VirtualMachine,
-//     exec_scopes: &mut ExecutionScopes,
-//     _ids_data: &HashMap<String, HintReference>,
-//     _ap_tracking: &ApTracking,
-//     _constants: &HashMap<String, Felt252>,
-// ) -> Result<(), HintError> { set_variable_in_root_exec_scope(exec_scopes,
-//   vars::scopes::SERIALIZE_DATA_AVAILABILITY_CREATE_PAGES, true);
-
-//     // We don't leave kzg_manager in scope here, it can be obtained through execution_helper
-// later
-
-//     Ok(())
-// }
-
 pub fn insert_value_to_root_scope<T: 'static>(
     exec_scopes: &mut ExecutionScopes,
     name: &str,
