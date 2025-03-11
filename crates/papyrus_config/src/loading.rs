@@ -100,7 +100,7 @@ pub(crate) fn split_pointers_map(
 }
 
 // Removes the description from the config map, and splits the config map into default values and
-// types of the default and required values.
+// types of the default and required values..
 // The types map includes required params, that do not have a value yet.
 pub(crate) fn split_values_and_types(
     config_map: BTreeMap<ParamPath, SerializedParam>,
