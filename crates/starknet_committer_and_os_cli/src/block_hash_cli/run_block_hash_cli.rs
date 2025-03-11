@@ -16,16 +16,22 @@ pub struct BlockHashCliCommand {
     command: Command,
 }
 
+#[derive(Parser, Debug)]
+pub struct BlockHashCliCommand {
+    #[command(subcommand)]
+    command: Command,
+}
+
 #[derive(Debug, Subcommand)]
 enum Command {
     /// Calculates the block hash.
     BlockHash {
-        #[clap(flatten)]
+        #[command(flatten)]
         io_args: IoArgs,
     },
     /// Calculates commitments needed for the block hash.
     BlockHashCommitments {
-        #[clap(flatten)]
+        #[command(flatten)]
         io_args: IoArgs,
     },
     PythonTest(PythonTestArg),
