@@ -599,6 +599,7 @@ fn load_custom_config(args: Vec<&str>) -> CustomConfig {
         File::open(file_path).unwrap(),
         Command::new("Program"),
         args.into_iter().map(|s| s.to_owned()).collect(),
+        false,
     )
     .unwrap()
 }
@@ -698,6 +699,7 @@ fn load_required_param_path(args: Vec<&str>) -> String {
         File::open(file_path).unwrap(),
         Command::new("Program"),
         args.into_iter().map(|s| s.to_owned()).collect(),
+        false,
     )
     .unwrap();
     loaded_config.param_path
@@ -792,6 +794,7 @@ fn deeply_nested_optionals() {
         File::open(file_path.clone()).unwrap(),
         Command::new("Testing"),
         Vec::new(),
+        false,
     )
     .unwrap();
     assert_eq!(l0, Level0 { level0_value: 1, level1: None });
@@ -800,6 +803,7 @@ fn deeply_nested_optionals() {
         File::open(file_path.clone()).unwrap(),
         Command::new("Testing"),
         vec!["Testing".to_owned(), "--level1.#is_none".to_owned(), "false".to_owned()],
+        false,
     )
     .unwrap();
     assert_eq!(
@@ -817,6 +821,7 @@ fn deeply_nested_optionals() {
             "--level1.level2.#is_none".to_owned(),
             "false".to_owned(),
         ],
+        false,
     )
     .unwrap();
     assert_eq!(
@@ -839,6 +844,7 @@ fn deeply_nested_optionals() {
             "--level1.level2.level2_value.#is_none".to_owned(),
             "false".to_owned(),
         ],
+        false,
     )
     .unwrap();
     assert_eq!(

@@ -42,6 +42,7 @@
 //!     file,
 //!     Command::new("Program"),
 //!     vec!["Program".to_owned(), "--key".to_owned(), "770".to_owned()],
+//!     false,
 //! )
 //! .unwrap();
 //! assert_eq!(loaded_config.key, 770);
