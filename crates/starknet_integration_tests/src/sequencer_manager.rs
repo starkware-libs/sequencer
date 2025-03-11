@@ -461,6 +461,30 @@ impl IntegrationTestManager {
         .await;
     }
 
+    pub async fn await_sync_block(&mut self, expected_block_number: BlockNumber) {
+        let condition =
+            |&latest_block_number: &BlockNumber| latest_block_number >= expected_block_number;
+
+        self.perform_action_on_all_running_nodes(|sequencer_idx, running_node| async move {
+            let node_setup = &running_node.node_setup;
+            let monitoring_client = node_setup.batcher_monitoring_client();
+            let batcher_index = node_setup.get_batcher_index();
+            let expected_height = expected_block_number.unchecked_next();
+
+            let logger = CustomLogger::new(
+                TraceLevel::Info,
+                Some(format!(
+                    "Waiting for sync height metric to reach block {expected_height} in sequencer \
+                     {sequencer_idx} executable {batcher_index}.",
+                )),
+            );
+            monitoring_utils::await_sync_block(5000, condition, 50, monitoring_client, logger)
+                .await
+                .unwrap();
+        })
+        .await;
+    }
+
     async fn verify_txs_accepted(&self, sender_account: AccountId) {
         let account = self.tx_generator.account_with_id(sender_account);
         let expected_n_accepted_txs = nonce_to_usize(account.get_nonce());
