@@ -53,7 +53,7 @@ async fn main() {
     let tx_generator_snapshot = integration_test_manager.tx_generator().snapshot();
 
     info!("Sending transactions and verifying state.");
-    integration_test_manager.send_txs_and_verify(N_TXS, BLOCK_TO_REVERT_FROM).await;
+    integration_test_manager.send_txs_and_verify(N_TXS, 1, BLOCK_TO_REVERT_FROM).await;
 
     info!("Shutting down nodes.");
     integration_test_manager.shutdown_nodes(node_indices.clone());
@@ -102,7 +102,7 @@ async fn main() {
     integration_test_manager.run_nodes(node_indices.clone()).await;
 
     info!("Sending transactions and verifying state.");
-    integration_test_manager.send_txs_and_verify(N_TXS, BLOCK_TO_WAIT_FOR_AFTER_REVERT).await;
+    integration_test_manager.send_txs_and_verify(N_TXS, 1, BLOCK_TO_WAIT_FOR_AFTER_REVERT).await;
 
     integration_test_manager.shutdown_nodes(node_indices);
 
