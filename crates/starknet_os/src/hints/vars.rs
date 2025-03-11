@@ -20,6 +20,7 @@ pub(crate) enum Scope {
     InitialDict,
     IsDeprecated,
     Preimage,
+    SerializeDataAvailabilityCreatePages,
     UseKzgDa,
 }
 
@@ -37,6 +38,9 @@ impl From<Scope> for &'static str {
             Scope::InitialDict => "initial_dict",
             Scope::IsDeprecated => "is_deprecated",
             Scope::Preimage => "preimage",
+            Scope::SerializeDataAvailabilityCreatePages => {
+                "__serialize_data_availability_create_pages__"
+            }
             Scope::UseKzgDa => "use_kzg_da",
         }
     }
