@@ -1,11 +1,14 @@
 use std::collections::{BTreeMap, HashMap};
 
+use async_trait::async_trait;
 use papyrus_config::converters::{deserialize_optional_map, serialize_optional_map};
 use papyrus_config::dumping::{ser_param, ser_required_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializationType, SerializedParam};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::{Deserialize, Serialize};
 use serde_json;
+use starknet_l1_gas_price_types::errors::PriceOracleClientError;
+use starknet_l1_gas_price_types::PriceOracleClientTrait;
 use url::Url;
 
 #[cfg(test)]
@@ -60,24 +63,6 @@ impl Default for PriceOracleConfig {
     }
 }
 
-#[derive(thiserror::Error, Debug)]
-pub enum PriceOracleClientError {
-    #[error(transparent)]
-    RequestError(#[from] reqwest::Error),
-    #[error(transparent)]
-    ParseError(#[from] serde_json::Error),
-    #[error("Missing or invalid field: {0}")]
-    MissingFieldError(&'static str),
-    #[error("Invalid decimals value: expected {0}, got {1}")]
-    InvalidDecimalsError(u64, u64),
-}
-
-#[allow(dead_code)]
-trait PriceOracleClientTrait {
-    /// Fetches the ETH to FRI rate for a given timestamp.
-    async fn eth_to_fri_rate(&self, timestamp: u64) -> Result<u128, PriceOracleClientError>;
-}
-
 /// Client for interacting with the Price Oracle API.
 pub struct PriceOracleClient {
     /// The base URL of the Price Oracle API.
@@ -94,6 +79,7 @@ impl PriceOracleClient {
     }
 }
 
+#[async_trait]
 impl PriceOracleClientTrait for PriceOracleClient {
     /// The HTTP response must include the following fields:
     /// - `"price"`: a hexadecimal string representing the price.

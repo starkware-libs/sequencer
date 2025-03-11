@@ -11312,6 +11312,7 @@ dependencies = [
 name = "starknet_l1_gas_price"
 version = "0.0.0"
 dependencies = [
+ "async-trait",
  "mockall",
  "mockito 1.6.1",
  "papyrus_base_layer",
@@ -11336,7 +11337,9 @@ dependencies = [
  "async-trait",
  "mockall",
  "papyrus_base_layer",
+ "reqwest 0.11.27",
  "serde",
+ "serde_json",
  "starknet_api",
  "starknet_sequencer_infra",
  "thiserror 1.0.69",

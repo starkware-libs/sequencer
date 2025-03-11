@@ -1,8 +1,9 @@
 use serde_json::json;
+use starknet_l1_gas_price_types::PriceOracleClientTrait;
 use tokio;
 use url::Url;
 
-use crate::price_oracle::{PriceOracleClient, PriceOracleClientTrait};
+use crate::price_oracle::PriceOracleClient;
 
 #[tokio::test]
 async fn eth_to_fri_rate() {
