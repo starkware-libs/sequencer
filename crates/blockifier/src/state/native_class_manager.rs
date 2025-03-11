@@ -133,7 +133,6 @@ impl NativeClassManager {
 
     /// Returns the runnable compiled class for the given class hash, if it exists in cache.
     pub fn get_runnable(&self, class_hash: &ClassHash) -> Option<RunnableCompiledClass> {
-<<<<<<< HEAD
         let cached_class = match self.cache.get(class_hash) {
             Some(class) => {
                 self.cache_metrics.record_hit();
@@ -144,26 +143,6 @@ impl NativeClassManager {
                 return None;
             }
         };
-        if let CachedClass::V1(_, _) = cached_class {
-            // TODO(Yoni): make sure `wait_on_native_compilation` cannot be set to true while
-            // `run_cairo_native` is false.
-            assert!(
-                !self.wait_on_native_compilation(),
-                "Manager did not wait on native compilation."
-            )
-        }
-||||||| c28b2909b
-        let cached_class = self.cache.get(class_hash)?;
-        if let CachedClass::V1(_, _) = cached_class {
-            // TODO(Yoni): make sure `wait_on_native_compilation` cannot be set to true while
-            // `run_cairo_native` is false.
-            assert!(
-                !self.wait_on_native_compilation(),
-                "Manager did not wait on native compilation."
-            )
-        }
-=======
-        let cached_class = self.cache.get(class_hash)?;
 
         let cached_class = match cached_class {
             CachedClass::V1(_, _) => {
@@ -183,7 +162,6 @@ impl NativeClassManager {
             _ => cached_class,
         };
 
->>>>>>> origin/main-v0.13.5
         Some(cached_class.to_runnable())
     }
 

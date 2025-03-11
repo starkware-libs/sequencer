@@ -41,13 +41,7 @@ use crate::execution::syscalls::hint_processor::{SyscallExecutionError, OUT_OF_G
 use crate::execution::syscalls::syscall_base::SyscallHandlerBase;
 use crate::state::state_api::State;
 use crate::transaction::objects::TransactionInfo;
-<<<<<<< HEAD
-||||||| c28b2909b
-use crate::versioned_constants::GasCosts;
-=======
 use crate::utils::u64_from_usize;
-use crate::versioned_constants::GasCosts;
->>>>>>> origin/main-v0.13.5
 
 pub const CALL_CONTRACT_SELECTOR_NAME: &str = "call_contract";
 pub const LIBRARY_CALL_SELECTOR_NAME: &str = "library_call";
