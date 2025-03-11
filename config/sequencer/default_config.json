@@ -1089,6 +1089,11 @@
     "privacy": "Public",
     "value": 60
   },
+  "mempool_config.committed_nonce_retention_block_count": {
+    "description": "Number of latest committed blocks for which committed account nonces are retained.",
+    "privacy": "Public",
+    "value": 100
+  },
   "mempool_p2p_config.network_buffer_size": {
     "description": "Network buffer size.",
     "privacy": "Public",
