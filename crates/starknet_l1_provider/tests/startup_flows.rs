@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
 
 use itertools::Itertools;
@@ -12,6 +12,7 @@ use starknet_l1_provider_types::L1ProviderClient;
 use starknet_sequencer_infra::trace_util::configure_tracing;
 use starknet_state_sync_types::communication::MockStateSyncClient;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
+use tokio::sync::Mutex;
 
 // TODO(Gilad): figure out how To setup anvil on a specific L1 block (through genesis.json?) and
 // with a specified L2 block logged to L1 (hopefully without having to use real backup).
@@ -35,10 +36,8 @@ async fn bootstrap_e2e() {
     // Make the mocked sync client try removing from a hashmap as a response to get block.
     let mut sync_client = MockStateSyncClient::default();
     let sync_response = Arc::new(Mutex::new(HashMap::<BlockNumber, SyncBlock>::new()));
-    let sync_response_clone = sync_response.clone();
-    sync_client
-        .expect_get_block()
-        .returning(move |input| Ok(sync_response_clone.lock().unwrap().remove(&input)));
+    let mut sync_response_clone = sync_response.lock().await.clone();
+    sync_client.expect_get_block().returning(move |input| Ok(sync_response_clone.remove(&input)));
 
     let config = L1ProviderConfig {
         bootstrap_catch_up_height_override: Some(catch_up_height),
@@ -66,7 +65,7 @@ async fn bootstrap_e2e() {
 
     // Load first **Sync** response: the initializer task will pick it up within the specified
     // interval.
-    sync_response.lock().unwrap().insert(startup_height, SyncBlock::default());
+    sync_response.lock().await.insert(startup_height, SyncBlock::default());
     tokio::time::sleep(config.startup_sync_sleep_retry_interval).await;
 
     // **Commit** 2 blocks past catchup height, should be received after the previous sync.
@@ -80,14 +79,14 @@ async fn bootstrap_e2e() {
     tokio::time::sleep(config.startup_sync_sleep_retry_interval).await;
 
     // Feed sync task the remaining blocks, will be received after the commits above.
-    sync_response.lock().unwrap().insert(BlockNumber(startup_height.0 + 1), SyncBlock::default());
-    sync_response.lock().unwrap().insert(BlockNumber(startup_height.0 + 2), SyncBlock::default());
+    sync_response.lock().await.insert(BlockNumber(startup_height.0 + 1), SyncBlock::default());
+    sync_response.lock().await.insert(BlockNumber(startup_height.0 + 2), SyncBlock::default());
     tokio::time::sleep(2 * config.startup_sync_sleep_retry_interval).await;
 
     // Assert that initializer task has received the stubbed responses from the sync client and sent
     // the corresponding commit blocks to the provider, in the order implied to by the test
     // structure.
-    let mut commit_blocks = l1_provider_client.commit_blocks_received.lock().unwrap();
+    let mut commit_blocks = l1_provider_client.commit_blocks_received.lock().await;
     let received_order = commit_blocks.iter().map(|block| block.height).collect_vec();
     let expected_order =
         vec![BlockNumber(2), BlockNumber(5), BlockNumber(6), BlockNumber(3), BlockNumber(4)];
@@ -107,29 +106,29 @@ async fn bootstrap_e2e() {
 
     // Apply height 2.
     let next_block = commit_blocks.next().unwrap();
-    l1_provider.commit_block(&next_block.committed_txs, next_block.height).unwrap();
+    l1_provider.commit_block(&next_block.committed_txs, next_block.height).await.unwrap();
     assert_eq!(l1_provider.current_height, BlockNumber(3));
 
     // Backlog height 5.
     let next_block = commit_blocks.next().unwrap();
-    l1_provider.commit_block(&next_block.committed_txs, next_block.height).unwrap();
+    l1_provider.commit_block(&next_block.committed_txs, next_block.height).await.unwrap();
     // Assert that this didn't affect height; this commit block is too high so is backlogged.
     assert_eq!(l1_provider.current_height, BlockNumber(3));
 
     // Backlog height 6.
     let next_block = commit_blocks.next().unwrap();
-    l1_provider.commit_block(&next_block.committed_txs, next_block.height).unwrap();
+    l1_provider.commit_block(&next_block.committed_txs, next_block.height).await.unwrap();
     // Assert backlogged, like height 5.
     assert_eq!(l1_provider.current_height, BlockNumber(3));
 
     // Apply height 3
     let next_block = commit_blocks.next().unwrap();
-    l1_provider.commit_block(&next_block.committed_txs, next_block.height).unwrap();
+    l1_provider.commit_block(&next_block.committed_txs, next_block.height).await.unwrap();
     assert_eq!(l1_provider.current_height, BlockNumber(4));
 
     // Apply height 4 ==> this triggers committing the backlogged heights 5 and 6.
     let next_block = commit_blocks.next().unwrap();
-    l1_provider.commit_block(&next_block.committed_txs, next_block.height).unwrap();
+    l1_provider.commit_block(&next_block.committed_txs, next_block.height).await.unwrap();
     assert_eq!(l1_provider.current_height, BlockNumber(7));
 
     // Assert that the bootstrapper has been dropped.

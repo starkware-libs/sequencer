@@ -15,7 +15,7 @@ use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_state_sync_types::communication::SharedStateSyncClient;
 use tracing::{instrument, warn};
 
-use crate::bootstrapper::{Bootstrapper, SyncTaskHandle};
+use crate::bootstrapper::Bootstrapper;
 use crate::transaction_manager::TransactionManager;
 use crate::{L1ProviderConfig, ProviderState};
 
@@ -32,6 +32,7 @@ pub struct L1Provider {
     // TODO(Gilad): consider transitioning to a generic phantom state once the infra is stabilized
     // and we see how well it handles consuming the L1Provider when moving between states.
     pub state: ProviderState,
+    pub config: L1ProviderConfig,
 }
 
 impl L1Provider {
@@ -92,14 +93,14 @@ impl L1Provider {
 
     // TODO(Gilad): when deciding on consensus, if possible, have commit_block also tell the node if
     // it's about to [optimistically-]propose or validate the next block.
-    pub fn commit_block(
+    pub async fn commit_block(
         &mut self,
         committed_txs: &[TransactionHash],
         height: BlockNumber,
     ) -> L1ProviderResult<()> {
         if self.state.is_bootstrapping() {
             // Once bootstrap completes it will transition to Pending state by itself.
-            return self.bootstrap(committed_txs, height);
+            return self.bootstrap(committed_txs, height).await;
         }
 
         self.validate_height(height)?;
@@ -110,7 +111,7 @@ impl L1Provider {
     }
 
     /// Try to apply commit_block backlog, and if all caught up, drop bootstrapping state.
-    fn bootstrap(
+    async fn bootstrap(
         &mut self,
         committed_txs: &[TransactionHash],
         height: BlockNumber,
@@ -136,17 +137,17 @@ impl L1Provider {
             .expect("This method should only be called when bootstrapping.");
 
         // If caught up, apply the backlog, drop the Bootstrapper and transition to Pending.
-        if bootstrapper.is_caught_up(self.current_height) {
+        if bootstrapper.is_caught_up(self.current_height).await {
             let backlog = std::mem::take(&mut bootstrapper.commit_block_backlog);
             assert!(
                 backlog.is_empty()
-                    || bootstrapper.catch_up_height == backlog.first().unwrap().height
+                    || bootstrapper.catch_up_height().await == backlog.first().unwrap().height
                         && backlog
                             .windows(2)
                             .all(|height| height[1].height == height[0].height.unchecked_next()),
                 "Backlog must have sequential heights starting sequentially after \
                  catch_up_height: {}, backlog: {:?}",
-                bootstrapper.catch_up_height,
+                bootstrapper.catch_up_height().await,
                 backlog.iter().map(|commit_block| commit_block.height).collect::<Vec<_>>()
             );
             for commit_block in backlog {
@@ -193,43 +194,27 @@ impl ComponentStarter for L1Provider {}
 
 /// Initializes L1Provider at specified height (≤ scraper's last state update height).
 /// Bootstrap catch-up height defaults to current sync height.
-#[instrument(skip(l1_provider_client, sync_client), err)]
+#[instrument(skip(l1_provider_client, sync_client, config), err)]
 pub async fn create_l1_provider(
     config: L1ProviderConfig,
     l1_provider_client: SharedL1ProviderClient,
     sync_client: SharedStateSyncClient,
     scraper_synced_startup_height: BlockNumber,
 ) -> L1ProviderResult<L1Provider> {
-    let sync_height = sync_client
-        .get_latest_block_number()
-        .await
-        // FIXME: once we decide how to handle infra client errors globally, remove the string cast.
-        .map_err(|err| L1ProviderError::InitializationError(err.to_string()))?
-        .expect("State sync should be initialized before initializing the l1 provider (likely a dependency injection bug)");
     let catch_up_height = config
         .bootstrap_catch_up_height_override
-        .inspect(|&catch_up_height_override| {
-            assert!(
-                catch_up_height_override >= sync_height,
-                "Catch-up height must be at least the current sync height, otherwise the \
-                 bootstrapper will not sync high enough and never complete"
-            );
+        .map(|catch_up_height_override| {
             warn!(
-                "Initializing L1Provider with overridden catch-up height: \
-                 {catch_up_height_override}"
+                "Initializing L1Provider with OVERRIDDEN catch-up height: \
+                 {catch_up_height_override}, this MUST be greater or equal to the default \
+                 non-overriden value, which is the current sync height, or the sync will never \
+                 complete!"
             );
+            catch_up_height_override.into()
         })
-        .unwrap_or(sync_height);
-    let bootstrapper = Bootstrapper {
-        catch_up_height,
-        commit_block_backlog: Default::default(),
-        l1_provider_client,
-        sync_client,
-        sync_task_handle: SyncTaskHandle::NotStartedYet,
-        sync_retry_interval: config.startup_sync_sleep_retry_interval,
-    };
+        .unwrap_or_default();
 
-    let startup_height = config
+    let l1_provider_startup_height = config
         .provider_startup_height_override
         .inspect(|&startup_height_override| {
             assert!(
@@ -244,9 +229,18 @@ pub async fn create_l1_provider(
             );
         })
         .unwrap_or(scraper_synced_startup_height);
+
+    let bootstrapper = Bootstrapper::new(
+        l1_provider_client,
+        sync_client,
+        config.startup_sync_sleep_retry_interval,
+        catch_up_height,
+    );
+
     Ok(L1Provider {
-        current_height: startup_height,
+        current_height: l1_provider_startup_height,
         tx_manager: TransactionManager::default(),
         state: ProviderState::Bootstrap(bootstrapper),
+        config,
     })
 }

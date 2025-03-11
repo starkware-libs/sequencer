@@ -113,11 +113,11 @@ async fn txs_happy_flow() {
 
     // Assert.
     scraper.send_events_to_l1_provider().await.unwrap();
-    fake_client.assert_add_events_received_with(&[first_expected_log, second_expected_log]);
+    fake_client.assert_add_events_received_with(&[first_expected_log, second_expected_log]).await;
 
     // Previous events had been scraped, should no longer appear.
     scraper.send_events_to_l1_provider().await.unwrap();
-    fake_client.assert_add_events_received_with(&[]);
+    fake_client.assert_add_events_received_with(&[]).await;
 }
 
 #[tokio::test]
