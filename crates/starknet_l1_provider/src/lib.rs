@@ -88,7 +88,7 @@ impl std::fmt::Display for ProviderState {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, Validate, PartialEq, Eq)]
 pub struct L1ProviderConfig {
     /// In most cases this can remain None: the provider defaults to using the
     /// LastStateUpdate height at the L1 Height that the L1Scraper is initialized on.

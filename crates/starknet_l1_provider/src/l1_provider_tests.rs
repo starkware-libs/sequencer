@@ -28,7 +28,7 @@ macro_rules! bootstrapper {
                     committed_txs: vec![$(tx_hash!($tx)),*]
                 }),*
             ].into_iter().collect(),
-            catch_up_height: BlockNumber($catch),
+            catch_up_height: BlockNumber($catch).into(),
             l1_provider_client: Arc::new(FakeL1ProviderClient::default()),
             sync_client: Arc::new(MockStateSyncClient::default()),
             sync_task_handle: SyncTaskHandle::default(),
@@ -171,8 +171,8 @@ fn proposal_start_multiple_proposals_same_height() {
     }
 }
 
-#[test]
-fn commit_block_empty_block() {
+#[tokio::test]
+async fn commit_block_empty_block() {
     // Setup.
     let txs = [l1_handler(1), l1_handler(2)];
     let mut l1_provider = L1ProviderContentBuilder::new()
@@ -182,7 +182,7 @@ fn commit_block_empty_block() {
         .build_into_l1_provider();
 
     // Test: empty commit_block
-    l1_provider.commit_block(&[], BlockNumber(10)).unwrap();
+    l1_provider.commit_block(&[], BlockNumber(10)).await.unwrap();
 
     let expected_l1_provider = L1ProviderContentBuilder::new()
         .with_txs(txs)
@@ -192,8 +192,8 @@ fn commit_block_empty_block() {
     expected_l1_provider.assert_eq(&l1_provider);
 }
 
-#[test]
-fn commit_block_during_proposal() {
+#[tokio::test]
+async fn commit_block_during_proposal() {
     // Setup.
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_txs([l1_handler(1), l1_handler(2), l1_handler(3)])
@@ -202,7 +202,7 @@ fn commit_block_during_proposal() {
         .build_into_l1_provider();
 
     // Test: commit block during proposal.
-    l1_provider.commit_block(&[tx_hash!(1)], BlockNumber(5)).unwrap();
+    l1_provider.commit_block(&[tx_hash!(1)], BlockNumber(5)).await.unwrap();
 
     let expected_l1_provider = L1ProviderContentBuilder::new()
         .with_txs([l1_handler(2), l1_handler(3)])
@@ -212,8 +212,8 @@ fn commit_block_during_proposal() {
     expected_l1_provider.assert_eq(&l1_provider);
 }
 
-#[test]
-fn commit_block_during_pending() {
+#[tokio::test]
+async fn commit_block_during_pending() {
     // Setup.
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_txs([l1_handler(1), l1_handler(2), l1_handler(3)])
@@ -222,7 +222,7 @@ fn commit_block_during_pending() {
         .build_into_l1_provider();
 
     // Test: commit block during pending.
-    l1_provider.commit_block(&[tx_hash!(2)], BlockNumber(5)).unwrap();
+    l1_provider.commit_block(&[tx_hash!(2)], BlockNumber(5)).await.unwrap();
 
     let expected_l1_provider = L1ProviderContentBuilder::new()
         .with_txs([l1_handler(1), l1_handler(3)])
@@ -232,8 +232,8 @@ fn commit_block_during_pending() {
     expected_l1_provider.assert_eq(&l1_provider);
 }
 
-#[test]
-fn commit_block_during_validation() {
+#[tokio::test]
+async fn commit_block_during_validation() {
     // Setup.
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_txs([l1_handler(1), l1_handler(2), l1_handler(3)])
@@ -244,7 +244,7 @@ fn commit_block_during_validation() {
     // Test: commit block during validate.
     l1_provider.state = ProviderState::Validate;
 
-    l1_provider.commit_block(&[tx_hash!(3)], BlockNumber(5)).unwrap();
+    l1_provider.commit_block(&[tx_hash!(3)], BlockNumber(5)).await.unwrap();
     let expected_l1_provider = L1ProviderContentBuilder::new()
         .with_txs([l1_handler(1), l1_handler(2)])
         .with_height(BlockNumber(6))
@@ -253,8 +253,8 @@ fn commit_block_during_validation() {
     expected_l1_provider.assert_eq(&l1_provider);
 }
 
-#[test]
-fn commit_block_backlog() {
+#[tokio::test]
+async fn commit_block_backlog() {
     // Setup.
     let initial_bootstrap_state = ProviderState::Bootstrap(bootstrapper!(
         backlog: [10 => [2], 11 => [4]],
@@ -268,7 +268,7 @@ fn commit_block_backlog() {
 
     // Test.
     // Commit height too low to affect backlog.
-    l1_provider.commit_block(&[tx_hash!(1)], BlockNumber(8)).unwrap();
+    l1_provider.commit_block(&[tx_hash!(1)], BlockNumber(8)).await.unwrap();
     let expected_l1_provider = L1ProviderContentBuilder::new()
         .with_txs([l1_handler(2), l1_handler(4)])
         .with_height(BlockNumber(9))
@@ -277,7 +277,7 @@ fn commit_block_backlog() {
     expected_l1_provider.assert_eq(&l1_provider);
 
     // Backlog is consumed, bootstrapping complete.
-    l1_provider.commit_block(&[], BlockNumber(9)).unwrap();
+    l1_provider.commit_block(&[], BlockNumber(9)).await.unwrap();
     let expected_l1_provider = L1ProviderContentBuilder::new()
         .with_txs([])
         .with_height(BlockNumber(12))

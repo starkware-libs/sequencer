@@ -5,12 +5,18 @@ use starknet_api::block::BlockNumber;
 use starknet_api::transaction::TransactionHash;
 use starknet_l1_provider_types::SharedL1ProviderClient;
 use starknet_state_sync_types::communication::SharedStateSyncClient;
+use tokio::sync::OnceCell;
 use tracing::debug;
+
+/// The catch-up height for the bootstrapper is the sync height (unless overriden explicitly).
+/// This value, due to infra constriants as of now, is only fetchable _after_ the provider is
+/// running, and not during its initialization, hence we are forced to lazily fetch it at runtime.
+pub type LazyCatchUpHeight = OnceCell<BlockNumber>;
 
 /// Cache's commits to be applied later. This flow is only relevant while the node is starting up.
 #[derive(Clone)]
 pub struct Bootstrapper {
-    pub catch_up_height: BlockNumber,
+    pub catch_up_height: LazyCatchUpHeight,
     pub sync_retry_interval: Duration,
     pub commit_block_backlog: Vec<CommitBlockBacklog>,
     pub l1_provider_client: SharedL1ProviderClient,
@@ -20,9 +26,25 @@ pub struct Bootstrapper {
 }
 
 impl Bootstrapper {
+    pub fn new(
+        l1_provider_client: SharedL1ProviderClient,
+        sync_client: SharedStateSyncClient,
+        sync_retry_interval: Duration,
+        catch_up_height: LazyCatchUpHeight,
+    ) -> Self {
+        Self {
+            sync_retry_interval,
+            commit_block_backlog: Default::default(),
+            l1_provider_client,
+            sync_client,
+            sync_task_handle: SyncTaskHandle::NotStartedYet,
+            catch_up_height,
+        }
+    }
+
     /// Check if the caller has caught up with the bootstrapper.
-    pub fn is_caught_up(&self, current_provider_height: BlockNumber) -> bool {
-        self.catch_up_height == current_provider_height
+    pub async fn is_caught_up(&self, current_provider_height: BlockNumber) -> bool {
+        self.catch_up_height().await == current_provider_height
         // TODO(Gilad): add health_check here, making sure that the sync task isn't stuck, which is
         // `handle dropped && backlog empty && not caught up`.
     }
@@ -54,11 +76,38 @@ impl Bootstrapper {
             self.l1_provider_client.clone(),
             self.sync_client.clone(),
             current_provider_height,
-            self.catch_up_height,
+            self.catch_up_height().await,
             self.sync_retry_interval,
         ));
 
         self.sync_task_handle = SyncTaskHandle::Started(sync_task_handle.into());
+    }
+
+    pub async fn catch_up_height(&self) -> BlockNumber {
+        *self.catch_up_height.get_or_init(|| self.get_current_sync_height()).await
+    }
+
+    // FIXME: (Gilad) TEMPORARY, will be replaced very soon by making the bootstrapper's catch-up
+    // point open ended at first, that will keep polling the sync until it spits out the height.
+    async fn get_current_sync_height(&self) -> BlockNumber {
+        const MAX_RETRIES: usize = 10;
+
+        for _ in 0..MAX_RETRIES {
+            match self.sync_client.get_latest_block_number().await {
+                Ok(Some(height)) => return height,
+                Ok(None) => {
+                    tokio::time::sleep(Duration::from_secs(1)).await;
+                }
+                Err(e) => {
+                    todo!("Error handling for client errors not implemented yet in the node: {e:?}")
+                }
+            }
+        }
+
+        panic!(
+            "Exceeded maximum number of retries: sync service is not responsive, so the provider \
+             cannot be bootstrapped."
+        );
     }
 }
 
@@ -76,10 +125,8 @@ impl std::fmt::Debug for Bootstrapper {
         f.debug_struct("Bootstrapper")
             .field("catch_up_height", &self.catch_up_height)
             .field("commit_block_backlog", &self.commit_block_backlog)
-            .field("l1_provider_client", &"<non-debuggable>")
-            .field("sync_client", &"<non-debuggable>")
             .field("sync_task_handle", &self.sync_task_handle)
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 

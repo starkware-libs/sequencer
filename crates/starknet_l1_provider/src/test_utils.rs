@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 use std::mem;
-use std::sync::Mutex;
 
 use async_trait::async_trait;
 use itertools::Itertools;
@@ -20,6 +19,7 @@ use starknet_l1_provider_types::{
     SessionState,
     ValidationStatus,
 };
+use tokio::sync::Mutex;
 
 use crate::bootstrapper::CommitBlockBacklog;
 use crate::l1_provider::L1Provider;
@@ -62,6 +62,7 @@ impl From<L1ProviderContent> for L1Provider {
             // is functionally equivalent to Pending for testing purposes.
             state: content.state.unwrap_or(ProviderState::Pending),
             current_height: content.current_height.unwrap_or_default(),
+            config: Default::default(),
         }
     }
 }
@@ -185,9 +186,8 @@ pub struct FakeL1ProviderClient {
 }
 
 impl FakeL1ProviderClient {
-    #[track_caller]
-    pub fn assert_add_events_received_with(&self, expected: &[Event]) {
-        let events_received = mem::take(&mut *self.events_received.lock().unwrap());
+    pub async fn assert_add_events_received_with(&self, expected: &[Event]) {
+        let events_received = mem::take(&mut *self.events_received.lock().await);
         assert_eq!(events_received, expected);
     }
 }
@@ -211,7 +211,7 @@ impl L1ProviderClient for FakeL1ProviderClient {
     }
 
     async fn add_events(&self, events: Vec<Event>) -> L1ProviderClientResult<()> {
-        self.events_received.lock().unwrap().extend(events);
+        self.events_received.lock().await.extend(events);
         Ok(())
     }
 
@@ -222,7 +222,7 @@ impl L1ProviderClient for FakeL1ProviderClient {
     ) -> L1ProviderClientResult<()> {
         self.commit_blocks_received
             .lock()
-            .unwrap()
+            .await
             .push(CommitBlockBacklog { height, committed_txs: l1_handler_tx_hashes });
         Ok(())
     }
