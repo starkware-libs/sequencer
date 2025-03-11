@@ -29,24 +29,11 @@ on:
       - 'Cargo.toml'
       - 'crates/blockifier/**'
       - 'crates/native_blockifier/**'
-<<<<<<< HEAD
       - 'crates/papyrus_state_reader/**'
       - 'crates/papyrus_storage/**'
       - 'crates/starknet_api/**'
       - 'crates/starknet_sierra_multicompile/**'
-||||||| c28b2909b
-      - 'scripts/build_native_blockifier.sh'
-      - 'scripts/dependencies.sh'
-      - 'scripts/install_build_tools.sh'
-      - 'scripts/sequencer-ci.Dockerfile'
-=======
-      - 'crates/starknet_sierra_multicompile/**'
       - 'rust-toolchain.toml'
-      - 'scripts/build_native_blockifier.sh'
-      - 'scripts/dependencies.sh'
-      - 'scripts/install_build_tools.sh'
-      - 'scripts/sequencer-ci.Dockerfile'
->>>>>>> origin/main-v0.13.5
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 # Also, create different concurrency groups for different pushed commits, on push events.
