@@ -26,6 +26,7 @@ on:
       - 'crates/blockifier/**'
       - 'crates/native_blockifier/**'
       - 'crates/starknet_sierra_multicompile/**'
+      - 'rust-toolchain.toml'
       - 'scripts/build_native_blockifier.sh'
       - 'scripts/dependencies.sh'
       - 'scripts/install_build_tools.sh'
