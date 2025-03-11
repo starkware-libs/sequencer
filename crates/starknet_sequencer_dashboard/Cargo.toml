@@ -27,6 +27,7 @@ starknet_infra_utils.workspace = true
 starknet_mempool.workspace = true
 starknet_mempool_p2p.workspace = true
 starknet_sequencer_infra.workspace = true
+starknet_sequencer_metrics.workspace = true
 starknet_state_sync.workspace = true
 
 [dev-dependencies]
