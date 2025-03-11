@@ -95,34 +95,42 @@ pub fn execute_entry_point_call(
     )?)
 }
 
-pub struct ExecutionRunnerConfig {
-    pub proof_mode: bool,
-    pub trace_enabled: bool,
+pub enum ExecutionRunnerMode {
+    Starknet,
+    #[cfg(feature = "tracing")]
+    Tracing,
 }
 
-impl ExecutionRunnerConfig {
-    fn starknet() -> Self {
-        Self { proof_mode: false, trace_enabled: false }
+impl ExecutionRunnerMode {
+    pub fn proof_mode(&self) -> bool {
+        match self {
+            ExecutionRunnerMode::Starknet => false,
+            #[cfg(feature = "tracing")]
+            ExecutionRunnerMode::Tracing => false,
+        }
     }
 
-    #[allow(dead_code)]
-    fn testing() -> Self {
-        Self { proof_mode: false, trace_enabled: true }
+    pub fn trace_enabled(&self) -> bool {
+        match self {
+            ExecutionRunnerMode::Starknet => false,
+            #[cfg(feature = "tracing")]
+            ExecutionRunnerMode::Tracing => true,
+        }
     }
 }
 
-pub fn initialize_execution_context_with_runner_config<'a>(
+pub fn initialize_execution_context_with_runner_mode<'a>(
     call: ExecutableCallEntryPoint,
     compiled_class: &'a CompiledClassV1,
     state: &'a mut dyn State,
     context: &'a mut EntryPointExecutionContext,
-    execution_runner_config: ExecutionRunnerConfig,
+    execution_runner_mode: ExecutionRunnerMode,
 ) -> Result<VmExecutionContext<'a>, PreExecutionError> {
     let entry_point = compiled_class.get_entry_point(&call.type_and_selector())?;
 
     // Instantiate Cairo runner.
-    let proof_mode = execution_runner_config.proof_mode;
-    let trace_enabled = execution_runner_config.trace_enabled;
+    let proof_mode = execution_runner_mode.proof_mode();
+    let trace_enabled = execution_runner_mode.trace_enabled();
     let mut runner = CairoRunner::new(
         &compiled_class.0.program,
         LayoutName::starknet,
@@ -165,12 +173,12 @@ pub fn initialize_execution_context<'a>(
     state: &'a mut dyn State,
     context: &'a mut EntryPointExecutionContext,
 ) -> Result<VmExecutionContext<'a>, PreExecutionError> {
-    initialize_execution_context_with_runner_config(
+    initialize_execution_context_with_runner_mode(
         call,
         compiled_class,
         state,
         context,
-        ExecutionRunnerConfig::starknet(),
+        ExecutionRunnerMode::Starknet,
     )
 }
 

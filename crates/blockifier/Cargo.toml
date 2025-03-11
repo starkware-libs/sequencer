@@ -17,6 +17,7 @@ node_api = []
 reexecution = ["transaction_serde"]
 testing = ["rand", "rstest", "rstest_reuse", "starknet_api/testing"]
 transaction_serde = []
+tracing = []
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
