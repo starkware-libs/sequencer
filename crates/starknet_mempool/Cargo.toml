@@ -33,7 +33,7 @@ assert_matches.workspace = true
 itertools.workspace = true
 mempool_test_utils.workspace = true
 metrics.workspace = true
-metrics-exporter-prometheus.workspace = true
+metrics-exporter-prometheus = { workspace = true, features = ["testing"] }
 mockall.workspace = true
 papyrus_network = { workspace = true, features = ["testing"] }
 papyrus_network_types = { workspace = true, features = ["testing"] }
