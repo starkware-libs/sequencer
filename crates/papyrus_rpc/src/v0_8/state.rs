@@ -212,9 +212,9 @@ impl EntryPointByType {
 impl From<starknet_api_EntryPointByType> for EntryPointByType {
     fn from(entry_points: starknet_api_EntryPointByType) -> Self {
         Self {
-            constructor: entry_points.constructor.into_iter().map(EntryPoint::from).collect(),
-            external: entry_points.external.into_iter().map(EntryPoint::from).collect(),
-            l1handler: entry_points.l1handler.into_iter().map(EntryPoint::from).collect(),
+            constructor: entry_points.constructor,
+            external: entry_points.external,
+            l1handler: entry_points.l1handler,
         }
     }
 }
