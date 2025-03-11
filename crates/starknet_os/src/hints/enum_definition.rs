@@ -177,7 +177,6 @@ use crate::hints::hint_implementation::stateful_compression::{
     compute_commitments_on_finalized_state_with_aliases,
     contract_address_le_max_for_compression,
     enter_scope_with_aliases,
-    get_alias_entry_for_state_update,
     initialize_alias_counter,
     key_lt_min_alias_alloc_value,
     read_alias_counter,
@@ -597,13 +596,6 @@ define_hint_enum!(
         __dict_manager=__dict_manager,
         os_input=os_input,
     ))"#}
-    ),
-    (
-        GetAliasEntryForStateUpdate,
-        get_alias_entry_for_state_update,
-        indoc! {r#"ids.aliases_entry = __dict_manager.get_dict(ids.os_state_update.contract_state_changes_end)[
-        ids.ALIAS_CONTRACT_ADDRESS
-    ]"#}
     ),
     (
         KeyLtMinAliasAllocValue,
