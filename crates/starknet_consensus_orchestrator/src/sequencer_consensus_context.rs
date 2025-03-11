@@ -534,6 +534,7 @@ impl ConsensusContext for SequencerConsensusContext {
             Ok(None) => return false,
             Ok(Some(block)) => block,
         };
+        self.l2_gas_price = sync_block.block_header_without_hash.next_l2_gas_price;
         // TODO(Asmaa): validate starknet_version and parent_hash when they are stored.
         let block_number = sync_block.block_header_without_hash.block_number;
         let timestamp = sync_block.block_header_without_hash.timestamp;
