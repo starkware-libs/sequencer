@@ -386,7 +386,7 @@ impl IntegrationTestManager {
             .await;
     }
 
-    pub async fn send_invoke_txs_and_verify(&mut self, n_txs: usize, wait_for_block: BlockNumber) {
+    pub async fn send_txs_and_verify(&mut self, n_txs: usize, wait_for_block: BlockNumber) {
         self.test_and_verify(InvokeTxs(n_txs), DEFAULT_SENDER_ACCOUNT, wait_for_block).await;
     }
 
