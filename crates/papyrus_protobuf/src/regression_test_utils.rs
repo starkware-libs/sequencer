@@ -6,7 +6,7 @@ use tracing::info;
 
 pub const PROTO_DIR: &str = "src/protobuf";
 pub const PROTO_FILES: &[&str] = &[
-    "src/proto/p2p/proto/class.proto",
+    "src/proto/p2p/proto/sync/header.proto",
     "src/proto/p2p/proto/consensus/consensus.proto",
     "src/proto/p2p/proto/mempool/transaction.proto",
     "src/proto/p2p/proto/sync/class.proto",

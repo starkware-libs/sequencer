@@ -136,6 +136,180 @@ impl VolitionDomain {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct StateDiffCommitment {
+    #[prost(uint64, tag = "1")]
+    pub state_diff_length: u64,
+    #[prost(message, optional, tag = "2")]
+    pub root: ::core::option::Option<Hash>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Iteration {
+    #[prost(enumeration = "iteration::Direction", tag = "3")]
+    pub direction: i32,
+    #[prost(uint64, tag = "4")]
+    pub limit: u64,
+    /// to allow interleaving from several nodes
+    #[prost(uint64, tag = "5")]
+    pub step: u64,
+    #[prost(oneof = "iteration::Start", tags = "1, 2")]
+    pub start: ::core::option::Option<iteration::Start>,
+}
+/// Nested message and enum types in `Iteration`.
+pub mod iteration {
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
+    #[repr(i32)]
+    pub enum Direction {
+        Forward = 0,
+        Backward = 1,
+    }
+    impl Direction {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                Direction::Forward => "Forward",
+                Direction::Backward => "Backward",
+            }
+        }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "Forward" => Some(Self::Forward),
+                "Backward" => Some(Self::Backward),
+                _ => None,
+            }
+        }
+    }
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Start {
+        #[prost(uint64, tag = "1")]
+        BlockNumber(u64),
+        #[prost(message, tag = "2")]
+        Header(super::Hash),
+    }
+}
+/// Note: commitments may change to be for the previous blocks like comet/tendermint
+/// hash of block header sent to L1
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SignedBlockHeader {
+    ///   For the structure of the block hash, see <https://docs.starknet.io/documentation/architecture_and_concepts/Network_Architecture/header/#block_hash>
+    #[prost(message, optional, tag = "1")]
+    pub block_hash: ::core::option::Option<Hash>,
+    #[prost(message, optional, tag = "2")]
+    pub parent_hash: ::core::option::Option<Hash>,
+    /// This can be deduced from context. We can consider removing this field.
+    #[prost(uint64, tag = "3")]
+    pub number: u64,
+    /// Encoded in Unix time.
+    #[prost(uint64, tag = "4")]
+    pub time: u64,
+    #[prost(message, optional, tag = "5")]
+    pub sequencer_address: ::core::option::Option<Address>,
+    /// Patricia root of contract and class patricia tries. Each of those tries are of height 251. Same as in L1. Later more trees will be included
+    #[prost(message, optional, tag = "6")]
+    pub state_root: ::core::option::Option<Hash>,
+    /// The state diff commitment returned  by the Starknet Feeder Gateway
+    #[prost(message, optional, tag = "7")]
+    pub state_diff_commitment: ::core::option::Option<StateDiffCommitment>,
+    /// For more info, see <https://community.starknet.io/t/introducing-p2p-authentication-and-mismatch-resolution-in-v0-12-2/97993>
+    /// The leaves contain a hash of the transaction hash and transaction signature.
+    ///
+    /// By order of execution. TBD: required? the client can execute (powerful machine) and match state diff
+    #[prost(message, optional, tag = "8")]
+    pub transactions: ::core::option::Option<Patricia>,
+    /// By order of issuance. TBD: in receipts?
+    #[prost(message, optional, tag = "9")]
+    pub events: ::core::option::Option<Patricia>,
+    /// By order of issuance. This is a patricia root. No need for length because it's the same length as transactions.
+    #[prost(message, optional, tag = "10")]
+    pub receipts: ::core::option::Option<Hash>,
+    /// Starknet version
+    #[prost(string, tag = "11")]
+    pub protocol_version: ::prost::alloc::string::String,
+    #[prost(message, optional, tag = "12")]
+    pub l1_gas_price_fri: ::core::option::Option<Uint128>,
+    #[prost(message, optional, tag = "13")]
+    pub l1_gas_price_wei: ::core::option::Option<Uint128>,
+    #[prost(message, optional, tag = "14")]
+    pub l1_data_gas_price_fri: ::core::option::Option<Uint128>,
+    #[prost(message, optional, tag = "15")]
+    pub l1_data_gas_price_wei: ::core::option::Option<Uint128>,
+    #[prost(message, optional, tag = "16")]
+    pub l2_gas_price_fri: ::core::option::Option<Uint128>,
+    #[prost(message, optional, tag = "17")]
+    pub l2_gas_price_wei: ::core::option::Option<Uint128>,
+    #[prost(enumeration = "L1DataAvailabilityMode", tag = "18")]
+    pub l1_data_availability_mode: i32,
+    /// for now, we assume a small consensus, so this fits in 1M. Else, these will be repeated and extracted from this message.
+    #[prost(message, repeated, tag = "19")]
+    pub signatures: ::prost::alloc::vec::Vec<ConsensusSignature>,
+    /// can be more explicit here about the signature structure as this is not part of account abstraction
+    #[prost(uint64, tag = "20")]
+    pub l2_gas_consumed: u64,
+    #[prost(uint64, tag = "21")]
+    pub next_l2_gas_price: u64,
+}
+/// sent to all peers (except the ones this was received from, if any).
+/// for a fraction of peers, also send the GetBlockHeaders response (as if they asked for it for this block)
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct NewBlock {
+    #[prost(oneof = "new_block::MaybeFull", tags = "1, 2")]
+    pub maybe_full: ::core::option::Option<new_block::MaybeFull>,
+}
+/// Nested message and enum types in `NewBlock`.
+pub mod new_block {
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum MaybeFull {
+        #[prost(message, tag = "1")]
+        Id(super::BlockId),
+        #[prost(message, tag = "2")]
+        Header(super::BlockHeadersResponse),
+    }
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BlockHeadersRequest {
+    #[prost(message, optional, tag = "1")]
+    pub iteration: ::core::option::Option<Iteration>,
+}
+/// Responses are sent ordered by the order given in the request.
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BlockHeadersResponse {
+    #[prost(oneof = "block_headers_response::HeaderMessage", tags = "1, 2")]
+    pub header_message: ::core::option::Option<block_headers_response::HeaderMessage>,
+}
+/// Nested message and enum types in `BlockHeadersResponse`.
+pub mod block_headers_response {
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum HeaderMessage {
+        #[prost(message, tag = "1")]
+        Header(super::SignedBlockHeader),
+        /// Fin is sent after the peer sent all the data or when it encountered a block that it doesn't have its header.
+        #[prost(message, tag = "2")]
+        Fin(super::Fin),
+    }
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct EntryPoint {
     #[prost(message, optional, tag = "1")]
     pub selector: ::core::option::Option<Felt252>,
@@ -500,74 +674,6 @@ pub mod proposal_part {
         BlockInfo(super::BlockInfo),
         #[prost(message, tag = "4")]
         Transactions(super::TransactionBatch),
-    }
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct StateDiffCommitment {
-    #[prost(uint64, tag = "1")]
-    pub state_diff_length: u64,
-    #[prost(message, optional, tag = "2")]
-    pub root: ::core::option::Option<Hash>,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct Iteration {
-    #[prost(enumeration = "iteration::Direction", tag = "3")]
-    pub direction: i32,
-    #[prost(uint64, tag = "4")]
-    pub limit: u64,
-    /// to allow interleaving from several nodes
-    #[prost(uint64, tag = "5")]
-    pub step: u64,
-    #[prost(oneof = "iteration::Start", tags = "1, 2")]
-    pub start: ::core::option::Option<iteration::Start>,
-}
-/// Nested message and enum types in `Iteration`.
-pub mod iteration {
-    #[derive(
-        Clone,
-        Copy,
-        Debug,
-        PartialEq,
-        Eq,
-        Hash,
-        PartialOrd,
-        Ord,
-        ::prost::Enumeration
-    )]
-    #[repr(i32)]
-    pub enum Direction {
-        Forward = 0,
-        Backward = 1,
-    }
-    impl Direction {
-        /// String value of the enum field names used in the ProtoBuf definition.
-        ///
-        /// The values are not transformed in any way and thus are considered stable
-        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
-        pub fn as_str_name(&self) -> &'static str {
-            match self {
-                Direction::Forward => "Forward",
-                Direction::Backward => "Backward",
-            }
-        }
-        /// Creates an enum from field names used in the ProtoBuf definition.
-        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
-            match value {
-                "Forward" => Some(Self::Forward),
-                "Backward" => Some(Self::Backward),
-                _ => None,
-            }
-        }
-    }
-    #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
-    pub enum Start {
-        #[prost(uint64, tag = "1")]
-        BlockNumber(u64),
-        #[prost(message, tag = "2")]
-        Header(super::Hash),
     }
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -999,109 +1105,6 @@ pub mod events_response {
         #[prost(message, tag = "1")]
         Event(super::Event),
         /// Fin is sent after the peer sent all the data or when it encountered a block that it doesn't have its events.
-        #[prost(message, tag = "2")]
-        Fin(super::Fin),
-    }
-}
-/// Note: commitments may change to be for the previous blocks like comet/tendermint
-/// hash of block header sent to L1
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct SignedBlockHeader {
-    ///   For the structure of the block hash, see <https://docs.starknet.io/documentation/architecture_and_concepts/Network_Architecture/header/#block_hash>
-    #[prost(message, optional, tag = "1")]
-    pub block_hash: ::core::option::Option<Hash>,
-    #[prost(message, optional, tag = "2")]
-    pub parent_hash: ::core::option::Option<Hash>,
-    /// This can be deduced from context. We can consider removing this field.
-    #[prost(uint64, tag = "3")]
-    pub number: u64,
-    /// Encoded in Unix time.
-    #[prost(uint64, tag = "4")]
-    pub time: u64,
-    #[prost(message, optional, tag = "5")]
-    pub sequencer_address: ::core::option::Option<Address>,
-    /// Patricia root of contract and class patricia tries. Each of those tries are of height 251. Same as in L1. Later more trees will be included
-    #[prost(message, optional, tag = "6")]
-    pub state_root: ::core::option::Option<Hash>,
-    /// The state diff commitment returned  by the Starknet Feeder Gateway
-    #[prost(message, optional, tag = "7")]
-    pub state_diff_commitment: ::core::option::Option<StateDiffCommitment>,
-    /// For more info, see <https://community.starknet.io/t/introducing-p2p-authentication-and-mismatch-resolution-in-v0-12-2/97993>
-    /// The leaves contain a hash of the transaction hash and transaction signature.
-    ///
-    /// By order of execution. TBD: required? the client can execute (powerful machine) and match state diff
-    #[prost(message, optional, tag = "8")]
-    pub transactions: ::core::option::Option<Patricia>,
-    /// By order of issuance. TBD: in receipts?
-    #[prost(message, optional, tag = "9")]
-    pub events: ::core::option::Option<Patricia>,
-    /// By order of issuance. This is a patricia root. No need for length because it's the same length as transactions.
-    #[prost(message, optional, tag = "10")]
-    pub receipts: ::core::option::Option<Hash>,
-    /// Starknet version
-    #[prost(string, tag = "11")]
-    pub protocol_version: ::prost::alloc::string::String,
-    #[prost(message, optional, tag = "12")]
-    pub l1_gas_price_fri: ::core::option::Option<Uint128>,
-    #[prost(message, optional, tag = "13")]
-    pub l1_gas_price_wei: ::core::option::Option<Uint128>,
-    #[prost(message, optional, tag = "14")]
-    pub l1_data_gas_price_fri: ::core::option::Option<Uint128>,
-    #[prost(message, optional, tag = "15")]
-    pub l1_data_gas_price_wei: ::core::option::Option<Uint128>,
-    #[prost(message, optional, tag = "16")]
-    pub l2_gas_price_fri: ::core::option::Option<Uint128>,
-    #[prost(message, optional, tag = "17")]
-    pub l2_gas_price_wei: ::core::option::Option<Uint128>,
-    #[prost(enumeration = "L1DataAvailabilityMode", tag = "18")]
-    pub l1_data_availability_mode: i32,
-    /// for now, we assume a small consensus, so this fits in 1M. Else, these will be repeated and extracted from this message.
-    ///
-    /// can be more explicit here about the signature structure as this is not part of account abstraction
-    #[prost(message, repeated, tag = "19")]
-    pub signatures: ::prost::alloc::vec::Vec<ConsensusSignature>,
-}
-/// sent to all peers (except the ones this was received from, if any).
-/// for a fraction of peers, also send the GetBlockHeaders response (as if they asked for it for this block)
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct NewBlock {
-    #[prost(oneof = "new_block::MaybeFull", tags = "1, 2")]
-    pub maybe_full: ::core::option::Option<new_block::MaybeFull>,
-}
-/// Nested message and enum types in `NewBlock`.
-pub mod new_block {
-    #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
-    pub enum MaybeFull {
-        #[prost(message, tag = "1")]
-        Id(super::BlockId),
-        #[prost(message, tag = "2")]
-        Header(super::BlockHeadersResponse),
-    }
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct BlockHeadersRequest {
-    #[prost(message, optional, tag = "1")]
-    pub iteration: ::core::option::Option<Iteration>,
-}
-/// Responses are sent ordered by the order given in the request.
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct BlockHeadersResponse {
-    #[prost(oneof = "block_headers_response::HeaderMessage", tags = "1, 2")]
-    pub header_message: ::core::option::Option<block_headers_response::HeaderMessage>,
-}
-/// Nested message and enum types in `BlockHeadersResponse`.
-pub mod block_headers_response {
-    #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
-    pub enum HeaderMessage {
-        #[prost(message, tag = "1")]
-        Header(super::SignedBlockHeader),
-        /// Fin is sent after the peer sent all the data or when it encountered a block that it doesn't have its header.
         #[prost(message, tag = "2")]
         Fin(super::Fin),
     }
