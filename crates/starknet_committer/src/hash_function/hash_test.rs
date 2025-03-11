@@ -1,5 +1,6 @@
 use hex;
 use rstest::rstest;
+use starknet_api::core::ClassHash;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     BinaryData,
@@ -15,7 +16,7 @@ use starknet_types_core::hash::Pedersen;
 use crate::block_committer::input::StarknetStorageValue;
 use crate::hash_function::hash::TreeHashFunctionImpl;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
-use crate::patricia_merkle_tree::types::{ClassHash, CompiledClassHash, Nonce};
+use crate::patricia_merkle_tree::types::{CompiledClassHash, Nonce};
 
 #[rstest]
 // Random StateTreeTuples and the expected hash results were generated and computed elsewhere.
