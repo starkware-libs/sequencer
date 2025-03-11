@@ -520,20 +520,22 @@ impl<
                 self.reader.begin_ro_txn()?.get_compiler_backward_compatibility_marker()?;
 
             if compiler_backward_compatibility_marker <= block_number {
-                println!(
-                    "!!!!! total cairo 1 classes: {:?}",
-                    (0..block_number.0)
-                        .map(|i| self
-                            .reader
-                            .begin_ro_txn()
-                            .unwrap()
-                            .get_state_diff(BlockNumber(i))
-                            .unwrap()
-                            .unwrap()
-                            .declared_classes
-                            .len())
-                        .sum::<usize>()
-                );
+                if block_number.0 % 200 == 0 {
+                    println!(
+                        "!!!!! total cairo 1 classes: {:?}",
+                        (0..block_number.0)
+                            .map(|i| self
+                                .reader
+                                .begin_ro_txn()
+                                .unwrap()
+                                .get_state_diff(BlockNumber(i))
+                                .unwrap()
+                                .unwrap()
+                                .declared_classes
+                                .len())
+                            .sum::<usize>()
+                    );
+                }
                 for (expected_class_hash, class) in &classes {
                     let class_hash =
                         class_manager_client.add_class(class.clone()).await?.class_hash;
