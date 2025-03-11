@@ -1,6 +1,7 @@
 use std::env::args;
 
 use starknet_infra_utils::set_global_allocator;
+use starknet_monitoring_endpoint::config::COLLECT_SEQUENCER_PROFILING_METRICS;
 use starknet_sequencer_infra::trace_util::configure_tracing;
 use starknet_sequencer_node::servers::run_component_servers;
 use starknet_sequencer_node::utils::{create_node_modules, load_and_validate_config};
@@ -14,6 +15,10 @@ async fn main() -> anyhow::Result<()> {
 
     let config =
         load_and_validate_config(args().collect()).expect("Failed to load and validate config");
+
+    COLLECT_SEQUENCER_PROFILING_METRICS
+        .set(config.monitoring_endpoint_config.collect_profiling_metrics)
+        .expect("This should be the first and only time we set this value.");
 
     // Clients are currently unused, but should not be dropped.
     let (_clients, servers) = create_node_modules(&config).await;
