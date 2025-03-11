@@ -26,6 +26,7 @@ SEQUENCER_INTEGRATION_TEST_NAMES: List[str] = [
     # TODO(Shahak/Noam.s): enable these when required
     # "integration_test_restart_flow",
     "integration_test_revert_flow",
+    "integration_test_central_and_p2p_sync_flow",
 ]
 
 

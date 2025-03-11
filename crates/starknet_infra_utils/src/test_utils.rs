@@ -29,6 +29,7 @@ pub enum TestIdentifier {
     RevertFlowIntegrationTest,
     SystemTestDumpSingleNodeConfig,
     HttpServerUnitTests,
+    SyncFlowIntegrationTest,
 }
 
 impl From<TestIdentifier> for u16 {
@@ -42,6 +43,7 @@ impl From<TestIdentifier> for u16 {
             TestIdentifier::RevertFlowIntegrationTest => 5,
             TestIdentifier::SystemTestDumpSingleNodeConfig => 6,
             TestIdentifier::HttpServerUnitTests => 7,
+            TestIdentifier::SyncFlowIntegrationTest => 8,
         }
     }
 }

@@ -533,9 +533,10 @@ impl IntegrationTestManager {
         .await;
     }
 
-    // TODO(noamsp): Remove this once we make the function public and use it in the tests.
-    #[allow(dead_code)]
-    async fn await_sync_block_on_all_running_nodes(&mut self, expected_block_number: BlockNumber) {
+    pub async fn await_sync_block_on_all_running_nodes(
+        &mut self,
+        expected_block_number: BlockNumber,
+    ) {
         let condition =
             |&latest_block_number: &BlockNumber| latest_block_number >= expected_block_number;
 
