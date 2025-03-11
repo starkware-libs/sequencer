@@ -2,7 +2,7 @@ use std::net::{SocketAddr, ToSocketAddrs};
 
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::{L1HandlerTransaction, TransactionHash};
 use starknet_http_server::test_utils::HttpTestClient;
 use starknet_monitoring_endpoint::test_utils::MonitoringClient;
 use tracing::info;
@@ -10,7 +10,7 @@ use url::Url;
 
 use crate::monitoring_utils;
 use crate::sequencer_manager::nonce_to_usize;
-use crate::utils::{send_account_txs, TestScenario};
+use crate::utils::{send_consensus_txs, TestScenario};
 
 pub struct SequencerSimulator {
     monitoring_client: MonitoringClient,
@@ -45,8 +45,16 @@ impl SequencerSimulator {
     ) {
         info!("Sending transactions");
         let send_rpc_tx_fn = &mut |tx| self.assert_add_tx_success(tx);
-        let tx_hashes =
-            send_account_txs(tx_generator, sender_account, test_scenario, send_rpc_tx_fn).await;
+        let send_l1_handler_tx_fn =
+            &mut |_l1_handler_tx: L1HandlerTransaction| async { TransactionHash::default() };
+        let tx_hashes = send_consensus_txs(
+            tx_generator,
+            sender_account,
+            test_scenario,
+            send_rpc_tx_fn,
+            send_l1_handler_tx_fn,
+        )
+        .await;
         assert_eq!(tx_hashes.len(), test_scenario.n_txs());
     }
 
