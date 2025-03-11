@@ -74,7 +74,7 @@ fn tx_generator() -> MultiAccountTransactionGenerator {
 #[case::many_txs_scenario(
     TestIdentifier::EndToEndFlowTestManyTxs,
     create_test_blocks_for_many_txs_scenario(),
-    GasAmount(17000000),
+    GasAmount(17500000),
     LAST_HEIGHT_FOR_MANY_TXS
 )]
 #[tokio::test]
@@ -193,7 +193,7 @@ fn create_test_blocks() -> Vec<TestBlockScenario> {
             vec![],
             test_multiple_account_txs,
             ExpectedContentId::from_hex_unchecked(
-                "0x6f032e66088dec89b8d640754df7d3f10debba86885e079628c7f2c3867fca1",
+                "0x459cc7b4c37290dd7148d98994508f6da9db98832219c3a56da4b7a246a87c1",
             ),
         ),
         (
@@ -201,7 +201,7 @@ fn create_test_blocks() -> Vec<TestBlockScenario> {
             vec![],
             test_single_tx,
             ExpectedContentId::from_hex_unchecked(
-                "0x74f905ac2bbde81589c9a8590182bae249e0d05a24bca42036be41e61815433",
+                "0x33182a26f2334cc790f9cd082c91c5fa80e03b856eb298659b1e9af67e53814",
             ),
         ),
         (
@@ -209,7 +209,7 @@ fn create_test_blocks() -> Vec<TestBlockScenario> {
             vec![],
             test_two_txs,
             ExpectedContentId::from_hex_unchecked(
-                "0x7d740c26e2c198f74f1622ac7049a1ec536fc98c3a498f4b4b5f3f4f93f372",
+                "0x5af7d23f408d4918d506899a6a37a99aeffd27d9a86c1ad44581874b6bbf461",
             ),
         ),
         (
@@ -256,7 +256,7 @@ fn create_test_blocks_for_many_txs_scenario() -> Vec<TestBlockScenario> {
             vec![],
             test_many_invoke_txs,
             ExpectedContentId::from_hex_unchecked(
-                "0x339ea8cd5b0e7fbf56e8a1f593453240e296b08b4a818ceed8d1d896b1c4661",
+                "0x10b8158416730305fa0189c20e1267df687bbaa79b6d1d5f376f7b536b3dd66",
             ),
         ),
     ];
