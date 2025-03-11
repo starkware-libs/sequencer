@@ -10,7 +10,7 @@ use crate::shared_utils::types::{run_python_test, IoArgs, PythonTestArg};
 
 #[derive(Parser, Debug)]
 pub struct OsCliCommand {
-    #[clap(subcommand)]
+    #[command(subcommand)]
     command: Command,
 }
 
@@ -18,7 +18,7 @@ pub struct OsCliCommand {
 enum Command {
     PythonTest(PythonTestArg),
     RunOsStateless {
-        #[clap(flatten)]
+        #[command(flatten)]
         io_args: IoArgs,
     },
 }
