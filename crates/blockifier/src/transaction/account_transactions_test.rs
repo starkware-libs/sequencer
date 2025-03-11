@@ -85,31 +85,12 @@ use crate::test_utils::contracts::FeatureContractTrait;
 use crate::test_utils::initial_test_state::{fund_account, test_state};
 use crate::test_utils::syscall::build_recurse_calldata;
 use crate::test_utils::test_templates::cairo_version;
-<<<<<<< HEAD
-use crate::test_utils::{get_syscall_resources, get_tx_resources, CompilerBasedVersion, BALANCE};
-||||||| c28b2909b
 use crate::test_utils::{
-    create_calldata,
-    create_trivial_calldata,
-    get_syscall_resources,
-    get_tx_resources,
-    CairoVersion,
-    CompilerBasedVersion,
-    RunnableCairo1,
-    BALANCE,
-};
-=======
-use crate::test_utils::{
-    create_calldata,
-    create_trivial_calldata,
     get_const_syscall_resources,
     get_tx_resources,
-    CairoVersion,
     CompilerBasedVersion,
-    RunnableCairo1,
     BALANCE,
 };
->>>>>>> origin/main-v0.13.5
 use crate::transaction::account_transaction::{
     AccountTransaction,
     ExecutionFlags as AccountExecutionFlags,
