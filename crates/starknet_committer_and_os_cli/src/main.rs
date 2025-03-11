@@ -13,12 +13,12 @@ use tracing::info;
 
 /// Committer and OS CLI.
 #[derive(Debug, Parser)]
-#[clap(name = "committer-and-os-cli", version)]
+#[command(name = "committer-and-os-cli", version)]
 struct CliArgs {
-    #[clap(flatten)]
+    #[command(flatten)]
     global_options: GlobalOptions,
 
-    #[clap(subcommand)]
+    #[command(subcommand)]
     command: CommitterOrOsCommand,
 }
 
