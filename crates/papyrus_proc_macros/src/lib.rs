@@ -170,6 +170,82 @@ pub fn latency_histogram(attr: TokenStream, input: TokenStream) -> TokenStream {
     modified_function.to_token_stream().into()
 }
 
+/// This macro will emit a histogram metric with the given name and the latency of the function.
+/// In addition, also a debug log with the metric name and the execution time will be emitted.
+/// The macro also receives a boolean for whether it will be emitted only when
+/// profiling is activated or at all times.
+///
+/// # Example
+/// Given this code:
+///
+/// ```rust,ignore
+/// use starknet_sequencer_metrics::metrics::{MetricHistogram, MetricScope};
+///
+/// const FOO_HISTOGRAM_METRIC: MetricHistogram = MetricHistogram::new(
+///     MetricScope::Infra,
+///     "foo_histogram_metric",
+///     "foo function latency histogram metrics",
+/// );
+///
+/// #[sequencer_latency_histogram(FOO_HISTOGRAM_METRIC, false)]
+/// fn foo() {
+///     // Some code ...
+/// }
+/// ```
+/// Every call to foo will update the histogram metric FOO_HISTOGRAM_METRIC with the time it
+/// took to execute foo. In addition, a debug log with the following format will be emitted:
+/// “<metric_name>: <execution_time>”
+/// The metric will be emitted regardless of the value of the profiling configuration,
+/// since the config value is false.
+#[proc_macro_attribute]
+pub fn sequencer_latency_histogram(attr: TokenStream, input: TokenStream) -> TokenStream {
+    let mut input_fn = parse_macro_input!(input as ItemFn);
+    let parts = attr
+        .to_string()
+        .split(',')
+        .map(|s| {
+            TokenStream::from_str(s)
+                .expect("Expecting metric name and bool (is for profiling only)")
+        })
+        .collect::<Vec<_>>();
+    let metric_name_as_tokenstream = parts
+        .first()
+        .expect("attribute should include metric name and controll with config boolean")
+        .clone();
+    let controll_with_config_as_tokenstream = parts
+        .get(1)
+        .expect("attribute should include metric name and controll with config boolean")
+        .clone();
+    let metric_name = parse_macro_input!(metric_name_as_tokenstream as Ident);
+    let controll_with_config = parse_macro_input!(controll_with_config_as_tokenstream as LitBool);
+    let origin_block = &mut input_fn.block;
+
+    // Create a new block with the metric update.
+    let expanded_block = quote! {
+        {
+            let mut start_function_time = None;
+            if !#controll_with_config || (#controll_with_config && *(starknet_monitoring_endpoint::config::COLLECT_SEQUENCER_PROFILING_METRICS.get().unwrap_or(&false))) {
+                start_function_time=Some(std::time::Instant::now());
+            }
+            let return_value=#origin_block;
+            if let Some(start_time) = start_function_time {
+                let exec_time = start_time.elapsed().as_secs_f64();
+                #metric_name.record(exec_time);
+                tracing::debug!("{}: {}", stringify!(#metric_name), exec_time);
+            }
+            return_value
+        }
+    };
+
+    // Create a new function with the modified block.
+    let modified_function = ItemFn {
+        block: syn::parse2(expanded_block).expect("Parse tokens in latency_histogram attribute."),
+        ..input_fn
+    };
+
+    modified_function.to_token_stream().into()
+}
+
 struct HandleAllResponseVariantsMacroInput {
     response_enum: Ident,
     request_response_enum_var: Ident,
