@@ -12,12 +12,6 @@ use crate::shared_utils::types::{run_python_test, IoArgs, PythonTestArg};
 
 #[derive(Parser, Debug)]
 pub struct BlockHashCliCommand {
-    #[clap(subcommand)]
-    command: Command,
-}
-
-#[derive(Parser, Debug)]
-pub struct BlockHashCliCommand {
     #[command(subcommand)]
     command: Command,
 }
