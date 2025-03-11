@@ -18,6 +18,7 @@ define_metrics!(
         MetricGauge { MEMPOOL_PRIORITY_QUEUE_SIZE, "mempool_priority_queue_size", "The size of the mempool's priority queue" },
         MetricGauge { MEMPOOL_PENDING_QUEUE_SIZE, "mempool_pending_queue_size", "The size of the mempool's pending queue" },
         MetricGauge { MEMPOOL_GET_TXS_SIZE, "mempool_get_txs_size", "The number of transactions returned in the last get_txs() api call" },
+        MetricGauge { MEMPOOL_DELAYED_DECLARES_SIZE, "mempool_delayed_declare_size", "The number of declare transactions that are delayed" },
     },
 );
 
@@ -111,6 +112,7 @@ impl Mempool {
         MEMPOOL_POOL_SIZE.set(self.tx_pool_len() as f64);
         MEMPOOL_PRIORITY_QUEUE_SIZE.set(self.priority_queue_len() as f64);
         MEMPOOL_PENDING_QUEUE_SIZE.set(self.pending_queue_len() as f64);
+        MEMPOOL_DELAYED_DECLARES_SIZE.set(self.delayed_declares_len() as f64);
     }
 }
 
@@ -124,4 +126,5 @@ pub(crate) fn register_metrics() {
     MEMPOOL_PRIORITY_QUEUE_SIZE.register();
     MEMPOOL_PENDING_QUEUE_SIZE.register();
     MEMPOOL_GET_TXS_SIZE.register();
+    MEMPOOL_DELAYED_DECLARES_SIZE.register();
 }

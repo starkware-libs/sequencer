@@ -1107,6 +1107,10 @@ fn expired_staged_txs_are_not_deleted() {
 
 #[rstest]
 fn delay_declare_txs() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    register_metrics();
+
     // Create a mempool with a fake clock.
     let fake_clock = Arc::new(FakeClock::default());
     let declare_delay = Duration::from_secs(5);
@@ -1124,6 +1128,11 @@ fn delay_declare_txs() {
     add_tx(&mut mempool, &second_declare);
 
     assert_eq!(mempool.get_txs(2).unwrap(), vec![]);
+
+    // Assert: metrics.
+    let expected_metrics =
+        MempoolMetrics { txs_received_declare: 2, delayed_declares_size: 2, ..Default::default() };
+    expected_metrics.verify_metrics(&recorder);
 
     // Complete the first declare's delay.
     fake_clock.advance(declare_delay - Duration::from_secs(1));
