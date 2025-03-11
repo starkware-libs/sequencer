@@ -8071,6 +8071,9 @@ dependencies = [
  "papyrus_test_utils",
  "prometheus-parse",
  "quote",
+ "rstest",
+ "starknet_monitoring_endpoint",
+ "starknet_sequencer_metrics",
  "syn 2.0.95",
  "tracing",
 ]
