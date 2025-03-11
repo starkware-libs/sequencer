@@ -487,7 +487,7 @@ pub fn test_many_invoke_txs(tx_hashes: &[TransactionHash]) -> Vec<TransactionHas
 }
 
 /// Returns a list of the transaction hashes, in the order they are expected to be in the mempool.
-pub async fn send_account_txs<'a, Fut>(
+pub async fn send_consensus_txs<'a, Fut>(
     tx_generator: &mut MultiAccountTransactionGenerator,
     account_id: AccountId,
     test_scenario: &impl TestScenario,

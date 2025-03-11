@@ -35,7 +35,7 @@ use crate::utils::{
     create_integration_test_tx_generator,
     create_mempool_p2p_configs,
     create_state_sync_configs,
-    send_account_txs,
+    send_consensus_txs,
     BootstrapTxs,
     InvokeTxs,
     TestScenario,
@@ -450,7 +450,7 @@ impl IntegrationTestManager {
             node_0.node_setup.send_rpc_tx_fn(rpc_tx).await
         };
 
-        send_account_txs(&mut self.tx_generator, sender_account, test_scenario, send_rpc_tx_fn)
+        send_consensus_txs(&mut self.tx_generator, sender_account, test_scenario, send_rpc_tx_fn)
             .await;
     }
 
