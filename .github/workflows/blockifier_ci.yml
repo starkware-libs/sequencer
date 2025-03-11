@@ -64,3 +64,16 @@ jobs:
       # cairo_native is not activated by any workspace crate; test the build.
       - run: cargo build -p blockifier --features cairo_native
       - run: cargo test -p blockifier --features cairo_native
+
+  test-windows-build:
+    name: Test blockifier build on windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # No bash on windows --> no "bootstrap" action. Only install rust.
+      - uses: ./.github/actions/install_rust
+      # Note - this test does not cover cairo-native (and it's dependencies are not installed).
+      - run: cargo build -p blockifier --features "testing transaction_serde"
+      - run: cargo test -p blockifier --no-run --features "testing transaction_serde"
