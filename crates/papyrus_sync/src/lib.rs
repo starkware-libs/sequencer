@@ -560,15 +560,15 @@ impl<
         self.writer
             .begin_rw_txn()?
             .append_state_diff(block_number, thin_state_diff)?
-            .append_classes(
-                block_number,
-                &classes.iter().map(|(class_hash, class)| (*class_hash, class)).collect::<Vec<_>>(),
-                &deprecated_classes
-                    .iter()
-                    .chain(deployed_contract_class_definitions.iter())
-                    .map(|(class_hash, deprecated_class)| (*class_hash, deprecated_class))
-                    .collect::<Vec<_>>(),
-            )?
+            // .append_classes(
+            //     block_number,
+            //     &classes.iter().map(|(class_hash, class)| (*class_hash, class)).collect::<Vec<_>>(),
+            //     &deprecated_classes
+            //         .iter()
+            //         .chain(deployed_contract_class_definitions.iter())
+            //         .map(|(class_hash, deprecated_class)| (*class_hash, deprecated_class))
+            //         .collect::<Vec<_>>(),
+            // )?
             .commit()?;
 
         let compiled_class_marker = self.reader.begin_ro_txn()?.get_compiled_class_marker()?;
