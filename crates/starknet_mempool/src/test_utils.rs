@@ -15,6 +15,7 @@ use crate::metrics::{
     DropReason,
     LABEL_NAME_DROP_REASON,
     LABEL_NAME_TX_TYPE,
+    MEMPOOL_DELAYED_DECLARES_SIZE,
     MEMPOOL_GET_TXS_SIZE,
     MEMPOOL_PENDING_QUEUE_SIZE,
     MEMPOOL_POOL_SIZE,
@@ -115,7 +116,7 @@ macro_rules! assert_metric_eq {
             return_value,
             $expected,
             "Metric {} did not match expected value. expected value: {}, returned value: {}",
-            stringify!($metric), $expected, return_value
+            stringify!($metric $(, $labels)?), $expected, return_value
 
         );
     };
@@ -330,6 +331,7 @@ pub struct MempoolMetrics {
     pub priority_queue_size: u64,
     pub pending_queue_size: u64,
     pub get_txs_size: u64,
+    pub delayed_declares_size: u64,
 }
 
 impl MempoolMetrics {
@@ -381,5 +383,6 @@ impl MempoolMetrics {
         assert_metric_eq!(metrics, self.priority_queue_size, MEMPOOL_PRIORITY_QUEUE_SIZE);
         assert_metric_eq!(metrics, self.pending_queue_size, MEMPOOL_PENDING_QUEUE_SIZE);
         assert_metric_eq!(metrics, self.get_txs_size, MEMPOOL_GET_TXS_SIZE);
+        assert_metric_eq!(metrics, self.delayed_declares_size, MEMPOOL_DELAYED_DECLARES_SIZE);
     }
 }
