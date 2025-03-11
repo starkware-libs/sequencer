@@ -272,9 +272,14 @@ zstd = "0.13.1"
 future-incompatible = "warn"
 nonstandard-style = "warn"
 rust-2018-idioms = "warn"
-# See [here](https://github.com/taiki-e/cargo-llvm-cov/issues/370) for a discussion on why this is
-# needed (from rust 1.80).
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }
+unexpected_cfgs = { level = "warn", check-cfg = [
+  # See [here](https://github.com/taiki-e/cargo-llvm-cov/issues/370) for a discussion on why this is
+  # needed (from rust 1.80).
+  'cfg(coverage_nightly)',
+  # From rust 1.84, seems like the pyo3 crate version we are using breaks. Remove this once pyo3 is
+  # removed from the workspace.
+  'cfg(addr_of)',
+] }
 
 [workspace.lints.clippy]
 as_conversions = "warn"
