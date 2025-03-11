@@ -38,12 +38,32 @@ pub mod mempool_flow_tests;
 
 type AddressToNonce = HashMap<ContractAddress, Nonce>;
 
+#[derive(Debug)]
+#[cfg_attr(test, derive(Clone))]
+struct CommitHistory {
+    commits: VecDeque<AddressToNonce>,
+}
+
+impl CommitHistory {
+    fn new(capacity: usize) -> Self {
+        CommitHistory { commits: std::iter::repeat(AddressToNonce::new()).take(capacity).collect() }
+    }
+
+    fn push(&mut self, commit: AddressToNonce) -> AddressToNonce {
+        let removed = self.commits.pop_front();
+        self.commits.push_back(commit);
+        removed.expect("Commit history should be initialized with capacity.")
+    }
+}
+
 /// Represents the state tracked by the mempool.
 /// It is partitioned into categories, each serving a distinct role in the lifecycle of transaction
 /// management.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 #[cfg_attr(test, derive(Clone))]
 pub struct MempoolState {
+    /// Records recent commit_block events to preserve the committed nonces of the latest blocks.
+    commit_history: CommitHistory,
     /// Finalized nonces committed in blocks.
     committed: AddressToNonce,
     /// Provisionally incremented nonces during block creation.
@@ -51,6 +71,14 @@ pub struct MempoolState {
 }
 
 impl MempoolState {
+    fn new(committed_nonce_retention_block_count: usize) -> Self {
+        MempoolState {
+            commit_history: CommitHistory::new(committed_nonce_retention_block_count),
+            committed: HashMap::new(),
+            staged: HashMap::new(),
+        }
+    }
+
     fn resolve_nonce(&self, address: ContractAddress, incoming_account_nonce: Nonce) -> Nonce {
         self.staged
             .get(&address)
@@ -84,8 +112,22 @@ impl MempoolState {
             .copied()
             .collect();
 
-        self.committed.extend(address_to_nonce);
+        self.committed.extend(address_to_nonce.clone());
         self.staged.clear();
+
+        // Add the commit event to the history.
+        // If an old event has been removed (due to history size limit), delete the associated
+        // committed nonces.
+        let removed_commit = self.commit_history.push(address_to_nonce);
+        for (address, removed_nonce) in removed_commit {
+            let last_committed_nonce = *self
+                .committed
+                .get(&address)
+                .expect("Account in commit history must appear in the committed nonces.");
+            if last_committed_nonce == removed_nonce {
+                self.committed.remove(&address);
+            }
+        }
 
         addresses_to_rewind
     }
@@ -136,11 +178,11 @@ pub struct Mempool {
 impl Mempool {
     pub fn new(config: MempoolConfig, clock: Arc<dyn Clock>) -> Self {
         Mempool {
-            config,
+            config: config.clone(),
             delayed_declares: VecDeque::new(),
             tx_pool: TransactionPool::new(clock.clone()),
             tx_queue: TransactionQueue::default(),
-            state: MempoolState::default(),
+            state: MempoolState::new(config.committed_nonce_retention_block_count),
             clock,
         }
     }
