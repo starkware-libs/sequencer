@@ -96,7 +96,9 @@ pub trait TestScenario {
     fn n_txs(&self) -> usize;
 }
 
-pub struct InvokeTxs(pub usize);
+pub struct InvokeTxs {
+    pub n_invoke_txs: usize,
+}
 
 impl TestScenario for InvokeTxs {
     fn create_txs(
@@ -104,11 +106,11 @@ impl TestScenario for InvokeTxs {
         tx_generator: &mut MultiAccountTransactionGenerator,
         account_id: AccountId,
     ) -> Vec<RpcTransaction> {
-        create_invoke_txs(tx_generator, account_id, self.0)
+        create_invoke_txs(tx_generator, account_id, self.n_invoke_txs)
     }
 
     fn n_txs(&self) -> usize {
-        self.0
+        self.n_invoke_txs
     }
 }
 

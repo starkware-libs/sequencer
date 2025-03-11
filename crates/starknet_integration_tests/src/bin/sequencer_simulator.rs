@@ -68,7 +68,9 @@ async fn run_simulation(
 
     let mut i = 1;
     loop {
-        sequencer_simulator.send_txs(tx_generator, &InvokeTxs(N_TXS), ACCOUNT_ID_0).await;
+        sequencer_simulator
+            .send_txs(tx_generator, &InvokeTxs { n_invoke_txs: N_TXS }, ACCOUNT_ID_0)
+            .await;
         sequencer_simulator.await_txs_accepted(0, i * N_TXS + N_TXS_IN_FIRST_BLOCK).await;
 
         if !run_forever {
