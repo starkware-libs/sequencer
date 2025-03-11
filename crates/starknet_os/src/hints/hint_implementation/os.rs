@@ -11,8 +11,6 @@ use crate::hints::error::OsHintResult;
 use crate::hints::nondet_offsets::fetch_offset;
 use crate::hints::types::HintArgs;
 
-// "initial_dict = os_input.class_hash_to_compiled_class_hash"
-
 fn insert_hashmap_into_ap(vm: &mut VirtualMachine, hashmap: HashMap<Felt, Felt>) -> OsHintResult {
     let flattened_hashmap: Vec<MaybeRelocatable> = hashmap
         .iter()
