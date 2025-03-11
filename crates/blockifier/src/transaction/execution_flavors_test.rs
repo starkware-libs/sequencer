@@ -34,18 +34,6 @@ use crate::state::cached_state::CachedState;
 use crate::state::state_api::StateReader;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
-<<<<<<< HEAD
-use crate::test_utils::{get_syscall_resources, get_tx_resources, BALANCE};
-||||||| c28b2909b
-use crate::test_utils::{
-    create_calldata,
-    create_trivial_calldata,
-    get_syscall_resources,
-    get_tx_resources,
-    CairoVersion,
-    BALANCE,
-};
-=======
 use crate::test_utils::{
     create_calldata,
     create_trivial_calldata,
@@ -54,7 +42,6 @@ use crate::test_utils::{
     CairoVersion,
     BALANCE,
 };
->>>>>>> origin/main-v0.13.5
 use crate::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use crate::transaction::errors::{
     ResourceBoundsError,
@@ -806,22 +793,10 @@ fn test_simulate_validate_charge_fee_post_execution(
     let (revert_gas_usage, revert_fee) =
         gas_and_fee((invoke_steps + 4130).into(), validate, &fee_type);
     let (unlimited_gas_used, unlimited_fee) = gas_and_fee(
-<<<<<<< HEAD
         (invoke_steps
-            + u64_from_usize(get_syscall_resources(SyscallSelector::CallContract).n_steps + 4130))
-||||||| c28b2909b
-        u64_from_usize(
-            get_syscall_resources(SyscallSelector::CallContract).n_steps
-                + get_tx_resources(TransactionType::InvokeFunction).n_steps
-                + 5730,
-        )
-=======
-        u64_from_usize(
-            get_const_syscall_resources(SyscallSelector::CallContract).n_steps
-                + get_tx_resources(TransactionType::InvokeFunction).n_steps
-                + 5730,
-        )
->>>>>>> origin/main-v0.13.5
+            + u64_from_usize(
+                get_const_syscall_resources(SyscallSelector::CallContract).n_steps + 4130,
+            ))
         .into(),
         validate,
         &fee_type,
@@ -862,36 +837,10 @@ fn test_simulate_validate_charge_fee_post_execution(
     // Second scenario: balance too low.
     // Execute a transfer, and make sure we get the expected result.
     let (success_actual_gas, actual_fee) = gas_and_fee(
-<<<<<<< HEAD
-        (u64_from_usize(get_syscall_resources(SyscallSelector::CallContract).n_steps)
+        (u64_from_usize(get_const_syscall_resources(SyscallSelector::CallContract).n_steps)
             + invoke_steps
             + 4298)
             .into(),
-||||||| c28b2909b
-        u64_from_usize(
-            get_syscall_resources(SyscallSelector::CallContract).n_steps
-                + get_tx_resources(TransactionType::InvokeFunction).n_steps
-                + 4260,
-        )
-        .into(),
-        validate,
-        &fee_type,
-    );
-    let (fail_actual_gas, fail_actual_fee) = gas_and_fee(
-        u64_from_usize(get_tx_resources(TransactionType::InvokeFunction).n_steps + 2252).into(),
-=======
-        u64_from_usize(
-            get_const_syscall_resources(SyscallSelector::CallContract).n_steps
-                + get_tx_resources(TransactionType::InvokeFunction).n_steps
-                + 4260,
-        )
-        .into(),
-        validate,
-        &fee_type,
-    );
-    let (fail_actual_gas, fail_actual_fee) = gas_and_fee(
-        u64_from_usize(get_tx_resources(TransactionType::InvokeFunction).n_steps + 2252).into(),
->>>>>>> origin/main-v0.13.5
         validate,
         &fee_type,
     );
