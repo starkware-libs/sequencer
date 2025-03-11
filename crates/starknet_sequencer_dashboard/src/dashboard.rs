@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use indexmap::IndexMap;
 use serde::ser::{SerializeMap, SerializeStruct};
 use serde::{Serialize, Serializer};
+use starknet_sequencer_metrics::metrics::{MetricCounter, MetricGauge};
 
 /// Grafana panel types.
 #[derive(Clone, Debug, Serialize, PartialEq)]
@@ -29,6 +30,14 @@ impl Panel {
         panel_type: PanelType,
     ) -> Self {
         Self { name, description, expr, panel_type }
+    }
+
+    pub const fn from_counter(metric: MetricCounter, panel_type: PanelType) -> Self {
+        Self::new(metric.get_name(), metric.get_description(), metric.get_name(), panel_type)
+    }
+
+    pub const fn from_gauge(metric: MetricGauge, panel_type: PanelType) -> Self {
+        Self::new(metric.get_name(), metric.get_description(), metric.get_name(), panel_type)
     }
 }
 
