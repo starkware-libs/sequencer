@@ -213,7 +213,6 @@
   "monitoring_endpoint_config.collect_metrics": true,
   "monitoring_endpoint_config.ip": "0.0.0.0",
   "monitoring_endpoint_config.port": 52961,
-  "recorder_url": "http://127.0.0.1:52960/",
   "revert_config.revert_up_to_and_including": 18446744073709551615,
   "revert_config.should_revert": false,
   "state_sync_config.central_sync_client_config.#is_none": true,
