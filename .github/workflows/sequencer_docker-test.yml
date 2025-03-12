@@ -57,8 +57,9 @@ jobs:
       - name: Run docker compose
         run: ./deployments/monitoring/deploy_local_stack.sh up -d --build
 
-      # Getting the sequencer_simulator container id, then using timeout,
-      # to invoke `docker wait $container_id`.
+      # Getting the sequencer_simulator container id, then
+      # Invoking `docker wait $container_id`.
+      # docker wait will return the container exit_code.
       - name: Wait for simulator results
         working-directory: ./deployments/monitoring/local
         timeout-minutes: 5
