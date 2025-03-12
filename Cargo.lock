@@ -11497,6 +11497,7 @@ version = "0.0.0"
 dependencies = [
  "assert_matches",
  "blockifier",
+ "c-kzg",
  "cairo-lang-starknet-classes",
  "cairo-vm",
  "indexmap 2.7.0",
