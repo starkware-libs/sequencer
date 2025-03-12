@@ -899,6 +899,16 @@
     "privacy": "Public",
     "value": 120
   },
+  "consensus_manager_config.price_oracle_config.base_url": {
+    "description": "A required param! This must end with the query parameter `timestamp=` as we append a UNIX timestamp.",
+    "param_type": "String",
+    "privacy": "Private"
+  },
+  "consensus_manager_config.price_oracle_config.headers": {
+    "description": "Headers for the price oracle client, formatted as 'k1:v1 k2:v2 ...'.",
+    "privacy": "Private",
+    "value": ""
+  },
   "consensus_manager_config.proposals_topic": {
     "description": "The topic for consensus proposals.",
     "privacy": "Public",
