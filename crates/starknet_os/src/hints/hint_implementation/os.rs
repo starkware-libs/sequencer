@@ -6,6 +6,7 @@ use crate::hints::enum_definition::{AllHints, OsHint};
 use crate::hints::error::OsHintResult;
 use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;
+use crate::hints::vars::Scope;
 
 pub(crate) fn initialize_class_hashes<S: StateReader>(
     HintArgs { .. }: HintArgs<'_, S>,
@@ -47,6 +48,12 @@ pub(crate) fn set_ap_to_new_block_hash<S: StateReader>(
     Ok(insert_value_into_ap(vm, os_input.new_block_hash.0)?)
 }
 
+// r#"
+//         from starkware.starknet.core.os.os_input import StarknetOsInput
+
+//         os_input = StarknetOsInput.load(data=program_input)"#
+
 pub(crate) fn starknet_os_input<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    todo!()
+    // TODO(Aner): there seems to be nothing to do here; need to verify.
+    Ok(())
 }
