@@ -1,9 +1,12 @@
 use std::num::ParseIntError;
+use std::path::Path;
+use std::sync::LazyLock;
 
 use blockifier::utils::usize_from_u32;
-use c_kzg::BYTES_PER_FIELD_ELEMENT;
+use c_kzg::{Blob, KzgCommitment, KzgSettings, BYTES_PER_FIELD_ELEMENT};
 use num_bigint::{BigInt, ParseBigIntError};
 use num_traits::{Num, One, Zero};
+use starknet_infra_utils::compile_time_cargo_manifest_dir;
 
 const BLOB_SUBGROUP_GENERATOR: &str =
     "39033254847818212395286706435128746857159659164139250548781411570340225835782";
@@ -14,6 +17,8 @@ const FIELD_ELEMENTS_PER_BLOB: usize = 4096;
 #[derive(Debug, thiserror::Error)]
 pub enum FftError {
     #[error(transparent)]
+    CKzg(#[from] c_kzg::Error),
+    #[error(transparent)]
     InvalidBinaryToUsize(ParseIntError),
     #[error("Blob size must be {FIELD_ELEMENTS_PER_BLOB}, got {0}.")]
     InvalidBlobSize(usize),
@@ -23,6 +28,18 @@ pub enum FftError {
     ParseBigInt(#[from] ParseBigIntError),
     #[error("Too many coefficients; expected at most {FIELD_ELEMENTS_PER_BLOB}, got {0}.")]
     TooManyCoefficients(usize),
+}
+
+static KZG_SETTINGS: LazyLock<KzgSettings> = LazyLock::new(|| {
+    let path =
+        Path::new(compile_time_cargo_manifest_dir!()).join("resources").join("trusted_setup.txt");
+    KzgSettings::load_trusted_setup_file(&path)
+        .unwrap_or_else(|error| panic!("Failed to load trusted setup file from {path:?}: {error}."))
+});
+
+#[allow(dead_code)]
+fn blob_to_kzg_commitment(blob: &Blob) -> Result<KzgCommitment, FftError> {
+    Ok(KzgCommitment::blob_to_kzg_commitment(blob, &KZG_SETTINGS)?)
 }
 
 fn to_bytes(x: &BigInt, length: usize) -> Vec<u8> {
