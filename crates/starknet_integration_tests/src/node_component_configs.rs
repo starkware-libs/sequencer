@@ -417,7 +417,7 @@ fn get_l1_provider_config(
     // The L1 scraper is disabled in to avoid running an instance of L1 in the
     // 'docker-build-push' test.
     // TODO(Arni): reenable the l1 scraper.
-    config.l1_scraper = ActiveComponentExecutionConfig::disabled();
+    config.l1_scraper = ActiveComponentExecutionConfig::enabled();
     config.state_sync = state_sync_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
