@@ -13,6 +13,7 @@ pub(crate) const BLS_PRIME: &str =
     "52435875175126190479447740508185965837690552500527637822603658699938581184513";
 const COMMITMENT_BITS: usize = 384;
 const COMMITMENT_BITS_MIDPOINT: usize = COMMITMENT_BITS / 2;
+const COMMITMENT_BYTES_LENGTH: usize = 48;
 const FIELD_ELEMENTS_PER_BLOB: usize = 4096;
 
 #[derive(Debug, thiserror::Error)]
@@ -40,7 +41,6 @@ static KZG_SETTINGS: LazyLock<KzgSettings> = LazyLock::new(|| {
         .unwrap_or_else(|error| panic!("Failed to load trusted setup file from {path:?}: {error}."))
 });
 
-#[allow(dead_code)]
 fn blob_to_kzg_commitment(blob: &Blob) -> Result<KzgCommitment, FftError> {
     Ok(KzgCommitment::blob_to_kzg_commitment(blob, &*KZG_SETTINGS)?)
 }
@@ -155,7 +155,6 @@ pub(crate) fn fft(
     Ok(values)
 }
 
-#[allow(dead_code)]
 pub(crate) fn split_commitment(num: BigInt) -> (BigInt, BigInt) {
     // Ensure the input is 384 bits (48 bytes)
     let num = num & &((BigInt::one() << COMMITMENT_BITS) - 1);
@@ -168,7 +167,6 @@ pub(crate) fn split_commitment(num: BigInt) -> (BigInt, BigInt) {
     (low, high)
 }
 
-#[allow(dead_code)]
 fn polynomial_coefficients_to_blob(coefficients: Vec<BigInt>) -> Result<Vec<u8>, FftError> {
     if coefficients.len() > FIELD_ELEMENTS_PER_BLOB {
         return Err(FftError::TooManyCoefficients(coefficients.len()));
@@ -186,4 +184,15 @@ fn polynomial_coefficients_to_blob(coefficients: Vec<BigInt>) -> Result<Vec<u8>,
 
     // Serialize the FFT result into a blob.
     serialize_blob(&fft_result)
+}
+
+#[allow(dead_code)]
+pub(crate) fn polynomial_coefficients_to_kzg_commitment(
+    coefficients: Vec<BigInt>,
+) -> Result<(BigInt, BigInt), FftError> {
+    let blob = polynomial_coefficients_to_blob(coefficients)?;
+    let commitment_bytes = blob_to_kzg_commitment(&Blob::from_bytes(&blob)?)?;
+    assert_eq!(commitment_bytes.len(), COMMITMENT_BYTES_LENGTH, "Bad commitment bytes length.");
+    let kzg_bigint = BigInt::from_str_radix(&commitment_bytes.as_hex_string(), 16)?;
+    Ok(split_commitment(kzg_bigint))
 }
