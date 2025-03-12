@@ -426,7 +426,7 @@ define_hint_enum!(
         WriteUseKzgDaToMemory,
         write_use_kzg_da_to_memory,
         indoc! {r#"
-    memory[fp + 17] = to_felt_or_relocatable(syscall_handler.block_info.use_kzg_da and (
+    memory[fp + 18] = to_felt_or_relocatable(syscall_handler.block_info.use_kzg_da and (
         not os_input.full_output
     ))"#}
     ),
@@ -699,7 +699,7 @@ define_hint_enum!(
     (
         SegmentsAddTemp,
         segments_add_temp,
-        indoc! {r#"memory[ap] = to_felt_or_relocatable(segments.add_temp_segment())"#
+        indoc! {r#"memory[fp + 6] = to_felt_or_relocatable(segments.add_temp_segment())"#
         }
     ),
     (StartTx, start_tx, indoc! {r#"execution_helper.start_tx()"# }),
@@ -1307,7 +1307,7 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
     (
         WriteFullOutputToMemory,
         write_full_output_to_memory,
-        indoc! {r#"memory[fp + 18] = to_felt_or_relocatable(os_input.full_output)"#}
+        indoc! {r#"memory[fp + 19] = to_felt_or_relocatable(os_input.full_output)"#}
     ),
     (
         ConfigureKzgManager,
