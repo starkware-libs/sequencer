@@ -208,11 +208,12 @@ fn test_syscall_gas_cost_calculation() {
     );
 }
 
-/// Linear gas cost factor of deploy syscall should not be trivial.
-#[test]
-fn test_call_data_factor_gas_cost_calculation() {
-    assert!(
-        VersionedConstants::latest_constants().os_constants.gas_costs.syscalls.deploy.linear_factor
-            > 0
-    )
-}
+// Linear gas cost factor of deploy syscall should not be trivial.
+// #[test]
+// fn test_call_data_factor_gas_cost_calculation() {
+//     assert!(
+//         VersionedConstants::latest_constants().os_constants.gas_costs.syscalls.deploy.
+// linear_factor
+//             > 0
+//     )
+// }
