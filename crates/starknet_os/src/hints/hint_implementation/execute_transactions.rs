@@ -55,8 +55,11 @@ pub(crate) fn sha2_finalize<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) ->
     todo!()
 }
 
-pub(crate) fn segments_add_temp<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    todo!()
+pub(crate) fn segments_add_temp<S: StateReader>(
+    HintArgs { vm, .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    let temp_segment = vm.add_temporary_segment();
+    insert_nondet_hint_value(vm, AllHints::OsHint(OsHint::SegmentsAddTemp), temp_segment)
 }
 
 pub(crate) fn set_ap_to_actual_fee<S: StateReader>(
