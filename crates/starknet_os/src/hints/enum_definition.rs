@@ -124,7 +124,7 @@ use crate::hints::hint_implementation::execution::{
     write_syscall_result_deprecated,
 };
 use crate::hints::hint_implementation::find_element::search_sorted_optimistic;
-use crate::hints::hint_implementation::kzg::store_da_segment;
+use crate::hints::hint_implementation::kzg::implementation::store_da_segment;
 use crate::hints::hint_implementation::math::log2_ceil;
 use crate::hints::hint_implementation::os::{
     configure_kzg_manager,
