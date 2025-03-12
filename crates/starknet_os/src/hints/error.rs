@@ -15,6 +15,7 @@ use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::enum_definition::AllHints;
+use crate::hints::hint_implementation::kzg::utils::FftError;
 use crate::hints::vars::{Const, Ids};
 
 #[derive(Debug, thiserror::Error)]
@@ -34,11 +35,15 @@ pub enum OsHintError {
     #[error("{id:?} value {felt} is not a bit.")]
     ExpectedBit { id: Ids, felt: Felt },
     #[error(transparent)]
+    Fft(#[from] FftError),
+    #[error(transparent)]
     FromUtf8(#[from] FromUtf8Error),
     #[error("The identifier {0:?} has no full name.")]
     IdentifierHasNoFullName(Box<Identifier>),
     #[error("The identifier {0:?} has no members.")]
     IdentifierHasNoMembers(Box<Identifier>),
+    #[error("Failed to convert {variant:?} felt value {felt:?} to type {ty}: {reason:?}.")]
+    IdsConversion { variant: Ids, felt: Felt, ty: String, reason: String },
     #[error(
         "Inconsistent block numbers: {actual}, {expected}. The constant STORED_BLOCK_HASH_BUFFER \
          is probably out of sync."
