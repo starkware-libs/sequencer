@@ -1,7 +1,5 @@
 use blockifier::state::state_api::StateReader;
-use cairo_vm::any_box;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_into_ap;
-use cairo_vm::types::exec_scope::ExecutionScopes;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::enum_definition::{AllHints, OsHint};
@@ -30,22 +28,11 @@ pub(crate) fn write_full_output_to_memory<S: StateReader>(
     insert_nondet_hint_value(vm, AllHints::OsHint(OsHint::WriteFullOutputToMemory), full_output)
 }
 
-pub fn insert_value_to_root_scope<T: 'static>(
-    exec_scopes: &mut ExecutionScopes,
-    name: &str,
-    value: T,
-) {
-    exec_scopes.data[0].insert(name.to_string(), any_box!(value));
-}
-
 pub(crate) fn configure_kzg_manager<S: StateReader>(
     HintArgs { exec_scopes, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    insert_value_to_root_scope(
-        exec_scopes,
-        Scope::SerializeDataAvailabilityCreatePages.into(),
-        true,
-    );
+    // TODO(Aner): verify that inserting into the "root" scope is not neccessary.
+    exec_scopes.insert_value(Scope::SerializeDataAvailabilityCreatePages.into(), true);
     Ok(())
 }
 
