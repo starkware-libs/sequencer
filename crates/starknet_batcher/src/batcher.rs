@@ -224,7 +224,10 @@ impl Batcher {
                 Some(output_tx_sender),
                 tokio::runtime::Handle::current(),
             )
-            .map_err(|_| BatcherError::InternalError)?;
+            .map_err(|err| {
+                error!("Failed to get block builder: {}", err);
+                BatcherError::InternalError
+            })?;
 
         self.spawn_proposal(
             propose_block_input.proposal_id,
@@ -287,7 +290,10 @@ impl Batcher {
                 None,
                 tokio::runtime::Handle::current(),
             )
-            .map_err(|_| BatcherError::InternalError)?;
+            .map_err(|err| {
+                error!("Failed to get block builder: {}", err);
+                BatcherError::InternalError
+            })?;
 
         self.spawn_proposal(
             validate_block_input.proposal_id,
@@ -436,7 +442,10 @@ impl Batcher {
             .get_completed_proposal_result(proposal_id)
             .await
             .expect("Proposal should exist.")
-            .map_err(|_| BatcherError::InternalError)?;
+            .map_err(|err| {
+                error!("Failed to get commitment: {}", err);
+                BatcherError::InternalError
+            })?;
 
         Ok(GetProposalContentResponse { content: GetProposalContent::Finished(commitment) })
     }
@@ -489,7 +498,10 @@ impl Batcher {
         let proposal_result = self.executed_proposals.lock().await.remove(&proposal_id);
         let block_execution_artifacts = proposal_result
             .ok_or(BatcherError::ExecutedProposalNotFound { proposal_id })?
-            .map_err(|_| BatcherError::InternalError)?;
+            .map_err(|err| {
+                error!("Failed to get block execution artifacts: {}", err);
+                BatcherError::InternalError
+            })?;
         let state_diff = block_execution_artifacts.thin_state_diff();
         let n_txs = u64::try_from(block_execution_artifacts.tx_hashes().len())
             .expect("Number of transactions should fit in u64");
