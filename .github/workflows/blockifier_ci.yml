@@ -64,3 +64,6 @@ jobs:
       # cairo_native is not activated by any workspace crate; test the build.
       - run: cargo build -p blockifier --features cairo_native
       - run: cargo test -p blockifier --features cairo_native
+      # tracing is not activated by any workspace crate; test the build.
+      - run: cargo build -p blockifier --features tracing
+      - run: cargo test -p blockifier --features tracing
