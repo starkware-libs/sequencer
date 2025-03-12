@@ -184,7 +184,6 @@ fn polynomial_coefficients_to_blob(coefficients: Vec<BigInt>) -> Result<Vec<u8>,
     serialize_blob(&fft_result)
 }
 
-#[allow(dead_code)]
 pub(crate) fn polynomial_coefficients_to_kzg_commitment(
     coefficients: Vec<BigInt>,
 ) -> Result<(BigInt, BigInt), FftError> {
