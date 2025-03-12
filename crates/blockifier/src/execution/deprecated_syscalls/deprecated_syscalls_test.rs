@@ -45,23 +45,7 @@ use crate::test_utils::{
     get_const_syscall_resources,
     trivial_external_entry_point_new,
 };
-<<<<<<< HEAD
-use crate::transaction::objects::{
-    CommonAccountFields,
-    DeprecatedTransactionInfo,
-    TransactionInfo,
-};
-||||||| c28b2909b
-use crate::transaction::objects::{
-    CommonAccountFields,
-    DeprecatedTransactionInfo,
-    TransactionInfo,
-};
-use crate::versioned_constants::VersionedConstants;
-=======
 use crate::transaction::objects::{CommonAccountFields, CurrentTransactionInfo, TransactionInfo};
-use crate::versioned_constants::VersionedConstants;
->>>>>>> origin/main-v0.13.5
 use crate::{check_entry_point_execution_error_for_custom_hint, retdata};
 
 #[test]

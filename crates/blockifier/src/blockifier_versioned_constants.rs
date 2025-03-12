@@ -19,15 +19,7 @@ use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::define_versioned_constants;
 use starknet_api::execution_resources::{GasAmount, GasVector};
-<<<<<<< HEAD:crates/blockifier/src/blockifier_versioned_constants.rs
-use starknet_api::transaction::fields::GasVectorComputationMode;
-||||||| c28b2909b:crates/blockifier/src/versioned_constants.rs
-use starknet_api::transaction::fields::GasVectorComputationMode;
-use starknet_infra_utils::compile_time_cargo_manifest_dir;
-=======
 use starknet_api::transaction::fields::{GasVectorComputationMode, Tip};
-use starknet_infra_utils::compile_time_cargo_manifest_dir;
->>>>>>> origin/main-v0.13.5:crates/blockifier/src/versioned_constants.rs
 use strum::IntoEnumIterator;
 use thiserror::Error;
 
@@ -319,53 +311,14 @@ impl VersionedConstants {
     /// Calculates the syscall gas cost from the OS resources.
     pub fn get_syscall_gas_cost(&self, syscall_selector: &SyscallSelector) -> SyscallGasCost {
         let gas_costs = &self.os_constants.gas_costs;
-<<<<<<< HEAD:crates/blockifier/src/blockifier_versioned_constants.rs
-        let constant_execution_resources = &self
-||||||| c28b2909b:crates/blockifier/src/versioned_constants.rs
-        let execution_resources = &self
-=======
         let vm_resources = &self
->>>>>>> origin/main-v0.13.5:crates/blockifier/src/versioned_constants.rs
             .os_resources
             .execute_syscalls
             .get(syscall_selector)
-<<<<<<< HEAD:crates/blockifier/src/blockifier_versioned_constants.rs
-            .expect("Fetching the execution resources of a syscall should not fail.")
-            .constant;
-        let n_steps = u64_from_usize(constant_execution_resources.n_steps);
-        let n_memory_holes = u64_from_usize(constant_execution_resources.n_memory_holes);
-        let total_builtin_gas_cost: u64 = constant_execution_resources
-            .builtin_instance_counter
-            .iter()
-            .map(|(builtin, amount)| {
-                let builtin_cost = gas_costs
-                    .builtins
-                    .get_builtin_gas_cost(builtin)
-                    .unwrap_or_else(|err| panic!("Failed to get gas cost: {}", err));
-                builtin_cost * u64_from_usize(*amount)
-            })
-            .sum();
-||||||| c28b2909b:crates/blockifier/src/versioned_constants.rs
-            .expect("Fetching the execution resources of a syscall should not fail.");
-        let n_steps = u64_from_usize(execution_resources.n_steps);
-        let n_memory_holes = u64_from_usize(execution_resources.n_memory_holes);
-        let total_builtin_gas_cost: u64 = execution_resources
-            .builtin_instance_counter
-            .iter()
-            .map(|(builtin, amount)| {
-                let builtin_cost = gas_costs
-                    .builtins
-                    .get_builtin_gas_cost(builtin)
-                    .unwrap_or_else(|err| panic!("Failed to get gas cost: {}", err));
-                builtin_cost * u64_from_usize(*amount)
-            })
-            .sum();
-=======
             .expect("Fetching the execution resources of a syscall should not fail.");
 
         let mut base_gas_cost = get_gas_cost_from_vm_resources(&vm_resources.constant, gas_costs);
 
->>>>>>> origin/main-v0.13.5:crates/blockifier/src/versioned_constants.rs
         // The minimum total cost is `syscall_base_gas_cost`, which is pre-charged by the compiler.
         base_gas_cost = std::cmp::max(gas_costs.base.syscall_base_gas_cost, base_gas_cost);
         let linear_gas_cost =
@@ -616,14 +569,8 @@ impl OsResources {
                 self.execute_syscalls.get(syscall_selector).unwrap_or_else(|| {
                     panic!("OS resources of syscall '{syscall_selector:?}' are unknown.")
                 });
-<<<<<<< HEAD:crates/blockifier/src/blockifier_versioned_constants.rs
-            os_additional_resources += &(&syscall_resources.constant * syscall_usage.call_count);
-||||||| c28b2909b:crates/blockifier/src/versioned_constants.rs
-            os_additional_resources += &(syscall_resources * syscall_usage.call_count);
-=======
             os_additional_resources += &(&(&syscall_resources.constant * syscall_usage.call_count)
                 + &(&syscall_resources.calldata_factor * syscall_usage.linear_factor));
->>>>>>> origin/main-v0.13.5:crates/blockifier/src/versioned_constants.rs
         }
 
         os_additional_resources
@@ -696,58 +643,6 @@ impl SyscallGasCost {
 #[cfg_attr(any(test, feature = "testing"), derive(Clone, Copy))]
 #[derive(Debug, Default, Deserialize, PartialEq)]
 pub struct SyscallGasCosts {
-<<<<<<< HEAD:crates/blockifier/src/blockifier_versioned_constants.rs
-    pub call_contract: u64,
-    pub deploy: u64,
-    pub get_block_hash: u64,
-    pub get_execution_info: u64,
-    pub library_call: u64,
-    pub meta_tx_v0: u64,
-    pub replace_class: u64,
-    pub storage_read: u64,
-    pub storage_write: u64,
-    pub get_class_hash_at: u64,
-    pub emit_event: u64,
-    pub send_message_to_l1: u64,
-    pub secp256k1_add: u64,
-    pub secp256k1_get_point_from_x: u64,
-    pub secp256k1_get_xy: u64,
-    pub secp256k1_mul: u64,
-    pub secp256k1_new: u64,
-    pub secp256r1_add: u64,
-    pub secp256r1_get_point_from_x: u64,
-    pub secp256r1_get_xy: u64,
-    pub secp256r1_mul: u64,
-    pub secp256r1_new: u64,
-    pub keccak: u64,
-    pub keccak_round_cost: u64,
-    pub sha256_process_block: u64,
-||||||| c28b2909b:crates/blockifier/src/versioned_constants.rs
-    pub call_contract: u64,
-    pub deploy: u64,
-    pub get_block_hash: u64,
-    pub get_execution_info: u64,
-    pub library_call: u64,
-    pub replace_class: u64,
-    pub storage_read: u64,
-    pub storage_write: u64,
-    pub get_class_hash_at: u64,
-    pub emit_event: u64,
-    pub send_message_to_l1: u64,
-    pub secp256k1_add: u64,
-    pub secp256k1_get_point_from_x: u64,
-    pub secp256k1_get_xy: u64,
-    pub secp256k1_mul: u64,
-    pub secp256k1_new: u64,
-    pub secp256r1_add: u64,
-    pub secp256r1_get_point_from_x: u64,
-    pub secp256r1_get_xy: u64,
-    pub secp256r1_mul: u64,
-    pub secp256r1_new: u64,
-    pub keccak: u64,
-    pub keccak_round_cost: u64,
-    pub sha256_process_block: u64,
-=======
     pub call_contract: SyscallGasCost,
     pub deploy: SyscallGasCost,
     pub get_block_hash: SyscallGasCost,
@@ -771,8 +666,8 @@ pub struct SyscallGasCosts {
     pub secp256r1_new: SyscallGasCost,
     pub keccak: SyscallGasCost,
     pub keccak_round_cost: SyscallGasCost,
+    pub meta_tx_v0: SyscallGasCost,
     pub sha256_process_block: SyscallGasCost,
->>>>>>> origin/main-v0.13.5:crates/blockifier/src/versioned_constants.rs
 }
 
 impl SyscallGasCosts {
