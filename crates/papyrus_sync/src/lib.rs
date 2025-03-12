@@ -578,6 +578,24 @@ impl<
         compiled_class_hash: CompiledClassHash,
         compiled_class: CasmContractClass,
     ) -> StateSyncResult {
+        if let Some(class_manager_client) = &self.class_manager_client {
+            let class =
+                self.reader.begin_ro_txn()?.get_class(&class_hash)?.expect(
+                    "Compiled classes stream gave class hash that doesn't appear in storage.",
+                );
+            let sierra_version = SierraVersion::extract_from_program(&class.sierra_program)
+                .expect("Failed reading sierra version from program.");
+            let contract_class = ContractClass::V1((compiled_class.clone(), sierra_version));
+            class_manager_client
+                .add_class_and_executable_unsafe(
+                    class_hash,
+                    class,
+                    compiled_class_hash,
+                    contract_class,
+                )
+                .await
+                .expect("Failed adding class and compiled class to class manager.");
+        }
         let txn = self.writer.begin_rw_txn()?;
         // TODO(Yair): verifications - verify casm corresponds to a class on storage.
         match txn.append_casm(&class_hash, &compiled_class) {
@@ -586,23 +604,6 @@ impl<
                 let compiled_class_marker =
                     self.reader.begin_ro_txn()?.get_compiled_class_marker()?;
                 // Write class and casm to class manager.
-                if let Some(class_manager_client) = &self.class_manager_client {
-                    let class = self.reader.begin_ro_txn()?.get_class(&class_hash)?.expect(
-                        "Compiled classes stream gave class hash that doesn't appear in storage.",
-                    );
-                    let sierra_version = SierraVersion::extract_from_program(&class.sierra_program)
-                        .expect("Failed reading sierra version from program.");
-                    let contract_class = ContractClass::V1((compiled_class, sierra_version));
-                    class_manager_client
-                        .add_class_and_executable_unsafe(
-                            class_hash,
-                            class,
-                            compiled_class_hash,
-                            contract_class,
-                        )
-                        .await
-                        .expect("Failed adding class and compiled class to class manager.");
-                }
                 SYNC_COMPILED_CLASS_MARKER.set_lossy(compiled_class_marker.0);
                 debug!("Added compiled class.");
                 Ok(())
