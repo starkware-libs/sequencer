@@ -96,6 +96,34 @@ fn test_members_have_version_iff_they_are_for_publish() {
 }
 
 #[test]
+fn test_members_are_deps() {
+    let member_tomls = ROOT_TOML.member_cargo_tomls();
+    let non_dep_members: Vec<_> =
+        member_tomls.keys().filter(|member| !ROOT_TOML.contains_dependency(member)).collect();
+    assert!(
+        non_dep_members.is_empty(),
+        "The following crates are members of the workspace but not dependencies: \
+         {non_dep_members:?}."
+    );
+}
+
+#[test]
+fn test_members_have_paths() {
+    let member_tomls = ROOT_TOML.member_cargo_tomls();
+    let path_dependencies_names: HashSet<String> =
+        ROOT_TOML.path_dependencies().map(|dep| dep.name).collect();
+    let members_without_paths: Vec<_> = member_tomls
+        .keys()
+        .filter(|member| !path_dependencies_names.contains(&member.to_string()))
+        .collect();
+    assert!(
+        members_without_paths.is_empty(),
+        "The following crates are members of the workspace but do not have a path: \
+         {members_without_paths:?}."
+    );
+}
+
+#[test]
 fn test_path_dependencies_are_members() {
     let non_member_path_crates: Vec<_> = ROOT_TOML
         .path_dependencies()

@@ -158,6 +158,10 @@ impl CargoToml {
         &self.workspace.package.version
     }
 
+    pub(crate) fn contains_dependency(&self, name: &str) -> bool {
+        self.workspace.dependencies.contains_key(name)
+    }
+
     pub(crate) fn dependencies(&self) -> impl Iterator<Item = (&String, &DependencyValue)> + '_ {
         self.workspace.dependencies.iter()
     }
