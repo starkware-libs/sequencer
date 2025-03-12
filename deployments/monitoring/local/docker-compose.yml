@@ -23,16 +23,14 @@ services:
 
   sequencer_node_setup:
     build:
-      context: ../../../
-      dockerfile: ${monitoring_dir}/../images/sequencer/node_setup.Dockerfile
+      context: ${SEQUENCER_ROOT_DIR}
+      dockerfile: ${SEQUENCER_ROOT_DIR}/deployments/images/sequencer/node_setup.Dockerfile
     entrypoint: "/bin/bash -c"
     command: >
       "./target/debug/sequencer_node_setup --output-base-dir ./output --data-prefix-path /data --n-distributed 0 --n-consolidated 1;
-      cp -r ./output/data/* /data && \
-      cp -r ./output/configs/* /config"
+      cp -r ./output/data/* /data"
     volumes:
       - data:/data
-      - config:/config
     networks:
       - sequencer-network
 
@@ -40,8 +38,8 @@ services:
     depends_on:
       - sequencer_node_setup
     build:
-      context: ../../../
-      dockerfile: ${monitoring_dir}/../images/sequencer/dummy_recorder.Dockerfile
+      context: ${SEQUENCER_ROOT_DIR}
+      dockerfile: ${SEQUENCER_ROOT_DIR}/deployments/images/sequencer/dummy_recorder.Dockerfile
     ports:
       - "8080:8080"
     networks:
@@ -57,6 +55,7 @@ services:
       "DEBIAN_FRONTEND=noninteractive \
       apt update && \
       apt install -y jq moreutils && \
+      cp /tmp/node_config.json ${SEQUENCER_CONFIG_PATH} \
       echo 'Injecting config changes...' && \
       jq '.\"recorder_url\" = \"http://dummy_recorder:8080\"' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
       jq '.\"http_server_config.ip\" = \"0.0.0.0\"' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
@@ -64,6 +63,7 @@ services:
       jq '.\"monitoring_endpoint_config.port\" = ${SEQUENCER_MONITORING_PORT}' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
       echo 'Done'"
     volumes:
+      - ${SEQUENCER_CONFIG_SOURCE_PATH}:/tmp/node_config.json
       - config:/config
     networks:
       - sequencer-network
@@ -77,8 +77,8 @@ services:
       sequencer_node_setup:
         condition: service_completed_successfully
     build:
-      context: ../../../
-      dockerfile: ${monitoring_dir}/../images/sequencer/Dockerfile
+      context: ${SEQUENCER_ROOT_DIR}
+      dockerfile: ${SEQUENCER_ROOT_DIR}/deployments/images/sequencer/Dockerfile
     ports:
       - ${SEQUENCER_HTTP_PORT}:${SEQUENCER_HTTP_PORT}
       - ${SEQUENCER_MONITORING_PORT}:${SEQUENCER_MONITORING_PORT}
@@ -95,8 +95,8 @@ services:
     depends_on:
       - sequencer_node
     build:
-      context: ../../../
-      dockerfile: ${monitoring_dir}/../images/sequencer/simulator.Dockerfile
+      context: ${SEQUENCER_ROOT_DIR}
+      dockerfile: ${SEQUENCER_ROOT_DIR}/deployments/images/sequencer/simulator.Dockerfile
     entrypoint: "/bin/bash -c"
     command: >
       "./target/debug/sequencer_simulator \

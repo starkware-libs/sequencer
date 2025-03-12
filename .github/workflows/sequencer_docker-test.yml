@@ -57,24 +57,20 @@ jobs:
       - name: Run docker compose
         run: ./deployments/monitoring/deploy_local_stack.sh up -d --build
 
-      # Getting the sequencer_simulator container id, then using timeout,
-      # to invoke `docker wait $container_id`.
-      # If timeout exceeded, the timeout process will return exit code 124.
-      # Otherwise, `docker wait` will simply return the simulator container exit code.
+      # Getting the sequencer_simulator container id, then
+      # Invoking `docker wait $container_id`.
+      # docker wait will return the container exit_code.
       - name: Wait for simulator results
         working-directory: ./deployments/monitoring/local
+        timeout-minutes: 5
         run: |
           simulator_id=$(docker compose ps -q sequencer_simulator 2>/dev/null)
-          timeout ${{ env.SIMULATOR_TIMEOUT }} docker wait $simulator_id
-          exit_code="$?"
+          exit_code=$(docker wait $simulator_id)
           if (( $exit_code == 0 )); then
             echo "✅ Simulator test succeeded. exit_code=$exit_code"
-          elif (( $exit_code == 124 )); then
-            echo "❌ Simulator test failed, timeout exceeded. exit_code=$exit_code"
-            exit 1
           else
             echo "❌ Simulator test failed. exit_code=$exit_code"
-            exit 1
+            exit $exit_code
           fi
 
       # Printing all services logs separately. Makes it more readable later.
