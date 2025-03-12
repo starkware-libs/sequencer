@@ -4,6 +4,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     insert_value_from_var_name,
     insert_value_into_ap,
 };
+use starknet_api::core::ascii_as_felt;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::enum_definition::{AllHints, OsHint};
@@ -34,8 +35,12 @@ pub(crate) fn block_timestamp<S: StateReader>(
     Ok(insert_value_into_ap(vm, Felt::from(block_timestamp.0))?)
 }
 
-pub(crate) fn chain_id<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    todo!()
+pub(crate) fn chain_id<S: StateReader>(
+    HintArgs { vm, hint_processor, .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    let chain_id = &hint_processor.execution_helper.os_input.chain_info.chain_id;
+    let chain_id_as_felt = ascii_as_felt(chain_id.to_string().as_str())?;
+    Ok(insert_value_into_ap(vm, chain_id_as_felt)?)
 }
 
 pub(crate) fn fee_token_address<S: StateReader>(
