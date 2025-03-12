@@ -2,6 +2,8 @@
   "type": "object",
   "properties": {
     "chain_id": {"type": "string"},
+    "image": {"type": "string"},
+    "application_config_subdir": {"type": "string"},
     "services": {
       "type": "array",
       "items": {
@@ -23,5 +25,5 @@
       }
     }
   },
-  "required": ["chain_id", "services"]
+  "required": ["chain_id", "services", "image", "application_config_subdir"]
 }

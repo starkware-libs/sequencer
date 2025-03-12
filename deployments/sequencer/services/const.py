@@ -1,10 +1,12 @@
 from enum import Enum
 
+
 # k8s service types
 class ServiceType(str, Enum):
     CLUSTER_IP = "ClusterIP"
     LOAD_BALANCER = "LoadBalancer"
     NODE_PORT = "NodePort"
+
 
 IMAGE = "ghcr.io/starkware-libs/sequencer/sequencer:dev"
 

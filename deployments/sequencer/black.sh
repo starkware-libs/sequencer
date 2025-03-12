@@ -2,7 +2,7 @@
 
 # Run black on the sequencer deployment project.
 
-DEFAULT_ARGS="-l 100 -t py39 --exclude imports"
+DEFAULT_ARGS="-l 100 -t py310 --exclude imports"
 function fix() {
     black ${DEFAULT_ARGS} .
 }
