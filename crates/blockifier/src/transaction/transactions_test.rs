@@ -123,17 +123,7 @@ use crate::test_utils::l1_handler::l1handler_tx;
 use crate::test_utils::prices::Prices;
 use crate::test_utils::test_templates::{cairo_version, two_cairo_versions};
 use crate::test_utils::{
-<<<<<<< HEAD
-    get_syscall_resources,
-||||||| c28b2909b
-    create_calldata,
-    create_trivial_calldata,
-    get_syscall_resources,
-=======
-    create_calldata,
-    create_trivial_calldata,
     get_const_syscall_resources,
->>>>>>> origin/main-v0.13.5
     get_tx_resources,
     test_erc20_sequencer_balance_key,
     SaltManager,
