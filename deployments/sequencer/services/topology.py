@@ -4,7 +4,7 @@ import json
 
 from jsonschema import validate, ValidationError
 
-from services import objects
+from config.sequencer import Config
 
 
 class DeploymentConfig:
@@ -36,13 +36,16 @@ class DeploymentConfig:
     def get_image(self):
         return self._deployment_config_data.get("image")
 
+    def get_application_config_subdir(self):
+        return self._deployment_config_data.get("application_config_subdir")
+
     def get_services(self):
         return [service for service in self._deployment_config_data.get("services", [])]
 
 
 @dataclasses.dataclass
 class ServiceTopology:
-    config: typing.Optional[objects.Config]
+    config: typing.Optional[Config]
     image: str
     ingress: bool
     autoscale: bool
