@@ -414,7 +414,7 @@ fn get_l1_provider_config(
         l1_provider_socket.ip(),
         l1_provider_socket.port(),
     );
-    config.l1_scraper = ActiveComponentExecutionConfig::enabled();
+    config.l1_scraper = ActiveComponentExecutionConfig::disabled();
     config.state_sync = state_sync_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
