@@ -14,12 +14,14 @@ pub(crate) enum Scope {
     CompiledClass,
     CompiledClassFacts,
     CompiledClassHash,
+    ComponentHashes,
     DeprecatedClassHashes,
     DictManager,
     DictTracker,
     InitialDict,
     IsDeprecated,
     Preimage,
+    Transactions,
     UseKzgDa,
 }
 
@@ -31,12 +33,14 @@ impl From<Scope> for &'static str {
             Scope::CompiledClass => "compiled_class",
             Scope::CompiledClassFacts => "compiled_class_facts",
             Scope::CompiledClassHash => "compiled_class_hash",
+            Scope::ComponentHashes => "component_hashes",
             Scope::DeprecatedClassHashes => "__deprecated_class_hashes",
             Scope::DictManager => "dict_manager",
             Scope::DictTracker => "dict_tracker",
             Scope::InitialDict => "initial_dict",
             Scope::IsDeprecated => "is_deprecated",
             Scope::Preimage => "preimage",
+            Scope::Transactions => "transactions",
             Scope::UseKzgDa => "use_kzg_da",
         }
     }
@@ -46,6 +50,13 @@ impl std::fmt::Display for Scope {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let scope_string: &'static str = (*self).into();
         write!(f, "{}", scope_string)
+    }
+}
+
+impl From<Scope> for String {
+    fn from(scope: Scope) -> String {
+        let scope_as_str: &str = scope.into();
+        scope_as_str.to_string()
     }
 }
 
