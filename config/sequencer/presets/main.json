@@ -1,5 +1,6 @@
 {
   "chain_id": "SN_MAIN",
+  "image": "ghcr.io/starkware-libs/sequencer/sequencer:dev",
   "services": [
     {
       "name": "Batcher",
