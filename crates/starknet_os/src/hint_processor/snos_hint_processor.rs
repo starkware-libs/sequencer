@@ -51,7 +51,6 @@ impl<S: StateReader> SnosHintProcessor<S> {
 
     /// Stores the data-availabilty segment, to be used for computing the KZG commitment in blob
     /// mode.
-    #[allow(dead_code)]
     pub(crate) fn set_da_segment(&mut self, da_segment: Vec<Felt>) -> Result<(), OsHintError> {
         if self.da_segment.is_some() {
             return Err(OsHintError::AssertionFailed {
