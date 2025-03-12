@@ -16,22 +16,60 @@ pub const SINGLE_NODE_CONFIG_PATH: &str =
 
 // TODO(Tsabary): fill and order these.
 pub const MAIN_DEPLOYMENT_PRESET_PATH: &str = "config/sequencer/presets/main.json";
+pub const MAIN_DEPLOYMENT_APP_CONFIG_SUBDIR: &str =
+    "config/sequencer/presets/system_test_presets/single_node/";
 pub const MAIN_DEPLOYMENT: Deployment<'_> = Deployment::new(
     ChainId::Mainnet,
     DEPLOYMENT_IMAGE,
+    MAIN_DEPLOYMENT_APP_CONFIG_SUBDIR,
     &[BATCHER_MAIN, GATEWAY_MAIN, MEMPOOL_MAIN],
 );
 
 pub const TESTING_DEPLOYMENT_PRESET_PATH: &str =
     "config/sequencer/deployment_configs/testing/nightly_test_all_in_one.json";
-pub const TESTING_DEPLOYMENT: Deployment<'_> =
-    Deployment::new(ChainId::IntegrationSepolia, DEPLOYMENT_IMAGE, &[ALL_IN_ONE_TESTING]);
+pub const TESTING_DEPLOYMENT_APP_CONFIG_SUBDIR: &str =
+    "config/sequencer/presets/system_test_presets/single_node/";
+pub const TESTING_DEPLOYMENT: Deployment<'_> = Deployment::new(
+    ChainId::IntegrationSepolia,
+    DEPLOYMENT_IMAGE,
+    TESTING_DEPLOYMENT_APP_CONFIG_SUBDIR,
+    &[ALL_IN_ONE_TESTING],
+);
 
 // Main deployment services.
-const BATCHER_MAIN: Service = Service::new(ServiceName::Batcher, "", false, false, 1, Some(500));
-const GATEWAY_MAIN: Service = Service::new(ServiceName::Gateway, "", false, true, 1, None);
-const MEMPOOL_MAIN: Service = Service::new(ServiceName::Mempool, "", false, false, 1, None);
+// TODO(Tsabary): fill in correct application configs.
+const BATCHER_MAIN: Service = Service::new(
+    ServiceName::Batcher,
+    "node_0/executable_0/node_config.json",
+    false,
+    false,
+    1,
+    Some(500),
+);
+const GATEWAY_MAIN: Service = Service::new(
+    ServiceName::Gateway,
+    "node_0/executable_0/node_config.json",
+    false,
+    true,
+    1,
+    None,
+);
+const MEMPOOL_MAIN: Service = Service::new(
+    ServiceName::Mempool,
+    "node_0/executable_0/node_config.json",
+    false,
+    false,
+    1,
+    None,
+);
 
 // Test deployment services.
-const ALL_IN_ONE_TESTING: Service =
-    Service::new(ServiceName::AllInOne, SINGLE_NODE_CONFIG_PATH, false, false, 1, Some(32));
+// TODO(Tsabary): avoid the hard-coded path.
+const ALL_IN_ONE_TESTING: Service = Service::new(
+    ServiceName::AllInOne,
+    "node_0/executable_0/node_config.json",
+    false,
+    false,
+    1,
+    Some(32),
+);
