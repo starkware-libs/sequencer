@@ -1,11 +1,13 @@
 use std::num::ParseIntError;
 
+use c_kzg::BYTES_PER_FIELD_ELEMENT;
 use num_bigint::BigInt;
 use num_traits::One;
 
 #[allow(dead_code)]
 pub(crate) const BLS_PRIME: &str =
     "52435875175126190479447740508185965837690552500527637822603658699938581184513";
+const FIELD_ELEMENTS_PER_BLOB: usize = 4096;
 
 #[derive(Debug, thiserror::Error)]
 pub enum FftError {
@@ -13,8 +15,29 @@ pub enum FftError {
     GroupMissingLastElement,
     #[error(transparent)]
     InvalidBinaryToUsize(ParseIntError),
+    #[error("Blob size must be {FIELD_ELEMENTS_PER_BLOB}, got {0}.")]
+    InvalidBlobSize(usize),
     #[error("Invalid coefficients length (must be a power of two): {0}.")]
     InvalidCoeffsLength(usize),
+}
+
+fn to_bytes(x: &BigInt, length: usize) -> Vec<u8> {
+    let mut bytes = x.to_bytes_be().1;
+    let padding = length.saturating_sub(bytes.len());
+    if padding > 0 {
+        let mut padded_bytes = std::iter::repeat(0u8).take(padding).collect::<Vec<u8>>();
+        padded_bytes.extend(bytes);
+        bytes = padded_bytes;
+    }
+    bytes
+}
+
+#[allow(dead_code)]
+fn serialize_blob(blob: &[BigInt]) -> Result<Vec<u8>, FftError> {
+    if blob.len() != FIELD_ELEMENTS_PER_BLOB {
+        return Err(FftError::InvalidBlobSize(blob.len()));
+    }
+    Ok(blob.iter().flat_map(|x| to_bytes(x, BYTES_PER_FIELD_ELEMENT)).collect())
 }
 
 /// Performs the recursive Fast Fourier Transform (FFT) on the input coefficient vector `coeffs`
