@@ -61,16 +61,15 @@ jobs:
       # to invoke `docker wait $container_id`.
       - name: Wait for simulator results
         working-directory: ./deployments/monitoring/local
-        timeout-minutes: 1
+        timeout-minutes: 5
         run: |
-          sleep 100
           simulator_id=$(docker compose ps -q sequencer_simulator 2>/dev/null)
-          docker wait $simulator_id
-          exit_code="$?"
+          exit_code=$(docker wait $simulator_id)
           if (( $exit_code == 0 )); then
             echo "✅ Simulator test succeeded. exit_code=$exit_code"
           else
             echo "❌ Simulator test failed. exit_code=$exit_code"
+            exit $exit_code
           fi
 
       # Printing all services logs separately. Makes it more readable later.
