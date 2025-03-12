@@ -960,24 +960,24 @@ fn tx_from_address_exists(mut mempool: Mempool) {
     let account_address = contract_address!(ACCOUNT_ADDRESS);
 
     // Account is not known to the mempool.
-    assert_eq!(mempool.contains_tx_from(account_address), false);
+    assert_eq!(mempool.account_tx_in_pool_or_recent_block(account_address), false);
 
     // The account has a tx in the mempool.
     add_tx(
         &mut mempool,
         &add_tx_input!(tx_hash: 1, address: ACCOUNT_ADDRESS, tx_nonce: 0, account_nonce: 0),
     );
-    assert_eq!(mempool.contains_tx_from(account_address), true);
+    assert_eq!(mempool.account_tx_in_pool_or_recent_block(account_address), true);
 
     // The account has a staged tx in the mempool.
     let get_tx_response = mempool.get_txs(1).unwrap();
     assert_eq!(get_tx_response.first().unwrap().contract_address(), account_address);
-    assert_eq!(mempool.contains_tx_from(account_address), true);
+    assert_eq!(mempool.account_tx_in_pool_or_recent_block(account_address), true);
 
     // The account has no txs in the pool, but is known through a committed block.
     commit_block(&mut mempool, [(ACCOUNT_ADDRESS, 1)], []);
     MempoolTestContentBuilder::new().with_pool([]).build().assert_eq(&mempool.content());
-    assert_eq!(mempool.contains_tx_from(account_address), true);
+    assert_eq!(mempool.account_tx_in_pool_or_recent_block(account_address), true);
 }
 
 #[rstest]

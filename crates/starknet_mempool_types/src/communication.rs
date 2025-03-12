@@ -47,7 +47,7 @@ pub trait MempoolClient: Send + Sync {
     async fn add_tx(&self, args: AddTransactionArgsWrapper) -> MempoolClientResult<()>;
     async fn commit_block(&self, args: CommitBlockArgs) -> MempoolClientResult<()>;
     async fn get_txs(&self, n_txs: usize) -> MempoolClientResult<Vec<InternalRpcTransaction>>;
-    async fn contains_tx_from(
+    async fn account_tx_in_pool_or_recent_block(
         &self,
         contract_address: ContractAddress,
     ) -> MempoolClientResult<bool>;
@@ -59,7 +59,7 @@ pub enum MempoolRequest {
     AddTransaction(AddTransactionArgsWrapper),
     CommitBlock(CommitBlockArgs),
     GetTransactions(usize),
-    ContainsTransactionFrom(ContractAddress),
+    AccountTxInPoolOrRecentBlock(ContractAddress),
     UpdateGasPrice(NonzeroGasPrice),
 }
 
@@ -68,7 +68,7 @@ pub enum MempoolResponse {
     AddTransaction(MempoolResult<()>),
     CommitBlock(MempoolResult<()>),
     GetTransactions(MempoolResult<Vec<InternalRpcTransaction>>),
-    ContainsTransactionFrom(MempoolResult<bool>),
+    AccountTxInPoolOrRecentBlock(MempoolResult<bool>),
     UpdateGasPrice(MempoolResult<()>),
 }
 
@@ -118,14 +118,14 @@ where
         )
     }
 
-    async fn contains_tx_from(
+    async fn account_tx_in_pool_or_recent_block(
         &self,
         account_address: ContractAddress,
     ) -> MempoolClientResult<bool> {
-        let request = MempoolRequest::ContainsTransactionFrom(account_address);
+        let request = MempoolRequest::AccountTxInPoolOrRecentBlock(account_address);
         handle_all_response_variants!(
             MempoolResponse,
-            ContainsTransactionFrom,
+            AccountTxInPoolOrRecentBlock,
             MempoolClientError,
             MempoolError,
             Direct

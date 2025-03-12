@@ -340,7 +340,7 @@ impl Mempool {
         self.update_state_metrics();
     }
 
-    pub fn contains_tx_from(&self, account_address: ContractAddress) -> bool {
+    pub fn account_tx_in_pool_or_recent_block(&self, account_address: ContractAddress) -> bool {
         self.state.contains_account(account_address)
             || self.tx_pool.contains_account(account_address)
     }
