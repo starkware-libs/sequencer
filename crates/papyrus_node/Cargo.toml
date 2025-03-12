@@ -41,6 +41,7 @@ papyrus_rpc = { workspace = true, optional = true }
 papyrus_storage.workspace = true
 papyrus_sync.workspace = true
 reqwest = { workspace = true, features = ["blocking", "json"] }
+openssl = { workspace = true, features = ["vendored"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
 starknet_api = { workspace = true, features = ["testing"] }
