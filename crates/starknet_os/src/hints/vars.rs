@@ -19,7 +19,6 @@ pub(crate) enum Scope {
     DictTracker,
     InitialDict,
     IsDeprecated,
-    OsInput,
     Preimage,
     UseKzgDa,
 }
@@ -37,7 +36,6 @@ impl From<Scope> for &'static str {
             Scope::DictTracker => "dict_tracker",
             Scope::InitialDict => "initial_dict",
             Scope::IsDeprecated => "is_deprecated",
-            Scope::OsInput => "os_input",
             Scope::Preimage => "preimage",
             Scope::UseKzgDa => "use_kzg_da",
         }
