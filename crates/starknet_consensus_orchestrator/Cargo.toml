@@ -28,6 +28,7 @@ starknet_class_manager_types.workspace = true
 starknet_consensus.workspace = true
 starknet_infra_utils.workspace = true
 starknet_l1_gas_price_types.workspace = true
+starknet_sequencer_metrics.workspace = true
 starknet_state_sync_types.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full"] }
@@ -62,3 +63,6 @@ workspace = true
 [package.metadata.cargo-machete]
 # `paste`, `starknet_infra_utils` are used in the `define_versioned_constants!` macro but may be falsely detected as unused.
 ignored = ["paste", "starknet_infra_utils"]
+
+[features]
+testing = []
