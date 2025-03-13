@@ -1,12 +1,24 @@
 use blockifier::state::state_api::StateReader;
+use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_from_var_name;
 
 use crate::hints::error::OsHintResult;
 use crate::hints::types::HintArgs;
+use crate::hints::vars::Ids;
 
 pub(crate) fn allocate_segments_for_messages<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    let segment1 = vm.add_temporary_segment();
+    let segment2 = vm.add_temporary_segment();
+    let initial_carried_outputs = vm.segments.gen_arg(&[segment1, segment2])?;
+    insert_value_from_var_name(
+        Ids::InitialCarriedOutputs.into(),
+        initial_carried_outputs,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    Ok(())
 }
 
 pub(crate) fn disable_da_page_creation<S: StateReader>(
