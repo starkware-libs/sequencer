@@ -48,5 +48,6 @@ pub(crate) fn set_ap_to_new_block_hash<S: StateReader>(
 }
 
 pub(crate) fn starknet_os_input<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    todo!()
+    // Nothing to do here; OS input already available on the hint processor.
+    Ok(())
 }
