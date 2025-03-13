@@ -312,8 +312,8 @@ fn test_update_gas_price_threshold(mut mempool: Mempool) {
     get_txs_and_assert_expected(&mut mempool, 2, &[input_gas_price_20.tx]);
 }
 
-/// Test that the API function [Mempool::contains_tx_from] behaves as expected under various
-/// conditions.
+/// Test that the API function [Mempool::account_tx_in_pool_or_recent_block] behaves as expected
+/// under various conditions.
 #[rstest]
 fn mempool_state_retains_address_across_api_calls(mut mempool: Mempool) {
     // Setup.
@@ -324,12 +324,12 @@ fn mempool_state_retains_address_across_api_calls(mut mempool: Mempool) {
     // Test.
     add_tx(&mut mempool, &input_address_1);
     // Assert: Mempool state includes the address of the added transaction.
-    assert!(mempool.contains_tx_from(account_address));
+    assert!(mempool.account_tx_in_pool_or_recent_block(account_address));
 
     // Test.
     mempool.get_txs(1).unwrap();
     // Assert: The Mempool state still contains the address, even after it was sent to the batcher.
-    assert!(mempool.contains_tx_from(account_address));
+    assert!(mempool.account_tx_in_pool_or_recent_block(account_address));
 
     // Test.
     let nonces = [(address, 1)];
@@ -337,5 +337,5 @@ fn mempool_state_retains_address_across_api_calls(mut mempool: Mempool) {
     // Assert: Mempool state still contains the address, even though the transaction was committed.
     // Note that in the future, the Mempool's state may be periodically cleared from records of old
     // committed transactions. Mirroring this behavior may require a modification of this test.
-    assert!(mempool.contains_tx_from(account_address));
+    assert!(mempool.account_tx_in_pool_or_recent_block(account_address));
 }

@@ -80,7 +80,7 @@ async fn test_stateful_tx_validator(
 
     let account_nonce = nonce!(0);
     let mut mock_mempool_client = MockMempoolClient::new();
-    mock_mempool_client.expect_contains_tx_from().returning(|_| {
+    mock_mempool_client.expect_account_tx_in_pool_or_recent_block().returning(|_| {
         // The mempool does not have any transactions from the sender.
         Ok(false)
     });
@@ -182,7 +182,9 @@ async fn test_skip_stateful_validation(
         .withf(move |_, skip_validate| *skip_validate == should_skip_validate)
         .returning(|_, _| Ok(()));
     let mut mock_mempool_client = MockMempoolClient::new();
-    mock_mempool_client.expect_contains_tx_from().returning(move |_| Ok(contains_tx));
+    mock_mempool_client
+        .expect_account_tx_in_pool_or_recent_block()
+        .returning(move |_| Ok(contains_tx));
     let mempool_client = Arc::new(mock_mempool_client);
     let runtime = tokio::runtime::Handle::current();
 

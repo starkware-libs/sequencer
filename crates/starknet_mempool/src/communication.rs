@@ -89,8 +89,11 @@ impl MempoolCommunicationWrapper {
         self.mempool.get_txs(n_txs)
     }
 
-    fn contains_tx_from(&self, account_address: ContractAddress) -> MempoolResult<bool> {
-        Ok(self.mempool.contains_tx_from(account_address))
+    fn account_tx_in_pool_or_recent_block(
+        &self,
+        account_address: ContractAddress,
+    ) -> MempoolResult<bool> {
+        Ok(self.mempool.account_tx_in_pool_or_recent_block(account_address))
     }
 
     fn update_gas_price(&mut self, gas_price: NonzeroGasPrice) -> MempoolResult<()> {
@@ -112,8 +115,10 @@ impl ComponentRequestHandler<MempoolRequest, MempoolResponse> for MempoolCommuni
             MempoolRequest::GetTransactions(n_txs) => {
                 MempoolResponse::GetTransactions(self.get_txs(n_txs))
             }
-            MempoolRequest::ContainsTransactionFrom(account_address) => {
-                MempoolResponse::ContainsTransactionFrom(self.contains_tx_from(account_address))
+            MempoolRequest::AccountTxInPoolOrRecentBlock(account_address) => {
+                MempoolResponse::AccountTxInPoolOrRecentBlock(
+                    self.account_tx_in_pool_or_recent_block(account_address),
+                )
             }
             MempoolRequest::UpdateGasPrice(gas_price) => {
                 MempoolResponse::UpdateGasPrice(self.update_gas_price(gas_price))
