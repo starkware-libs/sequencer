@@ -35,18 +35,20 @@ async fn bootstrap_e2e() {
     // Make the mocked sync client try removing from a hashmap as a response to get block.
     let mut sync_client = MockStateSyncClient::default();
     let sync_response = Arc::new(Mutex::new(HashMap::<BlockNumber, SyncBlock>::new()));
-    let sync_response_clone = sync_response.clone();
-    sync_client
-        .expect_get_block()
-        .returning(move |input| Ok(sync_response_clone.lock().unwrap().remove(&input)));
+    let mut sync_response_clone = sync_response.lock().unwrap().clone();
+    sync_client.expect_get_block().returning(move |input| Ok(sync_response_clone.remove(&input)));
 
     let config = L1ProviderConfig {
-        provider_startup_height: startup_height,
         bootstrap_catch_up_height: catch_up_height,
         startup_sync_sleep_retry_interval: Duration::from_millis(10),
+        ..Default::default()
     };
-    let mut l1_provider =
-        create_l1_provider(config, l1_provider_client.clone(), Arc::new(sync_client));
+    let mut l1_provider = create_l1_provider(
+        config,
+        l1_provider_client.clone(),
+        Arc::new(sync_client),
+        startup_height,
+    );
 
     // Test.
 
