@@ -23,12 +23,15 @@ use tracing::{debug, info, instrument, trace, warn};
 
 use crate::config::TimeoutsConfig;
 use crate::metrics::{
+    TimeoutReason,
     CONSENSUS_BUILD_PROPOSAL_FAILED,
     CONSENSUS_BUILD_PROPOSAL_TOTAL,
     CONSENSUS_PROPOSALS_INVALID,
     CONSENSUS_PROPOSALS_VALIDATED,
     CONSENSUS_PROPOSALS_VALID_INIT,
     CONSENSUS_REPROPOSALS,
+    CONSENSUS_TIMEOUTS,
+    LABEL_NAME_TIMEOUT_REASON,
 };
 use crate::state_machine::{StateMachine, StateMachineEvent};
 use crate::types::{
@@ -266,13 +269,20 @@ impl SingleHeightConsensus {
     ) -> Result<ShcReturn, ConsensusError> {
         debug!("Received ShcEvent: {:?}", event);
         let ret = match event {
-            ShcEvent::TimeoutPropose(event)
-            | ShcEvent::TimeoutPrevote(event)
-            | ShcEvent::TimeoutPrecommit(event) => {
-                let leader_fn =
-                    |round: Round| -> ValidatorId { context.proposer(self.height, round) };
-                let sm_events = self.state_machine.handle_event(event, &leader_fn);
-                self.handle_state_machine_events(context, sm_events).await
+            ShcEvent::TimeoutPropose(event) => {
+                CONSENSUS_TIMEOUTS
+                    .increment(1, &[(LABEL_NAME_TIMEOUT_REASON, TimeoutReason::Propose.into())]);
+                self.handle_timeout(context, event).await
+            }
+            ShcEvent::TimeoutPrevote(event) => {
+                CONSENSUS_TIMEOUTS
+                    .increment(1, &[(LABEL_NAME_TIMEOUT_REASON, TimeoutReason::Prevote.into())]);
+                self.handle_timeout(context, event).await
+            }
+            ShcEvent::TimeoutPrecommit(event) => {
+                CONSENSUS_TIMEOUTS
+                    .increment(1, &[(LABEL_NAME_TIMEOUT_REASON, TimeoutReason::Precommit.into())]);
+                self.handle_timeout(context, event).await
             }
             ShcEvent::Prevote(StateMachineEvent::Prevote(proposal_id, round)) => {
                 let Some(last_vote) = &self.last_prevote else {
@@ -368,6 +378,16 @@ impl SingleHeightConsensus {
         };
         context.set_height_and_round(self.height, self.state_machine.round()).await;
         ret
+    }
+
+    async fn handle_timeout<ContextT: ConsensusContext>(
+        &mut self,
+        context: &mut ContextT,
+        event: StateMachineEvent,
+    ) -> Result<ShcReturn, ConsensusError> {
+        let leader_fn = |round: Round| -> ValidatorId { context.proposer(self.height, round) };
+        let sm_events = self.state_machine.handle_event(event, &leader_fn);
+        self.handle_state_machine_events(context, sm_events).await
     }
 
     /// Handle vote messages from peer nodes.
