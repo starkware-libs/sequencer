@@ -76,10 +76,8 @@ impl std::fmt::Debug for Bootstrapper {
         f.debug_struct("Bootstrapper")
             .field("catch_up_height", &self.catch_up_height)
             .field("commit_block_backlog", &self.commit_block_backlog)
-            .field("l1_provider_client", &"<non-debuggable>")
-            .field("sync_client", &"<non-debuggable>")
             .field("sync_task_handle", &self.sync_task_handle)
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
