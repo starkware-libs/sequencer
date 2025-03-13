@@ -237,6 +237,7 @@ fn to_64_bits(num: usize) -> [u8; 8] {
 // )].
 // Otherwise, returns:
 // [gas_price_wei, gas_price_fri, data_gas_price_wei, data_gas_price_fri].
+// TODO(Ayelet): add l2_gas_consumed, next_l2_gas_price after 0.14.0.
 fn gas_prices_to_hash(
     l1_gas_price: &GasPricePerToken,
     l1_data_gas_price: &GasPricePerToken,

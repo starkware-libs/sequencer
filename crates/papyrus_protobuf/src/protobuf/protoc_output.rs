@@ -1060,12 +1060,16 @@ pub struct SignedBlockHeader {
     pub l2_gas_price_fri: ::core::option::Option<Uint128>,
     #[prost(message, optional, tag = "17")]
     pub l2_gas_price_wei: ::core::option::Option<Uint128>,
-    #[prost(enumeration = "L1DataAvailabilityMode", tag = "18")]
+    #[prost(uint64, tag = "18")]
+    pub l2_gas_consumed: u64,
+    #[prost(uint64, tag = "19")]
+    pub next_l2_gas_price: u64,
+    #[prost(enumeration = "L1DataAvailabilityMode", tag = "20")]
     pub l1_data_availability_mode: i32,
     /// for now, we assume a small consensus, so this fits in 1M. Else, these will be repeated and extracted from this message.
     ///
     /// can be more explicit here about the signature structure as this is not part of account abstraction
-    #[prost(message, repeated, tag = "19")]
+    #[prost(message, repeated, tag = "21")]
     pub signatures: ::prost::alloc::vec::Vec<ConsensusSignature>,
 }
 /// sent to all peers (except the ones this was received from, if any).
