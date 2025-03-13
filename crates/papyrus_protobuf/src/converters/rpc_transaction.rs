@@ -19,26 +19,13 @@ use starknet_api::transaction::{DeployAccountTransactionV3, InvokeTransactionV3}
 use super::common::missing;
 use super::ProtobufConversionError;
 use crate::auto_impl_into_and_try_from_vec_u8;
-use crate::mempool::{RpcTransactionBatch, RpcTransactionWrapper};
+use crate::mempool::RpcTransactionBatch;
 use crate::protobuf::{self};
 use crate::transaction::DeclareTransactionV3Common;
-auto_impl_into_and_try_from_vec_u8!(RpcTransactionWrapper, protobuf::MempoolTransaction);
 auto_impl_into_and_try_from_vec_u8!(RpcTransactionBatch, protobuf::MempoolTransactionBatch);
 
 const DEPRECATED_RESOURCE_BOUNDS_ERROR: ProtobufConversionError =
     ProtobufConversionError::MissingField { field_description: "ResourceBounds::l1_data_gas" };
-
-impl TryFrom<protobuf::MempoolTransaction> for RpcTransactionWrapper {
-    type Error = ProtobufConversionError;
-    fn try_from(value: protobuf::MempoolTransaction) -> Result<Self, Self::Error> {
-        Ok(RpcTransactionWrapper(RpcTransaction::try_from(value)?))
-    }
-}
-impl From<RpcTransactionWrapper> for protobuf::MempoolTransaction {
-    fn from(value: RpcTransactionWrapper) -> Self {
-        protobuf::MempoolTransaction::from(value.0)
-    }
-}
 
 impl TryFrom<protobuf::MempoolTransaction> for RpcTransaction {
     type Error = ProtobufConversionError;
