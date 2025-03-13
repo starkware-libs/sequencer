@@ -13,7 +13,7 @@ use starknet_api::rpc_transaction::{
 };
 use starknet_api::transaction::fields::{AllResourceBounds, ResourceBounds};
 
-use crate::mempool::RpcTransactionWrapper;
+use crate::mempool::RpcTransactionBatch;
 
 #[test]
 fn convert_declare_transaction_v3_to_vec_u8_and_back() {
@@ -48,10 +48,10 @@ fn convert_deploy_account_transaction_v3_to_vec_u8_and_back() {
 }
 
 fn assert_transaction_to_vec_u8_and_back(transaction: RpcTransaction) {
-    let data = RpcTransactionWrapper(transaction.clone());
+    let data = RpcTransactionBatch(vec![transaction.clone()]);
     let bytes_data = Vec::<u8>::from(data);
-    let res_data = RpcTransactionWrapper::try_from(bytes_data).unwrap();
-    assert_eq!(RpcTransactionWrapper(transaction), res_data);
+    let res_data = RpcTransactionBatch::try_from(bytes_data).unwrap();
+    assert_eq!(RpcTransactionBatch(vec![transaction]), res_data);
 }
 
 lazy_static! {
