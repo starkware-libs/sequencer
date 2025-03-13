@@ -16,7 +16,7 @@ fn main() {
 }
 
 // TODO(Elin): test version alignment with Cargo.
-const REQUIRED_CAIRO_LANG_VERSION: &str = "2.10.1";
+const REQUIRED_CAIRO_LANG_VERSION: &str = "2.11.2";
 #[cfg(feature = "cairo_native")]
 const REQUIRED_CAIRO_NATIVE_VERSION: &str = "0.3.1";
 
