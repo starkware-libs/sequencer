@@ -3,7 +3,7 @@ pub mod errors;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use errors::{L1GasPriceClientError, L1GasPriceProviderError, PriceOracleClientError};
+use errors::{EthToFriOracleClientError, L1GasPriceClientError, L1GasPriceProviderError};
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use papyrus_base_layer::{L1BlockNumber, PriceSample};
@@ -55,9 +55,9 @@ pub trait L1GasPriceProviderClient: Send + Sync {
 
 #[cfg_attr(any(feature = "testing", test), automock)]
 #[async_trait]
-pub trait PriceOracleClientTrait: Send + Sync {
+pub trait EthToFriOracleClientTrait: Send + Sync {
     /// Fetches the ETH to FRI rate for a given timestamp.
-    async fn eth_to_fri_rate(&self, timestamp: u64) -> Result<u128, PriceOracleClientError>;
+    async fn eth_to_fri_rate(&self, timestamp: u64) -> Result<u128, EthToFriOracleClientError>;
 }
 
 #[async_trait]

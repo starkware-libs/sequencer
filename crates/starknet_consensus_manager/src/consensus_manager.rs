@@ -122,7 +122,7 @@ impl ConsensusManager {
                 self.config.cende_config.clone(),
                 Arc::clone(&self.class_manager_client),
             )),
-            // TODO(Asmaa): Send PriceOracleClient to the context.
+            // TODO(Asmaa): Send EthToFriOracleClient to the context.
             None,
         );
 

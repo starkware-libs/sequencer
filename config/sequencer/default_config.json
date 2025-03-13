@@ -879,6 +879,16 @@
     "privacy": "Public",
     "value": 10000
   },
+  "consensus_manager_config.eth_to_fri_oracle_config.base_url": {
+    "description": "This must end with the query parameter `timestamp=` as we append a UNIX timestamp.",
+    "privacy": "Private",
+    "value": "https://example.com/api?timestamp="
+  },
+  "consensus_manager_config.eth_to_fri_oracle_config.headers": {
+    "description": "Headers for the Eth to Fri oracle client, formatted as 'k1:v1 k2:v2 ...'.",
+    "privacy": "Private",
+    "value": ""
+  },
   "consensus_manager_config.immediate_active_height": {
     "description": "The height at which the node may actively participate in consensus.",
     "privacy": "Public",
@@ -958,16 +968,6 @@
     "description": "Maximal time in seconds that each session can take before failing on timeout.",
     "privacy": "Public",
     "value": 120
-  },
-  "consensus_manager_config.price_oracle_config.base_url": {
-    "description": "This must end with the query parameter `timestamp=` as we append a UNIX timestamp.",
-    "privacy": "Private",
-    "value": "https://example.com/api?timestamp="
-  },
-  "consensus_manager_config.price_oracle_config.headers": {
-    "description": "Headers for the price oracle client, formatted as 'k1:v1 k2:v2 ...'.",
-    "privacy": "Private",
-    "value": ""
   },
   "consensus_manager_config.proposals_topic": {
     "description": "The topic for consensus proposals.",

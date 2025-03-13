@@ -50,7 +50,7 @@ use starknet_gateway::config::{
 };
 use starknet_http_server::test_utils::create_http_server_config;
 use starknet_infra_utils::test_utils::AvailablePorts;
-use starknet_l1_gas_price::price_oracle::PriceOracleConfig;
+use starknet_l1_gas_price::eth_to_fri_oracle::EthToFriOracleConfig;
 use starknet_l1_provider::l1_scraper::L1ScraperConfig;
 use starknet_l1_provider::L1ProviderConfig;
 use starknet_mempool::config::MempoolConfig;
@@ -257,8 +257,8 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
                 skip_write_height: Some(BlockNumber(1)),
                 ..Default::default()
             },
-            price_oracle_config: PriceOracleConfig {
-                base_url: Url::parse("https://price_oracle_url")
+            eth_to_fri_oracle_config: EthToFriOracleConfig {
+                base_url: Url::parse("https://eth_to_fri_oracle_url")
                     .expect("Should be a valid URL"),
                     ..Default::default()
             },

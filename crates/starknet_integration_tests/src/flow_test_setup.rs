@@ -295,8 +295,8 @@ pub fn create_consensus_manager_configs_and_channels(
     for (i, config) in consensus_manager_configs.iter_mut().enumerate() {
         config.context_config.builder_address =
             ContractAddress::try_from(BUILDER_BASE_ADDRESS + Felt::from(i)).unwrap();
-        config.price_oracle_config.base_url =
-            Url::parse("https://price_oracle_url").expect("Should be a valid URL");
+        config.eth_to_fri_oracle_config.base_url =
+            Url::parse("https://eth_to_fri_oracle_url").expect("Should be a valid URL");
     }
 
     let broadcast_channels = network_config_into_broadcast_channels(
