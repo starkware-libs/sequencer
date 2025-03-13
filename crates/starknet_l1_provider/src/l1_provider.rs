@@ -13,7 +13,7 @@ use starknet_l1_provider_types::{
 };
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_state_sync_types::communication::SharedStateSyncClient;
-use tracing::{instrument, trace};
+use tracing::{instrument, trace, warn};
 
 use crate::bootstrapper::{Bootstrapper, SyncTaskHandle};
 use crate::transaction_manager::TransactionManager;
@@ -207,7 +207,24 @@ pub fn create_l1_provider(
     config: L1ProviderConfig,
     l1_provider_client: SharedL1ProviderClient,
     sync_client: SharedStateSyncClient,
+    scraper_synced_startup_height: BlockNumber,
 ) -> L1Provider {
+    let l1_provider_startup_height = config
+        .provider_startup_height_override
+        .inspect(|&startup_height_override| {
+            assert!(
+                startup_height_override <= scraper_synced_startup_height,
+                "L2 Reorgs possible: during startup, the l1 provider height should not exceed the \
+                 scraper's last known LogStateUpdate (scraper_synced_startup_height) since at \
+                 startup it has no way of checking if a given l1 handler has already been \
+                 committed"
+            );
+            warn!(
+                "Initializing L1Provider with overridden startup height: {startup_height_override}"
+            );
+        })
+        .unwrap_or(scraper_synced_startup_height);
+
     let bootstrapper = Bootstrapper {
         catch_up_height: config.bootstrap_catch_up_height,
         commit_block_backlog: Default::default(),
@@ -218,7 +235,7 @@ pub fn create_l1_provider(
     };
 
     L1Provider {
-        current_height: config.provider_startup_height,
+        current_height: l1_provider_startup_height,
         tx_manager: TransactionManager::default(),
         state: ProviderState::Bootstrap(bootstrapper),
     }
