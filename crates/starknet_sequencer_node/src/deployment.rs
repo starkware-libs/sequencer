@@ -1,7 +1,7 @@
 #[cfg(test)]
 use std::path::Path;
 
-use serde::Serialize;
+use serde::{Serialize, Serializer};
 use starknet_api::core::ChainId;
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -57,10 +57,29 @@ impl Service {
     }
 }
 
-// TODO(Tsabary): sort these.
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq)]
+
 pub enum ServiceName {
-    AllInOne,
+    ConsolidatedNode,
+    DistributedNode(DistributedNodeServiceName),
+}
+
+impl Serialize for ServiceName {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            ServiceName::ConsolidatedNode => serializer.serialize_str("ConsolidatedNode"),
+            ServiceName::DistributedNode(inner) => inner.serialize(serializer), /* Serialize only the inner value */
+        }
+    }
+}
+
+// TODO(Tsabary): sort these.
+#[repr(u16)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub enum DistributedNodeServiceName {
     Mempool,
     Gateway,
     Batcher,
