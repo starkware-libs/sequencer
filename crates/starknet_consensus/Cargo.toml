@@ -6,6 +6,9 @@ repository.workspace = true
 license-file.workspace = true
 description = "Reach consensus for Starknet"
 
+[features]
+testing = []
+
 [dependencies]
 async-trait.workspace = true
 clap = { workspace = true, features = ["derive"] }
