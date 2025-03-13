@@ -24,6 +24,19 @@ fn generate(generator: &BigInt) -> Vec<BigInt> {
 }
 
 #[rstest]
+fn test_small_fft_regression(#[values(true, false)] bit_reversed: bool) {
+    let prime = BigInt::from(17);
+    let generator = BigInt::from(3);
+    let coeffs: Vec<BigInt> = [0, 1, 2, 3].into_iter().map(BigInt::from).collect();
+    let expected_eval: Vec<BigInt> = (if bit_reversed { [6, 15, 9, 4] } else { [6, 9, 15, 4] })
+        .into_iter()
+        .map(BigInt::from)
+        .collect();
+    let actual_eval = fft(&coeffs, &generator, &prime, bit_reversed).unwrap();
+    assert_eq!(actual_eval, expected_eval);
+}
+
+#[rstest]
 fn test_fft(#[values(true, false)] bit_reversed: bool) {
     let prime = BigInt::from_str_radix(BLS_PRIME, 10).unwrap();
     let generator = BigInt::from_str_radix(GENERATOR, 10).unwrap();
