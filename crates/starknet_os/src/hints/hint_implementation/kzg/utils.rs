@@ -1,5 +1,6 @@
 use std::num::ParseIntError;
 use std::path::Path;
+use std::slice::Iter;
 use std::sync::LazyLock;
 
 use blockifier::utils::usize_from_u32;
@@ -67,9 +68,18 @@ fn serialize_blob(blob: &[BigInt]) -> Result<Vec<u8>, FftError> {
 ///
 /// # Arguments
 ///
-/// * `coeffs` - A slice of `BigInt` representing the coefficients of the polynomial.
+/// * `coeffs` - A slice of `BigInt` representing the coefficients of the polynomial. Note that this
+///   iterator is an iterator over all coefficients of the original (outermost) call; the actual
+///   coefficients of the current layer can be deduced by the `step_interval` and `coeffs_skip`
+///   parameters.
 /// * `group` - A slice of `BigInt` representing the precomputed group elements for the FFT.
 /// * `prime` - A `BigInt` representing the prime modulus for the field operations.
+/// * `step_interval` - The interval between elements of the original coefficients relevant in the
+///   current layer. Should be `2.pow(layer)` where `layer` is the FFT depth (starting at zero).
+/// * `coeffs_skip` - The number of coefficients to skip in the original coefficients. Used to
+///   compute the "odd" slice of coefficients in the current layer. Note that this is a flat amount,
+///   so the `step_interval` must be taken into account when recursing (see comment in the recursive
+///   call).
 ///
 /// # Returns
 ///
@@ -78,27 +88,40 @@ fn serialize_blob(blob: &[BigInt]) -> Result<Vec<u8>, FftError> {
 /// # See More
 /// - <https://en.wikipedia.org/wiki/Fast_Fourier_transform>
 /// - <https://github.com/starkware-libs/cairo-lang/blob/v0.13.2/src/starkware/python/math_utils.py#L310>
-fn inner_fft(coeffs: &[BigInt], group: &[BigInt], prime: &BigInt) -> Vec<BigInt> {
-    if coeffs.len() == 1 {
-        return coeffs.to_vec();
+fn inner_fft(
+    coeffs: Iter<'_, BigInt>,
+    group: Iter<'_, BigInt>,
+    prime: &BigInt,
+    step_interval: usize,
+    coeffs_skip: usize,
+) -> Vec<BigInt> {
+    let coeffs_len = coeffs.clone().skip(coeffs_skip).step_by(step_interval).len();
+    if coeffs_len == 1 {
+        return coeffs.skip(coeffs_skip).step_by(step_interval).cloned().collect();
     }
 
-    // TODO(Dori): Try to avoid the clones here (possibly by using a non-recursive implementation).
-    let f_even = inner_fft(
-        &coeffs.iter().step_by(2).cloned().collect::<Vec<_>>(),
-        &group.iter().step_by(2).cloned().collect::<Vec<_>>(),
-        prime,
-    );
+    let f_even = inner_fft(coeffs.clone(), group.clone(), prime, step_interval * 2, coeffs_skip);
     let f_odd = inner_fft(
-        &coeffs.iter().skip(1).step_by(2).cloned().collect::<Vec<_>>(),
-        &group.iter().step_by(2).cloned().collect::<Vec<_>>(),
+        coeffs.clone(),
+        group.clone(),
         prime,
+        step_interval * 2,
+        // The `skip` is applied before the `step_by`, so to correctly skip the first coefficient
+        // in the layer in question, one must take the interval into account.
+        // For example, if the original coefficients are [5, 6, 7, 8] and we are in layer 1 (step
+        // is 2), then the coefficients of the current layer are [5, 7]. The odd coefficient is 7,
+        // so we want to skip 5 and reach 7 (add 2 to the skip value).
+        coeffs_skip + step_interval,
     );
 
-    let group_mul_f_odd: Vec<BigInt> =
-        group.iter().take(f_odd.len()).zip(f_odd.iter()).map(|(g, f)| (g * f) % prime).collect();
+    let group_mul_f_odd: Vec<BigInt> = group
+        .step_by(step_interval)
+        .take(f_odd.len())
+        .zip(f_odd.iter())
+        .map(|(g, f)| (g * f) % prime)
+        .collect();
 
-    let mut result = Vec::with_capacity(coeffs.len());
+    let mut result = Vec::with_capacity(coeffs_len);
     for i in 0..f_even.len() {
         result.push((f_even[i].clone() + &group_mul_f_odd[i]) % prime);
     }
@@ -136,7 +159,7 @@ pub(crate) fn fft(
         group.push((last * generator) % prime);
     }
 
-    let mut values = inner_fft(coeffs, &group, prime);
+    let mut values = inner_fft(coeffs.iter(), group.iter(), prime, 1, 0);
 
     if bit_reversed {
         // Since coeffs_len is a power of two, width is set to the position of the last set bit.
