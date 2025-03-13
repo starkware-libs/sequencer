@@ -561,6 +561,11 @@ expression: dumped_default_config
     },
     "privacy": "Public"
   },
+  "sync.store_sierras_and_casms": {
+    "description": "Whether to store sierras and casms to the storage. This allows maintaining backward-compatibility with native-blockifier",
+    "value": true,
+    "privacy": "Public"
+  },
   "sync.verify_blocks": {
     "description": "Whether to verify incoming blocks.",
     "value": true,
