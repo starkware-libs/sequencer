@@ -1,6 +1,8 @@
+#![allow(dead_code)]
 use std::collections::HashMap;
 
 use cairo_lang_starknet_classes::casm_contract_class::{CasmContractClass, CasmContractEntryPoint};
+use cairo_lang_starknet_classes::NestedIntList;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::core::ClassHash;
@@ -156,5 +158,82 @@ impl<IG: IdentifierGetter> CairoSized<IG> for CompiledClassFact<'_> {
     fn size(_identifier_getter: &IG) -> usize {
         // TODO(Nimrod): Fetch from IG after we upgrade the VM.
         2
+    }
+}
+
+pub(crate) struct BytecodeSegmentLeaf {
+    data: Vec<MaybeRelocatable>,
+}
+
+pub(crate) struct BytecodeSegmentInnerNode {
+    segments: Vec<BytecodeSegment>,
+}
+
+pub(crate) enum BytecodeSegmentNode {
+    Leaf(BytecodeSegmentLeaf),
+    InnerNode(BytecodeSegmentInnerNode),
+}
+
+pub(crate) struct BytecodeSegment {
+    node: BytecodeSegmentNode,
+    length: usize,
+}
+
+pub(crate) fn create_bytecode_segment_structure(
+    bytecode: &[MaybeRelocatable],
+    bytecode_segment_lengths: NestedIntList,
+) -> BytecodeSegmentNode {
+    let mut non_filtered_visited_pcs: Vec<_> = (0..bytecode.len()).collect();
+    create_bytecode_segment_structure_helper(
+        bytecode,
+        bytecode_segment_lengths,
+        &mut non_filtered_visited_pcs,
+        0,
+    )
+    .0
+}
+
+pub(crate) fn create_bytecode_segment_structure_helper(
+    bytecode: &[MaybeRelocatable],
+    bytecode_segment_lengths: NestedIntList,
+    visited_pcs: &mut Vec<usize>,
+    mut bytecode_offset: usize,
+) -> (BytecodeSegmentNode, usize) {
+    match bytecode_segment_lengths {
+        NestedIntList::Leaf(length) => {
+            let segment_end = bytecode_offset + length;
+
+            while let Some(last_pc) = visited_pcs.last() {
+                if (bytecode_offset..segment_end).contains(last_pc) {
+                    visited_pcs.pop();
+                } else {
+                    break;
+                }
+            }
+
+            let bytecode_segment = bytecode[bytecode_offset..segment_end].to_vec();
+
+            (BytecodeSegmentNode::Leaf(BytecodeSegmentLeaf { data: bytecode_segment }), length)
+        }
+        NestedIntList::Node(lengths) => {
+            let mut segments = vec![];
+            let mut total_len = 0;
+
+            for item in lengths {
+                let (current_structure, item_len) = create_bytecode_segment_structure_helper(
+                    bytecode,
+                    item,
+                    visited_pcs,
+                    bytecode_offset,
+                );
+
+                segments.push(BytecodeSegment { length: item_len, node: current_structure });
+
+                bytecode_offset += item_len;
+                total_len += item_len;
+            }
+
+            (BytecodeSegmentNode::InnerNode(BytecodeSegmentInnerNode { segments }), total_len)
+        }
     }
 }
