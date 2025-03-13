@@ -1,14 +1,20 @@
+#![allow(dead_code)]
 use std::collections::HashMap;
 
 use cairo_lang_starknet_classes::casm_contract_class::{CasmContractClass, CasmContractEntryPoint};
+use cairo_lang_starknet_classes::NestedIntList;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::core::ClassHash;
 use starknet_types_core::felt::Felt;
 
-use crate::hints::error::OsHintResult;
+use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::vars::{CairoStruct, Const};
 use crate::vm_utils::{insert_values_to_fields, CairoSized, IdentifierGetter, LoadCairoObject};
+
+#[cfg(test)]
+#[path = "utils_test.rs"]
+pub mod utils_test;
 
 impl<IG: IdentifierGetter> LoadCairoObject<IG> for CasmContractEntryPoint {
     fn load_into(
@@ -156,5 +162,95 @@ impl<IG: IdentifierGetter> CairoSized<IG> for CompiledClassFact<'_> {
     fn size(_identifier_getter: &IG) -> usize {
         // TODO(Nimrod): Fetch from IG after we upgrade the VM.
         2
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub(crate) struct BytecodeSegmentLeaf {
+    pub(crate) data: Vec<Felt>,
+}
+
+#[derive(Debug)]
+pub(crate) struct BytecodeSegmentInnerNode {
+    pub(crate) segments: Vec<BytecodeSegment>,
+}
+
+#[derive(Debug)]
+pub(crate) enum BytecodeSegmentNode {
+    Leaf(BytecodeSegmentLeaf),
+    InnerNode(BytecodeSegmentInnerNode),
+}
+
+// Recursively compare nodes.
+impl PartialEq for BytecodeSegmentNode {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (BytecodeSegmentNode::Leaf(a), BytecodeSegmentNode::Leaf(b)) => a == b,
+            (BytecodeSegmentNode::InnerNode(a), BytecodeSegmentNode::InnerNode(b)) => {
+                a.segments.len() == b.segments.len()
+                    && a.segments.iter().zip(b.segments.iter()).all(|(a, b)| a == b)
+            }
+            _ => false,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub(crate) struct BytecodeSegment {
+    node: BytecodeSegmentNode,
+    length: usize,
+}
+
+/// Creates the bytecode segment structure from the given bytecode and bytecode segment lengths.
+pub(crate) fn create_bytecode_segment_structure(
+    bytecode: &[Felt],
+    bytecode_segment_lengths: NestedIntList,
+) -> Result<BytecodeSegmentNode, OsHintError> {
+    let (structure, total_len) =
+        create_bytecode_segment_structure_inner(bytecode, bytecode_segment_lengths, 0);
+    // Sanity checks.
+    if total_len != bytecode.len() {
+        return Err(OsHintError::AssertionFailed {
+            message: format!(
+                "Invalid length bytecode segment structure: {}. Bytecode length: {}.",
+                total_len,
+                bytecode.len()
+            ),
+        });
+    }
+
+    Ok(structure)
+}
+
+/// Helper function for `create_bytecode_segment_structure`.
+/// Returns the bytecode segment structure and the total length of the processed segment.
+pub(crate) fn create_bytecode_segment_structure_inner(
+    bytecode: &[Felt],
+    bytecode_segment_lengths: NestedIntList,
+    mut bytecode_offset: usize,
+) -> (BytecodeSegmentNode, usize) {
+    match bytecode_segment_lengths {
+        NestedIntList::Leaf(length) => {
+            let segment_end = bytecode_offset + length;
+            let bytecode_segment = bytecode[bytecode_offset..segment_end].to_vec();
+
+            (BytecodeSegmentNode::Leaf(BytecodeSegmentLeaf { data: bytecode_segment }), length)
+        }
+        NestedIntList::Node(lengths) => {
+            let mut segments = vec![];
+            let mut total_len = 0;
+
+            for item in lengths {
+                let (current_structure, item_len) =
+                    create_bytecode_segment_structure_inner(bytecode, item, bytecode_offset);
+
+                segments.push(BytecodeSegment { length: item_len, node: current_structure });
+
+                bytecode_offset += item_len;
+                total_len += item_len;
+            }
+
+            (BytecodeSegmentNode::InnerNode(BytecodeSegmentInnerNode { segments }), total_len)
+        }
     }
 }
