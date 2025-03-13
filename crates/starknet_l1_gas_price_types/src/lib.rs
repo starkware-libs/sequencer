@@ -7,15 +7,29 @@ use errors::{L1GasPriceClientError, L1GasPriceProviderError};
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use papyrus_base_layer::{L1BlockNumber, PriceSample};
+use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockTimestamp;
 
 pub type SharedL1GasPriceClient = Arc<dyn L1GasPriceProviderClient>;
 pub type L1GasPriceProviderResult<T> = Result<T, L1GasPriceProviderError>;
 pub type L1GasPriceProviderClientResult<T> = Result<T, L1GasPriceClientError>;
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PriceInfo {
     pub base_fee_per_gas: u128,
     pub blob_fee: u128,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum L1GasPriceRequest {
+    GetGasPrice(BlockTimestamp),
+    AddGasPrice(L1BlockNumber, PriceSample),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum L1GasPriceResponse {
+    GetGasPrice(L1GasPriceProviderResult<PriceInfo>),
+    AddGasPrice(L1GasPriceProviderResult<()>),
 }
 
 /// Serves as the provider's shared interface. Requires `Send + Sync` to allow transferring and
