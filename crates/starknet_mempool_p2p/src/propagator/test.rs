@@ -7,7 +7,7 @@ use papyrus_network::network_manager::test_utils::{
 };
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use papyrus_protobuf::mempool::RpcTransactionWrapper;
+use papyrus_protobuf::mempool::RpcTransactionBatch;
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use starknet_api::rpc_transaction::{InternalRpcTransaction, RpcTransaction};
 use starknet_class_manager_types::transaction_converter::MockTransactionConverterTrait;
@@ -41,7 +41,7 @@ async fn process_handle_add_tx() {
         .handle_request(MempoolP2pPropagatorRequest::AddTransaction(internal_tx))
         .await;
     let message = timeout(TIMEOUT, messages_to_broadcast_receiver.next()).await.unwrap().unwrap();
-    assert_eq!(message, RpcTransactionWrapper(cloned_rpc_transaction));
+    assert_eq!(message, RpcTransactionBatch(vec![cloned_rpc_transaction]));
 }
 
 #[tokio::test]
