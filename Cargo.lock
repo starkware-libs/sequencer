@@ -11315,6 +11315,7 @@ dependencies = [
 name = "starknet_l1_gas_price"
 version = "0.0.0"
 dependencies = [
+ "async-trait",
  "mockall",
  "mockito 1.6.1",
  "papyrus_base_layer",
