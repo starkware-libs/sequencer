@@ -53,6 +53,7 @@ use starknet_gateway::config::{
 use starknet_http_server::test_utils::create_http_server_config;
 use starknet_infra_utils::test_utils::AvailablePorts;
 use starknet_l1_provider::l1_scraper::L1ScraperConfig;
+use starknet_l1_provider::L1ProviderConfig;
 use starknet_mempool::config::MempoolConfig;
 use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
@@ -181,6 +182,10 @@ pub fn create_node_config(
     let gateway_config = create_gateway_config(chain_info.clone());
     let l1_scraper_config =
         L1ScraperConfig { chain_id: chain_info.chain_id.clone(), ..Default::default() };
+    let l1_provider_config = L1ProviderConfig {
+        provider_startup_height_override: Some(BlockNumber(1)),
+        ..Default::default()
+    };
     let mempool_config = create_mempool_config();
     let http_server_config =
         create_http_server_config(available_ports.get_next_local_host_socket());
@@ -209,6 +214,7 @@ pub fn create_node_config(
             state_sync_config,
             components: component_config,
             l1_scraper_config,
+            l1_provider_config,
             ..Default::default()
         },
         RequiredParams {

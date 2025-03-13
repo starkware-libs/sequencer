@@ -88,7 +88,7 @@ async fn l2_sync_task(
     catch_up_height: BlockNumber,
     retry_interval: Duration,
 ) {
-    while current_height < catch_up_height {
+    while current_height <= catch_up_height {
         // TODO(Gilad): add tracing instrument.
         debug!("Try syncing L1Provider with L2 height: {}", current_height);
         let block = sync_client.get_block(current_height).await.inspect_err(|err| debug!("{err}"));

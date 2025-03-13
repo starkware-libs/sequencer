@@ -37,13 +37,13 @@ async fn main() {
 
     integration_test_manager.send_bootstrap_txs_and_verify().await;
 
-    integration_test_manager.send_txs_and_verify(N_TXS, 1, BLOCK_TO_SHUTDOWN_AT).await;
+    integration_test_manager.send_txs_and_verify(N_TXS, 0, BLOCK_TO_SHUTDOWN_AT).await;
 
     info!("Network reached block {BLOCK_TO_SHUTDOWN_AT}. Shutting down node {NODE_1}");
     integration_test_manager.shutdown_nodes([NODE_1].into());
 
     info! {"Sending transactions while node {NODE_1} is down"}
-    integration_test_manager.send_txs_and_verify(N_TXS, 1, BLOCK_TO_RESTART_FROM).await;
+    integration_test_manager.send_txs_and_verify(N_TXS, 0, BLOCK_TO_RESTART_FROM).await;
 
     // Shutdown second node to test that the first node has joined (the network can't reach
     // consensus if 2 nodes are down)
@@ -57,7 +57,7 @@ async fn main() {
     integration_test_manager.run_nodes([NODE_1].into()).await;
 
     info!("Sending transactions while node {NODE_2} is down and after {NODE_1} was restarted");
-    integration_test_manager.send_txs_and_verify(N_TXS, 1, BLOCK_TO_WAIT_FOR_AFTER_RESTART).await;
+    integration_test_manager.send_txs_and_verify(N_TXS, 0, BLOCK_TO_WAIT_FOR_AFTER_RESTART).await;
 
     info!("Shutting down all nodes.");
     integration_test_manager.shutdown_nodes(node_indices);
