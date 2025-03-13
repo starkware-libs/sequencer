@@ -6,6 +6,7 @@ use starknet_sequencer_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
     ReactiveComponentExecutionConfig,
 };
+use starknet_sequencer_node::deployment::DistributedNodeServiceConfigPair;
 /// Holds the component configs for a set of sequencers, composing a single sequencer node.
 pub struct NodeComponentConfigs {
     component_configs: Vec<ComponentConfig>,
@@ -23,10 +24,6 @@ impl NodeComponentConfigs {
     ) -> Self {
         Self { component_configs, batcher_index, http_server_index, state_sync_index }
     }
-
-    // pub fn into_iter(self) -> impl Iterator<Item = ComponentConfig> {
-    //     self.component_configs.into_iter()
-    // }
 
     pub fn len(&self) -> usize {
         self.component_configs.len()
@@ -211,38 +208,37 @@ pub fn create_nodes_deployment_units_configs(
         let state_sync_socket = available_ports.get_next_local_host_socket();
         let l1_provider_socket = available_ports.get_next_local_host_socket();
 
-        let batcher_remote_config = ReactiveComponentExecutionConfig::remote(
+        let batcher_remote_config_pair = DistributedNodeServiceConfigPair::new(
             Ipv4Addr::LOCALHOST.to_string(),
             batcher_socket.ip(),
             batcher_socket.port(),
         );
-
-        let class_manager_remote_config = ReactiveComponentExecutionConfig::remote(
+        let class_manager_remote_config_pair = DistributedNodeServiceConfigPair::new(
             Ipv4Addr::LOCALHOST.to_string(),
             class_manager_socket.ip(),
             class_manager_socket.port(),
         );
-        let gateway_remote_config = ReactiveComponentExecutionConfig::remote(
+        let gateway_remote_config_pair = DistributedNodeServiceConfigPair::new(
             Ipv4Addr::LOCALHOST.to_string(),
             gateway_socket.ip(),
             gateway_socket.port(),
         );
-        let mempool_remote_config = ReactiveComponentExecutionConfig::remote(
+        let mempool_remote_config_pair = DistributedNodeServiceConfigPair::new(
             Ipv4Addr::LOCALHOST.to_string(),
             mempool_socket.ip(),
             mempool_socket.port(),
         );
-        let sierra_compiler_remote_config = ReactiveComponentExecutionConfig::remote(
+        let sierra_compiler_remote_config_pair = DistributedNodeServiceConfigPair::new(
             Ipv4Addr::LOCALHOST.to_string(),
             sierra_compiler_socket.ip(),
             sierra_compiler_socket.port(),
         );
-        let state_sync_remote_config = ReactiveComponentExecutionConfig::remote(
+        let state_sync_remote_config_pair = DistributedNodeServiceConfigPair::new(
             Ipv4Addr::LOCALHOST.to_string(),
             state_sync_socket.ip(),
             state_sync_socket.port(),
         );
-        let l1_provider_remote_config = ReactiveComponentExecutionConfig::remote(
+        let l1_provider_remote_config_pair = DistributedNodeServiceConfigPair::new(
             Ipv4Addr::LOCALHOST.to_string(),
             l1_provider_socket.ip(),
             l1_provider_socket.port(),
@@ -252,32 +248,35 @@ pub fn create_nodes_deployment_units_configs(
             vec![
                 get_batcher_config(
                     batcher_socket,
-                    class_manager_remote_config.clone(),
-                    l1_provider_remote_config.clone(),
-                    mempool_remote_config.clone(),
+                    class_manager_remote_config_pair.remote(),
+                    l1_provider_remote_config_pair.remote(),
+                    mempool_remote_config_pair.remote(),
                 ),
-                get_class_manager_config(class_manager_socket, sierra_compiler_remote_config),
+                get_class_manager_config(
+                    class_manager_socket,
+                    sierra_compiler_remote_config_pair.remote(),
+                ),
                 get_gateway_config(
                     gateway_socket,
-                    class_manager_remote_config.clone(),
-                    mempool_remote_config,
-                    state_sync_remote_config.clone(),
+                    class_manager_remote_config_pair.remote(),
+                    mempool_remote_config_pair.remote(),
+                    state_sync_remote_config_pair.remote(),
                 ),
                 get_mempool_config(
                     mempool_socket,
                     mempool_p2p_socket,
-                    class_manager_remote_config.clone(),
-                    gateway_remote_config.clone(),
+                    class_manager_remote_config_pair.remote(),
+                    gateway_remote_config_pair.remote(),
                 ),
                 get_sierra_compiler_config(sierra_compiler_socket),
-                get_state_sync_config(state_sync_socket, class_manager_remote_config.clone()),
-                get_http_server_config(gateway_remote_config),
+                get_state_sync_config(state_sync_socket, class_manager_remote_config_pair.remote()),
+                get_http_server_config(gateway_remote_config_pair.remote()),
                 get_consensus_manager_config(
-                    batcher_remote_config,
-                    class_manager_remote_config.clone(),
-                    state_sync_remote_config.clone(),
+                    batcher_remote_config_pair.remote(),
+                    class_manager_remote_config_pair.remote(),
+                    state_sync_remote_config_pair.remote(),
                 ),
-                get_l1_provider_config(l1_provider_socket, state_sync_remote_config),
+                get_l1_provider_config(l1_provider_socket, state_sync_remote_config_pair.remote()),
             ],
             // TODO(noamsp): remove these hardcoded values and get the indexes from a mapping.
             // batcher is in executable index 0.
