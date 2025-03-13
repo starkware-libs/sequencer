@@ -50,7 +50,11 @@ use crate::state_reader::{
     CLASS_MANAGER_DB_PATH_SUFFIX,
     STATE_SYNC_DB_PATH_SUFFIX,
 };
-use crate::utils::{create_node_config, spawn_local_success_recorder};
+use crate::utils::{
+    create_node_config,
+    spawn_local_eth_to_fri_oracle,
+    spawn_local_success_recorder,
+};
 
 // TODO(Tsabary): rename this module to `executable_setup`.
 
@@ -188,6 +192,10 @@ impl ExecutableSetup {
         let (recorder_url, _join_handle) =
             spawn_local_success_recorder(available_ports.get_next_port());
         consensus_manager_config.cende_config.recorder_url = recorder_url;
+
+        let (eth_to_fri_oracle_url, _join_handle) =
+            spawn_local_eth_to_fri_oracle(available_ports.get_next_port());
+        consensus_manager_config.eth_to_fri_oracle_config.base_url = eth_to_fri_oracle_url;
 
         // Explicitly collect metrics in the monitoring endpoint.
         let monitoring_endpoint_config = MonitoringEndpointConfig {
