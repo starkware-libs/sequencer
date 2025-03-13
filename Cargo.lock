@@ -11564,6 +11564,7 @@ dependencies = [
  "indexmap 2.7.0",
  "papyrus_sync",
  "serde",
+ "serde_json",
  "starknet_batcher",
  "starknet_consensus",
  "starknet_consensus_manager",
