@@ -96,7 +96,6 @@ impl Default for ReactiveComponentExecutionConfig {
     }
 }
 
-#[cfg(any(feature = "testing", test))]
 impl ReactiveComponentExecutionConfig {
     pub fn disabled() -> Self {
         Self {
@@ -133,9 +132,7 @@ impl ReactiveComponentExecutionConfig {
             port,
         }
     }
-}
 
-impl ReactiveComponentExecutionConfig {
     pub fn local_with_remote_disabled() -> Self {
         Self {
             execution_mode: ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled,

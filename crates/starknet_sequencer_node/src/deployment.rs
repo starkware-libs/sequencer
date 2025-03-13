@@ -130,3 +130,45 @@ impl DistributedNodeServiceName {
         self.clone() as u16
     }
 }
+
+/// Component config bundling for services of a distributed node: a config to run a component
+/// locally while being accessible to other services, and a suitable config enabling such services
+/// the access.
+// TODO(Tsabary): remove dead_code.
+#[allow(dead_code)]
+pub struct DistributedNodeServiceConfigPair {
+    local: ReactiveComponentExecutionConfig,
+    remote: ReactiveComponentExecutionConfig,
+}
+
+impl From<DistributedNodeServiceName> for DistributedNodeServiceConfigPair {
+    fn from(service_name: DistributedNodeServiceName) -> Self {
+        Self {
+            local: service_name.component_config_for_local_service(),
+            remote: service_name.component_config_for_remote_service(),
+        }
+    }
+}
+
+// TODO(Tsabary): remove dead_code.
+#[allow(dead_code)]
+impl DistributedNodeServiceConfigPair {
+    pub fn new(url: String, ip: IpAddr, port: u16) -> Self {
+        Self {
+            local: ReactiveComponentExecutionConfig::local_with_remote_enabled(
+                url.clone(),
+                ip,
+                port,
+            ),
+            remote: ReactiveComponentExecutionConfig::remote(url, ip, port),
+        }
+    }
+
+    pub fn local(&self) -> ReactiveComponentExecutionConfig {
+        self.local.clone()
+    }
+
+    pub fn remote(&self) -> ReactiveComponentExecutionConfig {
+        self.remote.clone()
+    }
+}
