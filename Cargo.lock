@@ -11139,6 +11139,7 @@ dependencies = [
  "starknet_consensus",
  "starknet_infra_utils",
  "starknet_l1_gas_price_types",
+ "starknet_sequencer_metrics",
  "starknet_state_sync_types",
  "thiserror 1.0.69",
  "tokio",

@@ -71,6 +71,7 @@ use starknet_consensus::types::{
 };
 use starknet_l1_gas_price_types::errors::PriceOracleClientError;
 use starknet_l1_gas_price_types::PriceOracleClientTrait;
+use starknet_sequencer_metrics::metrics::ReportMetricWhenDroppedLossy;
 use starknet_state_sync_types::communication::SharedStateSyncClient;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 use starknet_types_core::felt::Felt;
@@ -83,6 +84,7 @@ use tracing::{debug, error, error_span, info, instrument, trace, warn, Instrumen
 use crate::cende::{BlobParameters, CendeContext};
 use crate::config::ContextConfig;
 use crate::fee_market::{calculate_next_base_gas_price, FeeMarketInfo};
+use crate::metrics::{CONSENSUS_NUM_BATCHES_IN_PROPOSAL, CONSENSUS_NUM_TXS_IN_PROPOSAL};
 use crate::orchestrator_versioned_constants::VersionedConstants;
 
 // Contains parameters required for validating block info.
@@ -887,7 +889,9 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
         error!("Failed to initiate proposal validation. {e:?}");
         return;
     }
-
+    let mut num_batches_metric =
+        ReportMetricWhenDroppedLossy::new(&CONSENSUS_NUM_BATCHES_IN_PROPOSAL);
+    let mut num_txs_metric = ReportMetricWhenDroppedLossy::new(&CONSENSUS_NUM_TXS_IN_PROPOSAL);
     // Validating the rest of the proposal parts.
     let (built_block, received_fin) = loop {
         tokio::select! {
@@ -907,6 +911,8 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
                     args.batcher.as_ref(),
                     proposal_part,
                     &mut content,
+                    &mut num_batches_metric,
+                    &mut num_txs_metric,
                     &args.transaction_converter,
                 ).await {
                     HandledProposalPart::Finished(built_block, received_fin) => {
@@ -1030,6 +1036,8 @@ async fn handle_proposal_part(
     batcher: &dyn BatcherClient,
     proposal_part: Option<ProposalPart>,
     content: &mut Vec<Vec<InternalConsensusTransaction>>,
+    num_batches_metric: &mut ReportMetricWhenDroppedLossy,
+    num_txs_metric: &mut ReportMetricWhenDroppedLossy,
     transaction_converter: &TransactionConverter,
 ) -> HandledProposalPart {
     match proposal_part {
@@ -1060,6 +1068,10 @@ async fn handle_proposal_part(
         }
         Some(ProposalPart::Transactions(TransactionBatch { transactions: txs })) => {
             debug!("Received transaction batch with {} txs", txs.len());
+            num_batches_metric.value += 1;
+            let num_txs = u64::try_from(txs.len()).expect("The number of txs is bigger than 2^64");
+            num_txs_metric.value += num_txs;
+
             let txs = futures::future::join_all(txs.into_iter().map(|tx| {
                 transaction_converter.convert_consensus_tx_to_internal_consensus_tx(tx)
             }))

@@ -17,3 +17,6 @@ pub mod orchestrator_versioned_constants;
 
 /// The orchestrator's configuration.
 pub mod config;
+
+#[allow(missing_docs)]
+mod metrics;
