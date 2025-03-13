@@ -7,13 +7,13 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::{Deserialize, Serialize};
 use serde_json;
-use starknet_l1_gas_price_types::errors::PriceOracleClientError;
-use starknet_l1_gas_price_types::PriceOracleClientTrait;
+use starknet_l1_gas_price_types::errors::EthToStrkOracleClientError;
+use starknet_l1_gas_price_types::EthToStrkOracleClientTrait;
 use url::Url;
 
 #[cfg(test)]
-#[path = "price_oracle_test.rs"]
-pub mod price_oracle_test;
+#[path = "eth_to_strk_oracle_test.rs"]
+pub mod eth_to_strk_oracle_test;
 
 const DECIMALS: u64 = 18;
 
@@ -31,13 +31,13 @@ fn hashmap_to_headermap(hash_map: Option<HashMap<String, String>>) -> HeaderMap 
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
-pub struct PriceOracleConfig {
+pub struct EthToStrkOracleConfig {
     pub base_url: Url,
     #[serde(deserialize_with = "deserialize_optional_map")]
     pub headers: Option<HashMap<String, String>>,
 }
 
-impl SerializeConfig for PriceOracleConfig {
+impl SerializeConfig for EthToStrkOracleConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([
             ser_param(
@@ -50,22 +50,22 @@ impl SerializeConfig for PriceOracleConfig {
             ser_param(
                 "headers",
                 &serialize_optional_map(&self.headers),
-                "Headers for the price oracle client, formatted as 'k1:v1 k2:v2 ...'.",
+                "Headers for the eth to strk oracle client, formatted as 'k1:v1 k2:v2 ...'.",
                 ParamPrivacyInput::Private,
             ),
         ])
     }
 }
 
-impl Default for PriceOracleConfig {
+impl Default for EthToStrkOracleConfig {
     fn default() -> Self {
         Self { base_url: Url::parse("https://example.com/api?timestamp=").unwrap(), headers: None }
     }
 }
 
-/// Client for interacting with the Price Oracle API.
-pub struct PriceOracleClient {
-    /// The base URL of the Price Oracle API.
+/// Client for interacting with the eth to strk Oracle API.
+pub struct EthToStrkOracleClient {
+    /// The base URL of the eth to strk Oracle API.
     /// This must end with the query parameter `timestamp=` as we append a UNIX timestamp.
     base_url: Url,
     /// HTTP headers required for requests.
@@ -73,18 +73,18 @@ pub struct PriceOracleClient {
     client: reqwest::Client,
 }
 
-impl PriceOracleClient {
+impl EthToStrkOracleClient {
     pub fn new(base_url: Url, headers: Option<HashMap<String, String>>) -> Self {
         Self { base_url, headers: hashmap_to_headermap(headers), client: reqwest::Client::new() }
     }
 }
 
 #[async_trait]
-impl PriceOracleClientTrait for PriceOracleClient {
+impl EthToStrkOracleClientTrait for EthToStrkOracleClient {
     /// The HTTP response must include the following fields:
     /// - `"price"`: a hexadecimal string representing the price.
     /// - `"decimals"`: a `u64` value, must be equal to `DECIMALS`.
-    async fn eth_to_fri_rate(&self, timestamp: u64) -> Result<u128, PriceOracleClientError> {
+    async fn eth_to_fri_rate(&self, timestamp: u64) -> Result<u128, EthToStrkOracleClientError> {
         let url = format!("{}{}", self.base_url, timestamp);
         let response = self.client.get(&url).headers(self.headers.clone()).send().await?;
         let body = response.text().await?;
@@ -93,7 +93,7 @@ impl PriceOracleClientTrait for PriceOracleClient {
         let price = json
             .get("price")
             .and_then(|v| v.as_str())
-            .ok_or(PriceOracleClientError::MissingFieldError("price"))?;
+            .ok_or(EthToStrkOracleClientError::MissingFieldError("price"))?;
         // Convert hex to u128
         let rate = u128::from_str_radix(price.trim_start_matches("0x"), 16)
             .expect("Failed to parse price as u128");
@@ -101,9 +101,9 @@ impl PriceOracleClientTrait for PriceOracleClient {
         let decimals = json
             .get("decimals")
             .and_then(|v| v.as_u64())
-            .ok_or(PriceOracleClientError::MissingFieldError("decimals"))?;
+            .ok_or(EthToStrkOracleClientError::MissingFieldError("decimals"))?;
         if decimals != DECIMALS {
-            return Err(PriceOracleClientError::InvalidDecimalsError(DECIMALS, decimals));
+            return Err(EthToStrkOracleClientError::InvalidDecimalsError(DECIMALS, decimals));
         }
         Ok(rate)
     }
