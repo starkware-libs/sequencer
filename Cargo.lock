@@ -11141,6 +11141,7 @@ dependencies = [
  "starknet_class_manager_types",
  "starknet_consensus",
  "starknet_infra_utils",
+ "starknet_sequencer_metrics",
  "starknet_state_sync_types",
  "thiserror 1.0.69",
  "tokio",
