@@ -84,6 +84,7 @@ use tracing::{debug, error, error_span, info, instrument, trace, warn, Instrumen
 use crate::cende::{BlobParameters, CendeContext};
 use crate::config::ContextConfig;
 use crate::fee_market::{calculate_next_base_gas_price, FeeMarketInfo};
+use crate::metrics::{CONSENSUS_NUM_BATCHES_IN_PROPOSAL, CONSENSUS_NUM_TXS_IN_PROPOSAL};
 use crate::orchestrator_versioned_constants::VersionedConstants;
 
 // Contains parameters required for validating block info.
@@ -894,7 +895,8 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
         error!("Failed to initiate proposal validation. {e:?}");
         return;
     }
-
+    let mut num_batches_counter = Counter::new();
+    let mut num_txs_counter = Counter::new();
     // Validating the rest of the proposal parts.
     let (built_block, received_fin) = loop {
         tokio::select! {
@@ -914,6 +916,8 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
                     args.batcher.as_ref(),
                     proposal_part,
                     &mut content,
+                    &mut num_batches_counter,
+                    &mut num_txs_counter,
                     &args.transaction_converter,
                 ).await {
                     HandledProposalPart::Finished(built_block, received_fin) => {
@@ -934,6 +938,11 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
             }
         }
     };
+
+    // Validation didn't fail (no early return)
+    // Update metrics of number of transactions and transaction batches.
+    CONSENSUS_NUM_BATCHES_IN_PROPOSAL.set_lossy(num_batches_counter.value);
+    CONSENSUS_NUM_TXS_IN_PROPOSAL.set_lossy(num_txs_counter.value);
 
     // Update valid_proposals before sending fin to avoid a race condition
     // with `get_proposal` being called before `valid_proposals` is updated.
@@ -1028,6 +1037,20 @@ async fn initiate_validation(
     batcher.validate_block(input).await
 }
 
+struct Counter {
+    value: u64,
+}
+
+impl Counter {
+    fn new() -> Self {
+        Self { value: 0 }
+    }
+    fn increment(&mut self, number: usize) {
+        self.value += u64::try_from(number)
+            .expect("The number given to increment counter is bigger than 2^64");
+    }
+}
+
 // Handles receiving a proposal from another node without blocking consensus:
 // 1. Receives the proposal part from the network.
 // 2. Pass this to the batcher.
@@ -1037,6 +1060,8 @@ async fn handle_proposal_part(
     batcher: &dyn BatcherClient,
     proposal_part: Option<ProposalPart>,
     content: &mut Vec<Vec<InternalConsensusTransaction>>,
+    num_batches_counter: &mut Counter,
+    num_txs_counter: &mut Counter,
     transaction_converter: &TransactionConverter,
 ) -> HandledProposalPart {
     match proposal_part {
@@ -1067,6 +1092,9 @@ async fn handle_proposal_part(
         }
         Some(ProposalPart::Transactions(TransactionBatch { transactions: txs })) => {
             debug!("Received transaction batch with {} txs", txs.len());
+            num_batches_counter.increment(1);
+            num_txs_counter.increment(txs.len());
+
             let txs = futures::future::join_all(txs.into_iter().map(|tx| {
                 transaction_converter.convert_consensus_tx_to_internal_consensus_tx(tx)
             }))
