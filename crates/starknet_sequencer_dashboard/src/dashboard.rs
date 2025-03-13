@@ -108,3 +108,79 @@ impl Serialize for Dashboard<'_> {
         map.end()
     }
 }
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub enum ComparisonOp {
+    #[serde(rename = "gt")]
+    GreaterThan,
+    #[serde(rename = "lt")]
+    LessThan,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub enum LogicalOp {
+    #[serde(rename = "and")]
+    And,
+    #[serde(rename = "or")]
+    Or,
+}
+
+/// Defines the condition to trigger the alert.
+#[derive(Clone, Debug, PartialEq)]
+pub struct AlertCondition {
+    // The expression to evaluate for the alert.
+    expr: &'static str,
+    // The comparison operator to use when comparing the expression to the value.
+    comparison_op: ComparisonOp,
+    // The value to compare the expression to.
+    comparison_value: f64,
+    // The logical operator to operate between conditions.
+    logical_op: LogicalOp,
+}
+
+impl Serialize for AlertCondition {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("AlertCondition", 2)?;
+
+        state.serialize_field(
+            "evaluator",
+            &serde_json::json!({
+                "params": [self.comparison_value],
+                "type": self.comparison_op
+            }),
+        )?;
+
+        state.serialize_field(
+            "operator",
+            &serde_json::json!({
+                "type": self.logical_op
+            }),
+        )?;
+
+        state.serialize_field(
+            "query",
+            &serde_json::json!({
+                "expr": self.expr
+            }),
+        )?;
+
+        state.end()
+    }
+}
+
+/// Describes the properties of an alert defined in grafana.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct Alert {
+    // The required duration for which the conditions must remain true before triggering the alert.
+    name: &'static str,
+    // The message that will be displayed or sent when the alert is triggered.
+    message: &'static str,
+    // The conditions that must be met for the alert to be triggered.
+    conditions: &'static [AlertCondition],
+    // The time duration for which the alert conditions must be true before an alert is triggered.
+    #[serde(rename = "for")]
+    pending_duration: &'static str,
+}
