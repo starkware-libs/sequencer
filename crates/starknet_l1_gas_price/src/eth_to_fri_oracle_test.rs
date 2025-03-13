@@ -1,9 +1,9 @@
 use serde_json::json;
-use starknet_l1_gas_price_types::PriceOracleClientTrait;
+use starknet_l1_gas_price_types::EthToFriOracleClientTrait;
 use tokio;
 use url::Url;
 
-use crate::price_oracle::PriceOracleClient;
+use crate::eth_to_fri_oracle::EthToFriOracleClient;
 
 #[tokio::test]
 async fn eth_to_fri_rate() {
@@ -29,7 +29,7 @@ async fn eth_to_fri_rate() {
     // Construct the base URL from the mock server
     let base_url = Url::parse(&server.url()).unwrap();
 
-    let client = PriceOracleClient::new(base_url, None);
+    let client = EthToFriOracleClient::new(base_url, None);
     let rate = client.eth_to_fri_rate(timestamp).await.unwrap();
 
     assert_eq!(rate, expected_rate);
