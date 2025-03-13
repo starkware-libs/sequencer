@@ -51,6 +51,7 @@ tokio.workspace = true
 tracing.workspace = true
 url.workspace = true
 validator.workspace = true
+strum_macros.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
