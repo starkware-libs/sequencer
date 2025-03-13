@@ -84,6 +84,7 @@ use tracing::{debug, error, error_span, info, instrument, trace, warn, Instrumen
 use crate::cende::{BlobParameters, CendeContext};
 use crate::config::ContextConfig;
 use crate::fee_market::{calculate_next_base_gas_price, FeeMarketInfo};
+use crate::metrics::{CONSENSUS_NUM_BATCHES_IN_PROPOSAL, CONSENSUS_NUM_TXS_IN_PROPOSAL};
 use crate::orchestrator_versioned_constants::VersionedConstants;
 
 // Contains parameters required for validating block info.
@@ -894,7 +895,6 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
         error!("Failed to initiate proposal validation. {e:?}");
         return;
     }
-
     // Validating the rest of the proposal parts.
     let (built_block, received_fin) = loop {
         tokio::select! {
@@ -934,6 +934,10 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
             }
         }
     };
+
+    let num_txs: usize = content.iter().map(|batch| batch.len()).sum();
+    CONSENSUS_NUM_BATCHES_IN_PROPOSAL.set_lossy(content.len());
+    CONSENSUS_NUM_TXS_IN_PROPOSAL.set_lossy(num_txs);
 
     // Update valid_proposals before sending fin to avoid a race condition
     // with `get_proposal` being called before `valid_proposals` is updated.
