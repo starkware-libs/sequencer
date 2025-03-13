@@ -487,3 +487,39 @@ pub fn parse_histogram_metric(
 
     Some(HistogramValue { sum, count, histogram })
 }
+
+// Create and update this object (e.g., in a loop).
+// When it's dropped, it will update `metric` with `value`.
+pub struct ReportMetricWhenDropped {
+    pub metric: &'static MetricGauge,
+    pub value: f64,
+}
+
+impl ReportMetricWhenDropped {
+    pub fn new(metric: &'static MetricGauge) -> Self {
+        Self { metric, value: 0.0 }
+    }
+}
+
+impl Drop for ReportMetricWhenDropped {
+    fn drop(&mut self) {
+        self.metric.set(self.value);
+    }
+}
+
+pub struct ReportMetricWhenDroppedLossy {
+    pub metric: &'static MetricGauge,
+    pub value: u64,
+}
+
+impl ReportMetricWhenDroppedLossy {
+    pub fn new(metric: &'static MetricGauge) -> Self {
+        Self { metric, value: 0 }
+    }
+}
+
+impl Drop for ReportMetricWhenDroppedLossy {
+    fn drop(&mut self) {
+        self.metric.set_lossy(self.value);
+    }
+}

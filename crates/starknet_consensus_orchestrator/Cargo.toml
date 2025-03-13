@@ -27,6 +27,7 @@ starknet_batcher_types.workspace = true
 starknet_class_manager_types.workspace = true
 starknet_consensus.workspace = true
 starknet_infra_utils.workspace = true
+starknet_sequencer_metrics.workspace = true
 starknet_state_sync_types.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full"] }
