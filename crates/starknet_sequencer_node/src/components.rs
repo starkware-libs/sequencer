@@ -1,4 +1,5 @@
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
+use papyrus_base_layer::BaseLayerContract;
 use starknet_batcher::batcher::{create_batcher, Batcher};
 use starknet_class_manager::class_manager::create_class_manager;
 use starknet_class_manager::ClassManager;
@@ -190,18 +191,6 @@ pub async fn create_node_components(
         }
     };
 
-    let l1_provider = match config.components.l1_provider.execution_mode {
-        ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
-        | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            Some(create_l1_provider(
-                config.l1_provider_config,
-                clients.get_l1_provider_shared_client().unwrap(),
-                clients.get_state_sync_shared_client().unwrap(),
-            ))
-        }
-        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
-    };
-
     let l1_scraper = match config.components.l1_scraper.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
             let l1_provider_client = clients.get_l1_provider_shared_client().unwrap();
@@ -219,6 +208,36 @@ pub async fn create_node_components(
             )
         }
         ActiveComponentExecutionMode::Disabled => None,
+    };
+
+    // Must be initilized after the l1 scraper, since the provider's (L2) startup height is derived
+    // from the scraper's (L1) startup height (unless the former is overriden via the config).
+    let l1_provider = match config.components.l1_provider.execution_mode {
+        ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
+        | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+            let (base_layer, l1_scraper_start_l1_height) = l1_scraper
+                .as_ref()
+                .map(|l1_scraper| {
+                    (l1_scraper.base_layer.clone(), l1_scraper.last_l1_block_processed.number)
+                })
+                .expect("If the L1 Scraper is disabled, the L1 Provider must be disabled too.");
+            let provider_startup_height = base_layer
+                .get_proved_block_at(l1_scraper_start_l1_height)
+                .await
+                .map(|block| block.number)
+                // This will likely only fail on tests, or on nodes that want to reexecute from
+                // genesis. The former should override the height, or setup Anvil accordingly, and
+                // the latter should use the correct L1 height.
+                .expect("No L2 block detected at the L1 height the scraper was initialized on. \
+                Advance the scraper to start at a higher height than the L2 genesis height.");
+            Some(create_l1_provider(
+                config.l1_provider_config,
+                clients.get_l1_provider_shared_client().unwrap(),
+                clients.get_state_sync_shared_client().unwrap(),
+                provider_startup_height,
+            ))
+        }
+        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
 
     let sierra_compiler = match config.components.sierra_compiler.execution_mode {

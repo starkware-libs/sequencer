@@ -174,6 +174,5 @@ fn modify_height_configs_idle_nodes(
         config.consensus_manager_config.immediate_active_height = node_start_height;
         config.consensus_manager_config.cende_config.skip_write_height = Some(node_start_height);
         config.l1_provider_config.bootstrap_catch_up_height = node_start_height.prev().unwrap();
-        config.l1_provider_config.provider_startup_height = node_start_height;
     });
 }

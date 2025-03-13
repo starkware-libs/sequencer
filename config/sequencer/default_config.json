@@ -1154,10 +1154,15 @@
     "privacy": "Public",
     "value": 0
   },
-  "l1_provider_config.provider_startup_height": {
-    "description": "Height at which the provider should start.",
+  "l1_provider_config.provider_startup_height_override": {
+    "description": "Override height at which the provider should start",
     "privacy": "Public",
-    "value": 1
+    "value": 0
+  },
+  "l1_provider_config.provider_startup_height_override.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
   },
   "l1_provider_config.startup_sync_sleep_retry_interval": {
     "description": "Interval in seconds between each retry of syncing with L2 during startup.",
