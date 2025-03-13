@@ -60,6 +60,7 @@ use crate::utils::{
     send_consensus_txs,
     send_message_to_l2_and_calculate_tx_hash,
     set_validator_id,
+    spawn_local_eth_to_strk_oracle,
     spawn_local_success_recorder,
     BootstrapTxs,
     ConsensusTxs,
@@ -712,9 +713,11 @@ pub async fn get_sequencer_setup_configs(
 
     let mut nodes = Vec::new();
 
-    // All nodes use the same recorder_url.
+    // All nodes use the same recorder_url and eth_to_strk_oracle_url.
     let (recorder_url, _join_handle) =
         spawn_local_success_recorder(base_layer_ports.get_next_port());
+    let (eth_to_strk_oracle_url, _join_handle_eth_to_strk_oracle) =
+        spawn_local_eth_to_strk_oracle(base_layer_ports.get_next_port());
 
     let mut config_available_ports = available_ports_generator
         .next()
@@ -732,6 +735,9 @@ pub async fn get_sequencer_setup_configs(
         let state_sync_config = state_sync_configs.remove(0);
 
         consensus_manager_config.cende_config.recorder_url = recorder_url.clone();
+        consensus_manager_config.eth_to_strk_oracle_config.base_url =
+            eth_to_strk_oracle_url.clone();
+
         let validator_id = set_validator_id(&mut consensus_manager_config, node_index);
         let chain_info = chain_info.clone();
 

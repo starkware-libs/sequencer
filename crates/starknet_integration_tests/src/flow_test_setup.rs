@@ -62,6 +62,7 @@ use crate::utils::{
     create_state_sync_configs,
     send_message_to_l2,
     set_validator_id,
+    spawn_local_eth_to_strk_oracle,
     spawn_local_success_recorder,
     AccumulatedTransactions,
 };
@@ -222,6 +223,10 @@ impl FlowSequencerSetup {
         let (recorder_url, _join_handle) =
             spawn_local_success_recorder(available_ports.get_next_port());
         consensus_manager_config.cende_config.recorder_url = recorder_url;
+
+        let (eth_to_strk_oracle_url, _join_handle) =
+            spawn_local_eth_to_strk_oracle(available_ports.get_next_port());
+        consensus_manager_config.eth_to_strk_oracle_config.base_url = eth_to_strk_oracle_url;
 
         let validator_id = set_validator_id(&mut consensus_manager_config, node_index);
 
