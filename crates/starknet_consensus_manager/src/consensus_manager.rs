@@ -21,6 +21,7 @@ use starknet_consensus::types::ConsensusError;
 use starknet_consensus_orchestrator::cende::CendeAmbassador;
 use starknet_consensus_orchestrator::sequencer_consensus_context::SequencerConsensusContext;
 use starknet_infra_utils::type_name::short_type_name;
+use starknet_l1_gas_price::eth_to_strk_oracle::EthToStrkOracleClient;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_state_sync_types::communication::SharedStateSyncClient;
 use tracing::info;
@@ -137,8 +138,10 @@ impl ConsensusManager {
                 self.config.cende_config.clone(),
                 Arc::clone(&self.class_manager_client),
             )),
-            // TODO(Asmaa): Send EthToStrkOracleClient to the context.
-            None,
+            Some(Arc::new(EthToStrkOracleClient::new(
+                self.config.eth_to_strk_oracle_config.base_url.clone(),
+                self.config.eth_to_strk_oracle_config.headers.clone(),
+            ))),
         );
 
         let network_task = tokio::spawn(network_manager.run());
