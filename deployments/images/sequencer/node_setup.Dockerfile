@@ -17,6 +17,7 @@ WORKDIR /app
 COPY --from=planner /app/recipe.json recipe.json
 RUN cargo chef cook --recipe-path recipe.json
 COPY . .
+RUN cargo install --git https://github.com/foundry-rs/foundry anvil --locked --tag=v0.3.0
 RUN cargo build
 
 FROM ubuntu:24.04 AS final_stage
@@ -27,6 +28,7 @@ WORKDIR /app
 COPY --from=builder /app/crates/blockifier_test_utils/resources ./crates/blockifier_test_utils/resources
 COPY --from=builder /app/target/debug/sequencer_node_setup ./target/debug/sequencer_node_setup
 COPY --from=builder /usr/bin/tini /usr/bin/tini
+COPY --from=builder /var/tmp/rust/bin/anvil /usr/bin/anvil
 
 # Create a new user "sequencer".
 RUN set -ex; \
