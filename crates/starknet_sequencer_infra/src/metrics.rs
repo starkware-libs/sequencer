@@ -52,6 +52,7 @@ define_metrics!(
         MetricGauge { CLASS_MANAGER_LOCAL_QUEUE_DEPTH, "class_manager_local_queue_depth", "The depth of the class manager's local message queue" },
         MetricGauge { GATEWAY_LOCAL_QUEUE_DEPTH, "gateway_local_queue_depth", "The depth of the gateway's local message queue" },
         MetricGauge { L1_PROVIDER_LOCAL_QUEUE_DEPTH, "l1_provider_local_queue_depth", "The depth of the L1 provider's local message queue" },
+        MetricGauge { L1_GAS_PRICE_PROVIDER_LOCAL_QUEUE_DEPTH, "l1_gas_price_provider_local_queue_depth", "The depth of the L1 gas price provider's local message queue" },
         MetricGauge { MEMPOOL_LOCAL_QUEUE_DEPTH, "mempool_local_queue_depth", "The depth of the mempool's local message queue" },
         MetricGauge { MEMPOOL_P2P_LOCAL_QUEUE_DEPTH, "mempool_p2p_propagator_local_queue_depth", "The depth of the mempool p2p's local message queue" },
         MetricGauge { SIERRA_COMPILER_LOCAL_QUEUE_DEPTH, "sierra_compiler_local_queue_depth", "The depth of the sierra compiler's local message queue" },
