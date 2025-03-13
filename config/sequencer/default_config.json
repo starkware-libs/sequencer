@@ -1179,6 +1179,11 @@
     "privacy": "Public",
     "value": 0
   },
+  "mempool_config.committed_nonce_retention_block_count": {
+    "description": "Number of latest committed blocks for which committed account nonces are retained.",
+    "privacy": "Public",
+    "value": 100
+  },
   "mempool_config.declare_delay": {
     "description": "Time to wait before allowing a Declare transaction to be returned, in seconds.",
     "privacy": "Public",
@@ -1198,11 +1203,6 @@
     "description": "Time-to-live for transactions in the mempool, in seconds.",
     "privacy": "Public",
     "value": 60
-  },
-  "mempool_config.committed_nonce_retention_block_count": {
-    "description": "Number of latest committed blocks for which committed account nonces are retained.",
-    "privacy": "Public",
-    "value": 100
   },
   "mempool_p2p_config.network_buffer_size": {
     "description": "Network buffer size.",
