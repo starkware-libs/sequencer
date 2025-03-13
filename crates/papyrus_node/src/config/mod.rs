@@ -81,7 +81,7 @@ impl Default for NodeConfig {
             rpc: RpcConfig::default(),
             monitoring_gateway: MonitoringGatewayConfig::default(),
             storage: StorageConfig::default(),
-            sync: Some(SyncConfig::default()),
+            sync: Some(SyncConfig { store_sierras_and_casms: true, ..Default::default() }),
             p2p_sync: None,
             consensus: None,
             context: None,
