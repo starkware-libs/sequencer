@@ -98,8 +98,8 @@ impl RequiredParams {
                 context_config: ContextConfigRequiredParams {
                     builder_address: ContractAddress::from(4_u128),
                 },
-                price_oracle_config: PriceOracleConfigRequiredParams {
-                    base_url: Url::parse("https://price_oracle_url")
+                eth_to_fri_oracle_config: EthToFriOracleConfigRequiredParams {
+                    base_url: Url::parse("https://eth_to_fri_oracle_url")
                         .expect("Should be a valid URL"),
                 },
             },
@@ -168,15 +168,17 @@ impl SerializeConfig for EthereumBaseLayerConfigRequiredParams {
 #[derive(Serialize)]
 pub struct ConsensusManagerRequiredParams {
     pub context_config: ContextConfigRequiredParams,
-    pub price_oracle_config: PriceOracleConfigRequiredParams,
+    pub eth_to_fri_oracle_config: EthToFriOracleConfigRequiredParams,
 }
 
 impl SerializeConfig for ConsensusManagerRequiredParams {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let mut config = BTreeMap::new();
         config.extend(append_sub_config_name(self.context_config.dump(), "context_config"));
-        config
-            .extend(append_sub_config_name(self.price_oracle_config.dump(), "price_oracle_config"));
+        config.extend(append_sub_config_name(
+            self.eth_to_fri_oracle_config.dump(),
+            "eth_to_fri_oracle_config",
+        ));
         config
     }
 }
@@ -198,11 +200,11 @@ impl SerializeConfig for ContextConfigRequiredParams {
 }
 
 #[derive(Serialize)]
-pub struct PriceOracleConfigRequiredParams {
+pub struct EthToFriOracleConfigRequiredParams {
     pub base_url: Url,
 }
 
-impl SerializeConfig for PriceOracleConfigRequiredParams {
+impl SerializeConfig for EthToFriOracleConfigRequiredParams {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([ser_param(
             "base_url",

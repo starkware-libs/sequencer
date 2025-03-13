@@ -9,7 +9,7 @@ use starknet_api::block::BlockNumber;
 use starknet_consensus::config::ConsensusConfig;
 use starknet_consensus_orchestrator::cende::CendeConfig;
 use starknet_consensus_orchestrator::config::ContextConfig;
-use starknet_l1_gas_price::price_oracle::PriceOracleConfig;
+use starknet_l1_gas_price::eth_to_fri_oracle::EthToFriOracleConfig;
 use validator::Validate;
 
 /// The consensus manager related configuration.
@@ -17,7 +17,7 @@ use validator::Validate;
 pub struct ConsensusManagerConfig {
     pub consensus_config: ConsensusConfig,
     pub context_config: ContextConfig,
-    pub price_oracle_config: PriceOracleConfig,
+    pub eth_to_fri_oracle_config: EthToFriOracleConfig,
     #[validate]
     pub network_config: NetworkConfig,
     pub cende_config: CendeConfig,
@@ -58,8 +58,10 @@ impl SerializeConfig for ConsensusManagerConfig {
         ]);
         config.extend(append_sub_config_name(self.consensus_config.dump(), "consensus_config"));
         config.extend(append_sub_config_name(self.context_config.dump(), "context_config"));
-        config
-            .extend(append_sub_config_name(self.price_oracle_config.dump(), "price_oracle_config"));
+        config.extend(append_sub_config_name(
+            self.eth_to_fri_oracle_config.dump(),
+            "eth_to_fri_oracle_config",
+        ));
         config.extend(append_sub_config_name(self.cende_config.dump(), "cende_config"));
         config.extend(append_sub_config_name(self.network_config.dump(), "network_config"));
         config.extend(append_sub_config_name(self.revert_config.dump(), "revert_config"));
@@ -72,7 +74,7 @@ impl Default for ConsensusManagerConfig {
         ConsensusManagerConfig {
             consensus_config: ConsensusConfig::default(),
             context_config: ContextConfig::default(),
-            price_oracle_config: PriceOracleConfig::default(),
+            eth_to_fri_oracle_config: EthToFriOracleConfig::default(),
             cende_config: CendeConfig::default(),
             network_config: NetworkConfig::default(),
             revert_config: RevertConfig::default(),
