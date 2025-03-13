@@ -51,6 +51,34 @@
         "type": "stat",
         "expr": "consensus_round",
         "extra_params": {}
+      },
+      {
+        "title": "consensus_max_cached_block_number",
+        "description": "How many blocks after current are cached",
+        "type": "stat",
+        "expr": "consensus_max_cached_block_number",
+        "extra_params": {}
+      },
+      {
+        "title": "consensus_cached_votes",
+        "description": "How many votes are cached when starting to work on a new block number",
+        "type": "stat",
+        "expr": "consensus_cached_votes",
+        "extra_params": {}
+      },
+      {
+        "title": "consensus_decisions_reached_by_consensus",
+        "description": "The total number of decisions reached by way of consensus",
+        "type": "stat",
+        "expr": "consensus_decisions_reached_by_consensus",
+        "extra_params": {}
+      },
+      {
+        "title": "consensus_decisions_reached_by_sync",
+        "description": "The total number of decisions reached by way of sync",
+        "type": "stat",
+        "expr": "consensus_decisions_reached_by_sync",
+        "extra_params": {}
       }
     ],
     "Http Server": [
@@ -147,6 +175,13 @@
         "extra_params": {}
       },
       {
+        "title": "gateway_trasactions_received_rate (TPS)",
+        "description": "The rate of transactions received by the gateway during the last 20 minutes",
+        "type": "graph",
+        "expr": "sum(rate(gateway_transactions_received[20m]))",
+        "extra_params": {}
+      },
+      {
         "title": "gateway_transactions_failed",
         "description": "Counter of failed transactions",
         "type": "stat",
@@ -167,6 +202,13 @@
         "description": "Counter of transactions received by the mempool",
         "type": "stat",
         "expr": "sum  by (tx_type) (mempool_transactions_received)",
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_trasactions_received_rate (TPS)",
+        "description": "The rate of transactions received by the mempool during the last 20 minutes",
+        "type": "graph",
+        "expr": "sum(rate(mempool_transactions_received[20m]))",
         "extra_params": {}
       },
       {

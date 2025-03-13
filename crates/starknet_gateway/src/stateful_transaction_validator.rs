@@ -122,7 +122,7 @@ fn skip_stateful_validations(
             // to check if the account exists in the mempool since it means that either it has a
             // deploy_account transaction or transactions with future nonces that passed
             // validations.
-            return runtime.block_on(mempool_client.contains_tx_from(tx.sender_address()))
+            return runtime.block_on(mempool_client.account_tx_in_pool_or_recent_block(tx.sender_address()))
                 // TODO(Arni): consider using mempool_client_result_to_gw_spec_result for error handling.
                 .map_err(|err| GatewaySpecError::UnexpectedError { data: err.to_string() });
         }

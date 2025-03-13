@@ -17,3 +17,7 @@ message MempoolTransaction {
     }
     Hash transaction_hash = 4;
 }
+
+message MempoolTransactionBatch {
+    repeated MempoolTransaction transactions = 1;
+}

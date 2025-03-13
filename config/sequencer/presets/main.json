@@ -1,9 +1,11 @@
 {
   "chain_id": "SN_MAIN",
+  "image": "ghcr.io/starkware-libs/sequencer/sequencer:dev",
+  "application_config_subdir": "config/sequencer/presets/system_test_presets/single_node/",
   "services": [
     {
       "name": "Batcher",
-      "config_path": "",
+      "config_path": "node_0/executable_0/node_config.json",
       "ingress": false,
       "autoscale": false,
       "replicas": 1,
@@ -11,7 +13,7 @@
     },
     {
       "name": "Gateway",
-      "config_path": "",
+      "config_path": "node_0/executable_0/node_config.json",
       "ingress": false,
       "autoscale": true,
       "replicas": 1,
@@ -19,7 +21,7 @@
     },
     {
       "name": "Mempool",
-      "config_path": "",
+      "config_path": "node_0/executable_0/node_config.json",
       "ingress": false,
       "autoscale": false,
       "replicas": 1,

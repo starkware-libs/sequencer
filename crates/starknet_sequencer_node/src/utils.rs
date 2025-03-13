@@ -1,5 +1,6 @@
 use std::process::exit;
 
+use papyrus_config::presentation::get_config_presentation;
 use papyrus_config::validators::config_validate;
 use papyrus_config::ConfigError;
 use tracing::{error, info};
@@ -35,6 +36,13 @@ pub fn load_and_validate_config(args: Vec<String>) -> Result<SequencerNodeConfig
         exit(1);
     }
     info!("Finished validating configuration.");
+
+    info!("Config map:");
+    info!(
+        "{:?}",
+        get_config_presentation::<SequencerNodeConfig>(&config, false)
+            .expect("Should be able to get representation.")
+    );
 
     Ok(config)
 }

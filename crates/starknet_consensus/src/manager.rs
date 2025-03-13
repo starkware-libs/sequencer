@@ -25,7 +25,14 @@ use starknet_api::block::BlockNumber;
 use tracing::{debug, error, info, instrument, trace, warn};
 
 use crate::config::TimeoutsConfig;
-use crate::metrics::{register_metrics, CONSENSUS_BLOCK_NUMBER};
+use crate::metrics::{
+    register_metrics,
+    CONSENSUS_BLOCK_NUMBER,
+    CONSENSUS_CACHED_VOTES,
+    CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS,
+    CONSENSUS_DECISIONS_REACHED_BY_SYNC,
+    CONSENSUS_MAX_CACHED_BLOCK_NUMBER,
+};
 use crate::single_height_consensus::{ShcReturn, SingleHeightConsensus};
 use crate::types::{BroadcastVoteChannel, ConsensusContext, ConsensusError, Decision, ValidatorId};
 
@@ -98,10 +105,12 @@ where
                 // We expect there to be under 100 validators, so this is a reasonable number of
                 // precommits to print.
                 info!("Decision reached. {:?}", decision);
+                CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS.increment(1);
                 context.decision_reached(decision.block, decision.precommits).await?;
             }
             RunHeightRes::Sync => {
                 info!(height = current_height.0, "Decision learned via sync protocol.");
+                CONSENSUS_DECISIONS_REACHED_BY_SYNC.increment(1);
                 counter!(PAPYRUS_CONSENSUS_SYNC_COUNT).increment(1);
             }
         }
@@ -205,6 +214,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         broadcast_channels: &mut BroadcastVoteChannel,
         proposal_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
     ) -> Result<RunHeightRes, ConsensusError> {
+        self.report_max_cached_block_number_metric(height);
         if context.try_sync(height).await {
             return Ok(RunHeightRes::Sync);
         }
@@ -215,9 +225,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             "running consensus for height {height:?}. is_observer: {is_observer}, validators: \
              {validators:?}"
         );
-        // TODO(guyn, Tsabary): use int metrics so `as f64` may be removed.
-        #[allow(clippy::as_conversions)]
-        CONSENSUS_BLOCK_NUMBER.set(height.0 as f64);
+        CONSENSUS_BLOCK_NUMBER.set_lossy(height.0);
 
         let mut shc = SingleHeightConsensus::new(
             height,
@@ -229,7 +237,9 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         let mut shc_events = FuturesUnordered::new();
 
         match self.start_height(context, height, &mut shc).await? {
-            ShcReturn::Decision(decision) => return Ok(RunHeightRes::Decision(decision)),
+            ShcReturn::Decision(decision) => {
+                return Ok(RunHeightRes::Decision(decision));
+            }
             ShcReturn::Tasks(tasks) => {
                 for task in tasks {
                     shc_events.push(task.run());
@@ -239,6 +249,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
 
         // Loop over incoming proposals, messages, and self generated events.
         loop {
+            self.report_max_cached_block_number_metric(height);
             let shc_return = tokio::select! {
                 message = broadcast_channels.broadcasted_messages_receiver.next() => {
                     self.handle_vote(
@@ -275,6 +286,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         height: BlockNumber,
         shc: &mut SingleHeightConsensus,
     ) -> Result<ShcReturn, ConsensusError> {
+        CONSENSUS_CACHED_VOTES.set_lossy(self.future_votes.entry(height.0).or_default().len());
         let mut tasks = match shc.start(context).await? {
             decision @ ShcReturn::Decision(_) => {
                 // Start should generate either TimeoutProposal (validator) or GetProposal
@@ -466,5 +478,11 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 }
             }
         }
+    }
+
+    fn report_max_cached_block_number_metric(&self, height: BlockNumber) {
+        // If nothing is cached use current height as "max".
+        let max_cached_block_number = self.cached_proposals.keys().max().unwrap_or(&height.0);
+        CONSENSUS_MAX_CACHED_BLOCK_NUMBER.set_lossy(*max_cached_block_number);
     }
 }

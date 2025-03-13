@@ -1,8 +1,21 @@
-use std::str::FromStr;
-
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{parse_macro_input, ExprLit, Ident, ItemFn, ItemTrait, LitBool, LitStr, Meta, TraitItem};
+use syn::parse::{Parse, ParseStream};
+use syn::{
+    parse,
+    parse2,
+    parse_macro_input,
+    parse_str,
+    ExprLit,
+    Ident,
+    ItemFn,
+    ItemTrait,
+    LitBool,
+    LitStr,
+    Meta,
+    Token,
+    TraitItem,
+};
 
 /// This macro is a wrapper around the "rpc" macro supplied by the jsonrpsee library that generates
 /// a server and client traits from a given trait definition. The wrapper gets a version id and
@@ -120,42 +133,134 @@ pub fn versioned_rpc(attr: TokenStream, input: TokenStream) -> TokenStream {
 /// since the config value is false.
 #[proc_macro_attribute]
 pub fn latency_histogram(attr: TokenStream, input: TokenStream) -> TokenStream {
-    let mut input_fn = parse_macro_input!(input as ItemFn);
-    let parts = attr
-        .to_string()
-        .split(',')
-        .map(|s| {
-            TokenStream::from_str(s)
-                .expect("Expecting metric name and bool (is for profiling only)")
-        })
-        .collect::<Vec<_>>();
-    let metric_name_as_tokenstream = parts
-        .first()
-        .expect("attribute should include metric name and controll with config boolean")
-        .clone();
+    let (metric_name, control_with_config, input_fn) = parse_latency_histogram_attributes::<ExprLit>(
+        attr,
+        input,
+        "Expecting a string literal for metric name",
+    );
+
     // TODO(DanB): consider naming the input value instead of providing a bool
     // TODO(DanB): consider adding support for metrics levels (e.g. debug, info, warn, error)
     // instead of boolean
-    let controll_with_config_as_tokenstream = parts
-        .get(1)
-        .expect("attribute should include metric name and controll with config boolean")
-        .clone();
-    let metric_name = parse_macro_input!(metric_name_as_tokenstream as ExprLit);
-    let controll_with_config = parse_macro_input!(controll_with_config_as_tokenstream as LitBool);
-    let origin_block = &mut input_fn.block;
 
+    let metric_recording_logic = quote! {
+        metrics::histogram!(#metric_name).record(exec_time);
+    };
+
+    let collect_metric_flag = quote! {
+        papyrus_common::metrics::COLLECT_PROFILING_METRICS
+    };
+
+    create_modified_function(
+        metric_name,
+        control_with_config,
+        input_fn,
+        metric_recording_logic,
+        collect_metric_flag,
+    )
+}
+
+/// This macro will emit a histogram metric with the given name and the latency of the function.
+/// In addition, also a debug log with the metric name and the execution time will be emitted.
+/// The macro also receives a boolean for whether it will be emitted only when
+/// profiling is activated or at all times.
+///
+/// # Example
+/// Given this code:
+///
+/// ```rust,ignore
+/// use starknet_sequencer_metrics::metrics::{MetricHistogram, MetricScope};
+///
+/// const FOO_HISTOGRAM_METRIC: MetricHistogram = MetricHistogram::new(
+///     MetricScope::Infra,
+///     "foo_histogram_metric",
+///     "foo function latency histogram metrics",
+/// );
+///
+/// #[sequencer_latency_histogram(FOO_HISTOGRAM_METRIC, false)]
+/// fn foo() {
+///     // Some code ...
+/// }
+/// ```
+/// Every call to foo will update the histogram metric FOO_HISTOGRAM_METRIC with the time it
+/// took to execute foo. In addition, a debug log with the following format will be emitted:
+/// “<metric_name>: <execution_time>”
+/// The metric will be emitted regardless of the value of the profiling configuration,
+/// since the config value is false.
+#[proc_macro_attribute]
+pub fn sequencer_latency_histogram(attr: TokenStream, input: TokenStream) -> TokenStream {
+    let (metric_name, control_with_config, input_fn) = parse_latency_histogram_attributes::<Ident>(
+        attr,
+        input,
+        "Expecting an identifier for metric name",
+    );
+
+    let metric_recording_logic = quote! {
+        #metric_name.record(exec_time);
+    };
+
+    let collect_metric_flag = quote! {
+        starknet_monitoring_endpoint::config::COLLECT_SEQUENCER_PROFILING_METRICS
+    };
+
+    create_modified_function(
+        metric_name,
+        control_with_config,
+        input_fn,
+        metric_recording_logic,
+        collect_metric_flag,
+    )
+}
+
+/// Helper function to parse the attributes and input for the latency histogram macros.
+fn parse_latency_histogram_attributes<T: Parse>(
+    attr: TokenStream,
+    input: TokenStream,
+    err_msg: &str,
+) -> (T, LitBool, ItemFn) {
+    let binding = attr.to_string();
+    let parts: Vec<&str> = binding.split(',').collect();
+    let metric_name_string = parts
+        .first()
+        .expect("attribute should include metric name and control with config boolean")
+        .trim()
+        .to_string();
+    let control_with_config_string = parts
+        .get(1)
+        .expect("attribute should include metric name and control with config boolean")
+        .trim()
+        .to_string();
+
+    let control_with_config = parse_str::<LitBool>(&control_with_config_string)
+        .expect("Expecting a boolean value for control with config");
+    let metric_name = parse_str::<T>(&metric_name_string).expect(err_msg);
+
+    let input_fn = parse::<ItemFn>(input).expect("Failed to parse input as ItemFn");
+
+    (metric_name, control_with_config, input_fn)
+}
+
+/// Helper function to create the expanded block and modified function.
+fn create_modified_function(
+    metric_name: impl ToTokens,
+    control_with_config: LitBool,
+    input_fn: ItemFn,
+    metric_recording_logic: impl ToTokens,
+    collect_metric_flag: impl ToTokens,
+) -> TokenStream {
     // Create a new block with the metric update.
+    let origin_block = &input_fn.block;
     let expanded_block = quote! {
         {
             let mut start_function_time = None;
-            if !#controll_with_config || (#controll_with_config && *(papyrus_common::metrics::COLLECT_PROFILING_METRICS.get().unwrap_or(&false))) {
-                start_function_time=Some(std::time::Instant::now());
+            if !#control_with_config || (#control_with_config && *(#collect_metric_flag.get().unwrap_or(&false))) {
+                start_function_time = Some(std::time::Instant::now());
             }
-            let return_value=#origin_block;
+            let return_value = #origin_block;
             if let Some(start_time) = start_function_time {
                 let exec_time = start_time.elapsed().as_secs_f64();
-                metrics::histogram!(#metric_name).record(exec_time);
-                tracing::debug!("{}: {}", #metric_name, exec_time);
+                #metric_recording_logic
+                tracing::debug!("{}: {}", stringify!(#metric_name), exec_time);
             }
             return_value
         }
@@ -163,7 +268,7 @@ pub fn latency_histogram(attr: TokenStream, input: TokenStream) -> TokenStream {
 
     // Create a new function with the modified block.
     let modified_function = ItemFn {
-        block: syn::parse2(expanded_block).expect("Parse tokens in latency_histogram attribute."),
+        block: parse2(expanded_block).expect("Parse tokens in latency_histogram attribute."),
         ..input_fn
     };
 
@@ -178,16 +283,16 @@ struct HandleAllResponseVariantsMacroInput {
     response_type: Ident,
 }
 
-impl syn::parse::Parse for HandleAllResponseVariantsMacroInput {
-    fn parse(input: syn::parse::ParseStream<'_>) -> syn::Result<Self> {
+impl Parse for HandleAllResponseVariantsMacroInput {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
         let response_enum: Ident = input.parse()?;
-        input.parse::<syn::Token![,]>()?;
+        input.parse::<Token![,]>()?;
         let request_response_enum_var: Ident = input.parse()?;
-        input.parse::<syn::Token![,]>()?;
+        input.parse::<Token![,]>()?;
         let component_client_error: Ident = input.parse()?;
-        input.parse::<syn::Token![,]>()?;
+        input.parse::<Token![,]>()?;
         let component_error: Ident = input.parse()?;
-        input.parse::<syn::Token![,]>()?;
+        input.parse::<Token![,]>()?;
         let response_type: Ident = input.parse()?;
 
         Ok(HandleAllResponseVariantsMacroInput {

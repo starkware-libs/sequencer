@@ -124,7 +124,7 @@ use crate::hints::hint_implementation::execution::{
     write_syscall_result_deprecated,
 };
 use crate::hints::hint_implementation::find_element::search_sorted_optimistic;
-use crate::hints::hint_implementation::kzg::store_da_segment;
+use crate::hints::hint_implementation::kzg::implementation::store_da_segment;
 use crate::hints::hint_implementation::math::log2_ceil;
 use crate::hints::hint_implementation::os::{
     configure_kzg_manager,
@@ -177,7 +177,6 @@ use crate::hints::hint_implementation::stateful_compression::{
     compute_commitments_on_finalized_state_with_aliases,
     contract_address_le_max_for_compression,
     enter_scope_with_aliases,
-    get_alias_entry_for_state_update,
     initialize_alias_counter,
     key_lt_min_alias_alloc_value,
     read_alias_counter,
@@ -423,12 +422,11 @@ define_hint_enum!(
     )
     ids.is_leaf = 1 if isinstance(bytecode_segment_structure, BytecodeLeaf) else 0"#}
     ),
-    // TODO(Meshi): Update implementation to reflect changes in hint.
     (
         WriteUseKzgDaToMemory,
         write_use_kzg_da_to_memory,
         indoc! {r#"
-    memory[fp + 15] = to_felt_or_relocatable(syscall_handler.block_info.use_kzg_da and (
+    memory[fp + 18] = to_felt_or_relocatable(syscall_handler.block_info.use_kzg_da and (
         not os_input.full_output
     ))"#}
     ),
@@ -599,13 +597,6 @@ define_hint_enum!(
     ))"#}
     ),
     (
-        GetAliasEntryForStateUpdate,
-        get_alias_entry_for_state_update,
-        indoc! {r#"ids.aliases_entry = __dict_manager.get_dict(ids.os_state_update.contract_state_changes_end)[
-        ids.ALIAS_CONTRACT_ADDRESS
-    ]"#}
-    ),
-    (
         KeyLtMinAliasAllocValue,
         key_lt_min_alias_alloc_value,
         "memory[ap] = to_felt_or_relocatable(ids.key < ids.MIN_VALUE_FOR_ALIAS_ALLOC)"
@@ -708,7 +699,7 @@ define_hint_enum!(
     (
         SegmentsAddTemp,
         segments_add_temp,
-        indoc! {r#"memory[ap] = to_felt_or_relocatable(segments.add_temp_segment())"#
+        indoc! {r#"memory[fp + 6] = to_felt_or_relocatable(segments.add_temp_segment())"#
         }
     ),
     (StartTx, start_tx, indoc! {r#"execution_helper.start_tx()"# }),
@@ -1313,11 +1304,10 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
             ids.res = log2_ceil(ids.value)"#
         }
     ),
-    // TODO(Meshi): Update implementation to reflect changes in hint.
     (
         WriteFullOutputToMemory,
         write_full_output_to_memory,
-        indoc! {r#"memory[fp + 16] = to_felt_or_relocatable(os_input.full_output)"#}
+        indoc! {r#"memory[fp + 19] = to_felt_or_relocatable(os_input.full_output)"#}
     ),
     (
         ConfigureKzgManager,

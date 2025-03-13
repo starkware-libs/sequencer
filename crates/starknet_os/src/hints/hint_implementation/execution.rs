@@ -1,6 +1,7 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use blockifier::state::state_api::{State, StateReader};
+use cairo_vm::any_box;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_constant_from_var_name,
     get_integer_from_var_name,
@@ -120,9 +121,28 @@ pub(crate) fn is_deprecated<S: StateReader>(
 }
 
 pub(crate) fn enter_syscall_scopes<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { exec_scopes, hint_processor, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    // The scope variables `syscall_handler`, `deprecated_syscall_handler` and `execution_helper`
+    // are accessible through the hint processor.
+    let deprecated_class_hashes: HashSet<ClassHash> =
+        exec_scopes.get(Scope::DeprecatedClassHashes.into())?;
+    // TODO(Nimrod): See if we can avoid cloning here.
+    let component_hashes =
+        hint_processor.execution_helper.os_input.declared_class_hash_to_component_hashes.clone();
+    let transactions_iter =
+        hint_processor.execution_helper.os_input.transactions.clone().into_iter();
+    let dict_manager = exec_scopes.get_dict_manager()?;
+
+    let new_scope = HashMap::from([
+        (Scope::DictManager.into(), any_box!(dict_manager)),
+        (Scope::DeprecatedClassHashes.into(), any_box!(deprecated_class_hashes)),
+        (Scope::ComponentHashes.into(), any_box!(component_hashes)),
+        (Scope::Transactions.into(), any_box!(transactions_iter)),
+    ]);
+    exec_scopes.enter_scope(new_scope);
+
+    Ok(())
 }
 
 pub(crate) fn end_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {

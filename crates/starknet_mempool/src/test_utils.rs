@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::Instant;
 
+use metrics_exporter_prometheus::PrometheusRecorder;
 use pretty_assertions::assert_eq;
 use starknet_api::rpc_transaction::{InternalRpcTransaction, RpcTransactionLabelValue};
 use starknet_api::transaction::TransactionHash;
@@ -319,6 +320,8 @@ impl Clock for FakeClock {
 #[derive(Default)]
 pub struct MempoolMetrics {
     pub txs_received_invoke: u64,
+    pub txs_received_declare: u64,
+    pub txs_received_deploy_account: u64,
     pub txs_committed: u64,
     pub txs_dropped_expired: u64,
     pub txs_dropped_failed_add_tx_checks: u64,
@@ -330,12 +333,25 @@ pub struct MempoolMetrics {
 }
 
 impl MempoolMetrics {
-    pub fn verify_metrics(&self, metrics: &str) {
+    pub fn verify_metrics(&self, recorder: &PrometheusRecorder) {
+        let metrics = &recorder.handle().render();
         assert_metric_eq!(
             metrics,
             self.txs_received_invoke,
             MEMPOOL_TRANSACTIONS_RECEIVED,
             &[(LABEL_NAME_TX_TYPE, RpcTransactionLabelValue::Invoke.into())]
+        );
+        assert_metric_eq!(
+            metrics,
+            self.txs_received_declare,
+            MEMPOOL_TRANSACTIONS_RECEIVED,
+            &[(LABEL_NAME_TX_TYPE, RpcTransactionLabelValue::Declare.into())]
+        );
+        assert_metric_eq!(
+            metrics,
+            self.txs_received_deploy_account,
+            MEMPOOL_TRANSACTIONS_RECEIVED,
+            &[(LABEL_NAME_TX_TYPE, RpcTransactionLabelValue::DeployAccount.into())]
         );
 
         assert_metric_eq!(metrics, self.txs_committed, MEMPOOL_TRANSACTIONS_COMMITTED);

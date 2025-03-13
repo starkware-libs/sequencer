@@ -40,7 +40,7 @@ impl Default for CommitmentInfo {
 }
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ContractClassComponentHashes {
     _contract_class_version: Felt,
     _external_functions_hash: HashOutput,
@@ -70,7 +70,8 @@ pub struct StarknetOsInput {
     pub transactions: Vec<Transaction>,
     pub _tx_execution_infos: Vec<CentralTransactionExecutionInfo>,
     // A mapping from Cairo 1 declared class hashes to the hashes of the contract class components.
-    _declared_class_hash_to_component_hashes: HashMap<ClassHash, ContractClassComponentHashes>,
+    pub(crate) declared_class_hash_to_component_hashes:
+        HashMap<ClassHash, ContractClassComponentHashes>,
     pub block_info: BlockInfo,
     pub(crate) prev_block_hash: BlockHash,
     pub(crate) new_block_hash: BlockHash,

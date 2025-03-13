@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use starknet_infra_utils::test_utils::TestIdentifier;
-use starknet_integration_tests::consts::SINGLE_NODE_CONFIG_PATH;
+use starknet_integration_tests::consts::{DATA_PREFIX_PATH, SINGLE_NODE_CONFIG_PATH};
 use starknet_integration_tests::integration_test_utils::set_panic_hook;
 use starknet_integration_tests::node_component_configs::create_distributed_node_configs;
 use starknet_integration_tests::sequencer_manager::{get_sequencer_setup_configs, CustomPaths};
@@ -32,7 +32,7 @@ async fn main() {
     let custom_paths = CustomPaths::new(
         Some(PathBuf::from(args.db_dir.clone())),
         Some(temp_dir_path),
-        args.data_prefix_path.map(PathBuf::from),
+        Some(PathBuf::from(args.data_prefix_path)),
     );
     // TODO(Nadin): Align this with node_setup.
     // Run node setup.
@@ -65,6 +65,6 @@ struct Args {
     #[arg(long,  default_value_t = DB_DIR.to_string())]
     db_dir: String,
 
-    #[arg(long)]
-    data_prefix_path: Option<String>,
+    #[arg(long, default_value_t = DATA_PREFIX_PATH.to_string())]
+    data_prefix_path: String,
 }

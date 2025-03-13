@@ -7,7 +7,14 @@ use starknet_batcher::metrics::{
     PROPOSAL_STARTED,
     PROPOSAL_SUCCEEDED,
 };
-use starknet_consensus::metrics::{CONSENSUS_BLOCK_NUMBER, CONSENSUS_ROUND};
+use starknet_consensus::metrics::{
+    CONSENSUS_BLOCK_NUMBER,
+    CONSENSUS_CACHED_VOTES,
+    CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS,
+    CONSENSUS_DECISIONS_REACHED_BY_SYNC,
+    CONSENSUS_MAX_CACHED_BLOCK_NUMBER,
+    CONSENSUS_ROUND,
+};
 use starknet_consensus_manager::metrics::{
     CONSENSUS_NUM_CONNECTED_PEERS,
     CONSENSUS_NUM_RECEIVED_MESSAGES,
@@ -109,6 +116,34 @@ const PANEL_CONSENSUS_ROUND: Panel = Panel::new(
     PanelType::Stat,
 );
 
+const PANEL_CONSENSUS_MAX_CACHED_BLOCK_NUMBER: Panel = Panel::new(
+    CONSENSUS_MAX_CACHED_BLOCK_NUMBER.get_name(),
+    CONSENSUS_MAX_CACHED_BLOCK_NUMBER.get_description(),
+    CONSENSUS_MAX_CACHED_BLOCK_NUMBER.get_name(),
+    PanelType::Stat,
+);
+
+const PANEL_CONSENSUS_CACHED_VOTES: Panel = Panel::new(
+    CONSENSUS_CACHED_VOTES.get_name(),
+    CONSENSUS_CACHED_VOTES.get_description(),
+    CONSENSUS_CACHED_VOTES.get_name(),
+    PanelType::Stat,
+);
+
+const PANEL_CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS: Panel = Panel::new(
+    CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS.get_name(),
+    CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS.get_description(),
+    CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS.get_name(),
+    PanelType::Stat,
+);
+
+const PANEL_CONSENSUS_DECISIONS_REACHED_BY_SYNC: Panel = Panel::new(
+    CONSENSUS_DECISIONS_REACHED_BY_SYNC.get_name(),
+    CONSENSUS_DECISIONS_REACHED_BY_SYNC.get_description(),
+    CONSENSUS_DECISIONS_REACHED_BY_SYNC.get_name(),
+    PanelType::Stat,
+);
+
 const PANEL_MEMPOOL_P2P_NUM_CONNECTED_PEERS: Panel = Panel::new(
     MEMPOOL_P2P_NUM_CONNECTED_PEERS.get_name(),
     MEMPOOL_P2P_NUM_CONNECTED_PEERS.get_description(),
@@ -186,6 +221,13 @@ const PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_SOURCE: Panel = Panel::new(
     PanelType::Stat,
 );
 
+const PANEL_GATEWAY_TRANSACTIONS_RECEIVED_RATE: Panel = Panel::new(
+    "gateway_trasactions_received_rate (TPS)",
+    "The rate of transactions received by the gateway during the last 20 minutes",
+    formatcp!("sum(rate({}[20m]))", TRANSACTIONS_RECEIVED.get_name()),
+    PanelType::Graph,
+);
+
 const PANEL_GATEWAY_TRANSACTIONS_FAILED: Panel = Panel::new(
     TRANSACTIONS_FAILED.get_name(),
     TRANSACTIONS_FAILED.get_description(),
@@ -213,6 +255,13 @@ const PANEL_MEMPOOL_TRANSACTIONS_RECEIVED: Panel = Panel::new(
         MEMPOOL_TRANSACTIONS_RECEIVED.get_name()
     ),
     PanelType::Stat,
+);
+
+const PANEL_MEMPOOL_TRANSACTIONS_RECEIVED_RATE: Panel = Panel::new(
+    "mempool_trasactions_received_rate (TPS)",
+    "The rate of transactions received by the mempool during the last 20 minutes",
+    formatcp!("sum(rate({}[20m]))", MEMPOOL_TRANSACTIONS_RECEIVED.get_name()),
+    PanelType::Graph,
 );
 
 const PANEL_MEMPOOL_TRANSACTIONS_COMMITTED: Panel = Panel::new(
@@ -302,7 +351,14 @@ const BATCHER_ROW: Row<'_> = Row::new(
 const CONSENSUS_ROW: Row<'_> = Row::new(
     "Consensus",
     "Consensus metrics including block number, round, and so on.",
-    &[PANEL_CONSENSUS_BLOCK_NUMBER, PANEL_CONSENSUS_ROUND],
+    &[
+        PANEL_CONSENSUS_BLOCK_NUMBER,
+        PANEL_CONSENSUS_ROUND,
+        PANEL_CONSENSUS_MAX_CACHED_BLOCK_NUMBER,
+        PANEL_CONSENSUS_CACHED_VOTES,
+        PANEL_CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS,
+        PANEL_CONSENSUS_DECISIONS_REACHED_BY_SYNC,
+    ],
 );
 
 const HTTP_SERVER_ROW: Row<'_> = Row::new(
@@ -317,6 +373,7 @@ pub const GATEWAY_ROW: Row<'_> = Row::new(
     &[
         PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_TYPE,
         PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_SOURCE,
+        PANEL_GATEWAY_TRANSACTIONS_RECEIVED_RATE,
         PANEL_GATEWAY_TRANSACTIONS_FAILED,
         PANEL_GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL,
     ],
@@ -327,6 +384,7 @@ pub const MEMPOOL_ROW: Row<'_> = Row::new(
     "Mempool metrics",
     &[
         PANEL_MEMPOOL_TRANSACTIONS_RECEIVED,
+        PANEL_MEMPOOL_TRANSACTIONS_RECEIVED_RATE,
         PANEL_MEMPOOL_TRANSACTIONS_DROPPED,
         PANEL_MEMPOOL_TRANSACTIONS_COMMITTED,
         PANEL_MEMPOOL_POOL_SIZE,

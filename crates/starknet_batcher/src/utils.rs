@@ -67,6 +67,9 @@ pub(crate) fn proposal_status_from(
         // transactions), or couldn't finish in time.
         BlockBuilderError::FailOnError(_) => Ok(ProposalStatus::InvalidProposal),
         BlockBuilderError::Aborted => Err(BatcherError::ProposalAborted),
-        _ => Err(BatcherError::InternalError),
+        _ => {
+            tracing::error!("Unexpected error: {}", block_builder_error);
+            Err(BatcherError::InternalError)
+        }
     }
 }

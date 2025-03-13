@@ -1,16 +1,22 @@
+use std::any::type_name;
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
 
+use async_trait::async_trait;
 use papyrus_base_layer::{BaseLayerContract, L1BlockNumber};
 use papyrus_config::converters::deserialize_float_seconds_to_duration;
+use papyrus_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use papyrus_config::validators::validate_ascii;
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
 use starknet_l1_gas_price_types::errors::L1GasPriceClientError;
 use starknet_l1_gas_price_types::L1GasPriceProviderClient;
 use starknet_sequencer_infra::component_client::ClientError;
+use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use thiserror::Error;
-use tracing::error;
+use tracing::{error, info};
 use validator::Validate;
 
 #[cfg(test)]
@@ -61,6 +67,45 @@ impl Default for L1GasPriceScraperConfig {
     }
 }
 
+impl SerializeConfig for L1GasPriceScraperConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let mut config = BTreeMap::from([
+            ser_param(
+                "chain_id",
+                &self.chain_id,
+                "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "finality",
+                &self.finality,
+                "Number of blocks to wait for finality in L1",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "polling_interval",
+                &self.polling_interval.as_secs(),
+                "The duration (seconds) between each scraping attempt of L1",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "number_of_blocks_for_mean",
+                &self.number_of_blocks_for_mean,
+                "Number of blocks to use for the mean gas price calculation",
+                ParamPrivacyInput::Public,
+            ),
+        ]);
+        config.extend(ser_optional_param(
+            &self.starting_block,
+            0, // This value is never used, since #is_none turns it to a None.
+            "starting_block",
+            "Starting block to scrape from",
+            ParamPrivacyInput::Public,
+        ));
+        config
+    }
+}
+
 pub struct L1GasPriceScraper<B: BaseLayerContract> {
     pub config: L1GasPriceScraperConfig,
     pub base_layer: B,
@@ -77,8 +122,6 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
     }
 
     /// Run the scraper, starting from the given L1 `block_num`, indefinitely.
-    // TODO(guyn): dead code can be removed when adding the component starter in the next PR.
-    #[allow(dead_code)]
     async fn run(&mut self, mut block_num: L1BlockNumber) -> L1GasPriceScraperResult<(), B> {
         loop {
             block_num = self.update_prices(block_num).await?;
@@ -106,5 +149,34 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
             block_num += 1;
         }
         Ok(block_num)
+    }
+}
+
+#[async_trait]
+impl<B: BaseLayerContract + Send + Sync> ComponentStarter for L1GasPriceScraper<B>
+where
+    B::Error: Send,
+{
+    async fn start(&mut self) {
+        info!("Starting component {}.", type_name::<Self>());
+        let start_from = match self.config.starting_block {
+            Some(block) => block,
+            None => {
+                let latest = self
+                    .base_layer
+                    .latest_l1_block_number(self.config.finality)
+                    .await
+                    .expect("Failed to get the latest L1 block number")
+                    .expect("Failed to get the latest L1 block number");
+                // If no starting block is provided, the default is to start from
+                // 2 * number_of_blocks_for_mean before the tip of L1.
+                // Note that for new chains this subtraction may be negative,
+                // hence the use of saturating_sub.
+                latest.saturating_sub(self.config.number_of_blocks_for_mean * 2)
+            }
+        };
+        self.run(start_from)
+            .await
+            .unwrap_or_else(|e| panic!("Failed to start L1Scraper component: {}", e))
     }
 }

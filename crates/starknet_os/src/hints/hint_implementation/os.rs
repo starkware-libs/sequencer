@@ -4,8 +4,9 @@ use starknet_types_core::felt::Felt;
 
 use crate::hints::enum_definition::{AllHints, OsHint};
 use crate::hints::error::OsHintResult;
-use crate::hints::nondet_offsets::fetch_offset;
+use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;
+use crate::hints::vars::Scope;
 
 pub(crate) fn initialize_class_hashes<S: StateReader>(
     HintArgs { .. }: HintArgs<'_, S>,
@@ -24,16 +25,15 @@ pub(crate) fn write_full_output_to_memory<S: StateReader>(
 ) -> OsHintResult {
     let os_input = &hint_processor.execution_helper.os_input;
     let full_output = Felt::from(os_input.full_output);
-    let offset = fetch_offset(AllHints::OsHint(OsHint::WriteFullOutputToMemory))?;
-    // TODO(Aner): maybe consider get_fp_with_offset(offset) instead of get_fp + offset? Or maybe
-    // even insert_value_to_fp_with_offset?
-    Ok(vm.insert_value((vm.get_fp() + offset)?, full_output)?)
+    insert_nondet_hint_value(vm, AllHints::OsHint(OsHint::WriteFullOutputToMemory), full_output)
 }
 
 pub(crate) fn configure_kzg_manager<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { exec_scopes, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    // TODO(Aner): verify that inserting into the "root" scope is not neccessary.
+    exec_scopes.insert_value(Scope::SerializeDataAvailabilityCreatePages.into(), true);
+    Ok(())
 }
 
 pub(crate) fn set_ap_to_prev_block_hash<S: StateReader>(
@@ -51,5 +51,6 @@ pub(crate) fn set_ap_to_new_block_hash<S: StateReader>(
 }
 
 pub(crate) fn starknet_os_input<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    todo!()
+    // Nothing to do here; OS input already available on the hint processor.
+    Ok(())
 }
