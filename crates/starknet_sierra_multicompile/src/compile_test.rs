@@ -3,7 +3,7 @@ use std::path::Path;
 
 use assert_matches::assert_matches;
 use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;
-use mempool_test_utils::{FAULTY_ACCOUNT_CLASS_FILE, TEST_FILES_FOLDER};
+use mempool_test_utils::{CONTRACT_CLASS_FILE, TEST_FILES_FOLDER};
 use rstest::rstest;
 use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::state::SierraContractClass;
@@ -41,7 +41,9 @@ fn command_line_compiler() -> CommandLineCompiler {
 fn get_test_contract() -> CairoLangContractClass {
     env::set_current_dir(resolve_project_relative_path(TEST_FILES_FOLDER).unwrap())
         .expect("Failed to set current dir.");
-    let sierra_path = Path::new(FAULTY_ACCOUNT_CLASS_FILE);
+    let sierra_path = resolve_project_relative_path(TEST_FILES_FOLDER)
+        .unwrap()
+        .join(Path::new(CONTRACT_CLASS_FILE));
     contract_class_from_file(sierra_path)
 }
 

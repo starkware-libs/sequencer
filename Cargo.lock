@@ -11671,6 +11671,7 @@ version = "0.0.0"
 dependencies = [
  "assert_matches",
  "async-trait",
+ "blockifier_test_utils",
  "cairo-lang-sierra",
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",
