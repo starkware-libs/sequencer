@@ -943,6 +943,12 @@ pub mod mempool_transaction {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct MempoolTransactionBatch {
+    #[prost(message, repeated, tag = "1")]
+    pub transactions: ::prost::alloc::vec::Vec<MempoolTransaction>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ClassesRequest {
     #[prost(message, optional, tag = "1")]
     pub iteration: ::core::option::Option<Iteration>,
