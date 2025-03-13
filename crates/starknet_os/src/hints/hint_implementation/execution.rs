@@ -34,12 +34,6 @@ pub(crate) fn prepare_constructor_execution<S: StateReader>(
     todo!()
 }
 
-pub(crate) fn transaction_version<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
-) -> OsHintResult {
-    todo!()
-}
-
 pub(crate) fn assert_transaction_hash<S: StateReader>(
     HintArgs { .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
@@ -185,11 +179,11 @@ pub(crate) fn tx_max_fee<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> Os
     todo!()
 }
 
-pub(crate) fn tx_nonce<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
+pub(crate) fn tx_tip<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
     todo!()
 }
 
-pub(crate) fn tx_tip<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
+pub(crate) fn tx_tip_deprecated<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
     todo!()
 }
 
@@ -199,7 +193,19 @@ pub(crate) fn tx_paymaster_data_len<S: StateReader>(
     todo!()
 }
 
+pub(crate) fn tx_paymaster_data_len_deprecated<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    todo!()
+}
+
 pub(crate) fn tx_paymaster_data<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
+    todo!()
+}
+
+pub(crate) fn tx_paymaster_data_deprecated<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, S>,
+) -> OsHintResult {
     todo!()
 }
 
@@ -215,13 +221,31 @@ pub(crate) fn tx_fee_data_availability_mode<S: StateReader>(
     todo!()
 }
 
+pub(crate) fn tx_fee_data_availability_mode_deprecated<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    todo!()
+}
+
 pub(crate) fn tx_account_deployment_data_len<S: StateReader>(
     HintArgs { .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
     todo!()
 }
 
+pub(crate) fn tx_account_deployment_data_len_deprecated<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    todo!()
+}
+
 pub(crate) fn tx_account_deployment_data<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    todo!()
+}
+
+pub(crate) fn tx_account_deployment_data_deprecated<S: StateReader>(
     HintArgs { .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
     todo!()
