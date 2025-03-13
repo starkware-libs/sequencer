@@ -26,6 +26,7 @@ papyrus_network = { workspace = true, features = ["testing"] }
 papyrus_protobuf.workspace = true
 papyrus_storage = { workspace = true, features = ["testing"] }
 papyrus_sync.workspace = true
+serde.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true

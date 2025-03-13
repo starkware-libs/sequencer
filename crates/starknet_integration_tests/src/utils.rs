@@ -3,9 +3,10 @@ use std::net::SocketAddr;
 use std::time::Duration;
 
 use alloy::primitives::U256;
+use axum::extract::Query;
 use axum::http::StatusCode;
-use axum::routing::post;
-use axum::Router;
+use axum::routing::{get, post};
+use axum::{Json, Router};
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::bouncer::{BouncerConfig, BouncerWeights};
 use blockifier::context::ChainInfo;
@@ -23,7 +24,8 @@ use papyrus_base_layer::test_utils::StarknetL1Contract;
 use papyrus_network::network_manager::test_utils::create_connected_network_configs;
 use papyrus_network::NetworkConfig;
 use papyrus_storage::StorageConfig;
-use serde_json::to_value;
+use serde::Deserialize;
+use serde_json::{json, to_value};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::execution_resources::GasAmount;
@@ -290,6 +292,41 @@ pub fn spawn_local_success_recorder(port: u16) -> (Url, JoinHandle<()>) {
     // TODO(Tsabary): create a socket-to-url function.
     let url = Url::parse(&format!("http://{}", socket_address)).unwrap();
     let join_handle = spawn_success_recorder(socket_address);
+    (url, join_handle)
+}
+
+/// Mock eth to strk oracle endpoint.
+const ETH_TO_STRK_ORACLE_PATH: &str = "/eth_to_strk_oracle";
+
+/// Expected query parameters.
+#[derive(Deserialize)]
+struct EthToStrkOracleQuery {
+    timestamp: u64,
+}
+
+/// Returns a mock eth to fri rate response.
+async fn get_price(Query(query): Query<EthToStrkOracleQuery>) -> Json<serde_json::Value> {
+    // TODO(Asmaa): Retrun timestamp as price once we start mocking out time in the tests.
+    let price = format!("0x{:x}", 10000);
+    let response = json!({ "timestamp": query.timestamp ,"price": price, "decimals": 18 });
+    Json(response)
+}
+
+/// Spawns a local mock eth to fri oracle server.
+pub fn spawn_eth_to_strk_oracle_server(socket_address: SocketAddr) -> JoinHandle<()> {
+    tokio::spawn(async move {
+        let router = Router::new().route(ETH_TO_STRK_ORACLE_PATH, get(get_price));
+        axum::Server::bind(&socket_address).serve(router.into_make_service()).await.unwrap();
+    })
+}
+
+/// Starts the mock eth to fri oracle server and returns its URL and handle.
+pub fn spawn_local_eth_to_strk_oracle(port: u16) -> (Url, JoinHandle<()>) {
+    let socket_address = SocketAddr::from(([127, 0, 0, 1], port));
+    let url =
+        Url::parse(&format!("http://{}{}?timestamp=", socket_address, ETH_TO_STRK_ORACLE_PATH))
+            .unwrap();
+    let join_handle = spawn_eth_to_strk_oracle_server(socket_address);
     (url, join_handle)
 }
 
