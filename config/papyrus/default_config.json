@@ -141,8 +141,8 @@
   },
   "context.builder_address": {
     "description": "The address of the contract that builds the block.",
-    "value": "0x0",
-    "privacy": "Public"
+    "privacy": "Public",
+    "value": "0x0"
   },
   "context.chain_id": {
     "description": "The chain id of the Starknet chain.",

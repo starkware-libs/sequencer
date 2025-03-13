@@ -52,7 +52,7 @@ use starknet_class_manager_types::transaction_converter::{
 };
 use starknet_class_manager_types::EmptyClassManagerClient;
 use starknet_consensus::types::{ConsensusContext, Round};
-use starknet_l1_gas_price_types::MockPriceOracleClientTrait;
+use starknet_l1_gas_price_types::MockEthToStrkOracleClientTrait;
 use starknet_state_sync_types::communication::MockStateSyncClient;
 use starknet_types_core::felt::Felt;
 
@@ -107,7 +107,7 @@ struct NetworkDependencies {
 fn setup(
     batcher: MockBatcherClient,
     cende_ambassador: MockCendeContext,
-    price_oracle_client: MockPriceOracleClientTrait,
+    eth_to_strk_oracle_client: MockEthToStrkOracleClientTrait,
 ) -> (SequencerConsensusContext, NetworkDependencies) {
     let (outbound_proposal_sender, outbound_proposal_receiver) =
         mpsc::channel::<(HeightAndRound, mpsc::Receiver<ProposalPart>)>(CHANNEL_SIZE);
@@ -132,7 +132,7 @@ fn setup(
         outbound_proposal_sender,
         votes_topic_client,
         Arc::new(cende_ambassador),
-        Some(Arc::new(price_oracle_client)),
+        Some(Arc::new(eth_to_strk_oracle_client)),
     );
 
     let network_dependencies =
@@ -173,9 +173,9 @@ async fn build_proposal_setup(
         })
     });
 
-    let mut price_oracle_client = MockPriceOracleClientTrait::new();
-    price_oracle_client.expect_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
-    let (mut context, _network) = setup(batcher, mock_cende_context, price_oracle_client);
+    let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
+    eth_to_strk_oracle_client.expect_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
+    let (mut context, _network) = setup(batcher, mock_cende_context, eth_to_strk_oracle_client);
     let init = ProposalInit::default();
 
     (context.build_proposal(init, TIMEOUT).await, context, _network)
@@ -225,7 +225,7 @@ async fn validate_proposal_success() {
         },
     );
     let (mut context, _network) =
-        setup(batcher, success_cende_ammbassador(), MockPriceOracleClientTrait::new());
+        setup(batcher, success_cende_ammbassador(), MockEthToStrkOracleClientTrait::new());
 
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
@@ -256,7 +256,7 @@ async fn dont_send_block_info() {
         .withf(|input| input.height == BlockNumber(0))
         .return_once(|_| Ok(()));
     let (mut context, _network) =
-        setup(batcher, success_cende_ammbassador(), MockPriceOracleClientTrait::new());
+        setup(batcher, success_cende_ammbassador(), MockEthToStrkOracleClientTrait::new());
 
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
@@ -295,7 +295,7 @@ async fn repropose() {
         },
     );
     let (mut context, mut network) =
-        setup(batcher, success_cende_ammbassador(), MockPriceOracleClientTrait::new());
+        setup(batcher, success_cende_ammbassador(), MockEthToStrkOracleClientTrait::new());
 
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
@@ -363,7 +363,7 @@ async fn proposals_from_different_rounds() {
         },
     );
     let (mut context, _network) =
-        setup(batcher, success_cende_ammbassador(), MockPriceOracleClientTrait::new());
+        setup(batcher, success_cende_ammbassador(), MockEthToStrkOracleClientTrait::new());
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
     context.set_height_and_round(BlockNumber(0), 1).await;
@@ -448,7 +448,7 @@ async fn interrupt_active_proposal() {
             })
         });
     let (mut context, _network) =
-        setup(batcher, success_cende_ammbassador(), MockPriceOracleClientTrait::new());
+        setup(batcher, success_cende_ammbassador(), MockEthToStrkOracleClientTrait::new());
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
 
@@ -552,7 +552,7 @@ async fn batcher_not_ready(#[case] proposer: bool) {
         .expect_validate_block()
         .returning(move |_| Err(BatcherClientError::BatcherError(BatcherError::NotReady)));
     let (mut context, _network) =
-        setup(batcher, success_cende_ammbassador(), MockPriceOracleClientTrait::new());
+        setup(batcher, success_cende_ammbassador(), MockEthToStrkOracleClientTrait::new());
     context.set_height_and_round(BlockNumber::default(), Round::default()).await;
 
     if proposer {

@@ -69,8 +69,8 @@ use starknet_consensus::types::{
     Round,
     ValidatorId,
 };
-use starknet_l1_gas_price_types::errors::PriceOracleClientError;
-use starknet_l1_gas_price_types::PriceOracleClientTrait;
+use starknet_l1_gas_price_types::errors::EthToStrkOracleClientError;
+use starknet_l1_gas_price_types::EthToStrkOracleClientTrait;
 use starknet_state_sync_types::communication::SharedStateSyncClient;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 use starknet_types_core::felt::Felt;
@@ -135,8 +135,8 @@ enum BuildProposalError {
     #[error("Batcher error: {0}")]
     Batcher(#[from] BatcherClientError),
 
-    #[error("Price oracle error: {0}")]
-    PriceOracle(#[from] PriceOracleClientError),
+    #[error("EthToStrkOracle error: {0}")]
+    EthToStrkOracle(#[from] EthToStrkOracleClientError),
 }
 
 pub struct SequencerConsensusContext {
@@ -169,7 +169,7 @@ pub struct SequencerConsensusContext {
     vote_broadcast_client: BroadcastTopicClient<Vote>,
     cende_ambassador: Arc<dyn CendeContext>,
     // TODO(Asmaa): remove the option once e2e integration tests are updated with fake http server.
-    price_oracle_client: Option<Arc<dyn PriceOracleClientTrait>>,
+    eth_to_strk_oracle_client: Option<Arc<dyn EthToStrkOracleClientTrait>>,
     // The next block's l2 gas price, calculated based on EIP-1559, used for building and
     // validating proposals.
     l2_gas_price: u64,
@@ -187,7 +187,7 @@ impl SequencerConsensusContext {
         outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
         vote_broadcast_client: BroadcastTopicClient<Vote>,
         cende_ambassador: Arc<dyn CendeContext>,
-        price_oracle_client: Option<Arc<dyn PriceOracleClientTrait>>,
+        eth_to_strk_oracle_client: Option<Arc<dyn EthToStrkOracleClientTrait>>,
     ) -> Self {
         let chain_id = config.chain_id.clone();
         let num_validators = config.num_validators;
@@ -214,7 +214,7 @@ impl SequencerConsensusContext {
             active_proposal: None,
             queued_proposals: BTreeMap::new(),
             cende_ambassador,
-            price_oracle_client,
+            eth_to_strk_oracle_client,
             l2_gas_price: VersionedConstants::latest_constants().min_gas_price,
             l1_da_mode,
             last_block_timestamp: None,
@@ -240,7 +240,7 @@ struct ProposalBuildArguments {
     proposal_sender: mpsc::Sender<ProposalPart>,
     fin_sender: oneshot::Sender<ProposalCommitment>,
     batcher: Arc<dyn BatcherClient>,
-    price_oracle_client: Option<Arc<dyn PriceOracleClientTrait>>,
+    eth_to_strk_oracle_client: Option<Arc<dyn EthToStrkOracleClientTrait>>,
     valid_proposals: Arc<Mutex<HeightToIdToContent>>,
     proposal_id: ProposalId,
     cende_write_success: AbortOnDropHandle<bool>,
@@ -283,7 +283,7 @@ impl ConsensusContext for SequencerConsensusContext {
 
         let (fin_sender, fin_receiver) = oneshot::channel();
         let batcher = Arc::clone(&self.batcher);
-        let price_oracle_client = self.price_oracle_client.clone();
+        let eth_to_strk_oracle_client = self.eth_to_strk_oracle_client.clone();
         let valid_proposals = Arc::clone(&self.valid_proposals);
         let proposal_id = ProposalId(self.proposal_id);
         self.proposal_id += 1;
@@ -310,7 +310,7 @@ impl ConsensusContext for SequencerConsensusContext {
                     proposal_sender,
                     fin_sender,
                     batcher,
-                    price_oracle_client,
+                    eth_to_strk_oracle_client,
                     valid_proposals,
                     proposal_id,
                     cende_write_success,
@@ -741,8 +741,10 @@ async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<Co
         .expect("Can't convert timeout to chrono::Duration");
     let now = chrono::Utc::now();
     let timestamp = now.timestamp().try_into().expect("Failed to convert timestamp");
-    let eth_to_fri_rate = match &args.price_oracle_client {
-        Some(price_oracle_client) => price_oracle_client.eth_to_fri_rate(timestamp).await?,
+    let eth_to_fri_rate = match &args.eth_to_strk_oracle_client {
+        Some(eth_to_strk_oracle_client) => {
+            eth_to_strk_oracle_client.eth_to_fri_rate(timestamp).await?
+        }
         None => 1,
     };
     // TODO(Asmaa): change this to the real values.
