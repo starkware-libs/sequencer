@@ -1,8 +1,14 @@
+use std::net::{IpAddr, Ipv4Addr};
 #[cfg(test)]
 use std::path::Path;
 
 use serde::{Serialize, Serializer};
 use starknet_api::core::ChainId;
+use strum_macros::AsRefStr;
+
+use crate::config::component_execution_config::ReactiveComponentExecutionConfig;
+
+const BASE_PORT: u16 = 55000; // TODO(Tsabary): arbitrary port, need to resolve.
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Deployment<'a> {
@@ -78,9 +84,49 @@ impl Serialize for ServiceName {
 
 // TODO(Tsabary): sort these.
 #[repr(u16)]
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, AsRefStr)]
 pub enum DistributedNodeServiceName {
     Mempool,
     Gateway,
     Batcher,
+}
+
+impl DistributedNodeServiceName {
+    /// Returns a component execution config for a component that runs locally, and accepts inbound
+    /// connections from remote components.
+    pub fn component_config_for_local_service(&self) -> ReactiveComponentExecutionConfig {
+        ReactiveComponentExecutionConfig::local_with_remote_enabled(
+            self.url(),
+            self.ip(),
+            self.port(),
+        )
+    }
+
+    /// Returns a component execution config for a component that is accessed remotely.
+    pub fn component_config_for_remote_service(&self) -> ReactiveComponentExecutionConfig {
+        ReactiveComponentExecutionConfig::remote(self.url(), self.ip(), self.port())
+    }
+
+    /// Url for the service.
+    fn url(&self) -> String {
+        format!("http://{}/", self.as_ref())
+    }
+
+    /// Unique port number per service.
+    fn port(&self) -> u16 {
+        let port_offset = self.get_port_offset();
+        BASE_PORT + port_offset
+    }
+
+    /// Listening address per service.
+    fn ip(&self) -> IpAddr {
+        IpAddr::from(Ipv4Addr::UNSPECIFIED)
+    }
+
+    // Use the enum discriminant to generate a unique port per service.
+    // TODO(Tsabary): consider alternatives that enable removing the linter suppression.
+    #[allow(clippy::as_conversions)]
+    fn get_port_offset(&self) -> u16 {
+        self.clone() as u16
+    }
 }
