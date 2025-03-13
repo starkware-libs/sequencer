@@ -164,7 +164,7 @@
   "consensus_manager_config.context_config.num_validators": 1,
   "consensus_manager_config.context_config.proposal_buffer_size": 100,
   "consensus_manager_config.context_config.validate_proposal_margin": 10000,
-  "consensus_manager_config.eth_to_strk_oracle_config.base_url": "https://eth_to_strk_oracle_url/",
+  "consensus_manager_config.eth_to_strk_oracle_config.base_url": "http://127.0.0.1:52902/eth_to_strk_oracle?timestamp=",
   "consensus_manager_config.eth_to_strk_oracle_config.headers": "",
   "consensus_manager_config.immediate_active_height": 1,
   "consensus_manager_config.network_config.advertised_multiaddr": "",
