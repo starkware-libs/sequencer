@@ -39,13 +39,13 @@ async fn main() {
     integration_test_manager.send_bootstrap_txs_and_verify().await;
 
     info!("Sending transactions while all nodes are up");
-    integration_test_manager.send_txs_and_verify(N_TXS, 1, BLOCK_TO_SHUTDOWN_NODE_1_AT).await;
+    integration_test_manager.send_txs_and_verify(N_TXS, 0, BLOCK_TO_SHUTDOWN_NODE_1_AT).await;
 
     info!("Network reached block {BLOCK_TO_SHUTDOWN_NODE_1_AT}. Shutting down node {NODE_1}");
     integration_test_manager.shutdown_nodes([NODE_1].into());
 
     info! {"Sending transactions while node {NODE_1} is down"}
-    integration_test_manager.send_txs_and_verify(N_TXS, 1, BLOCK_TO_RESTART_NODE_1_FROM).await;
+    integration_test_manager.send_txs_and_verify(N_TXS, 0, BLOCK_TO_RESTART_NODE_1_FROM).await;
 
     info!("Restarting node {NODE_1}");
     integration_test_manager.run_nodes([NODE_1].into()).await;
@@ -56,7 +56,7 @@ async fn main() {
         "Sending transactions after node {NODE_1} was restarted and before node {NODE_2} is shut \
          down"
     );
-    integration_test_manager.send_txs_and_verify(N_TXS, 1, BLOCK_TO_SHUTDOWN_NODE_2_AT).await;
+    integration_test_manager.send_txs_and_verify(N_TXS, 0, BLOCK_TO_SHUTDOWN_NODE_2_AT).await;
 
     // Shutdown second node to test that the first node has joined consensus (the network can't
     // reach consensus without the first node if the second node is down).
@@ -68,7 +68,7 @@ async fn main() {
 
     info!("Sending transactions while node {NODE_1} is up and node {NODE_2} is down");
     integration_test_manager
-        .send_txs_and_verify(N_TXS, 1, BLOCK_TO_WAIT_FOR_AFTER_NODE_2_SHUTDOWN)
+        .send_txs_and_verify(N_TXS, 0, BLOCK_TO_WAIT_FOR_AFTER_NODE_2_SHUTDOWN)
         .await;
 
     info!("Shutting down all nodes.");
