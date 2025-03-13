@@ -28,6 +28,8 @@ serde = { workspace = true, features = ["derive"] }
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_sequencer_metrics.workspace = true
+strum.workspace = true
+strum_macros.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["sync"] }
 tracing.workspace = true
