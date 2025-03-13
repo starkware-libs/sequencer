@@ -32,6 +32,7 @@ macro_rules! define_metrics {
 
         // TODO(Lev): change macro to output this only for cfg[(test,testing)].
         $(
+            #[cfg(any(feature = "testing", test))]
             $crate::paste::paste! {
                 pub const [<$scope:snake:upper _ALL_METRICS>]: &[&'static str] = &[
                     $(
