@@ -215,6 +215,12 @@ pub(crate) fn tx_nonce_data_availability_mode<S: StateReader>(
     todo!()
 }
 
+pub(crate) fn tx_nonce_data_availability_mode_deprecated<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    todo!()
+}
+
 pub(crate) fn tx_fee_data_availability_mode<S: StateReader>(
     HintArgs { .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
