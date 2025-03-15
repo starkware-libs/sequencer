@@ -1605,9 +1605,9 @@
     "value": "FullArchive"
   },
   "strk_fee_token_address": {
-    "description": "A required param! Address of the STRK fee token.",
-    "param_type": "String",
-    "privacy": "TemporaryValue"
+    "description": "Address of the STRK fee token.",
+    "privacy": "TemporaryValue",
+    "value": "PointerTarget"
   },
   "validator_id": {
     "description": "A required param! The ID of the validator. Also the address of this validator as a starknet contract.",
