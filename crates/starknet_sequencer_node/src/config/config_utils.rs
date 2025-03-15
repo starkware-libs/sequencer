@@ -22,7 +22,6 @@ use crate::config::node_config::node_command;
 /// Required parameters utility struct.
 #[derive(Serialize)]
 pub struct RequiredParams {
-    pub strk_fee_token_address: ContractAddress,
     pub validator_id: ContractAddress,
     pub recorder_url: Url,
     pub base_layer_config: EthereumBaseLayerConfigRequiredParams,
@@ -32,12 +31,6 @@ pub struct RequiredParams {
 impl SerializeConfig for RequiredParams {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let members = BTreeMap::from_iter([
-            ser_param(
-                "strk_fee_token_address",
-                &self.strk_fee_token_address,
-                "Placeholder.",
-                ParamPrivacyInput::Public,
-            ),
             ser_param(
                 "validator_id",
                 &self.validator_id,
@@ -68,7 +61,6 @@ impl SerializeConfig for RequiredParams {
 impl RequiredParams {
     pub fn create_for_testing() -> Self {
         Self {
-            strk_fee_token_address: ContractAddress::from(3_u128),
             validator_id: ContractAddress::from(DEFAULT_VALIDATOR_ID),
             recorder_url: Url::parse("https://recorder_url").expect("Should be a valid URL"),
             base_layer_config: EthereumBaseLayerConfigRequiredParams {
