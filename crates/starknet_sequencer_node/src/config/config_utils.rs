@@ -21,19 +21,15 @@ use crate::config::node_config::node_command;
 /// Required parameters utility struct.
 #[derive(Serialize)]
 pub struct RequiredParams {
-    pub base_layer_config: EthereumBaseLayerConfigRequiredParams,
     pub consensus_manager_config: ConsensusManagerRequiredParams,
 }
 
 impl SerializeConfig for RequiredParams {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        vec![
-            append_sub_config_name(self.base_layer_config.dump(), "base_layer_config"),
-            append_sub_config_name(
-                self.consensus_manager_config.dump(),
-                "consensus_manager_config",
-            ),
-        ]
+        vec![append_sub_config_name(
+            self.consensus_manager_config.dump(),
+            "consensus_manager_config",
+        )]
         .into_iter()
         .flatten()
         .collect()
@@ -43,9 +39,6 @@ impl SerializeConfig for RequiredParams {
 impl RequiredParams {
     pub fn create_for_testing() -> Self {
         Self {
-            base_layer_config: EthereumBaseLayerConfigRequiredParams {
-                node_url: Url::parse("https://node_url").expect("Should be a valid URL"),
-            },
             consensus_manager_config: ConsensusManagerRequiredParams {
                 context_config: ContextConfigRequiredParams {
                     builder_address: ContractAddress::from(4_u128),
@@ -99,22 +92,6 @@ pub fn create_test_config_load_args(required_params: RequiredParams) -> Vec<Stri
     let mut cli_args = vec![node_command().to_string()];
     cli_args.extend(required_params.cli_args());
     cli_args
-}
-
-#[derive(Serialize)]
-pub struct EthereumBaseLayerConfigRequiredParams {
-    pub node_url: Url,
-}
-
-impl SerializeConfig for EthereumBaseLayerConfigRequiredParams {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([ser_param(
-            "node_url",
-            &self.node_url,
-            "Placeholder.",
-            ParamPrivacyInput::Public,
-        )])
-    }
 }
 
 #[derive(Serialize)]
