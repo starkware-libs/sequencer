@@ -21,21 +21,13 @@ use crate::config::node_config::node_command;
 /// Required parameters utility struct.
 #[derive(Serialize)]
 pub struct RequiredParams {
-    pub recorder_url: Url,
     pub base_layer_config: EthereumBaseLayerConfigRequiredParams,
     pub consensus_manager_config: ConsensusManagerRequiredParams,
 }
 
 impl SerializeConfig for RequiredParams {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let members = BTreeMap::from_iter([ser_param(
-            "recorder_url",
-            &self.recorder_url,
-            "Placeholder.",
-            ParamPrivacyInput::Public,
-        )]);
         vec![
-            members,
             append_sub_config_name(self.base_layer_config.dump(), "base_layer_config"),
             append_sub_config_name(
                 self.consensus_manager_config.dump(),
@@ -51,7 +43,6 @@ impl SerializeConfig for RequiredParams {
 impl RequiredParams {
     pub fn create_for_testing() -> Self {
         Self {
-            recorder_url: Url::parse("https://recorder_url").expect("Should be a valid URL"),
             base_layer_config: EthereumBaseLayerConfigRequiredParams {
                 node_url: Url::parse("https://node_url").expect("Should be a valid URL"),
             },
