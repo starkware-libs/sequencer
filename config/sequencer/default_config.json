@@ -850,9 +850,9 @@
     "value": 1000
   },
   "consensus_manager_config.context_config.builder_address": {
-    "description": "A required param! The address of the contract that builds the block.",
-    "param_type": "String",
-    "privacy": "Public"
+    "description": "The address of the contract that builds the block.",
+    "privacy": "Public",
+    "value": "0x0"
   },
   "consensus_manager_config.context_config.chain_id": {
     "description": "The chain id of the Starknet chain.",
@@ -960,9 +960,9 @@
     "value": 120
   },
   "consensus_manager_config.price_oracle_config.base_url": {
-    "description": "A required param! This must end with the query parameter `timestamp=` as we append a UNIX timestamp.",
-    "param_type": "String",
-    "privacy": "Private"
+    "description": "This must end with the query parameter `timestamp=` as we append a UNIX timestamp.",
+    "privacy": "Private",
+    "value": "https://example.com/api?timestamp="
   },
   "consensus_manager_config.price_oracle_config.headers": {
     "description": "Headers for the price oracle client, formatted as 'k1:v1 k2:v2 ...'.",

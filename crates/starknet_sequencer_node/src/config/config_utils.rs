@@ -3,18 +3,11 @@ use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 
-use papyrus_config::dumping::{
-    append_sub_config_name,
-    combine_config_map_and_pointers,
-    ser_param,
-    SerializeConfig,
-};
-use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use papyrus_config::dumping::{combine_config_map_and_pointers, SerializeConfig};
+use papyrus_config::{ParamPath, SerializedParam};
 use serde::Serialize;
 use serde_json::{Map, Value};
-use starknet_api::core::ContractAddress;
 use tracing::{error, info};
-use url::Url;
 use validator::ValidationError;
 
 use crate::config::node_config::node_command;
@@ -30,37 +23,20 @@ pub(crate) fn create_validation_error(
     error
 }
 
+// TODO(Nadin): Delete RequiredParams struct.
 /// Required parameters utility struct.
 #[derive(Serialize)]
-pub struct RequiredParams {
-    pub consensus_manager_config: ConsensusManagerRequiredParams,
-}
+pub struct RequiredParams {}
 
 impl SerializeConfig for RequiredParams {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        vec![append_sub_config_name(
-            self.consensus_manager_config.dump(),
-            "consensus_manager_config",
-        )]
-        .into_iter()
-        .flatten()
-        .collect()
+        vec![].into_iter().collect()
     }
 }
 
 impl RequiredParams {
     pub fn create_for_testing() -> Self {
-        Self {
-            consensus_manager_config: ConsensusManagerRequiredParams {
-                context_config: ContextConfigRequiredParams {
-                    builder_address: ContractAddress::from(4_u128),
-                },
-                price_oracle_config: PriceOracleConfigRequiredParams {
-                    base_url: Url::parse("https://price_oracle_url")
-                        .expect("Should be a valid URL"),
-                },
-            },
-        }
+        Self {}
     }
 
     pub fn as_json(&self) -> Value {
@@ -104,54 +80,6 @@ pub fn create_test_config_load_args(required_params: RequiredParams) -> Vec<Stri
     let mut cli_args = vec![node_command().to_string()];
     cli_args.extend(required_params.cli_args());
     cli_args
-}
-
-#[derive(Serialize)]
-pub struct ConsensusManagerRequiredParams {
-    pub context_config: ContextConfigRequiredParams,
-    pub price_oracle_config: PriceOracleConfigRequiredParams,
-}
-
-impl SerializeConfig for ConsensusManagerRequiredParams {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut config = BTreeMap::new();
-        config.extend(append_sub_config_name(self.context_config.dump(), "context_config"));
-        config
-            .extend(append_sub_config_name(self.price_oracle_config.dump(), "price_oracle_config"));
-        config
-    }
-}
-
-#[derive(Serialize)]
-pub struct ContextConfigRequiredParams {
-    pub builder_address: ContractAddress,
-}
-
-impl SerializeConfig for ContextConfigRequiredParams {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([ser_param(
-            "builder_address",
-            &self.builder_address,
-            "Placeholder.",
-            ParamPrivacyInput::Public,
-        )])
-    }
-}
-
-#[derive(Serialize)]
-pub struct PriceOracleConfigRequiredParams {
-    pub base_url: Url,
-}
-
-impl SerializeConfig for PriceOracleConfigRequiredParams {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([ser_param(
-            "base_url",
-            &self.base_url,
-            "Placeholder.",
-            ParamPrivacyInput::Public,
-        )])
-    }
 }
 
 /// Transforms a nested JSON dictionary object into a simplified JSON dictionary object by
