@@ -10,7 +10,7 @@ use url::Url;
 
 use crate::monitoring_utils;
 use crate::sequencer_manager::nonce_to_usize;
-use crate::utils::{send_account_txs, TestScenario};
+use crate::utils::{send_consensus_txs, TestScenario};
 
 pub struct SequencerSimulator {
     monitoring_client: MonitoringClient,
@@ -46,7 +46,7 @@ impl SequencerSimulator {
         info!("Sending transactions");
         let send_rpc_tx_fn = &mut |tx| self.assert_add_tx_success(tx);
         let tx_hashes =
-            send_account_txs(tx_generator, sender_account, test_scenario, send_rpc_tx_fn).await;
+            send_consensus_txs(tx_generator, sender_account, test_scenario, send_rpc_tx_fn).await;
         assert_eq!(tx_hashes.len(), test_scenario.n_txs());
     }
 
