@@ -59,7 +59,6 @@ use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::config_utils::{
     ConsensusManagerRequiredParams,
     ContextConfigRequiredParams,
-    EthereumBaseLayerConfigRequiredParams,
     PriceOracleConfigRequiredParams,
     RequiredParams,
 };
@@ -171,7 +170,6 @@ pub fn create_node_config(
         create_http_server_config(available_ports.get_next_local_host_socket());
     let class_manager_config = create_class_manager_config(class_manager_storage_config);
     state_sync_config.storage_config = state_sync_storage_config;
-    let base_layer_endpoint_url = base_layer_config.node_url.clone();
 
     // Update config pointer values.
     let mut config_pointers_map = ConfigPointersMap::new(CONFIG_POINTERS.clone());
@@ -214,9 +212,6 @@ pub fn create_node_config(
             ..Default::default()
         },
         RequiredParams {
-            base_layer_config: EthereumBaseLayerConfigRequiredParams {
-                node_url: base_layer_endpoint_url,
-            },
             consensus_manager_config: ConsensusManagerRequiredParams {
                 context_config: ContextConfigRequiredParams {
                     builder_address: ContractAddress::from(4_u128),
