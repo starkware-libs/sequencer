@@ -34,8 +34,12 @@ pub(crate) fn block_timestamp<S: StateReader>(
     Ok(insert_value_into_ap(vm, Felt::from(block_timestamp.0))?)
 }
 
-pub(crate) fn chain_id<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    todo!()
+pub(crate) fn chain_id<S: StateReader>(
+    HintArgs { vm, hint_processor, .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    let chain_id = &hint_processor.execution_helper.os_input.chain_info.chain_id;
+    let chain_id_as_felt = Felt::from_bytes_be_slice(chain_id.to_string().as_bytes());
+    Ok(insert_value_into_ap(vm, chain_id_as_felt)?)
 }
 
 pub(crate) fn fee_token_address<S: StateReader>(
