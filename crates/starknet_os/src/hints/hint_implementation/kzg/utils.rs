@@ -14,15 +14,15 @@ use num_bigint::BigInt;
 /// A `Vec<BigInt>` containing the transformed coefficients after applying the FFT.
 ///
 /// # See More
-/// - https://en.wikipedia.org/wiki/Fast_Fourier_transform
-/// - https://github.com/starkware-libs/cairo-lang/blob/v0.13.2/src/starkware/python/math_utils.py#L310
+/// - <https://en.wikipedia.org/wiki/Fast_Fourier_transform>
+/// - <https://github.com/starkware-libs/cairo-lang/blob/v0.13.2/src/starkware/python/math_utils.py#L310>
+#[allow(dead_code)]
 fn inner_fft(coeffs: &[BigInt], group: &[BigInt], prime: &BigInt) -> Vec<BigInt> {
     if coeffs.len() == 1 {
         return coeffs.to_vec();
     }
 
-    // These calls involve a clone and a collect
-    // This not cheap and can possibly be improved by using dynamic iterators or transform the function to make it not recursive
+    // TODO(Dori): Try to avoid the clones here (possibly by using a non-recursive implementation).
     let f_even = inner_fft(
         &coeffs.iter().step_by(2).cloned().collect::<Vec<_>>(),
         &group.iter().step_by(2).cloned().collect::<Vec<_>>(),
@@ -42,7 +42,7 @@ fn inner_fft(coeffs: &[BigInt], group: &[BigInt], prime: &BigInt) -> Vec<BigInt>
         result.push((f_even[i].clone() + &group_mul_f_odd[i]) % prime);
     }
     for i in 0..f_even.len() {
-        // Ensure non-negative diff by adding prime to the value before applying the modulo
+        // Ensure non-negative diff by adding prime to the value before applying the modulo.
         let diff = (f_even[i].clone() - &group_mul_f_odd[i] + prime) % prime;
         result.push(diff);
     }
