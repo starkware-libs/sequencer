@@ -18,8 +18,8 @@ use alloy::sol_types::sol_data;
 use alloy::transports::http::{Client, Http};
 use alloy::transports::TransportErrorKind;
 use async_trait::async_trait;
-use papyrus_config::dumping::{ser_param, ser_required_param, SerializeConfig};
-use papyrus_config::{ParamPath, ParamPrivacyInput, SerializationType, SerializedParam};
+use papyrus_config::dumping::{ser_param, SerializeConfig};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::hash::StarkHash;
@@ -190,9 +190,9 @@ pub struct EthereumBaseLayerConfig {
 impl SerializeConfig for EthereumBaseLayerConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([
-            ser_required_param(
+            ser_param(
                 "node_url",
-                SerializationType::String,
+                &self.node_url.to_string(),
                 "Ethereum node URL. A schema to match to Infura node: https://mainnet.infura.io/v3/<your_api_key>, but any other node can be used.",
                 ParamPrivacyInput::Private,
             ),
