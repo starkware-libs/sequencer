@@ -13,8 +13,7 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 use serde::Serialize;
 use serde_json::{Map, Value};
-use starknet_api::core::{ChainId, ContractAddress};
-use starknet_api::test_utils::CHAIN_ID_FOR_TESTS;
+use starknet_api::core::ContractAddress;
 use tracing::info;
 use url::Url;
 
@@ -23,7 +22,6 @@ use crate::config::node_config::node_command;
 /// Required parameters utility struct.
 #[derive(Serialize)]
 pub struct RequiredParams {
-    pub chain_id: ChainId,
     pub eth_fee_token_address: ContractAddress,
     pub strk_fee_token_address: ContractAddress,
     pub validator_id: ContractAddress,
@@ -35,7 +33,6 @@ pub struct RequiredParams {
 impl SerializeConfig for RequiredParams {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let members = BTreeMap::from_iter([
-            ser_param("chain_id", &self.chain_id, "Placeholder.", ParamPrivacyInput::Public),
             ser_param(
                 "eth_fee_token_address",
                 &self.eth_fee_token_address,
@@ -78,7 +75,6 @@ impl SerializeConfig for RequiredParams {
 impl RequiredParams {
     pub fn create_for_testing() -> Self {
         Self {
-            chain_id: CHAIN_ID_FOR_TESTS.clone(),
             eth_fee_token_address: ContractAddress::from(2_u128),
             strk_fee_token_address: ContractAddress::from(3_u128),
             validator_id: ContractAddress::from(DEFAULT_VALIDATOR_ID),
