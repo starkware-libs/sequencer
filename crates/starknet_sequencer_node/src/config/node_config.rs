@@ -91,9 +91,9 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
             ]),
         ),
         (
-            ser_pointer_target_required_param(
+            ser_pointer_target_param(
                 "validator_id",
-                SerializationType::String,
+                &POINTER_TARGET_VALUE.to_string(),
                 "The ID of the validator. \
                  Also the address of this validator as a starknet contract.",
             ),

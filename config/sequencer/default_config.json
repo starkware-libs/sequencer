@@ -1610,9 +1610,9 @@
     "value": "PointerTarget"
   },
   "validator_id": {
-    "description": "A required param! The ID of the validator. Also the address of this validator as a starknet contract.",
-    "param_type": "String",
-    "privacy": "TemporaryValue"
+    "description": "The ID of the validator. Also the address of this validator as a starknet contract.",
+    "privacy": "TemporaryValue",
+    "value": "PointerTarget"
   },
   "versioned_constants_overrides.invoke_tx_max_n_steps": {
     "description": "Maximum number of steps the invoke function is allowed to run.",
