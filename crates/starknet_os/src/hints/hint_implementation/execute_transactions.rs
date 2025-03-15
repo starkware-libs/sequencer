@@ -2,6 +2,7 @@ use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
     get_ptr_from_var_name,
+    insert_value_into_ap,
 };
 use cairo_vm::types::relocatable::Relocatable;
 use starknet_types_core::felt::Felt;
@@ -55,8 +56,11 @@ pub(crate) fn sha2_finalize<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) ->
     todo!()
 }
 
-pub(crate) fn segments_add_temp<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    todo!()
+pub(crate) fn segments_add_temp<S: StateReader>(
+    HintArgs { vm, .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    let temp_segment = vm.add_temporary_segment();
+    Ok(insert_value_into_ap(vm, temp_segment)?)
 }
 
 pub(crate) fn set_ap_to_actual_fee<S: StateReader>(
