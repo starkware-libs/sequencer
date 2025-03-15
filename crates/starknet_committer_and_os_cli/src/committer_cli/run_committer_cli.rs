@@ -10,7 +10,7 @@ use crate::shared_utils::types::{run_python_test, IoArgs, PythonTestArg};
 
 #[derive(Parser, Debug)]
 pub struct CommitterCliCommand {
-    #[clap(subcommand)]
+    #[command(subcommand)]
     command: Command,
 }
 
@@ -18,7 +18,7 @@ pub struct CommitterCliCommand {
 enum Command {
     /// Given previous state tree skeleton and a state diff, computes the new commitment.
     Commit {
-        #[clap(flatten)]
+        #[command(flatten)]
         io_args: IoArgs,
     },
     PythonTest(PythonTestArg),

@@ -12,7 +12,7 @@ use crate::shared_utils::types::{run_python_test, IoArgs, PythonTestArg};
 
 #[derive(Parser, Debug)]
 pub struct BlockHashCliCommand {
-    #[clap(subcommand)]
+    #[command(subcommand)]
     command: Command,
 }
 
@@ -20,12 +20,12 @@ pub struct BlockHashCliCommand {
 enum Command {
     /// Calculates the block hash.
     BlockHash {
-        #[clap(flatten)]
+        #[command(flatten)]
         io_args: IoArgs,
     },
     /// Calculates commitments needed for the block hash.
     BlockHashCommitments {
-        #[clap(flatten)]
+        #[command(flatten)]
         io_args: IoArgs,
     },
     PythonTest(PythonTestArg),
