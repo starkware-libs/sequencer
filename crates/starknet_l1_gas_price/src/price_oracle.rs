@@ -2,8 +2,8 @@ use std::collections::{BTreeMap, HashMap};
 
 use async_trait::async_trait;
 use papyrus_config::converters::{deserialize_optional_map, serialize_optional_map};
-use papyrus_config::dumping::{ser_param, ser_required_param, SerializeConfig};
-use papyrus_config::{ParamPath, ParamPrivacyInput, SerializationType, SerializedParam};
+use papyrus_config::dumping::{ser_param, SerializeConfig};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -40,9 +40,9 @@ pub struct PriceOracleConfig {
 impl SerializeConfig for PriceOracleConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([
-            ser_required_param(
+            ser_param(
                 "base_url",
-                SerializationType::String,
+                &self.base_url,
                 "This must end with the query parameter `timestamp=` as we append a UNIX \
                  timestamp.",
                 ParamPrivacyInput::Private,
