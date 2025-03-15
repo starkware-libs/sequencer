@@ -27,7 +27,6 @@ pub struct RequiredParams {
     pub eth_fee_token_address: ContractAddress,
     pub strk_fee_token_address: ContractAddress,
     pub validator_id: ContractAddress,
-    pub recorder_url: Url,
     pub base_layer_config: EthereumBaseLayerConfigRequiredParams,
     pub consensus_manager_config: ConsensusManagerRequiredParams,
 }
@@ -54,12 +53,6 @@ impl SerializeConfig for RequiredParams {
                 "Placeholder.",
                 ParamPrivacyInput::Public,
             ),
-            ser_param(
-                "recorder_url",
-                &self.recorder_url,
-                "Placeholder.",
-                ParamPrivacyInput::Public,
-            ),
         ]);
         vec![
             members,
@@ -82,7 +75,6 @@ impl RequiredParams {
             eth_fee_token_address: ContractAddress::from(2_u128),
             strk_fee_token_address: ContractAddress::from(3_u128),
             validator_id: ContractAddress::from(DEFAULT_VALIDATOR_ID),
-            recorder_url: Url::parse("https://recorder_url").expect("Should be a valid URL"),
             base_layer_config: EthereumBaseLayerConfigRequiredParams {
                 node_url: Url::parse("https://node_url").expect("Should be a valid URL"),
             },
