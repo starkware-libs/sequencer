@@ -177,6 +177,10 @@ pub fn create_node_config(
     let mut config_pointers_map = ConfigPointersMap::new(CONFIG_POINTERS.clone());
     config_pointers_map
         .change_target_value("chain_id", Value::from(chain_info.chain_id.to_string()));
+    config_pointers_map.change_target_value(
+        "eth_fee_token_address",
+        Value::from(fee_token_addresses.eth_fee_token_address.to_string()),
+    );
 
     (
         SequencerNodeConfig {
@@ -195,7 +199,6 @@ pub fn create_node_config(
             ..Default::default()
         },
         RequiredParams {
-            eth_fee_token_address: fee_token_addresses.eth_fee_token_address,
             strk_fee_token_address: fee_token_addresses.strk_fee_token_address,
             validator_id,
             recorder_url,
