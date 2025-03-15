@@ -62,14 +62,14 @@ use starknet_sequencer_node::config::config_utils::{
     PriceOracleConfigRequiredParams,
     RequiredParams,
 };
-use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
+use starknet_sequencer_node::config::node_config::{SequencerNodeConfig, CONFIG_POINTERS};
 use starknet_state_sync::config::StateSyncConfig;
 use starknet_types_core::felt::Felt;
 use tokio::task::JoinHandle;
 use tracing::{debug, info, Instrument};
 use url::Url;
 
-use crate::integration_test_setup::NodeExecutionId;
+use crate::integration_test_setup::{ConfigPointersMap, NodeExecutionId};
 
 pub const ACCOUNT_ID_0: AccountId = 0;
 pub const ACCOUNT_ID_1: AccountId = 1;
@@ -152,7 +152,7 @@ pub fn create_node_config(
     component_config: ComponentConfig,
     base_layer_config: EthereumBaseLayerConfig,
     block_max_capacity_sierra_gas: GasAmount,
-) -> (SequencerNodeConfig, RequiredParams) {
+) -> (SequencerNodeConfig, RequiredParams, ConfigPointersMap) {
     let validator_id =
         set_validator_id(&mut consensus_manager_config, node_execution_id.get_node_index());
     let recorder_url = consensus_manager_config.cende_config.recorder_url.clone();
@@ -171,6 +171,8 @@ pub fn create_node_config(
     let class_manager_config = create_class_manager_config(class_manager_storage_config);
     state_sync_config.storage_config = state_sync_storage_config;
     let base_layer_endpoint_url = base_layer_config.node_url.clone();
+
+    let config_pointers_map = ConfigPointersMap::new(CONFIG_POINTERS.clone());
 
     (
         SequencerNodeConfig {
@@ -207,6 +209,7 @@ pub fn create_node_config(
                 },
             },
         },
+        config_pointers_map,
     )
 }
 
