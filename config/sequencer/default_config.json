@@ -985,9 +985,9 @@
     "value": "consensus_votes"
   },
   "eth_fee_token_address": {
-    "description": "A required param! Address of the ETH fee token.",
-    "param_type": "String",
-    "privacy": "TemporaryValue"
+    "description": "Address of the ETH fee token.",
+    "privacy": "TemporaryValue",
+    "value": "PointerTarget"
   },
   "gateway_config.chain_info.chain_id": {
     "description": "The chain ID of the StarkNet chain.",
