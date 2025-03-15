@@ -79,11 +79,15 @@ pub(crate) fn load_deprecated_class<S: StateReader>(
 
     // TODO(Rotem): see if we can avoid cloning here.
     let hints: HashMap<String, Vec<HintParams>> =
-        serde_json::from_value(dep_class.program.hints.clone())
-            .map_err(|e| OsHintError::SerdeJson { error: e, value: dep_class.program.hints })?;
+        serde_json::from_value(dep_class.program.hints.clone()).map_err(|e| {
+            OsHintError::SerdeJsonDeserialize { error: e, value: dep_class.program.hints }
+        })?;
     let ref_manager: ReferenceManager =
         serde_json::from_value(dep_class.program.reference_manager.clone()).map_err(|e| {
-            OsHintError::SerdeJson { error: e, value: dep_class.program.reference_manager }
+            OsHintError::SerdeJsonDeserialize {
+                error: e,
+                value: dep_class.program.reference_manager,
+            }
         })?;
 
     let refs = ref_manager
