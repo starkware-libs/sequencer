@@ -568,6 +568,7 @@ mod tests_v2 {
     use papyrus_network::network_manager::{BroadcastTopicClientTrait, ReceivedBroadcastedMessage};
     use papyrus_network_types::network_types::BroadcastedMessageMetadata;
     use papyrus_protobuf::consensus::{ProposalInit, ProposalPart, StreamMessageBody};
+    use papyrus_test_utils::{get_rng, GetTestInstance};
 
     use super::{TestStreamId, CHANNEL_SIZE};
     use crate::stream_handler::StreamHandler;
@@ -703,7 +704,7 @@ mod tests_v2 {
             mut streamhandler_to_network_receiver,
         ) = setup();
 
-        // client opens up multiple outbound streams.
+        // Client opens up multiple outbound streams.
         let mut stream_senders = Vec::new();
         for stream_id in 0..num_streams {
             let (sender, stream_receiver) = mpsc::channel(CHANNEL_SIZE);
@@ -750,5 +751,198 @@ mod tests_v2 {
             assert_eq!(fin.message_id, u64::from(num_messages));
             assert!(stream_ids.remove(&fin.stream_id.0));
         }
+    }
+
+    #[tokio::test]
+    async fn inbound_in_order() {
+        let num_messages = 10;
+        let stream_id = 127;
+        let (
+            mut stream_handler,
+            mut inbound_network_sender,
+            mut inbound_internal_receiver,
+            _client_to_streamhandler_sender,
+            _streamhandler_to_network_receiver,
+        ) = setup();
+        let metadata = BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
+
+        // Send all messages in order.
+        for i in 0..num_messages {
+            if i < num_messages - 1 {
+                let message = build_init_message(i, stream_id, i);
+                inbound_network_sender.send((Ok(message), metadata.clone())).await.unwrap();
+            } else {
+                let message = build_fin_message(stream_id, i);
+                inbound_network_sender.send((Ok(message), metadata.clone())).await.unwrap();
+            }
+            stream_handler.handle_next_msg().await.unwrap();
+        }
+
+        let mut receiver = inbound_internal_receiver.next().now_or_never().unwrap().unwrap();
+        for i in 0..num_messages - 1 {
+            // Last message is Fin, so it will not be sent (that's why num_messages - 1)
+            let message = receiver.next().await.unwrap();
+            assert_eq!(
+                message,
+                ProposalPart::Init(ProposalInit { round: i, ..Default::default() })
+            );
+        }
+        // Check that the receiver was closed:
+        assert!(matches!(receiver.try_next(), Ok(None)));
+    }
+
+    #[tokio::test]
+    async fn inbound_multiple() {
+        let num_messages = 5;
+        let num_streams = 3;
+        let (
+            mut stream_handler,
+            mut inbound_network_sender,
+            mut inbound_internal_receiver,
+            _client_to_streamhandler_sender,
+            _streamhandler_to_network_receiver,
+        ) = setup();
+        let metadata = BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
+
+        // Send all messages to all streams, each stream's messages in order.
+        for sid in 0..num_streams {
+            for i in 0..num_messages {
+                if i < num_messages - 1 {
+                    let message = build_init_message(i, sid, i);
+                    inbound_network_sender.send((Ok(message), metadata.clone())).await.unwrap();
+                } else {
+                    let message = build_fin_message(sid, i);
+                    inbound_network_sender.send((Ok(message), metadata.clone())).await.unwrap();
+                }
+                stream_handler.handle_next_msg().await.unwrap();
+            }
+        }
+
+        let mut expected_msgs = (0..num_streams).map(|_| Vec::new()).collect::<Vec<_>>();
+        let mut actual_msgs = expected_msgs.clone();
+        for sid in 0..num_streams {
+            let mut receiver = inbound_internal_receiver.next().now_or_never().unwrap().unwrap();
+            for i in 0..num_messages - 1 {
+                // Last message is Fin, so it will not be sent (that's why num_messages - 1).
+                let message = receiver.next().await.unwrap();
+                actual_msgs
+                    .get_mut(TryInto::<usize>::try_into(sid).unwrap())
+                    .unwrap()
+                    .push(message);
+                expected_msgs
+                    .get_mut(TryInto::<usize>::try_into(sid).unwrap())
+                    .unwrap()
+                    .push(ProposalPart::Init(ProposalInit { round: i, ..Default::default() }));
+            }
+            // Check that the receiver was closed:
+            assert!(matches!(receiver.try_next(), Ok(None)));
+        }
+        assert_eq!(actual_msgs, expected_msgs);
+    }
+
+    #[tokio::test]
+    async fn inbound_delayed_first() {
+        let num_messages = 10;
+        let stream_id = 127;
+        let (
+            mut stream_handler,
+            mut inbound_network_sender,
+            mut inbound_internal_receiver,
+            _client_to_streamhandler_sender,
+            _streamhandler_to_network_receiver,
+        ) = setup();
+        let metadata = BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
+
+        // Send all messages besides first one.
+        for i in 1..num_messages {
+            if i < num_messages - 1 {
+                let message = build_init_message(i, stream_id, i);
+                inbound_network_sender.send((Ok(message), metadata.clone())).await.unwrap();
+            } else {
+                let message = build_fin_message(stream_id, i);
+                inbound_network_sender.send((Ok(message), metadata.clone())).await.unwrap();
+            }
+            stream_handler.handle_next_msg().await.unwrap();
+        }
+
+        // Check that no receiver was created yet.
+        assert!(inbound_internal_receiver.try_next().is_err());
+
+        // Send first message now.
+        let first_message = build_init_message(0, stream_id, 0);
+        inbound_network_sender.send((Ok(first_message), metadata.clone())).await.unwrap();
+        // Activate the stream handler to ingest this message.
+        stream_handler.handle_next_msg().await.unwrap();
+
+        // Now first message and all cached messages should be received.
+        let mut receiver = inbound_internal_receiver.next().now_or_never().unwrap().unwrap();
+        for i in 0..num_messages - 1 {
+            // Last message is Fin, so it will not be sent (that's why num_messages - 1)
+            let message = receiver.next().await.unwrap();
+            assert_eq!(
+                message,
+                ProposalPart::Init(ProposalInit { round: i, ..Default::default() })
+            );
+        }
+        // Check that the receiver was closed:
+        assert!(matches!(receiver.try_next(), Ok(None)));
+    }
+
+    #[tokio::test]
+    async fn inbound_delayed_middle() {
+        let num_messages = 10;
+        let missing_message_id = 3;
+        let stream_id = 127;
+        let (
+            mut stream_handler,
+            mut inbound_network_sender,
+            mut inbound_internal_receiver,
+            _client_to_streamhandler_sender,
+            _streamhandler_to_network_receiver,
+        ) = setup();
+        let metadata = BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
+
+        // Send all messages besides one in the middle of the stream.
+        for i in 0..num_messages {
+            if i == missing_message_id {
+                continue;
+            }
+            if i < num_messages - 1 {
+                let message = build_init_message(i, stream_id, i);
+                inbound_network_sender.send((Ok(message), metadata.clone())).await.unwrap();
+            } else {
+                let message = build_fin_message(stream_id, i);
+                inbound_network_sender.send((Ok(message), metadata.clone())).await.unwrap();
+            }
+            stream_handler.handle_next_msg().await.unwrap();
+        }
+
+        // Should receive a few messages, until we reach the missing one.
+        let mut receiver = inbound_internal_receiver.next().now_or_never().unwrap().unwrap();
+        for i in 0..missing_message_id {
+            let message = receiver.next().await.unwrap();
+            assert_eq!(
+                message,
+                ProposalPart::Init(ProposalInit { round: i, ..Default::default() })
+            );
+        }
+
+        // Send the missing message now.
+        let missing_msg = build_init_message(missing_message_id, stream_id, missing_message_id);
+        inbound_network_sender.send((Ok(missing_msg), metadata.clone())).await.unwrap();
+        // Activate the stream handler to ingest this message.
+        stream_handler.handle_next_msg().await.unwrap();
+
+        // Should now get missing message and all the following ones.
+        for i in missing_message_id..num_messages - 1 {
+            // Last message is Fin, so it will not be sent (that's why num_messages - 1)
+            let message = receiver.next().await.unwrap();
+            assert_eq!(
+                message,
+                ProposalPart::Init(ProposalInit { round: i, ..Default::default() })
+            );
+        }
+        // Check that the receiver was closed:
+        assert!(matches!(receiver.try_next(), Ok(None)));
     }
 }
