@@ -220,9 +220,9 @@
     "value": "StateOnly"
   },
   "chain_id": {
-    "description": "A required param! The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
-    "param_type": "String",
-    "privacy": "TemporaryValue"
+    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "privacy": "TemporaryValue",
+    "value": "PointerTarget"
   },
   "class_manager_config.class_manager_config.cached_class_storage_config.class_cache_size": {
     "description": "Contract classes cache size.",
