@@ -58,7 +58,6 @@ use starknet_mempool::config::MempoolConfig;
 use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
-use starknet_sequencer_node::config::config_utils::RequiredParams;
 use starknet_sequencer_node::config::node_config::{SequencerNodeConfig, CONFIG_POINTERS};
 use starknet_state_sync::config::StateSyncConfig;
 use starknet_types_core::felt::Felt;
@@ -163,7 +162,7 @@ pub fn create_node_config(
     component_config: ComponentConfig,
     base_layer_config: EthereumBaseLayerConfig,
     block_max_capacity_sierra_gas: GasAmount,
-) -> (SequencerNodeConfig, RequiredParams, ConfigPointersMap) {
+) -> (SequencerNodeConfig, ConfigPointersMap) {
     let validator_id =
         set_validator_id(&mut consensus_manager_config, node_execution_id.get_node_index());
     let recorder_url = consensus_manager_config.cende_config.recorder_url.clone();
@@ -222,7 +221,6 @@ pub fn create_node_config(
             l1_scraper_config,
             ..Default::default()
         },
-        RequiredParams {},
         config_pointers_map,
     )
 }
