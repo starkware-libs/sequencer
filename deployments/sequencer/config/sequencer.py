@@ -1,26 +1,18 @@
 import os
 import json
-import jsonschema
-
-from services.objects import Config
+from typing import Dict, Any
 
 
-ROOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../../")
-CONFIG_DIR = os.path.join(ROOT_DIR, "config/sequencer/")
+class SequencerConfig:
+    ROOT_DIR: os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../../")
 
+    def __init__(self, config_subdir: str, config_path: str):
+        self.config_subdir = os.path.join(self.ROOT_DIR, config_subdir)
+        self.config_path = os.path.join(self.config_subdir, config_path)
 
-class SequencerDevConfig(Config):
-    def __init__(self, config_file_path: str = ""):
-        super().__init__(
-            global_config=json.loads(
-                open(os.path.join(CONFIG_DIR, "default_config.json"), "r").read()
-            ),
-            config=(
-                json.loads(open(os.path.join(CONFIG_DIR, "presets", "single_node_config.json"), "r").read())
-                if not config_file_path
-                else json.loads(open(os.path.abspath(config_file_path)).read())
-            )
-        )
+    def get_config(self) -> Dict[Any, Any]:
+        with open(self.config_path) as config_file:
+            return json.loads(config_file.read())
 
     def validate(self):
-        jsonschema.validate(self.config, schema=self.global_config)
+        pass
