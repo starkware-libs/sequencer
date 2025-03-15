@@ -9,6 +9,7 @@ use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use papyrus_config::dumping::{
     append_sub_config_name,
     generate_struct_pointer,
+    ser_pointer_target_param,
     ser_pointer_target_required_param,
     set_pointing_param_paths,
     ConfigPointers,
@@ -41,14 +42,15 @@ use crate::version::VERSION_FULL;
 
 // The path of the default configuration file, provided as part of the crate.
 pub const DEFAULT_CONFIG_PATH: &str = "config/sequencer/default_config.json";
+pub const POINTER_TARGET_VALUE: &str = "PointerTarget";
 
 // Configuration parameters that share the same value across multiple components.
 pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
     let mut pointers = vec![
         (
-            ser_pointer_target_required_param(
+            ser_pointer_target_param(
                 "chain_id",
-                SerializationType::String,
+                &POINTER_TARGET_VALUE.to_string(),
                 "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
             ),
             set_pointing_param_paths(&[
