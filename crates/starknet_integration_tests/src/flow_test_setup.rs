@@ -224,7 +224,7 @@ impl FlowSequencerSetup {
         };
 
         // Derive the configuration for the sequencer node.
-        let (node_config, _required_params, _config_pointers_map) = create_node_config(
+        let (node_config, _config_pointers_map) = create_node_config(
             &mut available_ports,
             NodeExecutionId::new(node_index, 0),
             chain_info,
