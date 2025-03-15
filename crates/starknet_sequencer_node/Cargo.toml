@@ -19,7 +19,6 @@ const_format.workspace = true
 futures.workspace = true
 papyrus_base_layer.workspace = true
 papyrus_config.workspace = true
-papyrus_protobuf.workspace = true
 rstest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
