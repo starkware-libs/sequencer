@@ -1320,9 +1320,9 @@
     "value": 8082
   },
   "recorder_url": {
-    "description": "A required param! The URL of the Pythonic cende_recorder",
-    "param_type": "String",
-    "privacy": "TemporaryValue"
+    "description": "The URL of the Pythonic cende_recorder",
+    "privacy": "TemporaryValue",
+    "value": "PointerTarget"
   },
   "revert_config.revert_up_to_and_including": {
     "description": "The component will revert blocks up to this block number (including).",
