@@ -1,6 +1,6 @@
 use starknet_api::core::ChainId;
 
-use crate::deployment::{Deployment, Service, ServiceName};
+use crate::deployment::{Deployment, DistributedNodeServiceName, Service, ServiceName};
 
 #[cfg(test)]
 #[path = "deployment_definitions_test.rs"]
@@ -39,7 +39,7 @@ pub const TESTING_DEPLOYMENT: Deployment<'_> = Deployment::new(
 // Main deployment services.
 // TODO(Tsabary): fill in correct application configs.
 const BATCHER_MAIN: Service = Service::new(
-    ServiceName::Batcher,
+    ServiceName::DistributedNode(DistributedNodeServiceName::Batcher),
     "node_0/executable_0/node_config.json",
     false,
     false,
@@ -47,7 +47,7 @@ const BATCHER_MAIN: Service = Service::new(
     Some(500),
 );
 const GATEWAY_MAIN: Service = Service::new(
-    ServiceName::Gateway,
+    ServiceName::DistributedNode(DistributedNodeServiceName::Gateway),
     "node_0/executable_0/node_config.json",
     false,
     true,
@@ -55,7 +55,7 @@ const GATEWAY_MAIN: Service = Service::new(
     None,
 );
 const MEMPOOL_MAIN: Service = Service::new(
-    ServiceName::Mempool,
+    ServiceName::DistributedNode(DistributedNodeServiceName::Mempool),
     "node_0/executable_0/node_config.json",
     false,
     false,
@@ -66,7 +66,7 @@ const MEMPOOL_MAIN: Service = Service::new(
 // Test deployment services.
 // TODO(Tsabary): avoid the hard-coded path.
 const ALL_IN_ONE_TESTING: Service = Service::new(
-    ServiceName::AllInOne,
+    ServiceName::ConsolidatedNode,
     "node_0/executable_0/node_config.json",
     false,
     false,
