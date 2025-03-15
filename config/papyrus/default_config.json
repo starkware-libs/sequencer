@@ -140,8 +140,8 @@
     "value": 1000
   },
   "context.builder_address": {
-    "description": "A required param! The address of the contract that builds the block.",
-    "param_type": "String",
+    "description": "The address of the contract that builds the block.",
+    "value": "0x0",
     "privacy": "Public"
   },
   "context.chain_id": {

@@ -3,8 +3,8 @@ use std::fmt::Debug;
 use std::time::Duration;
 
 use papyrus_config::converters::deserialize_milliseconds_to_duration;
-use papyrus_config::dumping::{ser_param, ser_required_param, SerializeConfig};
-use papyrus_config::{ParamPath, ParamPrivacyInput, SerializationType, SerializedParam};
+use papyrus_config::dumping::{ser_param, SerializeConfig};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ChainId, ContractAddress};
 use validator::Validate;
@@ -70,9 +70,9 @@ impl SerializeConfig for ContextConfig {
                 "The data availability mode, true: Blob, false: Calldata.",
                 ParamPrivacyInput::Public,
             ),
-            ser_required_param(
+            ser_param(
                 "builder_address",
-                SerializationType::String,
+                &self.builder_address,
                 "The address of the contract that builds the block.",
                 ParamPrivacyInput::Public,
             ),
