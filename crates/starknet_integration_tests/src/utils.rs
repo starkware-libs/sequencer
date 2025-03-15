@@ -208,6 +208,10 @@ pub fn create_node_config(
         "validator_id",
         to_value(validator_id).expect("Failed to serialize ContractAddress"),
     );
+    config_pointers_map.change_target_value(
+        "recorder_url",
+        to_value(recorder_url).expect("Failed to serialize Url"),
+    );
     (
         SequencerNodeConfig {
             base_layer_config,
@@ -225,7 +229,6 @@ pub fn create_node_config(
             ..Default::default()
         },
         RequiredParams {
-            recorder_url,
             base_layer_config: EthereumBaseLayerConfigRequiredParams {
                 node_url: base_layer_endpoint_url,
             },
