@@ -6,6 +6,9 @@ repository.workspace = true
 license.workspace = true
 
 
+[features]
+testing = []
+
 [lints]
 workspace = true
 
@@ -26,4 +29,14 @@ starknet_sequencer_infra.workspace = true
 starknet_state_sync.workspace = true
 
 [dev-dependencies]
+papyrus_sync = { workspace = true, features = ["testing"] }
+starknet_batcher = { workspace = true, features = ["testing"] }
+starknet_consensus = { workspace = true, features = ["testing"] }
+starknet_consensus_manager = { workspace = true, features = ["testing"] }
+starknet_gateway = { workspace = true, features = ["testing"] }
+starknet_http_server = { workspace = true, features = ["testing"] }
 starknet_infra_utils = { workspace = true, features = ["testing"] }
+starknet_mempool = { workspace = true, features = ["testing"] }
+starknet_mempool_p2p = { workspace = true, features = ["testing"] }
+starknet_sequencer_infra = { workspace = true, features = ["testing"] }
+starknet_state_sync = { workspace = true, features = ["testing"] }

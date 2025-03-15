@@ -5,6 +5,9 @@ edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
 
+[features]
+testing = []
+
 [dependencies]
 async-stream.workspace = true
 async-trait.workspace = true
