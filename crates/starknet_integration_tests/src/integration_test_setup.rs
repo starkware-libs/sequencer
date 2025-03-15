@@ -26,11 +26,7 @@ use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_monitoring_endpoint::test_utils::MonitoringClient;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
-use starknet_sequencer_node::config::config_utils::{
-    config_to_preset,
-    dump_json_data,
-    RequiredParams,
-};
+use starknet_sequencer_node::config::config_utils::{config_to_preset, dump_json_data};
 use starknet_sequencer_node::config::node_config::{
     SequencerNodeConfig,
     CONFIG_NON_POINTERS_WHITELIST,
@@ -129,8 +125,6 @@ pub struct ExecutableSetup {
     pub config: SequencerNodeConfig,
     // Configuration parameters that share the same value across multiple components.
     pub config_pointers_map: ConfigPointersMap,
-    // Required param values.
-    required_params: RequiredParams,
     // Handlers for the storage and config files, maintained so the files are not deleted. Since
     // these are only maintained to avoid dropping the handlers, private visibility suffices, and
     // as such, the '#[allow(dead_code)]' attributes are used to suppress the warning.
@@ -197,7 +191,7 @@ impl ExecutableSetup {
 
         let block_max_capacity_n_steps = GasAmount(30000000);
         // Derive the configuration for the sequencer node.
-        let (config, required_params, config_pointers_map) = create_node_config(
+        let (config, config_pointers_map) = create_node_config(
             &mut available_ports,
             node_execution_id,
             chain_info,
@@ -239,7 +233,6 @@ impl ExecutableSetup {
             batcher_storage_config: config.batcher_config.storage.clone(),
             config: config.clone(),
             config_pointers_map,
-            required_params,
             node_config_dir_handle,
             node_config_path,
             state_sync_storage_handle,
@@ -281,10 +274,7 @@ impl ExecutableSetup {
         .unwrap();
 
         // Extract only the required fields from the config map.
-        let mut preset = config_to_preset(&config_as_map);
-
-        // Add the required params to the preset.
-        add_required_params_to_preset(&mut preset, self.required_params.as_json());
+        let preset = config_to_preset(&config_as_map);
 
         // Dump the preset to a file, return its path.
         dump_json_data(preset, &self.node_config_path);
@@ -293,41 +283,5 @@ impl ExecutableSetup {
             "File does not exist: {:?}",
             &self.node_config_path
         );
-    }
-}
-
-/// Merges required parameters into an existing preset JSON object.
-///
-/// # Parameters
-/// - `preset`: A mutable reference to a `serde_json::Value` representing the preset. It must be a
-///   JSON dictionary object where additional parameters will be added.
-/// - `required_params`: A reference to a `serde_json::Value` representing the required parameters.
-///   It must also be a JSON dictionary object. Its keys and values will be merged into the
-///   `preset`.
-///
-/// # Behavior
-/// - For each key-value pair in `required_params`, the pair is inserted into `preset`.
-/// - If a key already exists in `preset`, its value will be overwritten by the value from
-///   `required_params`.
-/// - Both `preset` and `required_params` must be JSON dictionary objects; otherwise, the function
-///   panics.
-///
-/// # Panics
-/// This function panics if either `preset` or `required_params` is not a JSON dictionary object, or
-/// if the `preset` already contains a key from the `required_params`.
-fn add_required_params_to_preset(preset: &mut Value, required_params: Value) {
-    if let (Value::Object(preset_map), Value::Object(required_params_map)) =
-        (preset, required_params)
-    {
-        for (key, value) in required_params_map {
-            assert!(
-                !preset_map.contains_key(&key),
-                "Required parameter already exists in the preset: {:?}",
-                key
-            );
-            preset_map.insert(key, value);
-        }
-    } else {
-        panic!("Expecting JSON object dictionary objects");
     }
 }
