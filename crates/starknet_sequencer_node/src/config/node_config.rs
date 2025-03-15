@@ -67,9 +67,9 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
             ]),
         ),
         (
-            ser_pointer_target_required_param(
+            ser_pointer_target_param(
                 "eth_fee_token_address",
-                SerializationType::String,
+                &POINTER_TARGET_VALUE.to_string(),
                 "Address of the ETH fee token.",
             ),
             set_pointing_param_paths(&[

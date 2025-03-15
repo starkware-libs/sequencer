@@ -194,6 +194,11 @@ pub fn create_node_config(
         "chain_id",
         to_value(chain_info.chain_id).expect("Failed to serialize ChainId"),
     );
+    config_pointers_map.change_target_value(
+        "eth_fee_token_address",
+        to_value(fee_token_addresses.eth_fee_token_address)
+            .expect("Failed to serialize ContractAddress"),
+    );
 
     (
         SequencerNodeConfig {
@@ -212,7 +217,6 @@ pub fn create_node_config(
             ..Default::default()
         },
         RequiredParams {
-            eth_fee_token_address: fee_token_addresses.eth_fee_token_address,
             strk_fee_token_address: fee_token_addresses.strk_fee_token_address,
             validator_id,
             recorder_url,

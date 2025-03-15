@@ -34,7 +34,6 @@ pub(crate) fn create_validation_error(
 /// Required parameters utility struct.
 #[derive(Serialize)]
 pub struct RequiredParams {
-    pub eth_fee_token_address: ContractAddress,
     pub strk_fee_token_address: ContractAddress,
     pub validator_id: ContractAddress,
     pub recorder_url: Url,
@@ -45,12 +44,6 @@ pub struct RequiredParams {
 impl SerializeConfig for RequiredParams {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let members = BTreeMap::from_iter([
-            ser_param(
-                "eth_fee_token_address",
-                &self.eth_fee_token_address,
-                "Placeholder.",
-                ParamPrivacyInput::Public,
-            ),
             ser_param(
                 "strk_fee_token_address",
                 &self.strk_fee_token_address,
@@ -87,7 +80,6 @@ impl SerializeConfig for RequiredParams {
 impl RequiredParams {
     pub fn create_for_testing() -> Self {
         Self {
-            eth_fee_token_address: ContractAddress::from(2_u128),
             strk_fee_token_address: ContractAddress::from(3_u128),
             validator_id: ContractAddress::from(DEFAULT_VALIDATOR_ID),
             recorder_url: Url::parse("https://recorder_url").expect("Should be a valid URL"),
