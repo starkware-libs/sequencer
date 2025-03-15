@@ -118,9 +118,10 @@ fn with_constructor(runnable_version: RunnableCairo1) {
     .unwrap();
 
     let deploy_call = &entry_point_call.execute_directly(&mut state).unwrap();
+
     assert_eq!(
         deploy_call.execution,
-        CallExecution { retdata: retdata![], gas_consumed: 179080, ..CallExecution::default() }
+        CallExecution { retdata: retdata![], gas_consumed: 188780, ..CallExecution::default() }
     );
 
     let constructor_call = &deploy_call.inner_calls[0];

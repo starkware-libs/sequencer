@@ -31,7 +31,7 @@ def validate_todo_format(file_path: str) -> bool:
     # parenthesis bounding a non-empty string (owner name), and a colon.
     required_comment_todo_pattern = re.compile(r"(\/\/|#) ?TODO\([^)]+\):")
     invalid_todos = []
-    try: 
+    try:
         with open(file_path, "r") as file:
             for line_number, line in enumerate(file, start=1):
                 if comment_todo_pattern.search(line):
@@ -58,7 +58,9 @@ def enforce_named_todos(commit_id: Optional[str]):
     local_changes = get_local_changes(".", commit_id=commit_id)
     print(f"Enforcing TODO format on modified files: {local_changes}.")
     successful_validation = all(
-        validate_todo_format(file_path) for file_path in local_changes if os.path.isfile(file_path)
+        validate_todo_format(file_path)
+        for file_path in local_changes
+        if os.path.isfile(file_path) and not file_path.endswith(".bin")
     )
     assert successful_validation, "Found invalid TODOs"
 

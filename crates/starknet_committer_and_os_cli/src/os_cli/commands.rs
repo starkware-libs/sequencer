@@ -44,11 +44,10 @@ pub fn validate_input(os_input: &StarknetOsInput) {
                     None
                 }
             })
-            .map(|contract_class| match contract_class {
+            .all(|contract_class| match contract_class {
                 ContractClass::V0(_) => false,
                 ContractClass::V1((CasmContractClass { prime, .. }, _)) => prime.is_zero(),
-            })
-            .all(|v| v),
+            }),
         "All declare transactions should be of V1 and should have contract class with prime=0"
     );
 }

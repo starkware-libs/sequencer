@@ -95,6 +95,7 @@ bincode = "1.3.3"
 bisection = "0.1.0"
 bitvec = "1.0.1"
 blockifier = { path = "crates/blockifier", version = "0.0.0" }
+blockifier_reexecution.path = "crates/blockifier_reexecution"
 blockifier_test_utils = { path = "crates/blockifier_test_utils", version = "0.0.0" }
 byteorder = "1.4.3"
 bytes = "1"
@@ -157,6 +158,7 @@ metrics-exporter-prometheus = "0.16.1"
 metrics-process = "1.0.11"
 mockall = "0.12.1"
 mockito = "1.4.0"
+native_blockifier.path = "crates/native_blockifier"
 nix = "0.20.0"
 num-bigint = "0.4"
 num-integer = "0.1.45"
@@ -169,9 +171,11 @@ papyrus_base_layer.path = "crates/papyrus_base_layer"
 papyrus_common.path = "crates/papyrus_common"
 papyrus_config = { path = "crates/papyrus_config", version = "0.0.0" }
 papyrus_execution.path = "crates/papyrus_execution"
+papyrus_load_test.path = "crates/papyrus_load_test"
 papyrus_monitoring_gateway.path = "crates/papyrus_monitoring_gateway"
 papyrus_network.path = "crates/papyrus_network"
 papyrus_network_types.path = "crates/papyrus_network_types"
+papyrus_node.path = "crates/papyrus_node"
 papyrus_p2p_sync.path = "crates/papyrus_p2p_sync"
 papyrus_proc_macros = { path = "crates/papyrus_proc_macros", version = "0.0.0" }
 papyrus_protobuf.path = "crates/papyrus_protobuf"
@@ -225,6 +229,7 @@ starknet_class_manager.path = "crates/starknet_class_manager"
 starknet_class_manager_types.path = "crates/starknet_class_manager_types"
 starknet_client.path = "crates/starknet_client"
 starknet_committer.path = "crates/starknet_committer"
+starknet_committer_and_os_cli.path = "crates/starknet_committer_and_os_cli"
 starknet_consensus.path = "crates/starknet_consensus"
 starknet_consensus_manager.path = "crates/starknet_consensus_manager"
 starknet_consensus_orchestrator.path = "crates/starknet_consensus_orchestrator"
@@ -232,6 +237,7 @@ starknet_gateway.path = "crates/starknet_gateway"
 starknet_gateway_types.path = "crates/starknet_gateway_types"
 starknet_http_server.path = "crates/starknet_http_server"
 starknet_infra_utils = { path = "crates/starknet_infra_utils", version = "0.0.0" }
+starknet_integration_tests.path = "crates/starknet_integration_tests"
 starknet_l1_gas_price.path = "crates/starknet_l1_gas_price"
 starknet_l1_gas_price_types.path = "crates/starknet_l1_gas_price_types"
 starknet_l1_provider.path = "crates/starknet_l1_provider"
@@ -278,6 +284,7 @@ unsigned-varint = "0.8.0"
 url = "2.5.0"
 validator = "0.12"
 void = "1.0.2"
+workspace_tests.path = "workspace_tests"
 zstd = "0.13.1"
 
 # Note: both rust and clippy lints are warning by default and denied on the CI (see run_tests.py).
@@ -288,9 +295,14 @@ zstd = "0.13.1"
 future-incompatible = "warn"
 nonstandard-style = "warn"
 rust-2018-idioms = "warn"
-# See [here](https://github.com/taiki-e/cargo-llvm-cov/issues/370) for a discussion on why this is
-# needed (from rust 1.80).
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }
+unexpected_cfgs = { level = "warn", check-cfg = [
+  # See [here](https://github.com/taiki-e/cargo-llvm-cov/issues/370) for a discussion on why this is
+  # needed (from rust 1.80).
+  'cfg(coverage_nightly)',
+  # From rust 1.84, seems like the pyo3 crate version we are using breaks. Remove this once pyo3 is
+  # removed from the workspace.
+  'cfg(addr_of)',
+] }
 
 [workspace.lints.clippy]
 as_conversions = "warn"

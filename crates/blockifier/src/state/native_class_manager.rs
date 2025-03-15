@@ -13,7 +13,11 @@ use starknet_sierra_multicompile::utils::into_contract_class_for_compilation;
 use starknet_sierra_multicompile::SierraToNativeCompiler;
 use thiserror::Error;
 
-use crate::blockifier::config::{CairoNativeRunConfig, ContractClassManagerConfig};
+use crate::blockifier::config::{
+    CairoNativeRunConfig,
+    ContractClassManagerConfig,
+    NativeClassesWhitelist,
+};
 use crate::execution::contract_class::{CompiledClassV1, RunnableCompiledClass};
 use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::state::global_cache::{CachedCairoNative, CachedClass, RawClassCache};
@@ -89,7 +93,7 @@ impl NativeClassManager {
         if !cairo_native_run_config.run_cairo_native {
             // Native compilation is disabled - no need to start the compilation worker.
             return NativeClassManager {
-                cairo_native_run_config: config.cairo_native_run_config,
+                cairo_native_run_config,
                 cache,
                 sender: None,
                 compiler: None,
@@ -139,14 +143,25 @@ impl NativeClassManager {
                 return None;
             }
         };
-        if let CachedClass::V1(_, _) = cached_class {
-            // TODO(Yoni): make sure `wait_on_native_compilation` cannot be set to true while
-            // `run_cairo_native` is false.
-            assert!(
-                !self.wait_on_native_compilation(),
-                "Manager did not wait on native compilation."
-            )
-        }
+
+        let cached_class = match cached_class {
+            CachedClass::V1(_, _) => {
+                // TODO(Yoni): make sure `wait_on_native_compilation` cannot be set to true while
+                // `run_cairo_native` is false.
+                assert!(
+                    !self.wait_on_native_compilation(),
+                    "Manager did not wait on native compilation."
+                );
+                cached_class
+            }
+            CachedClass::V1Native(CachedCairoNative::Compiled(native))
+                if !self.run_class_with_cairo_native(class_hash) =>
+            {
+                CachedClass::V1(native.casm(), Arc::new(SierraContractClass::default()))
+            }
+            _ => cached_class,
+        };
+
         Some(cached_class.to_runnable())
     }
 
@@ -225,6 +240,14 @@ impl NativeClassManager {
 
     fn wait_on_native_compilation(&self) -> bool {
         self.cairo_native_run_config.wait_on_native_compilation
+    }
+
+    /// Determines if a contract should run with cairo native based on the whitelist.
+    pub fn run_class_with_cairo_native(&self, class_hash: &ClassHash) -> bool {
+        match &self.cairo_native_run_config.native_classes_whitelist {
+            NativeClassesWhitelist::All => true,
+            NativeClassesWhitelist::Limited(contracts) => contracts.contains(class_hash),
+        }
     }
 
     /// Clears the contract cache.
