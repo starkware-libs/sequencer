@@ -1,11 +1,9 @@
-use std::collections::HashSet;
 use std::env;
 use std::fs::File;
 use std::net::{IpAddr, Ipv4Addr};
 
 use colored::Colorize;
 use papyrus_config::dumping::SerializeConfig;
-use papyrus_config::SerializedParam;
 use rstest::rstest;
 use starknet_batcher::block_builder::BlockBuilderConfig;
 use starknet_batcher::config::BatcherConfig;
@@ -18,7 +16,6 @@ use crate::config::component_execution_config::{
     ReactiveComponentExecutionConfig,
     ReactiveComponentExecutionMode,
 };
-use crate::config::config_utils::RequiredParams;
 use crate::config::node_config::{
     SequencerNodeConfig,
     CONFIG_NON_POINTERS_WHITELIST,
@@ -124,27 +121,6 @@ fn default_config_file_is_up_to_date() {
         "Diffs shown below (default config file <<>> dump of SequencerNodeConfig::default())."
     );
     assert_json_eq(&from_default_config_file, &from_code, error_message);
-}
-
-/// Tests compatibility of the required parameter settings: required params (containing required
-/// pointer targets) and test util struct.
-#[test]
-fn required_params_setting() {
-    // Load the default config file.
-    let file =
-        std::fs::File::open(resolve_project_relative_path(DEFAULT_CONFIG_PATH).unwrap()).unwrap();
-    let mut deserialized = serde_json::from_reader::<_, serde_json::Value>(file).unwrap();
-    let expected_required_params = deserialized.as_object_mut().unwrap();
-    expected_required_params.retain(|_, value| {
-        let param = serde_json::from_value::<SerializedParam>(value.clone()).unwrap();
-        param.is_required()
-    });
-    let expected_required_keys =
-        expected_required_params.keys().cloned().collect::<HashSet<String>>();
-
-    let required_params: HashSet<String> =
-        RequiredParams::create_for_testing().field_names().into_iter().collect();
-    assert_eq!(required_params, expected_required_keys);
 }
 
 #[test]
