@@ -186,6 +186,7 @@ pub fn create_node_config(
         Value::from(fee_token_addresses.strk_fee_token_address.to_string()),
     );
     config_pointers_map.change_target_value("validator_id", Value::from(validator_id.to_string()));
+    config_pointers_map.change_target_value("recorder_url", Value::from(recorder_url.to_string()));
 
     (
         SequencerNodeConfig {
@@ -204,7 +205,6 @@ pub fn create_node_config(
             ..Default::default()
         },
         RequiredParams {
-            recorder_url,
             base_layer_config: EthereumBaseLayerConfigRequiredParams {
                 node_url: base_layer_endpoint_url,
             },
