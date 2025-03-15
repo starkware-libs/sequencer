@@ -287,7 +287,7 @@
   "state_sync_config.storage_config.mmap_file_config.max_object_size": 65536,
   "state_sync_config.storage_config.mmap_file_config.max_size": 16777216,
   "state_sync_config.storage_config.scope": "FullArchive",
-  "strk_fee_token_address": "0x1002",
+  "strk_fee_token_address": "0x0000000000000000000000000000000000000000000000000000000000001002",
   "validator_id": "0x64",
   "versioned_constants_overrides.invoke_tx_max_n_steps": 10000000,
   "versioned_constants_overrides.max_n_events": 1000,
