@@ -36,7 +36,7 @@ use crate::utils::{
     create_mempool_p2p_configs,
     create_state_sync_configs,
     send_account_txs,
-    BootstrapTxs,
+    DeployAndInvokeTxs,
     InvokeTxs,
     TestScenario,
 };
@@ -381,9 +381,13 @@ impl IntegrationTestManager {
         });
     }
 
-    pub async fn send_bootstrap_txs_and_verify(&mut self) {
-        self.test_and_verify(BootstrapTxs, DEFAULT_SENDER_ACCOUNT, BLOCK_TO_WAIT_FOR_BOOTSTRAP)
-            .await;
+    pub async fn send_deploy_and_invoke_txs_and_verify(&mut self) {
+        self.test_and_verify(
+            DeployAndInvokeTxs,
+            DEFAULT_SENDER_ACCOUNT,
+            BLOCK_TO_WAIT_FOR_BOOTSTRAP,
+        )
+        .await;
     }
 
     pub async fn send_invoke_txs_and_verify(&mut self, n_txs: usize, wait_for_block: BlockNumber) {
