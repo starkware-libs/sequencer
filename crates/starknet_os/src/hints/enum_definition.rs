@@ -117,6 +117,7 @@ use crate::hints::hint_implementation::execution::{
     tx_fee_data_availability_mode_deprecated,
     tx_max_fee,
     tx_nonce_data_availability_mode,
+    tx_nonce_data_availability_mode_deprecated,
     tx_paymaster_data,
     tx_paymaster_data_deprecated,
     tx_paymaster_data_len,
@@ -983,6 +984,11 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
     (
         TxNonceDataAvailabilityMode,
         tx_nonce_data_availability_mode,
+        "memory[ap] = to_felt_or_relocatable(tx.nonce_data_availability_mode)"
+    ),
+    (
+        TxNonceDataAvailabilityModeDeprecated,
+        tx_nonce_data_availability_mode_deprecated,
         "memory[ap] = to_felt_or_relocatable(0 if tx.version < 3 else \
          tx.nonce_data_availability_mode)"
     ),
