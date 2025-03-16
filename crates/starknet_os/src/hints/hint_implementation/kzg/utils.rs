@@ -4,9 +4,10 @@ use std::sync::LazyLock;
 
 use blockifier::utils::usize_from_u32;
 use c_kzg::{Blob, KzgCommitment, KzgSettings, BYTES_PER_FIELD_ELEMENT};
-use num_bigint::{BigInt, ParseBigIntError, Sign};
+use num_bigint::{BigInt, ParseBigIntError};
 use num_traits::{Num, One, Zero};
 use starknet_infra_utils::compile_time_cargo_manifest_dir;
+use starknet_types_core::felt::Felt;
 
 const BLOB_SUBGROUP_GENERATOR: &str =
     "39033254847818212395286706435128746857159659164139250548781411570340225835782";
@@ -159,7 +160,7 @@ pub(crate) fn fft(
     Ok(values)
 }
 
-pub(crate) fn split_commitment(commitment: &KzgCommitment) -> Result<(BigInt, BigInt), FftError> {
+pub(crate) fn split_commitment(commitment: &KzgCommitment) -> Result<(Felt, Felt), FftError> {
     // Ensure the input is 384 bits (48 bytes).
     if commitment.len() != COMMITMENT_BYTES_LENGTH {
         return Err(FftError::InvalidCommitmentByteLength(commitment.to_vec()));
@@ -171,7 +172,7 @@ pub(crate) fn split_commitment(commitment: &KzgCommitment) -> Result<(BigInt, Bi
     let low = &commitment_bytes[commitment_bytes_midpoint..];
     let high = &commitment_bytes[..commitment_bytes_midpoint];
 
-    Ok((BigInt::from_bytes_be(Sign::Plus, low), BigInt::from_bytes_be(Sign::Plus, high)))
+    Ok((Felt::from_bytes_be_slice(low), Felt::from_bytes_be_slice(high)))
 }
 
 fn polynomial_coefficients_to_blob(coefficients: Vec<BigInt>) -> Result<Vec<u8>, FftError> {
@@ -195,7 +196,7 @@ fn polynomial_coefficients_to_blob(coefficients: Vec<BigInt>) -> Result<Vec<u8>,
 
 pub(crate) fn polynomial_coefficients_to_kzg_commitment(
     coefficients: Vec<BigInt>,
-) -> Result<(BigInt, BigInt), FftError> {
+) -> Result<(Felt, Felt), FftError> {
     let blob = polynomial_coefficients_to_blob(coefficients)?;
     let commitment_bytes = blob_to_kzg_commitment(&Blob::from_bytes(&blob)?)?;
     split_commitment(&commitment_bytes)

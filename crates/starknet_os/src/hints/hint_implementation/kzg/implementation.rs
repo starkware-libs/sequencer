@@ -41,7 +41,7 @@ pub(crate) fn store_da_segment<S: StateReader>(
         }
     })?;
 
-    let kzg_commitments_bigints: Vec<(BigInt, BigInt)> = da_segment
+    let kzg_commitments: Vec<(Felt, Felt)> = da_segment
         .chunks(blob_length)
         .enumerate()
         .map(|(chunk_id, chunk)| {
@@ -51,10 +51,6 @@ pub(crate) fn store_da_segment<S: StateReader>(
         })
         .collect::<Result<_, _>>()?;
     log::debug!("Done computing KZG commitments.");
-    let kzg_commitments: Vec<(Felt, Felt)> = kzg_commitments_bigints
-        .into_iter()
-        .map(|bigint_pair| (bigint_pair.0.into(), bigint_pair.1.into()))
-        .collect();
 
     hint_processor.set_da_segment(da_segment)?;
 
