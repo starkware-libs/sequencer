@@ -11,6 +11,7 @@ use crate::hints::hint_implementation::aggregator::{
     get_full_output_from_input,
     get_os_output_for_inner_blocks,
     get_use_kzg_da_from_input,
+    set_state_update_pointers_to_none,
     write_da_segment,
 };
 use crate::hints::hint_implementation::block_context::{
@@ -126,6 +127,7 @@ use crate::hints::hint_implementation::kzg::implementation::store_da_segment;
 use crate::hints::hint_implementation::math::log2_ceil;
 use crate::hints::hint_implementation::os::{
     configure_kzg_manager,
+    init_state_update_pointer,
     initialize_class_hashes,
     initialize_state_changes,
     set_ap_to_new_block_hash,
@@ -175,11 +177,19 @@ use crate::hints::hint_implementation::stateful_compression::{
     compute_commitments_on_finalized_state_with_aliases,
     contract_address_le_max_for_compression,
     enter_scope_with_aliases,
+    guess_aliases_contract_storage_ptr,
+    guess_classes_ptr,
+    guess_contract_addr_storage_ptr,
+    guess_state_ptr,
     initialize_alias_counter,
     key_lt_min_alias_alloc_value,
     read_alias_counter,
     read_alias_from_key,
     update_alias_counter,
+    update_aliases_contract_to_storage_ptr,
+    update_classes_ptr,
+    update_contract_addr_to_storage_ptr,
+    update_state_ptr,
     write_next_alias_from_key,
 };
 use crate::hints::hint_implementation::stateless_compression::implementation::{
@@ -586,13 +596,14 @@ define_hint_enum!(
         enter_scope_with_aliases,
         indoc! {r#"from starkware.starknet.definitions.constants import ALIAS_CONTRACT_ADDRESS
 
-    # This hint shouldn't be whitelisted.
-    vm_enter_scope(dict(
-        aliases=execution_helper.storage_by_address[ALIAS_CONTRACT_ADDRESS],
-        execution_helper=execution_helper,
-        __dict_manager=__dict_manager,
-        os_input=os_input,
-    ))"#}
+# This hint shouldn't be whitelisted.
+vm_enter_scope(dict(
+    state_update_pointers=state_update_pointers,
+    aliases=execution_helper.storage_by_address[ALIAS_CONTRACT_ADDRESS],
+    execution_helper=execution_helper,
+    __dict_manager=__dict_manager,
+    os_input=os_input,
+))"#}
     ),
     (
         KeyLtMinAliasAllocValue,
@@ -639,6 +650,76 @@ define_hint_enum!(
         ComputeCommitmentsOnFinalizedStateWithAliases,
         compute_commitments_on_finalized_state_with_aliases,
         "commitment_info_by_address=execution_helper.compute_storage_commitments()"
+    ),
+    (
+        GuessContractAddrStoragePtr,
+        guess_contract_addr_storage_ptr,
+        r#"if state_update_pointers is None:
+    ids.squashed_contract_state_dict = segments.add()
+else:
+    ids.squashed_contract_state_dict = (
+        state_update_pointers.get_contract_storage_ptr(
+            contract_address=ids.state_changes.key
+        )
+    )"#
+    ),
+    (
+        UpdateContractAddrToStoragePtr,
+        update_contract_addr_to_storage_ptr,
+        "if state_update_pointers is not None:
+    state_update_pointers.contract_address_to_storage_ptr[ids.state_changes.key] = (
+        ids.squashed_contract_state_dict_end.address_,
+    )"
+    ),
+    (
+        GuessAliasesContractStoragePtr,
+        guess_aliases_contract_storage_ptr,
+        r#"if state_update_pointers is None:
+    ids.squashed_aliases_storage_start = segments.add()
+else:
+    ids.squashed_aliases_storage_start = state_update_pointers.get_contract_storage_ptr(
+        ids.ALIAS_CONTRACT_ADDRESS
+    )"#
+    ),
+    (
+        UpdateAliasesContractToStoragePtr,
+        update_aliases_contract_to_storage_ptr,
+        "if state_update_pointers is not None:
+    state_update_pointers.contract_address_to_storage_ptr[ids.ALIAS_CONTRACT_ADDRESS] = (
+        ids.squashed_aliases_storage_end.address_,
+    )"
+    ),
+    (
+        GuessStatePtr,
+        guess_state_ptr,
+        "if state_update_pointers is None:
+    ids.final_squashed_contract_state_changes_start = segments.add()
+else:
+    ids.final_squashed_contract_state_changes_start = (
+        state_update_pointers.state_tree_ptr
+    )"
+    ),
+    (
+        UpdateStatePtr,
+        update_state_ptr,
+        "if state_update_pointers is not None:
+    state_update_pointers.state_tree_ptr = (
+        ids.final_squashed_contract_state_changes_end.address_,
+    )"
+    ),
+    (
+        GuessClassesPtr,
+        guess_classes_ptr,
+        "if state_update_pointers is None:
+    ids.squashed_dict = segments.add()
+else:
+    ids.squashed_dict = state_update_pointers.class_tree_ptr"
+    ),
+    (
+        UpdateClassesPtr,
+        update_classes_ptr,
+        "if state_update_pointers is not None:
+    state_update_pointers.class_tree_ptr = ids.squashed_dict_end.address_"
     ),
     (
         DictionaryFromBucket,
@@ -1593,7 +1674,6 @@ memory[ap] = 1 if case != 'both' else 0"#
     ),
     (OsLoggerExitSyscall, os_logger_exit_syscall, "exit_syscall()"),
     (IsOnCurve, is_on_curve, "ids.is_on_curve = (y * y) % SECP_P == y_square_int"),
-    // TODO(Meshi): Update implementation to reflect changes in hint.
     (
         StarknetOsInput,
         starknet_os_input,
@@ -1601,6 +1681,13 @@ memory[ap] = 1 if case != 'both' else 0"#
         from starkware.starknet.core.os.os_input import StarknetOsInput
 
         os_input = StarknetOsInput.load(data=program_input)"#
+        }
+    ),
+    (
+        InitStateUpdatePointers,
+        init_state_update_pointer,
+        indoc! {r#"from starkware.starknet.core.os.execution_helper import StateUpdatePointers
+        state_update_pointers = StateUpdatePointers(segments=segments)"#
         }
     ),
     (
@@ -1693,6 +1780,11 @@ if da_path is not None:
         GetUseKzgDaFromInput,
         get_use_kzg_da_from_input,
         r#"memory[ap] = to_felt_or_relocatable(program_input["use_kzg_da"])"#
+    ),
+    (
+        SetStateUpdatePointersToNone,
+        set_state_update_pointers_to_none,
+        r#"state_update_pointers = None"#
     )
 );
 
