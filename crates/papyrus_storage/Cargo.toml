@@ -31,6 +31,7 @@ num-bigint.workspace = true
 page_size.workspace = true
 papyrus_common.workspace = true
 papyrus_config.workspace = true
+papyrus_proc_helper.workspace = true
 papyrus_proc_macros.workspace = true
 parity-scale-codec.workspace = true
 primitive-types.workspace = true
@@ -70,6 +71,10 @@ tempfile = { workspace = true }
 test-case.workspace = true
 test-log.workspace = true
 tokio = { workspace = true, features = ["full", "sync"] }
+
+[package.metadata.cargo-machete]
+# `papyrus_proc_helper` is used in `latency_histogram` but is falsely detected as unused.
+ignored = ["papyrus_proc_helper"]
 
 [lints]
 workspace = true

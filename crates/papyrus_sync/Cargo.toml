@@ -18,10 +18,10 @@ futures-util.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
 itertools.workspace = true
 lru.workspace = true
-metrics.workspace = true
 papyrus_base_layer.workspace = true
 papyrus_common.workspace = true
 papyrus_config.workspace = true
+papyrus_proc_helper.workspace = true
 papyrus_proc_macros.workspace = true
 papyrus_storage.workspace = true
 reqwest = { workspace = true, features = ["blocking", "json"] }
@@ -48,8 +48,8 @@ starknet_client = { workspace = true, features = ["testing"] }
 tokio-stream.workspace = true
 
 [package.metadata.cargo-machete]
-# `metrics` is used in `latency_histogram` but is falsely detected as unused.
-ignored = ["metrics"]
+# `papyrus_proc_helper` is used in `latency_histogram` but is falsely detected as unused.
+ignored = ["papyrus_proc_helper"]
 
 [lints]
 workspace = true

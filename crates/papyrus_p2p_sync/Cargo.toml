@@ -12,10 +12,10 @@ chrono.workspace = true
 futures.workspace = true
 indexmap.workspace = true
 lazy_static.workspace = true
-metrics.workspace = true
 papyrus_common.workspace = true
 papyrus_config.workspace = true
 papyrus_network.workspace = true
+papyrus_proc_helper.workspace = true
 papyrus_proc_macros.workspace = true
 papyrus_protobuf.workspace = true
 papyrus_storage.workspace = true
@@ -46,9 +46,9 @@ starknet_class_manager_types = { workspace = true, features = ["testing"] }
 static_assertions.workspace = true
 tokio = { workspace = true, features = ["test-util"] }
 
-# The `metrics` crate is used by `latency_histogram` proc macro, which is used in this crate.
 [package.metadata.cargo-machete]
-ignored = ["metrics"]
+# `papyrus_proc_helper` is used in `latency_histogram` but is falsely detected as unused.
+ignored = ["papyrus_proc_helper"]
 
 [lints]
 workspace = true
