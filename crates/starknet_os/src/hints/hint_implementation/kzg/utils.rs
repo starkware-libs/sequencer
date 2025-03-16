@@ -27,6 +27,11 @@ pub enum FftError {
     InvalidBlobSize(usize),
     #[error("Invalid coefficients length (must be a power of two): {0}.")]
     InvalidCoeffsLength(usize),
+    #[error(
+        "Invalid byte length: commitment {0:?} should have byte length \
+         {COMMITMENT_BYTES_LENGTH}, got {}.", .0.len()
+    )]
+    InvalidCommitmentByteLength(Vec<u8>),
     #[error(transparent)]
     ParseBigInt(#[from] ParseBigIntError),
     #[error("Commitment '{0}' is more than {COMMITMENT_BITS} bits.")]
@@ -191,15 +196,15 @@ fn polynomial_coefficients_to_blob(coefficients: Vec<BigInt>) -> Result<Vec<u8>,
     serialize_blob(&fft_result)
 }
 
-fn polynomial_coefficients_to_kzg_commitment(
+#[allow(dead_code)]
+pub(crate) fn polynomial_coefficients_to_kzg_commitment(
     coefficients: Vec<BigInt>,
 ) -> Result<(BigInt, BigInt), FftError> {
     let blob = polynomial_coefficients_to_blob(coefficients)?;
-    let commitment_bytes =
-        blob_to_kzg_commitment(&Blob::from_bytes(&blob).map_err(FftError::CKzgError)?)
-            .map_err(FftError::CKzgError)?;
-    assert_eq!(commitment_bytes.len(), COMMITMENT_BYTES_LENGTH, "Bad commitment bytes length.");
-    let kzg_bigint = BigInt::from_str_radix(&commitment_bytes.as_hex_string(), 16)
-        .map_err(FftError::ParseBigIntError)?;
-    Ok(split_commitment(kzg_bigint))
+    let commitment_bytes = blob_to_kzg_commitment(&Blob::from_bytes(&blob)?)?;
+    if commitment_bytes.len() != COMMITMENT_BYTES_LENGTH {
+        return Err(FftError::InvalidCommitmentByteLength(commitment_bytes.to_vec()));
+    }
+    let kzg_bigint = BigInt::from_str_radix(&commitment_bytes.as_hex_string(), 16)?;
+    split_commitment(&kzg_bigint)
 }
