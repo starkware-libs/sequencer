@@ -8047,6 +8047,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "papyrus_proc_helper"
+version = "0.0.0"
+
+[[package]]
 name = "papyrus_proc_macros"
 version = "0.0.0"
 dependencies = [

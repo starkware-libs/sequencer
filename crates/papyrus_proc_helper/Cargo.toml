@@ -1,0 +1,12 @@
+[package]
+name = "papyrus_proc_helper"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+description = "Helper carate for procedural macros for the Papyrus node"
+
+[dependencies]
+
+[lints]
+workspace = true

@@ -42,6 +42,7 @@ const Configuration = {
             'papyrus_network_types',
             'papyrus_node',
             'papyrus_p2p_sync',
+            'papyrus_proc_helper',
             'papyrus_proc_macros',
             'papyrus_protobuf',
             'papyrus_rpc',
