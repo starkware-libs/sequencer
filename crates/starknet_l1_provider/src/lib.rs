@@ -95,32 +95,34 @@ pub struct L1ProviderConfig {
     /// **WARNING**: Take care when setting this value, it must be no higher than the
     /// LastStateUpdate height at the L1 Height that the L1Scraper is initialized on.
     pub provider_startup_height_override: Option<BlockNumber>,
-    pub bootstrap_catch_up_height: BlockNumber,
+    /// In most cases this can remain None: the provider defaults to using the sync height at
+    /// startup.
+    pub bootstrap_catch_up_height_override: Option<BlockNumber>,
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
     pub startup_sync_sleep_retry_interval: Duration,
 }
 
 impl SerializeConfig for L1ProviderConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = BTreeMap::from([
-            ser_param(
-                "bootstrap_catch_up_height",
-                &self.bootstrap_catch_up_height,
-                "Height at which the provider should catch up to the bootstrapper.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "startup_sync_sleep_retry_interval",
-                &self.startup_sync_sleep_retry_interval.as_secs_f64(),
-                "Interval in seconds between each retry of syncing with L2 during startup.",
-                ParamPrivacyInput::Public,
-            ),
-        ]);
+        let mut dump = BTreeMap::from([ser_param(
+            "startup_sync_sleep_retry_interval",
+            &self.startup_sync_sleep_retry_interval.as_secs_f64(),
+            "Interval in seconds between each retry of syncing with L2 during startup.",
+            ParamPrivacyInput::Public,
+        )]);
+
         dump.extend(ser_optional_param(
             &self.provider_startup_height_override,
             Default::default(),
             "provider_startup_height_override",
             "Override height at which the provider should start",
+            ParamPrivacyInput::Public,
+        ));
+        dump.extend(ser_optional_param(
+            &self.bootstrap_catch_up_height_override,
+            Default::default(),
+            "bootstrap_catch_up_height_override",
+            "Override height at which the provider should catch up to the bootstrapper.",
             ParamPrivacyInput::Public,
         ));
         dump
