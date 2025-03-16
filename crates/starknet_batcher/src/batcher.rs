@@ -572,7 +572,7 @@ impl Batcher {
             .await;
         l1_provider_result.unwrap_or_else(|err| match err {
             L1ProviderClientError::L1ProviderError(L1ProviderError::UnexpectedHeight {
-                expected,
+                expected_height: expected,
                 got,
             }) => {
                 error!(

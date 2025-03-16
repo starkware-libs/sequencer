@@ -394,8 +394,10 @@ async fn l1_handler_provider_not_ready(#[case] proposer: bool) {
     let mut deps = MockDependencies::default();
     deps.l1_provider_client.expect_start_block().returning(|_, _| {
         // The heights are not important for the test.
-        let err =
-            L1ProviderError::UnexpectedHeight { expected: INITIAL_HEIGHT, got: INITIAL_HEIGHT };
+        let err = L1ProviderError::UnexpectedHeight {
+            expected_height: INITIAL_HEIGHT,
+            got: INITIAL_HEIGHT,
+        };
         Err(err.into())
     });
     let mut batcher = create_batcher(deps).await;
@@ -771,7 +773,7 @@ async fn proposal_startup_failure_allows_new_proposals() {
     );
     let mut l1_provider_client = MockL1ProviderClient::new();
     let error = L1ProviderClientError::L1ProviderError(L1ProviderError::UnexpectedHeight {
-        expected: BlockNumber(1),
+        expected_height: BlockNumber(1),
         got: BlockNumber(0),
     });
     l1_provider_client.expect_start_block().once().return_once(|_, _| Err(error));
