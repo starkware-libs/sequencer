@@ -19,11 +19,17 @@ pub struct MonitoringEndpointConfig {
     pub ip: IpAddr,
     pub port: u16,
     pub collect_metrics: bool,
+    pub collect_profiling_metrics: bool,
 }
 
 impl Default for MonitoringEndpointConfig {
     fn default() -> Self {
-        Self { ip: DEFAULT_IP, port: DEFAULT_PORT, collect_metrics: true }
+        Self {
+            ip: DEFAULT_IP,
+            port: DEFAULT_PORT,
+            collect_metrics: true,
+            collect_profiling_metrics: true,
+        }
     }
 }
 
@@ -46,6 +52,12 @@ impl SerializeConfig for MonitoringEndpointConfig {
                 "collect_metrics",
                 &self.collect_metrics,
                 "If true, collect and return metrics in the monitoring endpoint.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "collect_profiling_metrics",
+                &self.collect_profiling_metrics,
+                "If true, collect and return profiling metrics in the monitoring endpoint.",
                 ParamPrivacyInput::Public,
             ),
         ])
