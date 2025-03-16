@@ -14,6 +14,7 @@ pub(crate) const BLS_PRIME: &str =
     "52435875175126190479447740508185965837690552500527637822603658699938581184513";
 pub(crate) const COMMITMENT_BITS: usize = 384;
 const COMMITMENT_BITS_MIDPOINT: usize = COMMITMENT_BITS / 2;
+const COMMITMENT_BYTES_LENGTH: usize = 48;
 const FIELD_ELEMENTS_PER_BLOB: usize = 4096;
 
 #[derive(Debug, thiserror::Error)]
@@ -41,7 +42,6 @@ static KZG_SETTINGS: LazyLock<KzgSettings> = LazyLock::new(|| {
         .unwrap_or_else(|error| panic!("Failed to load trusted setup file from {path:?}: {error}."))
 });
 
-#[allow(dead_code)]
 fn blob_to_kzg_commitment(blob: &Blob) -> Result<KzgCommitment, FftError> {
     Ok(KzgCommitment::blob_to_kzg_commitment(blob, &KZG_SETTINGS)?)
 }
@@ -158,7 +158,6 @@ pub(crate) fn fft(
     Ok(values)
 }
 
-#[allow(dead_code)]
 pub(crate) fn split_commitment(num: &BigInt) -> Result<(BigInt, BigInt), FftError> {
     // Ensure the input is 384 bits (48 bytes).
     if num != &(num & &((BigInt::one() << COMMITMENT_BITS) - 1)) {
@@ -173,7 +172,6 @@ pub(crate) fn split_commitment(num: &BigInt) -> Result<(BigInt, BigInt), FftErro
     Ok((low, high))
 }
 
-#[allow(dead_code)]
 fn polynomial_coefficients_to_blob(coefficients: Vec<BigInt>) -> Result<Vec<u8>, FftError> {
     if coefficients.len() > FIELD_ELEMENTS_PER_BLOB {
         return Err(FftError::TooManyCoefficients(coefficients.len()));
@@ -191,4 +189,17 @@ fn polynomial_coefficients_to_blob(coefficients: Vec<BigInt>) -> Result<Vec<u8>,
 
     // Serialize the FFT result into a blob.
     serialize_blob(&fft_result)
+}
+
+fn polynomial_coefficients_to_kzg_commitment(
+    coefficients: Vec<BigInt>,
+) -> Result<(BigInt, BigInt), FftError> {
+    let blob = polynomial_coefficients_to_blob(coefficients)?;
+    let commitment_bytes =
+        blob_to_kzg_commitment(&Blob::from_bytes(&blob).map_err(FftError::CKzgError)?)
+            .map_err(FftError::CKzgError)?;
+    assert_eq!(commitment_bytes.len(), COMMITMENT_BYTES_LENGTH, "Bad commitment bytes length.");
+    let kzg_bigint = BigInt::from_str_radix(&commitment_bytes.as_hex_string(), 16)
+        .map_err(FftError::ParseBigIntError)?;
+    Ok(split_commitment(kzg_bigint))
 }
