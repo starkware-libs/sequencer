@@ -57,6 +57,7 @@ pub struct NodeSetup {
     executables: Vec<ExecutableSetup>,
     batcher_index: usize,
     http_server_index: usize,
+    state_sync_index: usize,
 }
 
 impl NodeSetup {
@@ -64,6 +65,7 @@ impl NodeSetup {
         executables: Vec<ExecutableSetup>,
         batcher_index: usize,
         http_server_index: usize,
+        state_sync_index: usize,
     ) -> Self {
         let len = executables.len();
 
@@ -79,8 +81,9 @@ impl NodeSetup {
 
         validate_index(batcher_index, len, "Batcher");
         validate_index(http_server_index, len, "HTTP server");
+        validate_index(state_sync_index, len, "State sync");
 
-        Self { executables, batcher_index, http_server_index }
+        Self { executables, batcher_index, http_server_index, state_sync_index }
     }
 
     async fn send_rpc_tx_fn(&self, rpc_tx: RpcTransaction) -> TransactionHash {
@@ -89,6 +92,10 @@ impl NodeSetup {
 
     pub fn batcher_monitoring_client(&self) -> &MonitoringClient {
         &self.executables[self.batcher_index].monitoring_client
+    }
+
+    pub fn state_sync_monitoring_client(&self) -> &MonitoringClient {
+        &self.executables[self.state_sync_index].monitoring_client
     }
 
     pub fn get_executables(&self) -> &Vec<ExecutableSetup> {
@@ -123,6 +130,10 @@ impl NodeSetup {
 
     pub fn get_http_server_index(&self) -> usize {
         self.http_server_index
+    }
+
+    pub fn get_state_sync_index(&self) -> usize {
+        self.state_sync_index
     }
 
     pub fn run(self) -> RunningNode {
@@ -629,6 +640,7 @@ pub async fn get_sequencer_setup_configs(
         let mut executables = Vec::new();
         let batcher_index = node_component_config.get_batcher_index();
         let http_server_index = node_component_config.get_http_server_index();
+        let state_sync_index = node_component_config.get_state_sync_index();
 
         for (executable_index, executable_component_config) in
             node_component_config.into_iter().enumerate()
@@ -666,7 +678,7 @@ pub async fn get_sequencer_setup_configs(
                 .await,
             );
         }
-        nodes.push(NodeSetup::new(executables, batcher_index, http_server_index));
+        nodes.push(NodeSetup::new(executables, batcher_index, http_server_index, state_sync_index));
     }
 
     (nodes, node_indices)
