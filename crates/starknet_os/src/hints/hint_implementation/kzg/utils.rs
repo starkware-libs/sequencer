@@ -12,6 +12,8 @@ const BLOB_SUBGROUP_GENERATOR: &str =
     "39033254847818212395286706435128746857159659164139250548781411570340225835782";
 pub(crate) const BLS_PRIME: &str =
     "52435875175126190479447740508185965837690552500527637822603658699938581184513";
+const COMMITMENT_BITS: usize = 384;
+const COMMITMENT_BITS_MIDPOINT: usize = COMMITMENT_BITS / 2;
 const FIELD_ELEMENTS_PER_BLOB: usize = 4096;
 
 #[derive(Debug, thiserror::Error)]
@@ -152,6 +154,19 @@ pub(crate) fn fft(
     }
 
     Ok(values)
+}
+
+#[allow(dead_code)]
+pub(crate) fn split_commitment(num: BigInt) -> (BigInt, BigInt) {
+    // Ensure the input is 384 bits (48 bytes)
+    let num = num & &((BigInt::from(1) << COMMITMENT_BITS) - 1);
+
+    // Split the number
+    let mask = (BigInt::from(1) << COMMITMENT_BITS_MIDPOINT) - 1;
+    let low = &num & &mask;
+    let high = &num >> COMMITMENT_BITS_MIDPOINT;
+
+    (low, high)
 }
 
 #[allow(dead_code)]
