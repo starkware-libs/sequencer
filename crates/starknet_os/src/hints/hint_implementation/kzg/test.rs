@@ -1,17 +1,11 @@
 use std::iter::repeat_with;
 
-use assert_matches::assert_matches;
+use c_kzg::KzgCommitment;
 use num_bigint::BigInt;
 use num_traits::{Num, One, Zero};
 use rstest::rstest;
 
-use crate::hints::hint_implementation::kzg::utils::{
-    fft,
-    split_commitment,
-    FftError,
-    BLS_PRIME,
-    COMMITMENT_BITS,
-};
+use crate::hints::hint_implementation::kzg::utils::{fft, split_commitment, BLS_PRIME};
 
 const GENERATOR: &str =
     "39033254847818212395286706435128746857159659164139250548781411570340225835782";
@@ -104,14 +98,6 @@ fn test_split_commitment_function(
     #[case] commitment: BigInt,
     #[case] expected_output: (BigInt, BigInt),
 ) {
+    let commitment = KzgCommitment::from_bytes(&commitment.to_bytes_be().1).unwrap();
     assert_eq!(split_commitment(&commitment).unwrap(), expected_output);
-}
-
-#[test]
-fn test_split_commitment_overflow() {
-    let invalid_commitment = BigInt::one() << COMMITMENT_BITS;
-    assert_matches!(
-        split_commitment(&invalid_commitment).unwrap_err(),
-        FftError::TooBigToSplit(commitment) if commitment == invalid_commitment
-    );
 }
