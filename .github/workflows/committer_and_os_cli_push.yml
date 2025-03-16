@@ -17,7 +17,6 @@ on:
       - edited
     paths:
       - '.github/workflows/committer_and_os_cli_push.yml'
-      - 'scripts/dependencies.sh'
       - 'build_native_in_docker.sh'
       - 'docker-ci/images/sequencer-ci.Dockerfile'
       - 'Cargo.toml'
@@ -27,6 +26,8 @@ on:
       - 'crates/starknet_committer/**'
       - 'crates/starknet_os/**'
       - 'crates/starknet_patricia/**'
+      - 'rust-toolchain.toml'
+      - 'scripts/dependencies.sh'
 
 env:
   RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"

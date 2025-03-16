@@ -33,6 +33,7 @@ on:
       - 'crates/papyrus_storage/**'
       - 'crates/starknet_api/**'
       - 'crates/starknet_sierra_multicompile/**'
+      - 'rust-toolchain.toml'
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 # Also, create different concurrency groups for different pushed commits, on push events.

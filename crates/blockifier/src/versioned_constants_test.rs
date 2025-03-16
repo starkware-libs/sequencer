@@ -86,14 +86,15 @@ fn test_string_inside_composed_field() {
 
 fn check_constants_serde_error(json_data: &str, expected_error_message: &str) {
     let mut json_data_raw: IndexMap<String, Value> = serde_json::from_str(json_data).unwrap();
-    json_data_raw.insert("validate_block_number_rounding".to_string(), 0.into());
-    json_data_raw.insert("validate_timestamp_rounding".to_string(), 0.into());
+    json_data_raw.insert("validate_block_number_rounding".into(), 0.into());
+    json_data_raw.insert("validate_timestamp_rounding".into(), 0.into());
     json_data_raw.insert(
-        "os_contract_addresses".to_string(),
+        "os_contract_addresses".into(),
         serde_json::to_value(OsContractAddresses::default()).unwrap(),
     );
-    json_data_raw.insert("v1_bound_accounts_cairo0".to_string(), serde_json::Value::Array(vec![]));
-    json_data_raw.insert("v1_bound_accounts_cairo1".to_string(), serde_json::Value::Array(vec![]));
+    json_data_raw.insert("v1_bound_accounts_cairo0".into(), serde_json::Value::Array(vec![]));
+    json_data_raw.insert("v1_bound_accounts_cairo1".into(), serde_json::Value::Array(vec![]));
+    json_data_raw.insert("v1_bound_accounts_max_tip".into(), "0x0".into());
 
     let json_data = &serde_json::to_string(&json_data_raw).unwrap();
 
@@ -194,15 +195,24 @@ fn test_syscall_gas_cost_calculation() {
     let versioned_constants = VersionedConstants::latest_constants().clone();
 
     assert_eq!(
-        versioned_constants.get_syscall_gas_cost(&SyscallSelector::CallContract),
+        versioned_constants.get_syscall_gas_cost(&SyscallSelector::CallContract).base,
         EXPECTED_CALL_CONTRACT_GAS_COST
     );
     assert_eq!(
-        versioned_constants.get_syscall_gas_cost(&SyscallSelector::Secp256k1Mul),
+        versioned_constants.get_syscall_gas_cost(&SyscallSelector::Secp256k1Mul).base,
         EXPECTED_SECP256K1MUL_GAS_COST
     );
     assert_eq!(
-        versioned_constants.get_syscall_gas_cost(&SyscallSelector::Sha256ProcessBlock),
+        versioned_constants.get_syscall_gas_cost(&SyscallSelector::Sha256ProcessBlock).base,
         EXPECTED_SHA256PROCESSBLOCK_GAS_COST
     );
+}
+
+/// Linear gas cost factor of deploy syscall should not be trivial.
+#[test]
+fn test_call_data_factor_gas_cost_calculation() {
+    assert!(
+        VersionedConstants::latest_constants().os_constants.gas_costs.syscalls.deploy.linear_factor
+            > 0
+    )
 }

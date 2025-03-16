@@ -27,7 +27,7 @@ use starknet_types_core::felt::{Felt, FromStrError};
 use thiserror::Error;
 
 use crate::abi::sierra_types::SierraTypeError;
-use crate::blockifier_versioned_constants::GasCosts;
+use crate::blockifier_versioned_constants::{GasCosts, SyscallGasCost};
 use crate::execution::common_hints::{ExecutionMode, HintExecutionResult};
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::{
@@ -82,12 +82,12 @@ use crate::execution::syscalls::{
 use crate::state::errors::StateError;
 use crate::state::state_api::State;
 use crate::transaction::objects::{CurrentTransactionInfo, TransactionInfo};
+use crate::utils::u64_from_usize;
 
-#[derive(Default)]
+#[derive(Clone, Debug, Default)]
 pub struct SyscallUsage {
     pub call_count: usize,
-    #[allow(dead_code)]
-    linear_factor: usize,
+    pub linear_factor: usize,
 }
 
 impl SyscallUsage {
@@ -286,10 +286,6 @@ impl<'a> SyscallHintProcessor<'a> {
         self.base.call.caller_address
     }
 
-    pub fn class_hash(&self) -> ClassHash {
-        self.base.call.class_hash
-    }
-
     pub fn entry_point_selector(&self) -> EntryPointSelector {
         self.base.call.entry_point_selector
     }
@@ -484,7 +480,7 @@ impl<'a> SyscallHintProcessor<'a> {
         &mut self,
         vm: &mut VirtualMachine,
         execute_callback: ExecuteCallback,
-        syscall_gas_cost: u64,
+        syscall_gas_cost: SyscallGasCost,
     ) -> HintExecutionResult
     where
         Request: SyscallRequest + std::fmt::Debug,
@@ -496,12 +492,21 @@ impl<'a> SyscallHintProcessor<'a> {
             &mut u64, // Remaining gas.
         ) -> SyscallResult<Response>,
     {
-        // Refund `SYSCALL_BASE_GAS_COST` as it was pre-charged.
-        let required_gas =
-            syscall_gas_cost - self.base.context.gas_costs().base.syscall_base_gas_cost;
-
         let SyscallRequestWrapper { gas_counter, request } =
             SyscallRequestWrapper::<Request>::read(vm, &mut self.syscall_ptr)?;
+
+        let syscall_gas_cost =
+            syscall_gas_cost.get_syscall_cost(u64_from_usize(request.get_linear_factor_length()));
+        let syscall_base_cost = self.base.context.gas_costs().base.syscall_base_gas_cost;
+
+        // Sanity check for preventing underflow.
+        assert!(
+            syscall_gas_cost >= syscall_base_cost,
+            "Syscall gas cost must be greater than base syscall gas cost"
+        );
+
+        // Refund `SYSCALL_BASE_GAS_COST` as it was pre-charged.
+        let required_gas = syscall_gas_cost - syscall_base_cost;
 
         if gas_counter < required_gas {
             //  Out of gas failure.
@@ -558,6 +563,14 @@ impl<'a> SyscallHintProcessor<'a> {
 
     fn increment_syscall_count(&mut self, selector: &SyscallSelector) {
         self.increment_syscall_count_by(selector, 1);
+    }
+
+    pub fn increment_linear_factor_by(&mut self, selector: &SyscallSelector, n: usize) {
+        let syscall_usage = self
+            .syscalls_usage
+            .get_mut(selector)
+            .expect("syscalls_usage entry must be initialized before incrementing linear factor");
+        syscall_usage.linear_factor += n;
     }
 
     fn allocate_execution_info_segment(

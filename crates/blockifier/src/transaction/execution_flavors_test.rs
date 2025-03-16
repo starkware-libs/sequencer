@@ -34,7 +34,7 @@ use crate::state::cached_state::CachedState;
 use crate::state::state_api::StateReader;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{get_syscall_resources, get_tx_resources, BALANCE};
+use crate::test_utils::{get_const_syscall_resources, get_tx_resources, BALANCE};
 use crate::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use crate::transaction::errors::{
     ResourceBoundsError,
@@ -399,7 +399,7 @@ fn test_simulate_validate_pre_validate_not_charge_fee(
     assert!(
         base_gas
             > u64_from_usize(
-                get_syscall_resources(SyscallSelector::CallContract).n_steps
+                get_const_syscall_resources(SyscallSelector::CallContract).n_steps
                     + get_tx_resources(TransactionType::InvokeFunction).n_steps
             )
             .into()
@@ -644,7 +644,7 @@ fn test_simulate_validate_charge_fee_mid_execution(
     let (limited_gas_used, limited_fee) = gas_and_fee(8195_u32.into(), validate, &fee_type);
     let (unlimited_gas_used, unlimited_fee) = gas_and_fee(
         u64_from_usize(
-            get_syscall_resources(SyscallSelector::CallContract).n_steps
+            get_const_syscall_resources(SyscallSelector::CallContract).n_steps
                 + get_tx_resources(TransactionType::InvokeFunction).n_steps
                 + 5730,
         )
@@ -787,7 +787,9 @@ fn test_simulate_validate_charge_fee_post_execution(
         gas_and_fee((invoke_steps + 4130).into(), validate, &fee_type);
     let (unlimited_gas_used, unlimited_fee) = gas_and_fee(
         (invoke_steps
-            + u64_from_usize(get_syscall_resources(SyscallSelector::CallContract).n_steps + 4130))
+            + u64_from_usize(
+                get_const_syscall_resources(SyscallSelector::CallContract).n_steps + 4130,
+            ))
         .into(),
         validate,
         &fee_type,
@@ -828,7 +830,7 @@ fn test_simulate_validate_charge_fee_post_execution(
     // Second scenario: balance too low.
     // Execute a transfer, and make sure we get the expected result.
     let (success_actual_gas, actual_fee) = gas_and_fee(
-        (u64_from_usize(get_syscall_resources(SyscallSelector::CallContract).n_steps)
+        (u64_from_usize(get_const_syscall_resources(SyscallSelector::CallContract).n_steps)
             + invoke_steps
             + 4298)
             .into(),
