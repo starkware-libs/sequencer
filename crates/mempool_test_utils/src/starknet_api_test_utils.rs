@@ -14,6 +14,7 @@ use starknet_api::block::GasPrice;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::execution_resources::GasAmount;
+use starknet_api::hash::StarkHash;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::state::SierraContractClass;
 use starknet_api::test_utils::declare::rpc_declare_tx;
@@ -30,6 +31,7 @@ use starknet_api::transaction::fields::{
     TransactionSignature,
     ValidResourceBounds,
 };
+use starknet_api::transaction::L1HandlerTransaction;
 use starknet_api::{
     calldata,
     declare_tx_args,
@@ -52,6 +54,12 @@ pub const VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
 #[allow(clippy::as_conversions)]
 pub const VALID_ACCOUNT_BALANCE: Fee =
     Fee(VALID_L2_GAS_MAX_AMOUNT as u128 * VALID_L2_GAS_MAX_PRICE_PER_UNIT * 1000);
+
+// Default funded account, there are more fixed funded accounts,
+// see https://github.com/foundry-rs/foundry/tree/master/crates/anvil.
+// This address is the sender address of messages sent to L2 by Anvil.
+pub const DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS: StarkHash =
+    StarkHash::from_hex_unchecked("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
 
 // Utils.
 
@@ -154,9 +162,41 @@ pub type AccountId = usize;
 
 type SharedNonceManager = Rc<RefCell<NonceManager>>;
 
+#[derive(Default)]
+struct L1HandlerTransactionGenerator {
+    tx_number: usize,
+}
+
+impl L1HandlerTransactionGenerator {
+    fn create_l1_handler_tx(&mut self) -> L1HandlerTransaction {
+        self.tx_number += 1;
+        create_l1_handler_tx()
+    }
+}
+
+/// Creates an L1 handler transaction calling the "l1_handler_set_value" entry point in
+/// [TestContract](FeatureContract::TestContract). Used for flow test.
+pub fn create_l1_handler_tx() -> L1HandlerTransaction {
+    // TODO(Arni): Get test contract from test setup.
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+
+    L1HandlerTransaction {
+        contract_address: test_contract.get_instance_address(0),
+        // TODO(Arni): Consider saving this value as a lazy constant.
+        entry_point_selector: selector_from_name("l1_handler_set_value"),
+        calldata: calldata![
+            DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS,
+            // Arbitrary key and value.
+            felt!("0x876"), // key
+            felt!("0x44")   // value
+        ],
+        ..Default::default()
+    }
+}
+
 // TODO(Yair): Separate MultiAccountTransactionGenerator to phases:
-// 1. Setup phase - register erc20 contract and initialy deployed account with some balance (produce
-//    the state diff that represents the initial state so it can be used in the test).
+// 1. Setup phase - register erc20 contract and initially deployed account with some balance
+//    (produce the state diff that represents the initial state so it can be used in the test).
 // 2. Execution phase - generate transactions.
 
 // TODO(Yair): Add optional StateReader and assert that the state supports each operation (e.g.
@@ -203,9 +243,11 @@ type SharedNonceManager = Rc<RefCell<NonceManager>>;
 pub struct MultiAccountTransactionGenerator {
     // Invariant: coupled with the nonce manager.
     account_tx_generators: Vec<AccountTransactionGenerator>,
-    // Invariant: nonces managed internally thorugh `generate` API of the account transaction
+    // Invariant: nonces managed internally through `generate` API of the account transaction
     // generator.
     nonce_manager: SharedNonceManager,
+    // Holds the number of sent L1 handler transactions.
+    l1_handler_tx_generator: L1HandlerTransactionGenerator,
 }
 
 impl MultiAccountTransactionGenerator {
@@ -224,8 +266,10 @@ impl MultiAccountTransactionGenerator {
                 contract_address_salt: tx_gen.contract_address_salt,
             })
             .collect();
+        let l1_handler_tx_generator =
+            L1HandlerTransactionGenerator { tx_number: self.l1_handler_tx_generator.tx_number };
 
-        Self { account_tx_generators, nonce_manager }
+        Self { account_tx_generators, nonce_manager, l1_handler_tx_generator }
     }
 
     /// Registers a new account with the given contract, assuming it is already deployed.
@@ -303,6 +347,14 @@ impl MultiAccountTransactionGenerator {
             .filter_map(|tx_gen| if !tx_gen.is_deployed() { Some(&tx_gen.account) } else { None })
             .copied()
             .collect()
+    }
+
+    pub fn create_l1_handler_tx(&mut self) -> L1HandlerTransaction {
+        self.l1_handler_tx_generator.create_l1_handler_tx()
+    }
+
+    pub fn n_l1_txs(&self) -> usize {
+        self.l1_handler_tx_generator.tx_number
     }
 }
 
