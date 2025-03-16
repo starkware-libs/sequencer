@@ -1900,12 +1900,10 @@ dependencies = [
 name = "blockifier_test_utils"
 version = "0.0.0"
 dependencies = [
- "cached",
  "cairo-lang-starknet-classes",
  "itertools 0.12.1",
  "pretty_assertions",
  "rstest",
- "serde",
  "serde_json",
  "starknet-types-core",
  "starknet_api",
@@ -11250,6 +11248,7 @@ name = "starknet_infra_utils"
 version = "0.0.0"
 dependencies = [
  "assert-json-diff",
+ "cached",
  "colored 3.0.0",
  "nix 0.20.2",
  "pretty_assertions",
@@ -11257,6 +11256,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "toml",
  "tracing",
  "tracing-subscriber",
 ]
