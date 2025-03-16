@@ -5,12 +5,19 @@ use starknet_api::block::BlockNumber;
 use starknet_api::transaction::TransactionHash;
 use starknet_l1_provider_types::SharedL1ProviderClient;
 use starknet_state_sync_types::communication::SharedStateSyncClient;
-use tracing::debug;
+use tokio::sync::OnceCell;
+use tracing::{debug, info};
+
+pub type LazyCatchUpHeight = Arc<OnceCell<BlockNumber>>;
 
 /// Cache's commits to be applied later. This flow is only relevant while the node is starting up.
 #[derive(Clone)]
 pub struct Bootstrapper {
-    pub catch_up_height: BlockNumber,
+    /// The catch-up height for the bootstrapper is the sync height (unless overridden explicitly).
+    /// This value, due to infra constraints as of now, is only fetchable _after_ the provider is
+    /// running, and not during its initialization, hence we are forced to lazily fetch it at
+    /// runtime.
+    pub catch_up_height: LazyCatchUpHeight,
     pub sync_retry_interval: Duration,
     pub commit_block_backlog: Vec<CommitBlockBacklog>,
     pub l1_provider_client: SharedL1ProviderClient,
@@ -20,9 +27,27 @@ pub struct Bootstrapper {
 }
 
 impl Bootstrapper {
+    pub fn new(
+        l1_provider_client: SharedL1ProviderClient,
+        sync_client: SharedStateSyncClient,
+        sync_retry_interval: Duration,
+        catch_up_height: LazyCatchUpHeight,
+    ) -> Self {
+        Self {
+            sync_retry_interval,
+            commit_block_backlog: Default::default(),
+            l1_provider_client,
+            sync_client,
+            sync_task_handle: SyncTaskHandle::NotStartedYet,
+            catch_up_height,
+        }
+    }
+
     /// Check if the caller has caught up with the bootstrapper.
+    /// If catch_up_height is unset, the sync isn't even ready yet.
     pub fn is_caught_up(&self, current_provider_height: BlockNumber) -> bool {
-        self.catch_up_height == current_provider_height
+        self.catch_up_height()
+            .is_some_and(|catch_up_height| catch_up_height <= current_provider_height)
         // TODO(Gilad): add health_check here, making sure that the sync task isn't stuck, which is
         // `handle dropped && backlog empty && not caught up`.
     }
@@ -54,11 +79,15 @@ impl Bootstrapper {
             self.l1_provider_client.clone(),
             self.sync_client.clone(),
             current_provider_height,
-            self.catch_up_height,
+            self.catch_up_height.clone(),
             self.sync_retry_interval,
         ));
 
         self.sync_task_handle = SyncTaskHandle::Started(sync_task_handle.into());
+    }
+
+    pub fn catch_up_height(&self) -> Option<BlockNumber> {
+        self.catch_up_height.get().copied()
     }
 }
 
@@ -85,9 +114,25 @@ async fn l2_sync_task(
     l1_provider_client: SharedL1ProviderClient,
     sync_client: SharedStateSyncClient,
     mut current_height: BlockNumber,
-    catch_up_height: BlockNumber,
+    catch_up_height: LazyCatchUpHeight,
     retry_interval: Duration,
 ) {
+    // Currently infra doesn't support starting up the provider only after sync is ready.
+    while !catch_up_height.initialized() {
+        info!("Try fetching sync height to initialize catch up point");
+        let Some(sync_height) = sync_client
+            .get_latest_block_number()
+            .await
+            .expect("network error handling not supported yet")
+        else {
+            info!("Sync state not ready yet, trying again later");
+            tokio::time::sleep(retry_interval).await;
+            continue;
+        };
+        catch_up_height.set(sync_height).expect("This is the only write-point, cannot fail")
+    }
+    let catch_up_height = *catch_up_height.get().expect("Initialized above");
+
     while current_height <= catch_up_height {
         // TODO(Gilad): add tracing instrument.
         debug!("Try syncing L1Provider with L2 height: {}", current_height);
