@@ -516,9 +516,11 @@ impl IntegrationTestManager {
         let running_node_setup = &running_node.node_setup;
         monitoring_utils::await_block(
             running_node_setup.batcher_monitoring_client(),
+            running_node_setup.get_batcher_index(),
+            running_node_setup.state_sync_monitoring_client(),
+            running_node_setup.get_state_sync_index(),
             expected_block_number,
             running_node_setup.get_node_index().unwrap(),
-            running_node_setup.get_batcher_index(),
         )
         .await;
     }
