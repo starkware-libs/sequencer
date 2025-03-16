@@ -5,6 +5,7 @@ use blockifier::state::state_api::StateReader;
 #[cfg(any(feature = "testing", test))]
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use cairo_vm::types::program::Program;
+use cairo_vm::types::relocatable::Relocatable;
 
 use crate::errors::StarknetOsError;
 use crate::io::os_input::{CachedStateInput, StarknetOsInput};
@@ -68,4 +69,11 @@ impl OsExecutionHelper<DictStateReader> {
     ) -> Self {
         Self { cached_state: CachedState::from(state_reader), os_input, os_program }
     }
+}
+
+#[derive(Clone)]
+pub(crate) struct StateUpdatePointers {
+    pub(crate) _contract_address_to_storage_ptr: Relocatable,
+    pub(crate) _state_tree_pointer: Relocatable,
+    pub(crate) _class_tree_pointer: Relocatable,
 }
