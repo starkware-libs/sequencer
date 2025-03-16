@@ -13,6 +13,7 @@ use starknet_l1_provider_types::{
 };
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_state_sync_types::communication::SharedStateSyncClient;
+use tracing::{instrument, trace};
 
 use crate::bootstrapper::{Bootstrapper, SyncTaskHandle};
 use crate::transaction_manager::TransactionManager;
@@ -34,6 +35,7 @@ pub struct L1Provider {
 }
 
 impl L1Provider {
+    #[instrument(skip(self), err)]
     pub fn start_block(
         &mut self,
         height: BlockNumber,
@@ -56,6 +58,7 @@ impl L1Provider {
     }
 
     /// Retrieves up to `n_txs` transactions that have yet to be proposed or accepted on L2.
+    #[instrument(skip(self), err)]
     pub fn get_txs(
         &mut self,
         n_txs: usize,
@@ -74,6 +77,7 @@ impl L1Provider {
 
     /// Returns true if and only if the given transaction is both not included in an L2 block, and
     /// unconsumed on L1.
+    #[instrument(skip(self), err)]
     pub fn validate(
         &mut self,
         tx_hash: TransactionHash,
@@ -91,6 +95,7 @@ impl L1Provider {
 
     // TODO(Gilad): when deciding on consensus, if possible, have commit_block also tell the node if
     // it's about to [optimistically-]propose or validate the next block.
+    #[instrument(skip(self), err)]
     pub fn commit_block(
         &mut self,
         committed_txs: &[TransactionHash],
@@ -164,7 +169,10 @@ impl L1Provider {
         Ok(())
     }
 
+    #[instrument(skip_all, err)]
     pub fn process_l1_events(&mut self, events: Vec<Event>) -> L1ProviderResult<()> {
+        trace!(?events);
+
         for event in events {
             match event {
                 Event::L1HandlerTransaction(l1_handler_tx) => {

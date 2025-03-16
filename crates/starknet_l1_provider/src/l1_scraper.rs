@@ -90,7 +90,9 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
 
         let (latest_l1_block, events) = self.fetch_events().await?;
 
-        // If this gets too high, send in batches.
+        // Sending even if there are no events, to keep the flow as simple/debuggable as possible.
+        // Perf hit is minimal, since the scraper is on the same machine as the provider (no net).
+        // If this gets spammy, short-circuit on events.empty().
         let add_events_result = self.l1_provider_client.add_events(events).await;
         handle_client_error(add_events_result)?;
 
