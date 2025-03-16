@@ -230,12 +230,16 @@ pub async fn create_node_components(
                 // the latter should use the correct L1 height.
                 .expect("No L2 block detected at the L1 height the scraper was initialized on. \
                 Advance the scraper to start at a higher height than the L2 genesis height.");
-            Some(create_l1_provider(
-                config.l1_provider_config,
-                clients.get_l1_provider_shared_client().unwrap(),
-                clients.get_state_sync_shared_client().unwrap(),
-                provider_startup_height,
-            ))
+
+            Some(
+                create_l1_provider(
+                    config.l1_provider_config,
+                    clients.get_l1_provider_shared_client().unwrap(),
+                    clients.get_state_sync_shared_client().unwrap(),
+                    provider_startup_height,
+                )
+                .unwrap(),
+            )
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
