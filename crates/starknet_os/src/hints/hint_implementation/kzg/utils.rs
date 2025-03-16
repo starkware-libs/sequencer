@@ -12,7 +12,7 @@ const BLOB_SUBGROUP_GENERATOR: &str =
     "39033254847818212395286706435128746857159659164139250548781411570340225835782";
 pub(crate) const BLS_PRIME: &str =
     "52435875175126190479447740508185965837690552500527637822603658699938581184513";
-const COMMITMENT_BITS: usize = 384;
+pub(crate) const COMMITMENT_BITS: usize = 384;
 const COMMITMENT_BITS_MIDPOINT: usize = COMMITMENT_BITS / 2;
 const FIELD_ELEMENTS_PER_BLOB: usize = 4096;
 
@@ -28,6 +28,8 @@ pub enum FftError {
     InvalidCoeffsLength(usize),
     #[error(transparent)]
     ParseBigInt(#[from] ParseBigIntError),
+    #[error("Commitment '{0}' is more than {COMMITMENT_BITS} bits.")]
+    TooBigToSplit(BigInt),
     #[error("Too many coefficients; expected at most {FIELD_ELEMENTS_PER_BLOB}, got {0}.")]
     TooManyCoefficients(usize),
 }
@@ -157,16 +159,18 @@ pub(crate) fn fft(
 }
 
 #[allow(dead_code)]
-pub(crate) fn split_commitment(num: BigInt) -> (BigInt, BigInt) {
-    // Ensure the input is 384 bits (48 bytes)
-    let num = num & &((BigInt::from(1) << COMMITMENT_BITS) - 1);
+pub(crate) fn split_commitment(num: &BigInt) -> Result<(BigInt, BigInt), FftError> {
+    // Ensure the input is 384 bits (48 bytes).
+    if num != &(num & &((BigInt::one() << COMMITMENT_BITS) - 1)) {
+        return Err(FftError::TooBigToSplit(num.clone()));
+    }
 
-    // Split the number
-    let mask = (BigInt::from(1) << COMMITMENT_BITS_MIDPOINT) - 1;
-    let low = &num & &mask;
-    let high = &num >> COMMITMENT_BITS_MIDPOINT;
+    // Split the number.
+    let mask = (BigInt::one() << COMMITMENT_BITS_MIDPOINT) - 1;
+    let low = num & &mask;
+    let high = num >> COMMITMENT_BITS_MIDPOINT;
 
-    (low, high)
+    Ok((low, high))
 }
 
 #[allow(dead_code)]
