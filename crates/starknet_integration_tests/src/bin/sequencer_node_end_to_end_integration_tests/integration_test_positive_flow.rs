@@ -31,7 +31,7 @@ async fn main() {
     integration_test_manager.send_bootstrap_txs_and_verify().await;
 
     // Run the test.
-    integration_test_manager.send_invoke_txs_and_verify(N_TXS, BLOCK_TO_WAIT_FOR).await;
+    integration_test_manager.send_txs_and_verify(N_TXS, 2, BLOCK_TO_WAIT_FOR).await;
 
     info!("Shutting down nodes.");
     integration_test_manager.shutdown_nodes(node_indices);

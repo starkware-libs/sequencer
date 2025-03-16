@@ -2,15 +2,20 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::time::Duration;
 
+use alloy::node_bindings::AnvilInstance;
 use blockifier::context::ChainInfo;
 use futures::future::join_all;
 use futures::TryFutureExt;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
-use papyrus_base_layer::test_utils::ethereum_base_layer_config_for_anvil;
+use papyrus_base_layer::test_utils::{
+    ethereum_base_layer_config_for_anvil,
+    spawn_anvil_and_deploy_starknet_l1_contract,
+    StarknetL1Contract,
+};
 use papyrus_network::network_manager::test_utils::create_connected_network_configs;
 use papyrus_storage::StorageConfig;
 use starknet_api::block::BlockNumber;
-use starknet_api::core::Nonce;
+use starknet_api::core::{ChainId, Nonce};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
@@ -35,9 +40,10 @@ use crate::utils::{
     create_integration_test_tx_generator,
     create_mempool_p2p_configs,
     create_state_sync_configs,
-    send_account_txs,
+    send_consensus_txs,
+    send_message_to_l2_and_calculate_tx_hash,
     BootstrapTxs,
-    InvokeTxs,
+    ConsensusTxs,
     TestScenario,
 };
 
@@ -162,6 +168,10 @@ pub struct IntegrationTestManager {
     idle_nodes: HashMap<usize, NodeSetup>,
     running_nodes: HashMap<usize, RunningNode>,
     tx_generator: MultiAccountTransactionGenerator,
+    // Handle for L1 server: the server is dropped when handle is dropped.
+    #[allow(dead_code)]
+    l1_handle: AnvilInstance,
+    starknet_l1_contract: StarknetL1Contract,
 }
 
 pub struct CustomPaths {
@@ -211,10 +221,21 @@ impl IntegrationTestManager {
         )
         .await;
 
+        let base_layer_config = &sequencers_setup[0].executables[0].config.base_layer_config;
+        let (anvil, starknet_l1_contract) =
+            spawn_anvil_and_deploy_starknet_l1_contract(base_layer_config).await;
+
         let idle_nodes = create_map(sequencers_setup, |node| node.get_node_index());
         let running_nodes = HashMap::new();
 
-        Self { node_indices, idle_nodes, running_nodes, tx_generator }
+        Self {
+            node_indices,
+            idle_nodes,
+            running_nodes,
+            tx_generator,
+            l1_handle: anvil,
+            starknet_l1_contract,
+        }
     }
 
     pub fn get_idle_nodes(&self) -> &HashMap<usize, NodeSetup> {
@@ -386,8 +407,18 @@ impl IntegrationTestManager {
             .await;
     }
 
-    pub async fn send_invoke_txs_and_verify(&mut self, n_txs: usize, wait_for_block: BlockNumber) {
-        self.test_and_verify(InvokeTxs(n_txs), DEFAULT_SENDER_ACCOUNT, wait_for_block).await;
+    pub async fn send_txs_and_verify(
+        &mut self,
+        n_invoke_txs: usize,
+        n_l1_handler_txs: usize,
+        wait_for_block: BlockNumber,
+    ) {
+        self.test_and_verify(
+            ConsensusTxs { n_invoke_txs, n_l1_handler_txs },
+            DEFAULT_SENDER_ACCOUNT,
+            wait_for_block,
+        )
+        .await;
     }
 
     pub async fn await_txs_accepted_on_all_running_nodes(&mut self, target_n_txs: usize) {
@@ -419,10 +450,10 @@ impl IntegrationTestManager {
         wait_for_block: BlockNumber,
     ) {
         // Verify the initial state
-        self.verify_txs_accepted(sender_account).await;
+        self.verify_txs_accepted(sender_account, 0).await;
         self.run_integration_test_simulator(&test_scenario, sender_account).await;
         self.await_block(wait_for_block).await;
-        self.verify_txs_accepted(sender_account).await;
+        self.verify_txs_accepted(sender_account, test_scenario.n_l1_handler_txs()).await;
     }
 
     async fn await_alive(&self, interval: u64, max_attempts: usize) {
@@ -445,13 +476,27 @@ impl IntegrationTestManager {
         sender_account: AccountId,
     ) {
         info!("Running integration test simulator.");
+        let chain_id = self.chain_id();
+        let send_l1_handler_tx_fn = &mut |l1_handler_tx| {
+            send_message_to_l2_and_calculate_tx_hash(
+                l1_handler_tx,
+                &self.starknet_l1_contract,
+                &chain_id,
+            )
+        };
         let send_rpc_tx_fn = &mut |rpc_tx| async {
             let node_0 = self.running_nodes.get(&0).expect("Node 0 should be running.");
             node_0.node_setup.send_rpc_tx_fn(rpc_tx).await
         };
 
-        send_account_txs(&mut self.tx_generator, sender_account, test_scenario, send_rpc_tx_fn)
-            .await;
+        send_consensus_txs(
+            &mut self.tx_generator,
+            sender_account,
+            test_scenario,
+            send_rpc_tx_fn,
+            send_l1_handler_tx_fn,
+        )
+        .await;
     }
 
     async fn await_block(&self, expected_block_number: BlockNumber) {
@@ -467,16 +512,34 @@ impl IntegrationTestManager {
         .await;
     }
 
-    async fn verify_txs_accepted(&self, sender_account: AccountId) {
+    async fn verify_txs_accepted(&self, sender_account: AccountId, n_l1_txs: usize) {
         let (sequencer_idx, monitoring_client) = self.running_batcher_monitoring_client();
         let account = self.tx_generator.account_with_id(sender_account);
-        let expected_n_accepted_txs = nonce_to_usize(account.get_nonce());
+        let expected_n_accepted_txs = nonce_to_usize(account.get_nonce()) + n_l1_txs;
         monitoring_utils::verify_txs_accepted(
             monitoring_client,
             sequencer_idx,
             expected_n_accepted_txs,
         )
         .await;
+    }
+
+    pub fn chain_id(&self) -> ChainId {
+        // TODO(Arni): Get the chain ID from a shared canonic location.
+        let node_setup = self
+            .idle_nodes
+            .values()
+            .next()
+            .or_else(|| self.running_nodes.values().next().map(|node| &node.node_setup))
+            .expect("There should be at least one running or idle node");
+
+        node_setup.executables[0]
+            .config
+            .batcher_config
+            .block_builder_config
+            .chain_info
+            .chain_id
+            .clone()
     }
 }
 
