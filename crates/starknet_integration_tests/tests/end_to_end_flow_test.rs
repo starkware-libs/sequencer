@@ -2,7 +2,10 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use futures::StreamExt;
-use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
+use mempool_test_utils::starknet_api_test_utils::{
+    create_l1_handler_tx,
+    MultiAccountTransactionGenerator,
+};
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{
     HeightAndRound,
@@ -32,7 +35,6 @@ use starknet_integration_tests::utils::{
     create_deploy_account_tx_and_invoke_tx,
     create_flow_test_tx_generator,
     create_funding_txs,
-    create_l1_handler_tx,
     create_many_invoke_txs,
     create_multiple_account_txs,
     run_test_scenario,
@@ -185,7 +187,7 @@ fn create_test_blocks() -> Vec<TestBlockScenario> {
             vec![create_l1_handler_tx()],
             test_single_tx,
             ExpectedContentId::from_hex_unchecked(
-                "0x32a9c3b503e51b4330fe735b73975a62df996d6d6ebfe6cd1514ba2a68797cb",
+                "0x15af782f995ed5c492fff14c5b88ce33c8f3e261472549f7389a1729f9ed00b",
             ),
         ),
         (

@@ -450,10 +450,10 @@ impl IntegrationTestManager {
         wait_for_block: BlockNumber,
     ) {
         // Verify the initial state
-        self.verify_txs_accepted(sender_account, 0).await;
+        self.verify_txs_accepted(sender_account).await;
         self.run_integration_test_simulator(&test_scenario, sender_account).await;
         self.await_block(wait_for_block).await;
-        self.verify_txs_accepted(sender_account, test_scenario.n_l1_handler_txs()).await;
+        self.verify_txs_accepted(sender_account).await;
     }
 
     async fn await_alive(&self, interval: u64, max_attempts: usize) {
@@ -512,10 +512,13 @@ impl IntegrationTestManager {
         .await;
     }
 
-    async fn verify_txs_accepted(&self, sender_account: AccountId, n_l1_txs: usize) {
+    async fn verify_txs_accepted(&self, sender_account: AccountId) {
         let (sequencer_idx, monitoring_client) = self.running_batcher_monitoring_client();
         let account = self.tx_generator.account_with_id(sender_account);
-        let expected_n_accepted_txs = nonce_to_usize(account.get_nonce()) + n_l1_txs;
+        let expected_n_accepted_account_txs = nonce_to_usize(account.get_nonce());
+        let expected_n_l1_handler_txs = self.tx_generator.n_l1_txs();
+        let expected_n_accepted_txs = expected_n_accepted_account_txs + expected_n_l1_handler_txs;
+
         monitoring_utils::verify_txs_accepted(
             monitoring_client,
             sequencer_idx,
