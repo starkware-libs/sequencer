@@ -223,7 +223,7 @@ const PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_SOURCE: Panel = Panel::new(
 );
 
 const PANEL_GATEWAY_TRANSACTIONS_RECEIVED_RATE: Panel = Panel::new(
-    "gateway_trasactions_received_rate (TPS)",
+    "gateway_transactions_received_rate (TPS)",
     "The rate of transactions received by the gateway during the last 20 minutes",
     formatcp!("sum(rate({}[20m]))", TRANSACTIONS_RECEIVED.get_name()),
     PanelType::Graph,
@@ -259,7 +259,7 @@ const PANEL_MEMPOOL_TRANSACTIONS_RECEIVED: Panel = Panel::new(
 );
 
 const PANEL_MEMPOOL_TRANSACTIONS_RECEIVED_RATE: Panel = Panel::new(
-    "mempool_trasactions_received_rate (TPS)",
+    "mempool_transactions_received_rate (TPS)",
     "The rate of transactions received by the mempool during the last 20 minutes",
     formatcp!("sum(rate({}[20m]))", MEMPOOL_TRANSACTIONS_RECEIVED.get_name()),
     PanelType::Graph,
