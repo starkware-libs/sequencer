@@ -23,8 +23,7 @@ SEQUENCER_BINARY_NAME: str = "starknet_sequencer_node"
 # List of sequencer node integration test binary names. Stored as a list to maintain order.
 SEQUENCER_INTEGRATION_TEST_NAMES: List[str] = [
     "integration_test_positive_flow",
-    # TODO(Shahak/Noam.s): enable these when required
-    # "integration_test_restart_flow",
+    "integration_test_restart_flow",
     "integration_test_revert_flow",
     "integration_test_central_and_p2p_sync_flow",
 ]
