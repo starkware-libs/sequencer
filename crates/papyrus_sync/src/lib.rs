@@ -248,6 +248,7 @@ pub enum SyncEvent {
         class_hash: ClassHash,
         compiled_class_hash: CompiledClassHash,
         compiled_class: CasmContractClass,
+        is_compiler_backward_compatible: bool,
     },
     NewBaseLayerBlock {
         block_number: BlockNumber,
@@ -427,7 +428,16 @@ impl<
                 class_hash,
                 compiled_class_hash,
                 compiled_class,
-            } => self.store_compiled_class(class_hash, compiled_class_hash, compiled_class).await,
+                is_compiler_backward_compatible,
+            } => {
+                self.store_compiled_class(
+                    class_hash,
+                    compiled_class_hash,
+                    compiled_class,
+                    is_compiler_backward_compatible,
+                )
+                .await
+            }
             SyncEvent::NewBaseLayerBlock { block_number, block_hash } => {
                 self.store_base_layer_block(block_number, block_hash)
             }
@@ -577,24 +587,26 @@ impl<
         class_hash: ClassHash,
         compiled_class_hash: CompiledClassHash,
         compiled_class: CasmContractClass,
+        is_compiler_backward_compatible: bool,
     ) -> StateSyncResult {
-        if let Some(class_manager_client) = &self.class_manager_client {
-            let class =
-                self.reader.begin_ro_txn()?.get_class(&class_hash)?.expect(
+        if !is_compiler_backward_compatible {
+            if let Some(class_manager_client) = &self.class_manager_client {
+                let class = self.reader.begin_ro_txn()?.get_class(&class_hash)?.expect(
                     "Compiled classes stream gave class hash that doesn't appear in storage.",
                 );
-            let sierra_version = SierraVersion::extract_from_program(&class.sierra_program)
-                .expect("Failed reading sierra version from program.");
-            let contract_class = ContractClass::V1((compiled_class.clone(), sierra_version));
-            class_manager_client
-                .add_class_and_executable_unsafe(
-                    class_hash,
-                    class,
-                    compiled_class_hash,
-                    contract_class,
-                )
-                .await
-                .expect("Failed adding class and compiled class to class manager.");
+                let sierra_version = SierraVersion::extract_from_program(&class.sierra_program)
+                    .expect("Failed reading sierra version from program.");
+                let contract_class = ContractClass::V1((compiled_class.clone(), sierra_version));
+                class_manager_client
+                    .add_class_and_executable_unsafe(
+                        class_hash,
+                        class,
+                        compiled_class_hash,
+                        contract_class,
+                    )
+                    .await
+                    .expect("Failed adding class and compiled class to class manager.");
+            }
         }
         let txn = self.writer.begin_rw_txn()?;
         // TODO(Yair): verifications - verify casm corresponds to a class on storage.
@@ -929,19 +941,13 @@ fn stream_new_compiled_classes<TCentralSource: CentralSourceTrait + Sync + Send>
                 tokio::time::sleep(block_propagation_sleep_duration).await;
                 continue;
             }
-            if from >= compiler_backward_compatibility_marker {
-                debug!(
-                    "Compiled classes syncing reached the last known block with classes \
-                    incompatible with our compiler version. Waiting for more blocks."
-                );
-                tokio::time::sleep(block_propagation_sleep_duration).await;
-                continue;
+            let mut up_to = min(state_marker, BlockNumber(from.0 + u64::from(max_stream_size)));
+            let are_casms_backward_compatible = from >= compiler_backward_compatibility_marker;
+            // We want that the stream will either have all compiled classes as backward compatible
+            // or all as not backward compatible. If needed we'll decrease up_to
+            if from < compiler_backward_compatibility_marker && up_to > compiler_backward_compatibility_marker {
+                up_to = compiler_backward_compatibility_marker;
             }
-            let up_to = min(
-                min(state_marker, BlockNumber(from.0 + u64::from(max_stream_size))),
-                compiler_backward_compatibility_marker,
-            );
-
             debug!("Downloading compiled classes of blocks [{} - {}).", from, up_to);
             let compiled_classes_stream =
                 central_source.stream_compiled_classes(from, up_to).fuse();
@@ -953,6 +959,7 @@ fn stream_new_compiled_classes<TCentralSource: CentralSourceTrait + Sync + Send>
                     class_hash,
                     compiled_class_hash,
                     compiled_class,
+                    is_compiler_backward_compatible: are_casms_backward_compatible,
                 };
             }
         }
