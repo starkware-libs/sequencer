@@ -144,7 +144,7 @@ pub fn latency_histogram(attr: TokenStream, input: TokenStream) -> TokenStream {
     // instead of boolean
 
     let metric_recording_logic = quote! {
-        metrics::histogram!(#metric_name).record(exec_time);
+        papyrus_proc_helper::metrics::histogram!(#metric_name).record(exec_time);
     };
 
     let collect_metric_flag = quote! {

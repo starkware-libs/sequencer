@@ -16,6 +16,7 @@ metrics.workspace = true
 papyrus_common.workspace = true
 papyrus_config.workspace = true
 papyrus_network.workspace = true
+papyrus_proc_helper.workspace = true
 papyrus_proc_macros.workspace = true
 papyrus_protobuf.workspace = true
 papyrus_storage.workspace = true

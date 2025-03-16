@@ -15,6 +15,7 @@ tracing.workspace = true
 metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
 papyrus_common.workspace = true
+papyrus_proc_helper.workspace = true
 papyrus_test_utils.workspace = true
 prometheus-parse.workspace = true
 rstest.workspace = true
