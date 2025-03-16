@@ -11,7 +11,7 @@ use papyrus_network::network_manager::test_utils::{
 };
 use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkError};
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use papyrus_protobuf::mempool::RpcTransactionWrapper;
+use papyrus_protobuf::mempool::RpcTransactionBatch;
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -25,7 +25,7 @@ use super::MempoolP2pRunner;
 fn setup(
     network_future: BoxFuture<'static, Result<(), NetworkError>>,
     gateway_client: Arc<dyn GatewayClient>,
-) -> (MempoolP2pRunner, BroadcastNetworkMock<RpcTransactionWrapper>) {
+) -> (MempoolP2pRunner, BroadcastNetworkMock<RpcTransactionBatch>) {
     let TestSubscriberChannels { mock_network, subscriber_channels } =
         mock_register_broadcast_topic().expect("Failed to create mock network");
     let BroadcastTopicChannels { broadcasted_messages_receiver, broadcast_topic_client } =
@@ -67,10 +67,10 @@ async fn incoming_p2p_tx_reaches_gateway_client() {
     let (add_tx_indicator_sender, add_tx_indicator_receiver) = futures::channel::oneshot::channel();
 
     let message_metadata = BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
-    let expected_rpc_transaction =
-        RpcTransactionWrapper(RpcTransaction::get_test_instance(&mut get_rng()));
+    let expected_rpc_transaction_batch =
+        RpcTransactionBatch(vec![RpcTransaction::get_test_instance(&mut get_rng())]);
     let gateway_input = GatewayInput {
-        rpc_tx: expected_rpc_transaction.0.clone(),
+        rpc_tx: expected_rpc_transaction_batch.0.first().unwrap().clone(),
         message_metadata: Some(message_metadata.clone()),
     };
 
@@ -89,8 +89,8 @@ async fn incoming_p2p_tx_reaches_gateway_client() {
         ..
     } = mock_network;
 
-    let res =
-        mock_broadcasted_messages_sender.send((expected_rpc_transaction.clone(), message_metadata));
+    let res = mock_broadcasted_messages_sender
+        .send((expected_rpc_transaction_batch.clone(), message_metadata));
 
     res.await.expect("Failed to send message");
 
@@ -116,8 +116,8 @@ async fn incoming_p2p_tx_fails_on_gateway_client() {
 
     let message_metadata = BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
     let message_metadata_clone = message_metadata.clone();
-    let expected_rpc_transaction =
-        RpcTransactionWrapper(RpcTransaction::get_test_instance(&mut get_rng()));
+    let expected_rpc_transaction_batch =
+        RpcTransactionBatch(vec![RpcTransaction::get_test_instance(&mut get_rng())]);
 
     let mut mock_gateway_client = MockGatewayClient::new();
     mock_gateway_client.expect_add_tx().return_once(move |_| {
@@ -138,7 +138,7 @@ async fn incoming_p2p_tx_fails_on_gateway_client() {
     } = mock_network;
 
     let res = mock_broadcasted_messages_sender
-        .send((expected_rpc_transaction.clone(), message_metadata.clone()));
+        .send((expected_rpc_transaction_batch.clone(), message_metadata.clone()));
 
     res.await.expect("Failed to send message");
 

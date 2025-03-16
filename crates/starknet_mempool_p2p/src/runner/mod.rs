@@ -11,7 +11,7 @@ use papyrus_network::network_manager::{
     BroadcastTopicServer,
     NetworkError,
 };
-use papyrus_protobuf::mempool::RpcTransactionWrapper;
+use papyrus_protobuf::mempool::RpcTransactionBatch;
 use starknet_gateway_types::communication::{GatewayClientError, SharedGatewayClient};
 use starknet_gateway_types::errors::GatewayError;
 use starknet_gateway_types::gateway_types::GatewayInput;
@@ -21,16 +21,16 @@ use tracing::{debug, info, warn};
 
 pub struct MempoolP2pRunner {
     network_future: BoxFuture<'static, Result<(), NetworkError>>,
-    broadcasted_topic_server: BroadcastTopicServer<RpcTransactionWrapper>,
-    broadcast_topic_client: BroadcastTopicClient<RpcTransactionWrapper>,
+    broadcasted_topic_server: BroadcastTopicServer<RpcTransactionBatch>,
+    broadcast_topic_client: BroadcastTopicClient<RpcTransactionBatch>,
     gateway_client: SharedGatewayClient,
 }
 
 impl MempoolP2pRunner {
     pub fn new(
         network_future: BoxFuture<'static, Result<(), NetworkError>>,
-        broadcasted_topic_server: BroadcastTopicServer<RpcTransactionWrapper>,
-        broadcast_topic_client: BroadcastTopicClient<RpcTransactionWrapper>,
+        broadcasted_topic_server: BroadcastTopicServer<RpcTransactionBatch>,
+        broadcast_topic_client: BroadcastTopicClient<RpcTransactionBatch>,
         gateway_client: SharedGatewayClient,
     ) -> Self {
         Self { network_future, broadcasted_topic_server, broadcast_topic_client, gateway_client }
@@ -76,9 +76,11 @@ impl ComponentStarter for MempoolP2pRunner {
                             // TODO(alonl): consider calculating the tx_hash and pringing it instead of the entire tx.
                             info!("Received transaction from network, forwarding to gateway");
                             debug!("received transaction: {:?}", message.0);
-                            gateway_futures.push(self.gateway_client.add_tx(
-                                GatewayInput { rpc_tx: message.0, message_metadata: Some(broadcasted_message_metadata.clone()) }
-                            ));
+                            for rpc_tx in message.0 {
+                                gateway_futures.push(self.gateway_client.add_tx(
+                                    GatewayInput { rpc_tx, message_metadata: Some(broadcasted_message_metadata.clone()) }
+                                ));
+                            }
                         }
                         Err(e) => {
                             warn!("Received a faulty transaction from network: {:?}. Attempting to report the sending peer", e);

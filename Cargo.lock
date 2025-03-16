@@ -11340,10 +11340,14 @@ dependencies = [
  "async-trait",
  "mockall",
  "papyrus_base_layer",
+ "papyrus_proc_macros",
+ "reqwest 0.11.27",
  "serde",
+ "serde_json",
  "starknet_api",
  "starknet_sequencer_infra",
  "thiserror 1.0.69",
+ "tracing",
 ]
 
 [[package]]

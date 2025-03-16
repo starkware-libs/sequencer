@@ -5,6 +5,9 @@ edition.workspace = true
 repository.workspace = true
 license.workspace = true
 
+[features]
+testing = []
+
 [lints]
 workspace = true
 

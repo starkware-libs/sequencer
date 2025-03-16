@@ -122,7 +122,7 @@ impl MempoolTestContentBuilder {
 
     fn build_full_mempool(self) -> Mempool {
         Mempool {
-            config: self.config,
+            config: self.config.clone(),
             delayed_declares: VecDeque::new(),
             tx_pool: self.content.tx_pool.unwrap_or_default().into_values().collect(),
             tx_queue: TransactionQueue::new(
@@ -130,7 +130,7 @@ impl MempoolTestContentBuilder {
                 self.content.pending_txs.unwrap_or_default(),
                 self.gas_price_threshold,
             ),
-            state: MempoolState::default(),
+            state: MempoolState::new(self.config.committed_nonce_retention_block_count),
             clock: Arc::new(FakeClock::default()),
         }
     }
@@ -522,6 +522,24 @@ fn test_add_tx_with_identical_tip_succeeds(mut mempool: Mempool) {
     // TODO(AlonH): currently hash comparison tie-breaks the two. Once more robust tie-breaks are
     // added replace this assertion with a dedicated test.
     expected_mempool_content.assert_eq(&mempool.content());
+}
+
+#[rstest]
+fn add_tx_with_committed_account_nonce(mut mempool: Mempool) {
+    // Setup: commit a block with account nonce 1.
+    commit_block(&mut mempool, [("0x0", 1)], []);
+
+    // Add a transaction with nonce 0. Should be rejected with NonceTooOld.
+    let input = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0);
+    add_tx_expect_error(
+        &mut mempool,
+        &input,
+        MempoolError::NonceTooOld { address: contract_address!("0x0"), nonce: nonce!(0) },
+    );
+
+    // Add a transaction with nonce 1. Should be accepted.
+    let input = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 1, account_nonce: 0);
+    add_tx(&mut mempool, &input);
 }
 
 #[rstest]
@@ -1107,6 +1125,10 @@ fn expired_staged_txs_are_not_deleted() {
 
 #[rstest]
 fn delay_declare_txs() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    register_metrics();
+
     // Create a mempool with a fake clock.
     let fake_clock = Arc::new(FakeClock::default());
     let declare_delay = Duration::from_secs(5);
@@ -1124,6 +1146,11 @@ fn delay_declare_txs() {
     add_tx(&mut mempool, &second_declare);
 
     assert_eq!(mempool.get_txs(2).unwrap(), vec![]);
+
+    // Assert: metrics.
+    let expected_metrics =
+        MempoolMetrics { txs_received_declare: 2, delayed_declares_size: 2, ..Default::default() };
+    expected_metrics.verify_metrics(&recorder);
 
     // Complete the first declare's delay.
     fake_clock.advance(declare_delay - Duration::from_secs(1));
@@ -1172,4 +1199,36 @@ fn no_delay_declare_front_run() {
             nonce: declare.tx.nonce(),
         },
     );
+}
+
+#[rstest]
+fn committed_account_nonce_cleanup() {
+    let mut mempool = Mempool::new(
+        MempoolConfig { committed_nonce_retention_block_count: 2, ..Default::default() },
+        Arc::new(FakeClock::default()),
+    );
+
+    // Setup: commit a block with account nonce 1.
+    commit_block(&mut mempool, [("0x0", 1)], []);
+
+    // Add a transaction with nonce 0. Should be rejected with NonceTooOld.
+    let input_tx = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0);
+    add_tx_expect_error(
+        &mut mempool,
+        &input_tx,
+        MempoolError::NonceTooOld { address: contract_address!("0x0"), nonce: nonce!(0) },
+    );
+
+    // Commit an empty block, and check the transaction is still rejected.
+    commit_block(&mut mempool, [], []);
+    add_tx_expect_error(
+        &mut mempool,
+        &input_tx,
+        MempoolError::NonceTooOld { address: contract_address!("0x0"), nonce: nonce!(0) },
+    );
+
+    // Commit another empty block. This should remove the previously committed nonce, and
+    // the transaction should be accepted.
+    commit_block(&mut mempool, [], []);
+    add_tx(&mut mempool, &input_tx);
 }

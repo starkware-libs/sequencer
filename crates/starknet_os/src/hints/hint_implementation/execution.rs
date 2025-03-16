@@ -34,12 +34,6 @@ pub(crate) fn prepare_constructor_execution<S: StateReader>(
     todo!()
 }
 
-pub(crate) fn transaction_version<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
-) -> OsHintResult {
-    todo!()
-}
-
 pub(crate) fn assert_transaction_hash<S: StateReader>(
     HintArgs { .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
@@ -181,11 +175,7 @@ pub(crate) fn tx_entry_point_selector<S: StateReader>(
     todo!()
 }
 
-pub(crate) fn tx_max_fee<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    todo!()
-}
-
-pub(crate) fn tx_nonce<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
+pub(crate) fn tx_version<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
     todo!()
 }
 
@@ -394,7 +384,7 @@ pub(crate) fn write_syscall_result<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn gen_class_hash_arg<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
+pub(crate) fn declare_tx_fields<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
     todo!()
 }
 

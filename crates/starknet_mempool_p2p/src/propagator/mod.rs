@@ -3,7 +3,7 @@ mod test;
 
 use async_trait::async_trait;
 use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
-use papyrus_protobuf::mempool::RpcTransactionWrapper;
+use papyrus_protobuf::mempool::RpcTransactionBatch;
 use starknet_class_manager_types::transaction_converter::TransactionConverterTrait;
 use starknet_mempool_p2p_types::communication::{
     MempoolP2pPropagatorRequest,
@@ -15,13 +15,13 @@ use starknet_sequencer_infra::component_server::{LocalComponentServer, RemoteCom
 use tracing::{debug, info, warn};
 
 pub struct MempoolP2pPropagator {
-    broadcast_topic_client: BroadcastTopicClient<RpcTransactionWrapper>,
+    broadcast_topic_client: BroadcastTopicClient<RpcTransactionBatch>,
     transaction_converter: Box<dyn TransactionConverterTrait + Send>,
 }
 
 impl MempoolP2pPropagator {
     pub fn new(
-        broadcast_topic_client: BroadcastTopicClient<RpcTransactionWrapper>,
+        broadcast_topic_client: BroadcastTopicClient<RpcTransactionBatch>,
         transaction_converter: Box<dyn TransactionConverterTrait + Send>,
     ) -> Self {
         Self { broadcast_topic_client, transaction_converter }
@@ -55,7 +55,7 @@ impl ComponentRequestHandler<MempoolP2pPropagatorRequest, MempoolP2pPropagatorRe
 
                 let result = self
                     .broadcast_topic_client
-                    .broadcast_message(RpcTransactionWrapper(transaction))
+                    .broadcast_message(RpcTransactionBatch(vec![transaction]))
                     .await
                     .or_else(|err| {
                         if !err.is_full() {

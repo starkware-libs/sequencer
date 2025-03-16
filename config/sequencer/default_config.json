@@ -1294,6 +1294,11 @@
     "privacy": "Public",
     "value": true
   },
+  "monitoring_endpoint_config.collect_profiling_metrics": {
+    "description": "If true, collect and return profiling metrics in the monitoring endpoint.",
+    "privacy": "Public",
+    "value": true
+  },
   "monitoring_endpoint_config.ip": {
     "description": "The monitoring endpoint ip address.",
     "privacy": "Public",
