@@ -6,7 +6,9 @@ use cairo_lang_starknet_classes::NestedIntList;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::core::ClassHash;
+use starknet_api::hash::PoseidonHash;
 use starknet_types_core::felt::Felt;
+use starknet_types_core::hash::{Poseidon, StarkHash};
 
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::vars::{CairoStruct, Const};
@@ -181,6 +183,22 @@ pub(crate) struct BytecodeSegmentInnerNode {
 pub(crate) enum BytecodeSegmentNode {
     Leaf(BytecodeSegmentLeaf),
     InnerNode(BytecodeSegmentInnerNode),
+}
+
+impl BytecodeSegmentNode {
+    pub(crate) fn hash(&self) -> PoseidonHash {
+        match self {
+            BytecodeSegmentNode::Leaf(leaf) => PoseidonHash(Poseidon::hash_array(&leaf.data)),
+            BytecodeSegmentNode::InnerNode(inner_node) => {
+                let flatten_input: Vec<_> = inner_node
+                    .segments
+                    .iter()
+                    .flat_map(|segment| [Felt::from(segment.length), segment.node.hash().0])
+                    .collect();
+                PoseidonHash(Poseidon::hash_array(&flatten_input) + Felt::ONE)
+            }
+        }
+    }
 }
 
 #[cfg_attr(test, derive(PartialEq))]
