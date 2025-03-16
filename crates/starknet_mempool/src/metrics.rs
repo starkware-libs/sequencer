@@ -2,7 +2,12 @@ use starknet_api::rpc_transaction::{
     InternalRpcTransactionLabelValue,
     InternalRpcTransactionWithoutTxHash,
 };
-use starknet_sequencer_metrics::metrics::{LabeledMetricCounter, MetricCounter, MetricGauge};
+use starknet_sequencer_metrics::metrics::{
+    LabeledMetricCounter,
+    MetricCounter,
+    MetricGauge,
+    MetricHistogram,
+};
 use starknet_sequencer_metrics::{define_metrics, generate_permutation_labels};
 use strum::{EnumVariantNames, VariantNames};
 use strum_macros::{EnumIter, IntoStaticStr};
@@ -19,6 +24,7 @@ define_metrics!(
         MetricGauge { MEMPOOL_PENDING_QUEUE_SIZE, "mempool_pending_queue_size", "The size of the mempool's pending queue" },
         MetricGauge { MEMPOOL_GET_TXS_SIZE, "mempool_get_txs_size", "The number of transactions returned in the last get_txs() api call" },
         MetricGauge { MEMPOOL_DELAYED_DECLARES_SIZE, "mempool_delayed_declare_size", "The number of declare transactions that are being delayed" },
+        MetricHistogram { TRANSACTION_TIME_SPENT_IN_MEMPOOL, "mempool_transaction_time_spent", "The time (secs) that a transaction spent in the mempool" },
     },
 );
 
@@ -125,4 +131,6 @@ pub(crate) fn register_metrics() {
     MEMPOOL_PENDING_QUEUE_SIZE.register();
     MEMPOOL_GET_TXS_SIZE.register();
     MEMPOOL_DELAYED_DECLARES_SIZE.register();
+    // Register Histograms.
+    TRANSACTION_TIME_SPENT_IN_MEMPOOL.register();
 }

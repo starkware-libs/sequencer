@@ -18,6 +18,7 @@ use starknet_mempool_p2p_types::communication::MockMempoolP2pPropagatorClient;
 use starknet_mempool_types::communication::AddTransactionArgsWrapper;
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
+use starknet_sequencer_metrics::metrics::HistogramValue;
 
 use crate::communication::MempoolCommunicationWrapper;
 use crate::mempool::{Mempool, MempoolConfig, MempoolContent, MempoolState, TransactionReference};
@@ -951,6 +952,7 @@ fn test_rejected_tx_deleted_from_mempool(mut mempool: Mempool) {
         txs_committed: 1,
         pool_size: 1,
         get_txs_size: 4,
+        transaction_time_spent_in_mempool: HistogramValue { count: 3, ..Default::default() },
         ..Default::default()
     };
     expected_metrics.verify_metrics(&recorder);
@@ -1077,6 +1079,11 @@ fn get_txs_old_transactions_cleanup() {
         txs_dropped_expired: 1,
         pool_size: 1,
         get_txs_size: 1,
+        transaction_time_spent_in_mempool: HistogramValue {
+            sum: 65.0,
+            count: 1,
+            ..Default::default()
+        },
         ..Default::default()
     };
     expected_metrics.verify_metrics(&recorder);
