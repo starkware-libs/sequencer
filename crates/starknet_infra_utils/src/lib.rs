@@ -1,3 +1,5 @@
+#[cfg(any(feature = "testing", test))]
+pub mod cairo_compiler_version;
 pub mod command;
 pub mod dumping;
 pub mod global_allocator;
