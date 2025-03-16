@@ -26,6 +26,7 @@ pub struct MempoolP2pRunner {
     broadcast_topic_client: BroadcastTopicClient<RpcTransactionBatch>,
     gateway_client: SharedGatewayClient,
     _mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
+    transaction_batch_rate_millis: u64,
 }
 
 impl MempoolP2pRunner {
@@ -35,6 +36,7 @@ impl MempoolP2pRunner {
         broadcast_topic_client: BroadcastTopicClient<RpcTransactionBatch>,
         gateway_client: SharedGatewayClient,
         mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
+        transaction_batch_rate_millis: u64,
     ) -> Self {
         Self {
             network_future,
@@ -42,6 +44,7 @@ impl MempoolP2pRunner {
             broadcast_topic_client,
             gateway_client,
             _mempool_p2p_propagator_client: mempool_p2p_propagator_client,
+            transaction_batch_rate_millis,
         }
     }
 }
@@ -50,10 +53,18 @@ impl MempoolP2pRunner {
 impl ComponentStarter for MempoolP2pRunner {
     async fn start(&mut self) {
         let mut gateway_futures = FuturesUnordered::new();
+        let mut transaction_batch_broadcast_interval = tokio::time::interval(
+            std::time::Duration::from_millis(self.transaction_batch_rate_millis),
+        );
         loop {
             tokio::select! {
                 _ = &mut self.network_future => {
                     panic!("MempoolP2pRunner failed - network stopped unexpectedly");
+                }
+                _ = transaction_batch_broadcast_interval.tick() => {
+                    self._mempool_p2p_propagator_client.broadcast_queued_transactions().await.expect(
+                        "MempoolP2pPropagatorClient denied BroadcastQueuedTransactions request"
+                    );
                 }
                 Some(result) = gateway_futures.next() => {
                     match result {

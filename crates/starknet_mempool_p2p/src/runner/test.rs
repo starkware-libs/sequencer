@@ -37,6 +37,7 @@ fn setup(
         broadcast_topic_client,
         gateway_client,
         Arc::new(MockMempoolP2pPropagatorClient::new()),
+        1000,
     );
     (mempool_p2p_runner, mock_network)
 }
