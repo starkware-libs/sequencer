@@ -19,19 +19,17 @@ use mempool_test_utils::starknet_api_test_utils::{
     MultiAccountTransactionGenerator,
 };
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
-use papyrus_base_layer::test_utils::{StarknetL1Contract, DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS};
+use papyrus_base_layer::test_utils::StarknetL1Contract;
 use papyrus_network::network_manager::test_utils::create_connected_network_configs;
 use papyrus_network::NetworkConfig;
 use papyrus_storage::StorageConfig;
 use serde_json::to_value;
-use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::fields::ContractAddressSalt;
 use starknet_api::transaction::{L1HandlerTransaction, TransactionHash, TransactionHasher};
-use starknet_api::{calldata, felt};
 use starknet_batcher::block_builder::BlockBuilderConfig;
 use starknet_batcher::config::BatcherConfig;
 use starknet_class_manager::class_storage::CachedClassStorageConfig;
@@ -96,10 +94,6 @@ pub trait TestScenario {
     ) -> (Vec<RpcTransaction>, Vec<L1HandlerTransaction>);
 
     fn n_txs(&self) -> usize;
-
-    fn n_l1_handler_txs(&self) -> usize {
-        0
-    }
 }
 
 pub struct ConsensusTxs {
@@ -115,16 +109,12 @@ impl TestScenario for ConsensusTxs {
     ) -> (Vec<RpcTransaction>, Vec<L1HandlerTransaction>) {
         (
             create_invoke_txs(tx_generator, account_id, self.n_invoke_txs),
-            (0..self.n_l1_handler_txs).map(|_| create_l1_handler_tx()).collect(),
+            create_l1_handler_txs(tx_generator, self.n_l1_handler_txs),
         )
     }
 
     fn n_txs(&self) -> usize {
         self.n_invoke_txs + self.n_l1_handler_txs
-    }
-
-    fn n_l1_handler_txs(&self) -> usize {
-        self.n_l1_handler_txs
     }
 }
 
@@ -405,24 +395,11 @@ pub fn create_invoke_txs(
         .collect()
 }
 
-/// Creates an L1 handler transaction calling the "l1_handler_set_value" entry point in
-/// [TestContract](FeatureContract::TestContract). Used for flow test.
-pub fn create_l1_handler_tx() -> L1HandlerTransaction {
-    // TODO(Arni): Get test contract from test setup.
-    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
-
-    L1HandlerTransaction {
-        contract_address: test_contract.get_instance_address(0),
-        // TODO(Arni): Consider saving this value as a lazy constant.
-        entry_point_selector: selector_from_name("l1_handler_set_value"),
-        calldata: calldata![
-            DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS,
-            // Arbitrary key and value.
-            felt!("0x876"), // key
-            felt!("0x44")   // value
-        ],
-        ..Default::default()
-    }
+pub fn create_l1_handler_txs(
+    tx_generator: &mut MultiAccountTransactionGenerator,
+    n_txs: usize,
+) -> Vec<L1HandlerTransaction> {
+    (0..n_txs).map(|_| tx_generator.create_l1_handler_tx()).collect()
 }
 
 pub async fn send_message_to_l2_and_calculate_tx_hash(

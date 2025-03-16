@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use alloy::primitives::U256;
 use mempool_test_utils::in_ci;
+use mempool_test_utils::starknet_api_test_utils::DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;
 use papyrus_base_layer::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
     EthereumBaseLayerContract,
@@ -10,7 +11,6 @@ use papyrus_base_layer::ethereum_base_layer_contract::{
 use papyrus_base_layer::test_utils::{
     anvil_instance_from_config,
     ethereum_base_layer_config_for_anvil,
-    DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS,
 };
 use starknet_api::contract_address;
 use starknet_api::core::{EntryPointSelector, Nonce};

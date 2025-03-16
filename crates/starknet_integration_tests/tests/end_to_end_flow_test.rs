@@ -2,7 +2,10 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use futures::StreamExt;
-use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
+use mempool_test_utils::starknet_api_test_utils::{
+    create_l1_handler_tx,
+    MultiAccountTransactionGenerator,
+};
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{
     HeightAndRound,
@@ -32,7 +35,6 @@ use starknet_integration_tests::utils::{
     create_deploy_account_tx_and_invoke_tx,
     create_flow_test_tx_generator,
     create_funding_txs,
-    create_l1_handler_tx,
     create_many_invoke_txs,
     create_multiple_account_txs,
     run_test_scenario,

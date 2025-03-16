@@ -466,14 +466,10 @@ impl IntegrationTestManager {
         sender_account: AccountId,
         wait_for_block: BlockNumber,
     ) {
-        self.verify_txs_accepted_on_all_running_nodes(sender_account, 0).await;
+        self.verify_txs_accepted_on_all_running_nodes(sender_account).await;
         self.run_integration_test_simulator(&test_scenario, sender_account).await;
         self.await_block_on_all_running_nodes(wait_for_block).await;
-        self.verify_txs_accepted_on_all_running_nodes(
-            sender_account,
-            test_scenario.n_l1_handler_txs(),
-        )
-        .await;
+        self.verify_txs_accepted_on_all_running_nodes(sender_account).await;
     }
 
     async fn await_alive(&self, interval: u64, max_attempts: usize) {
@@ -557,15 +553,13 @@ impl IntegrationTestManager {
         .await;
     }
 
-    async fn verify_txs_accepted_on_all_running_nodes(
-        &self,
-        sender_account: AccountId,
-        n_l1_txs: usize,
-    ) {
+    async fn verify_txs_accepted_on_all_running_nodes(&self, sender_account: AccountId) {
         // We use state syncs processed txs metric via its monitoring client to verify that the
         // transactions were accepted.
         let account = self.tx_generator.account_with_id(sender_account);
-        let expected_n_accepted_txs = nonce_to_usize(account.get_nonce()) + n_l1_txs;
+        let expected_n_accepted_account_txs = nonce_to_usize(account.get_nonce());
+        let expected_n_l1_handler_txs = self.tx_generator.n_l1_txs();
+        let expected_n_accepted_txs = expected_n_accepted_account_txs + expected_n_l1_handler_txs;
 
         self.perform_action_on_all_running_nodes(|sequencer_idx, running_node| {
             // We use state syncs processed txs metric via its monitoring client to verify that the
