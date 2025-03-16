@@ -2,18 +2,16 @@ use std::num::ParseIntError;
 
 use blockifier::utils::usize_from_u32;
 use c_kzg::BYTES_PER_FIELD_ELEMENT;
-use num_bigint::BigInt;
+use num_bigint::{BigInt, ParseBigIntError};
 use num_traits::{Num, One, Zero};
 
 const BLOB_SUBGROUP_GENERATOR: &str =
     "39033254847818212395286706435128746857159659164139250548781411570340225835782";
-#[allow(dead_code)]
 pub(crate) const BLS_PRIME: &str =
     "52435875175126190479447740508185965837690552500527637822603658699938581184513";
 const FIELD_ELEMENTS_PER_BLOB: usize = 4096;
 
 #[derive(Debug, thiserror::Error)]
-#[allow(clippy::enum_variant_names)]
 pub enum FftError {
     #[error(transparent)]
     InvalidBinaryToUsize(ParseIntError),
@@ -21,10 +19,10 @@ pub enum FftError {
     InvalidBlobSize(usize),
     #[error("Invalid coefficients length (must be a power of two): {0}.")]
     InvalidCoeffsLength(usize),
-    #[error("Could not parse BigInt: {0}")]
-    ParseBigIntError(ParseBigIntError),
-    #[error("Too many coefficients")]
-    TooManyCoefficients,
+    #[error(transparent)]
+    ParseBigInt(#[from] ParseBigIntError),
+    #[error("Too many coefficients; expected at most {FIELD_ELEMENTS_PER_BLOB}, got {0}.")]
+    TooManyCoefficients(usize),
 }
 
 fn to_bytes(x: &BigInt, length: usize) -> Vec<u8> {
@@ -38,7 +36,6 @@ fn to_bytes(x: &BigInt, length: usize) -> Vec<u8> {
     bytes
 }
 
-#[allow(dead_code)]
 fn serialize_blob(blob: &[BigInt]) -> Result<Vec<u8>, FftError> {
     if blob.len() != FIELD_ELEMENTS_PER_BLOB {
         return Err(FftError::InvalidBlobSize(blob.len()));
@@ -99,7 +96,6 @@ fn inner_fft(coeffs: &[BigInt], group: &[BigInt], prime: &BigInt) -> Vec<BigInt>
 /// equals to the generator's multiplicative order.
 ///
 /// See more: <https://github.com/starkware-libs/cairo-lang/blob/v0.13.2/src/starkware/python/math_utils.py#L304>
-#[allow(dead_code)]
 pub(crate) fn fft(
     coeffs: &[BigInt],
     generator: &BigInt,
@@ -141,21 +137,22 @@ pub(crate) fn fft(
     Ok(values)
 }
 
+#[allow(dead_code)]
 fn polynomial_coefficients_to_blob(coefficients: Vec<BigInt>) -> Result<Vec<u8>, FftError> {
     if coefficients.len() > FIELD_ELEMENTS_PER_BLOB {
-        return Err(FftError::TooManyCoefficients);
+        return Err(FftError::TooManyCoefficients(coefficients.len()));
     }
 
-    // Pad with zeros to complete FIELD_ELEMENTS_PER_BLOB coefficients
+    // Pad with zeros to complete FIELD_ELEMENTS_PER_BLOB coefficients.
     let mut padded_coefficients = coefficients;
     padded_coefficients.resize(FIELD_ELEMENTS_PER_BLOB, BigInt::zero());
 
     // Perform FFT on the coefficients
-    let generator =
-        BigInt::from_str_radix(BLOB_SUBGROUP_GENERATOR, 10).map_err(FftError::ParseBigIntError)?;
-    let prime = BigInt::from_str_radix(BLS_PRIME, 10).map_err(FftError::ParseBigIntError)?;
-    let fft_result = fft(&padded_coefficients, &generator, &prime, true)?;
+    let generator = BigInt::from_str_radix(BLOB_SUBGROUP_GENERATOR, 10)?;
+    let prime = BigInt::from_str_radix(BLS_PRIME, 10)?;
+    let bit_reversed = true;
+    let fft_result = fft(&padded_coefficients, &generator, &prime, bit_reversed)?;
 
-    // Serialize the FFT result into a blob
-    Ok(serialize_blob(&fft_result))
+    // Serialize the FFT result into a blob.
+    serialize_blob(&fft_result)
 }
