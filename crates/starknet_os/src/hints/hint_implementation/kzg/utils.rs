@@ -3,8 +3,10 @@ use std::num::ParseIntError;
 use blockifier::utils::usize_from_u32;
 use c_kzg::BYTES_PER_FIELD_ELEMENT;
 use num_bigint::BigInt;
-use num_traits::One;
+use num_traits::{Num, One, Zero};
 
+const BLOB_SUBGROUP_GENERATOR: &str =
+    "39033254847818212395286706435128746857159659164139250548781411570340225835782";
 #[allow(dead_code)]
 pub(crate) const BLS_PRIME: &str =
     "52435875175126190479447740508185965837690552500527637822603658699938581184513";
@@ -19,6 +21,10 @@ pub enum FftError {
     InvalidBlobSize(usize),
     #[error("Invalid coefficients length (must be a power of two): {0}.")]
     InvalidCoeffsLength(usize),
+    #[error("Could not parse BigInt: {0}")]
+    ParseBigIntError(ParseBigIntError),
+    #[error("Too many coefficients")]
+    TooManyCoefficients,
 }
 
 fn to_bytes(x: &BigInt, length: usize) -> Vec<u8> {
@@ -133,4 +139,23 @@ pub(crate) fn fft(
     }
 
     Ok(values)
+}
+
+fn polynomial_coefficients_to_blob(coefficients: Vec<BigInt>) -> Result<Vec<u8>, FftError> {
+    if coefficients.len() > FIELD_ELEMENTS_PER_BLOB {
+        return Err(FftError::TooManyCoefficients);
+    }
+
+    // Pad with zeros to complete FIELD_ELEMENTS_PER_BLOB coefficients
+    let mut padded_coefficients = coefficients;
+    padded_coefficients.resize(FIELD_ELEMENTS_PER_BLOB, BigInt::zero());
+
+    // Perform FFT on the coefficients
+    let generator =
+        BigInt::from_str_radix(BLOB_SUBGROUP_GENERATOR, 10).map_err(FftError::ParseBigIntError)?;
+    let prime = BigInt::from_str_radix(BLS_PRIME, 10).map_err(FftError::ParseBigIntError)?;
+    let fft_result = fft(&padded_coefficients, &generator, &prime, true)?;
+
+    // Serialize the FFT result into a blob
+    Ok(serialize_blob(&fft_result))
 }
