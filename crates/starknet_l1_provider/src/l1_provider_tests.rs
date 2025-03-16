@@ -28,7 +28,7 @@ macro_rules! bootstrapper {
                     committed_txs: vec![$(tx_hash!($tx)),*]
                 }),*
             ].into_iter().collect(),
-            catch_up_height: BlockNumber($catch),
+            catch_up_height: Arc::new(BlockNumber($catch).into()),
             l1_provider_client: Arc::new(FakeL1ProviderClient::default()),
             sync_client: Arc::new(MockStateSyncClient::default()),
             sync_task_handle: SyncTaskHandle::default(),

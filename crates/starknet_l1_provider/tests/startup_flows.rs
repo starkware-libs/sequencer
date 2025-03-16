@@ -39,7 +39,7 @@ async fn bootstrap_e2e() {
     sync_client.expect_get_block().returning(move |input| Ok(sync_response_clone.remove(&input)));
 
     let config = L1ProviderConfig {
-        bootstrap_catch_up_height: catch_up_height,
+        bootstrap_catch_up_height_override: Some(catch_up_height),
         startup_sync_sleep_retry_interval: Duration::from_millis(10),
         ..Default::default()
     };
@@ -48,7 +48,8 @@ async fn bootstrap_e2e() {
         l1_provider_client.clone(),
         Arc::new(sync_client),
         startup_height,
-    );
+    )
+    .unwrap();
 
     // Test.
 
@@ -129,6 +130,77 @@ async fn bootstrap_e2e() {
     assert_eq!(l1_provider.current_height, BlockNumber(7));
 
     // Assert that the bootstrapper has been dropped.
+    assert!(!l1_provider.state.is_bootstrapping());
+}
+
+#[tokio::test]
+async fn bootstrap_delayed_sync_state_with_trivial_catch_up() {
+    if !in_ci() {
+        return;
+    }
+    configure_tracing().await;
+
+    // Setup.
+
+    let l1_provider_client = Arc::new(FakeL1ProviderClient::default());
+    let startup_height = BlockNumber(2);
+
+    // Make the mocked sync client try removing from a hashmap as a response to get block.
+    let mut sync_client = MockStateSyncClient::default();
+    sync_client.expect_get_block().returning(|_| panic!("Should not have been called!"));
+    let sync_height_response = Arc::new(Mutex::new(None));
+    let sync_response_clone = sync_height_response.clone();
+    sync_client
+        .expect_get_latest_block_number()
+        .returning(move || Ok(*sync_response_clone.lock().unwrap()));
+
+    let config = L1ProviderConfig {
+        startup_sync_sleep_retry_interval: Duration::from_millis(10),
+        ..Default::default()
+    };
+    let mut l1_provider = create_l1_provider(
+        config,
+        l1_provider_client.clone(),
+        Arc::new(sync_client),
+        startup_height,
+    )
+    .unwrap();
+
+    // Test.
+
+    // Start the sync sequence, should busy-wait until the sync height is sent.
+    let scraped_l1_handler_txs = []; // No txs to scrape in this test.
+    l1_provider.initialize(scraped_l1_handler_txs.into()).await.unwrap();
+
+    // **Commit** a few blocks. The height starts from the provider's current height, since this
+    // is a trivial catchup scenario (nothing to catch up).
+    // This checks that the trivial catch_up_height doesn't mess up this flow.
+    let no_txs_committed = []; // Not testing txs in this test.
+    l1_provider.commit_block(&no_txs_committed, startup_height).unwrap();
+    tokio::time::sleep(config.startup_sync_sleep_retry_interval).await;
+    l1_provider.commit_block(&no_txs_committed, startup_height.unchecked_next()).unwrap();
+    tokio::time::sleep(config.startup_sync_sleep_retry_interval).await;
+    // Commit blocks should have been applied.
+    let start_height_plus_2 = startup_height.unchecked_next().unchecked_next();
+    assert_eq!(l1_provider.current_height, start_height_plus_2);
+    // Should still be bootstrapping, since catchup height isn't determined yet.
+    // Technically we could end bootstrapping at this point, but its simpler to let it
+    // terminate gracefully once the the sync is ready.
+    assert!(l1_provider.state.is_bootstrapping());
+
+    *sync_height_response.lock().unwrap() = Some(BlockNumber(2));
+
+    // Let the sync task continue, it should short circuit.
+    tokio::time::sleep(config.startup_sync_sleep_retry_interval).await;
+    // Assert height is unchanged from last time, no commit block was called from the sync task.
+    assert_eq!(l1_provider.current_height, start_height_plus_2);
+    // Finally, commit a new block to trigger the bootstrapping check, should switch to steady
+    // state.
+    l1_provider.commit_block(&no_txs_committed, start_height_plus_2).unwrap();
+    assert_eq!(l1_provider.current_height, start_height_plus_2.unchecked_next());
+    // Should still be bootstrapping, since catchup height isn't determined yet.
+    // Technically we could end bootstrapping at this point, but its simpler to let it
+    // terminate gracefully once the the sync is ready.
     assert!(!l1_provider.state.is_bootstrapping());
 }
 

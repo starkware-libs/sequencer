@@ -1,6 +1,5 @@
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
 use papyrus_base_layer::BaseLayerContract;
-use starknet_api::block::BlockNumber;
 use starknet_batcher::batcher::{create_batcher, Batcher};
 use starknet_class_manager::class_manager::create_class_manager;
 use starknet_class_manager::ClassManager;
@@ -21,7 +20,6 @@ use starknet_monitoring_endpoint::monitoring_endpoint::{
 use starknet_sierra_multicompile::{create_sierra_compiler, SierraCompiler};
 use starknet_state_sync::runner::StateSyncRunner;
 use starknet_state_sync::{create_state_sync_and_runner, StateSync};
-use tracing::warn;
 
 use crate::clients::SequencerNodeClients;
 use crate::config::component_execution_config::{
@@ -232,12 +230,16 @@ pub async fn create_node_components(
                 // the latter should use the correct L1 height.
                 .expect("No L2 block detected at the L1 height the scraper was initialized on. \
                 Advance the scraper to start at a higher height than the L2 genesis height.");
-            Some(create_l1_provider(
-                config.l1_provider_config,
-                clients.get_l1_provider_shared_client().unwrap(),
-                clients.get_state_sync_shared_client().unwrap(),
-                provider_startup_height,
-            ))
+
+            Some(
+                create_l1_provider(
+                    config.l1_provider_config,
+                    clients.get_l1_provider_shared_client().unwrap(),
+                    clients.get_state_sync_shared_client().unwrap(),
+                    provider_startup_height,
+                )
+                .unwrap(),
+            )
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
