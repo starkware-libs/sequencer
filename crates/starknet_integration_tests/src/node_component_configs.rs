@@ -11,6 +11,7 @@ pub struct NodeComponentConfigs {
     component_configs: Vec<ComponentConfig>,
     batcher_index: usize,
     http_server_index: usize,
+    state_sync_index: usize,
 }
 
 impl NodeComponentConfigs {
@@ -18,8 +19,9 @@ impl NodeComponentConfigs {
         component_configs: Vec<ComponentConfig>,
         batcher_index: usize,
         http_server_index: usize,
+        state_sync_index: usize,
     ) -> Self {
-        Self { component_configs, batcher_index, http_server_index }
+        Self { component_configs, batcher_index, http_server_index, state_sync_index }
     }
 
     // pub fn into_iter(self) -> impl Iterator<Item = ComponentConfig> {
@@ -40,6 +42,10 @@ impl NodeComponentConfigs {
 
     pub fn get_http_server_index(&self) -> usize {
         self.http_server_index
+    }
+
+    pub fn get_state_sync_index(&self) -> usize {
+        self.state_sync_index
     }
 }
 
@@ -86,10 +92,13 @@ pub fn create_distributed_node_configs(
                     class_manager_socket,
                 ),
             ],
+            // TODO(noamsp): remove these hardcoded values and get the indexes from a mapping.
             // batcher is in executable index 1.
             1,
             // http server is in executable index 0.
             0,
+            // state sync is in executable index 1.
+            1,
         )
     })
     .take(distributed_sequencers_num)
@@ -109,6 +118,9 @@ pub fn create_consolidated_sequencer_configs(
                 l1_scraper: ActiveComponentExecutionConfig::disabled(),
                 ..ComponentConfig::default()
             }],
+            // TODO(noamsp): remove these hardcoded values and get the indexes from a mapping.
+            // batcher, http server and state sync are in executable index 0.
+            0,
             0,
             0,
         )
@@ -286,8 +298,13 @@ pub fn create_nodes_deployment_units_configs(
                 ),
                 get_l1_provider_config(l1_provider_socket, state_sync_remote_config),
             ],
+            // TODO(noamsp): remove these hardcoded values and get the indexes from a mapping.
+            // batcher is in executable index 0.
             0,
+            // http server is in executable index 6.
             6,
+            // state sync is in executable index 5.
+            5,
         )
     })
     .take(distributed_sequencers_num)
