@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
 use clap::Args;
+use tracing::info;
 
 use crate::shared_utils::read::{read_input, write_to_file};
 
@@ -63,6 +64,7 @@ where
         .unwrap_or_else(|error| panic!("Failed to create PythonTest: {:?}", error));
     let input = read_input(python_test_arg.io_args.input_path);
 
+    info!("HEREHREHEREERERE");
     // Run relevant test.
     let output = test
         .run(Some(&input))

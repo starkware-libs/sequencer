@@ -54,6 +54,7 @@ pub fn validate_input(os_input: &StarknetOsInput) {
 }
 
 pub fn parse_and_run_os(input_path: String, _output_path: String) {
+    info!("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
     let Input { compiled_os_path, layout, os_input, cached_state_input } = load_input(input_path);
     validate_input(&os_input);
     info!("Parsed OS input successfully for block number: {}", os_input.block_info.block_number);
