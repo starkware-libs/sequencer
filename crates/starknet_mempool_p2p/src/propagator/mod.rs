@@ -79,6 +79,9 @@ impl ComponentRequestHandler<MempoolP2pPropagatorRequest, MempoolP2pPropagatorRe
                     .map_err(|_| MempoolP2pPropagatorError::NetworkSendError);
                 MempoolP2pPropagatorResponse::ContinuePropagation(result)
             }
+            MempoolP2pPropagatorRequest::BroadcastTransactionBatch() => {
+                MempoolP2pPropagatorResponse::BroadcastTransactionBatch(Ok(()))
+            }
         }
     }
 }
