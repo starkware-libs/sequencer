@@ -8049,6 +8049,9 @@ dependencies = [
 [[package]]
 name = "papyrus_proc_helper"
 version = "0.0.0"
+dependencies = [
+ "metrics 0.24.1",
+]
 
 [[package]]
 name = "papyrus_proc_macros"
