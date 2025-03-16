@@ -15,37 +15,6 @@ pub(crate) fn initialize_class_hashes<S: StateReader>(
     todo!()
 }
 
-// pub const INITIALIZE_STATE_CHANGES: &str = indoc! {r#"
-//     from starkware.python.utils import from_bytes
-
-//     initial_dict = {
-//         address: segments.gen_arg(
-//             (from_bytes(contract.contract_hash), segments.add(), contract.nonce))
-//         for address, contract in os_input.contracts.items()
-//     }"#
-// };
-
-// pub fn initialize_state_changes(
-//     vm: &mut VirtualMachine,
-//     exec_scopes: &mut ExecutionScopes,
-//     _ids_data: &HashMap<String, HintReference>,
-//     _ap_tracking: &ApTracking,
-//     _constants: &HashMap<String, Felt252>,
-// ) -> Result<(), HintError> { let os_input =
-//   exec_scopes.get::<Rc<StarknetOsInput>>(vars::scopes::OS_INPUT)?; let mut state_dict:
-//   HashMap<MaybeRelocatable, MaybeRelocatable> = HashMap::new(); for (addr, contract_state) in
-//   &os_input.contracts { let change_base = vm.add_memory_segment(); vm.insert_value(change_base,
-//   Felt252::from_bytes_be_slice(&contract_state.contract_hash))?; let storage_commitment_base =
-//   vm.add_memory_segment(); vm.insert_value((change_base + 1)?, storage_commitment_base)?;
-//   vm.insert_value((change_base + 2)?, contract_state.nonce)?;
-
-//         state_dict.insert(MaybeRelocatable::from(addr), MaybeRelocatable::from(change_base));
-//     }
-
-//     exec_scopes.insert_box(vars::scopes::INITIAL_DICT, Box::new(state_dict));
-//     Ok(())
-// }
-
 pub(crate) fn initialize_state_changes<S: StateReader>(
     HintArgs { hint_processor, exec_scopes, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
