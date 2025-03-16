@@ -11512,6 +11512,7 @@ dependencies = [
  "num-bigint 0.4.6",
  "num-integer",
  "num-traits",
+ "rand 0.8.5",
  "rstest",
  "serde",
  "serde_json",

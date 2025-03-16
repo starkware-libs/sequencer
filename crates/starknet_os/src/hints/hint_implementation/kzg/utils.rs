@@ -1,4 +1,19 @@
+use std::num::ParseIntError;
+
 use num_bigint::BigInt;
+use num_traits::One;
+
+#[allow(dead_code)]
+pub(crate) const BLS_PRIME: &str =
+    "52435875175126190479447740508185965837690552500527637822603658699938581184513";
+
+#[derive(Debug, thiserror::Error)]
+pub enum FftError {
+    #[error("Group is missing last element")]
+    GroupMissingLastElement,
+    #[error("Invalid binary cast to usize: {0}")]
+    InvalidBinaryToUsize(ParseIntError),
+}
 
 /// Performs the recursive Fast Fourier Transform (FFT) on the input coefficient vector `coeffs`
 /// using the provided group elements `group` and modulus `prime`.
@@ -16,7 +31,6 @@ use num_bigint::BigInt;
 /// # See More
 /// - <https://en.wikipedia.org/wiki/Fast_Fourier_transform>
 /// - <https://github.com/starkware-libs/cairo-lang/blob/v0.13.2/src/starkware/python/math_utils.py#L310>
-#[allow(dead_code)]
 fn inner_fft(coeffs: &[BigInt], group: &[BigInt], prime: &BigInt) -> Vec<BigInt> {
     if coeffs.len() == 1 {
         return coeffs.to_vec();
@@ -48,4 +62,46 @@ fn inner_fft(coeffs: &[BigInt], group: &[BigInt], prime: &BigInt) -> Vec<BigInt>
     }
 
     result
+}
+
+/// Computes the FFT of `coeffs`, assuming the size of the coefficient array is a power of two and
+/// equals to the generator's multiplicative order.
+///
+/// See more: https://github.com/starkware-libs/cairo-lang/blob/v0.13.2/src/starkware/python/math_utils.py#L304
+fn fft(
+    coeffs: &[BigInt],
+    generator: &BigInt,
+    prime: &BigInt,
+    bit_reversed: bool,
+) -> Result<Vec<BigInt>, FftError> {
+    if coeffs.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let coeffs_len = coeffs.len();
+    assert!(coeffs_len.is_power_of_two(), "Length is not a power of two.");
+
+    let mut group = vec![BigInt::one()];
+    for _ in 0..(coeffs_len - 1) {
+        let last = group.last().ok_or(FftError::GroupMissingLastElement)?;
+        group.push((last * generator) % prime);
+    }
+
+    let mut values = inner_fft(coeffs, &group, prime);
+
+    if bit_reversed {
+        // Python equivalent: width = coeffs_len.bit_length() - 1.
+        // Since coeffs_len is a power of two, width is set to the position of the last set bit.
+        let width = coeffs_len.trailing_zeros() as usize;
+        let perm = (0..coeffs_len)
+            .map(|i| {
+                let binary = format!("{:0width$b}", i, width = width);
+                usize::from_str_radix(&binary.chars().rev().collect::<String>(), 2)
+                    .map_err(FftError::InvalidBinaryToUsize)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        values = perm.into_iter().map(|i| values[i].clone()).collect();
+    }
+
+    Ok(values)
 }
