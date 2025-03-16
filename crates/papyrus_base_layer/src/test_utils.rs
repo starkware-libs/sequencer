@@ -7,6 +7,7 @@ use alloy::providers::RootProvider;
 use alloy::transports::http::{Client, Http};
 use colored::*;
 use ethers::utils::{Ganache, GanacheInstance};
+use strum_macros::EnumDiscriminants;
 use tar::Archive;
 use tempfile::{tempdir, TempDir};
 use url::Url;
@@ -133,4 +134,59 @@ pub async fn spawn_anvil_and_deploy_starknet_l1_contract(
         Starknet::deploy(ethereum_base_layer_contract.contract.provider().clone()).await.unwrap();
 
     (anvil, starknet_l1_contract)
+}
+
+// Holds a handle to a node. Used for the node to stay alive during tests.
+#[derive(EnumDiscriminants)]
+#[strum_discriminants(name(NodeHandleType))]
+pub enum NodeHandle {
+    Anvil(AnvilInstance),
+    Ganache(TestEthereumNodeHandle),
+}
+
+pub struct EthereumBaseLayerContractBuilder {
+    node_handle_type: NodeHandleType,
+    port: Option<u16>,
+}
+
+impl EthereumBaseLayerContractBuilder {
+    fn new(node_handle_type: NodeHandleType) -> Self {
+        Self { node_handle_type, port: None }
+    }
+
+    pub fn new_for_anvil() -> Self {
+        Self::new(NodeHandleType::Anvil)
+    }
+
+    pub fn new_for_ganache() -> Self {
+        Self::new(NodeHandleType::Ganache)
+    }
+
+    pub fn with_port(mut self, port: u16) -> Self {
+        self.port = Some(port);
+        self
+    }
+
+    pub fn build(&self) -> (NodeHandle, EthereumBaseLayerContract) {
+        match self.node_handle_type {
+            NodeHandleType::Anvil => self.build_from_anvil(),
+            NodeHandleType::Ganache => self.build_from_ganache(),
+        }
+    }
+
+    fn build_from_ganache(&self) -> (NodeHandle, EthereumBaseLayerContract) {
+        let (node_handle, starknet_contract_address) = get_test_ethereum_node();
+        let contract = EthereumBaseLayerContract::new(EthereumBaseLayerConfig {
+            node_url: node_handle.0.endpoint().parse().unwrap(),
+            starknet_contract_address,
+        });
+        (NodeHandle::Ganache(node_handle), contract)
+    }
+
+    fn build_from_anvil(&self) -> (NodeHandle, EthereumBaseLayerContract) {
+        let config = ethereum_base_layer_config_for_anvil(self.port);
+        let anvil = anvil_instance_from_config(&config);
+        let contract = EthereumBaseLayerContract::new(config);
+        (NodeHandle::Anvil(anvil), contract)
+    }
 }

@@ -9,7 +9,7 @@ license-file.workspace = true
 workspace = true
 
 [features]
-testing = ["alloy/node-bindings", "colored", "tar", "tempfile"]
+testing = ["alloy/node-bindings", "colored", "strum_macros", "tar", "tempfile"]
 
 [dependencies]
 alloy = { workspace = true, features = ["contract", "json-rpc", "rpc-types"] }
@@ -21,6 +21,7 @@ papyrus_config.workspace = true
 serde.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
+strum_macros = { workspace = true, optional = true }
 tar = { workspace = true, optional = true }
 tempfile = { workspace = true, optional = true }
 thiserror.workspace = true
@@ -36,5 +37,6 @@ mempool_test_utils.workspace = true
 pretty_assertions.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
+strum_macros.workspace = true
 tar.workspace = true
 tempfile.workspace = true

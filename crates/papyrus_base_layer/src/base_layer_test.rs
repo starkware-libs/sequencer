@@ -3,12 +3,7 @@ use pretty_assertions::assert_eq;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::felt;
 
-use crate::ethereum_base_layer_contract::{EthereumBaseLayerConfig, EthereumBaseLayerContract};
-use crate::test_utils::{
-    anvil_instance_from_config,
-    ethereum_base_layer_config_for_anvil,
-    get_test_ethereum_node,
-};
+use crate::test_utils::EthereumBaseLayerContractBuilder;
 use crate::BaseLayerContract;
 
 #[tokio::test]
@@ -18,11 +13,7 @@ async fn latest_proved_block_ethereum() {
         return;
     }
 
-    let (node_handle, starknet_contract_address) = get_test_ethereum_node();
-    let contract = EthereumBaseLayerContract::new(EthereumBaseLayerConfig {
-        node_url: node_handle.0.endpoint().parse().unwrap(),
-        starknet_contract_address,
-    });
+    let (_node_handle, contract) = EthereumBaseLayerContractBuilder::new_for_ganache().build();
 
     let first_sn_state_update =
         BlockHashAndNumber { number: BlockNumber(100), hash: BlockHash(felt!("0x100")) };
@@ -51,9 +42,7 @@ async fn get_proved_block_at_unknown_block_number() {
         return;
     }
 
-    let config = ethereum_base_layer_config_for_anvil(None);
-    let _anvil = anvil_instance_from_config(&config);
-    let contract = EthereumBaseLayerContract::new(config);
+    let (_node_handle, contract) = EthereumBaseLayerContractBuilder::new_for_anvil().build();
 
     assert!(
         contract
@@ -72,11 +61,7 @@ async fn get_gas_price_and_timestamps() {
         return;
     }
 
-    let (node_handle, starknet_contract_address) = get_test_ethereum_node();
-    let contract = EthereumBaseLayerContract::new(EthereumBaseLayerConfig {
-        node_url: node_handle.0.endpoint().parse().unwrap(),
-        starknet_contract_address,
-    });
+    let (_node_handle, contract) = EthereumBaseLayerContractBuilder::new_for_ganache().build();
 
     let block_number = 30;
     let price_sample = contract.get_price_sample(block_number).await.unwrap().unwrap();
