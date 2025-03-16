@@ -4,7 +4,7 @@ use std::sync::LazyLock;
 
 use blockifier::utils::usize_from_u32;
 use c_kzg::{Blob, KzgCommitment, KzgSettings, BYTES_PER_FIELD_ELEMENT};
-use num_bigint::{BigInt, ParseBigIntError};
+use num_bigint::{BigUint, ParseBigIntError};
 use num_traits::{Num, One, Zero};
 use starknet_infra_utils::compile_time_cargo_manifest_dir;
 use starknet_types_core::felt::Felt;
@@ -28,7 +28,7 @@ pub enum FftError {
     #[error("Invalid coefficients length (must be a power of two): {0}.")]
     InvalidCoeffsLength(usize),
     #[error(transparent)]
-    ParseBigInt(#[from] ParseBigIntError),
+    ParseBigUint(#[from] ParseBigIntError),
     #[error("Too many coefficients; expected at most {FIELD_ELEMENTS_PER_BLOB}, got {0}.")]
     TooManyCoefficients(usize),
 }
@@ -44,8 +44,8 @@ fn blob_to_kzg_commitment(blob: &Blob) -> Result<KzgCommitment, FftError> {
     Ok(KzgCommitment::blob_to_kzg_commitment(blob, &KZG_SETTINGS)?)
 }
 
-fn to_bytes(x: &BigInt, length: usize) -> Vec<u8> {
-    let mut bytes = x.to_bytes_be().1;
+fn to_bytes(x: &BigUint, length: usize) -> Vec<u8> {
+    let mut bytes = x.to_bytes_be();
     let padding = length.saturating_sub(bytes.len());
     if padding > 0 {
         let mut padded_bytes = vec![0; padding];
@@ -55,7 +55,7 @@ fn to_bytes(x: &BigInt, length: usize) -> Vec<u8> {
     bytes
 }
 
-fn serialize_blob(blob: &[BigInt]) -> Result<Vec<u8>, FftError> {
+fn serialize_blob(blob: &[BigUint]) -> Result<Vec<u8>, FftError> {
     if blob.len() != FIELD_ELEMENTS_PER_BLOB {
         return Err(FftError::InvalidBlobSize(blob.len()));
     }
@@ -67,18 +67,18 @@ fn serialize_blob(blob: &[BigInt]) -> Result<Vec<u8>, FftError> {
 ///
 /// # Arguments
 ///
-/// * `coeffs` - A slice of `BigInt` representing the coefficients of the polynomial.
-/// * `group` - A slice of `BigInt` representing the precomputed group elements for the FFT.
-/// * `prime` - A `BigInt` representing the prime modulus for the field operations.
+/// * `coeffs` - A slice of `BigUint` representing the coefficients of the polynomial.
+/// * `group` - A slice of `BigUint` representing the precomputed group elements for the FFT.
+/// * `prime` - A `BigUint` representing the prime modulus for the field operations.
 ///
 /// # Returns
 ///
-/// A `Vec<BigInt>` containing the transformed coefficients after applying the FFT.
+/// A `Vec<BigUint>` containing the transformed coefficients after applying the FFT.
 ///
 /// # See More
 /// - <https://en.wikipedia.org/wiki/Fast_Fourier_transform>
 /// - <https://github.com/starkware-libs/cairo-lang/blob/v0.13.2/src/starkware/python/math_utils.py#L310>
-fn inner_fft(coeffs: &[BigInt], group: &[BigInt], prime: &BigInt) -> Vec<BigInt> {
+fn inner_fft(coeffs: &[BigUint], group: &[BigUint], prime: &BigUint) -> Vec<BigUint> {
     if coeffs.len() == 1 {
         return coeffs.to_vec();
     }
@@ -95,7 +95,7 @@ fn inner_fft(coeffs: &[BigInt], group: &[BigInt], prime: &BigInt) -> Vec<BigInt>
         prime,
     );
 
-    let group_mul_f_odd: Vec<BigInt> =
+    let group_mul_f_odd: Vec<BigUint> =
         group.iter().take(f_odd.len()).zip(f_odd.iter()).map(|(g, f)| (g * f) % prime).collect();
 
     let mut result = Vec::with_capacity(coeffs.len());
@@ -103,8 +103,8 @@ fn inner_fft(coeffs: &[BigInt], group: &[BigInt], prime: &BigInt) -> Vec<BigInt>
         result.push((f_even[i].clone() + &group_mul_f_odd[i]) % prime);
     }
     for i in 0..f_even.len() {
-        // Ensure non-negative diff by adding prime to the value before applying the modulo.
-        let diff = (f_even[i].clone() - &group_mul_f_odd[i] + prime) % prime;
+        // Ensure non-negative diff by adding prime to the value before subtracting.
+        let diff = ((f_even[i].clone() + prime) - &group_mul_f_odd[i]) % prime;
         result.push(diff);
     }
 
@@ -116,11 +116,11 @@ fn inner_fft(coeffs: &[BigInt], group: &[BigInt], prime: &BigInt) -> Vec<BigInt>
 ///
 /// See more: <https://github.com/starkware-libs/cairo-lang/blob/v0.13.2/src/starkware/python/math_utils.py#L304>
 pub(crate) fn fft(
-    coeffs: &[BigInt],
-    generator: &BigInt,
-    prime: &BigInt,
+    coeffs: &[BigUint],
+    generator: &BigUint,
+    prime: &BigUint,
     bit_reversed: bool,
-) -> Result<Vec<BigInt>, FftError> {
+) -> Result<Vec<BigUint>, FftError> {
     if coeffs.is_empty() {
         return Ok(vec![]);
     }
@@ -130,7 +130,7 @@ pub(crate) fn fft(
         return Err(FftError::InvalidCoeffsLength(coeffs_len));
     }
 
-    let mut group = vec![BigInt::one()];
+    let mut group = vec![BigUint::one()];
     for _ in 0..(coeffs_len - 1) {
         let last = group.last().expect("Group is never empty.");
         group.push((last * generator) % prime);
@@ -166,18 +166,18 @@ pub(crate) fn split_commitment(commitment: &KzgCommitment) -> Result<(Felt, Felt
     Ok((Felt::from_bytes_be_slice(low), Felt::from_bytes_be_slice(high)))
 }
 
-fn polynomial_coefficients_to_blob(coefficients: Vec<BigInt>) -> Result<Vec<u8>, FftError> {
+fn polynomial_coefficients_to_blob(coefficients: Vec<BigUint>) -> Result<Vec<u8>, FftError> {
     if coefficients.len() > FIELD_ELEMENTS_PER_BLOB {
         return Err(FftError::TooManyCoefficients(coefficients.len()));
     }
 
     // Pad with zeros to complete FIELD_ELEMENTS_PER_BLOB coefficients.
     let mut padded_coefficients = coefficients;
-    padded_coefficients.resize(FIELD_ELEMENTS_PER_BLOB, BigInt::zero());
+    padded_coefficients.resize(FIELD_ELEMENTS_PER_BLOB, BigUint::zero());
 
     // Perform FFT on the coefficients
-    let generator = BigInt::from_str_radix(BLOB_SUBGROUP_GENERATOR, 10)?;
-    let prime = BigInt::from_str_radix(BLS_PRIME, 10)?;
+    let generator = BigUint::from_str_radix(BLOB_SUBGROUP_GENERATOR, 10)?;
+    let prime = BigUint::from_str_radix(BLS_PRIME, 10)?;
     let bit_reversed = true;
     let fft_result = fft(&padded_coefficients, &generator, &prime, bit_reversed)?;
 
@@ -186,7 +186,7 @@ fn polynomial_coefficients_to_blob(coefficients: Vec<BigInt>) -> Result<Vec<u8>,
 }
 
 pub(crate) fn polynomial_coefficients_to_kzg_commitment(
-    coefficients: Vec<BigInt>,
+    coefficients: Vec<BigUint>,
 ) -> Result<(Felt, Felt), FftError> {
     let blob = polynomial_coefficients_to_blob(coefficients)?;
     let commitment_bytes = blob_to_kzg_commitment(&Blob::from_bytes(&blob)?)?;
