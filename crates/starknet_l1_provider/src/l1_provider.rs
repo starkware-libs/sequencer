@@ -1,4 +1,5 @@
 use std::cmp::Ordering::{Equal, Greater, Less};
+use std::sync::Arc;
 
 use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::L1HandlerTransaction;
@@ -15,7 +16,7 @@ use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_state_sync_types::communication::SharedStateSyncClient;
 use tracing::{instrument, trace, warn};
 
-use crate::bootstrapper::{Bootstrapper, SyncTaskHandle};
+use crate::bootstrapper::Bootstrapper;
 use crate::transaction_manager::TransactionManager;
 use crate::{L1ProviderConfig, ProviderState};
 
@@ -149,13 +150,13 @@ impl L1Provider {
             let backlog = std::mem::take(&mut bootstrapper.commit_block_backlog);
             assert!(
                 backlog.is_empty()
-                    || bootstrapper.catch_up_height == backlog.first().unwrap().height
+                    || self.current_height == backlog.first().unwrap().height
                         && backlog
                             .windows(2)
                             .all(|height| height[1].height == height[0].height.unchecked_next()),
-                "Backlog must have sequential heights starting sequentially after \
-                 catch_up_height: {}, backlog: {:?}",
-                bootstrapper.catch_up_height,
+                "Backlog must have sequential heights starting sequentially after current height: \
+                 {}, backlog: {:?}",
+                self.current_height,
                 backlog.iter().map(|commit_block| commit_block.height).collect::<Vec<_>>()
             );
             for commit_block in backlog {
@@ -203,12 +204,15 @@ impl L1Provider {
 
 impl ComponentStarter for L1Provider {}
 
+/// Initializes L1Provider at specified height (≤ scraper's last state update height).
+/// Bootstrap catch-up height defaults to current sync height.
+#[instrument(skip(l1_provider_client, sync_client, config), err)]
 pub fn create_l1_provider(
     config: L1ProviderConfig,
     l1_provider_client: SharedL1ProviderClient,
     sync_client: SharedStateSyncClient,
     scraper_synced_startup_height: BlockNumber,
-) -> L1Provider {
+) -> L1ProviderResult<L1Provider> {
     let l1_provider_startup_height = config
         .provider_startup_height_override
         .inspect(|&startup_height_override| {
@@ -225,18 +229,29 @@ pub fn create_l1_provider(
         })
         .unwrap_or(scraper_synced_startup_height);
 
-    let bootstrapper = Bootstrapper {
-        catch_up_height: config.bootstrap_catch_up_height,
-        commit_block_backlog: Default::default(),
+    let catch_up_height = config
+        .bootstrap_catch_up_height_override
+        .map(|catch_up_height_override| {
+            warn!(
+                "Initializing L1Provider with OVERRIDDEN catch-up height: \
+                 {catch_up_height_override}, this MUST be greater or equal to the default \
+                 non-overridden value, which is the current sync height, or the sync will never \
+                 complete!"
+            );
+            Arc::new(catch_up_height_override.into())
+        })
+        .unwrap_or_default();
+
+    let bootstrapper = Bootstrapper::new(
         l1_provider_client,
         sync_client,
-        sync_task_handle: SyncTaskHandle::NotStartedYet,
-        sync_retry_interval: config.startup_sync_sleep_retry_interval,
-    };
+        config.startup_sync_sleep_retry_interval,
+        catch_up_height,
+    );
 
-    L1Provider {
+    Ok(L1Provider {
         current_height: l1_provider_startup_height,
         tx_manager: TransactionManager::default(),
         state: ProviderState::Bootstrap(bootstrapper),
-    }
+    })
 }
