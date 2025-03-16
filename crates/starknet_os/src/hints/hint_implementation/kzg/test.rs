@@ -1,6 +1,6 @@
 use std::iter::repeat_with;
 
-use num_bigint::BigInt;
+use num_bigint::BigUint;
 use num_traits::{Num, One, Zero};
 use rstest::rstest;
 
@@ -11,11 +11,11 @@ const GENERATOR: &str =
 const WIDTH: usize = 12;
 const ORDER: usize = 1 << WIDTH;
 
-fn generate(generator: &BigInt) -> Vec<BigInt> {
-    let mut array = vec![BigInt::one()];
+fn generate(generator: &BigUint) -> Vec<BigUint> {
+    let mut array = vec![BigUint::one()];
     for _ in 1..ORDER {
         let last = array.last().unwrap().clone();
-        let next = (generator * &last) % BigInt::from_str_radix(BLS_PRIME, 10).unwrap();
+        let next = (generator * &last) % BigUint::from_str_radix(BLS_PRIME, 10).unwrap();
         array.push(next);
     }
     array
@@ -23,21 +23,22 @@ fn generate(generator: &BigInt) -> Vec<BigInt> {
 
 #[rstest]
 fn test_small_fft_regression(#[values(true, false)] bit_reversed: bool) {
-    let prime = BigInt::from(17);
-    let generator = BigInt::from(3);
-    let coeffs: Vec<BigInt> = [0, 1, 2, 3].into_iter().map(BigInt::from).collect();
-    let expected_eval: Vec<BigInt> = (if bit_reversed { [6, 15, 9, 4] } else { [6, 9, 15, 4] })
-        .into_iter()
-        .map(BigInt::from)
-        .collect();
+    let prime = BigUint::from(17_u8);
+    let generator = BigUint::from(3_u8);
+    let coeffs: Vec<BigUint> = [0_u8, 1, 2, 3].into_iter().map(BigUint::from).collect();
+    let expected_eval: Vec<BigUint> =
+        (if bit_reversed { [6_u8, 15, 9, 4] } else { [6_u8, 9, 15, 4] })
+            .into_iter()
+            .map(BigUint::from)
+            .collect();
     let actual_eval = fft(&coeffs, &generator, &prime, bit_reversed).unwrap();
     assert_eq!(actual_eval, expected_eval);
 }
 
 #[rstest]
 fn test_fft(#[values(true, false)] bit_reversed: bool) {
-    let prime = BigInt::from_str_radix(BLS_PRIME, 10).unwrap();
-    let generator = BigInt::from_str_radix(GENERATOR, 10).unwrap();
+    let prime = BigUint::from_str_radix(BLS_PRIME, 10).unwrap();
+    let generator = BigUint::from_str_radix(GENERATOR, 10).unwrap();
 
     let mut subgroup = generate(&generator);
     if bit_reversed {
@@ -51,18 +52,18 @@ fn test_fft(#[values(true, false)] bit_reversed: bool) {
     }
 
     // Sanity checks.
-    assert_eq!((&generator.modpow(&BigInt::from(ORDER), &prime)), &BigInt::one());
+    assert_eq!((&generator.modpow(&BigUint::from(ORDER), &prime)), &BigUint::one());
     assert_eq!(subgroup.len(), subgroup.iter().collect::<std::collections::HashSet<_>>().len());
 
-    let coeffs: Vec<BigInt> =
-        repeat_with(|| BigInt::from(rand::random::<u64>()) % &prime).take(ORDER).collect();
+    let coeffs: Vec<BigUint> =
+        repeat_with(|| BigUint::from(rand::random::<u64>()) % &prime).take(ORDER).collect();
 
     // Evaluate naively.
-    let mut expected_eval = vec![BigInt::zero(); ORDER];
+    let mut expected_eval = vec![BigUint::zero(); ORDER];
     for (i, x) in subgroup.iter().enumerate() {
         let eval = generate(x);
         expected_eval[i] =
-            coeffs.iter().zip(eval.iter()).map(|(c, e)| c * e).sum::<BigInt>() % &prime;
+            coeffs.iter().zip(eval.iter()).map(|(c, e)| c * e).sum::<BigUint>() % &prime;
     }
 
     // Evaluate using FFT.
@@ -71,14 +72,14 @@ fn test_fft(#[values(true, false)] bit_reversed: bool) {
     assert_eq!(actual_eval, expected_eval);
 
     // Trivial cases.
-    assert_eq!(actual_eval[0], coeffs.iter().sum::<BigInt>() % &prime);
+    assert_eq!(actual_eval[0], coeffs.iter().sum::<BigUint>() % &prime);
     assert_eq!(
-        fft(&vec![BigInt::zero(); ORDER], &generator, &prime, bit_reversed).unwrap(),
-        vec![BigInt::zero(); ORDER]
+        fft(&vec![BigUint::zero(); ORDER], &generator, &prime, bit_reversed).unwrap(),
+        vec![BigUint::zero(); ORDER]
     );
     assert_eq!(
-        fft(&[BigInt::from(121212u64)], &BigInt::one(), &prime, bit_reversed).unwrap(),
-        vec![BigInt::from(121212u64)]
+        fft(&[BigUint::from(121212u64)], &BigUint::one(), &prime, bit_reversed).unwrap(),
+        vec![BigUint::from(121212u64)]
     );
 }
 
@@ -87,28 +88,28 @@ fn test_fft(#[values(true, false)] bit_reversed: bool) {
 /// https://github.com/starkware-libs/cairo-lang/blob/a86e92bfde9c171c0856d7b46580c66e004922f3/src/starkware/starknet/solidity/Starknet.sol#L209.
 #[rstest]
 #[case(
-    BigInt::from_str_radix(
+    BigUint::from_str_radix(
         "b7a71dc9d8e15ea474a69c0531e720cf5474b189ac9afc81590b91a225b1bf7fa5877ec546d090e0059f019c74675362",
         16,
     ).unwrap(),
     (
-        BigInt::from_str_radix("590b91a225b1bf7fa5877ec546d090e0059f019c74675362", 16).unwrap(),
-        BigInt::from_str_radix("b7a71dc9d8e15ea474a69c0531e720cf5474b189ac9afc81", 16).unwrap(),
+        BigUint::from_str_radix("590b91a225b1bf7fa5877ec546d090e0059f019c74675362", 16).unwrap(),
+        BigUint::from_str_radix("b7a71dc9d8e15ea474a69c0531e720cf5474b189ac9afc81", 16).unwrap(),
     )
 )]
 #[case(
-    BigInt::from_str_radix(
+    BigUint::from_str_radix(
         "a797c1973c99961e357246ee81bde0acbdd27e801d186ccb051732ecbaa75842afd3d8860d40b3e8eeea433bce18b5c8",
         16,
     ).unwrap(),
     (
-        BigInt::from_str_radix("51732ecbaa75842afd3d8860d40b3e8eeea433bce18b5c8", 16).unwrap(),
-        BigInt::from_str_radix("a797c1973c99961e357246ee81bde0acbdd27e801d186ccb", 16).unwrap(),
+        BigUint::from_str_radix("51732ecbaa75842afd3d8860d40b3e8eeea433bce18b5c8", 16).unwrap(),
+        BigUint::from_str_radix("a797c1973c99961e357246ee81bde0acbdd27e801d186ccb", 16).unwrap(),
     )
 )]
 fn test_split_commitment_function(
-    #[case] commitment: BigInt,
-    #[case] expected_output: (BigInt, BigInt),
+    #[case] commitment: BigUint,
+    #[case] expected_output: (BigUint, BigUint),
 ) {
     assert_eq!(split_commitment(commitment), expected_output);
 }
