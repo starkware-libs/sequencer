@@ -1149,10 +1149,15 @@
     "privacy": "TemporaryValue",
     "value": true
   },
-  "l1_provider_config.bootstrap_catch_up_height": {
-    "description": "Height at which the provider should catch up to the bootstrapper.",
+  "l1_provider_config.bootstrap_catch_up_height_override": {
+    "description": "Override height at which the provider should catch up to the bootstrapper.",
     "privacy": "Public",
     "value": 0
+  },
+  "l1_provider_config.bootstrap_catch_up_height_override.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
   },
   "l1_provider_config.provider_startup_height_override": {
     "description": "Override height at which the provider should start",
