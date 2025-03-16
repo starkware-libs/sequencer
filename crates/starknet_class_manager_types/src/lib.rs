@@ -87,7 +87,6 @@ pub enum CachedClassStorageError<E: Error> {
     Storage(#[from] E),
 }
 
-// TODO(Elin): express class not found, either as `Option`, or as a dedicated error variant.
 #[derive(Clone, Debug, Error, Eq, PartialEq, Serialize, Deserialize)]
 pub enum ClassManagerError {
     #[error("Internal client error: {0}")]
@@ -96,26 +95,17 @@ pub enum ClassManagerError {
     ClassSerde(String),
     #[error("Class storage error: {0}")]
     ClassStorage(String),
-    #[error(transparent)]
-    SierraCompiler(#[from] SierraCompilerError),
+    #[error("Sierra compiler error for class hash {class_hash}: {error}")]
+    SierraCompiler {
+        class_hash: ClassHash,
+        #[source]
+        error: SierraCompilerError,
+    },
 }
 
 impl<E: Error> From<CachedClassStorageError<E>> for ClassManagerError {
     fn from(error: CachedClassStorageError<E>) -> Self {
         ClassManagerError::ClassStorage(error.to_string())
-    }
-}
-
-impl From<SierraCompilerClientError> for ClassManagerError {
-    fn from(error: SierraCompilerClientError) -> Self {
-        match error {
-            SierraCompilerClientError::SierraCompilerError(error) => {
-                ClassManagerError::SierraCompiler(error)
-            }
-            SierraCompilerClientError::ClientError(error) => {
-                ClassManagerError::Client(error.to_string())
-            }
-        }
     }
 }
 
