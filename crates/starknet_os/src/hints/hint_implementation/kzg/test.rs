@@ -4,6 +4,7 @@ use c_kzg::KzgCommitment;
 use num_bigint::BigInt;
 use num_traits::{Num, One, Zero};
 use rstest::rstest;
+use starknet_types_core::felt::Felt;
 
 use crate::hints::hint_implementation::kzg::utils::{fft, split_commitment, BLS_PRIME};
 
@@ -80,8 +81,8 @@ fn test_fft(#[values(true, false)] bit_reversed: bool) {
         16,
     ).unwrap(),
     (
-        BigInt::from_str_radix("590b91a225b1bf7fa5877ec546d090e0059f019c74675362", 16).unwrap(),
-        BigInt::from_str_radix("b7a71dc9d8e15ea474a69c0531e720cf5474b189ac9afc81", 16).unwrap(),
+        Felt::from_hex_unchecked("590b91a225b1bf7fa5877ec546d090e0059f019c74675362"),
+        Felt::from_hex_unchecked("b7a71dc9d8e15ea474a69c0531e720cf5474b189ac9afc81"),
     )
 )]
 #[case(
@@ -90,13 +91,13 @@ fn test_fft(#[values(true, false)] bit_reversed: bool) {
         16,
     ).unwrap(),
     (
-        BigInt::from_str_radix("51732ecbaa75842afd3d8860d40b3e8eeea433bce18b5c8", 16).unwrap(),
-        BigInt::from_str_radix("a797c1973c99961e357246ee81bde0acbdd27e801d186ccb", 16).unwrap(),
+        Felt::from_hex_unchecked("51732ecbaa75842afd3d8860d40b3e8eeea433bce18b5c8"),
+        Felt::from_hex_unchecked("a797c1973c99961e357246ee81bde0acbdd27e801d186ccb"),
     )
 )]
 fn test_split_commitment_function(
     #[case] commitment: BigInt,
-    #[case] expected_output: (BigInt, BigInt),
+    #[case] expected_output: (Felt, Felt),
 ) {
     let commitment = KzgCommitment::from_bytes(&commitment.to_bytes_be().1).unwrap();
     assert_eq!(split_commitment(&commitment).unwrap(), expected_output);
