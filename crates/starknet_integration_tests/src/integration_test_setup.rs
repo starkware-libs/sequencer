@@ -34,7 +34,6 @@ use starknet_sequencer_node::config::config_utils::{
 use starknet_sequencer_node::config::node_config::{
     SequencerNodeConfig,
     CONFIG_NON_POINTERS_WHITELIST,
-    CONFIG_POINTERS,
 };
 use starknet_sequencer_node::test_utils::node_runner::NodeRunner;
 use starknet_state_sync::config::StateSyncConfig;
@@ -95,7 +94,7 @@ impl From<NodeExecutionId> for NodeRunner {
 pub struct ConfigPointersMap(HashMap<ParamPath, (SerializedParam, Pointers)>);
 
 impl ConfigPointersMap {
-    fn new(config_pointers: ConfigPointers) -> Self {
+    pub fn new(config_pointers: ConfigPointers) -> Self {
         ConfigPointersMap(config_pointers.into_iter().map(|((k, v), p)| (k, (v, p))).collect())
     }
 
@@ -198,7 +197,7 @@ impl ExecutableSetup {
 
         let block_max_capacity_n_steps = GasAmount(30000000);
         // Derive the configuration for the sequencer node.
-        let (config, required_params) = create_node_config(
+        let (config, required_params, config_pointers_map) = create_node_config(
             &mut available_ports,
             node_execution_id,
             chain_info,
@@ -239,7 +238,7 @@ impl ExecutableSetup {
             batcher_storage_handle,
             batcher_storage_config: config.batcher_config.storage.clone(),
             config: config.clone(),
-            config_pointers_map: ConfigPointersMap::new(CONFIG_POINTERS.clone()),
+            config_pointers_map,
             required_params,
             node_config_dir_handle,
             node_config_path,
