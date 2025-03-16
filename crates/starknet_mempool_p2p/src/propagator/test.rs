@@ -36,7 +36,7 @@ async fn process_handle_add_tx() {
         .times(1)
         .return_once(move |_| Ok(rpc_transaction));
     let mut mempool_p2p_propagator =
-        MempoolP2pPropagator::new(broadcast_topic_client, Box::new(transaction_converter));
+        MempoolP2pPropagator::new(broadcast_topic_client, Box::new(transaction_converter), 1);
     mempool_p2p_propagator
         .handle_request(MempoolP2pPropagatorRequest::AddTransaction(internal_tx))
         .await;
@@ -54,7 +54,7 @@ async fn process_handle_continue_propagation() {
     let propagation_metadata = BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
     let transaction_converter = MockTransactionConverterTrait::new();
     let mut mempool_p2p_propagator =
-        MempoolP2pPropagator::new(broadcast_topic_client, Box::new(transaction_converter));
+        MempoolP2pPropagator::new(broadcast_topic_client, Box::new(transaction_converter), 1);
     mempool_p2p_propagator
         .handle_request(MempoolP2pPropagatorRequest::ContinuePropagation(
             propagation_metadata.clone(),
