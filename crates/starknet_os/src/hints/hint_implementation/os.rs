@@ -1,27 +1,61 @@
+use std::collections::HashMap;
+
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_into_ap;
+use cairo_vm::types::relocatable::MaybeRelocatable;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::enum_definition::{AllHints, OsHint};
 use crate::hints::error::OsHintResult;
 use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;
-use crate::hints::vars::Scope;
+use crate::hints::vars::{CairoStruct, Scope};
+use crate::vm_utils::insert_values_to_fields;
 
 pub(crate) fn initialize_class_hashes<S: StateReader>(
     HintArgs { hint_processor, exec_scopes, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let state_input = &hint_processor.execution_helper.cached_state;
-    let class_hash_to_compiled_class_hash =
-        state_input.cache.clone().into_inner().initial_reads.compiled_class_hashes;
+    let class_hash_to_compiled_class_hash: HashMap<MaybeRelocatable, MaybeRelocatable> =
+        hint_processor
+            .execution_helper
+            .cached_state
+            .writes_compiled_class_hashes()
+            .into_iter()
+            .map(|(class_hash, compiled_class_hash)| {
+                (class_hash.0.into(), compiled_class_hash.0.into())
+            })
+            .collect();
     exec_scopes.insert_value(Scope::InitialDict.into(), class_hash_to_compiled_class_hash);
     Ok(())
 }
 
 pub(crate) fn initialize_state_changes<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, exec_scopes, vm, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    let cached_state = &hint_processor.execution_helper.cached_state;
+    let writes_accessed_addresses = cached_state.writes_contract_addresses();
+    let mut initial_dict: HashMap<MaybeRelocatable, MaybeRelocatable> = HashMap::new();
+
+    for contract_address in writes_accessed_addresses {
+        let nonce = cached_state.get_nonce_at(contract_address)?;
+        let class_hash = cached_state.get_class_hash_at(contract_address)?;
+        let state_entry_base = vm.add_memory_segment();
+        let storage_ptr = vm.add_memory_segment();
+        insert_values_to_fields(
+            state_entry_base,
+            CairoStruct::StateEntry,
+            vm,
+            &[
+                ("class_hash", class_hash.0.into()),
+                ("storage_ptr", storage_ptr.into()),
+                ("nonce", nonce.0.into()),
+            ],
+            &hint_processor.execution_helper.os_program,
+        )?;
+        initial_dict.insert((*contract_address.0.key()).into(), state_entry_base.into());
+    }
+    exec_scopes.insert_value(Scope::InitialDict.into(), initial_dict);
+    Ok(())
 }
 
 pub(crate) fn write_full_output_to_memory<S: StateReader>(
