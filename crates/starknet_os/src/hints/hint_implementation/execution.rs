@@ -175,15 +175,11 @@ pub(crate) fn tx_entry_point_selector<S: StateReader>(
     todo!()
 }
 
-pub(crate) fn tx_max_fee<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
+pub(crate) fn tx_version<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
     todo!()
 }
 
 pub(crate) fn tx_tip<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    todo!()
-}
-
-pub(crate) fn tx_tip_deprecated<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
     todo!()
 }
 
@@ -193,29 +189,11 @@ pub(crate) fn tx_paymaster_data_len<S: StateReader>(
     todo!()
 }
 
-pub(crate) fn tx_paymaster_data_len_deprecated<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
-) -> OsHintResult {
-    todo!()
-}
-
 pub(crate) fn tx_paymaster_data<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
     todo!()
 }
 
-pub(crate) fn tx_paymaster_data_deprecated<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
-) -> OsHintResult {
-    todo!()
-}
-
 pub(crate) fn tx_nonce_data_availability_mode<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
-) -> OsHintResult {
-    todo!()
-}
-
-pub(crate) fn tx_nonce_data_availability_mode_deprecated<S: StateReader>(
     HintArgs { .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
     todo!()
@@ -227,31 +205,13 @@ pub(crate) fn tx_fee_data_availability_mode<S: StateReader>(
     todo!()
 }
 
-pub(crate) fn tx_fee_data_availability_mode_deprecated<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
-) -> OsHintResult {
-    todo!()
-}
-
 pub(crate) fn tx_account_deployment_data_len<S: StateReader>(
     HintArgs { .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
     todo!()
 }
 
-pub(crate) fn tx_account_deployment_data_len_deprecated<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
-) -> OsHintResult {
-    todo!()
-}
-
 pub(crate) fn tx_account_deployment_data<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
-) -> OsHintResult {
-    todo!()
-}
-
-pub(crate) fn tx_account_deployment_data_deprecated<S: StateReader>(
     HintArgs { .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
     todo!()
@@ -424,7 +384,7 @@ pub(crate) fn write_syscall_result<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn gen_class_hash_arg<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
+pub(crate) fn declare_tx_fields<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
     todo!()
 }
 

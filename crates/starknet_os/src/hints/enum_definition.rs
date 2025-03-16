@@ -75,6 +75,7 @@ use crate::hints::hint_implementation::execution::{
     check_new_syscall_response,
     check_syscall_response,
     contract_address,
+    declare_tx_fields,
     end_tx,
     enter_call,
     enter_scope_deprecated_syscall_handler,
@@ -90,7 +91,6 @@ use crate::hints::hint_implementation::execution::{
     exit_call,
     exit_tx,
     fetch_result,
-    gen_class_hash_arg,
     gen_signature_arg,
     get_block_hash_contract_address_state_entry_and_set_new_state_entry,
     get_contract_address_state_entry,
@@ -107,23 +107,16 @@ use crate::hints::hint_implementation::execution::{
     set_fp_plus_4_to_tx_nonce,
     set_state_entry_to_account_contract_address,
     tx_account_deployment_data,
-    tx_account_deployment_data_deprecated,
     tx_account_deployment_data_len,
-    tx_account_deployment_data_len_deprecated,
     tx_calldata,
     tx_calldata_len,
     tx_entry_point_selector,
     tx_fee_data_availability_mode,
-    tx_fee_data_availability_mode_deprecated,
-    tx_max_fee,
     tx_nonce_data_availability_mode,
-    tx_nonce_data_availability_mode_deprecated,
     tx_paymaster_data,
-    tx_paymaster_data_deprecated,
     tx_paymaster_data_len,
-    tx_paymaster_data_len_deprecated,
     tx_tip,
-    tx_tip_deprecated,
+    tx_version,
     write_old_block_to_storage,
     write_syscall_result,
     write_syscall_result_deprecated,
@@ -949,26 +942,12 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         tx_entry_point_selector,
         "memory[ap] = to_felt_or_relocatable(tx.entry_point_selector)"
     ),
-    (
-        TxMaxFee,
-        tx_max_fee,
-        "memory[ap] = to_felt_or_relocatable(tx.max_fee if tx.version < 3 else 0)"
-    ),
+    (TxVersion, tx_version, "memory[ap] = to_felt_or_relocatable(tx.version)"),
     (TxTip, tx_tip, "memory[ap] = to_felt_or_relocatable(tx.tip)"),
-    (
-        TxTipDeprecated,
-        tx_tip_deprecated,
-        "memory[ap] = to_felt_or_relocatable(0 if tx.version < 3 else tx.tip)"
-    ),
     (
         TxPaymasterDataLen,
         tx_paymaster_data_len,
         "memory[ap] = to_felt_or_relocatable(len(tx.paymaster_data))"
-    ),
-    (
-        TxPaymasterDataLenDeprecated,
-        tx_paymaster_data_len_deprecated,
-        "memory[ap] = to_felt_or_relocatable(0 if tx.version < 3 else len(tx.paymaster_data))"
     ),
     (
         TxPaymasterData,
@@ -976,31 +955,13 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         "memory[ap] = to_felt_or_relocatable(segments.gen_arg(tx.paymaster_data))"
     ),
     (
-        TxPaymasterDataDeprecated,
-        tx_paymaster_data_deprecated,
-        "memory[ap] = to_felt_or_relocatable(0 if tx.version < 3 else \
-         segments.gen_arg(tx.paymaster_data))"
-    ),
-    (
         TxNonceDataAvailabilityMode,
         tx_nonce_data_availability_mode,
         "memory[ap] = to_felt_or_relocatable(tx.nonce_data_availability_mode)"
     ),
     (
-        TxNonceDataAvailabilityModeDeprecated,
-        tx_nonce_data_availability_mode_deprecated,
-        "memory[ap] = to_felt_or_relocatable(0 if tx.version < 3 else \
-         tx.nonce_data_availability_mode)"
-    ),
-    (
         TxFeeDataAvailabilityMode,
         tx_fee_data_availability_mode,
-        "memory[ap] = to_felt_or_relocatable(0 if tx.version < 3 else \
-         tx.fee_data_availability_mode)"
-    ),
-    (
-        TxFeeDataAvailabilityModeDeprecated,
-        tx_fee_data_availability_mode_deprecated,
         "memory[ap] = to_felt_or_relocatable(tx.fee_data_availability_mode)"
     ),
     (
@@ -1009,21 +970,9 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         "memory[fp + 16] = to_felt_or_relocatable(len(tx.account_deployment_data))"
     ),
     (
-        TxAccountDeploymentDataLenDeprecated,
-        tx_account_deployment_data_len_deprecated,
-        "memory[ap] = to_felt_or_relocatable(0 if tx.version < 3 else \
-         len(tx.account_deployment_data))"
-    ),
-    (
         TxAccountDeploymentData,
         tx_account_deployment_data,
         "memory[ap] = to_felt_or_relocatable(segments.gen_arg(tx.account_deployment_data))"
-    ),
-    (
-        TxAccountDeploymentDataDeprecated,
-        tx_account_deployment_data_deprecated,
-        "memory[ap] = to_felt_or_relocatable(0 if tx.version < 3 else \
-         segments.gen_arg(tx.account_deployment_data))"
     ),
     (
         GenSignatureArg,
@@ -1211,22 +1160,15 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         }
     ),
     (
-        GenClassHashArg,
-        gen_class_hash_arg,
+        DeclareTxFields,
+        declare_tx_fields,
         indoc! {r#"
-    ids.tx_version = tx.version
+    assert tx.version == 3, f"Unsupported declare version: {tx.version}."
     ids.sender_address = tx.sender_address
+    ids.account_deployment_data_size = len(tx.account_deployment_data)
+    ids.account_deployment_data = segments.gen_arg(tx.account_deployment_data)
     ids.class_hash_ptr = segments.gen_arg([tx.class_hash])
-    if tx.version <= 1:
-        assert tx.compiled_class_hash is None, (
-            "Deprecated declare must not have compiled_class_hash."
-        )
-        ids.compiled_class_hash = 0
-    else:
-        assert tx.compiled_class_hash is not None, (
-            "Declare must have a concrete compiled_class_hash."
-        )
-        ids.compiled_class_hash = tx.compiled_class_hash"#
+    ids.compiled_class_hash = tx.compiled_class_hash"#
         }
     ),
     (
