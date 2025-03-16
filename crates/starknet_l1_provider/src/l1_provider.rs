@@ -112,17 +112,22 @@ impl L1Provider {
     fn bootstrap(
         &mut self,
         committed_txs: &[TransactionHash],
-        height: BlockNumber,
+        new_height: BlockNumber,
     ) -> L1ProviderResult<()> {
-        let other = &self.current_height;
-        match height.cmp(other) {
-            Less => Err(L1ProviderError::UnexpectedHeight { expected: *other, got: height })?,
+        let current_height = self.current_height;
+        match new_height.cmp(&current_height) {
+            // This is likely a bug in the batcher/sync, it should never be _behind_ the provider.
+            Less => Err(L1ProviderError::UnexpectedHeight {
+                expected_height: current_height,
+                got: new_height,
+            })?,
             Equal => self.apply_commit_block(committed_txs),
+            // We're still syncing, backlog it, it'll get applied later.
             Greater => {
                 self.state
                     .get_bootstrapper()
                     .expect("This method should only be called when bootstrapping.")
-                    .add_commit_block_to_backlog(committed_txs, height);
+                    .add_commit_block_to_backlog(committed_txs, new_height);
                 // No need to check the backlog or bootstrap completion, since those are only
                 // applicable if we just increased the provider's height, like in the `Equal` case.
                 return Ok(());
@@ -175,7 +180,7 @@ impl L1Provider {
     fn validate_height(&mut self, height: BlockNumber) -> L1ProviderResult<()> {
         if height != self.current_height {
             return Err(L1ProviderError::UnexpectedHeight {
-                expected: self.current_height,
+                expected_height: self.current_height,
                 got: height,
             });
         }
