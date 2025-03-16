@@ -5,3 +5,8 @@
 pub(crate) const CAIRO_LANG_BINARY_NAME: &str = "starknet-sierra-compile";
 #[cfg(feature = "cairo_native")]
 pub(crate) const CAIRO_NATIVE_BINARY_NAME: &str = "starknet-native-compile";
+
+pub(crate) const REQUIRED_CAIRO_LANG_VERSION: &str = "2.11.2";
+// TODO(Elin): test version alignment with Cargo.
+#[cfg(feature = "cairo_native")]
+pub(crate) const REQUIRED_CAIRO_NATIVE_VERSION: &str = "0.3.1";
