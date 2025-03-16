@@ -11,6 +11,7 @@ use starknet_mempool_p2p_types::communication::{
     MempoolP2pPropagatorResponse,
 };
 use starknet_mempool_p2p_types::errors::MempoolP2pPropagatorError;
+use starknet_mempool_p2p_types::mempool_p2p_types::MempoolP2pPropagatorResult;
 use starknet_sequencer_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use starknet_sequencer_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 use tracing::{debug, info, warn};
@@ -18,7 +19,7 @@ use tracing::{debug, info, warn};
 pub struct MempoolP2pPropagator {
     broadcast_topic_client: BroadcastTopicClient<RpcTransactionBatch>,
     transaction_converter: Box<dyn TransactionConverterTrait + Send>,
-    _transaction_queue: Vec<RpcTransaction>,
+    transaction_queue: Vec<RpcTransaction>,
 }
 
 impl MempoolP2pPropagator {
@@ -30,7 +31,7 @@ impl MempoolP2pPropagator {
         Self {
             broadcast_topic_client,
             transaction_converter,
-            _transaction_queue: Vec::with_capacity(transaction_batch_size),
+            transaction_queue: Vec::with_capacity(transaction_batch_size),
         }
     }
 }
@@ -45,7 +46,7 @@ impl ComponentRequestHandler<MempoolP2pPropagatorRequest, MempoolP2pPropagatorRe
     ) -> MempoolP2pPropagatorResponse {
         match request {
             MempoolP2pPropagatorRequest::AddTransaction(transaction) => {
-                info!("Broadcast new transaction to other mempool peers");
+                info!("Received a new transaction to broadcast to other mempool peers");
                 debug!("broadcasted tx_hash: {:?}", transaction.tx_hash);
                 let transaction = match self
                     .transaction_converter
@@ -60,21 +61,15 @@ impl ComponentRequestHandler<MempoolP2pPropagatorRequest, MempoolP2pPropagatorRe
                     }
                 };
 
-                let result = self
-                    .broadcast_topic_client
-                    .broadcast_message(RpcTransactionBatch(vec![transaction]))
-                    .await
-                    .or_else(|err| {
-                        if !err.is_full() {
-                            return Err(MempoolP2pPropagatorError::NetworkSendError);
-                        }
-                        warn!(
-                            "Trying to send a transaction to other mempool peers but the buffer \
-                             is full. Dropping the transaction."
-                        );
-                        Ok(())
-                    });
-                MempoolP2pPropagatorResponse::AddTransaction(result)
+                self.transaction_queue.push(transaction);
+                if self.transaction_queue.len() == self.transaction_queue.capacity() {
+                    info!("Transaction batch is full. Broadcasting the transaction batch");
+                    // Should this be BroadcastTransactionBatch?
+                    return MempoolP2pPropagatorResponse::AddTransaction(
+                        self.broadcast_transaction_batch().await,
+                    );
+                }
+                MempoolP2pPropagatorResponse::AddTransaction(Ok(()))
             }
             MempoolP2pPropagatorRequest::ContinuePropagation(propagation_manager) => {
                 info!("Continuing propagation of received transaction");
@@ -87,9 +82,29 @@ impl ComponentRequestHandler<MempoolP2pPropagatorRequest, MempoolP2pPropagatorRe
                 MempoolP2pPropagatorResponse::ContinuePropagation(result)
             }
             MempoolP2pPropagatorRequest::BroadcastTransactionBatch() => {
-                MempoolP2pPropagatorResponse::BroadcastTransactionBatch(Ok(()))
+                MempoolP2pPropagatorResponse::BroadcastTransactionBatch(
+                    self.broadcast_transaction_batch().await,
+                )
             }
         }
+    }
+}
+
+impl MempoolP2pPropagator {
+    async fn broadcast_transaction_batch(&mut self) -> MempoolP2pPropagatorResult<()> {
+        self.broadcast_topic_client
+            .broadcast_message(RpcTransactionBatch(self.transaction_queue.drain(..).collect()))
+            .await
+            .or_else(|err| {
+                if !err.is_full() {
+                    return Err(MempoolP2pPropagatorError::NetworkSendError);
+                }
+                warn!(
+                    "Trying to send a transaction batch to other mempool peers but the buffer is \
+                     full. Dropping the transaction batch."
+                );
+                Ok(())
+            })
     }
 }
 
