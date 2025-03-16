@@ -358,7 +358,7 @@ impl IntegrationTestManager {
                     "Waiting for state sync to reach block {expected_block_number} in sequencer \
                      {} executable {}.",
                     running_node_setup.get_node_index().unwrap(),
-                    running_node_setup.get_batcher_index(),
+                    running_node_setup.get_state_sync_index(),
                 )),
             );
 
@@ -374,7 +374,7 @@ impl IntegrationTestManager {
                     interval_ms,
                     condition,
                     max_attempts,
-                    running_node_setup.batcher_monitoring_client(),
+                    running_node_setup.state_sync_monitoring_client(),
                     sync_logger,
                 )
             )
@@ -434,7 +434,7 @@ impl IntegrationTestManager {
 
     pub async fn await_txs_accepted_on_all_running_nodes(&mut self, target_n_txs: usize) {
         let futures = self.running_nodes.iter().map(|(sequencer_idx, running_node)| {
-            let monitoring_client = running_node.node_setup.batcher_monitoring_client();
+            let monitoring_client = running_node.node_setup.state_sync_monitoring_client();
             monitoring_utils::await_txs_accepted(monitoring_client, *sequencer_idx, target_n_txs)
         });
         futures::future::join_all(futures).await;
@@ -475,10 +475,10 @@ impl IntegrationTestManager {
     }
 
     /// Returns the sequencer index of the first running node and its monitoring client.
-    fn running_batcher_monitoring_client(&self) -> (usize, &MonitoringClient) {
+    fn running_state_sync_monitoring_client(&self) -> (usize, &MonitoringClient) {
         let sequencer_idx = 0;
         let node_0 = self.running_nodes.get(&sequencer_idx).expect("Node 0 should be running.");
-        (sequencer_idx, node_0.node_setup.batcher_monitoring_client())
+        (sequencer_idx, node_0.node_setup.state_sync_monitoring_client())
     }
 
     async fn run_integration_test_simulator(
@@ -524,7 +524,9 @@ impl IntegrationTestManager {
     }
 
     async fn verify_txs_accepted(&self, sender_account: AccountId, n_l1_txs: usize) {
-        let (sequencer_idx, monitoring_client) = self.running_batcher_monitoring_client();
+        // We use state syncs processed txs metric via its monitoring client to verify that the
+        // transactions were accepted.
+        let (sequencer_idx, monitoring_client) = self.running_state_sync_monitoring_client();
         let account = self.tx_generator.account_with_id(sender_account);
         let expected_n_accepted_txs = nonce_to_usize(account.get_nonce()) + n_l1_txs;
         monitoring_utils::verify_txs_accepted(
