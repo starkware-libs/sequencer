@@ -7,6 +7,7 @@ use mempool_test_utils::{FAULTY_ACCOUNT_CLASS_FILE, TEST_FILES_FOLDER};
 use rstest::rstest;
 use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::state::SierraContractClass;
+use starknet_infra_utils::cairo_compiler_version::cairo1_compiler_version;
 use starknet_infra_utils::path::resolve_project_relative_path;
 
 use crate::command_line_compiler::CommandLineCompiler;
@@ -18,6 +19,7 @@ use crate::config::{
     DEFAULT_MAX_NATIVE_BYTECODE_SIZE,
     DEFAULT_OPTIMIZATION_LEVEL,
 };
+use crate::constants::REQUIRED_CAIRO_LANG_VERSION;
 use crate::errors::CompilationUtilError;
 use crate::test_utils::contract_class_from_file;
 #[cfg(feature = "cairo_native")]
@@ -50,6 +52,23 @@ fn get_faulty_test_contract() -> CairoLangContractClass {
     // Truncate the sierra program to trigger an error.
     contract_class.sierra_program = contract_class.sierra_program[..100].to_vec();
     contract_class
+}
+
+#[rstest]
+fn cairo_compiler_version() {
+    let binary_version = REQUIRED_CAIRO_LANG_VERSION;
+    let cargo_version = cairo1_compiler_version();
+
+    // Only run the assertion if version >= 2.11.
+    // For older versions, just return, effectively skipping the test.
+    if cargo_version.starts_with("2.11") {
+        assert_eq!(
+            binary_version, cargo_version,
+            "Compiler version mismatch; binary version: '{}', Cargo version: '{}'.",
+            binary_version, cargo_version
+        );
+        panic!("Please remove this check, so version alignment is tested.");
+    }
 }
 
 #[rstest]
