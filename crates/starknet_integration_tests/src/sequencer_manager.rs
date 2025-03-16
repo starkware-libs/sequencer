@@ -30,7 +30,13 @@ use tokio::task::JoinHandle;
 use tracing::info;
 
 use crate::integration_test_setup::{ConfigPointersMap, ExecutableSetup, NodeExecutionId};
-use crate::monitoring_utils;
+use crate::monitoring_utils::{
+    await_batcher_block,
+    await_block,
+    await_sync_block,
+    await_txs_accepted,
+    verify_txs_accepted,
+};
 use crate::node_component_configs::{
     create_consolidated_sequencer_configs,
     create_nodes_deployment_units_configs,
@@ -213,7 +219,6 @@ impl CustomPaths {
     }
 }
 
-// TODO(noamsp): remove monitoring_utils:: qualifier throughout the file, renaming fns if needed.
 impl IntegrationTestManager {
     pub async fn new(
         num_of_consolidated_nodes: usize,
@@ -364,14 +369,14 @@ impl IntegrationTestManager {
             );
 
             join!(
-                monitoring_utils::await_batcher_block(
+                await_batcher_block(
                     interval_ms,
                     condition,
                     max_attempts,
                     running_node_setup.batcher_monitoring_client(),
                     batcher_logger,
                 ),
-                monitoring_utils::await_sync_block(
+                await_sync_block(
                     interval_ms,
                     condition,
                     max_attempts,
@@ -436,7 +441,7 @@ impl IntegrationTestManager {
     pub async fn await_txs_accepted_on_all_running_nodes(&mut self, target_n_txs: usize) {
         self.perform_action_on_all_running_nodes(|sequencer_idx, running_node| {
             let monitoring_client = running_node.node_setup.state_sync_monitoring_client();
-            monitoring_utils::await_txs_accepted(monitoring_client, sequencer_idx, target_n_txs)
+            await_txs_accepted(monitoring_client, sequencer_idx, target_n_txs)
         })
         .await;
     }
@@ -515,7 +520,7 @@ impl IntegrationTestManager {
         let running_node =
             self.running_nodes.iter().next().expect("At least one node should be running").1;
         let running_node_setup = &running_node.node_setup;
-        monitoring_utils::await_block(
+        await_block(
             running_node_setup.batcher_monitoring_client(),
             running_node_setup.get_batcher_index(),
             running_node_setup.state_sync_monitoring_client(),
@@ -532,12 +537,7 @@ impl IntegrationTestManager {
         let (sequencer_idx, monitoring_client) = self.running_state_sync_monitoring_client();
         let account = self.tx_generator.account_with_id(sender_account);
         let expected_n_accepted_txs = nonce_to_usize(account.get_nonce()) + n_l1_txs;
-        monitoring_utils::verify_txs_accepted(
-            monitoring_client,
-            sequencer_idx,
-            expected_n_accepted_txs,
-        )
-        .await;
+        verify_txs_accepted(monitoring_client, sequencer_idx, expected_n_accepted_txs).await;
     }
 
     async fn perform_action_on_all_running_nodes<'a, F, Fut>(&'a self, f: F)
