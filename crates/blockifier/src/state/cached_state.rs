@@ -100,6 +100,10 @@ impl<S: StateReader> CachedState<S> {
         }
         Ok(())
     }
+
+    pub fn get_initial_reads(&self) -> StateResult<StateMaps> {
+        Ok(self.cache.borrow().initial_reads.clone())
+    }
 }
 
 impl<S: StateReader> UpdatableState for CachedState<S> {
@@ -273,13 +277,6 @@ impl Default for CachedState<crate::test_utils::dict_state_reader::DictStateRead
             cache: Default::default(),
             class_hash_to_class: Default::default(),
         }
-    }
-}
-
-#[cfg(feature = "reexecution")]
-impl<S: StateReader> CachedState<S> {
-    pub fn get_initial_reads(&self) -> StateResult<StateMaps> {
-        Ok(self.cache.borrow().initial_reads.clone())
     }
 }
 
