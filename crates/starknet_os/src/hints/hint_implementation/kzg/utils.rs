@@ -156,11 +156,11 @@ pub(crate) fn fft(
 
 #[allow(dead_code)]
 pub(crate) fn split_commitment(num: BigInt) -> (BigInt, BigInt) {
-    // Ensure the input is 384 bits (48 bytes)
-    let num = num & &((BigInt::from(1) << COMMITMENT_BITS) - 1);
+    // Ensure the input is 384 bits (48 bytes).
+    let num = num & &((BigInt::one() << COMMITMENT_BITS) - 1);
 
-    // Split the number
-    let mask = (BigInt::from(1) << COMMITMENT_BITS_MIDPOINT) - 1;
+    // Split the number.
+    let mask = (BigInt::one() << COMMITMENT_BITS_MIDPOINT) - 1;
     let low = &num & &mask;
     let high = &num >> COMMITMENT_BITS_MIDPOINT;
 
