@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod test;
 
+use std::time::Duration;
+
 use async_trait::async_trait;
 use futures::future::BoxFuture;
 use futures::stream::FuturesUnordered;
@@ -18,6 +20,7 @@ use starknet_gateway_types::gateway_types::GatewayInput;
 use starknet_mempool_p2p_types::communication::SharedMempoolP2pPropagatorClient;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sequencer_infra::component_server::WrapperServer;
+use tokio::time::MissedTickBehavior::Delay;
 use tracing::{debug, info, warn};
 
 pub struct MempoolP2pRunner {
@@ -26,6 +29,7 @@ pub struct MempoolP2pRunner {
     broadcast_topic_client: BroadcastTopicClient<RpcTransactionBatch>,
     gateway_client: SharedGatewayClient,
     _mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
+    transaction_batch_rate_millis: Duration,
 }
 
 impl MempoolP2pRunner {
@@ -35,6 +39,7 @@ impl MempoolP2pRunner {
         broadcast_topic_client: BroadcastTopicClient<RpcTransactionBatch>,
         gateway_client: SharedGatewayClient,
         mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
+        transaction_batch_rate_millis: Duration,
     ) -> Self {
         Self {
             network_future,
@@ -42,6 +47,7 @@ impl MempoolP2pRunner {
             broadcast_topic_client,
             gateway_client,
             _mempool_p2p_propagator_client: mempool_p2p_propagator_client,
+            transaction_batch_rate_millis,
         }
     }
 }
@@ -50,10 +56,18 @@ impl MempoolP2pRunner {
 impl ComponentStarter for MempoolP2pRunner {
     async fn start(&mut self) {
         let mut gateway_futures = FuturesUnordered::new();
+        let mut transaction_batch_broadcast_interval =
+            tokio::time::interval(self.transaction_batch_rate_millis);
+        transaction_batch_broadcast_interval.set_missed_tick_behavior(Delay);
         loop {
             tokio::select! {
                 _ = &mut self.network_future => {
                     panic!("MempoolP2pRunner failed - network stopped unexpectedly");
+                }
+                _ = transaction_batch_broadcast_interval.tick() => {
+                    if (self._mempool_p2p_propagator_client.broadcast_queued_transactions().await).is_err() {
+                        warn!("MempoolP2pPropagatorClient denied BroadcastQueuedTransactions request");
+                    };
                 }
                 Some(result) = gateway_futures.next() => {
                     match result {
