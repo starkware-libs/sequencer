@@ -20,6 +20,11 @@ use crate::ethereum_base_layer_contract::{
 
 type TestEthereumNodeHandle = (GanacheInstance, TempDir);
 
+pub enum NodeHandle {
+    Ganache(TestEthereumNodeHandle),
+    Anvil(AnvilInstance),
+}
+
 const MINIMAL_GANACHE_VERSION: u8 = 7;
 
 // See Anvil documentation:
@@ -139,4 +144,24 @@ pub async fn spawn_anvil_and_deploy_starknet_l1_contract(
         Starknet::deploy(ethereum_base_layer_contract.contract.provider().clone()).await.unwrap();
 
     (anvil, starknet_l1_contract)
+}
+
+pub struct EthereumBaseLayerContractBuilder;
+
+impl EthereumBaseLayerContractBuilder {
+    pub fn build_from_ganache(&self) -> (NodeHandle, EthereumBaseLayerContract) {
+        let (node_handle, starknet_contract_address) = get_test_ethereum_node();
+        let contract = EthereumBaseLayerContract::new(EthereumBaseLayerConfig {
+            node_url: node_handle.0.endpoint().parse().unwrap(),
+            starknet_contract_address,
+        });
+        (NodeHandle::Ganache(node_handle), contract)
+    }
+
+    pub fn build_from_anvil(&self, port: Option<u16>) -> (NodeHandle, EthereumBaseLayerContract) {
+        let config = ethereum_base_layer_config_for_anvil(port);
+        let anvil = anvil_instance_from_config(&config);
+        let contract = EthereumBaseLayerContract::new(config);
+        (NodeHandle::Anvil(anvil), contract)
+    }
 }
