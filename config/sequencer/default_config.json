@@ -1284,6 +1284,16 @@
     "privacy": "Public",
     "value": 120
   },
+  "mempool_p2p_config.transaction_batch_rate_milliseconds": {
+    "description": "Maximum time until a transaction batch is closed and propagated in milliseconds.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "mempool_p2p_config.transaction_batch_size": {
+    "description": "Maximum number of transactions in each batch.",
+    "privacy": "Public",
+    "value": 1
+  },
   "monitoring_endpoint_config.collect_metrics": {
     "description": "If true, collect and return metrics in the monitoring endpoint.",
     "privacy": "Public",
