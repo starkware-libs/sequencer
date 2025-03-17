@@ -120,13 +120,12 @@ where
 {
     let socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
     task::spawn(async move {
-        // TODO(lev, itay): Exam/change the bounds of the T for the hadler function.
         async fn handler<T>(
             _http_request: Request<Body>,
             body: T,
         ) -> Result<Response<Body>, hyper::Error>
         where
-            T: Serialize + DeserializeOwned + Debug + Send + Sync + Clone,
+            T: Serialize + DeserializeOwned + Debug,
         {
             Ok(Response::builder()
                 .status(StatusCode::BAD_REQUEST)
