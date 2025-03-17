@@ -8,7 +8,7 @@ use papyrus_protobuf::sync::DataOrFin;
 use papyrus_storage::class_manager::{ClassManagerStorageReader, ClassManagerStorageWriter};
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::{StorageError, StorageReader, StorageWriter};
-use papyrus_sync::define_metrics::SYNC_CLASS_MANAGER_MARKER;
+use papyrus_sync::metrics::SYNC_CLASS_MANAGER_MARKER;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
 use starknet_api::state::{DeclaredClasses, DeprecatedDeclaredClasses};

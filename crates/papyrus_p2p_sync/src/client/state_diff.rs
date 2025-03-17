@@ -8,7 +8,7 @@ use papyrus_protobuf::sync::{DataOrFin, StateDiffChunk};
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::state::{StateStorageReader, StateStorageWriter};
 use papyrus_storage::{StorageError, StorageReader, StorageWriter};
-use papyrus_sync::define_metrics::SYNC_STATE_MARKER;
+use papyrus_sync::metrics::SYNC_STATE_MARKER;
 use starknet_api::block::BlockNumber;
 use starknet_api::state::ThinStateDiff;
 use starknet_class_manager_types::SharedClassManagerClient;

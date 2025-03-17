@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use papyrus_sync::define_metrics::PAPYRUS_SYNC_ALL_METRICS;
+use papyrus_sync::metrics::PAPYRUS_SYNC_ALL_METRICS;
 use starknet_batcher::metrics::BATCHER_ALL_METRICS;
 use starknet_consensus_manager::metrics::CONSENSUS_ALL_METRICS;
 use starknet_gateway::metrics::GATEWAY_ALL_METRICS;
