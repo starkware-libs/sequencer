@@ -1,4 +1,5 @@
 use std::iter::repeat_with;
+use std::sync::LazyLock;
 
 use c_kzg::KzgCommitment;
 use num_bigint::BigUint;
@@ -6,12 +7,32 @@ use num_traits::{Num, One, Zero};
 use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
-use crate::hints::hint_implementation::kzg::utils::{fft, split_commitment, BLS_PRIME};
+use crate::hints::hint_implementation::kzg::utils::{
+    fft,
+    polynomial_coefficients_to_blob,
+    split_commitment,
+    BLS_PRIME,
+};
 
 const GENERATOR: &str =
     "39033254847818212395286706435128746857159659164139250548781411570340225835782";
 const WIDTH: usize = 12;
 const ORDER: usize = 1 << WIDTH;
+
+static FFT_REGRESSION_INPUT: LazyLock<Vec<BigUint>> = LazyLock::new(|| {
+    let input_biguints: Vec<String> =
+        serde_json::from_str(include_str!("fft_regression_input.json")).unwrap();
+    input_biguints.into_iter().map(|s| BigUint::from_str_radix(&s, 10).unwrap()).collect()
+});
+static FFT_REGRESSION_OUTPUT: LazyLock<Vec<u8>> =
+    LazyLock::new(|| serde_json::from_str(include_str!("fft_regression_output.json")).unwrap());
+static BLOB_REGRESSION_INPUT: LazyLock<Vec<BigUint>> = LazyLock::new(|| {
+    let input_biguints: Vec<String> =
+        serde_json::from_str(include_str!("blob_regression_input.json")).unwrap();
+    input_biguints.into_iter().map(|s| BigUint::from_str_radix(&s, 10).unwrap()).collect()
+});
+static BLOB_REGRESSION_OUTPUT: LazyLock<Vec<u8>> =
+    LazyLock::new(|| serde_json::from_str(include_str!("blob_regression_output.json")).unwrap());
 
 fn generate(generator: &BigUint) -> Vec<BigUint> {
     let mut array = vec![BigUint::one()];
@@ -115,4 +136,12 @@ fn test_split_commitment_function(
 ) {
     let commitment = KzgCommitment::from_bytes(&commitment.to_bytes_be()).unwrap();
     assert_eq!(split_commitment(&commitment).unwrap(), expected_output);
+}
+
+#[rstest]
+#[case::original(BLOB_REGRESSION_INPUT.to_vec(), &BLOB_REGRESSION_OUTPUT)]
+#[case::generated(FFT_REGRESSION_INPUT.to_vec(), &FFT_REGRESSION_OUTPUT)]
+fn test_fft_blob_regression(#[case] input: Vec<BigUint>, #[case] expected_output: &Vec<u8>) {
+    let bytes = polynomial_coefficients_to_blob(input).unwrap();
+    assert_eq!(&bytes, expected_output);
 }
