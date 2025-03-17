@@ -74,7 +74,7 @@ impl From<Scope> for String {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Ids {
     AliasesEntry,
     Bit,
@@ -286,6 +286,7 @@ pub enum CairoStruct {
     StateEntry,
     StorageReadPtr,
     StorageReadRequestPtr,
+    StorageWritePtr,
 }
 
 impl From<CairoStruct> for &'static str {
@@ -321,6 +322,9 @@ impl From<CairoStruct> for &'static str {
             CairoStruct::StorageReadPtr => "starkware.starknet.common.syscalls.StorageRead*",
             CairoStruct::StorageReadRequestPtr => {
                 "starkware.starknet.core.os.storage.StorageReadRequest*"
+            }
+            CairoStruct::StorageWritePtr => {
+                "starkware.starknet.common.syscalls.StorageWriteRequest*"
             }
         }
     }
