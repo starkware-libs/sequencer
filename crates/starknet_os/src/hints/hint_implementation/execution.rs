@@ -89,7 +89,7 @@ pub(crate) fn check_is_deprecated<S: StateReader>(
                 CairoStruct::ExecutionContext,
                 vm,
                 ap_tracking,
-                &["class_hash".to_string()],
+                &["class_hash"],
                 &hint_processor.execution_helper.os_program,
             )?
             .to_owned(),
@@ -329,7 +329,7 @@ pub(crate) fn write_syscall_result<S: StateReader>(
             CairoStruct::StorageReadRequestPtr,
             vm,
             ap_tracking,
-            &["key".to_string()],
+            &["key"],
             &hint_processor.execution_helper.os_program,
         )?)?
         .into_owned(),
@@ -352,7 +352,7 @@ pub(crate) fn write_syscall_result<S: StateReader>(
             CairoStruct::StorageReadRequestPtr,
             vm,
             ap_tracking,
-            &["value".to_string()],
+            &["value"],
             &hint_processor.execution_helper.os_program,
         )?)?
         .into_owned();
@@ -414,7 +414,7 @@ fn assert_value_cached_by_reading<S: StateReader>(
     HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
     id: Ids,
     cairo_struct_type: CairoStruct,
-    nested_fields: &[String],
+    nested_fields: &[&str],
 ) -> OsHintResult {
     let key = StorageKey(PatriciaKey::try_from(
         vm.get_integer(get_address_of_nested_fields(
@@ -452,7 +452,7 @@ pub(crate) fn cache_contract_storage_request_key<S: StateReader>(
         hint_args,
         Ids::Request,
         CairoStruct::StorageReadRequestPtr,
-        &["key".to_string()],
+        &["key"],
     )
 }
 
@@ -463,7 +463,7 @@ pub(crate) fn cache_contract_storage_syscall_request_address<S: StateReader>(
         hint_args,
         Ids::SyscallPtr,
         CairoStruct::StorageReadPtr,
-        &["request".to_string(), "key".to_string()],
+        &["request", "key"],
     )
 }
 

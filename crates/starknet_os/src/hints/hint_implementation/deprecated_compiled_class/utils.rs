@@ -18,8 +18,8 @@ fn load_entry_points_to_contract_class_struct<IG: IdentifierGetter>(
     var_type: CairoStruct,
     vm: &mut VirtualMachine,
     identifier_getter: &IG,
-    entry_points_field: String,
-    num_entry_points_field: String,
+    entry_points_field: &str,
+    num_entry_points_field: &str,
 ) -> OsHintResult {
     let empty_vec = Vec::new();
     let entry_points =

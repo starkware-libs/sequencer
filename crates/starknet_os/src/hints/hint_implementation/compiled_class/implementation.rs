@@ -51,7 +51,7 @@ pub(crate) fn load_class<S: StateReader>(
         CairoStruct::CompiledClassFact,
         vm,
         ap_tracking,
-        &["hash".to_string()],
+        &["hash"],
         &hint_processor.execution_helper.os_program,
     )?;
     let expected_hash = vm.get_integer(expected_hash_address)?;
@@ -104,7 +104,7 @@ pub(crate) fn load_class_inner<S: StateReader>(
             compiled_class_facts_ptr,
             CairoStruct::CompiledClassFact,
             vm,
-            &["compiled_class".to_string(), "bytecode_ptr".to_string()],
+            &["compiled_class", "bytecode_ptr"],
             identifier_getter,
         )?;
         let bytecode_ptr = vm.get_relocatable(bytecode_ptr_address)?;

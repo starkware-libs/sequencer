@@ -60,7 +60,7 @@ pub(crate) fn load_deprecated_class<S: StateReader>(
         CairoStruct::DeprecatedCompiledClassFact,
         vm,
         ap_tracking,
-        &["hash".to_string()],
+        &["hash"],
         &hint_processor.execution_helper.os_program,
     )?;
     let computed_hash = vm.get_integer(computed_hash_addr)?;
@@ -98,7 +98,7 @@ pub(crate) fn load_deprecated_class<S: StateReader>(
         CairoStruct::DeprecatedCompiledClass,
         vm,
         ap_tracking,
-        &["bytecode_ptr".to_string()],
+        &["bytecode_ptr"],
         &hint_processor.execution_helper.os_program,
     )?;
     let byte_code_ptr = vm.get_relocatable(byte_code_ptr_addr)?;

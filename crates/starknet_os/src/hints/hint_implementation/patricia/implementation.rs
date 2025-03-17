@@ -45,7 +45,7 @@ pub(crate) fn set_bit<S: StateReader>(
         CairoStruct::NodeEdge,
         vm,
         ap_tracking,
-        &["path".to_string()],
+        &["path"],
         &hint_processor.execution_helper.os_program,
     )?;
     let edge_path = vm.get_integer(edge_path_addr)?.into_owned();
