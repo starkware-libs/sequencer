@@ -8,6 +8,10 @@ use cairo_vm::vm::runners::cairo_runner::{CairoArg, CairoRunner};
 
 use crate::test_utils::errors::{Cairo0EntryPointRunnerError, ExplicitArgError};
 
+#[cfg(test)]
+#[path = "cairo_runner_test.rs"]
+mod test;
+
 /// Performs basic validations on the cairo arg. Assumes the arg is not a builtin.
 /// A successful result from this function does NOT guarantee that the arguments are valid.
 fn perform_basic_validations_on_cairo_arg(
