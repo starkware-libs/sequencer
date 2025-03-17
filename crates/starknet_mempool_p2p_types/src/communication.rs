@@ -50,12 +50,14 @@ pub type MempoolP2pPropagatorRequestAndResponseSender =
 pub enum MempoolP2pPropagatorRequest {
     AddTransaction(InternalRpcTransaction),
     ContinuePropagation(BroadcastedMessageMetadata),
+    BroadcastQueuedTransactions(),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum MempoolP2pPropagatorResponse {
     AddTransaction(MempoolP2pPropagatorResult<()>),
     ContinuePropagation(MempoolP2pPropagatorResult<()>),
+    BroadcastQueuedTransactions(MempoolP2pPropagatorResult<()>),
 }
 
 #[derive(Clone, Debug, Error)]
