@@ -44,59 +44,38 @@ pub enum PackageEntryValue {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-<<<<<<< HEAD:workspace_tests/toml_utils.rs
-pub(crate) struct CrateCargoToml {
-    pub(crate) package: HashMap<String, PackageEntryValue>,
-    pub(crate) dependencies: Option<HashMap<String, DependencyValue>>,
-||||||| 7682928ac:workspace_tests/toml_utils.rs
-pub(crate) struct CrateCargoToml {
-    pub(crate) package: HashMap<String, PackageEntryValue>,
-    dependencies: Option<HashMap<String, DependencyValue>>,
-=======
 pub struct CrateCargoToml {
     pub package: HashMap<String, PackageEntryValue>,
-    dependencies: Option<HashMap<String, DependencyValue>>,
->>>>>>> origin/main-v0.13.5:toml_test_utils/src/lib.rs
+    pub dependencies: Option<HashMap<String, DependencyValue>>,
     #[serde(rename = "dev-dependencies")]
     pub dev_dependencies: Option<HashMap<String, DependencyValue>>,
     pub lints: Option<HashMap<String, LintValue>>,
 }
 
 impl CrateCargoToml {
-<<<<<<< HEAD:workspace_tests/toml_utils.rs
-    pub(crate) fn from_name(name: &String) -> Self {
+    pub fn from_name(name: &String) -> Self {
         MEMBER_TOMLS.get(name).unwrap_or_else(|| panic!("No member crate '{name}' found.")).clone()
     }
 
-    pub(crate) fn package_name(&self) -> &String {
-||||||| 7682928ac:workspace_tests/toml_utils.rs
-    pub(crate) fn package_name(&self) -> &String {
-=======
     pub fn package_name(&self) -> &String {
->>>>>>> origin/main-v0.13.5:toml_test_utils/src/lib.rs
         match self.package.get("name") {
             Some(PackageEntryValue::String(name)) => name,
             _ => panic!("No name found in crate toml {self:?}."),
         }
     }
 
-    pub(crate) fn path_dependencies(&self) -> impl Iterator<Item = String> + '_ {
-        self.dependencies.iter().flatten().chain(self.dev_dependencies.iter().flatten()).filter_map(
-            |(_name, value)| {
-                if let DependencyValue::Object { path: Some(path), .. } = value {
-                    Some(path.to_string())
-                } else {
-                    None
-                }
-            },
-        )
+    pub fn path_dependencies(&self) -> impl Iterator<Item = String> + '_ {
+        self.dependencies.iter().flatten().filter_map(|(_name, value)| {
+            if let DependencyValue::Object { path: Some(path), .. } = value {
+                Some(path.to_string())
+            } else {
+                None
+            }
+        })
     }
 
     /// Returns all direct member dependencies of self.
-    pub(crate) fn member_dependency_names(
-        &self,
-        include_dev_dependencies: bool,
-    ) -> HashSet<String> {
+    pub fn member_dependency_names(&self, include_dev_dependencies: bool) -> HashSet<String> {
         let member_crate_names: HashSet<&String> =
             MEMBER_TOMLS.values().map(CrateCargoToml::package_name).collect();
 
@@ -141,7 +120,7 @@ impl CrateCargoToml {
     }
 
     /// Returns all member dependencies of self in the dependency tree.
-    pub(crate) fn member_dependency_names_recursive(
+    pub fn member_dependency_names_recursive(
         &self,
         include_dev_dependencies: bool,
     ) -> HashSet<String> {
@@ -150,20 +129,10 @@ impl CrateCargoToml {
 }
 
 #[derive(Debug)]
-<<<<<<< HEAD:workspace_tests/toml_utils.rs
-pub(crate) struct LocalCrate {
-    pub(crate) name: String,
-    pub(crate) path: String,
-    pub(crate) version: Option<String>,
-||||||| 7682928ac:workspace_tests/toml_utils.rs
-pub(crate) struct LocalCrate {
-    pub(crate) path: String,
-    pub(crate) version: String,
-=======
 pub struct LocalCrate {
+    pub name: String,
     pub path: String,
-    pub version: String,
->>>>>>> origin/main-v0.13.5:toml_test_utils/src/lib.rs
+    pub version: Option<String>,
 }
 
 pub static ROOT_TOML: LazyLock<CargoToml> = LazyLock::new(|| {
@@ -172,7 +141,7 @@ pub static ROOT_TOML: LazyLock<CargoToml> = LazyLock::new(|| {
             .unwrap();
     root_toml
 });
-pub(crate) static MEMBER_TOMLS: LazyLock<HashMap<String, CrateCargoToml>> =
+pub static MEMBER_TOMLS: LazyLock<HashMap<String, CrateCargoToml>> =
     LazyLock::new(|| ROOT_TOML.member_cargo_tomls());
 
 impl CargoToml {
@@ -188,8 +157,7 @@ impl CargoToml {
         self.workspace.dependencies.iter()
     }
 
-<<<<<<< HEAD:workspace_tests/toml_utils.rs
-    pub(crate) fn path_dependencies(&self) -> impl Iterator<Item = LocalCrate> + '_ {
+    pub fn path_dependencies(&self) -> impl Iterator<Item = LocalCrate> + '_ {
         self.dependencies().filter_map(|(name, value)| {
             if let DependencyValue::Object { path: Some(path), version, .. } = value {
                 Some(LocalCrate {
@@ -197,19 +165,6 @@ impl CargoToml {
                     path: path.to_string(),
                     version: version.clone(),
                 })
-||||||| 7682928ac:workspace_tests/toml_utils.rs
-    pub(crate) fn path_dependencies(&self) -> impl Iterator<Item = LocalCrate> + '_ {
-        self.dependencies().filter_map(|(_name, value)| {
-            if let DependencyValue::Object { path: Some(path), version: Some(version), .. } = value
-            {
-                Some(LocalCrate { path: path.to_string(), version: version.to_string() })
-=======
-    pub fn path_dependencies(&self) -> impl Iterator<Item = LocalCrate> + '_ {
-        self.dependencies().filter_map(|(_name, value)| {
-            if let DependencyValue::Object { path: Some(path), version: Some(version), .. } = value
-            {
-                Some(LocalCrate { path: path.to_string(), version: version.to_string() })
->>>>>>> origin/main-v0.13.5:toml_test_utils/src/lib.rs
             } else {
                 None
             }
@@ -232,31 +187,3 @@ impl CargoToml {
             .collect()
     }
 }
-<<<<<<< HEAD:workspace_tests/toml_utils.rs
-||||||| 7682928ac:workspace_tests/toml_utils.rs
-
-impl CrateCargoToml {
-    pub(crate) fn path_dependencies(&self) -> impl Iterator<Item = String> + '_ {
-        self.dependencies.iter().flatten().filter_map(|(_name, value)| {
-            if let DependencyValue::Object { path: Some(path), .. } = value {
-                Some(path.to_string())
-            } else {
-                None
-            }
-        })
-    }
-}
-=======
-
-impl CrateCargoToml {
-    pub fn path_dependencies(&self) -> impl Iterator<Item = String> + '_ {
-        self.dependencies.iter().flatten().filter_map(|(_name, value)| {
-            if let DependencyValue::Object { path: Some(path), .. } = value {
-                Some(path.to_string())
-            } else {
-                None
-            }
-        })
-    }
-}
->>>>>>> origin/main-v0.13.5:toml_test_utils/src/lib.rs
