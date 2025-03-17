@@ -134,8 +134,6 @@ impl DistributedNodeServiceName {
 /// Component config bundling for services of a distributed node: a config to run a component
 /// locally while being accessible to other services, and a suitable config enabling such services
 /// the access.
-// TODO(Tsabary): remove dead_code.
-#[allow(dead_code)]
 pub struct DistributedNodeServiceConfigPair {
     local: ReactiveComponentExecutionConfig,
     remote: ReactiveComponentExecutionConfig,
@@ -150,8 +148,6 @@ impl From<DistributedNodeServiceName> for DistributedNodeServiceConfigPair {
     }
 }
 
-// TODO(Tsabary): remove dead_code.
-#[allow(dead_code)]
 impl DistributedNodeServiceConfigPair {
     pub fn new(url: String, ip: IpAddr, port: u16) -> Self {
         Self {
