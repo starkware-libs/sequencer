@@ -22,6 +22,7 @@ pub(crate) enum Scope {
     IsDeprecated,
     Preimage,
     SerializeDataAvailabilityCreatePages,
+    StateUpdatePointers,
     Transactions,
     UseKzgDa,
 }
@@ -44,6 +45,7 @@ impl From<Scope> for &'static str {
             Scope::SerializeDataAvailabilityCreatePages => {
                 "__serialize_data_availability_create_pages__"
             }
+            Scope::StateUpdatePointers => "state_update_pointers",
             Scope::Transactions => "transactions",
             Scope::UseKzgDa => "use_kzg_da",
         }

@@ -1,11 +1,19 @@
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_from_var_name;
+use cairo_vm::types::relocatable::Relocatable;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{Const, Ids, Scope};
 use crate::io::os_input::CommitmentInfo;
+
+#[derive(Clone)]
+pub(crate) struct StateUpdatePointers {
+    pub(crate) _contract_address_to_storage_ptr: Relocatable,
+    pub(crate) _state_tree_pointer: Relocatable,
+    pub(crate) _class_tree_pointer: Relocatable,
+}
 
 #[derive(Copy, Clone)]
 enum CommitmentType {

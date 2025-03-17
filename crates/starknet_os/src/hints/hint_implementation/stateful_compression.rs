@@ -9,6 +9,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
 };
 
 use crate::hints::error::OsHintResult;
+use crate::hints::hint_implementation::state::StateUpdatePointers;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{Const, Ids, Scope};
 
@@ -19,7 +20,12 @@ pub(crate) fn enter_scope_with_aliases<S: StateReader>(
     // needed.
     let dict_manager_str: &str = Scope::DictManager.into();
     let dict_manager: DictManager = exec_scopes.get(dict_manager_str)?;
-    let new_scope = HashMap::from([(dict_manager_str.to_string(), any_box!(dict_manager))]);
+    let state_update_pointers_str: &str = Scope::StateUpdatePointers.into();
+    let state_update_pointers: StateUpdatePointers = exec_scopes.get(state_update_pointers_str)?;
+    let new_scope = HashMap::from([
+        (dict_manager_str.to_string(), any_box!(dict_manager)),
+        (state_update_pointers_str.to_string(), any_box!(state_update_pointers)),
+    ]);
     exec_scopes.enter_scope(new_scope);
     Ok(())
 }
@@ -104,4 +110,44 @@ pub(crate) fn compute_commitments_on_finalized_state_with_aliases<S: StateReader
     );
 
     Ok(())
+}
+
+pub(crate) fn guess_contract_addr_storage_ptr<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    todo!()
+}
+
+pub(crate) fn update_contract_addr_to_storage_ptr<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    todo!()
+}
+
+pub(crate) fn guess_aliases_contract_storage_ptr<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    todo!()
+}
+
+pub(crate) fn update_aliases_contract_to_storage_ptr<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    todo!()
+}
+
+pub(crate) fn guess_state_ptr<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
+    todo!()
+}
+
+pub(crate) fn update_state_ptr<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
+    todo!()
+}
+
+pub(crate) fn guess_classes_ptr<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
+    todo!()
+}
+
+pub(crate) fn update_classes_ptr<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
+    todo!()
 }

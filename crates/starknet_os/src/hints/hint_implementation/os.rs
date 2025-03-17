@@ -54,3 +54,9 @@ pub(crate) fn starknet_os_input<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>
     // Nothing to do here; OS input already available on the hint processor.
     Ok(())
 }
+
+pub(crate) fn init_state_update_pointer<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    todo!()
+}
