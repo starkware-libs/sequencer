@@ -1,5 +1,10 @@
+use std::sync::OnceLock;
+
 use starknet_sequencer_metrics::define_metrics;
 use starknet_sequencer_metrics::metrics::{MetricCounter, MetricGauge};
+
+/// Global variable set by the main config to enable collecting profiling metrics.
+pub static COLLECT_SEQUENCER_PROFILING_METRICS: OnceLock<bool> = OnceLock::new();
 
 define_metrics!(
     Infra => {
