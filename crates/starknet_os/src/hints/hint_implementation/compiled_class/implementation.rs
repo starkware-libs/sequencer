@@ -3,14 +3,18 @@ use cairo_vm::any_box;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
     get_relocatable_from_var_name,
+    insert_value_into_ap,
 };
 use cairo_vm::hint_processor::hint_processor_definition::HintExtension;
 use cairo_vm::types::relocatable::Relocatable;
 
 use crate::hints::error::{OsHintError, OsHintExtensionResult, OsHintResult};
-use crate::hints::hint_implementation::compiled_class::utils::CompiledClassFact;
+use crate::hints::hint_implementation::compiled_class::utils::{
+    BytecodeSegmentNode,
+    CompiledClassFact,
+};
 use crate::hints::types::HintArgs;
-use crate::hints::vars::{CairoStruct, Ids};
+use crate::hints::vars::{CairoStruct, Ids, Scope};
 use crate::vm_utils::{
     get_address_of_nested_fields,
     get_address_of_nested_fields_from_base_address,
@@ -69,9 +73,12 @@ pub(crate) fn load_class<S: StateReader>(
 }
 
 pub(crate) fn set_ap_to_segment_hash<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { exec_scopes, vm, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    let bytecode_segment_structure: &BytecodeSegmentNode =
+        exec_scopes.get_ref(Scope::BytecodeSegmentStructure.into())?;
+
+    Ok(insert_value_into_ap(vm, bytecode_segment_structure.hash().0)?)
 }
 
 pub(crate) fn validate_compiled_class_facts_post_execution<S: StateReader>(
