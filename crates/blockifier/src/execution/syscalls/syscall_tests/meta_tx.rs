@@ -19,6 +19,7 @@ use starknet_types_core::hash::{Pedersen, StarkHash};
 use test_case::test_case;
 
 use crate::context::ChainInfo;
+use crate::execution::call_info::CallExecution;
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::state::state_api::StateReader;
@@ -126,15 +127,21 @@ fn test_meta_tx_v0(
     let exec_result =
         entry_point_call.execute_directly_given_tx_info(&mut state, tx_info, false, execution_mode);
 
-    match execution_mode {
+    let execution = match execution_mode {
         ExecutionMode::Execute => {
-            assert!(!exec_result.unwrap().execution.failed);
+            exec_result.unwrap().execution
         }
         ExecutionMode::Validate => {
             assert!(exec_result.is_err());
             return;
         }
-    }
+    };
+
+    assert!(!execution.failed);
+    assert_eq!(
+        execution,
+        CallExecution { gas_consumed: 525350, ..CallExecution::default() }
+    );
 
     let check_value = |key: Felt252, value: Felt252| {
         assert_eq!(state.get_storage_at(contract_address, key.try_into().unwrap()).unwrap(), value)
