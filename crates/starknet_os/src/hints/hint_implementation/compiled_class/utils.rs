@@ -177,6 +177,7 @@ pub(crate) struct BytecodeSegmentInnerNode {
     pub(crate) segments: Vec<BytecodeSegment>,
 }
 
+#[cfg_attr(test, derive(PartialEq))]
 #[derive(Debug)]
 pub(crate) enum BytecodeSegmentNode {
     Leaf(BytecodeSegmentLeaf),

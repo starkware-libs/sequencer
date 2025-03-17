@@ -15,20 +15,6 @@ fn dummy_bytecode(bytecode_len: u32) -> Vec<Felt> {
     (0..bytecode_len).map(|x| felt!(x)).collect()
 }
 
-// Recursively compare nodes.
-impl PartialEq for BytecodeSegmentNode {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (BytecodeSegmentNode::Leaf(a), BytecodeSegmentNode::Leaf(b)) => a == b,
-            (BytecodeSegmentNode::InnerNode(a), BytecodeSegmentNode::InnerNode(b)) => {
-                a.segments.len() == b.segments.len()
-                    && a.segments.iter().zip(b.segments.iter()).all(|(a, b)| a == b)
-            }
-            _ => false,
-        }
-    }
-}
-
 #[rstest]
 #[case (3, NestedIntList::Node(vec![NestedIntList::Node(vec![NestedIntList::Leaf(3)])]),
 BytecodeSegmentNode::InnerNode(BytecodeSegmentInnerNode {
