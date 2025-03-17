@@ -29,7 +29,7 @@ use tokio::join;
 use tokio::task::JoinHandle;
 use tracing::info;
 
-use crate::integration_test_setup::{ConfigPointersMap, ExecutableSetup, NodeExecutionId};
+use crate::executable_setup::{ConfigPointersMap, ExecutableSetup, NodeExecutionId};
 use crate::monitoring_utils::{
     await_batcher_block,
     await_block,
