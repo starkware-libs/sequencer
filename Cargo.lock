@@ -11693,12 +11693,8 @@ dependencies = [
  "starknet_sierra_multicompile_types",
  "tempfile",
  "thiserror 1.0.69",
-<<<<<<< HEAD
- "tracing",
-||||||| 7682928ac
-=======
  "toml_test_utils",
->>>>>>> origin/main-v0.13.5
+ "tracing",
  "validator",
 ]
 
@@ -12470,7 +12466,7 @@ dependencies = [
 
 [[package]]
 name = "toml_test_utils"
-version = "0.14.0-rc.3"
+version = "0.0.0"
 dependencies = [
  "serde",
  "toml",
