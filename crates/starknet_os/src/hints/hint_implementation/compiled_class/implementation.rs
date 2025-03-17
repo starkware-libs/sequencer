@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use blockifier::state::state_api::StateReader;
 use cairo_vm::any_box;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
@@ -8,6 +10,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
 };
 use cairo_vm::hint_processor::hint_processor_definition::HintExtension;
 use cairo_vm::types::relocatable::Relocatable;
+use starknet_api::core::ClassHash;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintExtensionResult, OsHintResult};
@@ -37,9 +40,34 @@ pub(crate) fn assert_end_of_bytecode_segments<S: StateReader>(
 }
 
 pub(crate) fn bytecode_segment_structure<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, exec_scopes, ids_data, ap_tracking, vm, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    let bytecode_segment_structures: &HashMap<ClassHash, BytecodeSegmentNode> =
+        exec_scopes.get_ref(Scope::BytecodeSegmentStructures.into())?;
+
+    let class_hash_address = get_address_of_nested_fields(
+        ids_data,
+        Ids::CompiledClassFact,
+        CairoStruct::CompiledClassFact,
+        vm,
+        ap_tracking,
+        &["hash".to_string()],
+        &hint_processor.execution_helper.os_program,
+    )?;
+
+    let class_hash = ClassHash(*vm.get_integer(class_hash_address)?.as_ref());
+    let bytecode_segment_structure = bytecode_segment_structures
+        .get(&class_hash)
+        .ok_or_else(|| OsHintError::MissingBytecodeSegmentStructure(class_hash))?;
+
+    // TODO(Nimrod): See if we can avoid the clone here.
+    let new_scope = HashMap::from([(
+        Scope::BytecodeSegmentStructure.into(),
+        any_box!(bytecode_segment_structure.clone()),
+    )]);
+    exec_scopes.enter_scope(new_scope);
+
+    Ok(())
 }
 
 pub(crate) fn delete_memory_data<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
