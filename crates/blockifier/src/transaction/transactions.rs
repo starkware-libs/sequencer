@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use starknet_api::abi::abi_utils::selector_from_name;
+use starknet_api::block::GasPrice;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress};
 use starknet_api::data_availability::DataAvailabilityMode;
@@ -11,11 +12,13 @@ use starknet_api::executable_transaction::{
     InvokeTransaction,
     L1HandlerTransaction,
 };
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
     Calldata,
     PaymasterData,
+    ResourceBounds,
     Tip,
     TransactionSignature,
     ValidResourceBounds,
@@ -175,7 +178,20 @@ impl TransactionInfoCreator for L1HandlerTransaction {
                 sender_address: self.tx.contract_address,
                 only_query: false,
             },
-            resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds::default()),
+            resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds {
+                l2_gas: ResourceBounds {
+                    max_amount: GasAmount(100_000_000),
+                    max_price_per_unit: GasPrice(1),
+                },
+                l1_gas: ResourceBounds {
+                    max_amount: GasAmount(3_300_000),
+                    max_price_per_unit: GasPrice(1),
+                },
+                l1_data_gas: ResourceBounds {
+                    max_amount: GasAmount(2_000_000),
+                    max_price_per_unit: GasPrice(1),
+                },
+            }),
             tip: Tip::default(),
             nonce_data_availability_mode: DataAvailabilityMode::L1,
             fee_data_availability_mode: DataAvailabilityMode::L1,

@@ -9,7 +9,6 @@ use starknet_api::executable_transaction::{
     InvokeTransaction,
     L1HandlerTransaction,
 };
-use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{
     CalculateContractAddress,
@@ -20,8 +19,8 @@ use starknet_api::transaction::{
 use crate::bouncer::verify_tx_weights_within_max_capacity;
 use crate::context::BlockContext;
 use crate::execution::call_info::CallInfo;
-use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::{EntryPointExecutionContext, SierraGasRevertTracker};
+use crate::fee::fee_checks::{FeeCheckReportFields, PostExecutionReport};
 use crate::fee::receipt::TransactionReceipt;
 use crate::state::cached_state::TransactionalState;
 use crate::state::state_api::UpdatableState;
@@ -142,46 +141,47 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
         _concurrency_mode: bool,
     ) -> TransactionExecutionResult<TransactionExecutionInfo> {
         let tx_context = Arc::new(block_context.to_tx_context(self));
-        let limit_steps_by_resources = false;
+        let limit_steps_by_resources = true;
         // The Sierra gas limit for L1 handler transaction is set to max_execute_sierra_gas.
-        let mut remaining_gas =
-            block_context.versioned_constants.sierra_gas_limit(&ExecutionMode::Execute).0;
+        let mut initial_gas = tx_context.initial_sierra_gas();
         let mut context = EntryPointExecutionContext::new_invoke(
             tx_context.clone(),
             limit_steps_by_resources,
-            SierraGasRevertTracker::new(GasAmount(remaining_gas)),
+            SierraGasRevertTracker::new(initial_gas),
         );
-        let execute_call_info = self.run_execute(state, &mut context, &mut remaining_gas)?;
+        let execute_call_info = self.run_execute(state, &mut context, &mut initial_gas.0)?;
         let l1_handler_payload_size = self.payload_size();
-        let TransactionReceipt {
-            fee: actual_fee,
-            da_gas,
-            resources: actual_resources,
-            gas: total_gas,
-        } = TransactionReceipt::from_l1_handler(
+        let tx_receipt = TransactionReceipt::from_l1_handler(
             &tx_context,
             l1_handler_payload_size,
             CallInfo::summarize_many(execute_call_info.iter(), &block_context.versioned_constants),
             &state.get_actual_state_changes()?,
         );
+        let post_execution_report = PostExecutionReport::new(
+            state,
+            &tx_context,
+            &tx_receipt,
+            true, // ToDo AvivG - derive val ?
+        )?;
+        if let Some(error) = post_execution_report.error() {
+            return Err(error.into());
+        }
 
         let paid_fee = self.paid_fee_on_l1;
         // For now, assert only that any amount of fee was paid.
         // The error message still indicates the required fee.
         if paid_fee == Fee(0) {
-            return Err(TransactionFeeError::InsufficientFee { paid_fee, actual_fee })?;
+            return Err(TransactionFeeError::InsufficientFee {
+                paid_fee,
+                actual_fee: tx_receipt.fee,
+            })?;
         }
 
         Ok(TransactionExecutionInfo {
             validate_call_info: None,
             execute_call_info,
             fee_transfer_call_info: None,
-            receipt: TransactionReceipt {
-                fee: Fee::default(),
-                da_gas,
-                resources: actual_resources,
-                gas: total_gas,
-            },
+            receipt: TransactionReceipt { fee: Fee::default(), ..tx_receipt },
             revert_error: None,
         })
     }
