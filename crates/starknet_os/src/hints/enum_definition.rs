@@ -20,7 +20,6 @@ use crate::hints::hint_implementation::block_context::{
     chain_id,
     fee_token_address,
     get_block_mapping,
-    is_leaf,
     sequencer_address,
     write_use_kzg_da_to_memory,
 };
@@ -40,6 +39,7 @@ use crate::hints::hint_implementation::compiled_class::implementation::{
     assert_end_of_bytecode_segments,
     assign_bytecode_segments,
     delete_memory_data,
+    is_leaf,
     iter_current_segment_info,
     load_class,
     load_class_inner,
