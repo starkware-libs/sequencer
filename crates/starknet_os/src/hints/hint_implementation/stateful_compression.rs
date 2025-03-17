@@ -21,7 +21,7 @@ pub(crate) fn enter_scope_with_aliases<S: StateReader>(
     let dict_manager_str: &str = Scope::DictManager.into();
     let dict_manager: DictManager = exec_scopes.get(dict_manager_str)?;
     let state_update_pointers_str: &str = Scope::StateUpdatePointers.into();
-    let state_update_pointers: StateUpdatePointers = exec_scopes.get(state_update_pointers_str)?;
+    let state_update_pointers: &StateUpdatePointers = exec_scopes.get(state_update_pointers_str)?;
     let new_scope = HashMap::from([
         (dict_manager_str.to_string(), any_box!(dict_manager)),
         (state_update_pointers_str.to_string(), any_box!(state_update_pointers)),
