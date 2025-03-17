@@ -16,6 +16,7 @@ use std::time::Duration;
 use async_stream::try_stream;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use chrono::{TimeZone, Utc};
+use futures::future::pending;
 use futures::stream;
 use futures_util::{pin_mut, select, Stream, StreamExt};
 use indexmap::IndexMap;
@@ -98,6 +99,7 @@ pub struct SyncConfig {
     pub state_updates_max_stream_size: u32,
     pub verify_blocks: bool,
     pub collect_pending_data: bool,
+    pub store_sierras_and_casms: bool,
 }
 
 impl SerializeConfig for SyncConfig {
@@ -146,6 +148,13 @@ impl SerializeConfig for SyncConfig {
                 "Whether to collect data on pending blocks.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "store_sierras_and_casms",
+                &self.store_sierras_and_casms,
+                "Whether to store sierras and casms to the storage. This allows maintaining \
+                 backward-compatibility with native-blockifier",
+                ParamPrivacyInput::Public,
+            ),
         ])
     }
 }
@@ -160,6 +169,7 @@ impl Default for SyncConfig {
             state_updates_max_stream_size: 1000,
             verify_blocks: true,
             collect_pending_data: false,
+            store_sierras_and_casms: false,
         }
     }
 }
@@ -368,6 +378,7 @@ impl<
             self.config.block_propagation_sleep_duration,
             // TODO(yair): separate config param.
             self.config.state_updates_max_stream_size,
+            self.config.store_sierras_and_casms,
         )
         .fuse();
         let base_layer_block_stream = match &self.base_layer_source {
@@ -382,7 +393,8 @@ impl<
         };
         // TODO(dvir): try use interval instead of stream.
         // TODO(DvirYo): fix the bug and remove this check.
-        let check_sync_progress = check_sync_progress(self.reader.clone()).fuse();
+        let check_sync_progress =
+            check_sync_progress(self.reader.clone(), self.config.store_sierras_and_casms).fuse();
         pin_mut!(
             block_stream,
             state_diff_stream,
@@ -561,6 +573,7 @@ impl<
             }
         }
         let has_class_manager = self.class_manager_client.is_some();
+        let store_sierras_and_casms = self.config.store_sierras_and_casms;
         self.perform_storage_writes(move |writer| {
             if has_class_manager {
                 writer
@@ -568,10 +581,10 @@ impl<
                     .update_class_manager_block_marker(&block_number.unchecked_next())?
                     .commit()?;
             }
-            writer
-                .begin_rw_txn()?
-                .append_state_diff(block_number, thin_state_diff)?
-                .append_classes(
+            let mut txn = writer.begin_rw_txn()?;
+            txn = txn.append_state_diff(block_number, thin_state_diff)?;
+            if store_sierras_and_casms {
+                txn = txn.append_classes(
                     block_number,
                     &classes
                         .iter()
@@ -582,8 +595,9 @@ impl<
                         .chain(deployed_contract_class_definitions.iter())
                         .map(|(class_hash, deprecated_class)| (*class_hash, deprecated_class))
                         .collect::<Vec<_>>(),
-                )?
-                .commit()?;
+                )?;
+            }
+            txn.commit()?;
             Ok(())
         })
         .await?;
@@ -625,6 +639,9 @@ impl<
                     .await
                     .expect("Failed adding class and compiled class to class manager.");
             }
+        }
+        if !self.config.store_sierras_and_casms {
+            return Ok(());
         }
         let result = self
             .perform_storage_writes(move |writer| {
@@ -956,6 +973,7 @@ fn stream_new_compiled_classes<TCentralSource: CentralSourceTrait + Sync + Send>
     central_source: Arc<TCentralSource>,
     block_propagation_sleep_duration: Duration,
     max_stream_size: u32,
+    store_sierras_and_casms: bool,
 ) -> impl Stream<Item = Result<SyncEvent, StateSyncError>> {
     try_stream! {
         loop {
@@ -989,6 +1007,17 @@ fn stream_new_compiled_classes<TCentralSource: CentralSourceTrait + Sync + Send>
             if from < compiler_backward_compatibility_marker && up_to > compiler_backward_compatibility_marker {
                 up_to = compiler_backward_compatibility_marker;
             }
+
+            // No point in downloading casms if we don't store them and don't send them to the
+            // class manager
+            if are_casms_backward_compatible && !store_sierras_and_casms {
+                info!("Compiled classes stream reached a block that has backward compatibility for \
+                      the compiler, and store_sierras_and_casms is set to false. \
+                      Finishing the compiled class stream");
+                pending::<()>().await;
+                continue;
+            }
+
             debug!("Downloading compiled classes of blocks [{} - {}).", from, up_to);
             let compiled_classes_stream =
                 central_source.stream_compiled_classes(from, up_to).fuse();
@@ -1045,6 +1074,7 @@ fn stream_new_base_layer_block<TBaseLayerSource: BaseLayerSourceTrait + Sync>(
 // TODO(dvir): add a test for this scenario.
 fn check_sync_progress(
     reader: StorageReader,
+    store_sierras_and_casms: bool,
 ) -> impl Stream<Item = Result<SyncEvent, StateSyncError>> {
     try_stream! {
         let mut txn=reader.begin_ro_txn()?;
@@ -1059,7 +1089,7 @@ fn check_sync_progress(
             let new_state_marker=txn.get_state_marker()?;
             let new_casm_marker=txn.get_compiled_class_marker()?;
             let compiler_backward_compatibility_marker = txn.get_compiler_backward_compatibility_marker()?;
-            let is_casm_stuck = casm_marker == new_casm_marker && new_casm_marker < compiler_backward_compatibility_marker;
+            let is_casm_stuck = casm_marker == new_casm_marker && (new_casm_marker < compiler_backward_compatibility_marker || store_sierras_and_casms);
             if header_marker==new_header_marker || state_marker==new_state_marker || is_casm_stuck {
                 debug!("No progress in the sync. Return NoProgress event.");
                 yield SyncEvent::NoProgress;
