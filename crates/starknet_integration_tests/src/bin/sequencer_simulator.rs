@@ -3,8 +3,8 @@ use std::fs::read_to_string;
 use clap::Parser;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use serde_json::Value;
+use starknet_integration_tests::integration_test_manager::{HTTP_PORT_ARG, MONITORING_PORT_ARG};
 use starknet_integration_tests::integration_test_utils::set_panic_hook;
-use starknet_integration_tests::sequencer_manager::{HTTP_PORT_ARG, MONITORING_PORT_ARG};
 use starknet_integration_tests::sequencer_simulator_utils::SequencerSimulator;
 use starknet_integration_tests::utils::{
     create_integration_test_tx_generator,

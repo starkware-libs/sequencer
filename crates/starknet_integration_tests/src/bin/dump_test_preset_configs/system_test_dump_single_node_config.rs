@@ -4,9 +4,12 @@ use std::path::PathBuf;
 use clap::Parser;
 use starknet_infra_utils::test_utils::TestIdentifier;
 use starknet_integration_tests::consts::{DATA_PREFIX_PATH, SINGLE_NODE_CONFIG_PATH};
+use starknet_integration_tests::integration_test_manager::{
+    get_sequencer_setup_configs,
+    CustomPaths,
+};
 use starknet_integration_tests::integration_test_utils::set_panic_hook;
 use starknet_integration_tests::node_component_configs::create_distributed_node_configs;
-use starknet_integration_tests::sequencer_manager::{get_sequencer_setup_configs, CustomPaths};
 use starknet_integration_tests::utils::create_integration_test_tx_generator;
 use starknet_sequencer_infra::trace_util::configure_tracing;
 use tempfile::TempDir;
