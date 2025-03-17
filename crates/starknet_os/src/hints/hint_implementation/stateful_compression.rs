@@ -11,6 +11,7 @@ use crate::hints::error::OsHintResult;
 use crate::hints::hint_implementation::state::StateUpdatePointers;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{Const, Ids, Scope};
+use crate::io::os_input::OsBlockInput;
 
 pub(crate) fn enter_scope_with_aliases<S: StateReader>(
     HintArgs { exec_scopes, .. }: HintArgs<'_, S>,
@@ -18,11 +19,14 @@ pub(crate) fn enter_scope_with_aliases<S: StateReader>(
     // Note that aliases, execution_helper and os_input do not enter the new scope as they are not
     // needed.
     let dict_manager = exec_scopes.get_dict_manager()?;
+    let block_input_str: &str = Scope::BlockInput.into();
+    let block_input: &OsBlockInput = exec_scopes.get(block_input_str)?;
     let state_update_pointers_str: &str = Scope::StateUpdatePointers.into();
     let state_update_pointers: &StateUpdatePointers = exec_scopes.get(state_update_pointers_str)?;
     let new_scope = HashMap::from([
         (Scope::DictManager.into(), any_box!(dict_manager)),
         (state_update_pointers_str.to_string(), any_box!(state_update_pointers)),
+        (block_input_str.to_string(), any_box!(block_input)),
     ]);
     exec_scopes.enter_scope(new_scope);
     Ok(())
@@ -98,13 +102,14 @@ pub(crate) fn contract_address_le_max_for_compression<S: StateReader>(
 }
 
 pub(crate) fn compute_commitments_on_finalized_state_with_aliases<S: StateReader>(
-    HintArgs { hint_processor, exec_scopes, .. }: HintArgs<'_, S>,
+    HintArgs { exec_scopes, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
     // TODO(Nimrod): Consider moving this hint to `state.rs`.
     // TODO(Nimrod): Try to avoid this clone.
+    let block_input: &OsBlockInput = exec_scopes.get(Scope::BlockInput.into())?;
     exec_scopes.insert_value(
         Scope::CommitmentInfoByAddress.into(),
-        hint_processor.execution_helper.os_input.address_to_storage_commitment_info.clone(),
+        block_input.address_to_storage_commitment_info.clone(),
     );
 
     Ok(())

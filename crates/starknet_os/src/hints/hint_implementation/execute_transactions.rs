@@ -10,7 +10,8 @@ use crate::hints::enum_definition::{AllHints, OsHint};
 use crate::hints::error::OsHintResult;
 use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;
-use crate::hints::vars::Ids;
+use crate::hints::vars::{Ids, Scope};
+use crate::io::os_input::OsBlockInput;
 
 pub(crate) fn set_sha256_segment_in_syscall_handler<S: StateReader>(
     HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
@@ -76,9 +77,10 @@ pub(crate) fn start_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHi
 }
 
 pub(crate) fn os_input_transactions<S: StateReader>(
-    HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
+    HintArgs { vm, exec_scopes, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let num_txns = hint_processor.execution_helper.os_input.transactions.len();
+    let block_input: &OsBlockInput = exec_scopes.get(Scope::BlockInput.into())?;
+    let num_txns = block_input.transactions.len();
     insert_nondet_hint_value(vm, AllHints::OsHint(OsHint::OsInputTransactions), num_txns)
 }
 

@@ -342,7 +342,9 @@ fn test_constants(input: &str) -> OsPythonTestResult {
 /// Deserialize the input string into an `Input` struct.
 fn input_deserialization(input_str: &str) -> OsPythonTestResult {
     let input = serde_json::from_str::<Input>(input_str)?;
-    validate_input(&input.os_input);
+    for block_input in input.os_input.blocks_inputs.iter() {
+        validate_input(block_input);
+    }
     Ok("Deserialization successful".to_string())
 }
 

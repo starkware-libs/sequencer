@@ -11,6 +11,8 @@ use crate::hints::error::OsHintError;
 pub(crate) enum Scope {
     BytecodeSegmentStructure,
     BytecodeSegmentStructures,
+    BlockInput,
+    BlockInputIter,
     Case,
     CommitmentInfoByAddress,
     CompiledClass,
@@ -34,6 +36,8 @@ impl From<Scope> for &'static str {
         match scope {
             Scope::BytecodeSegmentStructure => "bytecode_segment_structure",
             Scope::BytecodeSegmentStructures => "bytecode_segment_structures",
+            Scope::BlockInput => "block_input",
+            Scope::BlockInputIter => "block_input_iter",
             Scope::Case => "case",
             Scope::CommitmentInfoByAddress => "commitment_info_by_address",
             Scope::CompiledClass => "compiled_class",
