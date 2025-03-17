@@ -118,3 +118,40 @@ async fn transaction_batch_broadcasted_on_max_size() {
         RpcTransactionBatch(vec![first_cloned_rpc_transaction, second_cloned_rpc_transaction])
     );
 }
+
+#[tokio::test]
+async fn transaction_batch_broadcasted_on_request() {
+    let TestSubscriberChannels { mock_network, subscriber_channels } =
+        mock_register_broadcast_topic().expect("Failed to create mock network");
+    let BroadcastTopicChannels { broadcasted_messages_receiver: _, broadcast_topic_client } =
+        subscriber_channels;
+    let BroadcastNetworkMock { mut messages_to_broadcast_receiver, .. } = mock_network;
+
+    let mut transaction_converter = MockTransactionConverterTrait::new();
+    let internal_tx = InternalRpcTransaction::get_test_instance(&mut get_rng());
+    let rpc_transaction = RpcTransaction::get_test_instance(&mut get_rng());
+    let cloned_rpc_transaction = rpc_transaction.clone();
+
+    transaction_converter
+        .expect_convert_internal_rpc_tx_to_rpc_tx()
+        .with(predicate::eq(internal_tx.clone()))
+        .times(1)
+        .return_once(move |_| Ok(rpc_transaction));
+    let mut mempool_p2p_propagator =
+        MempoolP2pPropagator::new(broadcast_topic_client, Box::new(transaction_converter), 2);
+
+    mempool_p2p_propagator
+        .handle_request(MempoolP2pPropagatorRequest::AddTransaction(internal_tx))
+        .await;
+
+    // Assert adding the transaction does not trigger batch broadcast
+    assert!(messages_to_broadcast_receiver.next().now_or_never().is_none());
+
+    mempool_p2p_propagator
+        .handle_request(MempoolP2pPropagatorRequest::BroadcastQueuedTransactions())
+        .await;
+
+    // Assert the request triggered batch broadcast
+    let message = timeout(TIMEOUT, messages_to_broadcast_receiver.next()).await.unwrap().unwrap();
+    assert_eq!(message, RpcTransactionBatch(vec![cloned_rpc_transaction]));
+}
