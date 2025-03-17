@@ -1678,9 +1678,18 @@ memory[ap] = 1 if case != 'both' else 0"#
         StarknetOsInput,
         starknet_os_input,
         indoc! {r#"
+        from starkware.starknet.core.os.os_hints import get_execution_helper_and_syscall_handlers
         from starkware.starknet.core.os.os_input import StarknetOsInput
 
-        os_input = StarknetOsInput.load(data=program_input)"#
+        os_input = StarknetOsInput.load(data=program_input)
+
+        (
+            execution_helper,
+            syscall_handler,
+            deprecated_syscall_handler
+        ) = get_execution_helper_and_syscall_handlers(
+            os_input=os_input, global_hints=global_hints
+        )"#
         }
     ),
     (
