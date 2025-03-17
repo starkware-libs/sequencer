@@ -86,13 +86,19 @@ impl Serialize for Row<'_> {
 pub struct Dashboard<'a> {
     name: &'static str,
     rows: &'a [Row<'a>],
+    alerts: &'a [Alert],
 }
 
 impl<'a> Dashboard<'a> {
-    pub const fn new(name: &'static str, description: &'static str, rows: &'a [Row<'a>]) -> Self {
+    pub const fn new(
+        name: &'static str,
+        description: &'static str,
+        rows: &'a [Row<'a>],
+        alerts: &'a [Alert],
+    ) -> Self {
         // TODO(Tsabary): remove description.
         let _ = description;
-        Self { name, rows }
+        Self { name, rows, alerts }
     }
 }
 
@@ -102,13 +108,14 @@ impl Serialize for Dashboard<'_> {
     where
         S: Serializer,
     {
-        let mut map = serializer.serialize_map(Some(1))?;
+        let mut map = serializer.serialize_map(Some(2))?;
         let mut row_map = IndexMap::new();
         for row in self.rows {
             row_map.insert(row.name, row.panels);
         }
 
         map.serialize_entry(self.name, &row_map)?;
+        map.serialize_entry("alerts", &self.alerts)?;
         map.end()
     }
 }
@@ -133,15 +140,15 @@ pub enum AlertLogicalOp {
 #[derive(Clone, Debug, PartialEq)]
 pub struct AlertCondition {
     // The expression to evaluate for the alert.
-    expr: &'static str,
+    pub expr: &'static str,
     // The comparison operator to use when comparing the expression to the value.
-    comparison_op: AlertComparisonOp,
+    pub comparison_op: AlertComparisonOp,
     // The value to compare the expression to.
-    comparison_value: f64,
+    pub comparison_value: f64,
     // The logical operator between this condition and other conditions.
     // TODO(Yael): Consider moving this field to the be one per alert to avoid ambiguity when
     // trying to use a combination of `and` and `or` operators.
-    logical_op: AlertLogicalOp,
+    pub logical_op: AlertLogicalOp,
 }
 
 impl Serialize for AlertCondition {
@@ -181,12 +188,12 @@ impl Serialize for AlertCondition {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Alert {
     // The required duration for which the conditions must remain true before triggering the alert.
-    name: &'static str,
+    pub name: &'static str,
     // The message that will be displayed or sent when the alert is triggered.
-    message: &'static str,
+    pub message: &'static str,
     // The conditions that must be met for the alert to be triggered.
-    conditions: &'static [AlertCondition],
+    pub conditions: &'static [AlertCondition],
     // The time duration for which the alert conditions must be true before an alert is triggered.
     #[serde(rename = "for")]
-    pending_duration: &'static str,
+    pub pending_duration: &'static str,
 }

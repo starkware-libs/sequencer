@@ -51,7 +51,16 @@ use starknet_state_sync::metrics::{
     STATE_SYNC_P2P_NUM_CONNECTED_PEERS,
 };
 
-use crate::dashboard::{Dashboard, Panel, PanelType, Row};
+use crate::dashboard::{
+    Alert,
+    AlertComparisonOp,
+    AlertCondition,
+    AlertLogicalOp,
+    Dashboard,
+    Panel,
+    PanelType,
+    Row,
+};
 
 #[cfg(test)]
 #[path = "dashboard_definitions_test.rs"]
@@ -416,4 +425,15 @@ pub const SEQUENCER_DASHBOARD: Dashboard<'_> = Dashboard::new(
         GATEWAY_ROW,
         MEMPOOL_ROW,
     ],
+    &[Alert {
+        name: "Mempool Transactions Dropped",
+        message: "Mempool transactions are being dropped",
+        conditions: &[AlertCondition {
+            expr: MEMPOOL_TRANSACTIONS_DROPPED.get_name(),
+            comparison_op: AlertComparisonOp::GreaterThan,
+            comparison_value: 0.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        pending_duration: "5m",
+    }],
 );

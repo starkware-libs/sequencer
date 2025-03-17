@@ -261,5 +261,28 @@
         "extra_params": {}
       }
     ]
-  }
+  },
+  "alerts": [
+    {
+      "name": "Mempool Transactions Dropped",
+      "message": "Mempool transactions are being dropped",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "query": {
+            "expr": "mempool_transactions_dropped"
+          }
+        }
+      ],
+      "for": "5m"
+    }
+  ]
 }
