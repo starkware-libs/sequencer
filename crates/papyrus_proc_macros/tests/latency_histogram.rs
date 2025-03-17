@@ -7,8 +7,11 @@ use papyrus_proc_macros::{latency_histogram, sequencer_latency_histogram};
 use papyrus_test_utils::prometheus_is_contained;
 use prometheus_parse::Value::Untyped;
 use rstest::rstest;
-use starknet_monitoring_endpoint::config::COLLECT_SEQUENCER_PROFILING_METRICS;
-use starknet_sequencer_metrics::metrics::{MetricHistogram, MetricScope};
+use starknet_sequencer_metrics::metrics::{
+    MetricHistogram,
+    MetricScope,
+    COLLECT_SEQUENCER_PROFILING_METRICS,
+};
 
 const FOO_HISTOGRAM_TEST_METRIC: MetricHistogram = MetricHistogram::new(
     MetricScope::Infra,

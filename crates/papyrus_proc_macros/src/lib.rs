@@ -200,7 +200,7 @@ pub fn sequencer_latency_histogram(attr: TokenStream, input: TokenStream) -> Tok
     };
 
     let collect_metric_flag = quote! {
-        starknet_monitoring_endpoint::config::COLLECT_SEQUENCER_PROFILING_METRICS
+        starknet_sequencer_metrics::metrics::COLLECT_SEQUENCER_PROFILING_METRICS
     };
 
     create_modified_function(

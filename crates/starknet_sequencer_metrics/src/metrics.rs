@@ -1,8 +1,6 @@
-#[cfg(test)]
-#[path = "metrics_test.rs"]
-mod metrics_tests;
 use std::fmt::Debug;
 use std::str::FromStr;
+use std::sync::OnceLock;
 
 use indexmap::IndexMap;
 use metrics::{
@@ -16,6 +14,13 @@ use metrics::{
 };
 use num_traits::Num;
 use regex::{escape, Regex};
+
+#[cfg(test)]
+#[path = "metrics_test.rs"]
+mod metrics_tests;
+
+/// Global variable set by the main config to enable collecting profiling metrics.
+pub static COLLECT_SEQUENCER_PROFILING_METRICS: OnceLock<bool> = OnceLock::new();
 
 /// Relevant components for which metrics can be defined.
 #[derive(Clone, Copy, Debug)]

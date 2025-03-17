@@ -1,7 +1,6 @@
 use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter, Result};
 use std::net::{IpAddr, Ipv4Addr};
-use std::sync::OnceLock;
 
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -10,9 +9,6 @@ use validator::Validate;
 
 pub(crate) const DEFAULT_IP: IpAddr = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
 pub(crate) const DEFAULT_PORT: u16 = 8082;
-
-/// Global variable set by the main config to enable collecting profiling metrics.
-pub static COLLECT_SEQUENCER_PROFILING_METRICS: OnceLock<bool> = OnceLock::new();
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Validate)]
 pub struct MonitoringEndpointConfig {
