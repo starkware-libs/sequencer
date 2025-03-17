@@ -61,7 +61,12 @@ use starknet_state_sync::metrics::{
     STATE_SYNC_P2P_NUM_CONNECTED_PEERS,
 };
 
-use crate::dashboard::{Dashboard, Panel, PanelType, Row};
+use crate::dashboard::{
+    Dashboard,
+    Panel,
+    PanelType,
+    Row,
+};
 
 #[cfg(test)]
 #[path = "dashboard_definitions_test.rs"]

@@ -1,0 +1,29 @@
+{
+  "alerts": [
+    {
+      "name": "gateway_add_tx_rate_drop",
+      "title": "Gateway add_tx rate drop",
+      "ruleGroup": "gateway",
+      "expr": "sum(rate(gateway_transactions_received[20m]))",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.01
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "5m"
+    }
+  ]
+}

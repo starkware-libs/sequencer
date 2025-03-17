@@ -135,26 +135,23 @@ pub enum AlertComparisonOp {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum AlertLogicalOp {
-    #[serde(rename = "and")]
     And,
-    #[serde(rename = "or")]
     Or,
 }
 
 /// Defines the condition to trigger the alert.
 #[derive(Clone, Debug, PartialEq)]
 pub struct AlertCondition {
-    // The expression to evaluate for the alert.
-    expr: &'static str,
     // The comparison operator to use when comparing the expression to the value.
-    comparison_op: AlertComparisonOp,
+    pub comparison_op: AlertComparisonOp,
     // The value to compare the expression to.
-    comparison_value: f64,
+    pub comparison_value: f64,
     // The logical operator between this condition and other conditions.
     // TODO(Yael): Consider moving this field to the be one per alert to avoid ambiguity when
     // trying to use a combination of `and` and `or` operators.
-    logical_op: AlertLogicalOp,
+    pub logical_op: AlertLogicalOp,
 }
 
 impl Serialize for AlertCondition {
@@ -162,7 +159,7 @@ impl Serialize for AlertCondition {
     where
         S: Serializer,
     {
-        let mut state = serializer.serialize_struct("AlertCondition", 3)?;
+        let mut state = serializer.serialize_struct("AlertCondition", 4)?;
 
         state.serialize_field(
             "evaluator",
@@ -180,26 +177,54 @@ impl Serialize for AlertCondition {
         )?;
 
         state.serialize_field(
-            "query",
+            "reducer",
             &serde_json::json!({
-                "expr": self.expr
+                "params": [],
+                "type": "avg"
             }),
         )?;
+
+        state.serialize_field("type", "query")?;
 
         state.end()
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AlertGroup {
+    Batcher,
+    Gateway,
+    Mempool,
+}
+
 /// Describes the properties of an alert defined in grafana.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Alert {
-    // The required duration for which the conditions must remain true before triggering the alert.
-    name: &'static str,
-    // The message that will be displayed or sent when the alert is triggered.
-    message: &'static str,
+    // The name of the alert.
+    pub name: &'static str,
+    // The title that will be displayed.
+    pub title: &'static str,
+    // The group that the alert will be displayed under.
+    #[serde(rename = "ruleGroup")]
+    pub alert_group: AlertGroup,
+    // The expression to evaluate for the alert.
+    pub expr: &'static str,
     // The conditions that must be met for the alert to be triggered.
-    conditions: &'static [AlertCondition],
+    pub conditions: &'static [AlertCondition],
     // The time duration for which the alert conditions must be true before an alert is triggered.
     #[serde(rename = "for")]
-    pending_duration: &'static str,
+    pub pending_duration: &'static str,
+}
+
+/// Description of the alerts to be configured in the dashboard.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct Alerts<'a> {
+    alerts: &'a [Alert],
+}
+
+impl<'a> Alerts<'a> {
+    pub const fn new(alerts: &'a [Alert]) -> Self {
+        Self { alerts }
+    }
 }
