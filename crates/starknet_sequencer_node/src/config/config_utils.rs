@@ -14,10 +14,22 @@ use papyrus_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 use serde::Serialize;
 use serde_json::{Map, Value};
 use starknet_api::core::ContractAddress;
-use tracing::info;
+use tracing::{error, info};
 use url::Url;
+use validator::ValidationError;
 
 use crate::config::node_config::node_command;
+
+pub(crate) fn create_validation_error(
+    error_msg: String,
+    validate_code: &'static str,
+    validate_error_msg: &'static str,
+) -> ValidationError {
+    error!(error_msg);
+    let mut error = ValidationError::new(validate_code);
+    error.message = Some(validate_error_msg.into());
+    error
+}
 
 /// Required parameters utility struct.
 #[derive(Serialize)]
