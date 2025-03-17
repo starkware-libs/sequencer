@@ -17,7 +17,6 @@ use crate::hints::hint_implementation::aggregator::{
 use crate::hints::hint_implementation::block_context::{
     block_number,
     block_timestamp,
-    bytecode_segment_structure,
     chain_id,
     fee_token_address,
     get_block_mapping,
@@ -39,6 +38,7 @@ use crate::hints::hint_implementation::cairo1_revert::{
 use crate::hints::hint_implementation::compiled_class::implementation::{
     assert_end_of_bytecode_segments,
     assign_bytecode_segments,
+    bytecode_segment_structure,
     delete_memory_data,
     is_leaf,
     iter_current_segment_info,
