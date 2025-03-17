@@ -1,7 +1,12 @@
+use std::sync::Arc;
+
 use blockifier_test_utils::cairo_versions::RunnableCairo1;
 use blockifier_test_utils::contracts::FeatureContract;
+use cairo_vm::types::builtin_name::BuiltinName;
+use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use cairo_vm::Felt252;
 use starknet_api::abi::abi_utils::{selector_from_name, starknet_keccak};
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::test_utils::CHAIN_ID_FOR_TESTS;
 use starknet_api::transaction::fields::{Calldata, Fee};
@@ -18,7 +23,8 @@ use starknet_api::{calldata, felt};
 use starknet_types_core::hash::{Pedersen, StarkHash};
 use test_case::test_case;
 
-use crate::context::ChainInfo;
+use crate::context::{BlockContext, ChainInfo};
+use crate::execution::call_info::CallExecution;
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::state::state_api::StateReader;
@@ -26,9 +32,12 @@ use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{trivial_external_entry_point_with_address, BALANCE};
 use crate::transaction::objects::{CommonAccountFields, CurrentTransactionInfo, TransactionInfo};
 
-#[test_case(RunnableCairo1::Casm, ExecutionMode::Execute, false; "VM, execute")]
-#[test_case(RunnableCairo1::Casm, ExecutionMode::Execute, true; "VM, execute, only_query")]
-#[test_case(RunnableCairo1::Casm, ExecutionMode::Validate, false; "VM, validate")]
+#[test_case(RunnableCairo1::Casm, ExecutionMode::Execute, false, false; "VM, execute")]
+#[test_case(RunnableCairo1::Casm, ExecutionMode::Execute, true, false; "VM, execute, only_query")]
+#[test_case(RunnableCairo1::Casm, ExecutionMode::Validate, false, false; "VM, validate")]
+#[test_case(
+    RunnableCairo1::Casm, ExecutionMode::Execute, false, true; "VM, execute, measure resources"
+)]
 // TODO(lior): Uncomment when native supports `meta_tx_v0`.
 // #[cfg_attr(
 //     feature = "cairo_native",
@@ -61,6 +70,7 @@ fn test_meta_tx_v0(
     runnable_version: RunnableCairo1,
     execution_mode: ExecutionMode,
     only_query: bool,
+    measure_resources: bool,
 ) {
     let meta_tx_contract = FeatureContract::MetaTx(runnable_version);
     let mut state = test_state(&ChainInfo::create_for_testing(), BALANCE, &[(meta_tx_contract, 1)]);
@@ -123,18 +133,54 @@ fn test_meta_tx_v0(
         ..CurrentTransactionInfo::create_for_testing()
     });
 
-    let exec_result =
-        entry_point_call.execute_directly_given_tx_info(&mut state, tx_info, false, execution_mode);
+    // Use the maximum sierra version to avoid sierra gas.
+    let max_sierra_version = SierraVersion::new(u64::MAX, u64::MAX, u64::MAX);
+    let mut block_context = BlockContext::create_for_testing();
+    if measure_resources {
+        block_context.versioned_constants.min_sierra_version_for_sierra_gas = max_sierra_version;
+    }
 
-    match execution_mode {
-        ExecutionMode::Execute => {
-            assert!(!exec_result.unwrap().execution.failed);
-        }
+    let exec_result = entry_point_call.execute_directly_given_tx_info(
+        &mut state,
+        tx_info,
+        Some(Arc::new(block_context)),
+        false,
+        execution_mode,
+    );
+
+    let call_info = match execution_mode {
+        ExecutionMode::Execute => exec_result.unwrap(),
         ExecutionMode::Validate => {
             assert!(exec_result.is_err());
             return;
         }
-    }
+    };
+
+    assert!(!call_info.execution.failed);
+    assert_eq!(
+        call_info.execution,
+        CallExecution {
+            gas_consumed: if measure_resources { 0 } else { 525350 },
+            ..CallExecution::default()
+        }
+    );
+    assert_eq!(
+        call_info.resources,
+        if measure_resources {
+            ExecutionResources {
+                n_steps: 4523,
+                n_memory_holes: 30,
+                builtin_instance_counter: [
+                    (BuiltinName::range_check, 95),
+                    (BuiltinName::pedersen, 12),
+                ]
+                .into_iter()
+                .collect(),
+            }
+        } else {
+            ExecutionResources::default()
+        }
+    );
 
     let check_value = |key: Felt252, value: Felt252| {
         assert_eq!(state.get_storage_at(contract_address, key.try_into().unwrap()).unwrap(), value)
