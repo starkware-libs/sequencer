@@ -3,6 +3,7 @@ use std::sync::Arc;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress};
+use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::executable_transaction::{
     AccountTransaction,
     DeclareTransaction,
@@ -12,9 +13,12 @@ use starknet_api::executable_transaction::{
 };
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
+    AllResourceBounds,
     Calldata,
-    Fee,
+    PaymasterData,
+    Tip,
     TransactionSignature,
+    ValidResourceBounds,
 };
 use starknet_api::transaction::{
     constants,
@@ -162,7 +166,7 @@ impl<S: State> Executable<S> for L1HandlerTransaction {
 
 impl TransactionInfoCreator for L1HandlerTransaction {
     fn create_tx_info(&self) -> TransactionInfo {
-        TransactionInfo::Deprecated(DeprecatedTransactionInfo {
+        TransactionInfo::Current(CurrentTransactionInfo {
             common_fields: CommonAccountFields {
                 transaction_hash: self.tx_hash,
                 version: self.tx.version,
@@ -171,7 +175,12 @@ impl TransactionInfoCreator for L1HandlerTransaction {
                 sender_address: self.tx.contract_address,
                 only_query: false,
             },
-            max_fee: Fee::default(),
+            resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds::default()),
+            tip: Tip::default(),
+            nonce_data_availability_mode: DataAvailabilityMode::L1,
+            fee_data_availability_mode: DataAvailabilityMode::L1,
+            paymaster_data: PaymasterData::default(),
+            account_deployment_data: AccountDeploymentData::default(),
         })
     }
 }

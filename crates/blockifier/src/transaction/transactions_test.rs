@@ -2415,7 +2415,7 @@ fn test_only_query_flag(
 
 #[rstest]
 fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
-    let gas_mode = GasVectorComputationMode::NoL2Gas;
+    let gas_mode = GasVectorComputationMode::All;
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let block_context = &BlockContext::create_for_account_testing_with_kzg(use_kzg_da);
     let chain_info = &block_context.chain_info;
@@ -2457,16 +2457,17 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     };
 
     // Build the expected resource mapping.
-    // l2_gas is 0 in the receipt even though execution resources is not, as we're in NoL2Gas mode.
-    // TODO(Nimrod, 1/5/2024): Change these hard coded values to match to the transaction resources
-    // (currently matches only starknet resources).
     let expected_gas = match use_kzg_da {
         true => GasVector {
-            l1_gas: 18007_u32.into(),
+            l1_gas: 16023_u32.into(),
             l1_data_gas: 160_u32.into(),
-            l2_gas: 0_u32.into(),
+            l2_gas: 198375_u32.into(),
         },
-        false => GasVector::from_l1_gas(19701_u32.into()),
+        false => GasVector {
+            l1_gas: 18226_u32.into(),
+            l1_data_gas: 0_u32.into(),
+            l2_gas: 147475_u32.into(),
+        },
     };
 
     let expected_da_gas = match use_kzg_da {
