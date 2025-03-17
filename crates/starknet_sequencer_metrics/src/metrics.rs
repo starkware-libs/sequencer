@@ -73,6 +73,20 @@ impl MetricCounter {
     pub fn parse_numeric_metric<T: Num + FromStr>(&self, metrics_as_string: &str) -> Option<T> {
         parse_numeric_metric::<T>(metrics_as_string, self.get_name(), None)
     }
+
+    #[cfg(any(feature = "testing", test))]
+    pub fn assert_eq(&self, metrics_as_string: &str, expected_value: u64) {
+        let metric_value = self.parse_numeric_metric::<u64>(metrics_as_string).unwrap();
+        assert_eq!(
+            metric_value,
+            expected_value,
+            "Metric counter {} did not match the expected value. expected value: {}, metric \
+             value: {}",
+            self.get_name(),
+            expected_value,
+            metric_value
+        );
+    }
 }
 
 pub struct LabeledMetricCounter {
@@ -124,6 +138,26 @@ impl LabeledMetricCounter {
     ) -> Option<T> {
         parse_numeric_metric::<T>(metrics_as_string, self.get_name(), Some(labels))
     }
+
+    #[cfg(any(feature = "testing", test))]
+    pub fn assert_eq(
+        &self,
+        metrics_as_string: &str,
+        expected_value: u64,
+        label: &[(&'static str, &'static str)],
+    ) {
+        let metric_value = self.parse_numeric_metric::<u64>(metrics_as_string, label).unwrap();
+        assert_eq!(
+            metric_value,
+            expected_value,
+            "Metric counter {} {:?} did not match the expected value. expected value: {}, metric
+             value: {}",
+            self.get_name(),
+            label,
+            expected_value,
+            metric_value
+        );
+    }
 }
 
 pub struct MetricGauge {
@@ -172,6 +206,20 @@ impl MetricGauge {
 
     pub fn set_lossy<T: LossyIntoF64>(&self, value: T) {
         gauge!(self.name).set(value.into_f64());
+    }
+
+    #[cfg(any(feature = "testing", test))]
+    pub fn assert_eq(&self, metrics_as_string: &str, expected_value: f64) {
+        let metric_value = self.parse_numeric_metric::<f64>(metrics_as_string).unwrap();
+        assert_eq!(
+            metric_value,
+            expected_value,
+            "Metric gauge {} did not match the expected value. expected value: {}, metric
+             value: {}",
+            self.get_name(),
+            expected_value,
+            metric_value
+        );
     }
 }
 
@@ -255,6 +303,26 @@ impl LabeledMetricGauge {
     pub fn set<T: IntoF64>(&self, value: T, label: &[(&'static str, &'static str)]) {
         gauge!(self.name, label).set(value.into_f64());
     }
+
+    #[cfg(any(feature = "testing", test))]
+    pub fn assert_eq(
+        &self,
+        metrics_as_string: &str,
+        expected_value: f64,
+        label: &[(&'static str, &'static str)],
+    ) {
+        let metric_value = self.parse_numeric_metric::<f64>(metrics_as_string, label).unwrap();
+        assert_eq!(
+            metric_value,
+            expected_value,
+            "Metric gauge {} {:?} did not match the expected value. expected value: {}, metric
+             value: {}",
+            self.get_name(),
+            label,
+            expected_value,
+            metric_value
+        );
+    }
 }
 
 pub struct MetricHistogram {
@@ -302,6 +370,20 @@ impl MetricHistogram {
 
     pub fn parse_histogram_metric(&self, metrics_as_string: &str) -> Option<HistogramValue> {
         parse_histogram_metric(metrics_as_string, self.get_name(), None)
+    }
+
+    // Only the sum and count values are compared, not the quantiles.
+    #[cfg(any(feature = "testing", test))]
+    pub fn assert_eq(&self, metrics_as_string: &str, expected_value: &HistogramValue) {
+        let metric_value = self.parse_histogram_metric(metrics_as_string).unwrap();
+        assert!(
+            metric_value.sum == expected_value.sum && metric_value.count == expected_value.count,
+            "Metric histogram {} sum or count did not match the expected value. expected value: \
+             {:?}, metric value: {:?}",
+            self.get_name(),
+            expected_value,
+            metric_value
+        );
     }
 }
 
@@ -360,6 +442,26 @@ impl LabeledMetricHistogram {
         labels: &[(&'static str, &'static str)],
     ) -> Option<HistogramValue> {
         parse_histogram_metric(metrics_as_string, self.get_name(), Some(labels))
+    }
+
+    // Only the sum and count values are compared, not the quantiles.
+    #[cfg(any(feature = "testing", test))]
+    pub fn assert_eq(
+        &self,
+        metrics_as_string: &str,
+        expected_value: &HistogramValue,
+        label: &[(&'static str, &'static str)],
+    ) {
+        let metric_value = self.parse_histogram_metric(metrics_as_string, label).unwrap();
+        assert!(
+            metric_value.sum == expected_value.sum && metric_value.count == expected_value.count,
+            "Metric histogram {} {:?} sum or count did not match the expected value. expected \
+             value: {:?}, metric value: {:?}",
+            self.get_name(),
+            label,
+            expected_value,
+            metric_value
+        );
     }
 }
 

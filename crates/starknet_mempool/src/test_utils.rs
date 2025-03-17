@@ -9,7 +9,7 @@ use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, nonce};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{AddTransactionArgs, CommitBlockArgs};
-use starknet_sequencer_metrics::metrics::HistogramValue;
+use starknet_sequencer_metrics::metrics::{HistogramValue, LossyIntoF64};
 
 use crate::mempool::Mempool;
 use crate::metrics::{
@@ -104,50 +104,6 @@ macro_rules! tx {
     };
     () => {
         tx!(tx_hash: 0, address: "0x0", tx_nonce: 0)
-    };
-}
-
-// TODO(Yael): Consider moving to a more general place.
-/// Compares a metric, by it's name and label if exists, from a metrics str with an expected value
-/// and asserts if false.
-#[macro_export]
-macro_rules! assert_metric_eq {
-    ($metrics:expr, $expected:expr, $metric:ident $(, $labels:expr)?) => {
-        let return_value = $metric.parse_numeric_metric::<u64>($metrics $(, $labels)?).unwrap();
-        assert_eq!(
-            return_value,
-            $expected,
-            "Metric {} did not match expected value. expected value: {}, returned value: {}",
-            stringify!($metric $(, $labels)?), $expected, return_value
-
-        );
-    };
-}
-
-/// Compares a histogram metric value to the expected value. Only the sum and count values are
-/// compared, not the quantiles.
-#[macro_export]
-macro_rules! assert_metric_histogram_eq {
-    ($metrics:expr, $expected:expr, $metric:ident) => {
-        let return_value = $metric.parse_histogram_metric($metrics).unwrap();
-        assert_eq!(
-            return_value.sum,
-            $expected.sum,
-            "Histogram {} sum did not match expected value. expected value: {:?}, returned value: \
-             {:?}",
-            stringify!($metric),
-            $expected.sum,
-            return_value.sum
-        );
-        assert_eq!(
-            return_value.count,
-            $expected.count,
-            "Histogram {} count did not match expected value. expected value: {:?}, returned \
-             value: {:?}",
-            stringify!($metric),
-            $expected.count,
-            return_value.count
-        );
     };
 }
 
@@ -367,57 +323,43 @@ pub struct MempoolMetrics {
 impl MempoolMetrics {
     pub fn verify_metrics(&self, recorder: &PrometheusRecorder) {
         let metrics = &recorder.handle().render();
-        assert_metric_eq!(
+        MEMPOOL_TRANSACTIONS_RECEIVED.assert_eq(
             metrics,
             self.txs_received_invoke,
-            MEMPOOL_TRANSACTIONS_RECEIVED,
-            &[(LABEL_NAME_TX_TYPE, RpcTransactionLabelValue::Invoke.into())]
+            &[(LABEL_NAME_TX_TYPE, RpcTransactionLabelValue::Invoke.into())],
         );
-        assert_metric_eq!(
+        MEMPOOL_TRANSACTIONS_RECEIVED.assert_eq(
             metrics,
             self.txs_received_declare,
-            MEMPOOL_TRANSACTIONS_RECEIVED,
-            &[(LABEL_NAME_TX_TYPE, RpcTransactionLabelValue::Declare.into())]
+            &[(LABEL_NAME_TX_TYPE, RpcTransactionLabelValue::Declare.into())],
         );
-        assert_metric_eq!(
+        MEMPOOL_TRANSACTIONS_RECEIVED.assert_eq(
             metrics,
             self.txs_received_deploy_account,
-            MEMPOOL_TRANSACTIONS_RECEIVED,
-            &[(LABEL_NAME_TX_TYPE, RpcTransactionLabelValue::DeployAccount.into())]
+            &[(LABEL_NAME_TX_TYPE, RpcTransactionLabelValue::DeployAccount.into())],
         );
-
-        assert_metric_eq!(metrics, self.txs_committed, MEMPOOL_TRANSACTIONS_COMMITTED);
-
-        assert_metric_eq!(
+        MEMPOOL_TRANSACTIONS_COMMITTED.assert_eq(metrics, self.txs_committed);
+        MEMPOOL_TRANSACTIONS_DROPPED.assert_eq(
             metrics,
             self.txs_dropped_expired,
-            MEMPOOL_TRANSACTIONS_DROPPED,
-            &[(LABEL_NAME_DROP_REASON, DropReason::Expired.into())]
+            &[(LABEL_NAME_DROP_REASON, DropReason::Expired.into())],
         );
-
-        assert_metric_eq!(
+        MEMPOOL_TRANSACTIONS_DROPPED.assert_eq(
             metrics,
             self.txs_dropped_failed_add_tx_checks,
-            MEMPOOL_TRANSACTIONS_DROPPED,
-            &[(LABEL_NAME_DROP_REASON, DropReason::FailedAddTxChecks.into())]
+            &[(LABEL_NAME_DROP_REASON, DropReason::FailedAddTxChecks.into())],
         );
-
-        assert_metric_eq!(
+        MEMPOOL_TRANSACTIONS_DROPPED.assert_eq(
             metrics,
             self.txs_dropped_rejected,
-            MEMPOOL_TRANSACTIONS_DROPPED,
-            &[(LABEL_NAME_DROP_REASON, DropReason::Rejected.into())]
+            &[(LABEL_NAME_DROP_REASON, DropReason::Rejected.into())],
         );
-
-        assert_metric_eq!(metrics, self.pool_size, MEMPOOL_POOL_SIZE);
-        assert_metric_eq!(metrics, self.priority_queue_size, MEMPOOL_PRIORITY_QUEUE_SIZE);
-        assert_metric_eq!(metrics, self.pending_queue_size, MEMPOOL_PENDING_QUEUE_SIZE);
-        assert_metric_eq!(metrics, self.get_txs_size, MEMPOOL_GET_TXS_SIZE);
-        assert_metric_eq!(metrics, self.delayed_declares_size, MEMPOOL_DELAYED_DECLARES_SIZE);
-        assert_metric_histogram_eq!(
-            metrics,
-            self.transaction_time_spent_in_mempool,
-            TRANSACTION_TIME_SPENT_IN_MEMPOOL
-        );
+        MEMPOOL_POOL_SIZE.assert_eq(metrics, self.pool_size.into_f64());
+        MEMPOOL_PRIORITY_QUEUE_SIZE.assert_eq(metrics, self.priority_queue_size.into_f64());
+        MEMPOOL_PENDING_QUEUE_SIZE.assert_eq(metrics, self.pending_queue_size.into_f64());
+        MEMPOOL_GET_TXS_SIZE.assert_eq(metrics, self.get_txs_size.into_f64());
+        MEMPOOL_DELAYED_DECLARES_SIZE.assert_eq(metrics, self.delayed_declares_size.into_f64());
+        TRANSACTION_TIME_SPENT_IN_MEMPOOL
+            .assert_eq(metrics, &self.transaction_time_spent_in_mempool);
     }
 }
