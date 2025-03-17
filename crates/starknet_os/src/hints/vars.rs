@@ -91,6 +91,7 @@ pub enum Ids {
     Height,
     InitialCarriedOutputs,
     InitialRoot,
+    Low,
     NCompiledClassFacts,
     NTxs,
     NewLength,
@@ -139,6 +140,7 @@ impl From<Ids> for &'static str {
             Ids::Height => "height",
             Ids::InitialCarriedOutputs => "initial_carried_outputs",
             Ids::InitialRoot => "initial_root",
+            Ids::Low => "low",
             Ids::NCompiledClassFacts => "n_compiled_class_facts",
             Ids::NTxs => "n_txs",
             Ids::NewLength => "new_length",
@@ -167,6 +169,7 @@ impl From<Ids> for &'static str {
 pub enum Const {
     AliasContractAddress,
     AliasCounterStorageKey,
+    Base,
     BlockHashContractAddress,
     CompiledClassVersion,
     InitialAvailableAlias,
@@ -179,6 +182,7 @@ impl From<Const> for &'static str {
         match constant {
             Const::AliasContractAddress => "ALIAS_CONTRACT_ADDRESS",
             Const::AliasCounterStorageKey => "ALIAS_COUNTER_STORAGE_KEY",
+            Const::Base => "BASE",
             Const::BlockHashContractAddress => "BLOCK_HASH_CONTRACT_ADDRESS",
             Const::CompiledClassVersion => "COMPILED_CLASS_VERSION",
             Const::InitialAvailableAlias => "INITIAL_AVAILABLE_ALIAS",
@@ -225,6 +229,7 @@ impl Const {
 
 #[derive(Copy, Clone)]
 pub enum CairoStruct {
+    BigInt3,
     CompiledClass,
     CompiledClassEntryPoint,
     CompiledClassFact,
@@ -241,6 +246,9 @@ pub enum CairoStruct {
 impl From<CairoStruct> for &'static str {
     fn from(struct_name: CairoStruct) -> Self {
         match struct_name {
+            CairoStruct::BigInt3 => {
+                "starkware.starknet.core.os.data_availability.bls_field.BigInt3"
+            }
             CairoStruct::CompiledClass => {
                 "starkware.starknet.core.os.contract_class.compiled_class.CompiledClass"
             }
