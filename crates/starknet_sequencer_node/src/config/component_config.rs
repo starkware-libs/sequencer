@@ -69,7 +69,6 @@ impl SerializeConfig for ComponentConfig {
     }
 }
 
-#[cfg(any(feature = "testing", test))]
 impl ComponentConfig {
     pub fn disabled() -> ComponentConfig {
         ComponentConfig {

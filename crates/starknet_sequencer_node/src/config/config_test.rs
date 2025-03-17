@@ -19,6 +19,7 @@ use crate::config::component_execution_config::{
     ReactiveComponentExecutionMode,
 };
 use crate::config::config_utils::RequiredParams;
+use crate::config::monitoring::MonitoringConfig;
 use crate::config::node_config::{
     SequencerNodeConfig,
     CONFIG_NON_POINTERS_WHITELIST,
@@ -170,4 +171,18 @@ fn validate_batcher_config_failure() {
             .to_string()
             .contains("input_stream_content_buffer_size must be at least tx_chunk_size")
     );
+}
+
+#[rstest]
+#[case::monitoring_and_profiling(true, true, true)]
+#[case::monitoring_without_profiling(true, false, true)]
+#[case::no_monitoring_nor_profiling(false, false, true)]
+#[case::no_monitoring_with_profiling(false, true, false)]
+fn monitoring_config(
+    #[case] enable_monitoring: bool,
+    #[case] collect_profiling_metrics: bool,
+    #[case] expected_successful_validation: bool,
+) {
+    let component_exe_config = MonitoringConfig { enable_monitoring, collect_profiling_metrics };
+    assert_eq!(component_exe_config.validate().is_ok(), expected_successful_validation);
 }
