@@ -382,16 +382,6 @@ fn write_syscall_result_aux<S: StateReader>(
     Ok(())
 }
 
-// indoc! {r#"
-// storage = execution_helper.storage_by_address[ids.contract_address]
-// ids.prev_value = storage.read(key=ids.syscall_ptr.address)
-// storage.write(key=ids.syscall_ptr.address, value=ids.syscall_ptr.value)
-
-// # Fetch a state_entry in this hint and validate it in the update that comes next.
-// ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]"#
-//     }
-// ),
-
 pub(crate) fn write_syscall_result_deprecated<S: StateReader>(
     hint_args: HintArgs<'_, S>,
 ) -> OsHintResult {
