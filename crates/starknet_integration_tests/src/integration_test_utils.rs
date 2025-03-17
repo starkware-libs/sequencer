@@ -1,5 +1,3 @@
-use std::process::Command;
-
 use starknet_sequencer_infra::trace_util::configure_tracing;
 use starknet_sequencer_node::test_utils::node_runner::get_node_executable_path;
 use tracing::{info, warn};
@@ -14,39 +12,9 @@ pub fn set_panic_hook() {
     }));
 }
 
-/// Adjusts the system's ephemeral port range to ensure predictable port allocation during tests.
-///
-/// By default, the operating system dynamically assigns ephemeral ports from a wide range,
-/// which can lead to unpredictable port collisions in integration tests that rely on fixed port
-/// usage. This function sets a narrower range (40000-40200) to limit port allocation to a small,
-/// controlled set of ports, reducing the likelihood of conflicts.
-fn set_ephemeral_port_range() {
-    let output = Command::new("sudo")
-        .arg("sysctl")
-        .arg("-w")
-        .arg("net.ipv4.ip_local_port_range=40000 40200")
-        .output();
-
-    match output {
-        Ok(output) if output.status.success() => {
-            info!("Ephemeral port range set successfully.");
-        }
-        Ok(output) => {
-            eprintln!(
-                "Failed to set ephemeral port range: {}",
-                String::from_utf8_lossy(&output.stderr)
-            );
-        }
-        Err(e) => {
-            eprintln!("Error executing sysctl command: {}", e);
-        }
-    }
-}
-
 pub async fn integration_test_setup(test_specifier: &str) {
     configure_tracing().await;
     info!("Running sequencer node end to end {test_specifier} flow integration test setup.");
-    set_ephemeral_port_range();
     set_panic_hook();
 
     let sequencer_path = get_node_executable_path();

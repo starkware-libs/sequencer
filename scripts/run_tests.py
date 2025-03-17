@@ -61,12 +61,14 @@ class BaseCommand(Enum):
                 ["cargo", "build", "--bin", binary_name]
                 for binary_name in [SEQUENCER_BINARY_NAME] + SEQUENCER_INTEGRATION_TEST_NAMES
             ]
+            # Port setup command, used to prevent port binding issues.
+            port_cmds = [["sysctl", "-w", "net.ipv4.ip_local_port_range='40000 40200'"]]
             # Commands to run the test binaries.
             run_cmds = [
                 [f"./target/debug/{test_binary_name}"]
                 for test_binary_name in SEQUENCER_INTEGRATION_TEST_NAMES
             ]
-            return build_cmds + run_cmds
+            return build_cmds + port_cmds + run_cmds
 
         raise NotImplementedError(f"Command {self} not implemented.")
 
