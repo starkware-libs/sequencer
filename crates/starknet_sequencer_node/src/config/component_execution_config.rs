@@ -8,6 +8,8 @@ use starknet_sequencer_infra::component_definitions::{LocalServerConfig, RemoteC
 use tracing::error;
 use validator::{Validate, ValidationError};
 
+use crate::config::config_utils::create_validation_error;
+
 const DEFAULT_URL: &str = "localhost";
 const DEFAULT_IP: IpAddr = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
 const DEFAULT_INVALID_PORT: u16 = 0;
@@ -212,17 +214,6 @@ fn validate_max_concurrency(max_concurrency: usize) -> Result<(), ValidationErro
             "Ensure the max concurrency is greater than 0.",
         ))
     }
-}
-
-fn create_validation_error(
-    error_msg: String,
-    validate_code: &'static str,
-    validate_error_msg: &'static str,
-) -> ValidationError {
-    error!(error_msg);
-    let mut error = ValidationError::new(validate_code);
-    error.message = Some(validate_error_msg.into());
-    error
 }
 
 fn validate_reactive_component_execution_config(
