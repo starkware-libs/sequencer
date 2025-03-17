@@ -485,6 +485,10 @@ impl SyscallRequest for MetaTxV0Request {
 
         Ok(MetaTxV0Request { contract_address, entry_point_selector, calldata, signature })
     }
+
+    fn get_linear_factor_length(&self) -> usize {
+        self.calldata.0.len()
+    }
 }
 
 type MetaTxV0Response = CallContractResponse;
@@ -501,6 +505,11 @@ pub(crate) fn meta_tx_v0(
             execution_mode: syscall_handler.execution_mode(),
         });
     }
+
+    // Increment the MetaTxV0 syscall's linear cost counter by the number of elements in the
+    // calldata.
+    syscall_handler
+        .increment_linear_factor_by(&SyscallSelector::MetaTxV0, request.get_linear_factor_length());
 
     let storage_address = request.contract_address;
     let selector = request.entry_point_selector;

@@ -273,12 +273,21 @@
                 "n_steps": 659
             },
             "MetaTxV0": {
-                "builtin_instance_counter": {
-                    "pedersen_builtin": 9,
-                    "range_check_builtin": 16
+                "constant": {
+                    "builtin_instance_counter": {
+                        "pedersen_builtin": 9,
+                        "range_check_builtin": 16
+                    },
+                    "n_memory_holes": 0,
+                    "n_steps": 1273
                 },
-                "n_memory_holes": 0,
-                "n_steps": 1273
+                "calldata_factor": {
+                    "n_steps": 8,
+                    "builtin_instance_counter": {
+                        "pedersen_builtin": 1
+                    },
+                    "n_memory_holes": 0
+                }
             },
             "ReplaceClass": {
                 "builtin_instance_counter": {
