@@ -23,6 +23,7 @@ use papyrus_base_layer::test_utils::{StarknetL1Contract, DEFAULT_ANVIL_L1_ACCOUN
 use papyrus_network::network_manager::test_utils::create_connected_network_configs;
 use papyrus_network::NetworkConfig;
 use papyrus_storage::StorageConfig;
+use serde_json::to_value;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ContractAddress};
@@ -187,7 +188,12 @@ pub fn create_node_config(
     state_sync_config.storage_config = state_sync_storage_config;
     let base_layer_endpoint_url = base_layer_config.node_url.clone();
 
-    let config_pointers_map = ConfigPointersMap::new(CONFIG_POINTERS.clone());
+    // Update config pointer values.
+    let mut config_pointers_map = ConfigPointersMap::new(CONFIG_POINTERS.clone());
+    config_pointers_map.change_target_value(
+        "chain_id",
+        to_value(chain_info.chain_id).expect("Failed to serialize ChainId"),
+    );
 
     (
         SequencerNodeConfig {
@@ -206,7 +212,6 @@ pub fn create_node_config(
             ..Default::default()
         },
         RequiredParams {
-            chain_id: chain_info.chain_id,
             eth_fee_token_address: fee_token_addresses.eth_fee_token_address,
             strk_fee_token_address: fee_token_addresses.strk_fee_token_address,
             validator_id,
