@@ -5,7 +5,7 @@ use papyrus_protobuf::sync::DataOrFin;
 use papyrus_storage::body::{BodyStorageReader, BodyStorageWriter};
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::{StorageError, StorageReader, StorageWriter};
-use papyrus_sync::define_metrics::{SYNC_BODY_MARKER, SYNC_PROCESSED_TRANSACTIONS};
+use papyrus_sync::metrics::{SYNC_BODY_MARKER, SYNC_PROCESSED_TRANSACTIONS};
 use starknet_api::block::{BlockBody, BlockNumber};
 use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use starknet_api::transaction::{FullTransaction, Transaction, TransactionOutput};

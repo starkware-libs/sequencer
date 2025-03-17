@@ -2,7 +2,7 @@
 // within this crate
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 
-pub mod define_metrics;
+pub mod metrics;
 mod pending_sync;
 pub mod sources;
 #[cfg(test)]
@@ -53,9 +53,7 @@ use tokio::sync::{Mutex, RwLock};
 use tokio::task::{spawn_blocking, JoinError};
 use tracing::{debug, error, info, instrument, trace, warn};
 
-// TODO(Lev,Itay): find the way to rename define_metrics to metrics (solving the conflict with
-// `latency_histogram` macro).
-use crate::define_metrics::{
+use crate::metrics::{
     SYNC_BASE_LAYER_MARKER,
     SYNC_BODY_MARKER,
     SYNC_CENTRAL_BLOCK_MARKER,
