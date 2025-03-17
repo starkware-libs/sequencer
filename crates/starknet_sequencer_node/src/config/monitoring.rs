@@ -33,6 +33,12 @@ impl SerializeConfig for MonitoringConfig {
     }
 }
 
+impl Default for MonitoringConfig {
+    fn default() -> Self {
+        Self { enable_monitoring: true, collect_profiling_metrics: true }
+    }
+}
+
 pub(crate) fn create_monitoring_config_validation_error() -> ValidationError {
     create_validation_error(
         "Cannot collect profiling metrics when monitoring is disabled.".to_string(),
