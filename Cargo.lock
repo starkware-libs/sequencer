@@ -7804,6 +7804,8 @@ dependencies = [
  "serde",
  "starknet-types-core",
  "starknet_api",
+ "strum 0.25.0",
+ "strum_macros 0.25.3",
  "tar",
  "tempfile",
  "thiserror 1.0.69",
