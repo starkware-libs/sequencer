@@ -63,6 +63,7 @@ impl CallEntryPoint {
         self.execute_directly_given_tx_info(
             state,
             TransactionInfo::Current(CurrentTransactionInfo::create_for_testing()),
+            None,
             limit_steps_by_resources,
             ExecutionMode::Execute,
         )
@@ -94,13 +95,13 @@ impl CallEntryPoint {
         self,
         state: &mut dyn State,
         tx_info: TransactionInfo,
+        block_context: Option<Arc<BlockContext>>,
         limit_steps_by_resources: bool,
         execution_mode: ExecutionMode,
     ) -> EntryPointExecutionResult<CallInfo> {
-        let tx_context = TransactionContext {
-            block_context: Arc::new(BlockContext::create_for_testing()),
-            tx_info,
-        };
+        let block_context =
+            block_context.unwrap_or_else(|| Arc::new(BlockContext::create_for_testing()));
+        let tx_context = TransactionContext { block_context, tx_info };
         let mut context = EntryPointExecutionContext::new(
             Arc::new(tx_context),
             execution_mode,
@@ -122,6 +123,7 @@ impl CallEntryPoint {
             state,
             // TODO(Yoni, 1/12/2024): change the default to V3.
             TransactionInfo::Deprecated(DeprecatedTransactionInfo::default()),
+            None,
             limit_steps_by_resources,
             ExecutionMode::Validate,
         )
