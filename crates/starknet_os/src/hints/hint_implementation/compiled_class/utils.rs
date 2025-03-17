@@ -37,10 +37,10 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for CasmContractEntryPoint {
         }
         // Insert the fields.
         let nested_fields_and_value = [
-            ("selector".to_string(), Felt::from(&self.selector).into()),
-            ("offset".to_string(), self.offset.into()),
-            ("n_builtins".to_string(), self.builtins.len().into()),
-            ("builtin_list".to_string(), builtin_list_base.into()),
+            ("selector", Felt::from(&self.selector).into()),
+            ("offset", self.offset.into()),
+            ("n_builtins", self.builtins.len().into()),
+            ("builtin_list", builtin_list_base.into()),
         ];
         insert_values_to_fields(
             address,
@@ -108,15 +108,15 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for CasmContractClass {
 
         // Insert the fields.
         let nested_fields_and_value = [
-            ("compiled_class_version".to_string(), compiled_class_version.into()),
-            ("external_functions".to_string(), externals_list_base.into()),
-            ("n_external_functions".to_string(), self.entry_points_by_type.external.len().into()),
-            ("l1_handlers".to_string(), l1_handlers_list_base.into()),
-            ("n_l1_handlers".to_string(), self.entry_points_by_type.l1_handler.len().into()),
-            ("constructors".to_string(), constructor_list_base.into()),
-            ("n_constructors".to_string(), self.entry_points_by_type.constructor.len().into()),
-            ("bytecode_ptr".to_string(), bytecode_base.into()),
-            ("bytecode_length".to_string(), bytecode.len().into()),
+            ("compiled_class_version", compiled_class_version.into()),
+            ("external_functions", externals_list_base.into()),
+            ("n_external_functions", self.entry_points_by_type.external.len().into()),
+            ("l1_handlers", l1_handlers_list_base.into()),
+            ("n_l1_handlers", self.entry_points_by_type.l1_handler.len().into()),
+            ("constructors", constructor_list_base.into()),
+            ("n_constructors", self.entry_points_by_type.constructor.len().into()),
+            ("bytecode_ptr", bytecode_base.into()),
+            ("bytecode_length", bytecode.len().into()),
         ];
 
         insert_values_to_fields(
@@ -147,8 +147,8 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for CompiledClassFact<'_> {
         let compiled_class_address = vm.add_memory_segment();
         self.compiled_class.load_into(vm, identifier_getter, compiled_class_address, constants)?;
         let nested_fields_and_value = [
-            ("class_hash".to_string(), self.class_hash.0.into()),
-            ("compiled_class".to_string(), compiled_class_address.into()),
+            ("class_hash", self.class_hash.0.into()),
+            ("compiled_class", compiled_class_address.into()),
         ];
         insert_values_to_fields(
             address,

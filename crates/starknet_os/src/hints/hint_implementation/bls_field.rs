@@ -25,7 +25,7 @@ pub(crate) fn compute_ids_low<S: StateReader>(
             CairoStruct::BigInt3,
             vm,
             ap_tracking,
-            &["d0".to_string()],
+            &["d0"],
             &hint_processor.execution_helper.os_program,
         )?)?
         .into_owned();
@@ -36,7 +36,7 @@ pub(crate) fn compute_ids_low<S: StateReader>(
             CairoStruct::BigInt3,
             vm,
             ap_tracking,
-            &["d1".to_string()],
+            &["d1"],
             &hint_processor.execution_helper.os_program,
         )?)?
         .into_owned();

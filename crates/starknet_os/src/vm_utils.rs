@@ -57,7 +57,7 @@ pub(crate) fn get_address_of_nested_fields<IG: IdentifierGetter>(
     var_type: CairoStruct,
     vm: &VirtualMachine,
     ap_tracking: &ApTracking,
-    nested_fields: &[String],
+    nested_fields: &[&str],
     identifier_getter: &IG,
 ) -> Result<Relocatable, OsHintError> {
     let base_address = get_ptr_from_var_name(id.into(), vm, ids_data, ap_tracking)?;
@@ -76,7 +76,7 @@ pub(crate) fn get_address_of_nested_fields_from_base_address<IG: IdentifierGette
     base_address: Relocatable,
     var_type: CairoStruct,
     vm: &VirtualMachine,
-    nested_fields: &[String],
+    nested_fields: &[&str],
     identifier_getter: &IG,
 ) -> Result<Relocatable, OsHintError> {
     let (actual_type, actual_base_address) =
@@ -109,7 +109,7 @@ fn deref_type_and_address_if_ptr<'a>(
 fn fetch_nested_fields_address<IG: IdentifierGetter>(
     base_address: Relocatable,
     base_struct: &Identifier,
-    nested_fields: &[String],
+    nested_fields: &[&str],
     identifier_getter: &IG,
     vm: &VirtualMachine,
 ) -> Result<Relocatable, OsHintError> {
@@ -127,7 +127,7 @@ fn fetch_nested_fields_address<IG: IdentifierGetter>(
         .members
         .as_ref()
         .ok_or_else(|| OsHintError::IdentifierHasNoMembers(Box::new(base_struct.clone())))?
-        .get(field)
+        .get(&field.to_string())
         .ok_or_else(|| {
             HintError::IdentifierHasNoMember(Box::from((
                 base_struct_name.to_string(),
@@ -162,7 +162,7 @@ pub(crate) fn insert_value_to_nested_field<IG: IdentifierGetter, T: Into<MaybeRe
     base_address: Relocatable,
     var_type: CairoStruct,
     vm: &mut VirtualMachine,
-    nested_fields: &[String],
+    nested_fields: &[&str],
     identifier_getter: &IG,
     val: T,
 ) -> OsHintResult {
@@ -181,7 +181,7 @@ pub(crate) fn insert_values_to_fields<IG: IdentifierGetter>(
     base_address: Relocatable,
     var_type: CairoStruct,
     vm: &mut VirtualMachine,
-    nested_fields_and_value: &[(String, MaybeRelocatable)],
+    nested_fields_and_value: &[(&str, MaybeRelocatable)],
     identifier_getter: &IG,
 ) -> OsHintResult {
     for (nested_fields, value) in nested_fields_and_value {
@@ -189,7 +189,7 @@ pub(crate) fn insert_values_to_fields<IG: IdentifierGetter>(
             base_address,
             var_type,
             vm,
-            &[nested_fields.to_string()],
+            &[nested_fields],
             identifier_getter,
             value,
         )?;
