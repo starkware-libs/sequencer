@@ -807,9 +807,15 @@ async fn get_proposal_content(
                 }))
                 .await
                 .into_iter()
-                .collect::<Result<Vec<_>, _>>()
-                // TODO(shahak): Don't panic here.
-                .expect("Failed converting consensus transaction to external representation");
+                .collect::<Result<Vec<_>, _>>();
+                let transactions = match transactions {
+                    Ok(txs) => txs,
+                    Err(e) => {
+                        error!("Failed to convert transactions. {e:?}");
+                        return None;
+                    }
+                };
+
                 trace!(?transactions, "Sending transaction batch with {} txs.", transactions.len());
                 proposal_sender
                     .send(ProposalPart::Transactions(TransactionBatch { transactions }))
@@ -1055,14 +1061,21 @@ async fn handle_proposal_part(
         }
         Some(ProposalPart::Transactions(TransactionBatch { transactions: txs })) => {
             debug!("Received transaction batch with {} txs", txs.len());
-            let txs = futures::future::join_all(txs.into_iter().map(|tx| {
-                transaction_converter.convert_consensus_tx_to_internal_consensus_tx(tx)
-            }))
-            .await
-            .into_iter()
-            .collect::<Result<Vec<_>, _>>()
-            // TODO(shahak): Don't panic here.
-            .expect("Failed converting consensus transaction to internal representation");
+            let txs =
+                futures::future::join_all(txs.into_iter().map(|tx| {
+                    transaction_converter.convert_consensus_tx_to_internal_consensus_tx(tx)
+                }))
+                .await
+                .into_iter()
+                .collect::<Result<Vec<_>, _>>();
+            let txs = match txs {
+                Ok(txs) => txs,
+                Err(e) => {
+                    return HandledProposalPart::Failed(format!(
+                        "Failed to convert transactions. {e:?}"
+                    ));
+                }
+            };
             debug!("Converted transactions to internal representation.");
 
             content.push(txs.clone());
