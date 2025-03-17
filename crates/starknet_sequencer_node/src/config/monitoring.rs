@@ -10,7 +10,7 @@ use crate::config::config_utils::create_validation_error;
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Validate)]
 #[validate(schema(function = "validate_monitoring_config"))]
 pub struct MonitoringConfig {
-    pub enable_monitoring: bool,
+    pub collect_metrics: bool,
     pub collect_profiling_metrics: bool,
 }
 
@@ -18,8 +18,8 @@ impl SerializeConfig for MonitoringConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([
             ser_param(
-                "enable_monitoring",
-                &self.enable_monitoring,
+                "collect_metrics",
+                &self.collect_metrics,
                 "Indicating if metrics should be recorded.",
                 ParamPrivacyInput::Public,
             ),
@@ -35,7 +35,7 @@ impl SerializeConfig for MonitoringConfig {
 
 impl Default for MonitoringConfig {
     fn default() -> Self {
-        Self { enable_monitoring: true, collect_profiling_metrics: true }
+        Self { collect_metrics: true, collect_profiling_metrics: true }
     }
 }
 
@@ -48,7 +48,7 @@ pub(crate) fn create_monitoring_config_validation_error() -> ValidationError {
 }
 
 fn validate_monitoring_config(monitoring_config: &MonitoringConfig) -> Result<(), ValidationError> {
-    if !monitoring_config.enable_monitoring && monitoring_config.collect_profiling_metrics {
+    if !monitoring_config.collect_metrics && monitoring_config.collect_profiling_metrics {
         return Err(create_monitoring_config_validation_error());
     }
     Ok(())
