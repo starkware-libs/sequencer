@@ -9,9 +9,13 @@ use crate::hints::types::HintArgs;
 use crate::hints::vars::Scope;
 
 pub(crate) fn initialize_class_hashes<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, exec_scopes, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    let state_input = &hint_processor.execution_helper.cached_state;
+    let class_hash_to_compiled_class_hash =
+        state_input.cache.clone().into_inner().initial_reads.compiled_class_hashes;
+    exec_scopes.insert_value(Scope::InitialDict.into(), class_hash_to_compiled_class_hash);
+    Ok(())
 }
 
 pub(crate) fn initialize_state_changes<S: StateReader>(
