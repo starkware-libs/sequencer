@@ -237,6 +237,8 @@
   "mempool_p2p_config.network_config.secret_key": "0x0101010101010101010101010101010101010101010101010101010101010101",
   "mempool_p2p_config.network_config.session_timeout": 120,
   "mempool_p2p_config.transaction_batch_rate_millis": 1000,
+  "monitoring_config.collect_metrics": true,
+  "monitoring_config.collect_profiling_metrics": true,
   "monitoring_endpoint_config.collect_metrics": true,
   "monitoring_endpoint_config.collect_profiling_metrics": true,
   "monitoring_endpoint_config.ip": "0.0.0.0",
