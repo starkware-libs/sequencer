@@ -2,6 +2,7 @@ pub mod config;
 pub mod metrics;
 pub mod propagator;
 pub mod runner;
+pub mod test;
 
 use futures::FutureExt;
 use papyrus_network::gossipsub_impl::Topic;
