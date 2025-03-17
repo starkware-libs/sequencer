@@ -36,6 +36,12 @@ pub(crate) fn assert_end_of_bytecode_segments<S: StateReader>(
     todo!()
 }
 
+pub(crate) fn bytecode_segment_structure<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    todo!()
+}
+
 pub(crate) fn delete_memory_data<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
     // TODO(Yoni): Assert that the address was not accessed before.
     todo!()
