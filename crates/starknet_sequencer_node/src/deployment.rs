@@ -287,3 +287,9 @@ pub fn get_l1_provider_config(
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
 }
+// TODO(Tsabary): rename get_X_config fns to get_X_component_config.
+
+// TODO(Tsabary): functions for the consolidated node deployment, need move to a different module.
+pub fn get_consolidated_config() -> ComponentConfig {
+    ComponentConfig::default()
+}
