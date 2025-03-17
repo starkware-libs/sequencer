@@ -4,6 +4,10 @@ use indexmap::IndexMap;
 use serde::ser::{SerializeMap, SerializeStruct};
 use serde::{Serialize, Serializer};
 
+#[cfg(test)]
+#[path = "dashboard_test.rs"]
+mod dashboard_test;
+
 /// Grafana panel types.
 #[derive(Clone, Debug, Serialize, PartialEq)]
 pub enum PanelType {
@@ -107,4 +111,82 @@ impl Serialize for Dashboard<'_> {
         map.serialize_entry(self.name, &row_map)?;
         map.end()
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub enum AlertComparisonOp {
+    #[serde(rename = "gt")]
+    GreaterThan,
+    #[serde(rename = "lt")]
+    LessThan,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub enum AlertLogicalOp {
+    #[serde(rename = "and")]
+    And,
+    #[serde(rename = "or")]
+    Or,
+}
+
+/// Defines the condition to trigger the alert.
+#[derive(Clone, Debug, PartialEq)]
+pub struct AlertCondition {
+    // The expression to evaluate for the alert.
+    expr: &'static str,
+    // The comparison operator to use when comparing the expression to the value.
+    comparison_op: AlertComparisonOp,
+    // The value to compare the expression to.
+    comparison_value: f64,
+    // The logical operator between this condition and other conditions.
+    // TODO(Yael): Consider moving this field to the be one per alert to avoid ambiguity when
+    // trying to use a combination of `and` and `or` operators.
+    logical_op: AlertLogicalOp,
+}
+
+impl Serialize for AlertCondition {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("AlertCondition", 3)?;
+
+        state.serialize_field(
+            "evaluator",
+            &serde_json::json!({
+                "params": [self.comparison_value],
+                "type": self.comparison_op
+            }),
+        )?;
+
+        state.serialize_field(
+            "operator",
+            &serde_json::json!({
+                "type": self.logical_op
+            }),
+        )?;
+
+        state.serialize_field(
+            "query",
+            &serde_json::json!({
+                "expr": self.expr
+            }),
+        )?;
+
+        state.end()
+    }
+}
+
+/// Describes the properties of an alert defined in grafana.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct Alert {
+    // The required duration for which the conditions must remain true before triggering the alert.
+    name: &'static str,
+    // The message that will be displayed or sent when the alert is triggered.
+    message: &'static str,
+    // The conditions that must be met for the alert to be triggered.
+    conditions: &'static [AlertCondition],
+    // The time duration for which the alert conditions must be true before an alert is triggered.
+    #[serde(rename = "for")]
+    pending_duration: &'static str,
 }
