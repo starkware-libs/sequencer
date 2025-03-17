@@ -79,6 +79,34 @@
         "type": "stat",
         "expr": "consensus_decisions_reached_by_sync",
         "extra_params": {}
+      },
+      {
+        "title": "consensus_proposals_received",
+        "description": "The total number of proposals received",
+        "type": "stat",
+        "expr": "consensus_proposals_received",
+        "extra_params": {}
+      },
+      {
+        "title": "consensus_proposals_valid_init",
+        "description": "The total number of proposals received with a valid init",
+        "type": "stat",
+        "expr": "consensus_proposals_valid_init",
+        "extra_params": {}
+      },
+      {
+        "title": "consensus_proposals_validated",
+        "description": "The total number of complete, valid proposals received",
+        "type": "stat",
+        "expr": "consensus_proposals_validated",
+        "extra_params": {}
+      },
+      {
+        "title": "consensus_proposals_invalid",
+        "description": "The total number of proposals that failed validation",
+        "type": "stat",
+        "expr": "consensus_proposals_invalid",
+        "extra_params": {}
       }
     ],
     "Http Server": [
