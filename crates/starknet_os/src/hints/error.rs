@@ -8,6 +8,7 @@ use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use num_bigint::{BigUint, TryFromBigIntError};
 use starknet_api::block::BlockNumber;
+use starknet_api::core::ClassHash;
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
 
@@ -45,6 +46,8 @@ pub enum OsHintError {
     Memory(#[from] MemoryError),
     #[error("Hint {hint:?} has no nondet offset.")]
     MissingOffsetForHint { hint: AllHints },
+    #[error("No bytecode segment structure for class hash: {0:?}.")]
+    MissingBytecodeSegmentStructure(ClassHash),
     #[error("No preimage found for value {0:?}.")]
     MissingPreimage(Felt),
     #[error("{error:?} for json value {value}.")]

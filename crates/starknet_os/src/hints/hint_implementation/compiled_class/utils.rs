@@ -167,17 +167,17 @@ impl<IG: IdentifierGetter> CairoSized<IG> for CompiledClassFact<'_> {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) struct BytecodeSegmentLeaf {
     pub(crate) data: Vec<Felt>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct BytecodeSegmentInnerNode {
     pub(crate) segments: Vec<BytecodeSegment>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) enum BytecodeSegmentNode {
     Leaf(BytecodeSegmentLeaf),
     InnerNode(BytecodeSegmentInnerNode),
@@ -220,7 +220,7 @@ impl BytecodeSegmentNode {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) struct BytecodeSegment {
     node: BytecodeSegmentNode,
     length: usize,
