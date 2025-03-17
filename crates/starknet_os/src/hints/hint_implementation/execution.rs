@@ -18,6 +18,7 @@ use starknet_types_core::felt::Felt;
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
+use crate::io::os_input::OsBlockInput;
 use crate::vm_utils::get_address_of_nested_fields;
 
 pub(crate) fn load_next_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
@@ -131,17 +132,16 @@ pub(crate) fn is_deprecated<S: StateReader>(
 }
 
 pub(crate) fn enter_syscall_scopes<S: StateReader>(
-    HintArgs { exec_scopes, hint_processor, .. }: HintArgs<'_, S>,
+    HintArgs { exec_scopes, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
     // The scope variables `syscall_handler`, `deprecated_syscall_handler` and `execution_helper`
     // are accessible through the hint processor.
     let deprecated_class_hashes: HashSet<ClassHash> =
         exec_scopes.get(Scope::DeprecatedClassHashes.into())?;
     // TODO(Nimrod): See if we can avoid cloning here.
-    let component_hashes =
-        hint_processor.execution_helper.os_input.declared_class_hash_to_component_hashes.clone();
-    let transactions_iter =
-        hint_processor.execution_helper.os_input.transactions.clone().into_iter();
+    let block_input: &OsBlockInput = exec_scopes.get(Scope::BlockInput.into())?;
+    let component_hashes = block_input.declared_class_hash_to_component_hashes.clone();
+    let transactions_iter = block_input.transactions.clone().into_iter();
     let dict_manager = exec_scopes.get_dict_manager()?;
 
     let new_scope = HashMap::from([
@@ -484,11 +484,11 @@ pub(crate) fn cache_contract_storage_syscall_request_address<S: StateReader>(
 }
 
 pub(crate) fn get_old_block_number_and_hash<S: StateReader>(
-    HintArgs { hint_processor, vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_, S>,
+    HintArgs { exec_scopes, vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let os_input = &hint_processor.execution_helper.os_input;
+    let block_input: &OsBlockInput = exec_scopes.get(Scope::BlockInput.into())?;
     let (old_block_number, old_block_hash) =
-        os_input.old_block_number_and_hash.ok_or(OsHintError::BlockNumberTooSmall {
+        block_input.old_block_number_and_hash.ok_or(OsHintError::BlockNumberTooSmall {
             stored_block_hash_buffer: *get_constant_from_var_name(
                 Const::StoredBlockHashBuffer.into(),
                 constants,

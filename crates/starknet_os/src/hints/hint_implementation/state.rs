@@ -6,7 +6,7 @@ use starknet_types_core::felt::Felt;
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{Const, Ids, Scope};
-use crate::io::os_input::CommitmentInfo;
+use crate::io::os_input::{CommitmentInfo, OsBlockInput};
 
 #[derive(Clone)]
 pub(crate) struct StateUpdatePointers {
@@ -35,13 +35,13 @@ fn verify_tree_height_eq_merkle_height(tree_height: Felt, merkle_height: Felt) -
 
 fn set_preimage_for_commitments<S: StateReader>(
     commitment_type: CommitmentType,
-    HintArgs { hint_processor, vm, exec_scopes, ids_data, ap_tracking, constants }: HintArgs<'_, S>,
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, constants, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let os_input = &hint_processor.execution_helper.os_input;
+    let block_input: &OsBlockInput = exec_scopes.get(Scope::BlockInput.into())?;
     let CommitmentInfo { previous_root, updated_root, commitment_facts, tree_height } =
         match commitment_type {
-            CommitmentType::Class => &os_input.contract_class_commitment_info,
-            CommitmentType::State => &os_input.contract_state_commitment_info,
+            CommitmentType::Class => &block_input.contract_class_commitment_info,
+            CommitmentType::State => &block_input.contract_state_commitment_info,
         };
     insert_value_from_var_name(
         Ids::InitialRoot.into(),

@@ -57,13 +57,20 @@ pub struct ContractClassComponentHashes {
 #[cfg_attr(any(test, feature = "testing"), derive(Default))]
 #[derive(Debug)]
 pub struct StarknetOsInput {
+    pub blocks_inputs: Vec<OsBlockInput>,
+    pub(crate) deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
+    #[allow(dead_code)]
+    pub(crate) compiled_classes: HashMap<ClassHash, CasmContractClass>,
+}
+
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
+#[cfg_attr(any(test, feature = "testing"), derive(Default))]
+#[derive(Clone, Debug)]
+pub struct OsBlockInput {
     pub(crate) contract_state_commitment_info: CommitmentInfo,
     pub(crate) address_to_storage_commitment_info: HashMap<ContractAddress, CommitmentInfo>,
     pub(crate) contract_class_commitment_info: CommitmentInfo,
     pub(crate) chain_info: ChainInfo,
-    pub(crate) deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
-    #[allow(dead_code)]
-    pub(crate) compiled_classes: HashMap<ClassHash, CasmContractClass>,
     // Note: The Declare tx in the starknet_api crate has a class_info field with a contract_class
     // field. This field is needed by the blockifier, but not used in the OS, so it is expected
     // (and verified) to be initialized with an illegal value, to avoid using it accidentally.
