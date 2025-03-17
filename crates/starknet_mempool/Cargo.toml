@@ -43,6 +43,7 @@ rstest.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 starknet_mempool_p2p_types = { workspace = true, features = ["testing"] }
+starknet_sequencer_metrics = { workspace = true, features = ["testing"] }
 
 [package.metadata.cargo-machete]
 ignored = ["starknet-types-core"]
