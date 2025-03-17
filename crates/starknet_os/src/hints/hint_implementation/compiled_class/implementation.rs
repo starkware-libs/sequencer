@@ -3,10 +3,12 @@ use cairo_vm::any_box;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
     get_relocatable_from_var_name,
+    insert_value_from_var_name,
     insert_value_into_ap,
 };
 use cairo_vm::hint_processor::hint_processor_definition::HintExtension;
 use cairo_vm::types::relocatable::Relocatable;
+use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintExtensionResult, OsHintResult};
 use crate::hints::hint_implementation::compiled_class::utils::{
@@ -39,8 +41,19 @@ pub(crate) fn delete_memory_data<S: StateReader>(HintArgs { .. }: HintArgs<'_, S
     todo!()
 }
 
-pub(crate) fn is_leaf<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    todo!()
+pub(crate) fn is_leaf<S: StateReader>(
+    HintArgs { vm, exec_scopes, ap_tracking, ids_data, .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    let bytecode_segment_structure: &BytecodeSegmentNode =
+        exec_scopes.get_ref(Scope::BytecodeSegmentStructure.into())?;
+    let is_leaf = bytecode_segment_structure.is_leaf();
+    Ok(insert_value_from_var_name(
+        Ids::IsLeaf.into(),
+        Felt::from(is_leaf),
+        vm,
+        ids_data,
+        ap_tracking,
+    )?)
 }
 
 pub(crate) fn iter_current_segment_info<S: StateReader>(
