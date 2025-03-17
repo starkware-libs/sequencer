@@ -211,6 +211,13 @@ impl BytecodeSegmentNode {
             }
         }
     }
+
+    pub(crate) fn is_leaf(&self) -> bool {
+        match self {
+            BytecodeSegmentNode::Leaf(_) => true,
+            BytecodeSegmentNode::InnerNode(_) => false,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
