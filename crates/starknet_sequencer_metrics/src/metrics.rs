@@ -1,7 +1,7 @@
 #[cfg(test)]
 #[path = "metrics_test.rs"]
 mod metrics_tests;
-
+use std::fmt::Debug;
 use std::str::FromStr;
 
 use indexmap::IndexMap;
@@ -70,8 +70,23 @@ impl MetricCounter {
         counter!(self.name).increment(value);
     }
 
+    #[cfg(any(feature = "testing", test))]
     pub fn parse_numeric_metric<T: Num + FromStr>(&self, metrics_as_string: &str) -> Option<T> {
         parse_numeric_metric::<T>(metrics_as_string, self.get_name(), None)
+    }
+
+    #[cfg(any(feature = "testing", test))]
+    pub fn assert_eq<T: Num + FromStr + Debug>(&self, metrics_as_string: &str, expected_value: T) {
+        let metric_value = self.parse_numeric_metric::<T>(metrics_as_string).unwrap();
+        assert_eq!(
+            metric_value,
+            expected_value,
+            "Metric counter {} did not match the expected value. expected value: {:?}, metric \
+             value: {:?}",
+            self.get_name(),
+            expected_value,
+            metric_value
+        );
     }
 }
 
@@ -117,12 +132,33 @@ impl LabeledMetricCounter {
         counter!(self.name, labels).increment(value);
     }
 
+    #[cfg(any(feature = "testing", test))]
     pub fn parse_numeric_metric<T: Num + FromStr>(
         &self,
         metrics_as_string: &str,
         labels: &[(&'static str, &'static str)],
     ) -> Option<T> {
         parse_numeric_metric::<T>(metrics_as_string, self.get_name(), Some(labels))
+    }
+
+    #[cfg(any(feature = "testing", test))]
+    pub fn assert_eq<T: Num + FromStr + Debug>(
+        &self,
+        metrics_as_string: &str,
+        expected_value: T,
+        label: &[(&'static str, &'static str)],
+    ) {
+        let metric_value = self.parse_numeric_metric::<T>(metrics_as_string, label).unwrap();
+        assert_eq!(
+            metric_value,
+            expected_value,
+            "Metric counter {} {:?} did not match the expected value. expected value: {:?}, metric
+             value: {:?}",
+            self.get_name(),
+            label,
+            expected_value,
+            metric_value
+        );
     }
 }
 
@@ -162,6 +198,7 @@ impl MetricGauge {
         gauge!(self.name).decrement(value.into_f64());
     }
 
+    #[cfg(any(feature = "testing", test))]
     pub fn parse_numeric_metric<T: Num + FromStr>(&self, metrics_as_string: &str) -> Option<T> {
         parse_numeric_metric::<T>(metrics_as_string, self.get_name(), None)
     }
@@ -172,6 +209,20 @@ impl MetricGauge {
 
     pub fn set_lossy<T: LossyIntoF64>(&self, value: T) {
         gauge!(self.name).set(value.into_f64());
+    }
+
+    #[cfg(any(feature = "testing", test))]
+    pub fn assert_eq<T: Num + FromStr + Debug>(&self, metrics_as_string: &str, expected_value: T) {
+        let metric_value = self.parse_numeric_metric::<T>(metrics_as_string).unwrap();
+        assert_eq!(
+            metric_value,
+            expected_value,
+            "Metric gauge {} did not match the expected value. expected value: {:?}, metric
+             value: {:?}",
+            self.get_name(),
+            expected_value,
+            metric_value
+        );
     }
 }
 
@@ -244,6 +295,7 @@ impl LabeledMetricGauge {
         gauge!(self.name, label).decrement(value.into_f64());
     }
 
+    #[cfg(any(feature = "testing", test))]
     pub fn parse_numeric_metric<T: Num + FromStr>(
         &self,
         metrics_as_string: &str,
@@ -254,6 +306,26 @@ impl LabeledMetricGauge {
 
     pub fn set<T: IntoF64>(&self, value: T, label: &[(&'static str, &'static str)]) {
         gauge!(self.name, label).set(value.into_f64());
+    }
+
+    #[cfg(any(feature = "testing", test))]
+    pub fn assert_eq<T: Num + FromStr + Debug>(
+        &self,
+        metrics_as_string: &str,
+        expected_value: T,
+        label: &[(&'static str, &'static str)],
+    ) {
+        let metric_value = self.parse_numeric_metric::<T>(metrics_as_string, label).unwrap();
+        assert_eq!(
+            metric_value,
+            expected_value,
+            "Metric gauge {} {:?} did not match the expected value. expected value: {:?}, metric
+             value: {:?}",
+            self.get_name(),
+            label,
+            expected_value,
+            metric_value
+        );
     }
 }
 
@@ -300,8 +372,23 @@ impl MetricHistogram {
         histogram!(self.name).record_many(value.into_f64(), count);
     }
 
+    #[cfg(any(feature = "testing", test))]
     pub fn parse_histogram_metric(&self, metrics_as_string: &str) -> Option<HistogramValue> {
         parse_histogram_metric(metrics_as_string, self.get_name(), None)
+    }
+
+    // Only the sum and count values are compared, not the quantiles.
+    #[cfg(any(feature = "testing", test))]
+    pub fn assert_eq(&self, metrics_as_string: &str, expected_value: &HistogramValue) {
+        let metric_value = self.parse_histogram_metric(metrics_as_string).unwrap();
+        assert!(
+            metric_value.sum == expected_value.sum && metric_value.count == expected_value.count,
+            "Metric histogram {} sum or count did not match the expected value. expected value: \
+             {:?}, metric value: {:?}",
+            self.get_name(),
+            expected_value,
+            metric_value
+        );
     }
 }
 
@@ -354,12 +441,34 @@ impl LabeledMetricHistogram {
         histogram!(self.name, labels).record_many(value.into_f64(), count);
     }
 
+    #[cfg(any(feature = "testing", test))]
     pub fn parse_histogram_metric(
         &self,
         metrics_as_string: &str,
         labels: &[(&'static str, &'static str)],
     ) -> Option<HistogramValue> {
         parse_histogram_metric(metrics_as_string, self.get_name(), Some(labels))
+    }
+
+    // Only the sum and count values are compared, not the quantiles.
+    #[cfg(any(feature = "testing", test))]
+    // TODO(tsabary): unite the labeled and unlabeld assert_eq functions.
+    pub fn assert_eq(
+        &self,
+        metrics_as_string: &str,
+        expected_value: &HistogramValue,
+        label: &[(&'static str, &'static str)],
+    ) {
+        let metric_value = self.parse_histogram_metric(metrics_as_string, label).unwrap();
+        assert!(
+            metric_value.sum == expected_value.sum && metric_value.count == expected_value.count,
+            "Metric histogram {} {:?} sum or count did not match the expected value. expected \
+             value: {:?}, metric value: {:?}",
+            self.get_name(),
+            label,
+            expected_value,
+            metric_value
+        );
     }
 }
 

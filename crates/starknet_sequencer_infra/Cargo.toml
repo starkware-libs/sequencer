@@ -7,7 +7,7 @@ license.workspace = true
 
 
 [features]
-testing = []
+testing = ["starknet_sequencer_metrics/testing"]
 
 [lints]
 workspace = true
@@ -37,3 +37,4 @@ once_cell.workspace = true
 pretty_assertions.workspace = true
 starknet-types-core.workspace = true
 starknet_infra_utils = { workspace = true, features = ["testing"] }
+starknet_sequencer_metrics = { workspace = true, features = ["testing"] }
