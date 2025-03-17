@@ -7,7 +7,6 @@ use alloy::providers::RootProvider;
 use alloy::transports::http::{Client, Http};
 use colored::*;
 use ethers::utils::{Ganache, GanacheInstance};
-use starknet_api::hash::StarkHash;
 use tar::Archive;
 use tempfile::{tempdir, TempDir};
 use url::Url;
@@ -25,11 +24,6 @@ const MINIMAL_GANACHE_VERSION: u8 = 7;
 // See Anvil documentation:
 // https://docs.rs/ethers-core/latest/ethers_core/utils/struct.Anvil.html#method.new.
 const DEFAULT_ANVIL_PORT: u16 = 8545;
-// Default funded account, there are more fixed funded accounts,
-// see https://github.com/foundry-rs/foundry/tree/master/crates/anvil.
-// This address is the sender address of messages sent to L2 by Anvil.
-pub const DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS: StarkHash =
-    StarkHash::from_hex_unchecked("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
 // This address is commonly used as the L1 address of the Starknet core contract.
 pub const DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS: &str = "0x5fbdb2315678afecb367f032d93f642f64180aa3";
 
