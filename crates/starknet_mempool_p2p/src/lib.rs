@@ -10,6 +10,7 @@ use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use starknet_class_manager_types::transaction_converter::TransactionConverter;
 use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_gateway_types::communication::SharedGatewayClient;
+use starknet_mempool_p2p_types::communication::SharedMempoolP2pPropagatorClient;
 
 use crate::config::MempoolP2pConfig;
 use crate::metrics::{
@@ -26,6 +27,7 @@ pub fn create_p2p_propagator_and_runner(
     mempool_p2p_config: MempoolP2pConfig,
     gateway_client: SharedGatewayClient,
     class_manager_client: SharedClassManagerClient,
+    mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
 ) -> (MempoolP2pPropagator, MempoolP2pRunner) {
     let transaction_converter = TransactionConverter::new(
         class_manager_client.clone(),
@@ -63,6 +65,7 @@ pub fn create_p2p_propagator_and_runner(
         broadcasted_messages_receiver,
         broadcast_topic_client,
         gateway_client,
+        mempool_p2p_propagator_client,
     );
     (mempool_p2p_propagator, mempool_p2p_runner)
 }
