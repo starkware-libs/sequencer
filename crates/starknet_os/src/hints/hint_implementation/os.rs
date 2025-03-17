@@ -8,33 +8,12 @@ use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::Scope;
 
-// pub const INITIALIZE_CLASS_HASHES: &str = "initial_dict =
-// os_input.class_hash_to_compiled_class_hash";
-
-// pub fn initialize_class_hashes(
-//     _vm: &mut VirtualMachine,
-//     exec_scopes: &mut ExecutionScopes,
-//     _ids_data: &HashMap<String, HintReference>,
-//     _ap_tracking: &ApTracking,
-//     _constants: &HashMap<String, Felt252>,
-// ) -> Result<(), HintError> { let os_input =
-//   exec_scopes.get::<Rc<StarknetOsInput>>(vars::scopes::OS_INPUT)?; let mut class_dict:
-//   HashMap<MaybeRelocatable, MaybeRelocatable> = HashMap::new(); for (class_hash,
-//   compiled_class_hash) in &os_input.class_hash_to_compiled_class_hash {
-//   class_dict.insert(MaybeRelocatable::from(class_hash),
-//   MaybeRelocatable::from(compiled_class_hash)); }
-
-//     exec_scopes.insert_box(vars::scopes::INITIAL_DICT, Box::new(class_dict));
-//     Ok(())
-// }
-
 pub(crate) fn initialize_class_hashes<S: StateReader>(
     HintArgs { hint_processor, exec_scopes, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
     let state_input = &hint_processor.execution_helper.cached_state;
     let class_hash_to_compiled_class_hash =
         state_input.cache.clone().into_inner().initial_reads.compiled_class_hashes;
-    // TODO(Aner): verify that inserting the hashmap to the scope directly is possible.
     exec_scopes.insert_value(Scope::InitialDict.into(), class_hash_to_compiled_class_hash);
     Ok(())
 }
