@@ -15,6 +15,7 @@ use papyrus_protobuf::mempool::RpcTransactionBatch;
 use starknet_gateway_types::communication::{GatewayClientError, SharedGatewayClient};
 use starknet_gateway_types::errors::GatewayError;
 use starknet_gateway_types::gateway_types::GatewayInput;
+use starknet_mempool_p2p_types::communication::SharedMempoolP2pPropagatorClient;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sequencer_infra::component_server::WrapperServer;
 use tracing::{debug, info, warn};
@@ -24,6 +25,7 @@ pub struct MempoolP2pRunner {
     broadcasted_topic_server: BroadcastTopicServer<RpcTransactionBatch>,
     broadcast_topic_client: BroadcastTopicClient<RpcTransactionBatch>,
     gateway_client: SharedGatewayClient,
+    _mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
 }
 
 impl MempoolP2pRunner {
@@ -32,8 +34,15 @@ impl MempoolP2pRunner {
         broadcasted_topic_server: BroadcastTopicServer<RpcTransactionBatch>,
         broadcast_topic_client: BroadcastTopicClient<RpcTransactionBatch>,
         gateway_client: SharedGatewayClient,
+        mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
     ) -> Self {
-        Self { network_future, broadcasted_topic_server, broadcast_topic_client, gateway_client }
+        Self {
+            network_future,
+            broadcasted_topic_server,
+            broadcast_topic_client,
+            gateway_client,
+            _mempool_p2p_propagator_client: mempool_p2p_propagator_client,
+        }
     }
 }
 

@@ -140,10 +140,14 @@ pub async fn create_node_components(
                 let class_manager_client = clients
                     .get_class_manager_shared_client()
                     .expect("Class Manager Client should be available");
+                let mempool_p2p_propagator_client = clients
+                    .get_mempool_p2p_propagator_shared_client()
+                    .expect("Mempool P2p Propagator Client should be available");
                 let (mempool_p2p_propagator, mempool_p2p_runner) = create_p2p_propagator_and_runner(
                     config.mempool_p2p_config.clone(),
                     gateway_client,
                     class_manager_client,
+                    mempool_p2p_propagator_client,
                 );
                 (Some(mempool_p2p_propagator), Some(mempool_p2p_runner))
             }
