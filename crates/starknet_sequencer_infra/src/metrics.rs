@@ -85,6 +85,7 @@ impl LocalServerMetrics {
         self.received_msgs.increment(1);
     }
 
+    #[cfg(any(feature = "testing", test))]
     pub fn get_received_value(&self, metrics_as_string: &str) -> u64 {
         self.received_msgs
             .parse_numeric_metric::<u64>(metrics_as_string)
@@ -95,6 +96,7 @@ impl LocalServerMetrics {
         self.processed_msgs.increment(1);
     }
 
+    #[cfg(any(feature = "testing", test))]
     pub fn get_processed_value(&self, metrics_as_string: &str) -> u64 {
         self.processed_msgs
             .parse_numeric_metric::<u64>(metrics_as_string)
@@ -105,6 +107,7 @@ impl LocalServerMetrics {
         self.queue_depth.set_lossy(value);
     }
 
+    #[cfg(any(feature = "testing", test))]
     pub fn get_queue_depth_value(&self, metrics_as_string: &str) -> usize {
         self.queue_depth
             .parse_numeric_metric::<usize>(metrics_as_string)
@@ -138,6 +141,7 @@ impl RemoteServerMetrics {
         self.total_received_msgs.increment(1);
     }
 
+    #[cfg(any(feature = "testing", test))]
     pub fn get_total_received_value(&self, metrics_as_string: &str) -> u64 {
         self.total_received_msgs
             .parse_numeric_metric::<u64>(metrics_as_string)
@@ -148,6 +152,7 @@ impl RemoteServerMetrics {
         self.valid_received_msgs.increment(1);
     }
 
+    #[cfg(any(feature = "testing", test))]
     pub fn get_valid_received_value(&self, metrics_as_string: &str) -> u64 {
         self.valid_received_msgs
             .parse_numeric_metric::<u64>(metrics_as_string)
@@ -158,6 +163,7 @@ impl RemoteServerMetrics {
         self.processed_msgs.increment(1);
     }
 
+    #[cfg(any(feature = "testing", test))]
     pub fn get_processed_value(&self, metrics_as_string: &str) -> u64 {
         self.processed_msgs
             .parse_numeric_metric::<u64>(metrics_as_string)
