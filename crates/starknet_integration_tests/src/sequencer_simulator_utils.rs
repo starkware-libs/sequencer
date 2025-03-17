@@ -8,8 +8,8 @@ use starknet_monitoring_endpoint::test_utils::MonitoringClient;
 use tracing::info;
 use url::Url;
 
+use crate::integration_test_manager::nonce_to_usize;
 use crate::monitoring_utils;
-use crate::sequencer_manager::nonce_to_usize;
 use crate::utils::{send_consensus_txs, TestScenario};
 
 pub struct SequencerSimulator {
