@@ -1,8 +1,16 @@
+use std::collections::BTreeSet;
 use std::fmt::Display;
 
+use futures::channel::mpsc::{self, Receiver, SendError, Sender};
+use futures::{FutureExt, SinkExt, StreamExt};
+use papyrus_network::network_manager::{BroadcastTopicClientTrait, ReceivedBroadcastedMessage};
+use papyrus_network_types::network_types::BroadcastedMessageMetadata;
+use papyrus_protobuf::consensus::{ProposalInit, ProposalPart, StreamMessageBody};
 use papyrus_protobuf::converters::ProtobufConversionError;
+use papyrus_test_utils::{get_rng, GetTestInstance};
 use prost::DecodeError;
 
+use crate::stream_handler::StreamHandler;
 const CHANNEL_SIZE: usize = 100;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -44,385 +52,348 @@ impl Display for TestStreamId {
     }
 }
 
-mod tests_v2 {
-    use std::collections::BTreeSet;
+type StreamMessage = papyrus_protobuf::consensus::StreamMessage<ProposalPart, TestStreamId>;
 
-    use futures::channel::mpsc::{self, Receiver, SendError, Sender};
-    use futures::{FutureExt, SinkExt, StreamExt};
-    use papyrus_network::network_manager::{BroadcastTopicClientTrait, ReceivedBroadcastedMessage};
-    use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-    use papyrus_protobuf::consensus::{ProposalInit, ProposalPart, StreamMessageBody};
-    use papyrus_test_utils::{get_rng, GetTestInstance};
+struct FakeBroadcastClient {
+    sender: Sender<StreamMessage>,
+}
 
-    use super::{TestStreamId, CHANNEL_SIZE};
-    use crate::stream_handler::StreamHandler;
-
-    type StreamMessage = papyrus_protobuf::consensus::StreamMessage<ProposalPart, TestStreamId>;
-
-    struct FakeBroadcastClient {
-        sender: Sender<StreamMessage>,
+#[async_trait::async_trait]
+impl BroadcastTopicClientTrait<StreamMessage> for FakeBroadcastClient {
+    async fn broadcast_message(&mut self, message: StreamMessage) -> Result<(), SendError> {
+        self.sender.send(message).await
     }
 
-    #[async_trait::async_trait]
-    impl BroadcastTopicClientTrait<StreamMessage> for FakeBroadcastClient {
-        async fn broadcast_message(&mut self, message: StreamMessage) -> Result<(), SendError> {
-            self.sender.send(message).await
-        }
-
-        async fn report_peer(&mut self, _: BroadcastedMessageMetadata) -> Result<(), SendError> {
-            todo!()
-        }
-
-        async fn continue_propagation(
-            &mut self,
-            _: &BroadcastedMessageMetadata,
-        ) -> Result<(), SendError> {
-            todo!()
-        }
+    async fn report_peer(&mut self, _: BroadcastedMessageMetadata) -> Result<(), SendError> {
+        todo!()
     }
 
-    #[allow(clippy::type_complexity)]
-    fn setup() -> (
-        StreamHandler<
-            ProposalPart,
-            TestStreamId,
-            Receiver<ReceivedBroadcastedMessage<StreamMessage>>,
-            FakeBroadcastClient,
-        >,
-        Sender<ReceivedBroadcastedMessage<StreamMessage>>,
-        Receiver<Receiver<ProposalPart>>,
-        Sender<(TestStreamId, Receiver<ProposalPart>)>,
-        Receiver<StreamMessage>,
-    ) {
-        let (inbound_internal_sender, inbound_internal_receiver) = mpsc::channel(CHANNEL_SIZE);
-        let (inbound_network_sender, inbound_network_receiver) = mpsc::channel(CHANNEL_SIZE);
-        let (outbound_internal_sender, outbound_internal_receiver) = mpsc::channel(CHANNEL_SIZE);
-        let (outbound_network_sender, outbound_network_receiver) = mpsc::channel(CHANNEL_SIZE);
-        let outbound_network_sender = FakeBroadcastClient { sender: outbound_network_sender };
-        let stream_handler = StreamHandler::new(
-            inbound_internal_sender,
-            inbound_network_receiver,
-            outbound_internal_receiver,
-            outbound_network_sender,
-        );
+    async fn continue_propagation(
+        &mut self,
+        _: &BroadcastedMessageMetadata,
+    ) -> Result<(), SendError> {
+        todo!()
+    }
+}
 
-        (
-            stream_handler,
-            inbound_network_sender,
-            inbound_internal_receiver,
-            outbound_internal_sender,
-            outbound_network_receiver,
-        )
+#[allow(clippy::type_complexity)]
+fn setup() -> (
+    StreamHandler<
+        ProposalPart,
+        TestStreamId,
+        Receiver<ReceivedBroadcastedMessage<StreamMessage>>,
+        FakeBroadcastClient,
+    >,
+    Sender<ReceivedBroadcastedMessage<StreamMessage>>,
+    Receiver<Receiver<ProposalPart>>,
+    Sender<(TestStreamId, Receiver<ProposalPart>)>,
+    Receiver<StreamMessage>,
+) {
+    let (inbound_internal_sender, inbound_internal_receiver) = mpsc::channel(CHANNEL_SIZE);
+    let (inbound_network_sender, inbound_network_receiver) = mpsc::channel(CHANNEL_SIZE);
+    let (outbound_internal_sender, outbound_internal_receiver) = mpsc::channel(CHANNEL_SIZE);
+    let (outbound_network_sender, outbound_network_receiver) = mpsc::channel(CHANNEL_SIZE);
+    let outbound_network_sender = FakeBroadcastClient { sender: outbound_network_sender };
+    let stream_handler = StreamHandler::new(
+        inbound_internal_sender,
+        inbound_network_receiver,
+        outbound_internal_receiver,
+        outbound_network_sender,
+    );
+
+    (
+        stream_handler,
+        inbound_network_sender,
+        inbound_internal_receiver,
+        outbound_internal_sender,
+        outbound_network_receiver,
+    )
+}
+
+fn build_init_message(round: u32, stream_id: u64, message_id: u32) -> StreamMessage {
+    StreamMessage {
+        message: StreamMessageBody::Content(ProposalPart::Init(ProposalInit {
+            round,
+            ..Default::default()
+        })),
+        stream_id: TestStreamId(stream_id),
+        message_id: message_id.into(),
+    }
+}
+
+fn build_fin_message(stream_id: u64, message_id: u32) -> StreamMessage {
+    StreamMessage {
+        message: StreamMessageBody::Fin,
+        stream_id: TestStreamId(stream_id),
+        message_id: message_id.into(),
+    }
+}
+
+#[tokio::test]
+async fn outbound_single() {
+    let num_messages = 5;
+    let stream_id = 1;
+    let (
+        mut stream_handler,
+        _inbound_network_sender,
+        _inbound_internal_receiver,
+        mut client_to_streamhandler_sender,
+        mut streamhandler_to_network_receiver,
+    ) = setup();
+
+    // Create a new stream to send.
+    let (mut sender, stream_receiver) = mpsc::channel(CHANNEL_SIZE);
+    client_to_streamhandler_sender.send((TestStreamId(stream_id), stream_receiver)).await.unwrap();
+    stream_handler.handle_next_msg().await.unwrap();
+
+    // Send the content of the stream.
+    for i in 0..num_messages {
+        let init = ProposalPart::Init(ProposalInit { round: i, ..Default::default() });
+        sender.send(init).await.unwrap();
     }
 
-    fn build_init_message(round: u32, stream_id: u64, message_id: u32) -> StreamMessage {
-        StreamMessage {
-            message: StreamMessageBody::Content(ProposalPart::Init(ProposalInit {
-                round,
-                ..Default::default()
-            })),
-            stream_id: TestStreamId(stream_id),
-            message_id: message_id.into(),
-        }
+    // Check the content is sent to the network in order.
+    for i in 0..num_messages {
+        stream_handler.handle_next_msg().await.unwrap();
+        let actual = streamhandler_to_network_receiver.next().now_or_never().unwrap().unwrap();
+        assert_eq!(actual, build_init_message(i, stream_id, i));
     }
 
-    fn build_fin_message(stream_id: u64, message_id: u32) -> StreamMessage {
-        StreamMessage {
-            message: StreamMessageBody::Fin,
-            stream_id: TestStreamId(stream_id),
-            message_id: message_id.into(),
-        }
-    }
+    // Close the stream and check that a Fin is sent to the network.
+    sender.close_channel();
+    stream_handler.handle_next_msg().await.unwrap();
+    assert_eq!(
+        streamhandler_to_network_receiver.next().now_or_never().unwrap().unwrap(),
+        build_fin_message(stream_id, num_messages)
+    );
+}
 
-    #[tokio::test]
-    async fn outbound_single() {
-        let num_messages = 5;
-        let stream_id = 1;
-        let (
-            mut stream_handler,
-            _inbound_network_sender,
-            _inbound_internal_receiver,
-            mut client_to_streamhandler_sender,
-            mut streamhandler_to_network_receiver,
-        ) = setup();
+#[tokio::test]
+async fn outbound_multiple() {
+    let num_messages = 5;
+    let num_streams = 3;
+    let (
+        mut stream_handler,
+        _inbound_network_sender,
+        _inbound_internal_receiver,
+        mut client_to_streamhandler_sender,
+        mut streamhandler_to_network_receiver,
+    ) = setup();
 
-        // Create a new stream to send.
-        let (mut sender, stream_receiver) = mpsc::channel(CHANNEL_SIZE);
+    // Client opens up multiple outbound streams.
+    let mut stream_senders = Vec::new();
+    for stream_id in 0..num_streams {
+        let (sender, stream_receiver) = mpsc::channel(CHANNEL_SIZE);
+        stream_senders.push(sender);
         client_to_streamhandler_sender
             .send((TestStreamId(stream_id), stream_receiver))
             .await
             .unwrap();
         stream_handler.handle_next_msg().await.unwrap();
+    }
 
-        // Send the content of the stream.
+    // Send messages on all of the streams.
+    for stream_id in 0..num_streams {
+        let sender =
+            stream_senders.get_mut(TryInto::<usize>::try_into(stream_id).unwrap()).unwrap();
         for i in 0..num_messages {
             let init = ProposalPart::Init(ProposalInit { round: i, ..Default::default() });
             sender.send(init).await.unwrap();
         }
+    }
 
-        // Check the content is sent to the network in order.
+    // {StreamId : [Msgs]} - asserts order received matches expected order per stream.
+    let mut expected_msgs = (0..num_streams).map(|_| Vec::new()).collect::<Vec<_>>();
+    let mut actual_msgs = expected_msgs.clone();
+    for stream_id in 0..num_streams {
         for i in 0..num_messages {
+            // The order the stream handler selects from among multiple streams is undefined.
             stream_handler.handle_next_msg().await.unwrap();
-            let actual = streamhandler_to_network_receiver.next().now_or_never().unwrap().unwrap();
-            assert_eq!(actual, build_init_message(i, stream_id, i));
+            let msg = streamhandler_to_network_receiver.next().now_or_never().unwrap().unwrap();
+            actual_msgs[TryInto::<usize>::try_into(msg.stream_id.0).unwrap()].push(msg);
+            expected_msgs[TryInto::<usize>::try_into(stream_id).unwrap()]
+                .push(build_init_message(i, stream_id, i));
         }
+    }
+    assert_eq!(actual_msgs, expected_msgs);
 
-        // Close the stream and check that a Fin is sent to the network.
-        sender.close_channel();
+    // Drop all the senders and check Fins are sent.
+    stream_senders.clear();
+    let mut stream_ids = (0..num_streams).collect::<BTreeSet<_>>();
+    for _ in 0..num_streams {
         stream_handler.handle_next_msg().await.unwrap();
-        assert_eq!(
-            streamhandler_to_network_receiver.next().now_or_never().unwrap().unwrap(),
-            build_fin_message(stream_id, num_messages)
-        );
+        let fin = streamhandler_to_network_receiver.next().now_or_never().unwrap().unwrap();
+        assert_eq!(fin.message, StreamMessageBody::Fin);
+        assert_eq!(fin.message_id, u64::from(num_messages));
+        assert!(stream_ids.remove(&fin.stream_id.0));
     }
+}
 
-    #[tokio::test]
-    async fn outbound_multiple() {
-        let num_messages = 5;
-        let num_streams = 3;
-        let (
-            mut stream_handler,
-            _inbound_network_sender,
-            _inbound_internal_receiver,
-            mut client_to_streamhandler_sender,
-            mut streamhandler_to_network_receiver,
-        ) = setup();
+#[tokio::test]
+async fn inbound_in_order() {
+    let num_messages = 10;
+    let stream_id = 127;
+    let (
+        mut stream_handler,
+        mut inbound_network_sender,
+        mut inbound_internal_receiver,
+        _client_to_streamhandler_sender,
+        _streamhandler_to_network_receiver,
+    ) = setup();
+    let metadata = BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
 
-        // Client opens up multiple outbound streams.
-        let mut stream_senders = Vec::new();
-        for stream_id in 0..num_streams {
-            let (sender, stream_receiver) = mpsc::channel(CHANNEL_SIZE);
-            stream_senders.push(sender);
-            client_to_streamhandler_sender
-                .send((TestStreamId(stream_id), stream_receiver))
-                .await
-                .unwrap();
-            stream_handler.handle_next_msg().await.unwrap();
-        }
-
-        // Send messages on all of the streams.
-        for stream_id in 0..num_streams {
-            let sender =
-                stream_senders.get_mut(TryInto::<usize>::try_into(stream_id).unwrap()).unwrap();
-            for i in 0..num_messages {
-                let init = ProposalPart::Init(ProposalInit { round: i, ..Default::default() });
-                sender.send(init).await.unwrap();
-            }
-        }
-
-        // {StreamId : [Msgs]} - asserts order received matches expected order per stream.
-        let mut expected_msgs = (0..num_streams).map(|_| Vec::new()).collect::<Vec<_>>();
-        let mut actual_msgs = expected_msgs.clone();
-        for stream_id in 0..num_streams {
-            for i in 0..num_messages {
-                // The order the stream handler selects from among multiple streams is undefined.
-                stream_handler.handle_next_msg().await.unwrap();
-                let msg = streamhandler_to_network_receiver.next().now_or_never().unwrap().unwrap();
-                actual_msgs[TryInto::<usize>::try_into(msg.stream_id.0).unwrap()].push(msg);
-                expected_msgs[TryInto::<usize>::try_into(stream_id).unwrap()]
-                    .push(build_init_message(i, stream_id, i));
-            }
-        }
-        assert_eq!(actual_msgs, expected_msgs);
-
-        // Drop all the senders and check Fins are sent.
-        stream_senders.clear();
-        let mut stream_ids = (0..num_streams).collect::<BTreeSet<_>>();
-        for _ in 0..num_streams {
-            stream_handler.handle_next_msg().await.unwrap();
-            let fin = streamhandler_to_network_receiver.next().now_or_never().unwrap().unwrap();
-            assert_eq!(fin.message, StreamMessageBody::Fin);
-            assert_eq!(fin.message_id, u64::from(num_messages));
-            assert!(stream_ids.remove(&fin.stream_id.0));
-        }
+    // Send all messages in order.
+    for i in 0..num_messages {
+        let message = build_init_message(i, stream_id, i);
+        inbound_network_sender.send((Ok(message), metadata.clone())).await.unwrap();
+        stream_handler.handle_next_msg().await.unwrap();
     }
+    let message = build_fin_message(stream_id, num_messages);
+    inbound_network_sender.send((Ok(message), metadata.clone())).await.unwrap();
+    stream_handler.handle_next_msg().await.unwrap();
+    // Fin is communicated by dropping the sender, hence `..num_message` not `..=num_messages`
+    let mut receiver = inbound_internal_receiver.next().now_or_never().unwrap().unwrap();
+    for i in 0..num_messages {
+        let message = receiver.next().await.unwrap();
+        assert_eq!(message, ProposalPart::Init(ProposalInit { round: i, ..Default::default() }));
+    }
+    // Check that the receiver was closed:
+    assert!(matches!(receiver.try_next(), Ok(None)));
+}
 
-    #[tokio::test]
-    async fn inbound_in_order() {
-        let num_messages = 10;
-        let stream_id = 127;
-        let (
-            mut stream_handler,
-            mut inbound_network_sender,
-            mut inbound_internal_receiver,
-            _client_to_streamhandler_sender,
-            _streamhandler_to_network_receiver,
-        ) = setup();
-        let metadata = BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
+#[tokio::test]
+async fn inbound_multiple() {
+    let num_messages = 5;
+    let num_streams = 3;
+    let (
+        mut stream_handler,
+        mut inbound_network_sender,
+        mut inbound_internal_receiver,
+        _client_to_streamhandler_sender,
+        _streamhandler_to_network_receiver,
+    ) = setup();
+    let metadata = BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
 
-        // Send all messages in order.
+    // Send all messages to all streams, each stream's messages in order.
+    for sid in 0..num_streams {
         for i in 0..num_messages {
-            let message = build_init_message(i, stream_id, i);
+            let message = build_init_message(i, sid, i);
             inbound_network_sender.send((Ok(message), metadata.clone())).await.unwrap();
             stream_handler.handle_next_msg().await.unwrap();
         }
-        let message = build_fin_message(stream_id, num_messages);
+        let message = build_fin_message(sid, num_messages);
         inbound_network_sender.send((Ok(message), metadata.clone())).await.unwrap();
         stream_handler.handle_next_msg().await.unwrap();
+    }
 
+    let mut expected_msgs = (0..num_streams).map(|_| Vec::new()).collect::<Vec<_>>();
+    let mut actual_msgs = expected_msgs.clone();
+    for sid in 0..num_streams {
         let mut receiver = inbound_internal_receiver.next().now_or_never().unwrap().unwrap();
         // Fin is communicated by dropping the sender, hence `..num_message` not `..=num_messages`
-        for i in 0..num_messages {
+        for i in 0..num_messages{
             let message = receiver.next().await.unwrap();
-            assert_eq!(
-                message,
-                ProposalPart::Init(ProposalInit { round: i, ..Default::default() })
-            );
+            actual_msgs.get_mut(TryInto::<usize>::try_into(sid).unwrap()).unwrap().push(message);
+            expected_msgs
+                .get_mut(TryInto::<usize>::try_into(sid).unwrap())
+                .unwrap()
+                .push(ProposalPart::Init(ProposalInit { round: i, ..Default::default() }));
         }
         // Check that the receiver was closed:
         assert!(matches!(receiver.try_next(), Ok(None)));
     }
+    assert_eq!(actual_msgs, expected_msgs);
+}
 
-    #[tokio::test]
-    async fn inbound_multiple() {
-        let num_messages = 5;
-        let num_streams = 3;
-        let (
-            mut stream_handler,
-            mut inbound_network_sender,
-            mut inbound_internal_receiver,
-            _client_to_streamhandler_sender,
-            _streamhandler_to_network_receiver,
-        ) = setup();
-        let metadata = BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
+#[tokio::test]
+async fn inbound_delayed_first() {
+    let num_messages = 10;
+    let stream_id = 127;
+    let (
+        mut stream_handler,
+        mut inbound_network_sender,
+        mut inbound_internal_receiver,
+        _client_to_streamhandler_sender,
+        _streamhandler_to_network_receiver,
+    ) = setup();
+    let metadata = BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
 
-        // Send all messages to all streams, each stream's messages in order.
-        for sid in 0..num_streams {
-            for i in 0..num_messages {
-                let message = build_init_message(i, sid, i);
-                inbound_network_sender.send((Ok(message), metadata.clone())).await.unwrap();
-                stream_handler.handle_next_msg().await.unwrap();
-            }
-            let message = build_fin_message(sid, num_messages);
-            inbound_network_sender.send((Ok(message), metadata.clone())).await.unwrap();
-            stream_handler.handle_next_msg().await.unwrap();
-        }
-
-        let mut expected_msgs = (0..num_streams).map(|_| Vec::new()).collect::<Vec<_>>();
-        let mut actual_msgs = expected_msgs.clone();
-        for sid in 0..num_streams {
-            let mut receiver = inbound_internal_receiver.next().now_or_never().unwrap().unwrap();
-            // Fin is communicated by dropping the sender, hence `..num_message` not
-            // `..=num_messages`
-            for i in 0..num_messages {
-                let message = receiver.next().await.unwrap();
-                actual_msgs
-                    .get_mut(TryInto::<usize>::try_into(sid).unwrap())
-                    .unwrap()
-                    .push(message);
-                expected_msgs
-                    .get_mut(TryInto::<usize>::try_into(sid).unwrap())
-                    .unwrap()
-                    .push(ProposalPart::Init(ProposalInit { round: i, ..Default::default() }));
-            }
-            // Check that the receiver was closed:
-            assert!(matches!(receiver.try_next(), Ok(None)));
-        }
-        assert_eq!(actual_msgs, expected_msgs);
-    }
-
-    #[tokio::test]
-    async fn inbound_delayed_first() {
-        let num_messages = 10;
-        let stream_id = 127;
-        let (
-            mut stream_handler,
-            mut inbound_network_sender,
-            mut inbound_internal_receiver,
-            _client_to_streamhandler_sender,
-            _streamhandler_to_network_receiver,
-        ) = setup();
-        let metadata = BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
-
-        // Send all messages besides first one.
-        for i in 1..num_messages {
-            let message = build_init_message(i, stream_id, i);
-            inbound_network_sender.send((Ok(message), metadata.clone())).await.unwrap();
-            stream_handler.handle_next_msg().await.unwrap();
-        }
-        let message = build_fin_message(stream_id, num_messages);
+    // Send all messages besides first one.
+    for i in 1..num_messages {
+        let message = build_init_message(i, stream_id, i);
         inbound_network_sender.send((Ok(message), metadata.clone())).await.unwrap();
         stream_handler.handle_next_msg().await.unwrap();
-
-        // Check that no receiver was created yet.
-        assert!(inbound_internal_receiver.try_next().is_err());
-
-        // Send first message now.
-        let first_message = build_init_message(0, stream_id, 0);
-        inbound_network_sender.send((Ok(first_message), metadata.clone())).await.unwrap();
-        // Activate the stream handler to ingest this message.
-        stream_handler.handle_next_msg().await.unwrap();
-
-        // Now first message and all cached messages should be received.
-        let mut receiver = inbound_internal_receiver.next().now_or_never().unwrap().unwrap();
-        // Fin is communicated by dropping the sender, hence `..num_message` not `..=num_messages`
-        for i in 0..num_messages {
-            let message = receiver.next().await.unwrap();
-            assert_eq!(
-                message,
-                ProposalPart::Init(ProposalInit { round: i, ..Default::default() })
-            );
-        }
-        // Check that the receiver was closed:
-        assert!(matches!(receiver.try_next(), Ok(None)));
     }
+    let message = build_fin_message(stream_id, num_messages);
+    inbound_network_sender.send((Ok(message), metadata.clone())).await.unwrap();
+    stream_handler.handle_next_msg().await.unwrap();
 
-    #[tokio::test]
-    async fn inbound_delayed_middle() {
-        let num_messages = 10;
-        let missing_message_id = 3;
-        let stream_id = 127;
-        let (
-            mut stream_handler,
-            mut inbound_network_sender,
-            mut inbound_internal_receiver,
-            _client_to_streamhandler_sender,
-            _streamhandler_to_network_receiver,
-        ) = setup();
-        let metadata = BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
+    // Check that no receiver was created yet.
+    assert!(inbound_internal_receiver.try_next().is_err());
 
-        // Send all messages besides one in the middle of the stream.
-        for i in 0..num_messages {
-            if i == missing_message_id {
-                continue;
-            }
-            let message = build_init_message(i, stream_id, i);
-            inbound_network_sender.send((Ok(message), metadata.clone())).await.unwrap();
-            stream_handler.handle_next_msg().await.unwrap();
+    // Send first message now.
+    let first_message = build_init_message(0, stream_id, 0);
+    inbound_network_sender.send((Ok(first_message), metadata.clone())).await.unwrap();
+    // Activate the stream handler to ingest this message.
+    stream_handler.handle_next_msg().await.unwrap();
+
+    // Now first message and all cached messages should be received.
+    let mut receiver = inbound_internal_receiver.next().now_or_never().unwrap().unwrap();
+    // Fin is communicated by dropping the sender, hence `..num_message` not `..=num_messages`
+    for i in 0..num_messages {
+        let message = receiver.next().await.unwrap();
+        assert_eq!(message, ProposalPart::Init(ProposalInit { round: i, ..Default::default() }));
+    }
+    // Check that the receiver was closed:
+    assert!(matches!(receiver.try_next(), Ok(None)));
+}
+
+#[tokio::test]
+async fn inbound_delayed_middle() {
+    let num_messages = 10;
+    let missing_message_id = 3;
+    let stream_id = 127;
+    let (
+        mut stream_handler,
+        mut inbound_network_sender,
+        mut inbound_internal_receiver,
+        _client_to_streamhandler_sender,
+        _streamhandler_to_network_receiver,
+    ) = setup();
+    let metadata = BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
+
+    // Send all messages besides one in the middle of the stream.
+    for i in 0..num_messages {
+        if i == missing_message_id {
+            continue;
         }
-        let message = build_fin_message(stream_id, num_messages);
+        let message = build_init_message(i, stream_id, i);
         inbound_network_sender.send((Ok(message), metadata.clone())).await.unwrap();
         stream_handler.handle_next_msg().await.unwrap();
-
-        // Should receive a few messages, until we reach the missing one.
-        let mut receiver = inbound_internal_receiver.next().now_or_never().unwrap().unwrap();
-        for i in 0..missing_message_id {
-            let message = receiver.next().await.unwrap();
-            assert_eq!(
-                message,
-                ProposalPart::Init(ProposalInit { round: i, ..Default::default() })
-            );
-        }
-
-        // No more messages are received.
-        assert_eq!(receiver.next().now_or_never(), None);
-
-        // Send the missing message now.
-        let missing_msg = build_init_message(missing_message_id, stream_id, missing_message_id);
-        inbound_network_sender.send((Ok(missing_msg), metadata.clone())).await.unwrap();
-        // Activate the stream handler to ingest this message.
-        stream_handler.handle_next_msg().await.unwrap();
-
-        // Should now get missing message and all the following ones.
-        // Fin is communicated by dropping the sender, hence `..num_message` not `..=num_messages`
-        for i in missing_message_id..num_messages {
-            let message = receiver.next().await.unwrap();
-            assert_eq!(
-                message,
-                ProposalPart::Init(ProposalInit { round: i, ..Default::default() })
-            );
-        }
-        // Check that the receiver was closed:
-        assert!(matches!(receiver.try_next(), Ok(None)));
     }
+    let message = build_fin_message(stream_id, num_messages);
+    inbound_network_sender.send((Ok(message), metadata.clone())).await.unwrap();
+    stream_handler.handle_next_msg().await.unwrap();
+
+    // Should receive a few messages, until we reach the missing one.
+    let mut receiver = inbound_internal_receiver.next().now_or_never().unwrap().unwrap();
+    for i in 0..missing_message_id {
+        let message = receiver.next().await.unwrap();
+        assert_eq!(message, ProposalPart::Init(ProposalInit { round: i, ..Default::default() }));
+    }
+
+    // Send the missing message now.
+    let missing_msg = build_init_message(missing_message_id, stream_id, missing_message_id);
+    inbound_network_sender.send((Ok(missing_msg), metadata.clone())).await.unwrap();
+    // Activate the stream handler to ingest this message.
+    stream_handler.handle_next_msg().await.unwrap();
+
+    // Should now get missing message and all the following ones.
+    // Fin is communicated by dropping the sender, hence `..num_message` not `..=num_messages`
+    for i in missing_message_id..num_messages {
+        let message = receiver.next().await.unwrap();
+        assert_eq!(message, ProposalPart::Init(ProposalInit { round: i, ..Default::default() }));
+    }
+    // Check that the receiver was closed:
+    assert!(matches!(receiver.try_next(), Ok(None)));
 }
