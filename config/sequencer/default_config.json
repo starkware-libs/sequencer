@@ -1299,6 +1299,16 @@
     "privacy": "Public",
     "value": 1000
   },
+  "monitoring_config.collect_profiling_metrics": {
+    "description": "Indicating if profiling metrics should be collected.",
+    "privacy": "Public",
+    "value": true
+  },
+  "monitoring_config.collect_metrics": {
+    "description": "Indicating if metrics should be recorded.",
+    "privacy": "Public",
+    "value": true
+  },
   "monitoring_endpoint_config.collect_metrics": {
     "description": "If true, collect and return metrics in the monitoring endpoint.",
     "privacy": "Public",

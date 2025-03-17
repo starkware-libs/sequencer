@@ -37,6 +37,7 @@ use starknet_state_sync::config::StateSyncConfig;
 use validator::Validate;
 
 use crate::config::component_config::ComponentConfig;
+use crate::config::monitoring::MonitoringConfig;
 use crate::version::VERSION_FULL;
 
 // The path of the default configuration file, provided as part of the crate.
@@ -136,8 +137,12 @@ pub static CONFIG_NON_POINTERS_WHITELIST: LazyLock<Pointers> =
 /// The configurations of the various components of the node.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct SequencerNodeConfig {
+    // Infra related configs
     #[validate]
     pub components: ComponentConfig,
+    #[validate]
+    pub monitoring_config: MonitoringConfig,
+    // Component configs
     #[validate]
     pub base_layer_config: EthereumBaseLayerConfig,
     #[validate]
@@ -174,6 +179,7 @@ impl SerializeConfig for SequencerNodeConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let sub_configs = vec![
             append_sub_config_name(self.components.dump(), "components"),
+            append_sub_config_name(self.monitoring_config.dump(), "monitoring_config"),
             append_sub_config_name(self.base_layer_config.dump(), "base_layer_config"),
             append_sub_config_name(self.batcher_config.dump(), "batcher_config"),
             append_sub_config_name(self.class_manager_config.dump(), "class_manager_config"),
