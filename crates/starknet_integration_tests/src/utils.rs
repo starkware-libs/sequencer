@@ -79,6 +79,8 @@ pub const N_TXS_IN_FIRST_BLOCK: usize = 2;
 const PAID_FEE_ON_L1: U256 = U256::from_be_slice(b"paid"); // Arbitrary value.
 
 pub type CreateRpcTxsFn = fn(&mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction>;
+pub type CreateL1HandlerTxsFn =
+    fn(&mut MultiAccountTransactionGenerator) -> Vec<L1HandlerTransaction>;
 pub type TestTxHashesFn = fn(&[TransactionHash]) -> Vec<TransactionHash>;
 pub type ExpectedContentId = Felt;
 
@@ -398,6 +400,13 @@ pub fn create_invoke_txs(
     (0..n_txs)
         .map(|_| tx_generator.account_with_id_mut(account_id).generate_invoke_with_tip(1))
         .collect()
+}
+
+pub fn create_l1_handler_tx(
+    tx_generator: &mut MultiAccountTransactionGenerator,
+) -> Vec<L1HandlerTransaction> {
+    const N_TXS: usize = 1;
+    create_l1_handler_txs(tx_generator, N_TXS)
 }
 
 pub fn create_l1_handler_txs(
