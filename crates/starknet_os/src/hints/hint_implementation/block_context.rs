@@ -15,12 +15,6 @@ use crate::hints::vars::{Const, Ids};
 
 // Hint implementations.
 
-pub(crate) fn bytecode_segment_structure<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
-) -> OsHintResult {
-    todo!()
-}
-
 pub(crate) fn block_number<S: StateReader>(
     HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
