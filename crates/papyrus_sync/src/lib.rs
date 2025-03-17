@@ -49,7 +49,8 @@ use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContract
 use starknet_api::state::{StateDiff, ThinStateDiff};
 use starknet_class_manager_types::{ClassManagerClientError, SharedClassManagerClient};
 use starknet_client::reader::PendingData;
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
+use tokio::task::{spawn_blocking, JoinError};
 use tracing::{debug, error, info, instrument, trace, warn};
 
 // TODO(Lev,Itay): find the way to rename define_metrics to metrics (solving the conflict with
@@ -178,7 +179,7 @@ pub struct GenericStateSync<
     pending_classes: Arc<RwLock<PendingClasses>>,
     base_layer_source: Option<Arc<TBaseLayerSource>>,
     reader: StorageReader,
-    writer: StorageWriter,
+    writer: Arc<Mutex<StorageWriter>>,
     sequencer_pub_key: Option<SequencerPublicKey>,
     class_manager_client: Option<SharedClassManagerClient>,
 }
@@ -223,6 +224,8 @@ pub enum StateSyncError {
     SequencerPubKeyChanged { old: SequencerPublicKey, new: SequencerPublicKey },
     #[error(transparent)]
     ClassManagerClientError(#[from] ClassManagerClientError),
+    #[error(transparent)]
+    JoinError(#[from] JoinError),
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -298,7 +301,8 @@ impl<
                 | StateSyncError::ParentBlockHashMismatch { .. }
                 | StateSyncError::BaseLayerHashMismatch { .. }
                 | StateSyncError::ClassManagerClientError(_)
-                | StateSyncError::BaseLayerBlockWithoutMatchingHeader { .. } => true,
+                | StateSyncError::BaseLayerBlockWithoutMatchingHeader { .. }
+                | StateSyncError::JoinError(_) => true,
                 StateSyncError::SequencerPubKeyChanged { .. } => false,
             }
         }
@@ -408,7 +412,7 @@ impl<
     async fn process_sync_event(&mut self, sync_event: SyncEvent) -> StateSyncResult {
         match sync_event {
             SyncEvent::BlockAvailable { block_number, block, signature } => {
-                self.store_block(block_number, block, &signature)
+                self.store_block(block_number, block, signature).await
             }
             SyncEvent::StateDiffAvailable {
                 block_number,
@@ -439,7 +443,7 @@ impl<
                 .await
             }
             SyncEvent::NewBaseLayerBlock { block_number, block_hash } => {
-                self.store_base_layer_block(block_number, block_hash)
+                self.store_base_layer_block(block_number, block_hash).await
             }
             SyncEvent::NoProgress => Err(StateSyncError::NoProgress),
         }
@@ -453,11 +457,11 @@ impl<
         err
     )]
     #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
-    fn store_block(
+    async fn store_block(
         &mut self,
         block_number: BlockNumber,
         block: Block,
-        signature: &BlockSignature,
+        signature: BlockSignature,
     ) -> StateSyncResult {
         // Assuming the central source is trusted, detect reverts by comparing the incoming block's
         // parent hash to the current hash.
@@ -467,18 +471,30 @@ impl<
         trace!("Block data: {block:#?}, signature: {signature:?}");
         let num_txs =
             block.body.transactions.len().try_into().expect("Failed to convert usize to u64");
-        self.writer
-            .begin_rw_txn()?
-            .append_header(block_number, &block.header)?
-            .append_block_signature(block_number, signature)?
-            .append_body(block_number, block.body)?
-            .commit()?;
+        let timestamp = block.header.block_header_without_hash.timestamp;
+        self.perform_storage_writes(move |writer| {
+            writer
+                .begin_rw_txn()?
+                .append_header(block_number, &block.header)?
+                .append_block_signature(block_number, &signature)?
+                .append_body(block_number, block.body)?
+                .commit()?;
+            if block.header.block_header_without_hash.starknet_version
+                < STARKNET_VERSION_TO_COMPILE_FROM
+            {
+                writer.begin_rw_txn()?.update_compiler_backward_compatibility_marker(
+                    &block_number.unchecked_next(),
+                )?;
+            }
+            Ok(())
+        })
+        .await?;
         SYNC_HEADER_MARKER.set_lossy(block_number.unchecked_next().0);
         SYNC_BODY_MARKER.set_lossy(block_number.unchecked_next().0);
         SYNC_PROCESSED_TRANSACTIONS.increment(num_txs);
         let time_delta = Utc::now()
             - Utc
-                .timestamp_opt(block.header.block_header_without_hash.timestamp.0 as i64, 0)
+                .timestamp_opt(timestamp.0 as i64, 0)
                 .single()
                 .expect("block timestamp should be valid");
         let header_latency = time_delta.num_seconds();
@@ -487,13 +503,6 @@ impl<
             SYNC_HEADER_LATENCY_SEC.set_lossy(header_latency);
         }
 
-        if block.header.block_header_without_hash.starknet_version
-            < STARKNET_VERSION_TO_COMPILE_FROM
-        {
-            self.writer
-                .begin_rw_txn()?
-                .update_compiler_backward_compatibility_marker(&block_number.unchecked_next())?;
-        }
         Ok(())
     }
 
@@ -550,25 +559,34 @@ impl<
                     .add_deprecated_class(*class_hash, deprecated_class.clone())
                     .await?;
             }
-            self.writer
-                .begin_rw_txn()?
-                .update_class_manager_block_marker(&block_number.unchecked_next())?
-                .commit()?;
         }
-
-        self.writer
-            .begin_rw_txn()?
-            .append_state_diff(block_number, thin_state_diff)?
-            .append_classes(
-                block_number,
-                &classes.iter().map(|(class_hash, class)| (*class_hash, class)).collect::<Vec<_>>(),
-                &deprecated_classes
-                    .iter()
-                    .chain(deployed_contract_class_definitions.iter())
-                    .map(|(class_hash, deprecated_class)| (*class_hash, deprecated_class))
-                    .collect::<Vec<_>>(),
-            )?
-            .commit()?;
+        let has_class_manager = self.class_manager_client.is_some();
+        self.perform_storage_writes(move |writer| {
+            if has_class_manager {
+                writer
+                    .begin_rw_txn()?
+                    .update_class_manager_block_marker(&block_number.unchecked_next())?
+                    .commit()?;
+            }
+            writer
+                .begin_rw_txn()?
+                .append_state_diff(block_number, thin_state_diff)?
+                .append_classes(
+                    block_number,
+                    &classes
+                        .iter()
+                        .map(|(class_hash, class)| (*class_hash, class))
+                        .collect::<Vec<_>>(),
+                    &deprecated_classes
+                        .iter()
+                        .chain(deployed_contract_class_definitions.iter())
+                        .map(|(class_hash, deprecated_class)| (*class_hash, deprecated_class))
+                        .collect::<Vec<_>>(),
+                )?
+                .commit()?;
+            Ok(())
+        })
+        .await?;
 
         let compiled_class_marker = self.reader.begin_ro_txn()?.get_compiled_class_marker()?;
         SYNC_STATE_MARKER.set_lossy(block_number.unchecked_next().0);
@@ -608,11 +626,15 @@ impl<
                     .expect("Failed adding class and compiled class to class manager.");
             }
         }
-        let txn = self.writer.begin_rw_txn()?;
+        let result = self
+            .perform_storage_writes(move |writer| {
+                writer.begin_rw_txn()?.append_casm(&class_hash, &compiled_class)?.commit()?;
+                Ok(())
+            })
+            .await;
         // TODO(Yair): verifications - verify casm corresponds to a class on storage.
-        match txn.append_casm(&class_hash, &compiled_class) {
-            Ok(txn) => {
-                txn.commit()?;
+        match result {
+            Ok(()) => {
                 let compiled_class_marker =
                     self.reader.begin_ro_txn()?.get_compiled_class_marker()?;
                 // Write class and casm to class manager.
@@ -621,13 +643,15 @@ impl<
                 Ok(())
             }
             // TODO(yair): Modify the stream so it skips already stored classes.
-            // Compiled classes rewrite is valid because the stream downloads from the beginning of
-            // the block instead of the last downloaded class.
-            Err(StorageError::InnerError(DbError::KeyAlreadyExists(..))) => {
+            // Compiled classes rewrite is valid because the stream downloads from the beginning
+            // of the block instead of the last downloaded class.
+            Err(StateSyncError::StorageError(StorageError::InnerError(
+                DbError::KeyAlreadyExists(..),
+            ))) => {
                 debug!("Compiled class of {class_hash} already stored.");
                 Ok(())
             }
-            Err(err) => Err(StateSyncError::StorageError(err)),
+            Err(err) => Err(err),
         }
     }
 
@@ -635,31 +659,35 @@ impl<
     // In case of a mismatch between the base layer and l2, an error will be returned, then the
     // sync will revert blocks if needed based on the l2 central source. This approach works as long
     // as l2 is trusted so all the reverts can be detect by using it.
-    fn store_base_layer_block(
+    async fn store_base_layer_block(
         &mut self,
         block_number: BlockNumber,
         block_hash: BlockHash,
     ) -> StateSyncResult {
-        let txn = self.writer.begin_rw_txn()?;
-        // Missing header can be because of a base layer reorg, the matching header may be reverted.
-        let expected_hash = txn
-            .get_block_header(block_number)?
-            .ok_or(StateSyncError::BaseLayerBlockWithoutMatchingHeader { block_number })?
-            .block_hash;
-        // Can be caused because base layer reorg or l2 reverts.
-        if expected_hash != block_hash {
-            return Err(StateSyncError::BaseLayerHashMismatch {
-                block_number,
-                base_layer_hash: block_hash,
-                l2_hash: expected_hash,
-            });
-        }
-        if txn.get_base_layer_block_marker()? != block_number.unchecked_next() {
-            info!("Verified block {block_number} hash against base layer.");
-            txn.update_base_layer_block_marker(&block_number.unchecked_next())?.commit()?;
-            SYNC_BASE_LAYER_MARKER.set_lossy(block_number.unchecked_next().0);
-        }
-        Ok(())
+        self.perform_storage_writes(move |writer| {
+            let txn = writer.begin_rw_txn()?;
+            // Missing header can be because of a base layer reorg, the matching header may be
+            // reverted.
+            let expected_hash = txn
+                .get_block_header(block_number)?
+                .ok_or(StateSyncError::BaseLayerBlockWithoutMatchingHeader { block_number })?
+                .block_hash;
+            // Can be caused because base layer reorg or l2 reverts.
+            if expected_hash != block_hash {
+                return Err(StateSyncError::BaseLayerHashMismatch {
+                    block_number,
+                    base_layer_hash: block_hash,
+                    l2_hash: expected_hash,
+                });
+            }
+            if txn.get_base_layer_block_marker()? != block_number.unchecked_next() {
+                info!("Verified block {block_number} hash against base layer.");
+                txn.update_base_layer_block_marker(&block_number.unchecked_next())?.commit()?;
+                SYNC_BASE_LAYER_MARKER.set_lossy(block_number.unchecked_next().0);
+            }
+            Ok(())
+        })
+        .await
     }
 
     // Compares the block's parent hash to the stored block.
@@ -710,7 +738,7 @@ impl<
         let mut last_block_in_storage = header_marker.prev();
         while let Some(block_number) = last_block_in_storage {
             if self.should_revert_block(block_number).await? {
-                self.revert_block(block_number)?;
+                self.revert_block(block_number).await?;
                 last_block_in_storage = block_number.prev();
             } else {
                 break;
@@ -723,29 +751,32 @@ impl<
     // Deletes the block data from the storage.
     #[allow(clippy::expect_fun_call)]
     #[instrument(skip(self), level = "debug", err)]
-    fn revert_block(&mut self, block_number: BlockNumber) -> StateSyncResult {
+    async fn revert_block(&mut self, block_number: BlockNumber) -> StateSyncResult {
         debug!("Reverting block.");
 
-        let mut txn = self.writer.begin_rw_txn()?;
-        txn = txn.try_revert_base_layer_marker(block_number)?;
-        let res = txn.revert_header(block_number)?;
-        txn = res.0;
-        let mut reverted_block_hash: Option<BlockHash> = None;
-        if let Some(header) = res.1 {
-            reverted_block_hash = Some(header.block_hash);
-
-            let res = txn.revert_body(block_number)?;
+        self.perform_storage_writes(move |writer| {
+            let mut txn = writer.begin_rw_txn()?;
+            txn = txn.try_revert_base_layer_marker(block_number)?;
+            let res = txn.revert_header(block_number)?;
             txn = res.0;
+            let mut reverted_block_hash: Option<BlockHash> = None;
+            if let Some(header) = res.1 {
+                reverted_block_hash = Some(header.block_hash);
 
-            let res = txn.revert_state_diff(block_number)?;
-            txn = res.0;
-        }
+                let res = txn.revert_body(block_number)?;
+                txn = res.0;
 
-        txn.commit()?;
-        if let Some(hash) = reverted_block_hash {
-            info!(%hash, "Reverted block.");
-        }
-        Ok(())
+                let res = txn.revert_state_diff(block_number)?;
+                txn = res.0;
+            }
+
+            txn.commit()?;
+            if let Some(hash) = reverted_block_hash {
+                info!(%hash, "Reverted block.");
+            }
+            Ok(())
+        })
+        .await
     }
 
     /// Checks if centrals block hash at the block number is different from ours (or doesn't exist).
@@ -763,6 +794,16 @@ impl<
             // Block number doesn't exist in central, revert.
             Ok(true)
         }
+    }
+
+    async fn perform_storage_writes<
+        F: FnOnce(&mut StorageWriter) -> Result<(), StateSyncError> + Send + 'static,
+    >(
+        &mut self,
+        f: F,
+    ) -> Result<(), StateSyncError> {
+        let writer = self.writer.clone();
+        spawn_blocking(move || f(&mut (writer.blocking_lock()))).await?
     }
 }
 // TODO(dvir): consider gathering in a single pending argument instead.
@@ -903,7 +944,7 @@ impl StateSync {
             pending_source: Arc::new(pending_source),
             base_layer_source,
             reader,
-            writer,
+            writer: Arc::new(Mutex::new(writer)),
             sequencer_pub_key: None,
             class_manager_client,
         }

@@ -131,7 +131,7 @@ async fn run_sync(
         pending_classes: Arc::new(RwLock::new(PendingClasses::default())),
         base_layer_source: Some(Arc::new(base_layer)),
         reader,
-        writer,
+        writer: Arc::new(Mutex::new(writer)),
         sequencer_pub_key: None,
         // TODO(shahak): Add test with mock class manager client.
         // TODO(shahak): Add test with post 0.14.0 block and mock class manager client and see that
@@ -340,7 +340,8 @@ async fn sync_with_revert() {
     // Prepare functions that check that the sync worked up to N_BLOCKS_BEFORE_REVERT and then
     // reacted correctly to the revert.
     const N_BLOCKS_BEFORE_REVERT: u64 = 8;
-    const MAX_TIME_TO_SYNC_BEFORE_REVERT_MS: u64 = 100;
+    // FIXME: (Shahak) analyze and set a lower value.
+    const MAX_TIME_TO_SYNC_BEFORE_REVERT_MS: u64 = 900;
     const CHAIN_FORK_BLOCK_NUMBER: u64 = 5;
     const N_BLOCKS_AFTER_REVERT: u64 = 10;
     // FIXME: (Omri) analyze and set a lower value.

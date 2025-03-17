@@ -27,7 +27,7 @@ use starknet_client::reader::objects::pending_data::{
 use starknet_client::reader::objects::state::StateDiff as ClientStateDiff;
 use starknet_client::reader::objects::transaction::Transaction as ClientTransaction;
 use starknet_client::reader::{DeclaredClassHashEntry, PendingData};
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 
 use crate::sources::base_layer::MockBaseLayerSourceTrait;
 use crate::sources::central::MockCentralSourceTrait;
@@ -162,8 +162,8 @@ async fn stream_new_base_layer_block_no_blocks_on_base_layer() {
     assert_matches!(event, SyncEvent::NewBaseLayerBlock { block_number: BlockNumber(1), .. });
 }
 
-#[test]
-fn store_base_layer_block_test() {
+#[tokio::test]
+async fn store_base_layer_block_test() {
     let (reader, mut writer) = get_test_storage().0;
 
     let header_hash = BlockHash(felt!("0x0"));
@@ -192,21 +192,22 @@ fn store_base_layer_block_test() {
         pending_classes: Arc::new(RwLock::new(PendingClasses::default())),
         base_layer_source: Some(Arc::new(MockBaseLayerSourceTrait::new())),
         reader,
-        writer,
+        writer: Arc::new(Mutex::new(writer)),
         sequencer_pub_key: None,
         class_manager_client: None,
     };
 
     // Trying to store a block without a header in the storage.
-    let res = gen_state_sync.store_base_layer_block(BlockNumber(1), BlockHash::default());
+    let res = gen_state_sync.store_base_layer_block(BlockNumber(1), BlockHash::default()).await;
     assert_matches!(res, Err(StateSyncError::BaseLayerBlockWithoutMatchingHeader { .. }));
 
     // Trying to store a block with mismatching header.
-    let res = gen_state_sync.store_base_layer_block(BlockNumber(0), BlockHash(felt!("0x666")));
+    let res =
+        gen_state_sync.store_base_layer_block(BlockNumber(0), BlockHash(felt!("0x666"))).await;
     assert_matches!(res, Err(StateSyncError::BaseLayerHashMismatch { .. }));
 
     // Happy flow.
-    let res = gen_state_sync.store_base_layer_block(BlockNumber(0), header_hash);
+    let res = gen_state_sync.store_base_layer_block(BlockNumber(0), header_hash).await;
     assert!(res.is_ok());
     let base_layer_marker =
         gen_state_sync.reader.begin_ro_txn().unwrap().get_base_layer_block_marker().unwrap();
