@@ -96,7 +96,7 @@ pub(crate) fn height_is_zero_or_len_node_preimage_is_two<S: StateReader>(
         Felt::ONE
     } else {
         let node = get_integer_from_var_name(Ids::Node.into(), vm, ids_data, ap_tracking)?;
-        let preimage_map: PreimageMap = exec_scopes.get(Scope::Preimage.into())?;
+        let preimage_map: &PreimageMap = exec_scopes.get_ref(Scope::Preimage.into())?;
         let preimage_value =
             preimage_map.get(node.as_ref()).ok_or(OsHintError::MissingPreimage(node))?;
         Felt::from(preimage_value.length() == 2)

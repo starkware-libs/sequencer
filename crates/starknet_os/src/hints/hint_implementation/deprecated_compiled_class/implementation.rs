@@ -75,15 +75,16 @@ pub(crate) fn load_deprecated_class<S: StateReader>(
         });
     }
 
-    let dep_class = exec_scopes.get::<ContractClass>(Scope::CompiledClass.into())?;
+    let dep_class = exec_scopes.get_ref::<ContractClass>(Scope::CompiledClass.into())?;
 
     // TODO(Rotem): see if we can avoid cloning here.
     let hints: HashMap<String, Vec<HintParams>> =
-        serde_json::from_value(dep_class.program.hints.clone())
-            .map_err(|e| OsHintError::SerdeJson { error: e, value: dep_class.program.hints })?;
+        serde_json::from_value(dep_class.program.hints.clone()).map_err(|e| {
+            OsHintError::SerdeJson { error: e, value: dep_class.program.hints.clone() }
+        })?;
     let ref_manager: ReferenceManager =
         serde_json::from_value(dep_class.program.reference_manager.clone()).map_err(|e| {
-            OsHintError::SerdeJson { error: e, value: dep_class.program.reference_manager }
+            OsHintError::SerdeJson { error: e, value: dep_class.program.reference_manager.clone() }
         })?;
 
     let refs = ref_manager
