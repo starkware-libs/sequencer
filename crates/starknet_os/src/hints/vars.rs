@@ -229,6 +229,7 @@ impl Const {
 
 #[derive(Copy, Clone)]
 pub enum CairoStruct {
+    BigInt3,
     CompiledClass,
     CompiledClassEntryPoint,
     CompiledClassFact,
@@ -245,6 +246,9 @@ pub enum CairoStruct {
 impl From<CairoStruct> for &'static str {
     fn from(struct_name: CairoStruct) -> Self {
         match struct_name {
+            CairoStruct::BigInt3 => {
+                "starkware.starknet.core.os.data_availability.bls_field.BigInt3"
+            }
             CairoStruct::CompiledClass => {
                 "starkware.starknet.core.os.contract_class.compiled_class.CompiledClass"
             }
