@@ -64,3 +64,12 @@ pub(crate) fn init_state_update_pointer<S: StateReader>(
 ) -> OsHintResult {
     todo!()
 }
+
+pub(crate) fn get_n_blocks<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
+    todo!()
+}
+pub(crate) fn create_block_additional_hints<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    todo!()
+}
