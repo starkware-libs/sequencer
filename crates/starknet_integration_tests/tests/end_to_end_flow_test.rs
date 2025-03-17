@@ -2,10 +2,7 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use futures::StreamExt;
-use mempool_test_utils::starknet_api_test_utils::{
-    create_l1_handler_tx,
-    MultiAccountTransactionGenerator,
-};
+use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{
     HeightAndRound,
@@ -22,12 +19,7 @@ use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::core::ChainId;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_api::transaction::{
-    L1HandlerTransaction,
-    TransactionHash,
-    TransactionHasher,
-    TransactionVersion,
-};
+use starknet_api::transaction::{TransactionHash, TransactionHasher, TransactionVersion};
 use starknet_consensus::types::ValidatorId;
 use starknet_infra_utils::test_utils::TestIdentifier;
 use starknet_integration_tests::flow_test_setup::{FlowSequencerSetup, FlowTestSetup};
@@ -35,11 +27,13 @@ use starknet_integration_tests::utils::{
     create_deploy_account_tx_and_invoke_tx,
     create_flow_test_tx_generator,
     create_funding_txs,
+    create_l1_handler_tx,
     create_many_invoke_txs,
     create_multiple_account_txs,
     run_test_scenario,
     test_many_invoke_txs,
     test_multiple_account_txs,
+    CreateL1HandlerTxsFn,
     CreateRpcTxsFn,
     ExpectedContentId,
     TestTxHashesFn,
@@ -56,7 +50,7 @@ const LAST_HEIGHT_FOR_MANY_TXS: BlockNumber = BlockNumber(1);
 struct TestBlockScenario {
     height: BlockNumber,
     create_rpc_txs_fn: CreateRpcTxsFn,
-    l1_handler_txs: Vec<L1HandlerTransaction>,
+    create_l1_handler_txs_fn: CreateL1HandlerTxsFn,
     test_tx_hashes_fn: TestTxHashesFn,
     expected_content_id: ExpectedContentId,
 }
@@ -117,7 +111,7 @@ async fn end_to_end_flow(
     for TestBlockScenario {
         height,
         create_rpc_txs_fn,
-        l1_handler_txs,
+        create_l1_handler_txs_fn,
         test_tx_hashes_fn,
         expected_content_id,
     } in test_blocks_scenarios
@@ -125,6 +119,7 @@ async fn end_to_end_flow(
         debug!("Starting height {}.", height);
         // Create and send transactions.
         // TODO(Arni): move send messages to l2 into [run_test_scenario].
+        let l1_handler_txs = create_l1_handler_txs_fn(&mut tx_generator);
         mock_running_system.send_messages_to_l2(&l1_handler_txs).await;
         let expected_batched_tx_hashes = run_test_scenario(
             &mut tx_generator,
@@ -175,7 +170,7 @@ fn create_test_blocks() -> Vec<TestBlockScenario> {
     let heights_to_build = next_height.iter_up_to(LAST_HEIGHT.unchecked_next());
     let test_scenarios: Vec<(
         CreateRpcTxsFn,
-        Vec<L1HandlerTransaction>,
+        CreateL1HandlerTxsFn,
         TestTxHashesFn,
         ExpectedContentId,
     )> = vec![
@@ -184,7 +179,7 @@ fn create_test_blocks() -> Vec<TestBlockScenario> {
         // TODO(Arni): Fix this. Move the L1 handler to be not the first block.
         (
             |_| vec![],
-            vec![create_l1_handler_tx()],
+            create_l1_handler_tx,
             test_single_tx,
             ExpectedContentId::from_hex_unchecked(
                 "0x32a9c3b503e51b4330fe735b73975a62df996d6d6ebfe6cd1514ba2a68797cb",
@@ -192,7 +187,7 @@ fn create_test_blocks() -> Vec<TestBlockScenario> {
         ),
         (
             create_multiple_account_txs,
-            vec![],
+            |_| vec![],
             test_multiple_account_txs,
             ExpectedContentId::from_hex_unchecked(
                 "0x459cc7b4c37290dd7148d98994508f6da9db98832219c3a56da4b7a246a87c1",
@@ -200,7 +195,7 @@ fn create_test_blocks() -> Vec<TestBlockScenario> {
         ),
         (
             create_funding_txs,
-            vec![],
+            |_| vec![],
             test_single_tx,
             ExpectedContentId::from_hex_unchecked(
                 "0x33182a26f2334cc790f9cd082c91c5fa80e03b856eb298659b1e9af67e53814",
@@ -208,7 +203,7 @@ fn create_test_blocks() -> Vec<TestBlockScenario> {
         ),
         (
             deploy_account_and_invoke,
-            vec![],
+            |_| vec![],
             test_two_txs,
             ExpectedContentId::from_hex_unchecked(
                 "0x5af7d23f408d4918d506899a6a37a99aeffd27d9a86c1ad44581874b6bbf461",
@@ -216,7 +211,7 @@ fn create_test_blocks() -> Vec<TestBlockScenario> {
         ),
         (
             create_declare_tx,
-            vec![],
+            |_| vec![],
             test_single_tx,
             ExpectedContentId::from_hex_unchecked(
                 "0x6b9313a54edb8702a4baf19355b1ba44aae8c1ec14a5d43bef60560caedd925",
@@ -227,12 +222,17 @@ fn create_test_blocks() -> Vec<TestBlockScenario> {
         .map(
             |(
                 height,
-                (create_rpc_txs_fn, l1_handler_txs, test_tx_hashes_fn, expected_content_id),
+                (
+                    create_rpc_txs_fn,
+                    create_l1_handler_txs_fn,
+                    test_tx_hashes_fn,
+                    expected_content_id,
+                ),
             )| {
                 TestBlockScenario {
                     height,
                     create_rpc_txs_fn,
-                    l1_handler_txs,
+                    create_l1_handler_txs_fn,
                     test_tx_hashes_fn,
                     expected_content_id,
                 }
@@ -246,7 +246,7 @@ fn create_test_blocks_for_many_txs_scenario() -> Vec<TestBlockScenario> {
     let heights_to_build = next_height.iter_up_to(LAST_HEIGHT_FOR_MANY_TXS.unchecked_next());
     let test_scenarios: Vec<(
         CreateRpcTxsFn,
-        Vec<L1HandlerTransaction>,
+        CreateL1HandlerTxsFn,
         TestTxHashesFn,
         ExpectedContentId,
     )> = vec![
@@ -255,7 +255,7 @@ fn create_test_blocks_for_many_txs_scenario() -> Vec<TestBlockScenario> {
         // one is added to the test.
         (
             create_many_invoke_txs,
-            vec![],
+            |_| vec![],
             test_many_invoke_txs,
             ExpectedContentId::from_hex_unchecked(
                 "0x10b8158416730305fa0189c20e1267df687bbaa79b6d1d5f376f7b536b3dd66",
@@ -266,12 +266,17 @@ fn create_test_blocks_for_many_txs_scenario() -> Vec<TestBlockScenario> {
         .map(
             |(
                 height,
-                (create_rpc_txs_fn, l1_handler_txs, test_tx_hashes_fn, expected_content_id),
+                (
+                    create_rpc_txs_fn,
+                    create_l1_handler_txs_fn,
+                    test_tx_hashes_fn,
+                    expected_content_id,
+                ),
             )| {
                 TestBlockScenario {
                     height,
                     create_rpc_txs_fn,
-                    l1_handler_txs,
+                    create_l1_handler_txs_fn,
                     test_tx_hashes_fn,
                     expected_content_id,
                 }
