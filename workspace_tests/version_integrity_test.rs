@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 use std::collections::HashSet;
 use std::sync::LazyLock;
 
@@ -94,6 +95,11 @@ fn test_members_have_version_iff_they_are_for_publish() {
          are not intended for publishing: {unpublished_crates_with_version:#?}."
     );
 }
+||||||| 7682928ac
+use crate::toml_utils::{DependencyValue, LocalCrate, PackageEntryValue, ROOT_TOML};
+=======
+use toml_test_utils::{DependencyValue, LocalCrate, PackageEntryValue, ROOT_TOML};
+>>>>>>> origin/main-v0.13.5
 
 #[test]
 fn test_path_dependencies_are_members() {

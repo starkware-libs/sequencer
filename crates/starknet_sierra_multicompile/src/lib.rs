@@ -33,8 +33,16 @@ pub mod test_utils;
 #[path = "compile_test.rs"]
 pub mod compile_test;
 
+<<<<<<< HEAD
 pub type SierraCompilerResult<T> = Result<T, SierraCompilerError>;
 
+||||||| 7682928ac
+=======
+#[cfg(test)]
+#[path = "constants_test.rs"]
+pub mod constants_test;
+
+>>>>>>> origin/main-v0.13.5
 pub trait SierraToCasmCompiler: Send + Sync {
     fn compile(
         &self,
