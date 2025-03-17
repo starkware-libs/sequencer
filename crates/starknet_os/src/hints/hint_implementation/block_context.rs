@@ -11,48 +11,49 @@ use crate::hints::enum_definition::{AllHints, OsHint};
 use crate::hints::error::OsHintResult;
 use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;
-use crate::hints::vars::{Const, Ids};
+use crate::hints::vars::{Const, Ids, Scope};
+use crate::io::os_input::OsBlockInput;
 
 // Hint implementations.
 
 pub(crate) fn block_number<S: StateReader>(
-    HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
+    HintArgs { exec_scopes, vm, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let block_number = hint_processor.execution_helper.os_input.block_info.block_number;
+    let block_input: &OsBlockInput = exec_scopes.get(Scope::BlockInput.into())?;
+    let block_number = block_input.block_info.block_number;
     Ok(insert_value_into_ap(vm, Felt::from(block_number.0))?)
 }
 
 pub(crate) fn block_timestamp<S: StateReader>(
-    HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
+    HintArgs { exec_scopes, vm, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let block_timestamp = hint_processor.execution_helper.os_input.block_info.block_timestamp;
+    let block_input: &OsBlockInput = exec_scopes.get(Scope::BlockInput.into())?;
+    let block_timestamp = block_input.block_info.block_timestamp;
     Ok(insert_value_into_ap(vm, Felt::from(block_timestamp.0))?)
 }
 
 pub(crate) fn chain_id<S: StateReader>(
-    HintArgs { vm, hint_processor, .. }: HintArgs<'_, S>,
+    HintArgs { vm, exec_scopes, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let chain_id = &hint_processor.execution_helper.os_input.chain_info.chain_id;
+    let block_input: &OsBlockInput = exec_scopes.get(Scope::BlockInput.into())?;
+    let chain_id = &block_input.chain_info.chain_id;
     let chain_id_as_felt = ascii_as_felt(&chain_id.to_string())?;
     Ok(insert_value_into_ap(vm, chain_id_as_felt)?)
 }
 
 pub(crate) fn fee_token_address<S: StateReader>(
-    HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
+    HintArgs { exec_scopes, vm, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let strk_fee_token_address = hint_processor
-        .execution_helper
-        .os_input
-        .chain_info
-        .fee_token_addresses
-        .strk_fee_token_address;
+    let block_input: &OsBlockInput = exec_scopes.get(Scope::BlockInput.into())?;
+    let strk_fee_token_address = block_input.chain_info.fee_token_addresses.strk_fee_token_address;
     Ok(insert_value_into_ap(vm, strk_fee_token_address.0.key())?)
 }
 
 pub(crate) fn sequencer_address<S: StateReader>(
-    HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
+    HintArgs { exec_scopes, vm, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let address = hint_processor.execution_helper.os_input.block_info.sequencer_address;
+    let block_input: &OsBlockInput = exec_scopes.get(Scope::BlockInput.into())?;
+    let address = block_input.block_info.sequencer_address;
     Ok(insert_value_into_ap(vm, address.0.key())?)
 }
 
@@ -78,10 +79,11 @@ pub(crate) fn get_block_mapping<S: StateReader>(
 }
 
 pub(crate) fn write_use_kzg_da_to_memory<S: StateReader>(
-    HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
+    HintArgs { vm, exec_scopes, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let use_kzg_da = hint_processor.execution_helper.os_input.block_info.use_kzg_da
-        && !hint_processor.execution_helper.os_input.full_output;
+    let block_input: &OsBlockInput = exec_scopes.get(Scope::BlockInput.into())?;
+    // TODO(Meshi): change this when use_kzg_da will be a part of multi-block input.
+    let use_kzg_da = block_input.block_info.use_kzg_da && !block_input.full_output;
 
     insert_nondet_hint_value(
         vm,

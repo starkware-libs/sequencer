@@ -7,6 +7,7 @@ use crate::hints::error::OsHintResult;
 use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::Scope;
+use crate::io::os_input::OsBlockInput;
 
 pub(crate) fn initialize_class_hashes<S: StateReader>(
     HintArgs { hint_processor, exec_scopes, .. }: HintArgs<'_, S>,
@@ -25,10 +26,11 @@ pub(crate) fn initialize_state_changes<S: StateReader>(
 }
 
 pub(crate) fn write_full_output_to_memory<S: StateReader>(
-    HintArgs { vm, hint_processor, .. }: HintArgs<'_, S>,
+    HintArgs { vm, exec_scopes, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let os_input = &hint_processor.execution_helper.os_input;
-    let full_output = Felt::from(os_input.full_output);
+    let block_input: &OsBlockInput = exec_scopes.get(Scope::BlockInput.into())?;
+    // TODO(Meshi): when it will be a part of multi-block input take it from the os_input
+    let full_output = Felt::from(block_input.full_output);
     insert_nondet_hint_value(vm, AllHints::OsHint(OsHint::WriteFullOutputToMemory), full_output)
 }
 
@@ -41,21 +43,26 @@ pub(crate) fn configure_kzg_manager<S: StateReader>(
 }
 
 pub(crate) fn set_ap_to_prev_block_hash<S: StateReader>(
-    HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
+    HintArgs { exec_scopes, vm, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let os_input = &hint_processor.execution_helper.os_input;
-    Ok(insert_value_into_ap(vm, os_input.prev_block_hash.0)?)
+    let block_input: &OsBlockInput = exec_scopes.get(Scope::BlockInput.into())?;
+    Ok(insert_value_into_ap(vm, block_input.prev_block_hash.0)?)
 }
 
 pub(crate) fn set_ap_to_new_block_hash<S: StateReader>(
-    HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
+    HintArgs { exec_scopes, vm, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let os_input = &hint_processor.execution_helper.os_input;
-    Ok(insert_value_into_ap(vm, os_input.new_block_hash.0)?)
+    let block_input: &OsBlockInput = exec_scopes.get(Scope::BlockInput.into())?;
+    Ok(insert_value_into_ap(vm, block_input.new_block_hash.0)?)
 }
 
-pub(crate) fn starknet_os_input<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
+pub(crate) fn starknet_os_input<S: StateReader>(
+    HintArgs { exec_scopes, hint_processor, .. }: HintArgs<'_, S>,
+) -> OsHintResult {
     // Nothing to do here; OS input already available on the hint processor.
+    let block_input_iter =
+        hint_processor.execution_helper.os_input.blocks_inputs.clone().into_iter();
+    exec_scopes.insert_value(Scope::BlockInputIter.into(), block_input_iter);
     Ok(())
 }
 
