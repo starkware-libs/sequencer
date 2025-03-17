@@ -967,7 +967,7 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
     (
         TxAccountDeploymentDataLen,
         tx_account_deployment_data_len,
-        "memory[fp + 16] = to_felt_or_relocatable(len(tx.account_deployment_data))"
+        "memory[fp + 4] = to_felt_or_relocatable(len(tx.account_deployment_data))"
     ),
     (
         TxAccountDeploymentData,
