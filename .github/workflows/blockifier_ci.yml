@@ -74,12 +74,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
       # cairo_native is not activated by any workspace crate; test the build.
-      - run: cargo test -p blockifier --features cairo_native
-<<<<<<< HEAD
       - run: cargo build -p blockifier --features cairo_native
-||||||| 7682928ac
-=======
+      - run: cargo test -p blockifier --features cairo_native
       # tracing is not activated by any workspace crate; test the build.
       - run: cargo build -p blockifier --features tracing
       - run: cargo test -p blockifier --features tracing
->>>>>>> origin/main-v0.13.5

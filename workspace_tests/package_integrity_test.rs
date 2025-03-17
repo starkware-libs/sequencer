@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-<<<<<<< HEAD
 use crate::toml_utils::{DependencyValue, PackageEntryValue, MEMBER_TOMLS};
 
 /// Hard-coded list of crates that are allowed to use test code in their (non-dev) dependencies.
@@ -41,11 +40,6 @@ fn test_no_self_dependencies() {
          {members_with_self_deps:?}. This is not allowed."
     );
 }
-||||||| 7682928ac
-use crate::toml_utils::{CrateCargoToml, DependencyValue, PackageEntryValue, ROOT_TOML};
-=======
-use toml_test_utils::{CrateCargoToml, DependencyValue, PackageEntryValue, ROOT_TOML};
->>>>>>> origin/main-v0.13.5
 
 #[test]
 fn test_package_names_match_directory() {

@@ -35,15 +35,10 @@ validator.workspace = true
 assert_matches.workspace = true
 mempool_test_utils.workspace = true
 rstest.workspace = true
-<<<<<<< HEAD
 starknet_api.workspace = true
 starknet_infra_utils.workspace = true
-||||||| 7682928ac
-starknet_infra_utils.path = "../starknet_infra_utils"
-=======
 starknet_infra_utils.path = "../starknet_infra_utils"
 toml_test_utils.path = "../../toml_test_utils"
->>>>>>> origin/main-v0.13.5
 
 [build-dependencies]
 starknet_infra_utils.workspace = true

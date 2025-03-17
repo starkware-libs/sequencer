@@ -18,14 +18,7 @@ cairo_native = [
 native_blockifier = []
 node_api = []
 reexecution = ["transaction_serde"]
-<<<<<<< HEAD
 testing = ["blockifier_test_utils", "rand", "rstest", "rstest_reuse", "starknet_api/testing"]
-||||||| 7682928ac
-testing = ["rand", "rstest", "rstest_reuse", "starknet_api/testing"]
-=======
-testing = ["rand", "rstest", "rstest_reuse", "starknet_api/testing"]
-tracing = []
->>>>>>> origin/main-v0.13.5
 transaction_serde = []
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

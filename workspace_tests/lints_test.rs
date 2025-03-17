@@ -1,12 +1,6 @@
 use std::collections::HashMap;
 
-<<<<<<< HEAD
 use crate::toml_utils::{CrateCargoToml, LintValue, MEMBER_TOMLS};
-||||||| 7682928ac
-use crate::toml_utils::{CrateCargoToml, LintValue, ROOT_TOML};
-=======
-use toml_test_utils::{CrateCargoToml, LintValue, ROOT_TOML};
->>>>>>> origin/main-v0.13.5
 
 #[test]
 fn test_lints_section_exists() {
