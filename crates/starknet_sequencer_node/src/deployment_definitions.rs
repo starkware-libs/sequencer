@@ -26,7 +26,7 @@ pub const MAIN_DEPLOYMENT: Deployment<'_> = Deployment::new(
 );
 
 pub const TESTING_DEPLOYMENT_PRESET_PATH: &str =
-    "config/sequencer/deployment_configs/testing/nightly_test_all_in_one.json";
+    "config/sequencer/deployment_configs/testing/nightly_test_consolidated_node.json";
 pub const TESTING_DEPLOYMENT_APP_CONFIG_SUBDIR: &str =
     "config/sequencer/presets/system_test_presets/single_node/";
 pub const TESTING_DEPLOYMENT: Deployment<'_> = Deployment::new(
