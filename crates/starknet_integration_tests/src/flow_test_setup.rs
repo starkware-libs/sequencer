@@ -44,7 +44,7 @@ use tempfile::TempDir;
 use tracing::{debug, instrument};
 use url::Url;
 
-use crate::integration_test_setup::NodeExecutionId;
+use crate::executable_setup::NodeExecutionId;
 use crate::state_reader::StorageTestSetup;
 use crate::utils::{
     create_consensus_manager_configs_from_network_configs,
