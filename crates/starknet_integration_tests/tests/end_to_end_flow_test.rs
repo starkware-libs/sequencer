@@ -193,7 +193,7 @@ fn create_test_blocks() -> Vec<TestBlockScenario> {
             vec![],
             test_multiple_account_txs,
             ExpectedContentId::from_hex_unchecked(
-                "0x459cc7b4c37290dd7148d98994508f6da9db98832219c3a56da4b7a246a87c1",
+                "0x73b5679b1b0ed5eed328048a03c2172f907bf3d50b6577dc423332631f1c69b",
             ),
         ),
         (
@@ -201,7 +201,7 @@ fn create_test_blocks() -> Vec<TestBlockScenario> {
             vec![],
             test_single_tx,
             ExpectedContentId::from_hex_unchecked(
-                "0x33182a26f2334cc790f9cd082c91c5fa80e03b856eb298659b1e9af67e53814",
+                "0x44bac6077dceb6abc90733f7d027694ac4f18a610ac80e9b3e1f82f494d5c5d",
             ),
         ),
         (
@@ -209,7 +209,7 @@ fn create_test_blocks() -> Vec<TestBlockScenario> {
             vec![],
             test_two_txs,
             ExpectedContentId::from_hex_unchecked(
-                "0x5af7d23f408d4918d506899a6a37a99aeffd27d9a86c1ad44581874b6bbf461",
+                "0x129fd8d220c44ed4b5857adf0232a2f441a1187d1afd7b00a7dd343fa07e5a3",
             ),
         ),
         (
@@ -217,7 +217,7 @@ fn create_test_blocks() -> Vec<TestBlockScenario> {
             vec![],
             test_single_tx,
             ExpectedContentId::from_hex_unchecked(
-                "0x6b9313a54edb8702a4baf19355b1ba44aae8c1ec14a5d43bef60560caedd925",
+                "0xb5398d94bf602fc7ccb8fcaf947b18ab74370516c2d8843d0a42b93d2267cc",
             ),
         ),
     ];
