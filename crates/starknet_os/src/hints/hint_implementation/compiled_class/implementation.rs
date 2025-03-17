@@ -39,6 +39,10 @@ pub(crate) fn delete_memory_data<S: StateReader>(HintArgs { .. }: HintArgs<'_, S
     todo!()
 }
 
+pub(crate) fn is_leaf<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
+    todo!()
+}
+
 pub(crate) fn iter_current_segment_info<S: StateReader>(
     HintArgs { .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
