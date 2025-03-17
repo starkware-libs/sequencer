@@ -10,6 +10,7 @@ use starknet_sequencer_node::deployment::{
     get_batcher_config,
     get_class_manager_config,
     get_consensus_manager_config,
+    get_consolidated_config,
     get_gateway_config,
     get_http_server_config,
     get_l1_provider_config,
@@ -18,6 +19,7 @@ use starknet_sequencer_node::deployment::{
     get_state_sync_config,
     DistributedNodeServiceConfigPair,
 };
+
 /// Holds the component configs for a set of sequencers, composing a single sequencer node.
 pub struct NodeComponentConfigs {
     component_configs: Vec<ComponentConfig>,
@@ -117,11 +119,12 @@ pub fn create_consolidated_sequencer_configs(
     num_of_consolidated_nodes: usize,
 ) -> Vec<NodeComponentConfigs> {
     // Both batcher, http server and state sync are in executable index 0.
-    std::iter::repeat_with(|| NodeComponentConfigs::new(vec![ComponentConfig::default()], 0, 0, 0))
+    std::iter::repeat_with(|| NodeComponentConfigs::new(vec![get_consolidated_config()], 0, 0, 0))
         .take(num_of_consolidated_nodes)
         .collect()
 }
 
+// TODO(Nadin/Tsabary): create this as a deployment fn.
 // TODO(Nadin/Tsabary): find a better name for this function.
 fn get_http_container_config(
     gateway_socket: SocketAddr,
