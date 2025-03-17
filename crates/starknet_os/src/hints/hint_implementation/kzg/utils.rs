@@ -189,7 +189,9 @@ pub(crate) fn split_commitment(commitment: &KzgCommitment) -> Result<(Felt, Felt
     Ok((Felt::from_bytes_be_slice(low), Felt::from_bytes_be_slice(high)))
 }
 
-fn polynomial_coefficients_to_blob(coefficients: Vec<BigUint>) -> Result<Vec<u8>, FftError> {
+pub(crate) fn polynomial_coefficients_to_blob(
+    coefficients: Vec<BigUint>,
+) -> Result<Vec<u8>, FftError> {
     if coefficients.len() > FIELD_ELEMENTS_PER_BLOB {
         return Err(FftError::TooManyCoefficients(coefficients.len()));
     }
