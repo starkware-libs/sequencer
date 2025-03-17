@@ -189,6 +189,11 @@ pub fn create_node_config(
         to_value(fee_token_addresses.eth_fee_token_address)
             .expect("Failed to serialize ContractAddress"),
     );
+    config_pointers_map.change_target_value(
+        "strk_fee_token_address",
+        to_value(fee_token_addresses.strk_fee_token_address)
+            .expect("Failed to serialize ContractAddress"),
+    );
 
     (
         SequencerNodeConfig {
@@ -207,7 +212,6 @@ pub fn create_node_config(
             ..Default::default()
         },
         RequiredParams {
-            strk_fee_token_address: fee_token_addresses.strk_fee_token_address,
             validator_id,
             recorder_url,
             base_layer_config: EthereumBaseLayerConfigRequiredParams {
