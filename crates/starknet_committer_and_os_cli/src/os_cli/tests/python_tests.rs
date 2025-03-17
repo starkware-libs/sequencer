@@ -197,14 +197,12 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_code::{
     VM_EXIT_SCOPE,
     XS_SAFE_DIV,
 };
-use cairo_vm::types::program::Program;
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use cairo_vm::vm::runners::cairo_runner::CairoArg;
-use starknet_os::hint_processor::snos_hint_processor::SnosHintProcessor;
 use starknet_os::hints::enum_definition::{AggregatorHint, HintExtension, OsHint};
 use starknet_os::hints::types::HintEnum;
-use starknet_os::test_utils::cairo_runner::run_cairo_0_entry_point;
 use starknet_os::test_utils::errors::Cairo0EntryPointRunnerError;
+use starknet_os::test_utils::utils::run_cairo_function_and_check_result;
 use strum::IntoEnumIterator;
 use strum_macros::Display;
 use thiserror;
@@ -281,33 +279,28 @@ fn compare_os_hints(input: &str) -> OsPythonTestResult {
     Ok(serde_json::to_string(&(only_in_python, only_in_rust))?)
 }
 
-fn run_cairo_function(
+fn test_cairo_function(
     program_str: &str,
     function_name: &str,
     explicit_args: &[CairoArg],
     expected_retdata: &Retdata,
 ) -> OsPythonTestResult {
-    let program_bytes = program_str.as_bytes();
-    let program = Program::from_bytes(program_bytes, None).unwrap();
-    let hint_processor = SnosHintProcessor::new_for_testing(None, None, Some(program.clone()));
-    let actual_retdata = run_cairo_0_entry_point(
-        &program,
+    run_cairo_function_and_check_result(
+        program_str,
         function_name,
-        expected_retdata.0.len(),
         explicit_args,
-        hint_processor,
+        expected_retdata,
     )
     .map_err(|error| {
         PythonTestError::SpecificError(OsSpecificTestError::Cairo0EntryPointRunner(error))
     })?;
-    assert_eq!(expected_retdata, &actual_retdata);
     Ok("".to_string())
 }
 
 fn run_dummy_cairo_function(input: &str) -> OsPythonTestResult {
     let param_1 = 123;
     let param_2 = 456;
-    run_cairo_function(
+    test_cairo_function(
         input,
         "dummy_function",
         &[MaybeRelocatable::from(param_1).into(), MaybeRelocatable::from(param_2).into()],
@@ -326,7 +319,7 @@ fn test_constants(input: &str) -> OsPythonTestResult {
     let alias_counter_storage_key = 0;
     let initial_available_alias = 128;
     let alias_contract_address = 2;
-    run_cairo_function(
+    test_cairo_function(
         input,
         "test_constants",
         &[
