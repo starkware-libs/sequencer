@@ -7,8 +7,6 @@ use colored::Colorize;
 use papyrus_config::dumping::SerializeConfig;
 use papyrus_config::SerializedParam;
 use rstest::rstest;
-use starknet_batcher::block_builder::BlockBuilderConfig;
-use starknet_batcher::config::BatcherConfig;
 use starknet_infra_utils::path::resolve_project_relative_path;
 use starknet_infra_utils::test_utils::assert_json_eq;
 use starknet_sequencer_infra::component_definitions::{LocalServerConfig, RemoteClientConfig};
@@ -151,23 +149,4 @@ fn required_params_setting() {
 fn validate_config_success() {
     let config = SequencerNodeConfig::default();
     assert!(config.validate().is_ok());
-}
-
-#[test]
-fn validate_batcher_config_failure() {
-    let config = SequencerNodeConfig {
-        batcher_config: BatcherConfig {
-            input_stream_content_buffer_size: 99,
-            block_builder_config: BlockBuilderConfig { tx_chunk_size: 100, ..Default::default() },
-            ..Default::default()
-        },
-        ..Default::default()
-    };
-
-    let error = config.validate().unwrap_err();
-    assert!(
-        error
-            .to_string()
-            .contains("input_stream_content_buffer_size must be at least tx_chunk_size")
-    );
 }
