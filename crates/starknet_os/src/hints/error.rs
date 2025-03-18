@@ -12,6 +12,7 @@ use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use num_bigint::{BigUint, TryFromBigIntError};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
+use starknet_api::executable_transaction::Transaction;
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
 
@@ -76,6 +77,8 @@ pub enum OsHintError {
     StatelessCompressionOverflow { n_bits: usize, type_name: String },
     #[error(transparent)]
     TryFromBigUint(#[from] TryFromBigIntError<BigUint>),
+    #[error("Unexpected tx type: {0:?}.")]
+    UnexpectedTxType(Transaction),
     #[error("Unknown hint string: {0}")]
     UnknownHint(String),
     #[error(transparent)]

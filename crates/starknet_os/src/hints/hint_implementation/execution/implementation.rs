@@ -9,26 +9,57 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     insert_value_from_var_name,
     insert_value_into_ap,
 };
+use cairo_vm::types::relocatable::MaybeRelocatable;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::state::StorageKey;
+use starknet_api::transaction::fields::ValidResourceBounds;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
 use crate::syscall_handler_utils::SyscallHandlerType;
-use crate::vm_utils::get_address_of_nested_fields;
+use crate::vm_utils::{get_address_of_nested_fields, LoadCairoObject};
 
 pub(crate) fn load_next_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
     todo!()
 }
 
 pub(crate) fn load_resource_bounds<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { exec_scopes, vm, ids_data, ap_tracking, hint_processor, constants }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    // Guess the resource bounds.
+    let tx = exec_scopes.get::<Transaction>(Scope::Tx.into())?;
+    let resource_bounds = match tx {
+        Transaction::Account(account_tx) => account_tx.resource_bounds(),
+        Transaction::L1Handler(_) => return Err(OsHintError::UnexpectedTxType(tx)),
+    };
+    if let ValidResourceBounds::L1Gas(_) = resource_bounds {
+        return Err(OsHintError::AssertionFailed {
+            message: "Only transactions with 3 resource bounds are supported. Got 1 resource \
+                      bounds."
+                .to_string(),
+        });
+    }
+
+    let resource_bound_address = vm.add_memory_segment();
+    resource_bounds.load_into(
+        vm,
+        &hint_processor.execution_helper.os_program,
+        resource_bound_address,
+        constants,
+    )?;
+
+    insert_value_from_var_name(
+        Ids::ResourceBounds.into(),
+        MaybeRelocatable::RelocatableValue(resource_bound_address),
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    Ok(())
 }
 
 pub(crate) fn exit_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
