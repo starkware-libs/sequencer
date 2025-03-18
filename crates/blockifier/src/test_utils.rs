@@ -10,6 +10,7 @@ pub mod test_templates;
 pub mod transfers_generator;
 use std::collections::HashMap;
 use std::slice::Iter;
+use std::sync::Arc;
 
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
@@ -31,11 +32,13 @@ use starknet_api::test_utils::{
     MAX_FEE,
     TEST_SEQUENCER_ADDRESS,
 };
+use starknet_api::transaction::fields::Resource::{L1DataGas, L1Gas, L2Gas};
 use starknet_api::transaction::fields::{
     Calldata,
     ContractAddressSalt,
     Fee,
     GasVectorComputationMode,
+    Resource,
 };
 use starknet_api::{contract_address, felt};
 use starknet_types_core::felt::Felt;
@@ -44,13 +47,18 @@ use strum_macros::EnumCount as EnumCountMacro;
 
 use crate::abi::constants;
 use crate::blockifier_versioned_constants::VersionedConstants;
+use crate::context::BlockContext;
 use crate::execution::call_info::ExecutionSummary;
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::syscalls::hint_processor::{SyscallUsage, SyscallUsageMap};
 use crate::execution::syscalls::SyscallSelector;
 use crate::fee::resources::{StarknetResources, StateResources};
+use crate::test_utils::initial_test_state::test_state;
+use crate::test_utils::l1_handler::l1handler_tx;
+use crate::transaction::objects::{TransactionExecutionInfo, TransactionExecutionResult};
 use crate::transaction::transaction_types::TransactionType;
+use crate::transaction::transactions::ExecutableTransaction;
 use crate::utils::{const_max, u64_from_usize};
 // Class hashes.
 // TODO(Adi, 15/01/2023): Remove and compute the class hash corresponding to the ERC20 contract in
@@ -390,4 +398,33 @@ pub fn maybe_dummy_block_hash_and_number(block_number: BlockNumber) -> Option<Bl
         number: BlockNumber(block_number.0 - constants::STORED_BLOCK_HASH_BUFFER),
         hash: BlockHash(StarkHash::ONE),
     })
+}
+
+/// Updates the specified resource bound in the block context's OS constants.
+fn modify_l1_handler_bound(
+    block_context: &mut BlockContext,
+    resource: Resource,
+    new_bound: GasAmount,
+) {
+    let os_constants = Arc::make_mut(&mut block_context.versioned_constants.os_constants);
+    match resource {
+        L1Gas => os_constants.l1_handler_max_amount_bounds.l1_gas = new_bound,
+        L2Gas => os_constants.l1_handler_max_amount_bounds.l2_gas = new_bound,
+        L1DataGas => os_constants.l1_handler_max_amount_bounds.l1_data_gas = new_bound,
+    }
+}
+
+pub fn execute_l1_handler_with_bound(
+    resource: Resource,
+    new_bound: GasAmount,
+) -> TransactionExecutionResult<TransactionExecutionInfo> {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let mut block_context = BlockContext::create_for_testing();
+    let chain_info = block_context.chain_info.clone();
+    let mut state = test_state(&chain_info, BALANCE, &[(test_contract, 1)]);
+    let contract_address = test_contract.get_instance_address(0);
+    modify_l1_handler_bound(&mut block_context, resource, new_bound);
+    let tx = l1handler_tx(Fee(1), contract_address);
+
+    tx.execute(&mut state, &block_context)
 }
