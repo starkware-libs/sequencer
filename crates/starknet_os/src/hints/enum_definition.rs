@@ -385,7 +385,8 @@ define_hint_enum!(
         bytecode_segment_structure,
         indoc! {r#"
     vm_enter_scope({
-        "bytecode_segment_structure": bytecode_segment_structures[ids.compiled_class_fact.hash]
+        "bytecode_segment_structure": bytecode_segment_structures[ids.compiled_class_fact.hash],
+        "is_segment_used_callback": is_segment_used_callback
     })"#}
     ),
     (
@@ -521,14 +522,22 @@ define_hint_enum!(
             assert next(bytecode_segments, None) is None"#
         }
     ),
-    (DeleteMemoryData, delete_memory_data, "del memory.data[ids.data_ptr]"),
+    (
+        DeleteMemoryData,
+        delete_memory_data,
+        indoc! {r#"
+            # Sanity check.
+            assert not is_accessed(ids.data_ptr), "The segment is skipped but was accessed."
+            del memory.data[ids.data_ptr]"#
+        }
+    ),
     (
         IterCurrentSegmentInfo,
         iter_current_segment_info,
         indoc! {r#"
     current_segment_info = next(bytecode_segments)
 
-    is_used = current_segment_info.is_used
+    is_used = is_segment_used_callback(ids.data_ptr, current_segment_info.segment_length)
     ids.is_segment_used = 1 if is_used else 0
 
     is_used_leaf = is_used and isinstance(current_segment_info.inner_structure, BytecodeLeaf)
@@ -537,6 +546,7 @@ define_hint_enum!(
     ids.segment_length = current_segment_info.segment_length
     vm_enter_scope(new_scope_locals={
         "bytecode_segment_structure": current_segment_info.inner_structure,
+        "is_segment_used_callback": is_segment_used_callback
     })"#
         }
     ),
@@ -551,45 +561,22 @@ define_hint_enum!(
         ValidateCompiledClassFactsPostExecution,
         validate_compiled_class_facts_post_execution,
         indoc! {r#"
-    from starkware.cairo.lang.vm.relocatable import RelocatableValue
+    from starkware.starknet.core.os.contract_class.compiled_class_hash import (
+        BytecodeAccessOracle,
+    )
 
-    bytecode_segment_to_length = {}
-    compiled_hash_to_bytecode_segment = {}
-    for i in range(ids.n_compiled_class_facts):
-        fact = ids.compiled_class_facts[i]
-        bytecode_segment = fact.compiled_class.bytecode_ptr.segment_index
-        bytecode_segment_to_length[bytecode_segment] = fact.compiled_class.bytecode_length
-        compiled_hash_to_bytecode_segment[fact.hash] = bytecode_segment
-
-    bytecode_segment_to_visited_pcs = {
-        bytecode_segment: [] for bytecode_segment in bytecode_segment_to_length
-    }
-    for addr in iter_accessed_addresses():
-        if (
-            isinstance(addr, RelocatableValue)
-            and addr.segment_index in bytecode_segment_to_visited_pcs
-        ):
-            bytecode_segment_to_visited_pcs[addr.segment_index].append(addr.offset)
-
-    # Sort and remove the program extra data, which is not part of the hash.
-    for bytecode_segment, visited_pcs in bytecode_segment_to_visited_pcs.items():
-        visited_pcs.sort()
-        while (
-            len(visited_pcs) > 0
-            and visited_pcs[-1] >= bytecode_segment_to_length[bytecode_segment]
-        ):
-            visited_pcs.pop()
-
-    # Build the bytecode segment structures based on the execution info.
+    # Build the bytecode segment structures.
     bytecode_segment_structures = {
         compiled_hash: create_bytecode_segment_structure(
             bytecode=compiled_class.bytecode,
             bytecode_segment_lengths=compiled_class.bytecode_segment_lengths,
-            visited_pcs=bytecode_segment_to_visited_pcs[
-                compiled_hash_to_bytecode_segment[compiled_hash]
-            ],
         ) for compiled_hash, compiled_class in os_input.compiled_classes.items()
-    }"#}
+    }
+    bytecode_segment_access_oracle = BytecodeAccessOracle(is_pc_accessed_callback=is_accessed)
+    vm_enter_scope({
+        "bytecode_segment_structures": bytecode_segment_structures,
+        "is_segment_used_callback": bytecode_segment_access_oracle.is_segment_used
+    })"#}
     ),
     (
         EnterScopeWithAliases,
