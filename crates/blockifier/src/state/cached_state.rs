@@ -101,10 +101,14 @@ impl<S: StateReader> CachedState<S> {
         Ok(())
     }
 
+    pub fn writes_contract_addresses(&self) -> HashSet<ContractAddress> {
+        self.cache.borrow().writes.get_contract_addresses()
+    }
+
     // TODO(Aner): move under OS cfg flag.
     // TODO(Aner): Try to avoid cloning.
-    pub fn get_state_maps(&self) -> StateResult<StateMaps> {
-        Ok(self.cache.borrow().writes.clone())
+    pub fn writes_compiled_class_hashes(&self) -> HashMap<ClassHash, CompiledClassHash> {
+        self.cache.borrow().writes.get_compiled_class_hashes()
     }
 }
 
@@ -347,6 +351,11 @@ impl StateMaps {
                 &other.declared_contracts,
             ),
         }
+    }
+
+    // TODO(Aner): Try to avoid cloning.
+    pub fn get_compiled_class_hashes(&self) -> HashMap<ClassHash, CompiledClassHash> {
+        self.compiled_class_hashes.clone()
     }
 
     pub fn get_contract_addresses(&self) -> HashSet<ContractAddress> {
