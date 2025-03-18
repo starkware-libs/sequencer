@@ -21,6 +21,8 @@ use crate::hints::vars::{Const, Ids};
 pub enum OsHintError {
     #[error("Assertion failed: {message}")]
     AssertionFailed { message: String },
+    #[error("Unexpectedly assigned leaf bytecode segment.")]
+    AssignedLeafBytecodeSegment,
     #[error("Block number is probably < {stored_block_hash_buffer}.")]
     BlockNumberTooSmall { stored_block_hash_buffer: Felt },
     #[error("{id:?} value {felt} is not a boolean.")]
