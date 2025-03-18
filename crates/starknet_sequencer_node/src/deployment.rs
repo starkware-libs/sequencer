@@ -4,7 +4,7 @@ use std::path::Path;
 
 use serde::{Serialize, Serializer};
 use starknet_api::core::ChainId;
-use strum::{EnumVariantNames, IntoEnumIterator};
+use strum::{Display, EnumVariantNames, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 
 use crate::config::component_config::ComponentConfig;
@@ -15,6 +15,9 @@ use crate::config::component_execution_config::{
 
 const BASE_PORT: u16 = 55000; // TODO(Tsabary): arbitrary port, need to resolve.
 const DEPLOYMENT_IMAGE: &str = "ghcr.io/starkware-libs/sequencer/sequencer:dev";
+const DEPLOYMENT_CONFIG_BASE_DIR_PATH: &str = "config/sequencer/presets/";
+// TODO(Tsabary): need to distinguish between test and production configs in dir structure.
+const APPLICATION_CONFIG_DIR_NAME: &str = "application_configs";
 
 pub struct DeploymentAndPreset {
     pub deployment: Deployment,
@@ -31,20 +34,21 @@ impl DeploymentAndPreset {
 pub struct Deployment {
     chain_id: ChainId,
     image: &'static str,
-    application_config_subdir: &'static str,
+    application_config_subdir: String,
     services: Vec<Service>,
 }
 
 impl Deployment {
-    pub fn new(
-        chain_id: ChainId,
-        application_config_subdir: &'static str,
-        deployment_name: DeploymentName,
-    ) -> Self {
+    pub fn new(chain_id: ChainId, deployment_name: DeploymentName) -> Self {
         let service_names = deployment_name.all_service_names();
         let services =
             service_names.iter().map(|service_name| service_name.create_service()).collect();
-        Self { chain_id, image: DEPLOYMENT_IMAGE, application_config_subdir, services }
+        Self {
+            chain_id,
+            image: DEPLOYMENT_IMAGE,
+            application_config_subdir: deployment_name.get_path(),
+            services,
+        }
     }
 
     #[cfg(test)]
@@ -52,7 +56,7 @@ impl Deployment {
         // TODO(Tsabary): avoid cloning here.
         for service in self.services.clone() {
             // Concatenate paths.
-            let subdir_path = Path::new(self.application_config_subdir);
+            let subdir_path = Path::new(&self.application_config_subdir);
             let full_path = subdir_path.join(service.config_path);
             // Assert existence.
             assert!(full_path.exists(), "File does not exist: {:?}", full_path);
@@ -63,7 +67,7 @@ impl Deployment {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Service {
     name: ServiceName,
-    config_path: &'static str,
+    config_path: String,
     ingress: bool,
     autoscale: bool,
     replicas: usize,
@@ -73,12 +77,12 @@ pub struct Service {
 impl Service {
     pub fn new(
         name: ServiceName,
-        config_path: &'static str,
         ingress: bool,
         autoscale: bool,
         replicas: usize,
         storage: Option<usize>,
     ) -> Self {
+        let config_path = name.get_config_file_path();
         Self { name, config_path, ingress, autoscale, replicas, storage }
     }
 }
@@ -86,12 +90,24 @@ impl Service {
 #[derive(Clone, Debug, PartialEq, EnumDiscriminants)]
 #[strum_discriminants(
     name(DeploymentName),
-    derive(IntoStaticStr, EnumIter, EnumVariantNames, Serialize),
-    strum(serialize_all = "PascalCase")
+    derive(IntoStaticStr, EnumIter, EnumVariantNames, Serialize, Display),
+    strum(serialize_all = "snake_case")
 )]
 pub enum ServiceName {
     ConsolidatedNode(ConsolidatedNodeServiceName),
     DistributedNode(DistributedNodeServiceName),
+}
+
+impl ServiceName {
+    pub fn get_config_file_path(&self) -> String {
+        // TODO(Tsabary): find a way to avoid this code duplication.
+        let mut name = match self {
+            Self::ConsolidatedNode(inner) => inner.to_string(),
+            Self::DistributedNode(inner) => inner.to_string(),
+        };
+        name.push_str(".json");
+        name
+    }
 }
 
 // Implement conversion from `DistributedNodeServiceName` to `ServiceName`
@@ -130,6 +146,10 @@ impl DeploymentName {
             }
         }
     }
+
+    pub fn get_path(&self) -> String {
+        format!("{}/{}/{}/", DEPLOYMENT_CONFIG_BASE_DIR_PATH, self, APPLICATION_CONFIG_DIR_NAME)
+    }
 }
 
 // TODO(Tsabary): each deployment should be in its own module.
@@ -141,15 +161,9 @@ pub trait IntoService {
 impl IntoService for ConsolidatedNodeServiceName {
     fn create_service(&self) -> Service {
         match self {
-            ConsolidatedNodeServiceName::Node => Service::new(
-                self.clone().into(),
-                // TODO(Tsabary): derive config path in a meaningful way.
-                "node_0/executable_0/node_config.json",
-                false,
-                false,
-                1,
-                Some(32),
-            ),
+            ConsolidatedNodeServiceName::Node => {
+                Service::new(self.clone().into(), false, false, 1, Some(32))
+            }
         }
     }
 }
@@ -167,13 +181,15 @@ impl Serialize for ServiceName {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, AsRefStr, EnumIter)]
+#[derive(Clone, Debug, Display, PartialEq, Serialize, AsRefStr, EnumIter)]
+#[strum(serialize_all = "snake_case")]
 pub enum ConsolidatedNodeServiceName {
     Node,
 }
 
 #[repr(u16)]
-#[derive(Clone, Debug, PartialEq, Serialize, AsRefStr, EnumIter)]
+#[derive(Clone, Debug, Display, PartialEq, Serialize, AsRefStr, EnumIter)]
+#[strum(serialize_all = "snake_case")]
 pub enum DistributedNodeServiceName {
     Batcher,
     ClassManager,
@@ -190,87 +206,33 @@ pub enum DistributedNodeServiceName {
 impl IntoService for DistributedNodeServiceName {
     fn create_service(&self) -> Service {
         match self {
-            DistributedNodeServiceName::Batcher => Service::new(
-                self.clone().into(),
-                // TODO(Tsabary): derive config path in a meaningful way.
-                "node_0/executable_0/node_config.json",
-                false,
-                false,
-                1,
-                Some(32),
-            ),
-            DistributedNodeServiceName::ClassManager => Service::new(
-                self.clone().into(),
-                // TODO(Tsabary): derive config path in a meaningful way.
-                "node_0/executable_0/node_config.json",
-                false,
-                false,
-                1,
-                Some(32),
-            ),
-            DistributedNodeServiceName::ConsensusManager => Service::new(
-                self.clone().into(),
-                // TODO(Tsabary): derive config path in a meaningful way.
-                "node_0/executable_0/node_config.json",
-                false,
-                false,
-                1,
-                Some(32),
-            ),
-            DistributedNodeServiceName::HttpServer => Service::new(
-                self.clone().into(),
-                // TODO(Tsabary): derive config path in a meaningful way.
-                "node_0/executable_0/node_config.json",
-                false,
-                false,
-                1,
-                Some(32),
-            ),
-            DistributedNodeServiceName::Gateway => Service::new(
-                self.clone().into(),
-                // TODO(Tsabary): derive config path in a meaningful way.
-                "node_0/executable_0/node_config.json",
-                false,
-                false,
-                1,
-                Some(32),
-            ),
-            DistributedNodeServiceName::L1Provider => Service::new(
-                self.clone().into(),
-                // TODO(Tsabary): derive config path in a meaningful way.
-                "node_0/executable_0/node_config.json",
-                false,
-                false,
-                1,
-                Some(32),
-            ),
-            DistributedNodeServiceName::Mempool => Service::new(
-                self.clone().into(),
-                // TODO(Tsabary): derive config path in a meaningful way.
-                "node_0/executable_0/node_config.json",
-                false,
-                false,
-                1,
-                Some(32),
-            ),
-            DistributedNodeServiceName::SierraCompiler => Service::new(
-                self.clone().into(),
-                // TODO(Tsabary): derive config path in a meaningful way.
-                "node_0/executable_0/node_config.json",
-                false,
-                false,
-                1,
-                Some(32),
-            ),
-            DistributedNodeServiceName::StateSync => Service::new(
-                self.clone().into(),
-                // TODO(Tsabary): derive config path in a meaningful way.
-                "node_0/executable_0/node_config.json",
-                false,
-                false,
-                1,
-                Some(32),
-            ),
+            DistributedNodeServiceName::Batcher => {
+                Service::new(self.clone().into(), false, false, 1, Some(32))
+            }
+            DistributedNodeServiceName::ClassManager => {
+                Service::new(self.clone().into(), false, false, 1, Some(32))
+            }
+            DistributedNodeServiceName::ConsensusManager => {
+                Service::new(self.clone().into(), false, false, 1, Some(32))
+            }
+            DistributedNodeServiceName::HttpServer => {
+                Service::new(self.clone().into(), false, false, 1, Some(32))
+            }
+            DistributedNodeServiceName::Gateway => {
+                Service::new(self.clone().into(), false, false, 1, Some(32))
+            }
+            DistributedNodeServiceName::L1Provider => {
+                Service::new(self.clone().into(), false, false, 1, Some(32))
+            }
+            DistributedNodeServiceName::Mempool => {
+                Service::new(self.clone().into(), false, false, 1, Some(32))
+            }
+            DistributedNodeServiceName::SierraCompiler => {
+                Service::new(self.clone().into(), false, false, 1, Some(32))
+            }
+            DistributedNodeServiceName::StateSync => {
+                Service::new(self.clone().into(), false, false, 1, Some(32))
+            }
         }
     }
 }
