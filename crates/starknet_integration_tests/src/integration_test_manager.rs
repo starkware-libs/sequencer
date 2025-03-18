@@ -77,11 +77,13 @@ pub const BLOCK_TO_WAIT_FOR_BOOTSTRAP: BlockNumber = BlockNumber(2);
 
 pub const HTTP_PORT_ARG: &str = "http-port";
 pub const MONITORING_PORT_ARG: &str = "monitoring-port";
+pub const BASE_LAYER_PORT_ARG: &str = "base-layer-port";
 
 pub struct NodeSetup {
     executables: Vec<ExecutableSetup>,
     batcher_index: usize,
     http_server_index: usize,
+    l1_provider_index: usize,
     state_sync_index: usize,
 
     // Client for adding transactions to the sequencer node.
@@ -105,6 +107,7 @@ impl NodeSetup {
         executables: Vec<ExecutableSetup>,
         batcher_index: usize,
         http_server_index: usize,
+        l1_provider_index: usize,
         state_sync_index: usize,
         add_tx_http_client: HttpTestClient,
         batcher_storage_handle: Option<TempDir>,
@@ -125,12 +128,14 @@ impl NodeSetup {
 
         validate_index(batcher_index, len, "Batcher");
         validate_index(http_server_index, len, "HTTP server");
+        validate_index(l1_provider_index, len, "L1 scraper");
         validate_index(state_sync_index, len, "State sync");
 
         Self {
             executables,
             batcher_index,
             http_server_index,
+            l1_provider_index,
             state_sync_index,
             add_tx_http_client,
             batcher_storage_handle,
@@ -171,7 +176,8 @@ impl NodeSetup {
     pub fn generate_simulator_ports_json(&self, path: &str) {
         let json_data = serde_json::json!({
             HTTP_PORT_ARG: self.executables[self.http_server_index].config.http_server_config.port,
-            MONITORING_PORT_ARG: self.executables[self.batcher_index].config.monitoring_endpoint_config.port
+            MONITORING_PORT_ARG: self.executables[self.batcher_index].config.monitoring_endpoint_config.port,
+            BASE_LAYER_PORT_ARG: self.executables[self.l1_provider_index].config.base_layer_config.node_url.port().unwrap()
         });
 
         dump_json_data(json_data, &PathBuf::from(path));
@@ -476,6 +482,12 @@ impl IntegrationTestManager {
             config.http_server_config.port,
             localhost_url,
             config.monitoring_endpoint_config.port,
+            config.base_layer_config.node_url.to_string(),
+            config
+                .base_layer_config
+                .node_url
+                .port()
+                .expect("Failed to get base layer port from config."),
         )
     }
 
@@ -736,6 +748,7 @@ pub async fn get_sequencer_setup_configs(
         let mut executables = Vec::new();
         let batcher_index = node_component_config.get_batcher_index();
         let http_server_index = node_component_config.get_http_server_index();
+        let l1_provider_index = node_component_config.get_l1_provider_index();
         let state_sync_index = node_component_config.get_state_sync_index();
         let class_manager_index = node_component_config.get_class_manager_index();
 
@@ -809,6 +822,7 @@ pub async fn get_sequencer_setup_configs(
             executables,
             batcher_index,
             http_server_index,
+            l1_provider_index,
             state_sync_index,
             add_tx_http_client,
             storage_setup.batcher_storage_handle,

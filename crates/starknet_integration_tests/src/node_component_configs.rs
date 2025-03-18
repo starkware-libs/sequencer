@@ -8,6 +8,7 @@ pub struct NodeComponentConfigs {
     component_configs: Vec<ComponentConfig>,
     batcher_index: usize,
     http_server_index: usize,
+    l1_provider_index: usize,
     state_sync_index: usize,
     class_manager_index: usize,
 }
@@ -17,6 +18,7 @@ impl NodeComponentConfigs {
         component_configs: Vec<ComponentConfig>,
         batcher_index: usize,
         http_server_index: usize,
+        l1_provider_index: usize,
         state_sync_index: usize,
         class_manager_index: usize,
     ) -> Self {
@@ -24,6 +26,7 @@ impl NodeComponentConfigs {
             component_configs,
             batcher_index,
             http_server_index,
+            l1_provider_index,
             state_sync_index,
             class_manager_index,
         }
@@ -43,6 +46,10 @@ impl NodeComponentConfigs {
 
     pub fn get_http_server_index(&self) -> usize {
         self.http_server_index
+    }
+
+    pub fn get_l1_provider_index(&self) -> usize {
+        self.l1_provider_index
     }
 
     pub fn get_state_sync_index(&self) -> usize {
@@ -70,6 +77,7 @@ pub fn create_consolidated_sequencer_configs(
     std::iter::repeat_with(|| {
         NodeComponentConfigs::new(
             DeploymentName::ConsolidatedNode.get_component_configs(None).into_values().collect(),
+            0,
             0,
             0,
             0,
@@ -112,6 +120,9 @@ pub fn create_nodes_deployment_units_configs(
                 .unwrap(),
             services_component_config
                 .get_index_of::<ServiceName>(&DistributedNodeServiceName::HttpServer.into())
+                .unwrap(),
+            services_component_config
+                .get_index_of::<ServiceName>(&DistributedNodeServiceName::L1Provider.into())
                 .unwrap(),
             services_component_config
                 .get_index_of::<ServiceName>(&DistributedNodeServiceName::StateSync.into())
