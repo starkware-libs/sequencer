@@ -34,3 +34,8 @@ pub struct CommitBlockArgs {
 }
 
 pub type MempoolResult<T> = Result<T, MempoolError>;
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct MempoolSnapshot {
+    pub transactions: Vec<TransactionHash>,
+}
