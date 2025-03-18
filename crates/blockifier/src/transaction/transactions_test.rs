@@ -96,10 +96,12 @@ use crate::execution::call_info::{
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::{CallEntryPoint, CallType};
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
+use crate::execution::stack_trace::Cairo1RevertSummary;
 use crate::execution::syscalls::hint_processor::EmitEventError;
 #[cfg(feature = "cairo_native")]
 use crate::execution::syscalls::hint_processor::SyscallExecutionError;
 use crate::execution::syscalls::SyscallSelector;
+use crate::fee::fee_checks::FeeCheckError;
 use crate::fee::fee_utils::{balance_to_big_uint, get_fee_by_gas_vector, GasVectorToL1GasForFee};
 use crate::fee::gas_usage::{
     estimate_minimal_gas_vector,
@@ -139,6 +141,7 @@ use crate::transaction::errors::{
 use crate::transaction::objects::{
     HasRelatedFeeType,
     TransactionExecutionInfo,
+    TransactionExecutionResult,
     TransactionInfo,
     TransactionInfoCreator,
 };
@@ -166,6 +169,7 @@ use crate::transaction::test_utils::{
     VALID,
 };
 use crate::transaction::transaction_types::TransactionType;
+use crate::transaction::transactions::test::EntryPointExecutionError::ExecutionFailed;
 use crate::transaction::transactions::ExecutableTransaction;
 use crate::{
     check_tx_execution_error_for_custom_hint,
@@ -2519,7 +2523,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
             storage_address: contract_address,
             caller_address: ContractAddress::default(),
             call_type: CallType::Call,
-            initial_gas: block_context.versioned_constants.os_constants.execute_max_sierra_gas.0,
+            initial_gas: versioned_constants.os_constants.l1_handler_resource_bounds.l2_gas.0,
         },
         execution: CallExecution {
             retdata: Retdata(vec![value]),
@@ -2646,6 +2650,73 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
             TransactionFeeError::InsufficientFee { paid_fee, actual_fee }
         )
         if paid_fee == Fee(0) && actual_fee == expected_actual_fee
+    );
+}
+
+/// Updates the specified resource bound in the block context's OS constants.
+fn modify_l1_handler_resource_bound(
+    block_context: &mut BlockContext,
+    resource: Resource,
+    new_bound: GasAmount,
+) {
+    let os_constants = Arc::make_mut(&mut block_context.versioned_constants.os_constants);
+    match resource {
+        L1Gas => os_constants.l1_handler_resource_bounds.l1_gas = new_bound,
+        L2Gas => os_constants.l1_handler_resource_bounds.l2_gas = new_bound,
+        L1DataGas => os_constants.l1_handler_resource_bounds.l1_data_gas = new_bound,
+    }
+}
+
+fn execute_l1_handler_with_bound(
+    resource: Resource,
+    new_bound: GasAmount,
+) -> TransactionExecutionResult<TransactionExecutionInfo> {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let mut block_context = BlockContext::create_for_account_testing_with_kzg(false);
+    let chain_info = block_context.chain_info.clone();
+    let mut state = test_state(&chain_info, BALANCE, &[(test_contract, 1)]);
+    let contract_address = test_contract.get_instance_address(0);
+    modify_l1_handler_resource_bound(&mut block_context, resource, new_bound);
+    let tx = l1handler_tx(Fee(1), contract_address);
+
+    tx.execute(&mut state, &block_context)
+}
+
+#[test]
+fn test_l1_handler_resource_bounds_l1gas() {
+    // Lower L1Gas bound to force error.
+    let new_bound = GasAmount(1);
+    let err = execute_l1_handler_with_bound(L1Gas, new_bound).unwrap_err();
+    // Expect a FeeCheckError::MaxGasAmountExceeded for L1Gas.
+    assert_matches!(
+        err,
+        TransactionExecutionError::FeeCheckError(FeeCheckError::MaxGasAmountExceeded {
+            resource,
+            max_amount,
+            actual_amount,
+            ..
+        }) if resource == L1Gas && max_amount == new_bound && actual_amount > new_bound
+    );
+}
+
+#[test]
+fn test_l1_handler_resource_bounds_l2gas() {
+    // Lower L2Gas bound to force execution failure.
+    let new_bound = GasAmount(1);
+    let err = execute_l1_handler_with_bound(L2Gas, new_bound).unwrap_err();
+
+    // Expected retdata ('Out of gas').
+    let expected_retdata = retdata![felt!["0x4f7574206f6620676173"]];
+
+    assert_matches!(
+        err,
+        TransactionExecutionError::ExecutionError {
+            error: ExecutionFailed {
+                error_trace: Cairo1RevertSummary { ref last_retdata, .. },
+                ..
+            },
+            ..
+        } if last_retdata == &expected_retdata
     );
 }
 

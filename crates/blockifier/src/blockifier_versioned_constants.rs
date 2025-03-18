@@ -941,6 +941,7 @@ struct OsConstantsRawJson {
     v1_bound_accounts_cairo0: Vec<ClassHash>,
     v1_bound_accounts_cairo1: Vec<ClassHash>,
     v1_bound_accounts_max_tip: Tip,
+    #[serde(default = "GasVector::default_max")]
     l1_handler_resource_bounds: GasVector,
 }
 

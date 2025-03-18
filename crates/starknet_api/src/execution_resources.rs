@@ -162,6 +162,14 @@ impl GasVector {
         }
         sum
     }
+
+    pub fn default_max() -> Self {
+        Self {
+            l1_gas: GasAmount::MAX,
+            l1_data_gas: GasAmount::MAX,
+            l2_gas: GasAmount::MAX,
+        }
+    }
 }
 
 /// Computes the total L1 gas amount estimation from the different given L1 gas arguments using the
