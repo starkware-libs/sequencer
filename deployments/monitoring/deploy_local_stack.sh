@@ -21,7 +21,7 @@ else
 fi
 
 if [ "$MONITORING_ENABLED" != true ]; then
-  services="sequencer_node_setup dummy_recorder config_injector sequencer_node sequencer_simulator"
+  services="sequencer_node_setup dummy_recorder anvil config_injector sequencer_node sequencer_simulator"
 fi
 
 echo "Running: ${docker_compose} -f ${monitoring_dir}/local/docker-compose.yml $*"
