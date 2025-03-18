@@ -28,9 +28,16 @@ use crate::vm_utils::{
 };
 
 pub(crate) fn assign_bytecode_segments<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { exec_scopes, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    let bytecode_segment_structure: BytecodeSegmentNode =
+        exec_scopes.get(Scope::BytecodeSegmentStructure.into())?;
+    if let BytecodeSegmentNode::InnerNode(node) = bytecode_segment_structure {
+        exec_scopes.insert_value(Scope::BytecodeSegments.into(), node.segments.into_iter());
+    } else {
+        unreachable!("assign_bytecode_segments should not be called on a leaf node.");
+    }
+    Ok(())
 }
 
 pub(crate) fn assert_end_of_bytecode_segments<S: StateReader>(
