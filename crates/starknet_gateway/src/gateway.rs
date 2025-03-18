@@ -4,6 +4,7 @@ use std::sync::Arc;
 use axum::async_trait;
 use blockifier::context::ChainInfo;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
+use papyrus_proc_macros::sequencer_latency_histogram;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -15,13 +16,14 @@ use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_mempool_types::communication::{AddTransactionArgsWrapper, SharedMempoolClient};
 use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
+use starknet_monitoring_endpoint;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_state_sync_types::communication::SharedStateSyncClient;
 use tracing::{debug, error, instrument, warn, Span};
 
 use crate::config::GatewayConfig;
 use crate::errors::{mempool_client_result_to_gw_spec_result, GatewayResult};
-use crate::metrics::{register_metrics, GatewayMetricHandle};
+use crate::metrics::{register_metrics, GatewayMetricHandle, GATEWAY_ADD_TX_LATENCY};
 use crate::state_reader::StateReaderFactory;
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
@@ -64,6 +66,8 @@ impl Gateway {
     }
 
     #[instrument(skip_all, ret)]
+    // TODO(Yael): add labels for http/p2p once labels are supported
+    #[sequencer_latency_histogram(GATEWAY_ADD_TX_LATENCY, true)]
     pub async fn add_tx(
         &self,
         tx: RpcTransaction,
