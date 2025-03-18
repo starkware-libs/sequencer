@@ -483,19 +483,19 @@ impl<
             block.body.transactions.len().try_into().expect("Failed to convert usize to u64");
         let timestamp = block.header.block_header_without_hash.timestamp;
         self.perform_storage_writes(move |writer| {
-            writer
+            let mut txn = writer
                 .begin_rw_txn()?
                 .append_header(block_number, &block.header)?
                 .append_block_signature(block_number, &signature)?
-                .append_body(block_number, block.body)?
-                .commit()?;
+                .append_body(block_number, block.body)?;
             if block.header.block_header_without_hash.starknet_version
                 < STARKNET_VERSION_TO_COMPILE_FROM
             {
-                writer.begin_rw_txn()?.update_compiler_backward_compatibility_marker(
+                txn = txn.update_compiler_backward_compatibility_marker(
                     &block_number.unchecked_next(),
                 )?;
             }
+            txn.commit()?;
             Ok(())
         })
         .await?;
