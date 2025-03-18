@@ -24,23 +24,29 @@ pub const SINGLE_NODE_CONFIG_PATH: &str =
 pub const MAIN_DEPLOYMENT_PRESET_PATH: &str = "config/sequencer/presets/main.json";
 pub const MAIN_DEPLOYMENT_APP_CONFIG_SUBDIR: &str =
     "config/sequencer/presets/system_test_presets/single_node/";
-pub const MAIN_DEPLOYMENT: Deployment<'_> = Deployment::new(
-    ChainId::Mainnet,
-    DEPLOYMENT_IMAGE,
-    MAIN_DEPLOYMENT_APP_CONFIG_SUBDIR,
-    &[BATCHER_MAIN, GATEWAY_MAIN, MEMPOOL_MAIN],
-);
+
+pub fn create_main_deployment() -> Deployment<'static> {
+    Deployment::new(
+        ChainId::Mainnet,
+        DEPLOYMENT_IMAGE,
+        MAIN_DEPLOYMENT_APP_CONFIG_SUBDIR,
+        &[BATCHER_MAIN, GATEWAY_MAIN, MEMPOOL_MAIN],
+    )
+}
 
 pub const TESTING_DEPLOYMENT_PRESET_PATH: &str =
     "config/sequencer/deployment_configs/testing/nightly_test_all_in_one.json";
 pub const TESTING_DEPLOYMENT_APP_CONFIG_SUBDIR: &str =
     "config/sequencer/presets/system_test_presets/single_node/";
-pub const TESTING_DEPLOYMENT: Deployment<'_> = Deployment::new(
-    ChainId::IntegrationSepolia,
-    DEPLOYMENT_IMAGE,
-    TESTING_DEPLOYMENT_APP_CONFIG_SUBDIR,
-    &[CONSOLIDATED_TESTING],
-);
+
+pub fn create_testing_deployment() -> Deployment<'static> {
+    Deployment::new(
+        ChainId::IntegrationSepolia,
+        DEPLOYMENT_IMAGE,
+        TESTING_DEPLOYMENT_APP_CONFIG_SUBDIR,
+        &[CONSOLIDATED_TESTING],
+    )
+}
 
 // Main deployment services.
 // TODO(Tsabary): fill in correct application configs.
