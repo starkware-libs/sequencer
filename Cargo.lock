@@ -11668,6 +11668,7 @@ dependencies = [
  "starknet_sierra_multicompile_types",
  "starknet_state_sync",
  "starknet_state_sync_types",
+ "strum 0.25.0",
  "strum_macros 0.25.3",
  "tikv-jemallocator",
  "tokio",
