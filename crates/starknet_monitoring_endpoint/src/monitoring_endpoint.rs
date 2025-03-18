@@ -8,9 +8,10 @@ use hyper::Error;
 use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
 use starknet_infra_utils::type_name::short_type_name;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
+use starknet_sequencer_metrics::metrics::COLLECT_SEQUENCER_PROFILING_METRICS;
 use tracing::{info, instrument};
 
-use crate::config::{MonitoringEndpointConfig, COLLECT_SEQUENCER_PROFILING_METRICS};
+use crate::config::MonitoringEndpointConfig;
 
 #[cfg(test)]
 #[path = "monitoring_endpoint_test.rs"]
