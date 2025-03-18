@@ -50,17 +50,13 @@ use starknet_gateway::config::{
 };
 use starknet_http_server::test_utils::create_http_server_config;
 use starknet_infra_utils::test_utils::AvailablePorts;
+use starknet_l1_gas_price::price_oracle::PriceOracleConfig;
 use starknet_l1_provider::l1_scraper::L1ScraperConfig;
 use starknet_mempool::config::MempoolConfig;
 use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
-use starknet_sequencer_node::config::config_utils::{
-    ConsensusManagerRequiredParams,
-    ContextConfigRequiredParams,
-    PriceOracleConfigRequiredParams,
-    RequiredParams,
-};
+use starknet_sequencer_node::config::config_utils::RequiredParams;
 use starknet_sequencer_node::config::node_config::{SequencerNodeConfig, CONFIG_POINTERS};
 use starknet_state_sync::config::StateSyncConfig;
 use starknet_types_core::felt::Felt;
@@ -216,17 +212,7 @@ pub fn create_node_config(
             l1_scraper_config,
             ..Default::default()
         },
-        RequiredParams {
-            consensus_manager_config: ConsensusManagerRequiredParams {
-                context_config: ContextConfigRequiredParams {
-                    builder_address: ContractAddress::from(4_u128),
-                },
-                price_oracle_config: PriceOracleConfigRequiredParams {
-                    base_url: Url::parse("https://price_oracle_url")
-                        .expect("Should be a valid URL"),
-                },
-            },
-        },
+        RequiredParams {},
         config_pointers_map,
     )
 }
@@ -259,11 +245,17 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
             context_config: ContextConfig {
                 num_validators,
                 chain_id: chain_id.clone(),
+                builder_address: ContractAddress::from(4_u128),
                 ..Default::default()
             },
             cende_config: CendeConfig{
                 skip_write_height: Some(BlockNumber(1)),
                 ..Default::default()
+            },
+            price_oracle_config: PriceOracleConfig {
+                base_url: Url::parse("https://price_oracle_url")
+                    .expect("Should be a valid URL"),
+                    ..Default::default()
             },
             ..Default::default()
         })

@@ -11297,6 +11297,7 @@ dependencies = [
  "starknet_gateway_types",
  "starknet_http_server",
  "starknet_infra_utils",
+ "starknet_l1_gas_price",
  "starknet_l1_provider",
  "starknet_mempool",
  "starknet_mempool_p2p",
@@ -11671,7 +11672,6 @@ dependencies = [
  "tikv-jemallocator",
  "tokio",
  "tracing",
- "url",
  "validator",
 ]
 
