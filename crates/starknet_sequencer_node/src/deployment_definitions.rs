@@ -16,11 +16,11 @@ pub const SINGLE_NODE_CONFIG_PATH: &str =
 
 // TODO(Tsabary): fill and order these.
 
-type DeploymentFn = fn() -> DeploymentAndPreset<'static>;
+type DeploymentFn = fn() -> DeploymentAndPreset;
 
 pub const DEPLOYMENTS: &[DeploymentFn] = &[create_main_deployment, create_testing_deployment];
 
-fn create_main_deployment() -> DeploymentAndPreset<'static> {
+fn create_main_deployment() -> DeploymentAndPreset {
     DeploymentAndPreset::new(
         Deployment::new(
             ChainId::Mainnet,
@@ -32,7 +32,7 @@ fn create_main_deployment() -> DeploymentAndPreset<'static> {
     )
 }
 
-fn create_testing_deployment() -> DeploymentAndPreset<'static> {
+fn create_testing_deployment() -> DeploymentAndPreset {
     DeploymentAndPreset::new(
         Deployment::new(
             ChainId::IntegrationSepolia,
