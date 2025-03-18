@@ -65,6 +65,7 @@ impl ComponentStarter for MempoolP2pRunner {
                     panic!("MempoolP2pRunner failed - network stopped unexpectedly");
                 }
                 _ = transaction_batch_broadcast_interval.tick() => {
+                    println!("tick");
                     if (self._mempool_p2p_propagator_client.broadcast_queued_transactions().await).is_err() {
                         warn!("MempoolP2pPropagatorClient denied BroadcastQueuedTransactions request");
                     };
