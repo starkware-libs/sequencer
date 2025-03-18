@@ -1,7 +1,14 @@
 use std::net::{SocketAddr, ToSocketAddrs};
 
+use futures::executor::block_on;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
+use papyrus_base_layer::test_utils::{
+    deploy_starknet_l1_contract,
+    ethereum_base_layer_config_for_anvil,
+    StarknetL1Contract,
+};
 use starknet_api::rpc_transaction::RpcTransaction;
+use starknet_api::test_utils::CHAIN_ID_FOR_TESTS;
 use starknet_api::transaction::{L1HandlerTransaction, TransactionHash};
 use starknet_http_server::test_utils::HttpTestClient;
 use starknet_monitoring_endpoint::test_utils::MonitoringClient;
@@ -10,11 +17,12 @@ use url::Url;
 
 use crate::integration_test_manager::nonce_to_usize;
 use crate::monitoring_utils;
-use crate::utils::{send_consensus_txs, TestScenario};
+use crate::utils::{send_consensus_txs, send_message_to_l2_and_calculate_tx_hash, TestScenario};
 
 pub struct SequencerSimulator {
     monitoring_client: MonitoringClient,
     http_client: HttpTestClient,
+    starknet_l1_contract: StarknetL1Contract,
 }
 
 impl SequencerSimulator {
@@ -23,18 +31,35 @@ impl SequencerSimulator {
         http_port: u16,
         monitoring_url: String,
         monitoring_port: u16,
+        base_layer_url: String,
+        base_layer_port: u16,
     ) -> Self {
         let monitoring_client =
             MonitoringClient::new(get_socket_addr(&monitoring_url, monitoring_port).unwrap());
 
         let http_client = HttpTestClient::new(get_socket_addr(&http_url, http_port).unwrap());
 
-        Self { monitoring_client, http_client }
+        let mut base_layer_config = ethereum_base_layer_config_for_anvil(Some(base_layer_port));
+        base_layer_config.node_url = Url::parse(&base_layer_url).unwrap();
+        // TODO(Arni): Don't use block on.
+        let starknet_l1_contract = block_on(deploy_starknet_l1_contract(base_layer_config));
+
+        Self { monitoring_client, http_client, starknet_l1_contract }
     }
 
     pub async fn assert_add_tx_success(&self, tx: RpcTransaction) -> TransactionHash {
         info!("Sending transaction: {:?}", tx);
         self.http_client.assert_add_tx_success(tx).await
+    }
+
+    pub async fn send_l1_handler_tx(&self, l1_handler: L1HandlerTransaction) -> TransactionHash {
+        info!("Sending L1 handler: {:?}", l1_handler);
+        send_message_to_l2_and_calculate_tx_hash(
+            l1_handler,
+            &self.starknet_l1_contract,
+            &CHAIN_ID_FOR_TESTS,
+        )
+        .await
     }
 
     pub async fn send_txs(
@@ -45,10 +70,8 @@ impl SequencerSimulator {
     ) {
         info!("Sending transactions");
         let send_rpc_tx_fn = &mut |tx| self.assert_add_tx_success(tx);
-        // TODO(Arni): Create an actual function that sends L1 handlers in the simulator. Requires
-        // setting up L1.
         let send_l1_handler_tx_fn =
-            &mut |_l1_handler_tx: L1HandlerTransaction| async { TransactionHash::default() };
+            &mut |l1_handler: L1HandlerTransaction| self.send_l1_handler_tx(l1_handler);
         let tx_hashes = send_consensus_txs(
             tx_generator,
             sender_account,
