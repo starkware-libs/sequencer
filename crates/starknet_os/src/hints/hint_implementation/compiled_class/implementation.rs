@@ -15,6 +15,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintExtensionResult, OsHintResult};
 use crate::hints::hint_implementation::compiled_class::utils::{
+    BytecodeSegment,
     BytecodeSegmentNode,
     CompiledClassFact,
 };
@@ -43,9 +44,16 @@ pub(crate) fn assign_bytecode_segments<S: StateReader>(
 }
 
 pub(crate) fn assert_end_of_bytecode_segments<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { exec_scopes, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    let bytecode_segments_iter: &mut std::vec::IntoIter<BytecodeSegment> =
+        exec_scopes.get_mut_ref(Scope::BytecodeSegments.into())?;
+    if bytecode_segments_iter.next().is_some() {
+        return Err(OsHintError::AssertionFailed {
+            message: "Bytecode segments are not empty.".to_string(),
+        });
+    }
+    Ok(())
 }
 
 pub(crate) fn bytecode_segment_structure<S: StateReader>(
