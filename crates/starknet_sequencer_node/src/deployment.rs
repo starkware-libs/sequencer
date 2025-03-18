@@ -14,6 +14,7 @@ use crate::config::component_execution_config::{
 };
 
 const BASE_PORT: u16 = 55000; // TODO(Tsabary): arbitrary port, need to resolve.
+const DEPLOYMENT_IMAGE: &str = "ghcr.io/starkware-libs/sequencer/sequencer:dev";
 
 pub struct DeploymentAndPreset {
     pub deployment: Deployment,
@@ -37,14 +38,13 @@ pub struct Deployment {
 impl Deployment {
     pub fn new(
         chain_id: ChainId,
-        image: &'static str,
         application_config_subdir: &'static str,
         deployment_name: DeploymentName,
     ) -> Self {
         let service_names = deployment_name.all_service_names();
         let services =
             service_names.iter().map(|service_name| service_name.create_service()).collect();
-        Self { chain_id, image, application_config_subdir, services }
+        Self { chain_id, image: DEPLOYMENT_IMAGE, application_config_subdir, services }
     }
 
     #[cfg(test)]
