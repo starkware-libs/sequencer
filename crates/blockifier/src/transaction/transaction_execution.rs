@@ -38,7 +38,7 @@ use crate::transaction::objects::{
     TransactionInfoCreator,
 };
 use crate::transaction::transactions::{Executable, ExecutableTransaction};
-use crate::utils::u64_from_usize;
+use crate::utils::usize_from_u64;
 
 // TODO(Gilad): Move into transaction.rs, makes more sense to be defined there.
 #[derive(Clone, Debug, derive_more::From)]
@@ -145,10 +145,10 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
     ) -> TransactionExecutionResult<TransactionExecutionInfo> {
         let tx_context = Arc::new(block_context.to_tx_context(self));
         let limit_steps_by_resources = true;
-        let steps_limit = 1_000_000_usize;
+        let sierra_gas_limit =
+            block_context.versioned_constants.os_constants.l1handler_resource_bounds.l2_gas;
         let step_gas_cost =
             block_context.versioned_constants.os_constants.gas_costs.base.step_gas_cost;
-        let sierra_gas_limit = GasAmount(u64_from_usize(steps_limit) * step_gas_cost);
         let mut remaining_gas = sierra_gas_limit.0;
 
         let mut context = EntryPointExecutionContext::new_invoke(
@@ -157,8 +157,13 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
             SierraGasRevertTracker::new(GasAmount(remaining_gas)),
         );
         // Adjust vm_run_resources to match the steps limit.
-        context.vm_run_resources = RunResources::new(steps_limit);
-
+        context.vm_run_resources = RunResources::new(
+            sierra_gas_limit
+                .0
+                .checked_div(step_gas_cost)
+                .and_then(|v| usize_from_u64(v).ok())
+                .expect("Failed to compute steps limit: division failed or conversion failed")
+        );
         let execute_call_info = self.run_execute(state, &mut context, &mut remaining_gas)?;
         let l1_handler_payload_size = self.payload_size();
         let receipt = TransactionReceipt::from_l1_handler(
@@ -170,9 +175,13 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
 
         // Enforce resource bounds.
         let all_resource_bounds = GasVector {
-            l1_gas: GasAmount(3300000),
-            l2_gas: sierra_gas_limit,
-            l1_data_gas: GasAmount(2000000),
+            l1_gas: block_context.versioned_constants.os_constants.l1handler_resource_bounds.l1_gas,
+            l2_gas: block_context.versioned_constants.os_constants.l1handler_resource_bounds.l2_gas,
+            l1_data_gas: block_context
+                .versioned_constants
+                .os_constants
+                .l1handler_resource_bounds
+                .l1_data_gas,
         };
         FeeCheckReport::check_all_resources_within_bounds(&all_resource_bounds, &receipt.gas)?;
 
