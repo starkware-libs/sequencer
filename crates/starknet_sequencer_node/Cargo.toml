@@ -55,6 +55,7 @@ strum_macros.workspace = true
 assert_matches.workspace = true
 colored.workspace = true
 mempool_test_utils.workspace = true
+papyrus_config = { path = "../papyrus_config", features = ["testing"] }
 pretty_assertions.workspace = true
 starknet_infra_utils = { workspace = true, features = ["testing"] }
 
