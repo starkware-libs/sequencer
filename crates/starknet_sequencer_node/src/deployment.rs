@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr};
 #[cfg(test)]
 use std::path::Path;
@@ -88,7 +89,7 @@ impl Service {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, EnumDiscriminants)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, EnumDiscriminants)]
 #[strum_discriminants(
     name(DeploymentName),
     derive(IntoStaticStr, EnumIter, EnumVariantNames, Serialize, Display),
@@ -151,6 +152,163 @@ impl DeploymentName {
     pub fn get_path(&self) -> String {
         format!("{}/{}/{}/", DEPLOYMENT_CONFIG_BASE_DIR_PATH, self, APPLICATION_CONFIG_DIR_NAME)
     }
+
+    pub fn get_component_configs(&self) -> HashMap<ServiceName, ComponentConfig> {
+        let mut component_config_map = HashMap::new();
+
+        match self {
+            // TODO(Tsabary): find a way to avoid this code duplication.
+            Self::ConsolidatedNode => {
+                let service_names = self.all_service_names();
+                for service_name in service_names {
+                    match service_name {
+                        ServiceName::ConsolidatedNode(inner_service_name) => {
+                            match inner_service_name {
+                                ConsolidatedNodeServiceName::Node => {
+                                    component_config_map
+                                        .insert(service_name, get_consolidated_config());
+                                }
+                            }
+                        }
+                        _ => panic!("Unexpected service name"),
+                    }
+                }
+            }
+            Self::DistributedNode => {
+                let service_names = self.all_service_names();
+
+                // let batcher_remote_config_pair = DistributedNodeServiceConfigPair::new(
+                //     Ipv4Addr::LOCALHOST.to_string(),
+                //     batcher_socket.ip(),
+                //     batcher_socket.port(),
+                // );
+                // let class_manager_remote_config_pair = DistributedNodeServiceConfigPair::new(
+                //     Ipv4Addr::LOCALHOST.to_string(),
+                //     class_manager_socket.ip(),
+                //     class_manager_socket.port(),
+                // );
+                // let gateway_remote_config_pair = DistributedNodeServiceConfigPair::new(
+                //     Ipv4Addr::LOCALHOST.to_string(),
+                //     gateway_socket.ip(),
+                //     gateway_socket.port(),
+                // );
+                // let mempool_remote_config_pair = DistributedNodeServiceConfigPair::new(
+                //     Ipv4Addr::LOCALHOST.to_string(),
+                //     mempool_socket.ip(),
+                //     mempool_socket.port(),
+                // );
+                // let mempool_p2p_remote_config_pair = DistributedNodeServiceConfigPair::new(
+                //     Ipv4Addr::LOCALHOST.to_string(),
+                //     mempool_p2p_socket.ip(),
+                //     mempool_p2p_socket.port(),
+                // );
+                // let sierra_compiler_remote_config_pair = DistributedNodeServiceConfigPair::new(
+                //     Ipv4Addr::LOCALHOST.to_string(),
+                //     sierra_compiler_socket.ip(),
+                //     sierra_compiler_socket.port(),
+                // );
+                // let state_sync_remote_config_pair = DistributedNodeServiceConfigPair::new(
+                //     Ipv4Addr::LOCALHOST.to_string(),
+                //     state_sync_socket.ip(),
+                //     state_sync_socket.port(),
+                // );
+                // let l1_provider_remote_config_pair = DistributedNodeServiceConfigPair::new(
+                //     Ipv4Addr::LOCALHOST.to_string(),
+                //     l1_provider_socket.ip(),
+                //     l1_provider_socket.port(),
+                // );
+
+                let mut component_config_pair_map = HashMap::<
+                    DistributedNodeServiceName,
+                    (ServiceName, DistributedNodeServiceConfigPair),
+                >::new();
+                for service_name in service_names {
+                    match service_name {
+                        ServiceName::DistributedNode(inner_service_name) => {
+                            component_config_pair_map.insert(
+                                inner_service_name,
+                                (service_name, inner_service_name.into()),
+                            );
+                        }
+                        _ => panic!("Unexpected service name"),
+                    }
+                }
+
+                for (inner_service_name, (service_name, _config_pair)) in &component_config_pair_map
+                {
+                    let component_config = match inner_service_name {
+                        DistributedNodeServiceName::Batcher => get_batcher_config(
+                            component_config_pair_map[&DistributedNodeServiceName::Batcher]
+                                .1
+                                .local(),
+                            component_config_pair_map[&DistributedNodeServiceName::ClassManager]
+                                .1
+                                .remote(),
+                            component_config_pair_map[&DistributedNodeServiceName::L1Provider]
+                                .1
+                                .remote(),
+                            component_config_pair_map[&DistributedNodeServiceName::Mempool]
+                                .1
+                                .remote(),
+                        ),
+                        DistributedNodeServiceName::ClassManager => todo!(),
+                        DistributedNodeServiceName::ConsensusManager => todo!(),
+                        DistributedNodeServiceName::HttpServer => todo!(),
+                        DistributedNodeServiceName::Gateway => todo!(),
+                        DistributedNodeServiceName::L1Provider => todo!(),
+                        DistributedNodeServiceName::Mempool => todo!(),
+                        DistributedNodeServiceName::SierraCompiler => todo!(),
+                        DistributedNodeServiceName::StateSync => todo!(),
+                    };
+
+                    component_config_map.insert(*service_name, component_config);
+                }
+
+                // get_class_manager_config(
+                //     class_manager_remote_config_pair.local(),
+                //     sierra_compiler_remote_config_pair.remote(),
+                // ),
+                // get_gateway_config(
+                //     gateway_remote_config_pair.local(),
+                //     class_manager_remote_config_pair.remote(),
+                //     mempool_remote_config_pair.remote(),
+                //     state_sync_remote_config_pair.remote(),
+                // ),
+                // get_mempool_config(
+                //     mempool_remote_config_pair.local(),
+                //     mempool_p2p_remote_config_pair.local(),
+                //     class_manager_remote_config_pair.remote(),
+                //     gateway_remote_config_pair.remote(),
+                // ),
+                // get_sierra_compiler_config(sierra_compiler_remote_config_pair.local()),
+                // get_state_sync_config(
+                //     state_sync_remote_config_pair.local(),
+                //     class_manager_remote_config_pair.remote(),
+                // ),
+                // get_http_server_config(gateway_remote_config_pair.remote()),
+                // get_consensus_manager_config(
+                //     batcher_remote_config_pair.remote(),
+                //     class_manager_remote_config_pair.remote(),
+                //     state_sync_remote_config_pair.remote(),
+                // ),
+                // get_l1_provider_config(
+                //     l1_provider_remote_config_pair.local(),
+                //     state_sync_remote_config_pair.remote(),
+                // ),
+            }
+        };
+
+        // match self {
+        //     Self::ConsolidatedNode => {
+
+        //         component_config_map.insert()
+        //     }
+        //     Self::DistributedNode => {
+        //         DistributedNodeServiceName::iter().map(ServiceName::DistributedNode).collect()
+        //     }
+        // }
+        component_config_map
+    }
 }
 
 // TODO(Tsabary): each deployment should be in its own module.
@@ -163,7 +321,7 @@ impl IntoService for ConsolidatedNodeServiceName {
     fn create_service(&self) -> Service {
         match self {
             ConsolidatedNodeServiceName::Node => {
-                Service::new(self.clone().into(), false, false, 1, Some(32))
+                Service::new(Into::<ServiceName>::into(*self), false, false, 1, Some(32))
             }
         }
     }
@@ -182,14 +340,14 @@ impl Serialize for ServiceName {
     }
 }
 
-#[derive(Clone, Debug, Display, PartialEq, Serialize, AsRefStr, EnumIter)]
+#[derive(Clone, Copy, Debug, Display, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter)]
 #[strum(serialize_all = "snake_case")]
 pub enum ConsolidatedNodeServiceName {
     Node,
 }
 
 #[repr(u16)]
-#[derive(Clone, Debug, Display, PartialEq, Serialize, AsRefStr, EnumIter)]
+#[derive(Clone, Copy, Debug, Display, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter)]
 #[strum(serialize_all = "snake_case")]
 pub enum DistributedNodeServiceName {
     Batcher,
@@ -208,31 +366,31 @@ impl IntoService for DistributedNodeServiceName {
     fn create_service(&self) -> Service {
         match self {
             DistributedNodeServiceName::Batcher => {
-                Service::new(self.clone().into(), false, false, 1, Some(32))
+                Service::new(Into::<ServiceName>::into(*self), false, false, 1, Some(32))
             }
             DistributedNodeServiceName::ClassManager => {
-                Service::new(self.clone().into(), false, false, 1, Some(32))
+                Service::new(Into::<ServiceName>::into(*self), false, false, 1, Some(32))
             }
             DistributedNodeServiceName::ConsensusManager => {
-                Service::new(self.clone().into(), false, false, 1, Some(32))
+                Service::new(Into::<ServiceName>::into(*self), false, false, 1, Some(32))
             }
             DistributedNodeServiceName::HttpServer => {
-                Service::new(self.clone().into(), false, false, 1, Some(32))
+                Service::new(Into::<ServiceName>::into(*self), false, false, 1, Some(32))
             }
             DistributedNodeServiceName::Gateway => {
-                Service::new(self.clone().into(), false, false, 1, Some(32))
+                Service::new(Into::<ServiceName>::into(*self), false, false, 1, Some(32))
             }
             DistributedNodeServiceName::L1Provider => {
-                Service::new(self.clone().into(), false, false, 1, Some(32))
+                Service::new(Into::<ServiceName>::into(*self), false, false, 1, Some(32))
             }
             DistributedNodeServiceName::Mempool => {
-                Service::new(self.clone().into(), false, false, 1, Some(32))
+                Service::new(Into::<ServiceName>::into(*self), false, false, 1, Some(32))
             }
             DistributedNodeServiceName::SierraCompiler => {
-                Service::new(self.clone().into(), false, false, 1, Some(32))
+                Service::new(Into::<ServiceName>::into(*self), false, false, 1, Some(32))
             }
             DistributedNodeServiceName::StateSync => {
-                Service::new(self.clone().into(), false, false, 1, Some(32))
+                Service::new(Into::<ServiceName>::into(*self), false, false, 1, Some(32))
             }
         }
     }
