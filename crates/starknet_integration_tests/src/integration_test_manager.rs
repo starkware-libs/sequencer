@@ -23,13 +23,14 @@ use starknet_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use starknet_infra_utils::tracing::{CustomLogger, TraceLevel};
 use starknet_monitoring_endpoint::test_utils::MonitoringClient;
 use starknet_sequencer_node::config::config_utils::dump_json_data;
+use starknet_sequencer_node::config::definitions::ConfigPointersMap;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::test_utils::node_runner::{get_node_executable_path, spawn_run_node};
 use tokio::join;
 use tokio::task::JoinHandle;
 use tracing::info;
 
-use crate::executable_setup::{ConfigPointersMap, ExecutableSetup, NodeExecutionId};
+use crate::executable_setup::{ExecutableSetup, NodeExecutionId};
 use crate::monitoring_utils::{
     await_batcher_block,
     await_block,
