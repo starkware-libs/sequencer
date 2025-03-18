@@ -68,7 +68,7 @@ use tokio::task::JoinHandle;
 use tracing::{debug, info, Instrument};
 use url::Url;
 
-use crate::integration_test_setup::{ConfigPointersMap, NodeExecutionId};
+use crate::executable_setup::{ConfigPointersMap, NodeExecutionId};
 
 pub const ACCOUNT_ID_0: AccountId = 0;
 pub const ACCOUNT_ID_1: AccountId = 1;

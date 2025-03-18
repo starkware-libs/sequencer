@@ -4,11 +4,11 @@ use std::time::Duration;
 use serde_json::Value;
 use starknet_api::block::BlockNumber;
 use starknet_infra_utils::test_utils::TestIdentifier;
+use starknet_integration_tests::executable_setup::ConfigPointersMap;
 use starknet_integration_tests::integration_test_manager::{
     IntegrationTestManager,
     BLOCK_TO_WAIT_FOR_BOOTSTRAP,
 };
-use starknet_integration_tests::integration_test_setup::ConfigPointersMap;
 use starknet_integration_tests::integration_test_utils::integration_test_setup;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use tracing::info;
