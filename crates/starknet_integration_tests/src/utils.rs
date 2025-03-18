@@ -56,6 +56,7 @@ use starknet_mempool::config::MempoolConfig;
 use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
+use starknet_sequencer_node::config::definitions::ConfigPointersMap;
 use starknet_sequencer_node::config::node_config::{SequencerNodeConfig, CONFIG_POINTERS};
 use starknet_state_sync::config::StateSyncConfig;
 use starknet_types_core::felt::Felt;
@@ -63,7 +64,7 @@ use tokio::task::JoinHandle;
 use tracing::{debug, info, Instrument};
 use url::Url;
 
-use crate::executable_setup::{ConfigPointersMap, NodeExecutionId};
+use crate::executable_setup::NodeExecutionId;
 
 pub const ACCOUNT_ID_0: AccountId = 0;
 pub const ACCOUNT_ID_1: AccountId = 1;

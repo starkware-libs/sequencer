@@ -1,19 +1,11 @@
-use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 
 use blockifier::context::ChainInfo;
 use mempool_test_utils::starknet_api_test_utils::AccountTransactionGenerator;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
-use papyrus_config::dumping::{
-    combine_config_map_and_pointers,
-    ConfigPointers,
-    Pointers,
-    SerializeConfig,
-};
-use papyrus_config::{ParamPath, SerializedContent, SerializedParam};
+use papyrus_config::dumping::{combine_config_map_and_pointers, SerializeConfig};
 use papyrus_storage::StorageConfig;
-use serde_json::Value;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -27,6 +19,7 @@ use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_monitoring_endpoint::test_utils::MonitoringClient;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::config_utils::{config_to_preset, dump_json_data};
+use starknet_sequencer_node::config::definitions::ConfigPointersMap;
 use starknet_sequencer_node::config::node_config::{
     SequencerNodeConfig,
     CONFIG_NON_POINTERS_WHITELIST,
@@ -83,28 +76,6 @@ impl std::fmt::Display for NodeExecutionId {
 impl From<NodeExecutionId> for NodeRunner {
     fn from(val: NodeExecutionId) -> Self {
         NodeRunner::new(val.node_index, val.executable_index)
-    }
-}
-
-#[derive(Clone)]
-pub struct ConfigPointersMap(HashMap<ParamPath, (SerializedParam, Pointers)>);
-
-impl ConfigPointersMap {
-    pub fn new(config_pointers: ConfigPointers) -> Self {
-        ConfigPointersMap(config_pointers.into_iter().map(|((k, v), p)| (k, (v, p))).collect())
-    }
-
-    pub fn change_target_value(&mut self, target: &str, value: Value) {
-        assert!(self.0.contains_key(target));
-        self.0.entry(target.to_owned()).and_modify(|(param, _)| {
-            param.content = SerializedContent::DefaultValue(value);
-        });
-    }
-}
-
-impl From<ConfigPointersMap> for ConfigPointers {
-    fn from(config_pointers_map: ConfigPointersMap) -> Self {
-        config_pointers_map.0.into_iter().map(|(k, (v, p))| ((k, v), p)).collect()
     }
 }
 
