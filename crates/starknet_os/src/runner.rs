@@ -14,7 +14,7 @@ use crate::hint_processor::snos_hint_processor::{
     SyscallHintProcessor,
 };
 use crate::io::os_input::{CachedStateInput, StarknetOsInput};
-use crate::io::os_output::StarknetOsRunnerOutput;
+use crate::io::os_output::{get_run_output, StarknetOsRunnerOutput};
 
 pub fn run_os<S: StateReader>(
     compiled_os: &[u8],
@@ -71,8 +71,21 @@ pub fn run_os<S: StateReader>(
         cairo_runner.finalize_segments()?;
     }
 
-    // TODO(Dori): implement the rest (from moonsong).
-    todo!()
+    // Prepare and check expected output.
+    let os_output = get_run_output(&cairo_runner.vm)?;
+
+    cairo_runner.vm.verify_auto_deductions().map_err(StarknetOsError::VirtualMachineError)?;
+    cairo_runner
+        .read_return_values(allow_missing_builtins)
+        .map_err(StarknetOsError::RunnerError)?;
+    cairo_runner
+        .relocate(cairo_run_config.relocate_mem)
+        .map_err(|e| StarknetOsError::VirtualMachineError(e.into()))?;
+
+    // Parse the Cairo VM output.
+    let cairo_pie = cairo_runner.get_cairo_pie().map_err(StarknetOsError::RunnerError)?;
+
+    Ok(StarknetOsRunnerOutput { os_output, cairo_pie })
 }
 
 /// Run the OS with a "stateless" state reader - panics if the state is accessed for data that was
