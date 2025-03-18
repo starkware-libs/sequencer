@@ -21,11 +21,12 @@ pub(crate) static NONDET_FP_OFFSETS: LazyLock<HashMap<AllHints, usize>> = LazyLo
     HashMap::from([
         (AllHints::OsHint(OsHint::OsInputTransactions), 12),
         (AllHints::OsHint(OsHint::ReadAliasFromKey), 0),
-        (AllHints::OsHint(OsHint::SegmentsAddTemp), 6),
+        (AllHints::OsHint(OsHint::SegmentsAddTemp), 7),
         (AllHints::OsHint(OsHint::SetFpPlus4ToTxNonce), 4),
+        (AllHints::OsHint(OsHint::GetBlocksNumber), 0),
         (AllHints::OsHint(OsHint::TxAccountDeploymentDataLen), 4),
-        (AllHints::OsHint(OsHint::WriteFullOutputToMemory), 19),
-        (AllHints::OsHint(OsHint::WriteUseKzgDaToMemory), 18),
+        (AllHints::OsHint(OsHint::WriteFullOutputToMemory), 20),
+        (AllHints::OsHint(OsHint::WriteUseKzgDaToMemory), 19),
     ])
 });
 
