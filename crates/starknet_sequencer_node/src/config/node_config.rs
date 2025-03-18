@@ -10,14 +10,13 @@ use papyrus_config::dumping::{
     append_sub_config_name,
     generate_struct_pointer,
     ser_pointer_target_param,
-    ser_pointer_target_required_param,
     set_pointing_param_paths,
     ConfigPointers,
     Pointers,
     SerializeConfig,
 };
 use papyrus_config::loading::load_and_process_config;
-use papyrus_config::{ConfigError, ParamPath, SerializationType, SerializedParam};
+use papyrus_config::{ConfigError, ParamPath, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_batcher::config::BatcherConfig;
 use starknet_batcher::VersionedConstantsOverrides;
@@ -100,9 +99,9 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
             set_pointing_param_paths(&["consensus_manager_config.consensus_config.validator_id"]),
         ),
         (
-            ser_pointer_target_required_param(
+            ser_pointer_target_param(
                 "recorder_url",
-                SerializationType::String,
+                &POINTER_TARGET_VALUE.to_string(),
                 "The URL of the Pythonic cende_recorder",
             ),
             set_pointing_param_paths(&["consensus_manager_config.cende_config.recorder_url"]),
