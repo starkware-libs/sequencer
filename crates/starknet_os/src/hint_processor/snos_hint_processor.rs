@@ -17,6 +17,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::execution_helper::OsExecutionHelper;
 use crate::hints::enum_definition::AllHints;
+use crate::hints::error::OsHintError;
 use crate::hints::types::{HintArgs, HintEnum, HintExtensionImplementation, HintImplementation};
 #[cfg(any(feature = "testing", test))]
 use crate::io::os_input::StarknetOsInput;
@@ -29,6 +30,9 @@ pub struct SnosHintProcessor<S: StateReader> {
     pub execution_helper: OsExecutionHelper<S>,
     pub syscall_hint_processor: SyscallHintProcessor,
     _deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
+
+    // KZG fields.
+    da_segment: Option<Vec<Felt>>,
 }
 
 impl<S: StateReader> SnosHintProcessor<S> {
@@ -41,7 +45,21 @@ impl<S: StateReader> SnosHintProcessor<S> {
             execution_helper,
             syscall_hint_processor,
             _deprecated_syscall_hint_processor: deprecated_syscall_hint_processor,
+            da_segment: None,
         }
+    }
+
+    /// Stores the data-availabilty segment, to be used for computing the KZG commitment in blob
+    /// mode.
+    #[allow(dead_code)]
+    pub(crate) fn set_da_segment(&mut self, da_segment: Vec<Felt>) -> Result<(), OsHintError> {
+        if self.da_segment.is_some() {
+            return Err(OsHintError::AssertionFailed {
+                message: "DA segment is already initialized.".to_string(),
+            });
+        }
+        self.da_segment = Some(da_segment);
+        Ok(())
     }
 }
 
