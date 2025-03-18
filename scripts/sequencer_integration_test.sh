@@ -9,11 +9,12 @@
 #   - "positive" to run the positive flow test,
 #   - "restart" to run the restart flow test, or
 #   - "revert" to run the revert flow test,
+#   - "sync" to run the central and p2p sync flow test,
 #   - "all" to run all tests.
 #
 # Note: Make sure the binaries exist in
 #   crates/starknet_integration_tests/src/bin/sequencer_node_integration_tests/
-# with names such as positive_flow.rs, revert_flow.rs, restart_flow.rs.
+# with names such as positive_flow.rs, revert_flow.rs, restart_flow.rs, sync_flow.rs
 
 # The test requires sudo privileges for running certain commands.
 # Ensure sudo privileges are available before proceeding.
@@ -30,6 +31,7 @@ declare -A TEST_ALIASES=(
   [positive]="integration_test_positive_flow"
   [restart]="integration_test_restart_flow"
   [revert]="integration_test_revert_flow"
+  [sync]="integration_test_central_and_p2p_sync_flow"
 )
 
 # Set default test if none provided

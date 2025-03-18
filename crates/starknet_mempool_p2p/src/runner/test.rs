@@ -18,6 +18,7 @@ use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::communication::{GatewayClient, GatewayClientError, MockGatewayClient};
 use starknet_gateway_types::errors::{GatewayError, GatewaySpecError};
 use starknet_gateway_types::gateway_types::GatewayInput;
+use starknet_mempool_p2p_types::communication::MockMempoolP2pPropagatorClient;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 
 use super::MempoolP2pRunner;
@@ -35,6 +36,7 @@ fn setup(
         broadcasted_messages_receiver,
         broadcast_topic_client,
         gateway_client,
+        Arc::new(MockMempoolP2pPropagatorClient::new()),
     );
     (mempool_p2p_runner, mock_network)
 }

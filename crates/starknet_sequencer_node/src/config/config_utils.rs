@@ -14,16 +14,26 @@ use papyrus_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 use serde::Serialize;
 use serde_json::{Map, Value};
 use starknet_api::core::ContractAddress;
-use tracing::info;
+use tracing::{error, info};
 use url::Url;
+use validator::ValidationError;
 
 use crate::config::node_config::node_command;
+
+pub(crate) fn create_validation_error(
+    error_msg: String,
+    validate_code: &'static str,
+    validate_error_msg: &'static str,
+) -> ValidationError {
+    error!(error_msg);
+    let mut error = ValidationError::new(validate_code);
+    error.message = Some(validate_error_msg.into());
+    error
+}
 
 /// Required parameters utility struct.
 #[derive(Serialize)]
 pub struct RequiredParams {
-    pub eth_fee_token_address: ContractAddress,
-    pub strk_fee_token_address: ContractAddress,
     pub validator_id: ContractAddress,
     pub recorder_url: Url,
     pub base_layer_config: EthereumBaseLayerConfigRequiredParams,
@@ -33,18 +43,6 @@ pub struct RequiredParams {
 impl SerializeConfig for RequiredParams {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let members = BTreeMap::from_iter([
-            ser_param(
-                "eth_fee_token_address",
-                &self.eth_fee_token_address,
-                "Placeholder.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "strk_fee_token_address",
-                &self.strk_fee_token_address,
-                "Placeholder.",
-                ParamPrivacyInput::Public,
-            ),
             ser_param(
                 "validator_id",
                 &self.validator_id,
@@ -75,8 +73,6 @@ impl SerializeConfig for RequiredParams {
 impl RequiredParams {
     pub fn create_for_testing() -> Self {
         Self {
-            eth_fee_token_address: ContractAddress::from(2_u128),
-            strk_fee_token_address: ContractAddress::from(3_u128),
             validator_id: ContractAddress::from(DEFAULT_VALIDATOR_ID),
             recorder_url: Url::parse("https://recorder_url").expect("Should be a valid URL"),
             base_layer_config: EthereumBaseLayerConfigRequiredParams {

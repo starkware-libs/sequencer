@@ -11504,6 +11504,7 @@ version = "0.0.0"
 dependencies = [
  "assert_matches",
  "blockifier",
+ "c-kzg",
  "cairo-lang-starknet-classes",
  "cairo-vm",
  "indexmap 2.7.0",
@@ -11512,6 +11513,7 @@ dependencies = [
  "num-bigint 0.4.6",
  "num-integer",
  "num-traits",
+ "rand 0.8.5",
  "rstest",
  "serde",
  "serde_json",

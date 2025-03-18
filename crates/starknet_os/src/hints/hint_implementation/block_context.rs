@@ -15,12 +15,6 @@ use crate::hints::vars::{Const, Ids};
 
 // Hint implementations.
 
-pub(crate) fn bytecode_segment_structure<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
-) -> OsHintResult {
-    todo!()
-}
-
 pub(crate) fn block_number<S: StateReader>(
     HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
@@ -81,10 +75,6 @@ pub(crate) fn get_block_mapping<S: StateReader>(
         ids_data,
         ap_tracking,
     )?)
-}
-
-pub(crate) fn is_leaf<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    todo!()
 }
 
 pub(crate) fn write_use_kzg_da_to_memory<S: StateReader>(

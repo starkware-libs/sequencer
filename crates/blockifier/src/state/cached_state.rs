@@ -30,7 +30,7 @@ pub struct CachedState<S: StateReader> {
     pub state: S,
     // Invariant: read/write access is managed by CachedState.
     // Using interior mutability to update caches during `State`'s immutable getters.
-    pub(crate) cache: RefCell<StateCache>,
+    pub cache: RefCell<StateCache>,
     pub class_hash_to_class: RefCell<ContractClassMapping>,
 }
 
@@ -372,7 +372,7 @@ impl StateMaps {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct StateCache {
     // Reader's cached information; initial values, read before any write operation (per cell).
-    pub(crate) initial_reads: StateMaps,
+    pub initial_reads: StateMaps,
 
     // Writer's cached information.
     pub(crate) writes: StateMaps,

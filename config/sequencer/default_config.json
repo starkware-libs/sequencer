@@ -990,9 +990,9 @@
     "value": "consensus_votes"
   },
   "eth_fee_token_address": {
-    "description": "A required param! Address of the ETH fee token.",
-    "param_type": "String",
-    "privacy": "TemporaryValue"
+    "description": "Address of the ETH fee token.",
+    "privacy": "TemporaryValue",
+    "value": "PointerTarget"
   },
   "gateway_config.chain_info.chain_id": {
     "description": "The chain ID of the StarkNet chain.",
@@ -1419,6 +1419,11 @@
     "privacy": "Public",
     "value": 1000
   },
+  "state_sync_config.central_sync_client_config.sync_config.store_sierras_and_casms": {
+    "description": "Whether to store sierras and casms to the storage. This allows maintaining backward-compatibility with native-blockifier",
+    "privacy": "Public",
+    "value": false
+  },
   "state_sync_config.central_sync_client_config.sync_config.verify_blocks": {
     "description": "Whether to verify incoming blocks.",
     "privacy": "Public",
@@ -1600,9 +1605,9 @@
     "value": "FullArchive"
   },
   "strk_fee_token_address": {
-    "description": "A required param! Address of the STRK fee token.",
-    "param_type": "String",
-    "privacy": "TemporaryValue"
+    "description": "Address of the STRK fee token.",
+    "privacy": "TemporaryValue",
+    "value": "PointerTarget"
   },
   "validator_id": {
     "description": "A required param! The ID of the validator. Also the address of this validator as a starknet contract.",

@@ -32,6 +32,7 @@ use crate::metrics::{
     CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS,
     CONSENSUS_DECISIONS_REACHED_BY_SYNC,
     CONSENSUS_MAX_CACHED_BLOCK_NUMBER,
+    CONSENSUS_PROPOSALS_RECEIVED,
 };
 use crate::single_height_consensus::{ShcReturn, SingleHeightConsensus};
 use crate::types::{BroadcastVoteChannel, ConsensusContext, ConsensusError, Decision, ValidatorId};
@@ -328,6 +329,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         shc: Option<&mut SingleHeightConsensus>,
         content_receiver: Option<mpsc::Receiver<ContextT::ProposalPart>>,
     ) -> Result<ShcReturn, ConsensusError> {
+        CONSENSUS_PROPOSALS_RECEIVED.increment(1);
         // Get the first message to verify the init was sent.
         let Some(mut content_receiver) = content_receiver else {
             return Err(ConsensusError::InternalNetworkError(

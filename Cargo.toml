@@ -100,6 +100,7 @@ blockifier_reexecution.path = "crates/blockifier_reexecution"
 blockifier_test_utils = { path = "crates/blockifier_test_utils", version = "0.0.0" }
 byteorder = "1.4.3"
 bytes = "1"
+c-kzg = "1.0.3"
 cached = "0.44.0"
 cairo-felt = "0.9.1"
 cairo-lang-casm = "2.10.0"

@@ -35,6 +35,9 @@ pub trait MempoolP2pPropagatorClient: Send + Sync {
         &self,
         propagation_metadata: BroadcastedMessageMetadata,
     ) -> MempoolP2pPropagatorClientResult<()>;
+
+    /// Broadcast the queued transactions as a new transaction batch.
+    async fn broadcast_queued_transactions(&self) -> MempoolP2pPropagatorClientResult<()>;
 }
 
 pub type LocalMempoolP2pPropagatorClient =
@@ -96,6 +99,17 @@ where
         handle_all_response_variants!(
             MempoolP2pPropagatorResponse,
             ContinuePropagation,
+            MempoolP2pPropagatorClientError,
+            MempoolP2pPropagatorError,
+            Direct
+        )
+    }
+
+    async fn broadcast_queued_transactions(&self) -> MempoolP2pPropagatorClientResult<()> {
+        let request = MempoolP2pPropagatorRequest::BroadcastQueuedTransactions();
+        handle_all_response_variants!(
+            MempoolP2pPropagatorResponse,
+            BroadcastQueuedTransactions,
             MempoolP2pPropagatorClientError,
             MempoolP2pPropagatorError,
             Direct

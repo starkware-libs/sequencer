@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use starknet_infra_utils::test_utils::TestIdentifier;
+use starknet_integration_tests::integration_test_manager::{CustomPaths, IntegrationTestManager};
 use starknet_integration_tests::integration_test_utils::set_panic_hook;
-use starknet_integration_tests::sequencer_manager::{CustomPaths, IntegrationTestManager};
 use starknet_sequencer_infra::trace_util::configure_tracing;
 use tokio::fs::create_dir_all;
 use tracing::info;

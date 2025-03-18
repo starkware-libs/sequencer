@@ -6,7 +6,20 @@ use starknet_sequencer_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
     ReactiveComponentExecutionConfig,
 };
-use starknet_sequencer_node::deployment::DistributedNodeServiceConfigPair;
+use starknet_sequencer_node::deployment::{
+    get_batcher_config,
+    get_class_manager_config,
+    get_consensus_manager_config,
+    get_consolidated_config,
+    get_gateway_config,
+    get_http_server_config,
+    get_l1_provider_config,
+    get_mempool_config,
+    get_sierra_compiler_config,
+    get_state_sync_config,
+    DistributedNodeServiceConfigPair,
+};
+
 /// Holds the component configs for a set of sequencers, composing a single sequencer node.
 pub struct NodeComponentConfigs {
     component_configs: Vec<ComponentConfig>,
@@ -106,11 +119,12 @@ pub fn create_consolidated_sequencer_configs(
     num_of_consolidated_nodes: usize,
 ) -> Vec<NodeComponentConfigs> {
     // Both batcher, http server and state sync are in executable index 0.
-    std::iter::repeat_with(|| NodeComponentConfigs::new(vec![ComponentConfig::default()], 0, 0, 0))
+    std::iter::repeat_with(|| NodeComponentConfigs::new(vec![get_consolidated_config()], 0, 0, 0))
         .take(num_of_consolidated_nodes)
         .collect()
 }
 
+// TODO(Nadin/Tsabary): create this as a deployment fn.
 // TODO(Nadin/Tsabary): find a better name for this function.
 fn get_http_container_config(
     gateway_socket: SocketAddr,
@@ -300,116 +314,4 @@ pub fn create_nodes_deployment_units_configs(
     })
     .take(distributed_sequencers_num)
     .collect()
-}
-
-fn get_batcher_config(
-    batcher_local_config: ReactiveComponentExecutionConfig,
-    class_manager_remote_config: ReactiveComponentExecutionConfig,
-    l1_provider_remote_config: ReactiveComponentExecutionConfig,
-    mempool_remote_config: ReactiveComponentExecutionConfig,
-) -> ComponentConfig {
-    let mut config = ComponentConfig::disabled();
-    config.batcher = batcher_local_config;
-    config.class_manager = class_manager_remote_config;
-    config.l1_provider = l1_provider_remote_config;
-    config.mempool = mempool_remote_config;
-    config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
-    config
-}
-
-fn get_class_manager_config(
-    class_manager_local_config: ReactiveComponentExecutionConfig,
-    sierra_compiler_remote_config: ReactiveComponentExecutionConfig,
-) -> ComponentConfig {
-    let mut config = ComponentConfig::disabled();
-    config.class_manager = class_manager_local_config;
-    config.sierra_compiler = sierra_compiler_remote_config;
-    config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
-    config
-}
-
-fn get_gateway_config(
-    gateway_local_config: ReactiveComponentExecutionConfig,
-    class_manager_remote_config: ReactiveComponentExecutionConfig,
-    mempool_remote_config: ReactiveComponentExecutionConfig,
-    state_sync_remote_config: ReactiveComponentExecutionConfig,
-) -> ComponentConfig {
-    let mut config = ComponentConfig::disabled();
-    config.gateway = gateway_local_config;
-    config.class_manager = class_manager_remote_config;
-    config.mempool = mempool_remote_config;
-    config.state_sync = state_sync_remote_config;
-    config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
-    config
-}
-
-fn get_mempool_config(
-    mempool_local_config: ReactiveComponentExecutionConfig,
-    mempool_p2p_local_config: ReactiveComponentExecutionConfig,
-    class_manager_remote_config: ReactiveComponentExecutionConfig,
-    gateway_remote_config: ReactiveComponentExecutionConfig,
-) -> ComponentConfig {
-    let mut config = ComponentConfig::disabled();
-    config.mempool = mempool_local_config;
-    config.mempool_p2p = mempool_p2p_local_config;
-    config.class_manager = class_manager_remote_config;
-    config.gateway = gateway_remote_config;
-    config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
-    config
-}
-
-fn get_sierra_compiler_config(
-    sierra_compiler_local_config: ReactiveComponentExecutionConfig,
-) -> ComponentConfig {
-    let mut config = ComponentConfig::disabled();
-    config.sierra_compiler = sierra_compiler_local_config;
-    config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
-    config
-}
-
-fn get_state_sync_config(
-    state_sync_local_config: ReactiveComponentExecutionConfig,
-    class_manager_remote_config: ReactiveComponentExecutionConfig,
-) -> ComponentConfig {
-    let mut config = ComponentConfig::disabled();
-    config.state_sync = state_sync_local_config;
-    config.class_manager = class_manager_remote_config;
-    config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
-    config
-}
-
-fn get_consensus_manager_config(
-    batcher_remote_config: ReactiveComponentExecutionConfig,
-    class_manager_remote_config: ReactiveComponentExecutionConfig,
-    state_sync_remote_config: ReactiveComponentExecutionConfig,
-) -> ComponentConfig {
-    let mut config = ComponentConfig::disabled();
-    config.consensus_manager = ActiveComponentExecutionConfig::enabled();
-    config.batcher = batcher_remote_config;
-    config.class_manager = class_manager_remote_config;
-    config.state_sync = state_sync_remote_config;
-    config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
-    config
-}
-
-fn get_http_server_config(
-    gateway_remote_config: ReactiveComponentExecutionConfig,
-) -> ComponentConfig {
-    let mut config = ComponentConfig::disabled();
-    config.http_server = ActiveComponentExecutionConfig::enabled();
-    config.gateway = gateway_remote_config;
-    config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
-    config
-}
-
-fn get_l1_provider_config(
-    l1_provider_local_config: ReactiveComponentExecutionConfig,
-    state_sync_remote_config: ReactiveComponentExecutionConfig,
-) -> ComponentConfig {
-    let mut config = ComponentConfig::disabled();
-    config.l1_provider = l1_provider_local_config;
-    config.l1_scraper = ActiveComponentExecutionConfig::enabled();
-    config.state_sync = state_sync_remote_config;
-    config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
-    config
 }
