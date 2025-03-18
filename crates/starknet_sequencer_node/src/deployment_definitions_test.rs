@@ -4,9 +4,9 @@ use starknet_infra_utils::dumping::serialize_to_file_test;
 use starknet_infra_utils::path::resolve_project_relative_path;
 
 use crate::deployment_definitions::{
-    MAIN_DEPLOYMENT,
+    create_main_deployment,
+    create_testing_deployment,
     MAIN_DEPLOYMENT_PRESET_PATH,
-    TESTING_DEPLOYMENT,
     TESTING_DEPLOYMENT_PRESET_PATH,
 };
 
@@ -17,15 +17,15 @@ use crate::deployment_definitions::{
 /// cargo run --bin deployment_generator -q
 #[test]
 fn deployment_files_are_up_to_date() {
-    serialize_to_file_test(MAIN_DEPLOYMENT, MAIN_DEPLOYMENT_PRESET_PATH);
-    serialize_to_file_test(TESTING_DEPLOYMENT, TESTING_DEPLOYMENT_PRESET_PATH);
+    serialize_to_file_test(create_main_deployment(), MAIN_DEPLOYMENT_PRESET_PATH);
+    serialize_to_file_test(create_testing_deployment(), TESTING_DEPLOYMENT_PRESET_PATH);
 }
 
 #[test]
 fn application_config_files_exist() {
     env::set_current_dir(resolve_project_relative_path("").unwrap())
         .expect("Couldn't set working dir.");
-    for deployment in &[MAIN_DEPLOYMENT, TESTING_DEPLOYMENT] {
+    for deployment in &[create_main_deployment(), create_testing_deployment()] {
         deployment.assert_application_configs_exist();
     }
 }
