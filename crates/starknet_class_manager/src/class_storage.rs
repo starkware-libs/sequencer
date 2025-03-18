@@ -363,13 +363,16 @@ impl FsClassStorage {
     }
 
     /// Returns the directory that will hold classes related to the given class ID.
-    /// For a class ID: 0xa1b2c3... (rest of hash), the structure is:
+    /// For a class ID: 0xa1b2c3d4... (rest of hash), the structure is:
     /// a1/
-    /// └── b2c3.../
+    /// └── b2/
+    ///     └── a1b2c3d4.../
     fn get_class_dir(&self, class_id: ClassId) -> PathBuf {
         let class_id = hex::encode(class_id.to_bytes_be());
-        let (first_msb_byte, _rest_of_bytes) = class_id.split_at(2);
-        PathBuf::from(first_msb_byte).join(class_id)
+        let (first_msb_byte, second_msb_byte, _rest_of_bytes) =
+            (&class_id[..2], &class_id[2..4], &class_id[4..]);
+
+        PathBuf::from(first_msb_byte).join(second_msb_byte).join(class_id)
     }
 
     fn get_persistent_dir(&self, class_id: ClassId) -> PathBuf {
