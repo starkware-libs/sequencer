@@ -62,6 +62,8 @@ pub enum OsHintError {
     MissingBytecodeSegmentStructure(ClassHash),
     #[error("No preimage found for value {0:?}.")]
     MissingPreimage(Felt),
+    #[error("The transactions iterator is empty.")]
+    NoMoreTransactions,
     #[error("{error:?} for json value {value}.")]
     SerdeJsonDeserialize { error: serde_json::Error, value: serde_json::value::Value },
     #[error(transparent)]
