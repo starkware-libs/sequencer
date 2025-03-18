@@ -4,7 +4,7 @@ use std::sync::LazyLock;
 
 use blockifier::utils::usize_from_u32;
 use c_kzg::{Blob, KzgCommitment, KzgSettings, BYTES_PER_FIELD_ELEMENT};
-use num_bigint::{BigInt, ParseBigIntError};
+use num_bigint::{BigInt, ParseBigIntError, Sign};
 use num_traits::{Num, One, Zero};
 use starknet_infra_utils::compile_time_cargo_manifest_dir;
 
@@ -12,8 +12,8 @@ const BLOB_SUBGROUP_GENERATOR: &str =
     "39033254847818212395286706435128746857159659164139250548781411570340225835782";
 pub(crate) const BLS_PRIME: &str =
     "52435875175126190479447740508185965837690552500527637822603658699938581184513";
-pub(crate) const COMMITMENT_BITS: usize = 384;
-const COMMITMENT_BITS_MIDPOINT: usize = COMMITMENT_BITS / 2;
+const COMMITMENT_BYTES_LENGTH: usize = 48;
+const COMMITMENT_BYTES_MIDPOINT: usize = COMMITMENT_BYTES_LENGTH / 2;
 const FIELD_ELEMENTS_PER_BLOB: usize = 4096;
 
 #[derive(Debug, thiserror::Error)]
@@ -28,8 +28,6 @@ pub enum FftError {
     InvalidCoeffsLength(usize),
     #[error(transparent)]
     ParseBigInt(#[from] ParseBigIntError),
-    #[error("Commitment '{0}' is more than {COMMITMENT_BITS} bits.")]
-    TooBigToSplit(BigInt),
     #[error("Too many coefficients; expected at most {FIELD_ELEMENTS_PER_BLOB}, got {0}.")]
     TooManyCoefficients(usize),
 }
@@ -41,7 +39,6 @@ static KZG_SETTINGS: LazyLock<KzgSettings> = LazyLock::new(|| {
         .unwrap_or_else(|error| panic!("Failed to load trusted setup file from {path:?}: {error}."))
 });
 
-#[allow(dead_code)]
 fn blob_to_kzg_commitment(blob: &Blob) -> Result<KzgCommitment, FftError> {
     Ok(KzgCommitment::blob_to_kzg_commitment(blob, &KZG_SETTINGS)?)
 }
@@ -158,22 +155,16 @@ pub(crate) fn fft(
     Ok(values)
 }
 
-#[allow(dead_code)]
-pub(crate) fn split_commitment(num: &BigInt) -> Result<(BigInt, BigInt), FftError> {
-    // Ensure the input is 384 bits (48 bytes).
-    if num != &(num & &((BigInt::one() << COMMITMENT_BITS) - 1)) {
-        return Err(FftError::TooBigToSplit(num.clone()));
-    }
+pub(crate) fn split_commitment(commitment: &KzgCommitment) -> Result<(BigInt, BigInt), FftError> {
+    let commitment_bytes: [u8; COMMITMENT_BYTES_LENGTH] = *commitment.to_bytes().as_ref();
 
     // Split the number.
-    let mask = (BigInt::one() << COMMITMENT_BITS_MIDPOINT) - 1;
-    let low = num & &mask;
-    let high = num >> COMMITMENT_BITS_MIDPOINT;
+    let low = &commitment_bytes[COMMITMENT_BYTES_MIDPOINT..];
+    let high = &commitment_bytes[..COMMITMENT_BYTES_MIDPOINT];
 
-    Ok((low, high))
+    Ok((BigInt::from_bytes_be(Sign::Plus, low), BigInt::from_bytes_be(Sign::Plus, high)))
 }
 
-#[allow(dead_code)]
 fn polynomial_coefficients_to_blob(coefficients: Vec<BigInt>) -> Result<Vec<u8>, FftError> {
     if coefficients.len() > FIELD_ELEMENTS_PER_BLOB {
         return Err(FftError::TooManyCoefficients(coefficients.len()));
@@ -191,4 +182,13 @@ fn polynomial_coefficients_to_blob(coefficients: Vec<BigInt>) -> Result<Vec<u8>,
 
     // Serialize the FFT result into a blob.
     serialize_blob(&fft_result)
+}
+
+#[allow(dead_code)]
+pub(crate) fn polynomial_coefficients_to_kzg_commitment(
+    coefficients: Vec<BigInt>,
+) -> Result<(BigInt, BigInt), FftError> {
+    let blob = polynomial_coefficients_to_blob(coefficients)?;
+    let commitment_bytes = blob_to_kzg_commitment(&Blob::from_bytes(&blob)?)?;
+    split_commitment(&commitment_bytes)
 }
