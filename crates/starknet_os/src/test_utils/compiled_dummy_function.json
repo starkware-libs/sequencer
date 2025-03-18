@@ -10,6 +10,11 @@
         "0x48327ffa7ff98000",
         "0x48307ffb7ffa8000",
         "0x48307ffd7ffb8000",
+        "0x208b7fff7fff7ffe",
+        "0x480280017ffd8000",
+        "0x482a7ff77ff68000",
+        "0x482a7ff97ff88000",
+        "0x48327ffd7ffa8000",
         "0x208b7fff7fff7ffe"
     ],
     "builtins": [],
@@ -47,13 +52,13 @@
             "size": 2,
             "type": "struct"
         },
-        "__main__.dummy_function": {
+        "__main__.pass_felt_and_pointers": {
             "pc": 0,
             "decorators": [],
             "type": "function"
         },
-        "__main__.dummy_function.Args": {
-            "full_name": "__main__.dummy_function.Args",
+        "__main__.pass_felt_and_pointers.Args": {
+            "full_name": "__main__.pass_felt_and_pointers.Args",
             "members": {
                 "number": {
                     "offset": 0,
@@ -79,8 +84,8 @@
             "size": 5,
             "type": "struct"
         },
-        "__main__.dummy_function.number": {
-            "full_name": "__main__.dummy_function.number",
+        "__main__.pass_felt_and_pointers.number": {
+            "full_name": "__main__.pass_felt_and_pointers.number",
             "cairo_type": "felt",
             "references": [
                 {
@@ -94,8 +99,8 @@
             ],
             "type": "reference"
         },
-        "__main__.dummy_function.array": {
-            "full_name": "__main__.dummy_function.array",
+        "__main__.pass_felt_and_pointers.array": {
+            "full_name": "__main__.pass_felt_and_pointers.array",
             "cairo_type": "felt*",
             "references": [
                 {
@@ -109,8 +114,8 @@
             ],
             "type": "reference"
         },
-        "__main__.dummy_function.tuple": {
-            "full_name": "__main__.dummy_function.tuple",
+        "__main__.pass_felt_and_pointers.tuple": {
+            "full_name": "__main__.pass_felt_and_pointers.tuple",
             "cairo_type": "felt*",
             "references": [
                 {
@@ -124,8 +129,8 @@
             ],
             "type": "reference"
         },
-        "__main__.dummy_function.simple_struct": {
-            "full_name": "__main__.dummy_function.simple_struct",
+        "__main__.pass_felt_and_pointers.simple_struct": {
+            "full_name": "__main__.pass_felt_and_pointers.simple_struct",
             "cairo_type": "__main__.SimpleStruct*",
             "references": [
                 {
@@ -139,8 +144,8 @@
             ],
             "type": "reference"
         },
-        "__main__.dummy_function.compound_struct": {
-            "full_name": "__main__.dummy_function.compound_struct",
+        "__main__.pass_felt_and_pointers.compound_struct": {
+            "full_name": "__main__.pass_felt_and_pointers.compound_struct",
             "cairo_type": "__main__.CompoundStruct*",
             "references": [
                 {
@@ -154,22 +159,22 @@
             ],
             "type": "reference"
         },
-        "__main__.dummy_function.ImplicitArgs": {
-            "full_name": "__main__.dummy_function.ImplicitArgs",
+        "__main__.pass_felt_and_pointers.ImplicitArgs": {
+            "full_name": "__main__.pass_felt_and_pointers.ImplicitArgs",
             "members": {},
             "size": 0,
             "type": "struct"
         },
-        "__main__.dummy_function.Return": {
+        "__main__.pass_felt_and_pointers.Return": {
             "cairo_type": "(res1: felt, res2: felt, res3: felt)",
             "type": "type_definition"
         },
-        "__main__.dummy_function.SIZEOF_LOCALS": {
+        "__main__.pass_felt_and_pointers.SIZEOF_LOCALS": {
             "value": 0,
             "type": "const"
         },
-        "__main__.dummy_function.res1": {
-            "full_name": "__main__.dummy_function.res1",
+        "__main__.pass_felt_and_pointers.res1": {
+            "full_name": "__main__.pass_felt_and_pointers.res1",
             "cairo_type": "felt",
             "references": [
                 {
@@ -183,8 +188,8 @@
             ],
             "type": "reference"
         },
-        "__main__.dummy_function.res2": {
-            "full_name": "__main__.dummy_function.res2",
+        "__main__.pass_felt_and_pointers.res2": {
+            "full_name": "__main__.pass_felt_and_pointers.res2",
             "cairo_type": "felt",
             "references": [
                 {
@@ -198,8 +203,8 @@
             ],
             "type": "reference"
         },
-        "__main__.dummy_function.res3": {
-            "full_name": "__main__.dummy_function.res3",
+        "__main__.pass_felt_and_pointers.res3": {
+            "full_name": "__main__.pass_felt_and_pointers.res3",
             "cairo_type": "felt",
             "references": [
                 {
@@ -213,8 +218,155 @@
             ],
             "type": "reference"
         },
-        "__main__.dummy_function.__temp0": {
-            "full_name": "__main__.dummy_function.__temp0",
+        "__main__.pass_structs_and_tuples": {
+            "pc": 10,
+            "decorators": [],
+            "type": "function"
+        },
+        "__main__.pass_structs_and_tuples.Args": {
+            "full_name": "__main__.pass_structs_and_tuples.Args",
+            "members": {
+                "tuple": {
+                    "offset": 0,
+                    "cairo_type": "(felt, felt)"
+                },
+                "named_tuple": {
+                    "offset": 2,
+                    "cairo_type": "(a: felt, b: felt)"
+                },
+                "simple_struct": {
+                    "offset": 4,
+                    "cairo_type": "__main__.SimpleStruct"
+                },
+                "compound_struct": {
+                    "offset": 6,
+                    "cairo_type": "__main__.CompoundStruct"
+                }
+            },
+            "size": 8,
+            "type": "struct"
+        },
+        "__main__.pass_structs_and_tuples.tuple": {
+            "full_name": "__main__.pass_structs_and_tuples.tuple",
+            "cairo_type": "(felt, felt)",
+            "references": [
+                {
+                    "pc": 10,
+                    "value": "[cast(fp + (-10), (felt, felt)*)]",
+                    "ap_tracking_data": {
+                        "group": 1,
+                        "offset": 0
+                    }
+                }
+            ],
+            "type": "reference"
+        },
+        "__main__.pass_structs_and_tuples.named_tuple": {
+            "full_name": "__main__.pass_structs_and_tuples.named_tuple",
+            "cairo_type": "(a: felt, b: felt)",
+            "references": [
+                {
+                    "pc": 10,
+                    "value": "[cast(fp + (-8), (a: felt, b: felt)*)]",
+                    "ap_tracking_data": {
+                        "group": 1,
+                        "offset": 0
+                    }
+                }
+            ],
+            "type": "reference"
+        },
+        "__main__.pass_structs_and_tuples.simple_struct": {
+            "full_name": "__main__.pass_structs_and_tuples.simple_struct",
+            "cairo_type": "__main__.SimpleStruct",
+            "references": [
+                {
+                    "pc": 10,
+                    "value": "[cast(fp + (-6), __main__.SimpleStruct*)]",
+                    "ap_tracking_data": {
+                        "group": 1,
+                        "offset": 0
+                    }
+                }
+            ],
+            "type": "reference"
+        },
+        "__main__.pass_structs_and_tuples.compound_struct": {
+            "full_name": "__main__.pass_structs_and_tuples.compound_struct",
+            "cairo_type": "__main__.CompoundStruct",
+            "references": [
+                {
+                    "pc": 10,
+                    "value": "[cast(fp + (-4), __main__.CompoundStruct*)]",
+                    "ap_tracking_data": {
+                        "group": 1,
+                        "offset": 0
+                    }
+                }
+            ],
+            "type": "reference"
+        },
+        "__main__.pass_structs_and_tuples.ImplicitArgs": {
+            "full_name": "__main__.pass_structs_and_tuples.ImplicitArgs",
+            "members": {},
+            "size": 0,
+            "type": "struct"
+        },
+        "__main__.pass_structs_and_tuples.Return": {
+            "cairo_type": "(res1: felt, res2: felt, res3: felt)",
+            "type": "type_definition"
+        },
+        "__main__.pass_structs_and_tuples.SIZEOF_LOCALS": {
+            "value": 0,
+            "type": "const"
+        },
+        "__main__.pass_structs_and_tuples.res1": {
+            "full_name": "__main__.pass_structs_and_tuples.res1",
+            "cairo_type": "felt",
+            "references": [
+                {
+                    "pc": 10,
+                    "value": "cast([fp + (-10)] + [fp + (-9)], felt)",
+                    "ap_tracking_data": {
+                        "group": 1,
+                        "offset": 0
+                    }
+                }
+            ],
+            "type": "reference"
+        },
+        "__main__.pass_structs_and_tuples.res2": {
+            "full_name": "__main__.pass_structs_and_tuples.res2",
+            "cairo_type": "felt",
+            "references": [
+                {
+                    "pc": 10,
+                    "value": "cast([fp + (-8)] + [fp + (-7)], felt)",
+                    "ap_tracking_data": {
+                        "group": 1,
+                        "offset": 0
+                    }
+                }
+            ],
+            "type": "reference"
+        },
+        "__main__.pass_structs_and_tuples.res3": {
+            "full_name": "__main__.pass_structs_and_tuples.res3",
+            "cairo_type": "felt",
+            "references": [
+                {
+                    "pc": 10,
+                    "value": "cast([fp + (-6)] + [[fp + (-3)] + 1], felt)",
+                    "ap_tracking_data": {
+                        "group": 1,
+                        "offset": 0
+                    }
+                }
+            ],
+            "type": "reference"
+        },
+        "__main__.pass_felt_and_pointers.__temp0": {
+            "full_name": "__main__.pass_felt_and_pointers.__temp0",
             "cairo_type": "felt",
             "references": [
                 {
@@ -228,8 +380,8 @@
             ],
             "type": "reference"
         },
-        "__main__.dummy_function.__temp1": {
-            "full_name": "__main__.dummy_function.__temp1",
+        "__main__.pass_felt_and_pointers.__temp1": {
+            "full_name": "__main__.pass_felt_and_pointers.__temp1",
             "cairo_type": "felt",
             "references": [
                 {
@@ -243,8 +395,8 @@
             ],
             "type": "reference"
         },
-        "__main__.dummy_function.__temp2": {
-            "full_name": "__main__.dummy_function.__temp2",
+        "__main__.pass_felt_and_pointers.__temp2": {
+            "full_name": "__main__.pass_felt_and_pointers.__temp2",
             "cairo_type": "felt",
             "references": [
                 {
@@ -258,8 +410,8 @@
             ],
             "type": "reference"
         },
-        "__main__.dummy_function.__temp3": {
-            "full_name": "__main__.dummy_function.__temp3",
+        "__main__.pass_felt_and_pointers.__temp3": {
+            "full_name": "__main__.pass_felt_and_pointers.__temp3",
             "cairo_type": "felt",
             "references": [
                 {
@@ -273,8 +425,8 @@
             ],
             "type": "reference"
         },
-        "__main__.dummy_function.__temp4": {
-            "full_name": "__main__.dummy_function.__temp4",
+        "__main__.pass_felt_and_pointers.__temp4": {
+            "full_name": "__main__.pass_felt_and_pointers.__temp4",
             "cairo_type": "felt",
             "references": [
                 {
@@ -288,8 +440,8 @@
             ],
             "type": "reference"
         },
-        "__main__.dummy_function.__temp5": {
-            "full_name": "__main__.dummy_function.__temp5",
+        "__main__.pass_felt_and_pointers.__temp5": {
+            "full_name": "__main__.pass_felt_and_pointers.__temp5",
             "cairo_type": "felt",
             "references": [
                 {
@@ -298,6 +450,21 @@
                     "ap_tracking_data": {
                         "group": 0,
                         "offset": 6
+                    }
+                }
+            ],
+            "type": "reference"
+        },
+        "__main__.pass_structs_and_tuples.__temp6": {
+            "full_name": "__main__.pass_structs_and_tuples.__temp6",
+            "cairo_type": "felt",
+            "references": [
+                {
+                    "pc": 11,
+                    "value": "[cast(ap + (-1), felt*)]",
+                    "ap_tracking_data": {
+                        "group": 1,
+                        "offset": 1
                     }
                 }
             ],
@@ -416,6 +583,70 @@
                 "ap_tracking_data": {
                     "group": 0,
                     "offset": 6
+                }
+            },
+            {
+                "pc": 10,
+                "value": "[cast(fp + (-10), (felt, felt)*)]",
+                "ap_tracking_data": {
+                    "group": 1,
+                    "offset": 0
+                }
+            },
+            {
+                "pc": 10,
+                "value": "[cast(fp + (-8), (a: felt, b: felt)*)]",
+                "ap_tracking_data": {
+                    "group": 1,
+                    "offset": 0
+                }
+            },
+            {
+                "pc": 10,
+                "value": "[cast(fp + (-6), __main__.SimpleStruct*)]",
+                "ap_tracking_data": {
+                    "group": 1,
+                    "offset": 0
+                }
+            },
+            {
+                "pc": 10,
+                "value": "[cast(fp + (-4), __main__.CompoundStruct*)]",
+                "ap_tracking_data": {
+                    "group": 1,
+                    "offset": 0
+                }
+            },
+            {
+                "pc": 10,
+                "value": "cast([fp + (-10)] + [fp + (-9)], felt)",
+                "ap_tracking_data": {
+                    "group": 1,
+                    "offset": 0
+                }
+            },
+            {
+                "pc": 10,
+                "value": "cast([fp + (-8)] + [fp + (-7)], felt)",
+                "ap_tracking_data": {
+                    "group": 1,
+                    "offset": 0
+                }
+            },
+            {
+                "pc": 10,
+                "value": "cast([fp + (-6)] + [[fp + (-3)] + 1], felt)",
+                "ap_tracking_data": {
+                    "group": 1,
+                    "offset": 0
+                }
+            },
+            {
+                "pc": 11,
+                "value": "[cast(ap + (-1), felt*)]",
+                "ap_tracking_data": {
+                    "group": 1,
+                    "offset": 1
                 }
             }
         ]
