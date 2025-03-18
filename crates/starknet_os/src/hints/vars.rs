@@ -129,6 +129,7 @@ pub enum Ids {
     StateUpdatesStart,
     SyscallPtr,
     TransactionHash,
+    TxType,
     UseKzgDa,
     Value,
 }
@@ -187,6 +188,7 @@ impl From<Ids> for &'static str {
             Ids::StateUpdatesStart => "state_updates_start",
             Ids::SyscallPtr => "syscall_ptr",
             Ids::TransactionHash => "transaction_hash",
+            Ids::TxType => "tx_type",
             Ids::UseKzgDa => "use_kzg_da",
             Ids::Value => "value",
         }
