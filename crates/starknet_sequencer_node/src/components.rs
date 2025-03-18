@@ -253,6 +253,7 @@ pub async fn create_node_components(
                  height that is at least as old as L2 genesis, or override provider startup \
                  height (read its docstring before using)",
             );
+
             Some(create_l1_provider(
                 config.l1_provider_config,
                 clients.get_l1_provider_shared_client().unwrap(),
