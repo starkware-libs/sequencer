@@ -28,6 +28,7 @@ pub enum MetricScope {
     Infra,
     Mempool,
     MempoolP2p,
+    Network,
     StateSync,
     PapyrusSync,
 }

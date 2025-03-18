@@ -8,7 +8,13 @@ use apollo_reverts::revert_blocks_and_eternal_pending;
 use async_trait::async_trait;
 use futures::channel::mpsc;
 use papyrus_network::gossipsub_impl::Topic;
-use papyrus_network::network_manager::metrics::{BroadcastNetworkMetrics, NetworkMetrics};
+use papyrus_network::network_manager::metrics::{
+    BroadcastNetworkMetrics,
+    NetworkMetrics,
+    CONSENSUS_NUM_CONNECTED_PEERS,
+    CONSENSUS_NUM_RECEIVED_MESSAGES,
+    CONSENSUS_NUM_SENT_MESSAGES,
+};
 use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use papyrus_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, Vote};
 use starknet_api::block::BlockNumber;
@@ -25,11 +31,6 @@ use starknet_state_sync_types::communication::SharedStateSyncClient;
 use tracing::info;
 
 use crate::config::ConsensusManagerConfig;
-use crate::metrics::{
-    CONSENSUS_NUM_CONNECTED_PEERS,
-    CONSENSUS_NUM_RECEIVED_MESSAGES,
-    CONSENSUS_NUM_SENT_MESSAGES,
-};
 
 #[derive(Clone)]
 pub struct ConsensusManager {

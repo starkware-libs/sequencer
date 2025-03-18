@@ -27,7 +27,6 @@ starknet_api.workspace = true
 starknet_class_manager_types.workspace = true
 starknet_client.workspace = true
 starknet_sequencer_infra.workspace = true
-starknet_sequencer_metrics.workspace = true
 starknet_state_sync_types.workspace = true
 tokio.workspace = true
 validator.workspace = true
