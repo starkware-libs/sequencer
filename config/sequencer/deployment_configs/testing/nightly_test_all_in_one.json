@@ -4,7 +4,7 @@
   "application_config_subdir": "config/sequencer/presets/system_test_presets/single_node/",
   "services": [
     {
-      "name": "ConsolidatedNode",
+      "name": "Node",
       "config_path": "node_0/executable_0/node_config.json",
       "ingress": false,
       "autoscale": false,

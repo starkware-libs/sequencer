@@ -1,6 +1,12 @@
 use starknet_api::core::ChainId;
 
-use crate::deployment::{Deployment, DistributedNodeServiceName, Service, ServiceName};
+use crate::deployment::{
+    ConsolidatedNodeServiceName,
+    Deployment,
+    DistributedNodeServiceName,
+    Service,
+    ServiceName,
+};
 
 #[cfg(test)]
 #[path = "deployment_definitions_test.rs"]
@@ -66,7 +72,7 @@ const MEMPOOL_MAIN: Service = Service::new(
 // Test deployment services.
 // TODO(Tsabary): avoid the hard-coded path.
 const CONSOLIDATED_TESTING: Service = Service::new(
-    ServiceName::ConsolidatedNode,
+    ServiceName::ConsolidatedNode(ConsolidatedNodeServiceName::Node),
     "node_0/executable_0/node_config.json",
     false,
     false,
