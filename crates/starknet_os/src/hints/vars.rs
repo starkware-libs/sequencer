@@ -26,6 +26,7 @@ pub(crate) enum Scope {
     SerializeDataAvailabilityCreatePages,
     StateUpdatePointers,
     Transactions,
+    Tx,
     UseKzgDa,
 }
 
@@ -51,6 +52,7 @@ impl From<Scope> for &'static str {
             }
             Scope::StateUpdatePointers => "state_update_pointers",
             Scope::Transactions => "transactions",
+            Scope::Tx => "tx",
             Scope::UseKzgDa => "use_kzg_da",
         }
     }
@@ -115,6 +117,7 @@ pub enum Ids {
     StateEntry,
     StateUpdatesStart,
     SyscallPtr,
+    TransactionHash,
     UseKzgDa,
     Value,
 }
@@ -165,6 +168,7 @@ impl From<Ids> for &'static str {
             Ids::StateEntry => "state_entry",
             Ids::StateUpdatesStart => "state_updates_start",
             Ids::SyscallPtr => "syscall_ptr",
+            Ids::TransactionHash => "transaction_hash",
             Ids::UseKzgDa => "use_kzg_da",
             Ids::Value => "value",
         }

@@ -11,6 +11,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
 };
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
+use starknet_api::executable_transaction::Transaction;
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
@@ -35,9 +36,19 @@ pub(crate) fn prepare_constructor_execution<S: StateReader>(
 }
 
 pub(crate) fn assert_transaction_hash<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { exec_scopes, vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    let stored_transaction_hash =
+        get_integer_from_var_name(Ids::TransactionHash.into(), vm, ids_data, ap_tracking)?;
+    let tx = exec_scopes.get::<Transaction>(Scope::Tx.into())?;
+    let calculated_tx_hash = tx.tx_hash().0;
+
+    assert_eq!(
+        calculated_tx_hash, stored_transaction_hash,
+        "Computed transaction_hash is inconsistent with the hash in the transaction. Computed \
+         hash = {stored_transaction_hash:#x}, Expected hash = {calculated_tx_hash:#x}.",
+    );
+    Ok(())
 }
 
 pub(crate) fn enter_scope_deprecated_syscall_handler<S: StateReader>(
