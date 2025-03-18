@@ -1,6 +1,6 @@
 use starknet_api::core::ChainId;
 
-use crate::deployment::{Deployment, DeploymentName};
+use crate::deployment::{Deployment, DeploymentAndPreset, DeploymentName};
 
 #[cfg(test)]
 #[path = "deployment_definitions_test.rs"]
@@ -15,29 +15,31 @@ pub const SINGLE_NODE_CONFIG_PATH: &str =
     "config/sequencer/presets/system_test_presets/single_node/node_0/executable_0/node_config.json";
 
 // TODO(Tsabary): fill and order these.
-pub const MAIN_DEPLOYMENT_PRESET_PATH: &str = "config/sequencer/presets/main.json";
-pub const MAIN_DEPLOYMENT_APP_CONFIG_SUBDIR: &str =
-    "config/sequencer/presets/system_test_presets/single_node/";
 
-pub fn create_main_deployment() -> Deployment<'static> {
-    Deployment::new(
-        ChainId::Mainnet,
-        DEPLOYMENT_IMAGE,
-        MAIN_DEPLOYMENT_APP_CONFIG_SUBDIR,
-        DeploymentName::DistributedNode,
+type DeploymentFn = fn() -> DeploymentAndPreset<'static>;
+
+pub const DEPLOYMENTS: &[DeploymentFn] = &[create_main_deployment, create_testing_deployment];
+
+fn create_main_deployment() -> DeploymentAndPreset<'static> {
+    DeploymentAndPreset::new(
+        Deployment::new(
+            ChainId::Mainnet,
+            DEPLOYMENT_IMAGE,
+            "config/sequencer/presets/system_test_presets/single_node/",
+            DeploymentName::DistributedNode,
+        ),
+        "config/sequencer/presets/main.json",
     )
 }
 
-pub const TESTING_DEPLOYMENT_PRESET_PATH: &str =
-    "config/sequencer/deployment_configs/testing/nightly_test_all_in_one.json";
-pub const TESTING_DEPLOYMENT_APP_CONFIG_SUBDIR: &str =
-    "config/sequencer/presets/system_test_presets/single_node/";
-
-pub fn create_testing_deployment() -> Deployment<'static> {
-    Deployment::new(
-        ChainId::IntegrationSepolia,
-        DEPLOYMENT_IMAGE,
-        TESTING_DEPLOYMENT_APP_CONFIG_SUBDIR,
-        DeploymentName::ConsolidatedNode,
+fn create_testing_deployment() -> DeploymentAndPreset<'static> {
+    DeploymentAndPreset::new(
+        Deployment::new(
+            ChainId::IntegrationSepolia,
+            DEPLOYMENT_IMAGE,
+            "config/sequencer/presets/system_test_presets/single_node/",
+            DeploymentName::ConsolidatedNode,
+        ),
+        "config/sequencer/deployment_configs/testing/nightly_test_all_in_one.json",
     )
 }
