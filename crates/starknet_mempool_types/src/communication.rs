@@ -21,7 +21,7 @@ use starknet_sequencer_infra::component_definitions::{
 use thiserror::Error;
 
 use crate::errors::MempoolError;
-use crate::mempool_types::{AddTransactionArgs, CommitBlockArgs};
+use crate::mempool_types::{AddTransactionArgs, CommitBlockArgs, MempoolContent};
 
 pub type LocalMempoolClient = LocalComponentClient<MempoolRequest, MempoolResponse>;
 pub type RemoteMempoolClient = RemoteComponentClient<MempoolRequest, MempoolResponse>;
@@ -61,6 +61,7 @@ pub enum MempoolRequest {
     GetTransactions(usize),
     AccountTxInPoolOrRecentBlock(ContractAddress),
     UpdateGasPrice(NonzeroGasPrice),
+    GetMempoolContent(),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -70,6 +71,7 @@ pub enum MempoolResponse {
     GetTransactions(MempoolResult<Vec<InternalRpcTransaction>>),
     AccountTxInPoolOrRecentBlock(MempoolResult<bool>),
     UpdateGasPrice(MempoolResult<()>),
+    GetMempoolContent(MempoolResult<MempoolContent>),
 }
 
 #[derive(Clone, Debug, Error)]
