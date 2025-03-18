@@ -66,38 +66,13 @@ mod dashboard_definitions_test;
 
 pub const DEV_JSON_PATH: &str = "Monitoring/sequencer/dev_grafana.json";
 
-const PANEL_ADDED_TRANSACTIONS_TOTAL: Panel = Panel::new(
-    ADDED_TRANSACTIONS_TOTAL.get_name(),
-    ADDED_TRANSACTIONS_TOTAL.get_description(),
-    ADDED_TRANSACTIONS_TOTAL.get_name(),
-    PanelType::Stat,
-);
-
-const PANEL_PROPOSAL_STARTED: Panel = Panel::new(
-    PROPOSAL_STARTED.get_name(),
-    PROPOSAL_STARTED.get_description(),
-    PROPOSAL_STARTED.get_name(),
-    PanelType::Stat,
-);
-const PANEL_PROPOSAL_SUCCEEDED: Panel = Panel::new(
-    PROPOSAL_SUCCEEDED.get_name(),
-    PROPOSAL_SUCCEEDED.get_description(),
-    PROPOSAL_SUCCEEDED.get_name(),
-    PanelType::Stat,
-);
-const PANEL_PROPOSAL_FAILED: Panel = Panel::new(
-    PROPOSAL_FAILED.get_name(),
-    PROPOSAL_FAILED.get_description(),
-    PROPOSAL_FAILED.get_name(),
-    PanelType::Stat,
-);
-const PANEL_BATCHED_TRANSACTIONS: Panel = Panel::new(
-    BATCHED_TRANSACTIONS.get_name(),
-    BATCHED_TRANSACTIONS.get_description(),
-    BATCHED_TRANSACTIONS.get_name(),
-    PanelType::Stat,
-);
-
+const PANEL_ADDED_TRANSACTIONS_TOTAL: Panel =
+    Panel::from_counter(ADDED_TRANSACTIONS_TOTAL, PanelType::Stat);
+const PANEL_PROPOSAL_STARTED: Panel = Panel::from_counter(PROPOSAL_STARTED, PanelType::Stat);
+const PANEL_PROPOSAL_SUCCEEDED: Panel = Panel::from_counter(PROPOSAL_SUCCEEDED, PanelType::Stat);
+const PANEL_PROPOSAL_FAILED: Panel = Panel::from_counter(PROPOSAL_FAILED, PanelType::Stat);
+const PANEL_BATCHED_TRANSACTIONS: Panel =
+    Panel::from_counter(BATCHED_TRANSACTIONS, PanelType::Stat);
 const PANEL_CAIRO_NATIVE_CACHE_MISS_RATIO: Panel = Panel::new(
     "cairo_native_cache_miss_ratio",
     "The ratio of cache misses in the Cairo native cache",
@@ -110,160 +85,49 @@ const PANEL_CAIRO_NATIVE_CACHE_MISS_RATIO: Panel = Panel::new(
     PanelType::Graph,
 );
 
-const PANEL_CONSENSUS_BLOCK_NUMBER: Panel = Panel::new(
-    CONSENSUS_BLOCK_NUMBER.get_name(),
-    CONSENSUS_BLOCK_NUMBER.get_description(),
-    CONSENSUS_BLOCK_NUMBER.get_name(),
-    PanelType::Stat,
-);
-
-const PANEL_CONSENSUS_ROUND: Panel = Panel::new(
-    CONSENSUS_ROUND.get_name(),
-    CONSENSUS_ROUND.get_description(),
-    CONSENSUS_ROUND.get_name(),
-    PanelType::Stat,
-);
-
-const PANEL_CONSENSUS_MAX_CACHED_BLOCK_NUMBER: Panel = Panel::new(
-    CONSENSUS_MAX_CACHED_BLOCK_NUMBER.get_name(),
-    CONSENSUS_MAX_CACHED_BLOCK_NUMBER.get_description(),
-    CONSENSUS_MAX_CACHED_BLOCK_NUMBER.get_name(),
-    PanelType::Stat,
-);
-
-const PANEL_CONSENSUS_CACHED_VOTES: Panel = Panel::new(
-    CONSENSUS_CACHED_VOTES.get_name(),
-    CONSENSUS_CACHED_VOTES.get_description(),
-    CONSENSUS_CACHED_VOTES.get_name(),
-    PanelType::Stat,
-);
-
-const PANEL_CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS: Panel = Panel::new(
-    CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS.get_name(),
-    CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS.get_description(),
-    CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS.get_name(),
-    PanelType::Stat,
-);
-
-const PANEL_CONSENSUS_DECISIONS_REACHED_BY_SYNC: Panel = Panel::new(
-    CONSENSUS_DECISIONS_REACHED_BY_SYNC.get_name(),
-    CONSENSUS_DECISIONS_REACHED_BY_SYNC.get_description(),
-    CONSENSUS_DECISIONS_REACHED_BY_SYNC.get_name(),
-    PanelType::Stat,
-);
-
-const PANEL_CONSENSUS_PROPOSALS_RECEIVED: Panel = Panel::new(
-    CONSENSUS_PROPOSALS_RECEIVED.get_name(),
-    CONSENSUS_PROPOSALS_RECEIVED.get_description(),
-    CONSENSUS_PROPOSALS_RECEIVED.get_name(),
-    PanelType::Stat,
-);
-
-const PANEL_CONSENSUS_PROPOSALS_VALID_INIT: Panel = Panel::new(
-    CONSENSUS_PROPOSALS_VALID_INIT.get_name(),
-    CONSENSUS_PROPOSALS_VALID_INIT.get_description(),
-    CONSENSUS_PROPOSALS_VALID_INIT.get_name(),
-    PanelType::Stat,
-);
-
-const PANEL_CONSENSUS_PROPOSALS_VALIDATED: Panel = Panel::new(
-    CONSENSUS_PROPOSALS_VALIDATED.get_name(),
-    CONSENSUS_PROPOSALS_VALIDATED.get_description(),
-    CONSENSUS_PROPOSALS_VALIDATED.get_name(),
-    PanelType::Stat,
-);
-
-const PANEL_CONSENSUS_PROPOSALS_INVALID: Panel = Panel::new(
-    CONSENSUS_PROPOSALS_INVALID.get_name(),
-    CONSENSUS_PROPOSALS_INVALID.get_description(),
-    CONSENSUS_PROPOSALS_INVALID.get_name(),
-    PanelType::Stat,
-);
-
-const PANEL_CONSENSUS_BUILD_PROPOSAL_TOTAL: Panel = Panel::new(
-    CONSENSUS_BUILD_PROPOSAL_TOTAL.get_name(),
-    CONSENSUS_BUILD_PROPOSAL_TOTAL.get_description(),
-    CONSENSUS_BUILD_PROPOSAL_TOTAL.get_name(),
-    PanelType::Stat,
-);
-
-const PANEL_CONSENSUS_BUILD_PROPOSAL_FAILED: Panel = Panel::new(
-    CONSENSUS_BUILD_PROPOSAL_FAILED.get_name(),
-    CONSENSUS_BUILD_PROPOSAL_FAILED.get_description(),
-    CONSENSUS_BUILD_PROPOSAL_FAILED.get_name(),
-    PanelType::Stat,
-);
-
-const PANEL_CONSENSUS_REPROPOSALS: Panel = Panel::new(
-    CONSENSUS_REPROPOSALS.get_name(),
-    CONSENSUS_REPROPOSALS.get_description(),
-    CONSENSUS_REPROPOSALS.get_name(),
-    PanelType::Stat,
-);
-
-const PANEL_MEMPOOL_P2P_NUM_CONNECTED_PEERS: Panel = Panel::new(
-    MEMPOOL_P2P_NUM_CONNECTED_PEERS.get_name(),
-    MEMPOOL_P2P_NUM_CONNECTED_PEERS.get_description(),
-    MEMPOOL_P2P_NUM_CONNECTED_PEERS.get_name(),
-    PanelType::Stat,
-);
-
-const PANEL_MEMPOOL_P2P_NUM_SENT_MESSAGES: Panel = Panel::new(
-    MEMPOOL_P2P_NUM_SENT_MESSAGES.get_name(),
-    MEMPOOL_P2P_NUM_SENT_MESSAGES.get_description(),
-    MEMPOOL_P2P_NUM_SENT_MESSAGES.get_name(),
-    PanelType::Stat,
-);
-
-const PANEL_MEMPOOL_P2P_NUM_RECEIVED_MESSAGES: Panel = Panel::new(
-    MEMPOOL_P2P_NUM_RECEIVED_MESSAGES.get_name(),
-    MEMPOOL_P2P_NUM_RECEIVED_MESSAGES.get_description(),
-    MEMPOOL_P2P_NUM_RECEIVED_MESSAGES.get_name(),
-    PanelType::Stat,
-);
-
-const PANEL_CONSENSUS_NUM_CONNECTED_PEERS: Panel = Panel::new(
-    CONSENSUS_NUM_CONNECTED_PEERS.get_name(),
-    CONSENSUS_NUM_CONNECTED_PEERS.get_description(),
-    CONSENSUS_NUM_CONNECTED_PEERS.get_name(),
-    PanelType::Stat,
-);
-
-const PANEL_CONSENSUS_NUM_SENT_MESSAGES: Panel = Panel::new(
-    CONSENSUS_NUM_SENT_MESSAGES.get_name(),
-    CONSENSUS_NUM_SENT_MESSAGES.get_description(),
-    CONSENSUS_NUM_SENT_MESSAGES.get_name(),
-    PanelType::Stat,
-);
-
-const PANEL_CONSENSUS_NUM_RECEIVED_MESSAGES: Panel = Panel::new(
-    CONSENSUS_NUM_RECEIVED_MESSAGES.get_name(),
-    CONSENSUS_NUM_RECEIVED_MESSAGES.get_description(),
-    CONSENSUS_NUM_RECEIVED_MESSAGES.get_name(),
-    PanelType::Stat,
-);
-
-const PANEL_STATE_SYNC_P2P_NUM_CONNECTED_PEERS: Panel = Panel::new(
-    STATE_SYNC_P2P_NUM_CONNECTED_PEERS.get_name(),
-    STATE_SYNC_P2P_NUM_CONNECTED_PEERS.get_description(),
-    STATE_SYNC_P2P_NUM_CONNECTED_PEERS.get_name(),
-    PanelType::Stat,
-);
-
-const PANEL_STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS: Panel = Panel::new(
-    STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS.get_name(),
-    STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS.get_description(),
-    STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS.get_name(),
-    PanelType::Stat,
-);
-
-const PANEL_STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS: Panel = Panel::new(
-    STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS.get_name(),
-    STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS.get_description(),
-    STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS.get_name(),
-    PanelType::Stat,
-);
-
+const PANEL_CONSENSUS_BLOCK_NUMBER: Panel =
+    Panel::from_gauge(CONSENSUS_BLOCK_NUMBER, PanelType::Stat);
+const PANEL_CONSENSUS_ROUND: Panel = Panel::from_gauge(CONSENSUS_ROUND, PanelType::Stat);
+const PANEL_CONSENSUS_MAX_CACHED_BLOCK_NUMBER: Panel =
+    Panel::from_gauge(CONSENSUS_MAX_CACHED_BLOCK_NUMBER, PanelType::Stat);
+const PANEL_CONSENSUS_CACHED_VOTES: Panel =
+    Panel::from_gauge(CONSENSUS_CACHED_VOTES, PanelType::Stat);
+const PANEL_CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS: Panel =
+    Panel::from_counter(CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS, PanelType::Stat);
+const PANEL_CONSENSUS_DECISIONS_REACHED_BY_SYNC: Panel =
+    Panel::from_counter(CONSENSUS_DECISIONS_REACHED_BY_SYNC, PanelType::Stat);
+const PANEL_CONSENSUS_PROPOSALS_RECEIVED: Panel =
+    Panel::from_counter(CONSENSUS_PROPOSALS_RECEIVED, PanelType::Stat);
+const PANEL_CONSENSUS_PROPOSALS_VALID_INIT: Panel =
+    Panel::from_counter(CONSENSUS_PROPOSALS_VALID_INIT, PanelType::Stat);
+const PANEL_CONSENSUS_PROPOSALS_VALIDATED: Panel =
+    Panel::from_counter(CONSENSUS_PROPOSALS_VALIDATED, PanelType::Stat);
+const PANEL_CONSENSUS_PROPOSALS_INVALID: Panel =
+    Panel::from_counter(CONSENSUS_PROPOSALS_INVALID, PanelType::Stat);
+const PANEL_CONSENSUS_BUILD_PROPOSAL_TOTAL: Panel =
+    Panel::from_counter(CONSENSUS_BUILD_PROPOSAL_TOTAL, PanelType::Stat);
+const PANEL_CONSENSUS_BUILD_PROPOSAL_FAILED: Panel =
+    Panel::from_counter(CONSENSUS_BUILD_PROPOSAL_FAILED, PanelType::Stat);
+const PANEL_CONSENSUS_REPROPOSALS: Panel =
+    Panel::from_counter(CONSENSUS_REPROPOSALS, PanelType::Stat);
+const PANEL_MEMPOOL_P2P_NUM_CONNECTED_PEERS: Panel =
+    Panel::from_gauge(MEMPOOL_P2P_NUM_CONNECTED_PEERS, PanelType::Stat);
+const PANEL_MEMPOOL_P2P_NUM_SENT_MESSAGES: Panel =
+    Panel::from_counter(MEMPOOL_P2P_NUM_SENT_MESSAGES, PanelType::Stat);
+const PANEL_MEMPOOL_P2P_NUM_RECEIVED_MESSAGES: Panel =
+    Panel::from_counter(MEMPOOL_P2P_NUM_RECEIVED_MESSAGES, PanelType::Stat);
+const PANEL_CONSENSUS_NUM_CONNECTED_PEERS: Panel =
+    Panel::from_gauge(CONSENSUS_NUM_CONNECTED_PEERS, PanelType::Stat);
+const PANEL_CONSENSUS_NUM_SENT_MESSAGES: Panel =
+    Panel::from_counter(CONSENSUS_NUM_SENT_MESSAGES, PanelType::Stat);
+const PANEL_CONSENSUS_NUM_RECEIVED_MESSAGES: Panel =
+    Panel::from_counter(CONSENSUS_NUM_RECEIVED_MESSAGES, PanelType::Stat);
+const PANEL_STATE_SYNC_P2P_NUM_CONNECTED_PEERS: Panel =
+    Panel::from_gauge(STATE_SYNC_P2P_NUM_CONNECTED_PEERS, PanelType::Stat);
+const PANEL_STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS: Panel =
+    Panel::from_gauge(STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS, PanelType::Stat);
+const PANEL_STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS: Panel =
+    Panel::from_gauge(STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS, PanelType::Stat);
 const PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_TYPE: Panel = Panel::new(
     TRANSACTIONS_RECEIVED.get_name(),
     TRANSACTIONS_RECEIVED.get_description(),
@@ -321,12 +185,8 @@ const PANEL_MEMPOOL_TRANSACTIONS_RECEIVED_RATE: Panel = Panel::new(
     PanelType::Graph,
 );
 
-const PANEL_MEMPOOL_TRANSACTIONS_COMMITTED: Panel = Panel::new(
-    MEMPOOL_TRANSACTIONS_COMMITTED.get_name(),
-    MEMPOOL_TRANSACTIONS_COMMITTED.get_description(),
-    MEMPOOL_TRANSACTIONS_COMMITTED.get_name(),
-    PanelType::Stat,
-);
+const PANEL_MEMPOOL_TRANSACTIONS_COMMITTED: Panel =
+    Panel::from_counter(MEMPOOL_TRANSACTIONS_COMMITTED, PanelType::Stat);
 
 const PANEL_MEMPOOL_TRANSACTIONS_DROPPED: Panel = Panel::new(
     MEMPOOL_TRANSACTIONS_DROPPED.get_name(),
