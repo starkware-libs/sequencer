@@ -9,15 +9,47 @@
       "ingress": false,
       "autoscale": false,
       "replicas": 1,
-      "storage": 500
+      "storage": 32
+    },
+    {
+      "name": "ClassManager",
+      "config_path": "node_0/executable_0/node_config.json",
+      "ingress": false,
+      "autoscale": false,
+      "replicas": 1,
+      "storage": 32
+    },
+    {
+      "name": "ConsensusManager",
+      "config_path": "node_0/executable_0/node_config.json",
+      "ingress": false,
+      "autoscale": false,
+      "replicas": 1,
+      "storage": 32
+    },
+    {
+      "name": "HttpServer",
+      "config_path": "node_0/executable_0/node_config.json",
+      "ingress": false,
+      "autoscale": false,
+      "replicas": 1,
+      "storage": 32
     },
     {
       "name": "Gateway",
       "config_path": "node_0/executable_0/node_config.json",
       "ingress": false,
-      "autoscale": true,
+      "autoscale": false,
       "replicas": 1,
-      "storage": null
+      "storage": 32
+    },
+    {
+      "name": "L1Provider",
+      "config_path": "node_0/executable_0/node_config.json",
+      "ingress": false,
+      "autoscale": false,
+      "replicas": 1,
+      "storage": 32
     },
     {
       "name": "Mempool",
@@ -25,7 +57,23 @@
       "ingress": false,
       "autoscale": false,
       "replicas": 1,
-      "storage": null
+      "storage": 32
+    },
+    {
+      "name": "SierraCompiler",
+      "config_path": "node_0/executable_0/node_config.json",
+      "ingress": false,
+      "autoscale": false,
+      "replicas": 1,
+      "storage": 32
+    },
+    {
+      "name": "StateSync",
+      "config_path": "node_0/executable_0/node_config.json",
+      "ingress": false,
+      "autoscale": false,
+      "replicas": 1,
+      "storage": 32
     }
   ]
 }

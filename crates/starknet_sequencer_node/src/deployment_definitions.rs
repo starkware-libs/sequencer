@@ -1,12 +1,6 @@
 use starknet_api::core::ChainId;
 
-use crate::deployment::{
-    ConsolidatedNodeServiceName,
-    Deployment,
-    DistributedNodeServiceName,
-    Service,
-    ServiceName,
-};
+use crate::deployment::{Deployment, DeploymentName};
 
 #[cfg(test)]
 #[path = "deployment_definitions_test.rs"]
@@ -30,7 +24,7 @@ pub fn create_main_deployment() -> Deployment<'static> {
         ChainId::Mainnet,
         DEPLOYMENT_IMAGE,
         MAIN_DEPLOYMENT_APP_CONFIG_SUBDIR,
-        &[BATCHER_MAIN, GATEWAY_MAIN, MEMPOOL_MAIN],
+        DeploymentName::DistributedNode,
     )
 }
 
@@ -44,44 +38,6 @@ pub fn create_testing_deployment() -> Deployment<'static> {
         ChainId::IntegrationSepolia,
         DEPLOYMENT_IMAGE,
         TESTING_DEPLOYMENT_APP_CONFIG_SUBDIR,
-        &[CONSOLIDATED_TESTING],
+        DeploymentName::ConsolidatedNode,
     )
 }
-
-// Main deployment services.
-// TODO(Tsabary): fill in correct application configs.
-const BATCHER_MAIN: Service = Service::new(
-    ServiceName::DistributedNode(DistributedNodeServiceName::Batcher),
-    "node_0/executable_0/node_config.json",
-    false,
-    false,
-    1,
-    Some(500),
-);
-const GATEWAY_MAIN: Service = Service::new(
-    ServiceName::DistributedNode(DistributedNodeServiceName::Gateway),
-    "node_0/executable_0/node_config.json",
-    false,
-    true,
-    1,
-    None,
-);
-const MEMPOOL_MAIN: Service = Service::new(
-    ServiceName::DistributedNode(DistributedNodeServiceName::Mempool),
-    "node_0/executable_0/node_config.json",
-    false,
-    false,
-    1,
-    None,
-);
-
-// Test deployment services.
-// TODO(Tsabary): avoid the hard-coded path.
-const CONSOLIDATED_TESTING: Service = Service::new(
-    ServiceName::ConsolidatedNode(ConsolidatedNodeServiceName::Node),
-    "node_0/executable_0/node_config.json",
-    false,
-    false,
-    1,
-    Some(32),
-);
