@@ -20,22 +20,14 @@ pub const DEPLOYMENTS: &[DeploymentFn] = &[create_main_deployment, create_testin
 
 fn create_main_deployment() -> DeploymentAndPreset {
     DeploymentAndPreset::new(
-        Deployment::new(
-            ChainId::Mainnet,
-            "config/sequencer/presets/system_test_presets/single_node/",
-            DeploymentName::DistributedNode,
-        ),
+        Deployment::new(ChainId::Mainnet, DeploymentName::DistributedNode),
         "config/sequencer/presets/main.json",
     )
 }
 
 fn create_testing_deployment() -> DeploymentAndPreset {
     DeploymentAndPreset::new(
-        Deployment::new(
-            ChainId::IntegrationSepolia,
-            "config/sequencer/presets/system_test_presets/single_node/",
-            DeploymentName::ConsolidatedNode,
-        ),
+        Deployment::new(ChainId::IntegrationSepolia, DeploymentName::ConsolidatedNode),
         "config/sequencer/deployment_configs/testing/nightly_test_all_in_one.json",
     )
 }
