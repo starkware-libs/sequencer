@@ -1,6 +1,8 @@
+use std::collections::HashMap;
+
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_into_ap;
-use starknet_api::core::{ClassHash, Nonce};
+use cairo_vm::types::relocatable::MaybeRelocatable;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::enum_definition::{AllHints, OsHint};
@@ -23,17 +25,18 @@ pub(crate) fn initialize_state_changes<S: StateReader>(
     HintArgs { hint_processor, exec_scopes, vm, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
     let contract_items = &hint_processor.execution_helper.cached_state.get_initial_reads()?;
-    let hashes_and_nonces: Vec<(ClassHash, Nonce)> = contract_items
-        .nonces
-        .iter()
-        .map(|(address, nonce)| {
-            let contract_hash =
-                contract_items.class_hashes.get(address).expect("Missing contract hash");
-            (*contract_hash, *nonce)
-        })
-        .collect();
-    // TODO(Aner): verify that it is not necessary to add segments.add().
-    let initial_dict = vm.gen_arg(&hashes_and_nonces)?;
+    let mut initial_dict: HashMap<MaybeRelocatable, MaybeRelocatable> = HashMap::new();
+    for (address, nonce) in contract_items.nonces.iter() {
+        let contract_hash =
+            contract_items.class_hashes.get(address).expect("Missing contract hash");
+        let change_base = vm.add_memory_segment();
+        vm.insert_value(change_base, **contract_hash)?;
+        let new_segment = vm.add_memory_segment();
+        vm.insert_value((change_base + 1)?, new_segment)?;
+        vm.insert_value((change_base + 2)?, **nonce)?;
+
+        initial_dict.insert(address.0.0.into(), change_base.into());
+    }
     exec_scopes.insert_value(Scope::InitialDict.into(), initial_dict);
     Ok(())
 }
