@@ -247,6 +247,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
                 tx_execution_info,
                 &mut execution_output.state_diff,
                 &mut tx_versioned_state,
+                &self.chunk[tx_index],
             );
             // Optimization: changing the sequencer balance storage cell does not trigger
             // (re-)validation of the next transactions.

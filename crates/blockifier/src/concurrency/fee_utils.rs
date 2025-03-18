@@ -11,6 +11,7 @@ use crate::fee::fee_utils::get_sequencer_balance_keys;
 use crate::state::cached_state::{ContractClassMapping, StateMaps};
 use crate::state::state_api::UpdatableState;
 use crate::transaction::objects::TransactionExecutionInfo;
+use crate::transaction::transaction_execution::Transaction;
 
 #[cfg(test)]
 #[path = "fee_utils_test.rs"]
@@ -27,6 +28,7 @@ pub fn complete_fee_transfer_flow(
     tx_execution_info: &mut TransactionExecutionInfo,
     state_diff: &mut StateMaps,
     state: &mut impl UpdatableState,
+    tx: &Transaction,
 ) {
     if tx_context.is_sequencer_the_sender() {
         // When the sequencer is the sender, we use the sequential (full) fee transfer.
@@ -59,8 +61,10 @@ pub fn complete_fee_transfer_flow(
             state_diff,
         );
     } else {
-        // Assumes we set the charge fee flag to the transaction enforce fee value.
-        let charge_fee = tx_context.tx_info.enforce_fee();
+        let charge_fee = match tx {
+            Transaction::Account(tx) => tx.execution_flags.charge_fee,
+            Transaction::L1Handler(_) => tx_context.tx_info.enforce_fee(),
+        };
         assert!(!charge_fee, "Transaction with no fee transfer info must not enforce a fee charge.")
     }
 }
