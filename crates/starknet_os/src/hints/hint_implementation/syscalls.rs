@@ -87,36 +87,6 @@ pub(crate) fn storage_write<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) ->
     todo!()
 }
 
-// pub const SET_SYSCALL_PTR: &str = indoc! {r#"
-// 	ids.os_context = segments.add()
-// 	ids.syscall_ptr = segments.add()
-
-// 	syscall_handler.set_syscall_ptr(syscall_ptr=ids.syscall_ptr)"#
-// };
-
-// pub fn set_syscall_ptr<PCS>(
-//     vm: &mut VirtualMachine,
-//     exec_scopes: &mut ExecutionScopes,
-//     ids_data: &HashMap<String, HintReference>,
-//     ap_tracking: &ApTracking,
-//     _constants: &HashMap<String, Felt252>,
-// ) -> Result<(), HintError>
-// where
-//     PCS: PerContractStorage + 'static,
-// {
-//     let os_context = vm.add_memory_segment();
-//     let syscall_ptr = vm.add_memory_segment();
-
-//     insert_value_from_var_name(vars::ids::OS_CONTEXT, os_context, vm, ids_data, ap_tracking)?;
-//     insert_value_from_var_name(vars::ids::SYSCALL_PTR, syscall_ptr, vm, ids_data, ap_tracking)?;
-
-//     let syscall_handler: OsSyscallHandlerWrapper<PCS> =
-// exec_scopes.get(vars::scopes::SYSCALL_HANDLER)?;     execute_coroutine(syscall_handler.
-// set_syscall_ptr(syscall_ptr))?;
-
-//     Ok(())
-// }
-
 pub(crate) fn set_syscall_ptr<S: StateReader>(
     HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
