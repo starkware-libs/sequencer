@@ -5,6 +5,7 @@ use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::program::Program;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::runners::cairo_runner::{CairoArg, CairoRunner};
+use starknet_types_core::felt::Felt;
 
 use crate::test_utils::errors::{Cairo0EntryPointRunnerError, ExplicitArgError};
 
@@ -12,23 +13,84 @@ use crate::test_utils::errors::{Cairo0EntryPointRunnerError, ExplicitArgError};
 #[path = "cairo_runner_test.rs"]
 mod test;
 
+/// An arg passed by value (i.e., a felt, tuple, named tuple or struct).
+#[derive(Clone, Debug)]
+pub enum ValueArg {
+    Single(Felt),
+    Array(Vec<Felt>),
+    Composed(Vec<EndpointArg>),
+}
+
+/// An arg passed as a pointer. i.e., a pointer to a felt, tuple, named tuple or struct, or a
+/// pointer to a pointer.
+#[derive(Clone, Debug)]
+pub enum PointerArg {
+    Array(Vec<Felt>),
+    Composed(Vec<EndpointArg>),
+}
+
+#[derive(Clone, Debug)]
+pub enum EndpointArg {
+    Value(ValueArg),
+    Pointer(PointerArg),
+}
+
+impl From<i32> for EndpointArg {
+    fn from(value: i32) -> Self {
+        Self::Value(ValueArg::Single(value.into()))
+    }
+}
+
+impl EndpointArg {
+    /// Converts an endpoint arg into a vector of cairo args.
+    /// The cairo VM loads struct / tuple / named tuple parameters by adding each of their fields
+    /// to the stack. This is why a single endpoint arg can be converted into multiple cairo args -
+    /// an arg of type Struct {a: felt, b: felt} will be converted into a vector of two cairo args
+    /// of type felt.
+    fn to_cairo_arg_vec(endpoint_arg: &EndpointArg) -> Vec<CairoArg> {
+        match endpoint_arg {
+            EndpointArg::Value(value_arg) => match value_arg {
+                ValueArg::Single(felt) => {
+                    vec![CairoArg::Single(MaybeRelocatable::Int(*felt))]
+                }
+                ValueArg::Array(felts) => felts
+                    .iter()
+                    .map(|felt| CairoArg::Single(MaybeRelocatable::Int(*felt)))
+                    .collect(),
+                ValueArg::Composed(endpoint_args) => {
+                    endpoint_args.iter().flat_map(Self::to_cairo_arg_vec).collect()
+                }
+            },
+            EndpointArg::Pointer(pointer_arg) => match pointer_arg {
+                PointerArg::Array(felts) => vec![CairoArg::Array(
+                    felts.iter().map(|felt| MaybeRelocatable::Int(*felt)).collect(),
+                )],
+                PointerArg::Composed(endpoint_args) => vec![CairoArg::Composed(
+                    endpoint_args.iter().flat_map(Self::to_cairo_arg_vec).collect(),
+                )],
+            },
+        }
+    }
+}
+
 /// Performs basic validations on the cairo arg. Assumes the arg is not a builtin.
 /// A successful result from this function does NOT guarantee that the arguments are valid.
 fn perform_basic_validations_on_cairo_arg(
     index: usize,
     expected_arg: &Member,
-    actual_arg: &CairoArg,
+    actual_arg: &EndpointArg,
 ) -> Result<(), Cairo0EntryPointRunnerError> {
-    if matches!(actual_arg, CairoArg::Single(MaybeRelocatable::RelocatableValue(_))) {
-        Err(ExplicitArgError::SingleRelocatableParam { index, actual_arg: actual_arg.clone() })?
-    }
-    let actual_arg_is_felt = matches!(actual_arg, CairoArg::Single(MaybeRelocatable::Int(_)));
-    let actual_arg_is_single = matches!(actual_arg, CairoArg::Single(_));
+    let actual_arg_is_felt = matches!(actual_arg, EndpointArg::Value(ValueArg::Single(_)));
+    let actual_arg_is_pointer = matches!(actual_arg, EndpointArg::Pointer(_));
+    let actual_arg_is_struct_or_tuple = !actual_arg_is_felt && !actual_arg_is_pointer;
 
     let expected_arg_is_pointer = expected_arg.cairo_type.ends_with("*");
     let expected_arg_is_felt = expected_arg.cairo_type == "felt";
+    let expected_arg_is_struct_or_tuple = !expected_arg_is_felt && !expected_arg_is_pointer;
 
-    if expected_arg_is_felt != actual_arg_is_felt || expected_arg_is_pointer == actual_arg_is_single
+    if expected_arg_is_felt != actual_arg_is_felt
+        || expected_arg_is_pointer != actual_arg_is_pointer
+        || expected_arg_is_struct_or_tuple != actual_arg_is_struct_or_tuple
     {
         Err(ExplicitArgError::Mismatch {
             index,
@@ -36,18 +98,13 @@ fn perform_basic_validations_on_cairo_arg(
             actual: actual_arg.clone(),
         })?;
     };
-    // expected arg is tuple / named tuple / struct.
-    if !expected_arg_is_felt && !expected_arg_is_pointer {
-        // TODO(Amos): Load tuple / named tuple / struct parameters to stack and remove this error.
-        Err(ExplicitArgError::UnsupportedArgType { index, expected_arg: expected_arg.clone() })?;
-    };
     Ok(())
 }
 
 /// Performs basic validations on the explicit arguments. A successful result from this function
 /// does NOT guarantee that the arguments are valid.
 fn perform_basic_validations_on_explicit_args(
-    explicit_args: &[CairoArg],
+    explicit_args: &[EndpointArg],
     program: &Program,
     entrypoint: &str,
 ) -> Result<(), Cairo0EntryPointRunnerError> {
@@ -82,7 +139,7 @@ pub fn run_cairo_0_entry_point(
     program: &Program,
     entrypoint: &str,
     n_expected_return_values: usize,
-    explicit_args: &[CairoArg],
+    explicit_args: &[EndpointArg],
     mut hint_processor: impl HintProcessor,
 ) -> Result<Retdata, Cairo0EntryPointRunnerError> {
     // TODO(Amos): Perform complete validations.
@@ -97,7 +154,9 @@ pub fn run_cairo_0_entry_point(
     let program_base: Option<Relocatable> = None;
     cairo_runner.initialize_segments(program_base);
 
-    let entrypoint_args: Vec<&CairoArg> = explicit_args.iter().collect();
+    let entrypoint_args: Vec<CairoArg> =
+        explicit_args.iter().flat_map(EndpointArg::to_cairo_arg_vec).collect();
+    let entrypoint_args: Vec<&CairoArg> = entrypoint_args.iter().collect();
     let verify_secure = true;
     let program_segment_size: Option<usize> = None;
     // TODO(Amos): Pass implicit args to the cairo runner.

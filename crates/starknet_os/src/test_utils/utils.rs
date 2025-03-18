@@ -1,15 +1,14 @@
 use blockifier::execution::call_info::Retdata;
 use cairo_vm::types::program::Program;
-use cairo_vm::vm::runners::cairo_runner::CairoArg;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
-use crate::test_utils::cairo_runner::run_cairo_0_entry_point;
+use crate::test_utils::cairo_runner::{run_cairo_0_entry_point, EndpointArg};
 use crate::test_utils::errors::Cairo0EntryPointRunnerError;
 
 pub fn run_cairo_function_and_check_result(
     program_str: &str,
     function_name: &str,
-    explicit_args: &[CairoArg],
+    explicit_args: &[EndpointArg],
     expected_retdata: &Retdata,
 ) -> Result<(), Cairo0EntryPointRunnerError> {
     let program_bytes = program_str.as_bytes();
