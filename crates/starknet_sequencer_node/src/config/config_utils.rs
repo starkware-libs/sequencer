@@ -35,7 +35,6 @@ pub(crate) fn create_validation_error(
 #[derive(Serialize)]
 pub struct RequiredParams {
     pub validator_id: ContractAddress,
-    pub recorder_url: Url,
     pub base_layer_config: EthereumBaseLayerConfigRequiredParams,
     pub consensus_manager_config: ConsensusManagerRequiredParams,
 }
@@ -46,12 +45,6 @@ impl SerializeConfig for RequiredParams {
             ser_param(
                 "validator_id",
                 &self.validator_id,
-                "Placeholder.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "recorder_url",
-                &self.recorder_url,
                 "Placeholder.",
                 ParamPrivacyInput::Public,
             ),
@@ -74,7 +67,6 @@ impl RequiredParams {
     pub fn create_for_testing() -> Self {
         Self {
             validator_id: ContractAddress::from(DEFAULT_VALIDATOR_ID),
-            recorder_url: Url::parse("https://recorder_url").expect("Should be a valid URL"),
             base_layer_config: EthereumBaseLayerConfigRequiredParams {
                 node_url: Url::parse("https://node_url").expect("Should be a valid URL"),
             },

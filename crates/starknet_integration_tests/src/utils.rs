@@ -161,7 +161,6 @@ pub fn create_node_config(
 ) -> (SequencerNodeConfig, RequiredParams, ConfigPointersMap) {
     let validator_id =
         set_validator_id(&mut consensus_manager_config, node_execution_id.get_node_index());
-    let recorder_url = consensus_manager_config.cende_config.recorder_url.clone();
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
     let batcher_config = create_batcher_config(
         batcher_storage_config,
@@ -213,7 +212,6 @@ pub fn create_node_config(
         },
         RequiredParams {
             validator_id,
-            recorder_url,
             base_layer_config: EthereumBaseLayerConfigRequiredParams {
                 node_url: base_layer_endpoint_url,
             },
