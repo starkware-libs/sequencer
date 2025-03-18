@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::vec::IntoIter;
 
 use blockifier::state::state_api::{State, StateReader};
 use cairo_vm::any_box;
@@ -23,8 +24,21 @@ use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
 use crate::syscall_handler_utils::SyscallHandlerType;
 use crate::vm_utils::{get_address_of_nested_fields, LoadCairoObject};
 
-pub(crate) fn load_next_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    todo!()
+use crate::hints::hint_implementation::execution::utils::tx_name_as_felt;
+
+
+pub(crate) fn load_next_tx<S: StateReader>(
+    HintArgs { exec_scopes, vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    let mut txs_iter: IntoIter<Transaction> = exec_scopes.get(Scope::Transactions.into())?;
+    let tx = txs_iter.next().ok_or(OsHintError::NoMoreTransactions)?;
+    let tx_type = tx_name_as_felt(tx.tx_type_name());
+    insert_value_from_var_name(Ids::TxType.into(), tx_type, vm, ids_data, ap_tracking)?;
+
+    // TODO(Yoav): add logger and log enter_tx.
+    exec_scopes.insert_value(Scope::Transactions.into(), txs_iter);
+    exec_scopes.insert_value(Scope::Tx.into(), tx);
+    Ok(())
 }
 
 pub(crate) fn load_resource_bounds<S: StateReader>(
