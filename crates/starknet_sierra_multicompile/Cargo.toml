@@ -37,6 +37,7 @@ mempool_test_utils.workspace = true
 rstest.workspace = true
 starknet_api.workspace = true
 starknet_infra_utils.workspace = true
+toml_test_utils.workspace = true
 
 [build-dependencies]
 starknet_infra_utils.workspace = true

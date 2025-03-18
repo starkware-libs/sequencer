@@ -80,7 +80,6 @@ fn test_compile_sierra_to_native() {
     let compiler = command_line_compiler();
     let contract_class = get_test_contract();
 
-    // TODO(Avi, 1/1/2025): Check size/memory/time limits.
     let _native_contract_executor = compiler.compile_to_native(contract_class).unwrap();
 }
 

@@ -51,6 +51,30 @@ pub struct CallResult {
     pub gas_consumed: u64,
 }
 
+pub enum ExecutionRunnerMode {
+    Starknet,
+    #[cfg(feature = "tracing")]
+    Tracing,
+}
+
+impl ExecutionRunnerMode {
+    pub fn proof_mode(&self) -> bool {
+        match self {
+            ExecutionRunnerMode::Starknet => false,
+            #[cfg(feature = "tracing")]
+            ExecutionRunnerMode::Tracing => false,
+        }
+    }
+
+    pub fn trace_enabled(&self) -> bool {
+        match self {
+            ExecutionRunnerMode::Starknet => false,
+            #[cfg(feature = "tracing")]
+            ExecutionRunnerMode::Tracing => true,
+        }
+    }
+}
+
 /// Executes a specific call to a contract entry point and returns its output.
 pub fn execute_entry_point_call(
     call: ExecutableCallEntryPoint,
@@ -95,17 +119,18 @@ pub fn execute_entry_point_call(
     )?)
 }
 
-pub fn initialize_execution_context<'a>(
+pub fn initialize_execution_context_with_runner_mode<'a>(
     call: ExecutableCallEntryPoint,
     compiled_class: &'a CompiledClassV1,
     state: &'a mut dyn State,
     context: &'a mut EntryPointExecutionContext,
+    execution_runner_mode: ExecutionRunnerMode,
 ) -> Result<VmExecutionContext<'a>, PreExecutionError> {
     let entry_point = compiled_class.get_entry_point(&call.type_and_selector())?;
 
     // Instantiate Cairo runner.
-    let proof_mode = false;
-    let trace_enabled = false;
+    let proof_mode = execution_runner_mode.proof_mode();
+    let trace_enabled = execution_runner_mode.trace_enabled();
     let mut runner = CairoRunner::new(
         &compiled_class.0.program,
         LayoutName::starknet,
@@ -140,6 +165,21 @@ pub fn initialize_execution_context<'a>(
         entry_point,
         program_extra_data_length,
     })
+}
+
+pub fn initialize_execution_context<'a>(
+    call: ExecutableCallEntryPoint,
+    compiled_class: &'a CompiledClassV1,
+    state: &'a mut dyn State,
+    context: &'a mut EntryPointExecutionContext,
+) -> Result<VmExecutionContext<'a>, PreExecutionError> {
+    initialize_execution_context_with_runner_mode(
+        call,
+        compiled_class,
+        state,
+        context,
+        ExecutionRunnerMode::Starknet,
+    )
 }
 
 fn prepare_program_extra_data(

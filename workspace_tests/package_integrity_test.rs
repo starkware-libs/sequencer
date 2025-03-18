@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::toml_utils::{DependencyValue, PackageEntryValue, MEMBER_TOMLS};
+use toml_test_utils::{DependencyValue, PackageEntryValue, MEMBER_TOMLS};
 
 /// Hard-coded list of crates that are allowed to use test code in their (non-dev) dependencies.
 /// Should only contain test-related crates.

@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::sync::LazyLock;
 
-use crate::toml_utils::{
+use toml_test_utils::{
     CrateCargoToml,
     DependencyValue,
     LocalCrate,

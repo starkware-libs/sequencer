@@ -7,80 +7,75 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(untagged)]
-pub(crate) enum LintValue {
+pub enum LintValue {
     Bool(bool),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(untagged)]
-pub(crate) enum DependencyValue {
+pub enum DependencyValue {
     String(String),
     Object { version: Option<String>, path: Option<String>, features: Option<Vec<String>> },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub(crate) struct Package {
+pub struct Package {
     version: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub(crate) struct WorkspaceFields {
+pub struct WorkspaceFields {
     package: Package,
     members: Vec<String>,
     dependencies: HashMap<String, DependencyValue>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub(crate) struct CargoToml {
+pub struct CargoToml {
     workspace: WorkspaceFields,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(untagged)]
-pub(crate) enum PackageEntryValue {
+pub enum PackageEntryValue {
     String(String),
     Object { workspace: bool },
     Other(toml::Value),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub(crate) struct CrateCargoToml {
-    pub(crate) package: HashMap<String, PackageEntryValue>,
-    pub(crate) dependencies: Option<HashMap<String, DependencyValue>>,
+pub struct CrateCargoToml {
+    pub package: HashMap<String, PackageEntryValue>,
+    pub dependencies: Option<HashMap<String, DependencyValue>>,
     #[serde(rename = "dev-dependencies")]
-    pub(crate) dev_dependencies: Option<HashMap<String, DependencyValue>>,
-    pub(crate) lints: Option<HashMap<String, LintValue>>,
+    pub dev_dependencies: Option<HashMap<String, DependencyValue>>,
+    pub lints: Option<HashMap<String, LintValue>>,
 }
 
 impl CrateCargoToml {
-    pub(crate) fn from_name(name: &String) -> Self {
+    pub fn from_name(name: &String) -> Self {
         MEMBER_TOMLS.get(name).unwrap_or_else(|| panic!("No member crate '{name}' found.")).clone()
     }
 
-    pub(crate) fn package_name(&self) -> &String {
+    pub fn package_name(&self) -> &String {
         match self.package.get("name") {
             Some(PackageEntryValue::String(name)) => name,
             _ => panic!("No name found in crate toml {self:?}."),
         }
     }
 
-    pub(crate) fn path_dependencies(&self) -> impl Iterator<Item = String> + '_ {
-        self.dependencies.iter().flatten().chain(self.dev_dependencies.iter().flatten()).filter_map(
-            |(_name, value)| {
-                if let DependencyValue::Object { path: Some(path), .. } = value {
-                    Some(path.to_string())
-                } else {
-                    None
-                }
-            },
-        )
+    pub fn path_dependencies(&self) -> impl Iterator<Item = String> + '_ {
+        self.dependencies.iter().flatten().filter_map(|(_name, value)| {
+            if let DependencyValue::Object { path: Some(path), .. } = value {
+                Some(path.to_string())
+            } else {
+                None
+            }
+        })
     }
 
     /// Returns all direct member dependencies of self.
-    pub(crate) fn member_dependency_names(
-        &self,
-        include_dev_dependencies: bool,
-    ) -> HashSet<String> {
+    pub fn member_dependency_names(&self, include_dev_dependencies: bool) -> HashSet<String> {
         let member_crate_names: HashSet<&String> =
             MEMBER_TOMLS.values().map(CrateCargoToml::package_name).collect();
 
@@ -125,7 +120,7 @@ impl CrateCargoToml {
     }
 
     /// Returns all member dependencies of self in the dependency tree.
-    pub(crate) fn member_dependency_names_recursive(
+    pub fn member_dependency_names_recursive(
         &self,
         include_dev_dependencies: bool,
     ) -> HashSet<String> {
@@ -134,35 +129,35 @@ impl CrateCargoToml {
 }
 
 #[derive(Debug)]
-pub(crate) struct LocalCrate {
-    pub(crate) name: String,
-    pub(crate) path: String,
-    pub(crate) version: Option<String>,
+pub struct LocalCrate {
+    pub name: String,
+    pub path: String,
+    pub version: Option<String>,
 }
 
-pub(crate) static ROOT_TOML: LazyLock<CargoToml> = LazyLock::new(|| {
+pub static ROOT_TOML: LazyLock<CargoToml> = LazyLock::new(|| {
     let root_toml: CargoToml =
         toml::from_str(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../Cargo.toml")))
             .unwrap();
     root_toml
 });
-pub(crate) static MEMBER_TOMLS: LazyLock<HashMap<String, CrateCargoToml>> =
+pub static MEMBER_TOMLS: LazyLock<HashMap<String, CrateCargoToml>> =
     LazyLock::new(|| ROOT_TOML.member_cargo_tomls());
 
 impl CargoToml {
-    pub(crate) fn members(&self) -> &Vec<String> {
+    pub fn members(&self) -> &Vec<String> {
         &self.workspace.members
     }
 
-    pub(crate) fn workspace_version(&self) -> &str {
+    pub fn workspace_version(&self) -> &str {
         &self.workspace.package.version
     }
 
-    pub(crate) fn dependencies(&self) -> impl Iterator<Item = (&String, &DependencyValue)> + '_ {
+    pub fn dependencies(&self) -> impl Iterator<Item = (&String, &DependencyValue)> + '_ {
         self.workspace.dependencies.iter()
     }
 
-    pub(crate) fn path_dependencies(&self) -> impl Iterator<Item = LocalCrate> + '_ {
+    pub fn path_dependencies(&self) -> impl Iterator<Item = LocalCrate> + '_ {
         self.dependencies().filter_map(|(name, value)| {
             if let DependencyValue::Object { path: Some(path), version, .. } = value {
                 Some(LocalCrate {
@@ -176,7 +171,7 @@ impl CargoToml {
         })
     }
 
-    pub(crate) fn member_cargo_tomls(&self) -> HashMap<String, CrateCargoToml> {
+    pub fn member_cargo_tomls(&self) -> HashMap<String, CrateCargoToml> {
         let crates_dir = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../"));
         self.members()
             .iter()
