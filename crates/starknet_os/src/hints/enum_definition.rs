@@ -127,6 +127,8 @@ use crate::hints::hint_implementation::kzg::implementation::store_da_segment;
 use crate::hints::hint_implementation::math::log2_ceil;
 use crate::hints::hint_implementation::os::{
     configure_kzg_manager,
+    create_block_additional_hints,
+    get_n_blocks,
     init_state_update_pointer,
     initialize_class_hashes,
     initialize_state_changes,
@@ -399,15 +401,17 @@ define_hint_enum!(
         block_timestamp,
         "memory[ap] = to_felt_or_relocatable(syscall_handler.block_info.block_timestamp)"
     ),
+    // TODO(Meshi): Fix hint implantation.
     (
         ChainId,
         chain_id,
-        "memory[ap] = to_felt_or_relocatable(os_input.general_config.chain_id.value)"
+        "memory[ap] = to_felt_or_relocatable(block_input.general_config.chain_id.value)"
     ),
+    // TODO(Meshi): Fix hint implantation.
     (
         FeeTokenAddress,
         fee_token_address,
-        "memory[ap] = to_felt_or_relocatable(os_input.general_config.fee_token_address)"
+        "memory[ap] = to_felt_or_relocatable(block_input.general_config.fee_token_address)"
     ),
     (
         SequencerAddress,
@@ -431,13 +435,13 @@ define_hint_enum!(
     )
     ids.is_leaf = 1 if isinstance(bytecode_segment_structure, BytecodeLeaf) else 0"#}
     ),
+    // TODO(Meshi): Fix hint implantation.
     (
         WriteUseKzgDaToMemory,
         write_use_kzg_da_to_memory,
-        indoc! {r#"
-    memory[fp + 18] = to_felt_or_relocatable(syscall_handler.block_info.use_kzg_da and (
-        not os_input.full_output
-    ))"#}
+        indoc! {r#"memory[fp + 19] = to_felt_or_relocatable(syscall_handler.block_info.use_kzg_da and (
+    not block_input.full_output
+))"#}
     ),
     (
         ComputeIdsLow,
@@ -578,6 +582,7 @@ define_hint_enum!(
         "is_segment_used_callback": bytecode_segment_access_oracle.is_segment_used
     })"#}
     ),
+    // TODO(Meshi): Fix hint implantation.
     (
         EnterScopeWithAliases,
         enter_scope_with_aliases,
@@ -589,7 +594,7 @@ vm_enter_scope(dict(
     aliases=execution_helper.storage_by_address[ALIAS_CONTRACT_ADDRESS],
     execution_helper=execution_helper,
     __dict_manager=__dict_manager,
-    os_input=os_input,
+    block_input=block_input,
 ))"#}
     ),
     (
@@ -765,14 +770,15 @@ else:
     (
         SegmentsAddTemp,
         segments_add_temp,
-        indoc! {r#"memory[fp + 6] = to_felt_or_relocatable(segments.add_temp_segment())"#
+        indoc! {r#"memory[fp + 7] = to_felt_or_relocatable(segments.add_temp_segment())"#
         }
     ),
     (StartTx, start_tx, indoc! {r#"execution_helper.start_tx()"# }),
+    // TODO(Meshi): Fix hint implantation.
     (
         OsInputTransactions,
         os_input_transactions,
-        indoc! {r#"memory[fp + 12] = to_felt_or_relocatable(len(os_input.transactions))"#
+        indoc! {r#"memory[fp + 12] = to_felt_or_relocatable(len(block_input.transactions))"#
         }
     ),
     (
@@ -966,13 +972,14 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         "is_deprecated = 1 if ids.execution_context.class_hash in __deprecated_class_hashes else 0"
     ),
     (IsDeprecated, is_deprecated, "memory[ap] = to_felt_or_relocatable(is_deprecated)"),
+    // TODO(Meshi): Fix hint implantation.
     (
         EnterSyscallScopes,
         enter_syscall_scopes,
         indoc! {r#"vm_enter_scope({
         '__deprecated_class_hashes': __deprecated_class_hashes,
-        'transactions': iter(os_input.transactions),
-        'component_hashes': os_input.declared_class_hash_to_component_hashes,
+        'transactions': iter(block_input.transactions),
+        'component_hashes': block_input.declared_class_hash_to_component_hashes,
         'execution_helper': execution_helper,
         'deprecated_syscall_handler': deprecated_syscall_handler,
         'syscall_handler': syscall_handler,
@@ -1269,11 +1276,12 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
 	assert ids.value == value, "Inconsistent storage value.""#
         }
     ),
+    // TODO(Meshi): Fix hint implantation.
     (
         GetOldBlockNumberAndHash,
         get_old_block_number_and_hash,
         indoc! {r#"
-        old_block_number_and_hash = program_input['old_block_number_and_hash']
+        old_block_number_and_hash = block_input.old_block_number_and_hash
         assert (
             old_block_number_and_hash is not None
         ), f"Block number is probably < {ids.STORED_BLOCK_HASH_BUFFER}."
@@ -1324,6 +1332,12 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         ids.index = n_elms
         ids.exists = 0"#}
     ),
+    // TODO(Meshi): Fix hint implantation.
+    (
+        GetBlocksNumber,
+        get_n_blocks,
+        r#"memory[fp + 0] = to_felt_or_relocatable(len(os_input.block_inputs))"#
+    ),
     (
         StoreDaSegment,
         store_da_segment,
@@ -1352,26 +1366,29 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
             ids.res = log2_ceil(ids.value)"#
         }
     ),
+    // TODO(Meshi): Fix hint implantation.
     (
         WriteFullOutputToMemory,
         write_full_output_to_memory,
-        indoc! {r#"memory[fp + 19] = to_felt_or_relocatable(os_input.full_output)"#}
+        indoc! {r#"memory[fp + 20] = to_felt_or_relocatable(block_input.full_output)"#}
     ),
     (
         ConfigureKzgManager,
         configure_kzg_manager,
         indoc! {r#"__serialize_data_availability_create_pages__ = True
-        kzg_manager = execution_helper.kzg_manager"#}
+        kzg_manager = global_hints.kzg_manager"#}
     ),
+    // TODO(Meshi): Fix hint implantation.
     (
         SetApToPrevBlockHash,
         set_ap_to_prev_block_hash,
-        indoc! {r#"memory[ap] = to_felt_or_relocatable(os_input.prev_block_hash)"#}
+        indoc! {r#"memory[ap] = to_felt_or_relocatable(block_input.prev_block_hash)"#}
     ),
+    // TODO(Meshi): Fix hint implantation.
     (
         SetApToNewBlockHash,
         set_ap_to_new_block_hash,
-        "memory[ap] = to_felt_or_relocatable(os_input.new_block_hash)"
+        "memory[ap] = to_felt_or_relocatable(block_input.new_block_hash)"
     ),
     (
         SetTreeStructure,
@@ -1538,44 +1555,45 @@ else:
         read_ec_point_from_address,
         r#"memory[ap] = to_felt_or_relocatable(ids.response.ec_point.address_ if ids.not_on_curve == 0 else segments.add())"#
     ),
+    // TODO(Meshi): Fix hint implantation.
     (
         SetPreimageForStateCommitments,
         set_preimage_for_state_commitments,
-        indoc! {r#"
-	ids.initial_root = os_input.contract_state_commitment_info.previous_root
-	ids.final_root = os_input.contract_state_commitment_info.updated_root
-	preimage = {
-	    int(root): children
-	    for root, children in os_input.contract_state_commitment_info.commitment_facts.items()
-	}
-	assert os_input.contract_state_commitment_info.tree_height == ids.MERKLE_HEIGHT"#
+        indoc! {r#"ids.initial_root = block_input.contract_state_commitment_info.previous_root
+ids.final_root = block_input.contract_state_commitment_info.updated_root
+commitment_facts = block_input.contract_state_commitment_info.commitment_facts.items()
+preimage = {
+    int(root): children
+    for root, children in commitment_facts
+}
+assert block_input.contract_state_commitment_info.tree_height == ids.MERKLE_HEIGHT"#
         }
     ),
+    // TODO(Meshi): Fix hint implantation.
     (
         SetPreimageForClassCommitments,
         set_preimage_for_class_commitments,
-        indoc! {r#"
-	ids.initial_root = os_input.contract_class_commitment_info.previous_root
-	ids.final_root = os_input.contract_class_commitment_info.updated_root
-	preimage = {
-	    int(root): children
-	    for root, children in os_input.contract_class_commitment_info.commitment_facts.items()
-	}
-	assert os_input.contract_class_commitment_info.tree_height == ids.MERKLE_HEIGHT"#
+        indoc! {r#"ids.initial_root = block_input.contract_class_commitment_info.previous_root
+ids.final_root = block_input.contract_class_commitment_info.updated_root
+commitment_facts = block_input.contract_class_commitment_info.commitment_facts.items()
+preimage = {
+    int(root): children
+    for root, children in commitment_facts
+}
+assert block_input.contract_class_commitment_info.tree_height == ids.MERKLE_HEIGHT"#
         }
     ),
     (
         SetPreimageForCurrentCommitmentInfo,
         set_preimage_for_current_commitment_info,
-        indoc! {r#"
-	commitment_info = commitment_info_by_address[ids.contract_address]
-	ids.initial_contract_state_root = commitment_info.previous_root
-	ids.final_contract_state_root = commitment_info.updated_root
-	preimage = {
-	    int(root): children
-	    for root, children in commitment_info.commitment_facts.items()
-	}
-	assert commitment_info.tree_height == ids.MERKLE_HEIGHT"#
+        indoc! {r#"ids.initial_contract_state_root = commitment_info.previous_root
+ids.final_contract_state_root = commitment_info.updated_root
+commitment_info = commitment_info_by_address[ids.contract_address]
+preimage = {
+    int(root): children
+    for root, children in commitment_info.commitment_facts.items()
+}
+assert commitment_info.tree_height == ids.MERKLE_HEIGHT"#
         }
     ),
     (
@@ -1661,22 +1679,14 @@ memory[ap] = 1 if case != 'both' else 0"#
     ),
     (OsLoggerExitSyscall, os_logger_exit_syscall, "exit_syscall()"),
     (IsOnCurve, is_on_curve, "ids.is_on_curve = (y * y) % SECP_P == y_square_int"),
+    // TODO(Meshi): Fix hint implantation.
     (
         StarknetOsInput,
         starknet_os_input,
-        indoc! {r#"
-        from starkware.starknet.core.os.os_hints import get_execution_helper_and_syscall_handlers
-        from starkware.starknet.core.os.os_input import StarknetOsInput
+        indoc! {r#"from starkware.starknet.core.os.os_input import StarknetOsInput
 
-        os_input = StarknetOsInput.load(data=program_input)
-
-        (
-            execution_helper,
-            syscall_handler,
-            deprecated_syscall_handler
-        ) = get_execution_helper_and_syscall_handlers(
-            os_input=os_input, global_hints=global_hints
-        )"#
+os_input = StarknetOsInput.load(data=program_input)
+block_input_iterator = iter(os_input.block_inputs)"#
         }
     ),
     (
@@ -1686,23 +1696,37 @@ memory[ap] = 1 if case != 'both' else 0"#
         state_update_pointers = StateUpdatePointers(segments=segments)"#
         }
     ),
+    // TODO(Meshi): Fix hint implantation.
     (
         InitializeStateChanges,
         initialize_state_changes,
-        indoc! {r#"
-    from starkware.python.utils import from_bytes
+        indoc! {r#"from starkware.python.utils import from_bytes
 
-    initial_dict = {
-        address: segments.gen_arg(
-            (from_bytes(contract.contract_hash), segments.add(), contract.nonce))
-        for address, contract in os_input.contracts.items()
-    }"#
+initial_dict = {
+    address: segments.gen_arg(
+        (from_bytes(contract.contract_hash), segments.add(), contract.nonce))
+    for address, contract in block_input.contracts.items()
+}"#
         }
     ),
+    // TODO(Meshi): Fix hint implantation.
     (
         InitializeClassHashes,
         initialize_class_hashes,
-        "initial_dict = os_input.class_hash_to_compiled_class_hash"
+        "initial_dict = block_input.class_hash_to_compiled_class_hash"
+    ),
+    (
+        CreateBlockAdditionalHints,
+        create_block_additional_hints,
+        indoc! {r#"from starkware.starknet.core.os.os_hints import get_execution_helper_and_syscall_handlers
+block_input = next(block_input_iterator)
+(
+    execution_helper,
+    syscall_handler,
+    deprecated_syscall_handler
+) = get_execution_helper_and_syscall_handlers(
+    block_input=block_input, global_hints=global_hints
+)"#}
     )
 );
 
