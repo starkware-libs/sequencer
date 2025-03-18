@@ -86,6 +86,11 @@
             "mul_mod": 0,
             "ecdsa": 0
         },
+        "l1handler_resource_bounds": {
+            "l1_gas": 33000,
+            "l1_data_gas": 20000,
+            "l2_gas": 1000000
+        },
         "memory_hole_gas_cost": 10,
         "os_contract_addresses": {
             "block_hash_contract_address": 1,

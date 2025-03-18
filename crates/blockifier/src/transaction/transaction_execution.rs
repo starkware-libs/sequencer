@@ -39,6 +39,7 @@ use crate::transaction::objects::{
     TransactionInfoCreator,
 };
 use crate::transaction::transactions::{Executable, ExecutableTransaction};
+use crate::utils::usize_from_u64;
 
 // TODO(Gilad): Move into transaction.rs, makes more sense to be defined there.
 #[derive(Clone, Debug, derive_more::From)]
@@ -145,9 +146,11 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
     ) -> TransactionExecutionResult<TransactionExecutionInfo> {
         let tx_context = Arc::new(block_context.to_tx_context(self));
         let limit_steps_by_resources = true;
-        // TODO(AvivG): replace fixed values of resources limits by using version constants.
-        let steps_limit = 1_000_000_usize;
-        let sierra_gas_limit = GasAmount(100_000_000_u64);
+        let l1handler_resource_bounds =
+            block_context.versioned_constants.os_constants.l1handler_resource_bounds;
+        let sierra_gas_limit = l1handler_resource_bounds.l2_gas;
+        let step_gas_cost =
+            block_context.versioned_constants.os_constants.gas_costs.base.step_gas_cost;
         let mut remaining_gas = sierra_gas_limit.0;
 
         let mut context = EntryPointExecutionContext::new_invoke(
@@ -156,8 +159,13 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
             SierraGasRevertTracker::new(GasAmount(remaining_gas)),
         );
         // Adjust vm resources to match the sierra gas limit.
-        context.vm_run_resources = RunResources::new(steps_limit);
-
+        context.vm_run_resources = RunResources::new(
+            sierra_gas_limit
+                .0
+                .checked_div(step_gas_cost)
+                .and_then(|v| usize_from_u64(v).ok())
+                .expect("Failed to compute steps limit: division failed or conversion failed"),
+        );
         let execute_call_info = self.run_execute(state, &mut context, &mut remaining_gas)?;
         let l1_handler_payload_size = self.payload_size();
         let receipt = TransactionReceipt::from_l1_handler(
@@ -168,8 +176,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
         );
 
         // Enforce L1 resource bounds.
-        // TODO(AvivG): replace fixed value with version constants.
-        let l1_bounds = GasAmount(3300000);
+        let l1_bounds = l1handler_resource_bounds.l1_gas;
         if receipt.gas.l1_gas > l1_bounds {
             let err = FeeCheckError::MaxGasAmountExceeded {
                 resource: L1Gas,
