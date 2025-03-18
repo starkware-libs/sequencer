@@ -119,6 +119,9 @@ pub struct VersionedConstants {
     // multiplied by 3. This offsets a bug in the old vm where the counter counted the number of
     // cells used by instances of the builtin, instead of the number of instances.
     pub segment_arena_cells: bool,
+    // `l1_handler_max_amount_bounds.l1_data_gas` is not enforced (default 0).
+    #[serde(default = "GasVector::default_max")]
+    pub l1_handler_max_amount_bounds: GasVector,
 
     // Transactions settings.
     pub disable_cairo0_redeclaration: bool,
