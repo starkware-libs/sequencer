@@ -60,7 +60,7 @@ use crate::utils::{
     TestScenario,
 };
 
-const DEFAULT_SENDER_ACCOUNT: AccountId = 0;
+pub const DEFAULT_SENDER_ACCOUNT: AccountId = 0;
 pub const BLOCK_TO_WAIT_FOR_BOOTSTRAP: BlockNumber = BlockNumber(2);
 
 pub const HTTP_PORT_ARG: &str = "http-port";
@@ -632,7 +632,7 @@ impl IntegrationTestManager {
     /// This function returns the number of accepted transactions on all running nodes.
     /// It queries the state sync monitoring client to get the latest value of the processed txs
     /// metric.
-    async fn _get_num_accepted_txs_on_all_running_nodes(&self) -> HashMap<usize, usize> {
+    pub async fn get_num_accepted_txs_on_all_running_nodes(&self) -> HashMap<usize, usize> {
         let mut result = HashMap::new();
         for (index, running_node) in self.running_nodes.iter() {
             let monitoring_client = running_node.node_setup.state_sync_monitoring_client();
