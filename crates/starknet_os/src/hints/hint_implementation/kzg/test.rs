@@ -1,10 +1,17 @@
 use std::iter::repeat_with;
 
+use assert_matches::assert_matches;
 use num_bigint::BigInt;
 use num_traits::{Num, One, Zero};
 use rstest::rstest;
 
-use crate::hints::hint_implementation::kzg::utils::{fft, BLS_PRIME};
+use crate::hints::hint_implementation::kzg::utils::{
+    fft,
+    split_commitment,
+    FftError,
+    BLS_PRIME,
+    COMMITMENT_BITS,
+};
 
 const GENERATOR: &str =
     "39033254847818212395286706435128746857159659164139250548781411570340225835782";
@@ -66,5 +73,45 @@ fn test_fft(#[values(true, false)] bit_reversed: bool) {
     assert_eq!(
         fft(&[BigInt::from(121212u64)], &BigInt::one(), &prime, bit_reversed).unwrap(),
         vec![BigInt::from(121212u64)]
+    );
+}
+
+/// All the expected values are checked using the contract logic given in the Starknet core
+/// contract:
+/// https://github.com/starkware-libs/cairo-lang/blob/a86e92bfde9c171c0856d7b46580c66e004922f3/src/starkware/starknet/solidity/Starknet.sol#L209.
+#[rstest]
+#[case(
+    BigInt::from_str_radix(
+        "b7a71dc9d8e15ea474a69c0531e720cf5474b189ac9afc81590b91a225b1bf7fa5877ec546d090e0059f019c74675362",
+        16,
+    ).unwrap(),
+    (
+        BigInt::from_str_radix("590b91a225b1bf7fa5877ec546d090e0059f019c74675362", 16).unwrap(),
+        BigInt::from_str_radix("b7a71dc9d8e15ea474a69c0531e720cf5474b189ac9afc81", 16).unwrap(),
+    )
+)]
+#[case(
+    BigInt::from_str_radix(
+        "a797c1973c99961e357246ee81bde0acbdd27e801d186ccb051732ecbaa75842afd3d8860d40b3e8eeea433bce18b5c8",
+        16,
+    ).unwrap(),
+    (
+        BigInt::from_str_radix("51732ecbaa75842afd3d8860d40b3e8eeea433bce18b5c8", 16).unwrap(),
+        BigInt::from_str_radix("a797c1973c99961e357246ee81bde0acbdd27e801d186ccb", 16).unwrap(),
+    )
+)]
+fn test_split_commitment_function(
+    #[case] commitment: BigInt,
+    #[case] expected_output: (BigInt, BigInt),
+) {
+    assert_eq!(split_commitment(&commitment).unwrap(), expected_output);
+}
+
+#[test]
+fn test_split_commitment_overflow() {
+    let invalid_commitment = BigInt::one() << COMMITMENT_BITS;
+    assert_matches!(
+        split_commitment(&invalid_commitment).unwrap_err(),
+        FftError::TooBigToSplit(commitment) if commitment == invalid_commitment
     );
 }
