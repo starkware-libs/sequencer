@@ -28,6 +28,7 @@ use starknet_consensus_manager::metrics::{
     CONSENSUS_NUM_SENT_MESSAGES,
 };
 use starknet_gateway::metrics::{
+    GATEWAY_ADD_TX_LATENCY,
     LABEL_NAME_SOURCE,
     LABEL_NAME_TX_TYPE as GATEWAY_LABEL_NAME_TX_TYPE,
     TRANSACTIONS_FAILED,
@@ -285,6 +286,13 @@ const PANEL_GATEWAY_TRANSACTIONS_RECEIVED_RATE: Panel = Panel::new(
     PanelType::Graph,
 );
 
+const PANEL_GATEWAY_ADD_TX_LATENCY: Panel = Panel::new(
+    GATEWAY_ADD_TX_LATENCY.get_name(),
+    GATEWAY_ADD_TX_LATENCY.get_description(),
+    formatcp!("avg_over_time({}[2m])", GATEWAY_ADD_TX_LATENCY.get_name()),
+    PanelType::Graph,
+);
+
 const PANEL_GATEWAY_TRANSACTIONS_FAILED: Panel = Panel::new(
     TRANSACTIONS_FAILED.get_name(),
     TRANSACTIONS_FAILED.get_description(),
@@ -445,6 +453,7 @@ pub const GATEWAY_ROW: Row<'_> = Row::new(
         PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_TYPE,
         PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_SOURCE,
         PANEL_GATEWAY_TRANSACTIONS_RECEIVED_RATE,
+        PANEL_GATEWAY_ADD_TX_LATENCY,
         PANEL_GATEWAY_TRANSACTIONS_FAILED,
         PANEL_GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL,
     ],

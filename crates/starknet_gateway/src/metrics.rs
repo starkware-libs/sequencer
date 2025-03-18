@@ -1,6 +1,6 @@
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use starknet_api::rpc_transaction::{RpcTransaction, RpcTransactionLabelValue};
-use starknet_sequencer_metrics::metrics::LabeledMetricCounter;
+use starknet_sequencer_metrics::metrics::{LabeledMetricCounter, MetricHistogram};
 use starknet_sequencer_metrics::{define_metrics, generate_permutation_labels};
 use strum::{EnumVariantNames, VariantNames};
 use strum_macros::IntoStaticStr;
@@ -19,6 +19,7 @@ define_metrics!(
         LabeledMetricCounter { TRANSACTIONS_RECEIVED, "gateway_transactions_received", "Counter of transactions received", init = 0 , labels = TRANSACTION_TYPE_AND_SOURCE_LABELS},
         LabeledMetricCounter { TRANSACTIONS_FAILED, "gateway_transactions_failed", "Counter of failed transactions", init = 0 , labels = TRANSACTION_TYPE_AND_SOURCE_LABELS},
         LabeledMetricCounter { TRANSACTIONS_SENT_TO_MEMPOOL, "gateway_transactions_sent_to_mempool", "Counter of transactions sent to the mempool", init = 0 , labels = TRANSACTION_TYPE_AND_SOURCE_LABELS},
+        MetricHistogram { GATEWAY_ADD_TX_LATENCY, "gateway_add_tx_latency", "Latency of gateway add_tx function in secs" },
     },
 );
 
