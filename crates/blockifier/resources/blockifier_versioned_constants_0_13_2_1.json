@@ -100,6 +100,11 @@
             "mul_mod": 0,
             "ecdsa": 0
         },
+        "l1_handler_resource_bounds": {
+            "l1_gas": 1000000000,
+            "l1_data_gas": 1000000000,
+            "l2_gas": 1000000000
+        },
         "sierra_array_len_bound": 4294967296,
         "step_gas_cost": 100,
         "stored_block_hash_buffer": 10,
