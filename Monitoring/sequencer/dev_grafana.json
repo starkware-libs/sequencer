@@ -121,6 +121,13 @@
         "type": "stat",
         "expr": "consensus_build_proposal_failed",
         "extra_params": {}
+      },
+      {
+        "title": "consensus_reproposals",
+        "description": "The number of reproposals sent",
+        "type": "stat",
+        "expr": "consensus_reproposals",
+        "extra_params": {}
       }
     ],
     "Http Server": [
