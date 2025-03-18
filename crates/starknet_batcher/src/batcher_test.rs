@@ -43,10 +43,12 @@ use starknet_mempool_types::mempool_types::CommitBlockArgs;
 use starknet_sequencer_infra::component_client::ClientError;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
+use validator::Validate;
 
 use crate::batcher::{Batcher, MockBatcherStorageReaderTrait, MockBatcherStorageWriterTrait};
 use crate::block_builder::{
     AbortSignalSender,
+    BlockBuilderConfig,
     BlockBuilderError,
     BlockBuilderResult,
     BlockExecutionArtifacts,
@@ -1066,4 +1068,20 @@ async fn mempool_not_ready() {
     batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
     let result = batcher.propose_block(propose_block_input(PROPOSAL_ID)).await;
     assert_eq!(result, Err(BatcherError::InternalError));
+}
+
+#[test]
+fn validate_batcher_config_failure() {
+    let config = BatcherConfig {
+        input_stream_content_buffer_size: 99,
+        block_builder_config: BlockBuilderConfig { tx_chunk_size: 100, ..Default::default() },
+        ..Default::default()
+    };
+
+    let error = config.validate().unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("input_stream_content_buffer_size must be at least tx_chunk_size")
+    );
 }
