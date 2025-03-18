@@ -4,7 +4,7 @@ use std::path::Path;
 
 use serde::{Serialize, Serializer};
 use starknet_api::core::ChainId;
-use strum::EnumVariantNames;
+use strum::{EnumVariantNames, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 
 use crate::config::component_config::ComponentConfig;
@@ -20,22 +20,26 @@ pub struct Deployment<'a> {
     chain_id: ChainId,
     image: &'a str,
     application_config_subdir: &'a str,
-    services: &'a [Service],
+    services: Vec<Service>,
 }
 
 impl<'a> Deployment<'a> {
-    pub const fn new(
+    pub fn new(
         chain_id: ChainId,
         image: &'a str,
         application_config_subdir: &'a str,
-        services: &'a [Service],
+        deployment_name: DeploymentName,
     ) -> Self {
+        let service_names = deployment_name.all_service_names();
+        let services =
+            service_names.iter().map(|service_name| service_name.create_service()).collect();
         Self { chain_id, image, application_config_subdir, services }
     }
 
     #[cfg(test)]
     pub fn assert_application_configs_exist(&self) {
-        for service in self.services {
+        // TODO(Tsabary): avoid cloning here.
+        for service in self.services.clone() {
             // Concatenate paths.
             let subdir_path = Path::new(self.application_config_subdir);
             let full_path = subdir_path.join(service.config_path);
@@ -56,7 +60,7 @@ pub struct Service {
 }
 
 impl Service {
-    pub const fn new(
+    pub fn new(
         name: ServiceName,
         config_path: &'static str,
         ingress: bool,
@@ -79,6 +83,44 @@ pub enum ServiceName {
     DistributedNode(DistributedNodeServiceName),
 }
 
+// Implement conversion from `DistributedNodeServiceName` to `ServiceName`
+impl From<DistributedNodeServiceName> for ServiceName {
+    fn from(service: DistributedNodeServiceName) -> Self {
+        ServiceName::DistributedNode(service)
+    }
+}
+
+// Implement conversion from `ConsolidatedNodeServiceName` to `ServiceName`
+impl From<ConsolidatedNodeServiceName> for ServiceName {
+    fn from(service: ConsolidatedNodeServiceName) -> Self {
+        ServiceName::ConsolidatedNode(service)
+    }
+}
+
+impl IntoService for ServiceName {
+    fn create_service(&self) -> Service {
+        // TODO(Tsabary): find a way to avoid this code duplication.
+        match self {
+            Self::ConsolidatedNode(inner) => inner.create_service(),
+            Self::DistributedNode(inner) => inner.create_service(),
+        }
+    }
+}
+
+impl DeploymentName {
+    pub fn all_service_names(&self) -> Vec<ServiceName> {
+        match self {
+            // TODO(Tsabary): find a way to avoid this code duplication.
+            Self::ConsolidatedNode => {
+                ConsolidatedNodeServiceName::iter().map(ServiceName::ConsolidatedNode).collect()
+            }
+            Self::DistributedNode => {
+                DistributedNodeServiceName::iter().map(ServiceName::DistributedNode).collect()
+            }
+        }
+    }
+}
+
 // TODO(Tsabary): each deployment should be in its own module.
 
 pub trait IntoService {
@@ -89,7 +131,7 @@ impl IntoService for ConsolidatedNodeServiceName {
     fn create_service(&self) -> Service {
         match self {
             ConsolidatedNodeServiceName::Node => Service::new(
-                ServiceName::ConsolidatedNode(ConsolidatedNodeServiceName::Node),
+                self.clone().into(),
                 // TODO(Tsabary): derive config path in a meaningful way.
                 "node_0/executable_0/node_config.json",
                 false,
@@ -138,7 +180,7 @@ impl IntoService for DistributedNodeServiceName {
     fn create_service(&self) -> Service {
         match self {
             DistributedNodeServiceName::Batcher => Service::new(
-                ServiceName::ConsolidatedNode(ConsolidatedNodeServiceName::Node),
+                self.clone().into(),
                 // TODO(Tsabary): derive config path in a meaningful way.
                 "node_0/executable_0/node_config.json",
                 false,
@@ -147,7 +189,7 @@ impl IntoService for DistributedNodeServiceName {
                 Some(32),
             ),
             DistributedNodeServiceName::ClassManager => Service::new(
-                ServiceName::ConsolidatedNode(ConsolidatedNodeServiceName::Node),
+                self.clone().into(),
                 // TODO(Tsabary): derive config path in a meaningful way.
                 "node_0/executable_0/node_config.json",
                 false,
@@ -156,7 +198,7 @@ impl IntoService for DistributedNodeServiceName {
                 Some(32),
             ),
             DistributedNodeServiceName::ConsensusManager => Service::new(
-                ServiceName::ConsolidatedNode(ConsolidatedNodeServiceName::Node),
+                self.clone().into(),
                 // TODO(Tsabary): derive config path in a meaningful way.
                 "node_0/executable_0/node_config.json",
                 false,
@@ -165,7 +207,7 @@ impl IntoService for DistributedNodeServiceName {
                 Some(32),
             ),
             DistributedNodeServiceName::HttpServer => Service::new(
-                ServiceName::ConsolidatedNode(ConsolidatedNodeServiceName::Node),
+                self.clone().into(),
                 // TODO(Tsabary): derive config path in a meaningful way.
                 "node_0/executable_0/node_config.json",
                 false,
@@ -174,7 +216,7 @@ impl IntoService for DistributedNodeServiceName {
                 Some(32),
             ),
             DistributedNodeServiceName::Gateway => Service::new(
-                ServiceName::ConsolidatedNode(ConsolidatedNodeServiceName::Node),
+                self.clone().into(),
                 // TODO(Tsabary): derive config path in a meaningful way.
                 "node_0/executable_0/node_config.json",
                 false,
@@ -183,7 +225,7 @@ impl IntoService for DistributedNodeServiceName {
                 Some(32),
             ),
             DistributedNodeServiceName::L1Provider => Service::new(
-                ServiceName::ConsolidatedNode(ConsolidatedNodeServiceName::Node),
+                self.clone().into(),
                 // TODO(Tsabary): derive config path in a meaningful way.
                 "node_0/executable_0/node_config.json",
                 false,
@@ -192,7 +234,7 @@ impl IntoService for DistributedNodeServiceName {
                 Some(32),
             ),
             DistributedNodeServiceName::Mempool => Service::new(
-                ServiceName::ConsolidatedNode(ConsolidatedNodeServiceName::Node),
+                self.clone().into(),
                 // TODO(Tsabary): derive config path in a meaningful way.
                 "node_0/executable_0/node_config.json",
                 false,
@@ -201,7 +243,7 @@ impl IntoService for DistributedNodeServiceName {
                 Some(32),
             ),
             DistributedNodeServiceName::SierraCompiler => Service::new(
-                ServiceName::ConsolidatedNode(ConsolidatedNodeServiceName::Node),
+                self.clone().into(),
                 // TODO(Tsabary): derive config path in a meaningful way.
                 "node_0/executable_0/node_config.json",
                 false,
@@ -210,7 +252,7 @@ impl IntoService for DistributedNodeServiceName {
                 Some(32),
             ),
             DistributedNodeServiceName::StateSync => Service::new(
-                ServiceName::ConsolidatedNode(ConsolidatedNodeServiceName::Node),
+                self.clone().into(),
                 // TODO(Tsabary): derive config path in a meaningful way.
                 "node_0/executable_0/node_config.json",
                 false,
