@@ -2,9 +2,17 @@ use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 
+use papyrus_config::dumping::{
+    combine_config_map_and_pointers,
+    ConfigPointers,
+    Pointers,
+    SerializeConfig,
+};
 use serde_json::{Map, Value};
 use tracing::{error, info};
 use validator::ValidationError;
+
+use super::node_config::SequencerNodeConfig;
 
 pub(crate) fn create_validation_error(
     error_msg: String,
@@ -68,4 +76,22 @@ pub fn dump_json_data(json_data: Value, file_path: &PathBuf) {
     file.flush().unwrap();
 
     info!("Writing required config changes to: {:?}", file_path);
+}
+
+pub fn dump_config_file(
+    config: SequencerNodeConfig,
+    pointers: &ConfigPointers,
+    non_pointer_params: &Pointers,
+    config_path: &PathBuf,
+) {
+    // Create the entire mapping of the config and the pointers, without the required params.
+    let config_as_map =
+        combine_config_map_and_pointers(config.dump(), pointers, non_pointer_params).unwrap();
+
+    // Extract only the required fields from the config map.
+    let preset = config_to_preset(&config_as_map);
+
+    // Dump the preset to a file, return its path.
+    dump_json_data(preset, config_path);
+    assert!(config_path.exists(), "File does not exist: {:?}", config_path);
 }
