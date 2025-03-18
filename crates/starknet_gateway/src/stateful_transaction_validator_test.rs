@@ -76,7 +76,7 @@ async fn test_stateful_tx_validator(
         });
 
     let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
-    mock_validator.expect_validate().return_once(|_, _| expected_result.map(|_| ()));
+    mock_validator.expect_validate().return_once(|_| expected_result.map(|_| ()));
 
     let account_nonce = nonce!(0);
     let mut mock_mempool_client = MockMempoolClient::new();
@@ -179,8 +179,8 @@ async fn test_skip_stateful_validation(
     let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
     mock_validator
         .expect_validate()
-        .withf(move |_, skip_validate| *skip_validate == should_skip_validate)
-        .returning(|_, _| Ok(()));
+        .withf(move |tx| !tx.execution_flags.validate == should_skip_validate)
+        .returning(|_| Ok(()));
     let mut mock_mempool_client = MockMempoolClient::new();
     mock_mempool_client
         .expect_account_tx_in_pool_or_recent_block()

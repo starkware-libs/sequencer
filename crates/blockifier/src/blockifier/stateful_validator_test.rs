@@ -64,8 +64,10 @@ fn test_tx_validator(
     };
 
     // Positive flow.
+    let skip_validate = false;
     let account_tx = create_account_tx_for_validate_test_nonce_0(FaultyAccountTxCreatorArgs {
         scenario: VALID,
+        validate: !skip_validate,
         ..tx_args
     });
     if let Transaction::DeployAccount(deploy_tx) = &account_tx.tx {
@@ -74,8 +76,7 @@ fn test_tx_validator(
 
     // Test the stateful validator.
     let mut stateful_validator = StatefulValidator::create(state, block_context);
-    let skip_validate = false;
-    let result = stateful_validator.perform_validations(account_tx, skip_validate);
+    let result = stateful_validator.perform_validations(account_tx);
     assert!(result.is_ok(), "Validation failed: {:?}", result.unwrap_err());
 }
 
@@ -89,6 +90,7 @@ fn test_tx_validator_skip_validate(
     let state = test_state(&block_context.chain_info, BALANCE, &[(faulty_account, 1)]);
 
     // Create a transaction that does not pass validations.
+    let skip_validate = true;
     let tx = create_account_tx_for_validate_test_nonce_0(FaultyAccountTxCreatorArgs {
         scenario: INVALID,
         tx_type: TransactionType::InvokeFunction,
@@ -96,11 +98,12 @@ fn test_tx_validator_skip_validate(
         sender_address: faulty_account.get_instance_address(0),
         class_hash: faulty_account.get_class_hash(),
         resource_bounds,
+        validate: !skip_validate,
         ..Default::default()
     });
 
     let mut stateful_validator = StatefulValidator::create(state, block_context);
     // The transaction validations should be skipped and the function should return Ok.
-    let result = stateful_validator.perform_validations(tx, true);
+    let result = stateful_validator.perform_validations(tx);
     assert_matches!(result, Ok(()));
 }

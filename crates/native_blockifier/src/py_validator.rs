@@ -68,14 +68,16 @@ impl PyValidator {
         optional_py_class_info: Option<PyClassInfo>,
         deploy_account_tx_hash: Option<PyFelt>,
     ) -> NativeBlockifierResult<()> {
-        let account_tx = py_account_tx(tx, optional_py_class_info).expect(PY_TX_PARSING_ERR);
+        let mut account_tx = py_account_tx(tx, optional_py_class_info).expect(PY_TX_PARSING_ERR);
         let deploy_account_tx_hash = deploy_account_tx_hash.map(|hash| TransactionHash(hash.0));
 
         // We check if the transaction should be skipped due to the deploy account not being
         // processed.
         let skip_validate = self
             .skip_validate_due_to_unprocessed_deploy_account(&account_tx, deploy_account_tx_hash)?;
-        self.stateful_validator.perform_validations(account_tx, skip_validate)?;
+
+        account_tx.execution_flags.validate = !skip_validate;
+        self.stateful_validator.perform_validations(account_tx)?;
 
         Ok(())
     }
