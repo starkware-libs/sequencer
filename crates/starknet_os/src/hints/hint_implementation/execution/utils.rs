@@ -58,3 +58,7 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for ValidResourceBounds {
         )
     }
 }
+
+pub fn tx_name_as_felt(tx_type_name: &'static str) -> Felt {
+    Felt::from_bytes_be_slice(tx_type_name.as_bytes())
+}
