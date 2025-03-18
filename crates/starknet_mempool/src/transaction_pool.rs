@@ -197,6 +197,14 @@ impl TransactionPool {
         }
     }
 
+    pub fn get_chronological_txs_hashes(&self) -> Vec<TransactionHash> {
+        self.txs_by_submission_time
+            .txs_by_submission_time
+            .keys()
+            .map(|submission_id| submission_id.tx_hash)
+            .collect()
+    }
+
     #[cfg(test)]
     pub fn tx_pool(&self) -> HashMap<TransactionHash, InternalRpcTransaction> {
         self.tx_pool.clone()
