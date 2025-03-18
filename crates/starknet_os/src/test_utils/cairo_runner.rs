@@ -15,29 +15,27 @@ fn perform_basic_validations_on_cairo_arg(
     expected_arg: &Member,
     actual_arg: &CairoArg,
 ) -> Result<(), Cairo0EntryPointRunnerError> {
+    if matches!(actual_arg, CairoArg::Single(MaybeRelocatable::RelocatableValue(_))) {
+        Err(ExplicitArgError::SingleRelocatableParam { index, actual_arg: actual_arg.clone() })?
+    }
     let actual_arg_is_felt = matches!(actual_arg, CairoArg::Single(MaybeRelocatable::Int(_)));
-    let actual_arg_is_pointer =
-        matches!(actual_arg, CairoArg::Single(MaybeRelocatable::RelocatableValue(_)));
+    let actual_arg_is_single = matches!(actual_arg, CairoArg::Single(_));
+
     let expected_arg_is_pointer = expected_arg.cairo_type.ends_with("*");
-    if expected_arg.cairo_type == "felt" && !actual_arg_is_felt {
+    let expected_arg_is_felt = expected_arg.cairo_type == "felt";
+
+    if expected_arg_is_felt != actual_arg_is_felt || expected_arg_is_pointer == actual_arg_is_single
+    {
         Err(ExplicitArgError::Mismatch {
             index,
             expected: expected_arg.clone(),
             actual: actual_arg.clone(),
         })?;
-    } else if expected_arg_is_pointer != actual_arg_is_pointer {
-        Err(ExplicitArgError::Mismatch {
-            index,
-            expected: expected_arg.clone(),
-            actual: actual_arg.clone(),
-        })?;
-    // expected arg is a tuple / named tuple / struct.
-    } else if actual_arg_is_pointer {
-        Err(ExplicitArgError::Mismatch {
-            index,
-            expected: expected_arg.clone(),
-            actual: actual_arg.clone(),
-        })?;
+    };
+    // expected arg is tuple / named tuple / struct.
+    if !expected_arg_is_felt && !expected_arg_is_pointer {
+        // TODO(Amos): Load tuple / named tuple / struct parameters to stack and remove this error.
+        Err(ExplicitArgError::UnsupportedArgType { index, expected_arg: expected_arg.clone() })?;
     };
     Ok(())
 }
