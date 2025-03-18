@@ -62,6 +62,20 @@ services:
     networks:
       - sequencer-network
 
+  anvil:
+    image: ghcr.io/foundry-rs/foundry:v0.3.0
+    entrypoint: anvil
+    ports:
+      - "8545:8545"
+    command: --host 0.0.0.0 --block-time 1 --chain-id 31337
+    restart: unless-stopped
+    logging:
+      driver: "none"  # Disables logs completely
+    networks:
+      - sequencer-network
+    # We don't list volumes by design, as we don't want to persist blockchain data across
+    # container restarts
+
   config_injector:
     depends_on:
       sequencer_node_setup:
@@ -77,7 +91,8 @@ services:
       jq '.\"http_server_config.ip\" = \"0.0.0.0\"' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
       jq '.\"http_server_config.port\" = ${SEQUENCER_HTTP_PORT}' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
       jq '.\"monitoring_endpoint_config.port\" = ${SEQUENCER_MONITORING_PORT}' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
-      # These are here to avoid using an L1 baselayer. This is because anvil was deliberately disabled in the docker test. 
+      jq '.\"base_layer_config.node_url\" = \"http://anvil:8545\"' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
+      # These are here to avoid using an L1 base-layer. This is because anvil was deliberately disabled in the docker test.
       jq '.\"components.l1_scraper.execution_mode\" = \"Disabled\"' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
       jq '.\"l1_provider_config.provider_startup_height_override.#is_none\" = true' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
       jq '.\"components.l1_gas_price_scraper.execution_mode\" = \"Disabled\"' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
@@ -97,6 +112,8 @@ services:
       config_injector:
         condition: service_completed_successfully
       dummy_recorder:
+        condition: service_started
+      anvil:
         condition: service_started
       sequencer_node_setup:
         condition: service_completed_successfully
