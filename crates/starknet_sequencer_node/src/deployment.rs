@@ -68,9 +68,8 @@ impl Service {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-
 pub enum ServiceName {
-    ConsolidatedNode,
+    ConsolidatedNode(ConsolidatedNodeServiceName),
     DistributedNode(DistributedNodeServiceName),
 }
 
@@ -79,20 +78,31 @@ impl Serialize for ServiceName {
     where
         S: Serializer,
     {
+        // TODO(Tsabary): find a way to avoid this code duplication.
         match self {
-            ServiceName::ConsolidatedNode => serializer.serialize_str("ConsolidatedNode"),
+            ServiceName::ConsolidatedNode(inner) => inner.serialize(serializer), /* Serialize only the inner value */
             ServiceName::DistributedNode(inner) => inner.serialize(serializer), /* Serialize only the inner value */
         }
     }
 }
 
-// TODO(Tsabary): sort these.
+#[derive(Clone, Debug, PartialEq, Serialize, AsRefStr)]
+pub enum ConsolidatedNodeServiceName {
+    Node,
+}
+
 #[repr(u16)]
 #[derive(Clone, Debug, PartialEq, Serialize, AsRefStr)]
 pub enum DistributedNodeServiceName {
-    Mempool,
-    Gateway,
     Batcher,
+    ClassManager,
+    ConsensusManager,
+    HttpServer,
+    Gateway,
+    L1Provider,
+    Mempool,
+    SierraCompiler,
+    StateSync,
 }
 
 impl DistributedNodeServiceName {
