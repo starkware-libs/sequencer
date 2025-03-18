@@ -74,6 +74,7 @@ pub(crate) fn bytecode_segment_structure<S: StateReader>(
         Scope::BytecodeSegmentStructure.into(),
         any_box!(bytecode_segment_structure.clone()),
     )]);
+    // TODO(Nimrod): support is_segment_used_callback.
     exec_scopes.enter_scope(new_scope);
 
     Ok(())
