@@ -57,7 +57,9 @@ impl<S: StateReader> StatefulValidator<S> {
         // Deploy account transactions should be fully executed, since the constructor must run
         // before `__validate_deploy__`. The execution already includes all necessary validations,
         // so they are skipped here.
-        if let ApiTransaction::DeployAccount(_) = tx.tx {
+        // Declare transaction should also be fully executed - the missing part is the check that
+        // a class was not declared before.
+        if let ApiTransaction::DeployAccount(_) | ApiTransaction::Declare(_) = tx.tx {
             self.execute(tx)?;
             return Ok(());
         }
