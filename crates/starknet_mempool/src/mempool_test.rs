@@ -1239,3 +1239,21 @@ fn committed_account_nonce_cleanup() {
     commit_block(&mut mempool, [], []);
     add_tx(&mut mempool, &input_tx);
 }
+
+#[rstest]
+fn test_get_mempool_snapshot() {
+    // Setup.
+    let pool_txs = (1..10)
+        .map(|i| tx!(tx_hash: i, address: format!("0x{}", i).as_str(), tip: 10))
+        .collect::<Vec<_>>();
+
+    let mempool = MempoolTestContentBuilder::new().with_pool(pool_txs).build_full_mempool();
+
+    // Test.
+    let mempool_snapshot = mempool.get_mempool_snapshot().unwrap();
+
+    // Check that the returned hashes are sorted .
+    let expected_chronological_hashes = (1..10).map(|i| tx_hash!(i)).collect::<Vec<_>>();
+
+    assert_eq!(mempool_snapshot.transactions, expected_chronological_hashes);
+}

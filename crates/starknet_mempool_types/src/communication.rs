@@ -52,6 +52,7 @@ pub trait MempoolClient: Send + Sync {
         contract_address: ContractAddress,
     ) -> MempoolClientResult<bool>;
     async fn update_gas_price(&self, gas_price: NonzeroGasPrice) -> MempoolClientResult<()>;
+    async fn get_mempool_snapshot(&self) -> MempoolClientResult<MempoolSnapshot>;
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -139,6 +140,17 @@ where
         handle_all_response_variants!(
             MempoolResponse,
             UpdateGasPrice,
+            MempoolClientError,
+            MempoolError,
+            Direct
+        )
+    }
+
+    async fn get_mempool_snapshot(&self) -> MempoolClientResult<MempoolSnapshot> {
+        let request = MempoolRequest::GetMempoolSnapshot();
+        handle_all_response_variants!(
+            MempoolResponse,
+            GetMempoolSnapshot,
             MempoolClientError,
             MempoolError,
             Direct
