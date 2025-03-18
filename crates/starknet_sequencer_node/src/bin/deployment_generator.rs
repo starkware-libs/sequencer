@@ -1,8 +1,8 @@
 use starknet_infra_utils::dumping::serialize_to_file;
 use starknet_sequencer_node::deployment_definitions::{
-    MAIN_DEPLOYMENT,
+    create_main_deployment,
+    create_testing_deployment,
     MAIN_DEPLOYMENT_PRESET_PATH,
-    TESTING_DEPLOYMENT,
     TESTING_DEPLOYMENT_PRESET_PATH,
 };
 
@@ -11,6 +11,6 @@ use starknet_sequencer_node::deployment_definitions::{
 
 /// Creates the deployment json file.
 fn main() {
-    serialize_to_file(MAIN_DEPLOYMENT, MAIN_DEPLOYMENT_PRESET_PATH);
-    serialize_to_file(TESTING_DEPLOYMENT, TESTING_DEPLOYMENT_PRESET_PATH);
+    serialize_to_file(create_main_deployment(), MAIN_DEPLOYMENT_PRESET_PATH);
+    serialize_to_file(create_testing_deployment(), TESTING_DEPLOYMENT_PRESET_PATH);
 }
