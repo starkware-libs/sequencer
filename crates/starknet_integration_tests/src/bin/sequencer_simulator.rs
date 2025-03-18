@@ -63,7 +63,9 @@ async fn run_simulation(
     tx_generator: &mut MultiAccountTransactionGenerator,
     run_forever: bool,
 ) {
-    const N_TXS: usize = 50;
+    const N_INVOKE_TXS: usize = 50;
+    const N_L1_TXS: usize = 10;
+    const N_TXS: usize = N_INVOKE_TXS + N_L1_TXS;
     const SLEEP_DURATION: Duration = Duration::from_secs(1);
 
     let mut i = 1;
@@ -71,11 +73,7 @@ async fn run_simulation(
         sequencer_simulator
             .send_txs(
                 tx_generator,
-                &ConsensusTxs {
-                    n_invoke_txs: N_TXS,
-                    // TODO(Arni): Add non-zero value.
-                    n_l1_handler_txs: 0,
-                },
+                &ConsensusTxs { n_invoke_txs: N_INVOKE_TXS, n_l1_handler_txs: N_L1_TXS },
                 ACCOUNT_ID_0,
             )
             .await;
@@ -123,8 +121,18 @@ async fn main() -> anyhow::Result<()> {
 
     let (http_port, monitoring_port) = get_ports(&args);
 
-    let sequencer_simulator =
-        SequencerSimulator::new(args.http_url, http_port, args.monitoring_url, monitoring_port);
+    // TODO(Arni): Pass these values properly.
+    let base_layer_port = 8545;
+    let base_layer_url = format!("http://anvil:{base_layer_port}");
+
+    let sequencer_simulator = SequencerSimulator::new(
+        args.http_url,
+        http_port,
+        args.monitoring_url,
+        monitoring_port,
+        base_layer_url,
+        base_layer_port,
+    );
 
     info!("Sending bootstrap txs");
     sequencer_simulator.send_txs(&mut tx_generator, &BootstrapTxs, ACCOUNT_ID_0).await;
