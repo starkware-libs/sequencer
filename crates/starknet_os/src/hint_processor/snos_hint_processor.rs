@@ -144,17 +144,22 @@ impl<S: StateReader> ResourceTracker for SnosHintProcessor<S> {}
 pub struct SyscallHintProcessor {
     // Sha256 segments.
     sha256_segment: Option<Relocatable>,
+    syscall_ptr: Option<Relocatable>,
 }
 
 // TODO(Dori): remove this #[allow] after the constructor is no longer trivial.
 #[allow(clippy::new_without_default)]
 impl SyscallHintProcessor {
     pub fn new() -> Self {
-        Self { sha256_segment: None }
+        Self { sha256_segment: None, syscall_ptr: None }
     }
 
     pub fn set_sha256_segment(&mut self, sha256_segment: Relocatable) {
         self.sha256_segment = Some(sha256_segment);
+    }
+
+    pub fn set_syscall_ptr(&mut self, syscall_ptr: Relocatable) {
+        self.syscall_ptr = Some(syscall_ptr);
     }
 }
 
