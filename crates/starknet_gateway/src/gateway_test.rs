@@ -47,6 +47,7 @@ use crate::metrics::{
     register_metrics,
     GatewayMetricHandle,
     SourceLabelValue,
+    GATEWAY_ADD_TX_LATENCY,
     LABEL_NAME_SOURCE,
     LABEL_NAME_TX_TYPE,
     TRANSACTIONS_FAILED,
@@ -248,6 +249,8 @@ fn test_register_metrics() {
                 TRANSACTIONS_SENT_TO_MEMPOOL.parse_numeric_metric::<u64>(&metrics, labels).unwrap(),
                 0
             );
+            assert_eq!(GATEWAY_ADD_TX_LATENCY.parse_histogram_metric(&metrics).unwrap().sum, 0.0);
+            assert_eq!(GATEWAY_ADD_TX_LATENCY.parse_histogram_metric(&metrics).unwrap().count, 0);
         }
     }
 }
