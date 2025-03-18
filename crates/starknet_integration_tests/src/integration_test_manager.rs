@@ -60,7 +60,7 @@ use crate::utils::{
     TestScenario,
 };
 
-const DEFAULT_SENDER_ACCOUNT: AccountId = 0;
+pub const DEFAULT_SENDER_ACCOUNT: AccountId = 0;
 pub const BLOCK_TO_WAIT_FOR_BOOTSTRAP: BlockNumber = BlockNumber(2);
 
 pub const HTTP_PORT_ARG: &str = "http-port";
@@ -629,9 +629,7 @@ impl IntegrationTestManager {
             .clone()
     }
 
-    // TODO(noamsp): Remove this once the function is used.
-    #[allow(dead_code)]
-    async fn get_num_accepted_txs_on_all_running_nodes(&self) -> HashMap<usize, usize> {
+    pub async fn get_num_accepted_txs_on_all_running_nodes(&self) -> HashMap<usize, usize> {
         let mut result = HashMap::new();
         for (idx, running_node) in self.running_nodes.iter() {
             let monitoring_client = running_node.node_setup.state_sync_monitoring_client();
