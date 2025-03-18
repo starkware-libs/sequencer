@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::vec::IntoIter;
 
 use blockifier::state::state_api::{State, StateReader};
 use cairo_vm::any_box;
@@ -9,19 +10,118 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     insert_value_from_var_name,
     insert_value_into_ap,
 };
+use cairo_vm::types::relocatable::MaybeRelocatable;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
-use starknet_api::executable_transaction::Transaction;
+use starknet_api::executable_transaction::{AccountTransaction, Transaction};
 use starknet_api::state::StorageKey;
+use starknet_api::transaction::fields::{Resource, ResourceBounds, ValidResourceBounds};
+use starknet_api::transaction::TransactionVersion;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
-use crate::vm_utils::get_address_of_nested_fields;
+use crate::vm_utils::{get_address_of_nested_fields, insert_values_to_fields};
 
-pub(crate) fn load_next_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    todo!()
+pub(crate) fn load_next_tx<S: StateReader>(
+    HintArgs { exec_scopes, vm, ids_data, ap_tracking, hint_processor, .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    let mut txs_iter = exec_scopes.get::<IntoIter<Transaction>>(Scope::Transactions.into())?;
+    // Safe to unwrap because the remaining number of txs is checked in the cairo code.
+    let tx = txs_iter.next().unwrap();
+    exec_scopes.insert_value(Scope::Transactions.into(), txs_iter);
+    exec_scopes.insert_value(Scope::Tx.into(), tx.clone());
+
+    let tx_type_name = match &tx {
+        Transaction::Account(account_transaction) => match account_transaction {
+            AccountTransaction::Declare(_) => "DECLARE",
+            AccountTransaction::DeployAccount(_) => "DEPLOY_ACCOUNT",
+            AccountTransaction::Invoke(_) => "INVOKE_FUNCTION",
+        },
+        Transaction::L1Handler(_) => "L1_HANDLER",
+    };
+    let tx_type_bytes = Felt::from_bytes_be_slice(tx_type_name.as_bytes());
+    insert_value_from_var_name(Ids::TxType.into(), tx_type_bytes, vm, ids_data, ap_tracking)?;
+
+    // TODO: add logger
+
+    // Guess the resource bounds.
+    let mut n_resource_bounds = 0;
+    let resource_bounds = match &tx {
+        Transaction::L1Handler(_) => MaybeRelocatable::from(0),
+        Transaction::Account(account_transaction) => {
+            if account_transaction.version() < TransactionVersion::THREE {
+                MaybeRelocatable::from(0)
+            } else {
+                let mut resource_bounds_list: Vec<(String, MaybeRelocatable)> = vec![];
+                let resource_bound_address = vm.add_memory_segment();
+                match account_transaction.resource_bounds() {
+                    ValidResourceBounds::L1Gas(l1_gas_bounds) => {
+                        extend_resource_bounds(
+                            &mut resource_bounds_list,
+                            Resource::L1Gas,
+                            l1_gas_bounds,
+                            &mut n_resource_bounds,
+                        );
+                    }
+                    ValidResourceBounds::AllResources(all_resource_bounds) => {
+                        for resource in [Resource::L1Gas, Resource::L2Gas, Resource::L1DataGas] {
+                            extend_resource_bounds(
+                                &mut resource_bounds_list,
+                                resource,
+                                all_resource_bounds.get_bound(resource),
+                                &mut n_resource_bounds,
+                            );
+                        }
+                    }
+                }
+                insert_values_to_fields(
+                    resource_bound_address,
+                    CairoStruct::ResourceBounds,
+                    vm,
+                    &resource_bounds_list,
+                    &hint_processor.execution_helper.os_program,
+                )?;
+                MaybeRelocatable::RelocatableValue(resource_bound_address)
+            }
+        }
+    };
+
+    insert_value_from_var_name(
+        Ids::ResourceBounds.into(),
+        resource_bounds,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    insert_value_from_var_name(
+        Ids::NResourceBounds.into(),
+        n_resource_bounds,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    Ok(())
+}
+
+fn extend_resource_bounds(
+    resource_bounds_list: &mut Vec<(String, MaybeRelocatable)>,
+    resource: Resource,
+    resource_bounds: ResourceBounds,
+    n_resource_bounds: &mut usize,
+) {
+    *n_resource_bounds += 1;
+    resource_bounds_list.extend([
+        (
+            "resource_name".to_string(),
+            Felt::from_hex(resource.to_hex())
+                .expect("resource as hex expected to be converted into felt")
+                .into(),
+        ),
+        ("max_amount".to_string(), Felt::from(resource_bounds.max_amount).into()),
+        ("max_price_per_unit".to_string(), Felt::from(resource_bounds.max_price_per_unit).into()),
+    ]);
 }
 
 pub(crate) fn exit_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {

@@ -102,6 +102,7 @@ pub enum Ids {
     IsLeaf,
     Low,
     NCompiledClassFacts,
+    NResourceBounds,
     NTxs,
     NewLength,
     NextAvailableAlias,
@@ -114,12 +115,14 @@ pub enum Ids {
     PrevOffset,
     PrevValue,
     RangeCheck96Ptr,
+    ResourceBounds,
     Request,
     Sha256Ptr,
     StateEntry,
     StateUpdatesStart,
     SyscallPtr,
     TransactionHash,
+    TxType,
     UseKzgDa,
     Value,
 }
@@ -153,6 +156,7 @@ impl From<Ids> for &'static str {
             Ids::IsLeaf => "is_leaf",
             Ids::Low => "low",
             Ids::NCompiledClassFacts => "n_compiled_class_facts",
+            Ids::NResourceBounds => "n_resource_bounds,",
             Ids::NTxs => "n_txs",
             Ids::NewLength => "new_length",
             Ids::NextAvailableAlias => "next_available_alias",
@@ -165,12 +169,14 @@ impl From<Ids> for &'static str {
             Ids::PrevOffset => "prev_offset",
             Ids::PrevValue => "prev_value",
             Ids::RangeCheck96Ptr => "range_check96_ptr",
+            Ids::ResourceBounds => "resource_bounds,",
             Ids::Request => "request",
             Ids::Sha256Ptr => "sha256_ptr",
             Ids::StateEntry => "state_entry",
             Ids::StateUpdatesStart => "state_updates_start",
             Ids::SyscallPtr => "syscall_ptr",
             Ids::TransactionHash => "transaction_hash",
+            Ids::TxType => "tx_type",
             Ids::UseKzgDa => "use_kzg_da",
             Ids::Value => "value",
         }
@@ -251,6 +257,7 @@ pub enum CairoStruct {
     ExecutionContext,
     NodeEdge,
     OsStateUpdate,
+    ResourceBounds,
     StorageReadPtr,
     StorageReadRequestPtr,
 }
@@ -284,6 +291,7 @@ impl From<CairoStruct> for &'static str {
             }
             CairoStruct::NodeEdge => "starkware.cairo.common.patricia_utils.NodeEdge",
             CairoStruct::OsStateUpdate => "starkware.starknet.core.os.state.state.OsStateUpdate",
+            CairoStruct::ResourceBounds => "starkware.starknet.common.new_syscalls.ResourceBounds",
             CairoStruct::StorageReadPtr => "starkware.starknet.common.syscalls.StorageRead*",
             CairoStruct::StorageReadRequestPtr => {
                 "starkware.starknet.core.os.storage.StorageReadRequest*"
