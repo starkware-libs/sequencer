@@ -101,8 +101,10 @@ impl<S: StateReader> CachedState<S> {
         Ok(())
     }
 
-    pub fn get_initial_reads(&self) -> StateResult<StateMaps> {
-        Ok(self.cache.borrow().initial_reads.clone())
+    // TODO(Aner): move under OS cfg flag.
+    // TODO(Aner): Try to avoid cloning.
+    pub fn get_state_maps(&self) -> StateResult<StateMaps> {
+        Ok(self.cache.borrow().writes.clone())
     }
 }
 
@@ -280,6 +282,13 @@ impl Default for CachedState<crate::test_utils::dict_state_reader::DictStateRead
     }
 }
 
+#[cfg(feature = "reexecution")]
+impl<S: StateReader> CachedState<S> {
+    pub fn get_initial_reads(&self) -> StateResult<StateMaps> {
+        Ok(self.cache.borrow().initial_reads.clone())
+    }
+}
+
 pub type StorageEntry = (ContractAddress, StorageKey);
 
 #[derive(Debug, Default, derive_more::IntoIterator)]
@@ -369,7 +378,7 @@ impl StateMaps {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct StateCache {
     // Reader's cached information; initial values, read before any write operation (per cell).
-    pub initial_reads: StateMaps,
+    pub(crate) initial_reads: StateMaps,
 
     // Writer's cached information.
     pub(crate) writes: StateMaps,

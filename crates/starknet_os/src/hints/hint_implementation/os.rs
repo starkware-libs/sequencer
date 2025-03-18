@@ -1,22 +1,31 @@
 use std::collections::HashMap;
 
+use blockifier::state::cached_state::StateMaps;
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_into_ap;
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use starknet_types_core::felt::Felt;
 
+use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::enum_definition::{AllHints, OsHint};
-use crate::hints::error::OsHintResult;
+use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;
-use crate::hints::vars::Scope;
+use crate::hints::vars::{CairoStruct, Scope};
+use crate::vm_utils::insert_values_to_fields;
+
+fn get_state_maps<S: StateReader>(
+    hint_processor: &mut SnosHintProcessor<S>,
+) -> Result<StateMaps, OsHintError> {
+    let state_maps = hint_processor.execution_helper.cached_state.get_state_maps()?;
+    Ok(state_maps)
+}
 
 pub(crate) fn initialize_class_hashes<S: StateReader>(
     HintArgs { hint_processor, exec_scopes, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let state_input = &hint_processor.execution_helper.cached_state;
-    let class_hash_to_compiled_class_hash =
-        state_input.cache.clone().into_inner().initial_reads.compiled_class_hashes;
+    let state_maps = get_state_maps(hint_processor)?;
+    let class_hash_to_compiled_class_hash = state_maps.compiled_class_hashes;
     exec_scopes.insert_value(Scope::InitialDict.into(), class_hash_to_compiled_class_hash);
     Ok(())
 }
@@ -24,17 +33,23 @@ pub(crate) fn initialize_class_hashes<S: StateReader>(
 pub(crate) fn initialize_state_changes<S: StateReader>(
     HintArgs { hint_processor, exec_scopes, vm, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let contract_items = &hint_processor.execution_helper.cached_state.get_initial_reads()?;
+    let state_maps = get_state_maps(hint_processor)?;
     let mut initial_dict: HashMap<MaybeRelocatable, MaybeRelocatable> = HashMap::new();
-    for (address, nonce) in contract_items.nonces.iter() {
-        let contract_hash =
-            contract_items.class_hashes.get(address).expect("Missing contract hash");
+    for (address, nonce) in state_maps.nonces.iter() {
+        let contract_hash = state_maps.class_hashes.get(address).expect("Missing contract hash");
         let change_base = vm.add_memory_segment();
-        vm.insert_value(change_base, **contract_hash)?;
         let new_segment = vm.add_memory_segment();
-        vm.insert_value((change_base + 1)?, new_segment)?;
-        vm.insert_value((change_base + 2)?, **nonce)?;
-
+        insert_values_to_fields(
+            change_base,
+            CairoStruct::StateEntry,
+            vm,
+            &[
+                ("class_hash".to_string(), MaybeRelocatable::from(**contract_hash)),
+                ("new_segment".to_string(), new_segment.into()),
+                ("nonce".to_string(), MaybeRelocatable::from(**nonce)),
+            ],
+            &hint_processor.execution_helper.os_program,
+        )?;
         initial_dict.insert(address.0.0.into(), change_base.into());
     }
     exec_scopes.insert_value(Scope::InitialDict.into(), initial_dict);
