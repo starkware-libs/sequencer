@@ -37,6 +37,7 @@ use crate::transaction::objects::{
     TransactionInfoCreator,
 };
 use crate::transaction::transactions::{Executable, ExecutableTransaction};
+use crate::utils::usize_from_u64;
 
 // TODO(Gilad): Move into transaction.rs, makes more sense to be defined there.
 #[derive(Clone, Debug, derive_more::From)]
