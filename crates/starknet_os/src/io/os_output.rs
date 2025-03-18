@@ -6,10 +6,12 @@ use cairo_vm::vm::runners::builtin_runner::BuiltinRunner;
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_traits::ToPrimitive;
+use serde::Serialize;
 use starknet_types_core::felt::Felt;
 
 use crate::errors::StarknetOsError;
 
+#[derive(Serialize)]
 pub struct StarknetOsRunnerOutput {
     // TODO(Tzahi): Define a struct for the output.
     pub os_output: Vec<Felt>,
