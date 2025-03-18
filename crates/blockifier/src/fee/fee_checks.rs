@@ -214,7 +214,7 @@ impl FeeCheckReport {
         Ok(())
     }
 
-    fn check_l1_gas_within_bounds(
+    pub fn check_l1_gas_within_bounds(
         &l1_bounds: &ResourceBounds,
         gas_vector: &GasVector,
         tx_context: &TransactionContext,
