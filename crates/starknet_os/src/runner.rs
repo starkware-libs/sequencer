@@ -73,7 +73,7 @@ pub fn run_os<S: StateReader>(
 
     // Prepare and check expected output.
     let os_output = get_run_output(&cairo_runner.vm)?;
-
+    // TODO(Tzahi): log the output once it will have a proper struct.
     cairo_runner.vm.verify_auto_deductions().map_err(StarknetOsError::VirtualMachineError)?;
     cairo_runner
         .read_return_values(allow_missing_builtins)
