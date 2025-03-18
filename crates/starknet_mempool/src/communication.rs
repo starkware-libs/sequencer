@@ -12,7 +12,7 @@ use starknet_mempool_types::communication::{
     MempoolResponse,
 };
 use starknet_mempool_types::errors::MempoolError;
-use starknet_mempool_types::mempool_types::{CommitBlockArgs, MempoolResult};
+use starknet_mempool_types::mempool_types::{CommitBlockArgs, MempoolResult, MempoolSnapshot};
 use starknet_sequencer_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use starknet_sequencer_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 
@@ -100,6 +100,10 @@ impl MempoolCommunicationWrapper {
         self.mempool.update_gas_price(gas_price);
         Ok(())
     }
+
+    fn get_mempool_snapshot(&self) -> MempoolResult<MempoolSnapshot> {
+        self.mempool.get_mempool_snapshot()
+    }
 }
 
 #[async_trait]
@@ -124,9 +128,7 @@ impl ComponentRequestHandler<MempoolRequest, MempoolResponse> for MempoolCommuni
                 MempoolResponse::UpdateGasPrice(self.update_gas_price(gas_price))
             }
             MempoolRequest::GetMempoolSnapshot() => {
-                unimplemented!(
-                    "GetMempoolSnapshot is not yet implemented in MempoolCommunicationWrapper"
-                );
+                MempoolResponse::GetMempoolSnapshot(self.get_mempool_snapshot())
             }
         }
     }
