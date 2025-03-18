@@ -99,6 +99,10 @@ impl GasVector {
     pub const ZERO: GasVector =
         GasVector { l1_gas: GasAmount(0), l1_data_gas: GasAmount(0), l2_gas: GasAmount(0) };
 
+    pub fn default_max() -> Self {
+        Self { l1_gas: GasAmount::MAX, l1_data_gas: GasAmount::MAX, l2_gas: GasAmount::MAX }
+    }
+
     pub fn from_l1_gas(l1_gas: GasAmount) -> Self {
         Self { l1_gas, ..Default::default() }
     }
