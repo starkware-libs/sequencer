@@ -15,30 +15,30 @@ use crate::config::component_execution_config::{
 
 const BASE_PORT: u16 = 55000; // TODO(Tsabary): arbitrary port, need to resolve.
 
-pub struct DeploymentAndPreset<'a> {
-    pub deployment: Deployment<'a>,
+pub struct DeploymentAndPreset {
+    pub deployment: Deployment,
     pub dump_file_path: &'static str,
 }
 
-impl<'a> DeploymentAndPreset<'a> {
-    pub fn new(deployment: Deployment<'a>, dump_file_path: &'static str) -> Self {
+impl DeploymentAndPreset {
+    pub fn new(deployment: Deployment, dump_file_path: &'static str) -> Self {
         Self { deployment, dump_file_path }
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
-pub struct Deployment<'a> {
+pub struct Deployment {
     chain_id: ChainId,
-    image: &'a str,
-    application_config_subdir: &'a str,
+    image: &'static str,
+    application_config_subdir: &'static str,
     services: Vec<Service>,
 }
 
-impl<'a> Deployment<'a> {
+impl Deployment {
     pub fn new(
         chain_id: ChainId,
-        image: &'a str,
-        application_config_subdir: &'a str,
+        image: &'static str,
+        application_config_subdir: &'static str,
         deployment_name: DeploymentName,
     ) -> Self {
         let service_names = deployment_name.all_service_names();
