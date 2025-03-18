@@ -76,7 +76,7 @@ async fn test_stateful_tx_validator(
         });
 
     let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
-    mock_validator.expect_validate().return_once(|_, _| expected_result.map(|_| ()));
+    mock_validator.expect_validate().return_once(|_| expected_result.map(|_| ()));
 
     let account_nonce = nonce!(0);
     let mut mock_mempool_client = MockMempoolClient::new();
@@ -133,19 +133,19 @@ fn test_instantiate_validator(stateful_validator: StatefulTransactionValidator) 
     executable_invoke_tx(invoke_tx_args!(nonce: nonce!(1))),
     nonce!(0),
     true,
-    true
+    false
 )]
 #[case::should_not_skip_validation_nonce_zero(
     executable_invoke_tx(invoke_tx_args!(nonce: nonce!(0))),
     nonce!(0),
     true,
-    false
+    true
 )]
 #[case::should_not_skip_validation_nonce_over_one(
     executable_invoke_tx(invoke_tx_args!(nonce: nonce!(2))),
     nonce!(0),
     true,
-    false
+    true
 )]
 // TODO(Arni): Fix this test case. Ideally, we would have a non-invoke transaction with tx_nonce 1
 // and account_nonce 0. For deploy account the tx_nonce is always 0. Replace with a declare tx.
@@ -153,34 +153,34 @@ fn test_instantiate_validator(stateful_validator: StatefulTransactionValidator) 
     executable_deploy_account_tx(deploy_account_tx_args!()),
     nonce!(0),
     true,
-    false
+    true
 
 )]
 #[case::should_not_skip_validation_account_nonce_1(
     executable_invoke_tx(invoke_tx_args!(nonce: nonce!(1))),
     nonce!(1),
     true,
-    false
+    true
 )]
 #[case::should_not_skip_validation_no_tx_in_mempool(
     executable_invoke_tx(invoke_tx_args!(nonce: nonce!(1))),
     nonce!(0),
     false,
-    false
+    true
 )]
 #[tokio::test]
 async fn test_skip_stateful_validation(
     #[case] executable_tx: AccountTransaction,
     #[case] sender_nonce: Nonce,
     #[case] contains_tx: bool,
-    #[case] should_skip_validate: bool,
+    #[case] should_validate: bool,
     stateful_validator: StatefulTransactionValidator,
 ) {
     let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
     mock_validator
         .expect_validate()
-        .withf(move |_, skip_validate| *skip_validate == should_skip_validate)
-        .returning(|_, _| Ok(()));
+        .withf(move |tx| tx.execution_flags.validate == should_validate)
+        .returning(|_| Ok(()));
     let mut mock_mempool_client = MockMempoolClient::new();
     mock_mempool_client
         .expect_account_tx_in_pool_or_recent_block()
