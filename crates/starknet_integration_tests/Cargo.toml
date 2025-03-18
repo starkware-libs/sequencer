@@ -22,7 +22,6 @@ indexmap.workspace = true
 itertools.workspace = true
 mempool_test_utils.workspace = true
 papyrus_base_layer = { workspace = true, features = ["testing"] }
-papyrus_config.workspace = true
 papyrus_network = { workspace = true, features = ["testing"] }
 papyrus_protobuf.workspace = true
 papyrus_storage = { workspace = true, features = ["testing"] }

@@ -4,7 +4,6 @@ use std::path::{Path, PathBuf};
 use blockifier::context::ChainInfo;
 use mempool_test_utils::starknet_api_test_utils::AccountTransactionGenerator;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
-use papyrus_config::dumping::{combine_config_map_and_pointers, SerializeConfig};
 use papyrus_storage::StorageConfig;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
@@ -18,7 +17,7 @@ use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_monitoring_endpoint::test_utils::MonitoringClient;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
-use starknet_sequencer_node::config::config_utils::{config_to_preset, dump_json_data};
+use starknet_sequencer_node::config::config_utils::dump_config_file;
 use starknet_sequencer_node::config::definitions::ConfigPointersMap;
 use starknet_sequencer_node::config::node_config::{
     SequencerNodeConfig,
@@ -236,23 +235,11 @@ impl ExecutableSetup {
 
     /// Creates a config file for the sequencer node for an integration test.
     pub fn dump_config_file_changes(&self) {
-        // Create the entire mapping of the config and the pointers, without the required params.
-        let config_as_map = combine_config_map_and_pointers(
-            self.config.dump(),
+        dump_config_file(
+            self.config.clone(),
             &self.config_pointers_map.clone().into(),
             &CONFIG_NON_POINTERS_WHITELIST,
-        )
-        .unwrap();
-
-        // Extract only the required fields from the config map.
-        let preset = config_to_preset(&config_as_map);
-
-        // Dump the preset to a file, return its path.
-        dump_json_data(preset, &self.node_config_path);
-        assert!(
-            &self.node_config_path.exists(),
-            "File does not exist: {:?}",
-            &self.node_config_path
+            &self.node_config_path,
         );
     }
 }
