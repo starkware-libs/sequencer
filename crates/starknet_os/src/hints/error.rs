@@ -62,6 +62,8 @@ pub enum OsHintError {
     MissingBytecodeSegmentStructure(ClassHash),
     #[error("No preimage found for value {0:?}.")]
     MissingPreimage(Felt),
+    #[error("The transactions iterator is empty.")]
+    NoMoreTransactions,
     #[error("Failed to parse resource bounds: {0}.")]
     ResourceBoundsParsing(SyscallExecutionError),
     #[error("{error:?} for json value {value}.")]
