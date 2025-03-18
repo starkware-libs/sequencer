@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use cairo_vm::vm::runners::cairo_runner::RunResources;
 use starknet_api::contract_class::ClassInfo;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::{
@@ -11,6 +12,7 @@ use starknet_api::executable_transaction::{
 };
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::Fee;
+use starknet_api::transaction::fields::Resource::L1Gas;
 use starknet_api::transaction::{
     CalculateContractAddress,
     Transaction as StarknetApiTransaction,
@@ -20,8 +22,8 @@ use starknet_api::transaction::{
 use crate::bouncer::verify_tx_weights_within_max_capacity;
 use crate::context::BlockContext;
 use crate::execution::call_info::CallInfo;
-use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::{EntryPointExecutionContext, SierraGasRevertTracker};
+use crate::fee::fee_checks::FeeCheckError;
 use crate::fee::receipt::TransactionReceipt;
 use crate::state::cached_state::TransactionalState;
 use crate::state::state_api::UpdatableState;
@@ -37,6 +39,7 @@ use crate::transaction::objects::{
     TransactionInfoCreator,
 };
 use crate::transaction::transactions::{Executable, ExecutableTransaction};
+use crate::utils::usize_from_u64;
 
 // TODO(Gilad): Move into transaction.rs, makes more sense to be defined there.
 #[derive(Clone, Debug, derive_more::From)]
@@ -142,35 +145,57 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
         _concurrency_mode: bool,
     ) -> TransactionExecutionResult<TransactionExecutionInfo> {
         let tx_context = Arc::new(block_context.to_tx_context(self));
-        let limit_steps_by_resources = false;
-        // The Sierra gas limit for L1 handler transaction is set to max_execute_sierra_gas.
-        let mut remaining_gas =
-            block_context.versioned_constants.sierra_gas_limit(&ExecutionMode::Execute).0;
+        let limit_steps_by_resources = true;
+        let l1_handler_resource_bounds =
+            block_context.versioned_constants.os_constants.l1_handler_resource_bounds;
+        let sierra_gas_limit = l1_handler_resource_bounds.l2_gas;
+        let step_gas_cost =
+            block_context.versioned_constants.os_constants.gas_costs.base.step_gas_cost;
+        let mut remaining_gas = sierra_gas_limit.0;
+
         let mut context = EntryPointExecutionContext::new_invoke(
             tx_context.clone(),
             limit_steps_by_resources,
             SierraGasRevertTracker::new(GasAmount(remaining_gas)),
         );
+        // Adjust vm resources to match the sierra gas limit.
+        context.vm_run_resources = RunResources::new(
+            sierra_gas_limit
+                .0
+                .checked_div(step_gas_cost)
+                .and_then(|v| usize_from_u64(v).ok())
+                .expect(
+                    "Failed to compute vm steps from sierra gas: division failed or conversion \
+                     failed",
+                ),
+        );
         let execute_call_info = self.run_execute(state, &mut context, &mut remaining_gas)?;
         let l1_handler_payload_size = self.payload_size();
-        let TransactionReceipt {
-            fee: actual_fee,
-            da_gas,
-            resources: actual_resources,
-            gas: total_gas,
-        } = TransactionReceipt::from_l1_handler(
+        let receipt = TransactionReceipt::from_l1_handler(
             &tx_context,
             l1_handler_payload_size,
             CallInfo::summarize_many(execute_call_info.iter(), &block_context.versioned_constants),
             &state.get_actual_state_changes()?,
         );
 
+        // Enforce L1 resource bounds.
+        let l1_bounds = l1_handler_resource_bounds.l1_gas;
+        if receipt.gas.l1_gas > l1_bounds {
+            let err = FeeCheckError::MaxGasAmountExceeded {
+                resource: L1Gas,
+                max_amount: l1_bounds,
+                actual_amount: receipt.gas.l1_gas,
+            };
+            return Err(err.into());
+        };
+
+        // Ensure a fee was paid.
         let paid_fee = self.paid_fee_on_l1;
         // For now, assert only that any amount of fee was paid.
         // The error message still indicates the required fee.
         if paid_fee == Fee(0) {
             return Err(TransactionExecutionError::TransactionFeeError(
-                TransactionFeeError::InsufficientFee { paid_fee, actual_fee },
+                TransactionFeeError::InsufficientFee { paid_fee, actual_fee: receipt.fee },
             ));
         }
 
@@ -180,9 +205,9 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
             fee_transfer_call_info: None,
             receipt: TransactionReceipt {
                 fee: Fee::default(),
-                da_gas,
-                resources: actual_resources,
-                gas: total_gas,
+                da_gas: receipt.da_gas,
+                resources: receipt.resources,
+                gas: receipt.gas,
             },
             revert_error: None,
         })
