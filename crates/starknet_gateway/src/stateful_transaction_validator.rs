@@ -38,20 +38,16 @@ type BlockifierStatefulValidator = StatefulValidator<Box<dyn MempoolStateReader>
 // TODO(yair): move the trait to Blockifier.
 #[cfg_attr(test, automock)]
 pub trait StatefulTransactionValidatorTrait {
-    fn validate(
-        &mut self,
-        account_tx: AccountTransaction,
-        skip_validate: bool,
-    ) -> BlockifierStatefulValidatorResult<()>;
+    fn validate(&mut self, account_tx: AccountTransaction)
+    -> BlockifierStatefulValidatorResult<()>;
 }
 
 impl StatefulTransactionValidatorTrait for BlockifierStatefulValidator {
     fn validate(
         &mut self,
         account_tx: AccountTransaction,
-        skip_validate: bool,
     ) -> BlockifierStatefulValidatorResult<()> {
-        self.perform_validations(account_tx, skip_validate)
+        self.perform_validations(account_tx)
     }
 }
 
@@ -72,7 +68,7 @@ impl StatefulTransactionValidator {
 
         let account_tx = AccountTransaction { tx: executable_tx.clone(), execution_flags };
         validator
-            .validate(account_tx, skip_validate)
+            .validate(account_tx)
             .map_err(|err| GatewaySpecError::ValidationFailure { data: err.to_string() })?;
         Ok(())
     }

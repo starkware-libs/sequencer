@@ -183,6 +183,7 @@ pub struct FaultyAccountTxCreatorArgs {
     pub validate_constructor: bool,
     // Should be used with tx_type Declare.
     pub declared_contract: Option<FeatureContract>,
+    // Execution flags.
     pub validate: bool,
     pub only_query: bool,
     pub charge_fee: bool,

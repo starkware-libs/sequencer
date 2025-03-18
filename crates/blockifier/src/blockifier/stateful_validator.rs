@@ -53,11 +53,7 @@ impl<S: StateReader> StatefulValidator<S> {
         Self { tx_executor }
     }
 
-    pub fn perform_validations(
-        &mut self,
-        tx: AccountTransaction,
-        skip_validate: bool,
-    ) -> StatefulValidatorResult<()> {
+    pub fn perform_validations(&mut self, tx: AccountTransaction) -> StatefulValidatorResult<()> {
         // Deploy account transactions should be fully executed, since the constructor must run
         // before `__validate_deploy__`. The execution already includes all necessary validations,
         // so they are skipped here.
@@ -69,7 +65,7 @@ impl<S: StateReader> StatefulValidator<S> {
         let tx_context = self.tx_executor.block_context.to_tx_context(&tx);
         self.perform_pre_validation_stage(&tx, &tx_context)?;
 
-        if skip_validate {
+        if !tx.execution_flags.validate {
             return Ok(());
         }
 

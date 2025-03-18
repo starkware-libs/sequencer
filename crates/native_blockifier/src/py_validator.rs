@@ -68,30 +68,32 @@ impl PyValidator {
         optional_py_class_info: Option<PyClassInfo>,
         deploy_account_tx_hash: Option<PyFelt>,
     ) -> NativeBlockifierResult<()> {
-        let account_tx = py_account_tx(tx, optional_py_class_info).expect(PY_TX_PARSING_ERR);
+        let mut account_tx = py_account_tx(tx, optional_py_class_info).expect(PY_TX_PARSING_ERR);
         let deploy_account_tx_hash = deploy_account_tx_hash.map(|hash| TransactionHash(hash.0));
 
         // We check if the transaction should be skipped due to the deploy account not being
         // processed.
-        let skip_validate = self
-            .skip_validate_due_to_unprocessed_deploy_account(&account_tx, deploy_account_tx_hash)?;
-        self.stateful_validator.perform_validations(account_tx, skip_validate)?;
+        let validate = self.should_run_stateful_validations(&account_tx, deploy_account_tx_hash)?;
+
+        account_tx.execution_flags.validate = validate;
+        self.stateful_validator.perform_validations(account_tx)?;
 
         Ok(())
     }
 }
 
 impl PyValidator {
-    // Check if deploy account was submitted but not processed yet. If so, then skip
-    // `__validate__` method for subsequent transactions for a better user experience.
-    // (they will otherwise fail solely because the deploy account hasn't been processed yet).
-    pub fn skip_validate_due_to_unprocessed_deploy_account(
+    // Returns whether the transaction should be statefully validated.
+    // If the DeployAccount transaction of the account was submitted but not processed yet, it
+    // should be skipped for subsequent transactions for a better user experience. (they will
+    // otherwise fail solely because the deploy account hasn't been processed yet).
+    pub fn should_run_stateful_validations(
         &mut self,
         account_tx: &AccountTransaction,
         deploy_account_tx_hash: Option<TransactionHash>,
     ) -> StatefulValidatorResult<bool> {
         if account_tx.tx_type() != TransactionType::InvokeFunction {
-            return Ok(false);
+            return Ok(true);
         }
         let tx_info = account_tx.create_tx_info();
         let nonce = self.stateful_validator.get_nonce(tx_info.sender_address())?;
@@ -107,6 +109,6 @@ impl PyValidator {
             && is_post_deploy_nonce
             && nonce_small_enough_to_qualify_for_validation_skip;
 
-        Ok(skip_validate)
+        Ok(!skip_validate)
     }
 }
