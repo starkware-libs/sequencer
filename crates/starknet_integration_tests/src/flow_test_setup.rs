@@ -54,7 +54,6 @@ use tokio::sync::Mutex;
 use tracing::{debug, instrument};
 use url::Url;
 
-use crate::executable_setup::NodeExecutionId;
 use crate::state_reader::StorageTestSetup;
 use crate::utils::{
     create_consensus_manager_configs_from_network_configs,
@@ -62,6 +61,7 @@ use crate::utils::{
     create_node_config,
     create_state_sync_configs,
     send_message_to_l2,
+    set_validator_id,
     spawn_local_success_recorder,
     AccumulatedTransactions,
 };
@@ -223,6 +223,8 @@ impl FlowSequencerSetup {
             spawn_local_success_recorder(available_ports.get_next_port());
         consensus_manager_config.cende_config.recorder_url = recorder_url;
 
+        let validator_id = set_validator_id(&mut consensus_manager_config, node_index);
+
         let component_config = ComponentConfig::default();
 
         // Explicitly avoid collecting metrics in the monitoring endpoint; metrics are collected
@@ -237,7 +239,6 @@ impl FlowSequencerSetup {
         // Derive the configuration for the sequencer node.
         let (node_config, _config_pointers_map) = create_node_config(
             &mut available_ports,
-            NodeExecutionId::new(node_index, 0),
             chain_info,
             batcher_storage_config,
             state_sync_storage_config,
@@ -249,6 +250,7 @@ impl FlowSequencerSetup {
             component_config,
             base_layer_config,
             block_max_capacity_sierra_gas,
+            validator_id,
         );
 
         debug!("Sequencer config: {:#?}", node_config);
