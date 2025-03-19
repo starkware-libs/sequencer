@@ -258,7 +258,7 @@ fn commit_block_backlog() {
     // Setup.
     let initial_bootstrap_state = ProviderState::Bootstrap(bootstrapper!(
         backlog: [10 => [2], 11 => [4]],
-        catch_up: 10
+        catch_up: 9
     ));
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_txs([l1_handler(1), l1_handler(2), l1_handler(4)])

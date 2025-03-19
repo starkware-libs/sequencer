@@ -47,7 +47,7 @@ impl Bootstrapper {
     /// If catch_up_height is unset, the sync isn't even ready yet.
     pub fn is_caught_up(&self, current_provider_height: BlockNumber) -> bool {
         self.catch_up_height()
-            .is_some_and(|catch_up_height| current_provider_height >= catch_up_height)
+            .is_some_and(|catch_up_height| current_provider_height > catch_up_height)
         // TODO(Gilad): add health_check here, making sure that the sync task isn't stuck, which is
         // `handle dropped && backlog empty && not caught up`.
     }
