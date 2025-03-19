@@ -88,7 +88,7 @@ impl Service {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, EnumDiscriminants)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, EnumDiscriminants)]
 #[strum_discriminants(
     name(DeploymentName),
     derive(IntoStaticStr, EnumIter, EnumVariantNames, Serialize, Display),
@@ -163,7 +163,7 @@ impl IntoService for ConsolidatedNodeServiceName {
     fn create_service(&self) -> Service {
         match self {
             ConsolidatedNodeServiceName::Node => {
-                Service::new(self.clone().into(), false, false, 1, Some(32))
+                Service::new(Into::<ServiceName>::into(*self), false, false, 1, Some(32))
             }
         }
     }
@@ -182,14 +182,14 @@ impl Serialize for ServiceName {
     }
 }
 
-#[derive(Clone, Debug, Display, PartialEq, Serialize, AsRefStr, EnumIter)]
+#[derive(Clone, Copy, Debug, Display, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter)]
 #[strum(serialize_all = "snake_case")]
 pub enum ConsolidatedNodeServiceName {
     Node,
 }
 
 #[repr(u16)]
-#[derive(Clone, Debug, Display, PartialEq, Serialize, AsRefStr, EnumIter)]
+#[derive(Clone, Copy, Debug, Display, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter)]
 #[strum(serialize_all = "snake_case")]
 pub enum DistributedNodeServiceName {
     Batcher,
@@ -208,31 +208,31 @@ impl IntoService for DistributedNodeServiceName {
     fn create_service(&self) -> Service {
         match self {
             DistributedNodeServiceName::Batcher => {
-                Service::new(self.clone().into(), false, false, 1, Some(32))
+                Service::new(Into::<ServiceName>::into(*self), false, false, 1, Some(32))
             }
             DistributedNodeServiceName::ClassManager => {
-                Service::new(self.clone().into(), false, false, 1, Some(32))
+                Service::new(Into::<ServiceName>::into(*self), false, false, 1, Some(32))
             }
             DistributedNodeServiceName::ConsensusManager => {
-                Service::new(self.clone().into(), false, false, 1, Some(32))
+                Service::new(Into::<ServiceName>::into(*self), false, false, 1, Some(32))
             }
             DistributedNodeServiceName::HttpServer => {
-                Service::new(self.clone().into(), false, false, 1, Some(32))
+                Service::new(Into::<ServiceName>::into(*self), false, false, 1, Some(32))
             }
             DistributedNodeServiceName::Gateway => {
-                Service::new(self.clone().into(), false, false, 1, Some(32))
+                Service::new(Into::<ServiceName>::into(*self), false, false, 1, Some(32))
             }
             DistributedNodeServiceName::L1Provider => {
-                Service::new(self.clone().into(), false, false, 1, Some(32))
+                Service::new(Into::<ServiceName>::into(*self), false, false, 1, Some(32))
             }
             DistributedNodeServiceName::Mempool => {
-                Service::new(self.clone().into(), false, false, 1, Some(32))
+                Service::new(Into::<ServiceName>::into(*self), false, false, 1, Some(32))
             }
             DistributedNodeServiceName::SierraCompiler => {
-                Service::new(self.clone().into(), false, false, 1, Some(32))
+                Service::new(Into::<ServiceName>::into(*self), false, false, 1, Some(32))
             }
             DistributedNodeServiceName::StateSync => {
-                Service::new(self.clone().into(), false, false, 1, Some(32))
+                Service::new(Into::<ServiceName>::into(*self), false, false, 1, Some(32))
             }
         }
     }
@@ -274,7 +274,7 @@ impl DistributedNodeServiceName {
     // TODO(Tsabary): consider alternatives that enable removing the linter suppression.
     #[allow(clippy::as_conversions)]
     fn get_port_offset(&self) -> u16 {
-        self.clone() as u16
+        *self as u16
     }
 }
 
