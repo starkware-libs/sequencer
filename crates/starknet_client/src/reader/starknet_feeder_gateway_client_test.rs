@@ -162,6 +162,17 @@ async fn get_latest_block_when_no_blocks_exist() {
 }
 
 #[tokio::test]
+async fn fallback_get_latest_block_when_no_blocks_exist() {
+    let starknet_client = starknet_client();
+    let mock_fallback_error = mock_error_get_block_response(malformed_error(), None, false);
+    let mock_no_block = mock_error_get_block_response(block_not_found_error(-1), None, true);
+    let latest_block = starknet_client.latest_block().await.unwrap();
+    mock_fallback_error.assert();
+    mock_no_block.assert();
+    assert!(latest_block.is_none());
+}
+
+#[tokio::test]
 async fn declare_tx_serde() {
     let declare_tx = IntermediateDeclareTransaction {
         class_hash: class_hash!(
