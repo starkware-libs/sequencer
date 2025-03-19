@@ -71,7 +71,9 @@ pub(crate) fn enter_scope_deprecated_syscall_handler<S: StateReader>(
 pub(crate) fn enter_scope_syscall_handler<S: StateReader>(
     HintArgs { .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    // TODO(Aner): Verify the following statment.
+    // Nothing to do here; syscall_handler already available on the hint processor.
+    Ok(())
 }
 
 pub(crate) fn get_contract_address_state_entry<S: StateReader>(
