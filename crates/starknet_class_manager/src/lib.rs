@@ -2,6 +2,7 @@ pub mod class_manager;
 pub mod class_storage;
 pub mod communication;
 pub mod config;
+pub mod metrics;
 
 use crate::class_manager::ClassManager as GenericClassManager;
 use crate::class_storage::FsClassStorage;

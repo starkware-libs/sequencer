@@ -11,19 +11,17 @@ use starknet_sequencer_infra::component_definitions::{
     default_component_start_fn,
     ComponentStarter,
 };
-use starknet_sequencer_metrics::metrics::LabeledMetricCounter;
-use starknet_sequencer_metrics::{define_metrics, generate_permutation_labels};
 use starknet_sierra_multicompile_types::{
     RawClass,
     RawExecutableClass,
     SharedSierraCompilerClient,
     SierraCompilerClientError,
 };
-use strum::VariantNames;
 use tracing::instrument;
 
 use crate::class_storage::{CachedClassStorage, ClassStorage, FsClassStorage};
 use crate::config::{ClassManagerConfig, FsClassManagerConfig};
+use crate::metrics::register_metrics;
 use crate::FsClassManager;
 
 #[cfg(test)]
@@ -131,39 +129,4 @@ impl ComponentStarter for FsClassManager {
         default_component_start_fn::<Self>().await;
         register_metrics();
     }
-}
-
-// Metric code.
-
-const CAIRO_CLASS_TYPE_LABEL: &str = "class_type";
-
-#[derive(strum_macros::EnumVariantNames, strum_macros::IntoStaticStr)]
-#[strum(serialize_all = "snake_case")]
-pub(crate) enum CairoClassType {
-    Regular,
-    Deprecated,
-}
-
-generate_permutation_labels! {
-    CAIRO_CLASS_TYPE_LABELS,
-    (CAIRO_CLASS_TYPE_LABEL, CairoClassType),
-}
-
-define_metrics!(
-    ClassManager => {
-        LabeledMetricCounter {
-            N_CLASSES,
-            "class_manager_n_classes", "Number of classes, by label (regular, deprecated)",
-            init = 0 ,
-            labels = CAIRO_CLASS_TYPE_LABELS
-        },
-    },
-);
-
-pub(crate) fn increment_n_classes(cls_type: CairoClassType) {
-    N_CLASSES.increment(1, &[(CAIRO_CLASS_TYPE_LABEL, cls_type.into())]);
-}
-
-fn register_metrics() {
-    N_CLASSES.register();
 }
