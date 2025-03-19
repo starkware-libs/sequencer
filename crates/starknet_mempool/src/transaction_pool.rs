@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::collections::{hash_map, BTreeMap, HashMap};
+use std::collections::{hash_map, BTreeMap, HashMap, VecDeque};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -7,7 +7,7 @@ use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool_types::errors::MempoolError;
-use starknet_mempool_types::mempool_types::{AccountState, MempoolResult};
+use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs, MempoolResult};
 
 use crate::mempool::TransactionReference;
 use crate::metrics::TRANSACTION_TIME_SPENT_IN_MEMPOOL;
@@ -26,6 +26,8 @@ pub struct TransactionPool {
     txs_by_account: AccountTransactionIndex,
     // Transactions sorted by their time spent in the pool (i.e. newest to oldest).
     txs_by_submission_time: TimedTransactionMap,
+    // Declare transactions that are waiting to be added to the tx pool after a delay.
+    delayed_declares: VecDeque<(Instant, AddTransactionArgs)>,
     // Tracks the capacity of the pool.
     capacity: PoolCapacity,
 }
@@ -36,12 +38,17 @@ impl TransactionPool {
             tx_pool: HashMap::new(),
             txs_by_account: AccountTransactionIndex::default(),
             txs_by_submission_time: TimedTransactionMap::new(clock),
+            delayed_declares: VecDeque::new(),
             capacity: PoolCapacity::default(),
         }
     }
 
-    pub fn capacity(&self) -> usize {
-        self.capacity.n_txs()
+    pub fn len(&self) -> usize {
+        self.tx_pool.len()
+    }
+
+    pub fn delayed_declares_len(&self) -> usize {
+        self.delayed_declares.len()
     }
 
     pub fn insert(&mut self, tx: InternalRpcTransaction) -> MempoolResult<()> {
@@ -118,6 +125,32 @@ impl TransactionPool {
         self.capacity.remove_n(removed_txs.len());
 
         removed_txs
+    }
+
+    pub fn insert_declare_with_delay(&mut self, time: Instant, args: AddTransactionArgs) {
+        self.capacity.add();
+        self.delayed_declares.push_back((time, args));
+    }
+
+    pub fn remove_next_delayed_declare(
+        &mut self,
+    ) -> std::option::Option<(Instant, AddTransactionArgs)> {
+        let removed = self.delayed_declares.pop_front();
+        if removed.is_some() {
+            self.capacity.remove();
+        }
+        removed
+    }
+
+    pub fn get_next_delayed_declare(&self) -> std::option::Option<&(Instant, AddTransactionArgs)> {
+        self.delayed_declares.front()
+    }
+
+    pub fn contains_delayed_declare(&self, tx_reference: &TransactionReference) -> bool {
+        self.delayed_declares.iter().any(|(_, tx_args)| {
+            let tx = &tx_args.tx;
+            tx.contract_address() == tx_reference.address && tx.nonce() == tx_reference.nonce
+        })
     }
 
     pub fn account_txs_sorted_by_nonce(
@@ -281,10 +314,6 @@ impl PoolCapacity {
     fn remove_n(&mut self, n: usize) {
         self.n_txs =
             self.n_txs.checked_sub(n).expect("Underflow: Cannot subtract from an empty pool.");
-    }
-
-    fn n_txs(&self) -> usize {
-        self.n_txs
     }
 }
 

@@ -1,6 +1,5 @@
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
-use std::time::Instant;
 
 use starknet_api::block::NonzeroGasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
@@ -165,8 +164,6 @@ impl MempoolState {
 pub struct Mempool {
     config: MempoolConfig,
     // TODO(AlonH): add docstring explaining visibility and coupling of the fields.
-    // Declare transactions that are waiting to be added to the tx pool after a delay.
-    delayed_declares: VecDeque<(Instant, AddTransactionArgs)>,
     // All transactions currently held in the mempool (excluding the delayed declares).
     tx_pool: TransactionPool,
     // Transactions eligible for sequencing.
@@ -179,7 +176,6 @@ impl Mempool {
     pub fn new(config: MempoolConfig, clock: Arc<dyn Clock>) -> Self {
         Mempool {
             config: config.clone(),
-            delayed_declares: VecDeque::new(),
             tx_pool: TransactionPool::new(clock.clone()),
             tx_queue: TransactionQueue::default(),
             state: MempoolState::new(config.committed_nonce_retention_block_count),
@@ -196,11 +192,11 @@ impl Mempool {
     }
 
     pub fn tx_pool_len(&self) -> usize {
-        self.tx_pool.capacity()
+        self.tx_pool.len()
     }
 
     pub fn delayed_declares_len(&self) -> usize {
-        self.delayed_declares.len()
+        self.tx_pool.delayed_declares_len()
     }
 
     /// Returns an iterator of the current eligible transactions for sequencing, ordered by their
@@ -279,7 +275,7 @@ impl Mempool {
         metric_handle.transaction_inserted();
 
         if let InternalRpcTransactionWithoutTxHash::Declare(_) = &args.tx.tx {
-            self.delayed_declares.push_back((self.clock.now(), args));
+            self.tx_pool.insert_declare_with_delay(self.clock.now(), args);
         } else {
             self.add_tx_inner(args);
         }
@@ -307,12 +303,12 @@ impl Mempool {
 
     fn add_ready_declares(&mut self) {
         let now = self.clock.now();
-        while let Some((submission_time, _args)) = self.delayed_declares.front() {
+        while let Some((submission_time, _args)) = self.tx_pool.get_next_delayed_declare() {
             if now - *submission_time < self.config.declare_delay {
                 break;
             }
             let (_submission_time, args) =
-                self.delayed_declares.pop_front().expect("Delay declare should exist.");
+                self.tx_pool.remove_next_delayed_declare().expect("Delay declare should exist.");
             self.add_tx_inner(args);
         }
         self.update_state_metrics();
@@ -409,10 +405,7 @@ impl Mempool {
         &self,
         tx_reference: TransactionReference,
     ) -> MempoolResult<()> {
-        if self.delayed_declares.iter().any(|(_, tx_args)| {
-            let tx = &tx_args.tx;
-            tx.contract_address() == tx_reference.address && tx.nonce() == tx_reference.nonce
-        }) {
+        if self.tx_pool.contains_delayed_declare(&tx_reference) {
             return Err(MempoolError::DuplicateNonce {
                 address: tx_reference.address,
                 nonce: tx_reference.nonce,

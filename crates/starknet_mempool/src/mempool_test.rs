@@ -1,4 +1,4 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -124,7 +124,6 @@ impl MempoolTestContentBuilder {
     fn build_full_mempool(self) -> Mempool {
         Mempool {
             config: self.config.clone(),
-            delayed_declares: VecDeque::new(),
             tx_pool: self.content.tx_pool.unwrap_or_default().into_values().collect(),
             tx_queue: TransactionQueue::new(
                 self.content.priority_txs.unwrap_or_default(),
