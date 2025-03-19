@@ -45,6 +45,7 @@ use crate::reader::objects::block::{BlockSignatureData, BlockSignatureMessage};
 use crate::reader::Block;
 use crate::test_utils::read_resource::read_resource_file;
 use crate::test_utils::retry::get_test_config;
+use crate::{KnownStarknetErrorCode, StarknetError, StarknetErrorCode};
 
 const NODE_VERSION: &str = "NODE VERSION";
 const FEEDER_GATEWAY_ALIVE_RESPONSE: &str = "FeederGateway is alive!";
@@ -69,6 +70,14 @@ fn get_block_url(
 fn starknet_client() -> StarknetFeederGatewayClient {
     StarknetFeederGatewayClient::new(&mockito::server_url(), None, NODE_VERSION, get_test_config())
         .unwrap()
+}
+
+fn block_not_found_error(block_number: i64) -> String {
+    let error = StarknetError {
+        code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::BlockNotFound),
+        message: format!("Block {} was not found.", block_number),
+    };
+    serde_json::to_string(&error).unwrap()
 }
 
 #[test]
@@ -102,9 +111,10 @@ async fn get_latest_block_when_blocks_exists() {
 #[tokio::test]
 async fn get_latest_block_when_no_blocks_exist() {
     let starknet_client = starknet_client();
-    let body = r#"{"code": "StarknetErrorCode.BLOCK_NOT_FOUND", "message": "Block number -1 was not found."}"#;
-    let mock_no_block =
-        mock("GET", get_block_url(None, false).as_str()).with_status(400).with_body(body).create();
+    let mock_no_block = mock("GET", get_block_url(None, false).as_str())
+        .with_status(400)
+        .with_body(block_not_found_error(-1))
+        .create();
     let latest_block = starknet_client.latest_block().await.unwrap();
     mock_no_block.assert();
     assert!(latest_block.is_none());
@@ -150,11 +160,10 @@ async fn state_update() {
     let expected_state_update: StateUpdate = serde_json::from_str(&raw_state_update).unwrap();
     assert_eq!(state_update.unwrap(), expected_state_update);
 
-    let body = r#"{"code": "StarknetErrorCode.BLOCK_NOT_FOUND", "message": "Block number -1 was not found."}"#;
     let mock_no_block =
         mock("GET", &format!("/feeder_gateway/get_state_update?{BLOCK_NUMBER_QUERY}=999999")[..])
             .with_status(400)
-            .with_body(body)
+            .with_body(block_not_found_error(-1))
             .create();
     let state_update = starknet_client.state_update(BlockNumber(999999)).await.unwrap();
     assert!(state_update.is_none());
@@ -371,10 +380,9 @@ async fn get_block() {
 #[tokio::test]
 async fn get_block_not_found() {
     let starknet_client = starknet_client();
-    let body = r#"{"code": "StarknetErrorCode.BLOCK_NOT_FOUND", "message": "Block 9999999999 was not found."}"#;
     let mock_no_block = mock("GET", get_block_url(Some(9999999999), false).as_str())
         .with_status(400)
-        .with_body(body)
+        .with_body(block_not_found_error(9999999999))
         .create();
     let block = starknet_client.block(BlockNumber(9999999999)).await.unwrap();
     mock_no_block.assert();
@@ -543,12 +551,10 @@ async fn get_block_signature() {
 #[tokio::test]
 async fn get_block_signature_unknown_block() {
     let starknet_client = starknet_client();
-
-    let body = r#"{"code": "StarknetErrorCode.BLOCK_NOT_FOUND", "message": "Block number 999999 was not found."}"#;
     let mock_no_block =
         mock("GET", &format!("/feeder_gateway/get_signature?{BLOCK_NUMBER_QUERY}=999999")[..])
             .with_status(400)
-            .with_body(body)
+            .with_body(block_not_found_error(999999))
             .create();
     let block_signature = starknet_client.block_signature(BlockNumber(999999)).await.unwrap();
     mock_no_block.assert();
