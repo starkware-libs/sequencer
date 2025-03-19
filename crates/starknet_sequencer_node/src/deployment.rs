@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr};
 #[cfg(test)]
 use std::path::Path;
@@ -150,6 +151,104 @@ impl DeploymentName {
 
     pub fn get_path(&self) -> String {
         format!("{}/{}/{}/", DEPLOYMENT_CONFIG_BASE_DIR_PATH, self, APPLICATION_CONFIG_DIR_NAME)
+    }
+
+    pub fn get_component_configs(&self) -> HashMap<ServiceName, ComponentConfig> {
+        let mut component_config_map = HashMap::new();
+        match self {
+            Self::ConsolidatedNode => {
+                component_config_map.insert(
+                    ServiceName::ConsolidatedNode(ConsolidatedNodeServiceName::Node),
+                    get_consolidated_config(),
+                );
+            }
+            Self::DistributedNode => {
+                let service_names = self.all_service_names();
+                let mut component_config_pair_map =
+                    HashMap::<DistributedNodeServiceName, DistributedNodeServiceConfigPair>::new();
+                for service_name in service_names {
+                    match service_name {
+                        ServiceName::DistributedNode(inner_service_name) => {
+                            component_config_pair_map
+                                .insert(inner_service_name, inner_service_name.into());
+                        }
+                        _ => panic!("Unexpected service name"),
+                    }
+                }
+
+                for inner_service_name in component_config_pair_map.keys() {
+                    let component_config = match inner_service_name {
+                        DistributedNodeServiceName::Batcher => get_batcher_config(
+                            component_config_pair_map[&DistributedNodeServiceName::Batcher].local(),
+                            component_config_pair_map[&DistributedNodeServiceName::ClassManager]
+                                .remote(),
+                            component_config_pair_map[&DistributedNodeServiceName::L1Provider]
+                                .remote(),
+                            component_config_pair_map[&DistributedNodeServiceName::Mempool]
+                                .remote(),
+                        ),
+                        DistributedNodeServiceName::ClassManager => get_class_manager_config(
+                            component_config_pair_map[&DistributedNodeServiceName::ClassManager]
+                                .local(),
+                            component_config_pair_map[&DistributedNodeServiceName::SierraCompiler]
+                                .remote(),
+                        ),
+                        DistributedNodeServiceName::ConsensusManager => {
+                            get_consensus_manager_config(
+                                component_config_pair_map[&DistributedNodeServiceName::Batcher]
+                                    .remote(),
+                                component_config_pair_map
+                                    [&DistributedNodeServiceName::ClassManager]
+                                    .remote(),
+                                component_config_pair_map[&DistributedNodeServiceName::StateSync]
+                                    .remote(),
+                            )
+                        }
+                        DistributedNodeServiceName::HttpServer => get_http_server_config(
+                            component_config_pair_map[&DistributedNodeServiceName::Gateway]
+                                .remote(),
+                        ),
+
+                        DistributedNodeServiceName::Gateway => get_gateway_config(
+                            component_config_pair_map[&DistributedNodeServiceName::Gateway].local(),
+                            component_config_pair_map[&DistributedNodeServiceName::ClassManager]
+                                .remote(),
+                            component_config_pair_map[&DistributedNodeServiceName::Mempool]
+                                .remote(),
+                            component_config_pair_map[&DistributedNodeServiceName::StateSync]
+                                .remote(),
+                        ),
+                        DistributedNodeServiceName::L1Provider => get_l1_provider_config(
+                            component_config_pair_map[&DistributedNodeServiceName::L1Provider]
+                                .local(),
+                            component_config_pair_map[&DistributedNodeServiceName::StateSync]
+                                .remote(),
+                        ),
+                        DistributedNodeServiceName::Mempool => get_mempool_config(
+                            component_config_pair_map[&DistributedNodeServiceName::Mempool].local(),
+                            component_config_pair_map[&DistributedNodeServiceName::ClassManager]
+                                .remote(),
+                            component_config_pair_map[&DistributedNodeServiceName::Gateway]
+                                .remote(),
+                        ),
+                        DistributedNodeServiceName::SierraCompiler => get_sierra_compiler_config(
+                            component_config_pair_map[&DistributedNodeServiceName::SierraCompiler]
+                                .local(),
+                        ),
+                        DistributedNodeServiceName::StateSync => get_state_sync_config(
+                            component_config_pair_map[&DistributedNodeServiceName::StateSync]
+                                .local(),
+                            component_config_pair_map[&DistributedNodeServiceName::ClassManager]
+                                .remote(),
+                        ),
+                    };
+                    let service_name = (*inner_service_name).into();
+                    component_config_map.insert(service_name, component_config);
+                }
+            }
+        };
+
+        component_config_map
     }
 }
 
