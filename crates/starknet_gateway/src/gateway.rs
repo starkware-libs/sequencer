@@ -64,35 +64,50 @@ impl Gateway {
     }
 
     #[instrument(skip_all, ret)]
-    pub async fn add_tx(
+    pub async fn add_txs(
         &self,
-        tx: RpcTransaction,
+        transactions: Vec<RpcTransaction>,
         p2p_message_metadata: Option<BroadcastedMessageMetadata>,
-    ) -> GatewayResult<TransactionHash> {
-        debug!("Processing tx: {:?}", tx);
-        let mut metric_counters = GatewayMetricHandle::new(&tx, &p2p_message_metadata);
-        metric_counters.count_transaction_received();
+    ) -> GatewayResult<Vec<TransactionHash>> {
+        if transactions.is_empty() {
+            error!("add_txs called with an empty transactions vector.");
+            return Ok(vec![]);
+        }
+        let mut transaction_hashes = vec![];
+        // TODO(Arni): Consider looping using join_all.
+        for tx in transactions {
+            debug!("Processing tx: {:?}", tx);
+            let mut metric_counters = GatewayMetricHandle::new(&tx, &p2p_message_metadata);
+            metric_counters.count_transaction_received();
 
-        let blocking_task = ProcessTxBlockingTask::new(self, tx, tokio::runtime::Handle::current());
-        // Run the blocking task in the current span.
-        let curr_span = Span::current();
-        let add_tx_args =
-            tokio::task::spawn_blocking(move || curr_span.in_scope(|| blocking_task.process_tx()))
-                .await
-                .map_err(|join_err| {
-                    error!("Failed to process tx: {}", join_err);
-                    GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
-                })??;
+            let blocking_task =
+                ProcessTxBlockingTask::new(self, tx, tokio::runtime::Handle::current());
+            // Run the blocking task in the current span.
+            let curr_span = Span::current();
+            let add_tx_args = tokio::task::spawn_blocking(move || {
+                curr_span.in_scope(|| blocking_task.process_tx())
+            })
+            .await
+            .map_err(|join_err| {
+                error!("Failed to process tx: {}", join_err);
+                GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
+            })??;
 
-        let tx_hash = add_tx_args.tx.tx_hash();
+            transaction_hashes.push(add_tx_args.tx.tx_hash());
 
-        let add_tx_args = AddTransactionArgsWrapper { args: add_tx_args, p2p_message_metadata };
-        mempool_client_result_to_gw_spec_result(self.mempool_client.add_tx(add_tx_args).await)?;
+            // TODO(alonl): Consider changing the Gateway <-> Mempool API to use transaction batches
+            // to avoid cloning the message metadata
+            let add_tx_args = AddTransactionArgsWrapper {
+                args: add_tx_args,
+                p2p_message_metadata: p2p_message_metadata.clone(),
+            };
+            mempool_client_result_to_gw_spec_result(self.mempool_client.add_tx(add_tx_args).await)?;
 
-        metric_counters.transaction_sent_to_mempool();
+            metric_counters.transaction_sent_to_mempool();
+        }
 
         // TODO(AlonH): Also return `ContractAddress` for deploy and `ClassHash` for Declare.
-        Ok(tx_hash)
+        Ok(transaction_hashes)
     }
 }
 
