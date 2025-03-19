@@ -50,6 +50,7 @@ use crate::utils::{
     create_state_sync_configs,
     send_consensus_txs,
     send_message_to_l2_and_calculate_tx_hash,
+    set_validator_id,
     spawn_local_success_recorder,
     BootstrapTxs,
     ConsensusTxs,
@@ -695,6 +696,7 @@ pub async fn get_sequencer_setup_configs(
         let state_sync_config = state_sync_configs.remove(0);
 
         consensus_manager_config.cende_config.recorder_url = recorder_url.clone();
+        let validator_id = set_validator_id(&mut consensus_manager_config, node_index);
 
         for (executable_index, executable_component_config) in
             node_component_config.into_iter().enumerate()
@@ -725,6 +727,7 @@ pub async fn get_sequencer_setup_configs(
                     exec_db_path,
                     exec_config_path,
                     exec_data_prefix_dir,
+                    validator_id,
                 )
                 .await,
             );

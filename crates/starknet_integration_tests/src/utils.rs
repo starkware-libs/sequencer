@@ -142,21 +142,19 @@ impl TestScenario for BootstrapTxs {
 #[allow(clippy::too_many_arguments)]
 pub fn create_node_config(
     available_ports: &mut AvailablePorts,
-    node_execution_id: NodeExecutionId,
     chain_info: ChainInfo,
     batcher_storage_config: StorageConfig,
     state_sync_storage_config: StorageConfig,
     class_manager_storage_config: FsClassStorageConfig,
     mut state_sync_config: StateSyncConfig,
-    mut consensus_manager_config: ConsensusManagerConfig,
+    consensus_manager_config: ConsensusManagerConfig,
     mempool_p2p_config: MempoolP2pConfig,
     monitoring_endpoint_config: MonitoringEndpointConfig,
     component_config: ComponentConfig,
     base_layer_config: EthereumBaseLayerConfig,
     block_max_capacity_sierra_gas: GasAmount,
+    validator_id: ValidatorId,
 ) -> (SequencerNodeConfig, ConfigPointersMap) {
-    let validator_id =
-        set_validator_id(&mut consensus_manager_config, node_execution_id.get_node_index());
     let recorder_url = consensus_manager_config.cende_config.recorder_url.clone();
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
     let batcher_config = create_batcher_config(
@@ -579,7 +577,7 @@ pub fn create_class_manager_config(
     FsClassManagerConfig { class_manager_config, class_storage_config }
 }
 
-fn set_validator_id(
+pub fn set_validator_id(
     consensus_manager_config: &mut ConsensusManagerConfig,
     node_index: usize,
 ) -> ValidatorId {
