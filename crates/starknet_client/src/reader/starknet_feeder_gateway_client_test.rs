@@ -81,9 +81,8 @@ fn new_urls() {
 }
 
 #[tokio::test]
-async fn get_block_number() {
+async fn get_latest_block_when_blocks_exists() {
     let starknet_client = starknet_client();
-    // There are blocks in Starknet.
     let mock_block = mock("GET", LATEST_BLOCK_URL)
         .with_status(200)
         .with_body(read_resource_file("reader/block_post_0_13_1.json"))
@@ -91,8 +90,11 @@ async fn get_block_number() {
     let latest_block = starknet_client.latest_block().await.unwrap();
     mock_block.assert();
     assert_eq!(latest_block.unwrap().block_number(), BlockNumber(329525));
+}
 
-    // There are no blocks in Starknet.
+#[tokio::test]
+async fn get_latest_block_when_no_blocks_exist() {
+    let starknet_client = starknet_client();
     let body = r#"{"code": "StarknetErrorCode.BLOCK_NOT_FOUND", "message": "Block number -1 was not found."}"#;
     let mock_no_block = mock("GET", LATEST_BLOCK_URL).with_status(400).with_body(body).create();
     let latest_block = starknet_client.latest_block().await.unwrap();
