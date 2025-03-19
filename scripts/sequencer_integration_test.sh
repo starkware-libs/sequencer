@@ -70,6 +70,9 @@ if [ "$TEST" = "all" ]; then
   done
   for alias in "${!TEST_ALIASES[@]}"; do
     run_test "${TEST_ALIASES[$alias]}"
+    killall "$SEQUENCER_BINARY" 2>/dev/null
+    # Stop any running instances of Anvil (ignore error if not found)
+    killall "$ANVIL_PROCESS_NAME" 2>/dev/null
   done
   exit 0
 fi
