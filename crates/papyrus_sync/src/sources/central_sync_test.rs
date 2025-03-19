@@ -8,9 +8,11 @@ use async_trait::async_trait;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use futures::stream::BoxStream;
 use futures::StreamExt;
-use indexmap::IndexMap;
+use indexmap::{indexmap, IndexMap};
+use mockall::predicate::eq;
 use papyrus_common::pending_classes::{ApiContractClass, PendingClasses};
 use papyrus_storage::base_layer::BaseLayerStorageReader;
+use papyrus_storage::class_manager::ClassManagerStorageReader;
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::test_utils::get_test_storage;
@@ -24,12 +26,15 @@ use starknet_api::block::{
     BlockHeaderWithoutHash,
     BlockNumber,
     BlockSignature,
+    StarknetVersion,
 };
-use starknet_api::core::{ClassHash, SequencerPublicKey};
+use starknet_api::contract_class::{ContractClass, SierraVersion};
+use starknet_api::core::{ClassHash, CompiledClassHash, SequencerPublicKey};
 use starknet_api::crypto::utils::PublicKey;
 use starknet_api::felt;
-use starknet_api::state::StateDiff;
-use starknet_class_manager_types::ClassManagerClient;
+use starknet_api::hash::StarkHash;
+use starknet_api::state::{SierraContractClass, StateDiff};
+use starknet_class_manager_types::{ClassHashes, ClassManagerClient, MockClassManagerClient};
 use starknet_client::reader::PendingData;
 use tokio::sync::{Mutex, RwLock};
 use tokio::time::sleep;
@@ -51,6 +56,7 @@ use crate::{
     StateSyncError,
     StateSyncResult,
     SyncConfig,
+    STARKNET_VERSION_TO_COMPILE_FROM,
 };
 
 const SYNC_SLEEP_DURATION: Duration = Duration::from_millis(100); // 100ms
@@ -222,8 +228,6 @@ async fn sync_happy_flow() {
         ))
     }));
     central_mock.expect_stream_state_updates().returning(mock_stream_call(|block_number| {
-        // TODO(Eitan): test classes were added to class manager by including declared classes and
-        // deprecated declared classes
         if block_number.0 >= N_BLOCKS {
             return None;
         }
@@ -722,6 +726,215 @@ async fn sequencer_pub_key_management() {
         StateSyncError::SequencerPubKeyChanged { old, new }
             if old == first_copy && new == second_sequencer_pub_key
     );
+}
+
+// TODO(Shahak): Add basic test with class manager.
+#[tokio::test]
+async fn sync_class_manager_compiles_only_blocks_after_given_version() {
+    // FIXME: (Shahak) analyze and set a lower value.
+    const MAX_TIME_TO_SYNC_MS: u64 = 800;
+    const NON_BACKWARD_COMPATIBLE_CLASS_HASH: ClassHash = ClassHash(StarkHash::ZERO);
+    const NON_BACKWARD_COMPATIBLE_COMPILED_CLASS_HASH: CompiledClassHash =
+        CompiledClassHash(StarkHash::ONE);
+    const BACKWARD_COMPATIBLE_CLASS_HASH: ClassHash = ClassHash(StarkHash::TWO);
+    const BACKWARD_COMPATIBLE_COMPILED_CLASS_HASH: CompiledClassHash =
+        CompiledClassHash(StarkHash::THREE);
+    const N_BLOCKS: u64 = 2;
+
+    let non_backward_compatible_class = SierraContractClass::default();
+    let backward_compatible_class =
+        SierraContractClass { abi: "backward compatible".to_owned(), ..Default::default() };
+    let non_backward_compatible_compiled_class = CasmContractClass {
+        prime: Default::default(),
+        compiler_version: Default::default(),
+        bytecode: Default::default(),
+        bytecode_segment_lengths: Default::default(),
+        hints: Default::default(),
+        pythonic_hints: Default::default(),
+        entry_points_by_type: Default::default(),
+    };
+    let backward_compatible_compiled_class = CasmContractClass {
+        prime: Default::default(),
+        compiler_version: Default::default(),
+        bytecode: vec![Default::default()],
+        bytecode_segment_lengths: Default::default(),
+        hints: Default::default(),
+        pythonic_hints: Default::default(),
+        entry_points_by_type: Default::default(),
+    };
+    let non_backward_compatible_sierra_version =
+        SierraVersion::extract_from_program(&non_backward_compatible_class.sierra_program).unwrap();
+
+    let _ = simple_logger::init_with_env();
+
+    // Mock chain with one block where compiler isn't backward compatible and one block where it
+    // is, with one declared class in each block.
+    let mut central_mock = MockCentralSourceTrait::new();
+    central_mock.expect_get_latest_block().returning(move || {
+        let block_number = BlockNumber(N_BLOCKS - 1);
+        Ok(Some(BlockHashAndNumber {
+            number: block_number,
+            hash: create_block_hash(block_number, false),
+        }))
+    });
+    central_mock.expect_stream_new_blocks().returning(mock_stream_call(|block_number| {
+        if block_number.0 >= N_BLOCKS {
+            return None;
+        }
+        let (starknet_version, parent_hash) = if block_number.0 == 0 {
+            (StarknetVersion::V0_9_1, BlockHash::default())
+        } else {
+            (STARKNET_VERSION_TO_COMPILE_FROM, create_block_hash(BlockNumber(0), false))
+        };
+
+        Some((
+            block_number,
+            Block {
+                header: BlockHeader {
+                    block_hash: create_block_hash(block_number, false),
+                    block_header_without_hash: BlockHeaderWithoutHash {
+                        block_number,
+                        parent_hash,
+                        starknet_version,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
+                body: BlockBody::default(),
+            },
+            BlockSignature::default(),
+        ))
+    }));
+    central_mock.expect_get_block_hash().returning(|bn| Ok(Some(create_block_hash(bn, false))));
+    let non_backward_compatible_class_clone = non_backward_compatible_class.clone();
+    let backward_compatible_class_clone = backward_compatible_class.clone();
+    central_mock.expect_stream_state_updates().returning(mock_stream_call(move |block_number| {
+        if block_number.0 >= N_BLOCKS {
+            return None;
+        }
+        let (class_hash, compiled_class_hash, class) = if block_number.0 == 0 {
+            (
+                NON_BACKWARD_COMPATIBLE_CLASS_HASH,
+                NON_BACKWARD_COMPATIBLE_COMPILED_CLASS_HASH,
+                non_backward_compatible_class_clone.clone(),
+            )
+        } else {
+            (
+                BACKWARD_COMPATIBLE_CLASS_HASH,
+                BACKWARD_COMPATIBLE_COMPILED_CLASS_HASH,
+                backward_compatible_class_clone.clone(),
+            )
+        };
+
+        Some((
+            block_number,
+            create_block_hash(block_number, false),
+            StateDiff {
+                declared_classes: indexmap! {
+                    class_hash => (compiled_class_hash, class),
+                },
+                ..Default::default()
+            },
+            IndexMap::new(),
+        ))
+    }));
+    let non_backward_compatible_compiled_class_clone =
+        non_backward_compatible_compiled_class.clone();
+    central_mock.expect_stream_compiled_classes().returning(mock_stream_call(
+        move |block_number| match block_number.0 {
+            0 => Some((
+                NON_BACKWARD_COMPATIBLE_CLASS_HASH,
+                NON_BACKWARD_COMPATIBLE_COMPILED_CLASS_HASH,
+                non_backward_compatible_compiled_class_clone.clone(),
+            )),
+            1 => Some((
+                BACKWARD_COMPATIBLE_CLASS_HASH,
+                BACKWARD_COMPATIBLE_COMPILED_CLASS_HASH,
+                backward_compatible_compiled_class.clone(),
+            )),
+            _ => None,
+        },
+    ));
+
+    // Mock class manager client by expecting add_class_and_executable_unsafe on
+    // non_backward_compatible_class and expecting add_class on backward_compatible_class.
+    let mut class_manager_client = MockClassManagerClient::new();
+    class_manager_client
+        .expect_add_class_and_executable_unsafe()
+        .times(1)
+        .with(
+            eq(NON_BACKWARD_COMPATIBLE_CLASS_HASH),
+            eq(non_backward_compatible_class),
+            eq(NON_BACKWARD_COMPATIBLE_COMPILED_CLASS_HASH),
+            eq(ContractClass::V1((
+                non_backward_compatible_compiled_class,
+                non_backward_compatible_sierra_version,
+            ))),
+        )
+        .return_once(|_, _, _, _| Ok(()));
+    class_manager_client.expect_add_class().with(eq(backward_compatible_class)).return_once(
+        |_class| {
+            Ok(ClassHashes {
+                class_hash: BACKWARD_COMPATIBLE_CLASS_HASH,
+                executable_class_hash: BACKWARD_COMPATIBLE_COMPILED_CLASS_HASH,
+            })
+        },
+    );
+
+    // Mock base_layer without any block.
+    let mut base_layer_mock = MockBaseLayerSourceTrait::new();
+    base_layer_mock.expect_latest_proved_block().returning(|| Ok(None));
+
+    let ((reader, writer), _temp_dir) = get_test_storage();
+    let sync_future = run_sync(
+        reader.clone(),
+        writer,
+        central_mock,
+        base_layer_mock,
+        get_test_sync_config(false),
+        Some(Arc::new(class_manager_client)),
+    );
+
+    // TODO(Shahak): Remove code duplication with sync_happy_flow.
+    // Check that the storage reached n_blocks within MAX_TIME_TO_SYNC_MS.
+    let check_storage_future =
+        check_storage(reader, Duration::from_millis(MAX_TIME_TO_SYNC_MS), |reader| {
+            let header_marker = reader.begin_ro_txn().unwrap().get_header_marker().unwrap();
+            debug!("Header marker currently at {}", header_marker);
+            if header_marker < BlockNumber(N_BLOCKS) {
+                return CheckStoragePredicateResult::InProgress;
+            }
+            if header_marker > BlockNumber(N_BLOCKS) {
+                return CheckStoragePredicateResult::Error;
+            }
+
+            let state_marker = reader.begin_ro_txn().unwrap().get_state_marker().unwrap();
+            debug!("State marker currently at {}", state_marker);
+            if state_marker < BlockNumber(N_BLOCKS) {
+                return CheckStoragePredicateResult::InProgress;
+            }
+            if state_marker > BlockNumber(N_BLOCKS) {
+                return CheckStoragePredicateResult::Error;
+            }
+
+            let class_manager_marker =
+                reader.begin_ro_txn().unwrap().get_class_manager_block_marker().unwrap();
+            debug!("Class manager marker currently at {class_manager_marker}");
+            if class_manager_marker < BlockNumber(N_BLOCKS) {
+                return CheckStoragePredicateResult::InProgress;
+            }
+            if class_manager_marker > BlockNumber(N_BLOCKS) {
+                return CheckStoragePredicateResult::Error;
+            }
+
+            CheckStoragePredicateResult::Passed
+        });
+
+    tokio::select! {
+        _ = sleep(Duration::from_secs(1)) => panic!("Test timed out."),
+        sync_result = sync_future => sync_result.unwrap(),
+        storage_check_result = check_storage_future => assert!(storage_check_result),
+    }
 }
 
 fn create_block_hash(bn: BlockNumber, is_reverted_block: bool) -> BlockHash {
