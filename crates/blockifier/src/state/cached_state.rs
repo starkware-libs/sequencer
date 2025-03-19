@@ -108,7 +108,7 @@ impl<S: StateReader> CachedState<S> {
     // TODO(Aner): move under OS cfg flag.
     // TODO(Aner): Try to avoid cloning.
     pub fn writes_compiled_class_hashes(&self) -> HashMap<ClassHash, CompiledClassHash> {
-        self.cache.borrow().writes.get_compiled_class_hashes()
+        self.cache.borrow().writes.get_compiled_class_hashes().clone()
     }
 }
 
@@ -353,9 +353,8 @@ impl StateMaps {
         }
     }
 
-    // TODO(Aner): Try to avoid cloning.
-    pub fn get_compiled_class_hashes(&self) -> HashMap<ClassHash, CompiledClassHash> {
-        self.compiled_class_hashes.clone()
+    pub fn get_compiled_class_hashes(&self) -> &HashMap<ClassHash, CompiledClassHash> {
+        &self.compiled_class_hashes
     }
 
     pub fn get_contract_addresses(&self) -> HashSet<ContractAddress> {
