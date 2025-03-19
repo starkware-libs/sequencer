@@ -12,6 +12,7 @@ use serde_json::{to_value, Map, Value};
 use tracing::{error, info};
 use validator::ValidationError;
 
+use super::node_config::POINTER_TARGET_VALUE;
 use crate::config::definitions::ConfigPointersMap;
 use crate::config::node_config::{
     SequencerNodeConfig,
@@ -96,9 +97,32 @@ pub fn dump_config_file(
     // Extract only the required fields from the config map.
     let preset = config_to_preset(&config_as_map);
 
+    validate_all_pointer_targets_set(preset.clone()).expect("Pointer target not set");
+
     // Dump the preset to a file, return its path.
     dump_json_data(preset, config_path);
     assert!(config_path.exists(), "File does not exist: {:?}", config_path);
+}
+
+pub fn validate_all_pointer_targets_set(preset: Value) -> Result<(), ValidationError> {
+    if let Some(preset_map) = preset.as_object() {
+        for (key, value) in preset_map {
+            if value == POINTER_TARGET_VALUE {
+                return Err(create_validation_error(
+                    format!("Pointer target not set for key: '{}'", key),
+                    "pointer_target_not_set",
+                    "Pointer target not set",
+                ));
+            }
+        }
+        Ok(())
+    } else {
+        Err(create_validation_error(
+            "Preset must be an object".to_string(),
+            "invalid_preset_format",
+            "Preset is not a valid object",
+        ))
+    }
 }
 
 pub fn create_app_config(config_path: PathBuf) {
