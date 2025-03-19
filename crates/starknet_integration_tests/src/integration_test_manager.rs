@@ -636,10 +636,7 @@ pub async fn get_sequencer_setup_configs(
     info!("Creating node configurations.");
     let chain_info = ChainInfo::create_for_testing();
     let accounts = tx_generator.accounts();
-    let n_distributed_sequencers = node_component_configs
-        .iter()
-        .map(|node_component_config| node_component_config.len())
-        .sum();
+    let component_configs_len = node_component_configs.len();
 
     // TODO(Nadin): Refactor to avoid directly mutating vectors
 
@@ -648,13 +645,13 @@ pub async fn get_sequencer_setup_configs(
         .expect("Failed to get an AvailablePorts instance for consensus manager configs");
     let mut consensus_manager_configs = create_consensus_manager_configs_from_network_configs(
         create_connected_network_configs(
-            consensus_manager_ports.get_next_ports(n_distributed_sequencers),
+            consensus_manager_ports.get_next_ports(component_configs_len),
         ),
-        node_component_configs.len(),
+        component_configs_len,
         &chain_info.chain_id,
     );
 
-    let node_indices: HashSet<usize> = (0..node_component_configs.len()).collect();
+    let node_indices: HashSet<usize> = (0..component_configs_len).collect();
 
     // TODO(Nadin): define the test storage here and pass it to the create_state_sync_configs and to
     // the ExecutableSetup
@@ -663,7 +660,7 @@ pub async fn get_sequencer_setup_configs(
         .expect("Failed to get an AvailablePorts instance for state sync configs");
     let mut state_sync_configs = create_state_sync_configs(
         StorageConfig::default(),
-        state_sync_ports.get_next_ports(n_distributed_sequencers),
+        state_sync_ports.get_next_ports(component_configs_len),
     );
 
     let mut mempool_p2p_ports = available_ports_generator
@@ -671,7 +668,7 @@ pub async fn get_sequencer_setup_configs(
         .expect("Failed to get an AvailablePorts instance for mempool p2p configs");
     let mut mempool_p2p_configs = create_mempool_p2p_configs(
         chain_info.chain_id.clone(),
-        mempool_p2p_ports.get_next_ports(n_distributed_sequencers),
+        mempool_p2p_ports.get_next_ports(component_configs_len),
     );
 
     let mut base_layer_ports = available_ports_generator
@@ -691,13 +688,14 @@ pub async fn get_sequencer_setup_configs(
         let http_server_index = node_component_config.get_http_server_index();
         let state_sync_index = node_component_config.get_state_sync_index();
 
+        let consensus_manager_config = consensus_manager_configs.remove(0);
+        let mempool_p2p_config = mempool_p2p_configs.remove(0);
+        let state_sync_config = state_sync_configs.remove(0);
+
         for (executable_index, executable_component_config) in
             node_component_config.into_iter().enumerate()
         {
             let node_execution_id = NodeExecutionId::new(node_index, executable_index);
-            let consensus_manager_config = consensus_manager_configs.remove(0);
-            let mempool_p2p_config = mempool_p2p_configs.remove(0);
-            let state_sync_config = state_sync_configs.remove(0);
             let chain_info = chain_info.clone();
             let exec_db_path =
                 custom_paths.as_ref().and_then(|paths| paths.get_db_path(&node_execution_id));
@@ -712,9 +710,9 @@ pub async fn get_sequencer_setup_configs(
                     accounts.to_vec(),
                     node_execution_id,
                     chain_info,
-                    consensus_manager_config,
-                    mempool_p2p_config,
-                    state_sync_config,
+                    consensus_manager_config.clone(),
+                    mempool_p2p_config.clone(),
+                    state_sync_config.clone(),
                     available_ports_generator
                         .next()
                         .expect("Failed to get an AvailablePorts instance for executable configs"),
