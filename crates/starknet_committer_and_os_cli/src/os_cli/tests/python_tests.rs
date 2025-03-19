@@ -205,6 +205,7 @@ use starknet_os::test_utils::utils::run_cairo_function_and_check_result;
 use strum::IntoEnumIterator;
 use strum_macros::Display;
 use thiserror;
+use tracing::info;
 
 use crate::os_cli::commands::{validate_input, Input};
 use crate::shared_utils::types::{PythonTestError, PythonTestResult, PythonTestRunner};
@@ -334,7 +335,9 @@ fn test_constants(input: &str) -> OsPythonTestResult {
 
 /// Deserialize the input string into an `Input` struct.
 fn input_deserialization(input_str: &str) -> OsPythonTestResult {
+    info!("input:{}", input_str);
     let input = serde_json::from_str::<Input>(input_str)?;
+    info!("Read input!");
     validate_input(&input.os_input);
     Ok("Deserialization successful".to_string())
 }

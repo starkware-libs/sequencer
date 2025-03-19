@@ -28,11 +28,14 @@ pub async fn run_os_cli(
     _log_filter_handle: Handle<LevelFilter, Registry>,
 ) {
     info!("Starting starknet-os-cli with command: \n{:?}", os_command);
+    info!("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA1");
     match os_command.command {
         Command::PythonTest(python_test_arg) => {
+            info!("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA2");
             run_python_test::<OsPythonTestRunner>(python_test_arg).await;
         }
         Command::RunOsStateless { io_args: IoArgs { input_path, output_path } } => {
+            info!("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA3");
             parse_and_run_os(input_path, output_path);
         }
     }

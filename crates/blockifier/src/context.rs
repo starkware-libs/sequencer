@@ -217,33 +217,24 @@ impl SerializeConfig for ChainInfo {
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct FeeTokenAddresses {
     pub strk_fee_token_address: ContractAddress,
-    pub eth_fee_token_address: ContractAddress,
 }
 
 impl FeeTokenAddresses {
     pub fn get_by_fee_type(&self, fee_type: &FeeType) -> ContractAddress {
         match fee_type {
             FeeType::Strk => self.strk_fee_token_address,
-            FeeType::Eth => self.eth_fee_token_address,
+            FeeType::Eth => panic!("Deprecated transactions not supported."),
         }
     }
 }
 
 impl SerializeConfig for FeeTokenAddresses {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "strk_fee_token_address",
-                &self.strk_fee_token_address,
-                "Address of the STRK fee token.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "eth_fee_token_address",
-                &self.eth_fee_token_address,
-                "Address of the ETH fee token.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
+        BTreeMap::from_iter([ser_param(
+            "strk_fee_token_address",
+            &self.strk_fee_token_address,
+            "Address of the STRK fee token.",
+            ParamPrivacyInput::Public,
+        )])
     }
 }
