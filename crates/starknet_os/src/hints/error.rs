@@ -1,5 +1,6 @@
 use std::string::FromUtf8Error;
 
+use blockifier::execution::call_info::CallInfo;
 use blockifier::state::errors::StateError;
 use cairo_vm::hint_processor::hint_processor_definition::HintExtension;
 use cairo_vm::serde::deserialize_program::Identifier;
@@ -33,6 +34,11 @@ pub enum OsHintError {
     ExecutionScopes(#[from] ExecScopeError),
     #[error("{id:?} value {felt} is not a bit.")]
     ExpectedBit { id: Ids, felt: Felt },
+    #[error(
+        "Expected remaining_gas {expected_initial_gas}. Got: {call_initial_gas}.\n \
+         execution_helper.call_info={call_info:?}"
+    )]
+    ExpectedInitialGas { expected_initial_gas: Felt, call_initial_gas: Felt, call_info: CallInfo },
     #[error(transparent)]
     FromUtf8(#[from] FromUtf8Error),
     #[error("The identifier {0:?} has no full name.")]

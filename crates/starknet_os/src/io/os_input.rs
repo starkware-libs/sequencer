@@ -79,7 +79,7 @@ pub struct StarknetOsInput {
     // buffer=STORED_BLOCK_HASH_BUFFER.
     // It is the hash that is going to be written by this OS run.
     pub(crate) old_block_number_and_hash: Option<(BlockNumber, BlockHash)>,
-    _debug_mode: bool,
+    pub(crate) debug_mode: bool,
     pub(crate) full_output: bool,
 }
 
