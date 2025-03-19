@@ -50,7 +50,8 @@ pub(crate) fn initialize_state_changes<S: StateReader>(
             ],
             &hint_processor.execution_helper.os_program,
         )?;
-        initial_dict.insert(address.0.0.into(), state_entry_base.into());
+        let key = *address.0.key();
+        initial_dict.insert(key.into(), state_entry_base.into());
     }
     exec_scopes.insert_value(Scope::InitialDict.into(), initial_dict);
     Ok(())
