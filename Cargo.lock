@@ -1219,6 +1219,7 @@ dependencies = [
  "apollo_l1_provider",
  "apollo_mempool",
  "apollo_mempool_p2p",
+ "apollo_metrics",
  "apollo_monitoring_endpoint",
  "apollo_network",
  "apollo_node",
