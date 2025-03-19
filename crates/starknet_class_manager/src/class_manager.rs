@@ -24,6 +24,7 @@ use tracing::instrument;
 
 use crate::class_storage::{CachedClassStorage, ClassStorage, FsClassStorage};
 use crate::config::{ClassManagerConfig, FsClassManagerConfig};
+use crate::metrics::CLASS_SIZES;
 use crate::FsClassManager;
 
 #[cfg(test)]
@@ -166,4 +167,5 @@ pub(crate) fn increment_n_classes(cls_type: CairoClassType) {
 
 fn register_metrics() {
     N_CLASSES.register();
+    CLASS_SIZES.register();
 }
