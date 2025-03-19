@@ -9,8 +9,6 @@ use crate::hints::error::OsHintResult;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::Ids;
 
-// "memory[ap] = to_felt_or_relocatable(ids.remaining_gas > ids.max_gas)"
-
 pub(crate) fn remaining_gas_gt_max<S: StateReader>(
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
