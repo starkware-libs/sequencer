@@ -1,7 +1,7 @@
 {
     "block_hash": "0x1219b7fcf5b8872c5d16ecabe3120eb221bec7d99eb299fa2dd830100f70bfd",
     "parent_block_hash": "0x0",
-    "block_number": 0,
+    "block_number": 329526,
     "state_root": "0x502c54a3efd1d6e679675e3edc3d0b5a978e5de5118e439605985b5a3dc9816",
     "transaction_commitment": "0x3669da31ff0c48e7a14c7caf54480defcbfd3d6c506c38ce6a069acf64e8436",
     "event_commitment": "0x0",
