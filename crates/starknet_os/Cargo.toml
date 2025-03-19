@@ -23,6 +23,7 @@ blockifier.workspace = true
 c-kzg.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-vm = { workspace = true, features = ["extensive_hints"] }
+ethnum.workspace = true
 indexmap.workspace = true
 indoc.workspace = true
 log.workspace = true
@@ -47,6 +48,7 @@ blockifier = { workspace = true, features = ["testing"] }
 num-integer.workspace = true
 rand.workspace = true
 rstest.workspace = true
+starknet_committer.workspace = true
 
 [lints]
 workspace = true
