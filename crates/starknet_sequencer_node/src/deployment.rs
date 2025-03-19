@@ -112,6 +112,30 @@ impl ServiceName {
     }
 }
 
+pub trait IntoInnerServiceName<T> {
+    fn into_inner_service_name(self) -> T;
+}
+
+impl IntoInnerServiceName<ConsolidatedNodeServiceName> for ServiceName {
+    fn into_inner_service_name(self) -> ConsolidatedNodeServiceName {
+        if let ServiceName::ConsolidatedNode(inner) = self {
+            inner
+        } else {
+            panic!("Expected ServiceName::ConsolidatedNode variant, but found {:?}", self);
+        }
+    }
+}
+
+impl IntoInnerServiceName<DistributedNodeServiceName> for ServiceName {
+    fn into_inner_service_name(self) -> DistributedNodeServiceName {
+        if let ServiceName::DistributedNode(inner) = self {
+            inner
+        } else {
+            panic!("Expected ServiceName::DistributedNode variant, but found {:?}", self);
+        }
+    }
+}
+
 // Implement conversion from `DistributedNodeServiceName` to `ServiceName`
 impl From<DistributedNodeServiceName> for ServiceName {
     fn from(service: DistributedNodeServiceName) -> Self {
