@@ -172,10 +172,16 @@ pub async fn create_node_components(
     };
 
     let monitoring_endpoint = match config.components.monitoring_endpoint.execution_mode {
-        ActiveComponentExecutionMode::Enabled => Some(create_monitoring_endpoint(
-            config.monitoring_endpoint_config.clone(),
-            VERSION_FULL,
-        )),
+        ActiveComponentExecutionMode::Enabled => {
+            let mempool_client =
+                clients.get_mempool_shared_client().expect("Mempool Client should be available");
+
+            Some(create_monitoring_endpoint(
+                config.monitoring_endpoint_config.clone(),
+                VERSION_FULL,
+                mempool_client,
+            ))
+        }
         ActiveComponentExecutionMode::Disabled => None,
     };
 
