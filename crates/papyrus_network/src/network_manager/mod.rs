@@ -517,10 +517,16 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         &mut self,
         event: gossipsub_impl::ExternalEvent,
     ) -> Result<(), NetworkError> {
-        if let Some(broadcast_metrics) =
-            self.metrics.as_ref().and_then(|metrics| metrics.broadcast_metrics.as_ref())
+        if let Some(broadcast_metrics_map) =
+            self.metrics.as_ref().and_then(|metrics| metrics.broadcast_metrics_map.as_ref())
         {
-            broadcast_metrics.num_received_broadcast_messages.increment(1);
+            let gossipsub_impl::ExternalEvent::Received { ref topic_hash, .. } = event;
+            match broadcast_metrics_map.get(topic_hash) {
+                Some(broadcast_metrics) => {
+                    broadcast_metrics.num_received_broadcast_messages.increment(1)
+                }
+                None => error!("Attempted to update topic metric with unregistered topic_hash"),
+            }
         }
         let gossipsub_impl::ExternalEvent::Received { originated_peer_id, message, topic_hash } =
             event;
@@ -597,10 +603,15 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     }
 
     fn broadcast_message(&mut self, message: Bytes, topic_hash: TopicHash) {
-        if let Some(broadcast_metrics) =
-            self.metrics.as_ref().and_then(|metrics| metrics.broadcast_metrics.as_ref())
+        if let Some(broadcast_metrics_map) =
+            self.metrics.as_ref().and_then(|metrics| metrics.broadcast_metrics_map.as_ref())
         {
-            broadcast_metrics.num_sent_broadcast_messages.increment(1);
+            match broadcast_metrics_map.get(&topic_hash) {
+                Some(broadcast_metrics) => {
+                    broadcast_metrics.num_sent_broadcast_messages.increment(1)
+                }
+                None => error!("Attempted to update topic metric with unregistered topic_hash"),
+            }
         }
         trace!("Sending broadcast message with topic hash: {topic_hash:?}");
         self.swarm.broadcast_message(message, topic_hash);

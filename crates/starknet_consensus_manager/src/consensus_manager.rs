@@ -2,6 +2,7 @@
 #[path = "consensus_manager_test.rs"]
 mod consensus_manager_test;
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use apollo_reverts::revert_blocks_and_eternal_pending;
@@ -27,8 +28,10 @@ use tracing::info;
 use crate::config::ConsensusManagerConfig;
 use crate::metrics::{
     CONSENSUS_NUM_CONNECTED_PEERS,
-    CONSENSUS_NUM_RECEIVED_MESSAGES,
-    CONSENSUS_NUM_SENT_MESSAGES,
+    CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES,
+    CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES,
+    CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES,
+    CONSENSUS_VOTES_NUM_SENT_MESSAGES,
 };
 
 #[derive(Clone)]
@@ -54,12 +57,24 @@ impl ConsensusManager {
             self.revert_batcher_blocks(self.config.revert_config.revert_up_to_and_including).await;
         }
 
+        let mut broadcast_metrics_map = HashMap::new();
+        broadcast_metrics_map.insert(
+            Topic::new(self.config.votes_topic.clone()).hash(),
+            BroadcastNetworkMetrics {
+                num_sent_broadcast_messages: CONSENSUS_VOTES_NUM_SENT_MESSAGES,
+                num_received_broadcast_messages: CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES,
+            },
+        );
+        broadcast_metrics_map.insert(
+            Topic::new(self.config.proposals_topic.clone()).hash(),
+            BroadcastNetworkMetrics {
+                num_sent_broadcast_messages: CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES,
+                num_received_broadcast_messages: CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES,
+            },
+        );
         let network_manager_metrics = Some(NetworkMetrics {
             num_connected_peers: CONSENSUS_NUM_CONNECTED_PEERS,
-            broadcast_metrics: Some(BroadcastNetworkMetrics {
-                num_sent_broadcast_messages: CONSENSUS_NUM_SENT_MESSAGES,
-                num_received_broadcast_messages: CONSENSUS_NUM_RECEIVED_MESSAGES,
-            }),
+            broadcast_metrics_map: Some(broadcast_metrics_map),
             sqmr_metrics: None,
         });
         let mut network_manager =

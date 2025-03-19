@@ -24,8 +24,10 @@ use starknet_consensus::metrics::{
 };
 use starknet_consensus_manager::metrics::{
     CONSENSUS_NUM_CONNECTED_PEERS,
-    CONSENSUS_NUM_RECEIVED_MESSAGES,
-    CONSENSUS_NUM_SENT_MESSAGES,
+    CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES,
+    CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES,
+    CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES,
+    CONSENSUS_VOTES_NUM_SENT_MESSAGES,
 };
 use starknet_gateway::metrics::{
     LABEL_NAME_SOURCE,
@@ -118,10 +120,14 @@ const PANEL_MEMPOOL_P2P_NUM_RECEIVED_MESSAGES: Panel =
     Panel::from_counter(MEMPOOL_P2P_NUM_RECEIVED_MESSAGES, PanelType::Stat);
 const PANEL_CONSENSUS_NUM_CONNECTED_PEERS: Panel =
     Panel::from_gauge(CONSENSUS_NUM_CONNECTED_PEERS, PanelType::Stat);
-const PANEL_CONSENSUS_NUM_SENT_MESSAGES: Panel =
-    Panel::from_counter(CONSENSUS_NUM_SENT_MESSAGES, PanelType::Stat);
-const PANEL_CONSENSUS_NUM_RECEIVED_MESSAGES: Panel =
-    Panel::from_counter(CONSENSUS_NUM_RECEIVED_MESSAGES, PanelType::Stat);
+const PANEL_CONSENSUS_VOTES_NUM_SENT_MESSAGES: Panel =
+    Panel::from_counter(CONSENSUS_VOTES_NUM_SENT_MESSAGES, PanelType::Stat);
+const PANEL_CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES: Panel =
+    Panel::from_counter(CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES, PanelType::Stat);
+const PANEL_CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES: Panel =
+    Panel::from_counter(CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES, PanelType::Stat);
+const PANEL_CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES: Panel =
+    Panel::from_counter(CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES, PanelType::Stat);
 const PANEL_STATE_SYNC_P2P_NUM_CONNECTED_PEERS: Panel =
     Panel::from_gauge(STATE_SYNC_P2P_NUM_CONNECTED_PEERS, PanelType::Stat);
 const PANEL_STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS: Panel =
@@ -240,13 +246,25 @@ const MEMPOOL_P2P_ROW: Row<'_> = Row::new(
     ],
 );
 
-const CONSENSUS_P2P_ROW: Row<'_> = Row::new(
-    "ConsensusP2p",
-    "Consensus peer to peer metrics",
+const CONSENSUS_VOTES_P2P_ROW: Row<'_> = Row::new(
+    "ConsensusVotesP2p",
+    "Consensus votes peer to peer metrics",
+    &[
+        // TODO(alonl): consider moving num connected peers to a new row to avoid duplication with
+        // proposals row
+        PANEL_CONSENSUS_NUM_CONNECTED_PEERS,
+        PANEL_CONSENSUS_VOTES_NUM_SENT_MESSAGES,
+        PANEL_CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES,
+    ],
+);
+
+const CONSENSUS_PROPOSALS_P2P_ROW: Row<'_> = Row::new(
+    "ConsensusProposalsP2p",
+    "Consensus proposals peer to peer metrics",
     &[
         PANEL_CONSENSUS_NUM_CONNECTED_PEERS,
-        PANEL_CONSENSUS_NUM_SENT_MESSAGES,
-        PANEL_CONSENSUS_NUM_RECEIVED_MESSAGES,
+        PANEL_CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES,
+        PANEL_CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES,
     ],
 );
 
@@ -334,7 +352,8 @@ pub const SEQUENCER_DASHBOARD: Dashboard<'_> = Dashboard::new(
         CONSENSUS_ROW,
         HTTP_SERVER_ROW,
         MEMPOOL_P2P_ROW,
-        CONSENSUS_P2P_ROW,
+        CONSENSUS_VOTES_P2P_ROW,
+        CONSENSUS_PROPOSALS_P2P_ROW,
         STATE_SYNC_P2P_ROW,
         GATEWAY_ROW,
         MEMPOOL_ROW,
