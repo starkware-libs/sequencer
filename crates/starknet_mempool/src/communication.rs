@@ -123,6 +123,11 @@ impl ComponentRequestHandler<MempoolRequest, MempoolResponse> for MempoolCommuni
             MempoolRequest::UpdateGasPrice(gas_price) => {
                 MempoolResponse::UpdateGasPrice(self.update_gas_price(gas_price))
             }
+            MempoolRequest::GetMempoolSnapshot() => {
+                unimplemented!(
+                    "GetMempoolSnapshot is not yet implemented in MempoolCommunicationWrapper"
+                );
+            }
         }
     }
 }
