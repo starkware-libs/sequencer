@@ -533,7 +533,7 @@ fn transaction_execution_info() -> TransactionExecutionInfo {
                 computation: ComputationResources {
                     vm_resources: execution_resources(),
                     n_reverted_steps: 2,
-                    sierra_gas: GasAmount(0x127200),
+                    sierra_gas: GasAmount(0x128140),
                     reverted_sierra_gas: GasAmount(0x2),
                 },
             },

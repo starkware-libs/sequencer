@@ -201,10 +201,10 @@
             },
             "GetCallerAddress": {
                 "builtin_instance_counter": {
-                    "range_check_builtin": 1
+                    "range_check_builtin": 2
                 },
                 "n_memory_holes": 0,
-                "n_steps": 78
+                "n_steps": 108
             },
             "GetClassHashAt": {
                 "builtin_instance_counter": {
@@ -215,17 +215,17 @@
             },
             "GetContractAddress": {
                 "builtin_instance_counter": {
-                    "range_check_builtin": 1
+                    "range_check_builtin": 2
                 },
                 "n_memory_holes": 0,
-                "n_steps": 78
+                "n_steps": 108
             },
             "GetExecutionInfo": {
                 "builtin_instance_counter": {
-                    "range_check_builtin": 1
+                    "range_check_builtin": 2
                 },
                 "n_memory_holes": 0,
-                "n_steps": 78
+                "n_steps": 108
             },
             "GetSequencerAddress": {
                 "builtin_instance_counter": {},
@@ -234,10 +234,10 @@
             },
             "GetTxInfo": {
                 "builtin_instance_counter": {
-                    "range_check_builtin": 1
+                    "range_check_builtin": 2
                 },
                 "n_memory_holes": 0,
-                "n_steps": 78
+                "n_steps": 108
             },
             "GetTxSignature": {
                 "builtin_instance_counter": {},
@@ -278,7 +278,7 @@
                     "range_check_builtin": 16
                 },
                 "n_memory_holes": 0,
-                "n_steps": 1274
+                "n_steps": 1273
             },
             "ReplaceClass": {
                 "builtin_instance_counter": {
@@ -395,7 +395,7 @@
                     "poseidon_builtin": 15
                 },
                 "n_memory_holes": 0,
-                "n_steps": 3533
+                "n_steps": 3501
             },
             "DeployAccount": {
                 "constant": {
@@ -405,7 +405,7 @@
                         "poseidon_builtin": 11
                     },
                     "n_memory_holes": 0,
-                    "n_steps": 4578
+                    "n_steps": 4554
                 },
                 "calldata_factor": {
                     "builtin_instance_counter": {
@@ -423,7 +423,7 @@
                         "poseidon_builtin": 12
                     },
                     "n_memory_holes": 0,
-                    "n_steps": 4350
+                    "n_steps": 4319
                 },
                 "calldata_factor": {
                     "builtin_instance_counter": {
