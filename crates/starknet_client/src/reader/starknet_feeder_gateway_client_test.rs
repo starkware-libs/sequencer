@@ -409,20 +409,29 @@ async fn deprecated_pending_data() {
 #[tokio::test]
 async fn get_block() {
     let starknet_client = starknet_client();
-    let test_cases = vec!["0.13.1", "0.14.0"];
+    let json_filename = "reader/block_post_0_14_0.json";
 
-    for starknet_version in test_cases {
-        let json_filename =
-            format!("reader/block_post_{}.json", starknet_version.replace('.', "_"));
-        let raw_block = read_resource_file(&json_filename);
-        let expected_block: Block = serde_json::from_str(&raw_block).unwrap();
+    let mock_block = mock_successful_get_block_response(json_filename, Some(20), false);
+    let block = starknet_client.block(BlockNumber(20)).await.unwrap().unwrap();
+    mock_block.assert();
 
-        let mock_block = mock_successful_get_block_response(&json_filename, Some(20), false);
-        let block = starknet_client.block(BlockNumber(20)).await.unwrap().unwrap();
-        mock_block.assert();
+    let expected_block: Block = serde_json::from_str(&read_resource_file(json_filename)).unwrap();
+    assert_eq!(block, expected_block);
+}
 
-        assert_eq!(block, expected_block);
-    }
+#[tokio::test]
+async fn fallback_get_block() {
+    let starknet_client = starknet_client();
+    let json_filename = "reader/block_post_0_13_1.json";
+
+    let mock_fallback_error = mock_error_get_block_response(malformed_error(), Some(20), false);
+    let mock_block = mock_successful_get_block_response(json_filename, Some(20), true);
+    let block = starknet_client.block(BlockNumber(20)).await.unwrap().unwrap();
+    mock_fallback_error.assert();
+    mock_block.assert();
+
+    let expected_block: Block = serde_json::from_str(&read_resource_file(json_filename)).unwrap();
+    assert_eq!(block, expected_block);
 }
 
 // Requesting a block that does not exist, expecting a "Block Not Found" error.
