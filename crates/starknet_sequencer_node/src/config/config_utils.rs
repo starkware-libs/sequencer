@@ -12,6 +12,7 @@ use serde_json::{to_value, Map, Value};
 use tracing::{error, info};
 use validator::ValidationError;
 
+use super::component_config::ComponentConfig;
 use super::node_config::POINTER_TARGET_VALUE;
 use crate::config::definitions::ConfigPointersMap;
 use crate::config::node_config::{
@@ -124,54 +125,85 @@ pub fn validate_all_pointer_targets_set(preset: Value) -> Result<(), ValidationE
         ))
     }
 }
+pub struct PresetConfig {
+    pub config_path: PathBuf,
+    pub component_config: ComponentConfig,
+}
 
-pub fn create_app_config(config_path: PathBuf) {
-    let config = SequencerNodeConfig::default();
+pub struct AppConfigs {
+    config: SequencerNodeConfig,
+    config_pointers_map: ConfigPointersMap,
+    non_pointer_params: Pointers,
+}
 
-    // Update config pointer values.
-    let mut config_pointers_map = ConfigPointersMap::new(CONFIG_POINTERS.clone());
-    config_pointers_map.change_target_value(
-        "chain_id",
-        to_value(config.l1_scraper_config.chain_id.clone()).expect("Failed to serialize ChainId"),
-    );
-    config_pointers_map.change_target_value(
-        "eth_fee_token_address",
-        to_value(
-            config
-                .batcher_config
-                .block_builder_config
-                .chain_info
-                .fee_token_addresses
-                .eth_fee_token_address,
-        )
-        .expect("Failed to serialize ContractAddress"),
-    );
-    config_pointers_map.change_target_value(
-        "strk_fee_token_address",
-        to_value(
-            config
-                .batcher_config
-                .block_builder_config
-                .chain_info
-                .fee_token_addresses
-                .strk_fee_token_address,
-        )
-        .expect("Failed to serialize ContractAddress"),
-    );
-    config_pointers_map.change_target_value(
-        "validator_id",
-        to_value(config.consensus_manager_config.consensus_config.validator_id)
+impl Default for AppConfigs {
+    fn default() -> Self {
+        let config = SequencerNodeConfig::default();
+        let mut config_pointers_map = ConfigPointersMap::new(CONFIG_POINTERS.clone());
+        config_pointers_map.change_target_value(
+            "chain_id",
+            to_value(config.l1_scraper_config.chain_id.clone())
+                .expect("Failed to serialize ChainId"),
+        );
+        config_pointers_map.change_target_value(
+            "eth_fee_token_address",
+            to_value(
+                config
+                    .batcher_config
+                    .block_builder_config
+                    .chain_info
+                    .fee_token_addresses
+                    .eth_fee_token_address,
+            )
             .expect("Failed to serialize ContractAddress"),
-    );
-    config_pointers_map.change_target_value(
-        "recorder_url",
-        to_value(config.consensus_manager_config.cende_config.recorder_url.clone())
-            .expect("Failed to serialize Url"),
-    );
-    dump_config_file(
-        config,
-        &config_pointers_map.clone().into(),
-        &CONFIG_NON_POINTERS_WHITELIST,
-        &config_path,
-    );
+        );
+        config_pointers_map.change_target_value(
+            "strk_fee_token_address",
+            to_value(
+                config
+                    .batcher_config
+                    .block_builder_config
+                    .chain_info
+                    .fee_token_addresses
+                    .strk_fee_token_address,
+            )
+            .expect("Failed to serialize ContractAddress"),
+        );
+        config_pointers_map.change_target_value(
+            "validator_id",
+            to_value(config.consensus_manager_config.consensus_config.validator_id)
+                .expect("Failed to serialize ContractAddress"),
+        );
+        config_pointers_map.change_target_value(
+            "recorder_url",
+            to_value(config.consensus_manager_config.cende_config.recorder_url.clone())
+                .expect("Failed to serialize Url"),
+        );
+        let non_pointer_params = CONFIG_NON_POINTERS_WHITELIST.clone();
+        Self { config, config_pointers_map, non_pointer_params }
+    }
+}
+impl AppConfigs {
+    pub fn set_component_config(&mut self, component_config: ComponentConfig) {
+        self.config.components = component_config;
+    }
+
+    pub fn dump_config_file(&mut self, config_path: &PathBuf, component_config: ComponentConfig) {
+        self.set_component_config(component_config);
+        dump_config_file(
+            self.config.clone(),
+            &self.config_pointers_map.clone().into(),
+            &self.non_pointer_params,
+            config_path,
+        );
+    }
+
+    pub fn dump_config_files(&mut self, preset_configs: Vec<PresetConfig>) {
+        for preset_config in preset_configs {
+            self.dump_config_file(
+                &preset_config.config_path,
+                preset_config.component_config.clone(),
+            );
+        }
+    }
 }
