@@ -40,4 +40,5 @@ reqwest.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_gateway_types = { workspace = true, features = ["testing"] }
+starknet_sequencer_metrics = { workspace = true, features = ["testing"] }
 tracing-test.workspace = true

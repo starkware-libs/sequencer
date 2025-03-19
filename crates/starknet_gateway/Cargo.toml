@@ -60,6 +60,7 @@ rstest.workspace = true
 starknet_class_manager_types = { workspace = true, features = ["testing"] }
 starknet_mempool.workspace = true
 starknet_mempool_types = { workspace = true, features = ["testing"] }
+starknet_sequencer_metrics = { workspace = true, features = ["testing"] }
 starknet_state_sync_types = { workspace = true, features = ["testing"] }
 tracing-test.workspace = true
 

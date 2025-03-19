@@ -1,4 +1,5 @@
 use std::fmt::Debug;
+#[cfg(any(feature = "testing", test))]
 use std::str::FromStr;
 use std::sync::OnceLock;
 
@@ -12,7 +13,9 @@ use metrics::{
     histogram,
     IntoF64,
 };
+#[cfg(any(feature = "testing", test))]
 use num_traits::Num;
+#[cfg(any(feature = "testing", test))]
 use regex::{escape, Regex};
 
 #[cfg(test)]
@@ -75,6 +78,7 @@ impl MetricCounter {
         counter!(self.name).increment(value);
     }
 
+    #[cfg(any(feature = "testing", test))]
     pub fn parse_numeric_metric<T: Num + FromStr>(&self, metrics_as_string: &str) -> Option<T> {
         parse_numeric_metric::<T>(metrics_as_string, self.get_name(), None)
     }
@@ -136,6 +140,7 @@ impl LabeledMetricCounter {
         counter!(self.name, labels).increment(value);
     }
 
+    #[cfg(any(feature = "testing", test))]
     pub fn parse_numeric_metric<T: Num + FromStr>(
         &self,
         metrics_as_string: &str,
@@ -201,6 +206,7 @@ impl MetricGauge {
         gauge!(self.name).decrement(value.into_f64());
     }
 
+    #[cfg(any(feature = "testing", test))]
     pub fn parse_numeric_metric<T: Num + FromStr>(&self, metrics_as_string: &str) -> Option<T> {
         parse_numeric_metric::<T>(metrics_as_string, self.get_name(), None)
     }
@@ -297,6 +303,7 @@ impl LabeledMetricGauge {
         gauge!(self.name, label).decrement(value.into_f64());
     }
 
+    #[cfg(any(feature = "testing", test))]
     pub fn parse_numeric_metric<T: Num + FromStr>(
         &self,
         metrics_as_string: &str,
@@ -379,6 +386,7 @@ impl MetricHistogram {
         histogram!(self.name).record_many(value.into_f64(), count);
     }
 
+    #[cfg(any(feature = "testing", test))]
     pub fn parse_histogram_metric(&self, metrics_as_string: &str) -> Option<HistogramValue> {
         parse_histogram_metric(metrics_as_string, self.get_name(), None)
     }
@@ -446,6 +454,7 @@ impl LabeledMetricHistogram {
         histogram!(self.name, labels).record_many(value.into_f64(), count);
     }
 
+    #[cfg(any(feature = "testing", test))]
     pub fn parse_histogram_metric(
         &self,
         metrics_as_string: &str,
@@ -492,6 +501,7 @@ impl LabeledMetricHistogram {
 ///
 /// - `Option<T>`: Returns `Some(T)` if the metric is found and successfully parsed into the
 ///   specified numeric type `T`. Returns `None` if the metric is not found or if parsing fails.
+#[cfg(any(feature = "testing", test))]
 pub fn parse_numeric_metric<T: Num + FromStr>(
     metrics_as_string: &str,
     metric_name: &str,
@@ -539,6 +549,7 @@ pub fn parse_numeric_metric<T: Num + FromStr>(
 ///
 /// - `Option<HistogramValue>`: Returns `Some(HistogramValue)` if the metric is found and
 ///   successfully parsed. Returns `None` if the metric is not found or if parsing fails.
+#[cfg(any(feature = "testing", test))]
 pub fn parse_histogram_metric(
     metrics_as_string: &str,
     metric_name: &str,
