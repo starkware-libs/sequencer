@@ -45,8 +45,8 @@ async fn record_region_test() {
     // Set the successful response.
     let tx_hash_1 = TransactionHash(Felt::ONE);
     let tx_hash_2 = TransactionHash(Felt::TWO);
-    mock_gateway_client.expect_add_tx().times(1).return_const(Ok(tx_hash_1));
-    mock_gateway_client.expect_add_tx().times(1).return_const(Ok(tx_hash_2));
+    mock_gateway_client.expect_add_txs().times(1).return_const(Ok(vec![tx_hash_1]));
+    mock_gateway_client.expect_add_txs().times(1).return_const(Ok(vec![tx_hash_2]));
 
     let ip = IpAddr::from(Ipv4Addr::LOCALHOST);
     let mut available_ports = AvailablePorts::new(TestIdentifier::HttpServerUnitTests.into(), 1);
@@ -77,7 +77,7 @@ async fn record_region_test() {
 async fn record_region_gateway_failing_tx() {
     let mut mock_gateway_client = MockGatewayClient::new();
     // Set the failed response.
-    mock_gateway_client.expect_add_tx().times(1).return_const(Err(
+    mock_gateway_client.expect_add_txs().times(1).return_const(Err(
         GatewayClientError::ClientError(ClientError::UnexpectedResponse(
             "mock response".to_string(),
         )),
@@ -102,7 +102,7 @@ async fn test_response() {
 
     // Set the successful response.
     let expected_tx_hash = TransactionHash(Felt::ONE);
-    mock_gateway_client.expect_add_tx().times(1).return_const(Ok(expected_tx_hash));
+    mock_gateway_client.expect_add_txs().times(1).return_const(Ok(vec![expected_tx_hash]));
 
     // Set the failed response.
     let expected_error = GatewaySpecError::ClassAlreadyDeclared;
@@ -110,7 +110,7 @@ async fn test_response() {
         "Gateway responded with: {}",
         serde_json::to_string(&ErrorObjectOwned::from(expected_error.clone().into_rpc())).unwrap()
     );
-    mock_gateway_client.expect_add_tx().times(1).return_const(Err(
+    mock_gateway_client.expect_add_txs().times(1).return_const(Err(
         GatewayClientError::GatewayError(GatewayError::GatewaySpecError {
             source: expected_error,
             p2p_message_metadata: None,

@@ -99,11 +99,9 @@ impl ComponentStarter for MempoolP2pRunner {
                             // TODO(alonl): consider calculating the tx_hash and pringing it instead of the entire tx.
                             info!("Received transaction from network, forwarding to gateway");
                             debug!("received transaction: {:?}", message.0);
-                            for rpc_tx in message.0 {
-                                gateway_futures.push(self.gateway_client.add_tx(
-                                    GatewayInput { rpc_tx, message_metadata: Some(broadcasted_message_metadata.clone()) }
-                                ));
-                            }
+                            gateway_futures.push(self.gateway_client.add_txs(
+                                GatewayInput { transactions: message.0, message_metadata: Some(broadcasted_message_metadata) }
+                            ))
                         }
                         Err(e) => {
                             warn!("Received a faulty transaction from network: {:?}. Attempting to report the sending peer", e);

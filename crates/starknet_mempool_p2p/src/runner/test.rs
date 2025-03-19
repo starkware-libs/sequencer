@@ -90,15 +90,15 @@ async fn incoming_p2p_tx_reaches_gateway_client() {
     let expected_rpc_transaction_batch =
         RpcTransactionBatch(vec![RpcTransaction::get_test_instance(&mut get_rng())]);
     let gateway_input = GatewayInput {
-        rpc_tx: expected_rpc_transaction_batch.0.first().unwrap().clone(),
+        transactions: expected_rpc_transaction_batch.0.clone(),
         message_metadata: Some(message_metadata.clone()),
     };
 
     let mut mock_gateway_client = MockGatewayClient::new();
-    mock_gateway_client.expect_add_tx().with(mockall::predicate::eq(gateway_input)).return_once(
+    mock_gateway_client.expect_add_txs().with(mockall::predicate::eq(gateway_input)).return_once(
         move |_| {
             add_tx_indicator_sender.send(()).unwrap();
-            Ok(TransactionHash::default())
+            Ok(vec![TransactionHash::default()])
         },
     );
     let (mut mempool_p2p_runner, mock_network) = setup(
@@ -113,8 +113,8 @@ async fn incoming_p2p_tx_reaches_gateway_client() {
         ..
     } = mock_network;
 
-    let res = mock_broadcasted_messages_sender
-        .send((expected_rpc_transaction_batch.clone(), message_metadata));
+    let res =
+        mock_broadcasted_messages_sender.send((expected_rpc_transaction_batch, message_metadata));
 
     res.await.expect("Failed to send message");
 
@@ -144,7 +144,7 @@ async fn incoming_p2p_tx_fails_on_gateway_client() {
         RpcTransactionBatch(vec![RpcTransaction::get_test_instance(&mut get_rng())]);
 
     let mut mock_gateway_client = MockGatewayClient::new();
-    mock_gateway_client.expect_add_tx().return_once(move |_| {
+    mock_gateway_client.expect_add_txs().return_once(move |_| {
         add_tx_indicator_sender.send(()).unwrap();
         Err(GatewayClientError::GatewayError(GatewayError::GatewaySpecError {
             source: GatewaySpecError::DuplicateTx,
