@@ -56,26 +56,6 @@ pub(crate) fn assert_transaction_hash<S: StateReader>(
     }
 }
 
-// pub const ENTER_SCOPE_DEPRECATED_SYSCALL_HANDLER: &str =
-//     "vm_enter_scope({'syscall_handler': deprecated_syscall_handler})";
-// pub fn enter_scope_deprecated_syscall_handler<PCS>(
-//     _vm: &mut VirtualMachine,
-//     exec_scopes: &mut ExecutionScopes,
-//     _ids_data: &HashMap<String, HintReference>,
-//     _ap_tracking: &ApTracking,
-//     _constants: &HashMap<String, Felt252>,
-// ) -> Result<(), HintError>
-// where
-//     PCS: PerContractStorage + 'static,
-// {
-//     let dep_sys =
-//         exec_scopes.
-// get::<DeprecatedOsSyscallHandlerWrapper<PCS>>(vars::scopes::DEPRECATED_SYSCALL_HANDLER)?;     let
-// deprecated_syscall_handler: Box<dyn Any> = Box::new(dep_sys);     exec_scopes
-//         .enter_scope(HashMap::from_iter([(String::from(vars::scopes::SYSCALL_HANDLER),
-// deprecated_syscall_handler)]));     Ok(())
-// }
-
 pub(crate) fn enter_scope_deprecated_syscall_handler<S: StateReader>(
     HintArgs { .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
