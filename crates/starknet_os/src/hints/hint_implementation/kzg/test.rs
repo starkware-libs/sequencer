@@ -12,6 +12,7 @@ use crate::hints::hint_implementation::kzg::utils::{
     serialize_blob,
     split_commitment,
     FIELD_ELEMENTS_PER_BLOB,
+    WIDTH,
 };
 
 const BLOB_SUBGROUP_GENERATOR: &str =
@@ -19,8 +20,6 @@ const BLOB_SUBGROUP_GENERATOR: &str =
 const BLS_PRIME: &str =
     "52435875175126190479447740508185965837690552500527637822603658699938581184513";
 const BYTES_PER_BLOB: usize = FIELD_ELEMENTS_PER_BLOB * 32;
-const WIDTH: usize = 12;
-const ORDER: usize = 1 << WIDTH;
 
 static FFT_REGRESSION_INPUT: LazyLock<Vec<Fr>> = LazyLock::new(|| {
     serde_json::from_str::<Vec<String>>(include_str!("fft_regression_input.json"))
@@ -43,14 +42,14 @@ static BLOB_REGRESSION_OUTPUT: LazyLock<Vec<u8>> =
 
 fn generate(generator: &BigUint, bit_reversed: bool) -> Vec<BigUint> {
     let mut array = vec![BigUint::one()];
-    for _ in 1..ORDER {
+    for _ in 1..FIELD_ELEMENTS_PER_BLOB {
         let last = array.last().unwrap().clone();
         let next = (generator * &last) % BigUint::from_str_radix(BLS_PRIME, 10).unwrap();
         array.push(next);
     }
 
     if bit_reversed {
-        let perm: Vec<usize> = (0..ORDER)
+        let perm: Vec<usize> = (0..FIELD_ELEMENTS_PER_BLOB)
             .map(|i| {
                 let binary = format!("{:0width$b}", i, width = WIDTH);
                 usize::from_str_radix(&binary.chars().rev().collect::<String>(), 2).unwrap()

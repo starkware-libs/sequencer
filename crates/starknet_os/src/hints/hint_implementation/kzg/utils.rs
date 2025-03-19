@@ -13,7 +13,8 @@ use starknet_types_core::felt::Felt;
 
 const COMMITMENT_BYTES_LENGTH: usize = 48;
 const COMMITMENT_BYTES_MIDPOINT: usize = COMMITMENT_BYTES_LENGTH / 2;
-pub(crate) const FIELD_ELEMENTS_PER_BLOB: usize = 4096;
+pub(crate) const WIDTH: usize = 12;
+pub(crate) const FIELD_ELEMENTS_PER_BLOB: usize = 1 << WIDTH;
 
 #[derive(Debug, thiserror::Error)]
 pub enum FftError {
@@ -73,6 +74,33 @@ pub(crate) fn split_commitment(commitment: &KzgCommitment) -> Result<(Felt, Felt
     Ok((Felt::from_bytes_be_slice(low), Felt::from_bytes_be_slice(high)))
 }
 
+/// Performs bit-reversal permutation on the given vector, in-place.
+/// Inlined from ark_poly.
+// TODO(Dori): can we import this algorithm from somewhere?
+fn bit_reversal(unreversed_blob: &mut Vec<Fr>) -> Result<(), FftError> {
+    if unreversed_blob.len() != FIELD_ELEMENTS_PER_BLOB {
+        return Err(FftError::InvalidBlobSize(unreversed_blob.len()));
+    }
+
+    fn bitreverse(mut n: usize, width: usize) -> usize {
+        let mut r = 0;
+        for _ in 0..width {
+            r = (r << 1) | (n & 1);
+            n >>= 1;
+        }
+        r
+    }
+
+    for i in 0..FIELD_ELEMENTS_PER_BLOB {
+        let reversed_i = bitreverse(i, WIDTH);
+        if i < reversed_i {
+            unreversed_blob.swap(reversed_i, i);
+        }
+    }
+
+    Ok(())
+}
+
 pub(crate) fn polynomial_coefficients_to_blob(coefficients: Vec<Fr>) -> Result<Vec<u8>, FftError> {
     if coefficients.len() > FIELD_ELEMENTS_PER_BLOB {
         return Err(FftError::TooManyCoefficients(coefficients.len()));
@@ -82,10 +110,11 @@ pub(crate) fn polynomial_coefficients_to_blob(coefficients: Vec<Fr>) -> Result<V
     let mut evals = coefficients;
     evals.resize(FIELD_ELEMENTS_PER_BLOB, Fr::zero());
 
-    // Perform FFT (in place) on the coefficients.
+    // Perform FFT (in place) on the coefficients, and bit-reverse.
     let domain = Radix2EvaluationDomain::<Fr>::new(FIELD_ELEMENTS_PER_BLOB)
         .ok_or(FftError::EvalDomainCreation)?;
     domain.fft_in_place(&mut evals);
+    bit_reversal(&mut evals)?;
 
     // Serialize the FFT result into a blob.
     serialize_blob(&evals)
