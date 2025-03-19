@@ -362,13 +362,12 @@ pub fn get_gateway_config(
 
 pub fn get_mempool_config(
     mempool_local_config: ReactiveComponentExecutionConfig,
-    mempool_p2p_local_config: ReactiveComponentExecutionConfig,
     class_manager_remote_config: ReactiveComponentExecutionConfig,
     gateway_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
     config.mempool = mempool_local_config;
-    config.mempool_p2p = mempool_p2p_local_config;
+    config.mempool_p2p = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.class_manager = class_manager_remote_config;
     config.gateway = gateway_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
