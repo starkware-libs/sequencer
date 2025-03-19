@@ -58,6 +58,10 @@ impl<T> SerializedClass<T> {
         self.0
     }
 
+    pub fn size(&self) -> RawClassResult<usize> {
+        Ok(serde_json::to_string_pretty(&self.0)?.len())
+    }
+
     fn new(value: serde_json::Value) -> Self {
         Self(value, std::marker::PhantomData)
     }

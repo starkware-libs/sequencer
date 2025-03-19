@@ -17,7 +17,7 @@ use thiserror::Error;
 use tracing::instrument;
 
 use crate::config::{ClassHashStorageConfig, FsClassStorageConfig};
-use crate::metrics::{increment_n_classes, CairoClassType};
+use crate::metrics::{increment_n_classes, record_class_size, CairoClassType, ClassObjectType};
 
 #[cfg(test)]
 #[path = "class_storage_test.rs"]
@@ -142,6 +142,8 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
         )?;
 
         increment_n_classes(CairoClassType::Regular);
+        record_class_size(ClassObjectType::Sierra, &class);
+        record_class_size(ClassObjectType::Casm, &executable_class);
 
         // Cache the class.
         // Done after successfully writing to storage as an optimization;
@@ -225,6 +227,7 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
         self.storage.set_deprecated_class(class_id, class.clone())?;
 
         increment_n_classes(CairoClassType::Deprecated);
+        record_class_size(ClassObjectType::DeprecatedCasm, &class);
 
         self.deprecated_classes.set(class_id, class);
 
