@@ -16,8 +16,16 @@ use crate::vm_utils::insert_values_to_fields;
 pub(crate) fn initialize_class_hashes<S: StateReader>(
     HintArgs { hint_processor, exec_scopes, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let class_hash_to_compiled_class_hash =
-        hint_processor.execution_helper.cached_state.writes_compiled_class_hashes();
+    let class_hash_to_compiled_class_hash: HashMap<MaybeRelocatable, MaybeRelocatable> =
+        hint_processor
+            .execution_helper
+            .cached_state
+            .writes_compiled_class_hashes()
+            .into_iter()
+            .map(|(class_hash, compiled_class_hash)| {
+                (class_hash.0.into(), compiled_class_hash.0.into())
+            })
+            .collect();
     exec_scopes.insert_value(Scope::InitialDict.into(), class_hash_to_compiled_class_hash);
     Ok(())
 }
