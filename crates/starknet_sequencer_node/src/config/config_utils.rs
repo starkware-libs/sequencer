@@ -8,10 +8,11 @@ use papyrus_config::dumping::{
     Pointers,
     SerializeConfig,
 };
-use serde_json::{to_value, Map, Value};
+use serde_json::{Map, Value};
 use tracing::{error, info};
 use validator::ValidationError;
 
+use crate::config::component_config::ComponentConfig;
 use crate::config::definitions::ConfigPointersMap;
 use crate::config::node_config::{
     SequencerNodeConfig,
@@ -125,54 +126,34 @@ fn validate_all_pointer_targets_set(preset: Value) -> Result<(), ValidationError
         ))
     }
 }
+pub struct PresetConfig {
+    pub config_path: PathBuf,
+    pub component_config: ComponentConfig,
+}
 
-pub fn create_app_config(config_path: PathBuf) {
-    let config = SequencerNodeConfig::default();
+pub struct DeploymentBaseAppConfig {
+    config: SequencerNodeConfig,
+    config_pointers_map: ConfigPointersMap,
+    non_pointer_params: Pointers,
+}
 
-    // Update config pointer values.
-    let mut config_pointers_map = ConfigPointersMap::new(CONFIG_POINTERS.clone());
-    config_pointers_map.change_target_value(
-        "chain_id",
-        to_value(config.l1_scraper_config.chain_id.clone()).expect("Failed to serialize ChainId"),
-    );
-    config_pointers_map.change_target_value(
-        "eth_fee_token_address",
-        to_value(
-            config
-                .batcher_config
-                .block_builder_config
-                .chain_info
-                .fee_token_addresses
-                .eth_fee_token_address,
-        )
-        .expect("Failed to serialize ContractAddress"),
-    );
-    config_pointers_map.change_target_value(
-        "strk_fee_token_address",
-        to_value(
-            config
-                .batcher_config
-                .block_builder_config
-                .chain_info
-                .fee_token_addresses
-                .strk_fee_token_address,
-        )
-        .expect("Failed to serialize ContractAddress"),
-    );
-    config_pointers_map.change_target_value(
-        "validator_id",
-        to_value(config.consensus_manager_config.consensus_config.validator_id)
-            .expect("Failed to serialize ContractAddress"),
-    );
-    config_pointers_map.change_target_value(
-        "recorder_url",
-        to_value(config.consensus_manager_config.cende_config.recorder_url.clone())
-            .expect("Failed to serialize Url"),
-    );
-    dump_config_file(
-        config,
-        &config_pointers_map.clone().into(),
-        &CONFIG_NON_POINTERS_WHITELIST,
-        &config_path,
-    );
+impl DeploymentBaseAppConfig {
+    pub fn new(
+        config: SequencerNodeConfig,
+        config_pointers_map: ConfigPointersMap,
+        non_pointer_params: Pointers,
+    ) -> Self {
+        Self { config, config_pointers_map, non_pointer_params }
+    }
+
+    pub fn dump_config_file(&self, config_path: &PathBuf, component_config: ComponentConfig) {
+        let mut updated_config = self.config.clone();
+        updated_config.components = component_config;
+        dump_config_file(
+            updated_config,
+            &self.config_pointers_map.clone().into(),
+            &self.non_pointer_params,
+            config_path,
+        );
+    }
 }
