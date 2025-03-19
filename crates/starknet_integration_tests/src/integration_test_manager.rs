@@ -50,6 +50,7 @@ use crate::utils::{
     create_state_sync_configs,
     send_consensus_txs,
     send_message_to_l2_and_calculate_tx_hash,
+    spawn_local_success_recorder,
     BootstrapTxs,
     ConsensusTxs,
     TestScenario,
@@ -643,6 +644,8 @@ pub async fn get_sequencer_setup_configs(
     let mut consensus_manager_ports = available_ports_generator
         .next()
         .expect("Failed to get an AvailablePorts instance for consensus manager configs");
+
+    // TODO(Nadin): pass recorder_url to this function to avoid mutating the resulting configs.
     let mut consensus_manager_configs = create_consensus_manager_configs_from_network_configs(
         create_connected_network_configs(
             consensus_manager_ports.get_next_ports(component_configs_len),
@@ -679,15 +682,21 @@ pub async fn get_sequencer_setup_configs(
 
     let mut nodes = Vec::new();
 
+    // All nodes use the same recorder_url.
+    let (recorder_url, _join_handle) =
+        spawn_local_success_recorder(base_layer_ports.get_next_port());
+
     for (node_index, node_component_config) in node_component_configs.into_iter().enumerate() {
         let mut executables = Vec::new();
         let batcher_index = node_component_config.get_batcher_index();
         let http_server_index = node_component_config.get_http_server_index();
         let state_sync_index = node_component_config.get_state_sync_index();
 
-        let consensus_manager_config = consensus_manager_configs.remove(0);
+        let mut consensus_manager_config = consensus_manager_configs.remove(0);
         let mempool_p2p_config = mempool_p2p_configs.remove(0);
         let state_sync_config = state_sync_configs.remove(0);
+
+        consensus_manager_config.cende_config.recorder_url = recorder_url.clone();
 
         for (executable_index, executable_component_config) in
             node_component_config.into_iter().enumerate()

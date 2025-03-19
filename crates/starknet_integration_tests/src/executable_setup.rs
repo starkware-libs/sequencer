@@ -36,7 +36,7 @@ use crate::state_reader::{
     CLASS_MANAGER_DB_PATH_SUFFIX,
     STATE_SYNC_DB_PATH_SUFFIX,
 };
-use crate::utils::{create_node_config, spawn_local_success_recorder};
+use crate::utils::create_node_config;
 
 // TODO(Tsabary): rename this module to `executable_setup`.
 
@@ -111,7 +111,7 @@ impl ExecutableSetup {
         accounts: Vec<AccountTransactionGenerator>,
         node_execution_id: NodeExecutionId,
         chain_info: ChainInfo,
-        mut consensus_manager_config: ConsensusManagerConfig,
+        consensus_manager_config: ConsensusManagerConfig,
         mempool_p2p_config: MempoolP2pConfig,
         state_sync_config: StateSyncConfig,
         mut available_ports: AvailablePorts,
@@ -142,10 +142,6 @@ impl ExecutableSetup {
             class_manager_storage_config.persistent_root =
                 prefix.join(CLASS_MANAGER_DB_PATH_SUFFIX).join(CLASSES_STORAGE_DB_PATH_SUFFIX);
         }
-
-        let (recorder_url, _join_handle) =
-            spawn_local_success_recorder(available_ports.get_next_port());
-        consensus_manager_config.cende_config.recorder_url = recorder_url;
 
         // Explicitly collect metrics in the monitoring endpoint.
         let monitoring_endpoint_config = MonitoringEndpointConfig {
