@@ -217,7 +217,6 @@ pub fn create_nodes_deployment_units_configs(
         let class_manager_socket = available_ports.get_next_local_host_socket();
         let gateway_socket = available_ports.get_next_local_host_socket();
         let mempool_socket = available_ports.get_next_local_host_socket();
-        let mempool_p2p_socket = available_ports.get_next_local_host_socket();
         let sierra_compiler_socket = available_ports.get_next_local_host_socket();
         let state_sync_socket = available_ports.get_next_local_host_socket();
         let l1_provider_socket = available_ports.get_next_local_host_socket();
@@ -241,11 +240,6 @@ pub fn create_nodes_deployment_units_configs(
             Ipv4Addr::LOCALHOST.to_string(),
             mempool_socket.ip(),
             mempool_socket.port(),
-        );
-        let mempool_p2p_remote_config_pair = DistributedNodeServiceConfigPair::new(
-            Ipv4Addr::LOCALHOST.to_string(),
-            mempool_p2p_socket.ip(),
-            mempool_p2p_socket.port(),
         );
         let sierra_compiler_remote_config_pair = DistributedNodeServiceConfigPair::new(
             Ipv4Addr::LOCALHOST.to_string(),
@@ -283,7 +277,6 @@ pub fn create_nodes_deployment_units_configs(
                 ),
                 get_mempool_config(
                     mempool_remote_config_pair.local(),
-                    mempool_p2p_remote_config_pair.local(),
                     class_manager_remote_config_pair.remote(),
                     gateway_remote_config_pair.remote(),
                 ),
