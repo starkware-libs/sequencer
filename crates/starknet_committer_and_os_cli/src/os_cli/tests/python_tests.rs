@@ -197,10 +197,9 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_code::{
     VM_EXIT_SCOPE,
     XS_SAFE_DIV,
 };
-use cairo_vm::types::relocatable::MaybeRelocatable;
-use cairo_vm::vm::runners::cairo_runner::CairoArg;
 use starknet_os::hints::enum_definition::{AggregatorHint, HintExtension, OsHint};
 use starknet_os::hints::types::HintEnum;
+use starknet_os::test_utils::cairo_runner::EndpointArg;
 use starknet_os::test_utils::errors::Cairo0EntryPointRunnerError;
 use starknet_os::test_utils::utils::run_cairo_function_and_check_result;
 use strum::IntoEnumIterator;
@@ -282,7 +281,7 @@ fn compare_os_hints(input: &str) -> OsPythonTestResult {
 fn test_cairo_function(
     program_str: &str,
     function_name: &str,
-    explicit_args: &[CairoArg],
+    explicit_args: &[EndpointArg],
     expected_retdata: &Retdata,
 ) -> OsPythonTestResult {
     run_cairo_function_and_check_result(
@@ -304,7 +303,7 @@ fn run_dummy_cairo_function(input: &str) -> OsPythonTestResult {
     test_cairo_function(
         input,
         "dummy_function",
-        &[MaybeRelocatable::from(param_1).into(), MaybeRelocatable::from(param_2).into()],
+        &[param_1.into(), param_2.into()],
         &retdata![(789 + param_1).into(), param_1.into(), param_2.into()],
     )
 }
@@ -324,10 +323,10 @@ fn test_constants(input: &str) -> OsPythonTestResult {
         input,
         "test_constants",
         &[
-            MaybeRelocatable::from(max_non_compressed_contract_address).into(),
-            MaybeRelocatable::from(alias_counter_storage_key).into(),
-            MaybeRelocatable::from(initial_available_alias).into(),
-            MaybeRelocatable::from(alias_contract_address).into(),
+            max_non_compressed_contract_address.into(),
+            alias_counter_storage_key.into(),
+            initial_available_alias.into(),
+            alias_contract_address.into(),
         ],
         &retdata![],
     )
