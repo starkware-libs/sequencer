@@ -101,12 +101,9 @@ impl BenchTestSetup {
     }
 
     pub async fn send_txs_to_gateway(&self) {
-        for tx in &self.txs {
-            let _tx_hash = self
-                .gateway
-                .add_tx(tx.clone(), None)
-                .await
-                .expect("Some txs has failed in the gateway.");
-        }
+        self.gateway
+            .add_txs(self.txs.clone(), None)
+            .await
+            .expect("Some txs has failed in the gateway.");
     }
 }
