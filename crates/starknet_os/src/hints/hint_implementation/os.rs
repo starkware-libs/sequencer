@@ -4,6 +4,7 @@ use blockifier::state::cached_state::StateMaps;
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_into_ap;
 use cairo_vm::types::relocatable::MaybeRelocatable;
+use starknet_api::hash::StarkHash;
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
@@ -50,7 +51,7 @@ pub(crate) fn initialize_state_changes<S: StateReader>(
             ],
             &hint_processor.execution_helper.os_program,
         )?;
-        initial_dict.insert(address.0.0.into(), state_entry_base.into());
+        initial_dict.insert(StarkHash::from(address.0).into(), state_entry_base.into());
     }
     exec_scopes.insert_value(Scope::InitialDict.into(), initial_dict);
     Ok(())

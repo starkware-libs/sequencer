@@ -347,7 +347,7 @@ pub struct StateDiffCommitment(pub PoseidonHash);
     derive_more:: Deref,
 )]
 #[display(fmt = "{}", "_0.to_fixed_hex_string()")]
-pub struct PatriciaKey(pub StarkHash);
+pub struct PatriciaKey(StarkHash);
 
 // 2**251
 pub const PATRICIA_KEY_UPPER_BOUND: &str =
@@ -383,6 +383,12 @@ impl TryFrom<StarkHash> for PatriciaKey {
             return Ok(PatriciaKey(value));
         }
         Err(StarknetApiError::OutOfRange { string: format!("[0x0, {PATRICIA_KEY_UPPER_BOUND})") })
+    }
+}
+
+impl From<PatriciaKey> for StarkHash {
+    fn from(key: PatriciaKey) -> Self {
+        key.0
     }
 }
 
