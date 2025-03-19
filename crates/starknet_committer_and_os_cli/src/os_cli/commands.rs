@@ -11,7 +11,7 @@ use starknet_os::io::os_input::{CachedStateInput, StarknetOsInput};
 use starknet_os::runner::run_os_stateless;
 use tracing::info;
 
-use crate::shared_utils::read::load_input;
+use crate::shared_utils::read::{load_input, write_to_file};
 
 #[derive(Deserialize, Debug)]
 /// Input to the os runner.
@@ -52,14 +52,18 @@ pub fn validate_input(os_input: &StarknetOsInput) {
     );
 }
 
-pub fn parse_and_run_os(input_path: String, _output_path: String) {
+pub fn parse_and_run_os(input_path: String, output_path: String) {
     let Input { compiled_os_path, layout, os_input, cached_state_input } = load_input(input_path);
     validate_input(&os_input);
-    info!("Parsed OS input successfully for block number: {}", os_input.block_info.block_number);
+    let block_number = os_input.block_info.block_number;
+    info!("Parsed OS input successfully for block number: {}", block_number);
 
     // Load the compiled_os from the compiled_os_path.
     let compiled_os =
         fs::read(Path::new(&compiled_os_path)).expect("Failed to read compiled_os file");
 
-    let _ = run_os_stateless(&compiled_os, layout, os_input, cached_state_input);
+    let output = run_os_stateless(&compiled_os, layout, os_input, cached_state_input)
+        .unwrap_or_else(|_| panic!("OS run failed on block number: {}.", block_number));
+    write_to_file(&output_path, &output);
+    info!("OS program ran successfully on block number: {}", block_number);
 }
