@@ -199,7 +199,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_code::{
 };
 use starknet_os::hints::enum_definition::{AggregatorHint, HintExtension, OsHint};
 use starknet_os::hints::types::HintEnum;
-use starknet_os::test_utils::cairo_runner::EndpointArg;
+use starknet_os::test_utils::cairo_runner::{EndpointArg, ImplicitArg};
 use starknet_os::test_utils::errors::Cairo0EntryPointRunnerError;
 use starknet_os::test_utils::utils::run_cairo_function_and_check_result;
 use strum::IntoEnumIterator;
@@ -282,12 +282,14 @@ fn test_cairo_function(
     program_str: &str,
     function_name: &str,
     explicit_args: &[EndpointArg],
+    implicit_args: &[ImplicitArg],
     expected_retdata: &Retdata,
 ) -> OsPythonTestResult {
     run_cairo_function_and_check_result(
         program_str,
         function_name,
         explicit_args,
+        implicit_args,
         expected_retdata,
     )
     .map_err(|error| {
@@ -304,6 +306,7 @@ fn run_dummy_cairo_function(input: &str) -> OsPythonTestResult {
         input,
         "dummy_function",
         &[param_1.into(), param_2.into()],
+        &[],
         &retdata![(789 + param_1).into(), param_1.into(), param_2.into()],
     )
 }
@@ -328,6 +331,7 @@ fn test_constants(input: &str) -> OsPythonTestResult {
             initial_available_alias.into(),
             alias_contract_address.into(),
         ],
+        &[],
         &retdata![],
     )
 }
