@@ -19,6 +19,7 @@ num-traits = { workspace = true, optional = true }
 papyrus_config.workspace = true
 serde.workspace = true
 starknet_infra_utils.workspace = true
+starknet_mempool_types.workspace = true
 starknet_sequencer_infra.workspace = true
 starknet_sequencer_metrics.workspace = true
 thiserror = { workspace = true, optional = true }
@@ -31,6 +32,8 @@ validator.workspace = true
 metrics.workspace = true
 num-traits.workspace = true
 pretty_assertions.workspace = true
+starknet_api = { workspace = true, features = ["testing"] }
+starknet_mempool_types = { workspace = true, features = ["testing"] }
 thiserror.workspace = true
 tokio.workspace = true
 tower.workspace = true
