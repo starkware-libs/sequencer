@@ -118,6 +118,7 @@ pub enum Ids {
     PrevOffset,
     PrevValue,
     RangeCheck96Ptr,
+    RemainingGas,
     Request,
     Sha256Ptr,
     StateEntry,
@@ -173,6 +174,7 @@ impl From<Ids> for &'static str {
             Ids::PrevOffset => "prev_offset",
             Ids::PrevValue => "prev_value",
             Ids::RangeCheck96Ptr => "range_check96_ptr",
+            Ids::RemainingGas => "remaining_gas",
             Ids::Request => "request",
             Ids::Sha256Ptr => "sha256_ptr",
             Ids::StateEntry => "state_entry",
@@ -193,6 +195,7 @@ pub enum Const {
     BlobLength,
     BlockHashContractAddress,
     CompiledClassVersion,
+    EntryPointInitialBudget,
     InitialAvailableAlias,
     MerkleHeight,
     StoredBlockHashBuffer,
@@ -223,6 +226,9 @@ impl From<Const> for &'static str {
             Const::MerkleHeight => "starkware.starknet.core.os.state.commitment.MERKLE_HEIGHT",
             Const::StoredBlockHashBuffer => {
                 "starkware.starknet.core.os.constants.STORED_BLOCK_HASH_BUFFER"
+            }
+            Const::EntryPointInitialBudget => {
+                "starkware.starknet.core.os.constants.ENTRY_POINT_INITIAL_BUDGET"
             }
         }
     }
