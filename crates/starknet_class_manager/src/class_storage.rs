@@ -16,7 +16,7 @@ use starknet_sierra_multicompile_types::{RawClass, RawClassError, RawExecutableC
 use thiserror::Error;
 use tracing::instrument;
 
-use crate::class_manager::{increment_n_classes, ClassType};
+use crate::class_manager::{increment_n_classes, CairoClassType};
 use crate::config::{ClassHashStorageConfig, FsClassStorageConfig};
 
 #[cfg(test)]
@@ -141,7 +141,7 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
             executable_class.clone(),
         )?;
 
-        increment_n_classes(ClassType::Regular);
+        increment_n_classes(CairoClassType::Regular);
 
         // Cache the class.
         // Done after successfully writing to storage as an optimization;
@@ -224,7 +224,7 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
 
         self.storage.set_deprecated_class(class_id, class.clone())?;
 
-        increment_n_classes(ClassType::Deprecated);
+        increment_n_classes(CairoClassType::Deprecated);
 
         self.deprecated_classes.set(class_id, class);
 
