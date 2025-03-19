@@ -11,7 +11,7 @@ use crate::blockifier::transaction_executor::{
     TransactionExecutorError,
     BLOCK_STATE_ACCESS_ERR,
 };
-use crate::context::{BlockContext, TransactionContext};
+use crate::context::BlockContext;
 use crate::execution::call_info::CallInfo;
 use crate::fee::fee_checks::PostValidationReport;
 use crate::fee::receipt::TransactionReceipt;
@@ -63,8 +63,7 @@ impl<S: StateReader> StatefulValidator<S> {
         }
 
         let tx_context = self.tx_executor.block_context.to_tx_context(&tx);
-        self.perform_pre_validation_stage(&tx, &tx_context)?;
-
+        tx.perform_pre_validation_stage(self.state(), &tx_context)?;
         if !tx.execution_flags.validate {
             return Ok(());
         }
@@ -79,24 +78,12 @@ impl<S: StateReader> StatefulValidator<S> {
         Ok(())
     }
 
-    fn execute(&mut self, tx: AccountTransaction) -> StatefulValidatorResult<()> {
-        self.tx_executor.execute(&Transaction::Account(tx))?;
-        Ok(())
+    fn state(&mut self) -> &mut CachedState<S> {
+        self.tx_executor.block_state.as_mut().expect(BLOCK_STATE_ACCESS_ERR)
     }
 
-    fn perform_pre_validation_stage(
-        &mut self,
-        tx: &AccountTransaction,
-        tx_context: &TransactionContext,
-    ) -> StatefulValidatorResult<()> {
-        let strict_nonce_check = false;
-        // Run pre-validation in charge fee mode to perform fee and balance related checks.
-        tx.perform_pre_validation_stage(
-            self.tx_executor.block_state.as_mut().expect(BLOCK_STATE_ACCESS_ERR),
-            tx_context,
-            strict_nonce_check,
-        )?;
-
+    fn execute(&mut self, tx: AccountTransaction) -> StatefulValidatorResult<()> {
+        self.tx_executor.execute(&Transaction::Account(tx))?;
         Ok(())
     }
 
@@ -109,7 +96,7 @@ impl<S: StateReader> StatefulValidator<S> {
 
         let limit_steps_by_resources = tx.enforce_fee();
         let validate_call_info = tx.validate_tx(
-            self.tx_executor.block_state.as_mut().expect(BLOCK_STATE_ACCESS_ERR),
+            self.state(),
             tx_context.clone(),
             &mut remaining_gas,
             limit_steps_by_resources,
@@ -118,12 +105,7 @@ impl<S: StateReader> StatefulValidator<S> {
         let tx_receipt = TransactionReceipt::from_account_tx(
             tx,
             &tx_context,
-            &self
-                .tx_executor
-                .block_state
-                .as_mut()
-                .expect(BLOCK_STATE_ACCESS_ERR)
-                .get_actual_state_changes()?,
+            &self.state().get_actual_state_changes()?,
             CallInfo::summarize_many(
                 validate_call_info.iter(),
                 &tx_context.block_context.versioned_constants,
@@ -139,11 +121,6 @@ impl<S: StateReader> StatefulValidator<S> {
         &mut self,
         account_address: ContractAddress,
     ) -> StatefulValidatorResult<Nonce> {
-        Ok(self
-            .tx_executor
-            .block_state
-            .as_ref()
-            .expect(BLOCK_STATE_ACCESS_ERR)
-            .get_nonce_at(account_address)?)
+        Ok(self.state().get_nonce_at(account_address)?)
     }
 }

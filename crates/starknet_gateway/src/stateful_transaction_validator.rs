@@ -64,7 +64,9 @@ impl StatefulTransactionValidator {
             skip_stateful_validations(executable_tx, account_nonce, mempool_client, runtime)?;
         let only_query = false;
         let charge_fee = enforce_fee(executable_tx, only_query);
-        let execution_flags = ExecutionFlags { only_query, charge_fee, validate: !skip_validate };
+        let strict_nonce_check = false;
+        let execution_flags =
+            ExecutionFlags { only_query, charge_fee, validate: !skip_validate, strict_nonce_check };
 
         let account_tx = AccountTransaction { tx: executable_tx.clone(), execution_flags };
         validator

@@ -91,11 +91,12 @@ pub struct ExecutionFlags {
     pub only_query: bool,
     pub charge_fee: bool,
     pub validate: bool,
+    pub strict_nonce_check: bool,
 }
 
 impl Default for ExecutionFlags {
     fn default() -> Self {
-        Self { only_query: false, charge_fee: true, validate: true }
+        Self { only_query: false, charge_fee: true, validate: true, strict_nonce_check: true }
     }
 }
 
@@ -146,6 +147,7 @@ impl AccountTransaction {
             only_query: false,
             charge_fee: enforce_fee(&tx, false),
             validate: true,
+            strict_nonce_check: true,
         };
         AccountTransaction { tx, execution_flags }
     }
@@ -251,10 +253,9 @@ impl AccountTransaction {
         &self,
         state: &mut S,
         tx_context: &TransactionContext,
-        strict_nonce_check: bool,
     ) -> TransactionPreValidationResult<()> {
         let tx_info = &tx_context.tx_info;
-        Self::handle_nonce(state, tx_info, strict_nonce_check)?;
+        Self::handle_nonce(state, tx_info, self.execution_flags.strict_nonce_check)?;
 
         if self.execution_flags.charge_fee {
             self.check_fee_bounds(tx_context)?;
@@ -814,8 +815,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
         self.verify_tx_version(tx_context.tx_info.version())?;
 
         // Nonce and fee check should be done before running user code.
-        let strict_nonce_check = true;
-        self.perform_pre_validation_stage(state, &tx_context, strict_nonce_check)?;
+        self.perform_pre_validation_stage(state, &tx_context)?;
 
         // Run validation and execution.
         let initial_gas = tx_context.initial_sierra_gas();

@@ -254,7 +254,7 @@ pub fn create_account_tx_for_validate_test(
         signature_vector.extend(additional_data);
     }
     let signature = TransactionSignature(signature_vector);
-    let execution_flags = ExecutionFlags { validate, charge_fee, only_query };
+    let execution_flags = ExecutionFlags { validate, charge_fee, only_query, ..Default::default() };
     match tx_type {
         TransactionType::Declare => {
             let declared_contract = match declared_contract {

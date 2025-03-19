@@ -221,7 +221,7 @@ fn test_invalid_nonce_pre_validate(
     let account_nonce = state.get_nonce_at(account_address).unwrap();
     let tx =
         executable_invoke_tx(invoke_tx_args! {nonce: invalid_nonce, ..pre_validation_base_args});
-    let execution_flags = ExecutionFlags { only_query, charge_fee, validate };
+    let execution_flags = ExecutionFlags { only_query, charge_fee, validate, ..Default::default() };
     let account_tx = AccountTransaction { tx, execution_flags };
     let result = account_tx.execute(&mut state, &block_context);
     assert_matches!(
@@ -311,7 +311,7 @@ fn test_simulate_validate_pre_validate_with_charge_fee(
     });
     let account_tx = AccountTransaction {
         tx,
-        execution_flags: ExecutionFlags { only_query, charge_fee, validate },
+        execution_flags: ExecutionFlags { only_query, charge_fee, validate, ..Default::default() },
     };
     let result = account_tx.execute(&mut state, &block_context);
 
@@ -347,7 +347,12 @@ fn test_simulate_validate_pre_validate_with_charge_fee(
         });
         let account_tx = AccountTransaction {
             tx,
-            execution_flags: ExecutionFlags { only_query, charge_fee, validate },
+            execution_flags: ExecutionFlags {
+                only_query,
+                charge_fee,
+                validate,
+                ..Default::default()
+            },
         };
         let err = account_tx.execute(&mut state, &block_context).unwrap_err();
 
@@ -392,7 +397,12 @@ fn test_simulate_validate_pre_validate_not_charge_fee(
     });
     let account_tx = AccountTransaction {
         tx,
-        execution_flags: ExecutionFlags { only_query, charge_fee, validate: false },
+        execution_flags: ExecutionFlags {
+            only_query,
+            charge_fee,
+            validate: false,
+            ..Default::default()
+        },
     };
     let tx_execution_info = account_tx.execute(&mut state, &block_context).unwrap();
     let base_gas = calculate_actual_gas(&tx_execution_info, &block_context, false);
@@ -417,7 +427,12 @@ fn test_simulate_validate_pre_validate_not_charge_fee(
             });
             let account_tx = AccountTransaction {
                 tx,
-                execution_flags: ExecutionFlags { only_query, charge_fee, validate },
+                execution_flags: ExecutionFlags {
+                    only_query,
+                    charge_fee,
+                    validate,
+                    ..Default::default()
+                },
             };
             let tx_execution_info = account_tx.execute(&mut state, &block_context).unwrap();
             check_gas_and_fee(
@@ -486,7 +501,7 @@ fn execute_fail_validation(
     });
     let account_tx = AccountTransaction {
         tx,
-        execution_flags: ExecutionFlags { only_query, charge_fee, validate },
+        execution_flags: ExecutionFlags { only_query, charge_fee, validate, ..Default::default() },
     };
     account_tx.execute(&mut falliable_state, &block_context)
 }
@@ -610,7 +625,7 @@ fn test_simulate_validate_charge_fee_mid_execution(
     });
     let account_tx = AccountTransaction {
         tx,
-        execution_flags: ExecutionFlags { only_query, charge_fee, validate },
+        execution_flags: ExecutionFlags { only_query, charge_fee, validate, ..Default::default() },
     };
     let tx_execution_info = account_tx.execute(&mut state, &block_context).unwrap();
     let base_gas = calculate_actual_gas(&tx_execution_info, &block_context, validate);
@@ -661,7 +676,7 @@ fn test_simulate_validate_charge_fee_mid_execution(
     });
     let account_tx = AccountTransaction {
         tx,
-        execution_flags: ExecutionFlags { only_query, charge_fee, validate },
+        execution_flags: ExecutionFlags { only_query, charge_fee, validate, ..Default::default() },
     };
     let tx_execution_info = account_tx.execute(&mut state, &block_context).unwrap();
     assert_eq!(tx_execution_info.is_reverted(), charge_fee);
@@ -718,7 +733,7 @@ fn test_simulate_validate_charge_fee_mid_execution(
     });
     let account_tx = AccountTransaction {
         tx,
-        execution_flags: ExecutionFlags { only_query, charge_fee, validate },
+        execution_flags: ExecutionFlags { only_query, charge_fee, validate, ..Default::default() },
     };
     let tx_execution_info = account_tx.execute(&mut state, &low_step_block_context).unwrap();
     assert!(
@@ -804,7 +819,7 @@ fn test_simulate_validate_charge_fee_post_execution(
     });
     let account_tx = AccountTransaction {
         tx,
-        execution_flags: ExecutionFlags { only_query, charge_fee, validate },
+        execution_flags: ExecutionFlags { only_query, charge_fee, validate, ..Default::default() },
     };
     let tx_execution_info = account_tx.execute(&mut state, &block_context).unwrap();
     assert_eq!(tx_execution_info.is_reverted(), charge_fee);
@@ -861,7 +876,7 @@ fn test_simulate_validate_charge_fee_post_execution(
     });
     let account_tx = AccountTransaction {
         tx,
-        execution_flags: ExecutionFlags { only_query, charge_fee, validate },
+        execution_flags: ExecutionFlags { only_query, charge_fee, validate, ..Default::default() },
     };
     let tx_execution_info = account_tx.execute(&mut state, &block_context).unwrap();
     assert_eq!(tx_execution_info.is_reverted(), charge_fee);
