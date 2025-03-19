@@ -87,10 +87,6 @@ pub struct ExecutableSetup {
     pub monitoring_client: MonitoringClient,
     // Path to the node configuration file.
     pub node_config_path: PathBuf,
-    // Storage reader for the batcher.
-    pub batcher_storage_config: StorageConfig,
-    // Storage reader for the state sync.
-    pub state_sync_storage_config: StorageConfig,
     // Config values.
     pub config: SequencerNodeConfig,
     // Configuration parameters that share the same value across multiple components.
@@ -200,13 +196,11 @@ impl ExecutableSetup {
             add_tx_http_client,
             monitoring_client,
             batcher_storage_handle,
-            batcher_storage_config: config.batcher_config.storage.clone(),
             config: config.clone(),
             config_pointers_map,
             node_config_dir_handle,
             node_config_path,
             state_sync_storage_handle,
-            state_sync_storage_config: config.state_sync_config.storage_config,
             class_manager_storage_handles,
         };
         executable_setup.dump_config_file_changes();
