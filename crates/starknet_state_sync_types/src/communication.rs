@@ -83,6 +83,13 @@ pub trait StateSyncClient: Send + Sync {
     /// Returns None if no latest block was yet downloaded.
     async fn get_latest_block_number(&self) -> StateSyncClientResult<Option<BlockNumber>>;
 
+    /// Returns whether the given class was declared at the given block or before it.
+    async fn is_class_declared_at(
+        &self,
+        block_number: BlockNumber,
+        class_hash: ClassHash,
+    ) -> StateSyncClientResult<bool>;
+
     // TODO(Shahak): Add get_compiled_class_hash for StateSyncReader
 }
 
@@ -110,6 +117,7 @@ pub enum StateSyncRequest {
     GetClassHashAt(BlockNumber, ContractAddress),
     GetCompiledClassDeprecated(BlockNumber, ClassHash),
     GetLatestBlockNumber(),
+    IsClassDeclaredAt(BlockNumber, ClassHash),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -121,6 +129,7 @@ pub enum StateSyncResponse {
     GetClassHashAt(StateSyncResult<ClassHash>),
     GetCompiledClassDeprecated(StateSyncResult<ContractClass>),
     GetLatestBlockNumber(StateSyncResult<Option<BlockNumber>>),
+    IsClassDeclaredAt(StateSyncResult<bool>),
 }
 
 #[async_trait]
@@ -219,6 +228,21 @@ where
         handle_all_response_variants!(
             StateSyncResponse,
             GetLatestBlockNumber,
+            StateSyncClientError,
+            StateSyncError,
+            Direct
+        )
+    }
+
+    async fn is_class_declared_at(
+        &self,
+        block_number: BlockNumber,
+        class_hash: ClassHash,
+    ) -> StateSyncClientResult<bool> {
+        let request = StateSyncRequest::IsClassDeclaredAt(block_number, class_hash);
+        handle_all_response_variants!(
+            StateSyncResponse,
+            IsClassDeclaredAt,
             StateSyncClientError,
             StateSyncError,
             Direct
