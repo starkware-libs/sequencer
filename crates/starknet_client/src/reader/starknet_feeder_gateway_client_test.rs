@@ -106,6 +106,14 @@ fn block_not_found_error(block_number: i64) -> String {
     serde_json::to_string(&error).unwrap()
 }
 
+fn malformed_error() -> String {
+    let error = StarknetError {
+        code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::MalformedRequest),
+        message: "Malformed request.".to_string(),
+    };
+    serde_json::to_string(&error).unwrap()
+}
+
 #[test]
 fn new_urls() {
     let url_base_str = "https://url";
@@ -126,8 +134,20 @@ fn new_urls() {
 async fn get_latest_block_when_blocks_exists() {
     let starknet_client = starknet_client();
     let mock_block =
-        mock_successful_get_block_response("reader/block_post_0_13_1.json", None, false);
+        mock_successful_get_block_response("reader/block_post_0_14_0.json", None, false);
     let latest_block = starknet_client.latest_block().await.unwrap();
+    mock_block.assert();
+    assert_eq!(latest_block.unwrap().block_number(), BlockNumber(329526));
+}
+
+#[tokio::test]
+async fn fallback_get_latest_block_when_blocks_exists() {
+    let starknet_client = starknet_client();
+    let mock_fallback_error = mock_error_get_block_response(malformed_error(), None, false);
+    let mock_block =
+        mock_successful_get_block_response("reader/block_post_0_13_1.json", None, true);
+    let latest_block = starknet_client.latest_block().await.unwrap();
+    mock_fallback_error.assert();
     mock_block.assert();
     assert_eq!(latest_block.unwrap().block_number(), BlockNumber(329525));
 }
