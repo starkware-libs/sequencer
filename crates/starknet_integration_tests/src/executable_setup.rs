@@ -8,6 +8,7 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_class_manager::test_utils::FileHandles;
+use starknet_consensus::types::ValidatorId;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_http_server::test_utils::HttpTestClient;
@@ -120,6 +121,7 @@ impl ExecutableSetup {
         db_path_dir: Option<PathBuf>,
         config_path_dir: Option<PathBuf>,
         exec_data_prefix_dir: Option<PathBuf>,
+        validator_id: ValidatorId,
     ) -> Self {
         // TODO(Nadin): pass the test storage as an argument.
         // Creating the storage for the test.
@@ -154,7 +156,6 @@ impl ExecutableSetup {
         // Derive the configuration for the sequencer node.
         let (config, config_pointers_map) = create_node_config(
             &mut available_ports,
-            node_execution_id,
             chain_info,
             batcher_storage_config,
             state_sync_storage_config,
@@ -166,6 +167,7 @@ impl ExecutableSetup {
             component_config,
             base_layer_config,
             block_max_capacity_n_steps,
+            validator_id,
         );
 
         let (node_config_dir, node_config_dir_handle) = match config_path_dir {
