@@ -54,6 +54,7 @@ impl TransactionPool {
     pub fn insert(&mut self, tx: InternalRpcTransaction) -> MempoolResult<()> {
         let tx_reference = TransactionReference::new(&tx);
         let tx_hash = tx_reference.tx_hash;
+        let tx_size = tx.size_of();
 
         // Insert to pool.
         if let hash_map::Entry::Vacant(entry) = self.tx_pool.entry(tx_hash) {
@@ -82,7 +83,7 @@ impl TransactionPool {
             )
         };
 
-        self.capacity.add();
+        self.capacity.add(tx_size);
 
         Ok(())
     }
@@ -97,7 +98,7 @@ impl TransactionPool {
         self.remove_from_account_mapping(&removed_tx);
         self.remove_from_timed_mapping(&removed_tx);
 
-        self.capacity.remove();
+        self.capacity.remove(tx.size_of());
 
         Ok(tx)
     }
@@ -108,7 +109,6 @@ impl TransactionPool {
         self.remove_from_main_mapping(&removed_txs);
         self.remove_from_timed_mapping(&removed_txs);
 
-        self.capacity.remove_n(removed_txs.len());
         removed_txs.len()
     }
 
@@ -122,13 +122,11 @@ impl TransactionPool {
         self.remove_from_main_mapping(&removed_txs);
         self.remove_from_account_mapping(&removed_txs);
 
-        self.capacity.remove_n(removed_txs.len());
-
         removed_txs
     }
 
     pub fn insert_declare_with_delay(&mut self, time: Instant, args: AddTransactionArgs) {
-        self.capacity.add();
+        self.capacity.add(args.tx.size_of());
         self.delayed_declares.push_back((time, args));
     }
 
@@ -136,8 +134,8 @@ impl TransactionPool {
         &mut self,
     ) -> std::option::Option<(Instant, AddTransactionArgs)> {
         let removed = self.delayed_declares.pop_front();
-        if removed.is_some() {
-            self.capacity.remove();
+        if let Some((_, args)) = &removed {
+            self.capacity.remove(args.tx.size_of());
         }
         removed
     }
@@ -198,12 +196,13 @@ impl TransactionPool {
 
     fn remove_from_main_mapping(&mut self, removed_txs: &Vec<TransactionReference>) {
         for TransactionReference { tx_hash, .. } in removed_txs {
-            self.tx_pool.remove(tx_hash).unwrap_or_else(|| {
+            let tx = self.tx_pool.remove(tx_hash).unwrap_or_else(|| {
                 panic!(
                     "Transaction pool consistency error: transaction with hash {tx_hash} does not \
                      appear in the main mapping.",
                 )
             });
+            self.capacity.remove(tx.size_of());
         }
     }
 
@@ -298,22 +297,20 @@ impl AccountTransactionIndex {
 #[derive(Debug, Default, Eq, PartialEq, Clone)]
 pub struct PoolCapacity {
     n_txs: usize,
-    // TODO(Ayelet): Add size tracking.
+    size_bytes: usize,
 }
 
 impl PoolCapacity {
-    fn add(&mut self) {
+    fn add(&mut self, tx_size_bytes: usize) {
         self.n_txs += 1;
+        self.size_bytes += tx_size_bytes;
     }
 
-    fn remove(&mut self) {
+    fn remove(&mut self, tx_size_bytes: usize) {
         self.n_txs =
             self.n_txs.checked_sub(1).expect("Underflow: Cannot subtract from an empty pool.");
-    }
-
-    fn remove_n(&mut self, n: usize) {
-        self.n_txs =
-            self.n_txs.checked_sub(n).expect("Underflow: Cannot subtract from an empty pool.");
+        self.size_bytes =
+            self.size_bytes.checked_sub(tx_size_bytes).expect("Underflow in pool size.");
     }
 }
 
