@@ -26,6 +26,7 @@ pub struct NodeComponentConfigs {
     batcher_index: usize,
     http_server_index: usize,
     state_sync_index: usize,
+    class_manager_index: usize,
 }
 
 impl NodeComponentConfigs {
@@ -34,8 +35,15 @@ impl NodeComponentConfigs {
         batcher_index: usize,
         http_server_index: usize,
         state_sync_index: usize,
+        class_manager_index: usize,
     ) -> Self {
-        Self { component_configs, batcher_index, http_server_index, state_sync_index }
+        Self {
+            component_configs,
+            batcher_index,
+            http_server_index,
+            state_sync_index,
+            class_manager_index,
+        }
     }
 
     pub fn len(&self) -> usize {
@@ -56,6 +64,10 @@ impl NodeComponentConfigs {
 
     pub fn get_state_sync_index(&self) -> usize {
         self.state_sync_index
+    }
+
+    pub fn get_class_manager_index(&self) -> usize {
+        self.class_manager_index
     }
 }
 
@@ -109,6 +121,8 @@ pub fn create_distributed_node_configs(
             0,
             // state sync is in executable index 1.
             1,
+            // class manager in executable index 0.
+            0,
         )
     })
     .take(distributed_sequencers_num)
@@ -119,9 +133,11 @@ pub fn create_consolidated_sequencer_configs(
     num_of_consolidated_nodes: usize,
 ) -> Vec<NodeComponentConfigs> {
     // Both batcher, http server and state sync are in executable index 0.
-    std::iter::repeat_with(|| NodeComponentConfigs::new(vec![get_consolidated_config()], 0, 0, 0))
-        .take(num_of_consolidated_nodes)
-        .collect()
+    std::iter::repeat_with(|| {
+        NodeComponentConfigs::new(vec![get_consolidated_config()], 0, 0, 0, 0)
+    })
+    .take(num_of_consolidated_nodes)
+    .collect()
 }
 
 // TODO(Nadin/Tsabary): create this as a deployment fn.
@@ -310,6 +326,8 @@ pub fn create_nodes_deployment_units_configs(
             6,
             // state sync is in executable index 5.
             5,
+            // class manager in executable index 1.
+            1,
         )
     })
     .take(distributed_sequencers_num)
