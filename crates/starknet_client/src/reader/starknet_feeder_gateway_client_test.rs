@@ -548,6 +548,30 @@ async fn test_unserializable<
     assert_matches!(error, ReaderClientError::SerdeError(_));
 }
 
+async fn fallback_test_unserializable<
+    Output: Send + Debug,
+    Fut: Future<Output = ReaderClientResult<Output>>,
+    F: FnOnce(StarknetFeederGatewayClient) -> Fut,
+>(
+    block_number: Option<u64>,
+    call_method: F,
+) {
+    let starknet_client = starknet_client();
+
+    let mock_fallback_error = mock_error_get_block_response(malformed_error(), block_number, false);
+    let mock_success_response = mock("GET", get_block_url(block_number, true).as_str())
+        .with_status(200)
+        .with_body("body")
+        .create();
+
+    let error = call_method(starknet_client).await.unwrap_err();
+
+    mock_fallback_error.assert();
+    mock_success_response.assert();
+
+    assert_matches!(error, ReaderClientError::SerdeError(_));
+}
+
 #[tokio::test]
 async fn latest_block_unserializable() {
     test_unserializable(&get_block_url(None, false), |starknet_client| async move {
@@ -557,8 +581,24 @@ async fn latest_block_unserializable() {
 }
 
 #[tokio::test]
+async fn fallback_latest_block_unserializable() {
+    fallback_test_unserializable(None, |starknet_client| async move {
+        starknet_client.latest_block().await
+    })
+    .await
+}
+
+#[tokio::test]
 async fn block_unserializable() {
     test_unserializable(&get_block_url(Some(20), false), |starknet_client| async move {
+        starknet_client.block(BlockNumber(20)).await
+    })
+    .await
+}
+
+#[tokio::test]
+async fn fallback_block_unserializable() {
+    fallback_test_unserializable(Some(20), |starknet_client| async move {
         starknet_client.block(BlockNumber(20)).await
     })
     .await
