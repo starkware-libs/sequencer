@@ -6054,7 +6054,5 @@
             "actual_fee": "0x1eb72f301bcd250a"
         }
     ],
-    "starknet_version": "0.13.2",
-    "l2_gas_consumed": 0,
-    "next_l2_gas_price": 1
+    "starknet_version": "0.13.2"
 }
