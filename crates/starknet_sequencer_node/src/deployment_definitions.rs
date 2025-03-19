@@ -6,8 +6,6 @@ use crate::deployment::{Deployment, DeploymentAndPreset, DeploymentName};
 #[path = "deployment_definitions_test.rs"]
 mod deployment_definitions_test;
 
-const DEPLOYMENT_IMAGE: &str = "ghcr.io/starkware-libs/sequencer/sequencer:dev";
-
 // TODO(Tsabary): decide on the dir structure and naming convention for the deployment presets.
 
 // TODO(Tsabary): temporarily moved this definition here, to include it in the deployment.
@@ -24,7 +22,6 @@ fn create_main_deployment() -> DeploymentAndPreset {
     DeploymentAndPreset::new(
         Deployment::new(
             ChainId::Mainnet,
-            DEPLOYMENT_IMAGE,
             "config/sequencer/presets/system_test_presets/single_node/",
             DeploymentName::DistributedNode,
         ),
@@ -36,7 +33,6 @@ fn create_testing_deployment() -> DeploymentAndPreset {
     DeploymentAndPreset::new(
         Deployment::new(
             ChainId::IntegrationSepolia,
-            DEPLOYMENT_IMAGE,
             "config/sequencer/presets/system_test_presets/single_node/",
             DeploymentName::ConsolidatedNode,
         ),
