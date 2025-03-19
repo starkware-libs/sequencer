@@ -647,10 +647,11 @@ vm_enter_scope(dict(
         GuessContractAddrStoragePtr,
         guess_contract_addr_storage_ptr,
         r#"if state_update_pointers is None:
-    ids.squashed_contract_state_dict = segments.add()
+    ids.squashed_storage_ptr = segments.add()
+    ids.squashed_prev_state = segments.add()
 else:
-    ids.squashed_contract_state_dict = (
-        state_update_pointers.get_contract_storage_ptr(
+    ids.squashed_prev_state, ids.squashed_storage_ptr = (
+        state_update_pointers.get_contract_state_entry_and_storage_ptr(
             contract_address=ids.state_changes.key
         )
     )"#
@@ -659,8 +660,11 @@ else:
         UpdateContractAddrToStoragePtr,
         update_contract_addr_to_storage_ptr,
         "if state_update_pointers is not None:
-    state_update_pointers.contract_address_to_storage_ptr[ids.state_changes.key] = (
-        ids.squashed_contract_state_dict_end.address_,
+    state_update_pointers.contract_address_to_state_entry_and_storage_ptr[
+        ids.state_changes.key
+    ] = (
+        ids.squashed_new_state.address_,
+        ids.squashed_storage_ptr_end.address_,
     )"
     ),
     (
@@ -668,18 +672,24 @@ else:
         guess_aliases_contract_storage_ptr,
         r#"if state_update_pointers is None:
     ids.squashed_aliases_storage_start = segments.add()
+    ids.prev_aliases_state_entry = segments.add()
 else:
-    ids.squashed_aliases_storage_start = state_update_pointers.get_contract_storage_ptr(
-        ids.ALIAS_CONTRACT_ADDRESS
+    ids.prev_aliases_state_entry, ids.squashed_aliases_storage_start = (
+        state_update_pointers.get_contract_state_entry_and_storage_ptr(
+            ids.ALIAS_CONTRACT_ADDRESS
+        )
     )"#
     ),
     (
         UpdateAliasesContractToStoragePtr,
         update_aliases_contract_to_storage_ptr,
         "if state_update_pointers is not None:
-    state_update_pointers.contract_address_to_storage_ptr[ids.ALIAS_CONTRACT_ADDRESS] = (
-        ids.squashed_aliases_storage_end.address_,
-    )"
+    state_update_pointers.contract_address_to_state_entry_and_storage_ptr[
+            ids.ALIAS_CONTRACT_ADDRESS
+        ] = (
+            ids.new_aliases_state_entry.address_,
+            ids.squashed_aliases_storage_end.address_,
+        )"
     ),
     (
         GuessStatePtr,
