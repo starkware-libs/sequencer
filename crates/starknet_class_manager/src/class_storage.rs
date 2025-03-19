@@ -16,8 +16,8 @@ use starknet_sierra_multicompile_types::{RawClass, RawClassError, RawExecutableC
 use thiserror::Error;
 use tracing::instrument;
 
-use crate::class_manager::{increment_n_classes, CairoClassType};
 use crate::config::{ClassHashStorageConfig, FsClassStorageConfig};
+use crate::metrics::{increment_n_classes, CairoClassType};
 
 #[cfg(test)]
 #[path = "class_storage_test.rs"]
