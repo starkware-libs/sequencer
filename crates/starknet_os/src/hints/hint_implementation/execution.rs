@@ -245,8 +245,6 @@ pub(crate) fn check_execution<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) 
     todo!()
 }
 
-// "memory[ap] = to_felt_or_relocatable(ids.remaining_gas < ids.ENTRY_POINT_INITIAL_BUDGET)"
-
 pub(crate) fn is_remaining_gas_lt_initial_budget<S: StateReader>(
     HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
