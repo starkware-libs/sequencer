@@ -42,21 +42,28 @@ use super::{
     GET_STATE_UPDATE_URL,
 };
 use crate::reader::objects::block::{BlockSignatureData, BlockSignatureMessage};
-use crate::reader::{Block, FEE_MARKET_INFO_QUERY};
+use crate::reader::Block;
 use crate::test_utils::read_resource::read_resource_file;
 use crate::test_utils::retry::get_test_config;
 
 const NODE_VERSION: &str = "NODE VERSION";
 const FEEDER_GATEWAY_ALIVE_RESPONSE: &str = "FeederGateway is alive!";
 
-const LATEST_BLOCK_URL: &str =
-    "/feeder_gateway/get_block?blockNumber=latest&withFeeMarketInfo=true";
+// TODO(Ayelet): Remove old feeder gateway support once the version update to 0.14.0 is complete.
+fn get_block_url(
+    block_number_or_latest: Option<u64>,
+    use_deprecated_feeder_gateway: bool,
+) -> String {
+    let mut url = match block_number_or_latest {
+        Some(block_number) => format!("/feeder_gateway/get_block?blockNumber={}", block_number),
+        None => "/feeder_gateway/get_block?blockNumber=latest".to_string(),
+    };
 
-fn get_block_url(block_number: u64) -> String {
-    format!(
-        "/feeder_gateway/get_block?{}={}&{}=true",
-        BLOCK_NUMBER_QUERY, block_number, FEE_MARKET_INFO_QUERY
-    )
+    if !use_deprecated_feeder_gateway {
+        url.push_str("&withFeeMarketInfo=true");
+    }
+
+    url
 }
 
 fn starknet_client() -> StarknetFeederGatewayClient {
@@ -83,7 +90,7 @@ fn new_urls() {
 #[tokio::test]
 async fn get_latest_block_when_blocks_exists() {
     let starknet_client = starknet_client();
-    let mock_block = mock("GET", LATEST_BLOCK_URL)
+    let mock_block = mock("GET", get_block_url(None, false).as_str())
         .with_status(200)
         .with_body(read_resource_file("reader/block_post_0_13_1.json"))
         .create();
@@ -96,7 +103,8 @@ async fn get_latest_block_when_blocks_exists() {
 async fn get_latest_block_when_no_blocks_exist() {
     let starknet_client = starknet_client();
     let body = r#"{"code": "StarknetErrorCode.BLOCK_NOT_FOUND", "message": "Block number -1 was not found."}"#;
-    let mock_no_block = mock("GET", LATEST_BLOCK_URL).with_status(400).with_body(body).create();
+    let mock_no_block =
+        mock("GET", get_block_url(None, false).as_str()).with_status(400).with_body(body).create();
     let latest_block = starknet_client.latest_block().await.unwrap();
     mock_no_block.assert();
     assert!(latest_block.is_none());
@@ -348,8 +356,10 @@ async fn get_block() {
         let raw_block = read_resource_file(&json_filename);
         let expected_block: Block = serde_json::from_str(&raw_block).unwrap();
 
-        let mock_block =
-            mock("GET", get_block_url(20).as_str()).with_status(200).with_body(&raw_block).create();
+        let mock_block = mock("GET", get_block_url(Some(20), false).as_str())
+            .with_status(200)
+            .with_body(&raw_block)
+            .create();
         let block = starknet_client.block(BlockNumber(20)).await.unwrap().unwrap();
         mock_block.assert();
 
@@ -362,8 +372,10 @@ async fn get_block() {
 async fn get_block_not_found() {
     let starknet_client = starknet_client();
     let body = r#"{"code": "StarknetErrorCode.BLOCK_NOT_FOUND", "message": "Block 9999999999 was not found."}"#;
-    let mock_no_block =
-        mock("GET", get_block_url(9999999999).as_str()).with_status(400).with_body(body).create();
+    let mock_no_block = mock("GET", get_block_url(Some(9999999999), false).as_str())
+        .with_status(400)
+        .with_body(body)
+        .create();
     let block = starknet_client.block(BlockNumber(9999999999)).await.unwrap();
     mock_no_block.assert();
     assert!(block.is_none());
@@ -456,7 +468,7 @@ async fn test_unserializable<
 
 #[tokio::test]
 async fn latest_block_unserializable() {
-    test_unserializable(LATEST_BLOCK_URL, |starknet_client| async move {
+    test_unserializable(&get_block_url(None, false), |starknet_client| async move {
         starknet_client.latest_block().await
     })
     .await
@@ -464,7 +476,7 @@ async fn latest_block_unserializable() {
 
 #[tokio::test]
 async fn block_unserializable() {
-    test_unserializable(&get_block_url(20), |starknet_client| async move {
+    test_unserializable(&get_block_url(Some(20), false), |starknet_client| async move {
         starknet_client.block(BlockNumber(20)).await
     })
     .await
