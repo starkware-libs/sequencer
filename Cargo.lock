@@ -1358,6 +1358,7 @@ version = "0.0.0"
 dependencies = [
  "apollo_config",
  "apollo_infra_utils",
+ "apollo_mempool_types",
  "apollo_sequencer_infra",
  "apollo_sequencer_metrics",
  "axum",
@@ -1367,6 +1368,7 @@ dependencies = [
  "num-traits",
  "pretty_assertions",
  "serde",
+ "starknet_api",
  "thiserror 1.0.69",
  "tokio",
  "tower 0.4.13",
