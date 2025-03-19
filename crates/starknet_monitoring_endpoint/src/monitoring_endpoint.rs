@@ -3,10 +3,12 @@ use std::net::SocketAddr;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
-use axum::{async_trait, Router, Server};
+use axum::{async_trait, Json, Router, Server};
 use hyper::Error;
 use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
 use starknet_infra_utils::type_name::short_type_name;
+use starknet_mempool_types::communication::SharedMempoolClient;
+use starknet_mempool_types::mempool_types::MempoolSnapshot;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use tracing::{info, instrument};
 
@@ -21,15 +23,21 @@ pub(crate) const ALIVE: &str = "alive";
 pub(crate) const READY: &str = "ready";
 pub(crate) const VERSION: &str = "nodeVersion";
 pub(crate) const METRICS: &str = "metrics";
+pub(crate) const MEMPOOL_SNAPSHOT: &str = "mempoolSnapshot";
 
 pub struct MonitoringEndpoint {
     config: MonitoringEndpointConfig,
     version: &'static str,
     prometheus_handle: Option<PrometheusHandle>,
+    mempool_client: SharedMempoolClient,
 }
 
 impl MonitoringEndpoint {
-    pub fn new(config: MonitoringEndpointConfig, version: &'static str) -> Self {
+    pub fn new(
+        config: MonitoringEndpointConfig,
+        version: &'static str,
+        mempool_client: SharedMempoolClient,
+    ) -> Self {
         // TODO(Tsabary): consider error handling
         let prometheus_handle = if config.collect_metrics {
             // TODO(Lev): add tests that show the metrics are collected / not collected based on the
@@ -46,7 +54,7 @@ impl MonitoringEndpoint {
         } else {
             None
         };
-        MonitoringEndpoint { config, version, prometheus_handle }
+        MonitoringEndpoint { config, version, prometheus_handle, mempool_client }
     }
 
     #[instrument(
@@ -69,6 +77,7 @@ impl MonitoringEndpoint {
     fn app(&self) -> Router {
         let version = self.version.to_string();
         let prometheus_handle = self.prometheus_handle.clone();
+        let mempool_client = self.mempool_client.clone();
 
         Router::new()
             .route(
@@ -87,14 +96,19 @@ impl MonitoringEndpoint {
                 format!("/{MONITORING_PREFIX}/{METRICS}").as_str(),
                 get(move || metrics(prometheus_handle)),
             )
+            .route(
+                format!("/{MONITORING_PREFIX}/{MEMPOOL_SNAPSHOT}").as_str(),
+                get(move || mempool_snapshot(mempool_client)),
+            )
     }
 }
 
 pub fn create_monitoring_endpoint(
     config: MonitoringEndpointConfig,
     version: &'static str,
+    mempool_client: SharedMempoolClient,
 ) -> MonitoringEndpoint {
-    MonitoringEndpoint::new(config, version)
+    MonitoringEndpoint::new(config, version, mempool_client)
 }
 
 #[async_trait]
@@ -114,5 +128,15 @@ async fn metrics(prometheus_handle: Option<PrometheusHandle>) -> Response {
     match prometheus_handle {
         Some(handle) => handle.render().into_response(),
         None => StatusCode::METHOD_NOT_ALLOWED.into_response(),
+    }
+}
+
+// Returns Mempool snapshot
+async fn mempool_snapshot(
+    mempool_client: SharedMempoolClient,
+) -> Result<Json<MempoolSnapshot>, StatusCode> {
+    match mempool_client.get_mempool_snapshot().await {
+        Ok(snapshot) => Ok(snapshot.into()),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
 }
