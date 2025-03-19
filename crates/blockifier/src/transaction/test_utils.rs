@@ -230,6 +230,7 @@ pub fn create_account_tx_for_validate_test(
     nonce_manager: &mut NonceManager,
     faulty_account_tx_creator_args: FaultyAccountTxCreatorArgs,
 ) -> AccountTransaction {
+    // TODO(Yoni): add `strict_nonce_check` to this struct.
     let FaultyAccountTxCreatorArgs {
         tx_type,
         tx_version,
@@ -254,7 +255,8 @@ pub fn create_account_tx_for_validate_test(
         signature_vector.extend(additional_data);
     }
     let signature = TransactionSignature(signature_vector);
-    let execution_flags = ExecutionFlags { validate, charge_fee, only_query };
+    let execution_flags =
+        ExecutionFlags { validate, charge_fee, only_query, strict_nonce_check: true };
     match tx_type {
         TransactionType::Declare => {
             let declared_contract = match declared_contract {

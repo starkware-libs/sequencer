@@ -76,6 +76,7 @@ impl PyValidator {
         let validate = self.should_run_stateful_validations(&account_tx, deploy_account_tx_hash)?;
 
         account_tx.execution_flags.validate = validate;
+        account_tx.execution_flags.strict_nonce_check = false;
         self.stateful_validator.perform_validations(account_tx)?;
 
         Ok(())

@@ -806,9 +806,11 @@ fn to_blockifier_tx(
 ) -> ExecutionResult<BlockifierTransaction> {
     // TODO(yair): support only_query version bit (enable in the RPC v0.6 and use the correct
     // value).
+    let strict_nonce_check = true;
     match tx {
         ExecutableTransactionInput::Invoke(invoke_tx, only_query) => {
-            let execution_flags = ExecutionFlags { only_query, charge_fee, validate };
+            let execution_flags =
+                ExecutionFlags { only_query, charge_fee, validate, strict_nonce_check };
             BlockifierTransaction::from_api(
                 Transaction::Invoke(invoke_tx),
                 tx_hash,
@@ -821,7 +823,8 @@ fn to_blockifier_tx(
         }
 
         ExecutableTransactionInput::DeployAccount(deploy_acc_tx, only_query) => {
-            let execution_flags = ExecutionFlags { only_query, charge_fee, validate };
+            let execution_flags =
+                ExecutionFlags { only_query, charge_fee, validate, strict_nonce_check };
             BlockifierTransaction::from_api(
                 Transaction::DeployAccount(deploy_acc_tx),
                 tx_hash,
@@ -850,7 +853,8 @@ fn to_blockifier_tx(
                 err,
             })?;
 
-            let execution_flags = ExecutionFlags { only_query, charge_fee, validate };
+            let execution_flags =
+                ExecutionFlags { only_query, charge_fee, validate, strict_nonce_check };
             BlockifierTransaction::from_api(
                 Transaction::Declare(DeclareTransaction::V0(declare_tx)),
                 tx_hash,
@@ -877,7 +881,8 @@ fn to_blockifier_tx(
                 tx: DeclareTransaction::V1(declare_tx.clone()),
                 err,
             })?;
-            let execution_flags = ExecutionFlags { only_query, charge_fee, validate };
+            let execution_flags =
+                ExecutionFlags { only_query, charge_fee, validate, strict_nonce_check };
             BlockifierTransaction::from_api(
                 Transaction::Declare(DeclareTransaction::V1(declare_tx)),
                 tx_hash,
@@ -906,7 +911,8 @@ fn to_blockifier_tx(
                 tx: DeclareTransaction::V2(declare_tx.clone()),
                 err,
             })?;
-            let execution_flags = ExecutionFlags { only_query, charge_fee, validate };
+            let execution_flags =
+                ExecutionFlags { only_query, charge_fee, validate, strict_nonce_check };
             BlockifierTransaction::from_api(
                 Transaction::Declare(DeclareTransaction::V2(declare_tx)),
                 tx_hash,
@@ -935,7 +941,8 @@ fn to_blockifier_tx(
                 tx: DeclareTransaction::V3(declare_tx.clone()),
                 err,
             })?;
-            let execution_flags = ExecutionFlags { only_query, charge_fee, validate };
+            let execution_flags =
+                ExecutionFlags { only_query, charge_fee, validate, strict_nonce_check };
             BlockifierTransaction::from_api(
                 Transaction::Declare(DeclareTransaction::V3(declare_tx)),
                 tx_hash,
@@ -947,7 +954,8 @@ fn to_blockifier_tx(
             .map_err(|err| ExecutionError::from((transaction_index, err)))
         }
         ExecutableTransactionInput::L1Handler(l1_handler_tx, paid_fee, only_query) => {
-            let execution_flags = ExecutionFlags { only_query, charge_fee, validate };
+            let execution_flags =
+                ExecutionFlags { only_query, charge_fee, validate, strict_nonce_check };
             BlockifierTransaction::from_api(
                 Transaction::L1Handler(l1_handler_tx),
                 tx_hash,
