@@ -214,7 +214,18 @@ impl StateSync {
         block_number: BlockNumber,
         class_hash: ClassHash,
     ) -> StateSyncResult<ContractClass> {
-        todo!()
+        match self
+            .storage_reader
+            .begin_ro_txn()?
+            .get_state_reader()?
+            .state_reader
+            .get_class_definition_block_number(&class_hash)?
+        {
+            Some(class_definition_block_number) => {
+                Ok(class_definition_block_number <= block_number)
+            }
+            None => Ok(false),
+        }
     }
 }
 
