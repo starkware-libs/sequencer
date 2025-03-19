@@ -446,6 +446,21 @@ async fn get_block_not_found() {
 }
 
 #[tokio::test]
+async fn fallback_get_block_not_found() {
+    let starknet_client = starknet_client();
+
+    let mock_fallback_error =
+        mock_error_get_block_response(malformed_error(), Some(9999999999), false);
+    let mock_no_block =
+        mock_error_get_block_response(block_not_found_error(9999999999), Some(9999999999), true);
+    let block = starknet_client.block(BlockNumber(9999999999)).await.unwrap();
+    mock_fallback_error.assert();
+    mock_no_block.assert();
+
+    assert!(block.is_none());
+}
+
+#[tokio::test]
 async fn compiled_class_by_hash() {
     let starknet_client = starknet_client();
     let raw_casm_contract_class = read_resource_file("reader/casm_contract_class.json");
