@@ -82,6 +82,12 @@ impl ComponentRequestHandler<StateSyncRequest, StateSyncResponse> for StateSync 
             StateSyncRequest::GetLatestBlockNumber() => {
                 StateSyncResponse::GetLatestBlockNumber(self.get_latest_block_number())
             }
+            // TODO(shahak): Add tests for is_class_declared_at.
+            StateSyncRequest::IsClassDeclaredAt(block_number, class_hash) => {
+                StateSyncResponse::IsClassDeclaredAt(
+                    self.is_class_declared_at(block_number, class_hash),
+                )
+            }
         }
     }
 }
@@ -201,6 +207,14 @@ impl StateSync {
         let txn = self.storage_reader.begin_ro_txn()?;
         let latest_block_number = latest_synced_block(&txn)?;
         Ok(latest_block_number)
+    }
+
+    fn is_class_declared_at(
+        &self,
+        block_number: BlockNumber,
+        class_hash: ClassHash,
+    ) -> StateSyncResult<ContractClass> {
+        todo!()
     }
 }
 
