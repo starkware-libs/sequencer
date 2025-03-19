@@ -62,8 +62,6 @@ pub(crate) fn enter_scope_deprecated_syscall_handler<S: StateReader>(
     todo!()
 }
 
-// "vm_enter_scope({'syscall_handler': syscall_handler})"
-
 pub(crate) fn enter_scope_syscall_handler<S: StateReader>(
     HintArgs { .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
