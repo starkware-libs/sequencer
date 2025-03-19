@@ -25,11 +25,11 @@ async fn get_metrics_test() {
     let mut mock_gateway_client = MockGatewayClient::new();
     // Set the successful response.
     mock_gateway_client
-        .expect_add_tx()
+        .expect_add_txs()
         .times(1)
-        .return_once(move |_| Ok(TransactionHash::default()));
+        .return_once(move |_| Ok(vec![TransactionHash::default()]));
     // Set the failure response.
-    mock_gateway_client.expect_add_tx().times(1).return_once(move |_| {
+    mock_gateway_client.expect_add_txs().times(1).return_once(move |_| {
         Err(GatewayClientError::ClientError(ClientError::UnexpectedResponse(
             "mock response".to_string(),
         )))
