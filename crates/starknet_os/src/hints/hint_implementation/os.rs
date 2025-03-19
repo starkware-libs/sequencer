@@ -26,10 +26,10 @@ pub(crate) fn initialize_state_changes<S: StateReader>(
     HintArgs { hint_processor, exec_scopes, vm, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
     let cached_state = &hint_processor.execution_helper.cached_state;
-    let accesses_addresses = cached_state.writes_contract_addresses();
+    let writes_accessed_addresses = cached_state.writes_contract_addresses();
     let mut initial_dict: HashMap<MaybeRelocatable, MaybeRelocatable> = HashMap::new();
 
-    for contract_address in accesses_addresses {
+    for contract_address in writes_accessed_addresses {
         let nonce = cached_state.get_nonce_at(contract_address)?;
         let class_hash = cached_state.get_class_hash_at(contract_address)?;
         let state_entry_base = vm.add_memory_segment();
@@ -39,13 +39,13 @@ pub(crate) fn initialize_state_changes<S: StateReader>(
             CairoStruct::StateEntry,
             vm,
             &[
-                ("class_hash".to_string(), MaybeRelocatable::from(class_hash.0)),
+                ("class_hash".to_string(), class_hash.0.into()),
                 ("storage_ptr".to_string(), storage_ptr.into()),
-                ("nonce".to_string(), MaybeRelocatable::from(nonce.0)),
+                ("nonce".to_string(), nonce.0.into()),
             ],
             &hint_processor.execution_helper.os_program,
         )?;
-        initial_dict.insert(StarkHash::from(address.0).into(), state_entry_base.into());
+        initial_dict.insert(StarkHash::from(contract_address.0).into(), state_entry_base.into());
     }
     exec_scopes.insert_value(Scope::InitialDict.into(), initial_dict);
     Ok(())
