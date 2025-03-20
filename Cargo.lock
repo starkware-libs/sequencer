@@ -2320,9 +2320,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-lang-test-plugin"
-version = "2.10.0-rc.1"
+version = "2.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bbe07acbac1f6f31e0b422833174e0a5220370542b47d9ceb6f4e4c7e33ffe61"
+checksum = "ea61348e6f51d666bf82ec8c536c9f5be22bd86f18a3b357ec3014223df01c81"
 dependencies = [
  "anyhow",
  "cairo-lang-compiler",
@@ -2376,9 +2376,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-native"
-version = "0.3.1"
+version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a72a2a1fd26cfe84c9de7dfc5f1a78bc2e15847fb10f593fba96fd2b93ccd89b"
+checksum = "86f01f2d137aa49e0f23166a2452d10296b3d79d3e1315f6adfbf450a9b73586"
 dependencies = [
  "anyhow",
  "aquamarine",
