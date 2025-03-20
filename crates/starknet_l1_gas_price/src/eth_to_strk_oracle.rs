@@ -15,7 +15,7 @@ use url::Url;
 #[path = "eth_to_strk_oracle_test.rs"]
 pub mod eth_to_strk_oracle_test;
 
-const DECIMALS: u64 = 18;
+pub const ETH_TO_STRK_QUANTIZATION: u64 = 18;
 
 fn hashmap_to_headermap(hash_map: Option<HashMap<String, String>>) -> HeaderMap {
     let mut header_map = HeaderMap::new();
@@ -83,7 +83,7 @@ impl EthToStrkOracleClient {
 impl EthToStrkOracleClientTrait for EthToStrkOracleClient {
     /// The HTTP response must include the following fields:
     /// - `"price"`: a hexadecimal string representing the price.
-    /// - `"decimals"`: a `u64` value, must be equal to `DECIMALS`.
+    /// - `"decimals"`: a `u64` value, must be equal to `ETH_TO_STRK_QUANTIZATION`.
     async fn eth_to_fri_rate(&self, timestamp: u64) -> Result<u128, EthToStrkOracleClientError> {
         let url = format!("{}{}", self.base_url, timestamp);
         let response = self.client.get(&url).headers(self.headers.clone()).send().await?;
@@ -102,8 +102,11 @@ impl EthToStrkOracleClientTrait for EthToStrkOracleClient {
             .get("decimals")
             .and_then(|v| v.as_u64())
             .ok_or(EthToStrkOracleClientError::MissingFieldError("decimals"))?;
-        if decimals != DECIMALS {
-            return Err(EthToStrkOracleClientError::InvalidDecimalsError(DECIMALS, decimals));
+        if decimals != ETH_TO_STRK_QUANTIZATION {
+            return Err(EthToStrkOracleClientError::InvalidDecimalsError(
+                ETH_TO_STRK_QUANTIZATION,
+                decimals,
+            ));
         }
         Ok(rate)
     }
