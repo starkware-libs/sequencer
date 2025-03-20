@@ -11489,6 +11489,7 @@ dependencies = [
  "papyrus_config",
  "pretty_assertions",
  "serde",
+ "serde_json",
  "starknet_api",
  "starknet_infra_utils",
  "starknet_mempool_types",
