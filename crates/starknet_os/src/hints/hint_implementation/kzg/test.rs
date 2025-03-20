@@ -8,6 +8,7 @@ use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::hint_implementation::kzg::utils::{
+    bit_reversal,
     fft,
     polynomial_coefficients_to_blob,
     serialize_blob,
@@ -15,13 +16,12 @@ use crate::hints::hint_implementation::kzg::utils::{
     BLOB_SUBGROUP_GENERATOR,
     BLS_PRIME,
     FIELD_ELEMENTS_PER_BLOB,
+    WIDTH,
 };
 
 const BYTES_PER_BLOB: usize = FIELD_ELEMENTS_PER_BLOB * 32;
 const GENERATOR: &str =
     "39033254847818212395286706435128746857159659164139250548781411570340225835782";
-const WIDTH: usize = 12;
-const ORDER: usize = 1 << WIDTH;
 
 static FFT_REGRESSION_INPUT: LazyLock<Vec<BigUint>> = LazyLock::new(|| {
     serde_json::from_str::<Vec<String>>(include_str!("fft_regression_input.json"))
@@ -44,20 +44,14 @@ static BLOB_REGRESSION_OUTPUT: LazyLock<Vec<u8>> =
 
 fn generate(generator: &BigUint, bit_reversed: bool) -> Vec<BigUint> {
     let mut array = vec![BigUint::one()];
-    for _ in 1..ORDER {
+    for _ in 1..FIELD_ELEMENTS_PER_BLOB {
         let last = array.last().unwrap().clone();
         let next = (generator * &last) % BigUint::from_str_radix(BLS_PRIME, 10).unwrap();
         array.push(next);
     }
 
     if bit_reversed {
-        let perm: Vec<usize> = (0..ORDER)
-            .map(|i| {
-                let binary = format!("{:0width$b}", i, width = WIDTH);
-                usize::from_str_radix(&binary.chars().rev().collect::<String>(), 2).unwrap()
-            })
-            .collect();
-        array = perm.iter().map(|&i| array[i].clone()).collect();
+        bit_reversal(&mut array, WIDTH as u32);
     }
 
     array
@@ -85,14 +79,18 @@ fn test_fft(#[values(true, false)] bit_reversed: bool) {
     let subgroup = generate(&generator, bit_reversed);
 
     // Sanity checks.
-    assert_eq!((&generator.modpow(&BigUint::from(ORDER), &prime)), &BigUint::one());
+    assert_eq!(
+        (&generator.modpow(&BigUint::from(FIELD_ELEMENTS_PER_BLOB), &prime)),
+        &BigUint::one()
+    );
     assert_eq!(subgroup.len(), subgroup.iter().collect::<std::collections::HashSet<_>>().len());
 
-    let coeffs: Vec<BigUint> =
-        repeat_with(|| BigUint::from(rand::random::<u64>()) % &prime).take(ORDER).collect();
+    let coeffs: Vec<BigUint> = repeat_with(|| BigUint::from(rand::random::<u64>()) % &prime)
+        .take(FIELD_ELEMENTS_PER_BLOB)
+        .collect();
 
     // Evaluate naively.
-    let mut expected_eval = vec![BigUint::zero(); ORDER];
+    let mut expected_eval = vec![BigUint::zero(); FIELD_ELEMENTS_PER_BLOB];
     for (i, x) in subgroup.iter().enumerate() {
         let eval = generate(x, false);
         expected_eval[i] =
@@ -107,8 +105,9 @@ fn test_fft(#[values(true, false)] bit_reversed: bool) {
     // Trivial cases.
     assert_eq!(actual_eval[0], coeffs.iter().sum::<BigUint>() % &prime);
     assert_eq!(
-        fft(&vec![BigUint::zero(); ORDER], &generator, &prime, bit_reversed).unwrap(),
-        vec![BigUint::zero(); ORDER]
+        fft(&vec![BigUint::zero(); FIELD_ELEMENTS_PER_BLOB], &generator, &prime, bit_reversed)
+            .unwrap(),
+        vec![BigUint::zero(); FIELD_ELEMENTS_PER_BLOB]
     );
     assert_eq!(
         fft(&[BigUint::from(121212u64)], &BigUint::one(), &prime, bit_reversed).unwrap(),
