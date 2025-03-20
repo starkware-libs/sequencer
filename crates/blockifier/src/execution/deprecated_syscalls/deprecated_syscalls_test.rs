@@ -525,6 +525,7 @@ fn test_tx_info(
         .execute_directly_given_tx_info(
             &mut state,
             tx_info,
+            None,
             limit_steps_by_resources,
             ExecutionMode::Execute,
         )
