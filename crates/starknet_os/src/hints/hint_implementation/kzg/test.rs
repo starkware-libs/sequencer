@@ -16,7 +16,6 @@ use crate::hints::hint_implementation::kzg::utils::{
     BLOB_SUBGROUP_GENERATOR,
     BLS_PRIME,
     FIELD_ELEMENTS_PER_BLOB,
-    WIDTH,
 };
 
 const BYTES_PER_BLOB: usize = FIELD_ELEMENTS_PER_BLOB * 32;
@@ -51,22 +50,20 @@ fn generate(generator: &BigUint, bit_reversed: bool) -> Vec<BigUint> {
     }
 
     if bit_reversed {
-        bit_reversal(&mut array, WIDTH as u32);
+        bit_reversal(&mut array).unwrap();
     }
 
     array
 }
 
 #[rstest]
-fn test_small_fft_regression(#[values(true, false)] bit_reversed: bool) {
+fn test_small_fft_regression() {
     let prime = BigUint::from(17_u8);
     let generator = BigUint::from(3_u8);
     let coeffs: Vec<BigUint> = [0_u8, 1, 2, 3].into_iter().map(BigUint::from).collect();
-    let expected_eval: Vec<BigUint> =
-        (if bit_reversed { [6_u8, 15, 9, 4] } else { [6_u8, 9, 15, 4] })
-            .into_iter()
-            .map(BigUint::from)
-            .collect();
+    let expected_eval: Vec<BigUint> = [6_u8, 9, 15, 4].into_iter().map(BigUint::from).collect();
+    // Bit reversal only implemented for fixed with of 2^12.
+    let bit_reversed = false;
     let actual_eval = fft(&coeffs, &generator, &prime, bit_reversed).unwrap();
     assert_eq!(actual_eval, expected_eval);
 }
@@ -102,17 +99,7 @@ fn test_fft(#[values(true, false)] bit_reversed: bool) {
 
     assert_eq!(actual_eval, expected_eval);
 
-    // Trivial cases.
-    assert_eq!(actual_eval[0], coeffs.iter().sum::<BigUint>() % &prime);
-    assert_eq!(
-        fft(&vec![BigUint::zero(); FIELD_ELEMENTS_PER_BLOB], &generator, &prime, bit_reversed)
-            .unwrap(),
-        vec![BigUint::zero(); FIELD_ELEMENTS_PER_BLOB]
-    );
-    assert_eq!(
-        fft(&[BigUint::from(121212u64)], &BigUint::one(), &prime, bit_reversed).unwrap(),
-        vec![BigUint::from(121212u64)]
-    );
+    // Trivial cases are covered by test_fft_blob_regression.
 }
 
 /// All the expected values are checked using the contract logic given in the Starknet core
