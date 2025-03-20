@@ -29,6 +29,7 @@ impl SqmrNetworkMetrics {
 
 pub struct NetworkMetrics {
     pub num_connected_peers: MetricGauge,
+    pub num_blacklisted_peers: MetricGauge,
     pub broadcast_metrics: Option<BroadcastNetworkMetrics>,
     pub sqmr_metrics: Option<SqmrNetworkMetrics>,
 }
@@ -37,6 +38,8 @@ impl NetworkMetrics {
     pub fn register(&self) {
         self.num_connected_peers.register();
         self.num_connected_peers.set(0f64);
+        self.num_blacklisted_peers.register();
+        self.num_blacklisted_peers.set(0f64);
         if let Some(broadcast_metrics) = self.broadcast_metrics.as_ref() {
             broadcast_metrics.register();
         }
