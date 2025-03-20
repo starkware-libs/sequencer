@@ -102,7 +102,7 @@ impl MempoolCommunicationWrapper {
     }
 
     fn get_mempool_snapshot(&self) -> MempoolResult<MempoolSnapshot> {
-        self.mempool.get_mempool_snapshot()
+        self.mempool.mempool_snapshot()
     }
 }
 

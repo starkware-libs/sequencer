@@ -614,8 +614,11 @@ impl Mempool {
         valid_txs
     }
 
-    pub fn get_mempool_snapshot(&self) -> MempoolResult<MempoolSnapshot> {
-        Ok(MempoolSnapshot { transactions: self.tx_pool.get_chronological_txs_hashes() })
+    pub fn mempool_snapshot(&self) -> MempoolResult<MempoolSnapshot> {
+        Ok(MempoolSnapshot {
+            transactions: self.tx_pool.chronological_txs_hashes(),
+            transaction_queue: self.tx_queue.queue_snapshot(),
+        })
     }
 
     fn size_in_bytes(&self) -> u64 {
