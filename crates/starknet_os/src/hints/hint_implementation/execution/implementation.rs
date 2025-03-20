@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 use std::collections::{HashMap, HashSet};
 
 use blockifier::state::state_api::{State, StateReader};
@@ -526,7 +525,3 @@ pub(crate) fn get_old_block_number_and_hash<S: StateReader>(
 pub(crate) fn fetch_result<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
     todo!()
 }
-=======
-pub mod implementation;
-pub mod utils;
->>>>>>> bfebff36e (chore(starknet_os): split execution to utils and implementations)
