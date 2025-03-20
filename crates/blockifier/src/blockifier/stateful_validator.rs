@@ -11,7 +11,7 @@ use crate::blockifier::transaction_executor::{
     TransactionExecutorError,
     BLOCK_STATE_ACCESS_ERR,
 };
-use crate::context::BlockContext;
+use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
 use crate::fee::fee_checks::PostValidationReport;
 use crate::fee::receipt::TransactionReceipt;
@@ -58,19 +58,17 @@ impl<S: StateReader> StatefulValidator<S> {
         // before `__validate_deploy__`. The execution already includes all necessary validations,
         // so they are skipped here.
         if let ApiTransaction::DeployAccount(_) = tx.tx {
-            self.execute(tx)?;
-            return Ok(());
+            return self.execute(tx);
         }
 
-        let tx_context = self.tx_executor.block_context.to_tx_context(&tx);
+        let tx_context = Arc::new(self.tx_executor.block_context.to_tx_context(&tx));
         tx.perform_pre_validation_stage(self.state(), &tx_context)?;
         if !tx.execution_flags.validate {
             return Ok(());
         }
 
         // `__validate__` call.
-        let (_optional_call_info, actual_cost) =
-            self.validate(&tx, tx_context.initial_sierra_gas().0)?;
+        let (_optional_call_info, actual_cost) = self.validate(&tx, tx_context.clone())?;
 
         // Post validations.
         PostValidationReport::verify(&tx_context, &actual_cost, tx.execution_flags.charge_fee)?;
@@ -90,16 +88,12 @@ impl<S: StateReader> StatefulValidator<S> {
     fn validate(
         &mut self,
         tx: &AccountTransaction,
-        mut remaining_gas: u64,
+        tx_context: Arc<TransactionContext>,
     ) -> StatefulValidatorResult<(Option<CallInfo>, TransactionReceipt)> {
-        let tx_context = Arc::new(self.tx_executor.block_context.to_tx_context(tx));
-
-        let limit_steps_by_resources = tx.execution_flags.charge_fee;
         let validate_call_info = tx.validate_tx(
             self.state(),
             tx_context.clone(),
-            &mut remaining_gas,
-            limit_steps_by_resources,
+            &mut tx_context.initial_sierra_gas().0,
         )?;
 
         let tx_receipt = TransactionReceipt::from_account_tx(
