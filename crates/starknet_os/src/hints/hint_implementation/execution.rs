@@ -63,9 +63,13 @@ pub(crate) fn assert_transaction_hash<S: StateReader>(
 }
 
 pub(crate) fn enter_scope_deprecated_syscall_handler<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { exec_scopes, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    exec_scopes.insert_value(
+        Scope::SyscallHandlerType.into(),
+        SyscallHandlerType::DeprecatedSyscallHandler,
+    );
+    Ok(())
 }
 
 pub(crate) fn enter_scope_syscall_handler<S: StateReader>(

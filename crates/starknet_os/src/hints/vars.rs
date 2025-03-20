@@ -328,4 +328,5 @@ impl From<CairoStruct> for &'static str {
 
 pub(crate) enum SyscallHandlerType {
     SyscallHandler,
+    DeprecatedSyscallHandler,
 }
