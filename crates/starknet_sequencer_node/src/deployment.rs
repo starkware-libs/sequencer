@@ -1,8 +1,8 @@
-use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr};
 #[cfg(test)]
 use std::path::Path;
 
+use indexmap::IndexMap;
 use serde::{Serialize, Serializer};
 use starknet_api::core::ChainId;
 use strum::{Display, EnumVariantNames, IntoEnumIterator};
@@ -153,7 +153,7 @@ impl DeploymentName {
         format!("{}/{}/{}/", DEPLOYMENT_CONFIG_BASE_DIR_PATH, self, APPLICATION_CONFIG_DIR_NAME)
     }
 
-    pub fn get_component_configs(&self) -> HashMap<ServiceName, ComponentConfig> {
+    pub fn get_component_configs(&self) -> IndexMap<ServiceName, ComponentConfig> {
         match self {
             // TODO(Tsabary): avoid this code duplication.
             Self::ConsolidatedNode => ConsolidatedNodeServiceName::get_component_configs(),
@@ -165,12 +165,14 @@ impl DeploymentName {
 // TODO(Tsabary): each deployment should be in its own module.
 
 pub trait GetComponentConfigs {
-    fn get_component_configs() -> HashMap<ServiceName, ComponentConfig>;
+    // TODO(Tsabary): replace IndexMap with regular HashMap. Currently using IndexMap as the
+    // integration test relies on indices rather than service names.
+    fn get_component_configs() -> IndexMap<ServiceName, ComponentConfig>;
 }
 
 impl GetComponentConfigs for ConsolidatedNodeServiceName {
-    fn get_component_configs() -> HashMap<ServiceName, ComponentConfig> {
-        let mut component_config_map = HashMap::new();
+    fn get_component_configs() -> IndexMap<ServiceName, ComponentConfig> {
+        let mut component_config_map = IndexMap::new();
 
         component_config_map.insert(
             ServiceName::ConsolidatedNode(ConsolidatedNodeServiceName::Node),
@@ -181,8 +183,8 @@ impl GetComponentConfigs for ConsolidatedNodeServiceName {
 }
 
 impl GetComponentConfigs for DistributedNodeServiceName {
-    fn get_component_configs() -> HashMap<ServiceName, ComponentConfig> {
-        let mut component_config_map = HashMap::<ServiceName, ComponentConfig>::new();
+    fn get_component_configs() -> IndexMap<ServiceName, ComponentConfig> {
+        let mut component_config_map = IndexMap::<ServiceName, ComponentConfig>::new();
 
         let batcher: DistributedNodeServiceConfigPair = DistributedNodeServiceName::Batcher.into();
         let class_manager: DistributedNodeServiceConfigPair =
