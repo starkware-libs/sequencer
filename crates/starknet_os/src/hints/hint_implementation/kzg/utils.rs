@@ -2,7 +2,6 @@ use std::num::ParseIntError;
 use std::path::Path;
 use std::sync::LazyLock;
 
-use blockifier::utils::usize_from_u32;
 use c_kzg::{Blob, KzgCommitment, KzgSettings, BYTES_PER_FIELD_ELEMENT};
 use num_bigint::{BigUint, ParseBigIntError};
 use num_traits::{Num, One, Zero};
@@ -15,7 +14,8 @@ pub(crate) const BLS_PRIME: &str =
     "52435875175126190479447740508185965837690552500527637822603658699938581184513";
 const COMMITMENT_BYTES_LENGTH: usize = 48;
 const COMMITMENT_BYTES_MIDPOINT: usize = COMMITMENT_BYTES_LENGTH / 2;
-pub(crate) const FIELD_ELEMENTS_PER_BLOB: usize = 4096;
+pub(crate) const WIDTH: usize = 12;
+pub(crate) const FIELD_ELEMENTS_PER_BLOB: usize = 1 << WIDTH;
 
 #[derive(Debug, thiserror::Error)]
 pub enum FftError {
@@ -138,19 +138,9 @@ pub(crate) fn fft(
 
     let mut values = inner_fft(coeffs, &group, prime);
 
-    // TODO(Dori): either remove the custom FFT implementation entirely, or investigate implementing
-    //   the bit-reversal permutation more efficiently.
     if bit_reversed {
         // Since coeffs_len is a power of two, width is set to the position of the last set bit.
-        let width = usize_from_u32(coeffs_len.trailing_zeros());
-        let perm = (0..coeffs_len)
-            .map(|i| {
-                let binary = format!("{:0width$b}", i, width = width);
-                usize::from_str_radix(&binary.chars().rev().collect::<String>(), 2)
-                    .map_err(FftError::InvalidBinaryToUsize)
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        values = perm.into_iter().map(|i| values[i].clone()).collect();
+        bit_reversal(&mut values, WIDTH as u32);
     }
 
     Ok(values)
@@ -164,6 +154,26 @@ pub(crate) fn split_commitment(commitment: &KzgCommitment) -> Result<(Felt, Felt
     let high = &commitment_bytes[..COMMITMENT_BYTES_MIDPOINT];
 
     Ok((Felt::from_bytes_be_slice(low), Felt::from_bytes_be_slice(high)))
+}
+
+pub(crate) fn bit_reversal<T>(a: &mut [T], two_adicity: u32) {
+    // From <https://github.com/arkworks-rs/algebra/blob/263cdb7ba772ff66ba387d090effcce21ab06b5e/poly/src/domain/utils.rs#L13C12-L20C2>.
+    fn bitreverse(mut n: u32, l: u32) -> u32 {
+        let mut r = 0;
+        for _ in 0..l {
+            r = (r << 1) | (n & 1);
+            n >>= 1;
+        }
+        r
+    }
+    // From <https://github.com/arkworks-rs/algebra/blob/master/poly/src/domain/mixed_radix.rs#L358C9-L363C10>.
+    let n = a.len();
+    for k in 0..n {
+        let rk = bitreverse(k as u32, two_adicity) as usize;
+        if k < rk {
+            a.swap(k, rk);
+        }
+    }
 }
 
 pub(crate) fn polynomial_coefficients_to_blob(

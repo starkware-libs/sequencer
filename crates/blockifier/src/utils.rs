@@ -52,12 +52,6 @@ pub const fn const_max(a: u128, b: u128) -> u128 {
 }
 
 // TODO(Meshi): Move this code to starknet API.
-/// Conversion from u32 to usize. Should never fail.
-pub fn usize_from_u32(val: u32) -> usize {
-    val.try_into().expect("Conversion from u32 to usize should not fail.")
-}
-
-// TODO(Meshi): Move this code to starknet API.
 /// Conversion from u64 to usize. This conversion should only be used if the value came from a
 /// usize.
 pub fn usize_from_u64(val: u64) -> Result<usize, NumericConversionError> {
