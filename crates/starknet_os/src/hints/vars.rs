@@ -193,6 +193,7 @@ pub enum Const {
     BlobLength,
     BlockHashContractAddress,
     CompiledClassVersion,
+    DeprecatedCompiledClassVersion,
     InitialAvailableAlias,
     MerkleHeight,
     StoredBlockHashBuffer,
@@ -216,6 +217,10 @@ impl From<Const> for &'static str {
             }
             Const::CompiledClassVersion => {
                 "starkware.starknet.core.os.contract_class.compiled_class.COMPILED_CLASS_VERSION"
+            }
+            Const::DeprecatedCompiledClassVersion => {
+                "starkware.starknet.core.os.contract_class.deprecated_compiled_class.\
+                 DEPRECATED_COMPILED_CLASS_VERSION"
             }
             Const::InitialAvailableAlias => {
                 "starkware.starknet.core.os.state.aliases.INITIAL_AVAILABLE_ALIAS"

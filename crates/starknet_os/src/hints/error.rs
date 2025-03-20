@@ -12,7 +12,7 @@ use num_bigint::{BigUint, TryFromBigIntError};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
 use starknet_api::StarknetApiError;
-use starknet_types_core::felt::Felt;
+use starknet_types_core::felt::{Felt, FromStrError};
 
 use crate::hints::enum_definition::AllHints;
 use crate::hints::hint_implementation::kzg::utils::FftError;
@@ -36,6 +36,8 @@ pub enum OsHintError {
     ExpectedBit { id: Ids, felt: Felt },
     #[error(transparent)]
     Fft(#[from] FftError),
+    #[error(transparent)]
+    FromStr(#[from] FromStrError),
     #[error(transparent)]
     FromUtf8(#[from] FromUtf8Error),
     #[error("The identifier {0:?} has no full name.")]
