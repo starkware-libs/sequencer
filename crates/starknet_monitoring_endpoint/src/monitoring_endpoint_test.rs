@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::net::IpAddr;
 use std::sync::Arc;
 
@@ -10,9 +11,14 @@ use metrics::{counter, describe_counter};
 use pretty_assertions::assert_eq;
 use serde_json::{from_str, to_value, Value};
 use starknet_api::block::NonzeroGasPrice;
-use starknet_api::tx_hash;
+use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::{nonce, tx_hash};
 use starknet_mempool_types::communication::{MempoolClientResult, MockMempoolClient};
-use starknet_mempool_types::mempool_types::{MempoolSnapshot, TransactionQueueSnapshot};
+use starknet_mempool_types::mempool_types::{
+    MempoolSnapshot,
+    MempoolStateSnapshot,
+    TransactionQueueSnapshot,
+};
 use tokio::spawn;
 use tokio::task::yield_now;
 use tower::ServiceExt;
@@ -120,6 +126,13 @@ async fn endpoint_as_server() {
     assert_eq!(&body[..], TEST_VERSION.as_bytes());
 }
 
+fn create_hash_map(i: u32, j: u32) -> HashMap<ContractAddress, Nonce> {
+    let contract_addresses = (i..i + 2).map(ContractAddress::from).collect::<Vec<_>>();
+    let nonces = (j..j + 2).map(|n| nonce!(n)).collect::<Vec<_>>();
+
+    contract_addresses.into_iter().zip(nonces).collect()
+}
+
 fn create_mempool_snapshot() -> MempoolSnapshot {
     let expected_chronological_hashes = (1..10).map(|i| tx_hash!(i)).collect::<Vec<_>>();
     let expected_transaction_queue = TransactionQueueSnapshot {
@@ -127,11 +140,13 @@ fn create_mempool_snapshot() -> MempoolSnapshot {
         priority_queue: (1..5).map(|i| tx_hash!(i)).collect::<Vec<_>>(),
         pending_queue: (5..10).map(|i| tx_hash!(i)).collect::<Vec<_>>(),
     };
+    let mempool_state =
+        MempoolStateSnapshot { committed: create_hash_map(1, 3), staged: create_hash_map(5, 7) };
     MempoolSnapshot {
         transactions: expected_chronological_hashes,
         transaction_queue: expected_transaction_queue,
+        mempool_state,
     }
-
 }
 
 fn return_mempool_snapshot() -> MempoolClientResult<MempoolSnapshot> {

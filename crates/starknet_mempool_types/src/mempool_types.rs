@@ -40,6 +40,7 @@ pub type MempoolResult<T> = Result<T, MempoolError>;
 pub struct MempoolSnapshot {
     pub transactions: Vec<TransactionHash>,
     pub transaction_queue: TransactionQueueSnapshot,
+    pub mempool_state: MempoolStateSnapshot,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -48,3 +49,10 @@ pub struct TransactionQueueSnapshot {
     pub priority_queue: Vec<TransactionHash>,
     pub pending_queue: Vec<TransactionHash>,
 }
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct MempoolStateSnapshot {
+    pub committed: HashMap<ContractAddress, Nonce>,
+    pub staged: HashMap<ContractAddress, Nonce>,
+}
+

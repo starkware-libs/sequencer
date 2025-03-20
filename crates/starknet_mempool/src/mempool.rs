@@ -13,7 +13,7 @@ use starknet_mempool_types::mempool_types::{
     AddTransactionArgs,
     CommitBlockArgs,
     MempoolResult,
-    MempoolSnapshot,
+    MempoolSnapshot, MempoolStateSnapshot,
 };
 use tracing::{debug, info, instrument, trace};
 
@@ -159,6 +159,13 @@ impl MempoolState {
         //    because the GW nonces are always 1.
         if let Some(&committed_nonce) = self.committed.get(&address) {
             assert!(committed_nonce <= next_nonce, "NOT SUPPORTED YET {address:?} {next_nonce:?}.")
+        }
+    }
+
+    pub fn get_state_snapshot(&self) -> MempoolStateSnapshot {
+        MempoolStateSnapshot {
+            committed: self.committed.clone(),
+            staged: self.staged.clone(),
         }
     }
 }
@@ -560,6 +567,7 @@ impl Mempool {
         Ok(MempoolSnapshot {
             transactions: self.tx_pool.get_chronological_txs_hashes(),
             transaction_queue: self.tx_queue.get_queue_snapshot(),
+            mempool_state: self.state.get_state_snapshot(),
         })
     }
 
