@@ -67,8 +67,6 @@ pub struct PeerManagerConfig {
 pub(crate) enum PeerManagerError {
     #[error("No such peer: {0}")]
     NoSuchPeer(PeerId),
-    #[error("No such session: {0}")]
-    NoSuchSession(OutboundSessionId),
     #[error("Peer is blocked: {0}")]
     PeerIsBlocked(PeerId),
 }
@@ -235,18 +233,6 @@ impl PeerManager {
             Ok(())
         } else {
             Err(PeerManagerError::NoSuchPeer(peer_id))
-        }
-    }
-
-    fn report_session(
-        &mut self,
-        outbound_session_id: OutboundSessionId,
-        reason: ReputationModifier,
-    ) -> Result<(), PeerManagerError> {
-        if let Some(peer_id) = self.session_to_peer_map.get(&outbound_session_id) {
-            self.report_peer(*peer_id, reason)
-        } else {
-            Err(PeerManagerError::NoSuchSession(outbound_session_id))
         }
     }
 }
