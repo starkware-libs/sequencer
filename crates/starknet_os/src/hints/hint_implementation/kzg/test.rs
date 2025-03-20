@@ -15,10 +15,20 @@ use crate::hints::hint_implementation::kzg::utils::{
     FIELD_ELEMENTS_PER_BLOB,
 };
 
-const BLOB_SUBGROUP_GENERATOR: &str =
-    "39033254847818212395286706435128746857159659164139250548781411570340225835782";
-const BLS_PRIME: &str =
-    "52435875175126190479447740508185965837690552500527637822603658699938581184513";
+static BLOB_SUBGROUP_GENERATOR: LazyLock<BigUint> = LazyLock::new(|| {
+    BigUint::from_str_radix(
+        "39033254847818212395286706435128746857159659164139250548781411570340225835782",
+        10,
+    )
+    .unwrap()
+});
+static BLS_PRIME: LazyLock<BigUint> = LazyLock::new(|| {
+    BigUint::from_str_radix(
+        "52435875175126190479447740508185965837690552500527637822603658699938581184513",
+        10,
+    )
+    .unwrap()
+});
 const BYTES_PER_BLOB: usize = FIELD_ELEMENTS_PER_BLOB * 32;
 
 static FFT_REGRESSION_INPUT: LazyLock<Vec<Fr>> = LazyLock::new(|| {
@@ -44,7 +54,7 @@ fn generate(generator: &BigUint) -> Vec<BigUint> {
     let mut array = vec![BigUint::one()];
     for _ in 1..FIELD_ELEMENTS_PER_BLOB {
         let last = array.last().unwrap().clone();
-        let next = (generator * &last) % BigUint::from_str_radix(BLS_PRIME, 10).unwrap();
+        let next = (generator * &last) % &*BLS_PRIME;
         array.push(next);
     }
     bit_reversal(&mut array).unwrap();
@@ -92,13 +102,9 @@ fn test_split_commitment_function(
 #[case::degree_one(
     vec![Fr::zero(), Fr::from(10_u8)],
     &serialize_blob(
-        &generate(&BigUint::from_str_radix(BLOB_SUBGROUP_GENERATOR, 10).unwrap())
+        &generate(&BLOB_SUBGROUP_GENERATOR)
             .into_iter()
-            .map(|subgroup_elm| Fr::from(
-                (BigUint::from(10_u8) * subgroup_elm)
-                    % BigUint::from_str_radix(BLS_PRIME, 10).unwrap()
-                )
-            )
+            .map(|subgroup_elm| Fr::from((BigUint::from(10_u8) * subgroup_elm) % &*BLS_PRIME))
             .collect::<Vec<Fr>>(),
     ).unwrap()
 )]
