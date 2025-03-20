@@ -88,4 +88,17 @@ impl ComponentConfig {
             monitoring_endpoint: ActiveComponentExecutionConfig::disabled(),
         }
     }
+
+    #[cfg(any(feature = "testing", test))]
+    pub fn set_urls_to_localhost(&mut self) {
+        self.batcher.set_url_to_localhost();
+        self.class_manager.set_url_to_localhost();
+        self.gateway.set_url_to_localhost();
+        self.mempool.set_url_to_localhost();
+        self.mempool_p2p.set_url_to_localhost();
+        self.sierra_compiler.set_url_to_localhost();
+        self.state_sync.set_url_to_localhost();
+        self.l1_provider.set_url_to_localhost();
+        self.l1_gas_price_provider.set_url_to_localhost();
+    }
 }
