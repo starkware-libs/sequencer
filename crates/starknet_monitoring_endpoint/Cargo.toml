@@ -32,6 +32,7 @@ validator.workspace = true
 metrics.workspace = true
 num-traits.workspace = true
 pretty_assertions.workspace = true
+serde_json.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 starknet_mempool_types = { workspace = true, features = ["testing"] }
 thiserror.workspace = true
