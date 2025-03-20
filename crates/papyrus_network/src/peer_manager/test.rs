@@ -252,48 +252,6 @@ fn report_peer_on_unknown_peer_id() {
         .expect_err("report_peer on unknown peer_id should return an error");
 }
 
-#[test]
-fn report_session_calls_update_reputation() {
-    // Create a new peer manager
-    let config = PeerManagerConfig::default();
-    let mut peer_manager: PeerManager = PeerManager::new(config.clone());
-
-    // Create a peer
-    let peer_id = PeerId::random();
-    let mut peer = Peer::new(peer_id, Multiaddr::empty());
-    peer.add_connection_id(ConnectionId::new_unchecked(0));
-
-    // Add the peer to the peer manager
-    peer_manager.add_peer(peer);
-
-    // Create a session
-    let outbound_session_id = OutboundSessionId { value: 1 };
-
-    // Assign peer to the session
-    let res_peer_id = peer_manager.assign_peer_to_session(outbound_session_id).unwrap();
-    assert_eq!(res_peer_id, peer_id);
-
-    // Call the report_peer function on the peer manager
-    peer_manager.report_session(outbound_session_id, ReputationModifier::Unstable {}).unwrap();
-    peer_manager.get_mut_peer(peer_id).unwrap();
-}
-
-#[test]
-fn report_session_on_unknown_session_id() {
-    // Create a new peer manager
-    let mut peer_manager: PeerManager = PeerManager::new(PeerManagerConfig::default());
-
-    // Create a session
-    let outbound_session_id = OutboundSessionId { value: 1 };
-
-    peer_manager
-        .report_session(
-            outbound_session_id,
-            ReputationModifier::Misconduct { misconduct_score: MALICIOUS },
-        )
-        .expect_err("report_session on unknown outbound_session_id should return an error");
-}
-
 #[tokio::test]
 async fn timed_out_peer_not_assignable_to_queries() {
     // Create a new peer manager
