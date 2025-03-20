@@ -8,6 +8,7 @@ use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::hint_implementation::kzg::utils::{
+    bit_reversal,
     fft,
     polynomial_coefficients_to_blob,
     serialize_blob,
@@ -20,8 +21,6 @@ use crate::hints::hint_implementation::kzg::utils::{
 const BYTES_PER_BLOB: usize = FIELD_ELEMENTS_PER_BLOB * 32;
 const GENERATOR: &str =
     "39033254847818212395286706435128746857159659164139250548781411570340225835782";
-const WIDTH: usize = 12;
-const ORDER: usize = 1 << WIDTH;
 
 static FFT_REGRESSION_INPUT: LazyLock<Vec<BigUint>> = LazyLock::new(|| {
     serde_json::from_str::<Vec<String>>(include_str!("fft_regression_input.json"))
@@ -44,35 +43,27 @@ static BLOB_REGRESSION_OUTPUT: LazyLock<Vec<u8>> =
 
 fn generate(generator: &BigUint, bit_reversed: bool) -> Vec<BigUint> {
     let mut array = vec![BigUint::one()];
-    for _ in 1..ORDER {
+    for _ in 1..FIELD_ELEMENTS_PER_BLOB {
         let last = array.last().unwrap().clone();
         let next = (generator * &last) % BigUint::from_str_radix(BLS_PRIME, 10).unwrap();
         array.push(next);
     }
 
     if bit_reversed {
-        let perm: Vec<usize> = (0..ORDER)
-            .map(|i| {
-                let binary = format!("{:0width$b}", i, width = WIDTH);
-                usize::from_str_radix(&binary.chars().rev().collect::<String>(), 2).unwrap()
-            })
-            .collect();
-        array = perm.iter().map(|&i| array[i].clone()).collect();
+        bit_reversal(&mut array).unwrap();
     }
 
     array
 }
 
 #[rstest]
-fn test_small_fft_regression(#[values(true, false)] bit_reversed: bool) {
+fn test_small_fft_regression() {
     let prime = BigUint::from(17_u8);
     let generator = BigUint::from(3_u8);
     let coeffs: Vec<BigUint> = [0_u8, 1, 2, 3].into_iter().map(BigUint::from).collect();
-    let expected_eval: Vec<BigUint> =
-        (if bit_reversed { [6_u8, 15, 9, 4] } else { [6_u8, 9, 15, 4] })
-            .into_iter()
-            .map(BigUint::from)
-            .collect();
+    let expected_eval: Vec<BigUint> = [6_u8, 9, 15, 4].into_iter().map(BigUint::from).collect();
+    // Bit reversal only implemented for fixed with of 2^12.
+    let bit_reversed = false;
     let actual_eval = fft(&coeffs, &generator, &prime, bit_reversed).unwrap();
     assert_eq!(actual_eval, expected_eval);
 }
@@ -85,14 +76,18 @@ fn test_fft(#[values(true, false)] bit_reversed: bool) {
     let subgroup = generate(&generator, bit_reversed);
 
     // Sanity checks.
-    assert_eq!((&generator.modpow(&BigUint::from(ORDER), &prime)), &BigUint::one());
+    assert_eq!(
+        (&generator.modpow(&BigUint::from(FIELD_ELEMENTS_PER_BLOB), &prime)),
+        &BigUint::one()
+    );
     assert_eq!(subgroup.len(), subgroup.iter().collect::<std::collections::HashSet<_>>().len());
 
-    let coeffs: Vec<BigUint> =
-        repeat_with(|| BigUint::from(rand::random::<u64>()) % &prime).take(ORDER).collect();
+    let coeffs: Vec<BigUint> = repeat_with(|| BigUint::from(rand::random::<u64>()) % &prime)
+        .take(FIELD_ELEMENTS_PER_BLOB)
+        .collect();
 
     // Evaluate naively.
-    let mut expected_eval = vec![BigUint::zero(); ORDER];
+    let mut expected_eval = vec![BigUint::zero(); FIELD_ELEMENTS_PER_BLOB];
     for (i, x) in subgroup.iter().enumerate() {
         let eval = generate(x, false);
         expected_eval[i] =
@@ -104,16 +99,7 @@ fn test_fft(#[values(true, false)] bit_reversed: bool) {
 
     assert_eq!(actual_eval, expected_eval);
 
-    // Trivial cases.
-    assert_eq!(actual_eval[0], coeffs.iter().sum::<BigUint>() % &prime);
-    assert_eq!(
-        fft(&vec![BigUint::zero(); ORDER], &generator, &prime, bit_reversed).unwrap(),
-        vec![BigUint::zero(); ORDER]
-    );
-    assert_eq!(
-        fft(&[BigUint::from(121212u64)], &BigUint::one(), &prime, bit_reversed).unwrap(),
-        vec![BigUint::from(121212u64)]
-    );
+    // Trivial cases are covered by test_fft_blob_regression.
 }
 
 /// All the expected values are checked using the contract logic given in the Starknet core
