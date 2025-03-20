@@ -1,5 +1,6 @@
 use std::string::FromUtf8Error;
 
+use blockifier::execution::syscalls::hint_processor::SyscallExecutionError;
 use blockifier::state::errors::StateError;
 use cairo_vm::hint_processor::hint_processor_definition::HintExtension;
 use cairo_vm::serde::deserialize_program::Identifier;
@@ -71,6 +72,8 @@ pub enum OsHintError {
     State(#[from] StateError),
     #[error("Convert {n_bits} bits for {type_name}.")]
     StatelessCompressionOverflow { n_bits: usize, type_name: String },
+    #[error(transparent)]
+    SyscallExecution(#[from] SyscallExecutionError),
     #[error(transparent)]
     TryFromBigUint(#[from] TryFromBigIntError<BigUint>),
     #[error("Unknown hint string: {0}")]
