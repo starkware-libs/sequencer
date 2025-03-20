@@ -105,7 +105,7 @@ starknet_version_enum! {
 
 impl Default for StarknetVersion {
     fn default() -> Self {
-        Self::LATEST
+        Self::V0_13_2_1
     }
 }
 
