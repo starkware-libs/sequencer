@@ -283,6 +283,7 @@ pub enum CairoStruct {
     ExecutionContext,
     NodeEdge,
     OsStateUpdate,
+    ResourceBounds,
     StateEntry,
     StorageReadPtr,
     StorageReadRequestPtr,
@@ -317,6 +318,7 @@ impl From<CairoStruct> for &'static str {
             }
             CairoStruct::NodeEdge => "starkware.cairo.common.patricia_utils.NodeEdge",
             CairoStruct::OsStateUpdate => "starkware.starknet.core.os.state.state.OsStateUpdate",
+            CairoStruct::ResourceBounds => "starkware.starknet.common.new_syscalls.ResourceBounds",
             CairoStruct::StateEntry => "starkware.starknet.core.os.state.state.StateEntry",
             CairoStruct::StorageReadPtr => "starkware.starknet.common.syscalls.StorageRead*",
             CairoStruct::StorageReadRequestPtr => {
