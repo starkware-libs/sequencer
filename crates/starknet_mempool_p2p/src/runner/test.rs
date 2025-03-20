@@ -18,7 +18,10 @@ use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::communication::{GatewayClient, GatewayClientError, MockGatewayClient};
 use starknet_gateway_types::errors::{GatewayError, GatewaySpecError};
 use starknet_gateway_types::gateway_types::GatewayInput;
-use starknet_mempool_p2p_types::communication::MockMempoolP2pPropagatorClient;
+use starknet_mempool_p2p_types::communication::{
+    MempoolP2pPropagatorClient,
+    MockMempoolP2pPropagatorClient,
+};
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 
 use super::MempoolP2pRunner;
@@ -28,6 +31,8 @@ const MAX_TRANSACTION_BATCH_RATE: Duration = Duration::MAX;
 fn setup(
     network_future: BoxFuture<'static, Result<(), NetworkError>>,
     gateway_client: Arc<dyn GatewayClient>,
+    mempool_p2p_propagator_client: Arc<dyn MempoolP2pPropagatorClient>,
+    transaction_batch_rate_millis: Duration,
 ) -> (MempoolP2pRunner, BroadcastNetworkMock<RpcTransactionBatch>) {
     let TestSubscriberChannels { mock_network, subscriber_channels } =
         mock_register_broadcast_topic().expect("Failed to create mock network");
@@ -38,10 +43,8 @@ fn setup(
         broadcasted_messages_receiver,
         broadcast_topic_client,
         gateway_client,
-        Arc::new(MockMempoolP2pPropagatorClient::new()),
-        // TODO(alonl): test that after transaction_batch_rate_millis has passed, the runner sends
-        // the request to the propagator.
-        MAX_TRANSACTION_BATCH_RATE,
+        mempool_p2p_propagator_client,
+        transaction_batch_rate_millis,
     );
     (mempool_p2p_runner, mock_network)
 }
@@ -51,7 +54,12 @@ fn setup(
 fn run_panics_when_network_future_returns() {
     let network_future = ready(Ok(())).boxed();
     let gateway_client = Arc::new(MockGatewayClient::new());
-    let (mut mempool_p2p_runner, _) = setup(network_future, gateway_client);
+    let (mut mempool_p2p_runner, _) = setup(
+        network_future,
+        gateway_client,
+        Arc::new(MockMempoolP2pPropagatorClient::new()),
+        MAX_TRANSACTION_BATCH_RATE,
+    );
     mempool_p2p_runner.start().now_or_never().unwrap();
 }
 
@@ -61,7 +69,12 @@ fn run_panics_when_network_future_returns_error() {
     let network_future =
         ready(Err(NetworkError::DialError(libp2p::swarm::DialError::Aborted))).boxed();
     let gateway_client = Arc::new(MockGatewayClient::new());
-    let (mut mempool_p2p_runner, _) = setup(network_future, gateway_client);
+    let (mut mempool_p2p_runner, _) = setup(
+        network_future,
+        gateway_client,
+        Arc::new(MockMempoolP2pPropagatorClient::new()),
+        MAX_TRANSACTION_BATCH_RATE,
+    );
     mempool_p2p_runner.start().now_or_never().unwrap();
 }
 
@@ -88,8 +101,12 @@ async fn incoming_p2p_tx_reaches_gateway_client() {
             Ok(TransactionHash::default())
         },
     );
-    let (mut mempool_p2p_runner, mock_network) =
-        setup(network_future, Arc::new(mock_gateway_client));
+    let (mut mempool_p2p_runner, mock_network) = setup(
+        network_future,
+        Arc::new(mock_gateway_client),
+        Arc::new(MockMempoolP2pPropagatorClient::new()),
+        MAX_TRANSACTION_BATCH_RATE,
+    );
 
     let BroadcastNetworkMock {
         broadcasted_messages_sender: mut mock_broadcasted_messages_sender,
@@ -135,8 +152,12 @@ async fn incoming_p2p_tx_fails_on_gateway_client() {
         }))
     });
 
-    let (mut mempool_p2p_runner, mock_network) =
-        setup(network_future, Arc::new(mock_gateway_client));
+    let (mut mempool_p2p_runner, mock_network) = setup(
+        network_future,
+        Arc::new(mock_gateway_client),
+        Arc::new(MockMempoolP2pPropagatorClient::new()),
+        MAX_TRANSACTION_BATCH_RATE,
+    );
 
     let BroadcastNetworkMock {
         broadcasted_messages_sender: mut mock_broadcasted_messages_sender,
@@ -166,4 +187,50 @@ async fn incoming_p2p_tx_fails_on_gateway_client() {
             assert_eq!(peer_reported, message_metadata.originator_id.private_get_peer_id())
         }
     }
+}
+
+#[tokio::test]
+async fn send_broadcast_queued_transactions_request_after_transaction_batch_rate() {
+    let transaction_batch_rate_millis = Duration::from_secs(30);
+
+    let network_future = pending().boxed();
+    let gateway_client = Arc::new(MockGatewayClient::new());
+
+    // Create channels for sending an empty message to indicate that the request reached the
+    // propagator client
+    let (broadcast_queued_tx_indicator_sender, mut broadcast_queued_tx_indicator_receiver) =
+        futures::channel::oneshot::channel();
+
+    let mut mempool_p2p_propagator_client = MockMempoolP2pPropagatorClient::new();
+    mempool_p2p_propagator_client.expect_broadcast_queued_transactions().return_once(move || {
+        broadcast_queued_tx_indicator_sender.send(()).unwrap();
+        Ok(())
+    });
+
+    let (mut mempool_p2p_runner, _) = setup(
+        network_future,
+        gateway_client,
+        Arc::new(mempool_p2p_propagator_client),
+        transaction_batch_rate_millis,
+    );
+
+    tokio::time::pause();
+
+    let handle = tokio::spawn(async move {
+        mempool_p2p_runner.start().await;
+    });
+
+    // The event for which we want to advance the clock is polled by a tokio::select, and not
+    // directly awaited.
+    // Because of that, advancing the clock using tokio::time::advance won't actually push the
+    // time forward (thanks to tokio lazy implementation). This is why we need to await a future
+    // that will actually advance the clock (the clock is advanced without calling
+    // tokio::time::advance thanks to the auto-advance feature of tokio::time::pause).
+    // The auto-advance feature will instantly push the clock to the next awaited future, in this
+    // case pushing it exactly to when a batch should be closed.
+    tokio::time::sleep(transaction_batch_rate_millis).await;
+
+    assert!(broadcast_queued_tx_indicator_receiver.try_recv().unwrap().is_some());
+
+    handle.abort();
 }
