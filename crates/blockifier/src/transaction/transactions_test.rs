@@ -57,6 +57,7 @@ use starknet_api::transaction::fields::{
     GasVectorComputationMode,
     Resource,
     ResourceBounds,
+    Tip,
     TransactionSignature,
     ValidResourceBounds,
 };
@@ -1262,6 +1263,27 @@ fn test_insufficient_new_resource_bounds_pre_validation(
             )
         );
     }
+
+    // Tip yields max l2 gas price too low.
+    let invalid_v3_tx = invoke_tx_with_default_flags(InvokeTxArgs {
+        resource_bounds: ValidResourceBounds::AllResources(default_resource_bounds),
+        nonce: nonce!(next_nonce),
+        tip: Tip(1),
+        ..valid_invoke_tx_args.clone()
+    });
+    let execution_error = invalid_v3_tx.execute(&mut state, &block_context).unwrap_err();
+    assert_matches!(
+        execution_error,
+        TransactionExecutionError::TransactionPreValidationError(
+            TransactionPreValidationError::TransactionFeeError(
+                TransactionFeeError::InsufficientResourceBounds{ errors }
+            )
+        ) =>
+        assert_matches!(
+            errors[0],
+            ResourceBoundsError::MaxGasPriceTooLow{resource: L2Gas,..}
+        )
+    );
 
     // Test several insufficient resources in the same transaction.
     let mut invalid_resources = default_resource_bounds;

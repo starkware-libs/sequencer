@@ -278,6 +278,7 @@ impl AccountTransaction {
         let TransactionContext { block_context, tx_info } = tx_context;
         let block_info = &block_context.block_info;
         let fee_type = &tx_info.fee_type();
+        let tip = tx_context.tip();
         match tx_info {
             TransactionInfo::Current(context) => {
                 let resources_amount_tuple = match &context.resource_bounds {
@@ -297,6 +298,15 @@ impl AccountTransaction {
                     }) => {
                         let GasPriceVector { l1_gas_price, l1_data_gas_price, l2_gas_price } =
                             block_info.gas_prices.gas_price_vector(fee_type);
+
+                        let tipped_l2_gas_price =
+                            l2_gas_price.checked_add(tip).unwrap_or_else(|| {
+                                panic!(
+                                    "Total cost overflowed: addition of current l2 gas price ({}) \
+                                     and cost of tip ({}) resulted in overflow.",
+                                    l2_gas_price, tip
+                                )
+                            });
                         vec![
                             (
                                 L1Gas,
@@ -314,7 +324,7 @@ impl AccountTransaction {
                                 L2Gas,
                                 l2_gas_resource_bounds,
                                 minimal_gas_amount_vector.l2_gas,
-                                *l2_gas_price,
+                                tipped_l2_gas_price,
                             ),
                         ]
                     }

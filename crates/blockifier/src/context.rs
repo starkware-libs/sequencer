@@ -10,6 +10,7 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::{
     AllResourceBounds,
     GasVectorComputationMode,
+    Tip,
     ValidResourceBounds,
 };
 
@@ -60,6 +61,17 @@ impl TransactionContext {
                 resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds { l2_gas, .. }),
                 ..
             }) => l2_gas.max_amount,
+        }
+    }
+
+    pub fn tip(&self) -> Tip {
+        if self.block_context.versioned_constants.enable_tip {
+            match &self.tx_info {
+                TransactionInfo::Current(current_tx_info) => current_tx_info.tip,
+                TransactionInfo::Deprecated(_) => Tip::ZERO,
+            }
+        } else {
+            Tip::ZERO
         }
     }
 }

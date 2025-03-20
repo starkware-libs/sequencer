@@ -23,7 +23,7 @@ use crate::data_availability::L1DataAvailabilityMode;
 use crate::execution_resources::GasAmount;
 use crate::hash::StarkHash;
 use crate::serde_utils::{BytesAsHex, PrefixedBytesAsHex};
-use crate::transaction::fields::Fee;
+use crate::transaction::fields::{Fee, Tip};
 use crate::transaction::{Transaction, TransactionHash, TransactionOutput};
 use crate::StarknetApiError;
 
@@ -379,6 +379,10 @@ impl GasPrice {
     pub fn checked_mul(self, rhs: GasAmount) -> Option<Fee> {
         self.0.checked_mul(u128::from(rhs.0)).map(Fee)
     }
+
+    pub fn checked_add(self, rhs: Tip) -> Option<Self> {
+        self.0.checked_add(rhs.0.into()).map(Self)
+    }
 }
 
 /// Utility struct representing a non-zero gas price. Useful when a gas amount must be computed by
@@ -404,6 +408,12 @@ impl NonzeroGasPrice {
 
     pub const fn saturating_mul(self, rhs: GasAmount) -> Fee {
         self.get().saturating_mul(rhs)
+    }
+
+    pub fn checked_add(self, rhs: Tip) -> Option<Self> {
+        self.get()
+            .checked_add(rhs)
+            .map(|x| Self::new(x).expect("Add tip should not result in zero"))
     }
 
     #[cfg(any(test, feature = "testing"))]

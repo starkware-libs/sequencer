@@ -141,6 +141,10 @@ impl From<Tip> for Felt {
     }
 }
 
+impl Tip {
+    pub const ZERO: Self = Self(0);
+}
+
 /// Execution resource.
 #[derive(
     Clone,
