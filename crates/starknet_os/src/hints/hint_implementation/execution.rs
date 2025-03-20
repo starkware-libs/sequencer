@@ -24,6 +24,12 @@ pub(crate) fn load_next_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> 
     todo!()
 }
 
+pub(crate) fn load_resource_bounds<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    todo!()
+}
+
 pub(crate) fn exit_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
     // TODO(Aner): implement OsLogger
     Ok(())
