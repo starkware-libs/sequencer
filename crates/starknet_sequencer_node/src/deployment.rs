@@ -153,11 +153,14 @@ impl DeploymentName {
         format!("{}/{}/{}/", DEPLOYMENT_CONFIG_BASE_DIR_PATH, self, APPLICATION_CONFIG_DIR_NAME)
     }
 
-    pub fn get_component_configs(&self) -> IndexMap<ServiceName, ComponentConfig> {
+    pub fn get_component_configs(
+        &self,
+        base_port: Option<u16>,
+    ) -> IndexMap<ServiceName, ComponentConfig> {
         match self {
             // TODO(Tsabary): avoid this code duplication.
-            Self::ConsolidatedNode => ConsolidatedNodeServiceName::get_component_configs(),
-            Self::DistributedNode => DistributedNodeServiceName::get_component_configs(),
+            Self::ConsolidatedNode => ConsolidatedNodeServiceName::get_component_configs(base_port),
+            Self::DistributedNode => DistributedNodeServiceName::get_component_configs(base_port),
         }
     }
 }
@@ -174,13 +177,12 @@ pub fn set_urls_to_localhost(component_configs: &mut [ComponentConfig]) {
 pub trait GetComponentConfigs {
     // TODO(Tsabary): replace IndexMap with regular HashMap. Currently using IndexMap as the
     // integration test relies on indices rather than service names.
-    fn get_component_configs() -> IndexMap<ServiceName, ComponentConfig>;
+    fn get_component_configs(base_port: Option<u16>) -> IndexMap<ServiceName, ComponentConfig>;
 }
 
 impl GetComponentConfigs for ConsolidatedNodeServiceName {
-    fn get_component_configs() -> IndexMap<ServiceName, ComponentConfig> {
+    fn get_component_configs(_base_port: Option<u16>) -> IndexMap<ServiceName, ComponentConfig> {
         let mut component_config_map = IndexMap::new();
-
         component_config_map.insert(
             ServiceName::ConsolidatedNode(ConsolidatedNodeServiceName::Node),
             get_consolidated_config(),
@@ -190,20 +192,18 @@ impl GetComponentConfigs for ConsolidatedNodeServiceName {
 }
 
 impl GetComponentConfigs for DistributedNodeServiceName {
-    fn get_component_configs() -> IndexMap<ServiceName, ComponentConfig> {
+    fn get_component_configs(base_port: Option<u16>) -> IndexMap<ServiceName, ComponentConfig> {
         let mut component_config_map = IndexMap::<ServiceName, ComponentConfig>::new();
 
-        let batcher: DistributedNodeServiceConfigPair = DistributedNodeServiceName::Batcher.into();
-        let class_manager: DistributedNodeServiceConfigPair =
-            DistributedNodeServiceName::ClassManager.into();
-        let gateway: DistributedNodeServiceConfigPair = DistributedNodeServiceName::Gateway.into();
-        let l1_provider: DistributedNodeServiceConfigPair =
-            DistributedNodeServiceName::L1Provider.into();
-        let mempool: DistributedNodeServiceConfigPair = DistributedNodeServiceName::Mempool.into();
-        let sierra_compiler: DistributedNodeServiceConfigPair =
-            DistributedNodeServiceName::SierraCompiler.into();
-        let state_sync: DistributedNodeServiceConfigPair =
-            DistributedNodeServiceName::StateSync.into();
+        let batcher = DistributedNodeServiceName::Batcher.component_config_pair(base_port);
+        let class_manager =
+            DistributedNodeServiceName::ClassManager.component_config_pair(base_port);
+        let gateway = DistributedNodeServiceName::Gateway.component_config_pair(base_port);
+        let l1_provider = DistributedNodeServiceName::L1Provider.component_config_pair(base_port);
+        let mempool = DistributedNodeServiceName::Mempool.component_config_pair(base_port);
+        let sierra_compiler =
+            DistributedNodeServiceName::SierraCompiler.component_config_pair(base_port);
+        let state_sync = DistributedNodeServiceName::StateSync.component_config_pair(base_port);
 
         for inner_service_name in DistributedNodeServiceName::iter() {
             let component_config = match inner_service_name {
@@ -334,17 +334,30 @@ impl IntoService for DistributedNodeServiceName {
 impl DistributedNodeServiceName {
     /// Returns a component execution config for a component that runs locally, and accepts inbound
     /// connections from remote components.
-    pub fn component_config_for_local_service(&self) -> ReactiveComponentExecutionConfig {
+    pub fn component_config_for_local_service(
+        &self,
+        base_port: Option<u16>,
+    ) -> ReactiveComponentExecutionConfig {
         ReactiveComponentExecutionConfig::local_with_remote_enabled(
             self.url(),
             self.ip(),
-            self.port(),
+            self.port(base_port),
         )
     }
 
     /// Returns a component execution config for a component that is accessed remotely.
-    pub fn component_config_for_remote_service(&self) -> ReactiveComponentExecutionConfig {
-        ReactiveComponentExecutionConfig::remote(self.url(), self.ip(), self.port())
+    pub fn component_config_for_remote_service(
+        &self,
+        base_port: Option<u16>,
+    ) -> ReactiveComponentExecutionConfig {
+        ReactiveComponentExecutionConfig::remote(self.url(), self.ip(), self.port(base_port))
+    }
+
+    fn component_config_pair(&self, base_port: Option<u16>) -> DistributedNodeServiceConfigPair {
+        DistributedNodeServiceConfigPair {
+            local: self.component_config_for_local_service(base_port),
+            remote: self.component_config_for_remote_service(base_port),
+        }
     }
 
     /// Url for the service.
@@ -353,9 +366,10 @@ impl DistributedNodeServiceName {
     }
 
     /// Unique port number per service.
-    fn port(&self) -> u16 {
+    fn port(&self, base_port: Option<u16>) -> u16 {
         let port_offset = self.get_port_offset();
-        BASE_PORT + port_offset
+        let base_port = base_port.unwrap_or(BASE_PORT);
+        base_port + port_offset
     }
 
     /// Listening address per service.
@@ -374,37 +388,17 @@ impl DistributedNodeServiceName {
 /// Component config bundling for services of a distributed node: a config to run a component
 /// locally while being accessible to other services, and a suitable config enabling such services
 /// the access.
-pub struct DistributedNodeServiceConfigPair {
+struct DistributedNodeServiceConfigPair {
     local: ReactiveComponentExecutionConfig,
     remote: ReactiveComponentExecutionConfig,
 }
 
-impl From<DistributedNodeServiceName> for DistributedNodeServiceConfigPair {
-    fn from(service_name: DistributedNodeServiceName) -> Self {
-        Self {
-            local: service_name.component_config_for_local_service(),
-            remote: service_name.component_config_for_remote_service(),
-        }
-    }
-}
-
 impl DistributedNodeServiceConfigPair {
-    pub fn new(url: String, ip: IpAddr, port: u16) -> Self {
-        Self {
-            local: ReactiveComponentExecutionConfig::local_with_remote_enabled(
-                url.clone(),
-                ip,
-                port,
-            ),
-            remote: ReactiveComponentExecutionConfig::remote(url, ip, port),
-        }
-    }
-
-    pub fn local(&self) -> ReactiveComponentExecutionConfig {
+    fn local(&self) -> ReactiveComponentExecutionConfig {
         self.local.clone()
     }
 
-    pub fn remote(&self) -> ReactiveComponentExecutionConfig {
+    fn remote(&self) -> ReactiveComponentExecutionConfig {
         self.remote.clone()
     }
 }
@@ -412,7 +406,7 @@ impl DistributedNodeServiceConfigPair {
 // TODO(Tsabary): temporarily bundling all distributed node config functions here. This module will
 // need to be split into multiple per-deployment modules, each with its relevant functions.
 
-pub fn get_batcher_config(
+fn get_batcher_config(
     batcher_local_config: ReactiveComponentExecutionConfig,
     class_manager_remote_config: ReactiveComponentExecutionConfig,
     l1_provider_remote_config: ReactiveComponentExecutionConfig,
@@ -427,7 +421,7 @@ pub fn get_batcher_config(
     config
 }
 
-pub fn get_class_manager_config(
+fn get_class_manager_config(
     class_manager_local_config: ReactiveComponentExecutionConfig,
     sierra_compiler_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
@@ -438,7 +432,7 @@ pub fn get_class_manager_config(
     config
 }
 
-pub fn get_gateway_config(
+fn get_gateway_config(
     gateway_local_config: ReactiveComponentExecutionConfig,
     class_manager_remote_config: ReactiveComponentExecutionConfig,
     mempool_remote_config: ReactiveComponentExecutionConfig,
@@ -453,7 +447,7 @@ pub fn get_gateway_config(
     config
 }
 
-pub fn get_mempool_config(
+fn get_mempool_config(
     mempool_local_config: ReactiveComponentExecutionConfig,
     class_manager_remote_config: ReactiveComponentExecutionConfig,
     gateway_remote_config: ReactiveComponentExecutionConfig,
@@ -467,7 +461,7 @@ pub fn get_mempool_config(
     config
 }
 
-pub fn get_sierra_compiler_config(
+fn get_sierra_compiler_config(
     sierra_compiler_local_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
@@ -476,7 +470,7 @@ pub fn get_sierra_compiler_config(
     config
 }
 
-pub fn get_state_sync_config(
+fn get_state_sync_config(
     state_sync_local_config: ReactiveComponentExecutionConfig,
     class_manager_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
@@ -487,7 +481,7 @@ pub fn get_state_sync_config(
     config
 }
 
-pub fn get_consensus_manager_config(
+fn get_consensus_manager_config(
     batcher_remote_config: ReactiveComponentExecutionConfig,
     class_manager_remote_config: ReactiveComponentExecutionConfig,
     state_sync_remote_config: ReactiveComponentExecutionConfig,
@@ -501,7 +495,7 @@ pub fn get_consensus_manager_config(
     config
 }
 
-pub fn get_http_server_config(
+fn get_http_server_config(
     gateway_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
@@ -511,7 +505,7 @@ pub fn get_http_server_config(
     config
 }
 
-pub fn get_l1_provider_config(
+fn get_l1_provider_config(
     l1_provider_local_config: ReactiveComponentExecutionConfig,
     state_sync_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
@@ -525,6 +519,6 @@ pub fn get_l1_provider_config(
 // TODO(Tsabary): rename get_X_config fns to get_X_component_config.
 
 // TODO(Tsabary): functions for the consolidated node deployment, need move to a different module.
-pub fn get_consolidated_config() -> ComponentConfig {
+fn get_consolidated_config() -> ComponentConfig {
     ComponentConfig::default()
 }
