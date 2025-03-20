@@ -55,6 +55,7 @@ use starknet_consensus::types::{ConsensusContext, Round};
 use starknet_l1_gas_price_types::MockEthToStrkOracleClientTrait;
 use starknet_state_sync_types::communication::MockStateSyncClient;
 use starknet_types_core::felt::Felt;
+use tokio::sync::Notify;
 
 use crate::cende::MockCendeContext;
 use crate::config::ContextConfig;
@@ -186,6 +187,41 @@ fn success_cende_ammbassador() -> MockCendeContext {
     let mut mock_cende = MockCendeContext::new();
     mock_cende.expect_write_prev_height_blob().return_once(|_height| tokio::spawn(ready(true)));
     mock_cende
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn cancelled_proposal_preempts() {
+    let mut batcher = MockBatcherClient::new();
+    let proposal_id: Arc<OnceLock<ProposalId>> = Arc::new(OnceLock::new());
+    let proposal_id_clone = Arc::clone(&proposal_id);
+    batcher.expect_propose_block().returning(move |input: ProposeBlockInput| {
+        proposal_id_clone.set(input.proposal_id).unwrap();
+        Ok(())
+    });
+
+    batcher.expect_start_height().return_once(|_| Ok(()));
+
+    // Let the context ask for one message from the batcher before we cancel the
+    // proposal so we know that the flow is running as expected.
+    let proposal_content_called = Arc::new(Notify::new());
+    let proposal_content_called_clone = Arc::clone(&proposal_content_called);
+
+    batcher.expect_get_proposal_content().returning(move |_| {
+        proposal_content_called_clone.notify_waiters();
+        Ok(GetProposalContentResponse { content: GetProposalContent::Txs(Vec::new()) })
+    });
+
+    let (mut context, _network) = setup(batcher, success_cende_ammbassador());
+
+    let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await;
+
+    proposal_content_called.notified().await;
+    // Now we intrrupt the proposal and verify that the fin_receiever is dropped.
+
+    // This will cause interrupt_active_proposal to be called.
+    context.set_height_and_round(BlockNumber(0), 1).await;
+
+    assert!(fin_receiver.await.is_err());
 }
 
 #[tokio::test]
@@ -526,7 +562,7 @@ async fn build_proposal_cende_failure() {
 
     let (fin_receiver, _, _network) = build_proposal_setup(mock_cende_context).await;
 
-    assert_eq!(fin_receiver.await, Err(oneshot::Canceled));
+    assert_eq!(fin_receiver.await, Err(Canceled));
 }
 
 #[tokio::test]
@@ -538,7 +574,7 @@ async fn build_proposal_cende_incomplete() {
 
     let (fin_receiver, _, _network) = build_proposal_setup(mock_cende_context).await;
 
-    assert_eq!(fin_receiver.await, Err(oneshot::Canceled));
+    assert_eq!(fin_receiver.await, Err(Canceled));
 }
 
 #[rstest]
