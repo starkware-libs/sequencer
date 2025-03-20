@@ -1,5 +1,7 @@
-use starknet_sequencer_metrics::define_metrics;
-use starknet_sequencer_metrics::metrics::{MetricCounter, MetricGauge};
+use starknet_sequencer_metrics::metrics::{LabeledMetricCounter, MetricCounter, MetricGauge};
+use starknet_sequencer_metrics::{define_metrics, generate_permutation_labels};
+use strum::{EnumVariantNames, VariantNames};
+use strum_macros::{EnumIter, IntoStaticStr};
 
 define_metrics!(
     Consensus => {
@@ -16,8 +18,24 @@ define_metrics!(
         MetricCounter { CONSENSUS_BUILD_PROPOSAL_TOTAL, "consensus_build_proposal_total", "The total number of proposals built", init=0},
         MetricCounter { CONSENSUS_BUILD_PROPOSAL_FAILED, "consensus_build_proposal_failed", "The number of proposals that failed to be built", init=0},
         MetricCounter { CONSENSUS_REPROPOSALS, "consensus_reproposals", "The number of reproposals sent", init=0},
+        LabeledMetricCounter { CONSENSUS_TIMEOUTS, "consensus_timeouts", "The number of timeouts for the current block number", init=0, labels = CONSENSUS_TIMEOUT_LABELS },
     },
 );
+
+pub const LABEL_NAME_TIMEOUT_REASON: &str = "timeout_reason";
+
+#[derive(IntoStaticStr, EnumIter, EnumVariantNames)]
+#[strum(serialize_all = "snake_case")]
+pub(crate) enum TimeoutReason {
+    Propose,
+    Prevote,
+    Precommit,
+}
+
+generate_permutation_labels! {
+    CONSENSUS_TIMEOUT_LABELS,
+    (LABEL_NAME_TIMEOUT_REASON, TimeoutReason),
+}
 
 pub(crate) fn register_metrics() {
     CONSENSUS_BLOCK_NUMBER.register();

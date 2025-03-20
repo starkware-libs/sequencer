@@ -11068,6 +11068,8 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "starknet_sequencer_metrics",
+ "strum 0.25.0",
+ "strum_macros 0.25.3",
  "test-case",
  "thiserror 1.0.69",
  "tokio",
