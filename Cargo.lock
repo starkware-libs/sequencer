@@ -11301,6 +11301,7 @@ dependencies = [
  "starknet_mempool",
  "starknet_mempool_p2p",
  "starknet_monitoring_endpoint",
+ "starknet_sequencer_deployments",
  "starknet_sequencer_infra",
  "starknet_sequencer_node",
  "starknet_state_sync",
@@ -11588,6 +11589,16 @@ dependencies = [
 [[package]]
 name = "starknet_sequencer_deployments"
 version = "0.0.0"
+dependencies = [
+ "indexmap 2.7.0",
+ "serde",
+ "serde_json",
+ "starknet_api",
+ "starknet_infra_utils",
+ "starknet_sequencer_node",
+ "strum 0.25.0",
+ "strum_macros 0.25.3",
+]
 
 [[package]]
 name = "starknet_sequencer_infra"
@@ -11642,7 +11653,6 @@ dependencies = [
  "colored 3.0.0",
  "const_format",
  "futures",
- "indexmap 2.7.0",
  "mempool_test_utils",
  "papyrus_base_layer",
  "papyrus_config",
@@ -11650,7 +11660,6 @@ dependencies = [
  "rstest",
  "serde",
  "serde_json",
- "starknet_api",
  "starknet_batcher",
  "starknet_batcher_types",
  "starknet_class_manager",
@@ -11673,8 +11682,6 @@ dependencies = [
  "starknet_sierra_multicompile_types",
  "starknet_state_sync",
  "starknet_state_sync_types",
- "strum 0.25.0",
- "strum_macros 0.25.3",
  "tikv-jemallocator",
  "tokio",
  "tracing",

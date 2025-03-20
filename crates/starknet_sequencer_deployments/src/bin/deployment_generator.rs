@@ -1,6 +1,6 @@
 use starknet_infra_utils::dumping::serialize_to_file;
-use starknet_sequencer_node::deployment::DeploymentAndPreset;
-use starknet_sequencer_node::deployment_definitions::DEPLOYMENTS;
+use starknet_sequencer_deployments::deployment::DeploymentAndPreset;
+use starknet_sequencer_deployments::deployment_definitions::DEPLOYMENTS;
 
 // TODO(Tsabary): bundle deployment and its preset path together, and create a list of all of these
 // pairs. Then in the test, iterate over them and test each one.

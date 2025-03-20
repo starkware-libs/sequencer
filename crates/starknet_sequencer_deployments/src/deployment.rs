@@ -5,14 +5,13 @@ use std::path::Path;
 use indexmap::IndexMap;
 use serde::{Serialize, Serializer};
 use starknet_api::core::ChainId;
-use strum::{Display, EnumVariantNames, IntoEnumIterator};
-use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
-
-use crate::config::component_config::ComponentConfig;
-use crate::config::component_execution_config::{
+use starknet_sequencer_node::config::component_config::ComponentConfig;
+use starknet_sequencer_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
     ReactiveComponentExecutionConfig,
 };
+use strum::{Display, EnumVariantNames, IntoEnumIterator};
+use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 
 const BASE_PORT: u16 = 55000; // TODO(Tsabary): arbitrary port, need to resolve.
 const DEPLOYMENT_IMAGE: &str = "ghcr.io/starkware-libs/sequencer/sequencer:dev";

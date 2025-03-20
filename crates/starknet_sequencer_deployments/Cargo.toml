@@ -5,7 +5,23 @@ edition.workspace = true
 repository.workspace = true
 license.workspace = true
 
-[dependencies]
+[features]
+testing = ["starknet_sequencer_node/testing"]
 
 [lints]
 workspace = true
+
+
+[dependencies]
+indexmap.workspace = true
+serde.workspace = true
+starknet_api.workspace = true
+starknet_infra_utils.workspace = true
+starknet_sequencer_node.workspace = true
+strum.workspace = true
+strum_macros.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+starknet_infra_utils = { workspace = true, features = ["testing"] }
+starknet_sequencer_node = { workspace = true, features = ["testing"] }

@@ -43,6 +43,7 @@ starknet_l1_provider.workspace = true
 starknet_mempool.workspace = true
 starknet_mempool_p2p.workspace = true
 starknet_monitoring_endpoint = { workspace = true, features = ["testing"] }
+starknet_sequencer_deployments = { workspace = true, features = ["testing"] }
 starknet_sequencer_infra = { workspace = true, features = ["testing"] }
 starknet_sequencer_node = { workspace = true, features = ["testing"] }
 starknet_state_sync.workspace = true

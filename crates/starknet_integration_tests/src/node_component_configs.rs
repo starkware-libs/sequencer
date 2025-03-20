@@ -1,16 +1,16 @@
 use std::net::{Ipv4Addr, SocketAddr};
 
 use starknet_infra_utils::test_utils::AvailablePortsGenerator;
-use starknet_sequencer_node::config::component_config::ComponentConfig;
-use starknet_sequencer_node::config::component_execution_config::{
-    ActiveComponentExecutionConfig,
-    ReactiveComponentExecutionConfig,
-};
-use starknet_sequencer_node::deployment::{
+use starknet_sequencer_deployments::deployment::{
     set_urls_to_localhost,
     DeploymentName,
     DistributedNodeServiceName,
     ServiceName,
+};
+use starknet_sequencer_node::config::component_config::ComponentConfig;
+use starknet_sequencer_node::config::component_execution_config::{
+    ActiveComponentExecutionConfig,
+    ReactiveComponentExecutionConfig,
 };
 
 /// Holds the component configs for a set of sequencers, composing a single sequencer node.
