@@ -5,7 +5,8 @@ mod test;
 #[cfg(any(test, feature = "testing"))]
 pub mod test_utils;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::future::Future;
 use std::pin::Pin;
 use std::str::FromStr;
 use std::task::{Context, Poll};
@@ -65,6 +66,8 @@ pub struct GenericNetworkManager<SwarmT: SwarmTrait> {
     continue_propagation_sender: Sender<BroadcastedMessageMetadata>,
     continue_propagation_receiver: Receiver<BroadcastedMessageMetadata>,
     metrics: Option<NetworkMetrics>,
+    unblacklist_peer_futures: FuturesUnordered<Pin<Box<dyn Future<Output = PeerId> + Send>>>,
+    blacklisted_peers: HashSet<PeerId>,
 }
 
 impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
@@ -84,10 +87,26 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                         topic_hash,
                     );
                 }
-                Some(Some(peer_id)) = self.reported_peer_receivers.next() => self.swarm.report_peer_as_malicious(peer_id),
-                Some(peer_id) = self.reported_peers_receiver.next() => self.swarm.report_peer_as_malicious(peer_id),
+                Some(Some(peer_id)) = self.reported_peer_receivers.next() => {
+                    if let Some(metrics) = self.metrics.as_ref() { metrics.num_blacklisted_peers.increment(1) };
+                    if let Some(blacklist_peer_future) = self.swarm.report_peer_as_malicious(peer_id) {
+                        self.unblacklist_peer_futures.push(blacklist_peer_future.boxed());
+                    }
+                },
+                Some(peer_id) = self.reported_peers_receiver.next() => {
+                    if let Some(metrics) = self.metrics.as_ref() { metrics.num_blacklisted_peers.increment(1) };
+                    if let Some(blacklist_peer_future) = self.swarm.report_peer_as_malicious(peer_id) {
+                        self.unblacklist_peer_futures.push(blacklist_peer_future.boxed());
+                    }
+                },
                 Some(broadcasted_message_metadata) = self.continue_propagation_receiver.next() => {
                     self.swarm.continue_propagation(broadcasted_message_metadata);
+                }
+                Some(peer_id) = self.unblacklist_peer_futures.next() => {
+                    if self.blacklisted_peers.contains(&peer_id) {
+                        self.blacklisted_peers.remove(&peer_id);
+                        if let Some(metrics) = self.metrics.as_ref() { metrics.num_blacklisted_peers.decrement(1) }
+                    }
                 }
             }
         }
@@ -129,6 +148,8 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             continue_propagation_sender,
             continue_propagation_receiver,
             metrics,
+            unblacklist_peer_futures: FuturesUnordered::new(),
+            blacklisted_peers: HashSet::new(),
         }
     }
 
@@ -284,6 +305,10 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                 }
                 if let Some(metrics) = self.metrics.as_ref() {
                     metrics.num_connected_peers.decrement(1);
+                    if self.blacklisted_peers.contains(&peer_id) {
+                        metrics.num_blacklisted_peers.decrement(1);
+                        self.blacklisted_peers.remove(&peer_id);
+                    }
                 }
             }
             SwarmEvent::Behaviour(event) => {

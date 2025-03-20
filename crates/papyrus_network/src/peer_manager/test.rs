@@ -205,8 +205,8 @@ async fn peer_assignment_no_unblocked_peers() {
     assert!(peer_manager.next().now_or_never().is_none());
 }
 
-#[test]
-fn report_peer_calls_update_reputation_and_notifies_kad() {
+#[tokio::test]
+async fn report_peer_calls_update_reputation_and_notifies_kad() {
     // Create a new peer manager
     let config = PeerManagerConfig::default();
     let mut peer_manager: PeerManager = PeerManager::new(config.clone());
@@ -249,6 +249,7 @@ fn report_peer_on_unknown_peer_id() {
     let peer_id = PeerId::random();
     peer_manager
         .report_peer(peer_id, ReputationModifier::Unstable {})
+        .map(|_| ())
         .expect_err("report_peer on unknown peer_id should return an error");
 }
 
@@ -277,8 +278,8 @@ async fn timed_out_peer_not_assignable_to_queries() {
     assert_matches!(peer_manager.assign_peer_to_session(outbound_session_id), None);
 }
 
-#[test]
-fn wrap_around_in_peer_assignment() {
+#[tokio::test]
+async fn wrap_around_in_peer_assignment() {
     // Create a new peer manager
     let config = PeerManagerConfig::default();
     let mut peer_manager: PeerManager = PeerManager::new(config.clone());
@@ -313,8 +314,8 @@ fn wrap_around_in_peer_assignment() {
     assert_matches!(peer_manager.assign_peer_to_session(outbound_session_id), Some(peer_id) if peer_id == peer_id2);
 }
 
-#[test]
-fn block_and_allow_inbound_connection() {
+#[tokio::test]
+async fn block_and_allow_inbound_connection() {
     // Create a new peer manager
     let config = PeerManagerConfig::default();
     let mut peer_manager: PeerManager = PeerManager::new(config.clone());
