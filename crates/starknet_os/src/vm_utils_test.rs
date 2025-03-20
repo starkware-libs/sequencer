@@ -18,27 +18,13 @@ impl IdentifierGetter for HashMap<String, Identifier> {
 }
 
 #[rstest]
-#[case::depth_1(0, vec![
-    "double_double_point".to_string(),
-])]
-#[case::depth_2(4, vec![
-    "double_double_point".to_string(),
-    "double_point2".to_string(),
-])]
-#[case::depth_2(6, vec![
-    "double_double_point".to_string(),
-    "double_point2".to_string(),
-    "point2".to_string(),
-])]
-#[case::depth_4(3, vec![
-    "double_double_point".to_string(),
-    "double_point1".to_string(),
-    "point2".to_string(),
-    "y".to_string(),
-])]
+#[case::depth_1(0, vec!["double_double_point"])]
+#[case::depth_2(4, vec!["double_double_point", "double_point2"])]
+#[case::depth_2(6, vec!["double_double_point", "double_point2", "point2"])]
+#[case::depth_4(3, vec!["double_double_point", "double_point1", "point2", "y"])]
 fn get_address_of_nested_fields_without_ptrs(
     #[case] expected_offset: usize,
-    #[case] nested_fields: Vec<String>,
+    #[case] nested_fields: Vec<&str>,
 ) {
     let identifiers_json = r#"
     {
