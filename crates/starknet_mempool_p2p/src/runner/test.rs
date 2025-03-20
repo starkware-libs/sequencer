@@ -23,6 +23,8 @@ use starknet_sequencer_infra::component_definitions::ComponentStarter;
 
 use super::MempoolP2pRunner;
 
+const MAX_TRANSACTION_BATCH_RATE: Duration = Duration::MAX;
+
 fn setup(
     network_future: BoxFuture<'static, Result<(), NetworkError>>,
     gateway_client: Arc<dyn GatewayClient>,
@@ -37,6 +39,9 @@ fn setup(
         broadcast_topic_client,
         gateway_client,
         Arc::new(MockMempoolP2pPropagatorClient::new()),
+        // TODO(alonl): test that after transaction_batch_rate_millis has passed, the runner sends
+        // the request to the propagator.
+        MAX_TRANSACTION_BATCH_RATE,
     );
     (mempool_p2p_runner, mock_network)
 }
