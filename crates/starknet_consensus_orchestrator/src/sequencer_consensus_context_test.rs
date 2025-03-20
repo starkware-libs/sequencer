@@ -189,6 +189,31 @@ fn success_cende_ammbassador() -> MockCendeContext {
 }
 
 #[tokio::test]
+async fn cancelled_proposal_aborts() {
+    let mut batcher = MockBatcherClient::new();
+    batcher.expect_propose_block().return_once(|_| Ok(()));
+
+    batcher.expect_start_height().return_once(|_| Ok(()));
+
+    batcher.expect_get_proposal_content().returning(move |_| {
+        Ok(GetProposalContentResponse { content: GetProposalContent::Txs(Vec::new()) })
+    });
+
+    let mut mock_eth_to_strk_oracle = MockEthToStrkOracleClientTrait::new();
+    mock_eth_to_strk_oracle.expect_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
+
+    let (mut context, _network) =
+        setup(batcher, success_cende_ammbassador(), mock_eth_to_strk_oracle);
+
+    let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await;
+
+    // Now we intrrupt the proposal and verify that the fin_receiever is dropped.
+    context.set_height_and_round(BlockNumber(0), 1).await;
+
+    assert_eq!(fin_receiver.await, Err(Canceled));
+}
+
+#[tokio::test]
 async fn validate_proposal_success() {
     let mut batcher = MockBatcherClient::new();
     let proposal_id: Arc<OnceLock<ProposalId>> = Arc::new(OnceLock::new());
@@ -526,7 +551,7 @@ async fn build_proposal_cende_failure() {
 
     let (fin_receiver, _, _network) = build_proposal_setup(mock_cende_context).await;
 
-    assert_eq!(fin_receiver.await, Err(oneshot::Canceled));
+    assert_eq!(fin_receiver.await, Err(Canceled));
 }
 
 #[tokio::test]
@@ -538,7 +563,7 @@ async fn build_proposal_cende_incomplete() {
 
     let (fin_receiver, _, _network) = build_proposal_setup(mock_cende_context).await;
 
-    assert_eq!(fin_receiver.await, Err(oneshot::Canceled));
+    assert_eq!(fin_receiver.await, Err(Canceled));
 }
 
 #[rstest]
