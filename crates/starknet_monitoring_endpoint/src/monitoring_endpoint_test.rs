@@ -8,9 +8,11 @@ use hyper::body::to_bytes;
 use hyper::Client;
 use metrics::{counter, describe_counter};
 use pretty_assertions::assert_eq;
+use serde_json::{from_str, to_value, Value};
+use starknet_api::block::NonzeroGasPrice;
 use starknet_api::tx_hash;
 use starknet_mempool_types::communication::{MempoolClientResult, MockMempoolClient};
-use starknet_mempool_types::mempool_types::MempoolSnapshot;
+use starknet_mempool_types::mempool_types::{MempoolSnapshot, TransactionQueueSnapshot};
 use tokio::spawn;
 use tokio::task::yield_now;
 use tower::ServiceExt;
@@ -118,9 +120,30 @@ async fn endpoint_as_server() {
     assert_eq!(&body[..], TEST_VERSION.as_bytes());
 }
 
-fn return_mempool_snapshot() -> MempoolClientResult<MempoolSnapshot> {
+fn create_mempool_snapshot() -> MempoolSnapshot {
     let expected_chronological_hashes = (1..10).map(|i| tx_hash!(i)).collect::<Vec<_>>();
-    Ok(MempoolSnapshot { transactions: expected_chronological_hashes })
+    let expected_transaction_queue = TransactionQueueSnapshot {
+        gas_price_threshold: NonzeroGasPrice::MIN,
+        priority_queue: (1..5).map(|i| tx_hash!(i)).collect::<Vec<_>>(),
+        pending_queue: (5..10).map(|i| tx_hash!(i)).collect::<Vec<_>>(),
+    };
+    MempoolSnapshot {
+        transactions: expected_chronological_hashes,
+        transaction_queue: expected_transaction_queue,
+    }
+
+}
+
+fn return_mempool_snapshot() -> MempoolClientResult<MempoolSnapshot> {
+    Ok(create_mempool_snapshot())
+}
+
+fn create_json_from_string(json_str: &str) -> Value {
+    from_str(json_str).expect("Failed to parse JSON string")
+}
+
+fn create_json_from_mempool_snapshot(snapshot: &MempoolSnapshot) -> Value {
+    to_value(snapshot).expect("Failed to serialize MempoolSnapshot")
 }
 
 #[tokio::test]
@@ -132,8 +155,9 @@ async fn mempool_snapshot() {
     assert_eq!(response.status(), StatusCode::OK);
     let body_bytes = hyper::body::to_bytes(response.into_body()).await.unwrap();
     let body_string = String::from_utf8(body_bytes.to_vec()).unwrap();
-    let expected_prefix =
-        String::from(r#"{"transactions":["0x1","0x2","0x3","0x4","0x5","0x6","0x7","0x8","0x9"]}"#);
 
-    assert!(body_string.starts_with(&expected_prefix));
+    let expected_json = create_json_from_mempool_snapshot(&create_mempool_snapshot());
+    let received_json = create_json_from_string(&body_string);
+
+    assert_eq!(expected_json, received_json);
 }

@@ -557,7 +557,10 @@ impl Mempool {
     }
 
     pub fn get_mempool_snapshot(&self) -> MempoolResult<MempoolSnapshot> {
-        Ok(MempoolSnapshot { transactions: self.tx_pool.get_chronological_txs_hashes() })
+        Ok(MempoolSnapshot {
+            transactions: self.tx_pool.get_chronological_txs_hashes(),
+            transaction_queue: self.tx_queue.get_queue_snapshot(),
+        })
     }
 
     #[cfg(test)]
