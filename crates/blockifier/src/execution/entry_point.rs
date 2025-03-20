@@ -4,7 +4,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::{ResourceTracker, RunResources};
-use num_traits::{Inv, Zero};
 use serde::Serialize;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
@@ -36,7 +35,7 @@ use crate::execution::stack_trace::{extract_trailing_cairo1_revert_trace, Cairo1
 use crate::state::state_api::{State, StateResult};
 use crate::transaction::objects::{HasRelatedFeeType, TransactionInfo};
 use crate::transaction::transaction_types::TransactionType;
-use crate::utils::usize_from_u64;
+use crate::utils::{compute_step_limit_int, compute_step_limit_ratio, usize_from_u64};
 
 #[cfg(test)]
 #[path = "entry_point_test.rs"]
@@ -411,33 +410,19 @@ impl EntryPointExecutionContext {
             // Fee is a larger uint type than GasAmount, so we need to saturate the division.
             // This is just a computation of an upper bound, so it's safe to saturate.
             TransactionInfo::Deprecated(context) => {
-                if l1_gas_per_step.is_zero() {
-                    u64::MAX
-                } else {
-                    let induced_l1_gas_limit = context
-                        .max_fee
-                        .saturating_div(block_info.gas_prices.l1_gas_price(&tx_info.fee_type()));
-                    (l1_gas_per_step.inv() * induced_l1_gas_limit.0).to_integer()
-                }
+                let induced_l1_gas_limit = context
+                    .max_fee
+                    .saturating_div(block_info.gas_prices.l1_gas_price(&tx_info.fee_type()));
+                compute_step_limit_ratio(induced_l1_gas_limit.0, l1_gas_per_step, u64::MAX)
             }
             TransactionInfo::Current(context) => match context.resource_bounds {
                 ValidResourceBounds::L1Gas(ResourceBounds { max_amount, .. }) => {
-                    if l1_gas_per_step.is_zero() {
-                        u64::MAX
-                    } else {
-                        (l1_gas_per_step.inv() * max_amount.0).to_integer()
-                    }
+                    compute_step_limit_ratio(max_amount.0, l1_gas_per_step, u64::MAX)
                 }
                 ValidResourceBounds::AllResources(AllResourceBounds {
                     l2_gas: ResourceBounds { max_amount, .. },
                     ..
-                }) => {
-                    if l2_gas_per_step.is_zero() {
-                        u64::MAX
-                    } else {
-                        max_amount.0.saturating_div(l2_gas_per_step)
-                    }
-                }
+                }) => compute_step_limit_int(max_amount.0, l2_gas_per_step, u64::MAX),
             },
         };
 
