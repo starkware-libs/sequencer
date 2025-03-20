@@ -1368,6 +1368,7 @@ dependencies = [
  "num-traits",
  "pretty_assertions",
  "serde",
+ "serde_json",
  "starknet_api",
  "thiserror 1.0.69",
  "tokio",

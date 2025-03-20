@@ -200,7 +200,7 @@ impl TransactionPool {
         }
     }
 
-    pub fn get_chronological_txs_hashes(&self) -> Vec<TransactionHash> {
+    pub fn chronological_txs_hashes(&self) -> Vec<TransactionHash> {
         self.txs_by_submission_time
             .txs_by_submission_time
             .keys()
