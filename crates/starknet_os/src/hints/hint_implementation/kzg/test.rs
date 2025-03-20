@@ -27,6 +27,7 @@ fn generate(generator: &BigInt) -> Vec<BigInt> {
 fn test_small_fft_regression(#[values(true, false)] bit_reversed: bool) {
     let prime = BigInt::from(17);
     let generator = BigInt::from(3);
+    let x = 7;
     let coeffs: Vec<BigInt> = [0, 1, 2, 3].into_iter().map(BigInt::from).collect();
     let expected_eval: Vec<BigInt> = (if bit_reversed { [6, 15, 9, 4] } else { [6, 9, 15, 4] })
         .into_iter()
