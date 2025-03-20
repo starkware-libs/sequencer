@@ -201,15 +201,29 @@ pub enum Const {
 impl From<Const> for &'static str {
     fn from(constant: Const) -> &'static str {
         match constant {
-            Const::AliasContractAddress => "ALIAS_CONTRACT_ADDRESS",
-            Const::AliasCounterStorageKey => "ALIAS_COUNTER_STORAGE_KEY",
-            Const::Base => "BASE",
-            Const::BlobLength => "BLOB_LENGTH",
-            Const::BlockHashContractAddress => "BLOCK_HASH_CONTRACT_ADDRESS",
-            Const::CompiledClassVersion => "COMPILED_CLASS_VERSION",
-            Const::InitialAvailableAlias => "INITIAL_AVAILABLE_ALIAS",
-            Const::MerkleHeight => "MERKLE_HEIGHT",
-            Const::StoredBlockHashBuffer => "STORED_BLOCK_HASH_BUFFER",
+            Const::AliasContractAddress => {
+                "starkware.starknet.core.os.constants.ALIAS_CONTRACT_ADDRESS"
+            }
+            Const::AliasCounterStorageKey => {
+                "starkware.starknet.core.os.state.aliases.ALIAS_COUNTER_STORAGE_KEY"
+            }
+            Const::Base => "starkware.starknet.core.os.data_availability.bls_field.BASE",
+            Const::BlobLength => {
+                "starkware.starknet.core.os.data_availability.commitment.BLOB_LENGTH"
+            }
+            Const::BlockHashContractAddress => {
+                "starkware.starknet.core.os.constants.BLOCK_HASH_CONTRACT_ADDRESS"
+            }
+            Const::CompiledClassVersion => {
+                "starkware.starknet.core.os.contract_class.compiled_class.COMPILED_CLASS_VERSION"
+            }
+            Const::InitialAvailableAlias => {
+                "starkware.starknet.core.os.state.aliases.INITIAL_AVAILABLE_ALIAS"
+            }
+            Const::MerkleHeight => "starkware.starknet.core.os.state.commitment.MERKLE_HEIGHT",
+            Const::StoredBlockHashBuffer => {
+                "starkware.starknet.core.os.constants.STORED_BLOCK_HASH_BUFFER"
+            }
         }
     }
 }
