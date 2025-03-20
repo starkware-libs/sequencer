@@ -7,7 +7,11 @@ use alloy::node_bindings::AnvilInstance;
 use blockifier::context::ChainInfo;
 use futures::future::join_all;
 use futures::TryFutureExt;
-use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
+use mempool_test_utils::starknet_api_test_utils::{
+    AccountId,
+    AccountTransactionGenerator,
+    MultiAccountTransactionGenerator,
+};
 use papyrus_base_layer::test_utils::{
     ethereum_base_layer_config_for_anvil,
     spawn_anvil_and_deploy_starknet_l1_contract,
@@ -19,6 +23,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, Nonce};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
+use starknet_class_manager::test_utils::FileHandles;
 use starknet_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use starknet_infra_utils::tracing::{CustomLogger, TraceLevel};
 use starknet_monitoring_endpoint::test_utils::MonitoringClient;
@@ -26,6 +31,7 @@ use starknet_sequencer_node::config::config_utils::dump_json_data;
 use starknet_sequencer_node::config::definitions::ConfigPointersMap;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::test_utils::node_runner::{get_node_executable_path, spawn_run_node};
+use tempfile::TempDir;
 use tokio::join;
 use tokio::task::JoinHandle;
 use tracing::info;
@@ -42,6 +48,14 @@ use crate::node_component_configs::{
     create_consolidated_sequencer_configs,
     create_nodes_deployment_units_configs,
     NodeComponentConfigs,
+};
+use crate::state_reader::{
+    StorageTestSetup,
+    BATCHER_DB_PATH_SUFFIX,
+    CLASSES_STORAGE_DB_PATH_SUFFIX,
+    CLASS_HASH_STORAGE_DB_PATH_SUFFIX,
+    CLASS_MANAGER_DB_PATH_SUFFIX,
+    STATE_SYNC_DB_PATH_SUFFIX,
 };
 use crate::utils::{
     create_consensus_manager_configs_from_network_configs,
@@ -68,6 +82,16 @@ pub struct NodeSetup {
     batcher_index: usize,
     http_server_index: usize,
     state_sync_index: usize,
+
+    // Handlers for the storage files, maintained so the files are not deleted. Since
+    // these are only maintained to avoid dropping the handlers, private visibility suffices, and
+    // as such, the '#[allow(dead_code)]' attributes are used to suppress the warning.
+    #[allow(dead_code)]
+    batcher_storage_handle: Option<TempDir>,
+    #[allow(dead_code)]
+    state_sync_storage_handle: Option<TempDir>,
+    #[allow(dead_code)]
+    class_manager_storage_handles: Option<FileHandles>,
 }
 
 impl NodeSetup {
@@ -76,6 +100,9 @@ impl NodeSetup {
         batcher_index: usize,
         http_server_index: usize,
         state_sync_index: usize,
+        batcher_storage_handle: Option<TempDir>,
+        state_sync_storage_handle: Option<TempDir>,
+        class_manager_storage_handles: Option<FileHandles>,
     ) -> Self {
         let len = executables.len();
 
@@ -93,7 +120,15 @@ impl NodeSetup {
         validate_index(http_server_index, len, "HTTP server");
         validate_index(state_sync_index, len, "State sync");
 
-        Self { executables, batcher_index, http_server_index, state_sync_index }
+        Self {
+            executables,
+            batcher_index,
+            http_server_index,
+            state_sync_index,
+            batcher_storage_handle,
+            state_sync_storage_handle,
+            class_manager_storage_handles,
+        }
     }
 
     async fn send_rpc_tx_fn(&self, rpc_tx: RpcTransaction) -> TransactionHash {
@@ -195,6 +230,7 @@ pub struct IntegrationTestManager {
     starknet_l1_contract: StarknetL1Contract,
 }
 
+#[derive(Debug, Clone)]
 pub struct CustomPaths {
     db_base: Option<PathBuf>,
     config_base: Option<PathBuf>,
@@ -692,6 +728,7 @@ pub async fn get_sequencer_setup_configs(
         let batcher_index = node_component_config.get_batcher_index();
         let http_server_index = node_component_config.get_http_server_index();
         let state_sync_index = node_component_config.get_state_sync_index();
+        let class_manager_index = node_component_config.get_class_manager_index();
 
         let mut consensus_manager_config = consensus_manager_configs.remove(0);
         let mempool_p2p_config = mempool_p2p_configs.remove(0);
@@ -699,6 +736,16 @@ pub async fn get_sequencer_setup_configs(
 
         consensus_manager_config.cende_config.recorder_url = recorder_url.clone();
         let validator_id = set_validator_id(&mut consensus_manager_config, node_index);
+
+        let storage_setup = get_integration_test_storage(
+            node_index,
+            batcher_index,
+            state_sync_index,
+            class_manager_index,
+            custom_paths.as_ref().cloned(),
+            accounts.to_vec(),
+            &chain_info,
+        );
 
         for (executable_index, executable_component_config) in
             node_component_config.into_iter().enumerate()
@@ -709,13 +756,9 @@ pub async fn get_sequencer_setup_configs(
                 custom_paths.as_ref().and_then(|paths| paths.get_db_path(&node_execution_id));
             let exec_config_path =
                 custom_paths.as_ref().and_then(|paths| paths.get_config_path(&node_execution_id));
-            let exec_data_prefix_dir = custom_paths
-                .as_ref()
-                .and_then(|paths| paths.get_data_prefix_path(&node_execution_id));
 
             executables.push(
                 ExecutableSetup::new(
-                    accounts.to_vec(),
                     node_execution_id,
                     chain_info,
                     consensus_manager_config.clone(),
@@ -728,13 +771,21 @@ pub async fn get_sequencer_setup_configs(
                     base_layer_config.clone(),
                     exec_db_path,
                     exec_config_path,
-                    exec_data_prefix_dir,
                     validator_id,
+                    &storage_setup,
                 )
                 .await,
             );
         }
-        nodes.push(NodeSetup::new(executables, batcher_index, http_server_index, state_sync_index));
+        nodes.push(NodeSetup::new(
+            executables,
+            batcher_index,
+            http_server_index,
+            state_sync_index,
+            storage_setup.batcher_storage_handle,
+            storage_setup.state_sync_storage_handle,
+            storage_setup.class_manager_storage_handles,
+        ));
     }
 
     (nodes, node_indices)
@@ -746,4 +797,62 @@ where
     K: std::hash::Hash + Eq,
 {
     items.into_iter().filter_map(|item| key_extractor(&item).map(|key| (key, item))).collect()
+}
+
+fn get_integration_test_storage(
+    node_index: usize,
+    batcher_index: usize,
+    state_sync_index: usize,
+    class_manager_index: usize,
+    custom_paths: Option<CustomPaths>,
+    accounts: Vec<AccountTransactionGenerator>,
+    chain_info: &ChainInfo,
+) -> StorageTestSetup {
+    let batcher_execution_id = &NodeExecutionId::new(node_index, batcher_index);
+    let state_sync_execution_id = &NodeExecutionId::new(node_index, state_sync_index);
+    let class_manager_execution_id = &NodeExecutionId::new(node_index, class_manager_index);
+    let db_path_dir =
+        custom_paths.as_ref().and_then(|paths| paths.get_db_path(&batcher_execution_id));
+    let StorageTestSetup {
+        mut batcher_storage_config,
+        batcher_storage_handle,
+        mut state_sync_storage_config,
+        state_sync_storage_handle,
+        mut class_manager_storage_config,
+        class_manager_storage_handles,
+    } = StorageTestSetup::new(accounts, &chain_info, db_path_dir);
+
+    // Allow overriding the path with a custom prefix for Docker mode in system tests.
+    if let Some(_) = custom_paths {
+        let batcher_prefix = custom_paths
+            .as_ref()
+            .and_then(|paths| paths.get_db_path(&batcher_execution_id))
+            .unwrap();
+        batcher_storage_config.db_config.path_prefix = batcher_prefix.join(BATCHER_DB_PATH_SUFFIX);
+        let state_sync_prefix = custom_paths
+            .as_ref()
+            .and_then(|paths| paths.get_db_path(&state_sync_execution_id))
+            .unwrap();
+        state_sync_storage_config.db_config.path_prefix =
+            state_sync_prefix.join(STATE_SYNC_DB_PATH_SUFFIX);
+        let class_manager_prefix = custom_paths
+            .as_ref()
+            .and_then(|paths| paths.get_db_path(&class_manager_execution_id))
+            .unwrap();
+        class_manager_storage_config.class_hash_storage_config.path_prefix = class_manager_prefix
+            .join(CLASS_MANAGER_DB_PATH_SUFFIX)
+            .join(CLASS_HASH_STORAGE_DB_PATH_SUFFIX);
+        class_manager_storage_config.persistent_root = class_manager_prefix
+            .join(CLASS_MANAGER_DB_PATH_SUFFIX)
+            .join(CLASSES_STORAGE_DB_PATH_SUFFIX);
+    }
+
+    StorageTestSetup {
+        batcher_storage_config,
+        batcher_storage_handle,
+        state_sync_storage_config,
+        state_sync_storage_handle,
+        class_manager_storage_config,
+        class_manager_storage_handles,
+    }
 }
