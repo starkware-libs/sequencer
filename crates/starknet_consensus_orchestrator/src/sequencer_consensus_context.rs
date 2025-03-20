@@ -248,6 +248,7 @@ struct ProposalBuildArguments {
     gas_prices: GasPrices,
     transaction_converter: TransactionConverter,
     builder_address: ContractAddress,
+    cancel_token: CancellationToken,
 }
 
 struct ProposalValidateArguments {
@@ -302,6 +303,8 @@ impl ConsensusContext for SequencerConsensusContext {
 
         info!(?proposal_init, ?timeout, %proposal_id, "Building proposal");
         let batcher_timeout = timeout - self.config.build_proposal_margin;
+        let cancel_token = CancellationToken::new();
+        let cancel_token_clone = cancel_token.clone();
         let handle = tokio::spawn(
             async move {
                 build_proposal(ProposalBuildArguments {
@@ -318,6 +321,7 @@ impl ConsensusContext for SequencerConsensusContext {
                     gas_prices,
                     transaction_converter,
                     builder_address,
+                    cancel_token,
                 })
                 .await;
             }
@@ -326,8 +330,7 @@ impl ConsensusContext for SequencerConsensusContext {
             ),
         );
         assert!(self.active_proposal.is_none());
-        // The cancellation token is unused by the spawned build.
-        self.active_proposal = Some((CancellationToken::new(), handle));
+        self.active_proposal = Some((cancel_token_clone, handle));
 
         fin_receiver
     }
@@ -722,6 +725,7 @@ async fn build_proposal(mut args: ProposalBuildArguments) {
         args.proposal_sender,
         args.cende_write_success,
         &args.transaction_converter,
+        args.cancel_token,
     )
     .await
     else {
@@ -790,9 +794,14 @@ async fn get_proposal_content(
     mut proposal_sender: mpsc::Sender<ProposalPart>,
     cende_write_success: AbortOnDropHandle<bool>,
     transaction_converter: &TransactionConverter,
+    cancel_token: CancellationToken,
 ) -> Option<(ProposalCommitment, Vec<Vec<InternalConsensusTransaction>>)> {
     let mut content = Vec::new();
     loop {
+        if cancel_token.is_cancelled() {
+            warn!("Proposal interrupted during building.");
+            return None;
+        }
         // We currently want one part of the node failing to cause all components to fail. If this
         // changes, we can simply return None and consider this as a failed proposal which consensus
         // should support.
@@ -862,7 +871,6 @@ async fn get_proposal_content(
     }
 }
 
-// TODO(Arni): Remove the clippy when switch to ProposalInit.
 async fn validate_proposal(mut args: ProposalValidateArguments) {
     let mut content = Vec::new();
     let deadline = tokio::time::Instant::now() + args.timeout;
@@ -899,7 +907,7 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
     let (built_block, received_fin) = loop {
         tokio::select! {
             _ = args.cancel_token.cancelled() => {
-                warn!("Proposal interrupted");
+                warn!("Proposal interrupted during validation.");
                 batcher_abort_proposal(args.batcher.as_ref(), args.proposal_id).await;
                 return;
             }
