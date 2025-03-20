@@ -1,5 +1,6 @@
 use std::string::FromUtf8Error;
 
+use blockifier::execution::syscalls::hint_processor::SyscallExecutionError;
 use blockifier::state::errors::StateError;
 use cairo_vm::hint_processor::hint_processor_definition::HintExtension;
 use cairo_vm::serde::deserialize_program::Identifier;
@@ -61,6 +62,8 @@ pub enum OsHintError {
     MissingBytecodeSegmentStructure(ClassHash),
     #[error("No preimage found for value {0:?}.")]
     MissingPreimage(Felt),
+    #[error("Failed to parse resource bounds: {0}.")]
+    ResourceBoundsParsing(SyscallExecutionError),
     #[error("{error:?} for json value {value}.")]
     SerdeJsonDeserialize { error: serde_json::Error, value: serde_json::value::Value },
     #[error(transparent)]
