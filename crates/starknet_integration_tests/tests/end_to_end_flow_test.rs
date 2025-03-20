@@ -5,6 +5,7 @@ use futures::StreamExt;
 use mempool_test_utils::starknet_api_test_utils::{
     create_l1_handler_tx,
     MultiAccountTransactionGenerator,
+    SendableL1HandlerTransaction,
 };
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{
@@ -22,12 +23,7 @@ use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::core::ChainId;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_api::transaction::{
-    L1HandlerTransaction,
-    TransactionHash,
-    TransactionHasher,
-    TransactionVersion,
-};
+use starknet_api::transaction::{TransactionHash, TransactionHasher, TransactionVersion};
 use starknet_consensus::types::ValidatorId;
 use starknet_infra_utils::test_utils::TestIdentifier;
 use starknet_integration_tests::flow_test_setup::{FlowSequencerSetup, FlowTestSetup};
@@ -56,7 +52,7 @@ const LAST_HEIGHT_FOR_MANY_TXS: BlockNumber = BlockNumber(1);
 struct TestBlockScenario {
     height: BlockNumber,
     create_rpc_txs_fn: CreateRpcTxsFn,
-    l1_handler_txs: Vec<L1HandlerTransaction>,
+    l1_handler_txs: Vec<SendableL1HandlerTransaction>,
     test_tx_hashes_fn: TestTxHashesFn,
     expected_content_id: ExpectedContentId,
 }
@@ -126,6 +122,8 @@ async fn end_to_end_flow(
         // Create and send transactions.
         // TODO(Arni): move send messages to l2 into [run_test_scenario].
         mock_running_system.send_messages_to_l2(&l1_handler_txs).await;
+        let l1_handler_txs =
+            l1_handler_txs.iter().map(|(l1_handler_tx, _)| l1_handler_tx.clone()).collect();
         let expected_batched_tx_hashes = run_test_scenario(
             &mut tx_generator,
             create_rpc_txs_fn,
@@ -175,7 +173,7 @@ fn create_test_blocks() -> Vec<TestBlockScenario> {
     let heights_to_build = next_height.iter_up_to(LAST_HEIGHT.unchecked_next());
     let test_scenarios: Vec<(
         CreateRpcTxsFn,
-        Vec<L1HandlerTransaction>,
+        Vec<SendableL1HandlerTransaction>,
         TestTxHashesFn,
         ExpectedContentId,
     )> = vec![
@@ -184,7 +182,7 @@ fn create_test_blocks() -> Vec<TestBlockScenario> {
         // TODO(Arni): Fix this. Move the L1 handler to be not the first block.
         (
             |_| vec![],
-            vec![create_l1_handler_tx()],
+            vec![(create_l1_handler_tx(), None)],
             test_single_tx,
             ExpectedContentId::from_hex_unchecked(
                 "0x32a9c3b503e51b4330fe735b73975a62df996d6d6ebfe6cd1514ba2a68797cb",
@@ -246,7 +244,7 @@ fn create_test_blocks_for_many_txs_scenario() -> Vec<TestBlockScenario> {
     let heights_to_build = next_height.iter_up_to(LAST_HEIGHT_FOR_MANY_TXS.unchecked_next());
     let test_scenarios: Vec<(
         CreateRpcTxsFn,
-        Vec<L1HandlerTransaction>,
+        Vec<SendableL1HandlerTransaction>,
         TestTxHashesFn,
         ExpectedContentId,
     )> = vec![

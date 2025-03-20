@@ -162,17 +162,22 @@ pub type AccountId = usize;
 
 type SharedNonceManager = Rc<RefCell<NonceManager>>;
 
+// The u64 stands for the L1 nonce of the L1 handler transaction.
+pub type SendableL1HandlerTransaction = (L1HandlerTransaction, Option<u64>);
+
 #[derive(Default)]
 struct L1HandlerTransactionGenerator {
-    tx_number: usize,
+    // The L1 nonce for the next L1 handler transaction.
+    l1_nonce: u64,
 }
 
 impl L1HandlerTransactionGenerator {
-    fn create_l1_handler_tx(&mut self) -> L1HandlerTransaction {
-        self.tx_number += 1;
+    fn create_l1_handler_tx(&mut self) -> SendableL1HandlerTransaction {
         // TODO(Arni): Inline the following call to `create_l1_handler_tx` and use this function
         // everywhere instead.
-        create_l1_handler_tx()
+        let result = (create_l1_handler_tx(), Some(self.l1_nonce));
+        self.l1_nonce += 1;
+        result
     }
 }
 
@@ -268,7 +273,7 @@ impl MultiAccountTransactionGenerator {
             })
             .collect();
         let l1_handler_tx_generator =
-            L1HandlerTransactionGenerator { tx_number: self.l1_handler_tx_generator.tx_number };
+            L1HandlerTransactionGenerator { l1_nonce: self.l1_handler_tx_generator.l1_nonce };
 
         Self { account_tx_generators, nonce_manager, l1_handler_tx_generator }
     }
@@ -350,12 +355,12 @@ impl MultiAccountTransactionGenerator {
             .collect()
     }
 
-    pub fn create_l1_handler_tx(&mut self) -> L1HandlerTransaction {
+    pub fn create_l1_handler_tx(&mut self) -> SendableL1HandlerTransaction {
         self.l1_handler_tx_generator.create_l1_handler_tx()
     }
 
     pub fn n_l1_txs(&self) -> usize {
-        self.l1_handler_tx_generator.tx_number
+        self.l1_handler_tx_generator.l1_nonce.try_into().expect("Failed to convert nonce to usize")
     }
 }
 
