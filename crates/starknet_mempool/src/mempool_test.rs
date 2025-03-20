@@ -1239,3 +1239,26 @@ fn committed_account_nonce_cleanup() {
     commit_block(&mut mempool, [], []);
     add_tx(&mut mempool, &input_tx);
 }
+
+#[rstest]
+fn test_get_mempool_snapshot() {
+    // Create a mempool with a fake clock.
+    let fake_clock = Arc::new(FakeClock::default());
+    let mut mempool = Mempool::new(MempoolConfig::default(), fake_clock.clone());
+
+    for i in 1..10 {
+        fake_clock.advance(Duration::from_secs(1));
+        add_tx(
+            &mut mempool,
+            &add_tx_input!(tx_hash: i, address: format!("0x{}", i).as_str(), tip: 10),
+        );
+    }
+
+    // Test.
+    let mempool_snapshot = mempool.get_mempool_snapshot().unwrap();
+
+    // Check that the returned hashes are sorted by submission time.
+    let expected_chronological_hashes = (1..10).rev().map(|i| tx_hash!(i)).collect::<Vec<_>>();
+
+    assert_eq!(mempool_snapshot.transactions, expected_chronological_hashes);
+}

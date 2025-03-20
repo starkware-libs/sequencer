@@ -13,6 +13,7 @@ use starknet_mempool_types::mempool_types::{
     AddTransactionArgs,
     CommitBlockArgs,
     MempoolResult,
+    MempoolSnapshot,
 };
 use tracing::{debug, info, instrument, trace};
 
@@ -553,6 +554,10 @@ impl Mempool {
         }
 
         valid_txs
+    }
+
+    pub fn get_mempool_snapshot(&self) -> MempoolResult<MempoolSnapshot> {
+        Ok(MempoolSnapshot { transactions: self.tx_pool.get_chronological_txs_hashes() })
     }
 
     #[cfg(test)]
