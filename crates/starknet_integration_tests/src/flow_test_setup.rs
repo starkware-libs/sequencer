@@ -165,7 +165,28 @@ impl FlowTestSetup {
     }
 
     pub async fn send_messages_to_l2(&self, l1_handler_txs: &[L1HandlerTransaction]) {
+        use reqwest::Client;
+        use serde_json::json;
         for l1_handler in l1_handler_txs {
+            let url = self.l1_handle.endpoint_url();
+            // Create an HTTP client
+            let client = Client::new();
+
+            // JSON-RPC request payload
+            let request_body = json!({
+                "jsonrpc": "2.0",
+                "method": "eth_pendingTransactions",
+                "params": [],
+                "id": 1
+            });
+
+            // Send POST request
+            let response = client.post(url).json(&request_body).send().await.unwrap();
+
+            // Parse response
+            let response_json: serde_json::Value = response.json().await.unwrap();
+            println!("Mempool Transactions: {:#?}", response_json);
+
             send_message_to_l2(l1_handler, &self.starknet_l1_contract).await;
         }
     }

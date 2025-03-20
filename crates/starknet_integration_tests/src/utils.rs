@@ -423,6 +423,7 @@ pub(crate) async fn send_message_to_l2(
     l1_handler: &L1HandlerTransaction,
     starknet_l1_contract: &StarknetL1Contract,
 ) {
+    println!("yael L1 handler tx {:?}", l1_handler);
     let l2_contract_address = l1_handler.contract_address.0.key().to_hex_string().parse().unwrap();
     let l2_entry_point = l1_handler.entry_point_selector.0.to_hex_string().parse().unwrap();
 

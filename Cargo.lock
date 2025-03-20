@@ -11283,6 +11283,7 @@ dependencies = [
  "papyrus_storage",
  "papyrus_sync",
  "pretty_assertions",
+ "reqwest 0.11.27",
  "rstest",
  "serde_json",
  "starknet-types-core",
