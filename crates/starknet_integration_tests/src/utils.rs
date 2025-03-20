@@ -17,6 +17,7 @@ use mempool_test_utils::starknet_api_test_utils::{
     AccountTransactionGenerator,
     Contract,
     MultiAccountTransactionGenerator,
+    SendableL1HandlerTransaction,
 };
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use papyrus_base_layer::test_utils::StarknetL1Contract;
@@ -78,7 +79,7 @@ const PAID_FEE_ON_L1: U256 = U256::from_be_slice(b"paid"); // Arbitrary value.
 
 pub type CreateRpcTxsFn = fn(&mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction>;
 pub type CreateL1HandlerTxsFn =
-    fn(&mut MultiAccountTransactionGenerator) -> Vec<L1HandlerTransaction>;
+    fn(&mut MultiAccountTransactionGenerator) -> Vec<SendableL1HandlerTransaction>;
 pub type TestTxHashesFn = fn(&[TransactionHash]) -> Vec<TransactionHash>;
 pub type ExpectedContentId = Felt;
 
@@ -87,7 +88,7 @@ pub trait TestScenario {
         &self,
         tx_generator: &mut MultiAccountTransactionGenerator,
         account_id: AccountId,
-    ) -> (Vec<RpcTransaction>, Vec<L1HandlerTransaction>);
+    ) -> (Vec<RpcTransaction>, Vec<SendableL1HandlerTransaction>);
 
     fn n_txs(&self) -> usize;
 }
@@ -102,7 +103,7 @@ impl TestScenario for ConsensusTxs {
         &self,
         tx_generator: &mut MultiAccountTransactionGenerator,
         account_id: AccountId,
-    ) -> (Vec<RpcTransaction>, Vec<L1HandlerTransaction>) {
+    ) -> (Vec<RpcTransaction>, Vec<SendableL1HandlerTransaction>) {
         (
             create_invoke_txs(tx_generator, account_id, self.n_invoke_txs),
             create_l1_handler_txs(tx_generator, self.n_l1_handler_txs),
@@ -121,7 +122,7 @@ impl TestScenario for BootstrapTxs {
         &self,
         tx_generator: &mut MultiAccountTransactionGenerator,
         account_id: AccountId,
-    ) -> (Vec<RpcTransaction>, Vec<L1HandlerTransaction>) {
+    ) -> (Vec<RpcTransaction>, Vec<SendableL1HandlerTransaction>) {
         let txs = create_deploy_account_tx_and_invoke_tx(tx_generator, account_id);
         assert_eq!(
             txs.len(),
@@ -400,7 +401,7 @@ pub fn create_invoke_txs(
 
 pub fn create_l1_handler_tx(
     tx_generator: &mut MultiAccountTransactionGenerator,
-) -> Vec<L1HandlerTransaction> {
+) -> Vec<SendableL1HandlerTransaction> {
     const N_TXS: usize = 1;
     create_l1_handler_txs(tx_generator, N_TXS)
 }
@@ -408,26 +409,27 @@ pub fn create_l1_handler_tx(
 pub fn create_l1_handler_txs(
     tx_generator: &mut MultiAccountTransactionGenerator,
     n_txs: usize,
-) -> Vec<L1HandlerTransaction> {
+) -> Vec<SendableL1HandlerTransaction> {
     (0..n_txs).map(|_| tx_generator.create_l1_handler_tx()).collect()
 }
 
 pub async fn send_message_to_l2_and_calculate_tx_hash(
-    l1_handler: L1HandlerTransaction,
+    l1_handler: SendableL1HandlerTransaction,
     starknet_l1_contract: &StarknetL1Contract,
     chain_id: &ChainId,
 ) -> TransactionHash {
     send_message_to_l2(&l1_handler, starknet_l1_contract).await;
-    l1_handler.calculate_transaction_hash(chain_id, &l1_handler.version).unwrap()
+    l1_handler.0.calculate_transaction_hash(chain_id, &l1_handler.0.version).unwrap()
 }
 
 /// Converts a given [L1 handler transaction](L1HandlerTransaction) to match the interface of the
 /// given [starknet l1 contract](StarknetL1Contract), and triggers the L1 entry point which sends
 /// the message to L2.
 pub(crate) async fn send_message_to_l2(
-    l1_handler: &L1HandlerTransaction,
+    l1_handler: &SendableL1HandlerTransaction,
     starknet_l1_contract: &StarknetL1Contract,
 ) {
+    let (l1_handler, l1_nonce) = l1_handler;
     let l2_contract_address = l1_handler.contract_address.0.key().to_hex_string().parse().unwrap();
     let l2_entry_point = l1_handler.entry_point_selector.0.to_hex_string().parse().unwrap();
 
@@ -440,6 +442,8 @@ pub(crate) async fn send_message_to_l2(
     let _tx_receipt = msg
         // Sets a non-zero fee to be paid on L1.
         .value(PAID_FEE_ON_L1)
+        // Sets the nonce of the L1 handler transaction, to avoid L1 nonce collisions.
+        .nonce(*l1_nonce)
         // Sends the transaction to the Starknet L1 contract. For debugging purposes, replace
         // `.send()` with `.call_raw()` to retrieve detailed error messages from L1.
         .send().await.expect("Transaction submission to Starknet L1 contract failed.")
@@ -516,7 +520,7 @@ pub async fn send_consensus_txs<'a, 'b, FutA, FutB>(
     account_id: AccountId,
     test_scenario: &impl TestScenario,
     send_rpc_tx_fn: &'a mut dyn Fn(RpcTransaction) -> FutA,
-    send_l1_handler_tx_fn: &'b mut dyn Fn(L1HandlerTransaction) -> FutB,
+    send_l1_handler_tx_fn: &'b mut dyn Fn(SendableL1HandlerTransaction) -> FutB,
 ) -> Vec<TransactionHash>
 where
     FutA: Future<Output = TransactionHash> + 'a,
