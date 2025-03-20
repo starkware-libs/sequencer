@@ -78,6 +78,7 @@ const Configuration = {
             'starknet_os',
             'starknet_patricia',
             'starknet_patricia_storage',
+            'starknet_sequencer_deployments',
             'starknet_sequencer_infra',
             'starknet_sequencer_dashboard',
             'starknet_sequencer_metrics',
