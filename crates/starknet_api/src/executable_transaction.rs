@@ -89,6 +89,14 @@ impl AccountTransaction {
             AccountTransaction::Invoke(tx_data) => tx_data.tx_hash,
         }
     }
+
+    pub fn account_tx_type_name(&self) -> &'static str {
+        match self {
+            AccountTransaction::Declare(_) => "DECLARE",
+            AccountTransaction::DeployAccount(_) => "DEPLOY_ACCOUNT",
+            AccountTransaction::Invoke(_) => "INVOKE_FUNCTION",
+        }
+    }
 }
 
 // TODO(Mohammad): Add constructor for all the transaction's structs.
@@ -259,6 +267,8 @@ pub struct L1HandlerTransaction {
 }
 
 impl L1HandlerTransaction {
+    pub const L1_HANDLER_TYPE_NAME: &str = "L1_HANDLER";
+
     pub fn create(
         raw_tx: crate::transaction::L1HandlerTransaction,
         chain_id: &ChainId,
@@ -285,6 +295,13 @@ impl Transaction {
         match self {
             Transaction::Account(tx) => tx.tx_hash(),
             Transaction::L1Handler(tx) => tx.tx_hash,
+        }
+    }
+
+    pub fn tx_type_name(&self) -> &'static str {
+        match self {
+            Transaction::Account(tx) => tx.account_tx_type_name(),
+            Transaction::L1Handler(_) => L1HandlerTransaction::L1_HANDLER_TYPE_NAME,
         }
     }
 }

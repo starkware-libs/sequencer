@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::vec::IntoIter;
 
 use blockifier::state::state_api::{State, StateReader};
 use cairo_vm::any_box;
@@ -9,19 +10,74 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     insert_value_from_var_name,
     insert_value_into_ap,
 };
+use cairo_vm::types::relocatable::MaybeRelocatable;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::state::StorageKey;
+use starknet_api::transaction::fields::ValidResourceBounds;
+use starknet_api::transaction::TransactionVersion;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
-use crate::vm_utils::get_address_of_nested_fields;
+use crate::vm_utils::{get_address_of_nested_fields, LoadCairoObject};
 
-pub(crate) fn load_next_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    todo!()
+pub(crate) fn load_next_tx<S: StateReader>(
+    HintArgs { exec_scopes, vm, ids_data, ap_tracking, hint_processor, constants }: HintArgs<'_, S>,
+) -> OsHintResult {
+    let mut txs_iter: IntoIter<Transaction> = exec_scopes.get(Scope::Transactions.into())?;
+    let tx = txs_iter.next().ok_or(OsHintError::NoMoreTransactions)?;
+
+    let tx_type_bytes = Felt::from_bytes_be_slice(tx.tx_type_name().as_bytes());
+    insert_value_from_var_name(Ids::TxType.into(), tx_type_bytes, vm, ids_data, ap_tracking)?;
+
+    // TODO: add logger
+
+    // Guess the resource bounds.
+    let (resource_bounds, n_resource_bounds) = match &tx {
+        Transaction::L1Handler(_) => (MaybeRelocatable::from(0), 0),
+        Transaction::Account(account_transaction) => {
+            if account_transaction.version() < TransactionVersion::THREE {
+                (MaybeRelocatable::from(0), 0)
+            } else {
+                let resource_bound_address = vm.add_memory_segment();
+                account_transaction.resource_bounds().load_into(
+                    vm,
+                    &hint_processor.execution_helper.os_program,
+                    resource_bound_address,
+                    constants,
+                )?;
+                (
+                    MaybeRelocatable::RelocatableValue(resource_bound_address),
+                    match account_transaction.resource_bounds() {
+                        ValidResourceBounds::L1Gas(_) => 1,
+                        ValidResourceBounds::AllResources(_) => 3,
+                    },
+                )
+            }
+        }
+    };
+
+    exec_scopes.insert_value(Scope::Transactions.into(), txs_iter);
+    exec_scopes.insert_value(Scope::Tx.into(), tx);
+
+    insert_value_from_var_name(
+        Ids::ResourceBounds.into(),
+        resource_bounds,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    insert_value_from_var_name(
+        Ids::NResourceBounds.into(),
+        n_resource_bounds,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    Ok(())
 }
 
 pub(crate) fn load_resource_bounds<S: StateReader>(
