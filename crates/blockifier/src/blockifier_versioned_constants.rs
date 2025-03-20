@@ -136,6 +136,7 @@ pub struct VersionedConstants {
 
     // Fee related.
     pub(crate) vm_resource_fee_cost: Arc<VmResourceCosts>,
+    pub enable_tip: bool,
     // Cost of allocating a storage cell.
     pub allocation_cost: AllocationCost,
 
