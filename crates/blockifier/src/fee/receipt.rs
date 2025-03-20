@@ -1,6 +1,6 @@
 use starknet_api::core::ContractAddress;
 use starknet_api::execution_resources::{GasAmount, GasVector};
-use starknet_api::transaction::fields::Fee;
+use starknet_api::transaction::fields::{Fee, GasVectorComputationMode};
 
 use crate::context::TransactionContext;
 use crate::execution::call_info::ExecutionSummary;
@@ -32,6 +32,7 @@ struct TransactionReceiptParameters<'a> {
     tx_type: TransactionType,
     reverted_steps: usize,
     reverted_sierra_gas: GasAmount,
+    computation_mode: GasVectorComputationMode,
 }
 
 // TODO(Gilad): Use everywhere instead of passing the `actual_{fee,resources}` tuple, which often
@@ -60,6 +61,7 @@ impl TransactionReceipt {
             tx_type,
             reverted_steps,
             reverted_sierra_gas,
+            computation_mode,
         } = tx_receipt_params;
         let charged_resources = execution_summary_without_fee_transfer.charged_resources.clone();
         let starknet_resources = StarknetResources::new(
@@ -94,7 +96,7 @@ impl TransactionReceipt {
         let gas = tx_resources.to_gas_vector(
             &tx_context.block_context.versioned_constants,
             tx_context.block_context.block_info.use_kzg_da,
-            &tx_context.get_gas_vector_computation_mode(),
+            &computation_mode,
         );
         // Backward-compatibility.
         let fee = if tx_type == TransactionType::Declare && tx_context.tx_info.is_v0() {
@@ -130,6 +132,7 @@ impl TransactionReceipt {
             tx_type: TransactionType::L1Handler,
             reverted_steps: 0,
             reverted_sierra_gas: GasAmount(0),
+            computation_mode: GasVectorComputationMode::All,
         })
     }
 
@@ -154,6 +157,7 @@ impl TransactionReceipt {
             tx_type: account_tx.tx_type(),
             reverted_steps,
             reverted_sierra_gas,
+            computation_mode: tx_context.get_gas_vector_computation_mode(),
         })
     }
 }

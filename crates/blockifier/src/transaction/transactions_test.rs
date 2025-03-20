@@ -96,10 +96,12 @@ use crate::execution::call_info::{
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::{CallEntryPoint, CallType};
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
+use crate::execution::stack_trace::Cairo1RevertSummary;
 use crate::execution::syscalls::hint_processor::EmitEventError;
 #[cfg(feature = "cairo_native")]
 use crate::execution::syscalls::hint_processor::SyscallExecutionError;
 use crate::execution::syscalls::SyscallSelector;
+use crate::fee::fee_checks::FeeCheckError;
 use crate::fee::fee_utils::{balance_to_big_uint, get_fee_by_gas_vector, GasVectorToL1GasForFee};
 use crate::fee::gas_usage::{
     estimate_minimal_gas_vector,
@@ -123,6 +125,7 @@ use crate::test_utils::l1_handler::l1handler_tx;
 use crate::test_utils::prices::Prices;
 use crate::test_utils::test_templates::{cairo_version, two_cairo_versions};
 use crate::test_utils::{
+    execute_l1_handler_with_modified_bound,
     get_const_syscall_resources,
     get_tx_resources,
     test_erc20_sequencer_balance_key,
@@ -166,6 +169,7 @@ use crate::transaction::test_utils::{
     VALID,
 };
 use crate::transaction::transaction_types::TransactionType;
+use crate::transaction::transactions::test::EntryPointExecutionError::ExecutionFailed;
 use crate::transaction::transactions::ExecutableTransaction;
 use crate::{
     check_tx_execution_error_for_custom_hint,
@@ -2496,7 +2500,6 @@ fn test_only_query_flag(
 
 #[rstest]
 fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
-    let gas_mode = GasVectorComputationMode::NoL2Gas;
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let block_context = &BlockContext::create_for_account_testing_with_kzg(use_kzg_da);
     let chain_info = &block_context.chain_info;
@@ -2523,7 +2526,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
             storage_address: contract_address,
             caller_address: ContractAddress::default(),
             call_type: CallType::Call,
-            initial_gas: block_context.versioned_constants.os_constants.execute_max_sierra_gas.0,
+            initial_gas: versioned_constants.os_constants.l1_handler_max_amount_bounds.l2_gas.0,
         },
         execution: CallExecution {
             retdata: Retdata(vec![value]),
@@ -2599,7 +2602,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
         actual_execution_info.receipt.resources.to_gas_vector(
             versioned_constants,
             use_kzg_da,
-            &gas_mode,
+            &GasVectorComputationMode::NoL2Gas,
         ),
         expected_gas
     );
@@ -2607,7 +2610,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     let total_gas = expected_tx_resources.to_gas_vector(
         versioned_constants,
         block_context.block_info.use_kzg_da,
-        &gas_mode,
+        &GasVectorComputationMode::All,
     );
 
     // Build the expected execution info.
@@ -2651,6 +2654,45 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
         )
         if paid_fee == Fee(0) && actual_fee == expected_actual_fee
     );
+}
+
+#[rstest]
+#[case(L1Gas, GasAmount(1))]
+#[case(L2Gas, GasAmount(1))]
+// TODO(AvivG): add a case for L1DataGas
+fn test_l1_handler_resource_bounds(#[case] resource: Resource, #[case] new_bound: GasAmount) {
+    let err = execute_l1_handler_with_modified_bound(resource, new_bound).unwrap_err();
+
+    match resource {
+        L1Gas | L1DataGas => {
+            assert_matches!(
+                err,
+                TransactionExecutionError::FeeCheckError(FeeCheckError::MaxGasAmountExceeded {
+                    resource: actual_resource,
+                    max_amount: actual_max_amount,
+                    actual_amount,
+                    ..
+                }) if actual_resource == resource
+                    && actual_max_amount == new_bound
+                    && actual_amount > new_bound
+            );
+        }
+        L2Gas => {
+            // Expected retdata ('Out of gas').
+            let expected_retdata = retdata![felt!["0x4f7574206f6620676173"]];
+
+            assert_matches!(
+                err,
+                TransactionExecutionError::ExecutionError {
+                    error: ExecutionFailed {
+                        error_trace: Cairo1RevertSummary { ref last_retdata, .. },
+                        ..
+                    },
+                    ..
+                } if last_retdata == &expected_retdata
+            );
+        }
+    }
 }
 
 #[rstest]

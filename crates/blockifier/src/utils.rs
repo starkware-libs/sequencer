@@ -92,3 +92,14 @@ pub fn get_gas_cost_from_vm_resources(
         + n_memory_holes * gas_costs.base.memory_hole_gas_cost
         + total_builtin_gas_cost
 }
+
+pub fn get_steps_from_sierra_gas(sierra_gas: u64, step_gas_cost: u64) -> usize {
+    if step_gas_cost == 0 {
+        usize_from_u64(sierra_gas).expect("Failed to convert sierra gas to vm steps")
+    } else {
+        sierra_gas
+            .checked_div(step_gas_cost)
+            .map(|v| usize_from_u64(v).expect("Failed to convert sierra gas to vm steps"))
+            .expect("Failed to compute vm steps from sierra gas: division failed")
+    }
+}

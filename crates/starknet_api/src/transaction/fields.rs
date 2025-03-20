@@ -6,7 +6,7 @@ use starknet_types_core::felt::Felt;
 use strum_macros::EnumIter;
 
 use crate::block::{GasPrice, NonzeroGasPrice};
-use crate::execution_resources::GasAmount;
+use crate::execution_resources::{GasAmount, GasVector};
 use crate::hash::StarkHash;
 use crate::serde_utils::PrefixedBytesAsHex;
 use crate::StarknetApiError;
@@ -368,6 +368,14 @@ impl AllResourceBounds {
             Resource::L1Gas => self.l1_gas,
             Resource::L2Gas => self.l2_gas,
             Resource::L1DataGas => self.l1_data_gas,
+        }
+    }
+
+    pub fn to_max_amount(&self) -> GasVector {
+        GasVector {
+            l1_gas: self.l1_gas.max_amount,
+            l1_data_gas: self.l1_data_gas.max_amount,
+            l2_gas: self.l2_gas.max_amount,
         }
     }
 }
