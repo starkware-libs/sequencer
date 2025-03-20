@@ -142,9 +142,12 @@ jobs:
 
       - name: "Run integration tests pull request"
         if: github.event_name == 'pull_request'
+        # TODO(Tsabary): Find a better way to set the ephemeral port range.
         run: |
           python3 -m venv ci
           ci/bin/pip install -r scripts/requirements.txt
+          echo "net.ipv4.ip_local_port_range = 40000 40200" | sudo tee /etc/sysctl.conf
+          sudo sysctl -p
           ci/bin/python scripts/run_tests.py --command integration --changes_only --include_dependencies --commit_id ${{ github.event.pull_request.base.sha }}
         env:
           SEED: 0
