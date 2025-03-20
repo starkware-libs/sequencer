@@ -100,6 +100,16 @@ impl<S: StateReader> CachedState<S> {
         }
         Ok(())
     }
+
+    pub fn writes_contract_addresses(&self) -> HashSet<ContractAddress> {
+        self.cache.borrow().writes.get_contract_addresses()
+    }
+
+    // TODO(Aner): move under OS cfg flag.
+    // TODO(Aner): Try to avoid cloning.
+    pub fn writes_compiled_class_hashes(&self) -> HashMap<ClassHash, CompiledClassHash> {
+        self.cache.borrow().writes.compiled_class_hashes.clone()
+    }
 }
 
 impl<S: StateReader> UpdatableState for CachedState<S> {
@@ -372,7 +382,7 @@ impl StateMaps {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct StateCache {
     // Reader's cached information; initial values, read before any write operation (per cell).
-    pub initial_reads: StateMaps,
+    pub(crate) initial_reads: StateMaps,
 
     // Writer's cached information.
     pub(crate) writes: StateMaps,
