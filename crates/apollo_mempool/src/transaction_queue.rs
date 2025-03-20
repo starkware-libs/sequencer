@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
 use std::collections::{BTreeSet, HashMap};
 
+use apollo_mempool_types::mempool_types::TransactionQueueSnapshot;
 use starknet_api::block::NonzeroGasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::transaction::fields::Tip;
@@ -147,6 +148,17 @@ impl TransactionQueue {
             self.priority_queue.remove(tx);
         }
         self.pending_queue.extend(txs_to_remove.iter().map(|tx| PendingTransaction::from(tx.0)));
+    }
+
+    pub fn queue_snapshot(&self) -> TransactionQueueSnapshot {
+        let priority_queue = self.priority_queue.iter().map(|tx| tx.0.tx_hash).collect();
+        let pending_queue = self.pending_queue.iter().map(|tx| tx.0.tx_hash).collect();
+
+        TransactionQueueSnapshot {
+            gas_price_threshold: self.gas_price_threshold,
+            priority_queue,
+            pending_queue,
+        }
     }
 }
 

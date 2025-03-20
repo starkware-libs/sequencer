@@ -101,8 +101,8 @@ impl MempoolCommunicationWrapper {
         Ok(())
     }
 
-    fn get_mempool_snapshot(&self) -> MempoolResult<MempoolSnapshot> {
-        self.mempool.get_mempool_snapshot()
+    fn mempool_snapshot(&self) -> MempoolResult<MempoolSnapshot> {
+        self.mempool.mempool_snapshot()
     }
 }
 
@@ -128,7 +128,7 @@ impl ComponentRequestHandler<MempoolRequest, MempoolResponse> for MempoolCommuni
                 MempoolResponse::UpdateGasPrice(self.update_gas_price(gas_price))
             }
             MempoolRequest::GetMempoolSnapshot() => {
-                MempoolResponse::GetMempoolSnapshot(self.get_mempool_snapshot())
+                MempoolResponse::GetMempoolSnapshot(self.mempool_snapshot())
             }
         }
     }
