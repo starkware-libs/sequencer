@@ -102,6 +102,7 @@ use crate::hints::hint_implementation::execution::{
     is_remaining_gas_lt_initial_budget,
     is_reverted,
     load_next_tx,
+    load_resource_bounds,
     log_enter_syscall,
     prepare_constructor_execution,
     set_ap_to_tx_nonce,
@@ -867,9 +868,6 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         LoadNextTx,
         load_next_tx,
         indoc! {r#"
-    from src.starkware.starknet.core.os.transaction_hash.transaction_hash import (
-        create_resource_bounds_list,
-    )
     tx = next(transactions)
     assert tx.tx_type.name in ('INVOKE_FUNCTION', 'L1_HANDLER', 'DEPLOY_ACCOUNT', 'DECLARE'), (
         f"Unexpected transaction type: {tx.type.name}."
@@ -889,15 +887,21 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         n_steps=current_step,
         builtin_ptrs=ids.builtin_ptrs,
         range_check_ptr=ids.range_check_ptr,
+    )"#
+        }
+    ),
+    (
+        LoadResourceBounds,
+        load_resource_bounds,
+        indoc! {r#"
+    from src.starkware.starknet.core.os.transaction_hash.transaction_hash import (
+        create_resource_bounds_list,
     )
-
-    # Guess the resource bounds.
-    if tx.tx_type.name == 'L1_HANDLER' or tx.version < 3:
-        ids.resource_bounds = 0
-        ids.n_resource_bounds = 0
-    else:
-        ids.resource_bounds = segments.gen_arg(create_resource_bounds_list(tx.resource_bounds))
-        ids.n_resource_bounds = len(tx.resource_bounds)"#
+    assert len(tx.resource_bounds) == 3, (
+        "Only transactions with 3 resource bounds are supported. "
+        f"Got {len(tx.resource_bounds)} resource bounds."
+    )
+    ids.resource_bounds = segments.gen_arg(create_resource_bounds_list(tx.resource_bounds))"#
         }
     ),
     (ExitTx, exit_tx, "exit_tx()"),
