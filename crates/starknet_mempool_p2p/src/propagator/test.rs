@@ -131,3 +131,34 @@ async fn transaction_batch_broadcasted_on_max_size() {
     let message = timeout(TIMEOUT, messages_to_broadcast_receiver.next()).await.unwrap().unwrap();
     assert_eq!(message, RpcTransactionBatch(rpc_transactions));
 }
+
+#[tokio::test]
+async fn transaction_batch_broadcasted_on_request() {
+    let (broadcast_topic_client, mut messages_to_broadcast_receiver, _) = setup();
+
+    let (transaction_converter, rpc_transactions, internal_transactions) =
+        mock_transaction_conversions(MAX_TRANSACTION_BATCH_SIZE - 1);
+
+    let mut mempool_p2p_propagator = MempoolP2pPropagator::new(
+        broadcast_topic_client,
+        transaction_converter,
+        MAX_TRANSACTION_BATCH_SIZE,
+    );
+
+    for internal_tx in internal_transactions {
+        mempool_p2p_propagator
+            .handle_request(MempoolP2pPropagatorRequest::AddTransaction(internal_tx))
+            .await;
+    }
+
+    // Assert adding the transaction does not trigger batch broadcast
+    assert!(messages_to_broadcast_receiver.next().now_or_never().is_none());
+
+    mempool_p2p_propagator
+        .handle_request(MempoolP2pPropagatorRequest::BroadcastQueuedTransactions())
+        .await;
+
+    // Assert the request triggered batch broadcast
+    let message = timeout(TIMEOUT, messages_to_broadcast_receiver.next()).await.unwrap().unwrap();
+    assert_eq!(message, RpcTransactionBatch(rpc_transactions));
+}
