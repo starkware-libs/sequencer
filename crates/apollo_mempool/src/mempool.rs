@@ -9,6 +9,7 @@ use apollo_mempool_types::mempool_types::{
     CommitBlockArgs,
     MempoolResult,
     MempoolSnapshot,
+    MempoolStateSnapshot,
 };
 use starknet_api::block::NonzeroGasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
@@ -160,6 +161,10 @@ impl MempoolState {
         if let Some(&committed_nonce) = self.committed.get(&address) {
             assert!(committed_nonce <= next_nonce, "NOT SUPPORTED YET {address:?} {next_nonce:?}.")
         }
+    }
+
+    pub fn state_snapshot(&self) -> MempoolStateSnapshot {
+        MempoolStateSnapshot { committed: self.committed.clone(), staged: self.staged.clone() }
     }
 }
 
@@ -618,6 +623,7 @@ impl Mempool {
         Ok(MempoolSnapshot {
             transactions: self.tx_pool.chronological_txs_hashes(),
             transaction_queue: self.tx_queue.queue_snapshot(),
+            mempool_state: self.state.state_snapshot(),
         })
     }
 
