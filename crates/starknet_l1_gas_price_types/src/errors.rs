@@ -21,7 +21,7 @@ pub enum L1GasPriceClientError {
 }
 
 #[derive(Debug, Error)]
-pub enum PriceOracleClientError {
+pub enum EthToStrkOracleClientError {
     #[error(transparent)]
     RequestError(#[from] reqwest::Error),
     #[error(transparent)]
