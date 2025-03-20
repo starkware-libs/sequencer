@@ -54,12 +54,13 @@ impl<S: StateReader> StatefulValidator<S> {
     }
 
     pub fn perform_validations(&mut self, tx: AccountTransaction) -> StatefulValidatorResult<()> {
-        // Deploy account transactions should be fully executed, since the constructor must run
+        // Deploy account transaction should be fully executed, since the constructor must run
         // before `__validate_deploy__`. The execution already includes all necessary validations,
         // so they are skipped here.
-        if let ApiTransaction::DeployAccount(_) = tx.tx {
-            self.execute(tx)?;
-            return Ok(());
+        // Declare transaction should also be fully executed - otherwise, if we only go through
+        // the validate phase, we would miss the check that the class was not declared before.
+        if let ApiTransaction::DeployAccount(_) | ApiTransaction::Declare(_) = tx.tx {
+            return self.execute(tx);
         }
 
         let tx_context = self.tx_executor.block_context.to_tx_context(&tx);
