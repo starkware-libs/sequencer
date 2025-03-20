@@ -17,7 +17,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::HintArgs;
-use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
+use crate::hints::vars::{CairoStruct, Const, Ids, Scope, SyscallHandlerType};
 use crate::vm_utils::get_address_of_nested_fields;
 
 pub(crate) fn load_next_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
@@ -69,10 +69,9 @@ pub(crate) fn enter_scope_deprecated_syscall_handler<S: StateReader>(
 }
 
 pub(crate) fn enter_scope_syscall_handler<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { exec_scopes, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    // TODO(Aner): Verify the following statment.
-    // Nothing to do here; syscall_handler already available on the hint processor.
+    exec_scopes.insert_value(Scope::SyscallHandlerType.into(), SyscallHandlerType::SyscallHandler);
     Ok(())
 }
 
