@@ -252,9 +252,14 @@ pub(crate) fn check_execution<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) 
 }
 
 pub(crate) fn is_remaining_gas_lt_initial_budget<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    let remaining_gas =
+        get_integer_from_var_name(Ids::RemainingGas.into(), vm, ids_data, ap_tracking)?;
+    let initial_budget =
+        get_constant_from_var_name(Const::EntryPointInitialBudget.into(), constants)?;
+    let remaining_gas_lt_initial_budget: Felt = (&remaining_gas < initial_budget).into();
+    Ok(insert_value_into_ap(vm, remaining_gas_lt_initial_budget)?)
 }
 
 pub(crate) fn check_syscall_response<S: StateReader>(
