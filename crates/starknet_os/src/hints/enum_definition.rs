@@ -66,7 +66,7 @@ use crate::hints::hint_implementation::execute_transactions::{
     skip_tx,
     start_tx,
 };
-use crate::hints::hint_implementation::execution::{
+use crate::hints::hint_implementation::execution::implementation::{
     assert_transaction_hash,
     cache_contract_storage_request_key,
     cache_contract_storage_syscall_request_address,
