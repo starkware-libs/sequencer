@@ -144,7 +144,12 @@ pub fn verify_can_pay_committed_bounds(
 ) -> TransactionFeeResult<()> {
     let tx_info = &tx_context.tx_info;
     let committed_fee = match tx_info {
-        TransactionInfo::Current(context) => context.resource_bounds.max_possible_fee(),
+        TransactionInfo::Current(context) => {
+            let max_possible_fee = context.resource_bounds.max_possible_fee();
+            let l2_max_amount = context.resource_bounds.get_l2_bounds().max_amount;
+            max_possible_fee
+                .saturating_add(l2_max_amount.saturating_mul(tx_context.effective_tip().0.into()))
+        }
         TransactionInfo::Deprecated(context) => context.max_fee,
     };
     let (balance_low, balance_high, can_pay) =
