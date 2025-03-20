@@ -19,6 +19,7 @@ use starknet_api::transaction::fields::{
     AllResourceBounds,
     Calldata,
     Resource,
+    ResourceBounds,
     ValidResourceBounds,
 };
 use starknet_api::transaction::TransactionVersion;
@@ -256,6 +257,44 @@ pub struct SyscallHintProcessor<'a> {
     hints: &'a HashMap<String, Hint>,
 }
 
+pub struct ResourceAsFelts {
+    pub resource_name: Felt,
+    pub max_amount: Felt,
+    pub max_price_per_unit: Felt,
+}
+
+impl ResourceAsFelts {
+    pub fn flatten(self) -> Vec<Felt> {
+        vec![self.resource_name, self.max_amount, self.max_price_per_unit]
+    }
+}
+
+fn resource_bound_as_felts(
+    resource: Resource,
+    resource_bounds: &ResourceBounds,
+) -> SyscallResult<ResourceAsFelts> {
+    Ok(ResourceAsFelts {
+        resource_name: Felt::from_hex(resource.to_hex()).map_err(SyscallExecutionError::from)?,
+        max_amount: Felt::from(resource_bounds.max_amount),
+        max_price_per_unit: Felt::from(resource_bounds.max_price_per_unit),
+    })
+}
+
+pub fn valid_resource_bounds_as_felts(
+    resource_bounds: &ValidResourceBounds,
+) -> SyscallResult<Vec<ResourceAsFelts>> {
+    let mut resource_bounds_vec: Vec<_> = vec![
+        resource_bound_as_felts(Resource::L1Gas, &resource_bounds.get_l1_bounds())?,
+        resource_bound_as_felts(Resource::L2Gas, &resource_bounds.get_l2_bounds())?,
+    ];
+    if let ValidResourceBounds::AllResources(AllResourceBounds { l1_data_gas, .. }) =
+        resource_bounds
+    {
+        resource_bounds_vec.push(resource_bound_as_felts(Resource::L1DataGas, l1_data_gas)?)
+    }
+    Ok(resource_bounds_vec)
+}
+
 impl<'a> SyscallHintProcessor<'a> {
     pub fn new(
         state: &'a mut dyn State,
@@ -446,32 +485,11 @@ impl<'a> SyscallHintProcessor<'a> {
         vm: &mut VirtualMachine,
         tx_info: &CurrentTransactionInfo,
     ) -> SyscallResult<(Relocatable, Relocatable)> {
-        let l1_gas_as_felt =
-            Felt::from_hex(Resource::L1Gas.to_hex()).map_err(SyscallExecutionError::from)?;
-        let l2_gas_as_felt =
-            Felt::from_hex(Resource::L2Gas.to_hex()).map_err(SyscallExecutionError::from)?;
-        let l1_data_gas_as_felt =
-            Felt::from_hex(Resource::L1DataGas.to_hex()).map_err(SyscallExecutionError::from)?;
-
-        let l1_gas_bounds = tx_info.resource_bounds.get_l1_bounds();
-        let l2_gas_bounds = tx_info.resource_bounds.get_l2_bounds();
-        let mut flat_resource_bounds = vec![
-            l1_gas_as_felt,
-            Felt::from(l1_gas_bounds.max_amount),
-            Felt::from(l1_gas_bounds.max_price_per_unit),
-            l2_gas_as_felt,
-            Felt::from(l2_gas_bounds.max_amount),
-            Felt::from(l2_gas_bounds.max_price_per_unit),
-        ];
-        if let ValidResourceBounds::AllResources(AllResourceBounds { l1_data_gas, .. }) =
-            tx_info.resource_bounds
-        {
-            flat_resource_bounds.extend(vec![
-                l1_data_gas_as_felt,
-                Felt::from(l1_data_gas.max_amount),
-                Felt::from(l1_data_gas.max_price_per_unit),
-            ])
-        }
+        let flat_resource_bounds: Vec<_> =
+            valid_resource_bounds_as_felts(&tx_info.resource_bounds)?
+                .into_iter()
+                .flat_map(ResourceAsFelts::flatten)
+                .collect();
 
         self.allocate_data_segment(vm, &flat_resource_bounds)
     }
