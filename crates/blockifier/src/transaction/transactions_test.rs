@@ -1513,12 +1513,14 @@ fn test_invalid_nonce(
 
     // Strict, negative flow: account nonce = 0, incoming tx nonce = 1.
     let invalid_nonce = nonce!(1_u8);
-    let invalid_tx = invoke_tx_with_default_flags(
+    let mut invalid_tx = invoke_tx_with_default_flags(
         invoke_tx_args! { nonce: invalid_nonce, ..valid_invoke_tx_args.clone() },
     );
     let invalid_tx_context = block_context.to_tx_context(&invalid_tx);
+
+    invalid_tx.execution_flags.strict_nonce_check = true;
     let pre_validation_err = invalid_tx
-        .perform_pre_validation_stage(&mut transactional_state, &invalid_tx_context, true)
+        .perform_pre_validation_stage(&mut transactional_state, &invalid_tx_context)
         .unwrap_err();
 
     // Test error.
@@ -1533,23 +1535,25 @@ fn test_invalid_nonce(
 
     // Positive flow: account nonce = 0, incoming tx nonce = 1.
     let valid_nonce = nonce!(1_u8);
-    let valid_tx = invoke_tx_with_default_flags(
+    let mut valid_tx = invoke_tx_with_default_flags(
         invoke_tx_args! { nonce: valid_nonce, ..valid_invoke_tx_args.clone() },
     );
 
     let valid_tx_context = block_context.to_tx_context(&valid_tx);
-    valid_tx
-        .perform_pre_validation_stage(&mut transactional_state, &valid_tx_context, false)
-        .unwrap();
+
+    valid_tx.execution_flags.strict_nonce_check = false;
+    valid_tx.perform_pre_validation_stage(&mut transactional_state, &valid_tx_context).unwrap();
 
     // Negative flow: account nonce = 1, incoming tx nonce = 0.
     let invalid_nonce = nonce!(0_u8);
-    let invalid_tx = invoke_tx_with_default_flags(
+    let mut invalid_tx = invoke_tx_with_default_flags(
         invoke_tx_args! { nonce: invalid_nonce, ..valid_invoke_tx_args.clone() },
     );
     let invalid_tx_context = block_context.to_tx_context(&invalid_tx);
+
+    invalid_tx.execution_flags.strict_nonce_check = false;
     let pre_validation_err = invalid_tx
-        .perform_pre_validation_stage(&mut transactional_state, &invalid_tx_context, false)
+        .perform_pre_validation_stage(&mut transactional_state, &invalid_tx_context)
         .unwrap_err();
 
     // Test error.
