@@ -681,6 +681,7 @@ pub async fn get_sequencer_setup_configs(
     let mut nodes = Vec::new();
 
     // First PR.
+    // Second PR.
     for (node_index, node_component_config) in node_component_configs.into_iter().enumerate() {
         let mut executables = Vec::new();
         let batcher_index = node_component_config.get_batcher_index();
