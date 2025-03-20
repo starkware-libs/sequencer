@@ -154,98 +154,90 @@ impl DeploymentName {
     }
 
     pub fn get_component_configs(&self) -> HashMap<ServiceName, ComponentConfig> {
-        let mut component_config_map = HashMap::new();
         match self {
-            Self::ConsolidatedNode => {
-                component_config_map.insert(
-                    ServiceName::ConsolidatedNode(ConsolidatedNodeServiceName::Node),
-                    get_consolidated_config(),
-                );
-            }
-            Self::DistributedNode => {
-                let mut component_config_pair_map =
-                    HashMap::<DistributedNodeServiceName, DistributedNodeServiceConfigPair>::new();
-                for inner_service_name in DistributedNodeServiceName::iter() {
-                    component_config_pair_map.insert(inner_service_name, inner_service_name.into());
-                }
-
-                for inner_service_name in component_config_pair_map.keys() {
-                    let component_config = match inner_service_name {
-                        DistributedNodeServiceName::Batcher => get_batcher_config(
-                            component_config_pair_map[&DistributedNodeServiceName::Batcher].local(),
-                            component_config_pair_map[&DistributedNodeServiceName::ClassManager]
-                                .remote(),
-                            component_config_pair_map[&DistributedNodeServiceName::L1Provider]
-                                .remote(),
-                            component_config_pair_map[&DistributedNodeServiceName::Mempool]
-                                .remote(),
-                        ),
-                        DistributedNodeServiceName::ClassManager => get_class_manager_config(
-                            component_config_pair_map[&DistributedNodeServiceName::ClassManager]
-                                .local(),
-                            component_config_pair_map[&DistributedNodeServiceName::SierraCompiler]
-                                .remote(),
-                        ),
-                        DistributedNodeServiceName::ConsensusManager => {
-                            get_consensus_manager_config(
-                                component_config_pair_map[&DistributedNodeServiceName::Batcher]
-                                    .remote(),
-                                component_config_pair_map
-                                    [&DistributedNodeServiceName::ClassManager]
-                                    .remote(),
-                                component_config_pair_map[&DistributedNodeServiceName::StateSync]
-                                    .remote(),
-                            )
-                        }
-                        DistributedNodeServiceName::HttpServer => get_http_server_config(
-                            component_config_pair_map[&DistributedNodeServiceName::Gateway]
-                                .remote(),
-                        ),
-
-                        DistributedNodeServiceName::Gateway => get_gateway_config(
-                            component_config_pair_map[&DistributedNodeServiceName::Gateway].local(),
-                            component_config_pair_map[&DistributedNodeServiceName::ClassManager]
-                                .remote(),
-                            component_config_pair_map[&DistributedNodeServiceName::Mempool]
-                                .remote(),
-                            component_config_pair_map[&DistributedNodeServiceName::StateSync]
-                                .remote(),
-                        ),
-                        DistributedNodeServiceName::L1Provider => get_l1_provider_config(
-                            component_config_pair_map[&DistributedNodeServiceName::L1Provider]
-                                .local(),
-                            component_config_pair_map[&DistributedNodeServiceName::StateSync]
-                                .remote(),
-                        ),
-                        DistributedNodeServiceName::Mempool => get_mempool_config(
-                            component_config_pair_map[&DistributedNodeServiceName::Mempool].local(),
-                            component_config_pair_map[&DistributedNodeServiceName::ClassManager]
-                                .remote(),
-                            component_config_pair_map[&DistributedNodeServiceName::Gateway]
-                                .remote(),
-                        ),
-                        DistributedNodeServiceName::SierraCompiler => get_sierra_compiler_config(
-                            component_config_pair_map[&DistributedNodeServiceName::SierraCompiler]
-                                .local(),
-                        ),
-                        DistributedNodeServiceName::StateSync => get_state_sync_config(
-                            component_config_pair_map[&DistributedNodeServiceName::StateSync]
-                                .local(),
-                            component_config_pair_map[&DistributedNodeServiceName::ClassManager]
-                                .remote(),
-                        ),
-                    };
-                    let service_name = (*inner_service_name).into();
-                    component_config_map.insert(service_name, component_config);
-                }
-            }
-        };
-
-        component_config_map
+            // TODO(Tsabary): avoid this code duplication.
+            Self::ConsolidatedNode => ConsolidatedNodeServiceName::get_component_configs(),
+            Self::DistributedNode => DistributedNodeServiceName::get_component_configs(),
+        }
     }
 }
 
 // TODO(Tsabary): each deployment should be in its own module.
+
+pub trait GetComponentConfigs {
+    fn get_component_configs() -> HashMap<ServiceName, ComponentConfig>;
+}
+
+impl GetComponentConfigs for ConsolidatedNodeServiceName {
+    fn get_component_configs() -> HashMap<ServiceName, ComponentConfig> {
+        let mut component_config_map = HashMap::new();
+
+        component_config_map.insert(
+            ServiceName::ConsolidatedNode(ConsolidatedNodeServiceName::Node),
+            get_consolidated_config(),
+        );
+        component_config_map
+    }
+}
+
+impl GetComponentConfigs for DistributedNodeServiceName {
+    fn get_component_configs() -> HashMap<ServiceName, ComponentConfig> {
+        let mut component_config_map = HashMap::<ServiceName, ComponentConfig>::new();
+
+        let batcher: DistributedNodeServiceConfigPair = DistributedNodeServiceName::Batcher.into();
+        let class_manager: DistributedNodeServiceConfigPair =
+            DistributedNodeServiceName::ClassManager.into();
+        let gateway: DistributedNodeServiceConfigPair = DistributedNodeServiceName::Gateway.into();
+        let l1_provider: DistributedNodeServiceConfigPair =
+            DistributedNodeServiceName::L1Provider.into();
+        let mempool: DistributedNodeServiceConfigPair = DistributedNodeServiceName::Mempool.into();
+        let sierra_compiler: DistributedNodeServiceConfigPair =
+            DistributedNodeServiceName::SierraCompiler.into();
+        let state_sync: DistributedNodeServiceConfigPair =
+            DistributedNodeServiceName::StateSync.into();
+
+        for inner_service_name in DistributedNodeServiceName::iter() {
+            let component_config = match inner_service_name {
+                DistributedNodeServiceName::Batcher => get_batcher_config(
+                    batcher.local(),
+                    class_manager.remote(),
+                    l1_provider.remote(),
+                    mempool.remote(),
+                ),
+                DistributedNodeServiceName::ClassManager => {
+                    get_class_manager_config(class_manager.local(), sierra_compiler.remote())
+                }
+                DistributedNodeServiceName::ConsensusManager => get_consensus_manager_config(
+                    batcher.remote(),
+                    class_manager.remote(),
+                    state_sync.remote(),
+                ),
+                DistributedNodeServiceName::HttpServer => get_http_server_config(gateway.remote()),
+                DistributedNodeServiceName::Gateway => get_gateway_config(
+                    gateway.local(),
+                    class_manager.remote(),
+                    mempool.remote(),
+                    state_sync.remote(),
+                ),
+                DistributedNodeServiceName::L1Provider => {
+                    get_l1_provider_config(l1_provider.local(), state_sync.remote())
+                }
+                DistributedNodeServiceName::Mempool => {
+                    get_mempool_config(mempool.local(), class_manager.remote(), gateway.remote())
+                }
+                DistributedNodeServiceName::SierraCompiler => {
+                    get_sierra_compiler_config(sierra_compiler.local())
+                }
+                DistributedNodeServiceName::StateSync => {
+                    get_state_sync_config(state_sync.local(), class_manager.remote())
+                }
+            };
+            let service_name = inner_service_name.into();
+            component_config_map.insert(service_name, component_config);
+        }
+        component_config_map
+    }
+}
 
 pub trait IntoService {
     fn create_service(&self) -> Service;
