@@ -1,6 +1,6 @@
-use std::iter::repeat_with;
 use std::sync::LazyLock;
 
+use ark_bls12_381::Fr;
 use c_kzg::KzgCommitment;
 use num_bigint::BigUint;
 use num_traits::{Num, One, Zero};
@@ -9,97 +9,47 @@ use starknet_types_core::felt::Felt;
 
 use crate::hints::hint_implementation::kzg::utils::{
     bit_reversal,
-    fft,
     polynomial_coefficients_to_blob,
     serialize_blob,
     split_commitment,
-    BLOB_SUBGROUP_GENERATOR,
-    BLS_PRIME,
     FIELD_ELEMENTS_PER_BLOB,
 };
 
-const BYTES_PER_BLOB: usize = FIELD_ELEMENTS_PER_BLOB * 32;
-const GENERATOR: &str =
+const BLOB_SUBGROUP_GENERATOR: &str =
     "39033254847818212395286706435128746857159659164139250548781411570340225835782";
+const BLS_PRIME: &str =
+    "52435875175126190479447740508185965837690552500527637822603658699938581184513";
+const BYTES_PER_BLOB: usize = FIELD_ELEMENTS_PER_BLOB * 32;
 
-static FFT_REGRESSION_INPUT: LazyLock<Vec<BigUint>> = LazyLock::new(|| {
+static FFT_REGRESSION_INPUT: LazyLock<Vec<Fr>> = LazyLock::new(|| {
     serde_json::from_str::<Vec<String>>(include_str!("fft_regression_input.json"))
         .unwrap()
         .into_iter()
-        .map(|s| BigUint::from_str_radix(&s, 10).unwrap())
+        .map(|s| Fr::from(BigUint::from_str_radix(&s, 10).unwrap()))
         .collect()
 });
 static FFT_REGRESSION_OUTPUT: LazyLock<Vec<u8>> =
     LazyLock::new(|| serde_json::from_str(include_str!("fft_regression_output.json")).unwrap());
-static BLOB_REGRESSION_INPUT: LazyLock<Vec<BigUint>> = LazyLock::new(|| {
+static BLOB_REGRESSION_INPUT: LazyLock<Vec<Fr>> = LazyLock::new(|| {
     serde_json::from_str::<Vec<String>>(include_str!("blob_regression_input.json"))
         .unwrap()
         .into_iter()
-        .map(|s| BigUint::from_str_radix(&s, 10).unwrap())
+        .map(|s| Fr::from(BigUint::from_str_radix(&s, 10).unwrap()))
         .collect()
 });
 static BLOB_REGRESSION_OUTPUT: LazyLock<Vec<u8>> =
     LazyLock::new(|| serde_json::from_str(include_str!("blob_regression_output.json")).unwrap());
 
-fn generate(generator: &BigUint, bit_reversed: bool) -> Vec<BigUint> {
+fn generate(generator: &BigUint) -> Vec<BigUint> {
     let mut array = vec![BigUint::one()];
     for _ in 1..FIELD_ELEMENTS_PER_BLOB {
         let last = array.last().unwrap().clone();
         let next = (generator * &last) % BigUint::from_str_radix(BLS_PRIME, 10).unwrap();
         array.push(next);
     }
-
-    if bit_reversed {
-        bit_reversal(&mut array).unwrap();
-    }
+    bit_reversal(&mut array).unwrap();
 
     array
-}
-
-#[rstest]
-fn test_small_fft_regression() {
-    let prime = BigUint::from(17_u8);
-    let generator = BigUint::from(3_u8);
-    let coeffs: Vec<BigUint> = [0_u8, 1, 2, 3].into_iter().map(BigUint::from).collect();
-    let expected_eval: Vec<BigUint> = [6_u8, 9, 15, 4].into_iter().map(BigUint::from).collect();
-    // Bit reversal only implemented for fixed with of 2^12.
-    let bit_reversed = false;
-    let actual_eval = fft(&coeffs, &generator, &prime, bit_reversed).unwrap();
-    assert_eq!(actual_eval, expected_eval);
-}
-
-#[rstest]
-fn test_fft(#[values(true, false)] bit_reversed: bool) {
-    let prime = BigUint::from_str_radix(BLS_PRIME, 10).unwrap();
-    let generator = BigUint::from_str_radix(GENERATOR, 10).unwrap();
-
-    let subgroup = generate(&generator, bit_reversed);
-
-    // Sanity checks.
-    assert_eq!(
-        (&generator.modpow(&BigUint::from(FIELD_ELEMENTS_PER_BLOB), &prime)),
-        &BigUint::one()
-    );
-    assert_eq!(subgroup.len(), subgroup.iter().collect::<std::collections::HashSet<_>>().len());
-
-    let coeffs: Vec<BigUint> = repeat_with(|| BigUint::from(rand::random::<u64>()) % &prime)
-        .take(FIELD_ELEMENTS_PER_BLOB)
-        .collect();
-
-    // Evaluate naively.
-    let mut expected_eval = vec![BigUint::zero(); FIELD_ELEMENTS_PER_BLOB];
-    for (i, x) in subgroup.iter().enumerate() {
-        let eval = generate(x, false);
-        expected_eval[i] =
-            coeffs.iter().zip(eval.iter()).map(|(c, e)| c * e).sum::<BigUint>() % &prime;
-    }
-
-    // Evaluate using FFT.
-    let actual_eval = fft(&coeffs, &generator, &prime, bit_reversed).unwrap();
-
-    assert_eq!(actual_eval, expected_eval);
-
-    // Trivial cases are covered by test_fft_blob_regression.
 }
 
 /// All the expected values are checked using the contract logic given in the Starknet core
@@ -135,25 +85,26 @@ fn test_split_commitment_function(
 }
 
 #[rstest]
-#[case::zero(vec![BigUint::zero()], &vec![0u8; BYTES_PER_BLOB])]
+#[case::zero(vec![Fr::zero()], &vec![0u8; BYTES_PER_BLOB])]
 #[case::one(
-    vec![BigUint::one()],
-    &(0..BYTES_PER_BLOB).map(|i| if (i + 1) % 32 == 0 { 1 } else { 0 }).collect()
+    vec![Fr::one()], &(0..BYTES_PER_BLOB).map(|i| if (i + 1) % 32 == 0 { 1 } else { 0 }).collect()
 )]
 #[case::degree_one(
-    vec![BigUint::zero(), BigUint::from(10_u8)],
+    vec![Fr::zero(), Fr::from(10_u8)],
     &serialize_blob(
-        &generate(&BigUint::from_str_radix(BLOB_SUBGROUP_GENERATOR, 10).unwrap(), true)
+        &generate(&BigUint::from_str_radix(BLOB_SUBGROUP_GENERATOR, 10).unwrap())
             .into_iter()
-            .map(|subgroup_elm| (BigUint::from(10_u8) * subgroup_elm)
-                % BigUint::from_str_radix(BLS_PRIME, 10).unwrap()
+            .map(|subgroup_elm| Fr::from(
+                (BigUint::from(10_u8) * subgroup_elm)
+                    % BigUint::from_str_radix(BLS_PRIME, 10).unwrap()
+                )
             )
-            .collect::<Vec<BigUint>>(),
+            .collect::<Vec<Fr>>(),
     ).unwrap()
 )]
 #[case::original(BLOB_REGRESSION_INPUT.to_vec(), &BLOB_REGRESSION_OUTPUT)]
 #[case::generated(FFT_REGRESSION_INPUT.to_vec(), &FFT_REGRESSION_OUTPUT)]
-fn test_fft_blob_regression(#[case] input: Vec<BigUint>, #[case] expected_output: &Vec<u8>) {
+fn test_fft_blob_regression(#[case] input: Vec<Fr>, #[case] expected_output: &Vec<u8>) {
     let bytes = polynomial_coefficients_to_blob(input).unwrap();
     assert_eq!(&bytes, expected_output);
 }

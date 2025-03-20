@@ -16,6 +16,9 @@ deserialize = [
 testing = ["blockifier/testing"]
 
 [dependencies]
+ark-bls12-381.workspace = true
+ark-ff.workspace = true
+ark-poly.workspace = true
 blockifier.workspace = true
 c-kzg.workspace = true
 cairo-lang-starknet-classes.workspace = true

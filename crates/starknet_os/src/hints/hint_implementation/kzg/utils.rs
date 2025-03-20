@@ -2,16 +2,15 @@ use std::num::ParseIntError;
 use std::path::Path;
 use std::sync::LazyLock;
 
+use ark_bls12_381::Fr;
+use ark_ff::{BigInteger, PrimeField};
+use ark_poly::{EvaluationDomain, Radix2EvaluationDomain};
 use c_kzg::{Blob, KzgCommitment, KzgSettings, BYTES_PER_FIELD_ELEMENT};
-use num_bigint::{BigUint, ParseBigIntError};
-use num_traits::{Num, One, Zero};
+use num_bigint::ParseBigIntError;
+use num_traits::Zero;
 use starknet_infra_utils::compile_time_cargo_manifest_dir;
 use starknet_types_core::felt::Felt;
 
-pub(crate) const BLOB_SUBGROUP_GENERATOR: &str =
-    "39033254847818212395286706435128746857159659164139250548781411570340225835782";
-pub(crate) const BLS_PRIME: &str =
-    "52435875175126190479447740508185965837690552500527637822603658699938581184513";
 const COMMITMENT_BYTES_LENGTH: usize = 48;
 const COMMITMENT_BYTES_MIDPOINT: usize = COMMITMENT_BYTES_LENGTH / 2;
 const WIDTH: usize = 12;
@@ -21,12 +20,12 @@ pub(crate) const FIELD_ELEMENTS_PER_BLOB: usize = 1 << WIDTH;
 pub enum FftError {
     #[error(transparent)]
     CKzg(#[from] c_kzg::Error),
+    #[error("Failed to create the evaluation domain.")]
+    EvalDomainCreation,
     #[error(transparent)]
     InvalidBinaryToUsize(ParseIntError),
     #[error("Blob size must be {FIELD_ELEMENTS_PER_BLOB}, got {0}.")]
     InvalidBlobSize(usize),
-    #[error("Invalid coefficients length (must be a power of two): {0}.")]
-    InvalidCoeffsLength(usize),
     #[error(transparent)]
     ParseBigUint(#[from] ParseBigIntError),
     #[error("Too many coefficients; expected at most {FIELD_ELEMENTS_PER_BLOB}, got {0}.")]
@@ -44,8 +43,8 @@ fn blob_to_kzg_commitment(blob: &Blob) -> Result<KzgCommitment, FftError> {
     Ok(KzgCommitment::blob_to_kzg_commitment(blob, &KZG_SETTINGS)?)
 }
 
-fn to_bytes(x: &BigUint, length: usize) -> Vec<u8> {
-    let mut bytes = x.to_bytes_be();
+fn pad_bytes(input_bytes: Vec<u8>, length: usize) -> Vec<u8> {
+    let mut bytes = input_bytes;
     let padding = length.saturating_sub(bytes.len());
     if padding > 0 {
         let mut padded_bytes = vec![0; padding];
@@ -55,95 +54,14 @@ fn to_bytes(x: &BigUint, length: usize) -> Vec<u8> {
     bytes
 }
 
-pub(crate) fn serialize_blob(blob: &[BigUint]) -> Result<Vec<u8>, FftError> {
+pub(crate) fn serialize_blob(blob: &[Fr]) -> Result<Vec<u8>, FftError> {
     if blob.len() != FIELD_ELEMENTS_PER_BLOB {
         return Err(FftError::InvalidBlobSize(blob.len()));
     }
-    Ok(blob.iter().flat_map(|x| to_bytes(x, BYTES_PER_FIELD_ELEMENT)).collect())
-}
-
-/// Performs the recursive Fast Fourier Transform (FFT) on the input coefficient vector `coeffs`
-/// using the provided group elements `group` and modulus `prime`.
-///
-/// # Arguments
-///
-/// * `coeffs` - A slice of `BigUint` representing the coefficients of the polynomial.
-/// * `group` - A slice of `BigUint` representing the precomputed group elements for the FFT.
-/// * `prime` - A `BigUint` representing the prime modulus for the field operations.
-///
-/// # Returns
-///
-/// A `Vec<BigUint>` containing the transformed coefficients after applying the FFT.
-///
-/// # See More
-/// - <https://en.wikipedia.org/wiki/Fast_Fourier_transform>
-/// - <https://github.com/starkware-libs/cairo-lang/blob/v0.13.2/src/starkware/python/math_utils.py#L310>
-fn inner_fft(coeffs: &[BigUint], group: &[BigUint], prime: &BigUint) -> Vec<BigUint> {
-    if coeffs.len() == 1 {
-        return coeffs.to_vec();
-    }
-
-    // TODO(Dori): Try to avoid the clones here (possibly by using a non-recursive implementation).
-    let f_even = inner_fft(
-        &coeffs.iter().step_by(2).cloned().collect::<Vec<_>>(),
-        &group.iter().step_by(2).cloned().collect::<Vec<_>>(),
-        prime,
-    );
-    let f_odd = inner_fft(
-        &coeffs.iter().skip(1).step_by(2).cloned().collect::<Vec<_>>(),
-        &group.iter().step_by(2).cloned().collect::<Vec<_>>(),
-        prime,
-    );
-
-    let group_mul_f_odd: Vec<BigUint> =
-        group.iter().take(f_odd.len()).zip(f_odd.iter()).map(|(g, f)| (g * f) % prime).collect();
-
-    let mut result = Vec::with_capacity(coeffs.len());
-    for i in 0..f_even.len() {
-        result.push((f_even[i].clone() + &group_mul_f_odd[i]) % prime);
-    }
-    for i in 0..f_even.len() {
-        // Ensure non-negative diff by adding prime to the value before subtracting.
-        let diff = ((f_even[i].clone() + prime) - &group_mul_f_odd[i]) % prime;
-        result.push(diff);
-    }
-
-    result
-}
-
-/// Computes the FFT of `coeffs`, assuming the size of the coefficient array is a power of two and
-/// equals to the generator's multiplicative order.
-///
-/// See more: <https://github.com/starkware-libs/cairo-lang/blob/v0.13.2/src/starkware/python/math_utils.py#L304>
-pub(crate) fn fft(
-    coeffs: &[BigUint],
-    generator: &BigUint,
-    prime: &BigUint,
-    bit_reversed: bool,
-) -> Result<Vec<BigUint>, FftError> {
-    if coeffs.is_empty() {
-        return Ok(vec![]);
-    }
-
-    let coeffs_len = coeffs.len();
-    if !coeffs_len.is_power_of_two() {
-        return Err(FftError::InvalidCoeffsLength(coeffs_len));
-    }
-
-    let mut group = vec![BigUint::one()];
-    for _ in 0..(coeffs_len - 1) {
-        let last = group.last().expect("Group is never empty.");
-        group.push((last * generator) % prime);
-    }
-
-    let mut values = inner_fft(coeffs, &group, prime);
-
-    if bit_reversed {
-        // Since coeffs_len is a power of two, width is set to the position of the last set bit.
-        bit_reversal(&mut values)?;
-    }
-
-    Ok(values)
+    Ok(blob
+        .iter()
+        .flat_map(|x| pad_bytes(x.into_bigint().to_bytes_be(), BYTES_PER_FIELD_ELEMENT))
+        .collect())
 }
 
 pub(crate) fn split_commitment(commitment: &KzgCommitment) -> Result<(Felt, Felt), FftError> {
@@ -159,7 +77,7 @@ pub(crate) fn split_commitment(commitment: &KzgCommitment) -> Result<(Felt, Felt
 /// Performs bit-reversal permutation on the given vector, in-place.
 /// Inlined from ark_poly.
 // TODO(Dori): can we import this algorithm from somewhere?
-pub(crate) fn bit_reversal(unreversed_blob: &mut [BigUint]) -> Result<(), FftError> {
+pub(crate) fn bit_reversal<T>(unreversed_blob: &mut [T]) -> Result<(), FftError> {
     if unreversed_blob.len() != FIELD_ELEMENTS_PER_BLOB {
         return Err(FftError::InvalidBlobSize(unreversed_blob.len()));
     }
@@ -183,29 +101,27 @@ pub(crate) fn bit_reversal(unreversed_blob: &mut [BigUint]) -> Result<(), FftErr
     Ok(())
 }
 
-pub(crate) fn polynomial_coefficients_to_blob(
-    coefficients: Vec<BigUint>,
-) -> Result<Vec<u8>, FftError> {
+pub(crate) fn polynomial_coefficients_to_blob(coefficients: Vec<Fr>) -> Result<Vec<u8>, FftError> {
     if coefficients.len() > FIELD_ELEMENTS_PER_BLOB {
         return Err(FftError::TooManyCoefficients(coefficients.len()));
     }
 
     // Pad with zeros to complete FIELD_ELEMENTS_PER_BLOB coefficients.
-    let mut padded_coefficients = coefficients;
-    padded_coefficients.resize(FIELD_ELEMENTS_PER_BLOB, BigUint::zero());
+    let mut evals = coefficients;
+    evals.resize(FIELD_ELEMENTS_PER_BLOB, Fr::zero());
 
-    // Perform FFT on the coefficients
-    let generator = BigUint::from_str_radix(BLOB_SUBGROUP_GENERATOR, 10)?;
-    let prime = BigUint::from_str_radix(BLS_PRIME, 10)?;
-    let bit_reversed = true;
-    let fft_result = fft(&padded_coefficients, &generator, &prime, bit_reversed)?;
+    // Perform FFT (in place) on the coefficients, and bit-reverse.
+    let domain = Radix2EvaluationDomain::<Fr>::new(FIELD_ELEMENTS_PER_BLOB)
+        .ok_or(FftError::EvalDomainCreation)?;
+    domain.fft_in_place(&mut evals);
+    bit_reversal(&mut evals)?;
 
     // Serialize the FFT result into a blob.
-    serialize_blob(&fft_result)
+    serialize_blob(&evals)
 }
 
 pub(crate) fn polynomial_coefficients_to_kzg_commitment(
-    coefficients: Vec<BigUint>,
+    coefficients: Vec<Fr>,
 ) -> Result<(Felt, Felt), FftError> {
     let blob = polynomial_coefficients_to_blob(coefficients)?;
     let commitment_bytes = blob_to_kzg_commitment(&Blob::from_bytes(&blob)?)?;
