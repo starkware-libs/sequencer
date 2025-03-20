@@ -11638,6 +11638,7 @@ dependencies = [
  "colored 3.0.0",
  "const_format",
  "futures",
+ "indexmap 2.7.0",
  "mempool_test_utils",
  "papyrus_base_layer",
  "papyrus_config",
