@@ -73,7 +73,7 @@ impl<S: StateReader> StatefulValidator<S> {
             self.validate(&tx, tx_context.initial_sierra_gas().0)?;
 
         // Post validations.
-        PostValidationReport::verify(&tx_context, &actual_cost)?;
+        PostValidationReport::verify(&tx_context, &actual_cost, tx.execution_flags.charge_fee)?;
 
         Ok(())
     }
@@ -94,7 +94,7 @@ impl<S: StateReader> StatefulValidator<S> {
     ) -> StatefulValidatorResult<(Option<CallInfo>, TransactionReceipt)> {
         let tx_context = Arc::new(self.tx_executor.block_context.to_tx_context(tx));
 
-        let limit_steps_by_resources = tx.enforce_fee();
+        let limit_steps_by_resources = tx.execution_flags.charge_fee;
         let validate_call_info = tx.validate_tx(
             self.state(),
             tx_context.clone(),

@@ -262,9 +262,10 @@ impl PostValidationReport {
     pub fn verify(
         tx_context: &TransactionContext,
         tx_receipt: &TransactionReceipt,
+        charge_fee: bool,
     ) -> TransactionExecutionResult<()> {
         // If fee is not enforced, no need to check post-execution.
-        if !tx_context.tx_info.enforce_fee() {
+        if !charge_fee {
             return Ok(());
         }
 
