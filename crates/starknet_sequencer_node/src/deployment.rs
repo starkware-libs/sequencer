@@ -274,7 +274,7 @@ impl DistributedNodeServiceName {
     // TODO(Tsabary): consider alternatives that enable removing the linter suppression.
     #[allow(clippy::as_conversions)]
     fn get_port_offset(&self) -> u16 {
-        self.clone() as u16
+        *self as u16
     }
 }
 
