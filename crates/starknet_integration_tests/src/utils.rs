@@ -171,6 +171,8 @@ pub fn create_node_config(
     let http_server_config =
         create_http_server_config(available_ports.get_next_local_host_socket());
     let class_manager_config = create_class_manager_config(class_manager_storage_config);
+
+    // TODO(Nadin): update the state_sync_config after the state_sync_storage_config creation.
     state_sync_config.storage_config = state_sync_storage_config;
 
     // Update config pointer values.
