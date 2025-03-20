@@ -184,6 +184,7 @@
   "consensus_manager_config.proposals_topic": "consensus_proposals",
   "consensus_manager_config.votes_topic": "consensus_votes",
   "eth_fee_token_address": "0x1001",
+  "gateway_config.stateful_tx_validator_config.max_allowed_nonce_gap": 50,
   "gateway_config.stateful_tx_validator_config.max_nonce_for_validation_skip": "0x1",
   "gateway_config.stateless_tx_validator_config.max_calldata_length": 10,
   "gateway_config.stateless_tx_validator_config.max_contract_class_object_size": 4089446,
