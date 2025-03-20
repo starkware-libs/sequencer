@@ -14,7 +14,7 @@ pub(crate) const BLS_PRIME: &str =
     "52435875175126190479447740508185965837690552500527637822603658699938581184513";
 const COMMITMENT_BYTES_LENGTH: usize = 48;
 const COMMITMENT_BYTES_MIDPOINT: usize = COMMITMENT_BYTES_LENGTH / 2;
-pub(crate) const WIDTH: usize = 12;
+const WIDTH: usize = 12;
 pub(crate) const FIELD_ELEMENTS_PER_BLOB: usize = 1 << WIDTH;
 
 #[derive(Debug, thiserror::Error)]
@@ -140,7 +140,7 @@ pub(crate) fn fft(
 
     if bit_reversed {
         // Since coeffs_len is a power of two, width is set to the position of the last set bit.
-        bit_reversal(&mut values, WIDTH as u32);
+        bit_reversal(&mut values)?;
     }
 
     Ok(values)
@@ -156,24 +156,31 @@ pub(crate) fn split_commitment(commitment: &KzgCommitment) -> Result<(Felt, Felt
     Ok((Felt::from_bytes_be_slice(low), Felt::from_bytes_be_slice(high)))
 }
 
-pub(crate) fn bit_reversal<T>(a: &mut [T], two_adicity: u32) {
-    // From <https://github.com/arkworks-rs/algebra/blob/263cdb7ba772ff66ba387d090effcce21ab06b5e/poly/src/domain/utils.rs#L13C12-L20C2>.
-    fn bitreverse(mut n: u32, l: u32) -> u32 {
+/// Performs bit-reversal permutation on the given vector, in-place.
+/// Inlined from ark_poly.
+// TODO(Dori): can we import this algorithm from somewhere?
+pub(crate) fn bit_reversal(unreversed_blob: &mut [BigUint]) -> Result<(), FftError> {
+    if unreversed_blob.len() != FIELD_ELEMENTS_PER_BLOB {
+        return Err(FftError::InvalidBlobSize(unreversed_blob.len()));
+    }
+
+    fn bitreverse(mut n: usize) -> usize {
         let mut r = 0;
-        for _ in 0..l {
+        for _ in 0..WIDTH {
             r = (r << 1) | (n & 1);
             n >>= 1;
         }
         r
     }
-    // From <https://github.com/arkworks-rs/algebra/blob/master/poly/src/domain/mixed_radix.rs#L358C9-L363C10>.
-    let n = a.len();
-    for k in 0..n {
-        let rk = bitreverse(k as u32, two_adicity) as usize;
-        if k < rk {
-            a.swap(k, rk);
+
+    for i in 0..FIELD_ELEMENTS_PER_BLOB {
+        let reversed_i = bitreverse(i);
+        if i < reversed_i {
+            unreversed_blob.swap(i, reversed_i);
         }
     }
+
+    Ok(())
 }
 
 pub(crate) fn polynomial_coefficients_to_blob(
