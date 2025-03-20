@@ -8,6 +8,7 @@ use futures::StreamExt;
 use mempool_test_utils::starknet_api_test_utils::{
     AccountTransactionGenerator,
     MultiAccountTransactionGenerator,
+    SendableL1HandlerTransaction,
 };
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use papyrus_base_layer::test_utils::{
@@ -28,12 +29,7 @@ use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_api::transaction::{
-    L1HandlerTransaction,
-    TransactionHash,
-    TransactionHasher,
-    TransactionVersion,
-};
+use starknet_api::transaction::{TransactionHash, TransactionHasher, TransactionVersion};
 use starknet_consensus_manager::config::ConsensusManagerConfig;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
@@ -164,7 +160,7 @@ impl FlowTestSetup {
         &self.sequencer_0.node_config.batcher_config.block_builder_config.chain_info.chain_id
     }
 
-    pub async fn send_messages_to_l2(&self, l1_handler_txs: &[L1HandlerTransaction]) {
+    pub async fn send_messages_to_l2(&self, l1_handler_txs: &[SendableL1HandlerTransaction]) {
         for l1_handler in l1_handler_txs {
             send_message_to_l2(l1_handler, &self.starknet_l1_contract).await;
         }
