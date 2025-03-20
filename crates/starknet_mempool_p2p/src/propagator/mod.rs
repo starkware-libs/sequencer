@@ -83,6 +83,9 @@ impl ComponentRequestHandler<MempoolP2pPropagatorRequest, MempoolP2pPropagatorRe
                 MempoolP2pPropagatorResponse::ContinuePropagation(result)
             }
             MempoolP2pPropagatorRequest::BroadcastQueuedTransactions() => {
+                if self.transaction_queue.is_empty() {
+                    return MempoolP2pPropagatorResponse::BroadcastQueuedTransactions(Ok(()));
+                }
                 MempoolP2pPropagatorResponse::BroadcastQueuedTransactions(
                     self.broadcast_queued_transactions().await,
                 )
