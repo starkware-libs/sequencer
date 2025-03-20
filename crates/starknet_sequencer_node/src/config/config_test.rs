@@ -134,10 +134,10 @@ fn validate_config_success() {
 #[case::no_monitoring_nor_profiling(false, false, true)]
 #[case::no_monitoring_with_profiling(false, true, false)]
 fn monitoring_config(
-    #[case] enable_monitoring: bool,
+    #[case] collect_metrics: bool,
     #[case] collect_profiling_metrics: bool,
     #[case] expected_successful_validation: bool,
 ) {
-    let component_exe_config = MonitoringConfig { enable_monitoring, collect_profiling_metrics };
+    let component_exe_config = MonitoringConfig { collect_metrics, collect_profiling_metrics };
     assert_eq!(component_exe_config.validate().is_ok(), expected_successful_validation);
 }
