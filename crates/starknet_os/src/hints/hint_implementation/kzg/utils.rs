@@ -9,13 +9,13 @@ use num_traits::{Num, One, Zero};
 use starknet_infra_utils::compile_time_cargo_manifest_dir;
 use starknet_types_core::felt::Felt;
 
-const BLOB_SUBGROUP_GENERATOR: &str =
+pub(crate) const BLOB_SUBGROUP_GENERATOR: &str =
     "39033254847818212395286706435128746857159659164139250548781411570340225835782";
 pub(crate) const BLS_PRIME: &str =
     "52435875175126190479447740508185965837690552500527637822603658699938581184513";
 const COMMITMENT_BYTES_LENGTH: usize = 48;
 const COMMITMENT_BYTES_MIDPOINT: usize = COMMITMENT_BYTES_LENGTH / 2;
-const FIELD_ELEMENTS_PER_BLOB: usize = 4096;
+pub(crate) const FIELD_ELEMENTS_PER_BLOB: usize = 4096;
 
 #[derive(Debug, thiserror::Error)]
 pub enum FftError {
@@ -55,7 +55,7 @@ fn to_bytes(x: &BigUint, length: usize) -> Vec<u8> {
     bytes
 }
 
-fn serialize_blob(blob: &[BigUint]) -> Result<Vec<u8>, FftError> {
+pub(crate) fn serialize_blob(blob: &[BigUint]) -> Result<Vec<u8>, FftError> {
     if blob.len() != FIELD_ELEMENTS_PER_BLOB {
         return Err(FftError::InvalidBlobSize(blob.len()));
     }
@@ -166,7 +166,9 @@ pub(crate) fn split_commitment(commitment: &KzgCommitment) -> Result<(Felt, Felt
     Ok((Felt::from_bytes_be_slice(low), Felt::from_bytes_be_slice(high)))
 }
 
-fn polynomial_coefficients_to_blob(coefficients: Vec<BigUint>) -> Result<Vec<u8>, FftError> {
+pub(crate) fn polynomial_coefficients_to_blob(
+    coefficients: Vec<BigUint>,
+) -> Result<Vec<u8>, FftError> {
     if coefficients.len() > FIELD_ELEMENTS_PER_BLOB {
         return Err(FftError::TooManyCoefficients(coefficients.len()));
     }
