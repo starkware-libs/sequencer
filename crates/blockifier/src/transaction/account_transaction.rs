@@ -400,15 +400,14 @@ impl AccountTransaction {
         remaining_gas: &mut GasCounter,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
         if self.execution_flags.validate {
-            let limit_steps_by_resources = self.execution_flags.charge_fee;
             let remaining_validation_gas = &mut remaining_gas.limit_usage(
                 tx_context.block_context.versioned_constants.os_constants.validate_max_sierra_gas,
             );
-            Ok(self
-                .validate_tx(state, tx_context, remaining_validation_gas, limit_steps_by_resources)?
-                .inspect(|call_info| {
+            Ok(self.validate_tx(state, tx_context, remaining_validation_gas)?.inspect(
+                |call_info| {
                     remaining_gas.subtract_used_gas(call_info);
-                }))
+                },
+            ))
         } else {
             Ok(None)
         }
@@ -898,8 +897,8 @@ impl ValidatableTransaction for AccountTransaction {
         state: &mut dyn State,
         tx_context: Arc<TransactionContext>,
         remaining_gas: &mut u64,
-        limit_steps_by_resources: bool,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
+        let limit_steps_by_resources = self.execution_flags.charge_fee;
         let mut context = EntryPointExecutionContext::new_validate(
             tx_context,
             limit_steps_by_resources,

@@ -112,7 +112,6 @@ pub trait ValidatableTransaction {
         state: &mut dyn State,
         tx_context: Arc<TransactionContext>,
         remaining_gas: &mut u64,
-        limit_steps_by_resources: bool,
     ) -> TransactionExecutionResult<Option<CallInfo>>;
 }
 
