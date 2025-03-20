@@ -129,6 +129,13 @@ fn build_fin_message(stream_id: u64, message_id: u32) -> StreamMessage {
     }
 }
 
+fn as_usize<T: TryInto<usize>>(t: T) -> usize
+where
+    <T as TryInto<usize>>::Error: std::fmt::Debug,
+{
+    t.try_into().unwrap()
+}
+
 #[tokio::test]
 async fn outbound_single() {
     let num_messages = 5;
@@ -194,8 +201,7 @@ async fn outbound_multiple() {
 
     // Send messages on all of the streams.
     for stream_id in 0..num_streams {
-        let sender =
-            stream_senders.get_mut(TryInto::<usize>::try_into(stream_id).unwrap()).unwrap();
+        let sender = stream_senders.get_mut(as_usize(stream_id)).unwrap();
         for i in 0..num_messages {
             let init = ProposalPart::Init(ProposalInit { round: i, ..Default::default() });
             sender.send(init).await.unwrap();
@@ -210,9 +216,8 @@ async fn outbound_multiple() {
             // The order the stream handler selects from among multiple streams is undefined.
             stream_handler.handle_next_msg().await.unwrap();
             let msg = streamhandler_to_network_receiver.next().now_or_never().unwrap().unwrap();
-            actual_msgs[TryInto::<usize>::try_into(msg.stream_id.0).unwrap()].push(msg);
-            expected_msgs[TryInto::<usize>::try_into(stream_id).unwrap()]
-                .push(build_init_message(i, stream_id, i));
+            actual_msgs[as_usize(msg.stream_id.0)].push(msg);
+            expected_msgs[as_usize(stream_id)].push(build_init_message(i, stream_id, i));
         }
     }
     assert_eq!(actual_msgs, expected_msgs);
@@ -293,9 +298,9 @@ async fn inbound_multiple() {
         // Fin is communicated by dropping the sender, hence `..num_message` not `..=num_messages`
         for i in 0..num_messages {
             let message = receiver.next().await.unwrap();
-            actual_msgs.get_mut(TryInto::<usize>::try_into(sid).unwrap()).unwrap().push(message);
+            actual_msgs.get_mut(as_usize(sid)).unwrap().push(message);
             expected_msgs
-                .get_mut(TryInto::<usize>::try_into(sid).unwrap())
+                .get_mut(as_usize(sid))
                 .unwrap()
                 .push(ProposalPart::Init(ProposalInit { round: i, ..Default::default() }));
         }
