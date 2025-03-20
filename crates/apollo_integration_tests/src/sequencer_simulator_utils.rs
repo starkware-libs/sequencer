@@ -4,7 +4,7 @@ use apollo_http_server::test_utils::HttpTestClient;
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_api::transaction::{L1HandlerTransaction, TransactionHash};
+use starknet_api::transaction::TransactionHash;
 use tracing::info;
 use url::Url;
 
@@ -48,7 +48,7 @@ impl SequencerSimulator {
         // TODO(Arni): Create an actual function that sends L1 handlers in the simulator. Requires
         // setting up L1.
         let send_l1_handler_tx_fn =
-            &mut |_l1_handler_tx: L1HandlerTransaction| async { TransactionHash::default() };
+            &mut |_l1_to_l2_message_args| async { TransactionHash::default() };
         let tx_hashes = send_consensus_txs(
             tx_generator,
             sender_account,
