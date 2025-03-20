@@ -249,6 +249,7 @@ fn report_peer_on_unknown_peer_id() {
     let peer_id = PeerId::random();
     peer_manager
         .report_peer(peer_id, ReputationModifier::Unstable {})
+        .map(|_| ())
         .expect_err("report_peer on unknown peer_id should return an error");
 }
 

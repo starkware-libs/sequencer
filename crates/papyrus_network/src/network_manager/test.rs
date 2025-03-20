@@ -178,10 +178,15 @@ impl SwarmTrait for MockSwarm {
         }
     }
 
-    fn report_peer_as_malicious(&mut self, peer_id: PeerId) {
+    // TODO(alonl): change the returned value and test it
+    fn report_peer_as_malicious(
+        &mut self,
+        peer_id: PeerId,
+    ) -> Option<Pin<Box<dyn Future<Output = PeerId> + Send>>> {
         for sender in &self.reported_peer_senders {
             sender.unbounded_send(peer_id).unwrap();
         }
+        None
     }
     fn add_new_supported_inbound_protocol(&mut self, protocol_name: StreamProtocol) {
         for sender in &self.supported_inbound_protocols_senders {

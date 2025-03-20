@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, HashMap};
+use std::future::Future;
 use std::time::Duration;
 
 use futures::future::BoxFuture;
@@ -210,30 +211,42 @@ impl PeerManager {
         &mut self,
         peer_id: PeerId,
         reason: ReputationModifier,
-    ) -> Result<(), PeerManagerError> {
+    ) -> Result<Option<Box<dyn Future<Output = PeerId> + Send + Unpin>>, PeerManagerError> {
         if let Some(peer) = self.peers.get_mut(&peer_id) {
             match reason {
                 ReputationModifier::Misconduct { misconduct_score } => {
                     peer.report(misconduct_score);
                     if peer.is_malicious() {
+                        let blacklist_duarion = self.config.malicious_timeout_seconds;
                         self.pending_events.push(ToSwarm::GenerateEvent(
                             ToOtherBehaviourEvent::PeerBlacklisted { peer_id },
                         ));
-                        peer.blacklist_peer(self.config.malicious_timeout_seconds);
+                        peer.blacklist_peer(blacklist_duarion);
                         peer.reset_misconduct_score();
+                        return Ok(Some(Box::new(
+                            tokio::time::sleep(blacklist_duarion).map(move |_| peer_id).boxed(),
+                        )));
                     }
                 }
                 ReputationModifier::Unstable => {
                     self.pending_events.push(ToSwarm::GenerateEvent(
                         ToOtherBehaviourEvent::PeerBlacklisted { peer_id },
                     ));
-                    peer.blacklist_peer(self.config.unstable_timeout_millis);
+                    let blacklist_duarion = self.config.unstable_timeout_millis;
+                    peer.blacklist_peer(blacklist_duarion);
+                    return Ok(Some(Box::new(
+                        tokio::time::sleep(blacklist_duarion).map(move |_| peer_id).boxed(),
+                    )));
                 }
             }
-            Ok(())
+            Ok(None)
         } else {
             Err(PeerManagerError::NoSuchPeer(peer_id))
         }
+    }
+
+    pub fn is_peer_available(&self, peer_id: PeerId) -> bool {
+        self.peers.get(&peer_id).is_some_and(|peer| peer.is_available())
     }
 }
 
