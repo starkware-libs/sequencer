@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use num_rational::Ratio;
+use num_traits::{Inv, Zero};
 
 use crate::blockifier_versioned_constants::GasCosts;
 use crate::transaction::errors::NumericConversionError;
@@ -93,13 +95,32 @@ pub fn get_gas_cost_from_vm_resources(
         + total_builtin_gas_cost
 }
 
+/// Converts Sierra gas into a step limit. When step_gas_cost is zero, returns maximum usize (for
+/// Backward compatibility).
 pub fn get_steps_from_sierra_gas(sierra_gas: u64, step_gas_cost: u64) -> usize {
-    if step_gas_cost == 0 {
-        usize_from_u64(sierra_gas).expect("Failed to convert sierra gas to vm steps")
+    let res = compute_step_limit_int(sierra_gas, step_gas_cost, u64_from_usize(usize::MAX));
+
+    usize_from_u64(res).expect("Failed to convert sierra gas to vm steps")
+}
+
+/// Computes the step limit using integer division, ensuring no overflow.
+pub fn compute_step_limit_int(gas_limit: u64, step_gas_cost: u64, default_step_limit: u64) -> u64 {
+    if step_gas_cost.is_zero() {
+        default_step_limit
     } else {
-        sierra_gas
-            .checked_div(step_gas_cost)
-            .map(|v| usize_from_u64(v).expect("Failed to convert sierra gas to vm steps"))
-            .expect("Failed to compute vm steps from sierra gas: division failed")
+        gas_limit.saturating_div(step_gas_cost)
+    }
+}
+
+/// Computes the step limit using a fractional gas cost to improve precision.
+pub fn compute_step_limit_ratio(
+    gas_limit: u64,
+    step_gas_cost: Ratio<u64>,
+    default_step_limit: u64,
+) -> u64 {
+    if step_gas_cost.is_zero() {
+        default_step_limit
+    } else {
+        (step_gas_cost.inv() * gas_limit).to_integer()
     }
 }
