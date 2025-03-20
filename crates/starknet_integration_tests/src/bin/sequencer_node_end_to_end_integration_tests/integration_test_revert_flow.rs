@@ -22,7 +22,9 @@ async fn main() {
     assert!(BLOCK_TO_WAIT_FOR_BOOTSTRAP < BLOCK_TO_REVERT_FROM);
     assert!(BLOCK_TO_REVERT_FROM < BLOCK_TO_WAIT_FOR_AFTER_REVERT);
 
-    const N_TXS: usize = 50;
+    const N_INVOKE_TXS: usize = 50;
+    // TODO(Arni): handle L1 handlers in this scenario.
+    const N_L1_HANDLER_TXS: usize = 0;
     /// The number of consolidated local sequencers that participate in the test.
     // TODO(noamsp): increase N_CONSOLIDATED_SEQUENCERS to 5 once restart flow test passes.
     const N_CONSOLIDATED_SEQUENCERS: usize = 1;
@@ -53,7 +55,9 @@ async fn main() {
     let tx_generator_snapshot = integration_test_manager.tx_generator().snapshot();
 
     info!("Sending transactions and verifying state.");
-    integration_test_manager.send_txs_and_verify(N_TXS, 1, BLOCK_TO_REVERT_FROM).await;
+    integration_test_manager
+        .send_txs_and_verify(N_INVOKE_TXS, N_L1_HANDLER_TXS, BLOCK_TO_REVERT_FROM)
+        .await;
 
     info!("Shutting down nodes.");
     integration_test_manager.shutdown_nodes(node_indices.clone());
@@ -102,7 +106,9 @@ async fn main() {
     integration_test_manager.run_nodes(node_indices.clone()).await;
 
     info!("Sending transactions and verifying state.");
-    integration_test_manager.send_txs_and_verify(N_TXS, 1, BLOCK_TO_WAIT_FOR_AFTER_REVERT).await;
+    integration_test_manager
+        .send_txs_and_verify(N_INVOKE_TXS, N_L1_HANDLER_TXS, BLOCK_TO_WAIT_FOR_AFTER_REVERT)
+        .await;
 
     integration_test_manager.shutdown_nodes(node_indices);
 

@@ -8,6 +8,8 @@ use starknet_sequencer_node::config::component_execution_config::{
 };
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_state_sync::config::CentralSyncClientConfig;
+use tracing::info;
+
 #[tokio::main]
 async fn main() {
     integration_test_setup("sync").await;
@@ -53,4 +55,6 @@ async fn main() {
     integration_test_manager.run_nodes(node_indices.clone()).await;
 
     integration_test_manager.await_sync_block_on_all_running_nodes(BLOCK_TO_WAIT_FOR).await;
+
+    info!("Sync flow integration test completed successfully!");
 }
