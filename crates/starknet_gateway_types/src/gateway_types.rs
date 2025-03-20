@@ -6,7 +6,7 @@ use crate::errors::GatewayError;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GatewayInput {
-    pub rpc_tx: RpcTransaction,
+    pub transactions: Vec<RpcTransaction>,
     pub message_metadata: Option<BroadcastedMessageMetadata>,
 }
 

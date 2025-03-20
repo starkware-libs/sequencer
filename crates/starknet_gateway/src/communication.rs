@@ -16,7 +16,7 @@ impl ComponentRequestHandler<GatewayRequest, GatewayResponse> for Gateway {
             GatewayRequest::AddTransaction(gateway_input) => {
                 let p2p_message_metadata = gateway_input.message_metadata.clone();
                 GatewayResponse::AddTransaction(
-                    self.add_tx(gateway_input.rpc_tx, gateway_input.message_metadata)
+                    self.add_txs(gateway_input.transactions, gateway_input.message_metadata)
                         .await
                         .map_err(|source| GatewayError::GatewaySpecError {
                             source,
