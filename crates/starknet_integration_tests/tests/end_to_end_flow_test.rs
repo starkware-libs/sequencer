@@ -13,13 +13,13 @@ use starknet_integration_tests::utils::{
     create_deploy_account_tx_and_invoke_tx,
     create_flow_test_tx_generator,
     create_funding_txs,
-    create_l1_handler_tx,
+    create_l1_to_l2_message_args,
     create_many_invoke_txs,
     create_multiple_account_txs,
     run_test_scenario,
     test_many_invoke_txs,
     test_multiple_account_txs,
-    CreateL1HandlerTxsFn,
+    CreateL1ToL2MessagesArgsFn,
     CreateRpcTxsFn,
     TestTxHashesFn,
     ACCOUNT_ID_0,
@@ -30,7 +30,7 @@ use tracing::info;
 
 struct TestScenario {
     create_rpc_txs_fn: CreateRpcTxsFn,
-    create_l1_handler_txs_fn: CreateL1HandlerTxsFn,
+    create_l1_to_l2_messages_args_fn: CreateL1ToL2MessagesArgsFn,
     test_tx_hashes_fn: TestTxHashesFn,
 }
 
@@ -89,14 +89,20 @@ async fn end_to_end_flow(
     let mut total_expected_txs = vec![];
 
     // Build multiple heights to ensure heights are committed.
-    for (i, TestScenario { create_rpc_txs_fn, create_l1_handler_txs_fn, test_tx_hashes_fn }) in
-        test_blocks_scenarios.into_iter().enumerate()
+    for (
+        i,
+        TestScenario { create_rpc_txs_fn, create_l1_to_l2_messages_args_fn, test_tx_hashes_fn },
+    ) in test_blocks_scenarios.into_iter().enumerate()
     {
         info!("Starting scenario {i}.");
         // Create and send transactions.
         // TODO(Arni): move send messages to l2 into [run_test_scenario].
-        let l1_handler_txs = create_l1_handler_txs_fn(&mut tx_generator);
-        mock_running_system.send_messages_to_l2(&l1_handler_txs).await;
+        let l1_to_l2_messages_args = create_l1_to_l2_messages_args_fn(&mut tx_generator);
+        mock_running_system.send_messages_to_l2(&l1_to_l2_messages_args).await;
+        let l1_handler_txs = l1_to_l2_messages_args
+            .into_iter()
+            .map(|send_message_to_l2_args| send_message_to_l2_args.tx)
+            .collect();
         let mut expected_batched_tx_hashes = run_test_scenario(
             &mut tx_generator,
             create_rpc_txs_fn,
@@ -168,27 +174,27 @@ fn create_test_scenarios() -> Vec<TestScenario> {
         // TODO(Arni): Fix this. Move the L1 handler to be not the first block.
         TestScenario {
             create_rpc_txs_fn: |_| vec![],
-            create_l1_handler_txs_fn: create_l1_handler_tx,
+            create_l1_to_l2_messages_args_fn: create_l1_to_l2_message_args,
             test_tx_hashes_fn: test_single_tx,
         },
         TestScenario {
             create_rpc_txs_fn: create_multiple_account_txs,
-            create_l1_handler_txs_fn: |_| vec![],
+            create_l1_to_l2_messages_args_fn: |_| vec![],
             test_tx_hashes_fn: test_multiple_account_txs,
         },
         TestScenario {
             create_rpc_txs_fn: create_funding_txs,
-            create_l1_handler_txs_fn: |_| vec![],
+            create_l1_to_l2_messages_args_fn: |_| vec![],
             test_tx_hashes_fn: test_single_tx,
         },
         TestScenario {
             create_rpc_txs_fn: deploy_account_and_invoke,
-            create_l1_handler_txs_fn: |_| vec![],
+            create_l1_to_l2_messages_args_fn: |_| vec![],
             test_tx_hashes_fn: test_two_txs,
         },
         TestScenario {
             create_rpc_txs_fn: create_declare_tx,
-            create_l1_handler_txs_fn: |_| vec![],
+            create_l1_to_l2_messages_args_fn: |_| vec![],
             test_tx_hashes_fn: test_single_tx,
         },
     ]
@@ -197,7 +203,7 @@ fn create_test_scenarios() -> Vec<TestScenario> {
 fn create_many_txs_scenario() -> Vec<TestScenario> {
     vec![TestScenario {
         create_rpc_txs_fn: create_many_invoke_txs,
-        create_l1_handler_txs_fn: |_| vec![],
+        create_l1_to_l2_messages_args_fn: |_| vec![],
         test_tx_hashes_fn: test_many_invoke_txs,
     }]
 }
