@@ -40,6 +40,7 @@ fi
 if [ "$MONITORING_ENABLED" == true ]; then
   pip install -r "${monitoring_dir}"/src/requirements.txt
   python "${monitoring_dir}"/src/dashboard_builder.py builder -j "${monitoring_dir}"/../../Monitoring/sequencer/dev_grafana.json -o /tmp/dashboard_builder -d -u
+  python "${monitoring_dir}"/src/alert_builder.py -j "${monitoring_dir}"/examples/dev_grafana_alerts.json -o /tmp/alert_builder
 fi
 
 if [ "$FOLLOW_LOGS" == true ]; then
