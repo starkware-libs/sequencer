@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::future::Future;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use alloy::node_bindings::AnvilInstance;
@@ -195,6 +195,58 @@ pub struct IntegrationTestManager {
     starknet_l1_contract: StarknetL1Contract,
 }
 
+// TODO(Nadin): remove Clone derive.
+#[derive(Debug, Clone)]
+pub struct StorageExecutablePaths {
+    batcher_path: PathBuf,
+    state_sync_path: PathBuf,
+    class_manager_path: PathBuf,
+}
+
+impl StorageExecutablePaths {
+    pub fn new(
+        db_base: &Path,
+        node_index: usize,
+        batcher_index: usize,
+        state_sync_index: usize,
+        class_manager_index: usize,
+    ) -> Self {
+        let batcher_node_index = NodeExecutionId::new(node_index, batcher_index);
+        let state_sync_node_index = NodeExecutionId::new(node_index, state_sync_index);
+        let class_manager_node_index = NodeExecutionId::new(node_index, class_manager_index);
+
+        let batcher_path = batcher_node_index.build_path(db_base);
+        let state_sync_path = state_sync_node_index.build_path(db_base);
+        let class_manager_path = class_manager_node_index.build_path(db_base);
+
+        Self { batcher_path, state_sync_path, class_manager_path }
+    }
+
+    pub fn get_batcher_exec_path(&self) -> &PathBuf {
+        &self.batcher_path
+    }
+
+    pub fn get_state_sync_exec_path(&self) -> &PathBuf {
+        &self.state_sync_path
+    }
+
+    pub fn get_class_manager_exec_path(&self) -> &PathBuf {
+        &self.class_manager_path
+    }
+
+    pub fn get_batcher_path_with_suffix(&self, suffix: &str) -> PathBuf {
+        self.batcher_path.join(suffix)
+    }
+
+    pub fn get_state_sync_path_with_suffix(&self, suffix: &str) -> PathBuf {
+        self.state_sync_path.join(suffix)
+    }
+
+    pub fn get_class_manager_path_with_suffix(&self, suffix: &str) -> PathBuf {
+        self.class_manager_path.join(suffix)
+    }
+}
+
 pub struct CustomPaths {
     db_base: Option<PathBuf>,
     config_base: Option<PathBuf>,
@@ -209,8 +261,9 @@ impl CustomPaths {
     ) -> Self {
         Self { db_base, config_base, data_prefix_base }
     }
-    pub fn get_db_path(&self, node_execution_id: &NodeExecutionId) -> Option<PathBuf> {
-        self.db_base.as_ref().map(|p| node_execution_id.build_path(p))
+
+    pub fn get_db_base(&self) -> Option<&PathBuf> {
+        self.db_base.as_ref()
     }
 
     pub fn get_config_path(&self, node_execution_id: &NodeExecutionId) -> Option<PathBuf> {
@@ -692,6 +745,7 @@ pub async fn get_sequencer_setup_configs(
         let batcher_index = node_component_config.get_batcher_index();
         let http_server_index = node_component_config.get_http_server_index();
         let state_sync_index = node_component_config.get_state_sync_index();
+        let class_manager_index = node_component_config.get_class_manager_index();
 
         let mut consensus_manager_config = consensus_manager_configs.remove(0);
         let mempool_p2p_config = mempool_p2p_configs.remove(0);
@@ -700,13 +754,23 @@ pub async fn get_sequencer_setup_configs(
         consensus_manager_config.cende_config.recorder_url = recorder_url.clone();
         let validator_id = set_validator_id(&mut consensus_manager_config, node_index);
 
+        let storage_exec_paths = custom_paths.as_ref().and_then(|paths| {
+            paths.get_db_base().map(|db_base| {
+                StorageExecutablePaths::new(
+                    db_base,
+                    node_index,
+                    batcher_index,
+                    state_sync_index,
+                    class_manager_index,
+                )
+            })
+        });
+
         for (executable_index, executable_component_config) in
             node_component_config.into_iter().enumerate()
         {
             let node_execution_id = NodeExecutionId::new(node_index, executable_index);
             let chain_info = chain_info.clone();
-            let exec_db_path =
-                custom_paths.as_ref().and_then(|paths| paths.get_db_path(&node_execution_id));
             let exec_config_path =
                 custom_paths.as_ref().and_then(|paths| paths.get_config_path(&node_execution_id));
             let exec_data_prefix_dir = custom_paths
@@ -726,7 +790,7 @@ pub async fn get_sequencer_setup_configs(
                         .expect("Failed to get an AvailablePorts instance for executable configs"),
                     executable_component_config.clone(),
                     base_layer_config.clone(),
-                    exec_db_path,
+                    storage_exec_paths.clone(),
                     exec_config_path,
                     exec_data_prefix_dir,
                     validator_id,
