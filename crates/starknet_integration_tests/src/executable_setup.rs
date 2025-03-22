@@ -29,7 +29,6 @@ use tempfile::{tempdir, TempDir};
 use tokio::fs::create_dir_all;
 use tracing::instrument;
 
-use crate::integration_test_manager::StorageExecutablePaths;
 use crate::state_reader::{
     StorageTestSetup,
     BATCHER_DB_PATH_SUFFIX,
@@ -38,6 +37,7 @@ use crate::state_reader::{
     CLASS_MANAGER_DB_PATH_SUFFIX,
     STATE_SYNC_DB_PATH_SUFFIX,
 };
+use crate::storage::StorageExecutablePaths;
 use crate::utils::create_node_config;
 
 // TODO(Tsabary): rename this module to `executable_setup`.
