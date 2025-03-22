@@ -2,33 +2,14 @@ import dataclasses
 import typing
 
 
-from services import objects, topology_helpers
+from services.config import SequencerConfig
 
 
 @dataclasses.dataclass
 class ServiceTopology:
-    images: typing.Optional[typing.Mapping] = dataclasses.field(
-        default_factory=topology_helpers.get_images
-    )
-    deployment: typing.Optional[objects.Deployment] = dataclasses.field(
-        default_factory=topology_helpers.get_deployment
-    )
-    config: typing.Optional[objects.Config] = dataclasses.field(
-        default_factory=topology_helpers.get_dev_config
-    )
-    service: typing.Optional[objects.Service] = dataclasses.field(
-        default_factory=topology_helpers.get_service
-    )
-    pvc: typing.Optional[objects.PersistentVolumeClaim] = dataclasses.field(
-        default_factory=topology_helpers.get_pvc
-    )
-    ingress: typing.Optional[objects.Ingress] = dataclasses.field(
-        default_factory=topology_helpers.get_ingress
-    )
-
-class SequencerDev(ServiceTopology):
-    pass
-
-
-class SequencerProd(SequencerDev):
-    pass
+    config: typing.Optional[SequencerConfig]
+    image: str
+    ingress: bool
+    replicas: int
+    autoscale: bool
+    storage: int | None
