@@ -211,10 +211,17 @@ impl StateSync {
 
     fn is_class_declared_at(
         &self,
-        _block_number: BlockNumber,
-        _class_hash: ClassHash,
+        block_number: BlockNumber,
+        class_hash: ClassHash,
     ) -> StateSyncResult<bool> {
-        todo!()
+        let class_definition_block_number_opt = self
+            .storage_reader
+            .begin_ro_txn()?
+            .get_state_reader()?
+            .get_class_definition_block_number(&class_hash)?;
+        Ok(class_definition_block_number_opt.is_some_and(|class_definition_block_number| {
+            class_definition_block_number <= block_number
+        }))
     }
 }
 
