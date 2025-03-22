@@ -95,6 +95,10 @@ fn check_constants_serde_error(json_data: &str, expected_error_message: &str) {
     json_data_raw.insert("v1_bound_accounts_cairo0".into(), serde_json::Value::Array(vec![]));
     json_data_raw.insert("v1_bound_accounts_cairo1".into(), serde_json::Value::Array(vec![]));
     json_data_raw.insert("v1_bound_accounts_max_tip".into(), "0x0".into());
+    json_data_raw.insert(
+        "l1_handler_max_amount_bounds".into(),
+        serde_json::to_value(GasVector::default()).unwrap(),
+    );
 
     let json_data = &serde_json::to_string(&json_data_raw).unwrap();
 
@@ -215,4 +219,30 @@ fn test_call_data_factor_gas_cost_calculation() {
         VersionedConstants::latest_constants().os_constants.gas_costs.syscalls.deploy.linear_factor
             > 0
     )
+}
+
+#[test]
+fn test_l1_handler_max_amount_bounds() {
+    for version in StarknetVersion::iter().filter(|version| version >= &StarknetVersion::V0_13_0) {
+        let versioned_constants =
+            VersionedConstants::get(&version).expect("Failed to get versioned constants");
+
+        let l1_handler_bounds = &versioned_constants.os_constants.l1_handler_max_amount_bounds;
+        let sierra_gas_limit = versioned_constants.sierra_gas_limit(&ExecutionMode::Execute).0;
+
+        if (StarknetVersion::V0_13_0..StarknetVersion::V0_14_0).contains(&version) {
+            // For backward compatibility: 0.13.0 ≤ version < 0.14.0
+            // - l2_gas must match sierra_gas_limit
+            // - l1_gas and l1_data_gas must be ≥ sierra_gas_limit
+            assert_eq!(l1_handler_bounds.l2_gas.0, sierra_gas_limit);
+            assert!(l1_handler_bounds.l1_gas.0 >= sierra_gas_limit);
+            assert!(l1_handler_bounds.l1_data_gas.0 >= sierra_gas_limit);
+        } else {
+            // From version 0.14.0 onward:
+            // - All bounds must be strictly < sierra_gas_limit
+            assert!(l1_handler_bounds.l2_gas.0 < sierra_gas_limit);
+            assert!(l1_handler_bounds.l1_gas.0 < sierra_gas_limit);
+            assert!(l1_handler_bounds.l1_data_gas.0 < sierra_gas_limit);
+        }
+    }
 }
