@@ -548,24 +548,36 @@ async fn build_proposal_cende_incomplete() {
 async fn batcher_not_ready(#[case] proposer: bool) {
     let mut batcher = MockBatcherClient::new();
     batcher.expect_start_height().return_once(|_| Ok(()));
-    batcher
-        .expect_validate_block()
-        .returning(move |_| Err(BatcherClientError::BatcherError(BatcherError::NotReady)));
+    let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
+    if proposer {
+        eth_to_strk_oracle_client
+            .expect_eth_to_fri_rate()
+            .times(1)
+            .returning(|_| Ok(ETH_TO_FRI_RATE));
+        batcher
+            .expect_propose_block()
+            .times(1)
+            .returning(|_| Err(BatcherClientError::BatcherError(BatcherError::NotReady)));
+    } else {
+        batcher
+            .expect_validate_block()
+            .times(1)
+            .returning(move |_| Err(BatcherClientError::BatcherError(BatcherError::NotReady)));
+    }
     let (mut context, _network) =
-        setup(batcher, success_cende_ammbassador(), MockEthToStrkOracleClientTrait::new());
+        setup(batcher, success_cende_ammbassador(), eth_to_strk_oracle_client);
     context.set_height_and_round(BlockNumber::default(), Round::default()).await;
 
     if proposer {
         let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await;
         assert_eq!(fin_receiver.await, Err(Canceled));
     } else {
-        let fin_receiver = context
-            .validate_proposal(
-                ProposalInit::default(),
-                TIMEOUT,
-                mpsc::channel(context.config.proposal_buffer_size).1,
-            )
-            .await;
+        let (mut content_sender, content_receiver) =
+            mpsc::channel(context.config.proposal_buffer_size);
+        content_sender.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
+
+        let fin_receiver =
+            context.validate_proposal(ProposalInit::default(), TIMEOUT, content_receiver).await;
         assert_eq!(fin_receiver.await, Err(Canceled));
     }
 }
