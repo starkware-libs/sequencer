@@ -5,7 +5,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     insert_value_from_var_name,
 };
 use cairo_vm::types::relocatable::MaybeRelocatable;
-use num_bigint::BigInt;
+use num_bigint::BigUint;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintResult};
@@ -45,7 +45,7 @@ pub(crate) fn store_da_segment<S: StateReader>(
         .chunks(blob_length)
         .enumerate()
         .map(|(chunk_id, chunk)| {
-            let coefficients: Vec<BigInt> = chunk.iter().map(|f| f.to_bigint()).collect();
+            let coefficients: Vec<BigUint> = chunk.iter().map(|f| f.to_biguint()).collect();
             log::debug!("Computing KZG commitment on chunk {chunk_id}...");
             polynomial_coefficients_to_kzg_commitment(coefficients)
         })
