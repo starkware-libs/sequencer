@@ -10,7 +10,13 @@ use futures::future::{self, pending, BoxFuture};
 use futures::never::Never;
 use futures::{FutureExt, StreamExt};
 use papyrus_common::pending_classes::PendingClasses;
-use papyrus_network::network_manager::metrics::{NetworkMetrics, SqmrNetworkMetrics};
+use papyrus_network::network_manager::metrics::{
+    NetworkMetrics,
+    SqmrNetworkMetrics,
+    STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS,
+    STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS,
+    STATE_SYNC_P2P_NUM_CONNECTED_PEERS,
+};
 use papyrus_network::network_manager::{self, NetworkError, NetworkManager};
 use papyrus_p2p_sync::client::{
     P2pSyncClient,
@@ -54,11 +60,6 @@ use starknet_state_sync_types::state_sync_types::SyncBlock;
 use tokio::sync::RwLock;
 
 use crate::config::{CentralSyncClientConfig, StateSyncConfig};
-use crate::metrics::{
-    STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS,
-    STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS,
-    STATE_SYNC_P2P_NUM_CONNECTED_PEERS,
-};
 
 pub struct StateSyncRunner {
     network_future: BoxFuture<'static, Result<(), NetworkError>>,
