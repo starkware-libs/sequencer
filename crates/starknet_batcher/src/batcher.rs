@@ -547,7 +547,10 @@ impl Batcher {
         accepted_l1_handler_tx_hashes: IndexSet<TransactionHash>,
         rejected_tx_hashes: HashSet<TransactionHash>,
     ) -> BatcherResult<()> {
-        info!("Committing block at height {} and notifying mempool of the block.", height);
+        info!(
+            "Committing block at height {} and notifying mempool & L1 event provider of the block.",
+            height
+        );
         trace!("Rejected transactions: {:#?}, State diff: {:#?}.", rejected_tx_hashes, state_diff);
 
         // Commit the proposal to the storage and notify the mempool.
