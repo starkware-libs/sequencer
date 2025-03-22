@@ -61,6 +61,7 @@ pub(crate) const CLASS_HASH_STORAGE_DB_PATH_SUFFIX: &str = "class_hash_storage";
 pub(crate) const CLASSES_STORAGE_DB_PATH_SUFFIX: &str = "classes";
 pub(crate) const STATE_SYNC_DB_PATH_SUFFIX: &str = "state_sync";
 
+#[derive(Debug)]
 pub struct StorageTestSetup {
     pub batcher_storage_config: StorageConfig,
     pub batcher_storage_handle: Option<TempDir>,
