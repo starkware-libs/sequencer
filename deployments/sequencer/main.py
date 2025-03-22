@@ -8,8 +8,10 @@ from typing import Optional
 
 from config.sequencer import Config
 from app.service import ServiceApp
-from services.topology_helpers import get_dev_config
 from services import topology, helpers
+from config.sequencer import SequencerDevConfig
+from app.monitoring import MonitoringApp
+from services.objects import GrafanaDashboard
 
 
 @dataclasses.dataclass
@@ -25,27 +27,55 @@ class SystemStructure:
 
 class SequencerNode(Chart):
     def __init__(
-        self, scope: Construct, name: str, namespace: str, service_topology: topology.ServiceTopology
+        self,
+        scope: Construct,
+        name: str,
+        namespace: str,
+        service_topology: topology.ServiceTopology,
     ):
         super().__init__(scope, name, disable_resource_name_hashes=True, namespace=namespace)
         self.service = ServiceApp(self, name, namespace=namespace, service_topology=service_topology)
 
 
+class SequencerDashboard(Chart):
+    def __init__(
+        self,
+        scope: Construct,
+        name: str,
+        namespace: str,
+        grafana_dashboard: GrafanaDashboard,
+    ):
+        super().__init__(scope, name, disable_resource_name_hashes=True, namespace=namespace)
+        self.dashboard = MonitoringApp(self, name, namespace=namespace, grafana_dashboard=grafana_dashboard)
+
+
 def main():
     args = helpers.argument_parser()
     app = App(yaml_output_type=YamlOutputType.FOLDER_PER_CHART_FILE_PER_RESOURCE)
-    system_presets = [
-        topology.SequencerDev(
-            config=get_dev_config(config)
-        ) for config in args.config_file
-    ]
-    for index, system_preset in enumerate(system_presets):
+
+    preset = topology.DeploymentConfig(args.deployment_config_file)
+    services = preset.get_services()
+
+    for svc in services:
         SequencerNode(
             scope=app,
-            name=f"sequencer-node-{index}",
+            name=svc["name"].lower(),
             namespace=args.namespace,
-            service_topology=system_preset,
-            )
+            service_topology=topology.ServiceTopology(
+                config=SequencerDevConfig(config_file_path=svc["config_path"]),
+                image=preset.get_image(),
+                autoscale=svc["autoscale"],
+                ingress=svc["ingress"],
+                storage=svc["storage"],
+            ),
+        )
+
+    SequencerDashboard(
+        scope=app,
+        name="dashboard",
+        namespace=args.namespace,
+        grafana_dashboard=GrafanaDashboard("dashboard/dashboard.json")
+    )
 
     app.synth()
 
