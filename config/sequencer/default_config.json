@@ -1127,7 +1127,7 @@
   "l1_gas_price_scraper_config.finality": {
     "description": "Number of blocks to wait for finality in L1",
     "privacy": "Public",
-    "value": 3
+    "value": 0
   },
   "l1_gas_price_scraper_config.number_of_blocks_for_mean": {
     "description": "Number of blocks to use for the mean gas price calculation",

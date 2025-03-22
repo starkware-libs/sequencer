@@ -60,7 +60,7 @@ impl Default for L1GasPriceScraperConfig {
         Self {
             starting_block: None,
             chain_id: ChainId::Other("0x0".to_string()),
-            finality: 3,
+            finality: 0,
             polling_interval: Duration::from_secs(1),
             number_of_blocks_for_mean: 300,
         }
@@ -159,6 +159,7 @@ where
 {
     async fn start(&mut self) {
         info!("Starting component {}.", type_name::<Self>());
+        println!("\n\nself.config.finality: {}\n\n", self.config.finality);
         let start_from = match self.config.starting_block {
             Some(block) => block,
             None => {

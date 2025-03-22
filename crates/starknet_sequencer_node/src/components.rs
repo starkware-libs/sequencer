@@ -6,6 +6,8 @@ use starknet_class_manager::ClassManager;
 use starknet_consensus_manager::consensus_manager::ConsensusManager;
 use starknet_gateway::gateway::{create_gateway, Gateway};
 use starknet_http_server::http_server::{create_http_server, HttpServer};
+use starknet_l1_gas_price::l1_gas_price_provider::L1GasPriceProvider;
+use starknet_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraper;
 use starknet_l1_provider::event_identifiers_to_track;
 use starknet_l1_provider::l1_provider::{create_l1_provider, L1Provider};
 use starknet_l1_provider::l1_scraper::L1Scraper;
@@ -38,6 +40,8 @@ pub struct SequencerNodeComponents {
     pub http_server: Option<HttpServer>,
     pub l1_scraper: Option<L1Scraper<EthereumBaseLayerContract>>,
     pub l1_provider: Option<L1Provider>,
+    pub l1_gas_price_scraper: Option<L1GasPriceScraper<EthereumBaseLayerContract>>,
+    pub l1_gas_price_provider: Option<L1GasPriceProvider>,
     pub mempool: Option<MempoolCommunicationWrapper>,
     pub monitoring_endpoint: Option<MonitoringEndpoint>,
     pub mempool_p2p_propagator: Option<MempoolP2pPropagator>,
@@ -59,6 +63,7 @@ pub async fn create_node_components(
             let l1_provider_client = clients
                 .get_l1_provider_shared_client()
                 .expect("L1 Provider Client should be available");
+            // TODO(guyn): Should also create a gas price shared client and give it to batcher?
             let class_manager_client = clients
                 .get_class_manager_shared_client()
                 .expect("Class Manager Client should be available");
@@ -264,6 +269,28 @@ pub async fn create_node_components(
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
 
+    let l1_gas_price_provider = match config.components.l1_gas_price_provider.execution_mode {
+        ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
+        | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+            Some(L1GasPriceProvider::new(config.l1_gas_price_provider_config.clone()))
+        }
+        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
+    };
+    let l1_gas_price_scraper = match config.components.l1_gas_price_scraper.execution_mode {
+        ActiveComponentExecutionMode::Enabled => {
+            let l1_gas_price_client = clients.get_l1_gas_price_shared_client().unwrap();
+            let l1_gas_price_scraper_config = config.l1_gas_price_scraper_config.clone();
+            let base_layer = EthereumBaseLayerContract::new(config.base_layer_config.clone());
+
+            Some(L1GasPriceScraper::new(
+                l1_gas_price_scraper_config,
+                l1_gas_price_client,
+                base_layer,
+            ))
+        }
+        ActiveComponentExecutionMode::Disabled => None,
+    };
+
     let sierra_compiler = match config.components.sierra_compiler.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
@@ -280,6 +307,8 @@ pub async fn create_node_components(
         http_server,
         l1_scraper,
         l1_provider,
+        l1_gas_price_scraper,
+        l1_gas_price_provider,
         mempool,
         monitoring_endpoint,
         mempool_p2p_propagator,
