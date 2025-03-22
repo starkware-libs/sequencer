@@ -162,6 +162,7 @@ impl SerializeConfig for RpcStateReaderConfig {
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct StatefulTransactionValidatorConfig {
+    pub max_allowed_nonce_gap: u32,
     pub max_nonce_for_validation_skip: Nonce,
     pub versioned_constants_overrides: VersionedConstantsOverrides,
 }
@@ -169,6 +170,7 @@ pub struct StatefulTransactionValidatorConfig {
 impl Default for StatefulTransactionValidatorConfig {
     fn default() -> Self {
         StatefulTransactionValidatorConfig {
+            max_allowed_nonce_gap: 50,
             max_nonce_for_validation_skip: Nonce(Felt::ONE),
             versioned_constants_overrides: VersionedConstantsOverrides::default(),
         }
@@ -177,12 +179,20 @@ impl Default for StatefulTransactionValidatorConfig {
 
 impl SerializeConfig for StatefulTransactionValidatorConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = BTreeMap::from_iter([ser_param(
-            "max_nonce_for_validation_skip",
-            &self.max_nonce_for_validation_skip,
-            "Maximum nonce for which the validation is skipped.",
-            ParamPrivacyInput::Public,
-        )]);
+        let mut dump = BTreeMap::from_iter([
+            ser_param(
+                "max_nonce_for_validation_skip",
+                &self.max_nonce_for_validation_skip,
+                "Maximum nonce for which the validation is skipped.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_allowed_nonce_gap",
+                &self.max_allowed_nonce_gap,
+                "The maximum allowed gap between the account nonce and the transaction nonce.",
+                ParamPrivacyInput::Public,
+            ),
+        ]);
         dump.append(&mut append_sub_config_name(
             self.versioned_constants_overrides.dump(),
             "versioned_constants_overrides",
