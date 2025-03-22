@@ -7,11 +7,7 @@ use tracing_subscriber::{filter, fmt, reload, Registry};
 pub fn configure_tracing() -> Handle<LevelFilter, Registry> {
     // Create a handle to the global filter to allow setting log level at runtime.
     let (global_filter, global_filter_handle) = reload::Layer::new(filter::LevelFilter::INFO);
-    let layer = fmt::Layer::default()
-        .with_ansi(false)
-        .with_target(false)
-        .with_file(true)
-        .with_line_number(true);
+    let layer = fmt::Layer::default().with_target(false).with_file(true).with_line_number(true);
     tracing_subscriber::registry().with(global_filter).with(layer).init();
     global_filter_handle
 }
