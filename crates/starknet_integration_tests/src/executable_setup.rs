@@ -105,6 +105,7 @@ impl ExecutableSetup {
         config_path_dir: Option<PathBuf>,
         validator_id: ValidatorId,
         storage_setup: &StorageTestSetup,
+        block_max_capacity_n_steps: GasAmount,
     ) -> Self {
         // Explicitly collect metrics in the monitoring endpoint.
         let monitoring_endpoint_config = MonitoringEndpointConfig {
@@ -113,7 +114,6 @@ impl ExecutableSetup {
             ..Default::default()
         };
 
-        let block_max_capacity_n_steps = GasAmount(30000000);
         // Derive the configuration for the sequencer node.
         let (config, config_pointers_map) = create_node_config(
             &mut available_ports,
