@@ -12,7 +12,7 @@ use super::behaviour::{Behaviour, Event, ExternalEvent, ToOtherBehaviourEvent};
 use super::{Bytes, Config, InboundSessionId, OutboundSessionId, SessionId};
 use crate::mixed_behaviour::BridgedBehaviour;
 use crate::test_utils::create_fully_connected_swarms_stream;
-use crate::utils::StreamHashMap;
+use crate::utils::StreamMap;
 use crate::{mixed_behaviour, peer_manager};
 
 const NUM_PEERS: usize = 3;
@@ -24,7 +24,7 @@ pub const OTHER_PROTOCOL_NAME: StreamProtocol = StreamProtocol::new("/other");
 type SwarmEventAlias<BehaviourTrait> = SwarmEvent<<BehaviourTrait as NetworkBehaviour>::ToSwarm>;
 
 async fn collect_events_from_swarms<BehaviourTrait: NetworkBehaviour, T>(
-    swarms_stream: &mut StreamHashMap<PeerId, Swarm<BehaviourTrait>>,
+    swarms_stream: &mut StreamMap<PeerId, Swarm<BehaviourTrait>>,
     mut map_and_filter_event: impl FnMut(PeerId, SwarmEventAlias<BehaviourTrait>) -> Option<(PeerId, T)>,
     assert_unique: bool,
 ) -> HashMap<(PeerId, PeerId), T> {
@@ -46,7 +46,7 @@ async fn collect_events_from_swarms<BehaviourTrait: NetworkBehaviour, T>(
 }
 
 fn perform_action_on_swarms<BehaviourTrait: NetworkBehaviour>(
-    swarms_stream: &mut StreamHashMap<PeerId, Swarm<BehaviourTrait>>,
+    swarms_stream: &mut StreamMap<PeerId, Swarm<BehaviourTrait>>,
     peer_ids: &[PeerId],
     action: &mut dyn FnMut(&mut Swarm<BehaviourTrait>, PeerId),
 ) {

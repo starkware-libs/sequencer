@@ -18,7 +18,9 @@ pub struct OutboundSessionId {
     pub value: usize,
 }
 
-#[derive(Clone, Copy, Debug, Default, derive_more::Display, Eq, Hash, PartialEq)]
+#[derive(
+    Clone, Copy, Debug, Default, derive_more::Display, Eq, Hash, PartialEq, PartialOrd, Ord,
+)]
 pub struct InboundSessionId {
     pub value: usize,
 }

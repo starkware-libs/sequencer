@@ -5,7 +5,7 @@ mod test;
 #[cfg(any(test, feature = "testing"))]
 pub mod test_utils;
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::pin::Pin;
 use std::str::FromStr;
 use std::task::{Context, Poll};
@@ -31,7 +31,7 @@ use crate::gossipsub_impl::Topic;
 use crate::mixed_behaviour::{self, BridgedBehaviour};
 use crate::sqmr::behaviour::SessionError;
 use crate::sqmr::{self, InboundSessionId, OutboundSessionId, SessionId};
-use crate::utils::{is_localhost, StreamHashMap};
+use crate::utils::{is_localhost, StreamMap};
 use crate::{gossipsub_impl, NetworkConfig};
 
 #[derive(thiserror::Error, Debug)]
@@ -48,15 +48,15 @@ const MESSAGE_METADATA_BUFFER_SIZE: usize = 100000;
 pub struct GenericNetworkManager<SwarmT: SwarmTrait> {
     swarm: SwarmT,
     inbound_protocol_to_buffer_size: HashMap<StreamProtocol, usize>,
-    sqmr_inbound_response_receivers: StreamHashMap<InboundSessionId, ResponsesReceiver>,
+    sqmr_inbound_response_receivers: StreamMap<InboundSessionId, ResponsesReceiver>,
     sqmr_inbound_payload_senders: HashMap<StreamProtocol, SqmrServerSender>,
-    sqmr_outbound_payload_receivers: StreamHashMap<StreamProtocol, SqmrClientReceiver>,
+    sqmr_outbound_payload_receivers: StreamMap<String, SqmrClientReceiver>,
     sqmr_outbound_response_senders: HashMap<OutboundSessionId, ResponsesSender>,
     sqmr_outbound_report_receivers_awaiting_assignment: HashMap<OutboundSessionId, ReportReceiver>,
     // Splitting the broadcast receivers from the broadcasted senders in order to poll all
     // receivers simultaneously.
     // Each receiver has a matching sender and vice versa (i.e the maps have the same keys).
-    messages_to_broadcast_receivers: StreamHashMap<TopicHash, Receiver<Bytes>>,
+    messages_to_broadcast_receivers: StreamMap<TopicHash, Receiver<Bytes>>,
     broadcasted_messages_senders: HashMap<TopicHash, Sender<(Bytes, BroadcastedMessageMetadata)>>,
     reported_peer_receivers: FuturesUnordered<BoxFuture<'static, Option<PeerId>>>,
     advertised_multiaddr: Option<Multiaddr>,
@@ -74,6 +74,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                 Some(event) = self.swarm.next() => self.handle_swarm_event(event)?,
                 Some(res) = self.sqmr_inbound_response_receivers.next() => self.handle_response_for_inbound_query(res),
                 Some((protocol, client_payload)) = self.sqmr_outbound_payload_receivers.next() => {
+                    let protocol = StreamProtocol::try_from_owned(protocol).expect("Invalid protocol should not appear");
                     self.handle_local_sqmr_payload(protocol, client_payload.expect("An SQMR client channel should not be terminated."))
                 }
                 Some((topic_hash, message)) = self.messages_to_broadcast_receivers.next() => {
@@ -115,12 +116,12 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         Self {
             swarm,
             inbound_protocol_to_buffer_size: HashMap::new(),
-            sqmr_inbound_response_receivers: StreamHashMap::new(HashMap::new()),
+            sqmr_inbound_response_receivers: StreamMap::new(BTreeMap::new()),
             sqmr_inbound_payload_senders: HashMap::new(),
-            sqmr_outbound_payload_receivers: StreamHashMap::new(HashMap::new()),
+            sqmr_outbound_payload_receivers: StreamMap::new(BTreeMap::new()),
             sqmr_outbound_response_senders: HashMap::new(),
             sqmr_outbound_report_receivers_awaiting_assignment: HashMap::new(),
-            messages_to_broadcast_receivers: StreamHashMap::new(HashMap::new()),
+            messages_to_broadcast_receivers: StreamMap::new(BTreeMap::new()),
             broadcasted_messages_senders: HashMap::new(),
             reported_peer_receivers,
             advertised_multiaddr,
@@ -190,7 +191,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
 
         let insert_result = self
             .sqmr_outbound_payload_receivers
-            .insert(protocol.clone(), Box::new(payload_receiver));
+            .insert(protocol.clone().as_ref().to_string(), Box::new(payload_receiver));
         if insert_result.is_some() {
             panic!("Protocol '{}' has already been registered as a client.", protocol);
         };

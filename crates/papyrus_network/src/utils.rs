@@ -1,7 +1,6 @@
 use core::net::Ipv4Addr;
-use std::collections::hash_map::{Keys, ValuesMut};
-use std::collections::HashMap;
-use std::hash::Hash;
+use std::collections::btree_map::{Keys, ValuesMut};
+use std::collections::BTreeMap;
 use std::pin::Pin;
 use std::task::{Context, Poll, Waker};
 
@@ -12,15 +11,16 @@ use libp2p::Multiaddr;
 // This is an implementation of `StreamMap` from tokio_stream. The reason we're implementing it
 // ourselves is that the implementation in tokio_stream requires that the values implement the
 // Stream trait from tokio_stream and not from futures.
-pub struct StreamHashMap<K: Unpin + Clone + Eq + Hash, V: Stream + Unpin> {
-    map: HashMap<K, V>,
+pub struct StreamMap<K: Unpin + Clone + Ord, V: Stream + Unpin> {
+    map: BTreeMap<K, V>,
     wakers_waiting_for_new_stream: Vec<Waker>,
+    next_index_to_poll: Option<usize>,
 }
 
-impl<K: Unpin + Clone + Eq + Hash, V: Stream + Unpin> StreamHashMap<K, V> {
+impl<K: Unpin + Clone + Ord, V: Stream + Unpin> StreamMap<K, V> {
     #[allow(dead_code)]
-    pub fn new(map: HashMap<K, V>) -> Self {
-        Self { map, wakers_waiting_for_new_stream: Default::default() }
+    pub fn new(map: BTreeMap<K, V>) -> Self {
+        Self { map, wakers_waiting_for_new_stream: Default::default(), next_index_to_poll: None }
     }
 
     #[allow(dead_code)]
@@ -47,18 +47,35 @@ impl<K: Unpin + Clone + Eq + Hash, V: Stream + Unpin> StreamHashMap<K, V> {
     }
 }
 
-impl<K: Unpin + Clone + Eq + Hash, V: Stream + Unpin> Stream for StreamHashMap<K, V> {
+impl<K: Unpin + Clone + Ord, V: Stream + Unpin> Stream for StreamMap<K, V> {
     type Item = (K, Option<<V as Stream>::Item>);
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let unpinned_self = Pin::into_inner(self);
         let mut finished_stream_key: Option<K> = None;
-        for (key, stream) in &mut unpinned_self.map {
+        let next_index_to_poll = unpinned_self.next_index_to_poll.take().unwrap_or_default();
+        let size_of_map = unpinned_self.map.len();
+        let keys = unpinned_self
+            .map
+            .keys()
+            .cloned()
+            .enumerate()
+            .cycle()
+            .skip(next_index_to_poll)
+            .take(size_of_map)
+            .collect::<Vec<_>>()
+            .into_iter();
+        for (index, key) in keys {
+            let stream = unpinned_self.map.get_mut(&key).unwrap();
+            // poll the stream
             match stream.poll_next_unpin(cx) {
                 Poll::Ready(Some(value)) => {
+                    unpinned_self.next_index_to_poll =
+                        Some(index.checked_add(1).unwrap_or_default());
                     return Poll::Ready(Some((key.clone(), Some(value))));
                 }
                 Poll::Ready(None) => {
+                    unpinned_self.next_index_to_poll = Some(index);
                     finished_stream_key = Some(key.clone());
                     // breaking and removing the finished stream from the map outside of the loop
                     // because we can't have two mutable references to the map.
@@ -67,6 +84,7 @@ impl<K: Unpin + Clone + Eq + Hash, V: Stream + Unpin> Stream for StreamHashMap<K
                 Poll::Pending => {}
             }
         }
+
         if let Some(finished_stream_key) = finished_stream_key {
             unpinned_self.map.remove(&finished_stream_key);
             return Poll::Ready(Some((finished_stream_key, None)));
