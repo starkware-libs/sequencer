@@ -38,6 +38,7 @@ fn test_small_fft_regression(#[values(true, false)] bit_reversed: bool) {
 
 #[rstest]
 fn test_fft(#[values(true, false)] bit_reversed: bool) {
+    let x = 7;
     let prime = BigInt::from_str_radix(BLS_PRIME, 10).unwrap();
     let generator = BigInt::from_str_radix(GENERATOR, 10).unwrap();
 
