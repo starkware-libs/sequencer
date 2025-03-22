@@ -9,6 +9,7 @@ use papyrus_config::dumping::{
     SerializeConfig,
 };
 use serde_json::{Map, Value};
+use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use tracing::{error, info};
 use validator::ValidationError;
 
@@ -124,6 +125,7 @@ fn validate_all_pointer_targets_set(preset: Value) -> Result<(), ValidationError
 pub struct PresetConfig {
     pub config_path: PathBuf,
     pub component_config: ComponentConfig,
+    pub monitoring_endpoint_config: MonitoringEndpointConfig,
 }
 
 pub struct DeploymentBaseAppConfig {
@@ -144,6 +146,7 @@ impl DeploymentBaseAppConfig {
     pub fn dump_config_file(&self, preset_config: PresetConfig) {
         let mut updated_config = self.config.clone();
         updated_config.components = preset_config.component_config;
+        updated_config.monitoring_endpoint_config = preset_config.monitoring_endpoint_config;
         dump_config_file(
             updated_config,
             &self.config_pointers_map.clone().into(),
