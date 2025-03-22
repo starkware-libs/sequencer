@@ -24,7 +24,9 @@ use starknet_api::transaction::TransactionHash;
 use starknet_class_manager::test_utils::FileHandles;
 use starknet_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use starknet_infra_utils::tracing::{CustomLogger, TraceLevel};
+use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_monitoring_endpoint::test_utils::MonitoringClient;
+use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::config_utils::dump_json_data;
 use starknet_sequencer_node::config::definitions::ConfigPointersMap;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
@@ -53,6 +55,7 @@ use crate::utils::{
     create_consensus_manager_configs_from_network_configs,
     create_integration_test_tx_generator,
     create_mempool_p2p_configs,
+    create_node_config,
     create_state_sync_configs,
     send_consensus_txs,
     send_message_to_l2_and_calculate_tx_hash,
@@ -710,6 +713,10 @@ pub async fn get_sequencer_setup_configs(
     let (recorder_url, _join_handle) =
         spawn_local_success_recorder(base_layer_ports.get_next_port());
 
+    let mut config_available_ports = available_ports_generator
+        .next()
+        .expect("Failed to get an AvailablePorts instance for node configs");
+
     for (node_index, node_component_config) in node_component_configs.into_iter().enumerate() {
         let mut executables = Vec::new();
         let batcher_index = node_component_config.get_batcher_index();
@@ -723,6 +730,7 @@ pub async fn get_sequencer_setup_configs(
 
         consensus_manager_config.cende_config.recorder_url = recorder_url.clone();
         let validator_id = set_validator_id(&mut consensus_manager_config, node_index);
+        let chain_info = chain_info.clone();
 
         let storage_setup = get_integration_test_storage(
             node_index,
@@ -734,30 +742,40 @@ pub async fn get_sequencer_setup_configs(
             &chain_info,
         );
 
+        // Derive the configuration for the sequencer node.
+        let (config, config_pointers_map) = create_node_config(
+            &mut config_available_ports,
+            chain_info,
+            storage_setup.batcher_storage_config.clone(),
+            storage_setup.state_sync_storage_config.clone(),
+            storage_setup.class_manager_storage_config.clone(),
+            state_sync_config,
+            consensus_manager_config,
+            mempool_p2p_config,
+            MonitoringEndpointConfig::default(),
+            ComponentConfig::default(),
+            base_layer_config.clone(),
+            BLOCK_MAX_CAPACITY_N_STEPS,
+            validator_id,
+        );
+
         for (executable_index, executable_component_config) in
             node_component_config.into_iter().enumerate()
         {
             let node_execution_id = NodeExecutionId::new(node_index, executable_index);
-            let chain_info = chain_info.clone();
             let exec_config_path =
                 custom_paths.as_ref().and_then(|paths| paths.get_config_path(&node_execution_id));
 
             executables.push(
                 ExecutableSetup::new(
+                    config.clone(),
+                    config_pointers_map.clone(),
                     node_execution_id,
-                    chain_info,
-                    consensus_manager_config.clone(),
-                    mempool_p2p_config.clone(),
-                    state_sync_config.clone(),
                     available_ports_generator
                         .next()
                         .expect("Failed to get an AvailablePorts instance for executable configs"),
-                    executable_component_config.clone(),
-                    base_layer_config.clone(),
                     exec_config_path,
-                    validator_id,
-                    &storage_setup,
-                    BLOCK_MAX_CAPACITY_N_STEPS,
+                    executable_component_config,
                 )
                 .await,
             );

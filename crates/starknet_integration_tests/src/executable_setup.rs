@@ -1,17 +1,11 @@
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 
-use blockifier::context::ChainInfo;
-use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
-use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
-use starknet_consensus::types::ValidatorId;
-use starknet_consensus_manager::config::ConsensusManagerConfig;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_http_server::test_utils::HttpTestClient;
 use starknet_infra_utils::test_utils::AvailablePorts;
-use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_monitoring_endpoint::test_utils::MonitoringClient;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
@@ -22,13 +16,8 @@ use starknet_sequencer_node::config::node_config::{
     CONFIG_NON_POINTERS_WHITELIST,
 };
 use starknet_sequencer_node::test_utils::node_runner::NodeRunner;
-use starknet_state_sync::config::StateSyncConfig;
 use tempfile::{tempdir, TempDir};
 use tokio::fs::create_dir_all;
-use tracing::instrument;
-
-use crate::state_reader::StorageTestSetup;
-use crate::utils::create_node_config;
 
 // TODO(Tsabary): rename this module to `executable_setup`.
 
@@ -89,23 +78,14 @@ pub struct ExecutableSetup {
     node_config_dir_handle: Option<TempDir>,
 }
 
-// TODO(Tsabary/ Nadin): reduce number of args.
-#[allow(clippy::too_many_arguments)]
 impl ExecutableSetup {
-    #[instrument(skip(chain_info, consensus_manager_config, storage_setup), level = "debug")]
     pub async fn new(
+        mut config: SequencerNodeConfig, // TODO(Nadin): remove mut.
+        config_pointers_map: ConfigPointersMap,
         node_execution_id: NodeExecutionId,
-        chain_info: ChainInfo,
-        consensus_manager_config: ConsensusManagerConfig,
-        mempool_p2p_config: MempoolP2pConfig,
-        state_sync_config: StateSyncConfig,
         mut available_ports: AvailablePorts,
-        component_config: ComponentConfig,
-        base_layer_config: EthereumBaseLayerConfig,
         config_path_dir: Option<PathBuf>,
-        validator_id: ValidatorId,
-        storage_setup: &StorageTestSetup,
-        block_max_capacity_n_steps: GasAmount,
+        component_config: ComponentConfig,
     ) -> Self {
         // Explicitly collect metrics in the monitoring endpoint.
         let monitoring_endpoint_config = MonitoringEndpointConfig {
@@ -114,22 +94,9 @@ impl ExecutableSetup {
             ..Default::default()
         };
 
-        // Derive the configuration for the sequencer node.
-        let (config, config_pointers_map) = create_node_config(
-            &mut available_ports,
-            chain_info,
-            storage_setup.batcher_storage_config.clone(),
-            storage_setup.state_sync_storage_config.clone(),
-            storage_setup.class_manager_storage_config.clone(),
-            state_sync_config,
-            consensus_manager_config,
-            mempool_p2p_config,
-            monitoring_endpoint_config,
-            component_config,
-            base_layer_config,
-            block_max_capacity_n_steps,
-            validator_id,
-        );
+        // TODO(Nadin): avoid updating the config here.
+        config.monitoring_endpoint_config = monitoring_endpoint_config;
+        config.components = component_config;
 
         let (node_config_dir, node_config_dir_handle) = match config_path_dir {
             Some(config_path_dir) => {
