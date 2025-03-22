@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::path::PathBuf;
 
 use assert_matches::assert_matches;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
@@ -48,6 +47,8 @@ use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 use tempfile::TempDir;
 
+use crate::integration_test_manager::StorageExecutablePaths;
+
 pub type TempDirHandlePair = (TempDir, TempDir);
 type ContractClassesMap = (
     Vec<(ClassHash, DeprecatedContractClass)>,
@@ -73,13 +74,15 @@ impl StorageTestSetup {
     pub fn new(
         test_defined_accounts: Vec<AccountTransactionGenerator>,
         chain_info: &ChainInfo,
-        path: Option<PathBuf>,
+        storage_exec_paths: Option<StorageExecutablePaths>,
     ) -> Self {
         let preset_test_contracts = PresetTestContracts::new();
         // TODO(yair): Avoid cloning.
         let classes = TestClasses::new(&test_defined_accounts, preset_test_contracts.clone());
 
-        let batcher_db_path = path.as_ref().map(|p| p.join(BATCHER_DB_PATH_SUFFIX));
+        let batcher_db_path = storage_exec_paths
+            .as_ref()
+            .map(|p| p.get_batcher_exec_path().join(BATCHER_DB_PATH_SUFFIX));
         let ((_, mut batcher_storage_writer), batcher_storage_config, batcher_storage_handle) =
             TestStorageBuilder::new(batcher_db_path)
                 .scope(StorageScope::StateOnly)
@@ -93,7 +96,9 @@ impl StorageTestSetup {
             &classes,
         );
 
-        let state_sync_db_path = path.as_ref().map(|p| p.join(STATE_SYNC_DB_PATH_SUFFIX));
+        let state_sync_db_path = storage_exec_paths
+            .as_ref()
+            .map(|p| p.get_state_sync_exec_path().join(STATE_SYNC_DB_PATH_SUFFIX));
         let (
             (_, mut state_sync_storage_writer),
             state_sync_storage_config,
@@ -110,7 +115,9 @@ impl StorageTestSetup {
             &classes,
         );
 
-        let fs_class_storage_db_path = path.as_ref().map(|p| p.join(CLASS_MANAGER_DB_PATH_SUFFIX));
+        let fs_class_storage_db_path = storage_exec_paths
+            .as_ref()
+            .map(|p| p.get_class_manager_exec_path().join(CLASS_MANAGER_DB_PATH_SUFFIX));
         let mut fs_class_storage_builder = FsClassStorageBuilderForTesting::default();
         if let Some(class_manager_path) = fs_class_storage_db_path.as_ref() {
             let class_hash_storage_path_prefix =

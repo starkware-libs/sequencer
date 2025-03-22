@@ -29,6 +29,7 @@ use tempfile::{tempdir, TempDir};
 use tokio::fs::create_dir_all;
 use tracing::instrument;
 
+use crate::integration_test_manager::StorageExecutablePaths;
 use crate::state_reader::{
     StorageTestSetup,
     BATCHER_DB_PATH_SUFFIX,
@@ -118,7 +119,7 @@ impl ExecutableSetup {
         mut available_ports: AvailablePorts,
         component_config: ComponentConfig,
         base_layer_config: EthereumBaseLayerConfig,
-        db_path_dir: Option<PathBuf>,
+        storage_exec_paths: Option<StorageExecutablePaths>,
         config_path_dir: Option<PathBuf>,
         exec_data_prefix_dir: Option<PathBuf>,
         validator_id: ValidatorId,
@@ -132,7 +133,7 @@ impl ExecutableSetup {
             state_sync_storage_handle,
             mut class_manager_storage_config,
             class_manager_storage_handles,
-        } = StorageTestSetup::new(accounts, &chain_info, db_path_dir);
+        } = StorageTestSetup::new(accounts, &chain_info, storage_exec_paths);
 
         // Allow overriding the path with a custom prefix for Docker mode in system tests.
         if let Some(ref prefix) = exec_data_prefix_dir {
