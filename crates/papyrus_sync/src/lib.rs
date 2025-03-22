@@ -787,7 +787,7 @@ impl<
 
             txn.commit()?;
             if let Some(hash) = reverted_block_hash {
-                info!(%hash, "Reverted block.");
+                info!(%hash, %block_number, "Reverted block.");
             }
             Ok(())
         })
