@@ -47,7 +47,7 @@ use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 use tempfile::TempDir;
 
-use crate::integration_test_manager::StorageExecutablePaths;
+use crate::storage::StorageExecutablePaths;
 
 pub type TempDirHandlePair = (TempDir, TempDir);
 type ContractClassesMap = (
