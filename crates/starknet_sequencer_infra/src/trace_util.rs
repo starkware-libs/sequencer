@@ -12,7 +12,7 @@ pub static PID: std::sync::LazyLock<u32> = std::sync::LazyLock::new(std::process
 pub async fn configure_tracing() {
     TRACING_INITIALIZED
         .get_or_init(|| async {
-            let fmt_layer = fmt::layer().compact().with_target(true);
+            let fmt_layer = fmt::layer().compact().with_target(true).with_ansi(false);
             let level_filter_layer =
                 EnvFilter::builder().with_default_directive(DEFAULT_LEVEL.into()).from_env_lossy();
 
