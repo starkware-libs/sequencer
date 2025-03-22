@@ -1,12 +1,19 @@
+use std::collections::HashMap;
+
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::contract_class::EntryPointType;
-use starknet_api::deprecated_contract_class::ContractClass;
+use starknet_api::deprecated_contract_class::{ContractClass, EntryPointV0};
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::OsHintResult;
 use crate::hints::vars::CairoStruct;
-use crate::vm_utils::{insert_value_to_nested_field, IdentifierGetter};
+use crate::vm_utils::{
+    insert_value_to_nested_field,
+    insert_values_to_fields,
+    IdentifierGetter,
+    LoadCairoObject,
+};
 
 #[allow(clippy::too_many_arguments)]
 /// Loads the entry points of a deprecated contract class to a contract class struct, given a
@@ -56,4 +63,29 @@ fn load_entry_points_to_contract_class_struct<IG: IdentifierGetter>(
     )?;
 
     Ok(())
+}
+
+impl<IG: IdentifierGetter> LoadCairoObject<IG> for EntryPointV0 {
+    fn load_into(
+        &self,
+        vm: &mut VirtualMachine,
+        identifier_getter: &IG,
+        address: Relocatable,
+        _constants: &HashMap<String, Felt>,
+    ) -> OsHintResult {
+        // Insert the fields.
+        let nested_fields_and_value = [
+            ("selector".to_string(), self.selector.0.into()),
+            ("offset".to_string(), self.offset.0.into()),
+        ];
+        insert_values_to_fields(
+            address,
+            CairoStruct::DeprecatedContractEntryPoint,
+            vm,
+            nested_fields_and_value.as_slice(),
+            identifier_getter,
+        )?;
+
+        Ok(())
+    }
 }
