@@ -141,14 +141,14 @@ impl DeploymentBaseAppConfig {
         Self { config, config_pointers_map, non_pointer_params }
     }
 
-    pub fn dump_config_file(&self, config_path: &PathBuf, component_config: ComponentConfig) {
+    pub fn dump_config_file(&self, preset_config: PresetConfig) {
         let mut updated_config = self.config.clone();
-        updated_config.components = component_config;
+        updated_config.components = preset_config.component_config;
         dump_config_file(
             updated_config,
             &self.config_pointers_map.clone().into(),
             &self.non_pointer_params,
-            config_path,
+            &preset_config.config_path,
         );
     }
 }
