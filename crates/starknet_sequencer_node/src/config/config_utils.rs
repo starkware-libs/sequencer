@@ -128,6 +128,7 @@ pub struct PresetConfig {
     pub monitoring_endpoint_config: MonitoringEndpointConfig,
 }
 
+#[derive(Clone)]
 pub struct DeploymentBaseAppConfig {
     config: SequencerNodeConfig,
     config_pointers_map: ConfigPointersMap,
@@ -143,15 +144,20 @@ impl DeploymentBaseAppConfig {
         Self { config, config_pointers_map, non_pointer_params }
     }
 
-    pub fn dump_config_file(&self, preset_config: PresetConfig) {
+    pub fn get_config(&self) -> SequencerNodeConfig {
+        self.config.clone()
+    }
+
+    pub fn dump_config_file(&self, preset_config: PresetConfig) -> SequencerNodeConfig {
         let mut updated_config = self.config.clone();
         updated_config.components = preset_config.component_config;
         updated_config.monitoring_endpoint_config = preset_config.monitoring_endpoint_config;
         dump_config_file(
-            updated_config,
+            updated_config.clone(),
             &self.config_pointers_map.clone().into(),
             &self.non_pointer_params,
             &preset_config.config_path,
         );
+        updated_config
     }
 }
