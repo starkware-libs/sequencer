@@ -14,7 +14,7 @@ use starknet_l1_provider_types::{
 };
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_state_sync_types::communication::SharedStateSyncClient;
-use tracing::{instrument, trace, warn};
+use tracing::{debug, info, instrument, trace, warn};
 
 use crate::bootstrapper::Bootstrapper;
 use crate::transaction_manager::TransactionManager;
@@ -69,7 +69,19 @@ impl L1Provider {
         self.validate_height(height)?;
 
         match self.state {
-            ProviderState::Propose => Ok(self.tx_manager.get_txs(n_txs)),
+            ProviderState::Propose => {
+                let txs = self.tx_manager.get_txs(n_txs);
+                info!(
+                    "Returned {} out of {} transactions, ready for sequencing.",
+                    txs.len(),
+                    n_txs
+                );
+                debug!(
+                    "Returned L1Handler txs: {:#?}",
+                    txs.iter().map(|tx| tx.tx_hash).collect::<Vec<_>>()
+                );
+                Ok(txs)
+            }
             ProviderState::Pending | ProviderState::Bootstrap(_) => {
                 Err(L1ProviderError::OutOfSessionGetTransactions)
             }

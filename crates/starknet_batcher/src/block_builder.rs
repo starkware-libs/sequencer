@@ -306,7 +306,7 @@ async fn collect_execution_results_and_stream_txs(
             // TODO(yael 18/9/2024): add timeout error handling here once this
             // feature is added.
             Err(err) => {
-                debug!("Transaction {:?} failed with error: {}.", input_tx, err);
+                debug!("Transaction {} failed with error: {}.", input_tx.tx_hash(), err);
                 if fail_on_err {
                     return Err(BlockBuilderError::FailOnError(
                         FailOnErrorCause::TransactionFailed(err),
