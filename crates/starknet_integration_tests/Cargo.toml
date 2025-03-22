@@ -19,7 +19,6 @@ cairo-lang-starknet-classes.workspace = true
 clap.workspace = true
 futures.workspace = true
 indexmap.workspace = true
-itertools.workspace = true
 mempool_test_utils.workspace = true
 papyrus_base_layer = { workspace = true, features = ["testing"] }
 papyrus_network = { workspace = true, features = ["testing"] }
