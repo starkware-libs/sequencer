@@ -41,7 +41,8 @@ use tracing::{debug, trace};
 
 use self::state_update_stream::{StateUpdateStream, StateUpdateStreamConfig};
 
-type CentralResult<T> = Result<T, CentralError>;
+pub type CentralResult<T> = Result<T, CentralError>;
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct CentralSourceConfig {
     pub concurrent_requests: usize,
