@@ -7,7 +7,6 @@ use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
-use starknet_class_manager::test_utils::FileHandles;
 use starknet_consensus::types::ValidatorId;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
 use starknet_http_server::config::HttpServerConfig;
@@ -29,15 +28,7 @@ use tempfile::{tempdir, TempDir};
 use tokio::fs::create_dir_all;
 use tracing::instrument;
 
-use crate::integration_test_manager::StorageExecutablePaths;
-use crate::state_reader::{
-    StorageTestSetup,
-    BATCHER_DB_PATH_SUFFIX,
-    CLASSES_STORAGE_DB_PATH_SUFFIX,
-    CLASS_HASH_STORAGE_DB_PATH_SUFFIX,
-    CLASS_MANAGER_DB_PATH_SUFFIX,
-    STATE_SYNC_DB_PATH_SUFFIX,
-};
+use crate::storage::StorageExecutablePaths;
 use crate::utils::create_node_config;
 
 // TODO(Tsabary): rename this module to `executable_setup`.
