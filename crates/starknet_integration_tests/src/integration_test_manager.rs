@@ -29,9 +29,12 @@ use starknet_infra_utils::tracing::{CustomLogger, TraceLevel};
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_monitoring_endpoint::test_utils::MonitoringClient;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
-use starknet_sequencer_node::config::config_utils::dump_json_data;
+use starknet_sequencer_node::config::config_utils::{dump_json_data, DeploymentBaseAppConfig};
 use starknet_sequencer_node::config::definitions::ConfigPointersMap;
-use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
+use starknet_sequencer_node::config::node_config::{
+    SequencerNodeConfig,
+    CONFIG_NON_POINTERS_WHITELIST,
+};
 use starknet_sequencer_node::test_utils::node_runner::{get_node_executable_path, spawn_run_node};
 use tempfile::TempDir;
 use tokio::join;
@@ -769,6 +772,11 @@ pub async fn get_sequencer_setup_configs(
             BLOCK_MAX_CAPACITY_N_STEPS,
             validator_id,
         );
+        let base_app_config = DeploymentBaseAppConfig::new(
+            config.clone(),
+            config_pointers_map.clone(),
+            CONFIG_NON_POINTERS_WHITELIST.clone(),
+        );
 
         let HttpServerConfig { ip, port } = config.http_server_config;
         let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
@@ -782,7 +790,7 @@ pub async fn get_sequencer_setup_configs(
 
             executables.push(
                 ExecutableSetup::new(
-                    config.clone(),
+                    base_app_config.clone(),
                     config_pointers_map.clone(),
                     node_execution_id,
                     available_ports_generator
