@@ -73,22 +73,10 @@ pub enum OsHintError {
     StatelessCompressionOverflow { n_bits: usize, type_name: String },
     #[error(transparent)]
     TryFromBigUint(#[from] TryFromBigIntError<BigUint>),
-    #[error("Unknown hint string: {0}")]
-    UnknownHint(String),
     #[error(transparent)]
     Vm(#[from] VirtualMachineError),
     #[error(transparent)]
     VmHint(#[from] VmHintError),
-}
-
-/// `OsHintError` and the VM's `HintError` must have conversions in both directions, as execution
-/// can pass back and forth between the VM and the OS hint processor; errors should propagate.
-// TODO(Dori): Consider replicating the blockifier's mechanism and keeping structured error data,
-//   instead of converting to string.
-impl From<OsHintError> for VmHintError {
-    fn from(error: OsHintError) -> Self {
-        Self::CustomHint(format!("{error}").into())
-    }
 }
 
 pub type OsHintResult = Result<(), OsHintError>;

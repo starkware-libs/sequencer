@@ -3,7 +3,6 @@ use indoc::indoc;
 #[cfg(any(test, feature = "testing"))]
 use strum::IntoEnumIterator;
 
-use crate::hints::error::{OsHintError, OsHintExtensionResult, OsHintResult};
 use crate::hints::hint_implementation::aggregator::{
     allocate_segments_for_messages,
     disable_da_page_creation,
@@ -222,7 +221,15 @@ use crate::hints::hint_implementation::syscalls::{
     storage_read,
     storage_write,
 };
-use crate::hints::types::{HintArgs, HintEnum, HintExtensionImplementation, HintImplementation};
+use crate::hints::types::{
+    HintArgs,
+    HintEnum,
+    HintExtensionImplementation,
+    HintExtensionImplementationResult,
+    HintImplementation,
+    HintImplementationError,
+    HintImplementationResult,
+};
 use crate::{define_hint_enum, define_hint_extension_enum};
 
 #[cfg(test)]
@@ -251,13 +258,13 @@ macro_rules! all_hints_enum {
         }
 
         impl HintEnum for AllHints {
-            fn from_str(hint_str: &str) -> Result<Self, OsHintError> {
+            fn from_str(hint_str: &str) -> Result<Self, HintImplementationError> {
                 $(
                     if let Ok(hint) = $inner_enum::from_str(hint_str) {
                         return Ok(hint.into())
                     }
                 )+
-                Err(OsHintError::UnknownHint(hint_str.to_string()))
+                Err(HintImplementationError::UnknownHint(hint_str.to_string()))
             }
 
             fn to_str(&self) -> &'static str {

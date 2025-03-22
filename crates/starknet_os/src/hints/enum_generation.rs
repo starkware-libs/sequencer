@@ -16,10 +16,10 @@ macro_rules! define_hint_enum_base {
         }
 
         impl HintEnum for $enum_name {
-            fn from_str(hint_str: &str) -> Result<Self, OsHintError> {
+            fn from_str(hint_str: &str) -> Result<Self, HintImplementationError> {
                 match hint_str {
                     $($hint_str => Ok(Self::$hint_name),)+
-                    _ => Err(OsHintError::UnknownHint(hint_str.to_string())),
+                    _ => Err(HintImplementationError::UnknownHint(hint_str.to_string())),
                 }
             }
 
@@ -39,9 +39,15 @@ macro_rules! define_hint_enum {
         $crate::define_hint_enum_base!($enum_name, $(($hint_name, $hint_str)),+);
 
         impl HintImplementation for $enum_name {
-            fn execute_hint<S: StateReader>(&self, hint_args: HintArgs<'_, S>) -> OsHintResult {
+            fn execute_hint<S: StateReader>(&self, hint_args: HintArgs<'_, S>) -> HintImplementationResult {
                 match self {
-                    $(Self::$hint_name => $implementation::<S>(hint_args),)+
+                    $(
+                        Self::$hint_name => $implementation::<S>(hint_args)
+                            .map_err(|error| HintImplementationError::OsHint {
+                                hint: AllHints::$enum_name(*self),
+                                error
+                            }),
+                    )+
                 }
             }
         }
@@ -58,9 +64,15 @@ macro_rules! define_hint_extension_enum {
             fn execute_hint_extensive<S: StateReader>(
                 &self,
                 hint_extension_args: HintArgs<'_, S>,
-            ) -> OsHintExtensionResult {
+            ) -> HintExtensionImplementationResult {
                 match self {
-                    $(Self::$hint_name => $implementation::<S>(hint_extension_args),)+
+                    $(
+                        Self::$hint_name => $implementation::<S>(hint_extension_args)
+                            .map_err(|error| HintImplementationError::OsHint {
+                                hint: AllHints::$enum_name(*self),
+                                error
+                            }),
+                    )+
                 }
             }
         }
