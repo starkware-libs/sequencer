@@ -45,6 +45,10 @@ impl Peer {
         self.timed_out_until > get_instant_now()
     }
 
+    pub fn is_available(&self) -> bool {
+        (!self.is_blocked()) && (!self.connection_ids.is_empty())
+    }
+
     pub fn blocked_until(&self) -> Instant {
         if self.timed_out_until > get_instant_now() {
             self.timed_out_until

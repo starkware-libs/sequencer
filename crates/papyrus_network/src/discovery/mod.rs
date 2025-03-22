@@ -167,10 +167,9 @@ impl NetworkBehaviour for Behaviour {
                 *sleep_future_for_dialing_bootstrap_peer = None;
                 return ToSwarm::Dial {
                     opts: DialOpts::peer_id(*bootstrap_peer_id)
-                    .addresses(vec![bootstrap_peer_address.clone()])
-                    // The peer manager might also be dialing to the bootstrap node.
-                    .condition(PeerCondition::DisconnectedAndNotDialing)
-                    .build(),
+                        .addresses(vec![bootstrap_peer_address.clone()])
+                        .condition(PeerCondition::DisconnectedAndNotDialing)
+                        .build(),
                 };
             }
             // We're already connected to the bootstrap peer. Nothing to do
