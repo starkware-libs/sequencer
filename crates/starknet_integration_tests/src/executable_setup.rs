@@ -5,7 +5,11 @@ use starknet_infra_utils::test_utils::AvailablePorts;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_monitoring_endpoint::test_utils::MonitoringClient;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
-use starknet_sequencer_node::config::config_utils::dump_config_file;
+use starknet_sequencer_node::config::config_utils::{
+    dump_config_file,
+    DeploymentBaseAppConfig,
+    PresetConfig,
+};
 use starknet_sequencer_node::config::definitions::ConfigPointersMap;
 use starknet_sequencer_node::config::node_config::{
     SequencerNodeConfig,
@@ -72,7 +76,7 @@ pub struct ExecutableSetup {
 
 impl ExecutableSetup {
     pub async fn new(
-        mut config: SequencerNodeConfig, // TODO(Nadin): remove mut.
+        bas_app_config: DeploymentBaseAppConfig,
         config_pointers_map: ConfigPointersMap,
         node_execution_id: NodeExecutionId,
         mut available_ports: AvailablePorts,
@@ -86,10 +90,6 @@ impl ExecutableSetup {
             ..Default::default()
         };
 
-        // TODO(Nadin): avoid updating the config here.
-        config.monitoring_endpoint_config = monitoring_endpoint_config;
-        config.components = component_config;
-
         let (node_config_dir, node_config_dir_handle) = match config_path_dir {
             Some(config_path_dir) => {
                 create_dir_all(&config_path_dir).await.unwrap();
@@ -100,21 +100,27 @@ impl ExecutableSetup {
                 (node_config_dir_handle.path().to_path_buf(), Some(node_config_dir_handle))
             }
         };
-        let node_config_path = node_config_dir.join(NODE_CONFIG_CHANGES_FILE_PATH);
         // Wait for the node to start.
-        let MonitoringEndpointConfig { ip, port, .. } = config.monitoring_endpoint_config;
+        let MonitoringEndpointConfig { ip, port, .. } = monitoring_endpoint_config;
         let monitoring_client = MonitoringClient::new(SocketAddr::from((ip, port)));
 
-        let executable_setup = Self {
+        let config_path = node_config_dir.join(NODE_CONFIG_CHANGES_FILE_PATH);
+        let preset_config = PresetConfig {
+            config_path: config_path.clone(),
+            component_config,
+            monitoring_endpoint_config,
+        };
+
+        let updated_config = bas_app_config.dump_config_file(preset_config);
+
+        Self {
             node_execution_id,
             monitoring_client,
-            config: config.clone(),
+            config: updated_config,
             config_pointers_map,
             node_config_dir_handle,
-            node_config_path,
-        };
-        executable_setup.dump_config_file_changes();
-        executable_setup
+            node_config_path: config_path,
+        }
     }
 
     pub fn modify_config<F>(&mut self, modify_config_fn: F)
