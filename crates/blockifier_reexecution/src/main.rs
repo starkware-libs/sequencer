@@ -26,16 +26,16 @@ const OFFLINE_PREFIX_FILE: &str = "/offline_reexecution_files_prefix";
 
 /// BlockifierReexecution CLI.
 #[derive(Debug, Parser)]
-#[clap(name = "blockifier-reexecution-cli", version)]
+#[command(name = "blockifier-reexecution-cli", version)]
 pub struct BlockifierReexecutionCliArgs {
-    #[clap(flatten)]
+    #[command(flatten)]
     global_options: GlobalOptions,
 
-    #[clap(subcommand)]
+    #[command(subcommand)]
     command: Command,
 }
 
-#[derive(clap::ValueEnum, Clone, Debug)]
+#[derive(ValueEnum, Clone, Debug)]
 enum SupportedChainId {
     Mainnet,
     Testnet,
@@ -52,14 +52,14 @@ impl From<SupportedChainId> for ChainId {
     }
 }
 
-#[derive(Clone, Debug, Args)]
+#[derive(Clone, Debug, Parser)]
 struct RpcArgs {
     /// Node url.
-    #[clap(long, short = 'n')]
+    #[arg(long, short = 'n')]
     node_url: String,
 
     /// Optional chain ID (if not provided, it will be guessed from the node url).
-    #[clap(long, short = 'c')]
+    #[arg(long, short = 'c')]
     chain_id: Option<SupportedChainId>,
 }
 
@@ -76,68 +76,68 @@ impl RpcArgs {
 enum Command {
     /// Runs the RPC test.
     RpcTest {
-        #[clap(flatten)]
+        #[command(flatten)]
         rpc_args: RpcArgs,
 
         /// Block number.
-        #[clap(long, short = 'b')]
+        #[arg(long, short = 'b')]
         block_number: u64,
     },
 
     /// Writes the RPC queries of all (selected) blocks to json files.
     WriteToFile {
-        #[clap(flatten)]
+        #[command(flatten)]
         rpc_args: RpcArgs,
 
         /// Block numbers. If not specified, blocks are retrieved from
         /// get_block_numbers_for_reexecution().
-        #[clap(long, short = 'b', num_args = 1.., default_value = None)]
+        #[arg(long, short = 'b', num_args = 1.., default_value = None)]
         block_numbers: Option<Vec<u64>>,
 
-        // Directory path to json files directory. Default:
-        // "./crates/blockifier_reexecution/resources".
-        // TODO(Aner): add possibility to retrieve files from gc bucket.
-        #[clap(long, short = 'd', default_value = None)]
+        /// Directory path to json files directory. Default:
+        /// "./crates/blockifier_reexecution/resources".
+        /// TODO(Aner): add possibility to retrieve files from gc bucket.
+        #[arg(long, short = 'd', default_value = None)]
         directory_path: Option<String>,
     },
 
-    // Reexecute all (selected) blocks
+    /// Reexecute all (selected) blocks.
     Reexecute {
         /// Block numbers. If not specified, blocks are retrieved from
         /// get_block_numbers_for_reexecution().
-        #[clap(long, short = 'b', num_args = 1.., default_value = None)]
+        #[arg(long, short = 'b', num_args = 1.., default_value = None)]
         block_numbers: Option<Vec<u64>>,
 
-        // Directory path to json files directory. Default:
-        // "./crates/blockifier_reexecution/resources".
-        // TODO(Aner): add possibility to retrieve files from gc bucket.
-        #[clap(long, short = 'd', default_value = None)]
+        /// Directory path to json files directory. Default:
+        /// "./crates/blockifier_reexecution/resources".
+        /// TODO(Aner): add possibility to retrieve files from gc bucket.
+        #[arg(long, short = 'd', default_value = None)]
         directory_path: Option<String>,
     },
 
-    // Upload all (selected) blocks to the gc bucket.
+    /// Upload all (selected) blocks to the gc bucket.
     UploadFiles {
         /// Block numbers. If not specified, blocks are retrieved from
         /// get_block_numbers_for_reexecution().
-        #[clap(long, short = 'b', num_args = 1.., default_value = None)]
+        #[arg(long, short = 'b', num_args = 1.., default_value = None)]
         block_numbers: Option<Vec<u64>>,
 
-        // Directory path to json files directory. Default:
-        // "./crates/blockifier_reexecution/resources".
-        #[clap(long, short = 'd', default_value = None)]
+        /// Directory path to json files directory. Default:
+        /// "./crates/blockifier_reexecution/resources".
+        #[arg(long, short = 'd', default_value = None)]
         directory_path: Option<String>,
     },
 
-    // Download all (selected) blocks from the gc bucket.
+    /// Download all (selected) blocks from the gc bucket.
     DownloadFiles {
         /// Block numbers. If not specified, blocks are retrieved from
         /// get_block_numbers_for_reexecution().
-        #[clap(long, short = 'b', num_args = 1.., default_value = None)]
+        #[arg(long, short = 'b', num_args = 1.., default_value = None)]
         block_numbers: Option<Vec<u64>>,
 
-        // Directory path to json files directory. Default:
-        // "./crates/blockifier_reexecution/resources".
-        #[clap(long, short = 'd', default_value = None)]
+        /// Directory path to json files directory. Default:
+        /// "./crates/blockifier_reexecution/resources".
+        #[arg(long, short = 'd', default_value = None)]
         directory_path: Option<String>,
     },
 }
