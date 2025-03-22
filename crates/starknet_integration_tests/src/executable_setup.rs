@@ -28,6 +28,7 @@ use tempfile::{tempdir, TempDir};
 use tokio::fs::create_dir_all;
 use tracing::instrument;
 
+use crate::state_reader::StorageTestSetup;
 use crate::storage::StorageExecutablePaths;
 use crate::utils::create_node_config;
 
@@ -83,25 +84,18 @@ pub struct ExecutableSetup {
     pub config: SequencerNodeConfig,
     // Configuration parameters that share the same value across multiple components.
     pub config_pointers_map: ConfigPointersMap,
-    // Handlers for the storage and config files, maintained so the files are not deleted. Since
+    // Handlers for the config files, maintained so the files are not deleted. Since
     // these are only maintained to avoid dropping the handlers, private visibility suffices, and
     // as such, the '#[allow(dead_code)]' attributes are used to suppress the warning.
     #[allow(dead_code)]
-    batcher_storage_handle: Option<TempDir>,
-    #[allow(dead_code)]
     node_config_dir_handle: Option<TempDir>,
-    #[allow(dead_code)]
-    state_sync_storage_handle: Option<TempDir>,
-    #[allow(dead_code)]
-    class_manager_storage_handles: Option<FileHandles>,
 }
 
 // TODO(Tsabary/ Nadin): reduce number of args.
 #[allow(clippy::too_many_arguments)]
 impl ExecutableSetup {
-    #[instrument(skip(accounts, chain_info, consensus_manager_config), level = "debug")]
+    #[instrument(skip(chain_info, consensus_manager_config, storage_setup), level = "debug")]
     pub async fn new(
-        accounts: Vec<AccountTransactionGenerator>,
         node_execution_id: NodeExecutionId,
         chain_info: ChainInfo,
         consensus_manager_config: ConsensusManagerConfig,
@@ -112,31 +106,9 @@ impl ExecutableSetup {
         base_layer_config: EthereumBaseLayerConfig,
         storage_exec_paths: Option<StorageExecutablePaths>,
         config_path_dir: Option<PathBuf>,
-        exec_data_prefix_dir: Option<PathBuf>,
         validator_id: ValidatorId,
+        storage_setup: &StorageTestSetup,
     ) -> Self {
-        // TODO(Nadin): pass the test storage as an argument.
-        // Creating the storage for the test.
-        let StorageTestSetup {
-            mut batcher_storage_config,
-            batcher_storage_handle,
-            mut state_sync_storage_config,
-            state_sync_storage_handle,
-            mut class_manager_storage_config,
-            class_manager_storage_handles,
-        } = StorageTestSetup::new(accounts, &chain_info, storage_exec_paths);
-
-        // Allow overriding the path with a custom prefix for Docker mode in system tests.
-        if let Some(ref prefix) = exec_data_prefix_dir {
-            batcher_storage_config.db_config.path_prefix = prefix.join(BATCHER_DB_PATH_SUFFIX);
-            state_sync_storage_config.db_config.path_prefix =
-                prefix.join(STATE_SYNC_DB_PATH_SUFFIX);
-            class_manager_storage_config.class_hash_storage_config.path_prefix =
-                prefix.join(CLASS_MANAGER_DB_PATH_SUFFIX).join(CLASS_HASH_STORAGE_DB_PATH_SUFFIX);
-            class_manager_storage_config.persistent_root =
-                prefix.join(CLASS_MANAGER_DB_PATH_SUFFIX).join(CLASSES_STORAGE_DB_PATH_SUFFIX);
-        }
-
         // Explicitly collect metrics in the monitoring endpoint.
         let monitoring_endpoint_config = MonitoringEndpointConfig {
             port: available_ports.get_next_port(),
@@ -149,9 +121,9 @@ impl ExecutableSetup {
         let (config, config_pointers_map) = create_node_config(
             &mut available_ports,
             chain_info,
-            batcher_storage_config,
-            state_sync_storage_config,
-            class_manager_storage_config,
+            storage_setup.batcher_storage_config.clone(),
+            storage_setup.state_sync_storage_config.clone(),
+            storage_setup.class_manager_storage_config.clone(),
             state_sync_config,
             consensus_manager_config,
             mempool_p2p_config,
@@ -184,13 +156,10 @@ impl ExecutableSetup {
             node_execution_id,
             add_tx_http_client,
             monitoring_client,
-            batcher_storage_handle,
             config: config.clone(),
             config_pointers_map,
             node_config_dir_handle,
             node_config_path,
-            state_sync_storage_handle,
-            class_manager_storage_handles,
         };
         executable_setup.dump_config_file_changes();
         executable_setup

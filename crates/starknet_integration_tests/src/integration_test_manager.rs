@@ -19,6 +19,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, Nonce};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
+use starknet_class_manager::test_utils::FileHandles;
 use starknet_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use starknet_infra_utils::tracing::{CustomLogger, TraceLevel};
 use starknet_monitoring_endpoint::test_utils::MonitoringClient;
@@ -26,6 +27,7 @@ use starknet_sequencer_node::config::config_utils::dump_json_data;
 use starknet_sequencer_node::config::definitions::ConfigPointersMap;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::test_utils::node_runner::{get_node_executable_path, spawn_run_node};
+use tempfile::TempDir;
 use tokio::join;
 use tokio::task::JoinHandle;
 use tracing::info;
@@ -43,7 +45,7 @@ use crate::node_component_configs::{
     create_nodes_deployment_units_configs,
     NodeComponentConfigs,
 };
-use crate::storage::{CustomPaths, StorageExecutablePaths};
+use crate::storage::{get_integration_test_storage, CustomPaths, StorageExecutablePaths};
 use crate::utils::{
     create_consensus_manager_configs_from_network_configs,
     create_integration_test_tx_generator,
@@ -69,6 +71,16 @@ pub struct NodeSetup {
     batcher_index: usize,
     http_server_index: usize,
     state_sync_index: usize,
+
+    // Handlers for the storage files, maintained so the files are not deleted. Since
+    // these are only maintained to avoid dropping the handlers, private visibility suffices, and
+    // as such, the '#[allow(dead_code)]' attributes are used to suppress the warning.
+    #[allow(dead_code)]
+    batcher_storage_handle: Option<TempDir>,
+    #[allow(dead_code)]
+    state_sync_storage_handle: Option<TempDir>,
+    #[allow(dead_code)]
+    class_manager_storage_handles: Option<FileHandles>,
 }
 
 impl NodeSetup {
@@ -77,6 +89,9 @@ impl NodeSetup {
         batcher_index: usize,
         http_server_index: usize,
         state_sync_index: usize,
+        batcher_storage_handle: Option<TempDir>,
+        state_sync_storage_handle: Option<TempDir>,
+        class_manager_storage_handles: Option<FileHandles>,
     ) -> Self {
         let len = executables.len();
 
@@ -94,7 +109,15 @@ impl NodeSetup {
         validate_index(http_server_index, len, "HTTP server");
         validate_index(state_sync_index, len, "State sync");
 
-        Self { executables, batcher_index, http_server_index, state_sync_index }
+        Self {
+            executables,
+            batcher_index,
+            http_server_index,
+            state_sync_index,
+            batcher_storage_handle,
+            state_sync_storage_handle,
+            class_manager_storage_handles,
+        }
     }
 
     async fn send_rpc_tx_fn(&self, rpc_tx: RpcTransaction) -> TransactionHash {
@@ -687,6 +710,16 @@ pub async fn get_sequencer_setup_configs(
             })
         });
 
+        let storage_setup = get_integration_test_storage(
+            node_index,
+            batcher_index,
+            state_sync_index,
+            class_manager_index,
+            custom_paths.clone(),
+            accounts.to_vec(),
+            &chain_info,
+        );
+
         for (executable_index, executable_component_config) in
             node_component_config.into_iter().enumerate()
         {
@@ -694,13 +727,9 @@ pub async fn get_sequencer_setup_configs(
             let chain_info = chain_info.clone();
             let exec_config_path =
                 custom_paths.as_ref().and_then(|paths| paths.get_config_path(&node_execution_id));
-            let exec_data_prefix_dir = custom_paths
-                .as_ref()
-                .and_then(|paths| paths.get_data_prefix_path(&node_execution_id));
 
             executables.push(
                 ExecutableSetup::new(
-                    accounts.to_vec(),
                     node_execution_id,
                     chain_info,
                     consensus_manager_config.clone(),
@@ -713,13 +742,21 @@ pub async fn get_sequencer_setup_configs(
                     base_layer_config.clone(),
                     storage_exec_paths.clone(),
                     exec_config_path,
-                    exec_data_prefix_dir,
                     validator_id,
+                    &storage_setup,
                 )
                 .await,
             );
         }
-        nodes.push(NodeSetup::new(executables, batcher_index, http_server_index, state_sync_index));
+        nodes.push(NodeSetup::new(
+            executables,
+            batcher_index,
+            http_server_index,
+            state_sync_index,
+            storage_setup.batcher_storage_handle,
+            storage_setup.state_sync_storage_handle,
+            storage_setup.class_manager_storage_handles,
+        ));
     }
 
     (nodes, node_indices)
