@@ -121,6 +121,8 @@ async fn end_to_end_flow(
         // TODO(Arni): move send messages to l2 into [run_test_scenario].
         let l1_handler_txs = create_l1_handler_txs_fn(&mut tx_generator);
         mock_running_system.send_messages_to_l2(&l1_handler_txs).await;
+        let l1_handler_txs =
+            l1_handler_txs.iter().map(|(l1_handler_tx, _)| l1_handler_tx.clone()).collect();
         let expected_batched_tx_hashes = run_test_scenario(
             &mut tx_generator,
             create_rpc_txs_fn,
