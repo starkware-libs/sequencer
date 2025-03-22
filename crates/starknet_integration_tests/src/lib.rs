@@ -9,4 +9,5 @@ pub mod monitoring_utils;
 pub mod node_component_configs;
 pub mod sequencer_simulator_utils;
 pub mod state_reader;
+pub mod storage;
 pub mod utils;
