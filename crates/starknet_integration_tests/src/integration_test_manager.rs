@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::future::Future;
+use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -21,6 +22,8 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_class_manager::test_utils::FileHandles;
+use starknet_http_server::config::HttpServerConfig;
+use starknet_http_server::test_utils::HttpTestClient;
 use starknet_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use starknet_infra_utils::tracing::{CustomLogger, TraceLevel};
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
@@ -77,6 +80,9 @@ pub struct NodeSetup {
     http_server_index: usize,
     state_sync_index: usize,
 
+    // Client for adding transactions to the sequencer node.
+    pub add_tx_http_client: HttpTestClient,
+
     // Handlers for the storage files, maintained so the files are not deleted. Since
     // these are only maintained to avoid dropping the handlers, private visibility suffices, and
     // as such, the '#[allow(dead_code)]' attributes are used to suppress the warning.
@@ -88,12 +94,15 @@ pub struct NodeSetup {
     class_manager_storage_handles: Option<FileHandles>,
 }
 
+// TODO(Nadin): reduce the number of arguments.
+#[allow(clippy::too_many_arguments)]
 impl NodeSetup {
     pub fn new(
         executables: Vec<ExecutableSetup>,
         batcher_index: usize,
         http_server_index: usize,
         state_sync_index: usize,
+        add_tx_http_client: HttpTestClient,
         batcher_storage_handle: Option<TempDir>,
         state_sync_storage_handle: Option<TempDir>,
         class_manager_storage_handles: Option<FileHandles>,
@@ -119,6 +128,7 @@ impl NodeSetup {
             batcher_index,
             http_server_index,
             state_sync_index,
+            add_tx_http_client,
             batcher_storage_handle,
             state_sync_storage_handle,
             class_manager_storage_handles,
@@ -126,7 +136,7 @@ impl NodeSetup {
     }
 
     async fn send_rpc_tx_fn(&self, rpc_tx: RpcTransaction) -> TransactionHash {
-        self.executables[self.http_server_index].assert_add_tx_success(rpc_tx).await
+        self.add_tx_http_client.assert_add_tx_success(rpc_tx).await
     }
 
     pub fn batcher_monitoring_client(&self) -> &MonitoringClient {
@@ -735,6 +745,9 @@ pub async fn get_sequencer_setup_configs(
             validator_id,
         );
 
+        let HttpServerConfig { ip, port } = config.http_server_config;
+        let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
+
         for (executable_index, executable_component_config) in
             node_component_config.into_iter().enumerate()
         {
@@ -761,6 +774,7 @@ pub async fn get_sequencer_setup_configs(
             batcher_index,
             http_server_index,
             state_sync_index,
+            add_tx_http_client,
             storage_setup.batcher_storage_handle,
             storage_setup.state_sync_storage_handle,
             storage_setup.class_manager_storage_handles,

@@ -1,10 +1,6 @@
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 
-use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_api::transaction::TransactionHash;
-use starknet_http_server::config::HttpServerConfig;
-use starknet_http_server::test_utils::HttpTestClient;
 use starknet_infra_utils::test_utils::AvailablePorts;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_monitoring_endpoint::test_utils::MonitoringClient;
@@ -61,8 +57,6 @@ impl From<NodeExecutionId> for NodeRunner {
 pub struct ExecutableSetup {
     // Node test identifier.
     pub node_execution_id: NodeExecutionId,
-    // Client for adding transactions to the sequencer node.
-    pub add_tx_http_client: HttpTestClient,
     // Client for checking liveness of the sequencer node.
     pub monitoring_client: MonitoringClient,
     // Path to the node configuration file.
@@ -113,12 +107,8 @@ impl ExecutableSetup {
         let MonitoringEndpointConfig { ip, port, .. } = config.monitoring_endpoint_config;
         let monitoring_client = MonitoringClient::new(SocketAddr::from((ip, port)));
 
-        let HttpServerConfig { ip, port } = config.http_server_config;
-        let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
-
         let executable_setup = Self {
             node_execution_id,
-            add_tx_http_client,
             monitoring_client,
             config: config.clone(),
             config_pointers_map,
@@ -127,10 +117,6 @@ impl ExecutableSetup {
         };
         executable_setup.dump_config_file_changes();
         executable_setup
-    }
-
-    pub async fn assert_add_tx_success(&self, tx: RpcTransaction) -> TransactionHash {
-        self.add_tx_http_client.assert_add_tx_success(tx).await
     }
 
     pub fn modify_config<F>(&mut self, modify_config_fn: F)
