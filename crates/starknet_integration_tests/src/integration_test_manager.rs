@@ -18,6 +18,7 @@ use papyrus_network::network_manager::test_utils::create_connected_network_confi
 use papyrus_storage::StorageConfig;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, Nonce};
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_class_manager::test_utils::FileHandles;
@@ -63,6 +64,7 @@ use crate::utils::{
 };
 
 const DEFAULT_SENDER_ACCOUNT: AccountId = 0;
+const BLOCK_MAX_CAPACITY_N_STEPS: GasAmount = GasAmount(30000000);
 pub const BLOCK_TO_WAIT_FOR_BOOTSTRAP: BlockNumber = BlockNumber(2);
 
 pub const HTTP_PORT_ARG: &str = "http-port";
@@ -755,6 +757,7 @@ pub async fn get_sequencer_setup_configs(
                     exec_config_path,
                     validator_id,
                     &storage_setup,
+                    BLOCK_MAX_CAPACITY_N_STEPS,
                 )
                 .await,
             );
