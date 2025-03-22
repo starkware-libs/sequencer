@@ -1,6 +1,8 @@
+use std::collections::HashMap;
+
+use libp2p::gossipsub::TopicHash;
 use starknet_sequencer_metrics::metrics::{MetricCounter, MetricGauge};
 
-// TODO(alonl): consider splitting the metrics by topic
 pub struct BroadcastNetworkMetrics {
     pub num_sent_broadcast_messages: MetricCounter,
     pub num_received_broadcast_messages: MetricCounter,
@@ -27,9 +29,11 @@ impl SqmrNetworkMetrics {
     }
 }
 
+// TODO(alonl, shahak): Consider making these fields private and receive Topics instead of
+// TopicHashes in the constructor
 pub struct NetworkMetrics {
     pub num_connected_peers: MetricGauge,
-    pub broadcast_metrics: Option<BroadcastNetworkMetrics>,
+    pub broadcast_metrics_by_topic: Option<HashMap<TopicHash, BroadcastNetworkMetrics>>,
     pub sqmr_metrics: Option<SqmrNetworkMetrics>,
 }
 
@@ -37,8 +41,10 @@ impl NetworkMetrics {
     pub fn register(&self) {
         self.num_connected_peers.register();
         self.num_connected_peers.set(0f64);
-        if let Some(broadcast_metrics) = self.broadcast_metrics.as_ref() {
-            broadcast_metrics.register();
+        if let Some(broadcast_metrics_by_topic) = self.broadcast_metrics_by_topic.as_ref() {
+            for broadcast_metrics in broadcast_metrics_by_topic.values() {
+                broadcast_metrics.register();
+            }
         }
         if let Some(sqmr_metrics) = self.sqmr_metrics.as_ref() {
             sqmr_metrics.register();

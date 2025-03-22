@@ -3,6 +3,8 @@ pub mod metrics;
 pub mod propagator;
 pub mod runner;
 
+use std::collections::HashMap;
+
 use futures::FutureExt;
 use papyrus_network::gossipsub_impl::Topic;
 use papyrus_network::network_manager::metrics::{BroadcastNetworkMetrics, NetworkMetrics};
@@ -33,12 +35,17 @@ pub fn create_p2p_propagator_and_runner(
         class_manager_client.clone(),
         mempool_p2p_config.network_config.chain_id.clone(),
     );
-    let network_manager_metrics = Some(NetworkMetrics {
-        num_connected_peers: MEMPOOL_P2P_NUM_CONNECTED_PEERS,
-        broadcast_metrics: Some(BroadcastNetworkMetrics {
+    let mut broadcast_metrics_by_topic = HashMap::new();
+    broadcast_metrics_by_topic.insert(
+        Topic::new(MEMPOOL_TOPIC).hash(),
+        BroadcastNetworkMetrics {
             num_sent_broadcast_messages: MEMPOOL_P2P_NUM_SENT_MESSAGES,
             num_received_broadcast_messages: MEMPOOL_P2P_NUM_RECEIVED_MESSAGES,
-        }),
+        },
+    );
+    let network_manager_metrics = Some(NetworkMetrics {
+        num_connected_peers: MEMPOOL_P2P_NUM_CONNECTED_PEERS,
+        broadcast_metrics_by_topic: Some(broadcast_metrics_by_topic),
         sqmr_metrics: None,
     });
     let mut network_manager = NetworkManager::new(

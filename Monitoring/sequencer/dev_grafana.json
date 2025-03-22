@@ -171,17 +171,31 @@
         "extra_params": {}
       },
       {
-        "title": "apollo_consensus_num_sent_messages",
-        "description": "The number of messages sent by the consensus p2p component",
+        "title": "apollo_consensus_votes_num_sent_messages",
+        "description": "The number of messages sent by the consensus p2p component over the Votes topic",
         "type": "stat",
-        "expr": "apollo_consensus_num_sent_messages",
+        "expr": "apollo_consensus_votes_num_sent_messages",
         "extra_params": {}
       },
       {
-        "title": "apollo_consensus_num_received_messages",
-        "description": "The number of messages received by the consensus p2p component",
+        "title": "apollo_consensus_votes_num_received_messages",
+        "description": "The number of messages received by the consensus p2p component over the Votes topic",
         "type": "stat",
-        "expr": "apollo_consensus_num_received_messages",
+        "expr": "apollo_consensus_votes_num_received_messages",
+        "extra_params": {}
+      },
+      {
+        "title": "apollo_consensus_proposals_num_sent_messages",
+        "description": "The number of messages sent by the consensus p2p component over the Proposals topic",
+        "type": "stat",
+        "expr": "apollo_consensus_proposals_num_sent_messages",
+        "extra_params": {}
+      },
+      {
+        "title": "apollo_consensus_proposals_num_received_messages",
+        "description": "The number of messages received by the consensus p2p component over the Proposals topic",
+        "type": "stat",
+        "expr": "apollo_consensus_proposals_num_received_messages",
         "extra_params": {}
       }
     ],
