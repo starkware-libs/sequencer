@@ -14,7 +14,9 @@ use starknet_sequencer_infra::component_definitions::{
     ComponentClient,
     ComponentRequestAndResponseSender,
 };
+use starknet_sequencer_infra::impl_debug_for_infra_requests_and_responses;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
+use strum_macros::AsRefStr;
 use thiserror::Error;
 
 use crate::batcher_types::{
@@ -84,7 +86,7 @@ pub trait BatcherClient: Send + Sync {
     async fn revert_block(&self, input: RevertBlockInput) -> BatcherClientResult<()>;
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, AsRefStr)]
 pub enum BatcherRequest {
     ProposeBlock(ProposeBlockInput),
     GetProposalContent(GetProposalContentInput),
@@ -96,8 +98,9 @@ pub enum BatcherRequest {
     AddSyncBlock(SyncBlock),
     RevertBlock(RevertBlockInput),
 }
+impl_debug_for_infra_requests_and_responses!(BatcherRequest);
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, AsRefStr)]
 pub enum BatcherResponse {
     ProposeBlock(BatcherResult<()>),
     GetCurrentHeight(BatcherResult<GetHeightResponse>),
@@ -109,6 +112,7 @@ pub enum BatcherResponse {
     AddSyncBlock(BatcherResult<()>),
     RevertBlock(BatcherResult<()>),
 }
+impl_debug_for_infra_requests_and_responses!(BatcherResponse);
 
 #[derive(Clone, Debug, Error)]
 pub enum BatcherClientError {

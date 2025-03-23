@@ -14,6 +14,8 @@ use starknet_sequencer_infra::component_definitions::{
     ComponentClient,
     ComponentRequestAndResponseSender,
 };
+use starknet_sequencer_infra::impl_debug_for_infra_requests_and_responses;
+use strum_macros::AsRefStr;
 use thiserror::Error;
 
 use crate::errors::MempoolP2pPropagatorError;
@@ -49,19 +51,21 @@ pub type MempoolP2pPropagatorClientResult<T> = Result<T, MempoolP2pPropagatorCli
 pub type MempoolP2pPropagatorRequestAndResponseSender =
     ComponentRequestAndResponseSender<MempoolP2pPropagatorRequest, MempoolP2pPropagatorResponse>;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum MempoolP2pPropagatorRequest {
     AddTransaction(InternalRpcTransaction),
     ContinuePropagation(BroadcastedMessageMetadata),
     BroadcastQueuedTransactions(),
 }
+impl_debug_for_infra_requests_and_responses!(MempoolP2pPropagatorRequest);
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum MempoolP2pPropagatorResponse {
     AddTransaction(MempoolP2pPropagatorResult<()>),
     ContinuePropagation(MempoolP2pPropagatorResult<()>),
     BroadcastQueuedTransactions(MempoolP2pPropagatorResult<()>),
 }
+impl_debug_for_infra_requests_and_responses!(MempoolP2pPropagatorResponse);
 
 #[derive(Clone, Debug, Error)]
 pub enum MempoolP2pPropagatorClientError {

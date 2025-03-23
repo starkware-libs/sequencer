@@ -12,6 +12,8 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockTimestamp;
 use starknet_sequencer_infra::component_client::ClientError;
 use starknet_sequencer_infra::component_definitions::ComponentClient;
+use starknet_sequencer_infra::impl_debug_for_infra_requests_and_responses;
+use strum_macros::AsRefStr;
 use tracing::instrument;
 
 pub type SharedL1GasPriceClient = Arc<dyn L1GasPriceProviderClient>;
@@ -24,17 +26,19 @@ pub struct PriceInfo {
     pub blob_fee: u128,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum L1GasPriceRequest {
     GetGasPrice(BlockTimestamp),
     AddGasPrice(L1BlockNumber, PriceSample),
 }
+impl_debug_for_infra_requests_and_responses!(L1GasPriceRequest);
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum L1GasPriceResponse {
     GetGasPrice(L1GasPriceProviderResult<PriceInfo>),
     AddGasPrice(L1GasPriceProviderResult<()>),
 }
+impl_debug_for_infra_requests_and_responses!(L1GasPriceResponse);
 
 /// Serves as the provider's shared interface. Requires `Send + Sync` to allow transferring and
 /// sharing resources (inputs, futures) across threads.

@@ -15,6 +15,8 @@ use starknet_sequencer_infra::component_definitions::{
     ComponentClient,
     ComponentRequestAndResponseSender,
 };
+use starknet_sequencer_infra::impl_debug_for_infra_requests_and_responses;
+use strum_macros::AsRefStr;
 use thiserror::Error;
 
 use crate::errors::GatewayError;
@@ -36,15 +38,18 @@ pub trait GatewayClient: Send + Sync {
     async fn add_tx(&self, gateway_input: GatewayInput) -> GatewayClientResult<TransactionHash>;
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum GatewayRequest {
     AddTransaction(GatewayInput),
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+impl_debug_for_infra_requests_and_responses!(GatewayRequest);
+
+#[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum GatewayResponse {
     AddTransaction(GatewayResult<TransactionHash>),
 }
+impl_debug_for_infra_requests_and_responses!(GatewayResponse);
 
 #[derive(Clone, Debug, Error)]
 pub enum GatewayClientError {

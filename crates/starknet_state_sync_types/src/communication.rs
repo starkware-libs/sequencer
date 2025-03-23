@@ -18,7 +18,9 @@ use starknet_sequencer_infra::component_definitions::{
     ComponentClient,
     ComponentRequestAndResponseSender,
 };
+use starknet_sequencer_infra::impl_debug_for_infra_requests_and_responses;
 use starknet_types_core::felt::Felt;
+use strum_macros::AsRefStr;
 use thiserror::Error;
 
 use crate::errors::StateSyncError;
@@ -108,7 +110,7 @@ pub type SharedStateSyncClient = Arc<dyn StateSyncClient>;
 pub type StateSyncRequestAndResponseSender =
     ComponentRequestAndResponseSender<StateSyncRequest, StateSyncResponse>;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum StateSyncRequest {
     GetBlock(BlockNumber),
     AddNewBlock(Box<SyncBlock>),
@@ -119,8 +121,9 @@ pub enum StateSyncRequest {
     GetLatestBlockNumber(),
     IsClassDeclaredAt(BlockNumber, ClassHash),
 }
+impl_debug_for_infra_requests_and_responses!(StateSyncRequest);
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum StateSyncResponse {
     GetBlock(StateSyncResult<Box<Option<SyncBlock>>>),
     AddNewBlock(StateSyncResult<()>),
@@ -131,6 +134,7 @@ pub enum StateSyncResponse {
     GetLatestBlockNumber(StateSyncResult<Option<BlockNumber>>),
     IsClassDeclaredAt(StateSyncResult<bool>),
 }
+impl_debug_for_infra_requests_and_responses!(StateSyncResponse);
 
 #[async_trait]
 impl<ComponentClientType> StateSyncClient for ComponentClientType
