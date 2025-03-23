@@ -138,7 +138,8 @@
             "0x0251830adc3d8b4d818c2c309d71f1958308e8c745212480c26e01120c69ee49",
             "0x0251cac7b2f45d255b83b7a06dcdef70c8a8752f00ea776517c1c2243c7a06e5"
         ],
-        "v1_bound_accounts_max_tip": "0x746a5288000"
+        "v1_bound_accounts_max_tip": "0x746a5288000",
+        "data_gas_accounts": []
     },
     "os_resources": {
         "execute_syscalls": {
