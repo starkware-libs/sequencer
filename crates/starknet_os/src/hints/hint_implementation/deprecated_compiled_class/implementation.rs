@@ -1,4 +1,5 @@
 use std::any::Any;
+use std::collections::hash_map::IntoIter;
 use std::collections::{HashMap, HashSet};
 
 use blockifier::state::state_api::StateReader;
@@ -18,7 +19,7 @@ use starknet_types_core::felt::Felt;
 use crate::hints::error::{OsHintError, OsHintExtensionResult, OsHintResult};
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Ids, Scope};
-use crate::vm_utils::get_address_of_nested_fields;
+use crate::vm_utils::{get_address_of_nested_fields, LoadCairoObject};
 
 pub(crate) fn load_deprecated_class_facts<S: StateReader>(
     HintArgs { hint_processor, vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
@@ -46,9 +47,33 @@ pub(crate) fn load_deprecated_class_facts<S: StateReader>(
 }
 
 pub(crate) fn load_deprecated_class_inner<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, exec_scopes, ids_data, ap_tracking, constants }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    let deprecated_class_iter = exec_scopes
+        .get_mut_ref::<IntoIter<ClassHash, ContractClass>>(Scope::CompiledClassFacts.into())?;
+
+    let (class_hash, deprecated_class) = deprecated_class_iter.next().ok_or_else(|| {
+        OsHintError::EndOfIterator { item_type: "deprecated_compiled_classes".to_string() }
+    })?;
+
+    let dep_class_base = vm.add_memory_segment();
+    deprecated_class.load_into(
+        vm,
+        &hint_processor.execution_helper.os_program,
+        dep_class_base,
+        constants,
+    )?;
+
+    exec_scopes.insert_value(Scope::CompiledClassHash.into(), class_hash);
+    exec_scopes.insert_value(Scope::CompiledClass.into(), deprecated_class);
+
+    Ok(insert_value_from_var_name(
+        Ids::CompiledClass.into(),
+        dep_class_base,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?)
 }
 
 pub(crate) fn load_deprecated_class<S: StateReader>(
