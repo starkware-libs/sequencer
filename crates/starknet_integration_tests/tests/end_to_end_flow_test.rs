@@ -5,7 +5,6 @@ use mempool_test_utils::starknet_api_test_utils::{
     MultiAccountTransactionGenerator,
 };
 use pretty_assertions::assert_eq;
-use rstest::{fixture, rstest};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::{L1HandlerTransaction, TransactionHash};
@@ -34,38 +33,18 @@ struct TestScenario {
     test_tx_hashes_fn: TestTxHashesFn,
 }
 
-#[fixture]
-fn tx_generator() -> MultiAccountTransactionGenerator {
-    create_flow_test_tx_generator()
-}
-
-#[rstest]
-#[case::end_to_end_flow(
-    TestIdentifier::EndToEndFlowTest,
-    create_test_scenarios(),
-    GasAmount(29000000)
-)]
-// TODO(yair): Add check that a block closed due to being full instead of deadline.
-#[case::many_txs_scenario(
-    TestIdentifier::EndToEndFlowTestManyTxs,
-    create_many_txs_scenario(),
-    GasAmount(17500000)
-)]
 #[tokio::test]
-async fn end_to_end_flow(
-    mut tx_generator: MultiAccountTransactionGenerator,
-    #[case] test_identifier: TestIdentifier,
-    #[case] test_blocks_scenarios: Vec<TestScenario>,
-    #[case] block_max_capacity_sierra_gas: GasAmount,
+async fn end_to_end_flow(// mut tx_generator: MultiAccountTransactionGenerator,
 ) {
     configure_tracing().await;
+    let mut tx_generator = create_flow_test_tx_generator();
 
     const TEST_SCENARIO_TIMOUT: std::time::Duration = std::time::Duration::from_secs(50);
     // Setup.
     let mock_running_system = FlowTestSetup::new_from_tx_generator(
         &tx_generator,
-        test_identifier.into(),
-        block_max_capacity_sierra_gas,
+        TestIdentifier::EndToEndFlowTest.into(),
+        GasAmount(29000000),
     )
     .await;
 
@@ -86,7 +65,7 @@ async fn end_to_end_flow(
 
     // Build multiple heights to ensure heights are committed.
     for (i, TestScenario { create_rpc_txs_fn, l1_handler_txs, test_tx_hashes_fn }) in
-        test_blocks_scenarios.into_iter().enumerate()
+        create_test_scenarios().into_iter().enumerate()
     {
         info!("Starting scenario {i}.");
         // Create and send transactions.
@@ -167,15 +146,14 @@ fn create_test_scenarios() -> Vec<TestScenario> {
             l1_handler_txs: vec![],
             test_tx_hashes_fn: test_single_tx,
         },
+        // TODO(yair): Currently this not testing that the block closed due to being full (GasLimit
+        // needs to be 17500000). Need to add more txs and check it separately.
+        TestScenario {
+            create_rpc_txs_fn: create_many_invoke_txs,
+            l1_handler_txs: vec![],
+            test_tx_hashes_fn: test_many_invoke_txs,
+        },
     ]
-}
-
-fn create_many_txs_scenario() -> Vec<TestScenario> {
-    vec![TestScenario {
-        create_rpc_txs_fn: create_many_invoke_txs,
-        l1_handler_txs: vec![],
-        test_tx_hashes_fn: test_many_invoke_txs,
-    }]
 }
 
 async fn wait_for_sequencer_node(sequencer: &FlowSequencerSetup) {
