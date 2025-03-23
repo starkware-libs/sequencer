@@ -18,7 +18,6 @@ metrics-exporter-prometheus.workspace = true
 papyrus_common.workspace = true
 prometheus-parse.workspace = true
 rstest.workspace = true
-starknet_monitoring_endpoint.workspace = true
 starknet_sequencer_metrics.workspace = true
 
 [lib]
