@@ -13,8 +13,7 @@ use crate::state_reader::{
     STATE_SYNC_DB_PATH_SUFFIX,
 };
 
-// TODO(Nadin): remove Clone derive.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct StorageExecutablePaths {
     batcher_path: PathBuf,
     state_sync_path: PathBuf,
