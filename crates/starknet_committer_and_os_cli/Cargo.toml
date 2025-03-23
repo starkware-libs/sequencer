@@ -18,7 +18,6 @@ tempfile.workspace = true
 
 # TODO(Amos): Add `testing` feature and move Python test dependencies under it.
 [dependencies]
-blockifier.workspace = true                                 # Should be moved under `testing` feature, when it exists.
 cairo-lang-starknet-classes.workspace = true
 cairo-vm.workspace = true                                   # Should be moved under `testing` feature, when it exists.
 clap = { workspace = true, features = ["cargo", "derive"] }
