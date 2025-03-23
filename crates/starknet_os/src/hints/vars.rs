@@ -26,6 +26,7 @@ pub(crate) enum Scope {
     Preimage,
     SerializeDataAvailabilityCreatePages,
     StateUpdatePointers,
+    SyscallHandlerType,
     Transactions,
     Tx,
     UseKzgDa,
@@ -53,6 +54,7 @@ impl From<Scope> for &'static str {
                 "__serialize_data_availability_create_pages__"
             }
             Scope::StateUpdatePointers => "state_update_pointers",
+            Scope::SyscallHandlerType => "syscall_handler_type",
             Scope::Transactions => "transactions",
             Scope::Tx => "tx",
             Scope::UseKzgDa => "use_kzg_da",

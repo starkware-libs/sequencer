@@ -18,6 +18,7 @@ use starknet_types_core::felt::Felt;
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
+use crate::syscall_handler_utils::SyscallHandlerType;
 use crate::vm_utils::get_address_of_nested_fields;
 
 pub(crate) fn load_next_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
@@ -63,15 +64,20 @@ pub(crate) fn assert_transaction_hash<S: StateReader>(
 }
 
 pub(crate) fn enter_scope_deprecated_syscall_handler<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { exec_scopes, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    exec_scopes.insert_value(
+        Scope::SyscallHandlerType.into(),
+        SyscallHandlerType::DeprecatedSyscallHandler,
+    );
+    Ok(())
 }
 
 pub(crate) fn enter_scope_syscall_handler<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { exec_scopes, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    exec_scopes.insert_value(Scope::SyscallHandlerType.into(), SyscallHandlerType::SyscallHandler);
+    Ok(())
 }
 
 pub(crate) fn get_contract_address_state_entry<S: StateReader>(
