@@ -99,6 +99,7 @@ fn check_constants_serde_error(json_data: &str, expected_error_message: &str) {
         "l1_handler_max_amount_bounds".into(),
         serde_json::to_value(GasVector::default()).unwrap(),
     );
+    json_data_raw.insert("data_gas_accounts".into(), serde_json::Value::Array(vec![]));
 
     let json_data = &serde_json::to_string(&json_data_raw).unwrap();
 
