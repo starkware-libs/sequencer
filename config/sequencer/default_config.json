@@ -70,7 +70,7 @@
     "value": 62914560
   },
   "batcher_config.block_builder_config.tx_chunk_size": {
-    "description": "The size of the transaction chunk.",
+    "description": "Number of transactions in each request from the tx_provider.",
     "privacy": "Public",
     "value": 100
   },

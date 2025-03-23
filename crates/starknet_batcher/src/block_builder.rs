@@ -378,7 +378,7 @@ impl SerializeConfig for BlockBuilderConfig {
         dump.append(&mut BTreeMap::from([ser_param(
             "tx_chunk_size",
             &self.tx_chunk_size,
-            "The size of the transaction chunk.",
+            "Number of transactions in each request from the tx_provider.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut append_sub_config_name(
