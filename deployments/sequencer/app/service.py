@@ -276,6 +276,8 @@ class ServiceApp(Construct):
         return [
             k8s.EnvVar(name="RUST_LOG", value="debug"),
             k8s.EnvVar(name="RUST_BACKTRACE", value="full"),
+            # TODO(Elin): consider a better way to uncolor app logs, maybe up the stack towards GCP.
+            k8s.EnvVar(name="NO_COLOR", value="1"),
         ]
 
     @staticmethod
