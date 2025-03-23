@@ -213,6 +213,13 @@ impl<'state> SyscallHandlerBase<'state> {
         tx_context.tx_info.signed_version()
     }
 
+    /// Return whether the L1 data gas should be excluded for the `get_execution_info` syscall.
+    pub fn should_exclude_l1_data_gas(&self) -> bool {
+        let class_hash = self.call.class_hash;
+        let versioned_constants = &self.context.tx_context.block_context.versioned_constants;
+        versioned_constants.os_constants.data_gas_accounts.contains(&class_hash)
+    }
+
     pub fn emit_event(&mut self, event: EventContent) -> SyscallResult<()> {
         exceeds_event_size_limit(
             self.context.versioned_constants(),

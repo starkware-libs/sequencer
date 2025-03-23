@@ -279,11 +279,15 @@ impl ResourceAsFelts {
 
 pub fn valid_resource_bounds_as_felts(
     resource_bounds: &ValidResourceBounds,
+    exclude_l1_data_gas: bool,
 ) -> SyscallResult<Vec<ResourceAsFelts>> {
     let mut resource_bounds_vec: Vec<_> = vec![
         ResourceAsFelts::new(Resource::L1Gas, &resource_bounds.get_l1_bounds())?,
         ResourceAsFelts::new(Resource::L2Gas, &resource_bounds.get_l2_bounds())?,
     ];
+    if exclude_l1_data_gas {
+        return Ok(resource_bounds_vec);
+    }
     if let ValidResourceBounds::AllResources(AllResourceBounds { l1_data_gas, .. }) =
         resource_bounds
     {
@@ -472,9 +476,10 @@ impl<'a> SyscallHintProcessor<'a> {
         &mut self,
         vm: &mut VirtualMachine,
         tx_info: &CurrentTransactionInfo,
+        exclude_l1_data_gas: bool,
     ) -> SyscallResult<(Relocatable, Relocatable)> {
         let flat_resource_bounds: Vec<_> =
-            valid_resource_bounds_as_felts(&tx_info.resource_bounds)?
+            valid_resource_bounds_as_felts(&tx_info.resource_bounds, exclude_l1_data_gas)?
                 .into_iter()
                 .flat_map(ResourceAsFelts::flatten)
                 .collect();
@@ -656,8 +661,12 @@ impl<'a> SyscallHintProcessor<'a> {
 
         match tx_info {
             TransactionInfo::Current(context) => {
-                let (tx_resource_bounds_start_ptr, tx_resource_bounds_end_ptr) =
-                    &self.allocate_tx_resource_bounds_segment(vm, context)?;
+                let (tx_resource_bounds_start_ptr, tx_resource_bounds_end_ptr) = &self
+                    .allocate_tx_resource_bounds_segment(
+                        vm,
+                        context,
+                        self.base.should_exclude_l1_data_gas(),
+                    )?;
 
                 let (tx_paymaster_data_start_ptr, tx_paymaster_data_end_ptr) =
                     &self.allocate_data_segment(vm, &context.paymaster_data.0)?;
