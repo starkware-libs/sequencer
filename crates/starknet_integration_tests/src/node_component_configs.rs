@@ -1,8 +1,8 @@
 use std::net::{Ipv4Addr, SocketAddr};
 
 use starknet_infra_utils::test_utils::AvailablePortsGenerator;
-use starknet_sequencer_deployments::deployment::{
-    set_urls_to_localhost,
+use starknet_sequencer_deployments::deployment::set_urls_to_localhost;
+use starknet_sequencer_deployments::service::{
     DeploymentName,
     DistributedNodeServiceName,
     ServiceName,
