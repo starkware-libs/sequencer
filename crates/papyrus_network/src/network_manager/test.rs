@@ -29,6 +29,7 @@ use crate::sqmr::behaviour::SessionIdNotFoundError;
 use crate::sqmr::{Bytes, GenericEvent, InboundSessionId, OutboundSessionId};
 
 const TIMEOUT: Duration = Duration::from_secs(1);
+const DEFAULT_PEER_TIMEOUT_DURATION: Duration = Duration::from_secs(1);
 
 lazy_static! {
     static ref VEC1: Vec<u8> = vec![1, 2, 3, 4, 5];
@@ -36,7 +37,6 @@ lazy_static! {
     static ref VEC3: Vec<u8> = vec![9, 10];
 }
 
-#[derive(Default)]
 struct MockSwarm {
     pub pending_events: Queue<Event>,
     pub subscribed_topics: HashSet<TopicHash>,
@@ -46,6 +46,23 @@ struct MockSwarm {
     inbound_session_id_to_response_sender: HashMap<InboundSessionId, UnboundedSender<Bytes>>,
     next_outbound_session_id: usize,
     first_polled_event_notifier: Option<oneshot::Sender<()>>,
+    reported_peer_timeout_duration: Duration,
+}
+
+impl Default for MockSwarm {
+    fn default() -> Self {
+        Self {
+            pending_events: Default::default(),
+            subscribed_topics: Default::default(),
+            broadcasted_messages_senders: Default::default(),
+            reported_peer_senders: Default::default(),
+            supported_inbound_protocols_senders: Default::default(),
+            inbound_session_id_to_response_sender: Default::default(),
+            next_outbound_session_id: Default::default(),
+            first_polled_event_notifier: Default::default(),
+            reported_peer_timeout_duration: DEFAULT_PEER_TIMEOUT_DURATION,
+        }
+    }
 }
 
 impl Stream for MockSwarm {
@@ -178,7 +195,6 @@ impl SwarmTrait for MockSwarm {
         }
     }
 
-    // TODO(alonl): change the returned value
     fn report_peer_as_malicious(
         &mut self,
         peer_id: PeerId,
@@ -186,7 +202,7 @@ impl SwarmTrait for MockSwarm {
         for sender in &self.reported_peer_senders {
             sender.unbounded_send(peer_id).unwrap();
         }
-        None
+        Some(tokio::time::sleep(self.reported_peer_timeout_duration).map(move |_| peer_id).boxed())
     }
     fn add_new_supported_inbound_protocol(&mut self, protocol_name: StreamProtocol) {
         for sender in &self.supported_inbound_protocols_senders {
