@@ -374,17 +374,7 @@ pub struct Vote {
 }
 /// Nested message and enum types in `Vote`.
 pub mod vote {
-    #[derive(
-        Clone,
-        Copy,
-        Debug,
-        PartialEq,
-        Eq,
-        Hash,
-        PartialOrd,
-        Ord,
-        ::prost::Enumeration
-    )]
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
     #[repr(i32)]
     pub enum VoteType {
         Prevote = 0,
@@ -525,17 +515,7 @@ pub struct Iteration {
 }
 /// Nested message and enum types in `Iteration`.
 pub mod iteration {
-    #[derive(
-        Clone,
-        Copy,
-        Debug,
-        PartialEq,
-        Eq,
-        Hash,
-        PartialOrd,
-        Ord,
-        ::prost::Enumeration
-    )]
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
     #[repr(i32)]
     pub enum Direction {
         Forward = 0,
@@ -748,9 +728,7 @@ pub struct TransactionsRequest {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct TransactionsResponse {
     #[prost(oneof = "transactions_response::TransactionMessage", tags = "1, 2")]
-    pub transaction_message: ::core::option::Option<
-        transactions_response::TransactionMessage,
-    >,
+    pub transaction_message: ::core::option::Option<transactions_response::TransactionMessage>,
 }
 /// Nested message and enum types in `TransactionsResponse`.
 pub mod transactions_response {
@@ -759,7 +737,8 @@ pub mod transactions_response {
     pub enum TransactionMessage {
         #[prost(message, tag = "1")]
         TransactionWithReceipt(super::TransactionWithReceipt),
-        /// Fin is sent after the peer sent all the data or when it encountered a block that it doesn't have its transactions.
+        /// Fin is sent after the peer sent all the data or when it encountered a block that it
+        /// doesn't have its transactions.
         #[prost(message, tag = "2")]
         Fin(super::Fin),
     }
@@ -777,10 +756,7 @@ pub struct TransactionWithReceipt {
 pub struct TransactionInBlock {
     #[prost(message, optional, tag = "12")]
     pub transaction_hash: ::core::option::Option<Hash>,
-    #[prost(
-        oneof = "transaction_in_block::Txn",
-        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11"
-    )]
+    #[prost(oneof = "transaction_in_block::Txn", tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11")]
     pub txn: ::core::option::Option<transaction_in_block::Txn>,
 }
 /// Nested message and enum types in `TransactionInBlock`.
@@ -967,7 +943,8 @@ pub mod classes_response {
     pub enum ClassMessage {
         #[prost(message, tag = "1")]
         Class(super::Class),
-        /// Fin is sent after the peer sent all the data or when it encountered a block that it doesn't have its classes.
+        /// Fin is sent after the peer sent all the data or when it encountered a block that it
+        /// doesn't have its classes.
         #[prost(message, tag = "2")]
         Fin(super::Fin),
     }
@@ -1004,7 +981,8 @@ pub mod events_response {
     pub enum EventMessage {
         #[prost(message, tag = "1")]
         Event(super::Event),
-        /// Fin is sent after the peer sent all the data or when it encountered a block that it doesn't have its events.
+        /// Fin is sent after the peer sent all the data or when it encountered a block that it
+        /// doesn't have its events.
         #[prost(message, tag = "2")]
         Fin(super::Fin),
     }
@@ -1027,7 +1005,8 @@ pub struct SignedBlockHeader {
     pub time: u64,
     #[prost(message, optional, tag = "5")]
     pub sequencer_address: ::core::option::Option<Address>,
-    /// Patricia root of contract and class patricia tries. Each of those tries are of height 251. Same as in L1. Later more trees will be included
+    /// Patricia root of contract and class patricia tries. Each of those tries are of height 251.
+    /// Same as in L1. Later more trees will be included
     #[prost(message, optional, tag = "6")]
     pub state_root: ::core::option::Option<Hash>,
     /// The state diff commitment returned  by the Starknet Feeder Gateway
@@ -1036,13 +1015,15 @@ pub struct SignedBlockHeader {
     /// For more info, see <https://community.starknet.io/t/introducing-p2p-authentication-and-mismatch-resolution-in-v0-12-2/97993>
     /// The leaves contain a hash of the transaction hash and transaction signature.
     ///
-    /// By order of execution. TBD: required? the client can execute (powerful machine) and match state diff
+    /// By order of execution. TBD: required? the client can execute (powerful machine) and match
+    /// state diff
     #[prost(message, optional, tag = "8")]
     pub transactions: ::core::option::Option<Patricia>,
     /// By order of issuance. TBD: in receipts?
     #[prost(message, optional, tag = "9")]
     pub events: ::core::option::Option<Patricia>,
-    /// By order of issuance. This is a patricia root. No need for length because it's the same length as transactions.
+    /// By order of issuance. This is a patricia root. No need for length because it's the same
+    /// length as transactions.
     #[prost(message, optional, tag = "10")]
     pub receipts: ::core::option::Option<Hash>,
     /// Starknet version
@@ -1062,18 +1043,21 @@ pub struct SignedBlockHeader {
     pub l2_gas_price_wei: ::core::option::Option<Uint128>,
     #[prost(uint64, tag = "18")]
     pub l2_gas_consumed: u64,
-    #[prost(uint64, tag = "19")]
-    pub next_l2_gas_price: u64,
+    #[prost(message, optional, tag = "19")]
+    pub next_l2_gas_price: ::core::option::Option<Uint128>,
     #[prost(enumeration = "L1DataAvailabilityMode", tag = "20")]
     pub l1_data_availability_mode: i32,
-    /// for now, we assume a small consensus, so this fits in 1M. Else, these will be repeated and extracted from this message.
+    /// for now, we assume a small consensus, so this fits in 1M. Else, these will be repeated and
+    /// extracted from this message.
     ///
-    /// can be more explicit here about the signature structure as this is not part of account abstraction
+    /// can be more explicit here about the signature structure as this is not part of account
+    /// abstraction
     #[prost(message, repeated, tag = "21")]
     pub signatures: ::prost::alloc::vec::Vec<ConsensusSignature>,
 }
 /// sent to all peers (except the ones this was received from, if any).
-/// for a fraction of peers, also send the GetBlockHeaders response (as if they asked for it for this block)
+/// for a fraction of peers, also send the GetBlockHeaders response (as if they asked for it for
+/// this block)
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct NewBlock {
@@ -1111,7 +1095,8 @@ pub mod block_headers_response {
     pub enum HeaderMessage {
         #[prost(message, tag = "1")]
         Header(super::SignedBlockHeader),
-        /// Fin is sent after the peer sent all the data or when it encountered a block that it doesn't have its header.
+        /// Fin is sent after the peer sent all the data or when it encountered a block that it
+        /// doesn't have its header.
         #[prost(message, tag = "2")]
         Fin(super::Fin),
     }
@@ -1160,24 +1145,26 @@ pub struct StateDiffsRequest {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct StateDiffsResponse {
-    /// All of the messages related to a block need to be sent before a message from the next block is sent.
+    /// All of the messages related to a block need to be sent before a message from the next block
+    /// is sent.
     #[prost(oneof = "state_diffs_response::StateDiffMessage", tags = "1, 2, 3")]
-    pub state_diff_message: ::core::option::Option<
-        state_diffs_response::StateDiffMessage,
-    >,
+    pub state_diff_message: ::core::option::Option<state_diffs_response::StateDiffMessage>,
 }
 /// Nested message and enum types in `StateDiffsResponse`.
 pub mod state_diffs_response {
-    /// All of the messages related to a block need to be sent before a message from the next block is sent.
+    /// All of the messages related to a block need to be sent before a message from the next block
+    /// is sent.
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum StateDiffMessage {
-        /// Multiple contract diffs for the same contract may appear continuously if the diff is too large or if it's more convenient.
+        /// Multiple contract diffs for the same contract may appear continuously if the diff is
+        /// too large or if it's more convenient.
         #[prost(message, tag = "1")]
         ContractDiff(super::ContractDiff),
         #[prost(message, tag = "2")]
         DeclaredClass(super::DeclaredClass),
-        /// Fin is sent after the peer sent all the data or when it encountered a block that it doesn't have its state diff.
+        /// Fin is sent after the peer sent all the data or when it encountered a block that it
+        /// doesn't have its state diff.
         #[prost(message, tag = "3")]
         Fin(super::Fin),
     }
