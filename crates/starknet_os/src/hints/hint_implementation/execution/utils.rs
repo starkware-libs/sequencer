@@ -50,11 +50,8 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for ValidResourceBounds {
         address: Relocatable,
         constants: &HashMap<String, Felt>,
     ) -> OsHintResult {
-        valid_resource_bounds_as_felts(self).map_err(OsHintError::ResourceBoundsParsing)?.load_into(
-            vm,
-            identifier_getter,
-            address,
-            constants,
-        )
+        valid_resource_bounds_as_felts(self, false)
+            .map_err(OsHintError::ResourceBoundsParsing)?
+            .load_into(vm, identifier_getter, address, constants)
     }
 }
