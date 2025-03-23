@@ -120,7 +120,8 @@
         "validated": "VALID",
         "v1_bound_accounts_cairo0": [],
         "v1_bound_accounts_cairo1": [],
-        "v1_bound_accounts_max_tip": "0x0"
+        "v1_bound_accounts_max_tip": "0x0",
+        "data_gas_accounts": []
     },
     "os_resources": {
         "execute_syscalls": {

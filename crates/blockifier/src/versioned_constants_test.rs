@@ -95,6 +95,7 @@ fn check_constants_serde_error(json_data: &str, expected_error_message: &str) {
     json_data_raw.insert("v1_bound_accounts_cairo0".into(), serde_json::Value::Array(vec![]));
     json_data_raw.insert("v1_bound_accounts_cairo1".into(), serde_json::Value::Array(vec![]));
     json_data_raw.insert("v1_bound_accounts_max_tip".into(), "0x0".into());
+    json_data_raw.insert("data_gas_accounts".into(), serde_json::Value::Array(vec![]));
 
     let json_data = &serde_json::to_string(&json_data_raw).unwrap();
 

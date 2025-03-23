@@ -799,6 +799,7 @@ pub struct OsConstants {
     pub v1_bound_accounts_cairo0: Vec<ClassHash>,
     pub v1_bound_accounts_cairo1: Vec<ClassHash>,
     pub v1_bound_accounts_max_tip: Tip,
+    pub data_gas_accounts: Vec<ClassHash>,
 }
 
 impl OsConstants {
@@ -886,6 +887,7 @@ impl TryFrom<OsConstantsRawJson> for OsConstants {
         let v1_bound_accounts_cairo0 = raw_json_data.v1_bound_accounts_cairo0;
         let v1_bound_accounts_cairo1 = raw_json_data.v1_bound_accounts_cairo1;
         let v1_bound_accounts_max_tip = raw_json_data.v1_bound_accounts_max_tip;
+        let data_gas_accounts = raw_json_data.data_gas_accounts;
         let os_constants = OsConstants {
             gas_costs,
             validate_rounding_consts,
@@ -895,6 +897,7 @@ impl TryFrom<OsConstantsRawJson> for OsConstants {
             v1_bound_accounts_cairo0,
             v1_bound_accounts_cairo1,
             v1_bound_accounts_max_tip,
+            data_gas_accounts,
         };
         Ok(os_constants)
     }
@@ -938,6 +941,7 @@ struct OsConstantsRawJson {
     v1_bound_accounts_cairo0: Vec<ClassHash>,
     v1_bound_accounts_cairo1: Vec<ClassHash>,
     v1_bound_accounts_max_tip: Tip,
+    data_gas_accounts: Vec<ClassHash>,
 }
 
 impl OsConstantsRawJson {
