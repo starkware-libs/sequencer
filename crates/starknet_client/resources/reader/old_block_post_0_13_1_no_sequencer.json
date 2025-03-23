@@ -153,7 +153,5 @@
             },
             "actual_fee": "0x0"
         }
-    ],
-    "l2_gas_consumed": 0,
-    "next_l2_gas_price": 1
+    ]
 }
