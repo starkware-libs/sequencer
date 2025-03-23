@@ -142,7 +142,6 @@ pub(crate) fn polynomial_coefficients_to_kzg_commitment(
 ///    d0 + d1 * BASE + d2 * BASE**2.
 /// d2 can be in the range (-2**127, 2**127).
 // TODO(Dori): Consider using bls_split from the VM crate if and when public.
-#[allow(dead_code)]
 pub(crate) fn split_bigint3(num: BigInt) -> Result<[Felt; 3], OsHintError> {
     let base_bigint = BigInt::from(BASE.clone());
     let (q1, d0) = (&num / &base_bigint, Felt::from(num % &base_bigint));
