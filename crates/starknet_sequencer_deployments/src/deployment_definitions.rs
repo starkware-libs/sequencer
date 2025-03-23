@@ -13,8 +13,6 @@ mod deployment_definitions_test;
 pub const SINGLE_NODE_CONFIG_PATH: &str =
     "config/sequencer/presets/system_test_presets/single_node/node_0/executable_0/node_config.json";
 
-// TODO(Tsabary): fill and order these.
-
 type DeploymentFn = fn() -> DeploymentAndPreset;
 
 pub const DEPLOYMENTS: &[DeploymentFn] = &[create_main_deployment, create_testing_deployment];
