@@ -179,6 +179,8 @@ impl TransactionManagerContentBuilder {
     }
 }
 
+/// A fake L1 provider client that buffers all received messages, allow asserting the order in which
+/// they were received, and forward them to the l1 provider (flush the messages).
 #[derive(Default)]
 pub struct FakeL1ProviderClient {
     // Interior mutability needed since this is modifying during client API calls, which are all
@@ -188,6 +190,16 @@ pub struct FakeL1ProviderClient {
 }
 
 impl FakeL1ProviderClient {
+    /// Apply all messages received to the l1 provider.
+    pub async fn flush_messages(&self, l1_provider: &mut L1Provider) {
+        let commit_blocks = self.commit_blocks_received.lock().unwrap().drain(..).collect_vec();
+        for commit_block in commit_blocks {
+            l1_provider.commit_block(&commit_block.committed_txs, commit_block.height).unwrap();
+        }
+
+        // TODO: flush other buffers if necessary.
+    }
+
     #[track_caller]
     pub fn assert_add_events_received_with(&self, expected: &[Event]) {
         let events_received = mem::take(&mut *self.events_received.lock().unwrap());
