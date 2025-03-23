@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::LazyLock;
 
 use toml_test_utils::{
@@ -159,8 +159,17 @@ fn validate_crate_version_is_workspace() {
 
 #[test]
 fn validate_no_path_dependencies() {
-    let all_path_deps_in_crate_tomls: Vec<String> =
-        MEMBER_TOMLS.values().flat_map(|toml| toml.path_dependencies()).collect();
+    let all_path_deps_in_crate_tomls: HashMap<String, String> = MEMBER_TOMLS
+        .iter()
+        .filter_map(|(crate_name, toml)| {
+            let path_deps: Vec<String> = toml.path_dependencies().collect();
+            if path_deps.is_empty() {
+                None
+            } else {
+                Some((crate_name.clone(), path_deps.join(", ")))
+            }
+        })
+        .collect();
 
     assert!(
         all_path_deps_in_crate_tomls.is_empty(),
