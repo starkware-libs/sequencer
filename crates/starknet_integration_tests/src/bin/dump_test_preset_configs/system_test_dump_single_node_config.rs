@@ -8,11 +8,8 @@ use starknet_integration_tests::integration_test_manager::{
     get_sequencer_setup_configs,
     CustomPaths,
 };
-use starknet_integration_tests::integration_test_utils::set_panic_hook;
 use starknet_integration_tests::node_component_configs::create_distributed_node_configs;
 use starknet_integration_tests::utils::create_integration_test_tx_generator;
-use starknet_sequencer_infra::trace_util::configure_tracing;
-use tempfile::TempDir;
 use tracing::info;
 
 const DB_DIR: &str = "./data";
@@ -21,20 +18,15 @@ const DB_DIR: &str = "./data";
 async fn main() {
     const N_CONSOLIDATED_SEQUENCERS: usize = 1;
     const N_DISTRIBUTED_SEQUENCERS: usize = 0;
-    configure_tracing().await;
     info!("Generating system test preset for single node.");
-    set_panic_hook();
     let args = Args::parse();
 
     // Creates a multi-account transaction generator for integration test
     let tx_generator = create_integration_test_tx_generator();
 
-    let temp_dir = TempDir::new().unwrap();
-    let temp_dir_path = temp_dir.path().to_path_buf();
-
     let custom_paths = CustomPaths::new(
         Some(PathBuf::from(args.db_dir.clone())),
-        Some(temp_dir_path),
+        None,
         Some(PathBuf::from(args.data_prefix_path)),
     );
     // TODO(Nadin): Align this with node_setup.
