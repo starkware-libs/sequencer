@@ -507,10 +507,6 @@ impl EntryPointExecutionContext {
         &self.versioned_constants().os_constants.gas_costs
     }
 
-    pub fn mode_sierra_gas_limit(&self) -> GasAmount {
-        self.tx_context.block_context.versioned_constants.sierra_gas_limit(&self.execution_mode)
-    }
-
     /// Reverts the state back to the way it was when self.revert_infos.0['revert_idx'] was created.
     pub fn revert(&mut self, revert_idx: usize, state: &mut dyn State) -> StateResult<()> {
         for contract_revert_info in self.revert_infos.0.drain(revert_idx..).rev() {

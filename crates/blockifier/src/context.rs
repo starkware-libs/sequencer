@@ -16,6 +16,7 @@ use starknet_api::transaction::fields::{
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::bouncer::BouncerConfig;
 use crate::execution::call_info::CallInfo;
+use crate::execution::common_hints::ExecutionMode;
 use crate::transaction::objects::{
     CurrentTransactionInfo,
     HasRelatedFeeType,
@@ -41,6 +42,9 @@ impl TransactionContext {
     }
     pub fn get_gas_prices(&self) -> &GasPriceVector {
         self.block_context.block_info.gas_prices.gas_price_vector(&self.tx_info.fee_type())
+    }
+    pub fn sierra_gas_limit(&self, mode: &ExecutionMode) -> GasAmount {
+        self.block_context.versioned_constants.sierra_gas_limit(mode)
     }
 
     /// Returns the initial Sierra gas of the transaction.

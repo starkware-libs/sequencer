@@ -164,6 +164,7 @@ pub fn estimate_minimal_gas_vector(
         Transaction::Declare(_) => StateChangesCount {
             n_storage_updates: 1,
             n_class_hash_updates: 0,
+            // TODO(Yoni): BLOCKIFIER-RESET: should be 1.
             n_compiled_class_hash_updates: 0,
             n_modified_contracts: 1,
         },
@@ -182,6 +183,7 @@ pub fn estimate_minimal_gas_vector(
         },
     };
 
+    // TODO(Yoni): BLOCKIFIER-RESET: reuse TransactionReceipt code.
     let data_segment_length = get_onchain_data_segment_length(&state_changes_by_account_tx);
     let os_steps_for_type =
         versioned_constants.os_resources_for_tx_type(&tx.tx_type(), tx.calldata_length()).n_steps
