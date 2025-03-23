@@ -707,7 +707,7 @@ else:
         update_state_ptr,
         "if state_update_pointers is not None:
     state_update_pointers.state_tree_ptr = (
-        ids.final_squashed_contract_state_changes_end.address_,
+        ids.final_squashed_contract_state_changes_end.address_
     )"
     ),
     (
