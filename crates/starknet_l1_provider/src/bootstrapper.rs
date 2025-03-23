@@ -125,10 +125,11 @@ async fn l2_sync_task(
             .await
             .expect("network error handling not supported yet")
         else {
-            info!("Sync state not ready yet, trying again later");
+            debug!("Sync state not ready yet, trying again later");
             tokio::time::sleep(retry_interval).await;
             continue;
         };
+        info!("Catch up height set: {sync_height}");
         catch_up_height.set(sync_height).expect("This is the only write-point, cannot fail")
     }
     let catch_up_height = *catch_up_height.get().expect("Initialized above");
