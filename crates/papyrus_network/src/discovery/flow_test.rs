@@ -15,7 +15,7 @@ use super::{Behaviour, DiscoveryConfig};
 use crate::mixed_behaviour;
 use crate::mixed_behaviour::{BridgedBehaviour, MixedBehaviour};
 use crate::peer_manager::PeerManagerConfig;
-use crate::utils::StreamHashMap;
+use crate::utils::StreamMap;
 
 #[derive(NetworkBehaviour)]
 struct DiscoveryMixedBehaviour {
@@ -65,7 +65,7 @@ async fn all_nodes_have_same_bootstrap_peer() {
             DiscoveryMixedBehaviour::new(keypair, Some(bootstrap_peer_multiaddr.clone()))
         })
     });
-    let mut swarms_stream = StreamHashMap::new(
+    let mut swarms_stream = StreamMap::new(
         iter::once(bootstrap_swarm)
             .chain(swarms)
             .map(|swarm| (*swarm.local_peer_id(), swarm))

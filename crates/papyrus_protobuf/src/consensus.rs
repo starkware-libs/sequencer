@@ -163,7 +163,7 @@ where
 }
 
 /// HeighAndRound is a tuple struct used as the StreamId for consensus and context.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct HeightAndRound(pub u64, pub u32);
 
 impl TryFrom<Vec<u8>> for HeightAndRound {

@@ -13,7 +13,7 @@ use tokio::task::JoinHandle;
 use tokio_stream::StreamExt;
 
 use crate::sqmr::Bytes;
-use crate::utils::StreamHashMap;
+use crate::utils::StreamMap;
 
 /// Create two streams that are connected to each other. Return them and a join handle for a thread
 /// that will perform the sends between the streams (this thread will run forever so it shouldn't
@@ -60,7 +60,7 @@ impl crate::sqmr::handler::Handler {
 pub(crate) async fn create_fully_connected_swarms_stream<TBehaviour: NetworkBehaviour + Send>(
     num_swarms: usize,
     behaviour_gen: impl Fn() -> TBehaviour,
-) -> (StreamHashMap<PeerId, Swarm<TBehaviour>>, HashMap<(PeerId, PeerId), ConnectionId>)
+) -> (StreamMap<PeerId, Swarm<TBehaviour>>, HashMap<(PeerId, PeerId), ConnectionId>)
 where
     <TBehaviour as NetworkBehaviour>::ToSwarm: Debug,
 {
@@ -86,9 +86,7 @@ where
     }
 
     (
-        StreamHashMap::new(
-            swarms.into_iter().map(|swarm| (*swarm.local_peer_id(), swarm)).collect(),
-        ),
+        StreamMap::new(swarms.into_iter().map(|swarm| (*swarm.local_peer_id(), swarm)).collect()),
         connection_ids,
     )
 }
