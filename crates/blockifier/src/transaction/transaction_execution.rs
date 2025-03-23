@@ -144,8 +144,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
         let tx_context = Arc::new(block_context.to_tx_context(self));
         let limit_steps_by_resources = false;
         // The Sierra gas limit for L1 handler transaction is set to max_execute_sierra_gas.
-        let mut remaining_gas =
-            block_context.versioned_constants.sierra_gas_limit(&ExecutionMode::Execute).0;
+        let mut remaining_gas = tx_context.sierra_gas_limit(&ExecutionMode::Execute).0;
         let mut context = EntryPointExecutionContext::new_invoke(
             tx_context.clone(),
             limit_steps_by_resources,

@@ -540,8 +540,8 @@ impl AccountTransaction {
         context: &mut EntryPointExecutionContext,
         remaining_gas: &mut GasCounter,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
-        let remaining_execution_gas =
-            &mut remaining_gas.limit_usage(context.mode_sierra_gas_limit());
+        let remaining_execution_gas = &mut remaining_gas
+            .limit_usage(context.tx_context.sierra_gas_limit(&context.execution_mode));
         Ok(match &self.tx {
             Transaction::Declare(tx) => tx.run_execute(state, context, remaining_execution_gas),
             Transaction::DeployAccount(tx) => {
@@ -573,12 +573,8 @@ impl AccountTransaction {
                 // We initialize the revert gas tracker here for completeness - the value will not
                 // be used, as this tx is non-revertible.
                 SierraGasRevertTracker::new(GasAmount(
-                    remaining_gas.limit_usage(
-                        tx_context
-                            .block_context
-                            .versioned_constants
-                            .sierra_gas_limit(&ExecutionMode::Validate),
-                    ),
+                    remaining_gas
+                        .limit_usage(tx_context.sierra_gas_limit(&ExecutionMode::Validate)),
                 )),
             );
             execute_call_info = self.run_execute(state, &mut execution_context, remaining_gas)?;
@@ -594,12 +590,7 @@ impl AccountTransaction {
                 // We initialize the revert gas tracker here for completeness - the value will not
                 // be used, as this tx is non-revertible.
                 SierraGasRevertTracker::new(GasAmount(
-                    remaining_gas.limit_usage(
-                        tx_context
-                            .block_context
-                            .versioned_constants
-                            .sierra_gas_limit(&ExecutionMode::Execute),
-                    ),
+                    remaining_gas.limit_usage(tx_context.sierra_gas_limit(&ExecutionMode::Execute)),
                 )),
             );
             execute_call_info = self.run_execute(state, &mut execution_context, remaining_gas)?;
@@ -648,12 +639,7 @@ impl AccountTransaction {
             self.execution_flags.charge_fee,
             // TODO(Dori): Reduce code dup (the gas usage limit is computed in run_execute).
             SierraGasRevertTracker::new(GasAmount(
-                remaining_gas.limit_usage(
-                    tx_context
-                        .block_context
-                        .versioned_constants
-                        .sierra_gas_limit(&ExecutionMode::Execute),
-                ),
+                remaining_gas.limit_usage(tx_context.sierra_gas_limit(&ExecutionMode::Execute)),
             )),
         );
         let n_allotted_execution_steps = execution_context.subtract_validation_and_overhead_steps(
