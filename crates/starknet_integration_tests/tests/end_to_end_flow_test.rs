@@ -182,7 +182,7 @@ fn create_test_blocks() -> Vec<TestBlockScenario> {
             create_l1_handler_tx,
             test_single_tx,
             ExpectedContentId::from_hex_unchecked(
-                "0x32a9c3b503e51b4330fe735b73975a62df996d6d6ebfe6cd1514ba2a68797cb",
+                "0x15af782f995ed5c492fff14c5b88ce33c8f3e261472549f7389a1729f9ed00b",
             ),
         ),
         (

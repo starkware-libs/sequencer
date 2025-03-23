@@ -183,8 +183,8 @@ impl L1HandlerTransactionGenerator {
             calldata: calldata![
                 DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS,
                 // Arbitrary key and value.
-                felt!("0x876"), // key
-                felt!("0x44")   // value
+                felt!("0x876"),             // key
+                Felt::from(self.tx_number)  // value
             ],
             ..Default::default()
         }
