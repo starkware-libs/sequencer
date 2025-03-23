@@ -3,6 +3,7 @@ mod test;
 
 use async_trait::async_trait;
 use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
+use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_protobuf::mempool::RpcTransactionBatch;
 use starknet_api::rpc_transaction::{InternalRpcTransaction, RpcTransaction};
 use starknet_class_manager_types::transaction_converter::TransactionConverterTrait;
@@ -52,15 +53,10 @@ impl ComponentRequestHandler<MempoolP2pPropagatorRequest, MempoolP2pPropagatorRe
                     self.add_transaction(transaction).await,
                 )
             }
-            MempoolP2pPropagatorRequest::ContinuePropagation(propagation_manager) => {
-                info!("Continuing propagation of received transaction");
-                debug!("Propagated transaction metadata: {:?}", propagation_manager);
-                let result = self
-                    .broadcast_topic_client
-                    .continue_propagation(&propagation_manager)
-                    .await
-                    .map_err(|_| MempoolP2pPropagatorError::NetworkSendError);
-                MempoolP2pPropagatorResponse::ContinuePropagation(result)
+            MempoolP2pPropagatorRequest::ContinuePropagation(broadcasted_message_metadata) => {
+                MempoolP2pPropagatorResponse::ContinuePropagation(
+                    self.continue_propagation(broadcasted_message_metadata).await,
+                )
             }
             MempoolP2pPropagatorRequest::BroadcastQueuedTransactions() => {
                 MempoolP2pPropagatorResponse::BroadcastQueuedTransactions(
@@ -94,6 +90,18 @@ impl MempoolP2pPropagator {
             return self.broadcast_queued_transactions().await;
         }
         Ok(())
+    }
+
+    async fn continue_propagation(
+        &mut self,
+        broadcasted_message_metadata: BroadcastedMessageMetadata,
+    ) -> MempoolP2pPropagatorResult<()> {
+        info!("Continuing propagation of received transaction");
+        debug!("Propagated transaction metadata: {:?}", broadcasted_message_metadata);
+        self.broadcast_topic_client
+            .continue_propagation(&broadcasted_message_metadata)
+            .await
+            .map_err(|_| MempoolP2pPropagatorError::NetworkSendError)
     }
 
     async fn broadcast_queued_transactions(&mut self) -> MempoolP2pPropagatorResult<()> {
