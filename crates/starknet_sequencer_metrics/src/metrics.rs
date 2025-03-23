@@ -336,11 +336,17 @@ pub struct MetricHistogram {
     description: &'static str,
 }
 
-#[derive(Default, Debug, PartialEq)]
+#[derive(Default, Debug)]
 pub struct HistogramValue {
     pub sum: f64,
     pub count: u64,
     pub histogram: IndexMap<String, f64>,
+}
+
+impl PartialEq for HistogramValue {
+    fn eq(&self, other: &Self) -> bool {
+        self.sum == other.sum && self.count == other.count
+    }
 }
 
 impl MetricHistogram {
@@ -377,14 +383,13 @@ impl MetricHistogram {
         parse_histogram_metric(metrics_as_string, self.get_name(), None)
     }
 
-    // Only the sum and count values are compared, not the quantiles.
     #[cfg(any(feature = "testing", test))]
     pub fn assert_eq(&self, metrics_as_string: &str, expected_value: &HistogramValue) {
         let metric_value = self.parse_histogram_metric(metrics_as_string).unwrap();
         assert!(
-            metric_value.sum == expected_value.sum && metric_value.count == expected_value.count,
-            "Metric histogram {} sum or count did not match the expected value. expected value: \
-             {:?}, metric value: {:?}",
+            metric_value == *expected_value,
+            "Metric histogram {} did not match the expected value. expected value: {:?}, metric \
+             value: {:?}",
             self.get_name(),
             expected_value,
             metric_value
@@ -449,7 +454,6 @@ impl LabeledMetricHistogram {
         parse_histogram_metric(metrics_as_string, self.get_name(), Some(labels))
     }
 
-    // Only the sum and count values are compared, not the quantiles.
     #[cfg(any(feature = "testing", test))]
     // TODO(tsabary): unite the labeled and unlabeld assert_eq functions.
     pub fn assert_eq(
@@ -460,9 +464,9 @@ impl LabeledMetricHistogram {
     ) {
         let metric_value = self.parse_histogram_metric(metrics_as_string, label).unwrap();
         assert!(
-            metric_value.sum == expected_value.sum && metric_value.count == expected_value.count,
-            "Metric histogram {} {:?} sum or count did not match the expected value. expected \
-             value: {:?}, metric value: {:?}",
+            metric_value == *expected_value,
+            "Metric histogram {} {:?} did not match the expected value. expected value: {:?}, \
+             metric value: {:?}",
             self.get_name(),
             label,
             expected_value,
