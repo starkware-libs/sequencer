@@ -5,7 +5,7 @@ use clap::Parser;
 use starknet_infra_utils::test_utils::TestIdentifier;
 use starknet_integration_tests::consts::{DATA_PREFIX_PATH, SINGLE_NODE_CONFIG_PATH};
 use starknet_integration_tests::integration_test_manager::get_sequencer_setup_configs;
-use starknet_integration_tests::node_component_configs::create_distributed_node_configs;
+use starknet_integration_tests::node_component_configs::create_nodes_deployment_units_configs;
 use starknet_integration_tests::storage::CustomPaths;
 use starknet_integration_tests::utils::create_integration_test_tx_generator;
 use tracing::info;
@@ -35,7 +35,7 @@ async fn main() {
         N_DISTRIBUTED_SEQUENCERS,
         Some(custom_paths),
         TestIdentifier::SystemTestDumpSingleNodeConfig,
-        create_distributed_node_configs,
+        create_nodes_deployment_units_configs,
     )
     .await;
 

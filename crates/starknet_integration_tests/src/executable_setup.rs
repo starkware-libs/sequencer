@@ -40,8 +40,6 @@ use crate::state_reader::{
 use crate::storage::StorageExecutablePaths;
 use crate::utils::create_node_config;
 
-// TODO(Tsabary): rename this module to `executable_setup`.
-
 const NODE_CONFIG_CHANGES_FILE_PATH: &str = "node_integration_test_config_changes.json";
 
 #[derive(Debug, Copy, Clone)]

@@ -1,5 +1,3 @@
-use std::net::{Ipv4Addr, SocketAddr};
-
 use starknet_infra_utils::test_utils::AvailablePortsGenerator;
 use starknet_sequencer_deployments::deployment::{
     set_urls_to_localhost,
@@ -8,10 +6,6 @@ use starknet_sequencer_deployments::deployment::{
     ServiceName,
 };
 use starknet_sequencer_node::config::component_config::ComponentConfig;
-use starknet_sequencer_node::config::component_execution_config::{
-    ActiveComponentExecutionConfig,
-    ReactiveComponentExecutionConfig,
-};
 
 /// Holds the component configs for a set of sequencers, composing a single sequencer node.
 pub struct NodeComponentConfigs {
@@ -73,55 +67,6 @@ impl IntoIterator for NodeComponentConfigs {
     }
 }
 
-/// Generates configurations for a specified number of distributed sequencer nodes,
-/// each consisting of an HTTP component configuration and a non-HTTP component configuration.
-/// returns a vector of vectors, where each inner vector contains the two configurations.
-pub fn create_distributed_node_configs(
-    available_ports_generator: &mut AvailablePortsGenerator,
-    distributed_sequencers_num: usize,
-) -> Vec<NodeComponentConfigs> {
-    std::iter::repeat_with(|| {
-        let mut available_ports = available_ports_generator
-            .next()
-            .expect("Failed to get an AvailablePorts instance for distributed node configs");
-        let gateway_socket = available_ports.get_next_local_host_socket();
-        let mempool_socket = available_ports.get_next_local_host_socket();
-        let mempool_p2p_socket = available_ports.get_next_local_host_socket();
-        let state_sync_socket = available_ports.get_next_local_host_socket();
-        let class_manager_socket = available_ports.get_next_local_host_socket();
-
-        NodeComponentConfigs::new(
-            vec![
-                get_http_container_config(
-                    gateway_socket,
-                    mempool_socket,
-                    mempool_p2p_socket,
-                    state_sync_socket,
-                    class_manager_socket,
-                ),
-                get_non_http_container_config(
-                    gateway_socket,
-                    mempool_socket,
-                    mempool_p2p_socket,
-                    state_sync_socket,
-                    class_manager_socket,
-                ),
-            ],
-            // TODO(noamsp): remove these hardcoded values and get the indexes from a mapping.
-            // batcher is in executable index 1.
-            1,
-            // http server is in executable index 0.
-            0,
-            // state sync is in executable index 1.
-            1,
-            // class manager in executable index 0.
-            0,
-        )
-    })
-    .take(distributed_sequencers_num)
-    .collect()
-}
-
 pub fn create_consolidated_sequencer_configs(
     num_of_consolidated_nodes: usize,
 ) -> Vec<NodeComponentConfigs> {
@@ -139,87 +84,6 @@ pub fn create_consolidated_sequencer_configs(
     .collect()
 }
 
-// TODO(Nadin/Tsabary): create this as a deployment fn.
-// TODO(Nadin/Tsabary): find a better name for this function.
-fn get_http_container_config(
-    gateway_socket: SocketAddr,
-    mempool_socket: SocketAddr,
-    mempool_p2p_socket: SocketAddr,
-    state_sync_socket: SocketAddr,
-    class_manager_socket: SocketAddr,
-) -> ComponentConfig {
-    let mut config = ComponentConfig::disabled();
-    config.http_server = ActiveComponentExecutionConfig::default();
-    config.gateway = ReactiveComponentExecutionConfig::local_with_remote_enabled(
-        Ipv4Addr::LOCALHOST.to_string(),
-        gateway_socket.ip(),
-        gateway_socket.port(),
-    );
-    config.mempool = ReactiveComponentExecutionConfig::local_with_remote_enabled(
-        Ipv4Addr::LOCALHOST.to_string(),
-        mempool_socket.ip(),
-        mempool_socket.port(),
-    );
-    config.mempool_p2p = ReactiveComponentExecutionConfig::local_with_remote_enabled(
-        Ipv4Addr::LOCALHOST.to_string(),
-        mempool_p2p_socket.ip(),
-        mempool_p2p_socket.port(),
-    );
-    config.state_sync = ReactiveComponentExecutionConfig::remote(
-        Ipv4Addr::LOCALHOST.to_string(),
-        state_sync_socket.ip(),
-        state_sync_socket.port(),
-    );
-    config.class_manager = ReactiveComponentExecutionConfig::local_with_remote_enabled(
-        Ipv4Addr::LOCALHOST.to_string(),
-        class_manager_socket.ip(),
-        class_manager_socket.port(),
-    );
-    config.sierra_compiler = ReactiveComponentExecutionConfig::local_with_remote_disabled();
-    config.monitoring_endpoint = ActiveComponentExecutionConfig::default();
-    config
-}
-
-fn get_non_http_container_config(
-    gateway_socket: SocketAddr,
-    mempool_socket: SocketAddr,
-    mempool_p2p_socket: SocketAddr,
-    state_sync_socket: SocketAddr,
-    class_manager_socket: SocketAddr,
-) -> ComponentConfig {
-    ComponentConfig {
-        http_server: ActiveComponentExecutionConfig::disabled(),
-        monitoring_endpoint: Default::default(),
-        gateway: ReactiveComponentExecutionConfig::remote(
-            Ipv4Addr::LOCALHOST.to_string(),
-            gateway_socket.ip(),
-            gateway_socket.port(),
-        ),
-        mempool: ReactiveComponentExecutionConfig::remote(
-            Ipv4Addr::LOCALHOST.to_string(),
-            mempool_socket.ip(),
-            mempool_socket.port(),
-        ),
-        mempool_p2p: ReactiveComponentExecutionConfig::remote(
-            Ipv4Addr::LOCALHOST.to_string(),
-            mempool_p2p_socket.ip(),
-            mempool_p2p_socket.port(),
-        ),
-        state_sync: ReactiveComponentExecutionConfig::local_with_remote_enabled(
-            Ipv4Addr::LOCALHOST.to_string(),
-            state_sync_socket.ip(),
-            state_sync_socket.port(),
-        ),
-        class_manager: ReactiveComponentExecutionConfig::remote(
-            Ipv4Addr::LOCALHOST.to_string(),
-            class_manager_socket.ip(),
-            class_manager_socket.port(),
-        ),
-        ..ComponentConfig::default()
-    }
-}
-
-// TODO(alonl): use enums to represent the different types of units distributions.
 pub fn create_nodes_deployment_units_configs(
     available_ports_generator: &mut AvailablePortsGenerator,
     distributed_sequencers_num: usize,
@@ -247,7 +111,6 @@ pub fn create_nodes_deployment_units_configs(
 
         NodeComponentConfigs::new(
             component_configs,
-            // TODO(noamsp): remove these hardcoded values and get the indexes from a mapping.
             services_component_config
                 .get_index_of::<ServiceName>(&DistributedNodeServiceName::Batcher.into())
                 .unwrap(),
