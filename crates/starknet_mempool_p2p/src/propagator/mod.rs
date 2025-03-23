@@ -93,8 +93,13 @@ impl ComponentRequestHandler<MempoolP2pPropagatorRequest, MempoolP2pPropagatorRe
 
 impl MempoolP2pPropagator {
     async fn broadcast_queued_transactions(&mut self) -> MempoolP2pPropagatorResult<()> {
+        let queued_transactions: Vec<RpcTransaction> = self.transaction_queue.drain(..).collect();
+        // TODO(alonl): test this condition
+        if queued_transactions.is_empty() {
+            return Ok(());
+        }
         self.broadcast_topic_client
-            .broadcast_message(RpcTransactionBatch(self.transaction_queue.drain(..).collect()))
+            .broadcast_message(RpcTransactionBatch(queued_transactions))
             .await
             .or_else(|err| {
                 if !err.is_full() {
