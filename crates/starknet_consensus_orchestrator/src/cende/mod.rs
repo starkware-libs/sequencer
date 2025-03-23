@@ -35,7 +35,7 @@ use starknet_api::state::ThinStateDiff;
 use starknet_class_manager_types::{ClassManagerClientError, SharedClassManagerClient};
 use tokio::sync::Mutex;
 use tokio::task::{self, JoinHandle};
-use tracing::{debug, error, info, warn, Instrument};
+use tracing::{error, info, warn, Instrument};
 use url::Url;
 
 use crate::fee_market::FeeMarketInfo;
@@ -156,7 +156,7 @@ impl SerializeConfig for CendeConfig {
 #[async_trait]
 impl CendeContext for CendeAmbassador {
     fn write_prev_height_blob(&self, current_height: BlockNumber) -> JoinHandle<bool> {
-        debug!("Start writing to Aerospike previous height blob for height {current_height}.");
+        info!("Start writing to Aerospike previous height blob for height {current_height}.");
 
         // TODO(dvir): consider returning a future that will be spawned in the context instead.
         if self.skip_write_height == Some(current_height) {
@@ -201,7 +201,7 @@ impl CendeContext for CendeAmbassador {
                     return false;
                 }
 
-                debug!("Writing blob to Aerospike.");
+                info!("Writing blob to Aerospike.");
                 return send_write_blob(request_builder, blob).await;
             }
             .instrument(tracing::debug_span!("cende write_prev_height_blob height")),
@@ -221,7 +221,7 @@ impl CendeContext for CendeAmbassador {
             )
             .await?,
         );
-        debug!("Blob for block number {block_number} is ready.");
+        info!("Blob for block number {block_number} is ready.");
         Ok(())
     }
 }
@@ -231,7 +231,7 @@ async fn send_write_blob(request_builder: RequestBuilder, blob: &AerospikeBlob) 
     match request_builder.json(blob).send().await {
         Ok(response) => {
             if response.status().is_success() {
-                debug!(
+                info!(
                     "Blob with block number {} was written to Aerospike successfully.",
                     blob.block_number
                 );
@@ -258,11 +258,11 @@ async fn send_write_blob(request_builder: RequestBuilder, blob: &AerospikeBlob) 
 }
 
 async fn print_write_blob_response(response: Response) {
-    debug!("write blob response status code: {}", response.status());
+    info!("write blob response status code: {}", response.status());
     if let Ok(text) = response.text().await {
-        debug!("write blob response text: {text}");
+        info!("write blob response text: {text}");
     } else {
-        debug!("Failed to get response text.");
+        info!("Failed to get response text.");
     }
 }
 

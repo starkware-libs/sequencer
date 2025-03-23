@@ -837,7 +837,7 @@ async fn get_proposal_content(
                 // can't finish the proposal.
                 match cende_write_success.now_or_never() {
                     Some(Ok(true)) => {
-                        debug!("Writing blob to Aerospike completed successfully.");
+                        info!("Writing blob to Aerospike completed successfully.");
                     }
                     Some(Ok(false)) => {
                         warn!("Writing blob to Aerospike failed.");
