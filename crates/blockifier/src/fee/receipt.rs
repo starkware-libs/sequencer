@@ -1,6 +1,6 @@
 use starknet_api::core::ContractAddress;
 use starknet_api::execution_resources::{GasAmount, GasVector};
-use starknet_api::transaction::fields::Fee;
+use starknet_api::transaction::fields::{Fee, GasVectorComputationMode};
 
 use crate::context::TransactionContext;
 use crate::execution::call_info::ExecutionSummary;
@@ -22,6 +22,7 @@ pub mod test;
 /// Parameters required to compute actual cost of a transaction.
 struct TransactionReceiptParameters<'a> {
     tx_context: &'a TransactionContext,
+    gas_mode: GasVectorComputationMode,
     calldata_length: usize,
     signature_length: usize,
     code_size: usize,
@@ -50,6 +51,7 @@ impl TransactionReceipt {
     fn from_params(tx_receipt_params: TransactionReceiptParameters<'_>) -> Self {
         let TransactionReceiptParameters {
             tx_context,
+            gas_mode,
             calldata_length,
             signature_length,
             code_size,
@@ -94,7 +96,7 @@ impl TransactionReceipt {
         let gas = tx_resources.to_gas_vector(
             &tx_context.block_context.versioned_constants,
             tx_context.block_context.block_info.use_kzg_da,
-            &tx_context.get_gas_vector_computation_mode(),
+            &gas_mode,
         );
         // Backward-compatibility.
         let fee = if tx_type == TransactionType::Declare && tx_context.tx_info.is_v0() {
@@ -120,6 +122,7 @@ impl TransactionReceipt {
     ) -> Self {
         Self::from_params(TransactionReceiptParameters {
             tx_context,
+            gas_mode: GasVectorComputationMode::All, /* Although L1 resources are deprecated, we still want to compute a full gas vector. */
             calldata_length: l1_handler_payload_size,
             signature_length: 0, // Signature is validated on L1.
             code_size: 0,
@@ -144,6 +147,7 @@ impl TransactionReceipt {
     ) -> Self {
         Self::from_params(TransactionReceiptParameters {
             tx_context,
+            gas_mode: tx_context.get_gas_vector_computation_mode(),
             calldata_length: account_tx.calldata_length(),
             signature_length: account_tx.signature_length(),
             code_size: account_tx.declare_code_size(),

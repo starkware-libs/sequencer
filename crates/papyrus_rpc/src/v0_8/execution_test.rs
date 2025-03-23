@@ -1222,7 +1222,7 @@ async fn call_estimate_message_fee() {
     // TODO(yair): get a l1_handler entry point that actually does something and check that the fee
     // is correct.
     let expected_fee_estimate = FeeEstimation {
-        gas_consumed: felt!("0x3937"),
+        gas_consumed: felt!("0x3933"),
         l1_gas_price: GAS_PRICE.price_in_wei,
         data_gas_consumed: Felt::ZERO,
         l1_data_gas_price: DATA_GAS_PRICE.price_in_wei,
