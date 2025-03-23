@@ -346,23 +346,20 @@ pub(crate) fn enter_scope_descend_edge<S: StateReader>(
     todo!()
 }
 
-pub(crate) fn write_syscall_result_deprecated<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
-) -> OsHintResult {
-    todo!()
-}
-
-pub(crate) fn write_syscall_result<S: StateReader>(
+fn write_syscall_result_helper<S: StateReader>(
     HintArgs { hint_processor, vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_, S>,
+    ids_type: Ids,
+    struct_type: CairoStruct,
+    key_name: &str,
 ) -> OsHintResult {
     let key = StorageKey(PatriciaKey::try_from(
         vm.get_integer(get_address_of_nested_fields(
             ids_data,
-            Ids::Request,
-            CairoStruct::StorageReadRequestPtr,
+            ids_type.clone(),
+            struct_type,
             vm,
             ap_tracking,
-            &["key"],
+            &[key_name],
             &hint_processor.execution_helper.os_program,
         )?)?
         .into_owned(),
@@ -381,8 +378,8 @@ pub(crate) fn write_syscall_result<S: StateReader>(
     let request_value = vm
         .get_integer(get_address_of_nested_fields(
             ids_data,
-            Ids::Request,
-            CairoStruct::StorageReadRequestPtr,
+            ids_type,
+            struct_type,
             vm,
             ap_tracking,
             &["value"],
@@ -415,6 +412,16 @@ pub(crate) fn write_syscall_result<S: StateReader>(
     )?;
 
     Ok(())
+}
+
+pub(crate) fn write_syscall_result_deprecated<S: StateReader>(
+    hint_args: HintArgs<'_, S>,
+) -> OsHintResult {
+    write_syscall_result_helper(hint_args, Ids::SyscallPtr, CairoStruct::StorageWritePtr, "address")
+}
+
+pub(crate) fn write_syscall_result<S: StateReader>(hint_args: HintArgs<'_, S>) -> OsHintResult {
+    write_syscall_result_helper(hint_args, Ids::Request, CairoStruct::StorageReadRequestPtr, "key")
 }
 
 pub(crate) fn declare_tx_fields<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
