@@ -11014,7 +11014,6 @@ name = "starknet_committer_and_os_cli"
 version = "0.0.0"
 dependencies = [
  "assert_matches",
- "blockifier",
  "cairo-lang-starknet-classes",
  "cairo-vm",
  "clap",
