@@ -10,6 +10,8 @@ use starknet_sequencer_node::config::component_execution_config::{
 use strum::{Display, EnumVariantNames, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 
+use crate::deployments::consolidated::ConsolidatedNodeServiceName;
+
 const BASE_PORT: u16 = 55000; // TODO(Tsabary): arbitrary port, need to resolve.
 const DEPLOYMENT_CONFIG_BASE_DIR_PATH: &str = "config/sequencer/presets/";
 // TODO(Tsabary): need to distinguish between test and production configs in dir structure.
@@ -73,13 +75,6 @@ impl From<DistributedNodeServiceName> for ServiceName {
     }
 }
 
-// Implement conversion from `ConsolidatedNodeServiceName` to `ServiceName`
-impl From<ConsolidatedNodeServiceName> for ServiceName {
-    fn from(service: ConsolidatedNodeServiceName) -> Self {
-        ServiceName::ConsolidatedNode(service)
-    }
-}
-
 impl IntoService for ServiceName {
     fn create_service(&self) -> Service {
         // TODO(Tsabary): find a way to avoid this code duplication.
@@ -132,17 +127,6 @@ pub trait GetComponentConfigs {
     // TODO(Tsabary): replace IndexMap with regular HashMap. Currently using IndexMap as the
     // integration test relies on indices rather than service names.
     fn get_component_configs(base_port: Option<u16>) -> IndexMap<ServiceName, ComponentConfig>;
-}
-
-impl GetComponentConfigs for ConsolidatedNodeServiceName {
-    fn get_component_configs(_base_port: Option<u16>) -> IndexMap<ServiceName, ComponentConfig> {
-        let mut component_config_map = IndexMap::new();
-        component_config_map.insert(
-            ServiceName::ConsolidatedNode(ConsolidatedNodeServiceName::Node),
-            get_consolidated_config(),
-        );
-        component_config_map
-    }
 }
 
 impl GetComponentConfigs for DistributedNodeServiceName {
@@ -206,16 +190,6 @@ pub trait IntoService {
     fn create_service(&self) -> Service;
 }
 
-impl IntoService for ConsolidatedNodeServiceName {
-    fn create_service(&self) -> Service {
-        match self {
-            ConsolidatedNodeServiceName::Node => {
-                Service::new(Into::<ServiceName>::into(*self), false, false, 1, Some(32))
-            }
-        }
-    }
-}
-
 impl Serialize for ServiceName {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -227,12 +201,6 @@ impl Serialize for ServiceName {
             ServiceName::DistributedNode(inner) => inner.serialize(serializer), /* Serialize only the inner value */
         }
     }
-}
-
-#[derive(Clone, Copy, Debug, Display, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter)]
-#[strum(serialize_all = "snake_case")]
-pub enum ConsolidatedNodeServiceName {
-    Node,
 }
 
 #[repr(u16)]
@@ -471,8 +439,3 @@ fn get_l1_provider_config(
     config
 }
 // TODO(Tsabary): rename get_X_config fns to get_X_component_config.
-
-// TODO(Tsabary): functions for the consolidated node deployment, need move to a different module.
-fn get_consolidated_config() -> ComponentConfig {
-    ComponentConfig::default()
-}

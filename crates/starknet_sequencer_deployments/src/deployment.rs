@@ -3,6 +3,8 @@ use std::path::Path;
 
 use serde::Serialize;
 use starknet_api::core::ChainId;
+// TODO(Tsabary): remove the cfg.
+#[cfg(any(feature = "testing", test))]
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 
 use crate::service::{DeploymentName, IntoService, Service};
