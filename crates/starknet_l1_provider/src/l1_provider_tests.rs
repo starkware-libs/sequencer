@@ -310,3 +310,42 @@ fn tx_in_commit_block_before_processed_is_skipped() {
     l1_provider.process_l1_events(vec![l1_handler_event(tx_hash!(2))]).unwrap();
     expected_l1_provider.assert_eq(&l1_provider);
 }
+
+#[test]
+fn bootstrap_commit_block_received_twice_no_error() {
+    // Setup.
+    let initial_bootstrap_state = ProviderState::Bootstrap(bootstrapper!(
+        backlog: [],
+        catch_up: 2
+    ));
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_txs([l1_handler(1), l1_handler(2)])
+        .with_state(initial_bootstrap_state)
+        .build_into_l1_provider();
+
+    // Test.
+    l1_provider.commit_block(&[tx_hash!(1)], BlockNumber(0)).unwrap();
+    // No error, since the this tx hash is already known to be committed.
+    l1_provider.commit_block(&[tx_hash!(1)], BlockNumber(0)).unwrap();
+}
+
+#[test]
+fn bootstrap_commit_block_received_twice_error_if_new_uncommitted_txs() {
+    // Setup.
+    let initial_bootstrap_state = ProviderState::Bootstrap(bootstrapper!(
+        backlog: [],
+        catch_up: 2
+    ));
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_txs([l1_handler(1), l1_handler(2)])
+        .with_state(initial_bootstrap_state)
+        .build_into_l1_provider();
+
+    // Test.
+    l1_provider.commit_block(&[tx_hash!(1)], BlockNumber(0)).unwrap();
+    // Error, since the new tx hash is not known to be committed.
+    assert_matches!(
+        l1_provider.commit_block(&[tx_hash!(1), tx_hash!(3)], BlockNumber(0)).unwrap_err(),
+        L1ProviderError::UnexpectedHeight { expected_height: BlockNumber(1), got: BlockNumber(0) }
+    );
+}

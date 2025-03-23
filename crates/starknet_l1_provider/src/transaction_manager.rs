@@ -56,4 +56,9 @@ impl TransactionManager {
     pub fn add_tx(&mut self, tx: L1HandlerTransaction) -> bool {
         self.committed.contains(&tx.tx_hash) || self.txs.insert(tx)
     }
+
+    pub fn committed_includes(&self, tx_hashes: &[TransactionHash]) -> bool {
+        let tx_hashes: HashSet<TransactionHash> = tx_hashes.iter().copied().collect();
+        self.committed.is_superset(&tx_hashes)
+    }
 }
