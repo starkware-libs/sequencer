@@ -44,6 +44,10 @@ impl TransactionPool {
         self.capacity.n_txs()
     }
 
+    pub fn size_bytes(&self) -> usize {
+        self.capacity.size_bytes()
+    }
+
     pub fn insert(&mut self, tx: InternalRpcTransaction) -> MempoolResult<()> {
         let tx_reference = TransactionReference::new(&tx);
         let tx_hash = tx_reference.tx_hash;
@@ -296,6 +300,10 @@ impl PoolCapacity {
 
     fn n_txs(&self) -> usize {
         self.n_txs
+    }
+
+    fn size_bytes(&self) -> usize {
+        self.size_bytes
     }
 }
 

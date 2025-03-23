@@ -23,6 +23,8 @@ pub struct MempoolConfig {
     pub declare_delay: Duration,
     // Number of latest committed blocks for which committed account nonces are preserved.
     pub committed_nonce_retention_block_count: usize,
+    // The maximum size of the mempool, in bytes.
+    pub max_capacity_bytes: usize,
 }
 
 impl Default for MempoolConfig {
@@ -33,6 +35,7 @@ impl Default for MempoolConfig {
             transaction_ttl: Duration::from_secs(60), // 1 minute.
             declare_delay: Duration::from_secs(1),
             committed_nonce_retention_block_count: 100,
+            max_capacity_bytes: 1 << 30, // 1GB.
         }
     }
 }
@@ -69,6 +72,12 @@ impl SerializeConfig for MempoolConfig {
                 &self.committed_nonce_retention_block_count,
                 "Number of latest committed blocks for which committed account nonces are \
                  retained.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_capacity_bytes",
+                &self.max_capacity_bytes,
+                "Maximum size of the mempool, in bytes.",
                 ParamPrivacyInput::Public,
             ),
         ])

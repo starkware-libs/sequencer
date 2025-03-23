@@ -1219,6 +1219,11 @@
     "privacy": "Public",
     "value": 60
   },
+  "mempool_config.max_capacity_bytes": {
+    "description": "Maximum size of the mempool, in bytes.",
+    "privacy": "Public",
+    "value": 1073741824
+  },
   "mempool_p2p_config.max_transaction_batch_size": {
     "description": "Maximum number of transactions in each batch.",
     "privacy": "Public",
