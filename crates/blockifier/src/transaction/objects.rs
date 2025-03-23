@@ -8,11 +8,9 @@ use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::execution_resources::GasVector;
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
-    AllResourceBounds,
     Fee,
     GasVectorComputationMode,
     PaymasterData,
-    ResourceBounds,
     Tip,
     TransactionSignature,
     ValidResourceBounds,
@@ -129,18 +127,8 @@ pub struct CurrentTransactionInfo {
     pub account_deployment_data: AccountDeploymentData,
 }
 
+#[cfg(any(test, feature = "testing"))]
 impl CurrentTransactionInfo {
-    /// Fetch the L1 resource bounds, if they exist.
-    // TODO(Nimrod): Consider removing this function and add equivalent method to
-    // `ValidResourceBounds`.
-    pub fn l1_resource_bounds(&self) -> ResourceBounds {
-        match self.resource_bounds {
-            ValidResourceBounds::L1Gas(bounds) => bounds,
-            ValidResourceBounds::AllResources(AllResourceBounds { l1_gas, .. }) => l1_gas,
-        }
-    }
-
-    #[cfg(any(test, feature = "testing"))]
     pub fn create_for_testing() -> Self {
         Self {
             common_fields: CommonAccountFields::default(),
