@@ -101,6 +101,10 @@ pub fn mempool_client_result_to_gw_spec_result(
                     Err(GatewaySpecError::InvalidTransactionNonce)
                 }
                 MempoolError::DuplicateTransaction { .. } => Err(GatewaySpecError::DuplicateTx),
+                // TODO(Dafna): change to a more appropriate error, once we have it.
+                MempoolError::MempoolFull { .. } => {
+                    Err(GatewaySpecError::UnexpectedError { data: "Mempool full".to_owned() })
+                }
                 MempoolError::P2pPropagatorClientError { .. } => {
                     // Not an error from the gateway's perspective.
                     warn!("P2p propagator client error: {}", mempool_error);
