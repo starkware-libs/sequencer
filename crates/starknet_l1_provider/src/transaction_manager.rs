@@ -1,4 +1,5 @@
-use indexmap::IndexMap;
+use std::collections::HashSet;
+
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_l1_provider_types::{InvalidValidationStatus, ValidationStatus};
@@ -8,7 +9,7 @@ use crate::soft_delete_index_map::SoftDeleteIndexMap;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct TransactionManager {
     pub txs: SoftDeleteIndexMap,
-    pub committed: IndexMap<TransactionHash, Option<L1HandlerTransaction>>,
+    pub committed: HashSet<TransactionHash>,
 }
 
 impl TransactionManager {
@@ -29,7 +30,7 @@ impl TransactionManager {
     }
 
     pub fn validate_tx(&mut self, tx_hash: TransactionHash) -> ValidationStatus {
-        if self.committed.contains_key(&tx_hash) {
+        if self.committed.contains(&tx_hash) {
             return ValidationStatus::Invalid(InvalidValidationStatus::AlreadyIncludedOnL2);
         }
 
@@ -49,6 +50,6 @@ impl TransactionManager {
     /// Adds a transaction to the transaction manager, return false iff the transaction already
     /// existed.
     pub fn add_tx(&mut self, tx: L1HandlerTransaction) -> bool {
-        self.committed.contains_key(&tx.tx_hash) || self.txs.insert(tx)
+        self.committed.contains(&tx.tx_hash) || self.txs.insert(tx)
     }
 }

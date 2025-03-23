@@ -136,12 +136,7 @@ impl From<TransactionManagerContent> for TransactionManager {
         let txs: Vec<_> = mem::take(&mut content.txs).unwrap();
         TransactionManager {
             txs: SoftDeleteIndexMap::from(txs),
-            committed: content
-                .committed
-                .unwrap_or_default()
-                .into_iter()
-                .map(|tx_hash| (tx_hash, None))
-                .collect(),
+            committed: content.committed.unwrap_or_default(),
         }
     }
 }
