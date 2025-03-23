@@ -162,3 +162,22 @@ async fn transaction_batch_broadcasted_on_request() {
     let message = timeout(TIMEOUT, messages_to_broadcast_receiver.next()).await.unwrap().unwrap();
     assert_eq!(message, RpcTransactionBatch(rpc_transactions));
 }
+
+#[tokio::test]
+async fn broadcast_queued_transactions_does_not_broadcast_empty_batch() {
+    let (broadcast_topic_client, mut messages_to_broadcast_receiver, _) = setup();
+    let transaction_converter = MockTransactionConverterTrait::new();
+    let mut mempool_p2p_propagator = MempoolP2pPropagator::new(
+        broadcast_topic_client,
+        Box::new(transaction_converter),
+        MAX_TRANSACTION_BATCH_SIZE,
+    );
+
+    mempool_p2p_propagator
+        .handle_request(MempoolP2pPropagatorRequest::BroadcastQueuedTransactions())
+        .await;
+
+    // Assert receiving the request does not trigger batch broadcast (because there are no queued
+    // transactions)
+    assert!(messages_to_broadcast_receiver.next().now_or_never().is_none());
+}
