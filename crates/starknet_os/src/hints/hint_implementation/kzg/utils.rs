@@ -2,7 +2,6 @@ use std::num::ParseIntError;
 use std::path::Path;
 use std::sync::LazyLock;
 
-use blockifier::utils::usize_from_u32;
 use c_kzg::{Blob, KzgCommitment, KzgSettings, BYTES_PER_FIELD_ELEMENT};
 use num_bigint::{BigUint, ParseBigIntError};
 use num_traits::{Num, One, Zero};
@@ -15,7 +14,8 @@ pub(crate) const BLS_PRIME: &str =
     "52435875175126190479447740508185965837690552500527637822603658699938581184513";
 const COMMITMENT_BYTES_LENGTH: usize = 48;
 const COMMITMENT_BYTES_MIDPOINT: usize = COMMITMENT_BYTES_LENGTH / 2;
-pub(crate) const FIELD_ELEMENTS_PER_BLOB: usize = 4096;
+const LOG2_FIELD_ELEMENTS_PER_BLOB: usize = 12;
+pub(crate) const FIELD_ELEMENTS_PER_BLOB: usize = 1 << LOG2_FIELD_ELEMENTS_PER_BLOB;
 
 #[derive(Debug, thiserror::Error)]
 pub enum FftError {
@@ -138,19 +138,9 @@ pub(crate) fn fft(
 
     let mut values = inner_fft(coeffs, &group, prime);
 
-    // TODO(Dori): either remove the custom FFT implementation entirely, or investigate implementing
-    //   the bit-reversal permutation more efficiently.
     if bit_reversed {
         // Since coeffs_len is a power of two, width is set to the position of the last set bit.
-        let width = usize_from_u32(coeffs_len.trailing_zeros());
-        let perm = (0..coeffs_len)
-            .map(|i| {
-                let binary = format!("{:0width$b}", i, width = width);
-                usize::from_str_radix(&binary.chars().rev().collect::<String>(), 2)
-                    .map_err(FftError::InvalidBinaryToUsize)
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        values = perm.into_iter().map(|i| values[i].clone()).collect();
+        bit_reversal(&mut values)?;
     }
 
     Ok(values)
@@ -164,6 +154,39 @@ pub(crate) fn split_commitment(commitment: &KzgCommitment) -> Result<(Felt, Felt
     let high = &commitment_bytes[..COMMITMENT_BYTES_MIDPOINT];
 
     Ok((Felt::from_bytes_be_slice(low), Felt::from_bytes_be_slice(high)))
+}
+
+/// Performs bit-reversal permutation on the given vector, in-place.
+/// Inlined from ark_poly.
+// TODO(Dori): once the ark crates have a stable release with
+//   [this change](https://github.com/arkworks-rs/algebra/pull/960) included, remove this function
+//   and use `bitreverse_permutation_in_place`.
+pub(crate) fn bit_reversal(unreversed_blob: &mut [BigUint]) -> Result<(), FftError> {
+    if unreversed_blob.len() != FIELD_ELEMENTS_PER_BLOB {
+        return Err(FftError::InvalidBlobSize(unreversed_blob.len()));
+    }
+
+    /// Reverses the bits of `n`, where `n` is represented by `LOG2_FIELD_ELEMENTS_PER_BLOB` bits.
+    fn bitreverse(mut n: usize) -> usize {
+        let mut r = 0;
+        for _ in 0..LOG2_FIELD_ELEMENTS_PER_BLOB {
+            // Mirror the bits: shift `n` right, shift `r` left.
+            r = (r << 1) | (n & 1);
+            n >>= 1;
+        }
+        r
+    }
+
+    // Applies the bit-reversal permutation on all elements. Swaps only when `i < reversed_i` to
+    // avoid swapping the same element twice.
+    for i in 0..FIELD_ELEMENTS_PER_BLOB {
+        let reversed_i = bitreverse(i);
+        if i < reversed_i {
+            unreversed_blob.swap(i, reversed_i);
+        }
+    }
+
+    Ok(())
 }
 
 pub(crate) fn polynomial_coefficients_to_blob(
