@@ -2,8 +2,10 @@ use std::collections::HashSet;
 
 use cairo_vm::serde::deserialize_program::Member;
 use cairo_vm::types::builtin_name::BuiltinName;
+use cairo_vm::types::errors::math_errors::MathError;
 use cairo_vm::types::errors::program_errors::ProgramError;
 use cairo_vm::vm::errors::cairo_run_errors::CairoRunError;
+use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 
 use crate::test_utils::cairo_runner::{EndpointArg, ImplicitArg};
@@ -31,6 +33,8 @@ pub enum Cairo0EntryPointRunnerError {
         cairo_runner_builtins: Vec<BuiltinName>,
         actual_builtins: HashSet<BuiltinName>,
     },
+    #[error(transparent)]
+    LoadReturnValue(#[from] LoadReturnValueError),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -61,4 +65,12 @@ pub enum ImplicitArgError {
     WrongNumberOfArgs { expected: Vec<(String, Member)>, actual: Vec<ImplicitArg> },
     #[error("Incorrect order of builtins. Expected: {correct_order:?}, actual: {actual_order:?}")]
     WrongBuiltinOrder { correct_order: Vec<BuiltinName>, actual_order: Vec<BuiltinName> },
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum LoadReturnValueError {
+    #[error(transparent)]
+    Math(#[from] MathError),
+    #[error(transparent)]
+    MemoryError(#[from] MemoryError),
 }

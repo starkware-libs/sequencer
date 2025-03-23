@@ -1,7 +1,5 @@
 use std::collections::HashSet;
 
-use blockifier::execution::call_info::Retdata;
-use blockifier::retdata;
 // TODO(Amos): When available in the VM crate, use an existing set, instead of using each hint
 //   const explicitly.
 use cairo_vm::hint_processor::builtin_hint_processor::hint_code::{
@@ -283,14 +281,16 @@ fn test_cairo_function(
     function_name: &str,
     explicit_args: &[EndpointArg],
     implicit_args: &[ImplicitArg],
-    expected_retdata: &Retdata,
+    expected_explicit_retdata: &[EndpointArg],
+    expected_implicit_retdata: &[ImplicitArg],
 ) -> OsPythonTestResult {
     run_cairo_function_and_check_result(
         program_str,
         function_name,
         explicit_args,
         implicit_args,
-        expected_retdata,
+        expected_explicit_retdata,
+        expected_implicit_retdata,
     )
     .map_err(|error| {
         PythonTestError::SpecificError(OsSpecificTestError::Cairo0EntryPointRunner(error))
@@ -307,7 +307,8 @@ fn run_dummy_cairo_function(input: &str) -> OsPythonTestResult {
         "dummy_function",
         &[param_1.into(), param_2.into()],
         &[],
-        &retdata![(789 + param_1).into(), param_1.into(), param_2.into()],
+        &[(789 + param_1).into(), param_1.into(), param_2.into()],
+        &[],
     )
 }
 
@@ -332,7 +333,8 @@ fn test_constants(input: &str) -> OsPythonTestResult {
             alias_contract_address.into(),
         ],
         &[],
-        &retdata![],
+        &[],
+        &[],
     )
 }
 
