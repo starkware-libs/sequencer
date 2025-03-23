@@ -512,7 +512,7 @@ impl ConsensusContext for SequencerConsensusContext {
                 price_in_wei: GasPrice(1),
             },
             l2_gas_consumed: l2_gas_used.0,
-            next_l2_gas_price,
+            next_l2_gas_price: GasPrice(next_l2_gas_price.into()),
             sequencer,
             ..Default::default()
         };
@@ -563,10 +563,13 @@ impl ConsensusContext for SequencerConsensusContext {
             Ok(Some(block)) => block,
         };
         // May be default for blocks older than 0.14.0, ensure min gas price is met.
+        // TODO(Ayelet): Change min_gas_price to GasPrice.
         self.l2_gas_price = max(
-            sync_block.block_header_without_hash.next_l2_gas_price,
-            VersionedConstants::latest_constants().min_gas_price,
-        );
+            sync_block.block_header_without_hash.next_l2_gas_price.0,
+            VersionedConstants::latest_constants().min_gas_price.into(),
+        )
+        .try_into()
+        .unwrap();
         // TODO(Asmaa): validate starknet_version and parent_hash when they are stored.
         let block_number = sync_block.block_header_without_hash.block_number;
         let timestamp = sync_block.block_header_without_hash.timestamp;
