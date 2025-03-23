@@ -5,7 +5,7 @@ use libp2p::kad::store::MemoryStore;
 use libp2p::swarm::behaviour::toggle::Toggle;
 use libp2p::swarm::dial_opts::DialOpts;
 use libp2p::swarm::NetworkBehaviour;
-use libp2p::{gossipsub, identify, kad, Multiaddr, PeerId, StreamProtocol};
+use libp2p::{floodsub, gossipsub, identify, kad, Multiaddr, PeerId, StreamProtocol};
 use starknet_api::core::ChainId;
 
 use crate::discovery::identify_impl::{IdentifyToOtherBehaviourEvent, IDENTIFY_PROTOCOL_VERSION};
@@ -26,7 +26,7 @@ pub struct MixedBehaviour {
     // TODO(shahak): Consider using a different store.
     pub kademlia: kad::Behaviour<MemoryStore>,
     pub sqmr: sqmr::Behaviour,
-    pub gossipsub: gossipsub::Behaviour,
+    pub gossipsub: floodsub::Floodsub,
 }
 
 #[derive(Debug)]
@@ -104,18 +104,19 @@ impl MixedBehaviour {
                 kademlia_config,
             ),
             sqmr: sqmr::Behaviour::new(streamed_bytes_config),
-            gossipsub: gossipsub::Behaviour::new(
-                gossipsub::MessageAuthenticity::Signed(keypair),
-                gossipsub::ConfigBuilder::default()
-                    .max_transmit_size(ONE_MEGA)
-                    .build()
-                    .expect("Failed to build gossipsub config"),
-            )
-            .unwrap_or_else(|err_string| {
-                panic!(
-                    "Failed creating gossipsub behaviour due to the following error: {err_string}"
-                )
-            }),
+            // gossipsub: gossipsub::Behaviour::new(
+            //     gossipsub::MessageAuthenticity::Signed(keypair),
+            //     gossipsub::ConfigBuilder::default()
+            //         .max_transmit_size(ONE_MEGA)
+            //         .build()
+            //         .expect("Failed to build gossipsub config"),
+            // )
+            // .unwrap_or_else(|err_string| {
+            //     panic!(
+            //         "Failed creating gossipsub behaviour due to the following error:
+            // {err_string}"     )
+            // }),
+            gossipsub: floodsub::Floodsub::new(local_peer_id),
         }
     }
 }

@@ -41,3 +41,4 @@ scripts/papyrus/p2p_sync_e2e_test/data_server/
 # Papyrus helm chart
 deployments/papyrus/helm/config/*
 !deployments/papyrus/helm/config/example.json
+.qodo

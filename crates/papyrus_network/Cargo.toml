@@ -17,6 +17,7 @@ futures.workspace = true
 lazy_static.workspace = true
 libp2p = { workspace = true, features = [
   "dns",
+  "floodsub",
   "gossipsub",
   "identify",
   "kad",

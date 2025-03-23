@@ -17,6 +17,7 @@ use futures::future::{ready, BoxFuture, Ready};
 use futures::sink::With;
 use futures::stream::{FuturesUnordered, Map, Stream};
 use futures::{pin_mut, FutureExt, Sink, SinkExt, StreamExt};
+use libp2p::floodsub::Topic;
 use libp2p::gossipsub::{SubscriptionError, TopicHash};
 use libp2p::identity::Keypair;
 use libp2p::swarm::SwarmEvent;
@@ -27,7 +28,6 @@ use sqmr::Bytes;
 use tracing::{debug, error, trace, warn};
 
 use self::swarm_trait::SwarmTrait;
-use crate::gossipsub_impl::Topic;
 use crate::mixed_behaviour::{self, BridgedBehaviour};
 use crate::sqmr::behaviour::SessionError;
 use crate::sqmr::{self, InboundSessionId, OutboundSessionId, SessionId};
@@ -213,7 +213,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     {
         self.swarm.subscribe_to_topic(&topic)?;
 
-        let topic_hash = topic.hash();
+        let topic_hash = TopicHash::from_raw(topic.clone());
 
         let (messages_to_broadcast_sender, messages_to_broadcast_receiver) =
             futures::channel::mpsc::channel(buffer_size);
@@ -224,14 +224,14 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             .messages_to_broadcast_receivers
             .insert(topic_hash.clone(), messages_to_broadcast_receiver);
         if insert_result.is_some() {
-            panic!("Topic '{}' has already been registered.", topic);
+            panic!("Topic '{}' has already been registered.", topic.id());
         }
 
         let insert_result = self
             .broadcasted_messages_senders
             .insert(topic_hash.clone(), broadcasted_messages_sender.clone());
         if insert_result.is_some() {
-            panic!("Topic '{}' has already been registered.", topic);
+            panic!("Topic '{}' has already been registered.", topic.id());
         }
 
         let broadcasted_messages_fn: BroadcastReceivedMessagesConverterFn<T> =
