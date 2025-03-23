@@ -5,6 +5,8 @@ use assert_matches::assert_matches;
 use itertools::Itertools;
 use pretty_assertions::assert_eq;
 use starknet_api::block::BlockNumber;
+use starknet_api::test_utils::l1_handler::{executable_l1_handler_tx, L1HandlerTxArgs};
+use starknet_api::transaction::TransactionHash;
 use starknet_api::tx_hash;
 use starknet_l1_provider_types::errors::L1ProviderError;
 use starknet_l1_provider_types::SessionState::{
@@ -37,8 +39,11 @@ macro_rules! bootstrapper {
     }};
 }
 
-fn l1_handler_event(tx_hash: usize) -> Event {
-    Event::L1HandlerTransaction(l1_handler(tx_hash))
+fn l1_handler_event(tx_hash: TransactionHash) -> Event {
+    Event::L1HandlerTransaction(executable_l1_handler_tx(L1HandlerTxArgs {
+        tx_hash,
+        ..Default::default()
+    }))
 }
 
 #[test]
@@ -97,8 +102,10 @@ fn process_events_happy_flow() {
             .build_into_l1_provider();
 
         // Test.
-        l1_provider.process_l1_events(vec![l1_handler_event(4), l1_handler_event(3)]).unwrap();
-        l1_provider.process_l1_events(vec![l1_handler_event(6)]).unwrap();
+        l1_provider
+            .process_l1_events(vec![l1_handler_event(tx_hash!(4)), l1_handler_event(tx_hash!(3))])
+            .unwrap();
+        l1_provider.process_l1_events(vec![l1_handler_event(tx_hash!(6))]).unwrap();
 
         let expected_l1_provider = L1ProviderContentBuilder::new()
             .with_txs([
@@ -129,11 +136,11 @@ fn process_events_committed_txs() {
 
     // Test.
     // Unconsumed transaction, should fail silently.
-    l1_provider.process_l1_events(vec![l1_handler_event(1)]).unwrap();
+    l1_provider.process_l1_events(vec![l1_handler_event(tx_hash!(1))]).unwrap();
     assert_eq!(l1_provider, expected_l1_provider);
 
     // Committed transaction, should fail silently.
-    l1_provider.process_l1_events(vec![l1_handler_event(2)]).unwrap();
+    l1_provider.process_l1_events(vec![l1_handler_event(tx_hash!(2))]).unwrap();
     assert_eq!(l1_provider, expected_l1_provider);
 }
 
@@ -283,5 +290,23 @@ fn commit_block_backlog() {
         .with_height(BlockNumber(12))
         .with_state(ProviderState::Pending)
         .build();
+    expected_l1_provider.assert_eq(&l1_provider);
+}
+
+#[test]
+fn tx_in_commit_block_before_processed_is_skipped() {
+    // Setup
+    let mut l1_provider =
+        L1ProviderContentBuilder::new().with_committed([tx_hash!(1)]).build_into_l1_provider();
+
+    // Transactions unknown yet.
+    l1_provider.commit_block(&[tx_hash!(2), tx_hash!(3)], BlockNumber(0)).unwrap();
+    let expected_l1_provider = L1ProviderContentBuilder::new()
+        .with_committed([tx_hash!(1), tx_hash!(2), tx_hash!(3)])
+        .build();
+    expected_l1_provider.assert_eq(&l1_provider);
+
+    // Parsing the tx after getting it from commit-block is a NOP.
+    l1_provider.process_l1_events(vec![l1_handler_event(tx_hash!(2))]).unwrap();
     expected_l1_provider.assert_eq(&l1_provider);
 }
