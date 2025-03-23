@@ -16,6 +16,7 @@ async-trait.workspace = true
 futures.workspace = true
 papyrus_config.workspace = true
 papyrus_network.workspace = true
+papyrus_network_types.workspace = true
 papyrus_protobuf.workspace = true
 serde.workspace = true
 starknet_api.workspace = true
