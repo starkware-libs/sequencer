@@ -208,6 +208,10 @@ impl AddTransactionQueue {
     fn len(&self) -> usize {
         self.elements.len()
     }
+
+    fn size_bytes(&self) -> u64 {
+        self.size_bytes
+    }
 }
 
 pub struct Mempool {
@@ -319,6 +323,10 @@ impl Mempool {
         // First remove old transactions from the pool.
         self.remove_expired_txs();
         self.add_ready_declares();
+
+        if self.exceeds_capacity(&args.tx) {
+            return Err(MempoolError::MempoolFull);
+        }
 
         let tx_reference = TransactionReference::new(&args.tx);
         self.validate_incoming_tx(tx_reference, args.account_state.nonce)?;
@@ -602,6 +610,12 @@ impl Mempool {
 
     pub fn get_mempool_snapshot(&self) -> MempoolResult<MempoolSnapshot> {
         Ok(MempoolSnapshot { transactions: self.tx_pool.get_chronological_txs_hashes() })
+    }
+
+    // Returns true if the mempool will exceeds its capacity by adding the given transaction.
+    fn exceeds_capacity(&self, tx: &InternalRpcTransaction) -> bool {
+        self.tx_pool.size_bytes() + self.delayed_declares.size_bytes() + tx.size_of()
+            > self.config.max_capacity_bytes
     }
 
     #[cfg(test)]
