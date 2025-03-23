@@ -13,6 +13,8 @@ use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_sequencer_infra::component_client::ClientError;
 use starknet_sequencer_infra::component_definitions::ComponentClient;
+use starknet_sequencer_infra::impl_debug_for_infra_requests_and_responses;
+use strum_macros::AsRefStr;
 use tracing::instrument;
 
 use crate::errors::{L1ProviderClientError, L1ProviderError};
@@ -34,7 +36,7 @@ pub enum InvalidValidationStatus {
     ConsumedOnL1OrUnknown,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum L1ProviderRequest {
     AddEvents(Vec<Event>),
     CommitBlock { l1_handler_tx_hashes: Vec<TransactionHash>, height: BlockNumber },
@@ -43,8 +45,9 @@ pub enum L1ProviderRequest {
     StartBlock { state: SessionState, height: BlockNumber },
     Validate { tx_hash: TransactionHash, height: BlockNumber },
 }
+impl_debug_for_infra_requests_and_responses!(L1ProviderRequest);
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum L1ProviderResponse {
     AddEvents(L1ProviderResult<()>),
     CommitBlock(L1ProviderResult<()>),
@@ -53,6 +56,7 @@ pub enum L1ProviderResponse {
     StartBlock(L1ProviderResult<()>),
     Validate(L1ProviderResult<ValidationStatus>),
 }
+impl_debug_for_infra_requests_and_responses!(L1ProviderResponse);
 
 /// Serves as the provider's shared interface. Requires `Send + Sync` to allow transferring and
 /// sharing resources (inputs, futures) across threads.

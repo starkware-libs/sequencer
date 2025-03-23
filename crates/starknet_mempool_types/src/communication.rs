@@ -18,6 +18,8 @@ use starknet_sequencer_infra::component_definitions::{
     ComponentClient,
     ComponentRequestAndResponseSender,
 };
+use starknet_sequencer_infra::impl_debug_for_infra_requests_and_responses;
+use strum_macros::AsRefStr;
 use thiserror::Error;
 
 use crate::errors::MempoolError;
@@ -55,7 +57,7 @@ pub trait MempoolClient: Send + Sync {
     async fn get_mempool_snapshot(&self) -> MempoolClientResult<MempoolSnapshot>;
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum MempoolRequest {
     AddTransaction(AddTransactionArgsWrapper),
     CommitBlock(CommitBlockArgs),
@@ -64,8 +66,9 @@ pub enum MempoolRequest {
     UpdateGasPrice(NonzeroGasPrice),
     GetMempoolSnapshot(),
 }
+impl_debug_for_infra_requests_and_responses!(MempoolRequest);
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum MempoolResponse {
     AddTransaction(MempoolResult<()>),
     CommitBlock(MempoolResult<()>),
@@ -74,6 +77,7 @@ pub enum MempoolResponse {
     UpdateGasPrice(MempoolResult<()>),
     GetMempoolSnapshot(MempoolResult<MempoolSnapshot>),
 }
+impl_debug_for_infra_requests_and_responses!(MempoolResponse);
 
 #[derive(Clone, Debug, Error)]
 pub enum MempoolClientError {

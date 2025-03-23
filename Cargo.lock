@@ -10913,6 +10913,7 @@ dependencies = [
  "starknet_api",
  "starknet_sequencer_infra",
  "starknet_state_sync_types",
+ "strum_macros 0.25.3",
  "thiserror 1.0.69",
 ]
 
@@ -10952,6 +10953,7 @@ dependencies = [
  "starknet_api",
  "starknet_sequencer_infra",
  "starknet_sierra_multicompile_types",
+ "strum_macros 0.25.3",
  "thiserror 1.0.69",
 ]
 
@@ -11209,6 +11211,7 @@ dependencies = [
  "serde_json",
  "starknet_api",
  "starknet_sequencer_infra",
+ "strum_macros 0.25.3",
  "thiserror 1.0.69",
  "tracing",
 ]
@@ -11346,6 +11349,7 @@ dependencies = [
  "serde_json",
  "starknet_api",
  "starknet_sequencer_infra",
+ "strum_macros 0.25.3",
  "thiserror 1.0.69",
  "tracing",
 ]
@@ -11387,6 +11391,7 @@ dependencies = [
  "serde",
  "starknet_api",
  "starknet_sequencer_infra",
+ "strum_macros 0.25.3",
  "thiserror 1.0.69",
  "tracing",
 ]
@@ -11460,6 +11465,7 @@ dependencies = [
  "serde",
  "starknet_api",
  "starknet_sequencer_infra",
+ "strum_macros 0.25.3",
  "thiserror 1.0.69",
 ]
 
@@ -11474,6 +11480,7 @@ dependencies = [
  "serde",
  "starknet_api",
  "starknet_sequencer_infra",
+ "strum_macros 0.25.3",
  "thiserror 1.0.69",
 ]
 
@@ -11762,6 +11769,7 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "starknet_sequencer_infra",
+ "strum_macros 0.25.3",
  "thiserror 1.0.69",
 ]
 
