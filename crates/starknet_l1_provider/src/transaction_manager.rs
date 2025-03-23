@@ -44,7 +44,11 @@ impl TransactionManager {
     }
 
     pub fn commit_txs(&mut self, committed_txs: &[TransactionHash]) {
+        // Committed L1 transactions are dropped here, do we need to them for anything?
         self.txs.commit(committed_txs);
+        // Add all committed tx hashes to the committed buffer, regardless of if they're known or
+        // not, in case we haven't scraped them yet and another node did.
+        self.committed.extend(committed_txs)
     }
 
     /// Adds a transaction to the transaction manager, return false iff the transaction already

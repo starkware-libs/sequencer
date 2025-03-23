@@ -285,3 +285,21 @@ fn commit_block_backlog() {
         .build();
     expected_l1_provider.assert_eq(&l1_provider);
 }
+
+#[test]
+fn tx_in_commit_block_before_processed_is_skipped() {
+    // Setup
+    let mut l1_provider =
+        L1ProviderContentBuilder::new().with_committed([tx_hash!(1)]).build_into_l1_provider();
+
+    // Commit with txs not known yet.
+    l1_provider.commit_block(&[tx_hash!(2), tx_hash!(3)], BlockNumber(0)).unwrap();
+    let expected_l1_provider = L1ProviderContentBuilder::new()
+        .with_committed([tx_hash!(1), tx_hash!(2), tx_hash!(3)])
+        .build();
+    expected_l1_provider.assert_eq(&l1_provider);
+
+    // Parsing the tx after getting it from commit-block is a NOP.
+    l1_provider.process_l1_events(vec![l1_handler_event(2)]).unwrap();
+    expected_l1_provider.assert_eq(&l1_provider);
+}

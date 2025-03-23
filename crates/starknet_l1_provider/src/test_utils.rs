@@ -128,12 +128,16 @@ impl TransactionManagerContent {
                 &tx_manager.txs.txs.values().map(|tx| tx.transaction.clone()).collect_vec()
             );
         }
+
+        if let Some(committed) = &self.committed {
+            assert_eq!(committed, &tx_manager.committed);
+        }
     }
 }
 
 impl From<TransactionManagerContent> for TransactionManager {
     fn from(mut content: TransactionManagerContent) -> TransactionManager {
-        let txs: Vec<_> = mem::take(&mut content.txs).unwrap();
+        let txs: Vec<_> = mem::take(&mut content.txs).unwrap_or_default();
         TransactionManager {
             txs: SoftDeleteIndexMap::from(txs),
             committed: content.committed.unwrap_or_default(),
