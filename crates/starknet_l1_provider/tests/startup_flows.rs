@@ -174,10 +174,18 @@ async fn bootstrap_delayed_sync_state_with_trivial_catch_up() {
     // is a trivial catchup scenario (nothing to catch up).
     // This checks that the trivial catch_up_height doesn't mess up this flow.
     let no_txs_committed = []; // Not testing txs in this test.
-    l1_provider.commit_block(&no_txs_committed, startup_height).unwrap();
-    tokio::time::sleep(config.startup_sync_sleep_retry_interval).await;
-    l1_provider.commit_block(&no_txs_committed, startup_height.unchecked_next()).unwrap();
-    tokio::time::sleep(config.startup_sync_sleep_retry_interval).await;
+    l1_provider_client.commit_block(no_txs_committed.to_vec(), startup_height).await.unwrap();
+    l1_provider_client
+        .commit_block(no_txs_committed.to_vec(), startup_height.unchecked_next())
+        .await
+        .unwrap();
+
+    let commit_blocks =
+        l1_provider_client.commit_blocks_received.lock().unwrap().drain(..).collect_vec();
+    for commit_block in commit_blocks {
+        l1_provider.commit_block(&commit_block.committed_txs, commit_block.height).unwrap();
+    }
+
     // Commit blocks should have been applied.
     let start_height_plus_2 = startup_height.unchecked_next().unchecked_next();
     assert_eq!(l1_provider.current_height, start_height_plus_2);
@@ -196,9 +204,7 @@ async fn bootstrap_delayed_sync_state_with_trivial_catch_up() {
     // state.
     l1_provider.commit_block(&no_txs_committed, start_height_plus_2).unwrap();
     assert_eq!(l1_provider.current_height, start_height_plus_2.unchecked_next());
-    // Should still be bootstrapping, since catchup height isn't determined yet.
-    // Technically we could end bootstrapping at this point, but its simpler to let it
-    // terminate gracefully once the the sync is ready.
+    // The new commit block triggered the catch-up check, which ended the bootstrapping phase.
     assert!(!l1_provider.state.is_bootstrapping());
 }
 
