@@ -39,6 +39,7 @@ use starknet_api::block::{
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, SequencerContractAddress};
 use starknet_api::data_availability::L1DataAvailabilityMode;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher_types::batcher_types::{
     DecisionReachedInput,
@@ -515,7 +516,7 @@ impl ConsensusContext for SequencerConsensusContext {
                 price_in_fri: GasPrice(self.l2_gas_price.into()),
                 price_in_wei: GasPrice(1),
             },
-            l2_gas_consumed: l2_gas_used.0,
+            l2_gas_consumed: GasAmount(l2_gas_used.0),
             next_l2_gas_price: GasPrice(next_l2_gas_price.into()),
             sequencer,
             ..Default::default()

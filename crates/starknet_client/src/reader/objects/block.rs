@@ -24,6 +24,7 @@ use starknet_api::core::{
     TransactionCommitment,
 };
 use starknet_api::data_availability::L1DataAvailabilityMode;
+use starknet_api::execution_resources::GasAmount;
 #[cfg(doc)]
 use starknet_api::transaction::TransactionOutput as starknet_api_transaction_output;
 use starknet_api::transaction::{TransactionHash, TransactionOffsetInBlock};
@@ -80,9 +81,9 @@ pub struct BlockPostV0_13_1 {
     pub state_diff_length: Option<usize>,
     // New field in V0.14.0
     // TODO(Ayelet): Remove default Serde after 0.14.0, as the feeder gateway returns defaults when
-    // values are missing for older blocks. Change to GasAmount.
+    // values are missing for older blocks.
     #[serde(default)]
-    pub l2_gas_consumed: u64,
+    pub l2_gas_consumed: GasAmount,
     // New field in V0.14.0
     // TODO(Ayelet): Remove default Serde after 0.14.0, as the feeder gateway returns defaults when
     // values are missing for older blocks.
@@ -281,7 +282,7 @@ impl Block {
         }
     }
 
-    pub fn l2_gas_consumed(&self) -> u64 {
+    pub fn l2_gas_consumed(&self) -> GasAmount {
         match self {
             Block::PostV0_13_1(block) => block.l2_gas_consumed,
         }
