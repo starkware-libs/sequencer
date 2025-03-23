@@ -799,7 +799,6 @@ pub struct OsConstants {
     pub v1_bound_accounts_cairo0: Vec<ClassHash>,
     pub v1_bound_accounts_cairo1: Vec<ClassHash>,
     pub v1_bound_accounts_max_tip: Tip,
-    // `l1_handler_max_amount_bounds.l1_data_gas` is not enforced (default 0).
     pub l1_handler_max_amount_bounds: GasVector,
 }
 
