@@ -5,7 +5,7 @@ use std::time::Duration;
 use itertools::Itertools;
 use mempool_test_utils::in_ci;
 use starknet_api::block::BlockNumber;
-use starknet_l1_provider::l1_provider::create_l1_provider;
+use starknet_l1_provider::l1_provider::{create_l1_provider, L1Provider};
 use starknet_l1_provider::test_utils::FakeL1ProviderClient;
 use starknet_l1_provider::L1ProviderConfig;
 use starknet_l1_provider_types::L1ProviderClient;
@@ -180,11 +180,7 @@ async fn bootstrap_delayed_sync_state_with_trivial_catch_up() {
         .await
         .unwrap();
 
-    let commit_blocks =
-        l1_provider_client.commit_blocks_received.lock().unwrap().drain(..).collect_vec();
-    for commit_block in commit_blocks {
-        l1_provider.commit_block(&commit_block.committed_txs, commit_block.height).unwrap();
-    }
+    flush_l1_provider_client(&mut l1_provider, l1_provider_client.clone()).await;
 
     // Commit blocks should have been applied.
     let start_height_plus_2 = startup_height.unchecked_next().unchecked_next();
@@ -208,10 +204,103 @@ async fn bootstrap_delayed_sync_state_with_trivial_catch_up() {
     assert!(!l1_provider.state.is_bootstrapping());
 }
 
+#[tokio::test]
+async fn bootstrap_delayed_sync_state_with_catch_up() {
+    if !in_ci() {
+        return;
+    }
+    configure_tracing().await;
+
+    // Setup.
+
+    let l1_provider_client = Arc::new(FakeL1ProviderClient::default());
+    let startup_height = BlockNumber(1);
+    let sync_height = BlockNumber(3);
+
+    let mut sync_client = MockStateSyncClient::default();
+    // Mock sync response for an arbitrary number of calls to get_latest_block_number.
+    // Later in the test we modify it to become something else.
+    let sync_height_response = Arc::new(Mutex::new(None));
+    let sync_response_clone = sync_height_response.clone();
+    sync_client
+        .expect_get_latest_block_number()
+        .returning(move || Ok(*sync_response_clone.lock().unwrap()));
+    sync_client.expect_get_block().returning(|_| Ok(Some(SyncBlock::default())));
+
+    let config = L1ProviderConfig {
+        startup_sync_sleep_retry_interval: Duration::from_millis(10),
+        ..Default::default()
+    };
+    let mut l1_provider = create_l1_provider(
+        config,
+        l1_provider_client.clone(),
+        Arc::new(sync_client),
+        startup_height,
+    );
+
+    // Test.
+
+    // Start the sync sequence, should busy-wait until the sync height is sent.
+    let scraped_l1_handler_txs = []; // No txs to scrape in this test.
+    l1_provider.initialize(scraped_l1_handler_txs.into()).await.unwrap();
+
+    // **Commit** a few blocks. These should get backlogged since they are post-sync-height.
+    // Sleeps are sprinkled in to give the async task a couple shots at attempting to get the sync
+    // height (see DEBUG log).
+    let no_txs_committed = []; // Not testing txs in this test.
+    l1_provider_client
+        .commit_block(no_txs_committed.to_vec(), sync_height.unchecked_next())
+        .await
+        .unwrap();
+    tokio::time::sleep(config.startup_sync_sleep_retry_interval).await;
+    l1_provider_client
+        .commit_block(no_txs_committed.to_vec(), sync_height.unchecked_next().unchecked_next())
+        .await
+        .unwrap();
+    flush_l1_provider_client(&mut l1_provider, l1_provider_client.clone()).await;
+    tokio::time::sleep(config.startup_sync_sleep_retry_interval).await;
+
+    // Assert commit blocks are backlogged (didn't affect start height).
+    assert_eq!(l1_provider.current_height, startup_height);
+    // Should still be bootstrapping, since catchup height isn't determined yet.
+    assert!(l1_provider.state.is_bootstrapping());
+
+    // Simulate the state sync service finally being ready, and give the async task enough time to
+    // pick this up and sync up the provider.
+    *sync_height_response.lock().unwrap() = Some(sync_height);
+    tokio::time::sleep(config.startup_sync_sleep_retry_interval).await;
+    flush_l1_provider_client(&mut l1_provider, l1_provider_client.clone()).await;
+
+    // Two things happened here: the async task sent 2 commit blocks it got from the sync_client,
+    // which bumped the provider height to sync_height+1, then the backlog was applied which bumped
+    // it twice again.
+    assert_eq!(
+        l1_provider.current_height,
+        sync_height.unchecked_next().unchecked_next().unchecked_next()
+    );
+    // Sync height was reached, bootstrapping was completed.
+    assert!(!l1_provider.state.is_bootstrapping());
+}
+
 #[test]
 #[ignore = "similar to backlog_happy_flow, only shorter, and sprinkle some start_block/get_txs \
             attempts while its bootstrapping (and assert failure on height), then assert that they \
             succeed after bootstrapping ends."]
 fn bootstrap_completion() {
     todo!()
+}
+
+// Test-util boilerplate: apply the changes from the fake l1 provider client.
+// Once infra supports creating up fake clients on the fly this won't be necessary anymore.
+// Consider making this a method of the fake client that takes an L1Provider otherwise, would
+// require supporting all types though.
+async fn flush_l1_provider_client(
+    l1_provider: &mut L1Provider,
+    l1_provider_client: Arc<FakeL1ProviderClient>,
+) {
+    let commit_blocks =
+        l1_provider_client.commit_blocks_received.lock().unwrap().drain(..).collect_vec();
+    for commit_block in commit_blocks {
+        l1_provider.commit_block(&commit_block.committed_txs, commit_block.height).unwrap();
+    }
 }
