@@ -37,6 +37,7 @@ use crate::monitoring_utils::{
     await_block,
     await_sync_block,
     await_txs_accepted,
+    sequencer_num_accepted_txs,
     verify_txs_accepted,
 };
 use crate::node_component_configs::{
@@ -626,6 +627,18 @@ impl IntegrationTestManager {
             .chain_info
             .chain_id
             .clone()
+    }
+
+    // TODO(noamsp): Remove this once the function is used.
+    #[allow(dead_code)]
+    async fn get_num_accepted_txs_on_all_running_nodes(&self) -> HashMap<usize, usize> {
+        let mut result = HashMap::new();
+        for (idx, running_node) in self.running_nodes.iter() {
+            let monitoring_client = running_node.node_setup.state_sync_monitoring_client();
+            let n_processed = sequencer_num_accepted_txs(monitoring_client).await;
+            result.insert(*idx, n_processed);
+        }
+        result
     }
 }
 
