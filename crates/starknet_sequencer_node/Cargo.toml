@@ -22,7 +22,6 @@ papyrus_config.workspace = true
 rstest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-starknet_api.workspace = true
 starknet_batcher.workspace = true
 starknet_batcher_types.workspace = true
 starknet_class_manager.workspace = true
@@ -49,9 +48,6 @@ tikv-jemallocator.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 validator.workspace = true
-strum_macros.workspace = true
-strum.workspace = true
-indexmap.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
