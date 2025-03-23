@@ -18,6 +18,8 @@ define_metrics!(
         MetricCounter { CONSENSUS_BUILD_PROPOSAL_TOTAL, "consensus_build_proposal_total", "The total number of proposals built", init=0},
         MetricCounter { CONSENSUS_BUILD_PROPOSAL_FAILED, "consensus_build_proposal_failed", "The number of proposals that failed to be built", init=0},
         MetricCounter { CONSENSUS_REPROPOSALS, "consensus_reproposals", "The number of reproposals sent", init=0},
+        MetricCounter { CONSENSUS_NEW_LOCKS, "consensus_new_locks", "The number of times consensus has attained a lock", init=0},
+        MetricCounter { CONSENSUS_HELD_LOCKS, "consensus_held_locks", "The number of times consensus progressed to a new round while holding a lock", init=0},
         LabeledMetricCounter { CONSENSUS_TIMEOUTS, "consensus_timeouts", "The number of timeouts for the current block number", init=0, labels = CONSENSUS_TIMEOUT_LABELS },
     },
 );
@@ -50,5 +52,7 @@ pub(crate) fn register_metrics() {
     CONSENSUS_PROPOSALS_INVALID.register();
     CONSENSUS_BUILD_PROPOSAL_TOTAL.register();
     CONSENSUS_BUILD_PROPOSAL_FAILED.register();
+    CONSENSUS_NEW_LOCKS.register();
+    CONSENSUS_HELD_LOCKS.register();
     CONSENSUS_REPROPOSALS.register();
 }

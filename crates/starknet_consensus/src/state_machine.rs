@@ -11,7 +11,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use tracing::{info, trace};
 
-use crate::metrics::CONSENSUS_ROUND;
+use crate::metrics::{CONSENSUS_HELD_LOCKS, CONSENSUS_NEW_LOCKS, CONSENSUS_ROUND};
 use crate::types::{ProposalCommitment, Round, ValidatorId};
 
 /// Events which the state machine sends/receives.
@@ -336,6 +336,9 @@ impl StateMachine {
         LeaderFn: Fn(Round) -> ValidatorId,
     {
         CONSENSUS_ROUND.set(round);
+        if self.locked_value_round.is_some() {
+            CONSENSUS_HELD_LOCKS.increment(1);
+        }
         self.round = round;
         self.step = Step::Propose;
         let mut output = if !self.is_observer && self.id == leader_fn(self.round) {
@@ -489,6 +492,7 @@ impl StateMachine {
             return VecDeque::new();
         }
         self.locked_value_round = Some((*proposal_id, self.round));
+        CONSENSUS_NEW_LOCKS.increment(1);
         let mut output =
             VecDeque::from([StateMachineEvent::Precommit(Some(*proposal_id), self.round)]);
         output.append(&mut self.advance_to_step(Step::Precommit));
