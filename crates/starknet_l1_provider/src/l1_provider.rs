@@ -1,4 +1,5 @@
 use std::cmp::Ordering::{Equal, Greater, Less};
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use starknet_api::block::BlockNumber;
@@ -14,7 +15,7 @@ use starknet_l1_provider_types::{
 };
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_state_sync_types::communication::SharedStateSyncClient;
-use tracing::{instrument, trace, warn};
+use tracing::{error, instrument, trace, warn};
 
 use crate::bootstrapper::Bootstrapper;
 use crate::transaction_manager::TransactionManager;
@@ -124,10 +125,30 @@ impl L1Provider {
         let current_height = self.current_height;
         match new_height.cmp(&current_height) {
             // This is likely a bug in the batcher/sync, it should never be _behind_ the provider.
-            Less => Err(L1ProviderError::UnexpectedHeight {
-                expected_height: current_height,
-                got: new_height,
-            })?,
+            Less => {
+                if self.tx_manager.committed_includes(committed_txs) {
+                    error!(
+                        "Duplicate commit block: commit block for {new_height:?} already \
+                         received, and all committed transaction hashes already known to be \
+                         committed."
+                    );
+                    return Ok(());
+                } else {
+                    // This is either a configuration error or a bug in the
+                    // batcher/sync/bootstrapper.
+                    let committed_txs_diff: HashSet<_> = committed_txs.iter().copied().collect();
+                    let committed_txs_diff =
+                        committed_txs_diff.difference(&self.tx_manager.committed);
+                    error!(
+                        "Duplicate commit block: commit block for {new_height:?} already \
+                         received, with DIFFERENT transaction_hashes: {committed_txs_diff:?}"
+                    );
+                    Err(L1ProviderError::UnexpectedHeight {
+                        expected_height: current_height,
+                        got: new_height,
+                    })?
+                }
+            }
             Equal => self.apply_commit_block(committed_txs),
             // We're still syncing, backlog it, it'll get applied later.
             Greater => {
