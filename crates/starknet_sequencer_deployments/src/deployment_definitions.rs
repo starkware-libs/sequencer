@@ -1,6 +1,7 @@
 use starknet_api::core::ChainId;
 
-use crate::deployment::{Deployment, DeploymentAndPreset, DeploymentName};
+use crate::deployment::{Deployment, DeploymentAndPreset};
+use crate::service::DeploymentName;
 
 #[cfg(test)]
 #[path = "deployment_definitions_test.rs"]
