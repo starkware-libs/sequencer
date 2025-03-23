@@ -1,5 +1,5 @@
 [package]
-name = "starknet_l1_provider_types"
+name = "starknet_l1_to_l2_message_types"
 version.workspace = true
 edition.workspace = true
 repository.workspace = true

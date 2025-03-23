@@ -8,7 +8,7 @@ use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::test_utils::invoke::{internal_invoke_tx, InvokeTxArgs};
 use starknet_api::tx_hash;
-use starknet_l1_provider_types::{
+use starknet_l1_to_l2_message_types::{
     InvalidValidationStatus,
     MockL1ProviderClient,
     ValidationStatus as L1ValidationStatus,

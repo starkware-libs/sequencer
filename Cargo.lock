@@ -10888,7 +10888,7 @@ dependencies = [
  "starknet_batcher_types",
  "starknet_class_manager_types",
  "starknet_infra_utils",
- "starknet_l1_provider_types",
+ "starknet_l1_to_l2_message_types",
  "starknet_mempool_types",
  "starknet_sequencer_infra",
  "starknet_sequencer_metrics",
@@ -11301,7 +11301,7 @@ dependencies = [
  "starknet_http_server",
  "starknet_infra_utils",
  "starknet_l1_gas_price",
- "starknet_l1_provider",
+ "starknet_l1_to_l2_message",
  "starknet_mempool",
  "starknet_mempool_p2p",
  "starknet_monitoring_endpoint",
@@ -11357,7 +11357,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "starknet_l1_provider"
+name = "starknet_l1_to_l2_message"
 version = "0.0.0"
 dependencies = [
  "alloy",
@@ -11373,7 +11373,7 @@ dependencies = [
  "serde",
  "starknet-types-core",
  "starknet_api",
- "starknet_l1_provider_types",
+ "starknet_l1_to_l2_message_types",
  "starknet_sequencer_infra",
  "starknet_state_sync_types",
  "thiserror 1.0.69",
@@ -11383,7 +11383,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "starknet_l1_provider_types"
+name = "starknet_l1_to_l2_message_types"
 version = "0.0.0"
 dependencies = [
  "async-trait",
@@ -11678,8 +11678,8 @@ dependencies = [
  "starknet_http_server",
  "starknet_infra_utils",
  "starknet_l1_gas_price",
- "starknet_l1_provider",
- "starknet_l1_provider_types",
+ "starknet_l1_to_l2_message",
+ "starknet_l1_to_l2_message_types",
  "starknet_mempool",
  "starknet_mempool_p2p",
  "starknet_mempool_p2p_types",

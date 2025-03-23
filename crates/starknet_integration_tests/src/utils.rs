@@ -51,8 +51,8 @@ use starknet_gateway::config::{
 use starknet_http_server::test_utils::create_http_server_config;
 use starknet_infra_utils::test_utils::AvailablePorts;
 use starknet_l1_gas_price::eth_to_strk_oracle::EthToStrkOracleConfig;
-use starknet_l1_provider::l1_scraper::L1ScraperConfig;
-use starknet_l1_provider::L1ProviderConfig;
+use starknet_l1_to_l2_message::l1_scraper::L1ScraperConfig;
+use starknet_l1_to_l2_message::L1ProviderConfig;
 use starknet_mempool::config::MempoolConfig;
 use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;

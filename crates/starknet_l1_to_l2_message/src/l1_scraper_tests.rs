@@ -18,7 +18,7 @@ use starknet_api::executable_transaction::L1HandlerTransaction as ExecutableL1Ha
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::{L1HandlerTransaction, TransactionHasher, TransactionVersion};
-use starknet_l1_provider_types::Event;
+use starknet_l1_to_l2_message_types::Event;
 
 use crate::event_identifiers_to_track;
 use crate::l1_scraper::{L1Scraper, L1ScraperConfig};

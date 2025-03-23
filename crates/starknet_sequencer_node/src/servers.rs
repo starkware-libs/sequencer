@@ -9,7 +9,7 @@ use starknet_class_manager::communication::{LocalClassManagerServer, RemoteClass
 use starknet_consensus_manager::communication::ConsensusManagerServer;
 use starknet_gateway::communication::{LocalGatewayServer, RemoteGatewayServer};
 use starknet_http_server::communication::HttpServer;
-use starknet_l1_provider::communication::{
+use starknet_l1_to_l2_message::communication::{
     L1ScraperServer,
     LocalL1ProviderServer,
     RemoteL1ProviderServer,

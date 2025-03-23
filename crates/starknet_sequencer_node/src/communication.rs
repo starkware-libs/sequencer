@@ -1,7 +1,7 @@
 use starknet_batcher_types::communication::BatcherRequestAndResponseSender;
 use starknet_class_manager_types::ClassManagerRequestAndResponseSender;
 use starknet_gateway_types::communication::GatewayRequestAndResponseSender;
-use starknet_l1_provider::communication::L1ProviderRequestAndResponseSender;
+use starknet_l1_to_l2_message::communication::L1ProviderRequestAndResponseSender;
 use starknet_mempool_p2p_types::communication::MempoolP2pPropagatorRequestAndResponseSender;
 use starknet_mempool_types::communication::MempoolRequestAndResponseSender;
 use starknet_sequencer_infra::component_definitions::ComponentCommunication;

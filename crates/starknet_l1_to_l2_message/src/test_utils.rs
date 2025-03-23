@@ -13,7 +13,7 @@ use starknet_api::executable_transaction::{
 use starknet_api::hash::StarkHash;
 use starknet_api::test_utils::l1_handler::{executable_l1_handler_tx, L1HandlerTxArgs};
 use starknet_api::transaction::TransactionHash;
-use starknet_l1_provider_types::{
+use starknet_l1_to_l2_message_types::{
     Event,
     L1ProviderClient,
     L1ProviderClientResult,

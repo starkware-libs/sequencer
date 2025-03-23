@@ -25,7 +25,7 @@ serde.workspace = true
 starknet_api.workspace = true
 starknet_batcher_types.workspace = true
 starknet_class_manager_types.workspace = true
-starknet_l1_provider_types.workspace = true
+starknet_l1_to_l2_message_types.workspace = true
 starknet_mempool_types.workspace = true
 starknet_sequencer_infra.workspace = true
 starknet_sequencer_metrics.workspace = true
@@ -51,6 +51,6 @@ starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 starknet_class_manager_types = { workspace = true, features = ["testing"] }
 starknet_infra_utils.workspace = true
-starknet_l1_provider_types = { workspace = true, features = ["testing"] }
+starknet_l1_to_l2_message_types = { workspace = true, features = ["testing"] }
 starknet_mempool_types = { workspace = true, features = ["testing"] }
 starknet_sequencer_metrics.workspace = true
