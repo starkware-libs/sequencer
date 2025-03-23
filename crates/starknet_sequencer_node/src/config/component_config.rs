@@ -102,3 +102,10 @@ impl ComponentConfig {
         self.l1_gas_price_provider.set_url_to_localhost();
     }
 }
+
+#[cfg(any(feature = "testing", test))]
+pub fn set_urls_to_localhost(component_configs: &mut [ComponentConfig]) {
+    for component_config in component_configs.iter_mut() {
+        component_config.set_urls_to_localhost();
+    }
+}
