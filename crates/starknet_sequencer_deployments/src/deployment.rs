@@ -3,9 +3,6 @@ use std::path::Path;
 
 use serde::Serialize;
 use starknet_api::core::ChainId;
-// TODO(Tsabary): remove the cfg.
-#[cfg(any(feature = "testing", test))]
-use starknet_sequencer_node::config::component_config::ComponentConfig;
 
 use crate::service::{DeploymentName, IntoService, Service};
 
@@ -55,12 +52,3 @@ impl Deployment {
         }
     }
 }
-
-#[cfg(any(feature = "testing", test))]
-pub fn set_urls_to_localhost(component_configs: &mut [ComponentConfig]) {
-    for component_config in component_configs.iter_mut() {
-        component_config.set_urls_to_localhost();
-    }
-}
-
-// TODO(Tsabary): each deployment should be in its own module.
