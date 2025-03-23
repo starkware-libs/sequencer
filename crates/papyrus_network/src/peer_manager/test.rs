@@ -488,3 +488,32 @@ fn identify_on_unknown_peer_is_added_to_peer_manager() {
     assert!(res_peer_id.peer_id() == peer_id);
     assert!(res_peer_id.multiaddr() == address);
 }
+
+#[tokio::test]
+async fn report_peer_as_malicious_future_resolves_after_reported_period() {
+    let config = PeerManagerConfig::default();
+    let mut peer_manager = PeerManager::new(config.clone());
+
+    let peer_id = PeerId::random();
+    let peer = Peer::new(peer_id, Multiaddr::empty());
+
+    peer_manager.add_peer(peer);
+
+    let mut reported_peer_future = peer_manager
+        .report_peer(peer_id, ReputationModifier::Misconduct { misconduct_score: MALICIOUS })
+        .expect("Failed to report peer")
+        .expect("Peer was reported but not blacklisted");
+
+    // Check that the future is unresolved right after being reported
+    assert!(
+        reported_peer_future
+            .poll_unpin(&mut Context::from_waker(futures::task::noop_waker_ref()))
+            .is_pending()
+    );
+
+    tokio::time::pause();
+    tokio::time::advance(config.malicious_timeout_seconds).await;
+
+    // Check that the future resolves after the reported period
+    assert_eq!(reported_peer_future.await, peer_id);
+}
