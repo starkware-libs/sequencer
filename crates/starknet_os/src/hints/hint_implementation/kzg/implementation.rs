@@ -3,13 +3,17 @@ use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
     get_ptr_from_var_name,
+    get_relocatable_from_var_name,
     insert_value_from_var_name,
 };
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintResult};
-use crate::hints::hint_implementation::kzg::utils::polynomial_coefficients_to_kzg_commitment;
+use crate::hints::hint_implementation::kzg::utils::{
+    polynomial_coefficients_to_kzg_commitment,
+    split_bigint3,
+};
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{Const, Ids};
 
@@ -75,6 +79,16 @@ pub(crate) fn store_da_segment<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn write_split_result<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    todo!()
+pub(crate) fn write_split_result<S: StateReader>(
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    let value =
+        get_integer_from_var_name(Ids::Value.into(), vm, ids_data, ap_tracking)?.to_bigint();
+    let res_ptr = get_relocatable_from_var_name(Ids::Res.into(), vm, ids_data, ap_tracking)?;
+
+    let splits: Vec<MaybeRelocatable> =
+        split_bigint3(value)?.into_iter().map(MaybeRelocatable::Int).collect();
+    vm.write_arg(res_ptr, &splits)?;
+
+    Ok(())
 }
