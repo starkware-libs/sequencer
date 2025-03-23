@@ -6,11 +6,14 @@ use ark_bls12_381::Fr;
 use ark_ff::{BigInteger, PrimeField};
 use ark_poly::{EvaluationDomain, Radix2EvaluationDomain};
 use c_kzg::{Blob, KzgCommitment, KzgSettings, BYTES_PER_FIELD_ELEMENT};
-use num_bigint::ParseBigIntError;
-use num_traits::Zero;
+use num_bigint::{BigInt, BigUint, ParseBigIntError};
+use num_traits::{Signed, Zero};
 use starknet_infra_utils::compile_time_cargo_manifest_dir;
 use starknet_types_core::felt::Felt;
 
+use crate::hints::error::OsHintError;
+
+static BASE: LazyLock<BigUint> = LazyLock::new(|| BigUint::from(1u128 << 86));
 const COMMITMENT_BYTES_LENGTH: usize = 48;
 const COMMITMENT_BYTES_MIDPOINT: usize = COMMITMENT_BYTES_LENGTH / 2;
 const WIDTH: usize = 12;
@@ -133,20 +136,17 @@ pub(crate) fn polynomial_coefficients_to_kzg_commitment(
 /// Takes an integer and returns its canonical representation as:
 ///    d0 + d1 * BASE + d2 * BASE**2.
 /// d2 can be in the range (-2**127, 2**127).
-pub fn split(num: Felt252) -> Result<Vec<Felt252>, HintError> {
-    let mut a = Vec::with_capacity(3);
-    let mut num = num.to_bigint();
-    for _ in 0..2 {
-        let (q, residue) = num.div_mod_floor(&BASE);
-        num = q;
-        a.push(residue);
+// TODO(Dori): Consider using bls_split from the VM crate if and when public.
+#[allow(dead_code)]
+pub(crate) fn split_bigint3(num: BigInt) -> Result<[Felt; 3], OsHintError> {
+    let base_bigint = BigInt::from(BASE.clone());
+    let (q1, d0) = (&num / &base_bigint, Felt::from(num % &base_bigint));
+    let (d2, d1) = (&q1 / &base_bigint, Felt::from(q1 % &base_bigint));
+    if d2.abs() >= BigInt::from(2_u8).pow(127) {
+        return Err(OsHintError::AssertionFailed {
+            message: format!("Remainder should be in (-2**127, 2**127), got {d2}."),
+        });
     }
-    if num.abs() >= BigInt::from(2).pow(127) {
-        return Err(HintError::AssertionFailed(
-            "remainder should be less than 2**127".to_string().into_boxed_str(),
-        ));
-    }
-    a.push(num);
 
-    Ok(a.into_iter().map(|big| big.into()).collect())
+    Ok([d0, d1, Felt::from(d2)])
 }
