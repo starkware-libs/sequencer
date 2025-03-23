@@ -124,7 +124,10 @@ use crate::hints::hint_implementation::execution::implementation::{
     write_syscall_result_deprecated,
 };
 use crate::hints::hint_implementation::find_element::search_sorted_optimistic;
-use crate::hints::hint_implementation::kzg::implementation::store_da_segment;
+use crate::hints::hint_implementation::kzg::implementation::{
+    store_da_segment,
+    write_split_result,
+};
 use crate::hints::hint_implementation::math::log2_ceil;
 use crate::hints::hint_implementation::os::{
     configure_kzg_manager,
@@ -173,7 +176,6 @@ use crate::hints::hint_implementation::state::{
     set_preimage_for_class_commitments,
     set_preimage_for_current_commitment_info,
     set_preimage_for_state_commitments,
-    write_split_result,
 };
 use crate::hints::hint_implementation::stateful_compression::{
     assert_key_big_enough_for_alias,
