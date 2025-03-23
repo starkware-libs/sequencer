@@ -1309,13 +1309,13 @@
     "privacy": "Public",
     "value": 1000
   },
-  "monitoring_config.collect_profiling_metrics": {
-    "description": "Indicating if profiling metrics should be collected.",
+  "monitoring_config.collect_metrics": {
+    "description": "Indicating if metrics should be recorded.",
     "privacy": "Public",
     "value": true
   },
-  "monitoring_config.collect_metrics": {
-    "description": "Indicating if metrics should be recorded.",
+  "monitoring_config.collect_profiling_metrics": {
+    "description": "Indicating if profiling metrics should be collected.",
     "privacy": "Public",
     "value": true
   },
