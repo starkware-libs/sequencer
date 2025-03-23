@@ -51,6 +51,10 @@ impl L1ProviderContent {
         if let Some(state) = &self.state {
             assert_eq!(&l1_provider.state, state);
         }
+
+        if let Some(current_height) = &self.current_height {
+            assert_eq!(&l1_provider.current_height, current_height);
+        }
     }
 }
 
