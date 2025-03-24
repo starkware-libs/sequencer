@@ -17,7 +17,8 @@ define_metrics!(
         MetricCounter { REJECTED_TRANSACTIONS, "batcher_rejected_transactions", "Counter of rejected transactions", init = 0 },
         MetricCounter { SYNCED_BLOCKS, "batcher_synced_blocks", "Counter of synced blocks", init = 0 },
         MetricCounter { SYNCED_TRANSACTIONS, "batcher_synced_transactions", "Counter of synced transactions", init = 0 },
-        MetricCounter { REVERTED_BLOCKS, "batcher_reverted_blocks", "Counter of reverted blocks", init = 0 }
+        MetricCounter { REVERTED_BLOCKS, "batcher_reverted_blocks", "Counter of reverted blocks", init = 0 },
+        MetricCounter { FULL_BLOCKS, "batcher_full_blocks", "Counter of blocks closed on full capacity", init = 0 }
     },
 );
 
@@ -35,6 +36,8 @@ pub fn register_metrics(storage_height: BlockNumber) {
     // In case of revert, consider calling `absolute`.
     BATCHED_TRANSACTIONS.register();
     REJECTED_TRANSACTIONS.register();
+
+    FULL_BLOCKS.register();
 }
 
 /// A handle to update the proposal metrics when the proposal is created and dropped.
