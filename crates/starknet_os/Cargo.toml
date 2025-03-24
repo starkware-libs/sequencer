@@ -13,7 +13,7 @@ deserialize = [
   "starknet-types-core/serde",
   "starknet_patricia/deserialize",
 ]
-testing = ["blockifier/testing"]
+testing = ["blockifier/testing", "starknet_patricia/testing"]
 
 [dependencies]
 apollo_infra_utils.workspace = true
@@ -50,6 +50,7 @@ blockifier = { workspace = true, features = ["testing"] }
 num-integer.workspace = true
 rand.workspace = true
 rstest.workspace = true
+starknet_patricia = { workspace = true, features = ["testing"] }
 
 [lints]
 workspace = true
