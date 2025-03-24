@@ -7,6 +7,7 @@ use papyrus_config::dumping::{append_sub_config_name, ser_optional_sub_config, S
 use papyrus_config::{ParamPath, SerializedParam};
 use papyrus_network::NetworkConfig;
 use papyrus_p2p_sync::client::P2pSyncClientConfig;
+use papyrus_rpc::RpcConfig;
 use papyrus_storage::db::DbConfig;
 use papyrus_storage::StorageConfig;
 use papyrus_sync::sources::central::CentralSourceConfig;
@@ -30,6 +31,8 @@ pub struct StateSyncConfig {
     pub network_config: NetworkConfig,
     #[validate]
     pub revert_config: RevertConfig,
+    #[validate]
+    pub rpc_config: RpcConfig,
 }
 
 impl SerializeConfig for StateSyncConfig {
@@ -39,6 +42,7 @@ impl SerializeConfig for StateSyncConfig {
         config.extend(append_sub_config_name(self.storage_config.dump(), "storage_config"));
         config.extend(append_sub_config_name(self.network_config.dump(), "network_config"));
         config.extend(append_sub_config_name(self.revert_config.dump(), "revert_config"));
+        config.extend(append_sub_config_name(self.rpc_config.dump(), "rpc_config"));
         config.extend(ser_optional_sub_config(
             &self.p2p_sync_client_config,
             "p2p_sync_client_config",
@@ -76,6 +80,7 @@ impl Default for StateSyncConfig {
             central_sync_client_config: None,
             network_config: NetworkConfig { port: STATE_SYNC_TCP_PORT, ..Default::default() },
             revert_config: RevertConfig::default(),
+            rpc_config: RpcConfig::default(),
         }
     }
 }

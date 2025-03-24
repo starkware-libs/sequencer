@@ -105,6 +105,7 @@ impl StateSyncRunner {
             central_sync_client_config,
             network_config,
             revert_config,
+            rpc_config: _,
         } = config;
 
         let (storage_reader, mut storage_writer) =
