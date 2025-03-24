@@ -54,6 +54,8 @@ url.workspace = true
 
 [dev-dependencies]
 futures.workspace = true
+metrics.workspace = true
+metrics-exporter-prometheus.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
 starknet_sequencer_infra.workspace = true

@@ -11280,6 +11280,8 @@ dependencies = [
  "futures",
  "indexmap 2.7.0",
  "mempool_test_utils",
+ "metrics 0.24.1",
+ "metrics-exporter-prometheus",
  "papyrus_base_layer",
  "papyrus_network",
  "papyrus_protobuf",
