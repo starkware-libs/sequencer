@@ -1,5 +1,6 @@
 #[cfg(test)]
 use std::path::Path;
+use std::path::PathBuf;
 
 use serde::Serialize;
 use starknet_api::core::ChainId;
@@ -28,7 +29,11 @@ pub struct Deployment {
 }
 
 impl Deployment {
-    pub fn new(chain_id: ChainId, deployment_name: DeploymentName) -> Self {
+    pub fn new(
+        chain_id: ChainId,
+        deployment_name: DeploymentName,
+        _base_application_config_path: PathBuf,
+    ) -> Self {
         let service_names = deployment_name.all_service_names();
         let services =
             service_names.iter().map(|service_name| service_name.create_service()).collect();
