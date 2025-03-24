@@ -63,6 +63,7 @@ pub enum MempoolRequest {
     CommitBlock(CommitBlockArgs),
     GetTransactions(usize),
     AccountTxInPoolOrRecentBlock(ContractAddress),
+    // TODO(yair): Rename to `StartBlock` and add cleanup of staged txs.
     UpdateGasPrice(NonzeroGasPrice),
     GetMempoolSnapshot(),
 }

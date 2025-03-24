@@ -179,6 +179,14 @@ impl Batcher {
             propose_block_input.retrospective_block_hash,
         )?;
 
+        // TODO(yair): extract function for the following calls, use join_all.
+        self.mempool_client.commit_block(CommitBlockArgs::default()).await.map_err(|err| {
+            error!(
+                "Mempool is not ready to start proposal {}: {}.",
+                propose_block_input.proposal_id, err
+            );
+            BatcherError::NotReady
+        })?;
         self.mempool_client
             .update_gas_price(
                 propose_block_input.block_info.gas_prices.strk_gas_prices.l2_gas_price,

@@ -27,7 +27,7 @@ pub struct AddTransactionArgs {
     pub account_state: AccountState,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct CommitBlockArgs {
     pub address_to_nonce: HashMap<ContractAddress, Nonce>,
     pub rejected_tx_hashes: HashSet<TransactionHash>,
