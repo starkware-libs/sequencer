@@ -665,16 +665,16 @@ pub async fn get_sequencer_setup_configs(
 ) -> (Vec<NodeSetup>, HashSet<usize>) {
     let mut available_ports_generator = AvailablePortsGenerator::new(test_unique_id.into());
 
-    let node_component_configs: Vec<NodeComponentConfigs> = {
-        let mut combined = Vec::new();
-        // Create elements in place.
-        combined.extend(create_consolidated_sequencer_configs(num_of_consolidated_nodes));
-        combined.extend(distributed_configs_creation_function(
-            &mut available_ports_generator,
-            num_of_distributed_nodes,
-        ));
-        combined
-    };
+    // TODO(Tsabary): remove the num arg from the functions below.
+    let mut node_component_configs =
+        Vec::with_capacity(num_of_consolidated_nodes + num_of_distributed_nodes);
+    for _ in 0..num_of_consolidated_nodes {
+        node_component_configs.extend(create_consolidated_sequencer_configs(1));
+    }
+    for _ in 0..num_of_distributed_nodes {
+        node_component_configs
+            .extend(distributed_configs_creation_function(&mut available_ports_generator, 1));
+    }
 
     info!("Creating node configurations.");
     let chain_info = ChainInfo::create_for_testing();
