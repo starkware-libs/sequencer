@@ -1,7 +1,10 @@
 use blockifier::state::state_api::StateReader;
 #[cfg(any(feature = "testing", test))]
 use blockifier::test_utils::dict_state_reader::DictStateReader;
-use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::HintProcessorData;
+use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::{
+    BuiltinHintProcessor,
+    HintProcessorData,
+};
 use cairo_vm::hint_processor::hint_processor_definition::{HintExtension, HintProcessorLogic};
 use cairo_vm::stdlib::any::Any;
 use cairo_vm::stdlib::boxed::Box;
@@ -30,7 +33,7 @@ pub struct SnosHintProcessor<S: StateReader> {
     pub execution_helper: OsExecutionHelper<S>,
     pub syscall_hint_processor: SyscallHintProcessor,
     _deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
-
+    builtin_hint_processor: BuiltinHintProcessor,
     // KZG fields.
     da_segment: Option<Vec<Felt>>,
 }
@@ -46,6 +49,7 @@ impl<S: StateReader> SnosHintProcessor<S> {
             syscall_hint_processor,
             _deprecated_syscall_hint_processor: deprecated_syscall_hint_processor,
             da_segment: None,
+            builtin_hint_processor: BuiltinHintProcessor::new_empty(),
         }
     }
 
@@ -80,7 +84,7 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<S> {
         hint_data: &Box<dyn Any>,
         constants: &HashMap<String, Felt>,
     ) -> VmHintExtensionResult {
-        // OS hint, aggregator hint or Cairo0 syscall.
+        // OS hint, aggregator hint, Cairo0 syscall or Cairo0 core hint.
         if let Some(hint_processor_data) = hint_data.downcast_ref::<HintProcessorData>() {
             let hint_args = HintArgs {
                 hint_processor: self,
@@ -90,26 +94,33 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<S> {
                 ap_tracking: &hint_processor_data.ap_tracking,
                 constants,
             };
-            return match AllHints::from_str(hint_processor_data.code.as_str())? {
-                AllHints::OsHint(os_hint) => {
-                    os_hint.execute_hint(hint_args)?;
-                    Ok(HintExtension::default())
-                }
-                AllHints::AggregatorHint(aggregator_hint) => {
-                    aggregator_hint.execute_hint(hint_args)?;
-                    Ok(HintExtension::default())
-                }
-                AllHints::SyscallHint(syscall_hint) => {
-                    syscall_hint.execute_hint(hint_args)?;
-                    Ok(HintExtension::default())
-                }
-                AllHints::HintExtension(hint_extension) => {
-                    Ok(hint_extension.execute_hint_extensive(hint_args)?)
-                }
-            };
+            if let Ok(hint) = AllHints::from_str(hint_processor_data.code.as_str()) {
+                // OS hint, aggregator hint, Cairo0 syscall.
+                return match hint {
+                    AllHints::OsHint(os_hint) => {
+                        os_hint.execute_hint(hint_args)?;
+                        Ok(HintExtension::default())
+                    }
+                    AllHints::AggregatorHint(aggregator_hint) => {
+                        aggregator_hint.execute_hint(hint_args)?;
+                        Ok(HintExtension::default())
+                    }
+                    AllHints::SyscallHint(syscall_hint) => {
+                        syscall_hint.execute_hint(hint_args)?;
+                        Ok(HintExtension::default())
+                    }
+                    AllHints::HintExtension(hint_extension) => {
+                        Ok(hint_extension.execute_hint_extensive(hint_args)?)
+                    }
+                };
+            } else {
+                // Cairo0 core hint.
+                self.builtin_hint_processor.execute_hint(vm, exec_scopes, hint_data, constants)?;
+                return Ok(HintExtension::default());
+            }
         }
 
-        // Cairo1 syscall or core hint.
+        // Cairo1 syscall or Cairo1 core hint.
         todo!()
     }
 }
