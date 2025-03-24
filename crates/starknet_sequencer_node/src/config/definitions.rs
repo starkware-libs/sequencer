@@ -4,7 +4,7 @@ use papyrus_config::dumping::{ConfigPointers, Pointers};
 use papyrus_config::{ParamPath, SerializedContent, SerializedParam};
 use serde_json::Value;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct ConfigPointersMap(HashMap<ParamPath, (SerializedParam, Pointers)>);
 
 impl ConfigPointersMap {
