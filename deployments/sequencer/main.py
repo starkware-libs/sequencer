@@ -5,7 +5,8 @@ from constructs import Construct
 from cdk8s import App, Chart, YamlOutputType
 
 from app.service import ServiceApp
-from services import topology, helpers, config
+from app.monitoring import MonitoringApp
+from services import topology, helpers, config, monitoring
 
 
 class SequencerNode(Chart):
@@ -19,6 +20,20 @@ class SequencerNode(Chart):
         super().__init__(scope, name, disable_resource_name_hashes=True, namespace=namespace)
         self.service = ServiceApp(
             self, name, namespace=namespace, service_topology=service_topology
+        )
+
+
+class SequencerMonitoring(Chart):
+    def __init__(
+        self,
+        scope: Construct,
+        name: str,
+        namespace: str,
+        grafana_dashboard: monitoring.GrafanaDashboard,
+    ):
+        super().__init__(scope, name, disable_resource_name_hashes=True, namespace=namespace)
+        self.dashboard = MonitoringApp(
+            self, name, namespace=namespace, grafana_dashboard=grafana_dashboard
         )
 
 
@@ -47,6 +62,13 @@ def main():
                 storage=svc["storage"],
             ),
         )
+
+    SequencerMonitoring(
+        scope=app,
+        name="sequencer-monitoring",
+        namespace=args.namespace,
+        grafana_dashboard=monitoring.GrafanaDashboard("dev_grafana.json"),
+    )
 
     app.synth()
 
