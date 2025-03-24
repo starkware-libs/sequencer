@@ -529,6 +529,7 @@ impl IntegrationTestManager {
         let chain_id = self.chain_id();
         let send_l1_handler_tx_fn = &mut |l1_handler_tx| {
             send_message_to_l2_and_calculate_tx_hash(
+                &self.l1_handle,
                 l1_handler_tx,
                 &self.starknet_l1_contract,
                 &chain_id,

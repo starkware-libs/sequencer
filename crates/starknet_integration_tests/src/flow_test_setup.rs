@@ -51,7 +51,7 @@ use starknet_state_sync::config::StateSyncConfig;
 use starknet_types_core::felt::Felt;
 use tempfile::TempDir;
 use tokio::sync::Mutex;
-use tracing::{debug, instrument};
+use tracing::{debug, info, instrument};
 use url::Url;
 
 use crate::state_reader::StorageTestSetup;
@@ -186,7 +186,7 @@ impl FlowTestSetup {
 
             // Parse response
             let response_json: serde_json::Value = response.json().await.unwrap();
-            println!("Mempool Transactions: {:#?}", response_json);
+            info!("yael Mempool Transactions: {:#?}", response_json);
 
             send_message_to_l2(l1_handler, &self.starknet_l1_contract).await;
         }

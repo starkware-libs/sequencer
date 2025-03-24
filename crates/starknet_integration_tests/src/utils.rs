@@ -2,6 +2,7 @@ use std::future::Future;
 use std::net::SocketAddr;
 use std::time::Duration;
 
+use alloy::node_bindings::AnvilInstance;
 use alloy::primitives::U256;
 use axum::extract::Query;
 use axum::http::StatusCode;
@@ -451,10 +452,31 @@ pub fn create_l1_handler_txs(
 }
 
 pub async fn send_message_to_l2_and_calculate_tx_hash(
+    l1_handle: &AnvilInstance,
     l1_handler: L1HandlerTransaction,
     starknet_l1_contract: &StarknetL1Contract,
     chain_id: &ChainId,
 ) -> TransactionHash {
+    use reqwest::Client;
+    use serde_json::json;
+    let url = l1_handle.endpoint_url();
+    // Create an HTTP client
+    let client = Client::new();
+
+    // JSON-RPC request payload
+    let request_body = json!({
+        "jsonrpc": "2.0",
+        "method": "eth_pendingTransactions",
+        "params": [],
+        "id": 1
+    });
+
+    // Send POST request
+    let response = client.post(url).json(&request_body).send().await.unwrap();
+
+    // Parse response
+    let response_json: serde_json::Value = response.json().await.unwrap();
+    info!("yael Mempool Transactions: {:#?}", response_json);
     send_message_to_l2(&l1_handler, starknet_l1_contract).await;
     l1_handler.calculate_transaction_hash(chain_id, &l1_handler.version).unwrap()
 }
@@ -466,7 +488,7 @@ pub(crate) async fn send_message_to_l2(
     l1_handler: &L1HandlerTransaction,
     starknet_l1_contract: &StarknetL1Contract,
 ) {
-    println!("yael L1 handler tx {:?}", l1_handler);
+    info!("yael L1 handler tx {:?}", l1_handler);
     let l2_contract_address = l1_handler.contract_address.0.key().to_hex_string().parse().unwrap();
     let l2_entry_point = l1_handler.entry_point_selector.0.to_hex_string().parse().unwrap();
 
