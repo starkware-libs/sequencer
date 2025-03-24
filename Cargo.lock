@@ -11603,6 +11603,7 @@ dependencies = [
  "serde_json",
  "starknet_api",
  "starknet_infra_utils",
+ "starknet_monitoring_endpoint",
  "starknet_sequencer_node",
  "strum 0.25.0",
  "strum_macros 0.25.3",

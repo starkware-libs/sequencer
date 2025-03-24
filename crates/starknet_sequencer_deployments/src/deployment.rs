@@ -1,8 +1,11 @@
 #[cfg(test)]
 use std::path::Path;
+use std::path::PathBuf;
 
 use serde::Serialize;
 use starknet_api::core::ChainId;
+use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
+use starknet_sequencer_node::config::config_utils::{DeploymentBaseAppConfig, PresetConfig};
 
 use crate::service::{DeploymentName, IntoService, Service};
 
@@ -63,14 +66,23 @@ impl Deployment {
 
     pub fn dump_application_config_files(&self, _base_app_config_file_path: &str) {
         // TODO(Tsabary): load the base app config, and create a DeploymentBaseAppConfig instance.
+        let deployment_base_app_config = DeploymentBaseAppConfig::default();
+
         let component_configs = self.deployment_name.get_component_configs(None);
 
-        // Iterate over the component_configs
-        for (_service, _component_config) in component_configs.iter() {
-            // TODO(Tsabary): clone the loaded DeploymentBaseAppConfig instance.
-            // TODO(Tsabary): replace the current component config into the cloned
-            // DeploymentBaseAppConfig instance. TODO(Tsabary): dump the modified
-            // instance to the service path.
+        // Iterate over the service component configs
+        for (service, component_config) in component_configs.iter() {
+            let service_deployment_base_app_config = deployment_base_app_config.clone();
+
+            let preset_config = PresetConfig {
+                config_path: PathBuf::from(&self.application_config_subdir)
+                    .join(service.get_config_file_path()),
+                component_config: component_config.clone(),
+                // TODO(Tsabary): figure what values should be here.
+                monitoring_endpoint_config: MonitoringEndpointConfig::default(),
+            };
+
+            service_deployment_base_app_config.dump_config_file(preset_config);
         }
     }
 
