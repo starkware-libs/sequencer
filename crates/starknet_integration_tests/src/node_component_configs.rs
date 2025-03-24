@@ -63,64 +63,53 @@ impl IntoIterator for NodeComponentConfigs {
     }
 }
 
-pub fn create_consolidated_sequencer_configs(
-    num_of_consolidated_nodes: usize,
-) -> Vec<NodeComponentConfigs> {
-    // Both batcher, http server and state sync are in executable index 0.
-    std::iter::repeat_with(|| {
-        NodeComponentConfigs::new(
-            DeploymentName::ConsolidatedNode.get_component_configs(None).into_values().collect(),
-            0,
-            0,
-            0,
-            0,
-        )
-    })
-    .take(num_of_consolidated_nodes)
-    .collect()
+pub fn create_consolidated_sequencer_configs() -> NodeComponentConfigs {
+    // All components are in executable index 0.
+    NodeComponentConfigs::new(
+        DeploymentName::ConsolidatedNode.get_component_configs(None).into_values().collect(),
+        0,
+        0,
+        0,
+        0,
+    )
 }
 
 pub fn create_nodes_deployment_units_configs(
     available_ports_generator: &mut AvailablePortsGenerator,
-    distributed_sequencers_num: usize,
-) -> Vec<NodeComponentConfigs> {
-    std::iter::repeat_with(|| {
-        let mut available_ports = available_ports_generator
-            .next()
-            .expect("Failed to get an AvailablePorts instance for distributed node configs");
+) -> NodeComponentConfigs {
+    let mut available_ports = available_ports_generator
+        .next()
+        .expect("Failed to get an AvailablePorts instance for distributed node configs");
 
-        // TODO(Tsabary): the following implicitly assumes there are sufficiently many ports
-        // available in the [`available_ports`] instance to support the deployment configuration. If
-        // the test breaks due to port binding conflicts then it might be required to revisit this
-        // assumption.
+    // TODO(Tsabary): the following implicitly assumes there are sufficiently many ports
+    // available in the [`available_ports`] instance to support the deployment configuration. If
+    // the test breaks due to port binding conflicts then it might be required to revisit this
+    // assumption.
 
-        let base_port = available_ports.get_next_port();
+    let base_port = available_ports.get_next_port();
 
-        let services_component_config =
-            DeploymentName::DistributedNode.get_component_configs(Some(base_port));
+    let services_component_config =
+        DeploymentName::DistributedNode.get_component_configs(Some(base_port));
 
-        let mut component_configs: Vec<ComponentConfig> =
-            services_component_config.values().cloned().collect();
-        set_urls_to_localhost(&mut component_configs);
+    let mut component_configs: Vec<ComponentConfig> =
+        services_component_config.values().cloned().collect();
+    set_urls_to_localhost(&mut component_configs);
 
-        // TODO(Tsabary): transition to using the map instead of a vector and indices.
+    // TODO(Tsabary): transition to using the map instead of a vector and indices.
 
-        NodeComponentConfigs::new(
-            component_configs,
-            services_component_config
-                .get_index_of::<ServiceName>(&DistributedNodeServiceName::Batcher.into())
-                .unwrap(),
-            services_component_config
-                .get_index_of::<ServiceName>(&DistributedNodeServiceName::HttpServer.into())
-                .unwrap(),
-            services_component_config
-                .get_index_of::<ServiceName>(&DistributedNodeServiceName::StateSync.into())
-                .unwrap(),
-            services_component_config
-                .get_index_of::<ServiceName>(&DistributedNodeServiceName::ClassManager.into())
-                .unwrap(),
-        )
-    })
-    .take(distributed_sequencers_num)
-    .collect()
+    NodeComponentConfigs::new(
+        component_configs,
+        services_component_config
+            .get_index_of::<ServiceName>(&DistributedNodeServiceName::Batcher.into())
+            .unwrap(),
+        services_component_config
+            .get_index_of::<ServiceName>(&DistributedNodeServiceName::HttpServer.into())
+            .unwrap(),
+        services_component_config
+            .get_index_of::<ServiceName>(&DistributedNodeServiceName::StateSync.into())
+            .unwrap(),
+        services_component_config
+            .get_index_of::<ServiceName>(&DistributedNodeServiceName::ClassManager.into())
+            .unwrap(),
+    )
 }
