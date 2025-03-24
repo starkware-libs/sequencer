@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 use bytes::{Buf, BufMut};
 use prost::DecodeError;
+use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::core::ContractAddress;
@@ -15,14 +16,14 @@ impl<T> IntoFromProto for T where
 {
 }
 
-#[derive(Debug, Default, Hash, Clone, Eq, PartialEq)]
+#[derive(Debug, Default, Hash, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum VoteType {
     Prevote,
     #[default]
     Precommit,
 }
 
-#[derive(Debug, Default, Hash, Clone, Eq, PartialEq)]
+#[derive(Debug, Default, Hash, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Vote {
     pub vote_type: VoteType,
     pub height: u64,
