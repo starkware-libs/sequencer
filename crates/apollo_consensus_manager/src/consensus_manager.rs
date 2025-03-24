@@ -158,6 +158,8 @@ impl ConsensusManager {
 
         let network_task = tokio::spawn(network_manager.run());
         let stream_handler_task = tokio::spawn(stream_handler.run());
+        // Dummy channels until the infra is set up for this.
+        let (_debug_sender, debug_receiver) = mpsc::channel(CHANNEL_BUFFER_LENGTH);
         let consensus_fut = apollo_consensus::run_consensus(
             context,
             active_height,
@@ -168,6 +170,7 @@ impl ConsensusManager {
             self.config.consensus_config.sync_retry_interval,
             votes_broadcast_channels.into(),
             inbound_internal_receiver,
+            debug_receiver,
         );
 
         tokio::select! {

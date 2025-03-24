@@ -926,6 +926,7 @@ dependencies = [
  "papyrus_common",
  "prost",
  "serde",
+ "serde_json",
  "starknet-types-core",
  "starknet_api",
  "strum 0.25.0",

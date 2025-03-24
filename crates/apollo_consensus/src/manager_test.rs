@@ -112,6 +112,7 @@ async fn manager_multiple_heights_unordered() {
 
     let mut manager = MultiHeightManager::new(*VALIDATOR_ID, TIMEOUTS.clone());
     let mut subscriber_channels = subscriber_channels.into();
+    let (_debug_sender, mut debug_receiver) = mpsc::channel(CHANNEL_SIZE);
     let decision = manager
         .run_height(
             &mut context,
@@ -120,6 +121,7 @@ async fn manager_multiple_heights_unordered() {
             SYNC_RETRY_INTERVAL,
             &mut subscriber_channels,
             &mut proposal_receiver_receiver,
+            &mut debug_receiver,
         )
         .await
         .unwrap();
@@ -127,6 +129,7 @@ async fn manager_multiple_heights_unordered() {
 
     // Run the manager for height 2.
     expect_validate_proposal(&mut context, Felt::TWO, 1);
+    let (_debug_sender, mut debug_receiver) = mpsc::channel(CHANNEL_SIZE);
     let decision = manager
         .run_height(
             &mut context,
@@ -135,6 +138,7 @@ async fn manager_multiple_heights_unordered() {
             SYNC_RETRY_INTERVAL,
             &mut subscriber_channels,
             &mut proposal_receiver_receiver,
+            &mut debug_receiver,
         )
         .await
         .unwrap();
@@ -181,6 +185,7 @@ async fn run_consensus_sync() {
     send(&mut network_sender, precommit(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
 
     // Start at height 1.
+    let (_debug_sender, debug_receiver) = mpsc::channel(CHANNEL_SIZE);
     tokio::spawn(async move {
         run_consensus(
             context,
@@ -192,6 +197,7 @@ async fn run_consensus_sync() {
             SYNC_RETRY_INTERVAL,
             subscriber_channels.into(),
             proposal_receiver_receiver,
+            debug_receiver,
         )
         .await
     });
@@ -241,6 +247,7 @@ async fn test_timeouts() {
     context.expect_broadcast().returning(move |_| Ok(()));
 
     let mut manager = MultiHeightManager::new(*VALIDATOR_ID, TIMEOUTS.clone());
+    let (_debug_sender, mut debug_receiver) = mpsc::channel(CHANNEL_SIZE);
     let manager_handle = tokio::spawn(async move {
         let decision = manager
             .run_height(
@@ -250,6 +257,7 @@ async fn test_timeouts() {
                 SYNC_RETRY_INTERVAL,
                 &mut subscriber_channels.into(),
                 &mut proposal_receiver_receiver,
+                &mut debug_receiver,
             )
             .await
             .unwrap();
@@ -298,6 +306,7 @@ async fn timely_message_handling() {
     while vote_sender.send((vote.clone(), metadata.clone())).now_or_never().is_some() {}
 
     let mut manager = MultiHeightManager::new(*VALIDATOR_ID, TIMEOUTS.clone());
+    let (_debug_sender, mut debug_receiver) = mpsc::channel(CHANNEL_SIZE);
     let res = manager
         .run_height(
             &mut context,
@@ -306,6 +315,7 @@ async fn timely_message_handling() {
             SYNC_RETRY_INTERVAL,
             &mut subscriber_channels,
             &mut proposal_receiver_receiver,
+            &mut debug_receiver,
         )
         .await;
     assert_eq!(res, Ok(RunHeightRes::Sync));
