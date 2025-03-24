@@ -211,11 +211,9 @@ impl FlowSequencerSetup {
     ) -> Self {
         let path = None;
         let StorageTestSetup {
-            batcher_storage_config,
+            storage_config,
             batcher_storage_handle,
-            state_sync_storage_config,
             state_sync_storage_handle,
-            class_manager_storage_config,
             class_manager_storage_handles,
         } = StorageTestSetup::new(accounts, &chain_info, path);
 
@@ -240,9 +238,9 @@ impl FlowSequencerSetup {
         let (node_config, _config_pointers_map) = create_node_config(
             &mut available_ports,
             chain_info,
-            batcher_storage_config,
-            state_sync_storage_config,
-            class_manager_storage_config,
+            storage_config.batcher_storage_config,
+            storage_config.state_sync_storage_config,
+            storage_config.class_manager_storage_config,
             state_sync_config,
             consensus_manager_config,
             mempool_p2p_config,

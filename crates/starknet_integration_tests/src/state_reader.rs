@@ -62,12 +62,28 @@ pub(crate) const CLASSES_STORAGE_DB_PATH_SUFFIX: &str = "classes";
 pub(crate) const STATE_SYNC_DB_PATH_SUFFIX: &str = "state_sync";
 
 #[derive(Debug)]
-pub struct StorageTestSetup {
+pub struct StorageTestConfig {
     pub batcher_storage_config: StorageConfig,
-    pub batcher_storage_handle: Option<TempDir>,
     pub state_sync_storage_config: StorageConfig,
-    pub state_sync_storage_handle: Option<TempDir>,
     pub class_manager_storage_config: FsClassStorageConfig,
+}
+
+impl StorageTestConfig {
+    pub fn new(
+        batcher_storage_config: StorageConfig,
+        state_sync_storage_config: StorageConfig,
+        class_manager_storage_config: FsClassStorageConfig,
+    ) -> Self {
+        Self { batcher_storage_config, state_sync_storage_config, class_manager_storage_config }
+    }
+}
+
+#[derive(Debug)]
+pub struct StorageTestSetup {
+    pub storage_config: StorageTestConfig,
+    // TODO(Nadin): wrap the handles in a sub-struct.
+    pub batcher_storage_handle: Option<TempDir>,
+    pub state_sync_storage_handle: Option<TempDir>,
     pub class_manager_storage_handles: Option<TempDirHandlePair>,
 }
 
@@ -134,12 +150,15 @@ impl StorageTestSetup {
 
         initialize_class_manager_test_state(&mut class_manager_storage, classes);
 
-        Self {
+        let storage_config = StorageTestConfig::new(
             batcher_storage_config,
-            batcher_storage_handle,
             state_sync_storage_config,
-            state_sync_storage_handle,
             class_manager_storage_config,
+        );
+        Self {
+            storage_config,
+            batcher_storage_handle,
+            state_sync_storage_handle,
             class_manager_storage_handles,
         }
     }
