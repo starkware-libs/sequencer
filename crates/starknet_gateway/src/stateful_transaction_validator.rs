@@ -111,9 +111,16 @@ impl StatefulTransactionValidator {
 
     fn is_valid_nonce(&self, executable_tx: &ExecutableTransaction, account_nonce: Nonce) -> bool {
         let incoming_tx_nonce = executable_tx.nonce();
+
+        // Declare transactions must have the same nonce as the account nonce.
+        if self.config.reject_future_declare_txs
+            && matches!(executable_tx, ExecutableTransaction::Declare(_))
+        {
+            return incoming_tx_nonce == account_nonce;
+        }
+
         let max_allowed_nonce =
             Nonce(account_nonce.0 + Felt::from(self.config.max_allowed_nonce_gap));
-
         account_nonce <= incoming_tx_nonce && incoming_tx_nonce <= max_allowed_nonce
     }
 }
