@@ -634,10 +634,13 @@ pub fn nonce_to_usize(nonce: Nonce) -> usize {
 
 pub async fn get_sequencer_setup_configs(
     tx_generator: &MultiAccountTransactionGenerator,
+    // TODO(Tsabary/Nadin): instead of number of nodes, this should be a vector of deployments.
     num_of_consolidated_nodes: usize,
     num_of_distributed_nodes: usize,
     custom_paths: Option<CustomPaths>,
     test_unique_id: TestIdentifier,
+    // TODO(Tsabary/Nadin): each deployment should have its own config generation function, and the
+    // following arg should be removed.
     distributed_configs_creation_function: fn(
         &mut AvailablePortsGenerator,
         usize,
