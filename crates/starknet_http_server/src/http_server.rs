@@ -76,9 +76,10 @@ pub async fn is_alive() -> String {
 async fn add_tx(
     State(app_state): State<AppState>,
     headers: HeaderMap,
-    Json(tx): Json<RpcTransaction>,
+    tx_str: String,
 ) -> HttpServerResult<Json<TransactionHash>> {
     record_added_transaction();
+    let tx = serde_json::from_str::<RpcTransaction>(&tx_str).unwrap();
     let gateway_input: GatewayInput = GatewayInput { rpc_tx: tx, message_metadata: None };
     let add_tx_result = app_state.gateway_client.add_tx(gateway_input).await.map_err(|e| {
         debug!("Error while adding transaction: {}", e);
