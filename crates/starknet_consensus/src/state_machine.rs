@@ -54,7 +54,7 @@ pub enum Step {
 /// 2. SM must handle "out of order" messages (E.g. vote arrives before proposal).
 ///
 /// Each height is begun with a call to `start`, with no further calls to it.
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct StateMachine {
     id: ValidatorId,
     round: Round,

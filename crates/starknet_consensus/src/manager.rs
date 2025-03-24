@@ -71,6 +71,7 @@ pub async fn run_consensus<ContextT>(
     sync_retry_interval: Duration,
     mut vote_receiver: BroadcastVoteChannel,
     mut proposal_receiver: mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
+    mut debug_dump_receiver: mpsc::Receiver<()>,
 ) -> Result<(), ConsensusError>
 where
     ContextT: ConsensusContext,
@@ -99,6 +100,7 @@ where
                 sync_retry_interval,
                 &mut vote_receiver,
                 &mut proposal_receiver,
+                &mut debug_dump_receiver,
             )
             .await?
         {
@@ -168,6 +170,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     /// - `must_observer`: Whether the node must observe or if it is allowed to be active (assuming
     ///   it is in the validator set).
     #[instrument(skip_all, fields(height=%height.0), level = "error")]
+    #[allow(clippy::too_many_arguments)]
     pub(crate) async fn run_height(
         &mut self,
         context: &mut ContextT,
@@ -176,6 +179,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         sync_retry_interval: Duration,
         broadcast_channels: &mut BroadcastVoteChannel,
         proposal_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
+        debug_dump_receiver: &mut mpsc::Receiver<()>,
     ) -> Result<RunHeightRes, ConsensusError> {
         let res = self
             .run_height_inner(
@@ -185,6 +189,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 sync_retry_interval,
                 broadcast_channels,
                 proposal_receiver,
+                debug_dump_receiver,
             )
             .await?;
 
@@ -206,6 +211,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         Ok(res)
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn run_height_inner(
         &mut self,
         context: &mut ContextT,
@@ -214,6 +220,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         sync_retry_interval: Duration,
         broadcast_channels: &mut BroadcastVoteChannel,
         proposal_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
+        debug_dump_receiver: &mut mpsc::Receiver<()>,
     ) -> Result<RunHeightRes, ConsensusError> {
         self.report_max_cached_block_number_metric(height);
         if context.try_sync(height).await {
@@ -266,6 +273,10 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                     if context.try_sync(height).await {
                         return Ok(RunHeightRes::Sync);
                     }
+                    continue;
+                },
+                dump_cmd = debug_dump_receiver.next() => {
+                    self.debug_dump(&shc, dump_cmd).await?;
                     continue;
                 }
             };
@@ -434,6 +445,24 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 }
             },
         }
+    }
+
+    async fn debug_dump(
+        &mut self,
+        shc: &SingleHeightConsensus,
+        dump_cmd: Option<()>,
+    ) -> Result<(), ConsensusError> {
+        if dump_cmd.is_none() {
+            return Err(ConsensusError::InternalNetworkError(
+                "Debug dump receiver should never be closed".to_string(),
+            ));
+        }
+        let Ok(serialized) = serde_json::to_string(shc) else {
+            error!("Failed to serialized SHC on dump: {:?}", shc);
+            return Ok(());
+        };
+        warn!("Debug dump of consensus: {serialized}");
+        Ok(())
     }
 
     // Checks if a cached proposal already exists (with correct height)
