@@ -124,13 +124,17 @@ fn validate_all_pointer_targets_set(preset: Value) -> Result<(), ValidationError
         ))
     }
 }
+
+// TODO(Tsabary): consider adding a `new` fn, and remove field visibility.
+// TODO(Tsabary): need a new name for preset config.
+// TODO(Tsabary): consider if having the MonitoringEndpointConfig part of PresetConfig makes sense.
 pub struct PresetConfig {
     pub config_path: PathBuf,
     pub component_config: ComponentConfig,
     pub monitoring_endpoint_config: MonitoringEndpointConfig,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct DeploymentBaseAppConfig {
     config: SequencerNodeConfig,
     config_pointers_map: ConfigPointersMap,
