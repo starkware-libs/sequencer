@@ -33,6 +33,7 @@ You can use any method you like to install the required tools.
     curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
     # For bash users
     source ~/.bashrc
+
     # For zsh users
     source ~/.zshrc
     nvm install 22.14.0
@@ -46,7 +47,7 @@ You can use any method you like to install the required tools.
 
 ### Install pipenv
 ```bash
-    python3.10 -m pip install pipenv
+    pip install pipenv
 ```
 
 ## How to use cdk8s
@@ -59,16 +60,9 @@ You can use any method you like to install the required tools.
 
 ### Use cdk8s
 #### Examples:
-#### Single config:
 ```bash
     cd deployments/sequencer
-    cdk8s synth --app "pipenv run python main.py --namespace <k8s namespace> --config-file <path_to_config_file>"
-```
-#### Multiple configs:
-```bash
-    cd deployments/sequencer
-    # --config-file flag can be used multiple times.
-    cdk8s synth --app "pipenv run python main.py --namespace <k8s namespace> --config-file <path_to_config1> --config-file <path_to_config_2>"
+    cdk8s synth --app "pipenv run python main.py --namespace <k8s namespace> --deployment-config-file <path to deployment config>"
 ```
 
 ### Deploy sequencer
