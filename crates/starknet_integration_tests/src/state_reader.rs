@@ -61,7 +61,7 @@ pub(crate) const CLASS_HASH_STORAGE_DB_PATH_SUFFIX: &str = "class_hash_storage";
 pub(crate) const CLASSES_STORAGE_DB_PATH_SUFFIX: &str = "classes";
 pub(crate) const STATE_SYNC_DB_PATH_SUFFIX: &str = "state_sync";
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StorageTestConfig {
     pub batcher_storage_config: StorageConfig,
     pub state_sync_storage_config: StorageConfig,
@@ -150,13 +150,12 @@ impl StorageTestSetup {
 
         initialize_class_manager_test_state(&mut class_manager_storage, classes);
 
-        let storage_config = StorageTestConfig::new(
-            batcher_storage_config,
-            state_sync_storage_config,
-            class_manager_storage_config,
-        );
         Self {
-            storage_config,
+            storage_config: StorageTestConfig::new(
+                batcher_storage_config,
+                state_sync_storage_config,
+                class_manager_storage_config,
+            ),
             batcher_storage_handle,
             state_sync_storage_handle,
             class_manager_storage_handles,
