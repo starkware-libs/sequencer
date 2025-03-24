@@ -43,6 +43,18 @@ impl MempoolP2pPropagator {
     }
 }
 
+impl DumpDebug for MempoolP2pPropagator {
+    fn dump_debug(&self) -> String {
+        format!(
+            "MempoolP2pPropagator {{ max_transaction_batch_size: {}, transaction_queue_size: {}, \
+             transaction_queue: {:?} }}",
+            self.max_transaction_batch_size,
+            self.transaction_queue.len(),
+            self.transaction_queue,
+        )
+    }
+}
+
 #[async_trait]
 impl ComponentRequestHandler<MempoolP2pPropagatorRequest, MempoolP2pPropagatorResponse>
     for MempoolP2pPropagator
