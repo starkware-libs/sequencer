@@ -281,7 +281,9 @@ fn convert_implicit_args_to_cairo_args(
     implicit_args
         .iter()
         .flat_map(|arg| match arg {
-            ImplicitArg::Builtin(builtin) => vec![CairoArg::from(all_builtin_map[builtin].clone())],
+            ImplicitArg::Builtin(builtin) => {
+                all_builtin_map[builtin].iter().map(|b| b.clone().into()).collect()
+            }
             ImplicitArg::NonBuiltin(endpoint_arg) => EndpointArg::to_cairo_arg_vec(endpoint_arg),
         })
         .collect()
