@@ -21,6 +21,7 @@ fn create_main_deployment() -> DeploymentAndPreset {
     DeploymentAndPreset::new(
         Deployment::new(ChainId::IntegrationSepolia, DeploymentName::DistributedNode),
         "config/sequencer/deployment_configs/testing/nightly_test_distributed_node.json",
+        SINGLE_NODE_CONFIG_PATH,
     )
 }
 
@@ -28,5 +29,6 @@ fn create_testing_deployment() -> DeploymentAndPreset {
     DeploymentAndPreset::new(
         Deployment::new(ChainId::IntegrationSepolia, DeploymentName::ConsolidatedNode),
         "config/sequencer/deployment_configs/testing/nightly_test_all_in_one.json",
+        SINGLE_NODE_CONFIG_PATH,
     )
 }

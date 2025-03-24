@@ -4,7 +4,6 @@ use serde_json::{from_str, Value};
 use starknet_infra_utils::dumping::serialize_to_file_test;
 use starknet_infra_utils::path::resolve_project_relative_path;
 
-use crate::deployment::DeploymentAndPreset;
 use crate::deployment_definitions::{DEPLOYMENTS, SINGLE_NODE_CONFIG_PATH};
 
 /// Test that the deployment file is up to date. To update it run:
@@ -12,8 +11,11 @@ use crate::deployment_definitions::{DEPLOYMENTS, SINGLE_NODE_CONFIG_PATH};
 #[test]
 fn deployment_files_are_up_to_date() {
     for deployment_fn in DEPLOYMENTS {
-        let DeploymentAndPreset { deployment, dump_file_path } = deployment_fn();
-        serialize_to_file_test(deployment, dump_file_path);
+        let deployment_preset = deployment_fn();
+        serialize_to_file_test(
+            deployment_preset.get_deployment(),
+            deployment_preset.get_dump_file_path(),
+        );
     }
 }
 
@@ -22,8 +24,8 @@ fn application_config_files_exist() {
     env::set_current_dir(resolve_project_relative_path("").unwrap())
         .expect("Couldn't set working dir.");
     for deployment_fn in DEPLOYMENTS {
-        let DeploymentAndPreset { deployment, dump_file_path: _ } = deployment_fn();
-        deployment.assert_application_configs_exist();
+        let deployment_preset = deployment_fn();
+        deployment_preset.get_deployment().assert_application_configs_exist();
     }
 }
 
