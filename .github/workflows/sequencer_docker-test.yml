@@ -6,27 +6,27 @@ on:
     branches: [main]
     tags: ["v*.*.*"]
     paths:
-      - '.github/workflows/sequencer_docker-test.yml'
-      - 'crates/**'
-      - 'scripts/dependencies.sh'
-      - 'scripts/install_build_tools.sh'
-      - 'deployments/images/base/Dockerfile'
-      - 'deployments/images/sequencer/**'
-      - 'deployments/monitoring/deploy_local_stack.sh'
-      - 'deployments/monitoring/local/docker-compose.yml'
-      - 'deployments/monitoring/local/.env'
+      - ".github/workflows/sequencer_docker-test.yml"
+      - "crates/**"
+      - "scripts/dependencies.sh"
+      - "scripts/install_build_tools.sh"
+      - "deployments/images/base/Dockerfile"
+      - "deployments/images/sequencer/**"
+      - "deployments/monitoring/deploy_local_stack.sh"
+      - "deployments/monitoring/local/docker-compose.yml"
+      - "deployments/monitoring/local/.env"
 
   pull_request:
     paths:
-      - '.github/workflows/sequencer_docker-test.yml'
-      - 'crates/**'
-      - 'scripts/dependencies.sh'
-      - 'scripts/install_build_tools.sh'
-      - 'deployments/images/base/Dockerfile'
-      - 'deployments/images/sequencer/**'
-      - 'deployments/monitoring/deploy_local_stack.sh'
-      - 'deployments/monitoring/local/docker-compose.yml'
-      - 'deployments/monitoring/local/.env'
+      - ".github/workflows/sequencer_docker-test.yml"
+      - "crates/**"
+      - "scripts/dependencies.sh"
+      - "scripts/install_build_tools.sh"
+      - "deployments/images/base/Dockerfile"
+      - "deployments/images/sequencer/**"
+      - "deployments/monitoring/deploy_local_stack.sh"
+      - "deployments/monitoring/local/docker-compose.yml"
+      - "deployments/monitoring/local/.env"
 
 permissions:
   contents: read
@@ -83,6 +83,11 @@ jobs:
         if: always()
         working-directory: ./deployments/monitoring/local
         run: docker compose logs dummy_recorder
+
+      - name: Print dummy_eth_to_strk_oracle logs
+        if: always()
+        working-directory: ./deployments/monitoring/local
+        run: docker compose logs dummy_eth_to_strk_oracle
 
       - name: Print config_injector logs
         if: always()
