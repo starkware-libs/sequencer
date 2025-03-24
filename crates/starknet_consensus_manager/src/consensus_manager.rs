@@ -138,10 +138,10 @@ impl ConsensusManager {
                 self.config.cende_config.clone(),
                 Arc::clone(&self.class_manager_client),
             )),
-            Some(Arc::new(EthToStrkOracleClient::new(
+            Arc::new(EthToStrkOracleClient::new(
                 self.config.eth_to_strk_oracle_config.base_url.clone(),
                 self.config.eth_to_strk_oracle_config.headers.clone(),
-            ))),
+            )),
         );
 
         let network_task = tokio::spawn(network_manager.run());

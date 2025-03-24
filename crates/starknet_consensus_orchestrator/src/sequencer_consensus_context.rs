@@ -170,8 +170,7 @@ pub struct SequencerConsensusContext {
     // Used to broadcast votes to other consensus nodes.
     vote_broadcast_client: BroadcastTopicClient<Vote>,
     cende_ambassador: Arc<dyn CendeContext>,
-    // TODO(Asmaa): remove the option once e2e integration tests are updated with fake http server.
-    eth_to_strk_oracle_client: Option<Arc<dyn EthToStrkOracleClientTrait>>,
+    eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
     // The next block's l2 gas price, calculated based on EIP-1559, used for building and
     // validating proposals.
     l2_gas_price: u64,
@@ -189,7 +188,7 @@ impl SequencerConsensusContext {
         outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
         vote_broadcast_client: BroadcastTopicClient<Vote>,
         cende_ambassador: Arc<dyn CendeContext>,
-        eth_to_strk_oracle_client: Option<Arc<dyn EthToStrkOracleClientTrait>>,
+        eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
     ) -> Self {
         let chain_id = config.chain_id.clone();
         let num_validators = config.num_validators;
@@ -242,7 +241,7 @@ struct ProposalBuildArguments {
     proposal_sender: mpsc::Sender<ProposalPart>,
     fin_sender: oneshot::Sender<ProposalCommitment>,
     batcher: Arc<dyn BatcherClient>,
-    eth_to_strk_oracle_client: Option<Arc<dyn EthToStrkOracleClientTrait>>,
+    eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
     valid_proposals: Arc<Mutex<HeightToIdToContent>>,
     proposal_id: ProposalId,
     cende_write_success: AbortOnDropHandle<bool>,
@@ -751,12 +750,7 @@ async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<Co
         .expect("Can't convert timeout to chrono::Duration");
     let now = chrono::Utc::now();
     let timestamp = now.timestamp().try_into().expect("Failed to convert timestamp");
-    let eth_to_fri_rate = match &args.eth_to_strk_oracle_client {
-        Some(eth_to_strk_oracle_client) => {
-            eth_to_strk_oracle_client.eth_to_fri_rate(timestamp).await?
-        }
-        None => 1,
-    };
+    let eth_to_fri_rate = args.eth_to_strk_oracle_client.eth_to_fri_rate(timestamp).await?;
     // TODO(Asmaa): change this to the real values.
     let block_info = ConsensusBlockInfo {
         height: args.proposal_init.height,
