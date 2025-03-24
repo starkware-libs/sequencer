@@ -17,9 +17,11 @@ define_metrics!(
         MetricCounter { BATCHED_TRANSACTIONS, "batcher_batched_transactions", "Counter of batched transactions across all forks", init = 0 },
         MetricCounter { REJECTED_TRANSACTIONS, "batcher_rejected_transactions", "Counter of rejected transactions", init = 0 },
         MetricCounter { SYNCED_TRANSACTIONS, "batcher_synced_transactions", "Counter of synced transactions", init = 0 },
+
+        MetricCounter { FULL_BLOCKS, "batcher_full_blocks", "Counter of blocks closed on full capacity", init = 0 },
         // TODO(yair): move this
         MetricCounter { CLASS_CACHE_MISSES, "class_cache_misses", "Counter of global class cache misses", init=0 },
-        MetricCounter { CLASS_CACHE_HITS, "class_cache_hits", "Counter of global class cache hits", init=0 },
+        MetricCounter { CLASS_CACHE_HITS, "class_cache_hits", "Counter of global class cache hits", init=0 }
     },
 );
 
@@ -36,6 +38,8 @@ pub fn register_metrics(storage_height: BlockNumber) {
     BATCHED_TRANSACTIONS.register();
     REJECTED_TRANSACTIONS.register();
     SYNCED_TRANSACTIONS.register();
+
+    FULL_BLOCKS.register();
 
     CLASS_CACHE_MISSES.register();
     CLASS_CACHE_HITS.register();
