@@ -160,6 +160,13 @@
         "type": "stat",
         "expr": "apollo_mempool_p2p_num_received_messages",
         "extra_params": {}
+      },
+      {
+        "title": "apollo_mempool_p2p_broadcast_transaction_batch_size",
+        "description": "A histogram of the number of transactions in each batch broadcasted by the mempool p2p component",
+        "type": "stat",
+        "expr": "apollo_mempool_p2p_broadcast_transaction_batch_size",
+        "extra_params": {}
       }
     ],
     "ConsensusP2p": [
