@@ -1,3 +1,4 @@
+use std::net::{IpAddr, Ipv4Addr};
 #[cfg(test)]
 use std::path::Path;
 use std::path::PathBuf;
@@ -5,7 +6,10 @@ use std::path::PathBuf;
 use serde::Serialize;
 use starknet_api::core::ChainId;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
-use starknet_sequencer_node::config::config_utils::{DeploymentBaseAppConfig, PresetConfig};
+use starknet_sequencer_node::config::config_utils::{
+    get_deployment_from_config_path,
+    PresetConfig,
+};
 
 use crate::service::{DeploymentName, IntoService, Service};
 
@@ -64,9 +68,8 @@ impl Deployment {
         }
     }
 
-    pub fn dump_application_config_files(&self, _base_app_config_file_path: &str) {
-        // TODO(Tsabary): load the base app config, and create a DeploymentBaseAppConfig instance.
-        let deployment_base_app_config = DeploymentBaseAppConfig::default();
+    pub fn dump_application_config_files(&self, base_app_config_file_path: &str) {
+        let deployment_base_app_config = get_deployment_from_config_path(base_app_config_file_path);
 
         let component_configs = self.deployment_name.get_component_configs(None);
 
@@ -78,8 +81,14 @@ impl Deployment {
                 config_path: PathBuf::from(&self.application_config_subdir)
                     .join(service.get_config_file_path()),
                 component_config: component_config.clone(),
-                // TODO(Tsabary): figure what values should be here.
-                monitoring_endpoint_config: MonitoringEndpointConfig::default(),
+                monitoring_endpoint_config: MonitoringEndpointConfig {
+                    ip: IpAddr::from(Ipv4Addr::UNSPECIFIED),
+                    // TODO(Tsabary): services use 8082 for their monitoring. Fix that as a const
+                    // and ensure throughout the deployment code.
+                    port: 8082,
+                    collect_metrics: true,
+                    collect_profiling_metrics: true,
+                },
             };
 
             service_deployment_base_app_config.dump_config_file(preset_config);
