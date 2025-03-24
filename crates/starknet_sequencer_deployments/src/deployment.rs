@@ -42,6 +42,8 @@ pub struct Deployment {
     chain_id: ChainId,
     image: &'static str,
     application_config_subdir: String,
+    #[serde(skip_serializing)]
+    deployment_name: DeploymentName,
     services: Vec<Service>,
 }
 
@@ -54,7 +56,21 @@ impl Deployment {
             chain_id,
             image: DEPLOYMENT_IMAGE,
             application_config_subdir: deployment_name.get_path(),
+            deployment_name,
             services,
+        }
+    }
+
+    pub fn dump_application_config_files(&self, _base_app_config_file_path: &str) {
+        // TODO(Tsabary): load the base app config, and create a DeploymentBaseAppConfig instance.
+        let component_configs = self.deployment_name.get_component_configs(None);
+
+        // Iterate over the component_configs
+        for (_service, _component_config) in component_configs.iter() {
+            // TODO(Tsabary): clone the loaded DeploymentBaseAppConfig instance.
+            // TODO(Tsabary): replace the current component config into the cloned
+            // DeploymentBaseAppConfig instance. TODO(Tsabary): dump the modified
+            // instance to the service path.
         }
     }
 
