@@ -13,10 +13,14 @@ use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use tracing::{error, info};
 use validator::ValidationError;
 
-use super::node_config::{CONFIG_NON_POINTERS_WHITELIST, CONFIG_POINTERS};
 use crate::config::component_config::ComponentConfig;
 use crate::config::definitions::ConfigPointersMap;
-use crate::config::node_config::{SequencerNodeConfig, POINTER_TARGET_VALUE};
+use crate::config::node_config::{
+    SequencerNodeConfig,
+    CONFIG_NON_POINTERS_WHITELIST,
+    CONFIG_POINTERS,
+    POINTER_TARGET_VALUE,
+};
 use crate::utils::load_and_validate_config;
 
 pub(crate) fn create_validation_error(
@@ -83,6 +87,7 @@ pub fn dump_json_data(json_data: Value, file_path: &PathBuf) {
     info!("Writing required config changes to: {:?}", file_path);
 }
 
+// TODO(Tsabary): unify with the function of DeploymentBaseAppConfig.
 pub fn dump_config_file(
     config: SequencerNodeConfig,
     pointers: &ConfigPointers,
@@ -154,6 +159,9 @@ impl DeploymentBaseAppConfig {
         self.config.clone()
     }
 
+    // TODO(Tsabary): dump functions should not return values, need to separate this function.
+    // Suggestion: a modifying function that takes a preset config, and a dump function that takes a
+    // path.
     pub fn dump_config_file(&self, preset_config: PresetConfig) -> SequencerNodeConfig {
         let mut updated_config = self.config.clone();
         updated_config.components = preset_config.component_config;
@@ -172,7 +180,7 @@ pub fn get_deployment_from_config_path(config_path: &str) -> DeploymentBaseAppCo
     // TODO(Nadin): simplify this by using only config_path and removing the extra strings.
     let config = load_and_validate_config(vec![
         "deployment_from_config_path".to_string(),
-        "--config_path".to_string(),
+        "--config_file".to_string(),
         config_path.to_string(),
     ])
     .unwrap();
@@ -181,7 +189,7 @@ pub fn get_deployment_from_config_path(config_path: &str) -> DeploymentBaseAppCo
 
     config_pointers_map.change_target_value(
         "chain_id",
-        to_value(config.batcher_config.block_builder_config.chain_info.clone())
+        to_value(config.batcher_config.block_builder_config.chain_info.chain_id.clone())
             .expect("Failed to serialize ChainId"),
     );
     config_pointers_map.change_target_value(
