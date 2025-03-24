@@ -2,8 +2,18 @@ import json
 import typing
 
 from constructs import Construct
-from cdk8s import Names
+from cdk8s import Names, ApiObjectMetadata
 from imports import k8s
+from imports.io.external_secrets import (
+    ExternalSecretV1Beta1 as ExternalSecret,
+    ExternalSecretV1Beta1Spec as ExternalSecretSpec,
+    ExternalSecretV1Beta1SpecData as ExternalSecretSpecData,
+    ExternalSecretV1Beta1SpecTarget as ExternalSecretSpecTarget,
+    ExternalSecretV1Beta1SpecDataRemoteRef as ExternalSecretSpecDataRemoteRef,
+    ExternalSecretV1Beta1SpecSecretStoreRef as ExternalSecretSpecSecretStoreRef,
+    ExternalSecretV1Beta1SpecSecretStoreRefKind as ExternalSecretSpecSecretStoreRefKind,
+    ExternalSecretV1Beta1SpecDataRemoteRefConversionStrategy as ExternalSecretSpecDataRemoteRefConversionStrategy,
+)
 from services import topology, const
 
 
@@ -15,6 +25,7 @@ class ServiceApp(Construct):
         *,
         namespace: str,
         service_topology: topology.ServiceTopology,
+        external_secret=None,  # Disabled for now
     ):
         super().__init__(scope, id)
 
@@ -24,13 +35,16 @@ class ServiceApp(Construct):
             "service": Names.to_label_value(self, include_hash=False),
         }
         self.service_topology = service_topology
+        self.external_secret = external_secret
         self.node_config = service_topology.config.get_config()
 
         self.config_map = k8s.KubeConfigMap(
             self,
             "configmap",
             metadata=k8s.ObjectMeta(name=f"{self.node.id}-config"),
-            data=dict(config=json.dumps(self.service_topology.config.get_config(), indent=2)),
+            data=dict(
+                config=json.dumps(self.service_topology.config.get_config(), indent=2)
+            ),
         )
 
         self.service = k8s.KubeService(
@@ -85,6 +99,32 @@ class ServiceApp(Construct):
         if self.service_topology.autoscale:
             self.hpa = self._get_hpa()
 
+    def _get_external_secret(self) -> ExternalSecret:
+        return ExternalSecret(
+            self,
+            "external-secret",
+            metadata=ApiObjectMetadata(labels=self.labels),
+            spec=ExternalSecretSpec(
+                secret_store_ref=ExternalSecretSpecSecretStoreRef(
+                    kind=ExternalSecretSpecSecretStoreRefKind.CLUSTER_SECRET_STORE,
+                    name="external-secrets",
+                ),
+                refresh_interval="1m",
+                target=ExternalSecretSpecTarget(
+                    name=f"{self.node.id}-secret",
+                ),
+                data=[
+                    ExternalSecretSpecData(
+                        secret_key="secrets.json",
+                        remote_ref=ExternalSecretSpecDataRemoteRef(
+                            key=f"{self.node.id}-{self.namespace}",
+                            conversion_strategy=ExternalSecretSpecDataRemoteRefConversionStrategy.DEFAULT,
+                        ),
+                    ),
+                ],
+            ),
+        )
+
     def _get_hpa(self) -> k8s.KubeHorizontalPodAutoscalerV2:
         return k8s.KubeHorizontalPodAutoscalerV2(
             self,
@@ -101,7 +141,9 @@ class ServiceApp(Construct):
                         type="Resource",
                         resource=k8s.ResourceMetricSourceV2(
                             name="cpu",
-                            target=k8s.MetricTargetV2(type="Utilization", average_utilization=50),
+                            target=k8s.MetricTargetV2(
+                                type="Utilization", average_utilization=50
+                            ),
                         ),
                     )
                 ],
@@ -137,7 +179,9 @@ class ServiceApp(Construct):
                     "acme.cert-manager.io/http01-edit-in-place": "true",
                 },
             ),
-            spec=k8s.IngressSpec(tls=self._get_ingress_tls(), rules=self._get_ingress_rules()),
+            spec=k8s.IngressSpec(
+                tls=self._get_ingress_tls(), rules=self._get_ingress_rules()
+            ),
         )
 
     def _get_persistent_volume_claim(self) -> k8s.KubePersistentVolumeClaim:
@@ -151,7 +195,9 @@ class ServiceApp(Construct):
                 volume_mode=const.PVC_VOLUME_MODE,
                 resources=k8s.ResourceRequirements(
                     requests={
-                        "storage": k8s.Quantity.from_string(f"{self.service_topology.storage}Gi")
+                        "storage": k8s.Quantity.from_string(
+                            f"{self.service_topology.storage}Gi"
+                        )
                     }
                 ),
             ),
@@ -215,13 +261,28 @@ class ServiceApp(Construct):
 
     def _get_volume_mounts(self) -> typing.List[k8s.VolumeMount]:
         volume_mounts = [
-            k8s.VolumeMount(
-                name=f"{self.node.id}-config",
-                mount_path="/config/sequencer/presets/",
-                read_only=True,
+            (
+                k8s.VolumeMount(
+                    name=f"{self.node.id}-config",
+                    mount_path="/config/sequencer/presets/",
+                    read_only=True,
+                )
             ),
             (
-                k8s.VolumeMount(name=f"{self.node.id}-data", mount_path="/data", read_only=False)
+                k8s.VolumeMount(
+                    name=f"{self.node.id}-secret",
+                    mount_path="/etc/secrets",
+                    read_only=True,
+                )
+                if self.external_secret is not None
+                else None
+            ),
+            (
+                k8s.VolumeMount(
+                    name=f"{self.node.id}-data",
+                    mount_path="/data",
+                    read_only=False,
+                )
                 if self.service_topology.storage
                 else None
             ),
@@ -230,18 +291,43 @@ class ServiceApp(Construct):
         return [vm for vm in volume_mounts if vm is not None]
 
     def _get_volumes(self) -> typing.List[k8s.Volume]:
-        return [
-            k8s.Volume(
-                name=f"{self.node.id}-config",
-                config_map=k8s.ConfigMapVolumeSource(name=f"{self.node.id}-config"),
+        volumes = [
+            (
+                k8s.Volume(
+                    name=f"{self.node.id}-config",
+                    config_map=k8s.ConfigMapVolumeSource(name=f"{self.node.id}-config"),
+                )
             ),
-            k8s.Volume(
-                name=f"{self.node.id}-data",
-                persistent_volume_claim=k8s.PersistentVolumeClaimVolumeSource(
-                    claim_name=f"{self.node.id}-data", read_only=False
-                ),
+            (
+                k8s.Volume(
+                    name=f"{self.node.id}-secret",
+                    secret=k8s.SecretVolumeSource(
+                        secret_name=f"{self.node.id}-secret",
+                        default_mode=400,
+                        items=[
+                            k8s.KeyToPath(
+                                key="secrets.json",
+                                path="secrets.json",
+                            )
+                        ],
+                    ),
+                )
+                if self.external_secret is not None
+                else None
+            ),
+            (
+                k8s.Volume(
+                    name=f"{self.node.id}-data",
+                    persistent_volume_claim=k8s.PersistentVolumeClaimVolumeSource(
+                        claim_name=f"{self.node.id}-data", read_only=False
+                    ),
+                )
+                if self.service_topology.storage
+                else None
             ),
         ]
+
+        return [v for v in volumes if v is not None]
 
     def _get_ingress_rules(self) -> typing.List[k8s.IngressRule]:
         return [
@@ -287,5 +373,7 @@ class ServiceApp(Construct):
     @staticmethod
     def _get_tolerations() -> typing.Sequence[k8s.Toleration]:
         return [
-            k8s.Toleration(key="role", operator="Equal", value="sequencer", effect="NoSchedule"),
+            k8s.Toleration(
+                key="role", operator="Equal", value="sequencer", effect="NoSchedule"
+            ),
         ]
