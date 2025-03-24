@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
+use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusRecorder};
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::execution_resources::GasAmount;
@@ -42,13 +43,15 @@ fn tx_generator() -> MultiAccountTransactionGenerator {
 #[case::end_to_end_flow(
     TestIdentifier::EndToEndFlowTest,
     create_test_scenarios(),
-    GasAmount(29000000)
+    GasAmount(29000000),
+    false
 )]
 // TODO(yair): Add check that a block closed due to being full instead of deadline.
 #[case::many_txs_scenario(
     TestIdentifier::EndToEndFlowTestManyTxs,
     create_many_txs_scenario(),
-    GasAmount(17500000)
+    GasAmount(17500000),
+    true
 )]
 #[tokio::test]
 async fn end_to_end_flow(
@@ -56,8 +59,11 @@ async fn end_to_end_flow(
     #[case] test_identifier: TestIdentifier,
     #[case] test_blocks_scenarios: Vec<TestScenario>,
     #[case] block_max_capacity_sierra_gas: GasAmount,
+    #[case] expecting_full_blocks: bool,
 ) {
     configure_tracing().await;
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
 
     const TEST_SCENARIO_TIMOUT: std::time::Duration = std::time::Duration::from_secs(50);
     // Setup.
@@ -129,12 +135,31 @@ async fn end_to_end_flow(
         });
     }
 
-    // Check that only the expected txs were included in the blocks.
+    assert_only_expected_txs(
+        total_expected_txs,
+        mock_running_system.accumulated_txs.lock().await.accumulated_tx_hashes.clone(),
+    );
+    assert_full_blocks_flow(&recorder, expecting_full_blocks);
+}
+
+fn assert_only_expected_txs(
+    mut total_expected_txs: Vec<TransactionHash>,
+    mut batched_txs: Vec<TransactionHash>,
+) {
     total_expected_txs.sort();
-    let mut batched_txs =
-        mock_running_system.accumulated_txs.lock().await.accumulated_tx_hashes.clone();
     batched_txs.sort();
     assert_eq!(total_expected_txs, batched_txs);
+}
+
+fn assert_full_blocks_flow(recorder: &PrometheusRecorder, expecting_full_blocks: bool) {
+    let metrics = recorder.handle().render();
+    let full_blocks_metric =
+        starknet_batcher::metrics::FULL_BLOCKS.parse_numeric_metric::<u64>(&metrics).unwrap();
+    if expecting_full_blocks {
+        assert!(full_blocks_metric > 0);
+    } else {
+        assert_eq!(full_blocks_metric, 0);
+    }
 }
 
 fn create_test_scenarios() -> Vec<TestScenario> {
