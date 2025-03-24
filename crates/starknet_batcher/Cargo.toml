@@ -53,4 +53,4 @@ starknet_class_manager_types = { workspace = true, features = ["testing"] }
 starknet_infra_utils.workspace = true
 starknet_l1_provider_types = { workspace = true, features = ["testing"] }
 starknet_mempool_types = { workspace = true, features = ["testing"] }
-starknet_sequencer_metrics.workspace = true
+starknet_sequencer_metrics = { workspace = true, features = ["testing"] }
