@@ -83,6 +83,7 @@ pub fn dump_json_data(json_data: Value, file_path: &PathBuf) {
     info!("Writing required config changes to: {:?}", file_path);
 }
 
+// TODO(Tsabary): unify with the function of DeploymentBaseAppConfig.
 pub fn dump_config_file(
     config: SequencerNodeConfig,
     pointers: &ConfigPointers,
@@ -154,6 +155,9 @@ impl DeploymentBaseAppConfig {
         self.config.clone()
     }
 
+    // TODO(Tsabary): dump functions should not return values, need to separate this function.
+    // Suggestion: a modifying function that takes a preset config, and a dump function that takes a
+    // path.
     pub fn dump_config_file(&self, preset_config: PresetConfig) -> SequencerNodeConfig {
         let mut updated_config = self.config.clone();
         updated_config.components = preset_config.component_config;
@@ -172,7 +176,7 @@ pub fn get_deployment_from_config_path(config_path: &str) -> DeploymentBaseAppCo
     // TODO(Nadin): simplify this by using only config_path and removing the extra strings.
     let config = load_and_validate_config(vec![
         "deployment_from_config_path".to_string(),
-        "--config_path".to_string(),
+        "--config_file".to_string(),
         config_path.to_string(),
     ])
     .unwrap();
