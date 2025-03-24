@@ -4,7 +4,7 @@ use libp2p::swarm::ConnectionId;
 use libp2p::{Multiaddr, PeerId};
 use tracing::info;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Peer {
     peer_id: PeerId,
     multiaddr: Multiaddr,
