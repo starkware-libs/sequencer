@@ -12,6 +12,8 @@ pub enum PatriciaError {
     BothChildrenAreNone { index: LayerIndex, height: SubTreeHeight },
     #[error("Expected a binary node, found: {0:?}")]
     ExpectedBinary(Preimage),
+    #[error("Expected an inner node, found: {0:?}")]
+    ExpectedInnerNode(String),
     #[error("Exceeded the max index: {0:?}")]
     MaxLayerIndexExceeded(U256),
 }

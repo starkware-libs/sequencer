@@ -1,8 +1,10 @@
+use assert_matches::assert_matches;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_types_core::felt::Felt;
 
-use super::{build_update_tree, InnerNode, LayerIndex, UpdateTree};
+use super::{build_update_tree, DecodeNodeCase, InnerNode, LayerIndex, UpdateTree};
+use crate::hints::hint_implementation::patricia::error::PatriciaError;
 
 #[test]
 fn test_build_update_tree_empty() {
@@ -35,4 +37,84 @@ fn test_build_update_tree() {
     ));
 
     assert_eq!(update_tree, expected_update_tree);
+}
+
+#[test]
+fn test_inner_node() {
+    let leaf_left = HashOutput(Felt::from(252));
+    let leaf_right = HashOutput(Felt::from(3000));
+
+    // Left node
+    let inner_node = InnerNode::Left(Box::new(UpdateTree::Leaf(leaf_left)));
+    let (left_child, right_child) = inner_node.get_children();
+    let case = DecodeNodeCase::from(&inner_node);
+    assert_matches!(left_child, UpdateTree::Leaf(value) if value.0 == leaf_left.0);
+    assert_eq!(right_child, &UpdateTree::None);
+    assert_matches!(case, DecodeNodeCase::Left);
+
+    // Right node
+    let inner_node = InnerNode::Right(Box::new(UpdateTree::Leaf(leaf_right)));
+    let (left_child, right_child) = inner_node.get_children();
+    let case = DecodeNodeCase::from(&inner_node);
+    assert_eq!(left_child, &UpdateTree::None);
+    assert_matches!(right_child, UpdateTree::Leaf(value) if value.0 == leaf_right.0);
+    assert_matches!(case, DecodeNodeCase::Right);
+
+    // Two children
+    let inner_node = InnerNode::Both(
+        Box::new(UpdateTree::Leaf(leaf_left)),
+        Box::new(UpdateTree::Leaf(leaf_right)),
+    );
+    let (left_child, right_child) = inner_node.get_children();
+    let case = DecodeNodeCase::from(&inner_node);
+    assert_matches!(left_child, UpdateTree::Leaf(value) if value.0 == leaf_left.0);
+    assert_matches!(right_child, UpdateTree::Leaf(value) if value.0 == leaf_right.0);
+    assert_matches!(case, DecodeNodeCase::Both);
+}
+
+#[test]
+fn test_update_tree() {
+    let leaf_left = HashOutput(Felt::from(252));
+    let leaf_right = HashOutput(Felt::from(3000));
+
+    let expected_left_child = UpdateTree::Leaf(leaf_left);
+    let expected_right_child = UpdateTree::Leaf(leaf_right);
+
+    // Left node
+    let update_tree = UpdateTree::InnerNode(InnerNode::Left(Box::new(UpdateTree::Leaf(leaf_left))));
+    let (left_child, right_child) = update_tree.get_children().unwrap();
+    let case = DecodeNodeCase::try_from(&update_tree).unwrap();
+    assert_eq!(left_child, &expected_left_child);
+    assert_eq!(right_child, &UpdateTree::None);
+    assert_matches!(case, DecodeNodeCase::Left);
+
+    // Right node
+    let update_tree =
+        UpdateTree::InnerNode(InnerNode::Right(Box::new(UpdateTree::Leaf(leaf_right))));
+    let (left_child, right_child) = update_tree.get_children().unwrap();
+    let case = DecodeNodeCase::try_from(&update_tree).unwrap();
+    assert_eq!(left_child, &UpdateTree::None);
+    assert_eq!(right_child, &expected_right_child);
+    assert_matches!(case, DecodeNodeCase::Right);
+
+    // Two children
+    let update_tree = UpdateTree::InnerNode(InnerNode::Both(
+        Box::new(UpdateTree::Leaf(leaf_left)),
+        Box::new(UpdateTree::Leaf(leaf_right)),
+    ));
+    let (left_child, right_child) = update_tree.get_children().unwrap();
+    let case = DecodeNodeCase::try_from(&update_tree).unwrap();
+    assert_eq!(left_child, &expected_left_child);
+    assert_eq!(right_child, &expected_right_child);
+    assert_matches!(case, DecodeNodeCase::Both);
+
+    // None
+    let update_tree = UpdateTree::None;
+    let result = update_tree.get_children();
+    assert_matches!(result, Err(PatriciaError::ExpectedInnerNode(_)));
+
+    // Leaf
+    let update_tree = UpdateTree::Leaf(HashOutput(Felt::from(12)));
+    let result = update_tree.get_children();
+    assert_matches!(result, Err(PatriciaError::ExpectedInnerNode(_)));
 }
