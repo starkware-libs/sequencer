@@ -28,6 +28,7 @@ use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_mempool_types::communication::MockMempoolClient;
 
 use crate::config::StatefulTransactionValidatorConfig;
+use crate::errors::StatefulTransactionValidatorResult;
 use crate::state_reader::{MockStateReaderFactory, StateReaderFactory};
 use crate::state_reader_test_utils::local_test_state_reader_factory;
 use crate::stateful_transaction_validator::{
@@ -199,4 +200,38 @@ async fn test_skip_stateful_validation(
     })
     .await
     .unwrap();
+}
+
+#[rstest]
+#[case::nonce_equal_to_account_nonce(0, 1, 1, Ok(()))]
+#[case::nonce_in_allowed_range(10, 1, 11, Ok(()))]
+#[case::nonce_beyond_allowed_gap(10, 1, 12, Err(GatewaySpecError::InvalidTransactionNonce))]
+#[case::nonce_less_then_account_nonce(0, 1, 0, Err(GatewaySpecError::InvalidTransactionNonce))]
+#[tokio::test]
+async fn test_is_valid_nonce(
+    #[case] max_allowed_nonce_gap: u32,
+    #[case] account_nonce: u32,
+    #[case] tx_nonce: u32,
+    #[case] expected_result: StatefulTransactionValidatorResult<()>,
+) {
+    let stateful_validator = StatefulTransactionValidator {
+        config: StatefulTransactionValidatorConfig { max_allowed_nonce_gap, ..Default::default() },
+    };
+
+    let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
+    mock_validator.expect_validate().return_once(|_| Ok(()));
+
+    let executable_tx = executable_invoke_tx(invoke_tx_args!(nonce: nonce!(tx_nonce)));
+    let result = tokio::task::spawn_blocking(move || {
+        stateful_validator.run_validate(
+            &executable_tx,
+            nonce!(account_nonce),
+            Arc::new(MockMempoolClient::new()),
+            mock_validator,
+            tokio::runtime::Handle::current(),
+        )
+    })
+    .await
+    .unwrap();
+    assert_eq!(result, expected_result);
 }
