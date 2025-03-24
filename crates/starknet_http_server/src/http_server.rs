@@ -67,11 +67,18 @@ async fn add_tx(
     Json(tx): Json<RpcTransaction>,
 ) -> HttpServerResult<Json<TransactionHash>> {
     record_added_transaction();
-    let gateway_input: GatewayInput = GatewayInput { rpc_tx: tx, message_metadata: None };
-    let add_tx_result = app_state.gateway_client.add_tx(gateway_input).await.map_err(|e| {
-        debug!("Error while adding transaction: {}", e);
-        HttpServerError::from(e)
-    });
+    let gateway_input: GatewayInput =
+        GatewayInput { transactions: vec![tx], message_metadata: None };
+    let add_tx_result = match app_state.gateway_client.add_txs(gateway_input).await {
+        Ok(tx_hashes) => {
+            assert!(tx_hashes.len() == 1, "Expected a response for exactly one transaction.");
+            Ok(tx_hashes.first().unwrap().to_owned())
+        }
+        Err(e) => {
+            debug!("Error while adding transaction: {}", e);
+            Err(HttpServerError::from(e))
+        }
+    };
 
     let region =
         headers.get(CLIENT_REGION_HEADER).and_then(|region| region.to_str().ok()).unwrap_or("N/A");

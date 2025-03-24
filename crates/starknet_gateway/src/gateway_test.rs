@@ -138,6 +138,7 @@ fn create_tx() -> (RpcTransaction, SenderAddress) {
     Err(MempoolClientError::MempoolError(MempoolError::NonceTooLarge(Nonce::default()))),
     Some(GatewaySpecError::InvalidTransactionNonce)
 )]
+// TODO(alonl): test add_txs with multiple txs
 #[tokio::test]
 async fn test_add_tx(
     mut mock_dependencies: MockDependencies,
@@ -179,7 +180,7 @@ async fn test_add_tx(
 
     let gateway = mock_dependencies.gateway();
 
-    let result = gateway.add_tx(rpc_tx.clone(), p2p_message_metadata.clone()).await;
+    let result = gateway.add_txs(vec![rpc_tx.clone()], p2p_message_metadata.clone()).await;
 
     let metric_counters_for_queries = GatewayMetricHandle::new(&rpc_tx, &p2p_message_metadata);
     let metrics = recorder.handle().render();
@@ -198,7 +199,7 @@ async fn test_add_tx(
                     .get_metric_value(TRANSACTIONS_SENT_TO_MEMPOOL, &metrics),
                 1
             );
-            assert_eq!(result.unwrap(), tx_hash);
+            assert_eq!(result.unwrap(), vec![tx_hash]);
         }
     }
 }
@@ -221,7 +222,7 @@ async fn test_compiled_class_hash_mismatch(mock_dependencies: MockDependencies) 
 
     let gateway = mock_dependencies.gateway();
 
-    let err = gateway.add_tx(tx, None).await.unwrap_err();
+    let err = gateway.add_txs(vec![tx], None).await.unwrap_err();
     assert_matches!(err, GatewaySpecError::CompiledClassHashMismatch);
 }
 

@@ -35,7 +35,10 @@ use tracing::{error, instrument};
 #[cfg_attr(any(feature = "testing", test), automock)]
 #[async_trait]
 pub trait GatewayClient: Send + Sync {
-    async fn add_tx(&self, gateway_input: GatewayInput) -> GatewayClientResult<TransactionHash>;
+    async fn add_txs(
+        &self,
+        gateway_input: GatewayInput,
+    ) -> GatewayClientResult<Vec<TransactionHash>>;
 }
 
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
@@ -47,7 +50,7 @@ impl_debug_for_infra_requests_and_responses!(GatewayRequest);
 
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum GatewayResponse {
-    AddTransaction(GatewayResult<TransactionHash>),
+    AddTransaction(GatewayResult<Vec<TransactionHash>>),
 }
 impl_debug_for_infra_requests_and_responses!(GatewayResponse);
 
@@ -65,7 +68,10 @@ where
     ComponentClientType: Send + Sync + ComponentClient<GatewayRequest, GatewayResponse>,
 {
     #[instrument(skip(self))]
-    async fn add_tx(&self, gateway_input: GatewayInput) -> GatewayClientResult<TransactionHash> {
+    async fn add_txs(
+        &self,
+        gateway_input: GatewayInput,
+    ) -> GatewayClientResult<Vec<TransactionHash>> {
         let request = GatewayRequest::AddTransaction(gateway_input);
         handle_all_response_variants!(
             GatewayResponse,
