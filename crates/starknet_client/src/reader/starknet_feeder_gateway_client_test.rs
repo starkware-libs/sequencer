@@ -57,7 +57,7 @@ fn get_block_url(
 ) -> String {
     let mut url = match block_number_or_latest {
         Some(block_number) => format!("/feeder_gateway/get_block?blockNumber={}", block_number),
-        None => "/feeder_gateway/get_block?blockNumber=latest".to_string(),
+        _ => "/feeder_gateway/get_block?blockNumber=latest".to_string(),
     };
 
     if !use_deprecated_feeder_gateway {
@@ -70,6 +70,31 @@ fn get_block_url(
 fn starknet_client() -> StarknetFeederGatewayClient {
     StarknetFeederGatewayClient::new(&mockito::server_url(), None, NODE_VERSION, get_test_config())
         .unwrap()
+}
+
+// TODO(Ayelet): Consider making this function generic for all successful mock responses in this
+// file.
+fn mock_successful_get_block_response(
+    response_file: &str,
+    request_param: Option<u64>,
+    use_deprecated_feeder_gateway: bool,
+) -> mockito::Mock {
+    mock("GET", get_block_url(request_param, use_deprecated_feeder_gateway).as_str())
+        .with_status(200)
+        .with_body(read_resource_file(response_file))
+        .create()
+}
+
+// TODO(Ayelet): Consider making this function generic for all error mock responses in this file.
+fn mock_error_get_block_response(
+    error_response_body: String,
+    request_param: Option<u64>,
+    use_deprecated_feeder_gateway: bool,
+) -> mockito::Mock {
+    mock("GET", get_block_url(request_param, use_deprecated_feeder_gateway).as_str())
+        .with_status(400)
+        .with_body(error_response_body)
+        .create()
 }
 
 fn block_not_found_error(block_number: i64) -> String {
@@ -99,10 +124,8 @@ fn new_urls() {
 #[tokio::test]
 async fn get_latest_block_when_blocks_exists() {
     let starknet_client = starknet_client();
-    let mock_block = mock("GET", get_block_url(None, false).as_str())
-        .with_status(200)
-        .with_body(read_resource_file("reader/block_post_0_13_1.json"))
-        .create();
+    let mock_block =
+        mock_successful_get_block_response("reader/block_post_0_13_1.json", None, false);
     let latest_block = starknet_client.latest_block().await.unwrap();
     mock_block.assert();
     assert_eq!(latest_block.unwrap().block_number(), BlockNumber(329525));
@@ -111,10 +134,7 @@ async fn get_latest_block_when_blocks_exists() {
 #[tokio::test]
 async fn get_latest_block_when_no_blocks_exist() {
     let starknet_client = starknet_client();
-    let mock_no_block = mock("GET", get_block_url(None, false).as_str())
-        .with_status(400)
-        .with_body(block_not_found_error(-1))
-        .create();
+    let mock_no_block = mock_error_get_block_response(block_not_found_error(-1), None, false);
     let latest_block = starknet_client.latest_block().await.unwrap();
     mock_no_block.assert();
     assert!(latest_block.is_none());
@@ -365,10 +385,7 @@ async fn get_block() {
         let raw_block = read_resource_file(&json_filename);
         let expected_block: Block = serde_json::from_str(&raw_block).unwrap();
 
-        let mock_block = mock("GET", get_block_url(Some(20), false).as_str())
-            .with_status(200)
-            .with_body(&raw_block)
-            .create();
+        let mock_block = mock_successful_get_block_response(&json_filename, Some(20), false);
         let block = starknet_client.block(BlockNumber(20)).await.unwrap().unwrap();
         mock_block.assert();
 
@@ -380,10 +397,8 @@ async fn get_block() {
 #[tokio::test]
 async fn get_block_not_found() {
     let starknet_client = starknet_client();
-    let mock_no_block = mock("GET", get_block_url(Some(9999999999), false).as_str())
-        .with_status(400)
-        .with_body(block_not_found_error(9999999999))
-        .create();
+    let mock_no_block =
+        mock_error_get_block_response(block_not_found_error(9999999999), Some(9999999999), false);
     let block = starknet_client.block(BlockNumber(9999999999)).await.unwrap();
     mock_no_block.assert();
     assert!(block.is_none());
