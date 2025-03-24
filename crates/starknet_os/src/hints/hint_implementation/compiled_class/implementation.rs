@@ -15,6 +15,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintExtensionResult, OsHintResult};
 use crate::hints::hint_implementation::compiled_class::utils::{
+    create_bytecode_segment_structure,
     BytecodeSegmentNode,
     CompiledClassFact,
 };
@@ -143,9 +144,27 @@ pub(crate) fn set_ap_to_segment_hash<S: StateReader>(
 }
 
 pub(crate) fn validate_compiled_class_facts_post_execution<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, exec_scopes, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    // TODO(Nimrod): Implement.
+    let mut bytecode_segment_structures = HashMap::new();
+    for (compiled_hash, compiled_class) in
+        hint_processor.execution_helper.os_input.compiled_classes.iter()
+    {
+        bytecode_segment_structures.insert(
+            *compiled_hash,
+            create_bytecode_segment_structure(
+                &compiled_class.bytecode.iter().map(|x| Felt::from(&x.value)).collect::<Vec<_>>(),
+                compiled_class.get_bytecode_segment_lengths(),
+            )?,
+        );
+    }
+    // No need for is_segment_used callback: use the VM's `MemoryCell::is_accessed`.
+    // TODO(Dori): upgrade the VM to a version including the `is_accessed` API, as added
+    //   [here](https://github.com/lambdaclass/cairo-vm/pull/2024).
+    exec_scopes.enter_scope(HashMap::from([(
+        Scope::BytecodeSegmentStructures.into(),
+        any_box!(bytecode_segment_structures),
+    )]));
     Ok(())
 }
 
