@@ -25,6 +25,7 @@ papyrus_network_types.workspace = true
 papyrus_protobuf.workspace = true
 prost.workspace = true
 serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_sequencer_metrics.workspace = true
