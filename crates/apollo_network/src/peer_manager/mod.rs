@@ -14,6 +14,7 @@ use libp2p::swarm::{ConnectionId, ToSwarm};
 use libp2p::PeerId;
 use peer::Peer;
 use serde::{Deserialize, Serialize};
+use starknet_infra_utils::dump_debug::DumpDebug;
 use tracing::info;
 
 pub use self::behaviour_impl::ToOtherBehaviourEvent;
@@ -291,5 +292,21 @@ impl BridgedBehaviour for PeerManager {
             }
             _ => {}
         }
+    }
+}
+
+impl DumpDebug for PeerManager {
+    fn dump_debug(&self) -> String {
+        format!(
+            "PeerManager {{ peers: {:?}, session_to_peer_map: {:?}, pending_events: {:?}, \
+             peers_pending_dial_with_sessions: {:?}, sessions_received_when_no_peers: {:?}, \
+             connections_for_unknown_peers: {:?} }}",
+            self.peers,
+            self.session_to_peer_map,
+            self.pending_events,
+            self.peers_pending_dial_with_sessions,
+            self.sessions_received_when_no_peers,
+            self.connections_for_unknown_peers
+        )
     }
 }

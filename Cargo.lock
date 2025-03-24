@@ -829,6 +829,7 @@ dependencies = [
  "replace_with",
  "serde",
  "starknet_api",
+ "starknet_infra_utils",
  "starknet_sequencer_metrics",
  "thiserror 1.0.69",
  "tokio",

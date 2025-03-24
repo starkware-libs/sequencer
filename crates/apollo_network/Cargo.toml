@@ -41,6 +41,7 @@ tokio-retry.workspace = true
 tracing.workspace = true
 unsigned-varint = { workspace = true, features = ["std"] }
 validator = { workspace = true, features = ["derive"] }
+starknet_infra_utils.workspace = true
 
 
 [dev-dependencies]
