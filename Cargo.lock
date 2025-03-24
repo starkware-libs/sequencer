@@ -11550,6 +11550,7 @@ dependencies = [
  "shared_execution_objects",
  "starknet-types-core",
  "starknet_api",
+ "starknet_committer",
  "starknet_infra_utils",
  "starknet_patricia",
  "strum 0.25.0",

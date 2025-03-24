@@ -1,10 +1,15 @@
 use std::collections::{HashMap, HashSet};
+use std::ops::Sub;
 
 use num_bigint::BigUint;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{BinaryData, EdgeData};
 
 use crate::hints::hint_implementation::patricia::error::PatriciaError;
+
+#[cfg(test)]
+#[path = "utils_test.rs"]
+pub mod utils_test;
 
 #[derive(Clone)]
 pub enum Preimage {
@@ -48,7 +53,16 @@ pub enum UpdateTreeInner {
 pub type UpdateTree = Option<UpdateTreeInner>;
 type Layer = HashMap<TreeIndex, UpdateTreeInner>;
 
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub struct Height(u8);
+
+impl Sub<u8> for Height {
+    type Output = Self;
+
+    fn sub(self, rhs: u8) -> Self::Output {
+        Self(self.0 - rhs)
+    }
+}
 
 /// Constructs layers of a tree from leaf updates. This is not a full binary tree. It is just the
 /// subtree induced by the modification leaves. Returns a tree of updates. A tree is built from
