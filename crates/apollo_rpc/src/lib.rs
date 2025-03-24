@@ -73,6 +73,7 @@ pub struct RpcConfig {
     pub server_address: String,
     pub max_events_chunk_size: usize,
     pub max_events_keys: usize,
+    // TODO(lev,shahak): remove once we remove papyrus.
     pub collect_metrics: bool,
     pub starknet_url: String,
     pub apollo_gateway_retry_config: RetryConfig,
