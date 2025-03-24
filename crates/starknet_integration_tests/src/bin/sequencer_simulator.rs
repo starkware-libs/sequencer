@@ -138,14 +138,15 @@ async fn main() -> anyhow::Result<()> {
 
     let (http_port, monitoring_port, base_layer_port) = get_ports(&args);
 
-    let sequencer_simulator = SequencerSimulator::new(
+    let sequencer_simulator = SequencerSimulator::create(
         args.http_url,
         http_port,
         args.monitoring_url,
         monitoring_port,
         args.base_layer_url,
         base_layer_port,
-    );
+    )
+    .await;
 
     info!("Sending bootstrap txs");
     sequencer_simulator.send_txs(&mut tx_generator, &BootstrapTxs, ACCOUNT_ID_0).await;

@@ -455,7 +455,7 @@ impl IntegrationTestManager {
     }
 
     /// Create a simulator that's connected to the http server of Node 0.
-    pub fn create_simulator(&self) -> SequencerSimulator {
+    pub async fn create_simulator(&self) -> SequencerSimulator {
         let node_0_setup = self
             .running_nodes
             .get(&0)
@@ -468,7 +468,7 @@ impl IntegrationTestManager {
             .config();
 
         let localhost_url = format!("http://{}", Ipv4Addr::LOCALHOST);
-        SequencerSimulator::new(
+        SequencerSimulator::create(
             localhost_url.clone(),
             config.http_server_config.port,
             localhost_url,
@@ -480,6 +480,7 @@ impl IntegrationTestManager {
                 .port()
                 .expect("Failed to get base layer port from config."),
         )
+        .await
     }
 
     pub async fn await_txs_accepted_on_all_running_nodes(&mut self, target_n_txs: usize) {
