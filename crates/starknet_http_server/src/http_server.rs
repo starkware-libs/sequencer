@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 
 use axum::extract::State;
 use axum::http::HeaderMap;
-use axum::routing::post;
+use axum::routing::{get, post};
 use axum::{async_trait, Json, Router};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -54,8 +54,20 @@ impl HttpServer {
     }
 
     pub fn app(&self) -> Router {
-        Router::new().route("/add_tx", post(add_tx)).with_state(self.app_state.clone())
+        Router::new()
+            .route("/gateway/add_transaction", post(add_tx))
+            .with_state(self.app_state.clone())
+            .route("/gateway/is_alive", get(is_alive))
+            .route("/gateway/is_ready", get(is_ready))
     }
+}
+
+pub async fn is_ready() -> String {
+    "Gateway is ready!".to_string()
+}
+
+pub async fn is_alive() -> String {
+    "Gateway is alive!".to_string()
 }
 
 // HttpServer handlers.
