@@ -65,6 +65,8 @@ use tokio::task::JoinHandle;
 use tracing::{debug, info, Instrument};
 use url::Url;
 
+use crate::state_reader::StorageTestConfig;
+
 pub const ACCOUNT_ID_0: AccountId = 0;
 pub const ACCOUNT_ID_1: AccountId = 1;
 pub const NEW_ACCOUNT_SALT: ContractAddressSalt = ContractAddressSalt(Felt::THREE);
@@ -141,9 +143,7 @@ impl TestScenario for BootstrapTxs {
 pub fn create_node_config(
     available_ports: &mut AvailablePorts,
     chain_info: ChainInfo,
-    batcher_storage_config: StorageConfig,
-    state_sync_storage_config: StorageConfig,
-    class_manager_storage_config: FsClassStorageConfig,
+    storage_config: StorageTestConfig,
     mut state_sync_config: StateSyncConfig,
     consensus_manager_config: ConsensusManagerConfig,
     mempool_p2p_config: MempoolP2pConfig,
@@ -156,7 +156,7 @@ pub fn create_node_config(
     let recorder_url = consensus_manager_config.cende_config.recorder_url.clone();
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
     let batcher_config = create_batcher_config(
-        batcher_storage_config,
+        storage_config.batcher_storage_config,
         chain_info.clone(),
         block_max_capacity_sierra_gas,
     );
@@ -170,8 +170,9 @@ pub fn create_node_config(
     let mempool_config = create_mempool_config();
     let http_server_config =
         create_http_server_config(available_ports.get_next_local_host_socket());
-    let class_manager_config = create_class_manager_config(class_manager_storage_config);
-    state_sync_config.storage_config = state_sync_storage_config;
+    let class_manager_config =
+        create_class_manager_config(storage_config.class_manager_storage_config);
+    state_sync_config.storage_config = storage_config.state_sync_storage_config;
 
     // Update config pointer values.
     let mut config_pointers_map = ConfigPointersMap::new(CONFIG_POINTERS.clone());
