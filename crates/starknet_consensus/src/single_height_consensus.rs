@@ -169,7 +169,7 @@ impl ShcTask {
 ///
 /// SHC is not a top level task, it is called directly and returns values (doesn't directly run sub
 /// tasks). SHC does have side effects, such as sending messages to the network via the context.
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct SingleHeightConsensus {
     height: BlockNumber,
     validators: Vec<ValidatorId>,
