@@ -41,9 +41,8 @@ impl Deployment {
     }
 
     #[cfg(test)]
-    pub fn assert_application_configs_exist(&self) {
-        // TODO(Tsabary): avoid cloning here.
-        for service in self.services.clone() {
+    pub(crate) fn assert_application_configs_exist(&self) {
+        for service in &self.services {
             // Concatenate paths.
             let subdir_path = Path::new(&self.application_config_subdir);
             let full_path = subdir_path.join(service.get_config_path());
