@@ -132,7 +132,7 @@ fn setup(
         outbound_proposal_sender,
         votes_topic_client,
         Arc::new(cende_ambassador),
-        Some(Arc::new(eth_to_strk_oracle_client)),
+        Arc::new(eth_to_strk_oracle_client),
     );
 
     let network_dependencies =
