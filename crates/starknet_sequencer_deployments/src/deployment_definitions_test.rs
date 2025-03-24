@@ -16,6 +16,10 @@ fn deployment_files_are_up_to_date() {
             deployment_preset.get_deployment(),
             deployment_preset.get_dump_file_path(),
         );
+
+        // TODO(Tsabary): test that the dumped app-config files are up to date, i.e., their current
+        // content matches the dumped on. This test will replace the application_config_files_exist
+        // test below.
     }
 }
 
