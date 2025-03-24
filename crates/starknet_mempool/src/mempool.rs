@@ -238,6 +238,10 @@ impl Mempool {
             "Returned {} out of {n_txs} transactions, ready for sequencing.",
             eligible_tx_references.len()
         );
+        debug!(
+            "Returned mempool txs: {:#?}",
+            eligible_tx_references.iter().map(|tx| tx.tx_hash).collect::<Vec<_>>()
+        );
 
         metric_set_get_txs_size(eligible_tx_references.len());
         self.update_state_metrics();
