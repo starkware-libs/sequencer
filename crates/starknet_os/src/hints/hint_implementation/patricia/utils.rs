@@ -35,7 +35,7 @@ impl Preimage {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum DecodeNodeCase {
     Left,
     Right,
@@ -89,6 +89,27 @@ pub enum InnerNode {
     Left(Box<UpdateTree>),
     Right(Box<UpdateTree>),
     Both(Box<UpdateTree>, Box<UpdateTree>),
+}
+
+impl InnerNode {
+    // TODO(Rotem): make sure the hints using this function check that the node is not None or Leaf.
+    fn get_children(&self) -> (&UpdateTree, &UpdateTree) {
+        match self {
+            InnerNode::Left(left) => (left, &UpdateTree::None),
+            InnerNode::Right(right) => (&UpdateTree::None, right),
+            InnerNode::Both(left, right) => (left, right),
+        }
+    }
+}
+
+impl From<&InnerNode> for DecodeNodeCase {
+    fn from(inner_node: &InnerNode) -> Self {
+        match inner_node {
+            InnerNode::Left(_) => DecodeNodeCase::Left,
+            InnerNode::Right(_) => DecodeNodeCase::Right,
+            InnerNode::Both(_, _) => DecodeNodeCase::Both,
+        }
+    }
 }
 
 // TODO(Rotem): Maybe we can avoid using None.
