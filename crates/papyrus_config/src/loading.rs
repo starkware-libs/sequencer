@@ -54,7 +54,7 @@ pub fn load_and_process_config<T: for<'a> Deserialize<'a>>(
     args: Vec<String>,
     ignore_default_values: bool,
 ) -> Result<T, ConfigError> {
-    let deserialized_default_config: Map<String, Value> =
+    let deserialized_default_config: Map<ParamPath, Value> =
         serde_json::from_reader(default_config_file)?;
     // Store the pointers separately from the default values. The pointers will receive a value
     // only at the end of the process.
