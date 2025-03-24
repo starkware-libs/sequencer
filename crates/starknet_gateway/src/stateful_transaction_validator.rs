@@ -60,6 +60,10 @@ impl StatefulTransactionValidator {
         mut validator: V,
         runtime: tokio::runtime::Handle,
     ) -> StatefulTransactionValidatorResult<()> {
+        if !self.is_valid_nonce(executable_tx, account_nonce) {
+            return Err(GatewaySpecError::InvalidTransactionNonce);
+        }
+
         let skip_validate =
             skip_stateful_validations(executable_tx, account_nonce, mempool_client, runtime)?;
         let only_query = false;
@@ -100,6 +104,14 @@ impl StatefulTransactionValidator {
         );
 
         Ok(BlockifierStatefulValidator::create(state, block_context))
+    }
+
+    fn is_valid_nonce(&self, executable_tx: &ExecutableTransaction, account_nonce: Nonce) -> bool {
+        let incoming_tx_nonce = executable_tx.nonce();
+        let max_allowed_nonce =
+            Nonce(account_nonce.0 + Felt::from(self.config.max_allowed_nonce_gap));
+
+        account_nonce <= incoming_tx_nonce && incoming_tx_nonce <= max_allowed_nonce
     }
 }
 
