@@ -101,8 +101,6 @@ impl DeploymentName {
     }
 }
 
-// TODO(Tsabary): each deployment should be in its own module.
-
 pub trait GetComponentConfigs {
     // TODO(Tsabary): replace IndexMap with regular HashMap. Currently using IndexMap as the
     // integration test relies on indices rather than service names.
