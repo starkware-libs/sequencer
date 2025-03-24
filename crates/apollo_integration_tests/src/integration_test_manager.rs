@@ -501,7 +501,7 @@ impl IntegrationTestManager {
     }
 
     /// Create a simulator that's connected to the http server of Node 0.
-    pub fn create_simulator(&self) -> SequencerSimulator {
+    pub async fn create_simulator(&self) -> SequencerSimulator {
         let node_0_setup = self
             .running_nodes
             .get(&0)
@@ -514,12 +514,13 @@ impl IntegrationTestManager {
             .get_config();
 
         let localhost_url = format!("http://{}", Ipv4Addr::LOCALHOST);
-        SequencerSimulator::new(
+        SequencerSimulator::create(
             localhost_url.clone(),
             config.http_server_config.port,
             localhost_url,
             config.monitoring_endpoint_config.port,
         )
+        .await
     }
 
     #[instrument(skip(self))]

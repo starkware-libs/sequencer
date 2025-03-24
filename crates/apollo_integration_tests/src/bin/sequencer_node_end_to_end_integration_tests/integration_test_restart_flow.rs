@@ -74,7 +74,7 @@ async fn main() {
         integration_test_manager.get_num_accepted_txs_on_all_running_nodes().await;
 
     // Create a simulator for sustained transaction sending.
-    let simulator = integration_test_manager.create_simulator();
+    let simulator = integration_test_manager.create_simulator().await;
     let mut tx_generator = integration_test_manager.tx_generator().snapshot();
     let test_scenario = ConsensusTxs {
         n_invoke_txs: TOTAL_INVOKE_TXS.try_into().expect("Failed to convert TPS to usize"),

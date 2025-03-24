@@ -122,7 +122,8 @@ async fn main() -> anyhow::Result<()> {
     let (http_port, monitoring_port) = get_ports(&args);
 
     let sequencer_simulator =
-        SequencerSimulator::new(args.http_url, http_port, args.monitoring_url, monitoring_port);
+        SequencerSimulator::create(args.http_url, http_port, args.monitoring_url, monitoring_port)
+            .await;
 
     info!("Sending deploy and invoke txs");
     sequencer_simulator.send_txs(&mut tx_generator, &DeployAndInvokeTxs, ACCOUNT_ID_0).await;
