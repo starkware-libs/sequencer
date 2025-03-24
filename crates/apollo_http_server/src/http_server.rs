@@ -8,7 +8,7 @@ use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::type_name::short_type_name;
 use axum::extract::State;
 use axum::http::HeaderMap;
-use axum::routing::post;
+use axum::routing::{get, post};
 use axum::{async_trait, Json, Router};
 use starknet_api::rpc_transaction::RpcTransaction;
 use tracing::{debug, info, instrument, trace};
@@ -63,7 +63,17 @@ impl HttpServer {
             // Rest api endpoint
             .route("/gateway/add_transaction", post(add_tx))
             .with_state(self.app_state.clone())
+            .route("/gateway/is_alive", get(is_alive))
+            .route("/gateway/is_ready", get(is_ready))
     }
+}
+
+pub async fn is_ready() -> String {
+    "Gateway is ready!".to_string()
+}
+
+pub async fn is_alive() -> String {
+    "Gateway is alive!".to_string()
 }
 
 // HttpServer handlers.
