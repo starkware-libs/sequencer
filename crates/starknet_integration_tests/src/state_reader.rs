@@ -79,12 +79,26 @@ impl StorageTestConfig {
 }
 
 #[derive(Debug)]
-pub struct StorageTestSetup {
-    pub storage_config: StorageTestConfig,
-    // TODO(Nadin): wrap the handles in a sub-struct.
+pub struct StorageTestHandles {
     pub batcher_storage_handle: Option<TempDir>,
     pub state_sync_storage_handle: Option<TempDir>,
     pub class_manager_storage_handles: Option<TempDirHandlePair>,
+}
+
+impl StorageTestHandles {
+    pub fn new(
+        batcher_storage_handle: Option<TempDir>,
+        state_sync_storage_handle: Option<TempDir>,
+        class_manager_storage_handles: Option<TempDirHandlePair>,
+    ) -> Self {
+        Self { batcher_storage_handle, state_sync_storage_handle, class_manager_storage_handles }
+    }
+}
+
+#[derive(Debug)]
+pub struct StorageTestSetup {
+    pub storage_config: StorageTestConfig,
+    pub storage_handles: StorageTestHandles,
 }
 
 impl StorageTestSetup {
@@ -156,9 +170,11 @@ impl StorageTestSetup {
                 state_sync_storage_config,
                 class_manager_storage_config,
             ),
-            batcher_storage_handle,
-            state_sync_storage_handle,
-            class_manager_storage_handles,
+            storage_handles: StorageTestHandles::new(
+                batcher_storage_handle,
+                state_sync_storage_handle,
+                class_manager_storage_handles,
+            ),
         }
     }
 }

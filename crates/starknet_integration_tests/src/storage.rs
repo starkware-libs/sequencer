@@ -116,12 +116,8 @@ pub fn get_integration_test_storage(
         })
     });
 
-    let StorageTestSetup {
-        mut storage_config,
-        batcher_storage_handle,
-        state_sync_storage_handle,
-        class_manager_storage_handles,
-    } = StorageTestSetup::new(accounts, chain_info, storage_exec_paths);
+    let StorageTestSetup { mut storage_config, storage_handles } =
+        StorageTestSetup::new(accounts, chain_info, storage_exec_paths);
 
     // Allow overriding the path with a custom prefix for Docker mode in system tests.
     if let Some(paths) = custom_paths {
@@ -157,8 +153,6 @@ pub fn get_integration_test_storage(
             storage_config.state_sync_storage_config,
             storage_config.class_manager_storage_config,
         ),
-        batcher_storage_handle,
-        state_sync_storage_handle,
-        class_manager_storage_handles,
+        storage_handles,
     }
 }
