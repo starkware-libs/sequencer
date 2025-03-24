@@ -846,7 +846,8 @@ async fn get_proposal_content(
             }
             GetProposalContent::Finished(id) => {
                 let proposal_commitment = BlockHash(id.state_diff_commitment.0.0);
-                info!(?proposal_commitment, num_txs = content.len(), "Finished building proposal",);
+                let num_txs: usize = content.iter().map(|batch| batch.len()).sum();
+                info!(?proposal_commitment, num_txs = num_txs, "Finished building proposal",);
 
                 // If the blob writing operation to Aerospike doesn't return a success status, we
                 // can't finish the proposal.
