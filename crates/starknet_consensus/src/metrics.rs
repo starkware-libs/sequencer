@@ -55,4 +55,5 @@ pub(crate) fn register_metrics() {
     CONSENSUS_NEW_VALUE_LOCKS.register();
     CONSENSUS_HELD_LOCKS.register();
     CONSENSUS_REPROPOSALS.register();
+    CONSENSUS_TIMEOUTS.register();
 }
