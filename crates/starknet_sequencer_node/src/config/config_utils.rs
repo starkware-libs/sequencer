@@ -8,11 +8,12 @@ use papyrus_config::dumping::{
     Pointers,
     SerializeConfig,
 };
-use serde_json::{Map, Value};
+use serde_json::{to_value, Map, Value};
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use tracing::{error, info};
 use validator::ValidationError;
 
+use super::node_config::{CONFIG_NON_POINTERS_WHITELIST, CONFIG_POINTERS};
 use crate::config::component_config::ComponentConfig;
 use crate::config::definitions::ConfigPointersMap;
 use crate::config::node_config::{SequencerNodeConfig, POINTER_TARGET_VALUE};
@@ -160,4 +161,52 @@ impl DeploymentBaseAppConfig {
         );
         updated_config
     }
+}
+
+pub fn get_deployment_from_config_path(config_path: &str) -> DeploymentBaseAppConfig {
+    let config = SequencerNodeConfig::load_and_process(vec![config_path.to_string()]).unwrap();
+
+    let mut config_pointers_map = ConfigPointersMap::new(CONFIG_POINTERS.clone());
+
+    config_pointers_map.change_target_value(
+        "chain_id",
+        to_value(config.batcher_config.block_builder_config.chain_info.clone())
+            .expect("Failed to serialize ChainId"),
+    );
+    config_pointers_map.change_target_value(
+        "eth_fee_token_address",
+        to_value(
+            config
+                .batcher_config
+                .block_builder_config
+                .chain_info
+                .fee_token_addresses
+                .eth_fee_token_address,
+        )
+        .expect("Failed to serialize ContractAddress"),
+    );
+    config_pointers_map.change_target_value(
+        "strk_fee_token_address",
+        to_value(
+            config
+                .batcher_config
+                .block_builder_config
+                .chain_info
+                .fee_token_addresses
+                .strk_fee_token_address,
+        )
+        .expect("Failed to serialize ContractAddress"),
+    );
+    config_pointers_map.change_target_value(
+        "validator_id",
+        to_value(config.consensus_manager_config.consensus_config.validator_id)
+            .expect("Failed to serialize ContractAddress"),
+    );
+    config_pointers_map.change_target_value(
+        "recorder_url",
+        to_value(config.consensus_manager_config.cende_config.recorder_url.clone())
+            .expect("Failed to serialize Url"),
+    );
+
+    DeploymentBaseAppConfig::new(config, config_pointers_map, CONFIG_NON_POINTERS_WHITELIST.clone())
 }
