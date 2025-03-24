@@ -7,8 +7,8 @@ use mockall::automock;
 use starknet_api::block::BlockNumber;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::transaction::TransactionHash;
-use starknet_l1_provider_types::errors::L1ProviderClientError;
-use starknet_l1_provider_types::{
+use starknet_l1_to_l2_message_types::errors::L1ProviderClientError;
+use starknet_l1_to_l2_message_types::{
     InvalidValidationStatus as L1InvalidValidationStatus,
     SharedL1ProviderClient,
     ValidationStatus as L1ValidationStatus,

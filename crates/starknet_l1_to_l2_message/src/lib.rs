@@ -24,7 +24,7 @@ use papyrus_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
-use starknet_l1_provider_types::SessionState;
+use starknet_l1_to_l2_message_types::SessionState;
 use validator::Validate;
 
 use crate::bootstrapper::Bootstrapper;

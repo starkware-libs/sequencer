@@ -4,8 +4,8 @@ use std::sync::Arc;
 use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
-use starknet_l1_provider_types::errors::L1ProviderError;
-use starknet_l1_provider_types::{
+use starknet_l1_to_l2_message_types::errors::L1ProviderError;
+use starknet_l1_to_l2_message_types::{
     Event,
     L1ProviderResult,
     SessionState,

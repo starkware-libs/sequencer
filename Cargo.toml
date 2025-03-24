@@ -46,8 +46,8 @@ members = [
   "crates/starknet_integration_tests",
   "crates/starknet_l1_gas_price",
   "crates/starknet_l1_gas_price_types",
-  "crates/starknet_l1_provider",
-  "crates/starknet_l1_provider_types",
+  "crates/starknet_l1_to_l2_message",
+  "crates/starknet_l1_to_l2_message_types",
   "crates/starknet_mempool",
   "crates/starknet_mempool_p2p",
   "crates/starknet_mempool_p2p_types",
@@ -243,8 +243,8 @@ starknet_infra_utils = { path = "crates/starknet_infra_utils", version = "0.0.0"
 starknet_integration_tests.path = "crates/starknet_integration_tests"
 starknet_l1_gas_price.path = "crates/starknet_l1_gas_price"
 starknet_l1_gas_price_types.path = "crates/starknet_l1_gas_price_types"
-starknet_l1_provider.path = "crates/starknet_l1_provider"
-starknet_l1_provider_types.path = "crates/starknet_l1_provider_types"
+starknet_l1_to_l2_message.path = "crates/starknet_l1_to_l2_message"
+starknet_l1_to_l2_message_types.path = "crates/starknet_l1_to_l2_message_types"
 starknet_mempool.path = "crates/starknet_mempool"
 starknet_mempool_p2p.path = "crates/starknet_mempool_p2p"
 starknet_mempool_p2p_types.path = "crates/starknet_mempool_p2p_types"

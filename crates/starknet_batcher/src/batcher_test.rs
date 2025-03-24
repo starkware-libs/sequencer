@@ -36,8 +36,8 @@ use starknet_batcher_types::batcher_types::{
 use starknet_batcher_types::errors::BatcherError;
 use starknet_class_manager_types::transaction_converter::TransactionConverter;
 use starknet_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
-use starknet_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
-use starknet_l1_provider_types::{MockL1ProviderClient, SessionState};
+use starknet_l1_to_l2_message_types::errors::{L1ProviderClientError, L1ProviderError};
+use starknet_l1_to_l2_message_types::{MockL1ProviderClient, SessionState};
 use starknet_mempool_types::communication::{MempoolClientError, MockMempoolClient};
 use starknet_mempool_types::mempool_types::CommitBlockArgs;
 use starknet_sequencer_infra::component_client::ClientError;
