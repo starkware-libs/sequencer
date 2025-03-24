@@ -36,7 +36,7 @@ pub(crate) type FeeCheckResult<T> = Result<T, FeeCheckError>;
 
 /// This struct holds the result of fee checks: recommended fee to charge (useful in post-execution
 /// revert flow) and an error if the check failed.
-struct FeeCheckReport {
+pub(crate) struct FeeCheckReport {
     recommended_fee: Fee,
     error: Option<FeeCheckError>,
 }
@@ -124,6 +124,27 @@ impl FeeCheckReport {
         Self { recommended_fee, error: Some(error) }
     }
 
+    pub fn check_all_gas_amounts_within_bounds(
+        max_amount_bounds: &GasVector,
+        gas_vector: &GasVector,
+    ) -> FeeCheckResult<()> {
+        for (resource, max_amount, actual_amount) in [
+            (L1Gas, max_amount_bounds.l1_gas, gas_vector.l1_gas),
+            (L2Gas, max_amount_bounds.l2_gas, gas_vector.l2_gas),
+            (L1DataGas, max_amount_bounds.l1_data_gas, gas_vector.l1_data_gas),
+        ] {
+            if max_amount < actual_amount {
+                return Err(FeeCheckError::MaxGasAmountExceeded {
+                    resource,
+                    max_amount,
+                    actual_amount,
+                });
+            }
+        }
+
+        Ok(())
+    }
+
     /// If the actual cost exceeds the resource bounds on the transaction, returns a fee check
     /// error.
     fn check_actual_cost_within_bounds(
@@ -189,27 +210,6 @@ impl FeeCheckReport {
                 FeeCheckReport::check_l1_gas_amount_within_bounds(l1_bounds, gas_vector, tx_context)
             }
         }
-    }
-
-    pub fn check_all_gas_amounts_within_bounds(
-        max_amount_bounds: &GasVector,
-        gas_vector: &GasVector,
-    ) -> FeeCheckResult<()> {
-        for (resource, max_amount, actual_amount) in [
-            (L1Gas, max_amount_bounds.l1_gas, gas_vector.l1_gas),
-            (L2Gas, max_amount_bounds.l2_gas, gas_vector.l2_gas),
-            (L1DataGas, max_amount_bounds.l1_data_gas, gas_vector.l1_data_gas),
-        ] {
-            if max_amount < actual_amount {
-                return Err(FeeCheckError::MaxGasAmountExceeded {
-                    resource,
-                    max_amount,
-                    actual_amount,
-                });
-            }
-        }
-
-        Ok(())
     }
 
     fn check_l1_gas_amount_within_bounds(
