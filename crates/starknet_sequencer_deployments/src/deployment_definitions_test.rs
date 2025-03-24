@@ -30,6 +30,13 @@ fn application_config_files_exist() {
     for deployment_fn in DEPLOYMENTS {
         let deployment_preset = deployment_fn();
         deployment_preset.get_deployment().assert_application_configs_exist();
+
+        // TODO(Tsabary): the following dumps the application config instead of verifying the
+        // already dumped values are updated. This is a temporary solution until the dump functions
+        // will be rearranged.
+        deployment_preset
+            .get_deployment()
+            .dump_application_config_files(deployment_preset.get_base_app_config_file_path());
     }
 }
 

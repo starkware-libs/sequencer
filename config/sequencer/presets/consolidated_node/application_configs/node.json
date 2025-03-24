@@ -36,7 +36,13 @@
   "batcher_config.storage.mmap_file_config.max_object_size": 65536,
   "batcher_config.storage.mmap_file_config.max_size": 16777216,
   "batcher_config.storage.scope": "StateOnly",
-  "chain_id": "CHAIN_ID_SUBDIR",
+  "chain_id": {
+    "chain_id": "CHAIN_ID_SUBDIR",
+    "fee_token_addresses": {
+      "eth_fee_token_address": "0x1001",
+      "strk_fee_token_address": "0x1002"
+    }
+  },
   "class_manager_config.class_manager_config.cached_class_storage_config.class_cache_size": 100,
   "class_manager_config.class_manager_config.cached_class_storage_config.deprecated_class_cache_size": 100,
   "class_manager_config.class_storage_config.class_hash_storage_config.enforce_file_exists": false,
@@ -243,7 +249,7 @@
   "monitoring_endpoint_config.collect_metrics": true,
   "monitoring_endpoint_config.collect_profiling_metrics": true,
   "monitoring_endpoint_config.ip": "0.0.0.0",
-  "monitoring_endpoint_config.port": 53380,
+  "monitoring_endpoint_config.port": 8082,
   "recorder_url": "http://127.0.0.1:53261/",
   "revert_config.revert_up_to_and_including": 18446744073709551615,
   "revert_config.should_revert": false,
