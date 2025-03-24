@@ -128,9 +128,11 @@ pub async fn spawn_anvil_and_deploy_starknet_l1_contract(
     config: &EthereumBaseLayerConfig,
 ) -> (AnvilInstance, StarknetL1Contract) {
     let anvil = anvil_instance_from_config(config);
-    let ethereum_base_layer_contract = EthereumBaseLayerContract::new(config.clone());
-    let starknet_l1_contract =
-        Starknet::deploy(ethereum_base_layer_contract.contract.provider().clone()).await.unwrap();
-
+    let starknet_l1_contract = deploy_starknet_l1_contract(config.clone()).await;
     (anvil, starknet_l1_contract)
+}
+
+pub async fn deploy_starknet_l1_contract(config: EthereumBaseLayerConfig) -> StarknetL1Contract {
+    let ethereum_base_layer_contract = EthereumBaseLayerContract::new(config);
+    Starknet::deploy(ethereum_base_layer_contract.contract.provider().clone()).await.unwrap()
 }
