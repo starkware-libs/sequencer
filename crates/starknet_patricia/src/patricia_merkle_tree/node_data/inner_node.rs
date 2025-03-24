@@ -37,6 +37,12 @@ impl EdgePath {
     #[allow(clippy::as_conversions)]
     pub const MAX: Self =
         Self(U256::from_words(u128::MAX >> (U256::BITS - Self::BITS as u32), u128::MAX));
+
+    #[cfg(any(test, feature = "testing"))]
+    pub fn new_u128(value: u128) -> Self {
+        let path = U256::from(value);
+        Self(path)
+    }
 }
 
 impl From<U256> for EdgePath {
