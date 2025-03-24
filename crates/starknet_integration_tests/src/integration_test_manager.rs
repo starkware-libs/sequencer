@@ -749,11 +749,10 @@ pub async fn get_sequencer_setup_configs(
         let (config, config_pointers_map) = create_node_config(
             &mut config_available_ports,
             chain_info,
-            // TODO(Nadin): wrap these into a sub-struct and pass it instead of passing the values
-            // individually.
-            storage_setup.batcher_storage_config.clone(),
-            storage_setup.state_sync_storage_config.clone(),
-            storage_setup.class_manager_storage_config.clone(),
+            // TODO(Nadin): pass storage_config directly.
+            storage_setup.storage_config.batcher_storage_config.clone(),
+            storage_setup.storage_config.state_sync_storage_config.clone(),
+            storage_setup.storage_config.class_manager_storage_config.clone(),
             state_sync_config,
             consensus_manager_config,
             mempool_p2p_config,

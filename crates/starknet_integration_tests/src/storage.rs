@@ -5,6 +5,7 @@ use mempool_test_utils::starknet_api_test_utils::AccountTransactionGenerator;
 
 use crate::executable_setup::NodeExecutionId;
 use crate::state_reader::{
+    StorageTestConfig,
     StorageTestSetup,
     BATCHER_DB_PATH_SUFFIX,
     CLASSES_STORAGE_DB_PATH_SUFFIX,
@@ -116,11 +117,9 @@ pub fn get_integration_test_storage(
     });
 
     let StorageTestSetup {
-        mut batcher_storage_config,
+        mut storage_config,
         batcher_storage_handle,
-        mut state_sync_storage_config,
         state_sync_storage_handle,
-        mut class_manager_storage_config,
         class_manager_storage_handles,
     } = StorageTestSetup::new(accounts, chain_info, storage_exec_paths);
 
@@ -134,17 +133,18 @@ pub fn get_integration_test_storage(
                 state_sync_index,
                 class_manager_index,
             );
-            batcher_storage_config.db_config.path_prefix =
+            storage_config.batcher_storage_config.db_config.path_prefix =
                 custom_storage_exec_paths.get_batcher_exec_path().join(BATCHER_DB_PATH_SUFFIX);
-            state_sync_storage_config.db_config.path_prefix = custom_storage_exec_paths
-                .get_state_sync_exec_path()
-                .join(STATE_SYNC_DB_PATH_SUFFIX);
-            class_manager_storage_config.class_hash_storage_config.path_prefix =
+            storage_config.state_sync_storage_config.db_config.path_prefix =
+                custom_storage_exec_paths
+                    .get_state_sync_exec_path()
+                    .join(STATE_SYNC_DB_PATH_SUFFIX);
+            storage_config.class_manager_storage_config.class_hash_storage_config.path_prefix =
                 custom_storage_exec_paths
                     .get_class_manager_exec_path()
                     .join(CLASS_MANAGER_DB_PATH_SUFFIX)
                     .join(CLASS_HASH_STORAGE_DB_PATH_SUFFIX);
-            class_manager_storage_config.persistent_root = custom_storage_exec_paths
+            storage_config.class_manager_storage_config.persistent_root = custom_storage_exec_paths
                 .get_class_manager_exec_path()
                 .join(CLASS_MANAGER_DB_PATH_SUFFIX)
                 .join(CLASSES_STORAGE_DB_PATH_SUFFIX);
@@ -152,11 +152,13 @@ pub fn get_integration_test_storage(
     }
 
     StorageTestSetup {
-        batcher_storage_config,
+        storage_config: StorageTestConfig::new(
+            storage_config.batcher_storage_config,
+            storage_config.state_sync_storage_config,
+            storage_config.class_manager_storage_config,
+        ),
         batcher_storage_handle,
-        state_sync_storage_config,
         state_sync_storage_handle,
-        class_manager_storage_config,
         class_manager_storage_handles,
     }
 }
