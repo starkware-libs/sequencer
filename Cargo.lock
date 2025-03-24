@@ -11765,6 +11765,7 @@ dependencies = [
  "apollo_network",
  "apollo_p2p_sync",
  "apollo_reverts",
+ "apollo_rpc",
  "apollo_storage",
  "apollo_test_utils",
  "async-trait",

@@ -17,6 +17,7 @@ apollo_config.workspace = true
 apollo_network.workspace = true
 apollo_p2p_sync.workspace = true
 apollo_reverts.workspace = true
+apollo_rpc.workspace = true
 apollo_storage.workspace = true
 async-trait.workspace = true
 futures.workspace = true
