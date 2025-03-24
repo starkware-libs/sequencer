@@ -10,6 +10,7 @@ use crate::test_utils::cairo_runner::{
 use crate::test_utils::utils::run_cairo_function_and_check_result;
 
 /// from starkware.cairo.common.alloc import alloc
+/// from starkware.cairo.common.math import assert_lt
 ///
 /// struct CompoundStruct {
 ///     a: felt,
@@ -21,8 +22,8 @@ use crate::test_utils::utils::run_cairo_function_and_check_result;
 ///     b: felt,
 /// }
 ///
-/// func pass_felt_and_pointers(number: felt, array: felt*, tuple: felt*,
-///     simple_struct: SimpleStruct*, compound_struct: CompoundStruct*) ->
+/// func pass_felt_and_pointers(number: felt, array: felt*, tuple: felt*, simple_struct:
+///     SimpleStruct*, compound_struct: CompoundStruct*) ->
 ///     (res1: felt, res2: felt*, res3: felt*, res4: CompoundStruct*) {
 ///     let (res_array: felt*) = alloc();
 ///     let (res_tuple: felt*) = alloc();
@@ -37,8 +38,8 @@ use crate::test_utils::utils::run_cairo_function_and_check_result;
 ///     return (res1=res_number, res2=res_array, res3=res_tuple, res4=res_compound_struct);
 /// }
 ///
-/// func pass_structs_and_tuples(tuple: (felt, felt), named_tuple: (a: felt, b:felt), simple_struct:
-///     SimpleStruct, compound_struct: CompoundStruct) ->
+/// func pass_structs_and_tuples(tuple: (felt, felt), named_tuple: (a: felt, b:felt),
+///     simple_struct: SimpleStruct, compound_struct: CompoundStruct) ->
 ///     (res1: (a: felt, b:felt), res2: SimpleStruct, res3: CompoundStruct) {
 ///     alloc_locals;
 ///     local res_simple_struct: SimpleStruct;
@@ -46,12 +47,14 @@ use crate::test_utils::utils::run_cairo_function_and_check_result;
 ///     local res_named_tuple: (a: felt, b: felt);
 ///     assert res_simple_struct = SimpleStruct(a=simple_struct.a + 1, b=simple_struct.b + 2);
 ///     assert res_compound_struct = CompoundStruct(a=compound_struct.a + 1,
-///     simple_struct=compound_struct.simple_struct); assert res_named_tuple = (a=named_tuple.a +
-///     tuple[0], b=named_tuple.b + tuple[1]); return (res1=res_named_tuple, res2=res_simple_struct,
-///     res3=res_compound_struct); }
+///     simple_struct=compound_struct.simple_struct);
+///     assert res_named_tuple = (a=named_tuple.a + tuple[0], b=named_tuple.b + tuple[1]);
+///     return (res1=res_named_tuple, res2=res_simple_struct, res3=res_compound_struct);
+/// }
 ///
 /// func pass_implicit_args{range_check_ptr, compound_struct: CompoundStruct*, simple_struct:
 ///     SimpleStruct}(number_1: felt, number_2: felt) -> (res: felt) {
+///     assert_lt(number_1, number_2);
 ///     let sum = number_1 + number_2;
 ///     return (res=sum);
 /// }
@@ -165,8 +168,6 @@ fn test_tuples_and_structs() -> Cairo0EntryPointRunnerResult<()> {
     )
 }
 
-// TODO(Amos): Actually use the range check builtin, once the SNOS hint processor supports cairo0
-// hints.
 #[test]
 fn test_implicit_args() -> Cairo0EntryPointRunnerResult<()> {
     let number_1 = 1;
