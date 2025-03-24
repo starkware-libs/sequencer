@@ -42,9 +42,7 @@ class ServiceApp(Construct):
             self,
             "configmap",
             metadata=k8s.ObjectMeta(name=f"{self.node.id}-config"),
-            data=dict(
-                config=json.dumps(self.service_topology.config.get_config(), indent=2)
-            ),
+            data=dict(config=json.dumps(self.service_topology.config.get_config(), indent=2)),
         )
 
         self.service = k8s.KubeService(
@@ -141,9 +139,7 @@ class ServiceApp(Construct):
                         type="Resource",
                         resource=k8s.ResourceMetricSourceV2(
                             name="cpu",
-                            target=k8s.MetricTargetV2(
-                                type="Utilization", average_utilization=50
-                            ),
+                            target=k8s.MetricTargetV2(type="Utilization", average_utilization=50),
                         ),
                     )
                 ],
@@ -179,9 +175,7 @@ class ServiceApp(Construct):
                     "acme.cert-manager.io/http01-edit-in-place": "true",
                 },
             ),
-            spec=k8s.IngressSpec(
-                tls=self._get_ingress_tls(), rules=self._get_ingress_rules()
-            ),
+            spec=k8s.IngressSpec(tls=self._get_ingress_tls(), rules=self._get_ingress_rules()),
         )
 
     def _get_persistent_volume_claim(self) -> k8s.KubePersistentVolumeClaim:
@@ -195,9 +189,7 @@ class ServiceApp(Construct):
                 volume_mode=const.PVC_VOLUME_MODE,
                 resources=k8s.ResourceRequirements(
                     requests={
-                        "storage": k8s.Quantity.from_string(
-                            f"{self.service_topology.storage}Gi"
-                        )
+                        "storage": k8s.Quantity.from_string(f"{self.service_topology.storage}Gi")
                     }
                 ),
             ),
@@ -373,7 +365,5 @@ class ServiceApp(Construct):
     @staticmethod
     def _get_tolerations() -> typing.Sequence[k8s.Toleration]:
         return [
-            k8s.Toleration(
-                key="role", operator="Equal", value="sequencer", effect="NoSchedule"
-            ),
+            k8s.Toleration(key="role", operator="Equal", value="sequencer", effect="NoSchedule"),
         ]
