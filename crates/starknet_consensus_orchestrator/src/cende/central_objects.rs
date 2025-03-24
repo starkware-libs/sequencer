@@ -58,7 +58,6 @@ use crate::fee_market::FeeMarketInfo;
 mod central_objects_test;
 
 pub(crate) type CentralBouncerWeights = BouncerWeights;
-pub(crate) type CentralFeeMarketInfo = FeeMarketInfo;
 pub(crate) type CentralCompressedStateDiff = CentralStateDiff;
 pub(crate) type CentralSierraContractClassEntry = (ClassHash, CentralSierraContractClass);
 pub(crate) type CentralCasmContractClassEntry = (CompiledClassHash, CentralCasmContractClass);
@@ -437,6 +436,21 @@ impl From<CasmContractClass> for CentralCasmContractClass {
                 pythonic_hints: Some(compiled_class.pythonic_hints.unwrap_or_default()),
                 ..compiled_class
             },
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct CentralFeeMarketInfo {
+    pub l2_gas_consumed: u64,
+    pub next_l2_gas_price: u128,
+}
+
+impl From<FeeMarketInfo> for CentralFeeMarketInfo {
+    fn from(fee_market_info: FeeMarketInfo) -> CentralFeeMarketInfo {
+        CentralFeeMarketInfo {
+            l2_gas_consumed: fee_market_info.l2_gas_consumed.0,
+            next_l2_gas_price: fee_market_info.next_l2_gas_price.0,
         }
     }
 }
