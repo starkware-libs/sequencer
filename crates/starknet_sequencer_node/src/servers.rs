@@ -130,10 +130,6 @@ pub struct SequencerNodeServers {
     wrapper_servers: WrapperServers,
 }
 
-// TODO(Tsabary): remove ComponentServerError and ComponentError, their wrapping Result return
-// types, and their usage in trait definitions. In a case where each of these occur the code should
-// panic, not return an error.
-
 /// A macro for creating a remote component server based on the component's execution mode.
 /// Returns a remote server if the component is configured with Remote execution mode; otherwise,
 /// returns None.
