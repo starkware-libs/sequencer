@@ -12,10 +12,12 @@ use starknet_types_core::felt::Felt;
 
 use super::{
     build_update_tree,
+    get_children,
     CanonicNode,
     DecodeNodeCase,
     InnerNode,
     LayerIndex,
+    PatriciaError,
     Preimage,
     PreimageMap,
     UpdateTree,
@@ -159,6 +161,7 @@ fn test_new_canonic_node() {
     //  4    5     x   x
     // 8 9 10 11 12 x x x
     let preimage_map = build_preimage_map_with_edge_node(SubTreeHeight(3), HashOutput(Felt::ONE));
+
     // Binary.
     let node_1 = CanonicNode::new(&preimage_map, &HashOutput(Felt::ONE));
     assert_eq!(node_1, CanonicNode::BinaryOrLeaf(HashOutput(Felt::ONE)));
@@ -175,4 +178,41 @@ fn test_new_canonic_node() {
     // Leaf / not in preimage_map.
     let node_8 = CanonicNode::new(&preimage_map, &HashOutput(Felt::from(8)));
     assert_eq!(node_8, CanonicNode::BinaryOrLeaf(HashOutput(Felt::from(8))));
+
+    // Empty.
+    let node_empty = CanonicNode::new(&preimage_map, &HashOutput(Felt::ZERO));
+    assert_eq!(node_empty, CanonicNode::Empty);
+}
+
+#[test]
+fn test_get_children() {
+    //          1
+    //    2          3
+    //  4    5     x   x
+    // 8 9 10 11 12 x x x
+    let preimage_map = build_preimage_map_with_edge_node(SubTreeHeight(3), HashOutput(Felt::ONE));
+
+    let node_1 = CanonicNode::new(&preimage_map, &HashOutput(Felt::ONE));
+    let node_2 = CanonicNode::new(&preimage_map, &HashOutput(Felt::TWO));
+    let node_3 = CanonicNode::new(&preimage_map, &HashOutput(Felt::THREE));
+    let node_6 = CanonicNode::Edge(EdgeData {
+        bottom_hash: HashOutput(Felt::from(12)),
+        path_to_bottom: PathToBottom::new(EdgePath::new_u128(0), EdgePathLength::new(1).unwrap())
+            .unwrap(),
+    });
+
+    let children_1 = get_children(&node_1, &preimage_map).unwrap();
+    let children_3 = get_children(&node_3, &preimage_map).unwrap();
+    assert_eq!(children_1, (node_2, node_3));
+    assert_eq!(children_3, (node_6, CanonicNode::Empty));
+
+    // Empty node.
+    let node_empty = CanonicNode::new(&preimage_map, &HashOutput(Felt::ZERO));
+    let children_empty = get_children(&node_empty, &preimage_map).unwrap();
+    assert_eq!(children_empty, (CanonicNode::Empty, CanonicNode::Empty));
+
+    // Not in preimage_map.
+    let node = CanonicNode::new(&preimage_map, &HashOutput(Felt::from(100)));
+    let result = get_children(&node, &preimage_map);
+    assert_matches!(result, Err(PatriciaError::MissingPreimage(_)));
 }
