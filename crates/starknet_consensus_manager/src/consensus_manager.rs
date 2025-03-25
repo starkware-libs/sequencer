@@ -28,6 +28,7 @@ use tracing::info;
 
 use crate::config::ConsensusManagerConfig;
 use crate::metrics::{
+    CONSENSUS_NUM_BLACKLISTED_PEERS,
     CONSENSUS_NUM_CONNECTED_PEERS,
     CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES,
     CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES,
@@ -75,6 +76,7 @@ impl ConsensusManager {
         );
         let network_manager_metrics = Some(NetworkMetrics {
             num_connected_peers: CONSENSUS_NUM_CONNECTED_PEERS,
+            num_blacklisted_peers: CONSENSUS_NUM_BLACKLISTED_PEERS,
             broadcast_metrics_by_topic: Some(broadcast_metrics_by_topic),
             sqmr_metrics: None,
         });
