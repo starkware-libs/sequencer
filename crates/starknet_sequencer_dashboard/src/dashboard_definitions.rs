@@ -244,7 +244,7 @@ const PANEL_MEMPOOL_TRANSACTION_TIME_SPENT: Panel = Panel::new(
     PanelType::Graph,
 );
 
-const MEMPOOL_P2P_ROW: Row<'_> = Row::new(
+const MEMPOOL_P2P_ROW: Row = Row::new(
     "MempoolP2p",
     "Mempool peer to peer metrics",
     &[
@@ -254,7 +254,7 @@ const MEMPOOL_P2P_ROW: Row<'_> = Row::new(
     ],
 );
 
-const CONSENSUS_P2P_ROW: Row<'_> = Row::new(
+const CONSENSUS_P2P_ROW: Row = Row::new(
     "ConsensusP2p",
     "Consensus peer to peer metrics",
     &[
@@ -266,7 +266,7 @@ const CONSENSUS_P2P_ROW: Row<'_> = Row::new(
     ],
 );
 
-const STATE_SYNC_P2P_ROW: Row<'_> = Row::new(
+const STATE_SYNC_P2P_ROW: Row = Row::new(
     "StateSyncP2p",
     "State sync peer to peer metrics",
     &[
@@ -276,7 +276,7 @@ const STATE_SYNC_P2P_ROW: Row<'_> = Row::new(
     ],
 );
 
-const BATCHER_ROW: Row<'_> = Row::new(
+const BATCHER_ROW: Row = Row::new(
     "Batcher",
     "Batcher metrics including proposals and transactions",
     &[
@@ -288,7 +288,7 @@ const BATCHER_ROW: Row<'_> = Row::new(
     ],
 );
 
-const CONSENSUS_ROW: Row<'_> = Row::new(
+const CONSENSUS_ROW: Row = Row::new(
     "Consensus",
     "Consensus metrics including block number, round, and so on.",
     &[
@@ -308,13 +308,13 @@ const CONSENSUS_ROW: Row<'_> = Row::new(
     ],
 );
 
-const HTTP_SERVER_ROW: Row<'_> = Row::new(
+const HTTP_SERVER_ROW: Row = Row::new(
     "Http Server",
     "Http Server metrics including added transactions",
     &[PANEL_ADDED_TRANSACTIONS_TOTAL],
 );
 
-pub const GATEWAY_ROW: Row<'_> = Row::new(
+pub const GATEWAY_ROW: Row = Row::new(
     "Gateway",
     "Gateway metrics",
     &[
@@ -327,7 +327,7 @@ pub const GATEWAY_ROW: Row<'_> = Row::new(
     ],
 );
 
-pub const MEMPOOL_ROW: Row<'_> = Row::new(
+pub const MEMPOOL_ROW: Row = Row::new(
     "Mempool",
     "Mempool metrics",
     &[
@@ -343,7 +343,7 @@ pub const MEMPOOL_ROW: Row<'_> = Row::new(
     ],
 );
 
-pub const SEQUENCER_DASHBOARD: Dashboard<'_> = Dashboard::new(
+pub const SEQUENCER_DASHBOARD: Dashboard = Dashboard::new(
     "Sequencer Node Dashboard",
     "Monitoring of the decentralized sequencer node",
     &[
