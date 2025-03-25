@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::LazyLock;
 
 use blockifier::execution::syscalls::SyscallSelector;
 use blockifier::transaction::transaction_types::TransactionType;
@@ -15,20 +16,50 @@ use crate::hints::error::OsHintError;
 use crate::hints::vars::{CairoStruct, Ids};
 use crate::vm_utils::get_address_of_nested_fields;
 
+static BUILTIN_INSTANCE_SIZES: LazyLock<HashMap<BuiltinName, usize>> = LazyLock::new(|| {
+    HashMap::from([
+        (BuiltinName::pedersen, 3),
+        (BuiltinName::range_check, 1),
+        (BuiltinName::ecdsa, 2),
+        (BuiltinName::bitwise, 5),
+        (BuiltinName::ec_op, 7),
+        (BuiltinName::poseidon, 6),
+        (BuiltinName::segment_arena, 3),
+        (BuiltinName::range_check96, 1),
+        (BuiltinName::add_mod, 7),
+        (BuiltinName::mul_mod, 7),
+        (BuiltinName::keccak, 16),
+    ])
+});
+
 #[derive(Debug, thiserror::Error)]
 pub enum OsLoggerError {
+    #[error(
+        "Builtin {builtin} in self and in the enter call counter are not in the same segment: \
+         {self_ptr}, {enter_ptr}."
+    )]
+    BuiltinsNotInSameSegment { builtin: BuiltinName, self_ptr: Relocatable, enter_ptr: Relocatable },
     #[error("Failed to build builtin pointer map: {0}.")]
     BuiltinPtrs(OsHintError),
     #[error("SyscallTrace should be finalized only once.")]
     DoubleFinalize,
     #[error("Failed to fetch identifier data for struct {0}.")]
     InnerBuiltinPtrsIdentifierMissing(String),
+    #[error("{0}")]
+    MissingBuiltinPtr(String),
     #[error("The `members` field is None in identifier data for struct {0}.")]
     MissingMembers(String),
+    #[error(
+        "Range check in self and in the enter call counter are not in the same segment: \
+         {self_ptr}, {enter_ptr}."
+    )]
+    RangeCheckNotInSameSegment { self_ptr: Relocatable, enter_ptr: Relocatable },
     #[error("SyscallTrace should be finalized before accessing resources.")]
     ResourceAccessBeforeFinalize,
     #[error("{0}")]
     UnknownBuiltin(String),
+    #[error("Builtin {0} is not in the known sizes mapping {:?}.", BUILTIN_INSTANCE_SIZES)]
+    UnknownBuiltinSize(String),
 }
 
 pub type OsLoggerResult<T> = Result<T, OsLoggerError>;
@@ -174,6 +205,49 @@ impl ResourceCounter {
                 ap_tracking,
                 os_program,
             )?,
+        })
+    }
+
+    pub fn sub_counter(&self, enter_counter: &Self) -> OsLoggerResult<ExecutionResources> {
+        // Subtract pointers to count usage.
+        let mut builtins_count_ptr: HashMap<BuiltinName, usize> = HashMap::new();
+        for (builtin_name, builtin_ptr) in self.builtin_ptrs_dict.iter() {
+            let enter_counter_ptr = enter_counter
+                .builtin_ptrs_dict
+                .get(builtin_name)
+                .ok_or(OsLoggerError::MissingBuiltinPtr(builtin_name.to_str().to_string()))?;
+            let mut builtin_count = (*builtin_ptr - *enter_counter_ptr).map_err(|_error| {
+                OsLoggerError::BuiltinsNotInSameSegment {
+                    builtin: *builtin_name,
+                    self_ptr: *builtin_ptr,
+                    enter_ptr: *enter_counter_ptr,
+                }
+            })?;
+
+            // For range check, also add the specific pointer field offset.
+            if builtin_name == &BuiltinName::range_check {
+                builtin_count +=
+                    (self.range_check_ptr - enter_counter.range_check_ptr).map_err(|_error| {
+                        OsLoggerError::RangeCheckNotInSameSegment {
+                            self_ptr: self.range_check_ptr,
+                            enter_ptr: enter_counter.range_check_ptr,
+                        }
+                    })?;
+            }
+
+            // Divide by the builtin size to get the actual usage count.
+            let builtin_size = BUILTIN_INSTANCE_SIZES
+                .get(builtin_name)
+                .ok_or(OsLoggerError::UnknownBuiltinSize(builtin_name.to_str().to_string()))?;
+            builtin_count /= *builtin_size;
+
+            builtins_count_ptr.insert(*builtin_name, builtin_count);
+        }
+
+        Ok(ExecutionResources {
+            n_steps: self.n_steps - enter_counter.n_steps,
+            builtin_instance_counter: builtins_count_ptr,
+            n_memory_holes: 0,
         })
     }
 
