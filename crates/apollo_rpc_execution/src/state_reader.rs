@@ -13,15 +13,21 @@ use blockifier::execution::contract_class::{
 };
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
+use futures::executor::block_on;
 use papyrus_common::pending_classes::{ApiContractClass, PendingClassesTrait};
 use papyrus_common::state::DeclaredClassHashEntry;
-use starknet_api::contract_class::SierraVersion;
+use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{StateNumber, StorageKey};
+use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_types_core::felt::Felt;
 
-use crate::execution_utils;
-use crate::execution_utils::{get_contract_class, ExecutionUtilsError};
+use crate::execution_utils::{
+    self,
+    get_contract_class,
+    is_contract_class_declared,
+    ExecutionUtilsError,
+};
 use crate::objects::PendingData;
 
 /// A view into the state at a specific state number.
@@ -32,6 +38,7 @@ pub struct ExecutionStateReader {
     // We want to return a custom error when missing a compiled class, but we need to return
     // Blockifier's error, so we store the missing class's hash in case of error.
     pub missing_compiled_class: Cell<Option<ClassHash>>,
+    pub class_manager_client: Option<SharedClassManagerClient>,
 }
 
 impl BlockifierStateReader for ExecutionStateReader {
@@ -102,6 +109,35 @@ impl BlockifierStateReader for ExecutionStateReader {
                 }
             }
         }
+
+        if let Some(class_manager_client) = &self.class_manager_client {
+            let contract_class = block_on(class_manager_client.get_executable(class_hash))
+                .map_err(|e| StateError::StateReadError(e.to_string()))?
+                .ok_or(StateError::UndeclaredClassHash(class_hash))?;
+
+            return match contract_class {
+                ContractClass::V1(casm_contract_class) => {
+                    let is_declared = is_contract_class_declared(
+                        &self.storage_reader.begin_ro_txn().map_err(storage_err_to_state_err)?,
+                        &class_hash,
+                        self.state_number,
+                    )
+                    .map_err(|e| StateError::StateReadError(e.to_string()))?;
+
+                    if is_declared {
+                        Ok(RunnableCompiledClass::V1(casm_contract_class.try_into()?))
+                    } else {
+                        Err(StateError::UndeclaredClassHash(class_hash))
+                    }
+                }
+                // TODO(shahak): Verify cairo0 as well after get_class_definition_block_number is
+                // fixed.
+                ContractClass::V0(deprecated_contract_class) => {
+                    Ok(RunnableCompiledClass::V0(deprecated_contract_class.try_into()?))
+                }
+            };
+        }
+
         match get_contract_class(
             &self.storage_reader.begin_ro_txn().map_err(storage_err_to_state_err)?,
             &class_hash,
