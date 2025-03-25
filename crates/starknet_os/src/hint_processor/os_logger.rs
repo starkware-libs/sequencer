@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
 use blockifier::execution::syscalls::SyscallSelector;
+use blockifier::transaction::transaction_types::TransactionType;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use starknet_api::transaction::TransactionHash;
 
 #[derive(Debug, thiserror::Error)]
 pub enum OsLoggerError {
@@ -83,6 +85,47 @@ impl TryFrom<SyscallTrace> for String {
         Ok(format!(
             "{deprecated_prefix}Syscall: {:?}\n{indentation}Steps: {}{builtins}{inner_syscalls}",
             trace.selector, resources.n_steps
+        ))
+    }
+}
+
+pub struct OsTransactionTrace {
+    tx_type: TransactionType,
+    tx_hash: TransactionHash,
+    #[allow(dead_code)]
+    syscalls: Vec<SyscallTrace>,
+    resources: Option<ExecutionResources>,
+}
+
+impl OsTransactionTrace {
+    pub fn new(tx_type: TransactionType, tx_hash: TransactionHash) -> Self {
+        Self { tx_type, tx_hash, syscalls: Vec::new(), resources: None }
+    }
+}
+
+impl ResourceFinalizer for OsTransactionTrace {
+    fn get_optional_resources(&self) -> Option<&ExecutionResources> {
+        self.resources.as_ref()
+    }
+
+    fn set_resources(&mut self, resources: ExecutionResources) {
+        self.resources = Some(resources);
+    }
+}
+
+impl TryFrom<OsTransactionTrace> for String {
+    type Error = OsLoggerError;
+
+    fn try_from(trace: OsTransactionTrace) -> OsLoggerResult<Self> {
+        let resources = trace.get_resources()?;
+        let builtins = if !resources.builtin_instance_counter.is_empty() {
+            format!("\n\tBuiltins: {:?}", resources.builtin_instance_counter)
+        } else {
+            "".to_string()
+        };
+        Ok(format!(
+            "Transaction: {:?}\n\tHash: {}\n\tSteps: {}{builtins}",
+            trace.tx_type, trace.tx_hash, resources.n_steps
         ))
     }
 }
