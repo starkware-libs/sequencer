@@ -51,6 +51,30 @@ impl TryFrom<PathBuf> for ExecutionConfig {
     }
 }
 
+#[cfg(not(any(test, feature = "testing")))]
+pub(crate) fn is_contract_class_declared(
+    txn: &StorageTxn<'_, RO>,
+    class_hash: &ClassHash,
+    state_number: StateNumber,
+) -> Result<bool, ExecutionUtilsError> {
+    if let Some(block_number) =
+        txn.get_state_reader()?.get_class_definition_block_number(class_hash)?
+    {
+        Ok(!state_number.is_before(block_number))
+    } else {
+        Ok(false)
+    }
+}
+
+#[cfg(any(test, feature = "testing"))]
+pub(crate) fn is_contract_class_declared(
+    _txn: &StorageTxn<'_, RO>,
+    class_hash: &ClassHash,
+    _state_number: StateNumber,
+) -> Result<bool, ExecutionUtilsError> {
+    if class_hash == &ClassHash(2.into()) { Ok(true) } else { Ok(false) }
+}
+
 pub(crate) fn get_contract_class(
     txn: &StorageTxn<'_, RO>,
     class_hash: &ClassHash,
