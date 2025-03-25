@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 use starknet_l1_gas_price_types::errors::EthToStrkOracleClientError;
 use starknet_l1_gas_price_types::EthToStrkOracleClientTrait;
+use tracing::{debug, info};
 use url::Url;
 
 #[cfg(test)]
@@ -75,6 +76,7 @@ pub struct EthToStrkOracleClient {
 
 impl EthToStrkOracleClient {
     pub fn new(base_url: Url, headers: Option<HashMap<String, String>>) -> Self {
+        info!("Creating EthToStrkOracleClient with: base_url={base_url} headers={:?}", headers);
         Self { base_url, headers: hashmap_to_headermap(headers), client: reqwest::Client::new() }
     }
 }
@@ -108,6 +110,7 @@ impl EthToStrkOracleClientTrait for EthToStrkOracleClient {
                 decimals,
             ));
         }
+        debug!("Conversion rate for timestamp {timestamp} is {rate}");
         Ok(rate)
     }
 }
