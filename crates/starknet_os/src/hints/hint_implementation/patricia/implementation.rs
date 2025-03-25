@@ -5,6 +5,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     insert_value_into_ap,
 };
 use num_bigint::BigUint;
+use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintResult};
@@ -95,10 +96,10 @@ pub(crate) fn height_is_zero_or_len_node_preimage_is_two<S: StateReader>(
     let answer = if height == Felt::ZERO {
         Felt::ONE
     } else {
-        let node = get_integer_from_var_name(Ids::Node.into(), vm, ids_data, ap_tracking)?;
+        let node =
+            HashOutput(get_integer_from_var_name(Ids::Node.into(), vm, ids_data, ap_tracking)?);
         let preimage_map: &PreimageMap = exec_scopes.get_ref(Scope::Preimage.into())?;
-        let preimage_value =
-            preimage_map.get(node.as_ref()).ok_or(OsHintError::MissingPreimage(node))?;
+        let preimage_value = preimage_map.get(&node).ok_or(OsHintError::MissingPreimage(node))?;
         Felt::from(preimage_value.length() == 2)
     };
 
