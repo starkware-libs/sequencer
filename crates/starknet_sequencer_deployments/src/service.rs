@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use indexmap::IndexMap;
 use serde::{Serialize, Serializer};
 use starknet_sequencer_node::config::component_config::ComponentConfig;
@@ -52,15 +54,20 @@ pub enum ServiceName {
 
 impl ServiceName {
     pub fn get_config_file_path(&self) -> String {
-        // TODO(Tsabary): find a way to avoid this code duplication.
-        let mut name = match self {
-            Self::ConsolidatedNode(inner) => inner.to_string(),
-            Self::DistributedNode(inner) => inner.to_string(),
-        };
+        let mut name = self.as_inner().to_string();
         name.push_str(".json");
         name
     }
+
+    fn as_inner(&self) -> &dyn ServiceNameInner {
+        match self {
+            ServiceName::ConsolidatedNode(inner) => inner,
+            ServiceName::DistributedNode(inner) => inner,
+        }
+    }
 }
+
+pub(crate) trait ServiceNameInner: Display {}
 
 impl IntoService for ServiceName {
     fn create_service(&self) -> Service {

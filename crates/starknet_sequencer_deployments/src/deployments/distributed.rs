@@ -10,7 +10,7 @@ use starknet_sequencer_node::config::component_execution_config::{
 use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
 
-use crate::service::{GetComponentConfigs, IntoService, Service, ServiceName};
+use crate::service::{GetComponentConfigs, IntoService, Service, ServiceName, ServiceNameInner};
 
 const BASE_PORT: u16 = 55000; // TODO(Tsabary): arbitrary port, need to resolve.
 
@@ -28,6 +28,7 @@ pub enum DistributedNodeServiceName {
     SierraCompiler,
     StateSync,
 }
+impl ServiceNameInner for DistributedNodeServiceName {}
 
 // Implement conversion from `DistributedNodeServiceName` to `ServiceName`
 impl From<DistributedNodeServiceName> for ServiceName {
