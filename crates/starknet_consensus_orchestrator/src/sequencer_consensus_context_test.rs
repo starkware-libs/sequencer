@@ -65,7 +65,9 @@ const CHANNEL_SIZE: usize = 5000;
 const NUM_VALIDATORS: u64 = 4;
 const STATE_DIFF_COMMITMENT: StateDiffCommitment = StateDiffCommitment(PoseidonHash(Felt::ZERO));
 const CHAIN_ID: ChainId = ChainId::Mainnet;
-const ETH_TO_FRI_RATE: u128 = 10000;
+// In order for gas price in ETH to be greather than 0 (required) we must have large enough
+// values here.
+const ETH_TO_FRI_RATE: u128 = u128::pow(10, 18);
 
 lazy_static! {
     static ref TX_BATCH: Vec<ConsensusTransaction> =
@@ -95,7 +97,7 @@ fn block_info(height: BlockNumber) -> ConsensusBlockInfo {
         l2_gas_price_fri: 1,
         l1_gas_price_wei: 1,
         l1_data_gas_price_wei: 1,
-        eth_to_fri_rate: 1,
+        eth_to_fri_rate: ETH_TO_FRI_RATE,
     }
 }
 // Structs which aren't utilized but should not be dropped.
