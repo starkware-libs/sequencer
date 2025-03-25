@@ -20,6 +20,7 @@ use starknet_api::transaction::fields::{
     GasVectorComputationMode,
     Resource,
     ResourceBounds,
+    Tip,
     ValidResourceBounds,
 };
 
@@ -299,13 +300,14 @@ fn test_post_execution_gas_overdraft_all_resource_bounds(
 }
 
 #[rstest]
-#[case::happy_flow_l1_gas_only(10, 0, 0, 10, 2*10)]
-#[case::happy_flow_no_l2_gas(10, 20, 0, 10 + 3*20, 2*10 + 4*20)]
-#[case::happy_flow_all(10, 20, 30, 10 + 3*20 + 5*30, 2*10 + 4*20 + 6*30)]
+#[case::happy_flow_l1_gas_only(10, 0, 0, 0, 10, 2*10)]
+#[case::happy_flow_no_l2_gas(10, 20, 0, 0, 10 + 3*20, 2*10 + 4*20)]
+#[case::happy_flow_all(10, 20, 30, 3, 10 + 3*20 + (5+3)*30, 2*10 + 4*20 + (6+3)*30)]
 fn test_get_fee_by_gas_vector_regression(
     #[case] l1_gas: u64,
     #[case] l1_data_gas: u64,
     #[case] l2_gas: u64,
+    #[case] tip: u64,
     #[case] expected_fee_eth: u128,
     #[case] expected_fee_strk: u128,
 ) {
@@ -321,11 +323,11 @@ fn test_get_fee_by_gas_vector_regression(
     let gas_vector =
         GasVector { l1_gas: l1_gas.into(), l1_data_gas: l1_data_gas.into(), l2_gas: l2_gas.into() };
     assert_eq!(
-        get_fee_by_gas_vector(&block_info, gas_vector, &FeeType::Eth),
+        get_fee_by_gas_vector(&block_info, gas_vector, &FeeType::Eth, Tip(tip)),
         Fee(expected_fee_eth)
     );
     assert_eq!(
-        get_fee_by_gas_vector(&block_info, gas_vector, &FeeType::Strk),
+        get_fee_by_gas_vector(&block_info, gas_vector, &FeeType::Strk, Tip(tip)),
         Fee(expected_fee_strk)
     );
 }
@@ -354,7 +356,10 @@ fn test_get_fee_by_gas_vector_overflow(
     );
     let gas_vector =
         GasVector { l1_gas: l1_gas.into(), l1_data_gas: l1_data_gas.into(), l2_gas: l2_gas.into() };
-    assert_eq!(get_fee_by_gas_vector(&block_info, gas_vector, &FeeType::Eth), Fee(u128::MAX));
+    assert_eq!(
+        get_fee_by_gas_vector(&block_info, gas_vector, &FeeType::Eth, Tip::ZERO),
+        Fee(u128::MAX)
+    );
 }
 
 #[rstest]
