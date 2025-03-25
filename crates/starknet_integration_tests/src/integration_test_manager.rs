@@ -53,7 +53,6 @@ use crate::monitoring_utils::{
 use crate::node_component_configs::{
     create_consolidated_sequencer_configs,
     create_nodes_deployment_units_configs,
-    NodeComponentConfigs,
 };
 use crate::sequencer_simulator_utils::SequencerSimulator;
 use crate::storage::{get_integration_test_storage, CustomPaths};
@@ -255,7 +254,6 @@ impl IntegrationTestManager {
             num_of_distributed_nodes,
             custom_paths,
             test_unique_id,
-            create_nodes_deployment_units_configs,
         )
         .await;
 
@@ -671,24 +669,17 @@ pub async fn get_sequencer_setup_configs(
     num_of_distributed_nodes: usize,
     custom_paths: Option<CustomPaths>,
     test_unique_id: TestIdentifier,
-    // TODO(Tsabary/Nadin): each deployment should have its own config generation function, and the
-    // following arg should be removed.
-    distributed_configs_creation_function: fn(
-        &mut AvailablePortsGenerator,
-        usize,
-    ) -> Vec<NodeComponentConfigs>,
 ) -> (Vec<NodeSetup>, HashSet<usize>) {
     let mut available_ports_generator = AvailablePortsGenerator::new(test_unique_id.into());
 
-    // TODO(Tsabary): remove the num arg from the functions below.
     let mut node_component_configs =
         Vec::with_capacity(num_of_consolidated_nodes + num_of_distributed_nodes);
     for _ in 0..num_of_consolidated_nodes {
-        node_component_configs.extend(create_consolidated_sequencer_configs(1));
+        node_component_configs.push(create_consolidated_sequencer_configs());
     }
     for _ in 0..num_of_distributed_nodes {
         node_component_configs
-            .extend(distributed_configs_creation_function(&mut available_ports_generator, 1));
+            .push(create_nodes_deployment_units_configs(&mut available_ports_generator));
     }
 
     info!("Creating node configurations.");
