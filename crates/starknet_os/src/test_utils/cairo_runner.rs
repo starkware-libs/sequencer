@@ -7,6 +7,7 @@ use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::program::Program;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::utils::is_subsequence;
+use cairo_vm::vm::runners::builtin_runner::BuiltinRunner;
 use cairo_vm::vm::runners::cairo_runner::{CairoArg, CairoRunner};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use log::{debug, info};
@@ -15,6 +16,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::test_utils::errors::{
+    BuiltinMismatchError,
     Cairo0EntryPointRunnerError,
     ExplicitArgError,
     ImplicitArgError,
@@ -290,7 +292,7 @@ fn convert_implicit_args_to_cairo_args(
         .collect()
 }
 
-fn get_ordered_builtins() -> Cairo0EntryPointRunnerResult<Vec<BuiltinName>> {
+fn get_ordered_builtins() -> Result<Vec<BuiltinName>, BuiltinMismatchError> {
     let ordered_builtins = vec![
         BuiltinName::output,
         BuiltinName::pedersen,
@@ -311,7 +313,7 @@ fn get_ordered_builtins() -> Cairo0EntryPointRunnerResult<Vec<BuiltinName>> {
         .cloned()
         .collect::<HashSet<_>>();
     if ordered_builtins.iter().cloned().collect::<HashSet<_>>() != actual_builtins {
-        Err(Cairo0EntryPointRunnerError::BuiltinMismatch {
+        Err(BuiltinMismatchError {
             cairo_runner_builtins: ordered_builtins.clone(),
             actual_builtins,
         })?;
@@ -404,7 +406,7 @@ fn get_return_values(
     implicit_return_values_structures: &[ImplicitArg],
     explicit_return_values_structures: &[EndpointArg],
     vm: &VirtualMachine,
-) -> Result<(Vec<ImplicitArg>, Vec<EndpointArg>), LoadReturnValueError> {
+) -> Result<(Vec<EndpointArg>, Vec<EndpointArg>), LoadReturnValueError> {
     let return_args_len = implicit_return_values_structures
         .iter()
         .map(ImplicitArg::memory_length)
@@ -413,18 +415,26 @@ fn get_return_values(
     let return_values_address = (vm.get_ap() - return_args_len)?;
     let mut current_address = return_values_address;
 
-    let mut implicit_return_values: Vec<ImplicitArg> = vec![];
+    let mut implicit_return_values: Vec<EndpointArg> = vec![];
+    let ordered_builtin_names = get_ordered_builtins()?;
+    let builtin_name_to_runner: HashMap<&BuiltinName, &BuiltinRunner> =
+        ordered_builtin_names.iter().zip(vm.get_builtin_runners().iter()).collect();
     for (i, implicit_arg) in implicit_return_values_structures.iter().enumerate() {
         debug!("Loading implicit return value {}. Value: {:?}", i, implicit_arg);
         match implicit_arg {
             ImplicitArg::Builtin(builtin) => {
-                implicit_return_values.push(ImplicitArg::Builtin(*builtin));
+                let n_used_cell = builtin_name_to_runner
+                    .get(builtin)
+                    .unwrap()
+                    .get_used_instances(&vm.segments)?;
+                implicit_return_values
+                    .push(EndpointArg::Value(ValueArg::Single(Felt::from(n_used_cell))));
                 current_address = (current_address + implicit_arg.memory_length())?;
             }
             ImplicitArg::NonBuiltin(non_builtin_return_value) => {
                 let (value, next_arg_address) =
                     load_endpoint_arg_from_address(non_builtin_return_value, current_address, vm)?;
-                implicit_return_values.push(ImplicitArg::NonBuiltin(value));
+                implicit_return_values.push(value);
                 current_address = next_arg_address;
             }
         }
@@ -444,16 +454,15 @@ fn get_return_values(
     Ok((implicit_return_values, explicit_return_values))
 }
 
-// TODO(Amos): Add logs to the runner.
-// TODO(Amos): Return different errors in different stages of the runner, for easier debugging.
-// e.g., `ReturnValueError`.
+/// Runs a Cairo program's entrypoint and returns the explicit and implicit return values.
+/// If the endpoint uses builtins, the respective returned arg is the builtin instance usage.
 pub fn run_cairo_0_entry_point(
     program_str: &str,
     entrypoint: &str,
     explicit_args: &[EndpointArg],
     implicit_args: &[ImplicitArg],
     expected_explicit_return_values: &[EndpointArg],
-) -> Cairo0EntryPointRunnerResult<(Vec<ImplicitArg>, Vec<EndpointArg>)> {
+) -> Cairo0EntryPointRunnerResult<(Vec<EndpointArg>, Vec<EndpointArg>)> {
     let ordered_builtins = get_ordered_builtins()?;
     let program = inject_builtins(program_str, &ordered_builtins, entrypoint)?;
     let (state_reader, os_input) = (None, None);

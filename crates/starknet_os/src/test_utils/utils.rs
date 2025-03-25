@@ -11,7 +11,7 @@ pub fn run_cairo_function_and_check_result(
     explicit_args: &[EndpointArg],
     implicit_args: &[ImplicitArg],
     expected_explicit_retdata: &[EndpointArg],
-    expected_implicit_retdata: &[ImplicitArg],
+    expected_implicit_retdata: &[EndpointArg],
 ) -> Cairo0EntryPointRunnerResult<()> {
     let (actual_implicit_retdata, actual_explicit_retdata) = run_cairo_0_entry_point(
         program_str,

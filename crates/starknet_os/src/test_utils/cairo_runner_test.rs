@@ -196,10 +196,6 @@ fn test_implicit_args() -> Cairo0EntryPointRunnerResult<()> {
             ImplicitArg::NonBuiltin(simple_struct.clone()),
         ],
         &[(number_1 + number_2).into()],
-        &[
-            ImplicitArg::Builtin(BuiltinName::range_check),
-            ImplicitArg::NonBuiltin(compound_struct),
-            ImplicitArg::NonBuiltin(simple_struct),
-        ],
+        &[1.into(), compound_struct, simple_struct],
     )
 }
