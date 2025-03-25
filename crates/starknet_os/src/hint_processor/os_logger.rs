@@ -41,6 +41,8 @@ pub enum OsLoggerError {
     BuiltinsNotInSameSegment { builtin: BuiltinName, self_ptr: Relocatable, enter_ptr: Relocatable },
     #[error("Failed to build builtin pointer map: {0}.")]
     BuiltinPtrs(OsHintError),
+    #[error("Called exit_syscall with empty call stack.")]
+    CallStackEmpty,
     #[error("SyscallTrace should be finalized only once.")]
     DoubleFinalize,
     #[error("Failed to fetch identifier data for struct {0}.")]
@@ -60,6 +62,8 @@ pub enum OsLoggerError {
     ResourceAccessBeforeFinalize,
     #[error("The {0} syscall is not supposed to have an inner syscall.")]
     UnexpectedParentSyscall(String),
+    #[error("Unexpected syscall {actual:?}, expected {expected:?}.")]
+    UnexpectedSyscall { expected: SyscallSelector, actual: SyscallSelector },
     #[error("{0}")]
     UnknownBuiltin(String),
     #[error("Builtin {0} is not in the known sizes mapping {:?}.", BUILTIN_INSTANCE_SIZES)]
@@ -86,6 +90,7 @@ pub trait ResourceFinalizer {
     }
 }
 
+#[derive(Debug)]
 pub struct SyscallTrace {
     selector: SyscallSelector,
     is_deprecated: bool,
@@ -97,6 +102,10 @@ pub struct SyscallTrace {
 impl SyscallTrace {
     pub fn new(selector: SyscallSelector, is_deprecated: bool, tab_count: usize) -> Self {
         Self { selector, is_deprecated, tab_count, inner_syscalls: Vec::new(), resources: None }
+    }
+
+    pub fn push_inner_syscall(&mut self, inner: SyscallTrace) {
+        self.inner_syscalls.push(inner);
     }
 }
 
@@ -153,6 +162,10 @@ pub struct OsTransactionTrace {
 impl OsTransactionTrace {
     pub fn new(tx_type: TransactionType, tx_hash: TransactionHash) -> Self {
         Self { tx_type, tx_hash, syscalls: Vec::new(), resources: None }
+    }
+
+    pub fn push_syscall(&mut self, syscall: SyscallTrace) {
+        self.syscalls.push(syscall);
     }
 }
 
@@ -396,6 +409,52 @@ impl OsLogger {
         if selector.is_calling_syscall() {
             let deprecated_str = if is_deprecated { "deprecated " } else { "" };
             self.log(&format!("Entering {deprecated_str}{:?}.", selector), true);
+        }
+
+        Ok(())
+    }
+
+    pub fn exit_syscall(
+        &mut self,
+        selector: SyscallSelector,
+        n_steps: usize,
+        range_check_ptr: Relocatable,
+        ids_data: &HashMap<String, HintReference>,
+        vm: &VirtualMachine,
+        ap_tracking: &ApTracking,
+        os_program: &Program,
+    ) -> OsLoggerResult<()> {
+        let mut current_syscall = self.syscall_stack.pop().ok_or(OsLoggerError::CallStackEmpty)?;
+        let enter_resources_counter =
+            self.resource_counter_stack.pop().ok_or(OsLoggerError::CallStackEmpty)?;
+        // A sanity check to ensure we store the syscall we work on.
+        if selector != current_syscall.selector {
+            return Err(OsLoggerError::UnexpectedSyscall {
+                actual: selector,
+                expected: current_syscall.selector,
+            });
+        }
+
+        let exit_resources_counter =
+            ResourceCounter::new(n_steps, range_check_ptr, ids_data, vm, ap_tracking, os_program)?;
+
+        current_syscall
+            .finalize_resources(exit_resources_counter.sub_counter(&enter_resources_counter)?)?;
+
+        if current_syscall.selector.is_calling_syscall() {
+            self.log(&format!("Exiting {current_syscall:?}."), false);
+        }
+
+        match self.syscall_stack.last_mut() {
+            Some(last_call) => {
+                last_call.push_inner_syscall(current_syscall);
+            }
+            None => {
+                self.current_tx
+                    .as_mut()
+                    .ok_or(OsLoggerError::NotInTxContext)?
+                    .push_syscall(current_syscall);
+            }
         }
 
         Ok(())
