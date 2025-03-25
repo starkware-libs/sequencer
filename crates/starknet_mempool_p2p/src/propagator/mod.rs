@@ -106,7 +106,6 @@ impl MempoolP2pPropagator {
 
     async fn broadcast_queued_transactions(&mut self) -> MempoolP2pPropagatorResult<()> {
         let queued_transactions: Vec<RpcTransaction> = self.transaction_queue.drain(..).collect();
-        // TODO(alonl): test this condition
         if queued_transactions.is_empty() {
             return Ok(());
         }
