@@ -1569,6 +1569,7 @@ name = "apollo_rpc_execution"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "apollo_class_manager_types",
  "apollo_config",
  "apollo_storage",
  "apollo_test_utils",
@@ -1581,6 +1582,7 @@ dependencies = [
  "indexmap 2.7.0",
  "itertools 0.12.1",
  "lazy_static",
+ "mockall",
  "papyrus_common",
  "pretty_assertions",
  "rand 0.8.5",
@@ -1590,6 +1592,7 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "thiserror 1.0.69",
+ "tokio",
  "tracing",
 ]
 

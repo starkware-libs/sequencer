@@ -81,6 +81,17 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
         ),
         (
             ser_pointer_target_param(
+                "starknet_url",
+                &POINTER_TARGET_VALUE.to_string(),
+                "URL for communicating with Starknet.",
+            ),
+            set_pointing_param_paths(&[
+                "state_sync_config.central_sync_client_config.central_source_config.starknet_url",
+                "state_sync_config.rpc_config.starknet_url",
+            ]),
+        ),
+        (
+            ser_pointer_target_param(
                 "strk_fee_token_address",
                 &POINTER_TARGET_VALUE.to_string(),
                 "Address of the STRK fee token.",

@@ -99,6 +99,8 @@ pub fn get_test_account_class() -> DeprecatedContractClass {
 pub fn prepare_storage(mut storage_writer: StorageWriter) {
     let class_hash0 = class_hash!("0x2");
     let class_hash1 = class_hash!("0x1");
+    let class_hash2 = class_hash!("0x3");
+    let class_hash3 = class_hash!("0x4");
 
     let minter_var_address = get_storage_var_address("permitted_minter", &[]);
 
@@ -194,6 +196,70 @@ pub fn prepare_storage(mut storage_writer: StorageWriter) {
         .unwrap()
         .append_classes(BlockNumber(1), &[], &[])
         .unwrap()
+        .append_header(
+            BlockNumber(2),
+            &BlockHeader {
+                block_hash: BlockHash(felt!(2_u128)),
+                block_header_without_hash: BlockHeaderWithoutHash {
+                    l1_gas_price: *GAS_PRICE,
+                    sequencer: *SEQUENCER_ADDRESS,
+                    timestamp: *BLOCK_TIMESTAMP,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .append_body(BlockNumber(2), BlockBody::default())
+        .unwrap()
+        .append_state_diff(
+            BlockNumber(2),
+            ThinStateDiff {
+                deployed_contracts: indexmap!(
+                    *TEST_ERC20_CONTRACT_ADDRESS => *TEST_ERC20_CONTRACT_CLASS_HASH,
+                    *CONTRACT_ADDRESS => class_hash2,
+                    *DEPRECATED_CONTRACT_ADDRESS => class_hash3,
+                    *ACCOUNT_ADDRESS => *ACCOUNT_CLASS_HASH,
+                ),
+                storage_diffs: indexmap!(
+                    *TEST_ERC20_CONTRACT_ADDRESS => indexmap!(
+                        // Give the accounts some balance.
+                        account_balance_key => *ACCOUNT_INITIAL_BALANCE,
+                        new_account_balance_key => *ACCOUNT_INITIAL_BALANCE,
+                        // Give the first account mint permission (what is this?).
+                        minter_var_address => *ACCOUNT_ADDRESS.0.key()
+                    ),
+                ),
+                declared_classes: indexmap!(
+                    // The class is not used in the execution, so it can be default.
+                    class_hash2 => CompiledClassHash::default()
+                ),
+                deprecated_declared_classes: vec![
+                    *TEST_ERC20_CONTRACT_CLASS_HASH,
+                    class_hash3,
+                    *ACCOUNT_CLASS_HASH,
+                ],
+                nonces: indexmap!(
+                    *TEST_ERC20_CONTRACT_ADDRESS => Nonce::default(),
+                    *CONTRACT_ADDRESS => Nonce::default(),
+                    *DEPRECATED_CONTRACT_ADDRESS => Nonce::default(),
+                    *ACCOUNT_ADDRESS => Nonce::default(),
+                ),
+            },
+        )
+        .unwrap()
+        .append_classes(
+            BlockNumber(2),
+            &[(class_hash2, &SierraContractClass::default())],
+            &[
+                (*TEST_ERC20_CONTRACT_CLASS_HASH, &get_test_erc20_fee_contract_class()),
+                (class_hash3, &get_test_deprecated_contract_class()),
+                (*ACCOUNT_CLASS_HASH, &get_test_account_class()),
+            ],
+        )
+        .unwrap()
+        .append_casm(&class_hash2, &get_test_casm())
+        .unwrap()
         .commit()
         .unwrap();
 }
@@ -221,6 +287,7 @@ pub fn execute_simulate_transactions(
         validate,
         // TODO(DanB): Consider testing without overriding DA (It's already tested in the RPC)
         true,
+        None,
     )
     .unwrap()
 }

@@ -1379,6 +1379,11 @@
     "privacy": "TemporaryValue",
     "value": false
   },
+  "starknet_url": {
+    "description": "URL for communicating with Starknet.",
+    "privacy": "TemporaryValue",
+    "value": "PointerTarget"
+  },
   "state_sync_config.central_sync_client_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
@@ -1431,8 +1436,8 @@
   },
   "state_sync_config.central_sync_client_config.central_source_config.starknet_url": {
     "description": "Starknet feeder-gateway URL. It should match chain_id.",
-    "privacy": "Public",
-    "value": "https://alpha-mainnet.starknet.io/"
+    "pointer_target": "starknet_url",
+    "privacy": "Public"
   },
   "state_sync_config.central_sync_client_config.sync_config.base_layer_propagation_sleep_duration": {
     "description": "Time in seconds to poll the base layer to get the latest proved block.",
@@ -1656,8 +1661,8 @@
   },
   "state_sync_config.rpc_config.starknet_url": {
     "description": "URL for communicating with Starknet in write_api methods.",
-    "privacy": "Public",
-    "value": "https://alpha-mainnet.starknet.io/"
+    "pointer_target": "starknet_url",
+    "privacy": "Public"
   },
   "state_sync_config.storage_config.db_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
