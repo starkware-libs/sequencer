@@ -16,6 +16,9 @@ pub struct VersionedConstants {
     pub max_block_size: u64,
     /// The target gas usage per block (usually half of a block's gas limit).
     pub gas_target: u64,
+    /// The margin for the eth to fri rate disagreement, expressed as a percentage (parts per
+    /// hundred).
+    pub l1_gas_price_margin_percent: u32,
 }
 
 define_versioned_constants!(
