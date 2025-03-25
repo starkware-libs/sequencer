@@ -15,6 +15,7 @@ use starknet_l1_provider_types::{
 };
 use starknet_mempool_types::communication::{MempoolClientError, SharedMempoolClient};
 use thiserror::Error;
+use tracing::info;
 
 type TransactionProviderResult<T> = Result<T, TransactionProviderError>;
 
@@ -127,6 +128,7 @@ impl TransactionProvider for ProposeTransactionProvider {
                 self.phase = TxProviderPhase::Mempool;
             }
 
+            info!("yael add l1 transactions {:?}", l1handler_txs);
             txs.append(&mut l1handler_txs);
             if txs.len() == n_txs {
                 return Ok(NextTxs::Txs(txs));

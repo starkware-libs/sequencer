@@ -7,6 +7,7 @@ use tracing::info;
 #[tokio::main]
 async fn main() {
     integration_test_setup("positive").await;
+    info!("yael sanity check");
     const BLOCK_TO_WAIT_FOR: BlockNumber = BlockNumber(15);
     const N_TXS: usize = 50;
     // TODO(Yael/Arni): 0 is a temporary value till fixing the nonce issue.
