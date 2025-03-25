@@ -113,17 +113,17 @@ impl BouncerWeights {
         Self {
             l1_gas: usize::MAX,
             message_segment_length: usize::MAX,
-            state_diff_size: usize::MAX,
             n_events: usize::MAX,
+            state_diff_size: usize::MAX,
             sierra_gas: GasAmount::MAX,
         }
     }
 
     pub fn empty() -> Self {
         Self {
-            n_events: 0,
             l1_gas: 0,
             message_segment_length: 0,
+            n_events: 0,
             state_diff_size: 0,
             sierra_gas: GasAmount::ZERO,
         }
