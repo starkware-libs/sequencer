@@ -45,6 +45,8 @@ pub enum OsLoggerError {
     CallStackEmpty,
     #[error("SyscallTrace should be finalized only once.")]
     DoubleFinalize,
+    #[error("No transaction should exit without entering.")]
+    ExitBeforeEnter,
     #[error("Failed to fetch identifier data for struct {0}.")]
     InnerBuiltinPtrsIdentifierMissing(String),
     #[error("No transaction should call another transaction.")]
@@ -60,6 +62,8 @@ pub enum OsLoggerError {
          {self_ptr}, {enter_ptr}."
     )]
     RangeCheckNotInSameSegment { self_ptr: Relocatable, enter_ptr: Relocatable },
+    #[error("All Syscalls should end when exiting a transaction.")]
+    RemainingSyscalls,
     #[error("SyscallTrace should be finalized before accessing resources.")]
     ResourceAccessBeforeFinalize,
     #[error("The {0} syscall is not supposed to have an inner syscall.")]
@@ -179,10 +183,10 @@ impl ResourceFinalizer for OsTransactionTrace {
     }
 }
 
-impl TryFrom<OsTransactionTrace> for String {
+impl TryFrom<&OsTransactionTrace> for String {
     type Error = OsLoggerError;
 
-    fn try_from(trace: OsTransactionTrace) -> OsLoggerResult<Self> {
+    fn try_from(trace: &OsTransactionTrace) -> OsLoggerResult<Self> {
         let resources = trace.get_resources()?;
         let builtins = if !resources.builtin_instance_counter.is_empty() {
             format!("\n\tBuiltins: {:?}", resources.builtin_instance_counter)
@@ -340,7 +344,6 @@ pub struct OsLogger {
     current_tx: Option<OsTransactionTrace>,
     tab_count: usize,
     syscall_stack: Vec<SyscallTrace>,
-    #[allow(dead_code)]
     txs: Vec<OsTransactionTrace>,
     resource_counter_stack: Vec<ResourceCounter>,
 }
@@ -485,6 +488,34 @@ impl OsLogger {
         )?);
         self.current_tx = Some(OsTransactionTrace::new(tx_type, tx_hash));
         self.log(&format!("Entering {tx_type:?}: {tx_hash}."), true);
+        Ok(())
+    }
+
+    pub fn exit_tx(
+        &mut self,
+        n_steps: usize,
+        range_check_ptr: Relocatable,
+        ids_data: &HashMap<String, HintReference>,
+        vm: &VirtualMachine,
+        ap_tracking: &ApTracking,
+        os_program: &Program,
+    ) -> OsLoggerResult<()> {
+        let mut current_tx = self.current_tx.take().ok_or(OsLoggerError::ExitBeforeEnter)?;
+
+        // Sanity check.
+        if !self.syscall_stack.is_empty() {
+            return Err(OsLoggerError::RemainingSyscalls);
+        }
+
+        let enter_resources_counter =
+            self.resource_counter_stack.pop().ok_or(OsLoggerError::CallStackEmpty)?;
+        let exit_resources_counter =
+            ResourceCounter::new(n_steps, range_check_ptr, ids_data, vm, ap_tracking, os_program)?;
+
+        current_tx
+            .finalize_resources(exit_resources_counter.sub_counter(&enter_resources_counter)?)?;
+        self.log(&format!("Exiting {}.", String::try_from(&current_tx)?), false);
+        self.txs.push(current_tx);
         Ok(())
     }
 }
