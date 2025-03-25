@@ -173,7 +173,7 @@ pub async fn await_txs_accepted(
     });
 }
 
-async fn sequencer_num_accepted_txs(monitoring_client: &MonitoringClient) -> usize {
+pub async fn sequencer_num_accepted_txs(monitoring_client: &MonitoringClient) -> usize {
     // If the sequencer accepted txs, sync should process them and update the respective metric.
     monitoring_client.get_metric::<usize>(SYNC_PROCESSED_TRANSACTIONS.get_name()).await.unwrap()
 }
