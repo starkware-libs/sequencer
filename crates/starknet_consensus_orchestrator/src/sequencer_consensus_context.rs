@@ -94,6 +94,8 @@ struct BlockInfoValidation {
     block_timestamp_window: u64,
     last_block_timestamp: Option<u64>,
     l1_da_mode: L1DataAvailabilityMode,
+    eth_to_fri_rate: u128,
+    eth_to_fri_rate_margin_percent: u32,
 }
 
 const EMPTY_BLOCK_COMMITMENT: BlockHash = BlockHash(Felt::ONE);
@@ -363,11 +365,24 @@ impl ConsensusContext for SequencerConsensusContext {
                 fin_receiver
             }
             std::cmp::Ordering::Equal => {
+                let now = chrono::Utc::now();
+                let timestamp = now.timestamp().try_into().expect("Failed to convert timestamp");
+                let eth_to_fri_rate =
+                    match self.eth_to_strk_oracle_client.eth_to_fri_rate(timestamp).await {
+                        Ok(rate) => rate,
+                        Err(err) => {
+                            trace!("Failed to get eth to fri rate: {:?}", err);
+                            return fin_receiver;
+                        }
+                    };
                 let block_info_validation = BlockInfoValidation {
                     height: proposal_init.height,
                     block_timestamp_window: self.config.block_timestamp_window,
                     last_block_timestamp: self.last_block_timestamp,
                     l1_da_mode: self.l1_da_mode,
+                    eth_to_fri_rate,
+                    eth_to_fri_rate_margin_percent: VersionedConstants::latest_constants()
+                        .eth_to_fri_rate_margin_percent,
                 };
                 self.validate_current_round_proposal(
                     block_info_validation,
@@ -632,11 +647,24 @@ impl ConsensusContext for SequencerConsensusContext {
         let Some(((height, validator, timeout, content), fin_sender)) = to_process else {
             return;
         };
+        let now = chrono::Utc::now();
+        let timestamp = now.timestamp().try_into().expect("Failed to convert timestamp");
+        let eth_to_fri_rate = match self.eth_to_strk_oracle_client.eth_to_fri_rate(timestamp).await
+        {
+            Ok(rate) => rate,
+            Err(err) => {
+                trace!("Failed to get eth to fri rate: {:?}", err);
+                return;
+            }
+        };
         let block_info_validation = BlockInfoValidation {
             height,
             block_timestamp_window: self.config.block_timestamp_window,
             last_block_timestamp: self.last_block_timestamp,
             l1_da_mode: self.l1_da_mode,
+            eth_to_fri_rate,
+            eth_to_fri_rate_margin_percent: VersionedConstants::latest_constants()
+                .eth_to_fri_rate_margin_percent,
         };
         self.validate_current_round_proposal(
             block_info_validation,
@@ -966,6 +994,10 @@ async fn is_block_info_valid(
     block_info_validation: BlockInfoValidation,
     block_info: ConsensusBlockInfo,
 ) -> bool {
+    let allowed_margin = (block_info_validation.eth_to_fri_rate
+        * u128::from(block_info_validation.eth_to_fri_rate_margin_percent))
+        / 100;
+
     let now: u64 =
         chrono::Utc::now().timestamp().try_into().expect("Failed to convert timestamp to u64");
     // TODO(Asmaa): Validate the rest of the block info.
@@ -973,6 +1005,8 @@ async fn is_block_info_valid(
         && block_info.timestamp >= block_info_validation.last_block_timestamp.unwrap_or(0)
         && block_info.timestamp <= now + block_info_validation.block_timestamp_window
         && block_info.l1_da_mode == block_info_validation.l1_da_mode
+        && block_info.eth_to_fri_rate.abs_diff(block_info_validation.eth_to_fri_rate)
+            <= allowed_margin
 }
 
 // The second proposal part when validating a proposal must be:
