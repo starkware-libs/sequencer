@@ -306,8 +306,12 @@ fn test_discounted_gas_from_gas_vector_computation() {
     assert_eq!(actual_result, result_div_ceil);
     assert_eq!(actual_result, result_div_floor + 1_u8.into());
     assert!(
-        get_fee_by_gas_vector(&tx_context.block_context.block_info, gas_usage, &FeeType::Eth)
-            <= actual_result.checked_mul(DEFAULT_ETH_L1_GAS_PRICE.into()).unwrap()
+        get_fee_by_gas_vector(
+            &tx_context.block_context.block_info,
+            gas_usage,
+            &FeeType::Eth,
+            tx_context.effective_tip()
+        ) <= actual_result.checked_mul(DEFAULT_ETH_L1_GAS_PRICE.into()).unwrap()
     );
 
     // Make sure L2 gas has an effect.

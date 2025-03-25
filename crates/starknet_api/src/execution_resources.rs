@@ -5,7 +5,7 @@ use starknet_types_core::felt::Felt;
 use strum_macros::EnumIter;
 
 use crate::block::{GasPrice, GasPriceVector, NonzeroGasPrice};
-use crate::transaction::fields::{Fee, Resource};
+use crate::transaction::fields::{Fee, Resource, Tip};
 
 #[cfg_attr(
     any(test, feature = "testing"),
@@ -138,12 +138,19 @@ impl GasVector {
     }
 
     /// Computes the cost (in fee token units) of the gas vector (panicking on overflow).
-    pub fn cost(&self, gas_prices: &GasPriceVector) -> Fee {
+    pub fn cost(&self, gas_prices: &GasPriceVector, tip: Tip) -> Fee {
+        let tipped_l2_gas_price = gas_prices.l2_gas_price.checked_add(tip).unwrap_or_else(|| {
+            panic!(
+                "Tip overflowed: addition of L2 gas price ({}) and tip ({}) resulted in overflow.",
+                gas_prices.l2_gas_price, tip
+            )
+        });
+
         let mut sum = Fee(0);
         for (gas, price, resource) in [
             (self.l1_gas, gas_prices.l1_gas_price, Resource::L1Gas),
             (self.l1_data_gas, gas_prices.l1_data_gas_price, Resource::L1DataGas),
-            (self.l2_gas, gas_prices.l2_gas_price, Resource::L2Gas),
+            (self.l2_gas, tipped_l2_gas_price, Resource::L2Gas),
         ] {
             let cost = gas.checked_mul(price.get()).unwrap_or_else(|| {
                 panic!(
