@@ -11,6 +11,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::StarknetApiError;
+use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::os_logger::OsLoggerError;
@@ -57,7 +58,7 @@ pub enum OsHintError {
     #[error("Hint {hint:?} has no nondet offset.")]
     MissingOffsetForHint { hint: AllHints },
     #[error("No preimage found for value {0:?}.")]
-    MissingPreimage(Felt),
+    MissingPreimage(HashOutput),
     #[error("No (selected) builtin found at address {builtin} (attempted decoding: {decoded:?}).")]
     MissingSelectedBuiltinPtr { builtin: MaybeRelocatable, decoded: Option<String> },
     #[error(
