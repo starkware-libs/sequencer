@@ -65,7 +65,7 @@ const CHANNEL_SIZE: usize = 5000;
 const NUM_VALIDATORS: u64 = 4;
 const STATE_DIFF_COMMITMENT: StateDiffCommitment = StateDiffCommitment(PoseidonHash(Felt::ZERO));
 const CHAIN_ID: ChainId = ChainId::Mainnet;
-const ETH_TO_FRI_RATE: u128 = 10000;
+const ETH_TO_FRI_RATE: u128 = 1;
 
 lazy_static! {
     static ref TX_BATCH: Vec<ConsensusTransaction> =
@@ -107,7 +107,6 @@ struct NetworkDependencies {
 fn setup(
     batcher: MockBatcherClient,
     cende_ambassador: MockCendeContext,
-    eth_to_strk_oracle_client: MockEthToStrkOracleClientTrait,
 ) -> (SequencerConsensusContext, NetworkDependencies) {
     let (outbound_proposal_sender, outbound_proposal_receiver) =
         mpsc::channel::<(HeightAndRound, mpsc::Receiver<ProposalPart>)>(CHANNEL_SIZE);
@@ -117,6 +116,8 @@ fn setup(
     let BroadcastTopicChannels { broadcast_topic_client: votes_topic_client, .. } =
         subscriber_channels;
     let state_sync_client = MockStateSyncClient::new();
+    let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
+    eth_to_strk_oracle_client.expect_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
 
     let context = SequencerConsensusContext::new(
         ContextConfig {
@@ -173,9 +174,7 @@ async fn build_proposal_setup(
         })
     });
 
-    let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
-    eth_to_strk_oracle_client.expect_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
-    let (mut context, _network) = setup(batcher, mock_cende_context, eth_to_strk_oracle_client);
+    let (mut context, _network) = setup(batcher, mock_cende_context);
     let init = ProposalInit::default();
 
     (context.build_proposal(init, TIMEOUT).await, context, _network)
@@ -199,11 +198,7 @@ async fn cancelled_proposal_aborts() {
         Ok(GetProposalContentResponse { content: GetProposalContent::Txs(Vec::new()) })
     });
 
-    let mut mock_eth_to_strk_oracle = MockEthToStrkOracleClientTrait::new();
-    mock_eth_to_strk_oracle.expect_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
-
-    let (mut context, _network) =
-        setup(batcher, success_cende_ammbassador(), mock_eth_to_strk_oracle);
+    let (mut context, _network) = setup(batcher, success_cende_ammbassador());
 
     let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await;
 
@@ -249,8 +244,7 @@ async fn validate_proposal_success() {
             })
         },
     );
-    let (mut context, _network) =
-        setup(batcher, success_cende_ammbassador(), MockEthToStrkOracleClientTrait::new());
+    let (mut context, _network) = setup(batcher, success_cende_ammbassador());
 
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
@@ -280,8 +274,7 @@ async fn dont_send_block_info() {
         .expect_start_height()
         .withf(|input| input.height == BlockNumber(0))
         .return_once(|_| Ok(()));
-    let (mut context, _network) =
-        setup(batcher, success_cende_ammbassador(), MockEthToStrkOracleClientTrait::new());
+    let (mut context, _network) = setup(batcher, success_cende_ammbassador());
 
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
@@ -319,8 +312,7 @@ async fn repropose() {
             })
         },
     );
-    let (mut context, mut network) =
-        setup(batcher, success_cende_ammbassador(), MockEthToStrkOracleClientTrait::new());
+    let (mut context, mut network) = setup(batcher, success_cende_ammbassador());
 
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
@@ -387,8 +379,7 @@ async fn proposals_from_different_rounds() {
             })
         },
     );
-    let (mut context, _network) =
-        setup(batcher, success_cende_ammbassador(), MockEthToStrkOracleClientTrait::new());
+    let (mut context, _network) = setup(batcher, success_cende_ammbassador());
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
     context.set_height_and_round(BlockNumber(0), 1).await;
@@ -472,8 +463,7 @@ async fn interrupt_active_proposal() {
                 }),
             })
         });
-    let (mut context, _network) =
-        setup(batcher, success_cende_ammbassador(), MockEthToStrkOracleClientTrait::new());
+    let (mut context, _network) = setup(batcher, success_cende_ammbassador());
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
 
@@ -573,12 +563,7 @@ async fn build_proposal_cende_incomplete() {
 async fn batcher_not_ready(#[case] proposer: bool) {
     let mut batcher = MockBatcherClient::new();
     batcher.expect_start_height().return_once(|_| Ok(()));
-    let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
     if proposer {
-        eth_to_strk_oracle_client
-            .expect_eth_to_fri_rate()
-            .times(1)
-            .returning(|_| Ok(ETH_TO_FRI_RATE));
         batcher
             .expect_propose_block()
             .times(1)
@@ -589,8 +574,7 @@ async fn batcher_not_ready(#[case] proposer: bool) {
             .times(1)
             .returning(move |_| Err(BatcherClientError::BatcherError(BatcherError::NotReady)));
     }
-    let (mut context, _network) =
-        setup(batcher, success_cende_ammbassador(), eth_to_strk_oracle_client);
+    let (mut context, _network) = setup(batcher, success_cende_ammbassador());
     context.set_height_and_round(BlockNumber::default(), Round::default()).await;
 
     if proposer {
@@ -634,4 +618,36 @@ async fn propose_then_repropose() {
     assert_eq!(receiver.next().await.unwrap(), txs);
     assert_eq!(receiver.next().await.unwrap(), fin);
     assert!(receiver.next().await.is_none());
+}
+
+#[tokio::test]
+async fn eth_to_fri_rate_out_of_range() {
+    let mut batcher = MockBatcherClient::new();
+
+    batcher
+        .expect_start_height()
+        .withf(|input| input.height == BlockNumber(0))
+        .return_once(|_| Ok(()));
+
+    let (mut context, _network) = setup(batcher, success_cende_ammbassador());
+    context.set_height_and_round(BlockNumber(0), 0).await;
+    let (mut content_sender, content_receiver) = mpsc::channel(context.config.proposal_buffer_size);
+    // Send a block info with an eth_to_fri_rate that is out of range.
+    let mut block_info = block_info(BlockNumber(0));
+    block_info.eth_to_fri_rate *= 2;
+    content_sender.send(ProposalPart::BlockInfo(block_info).clone()).await.unwrap();
+    // Send a Fin message to ensure the fin_receiver was canceled for the correct reason
+    // (invalid block_info), not due to a timeout.
+    content_sender
+        .send(
+            ProposalPart::Fin(ProposalFin {
+                proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+            })
+            .clone(),
+        )
+        .await
+        .unwrap();
+    let fin_receiver =
+        context.validate_proposal(ProposalInit::default(), TIMEOUT, content_receiver).await;
+    assert_eq!(fin_receiver.await, Err(Canceled));
 }
