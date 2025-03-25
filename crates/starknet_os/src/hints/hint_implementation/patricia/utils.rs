@@ -129,7 +129,7 @@ pub enum UpdateTree {
 
 type TreeLayer = HashMap<LayerIndex, UpdateTree>;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CanonicNode {
     BinaryOrLeaf(HashOutput),
     Edge(EdgeData),
@@ -142,20 +142,14 @@ impl CanonicNode {
         }
         Self::BinaryOrLeaf(*node_hash)
     }
-
-    /// Returns the hash of the node. If the node is an EdgeNode, returns the bottom hash.
-    fn get_hash(&self) -> &HashOutput {
-        match self {
-            Self::BinaryOrLeaf(hash) => hash,
-            Self::Edge(edge) => &edge.bottom_hash,
-        }
-    }
-
-    fn is_edge(&self) -> bool {
-        matches!(self, Self::Edge(_))
-    }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum CanonicChildren {
+    Left(CanonicNode),
+    Right(CanonicNode),
+    Both(CanonicNode, CanonicNode),
+}
 /// Constructs layers of a tree from leaf updates. This is not a full state tree, it is just the
 /// subtree induced by the modification leaves.
 /// Returns a tree of updates. A tree is built from layers, where each layer represents the nodes in
@@ -238,4 +232,48 @@ fn create_preimage_mapping(
         }
     }
     Ok(preimage_mapping)
+}
+
+/// Retrieves the children of a CanonicNode.
+/// We call this function only from `preimage_tree`, which stops when we get to a leaf.
+/// So we assume node is not a leaf.
+fn get_children(
+    node: &CanonicNode,
+    preimage_map: &PreimageMap,
+) -> Result<CanonicChildren, PatriciaError> {
+    match node {
+        CanonicNode::BinaryOrLeaf(hash) => {
+            let (left, right) = if hash.0 == Felt::ZERO {
+                // An empty node.
+                (HashOutput(Felt::ZERO), HashOutput(Felt::ZERO))
+            } else {
+                // A binary node (not a leaf).
+                let preimage =
+                    preimage_map.get(hash).ok_or(PatriciaError::MissingPreimage(*hash))?;
+
+                let binary = preimage.get_binary()?;
+                (binary.left_hash, binary.right_hash)
+            };
+            Ok(CanonicChildren::Both(
+                CanonicNode::new(preimage_map, &left),
+                CanonicNode::new(preimage_map, &right),
+            ))
+        }
+        CanonicNode::Edge(edge) => {
+            let hash = edge.bottom_hash;
+            let path_to_bottom = edge.path_to_bottom;
+
+            let child = if u8::from(path_to_bottom.length) == 1 {
+                CanonicNode::BinaryOrLeaf(hash)
+            } else {
+                let new_path = path_to_bottom.remove_first_edges(EdgePathLength::new(1)?)?;
+                CanonicNode::Edge(EdgeData { bottom_hash: hash, path_to_bottom: new_path })
+            };
+
+            if path_to_bottom.is_left_descendant() {
+                return Ok(CanonicChildren::Left(child));
+            }
+            Ok(CanonicChildren::Right(child))
+        }
+    }
 }
