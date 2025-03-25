@@ -1,10 +1,7 @@
 // TODO(shahak): Test is_class_declared_at.
-use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use futures::channel::mpsc::channel;
 use indexmap::IndexMap;
 use papyrus_storage::body::BodyStorageWriter;
-use papyrus_storage::class::ClassStorageWriter;
-use papyrus_storage::compiled_class::CasmStorageWriter;
 use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::state::StateStorageWriter;
 use papyrus_storage::test_utils::get_test_storage;
@@ -12,10 +9,8 @@ use papyrus_storage::StorageWriter;
 use papyrus_test_utils::{get_rng, get_test_block, get_test_state_diff, GetTestInstance};
 use rand_chacha::rand_core::RngCore;
 use starknet_api::block::{Block, BlockHeader, BlockNumber};
-use starknet_api::contract_class::{ContractClass, SierraVersion};
-use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
-use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
+use starknet_api::core::{ClassHash, ContractAddress, Nonce};
+use starknet_api::state::{StorageKey, ThinStateDiff};
 use starknet_sequencer_infra::component_definitions::ComponentRequestHandler;
 use starknet_state_sync_types::communication::{StateSyncRequest, StateSyncResponse};
 use starknet_state_sync_types::errors::StateSyncError;
@@ -189,63 +184,6 @@ async fn get_class_hash_at() {
     assert_eq!(class_hash, expected_class_hash);
 }
 
-#[tokio::test]
-async fn test_get_compiled_class_deprecated() {
-    let (state_sync, mut storage_writer) = setup();
-
-    let mut rng = get_rng();
-    let cairo1_class_hash = ClassHash(Felt::from(rng.next_u64()));
-    let cairo1_contract_class = CasmContractClass::get_test_instance(&mut rng);
-    let sierra_contract_class = SierraContractClass::default();
-    let cairo0_class_hash = ClassHash(Felt::from(rng.next_u64()));
-    let cairo0_contract_class = DeprecatedContractClass::get_test_instance(&mut get_rng());
-    let block_number = BlockNumber(0);
-
-    storage_writer
-        .begin_rw_txn()
-        .unwrap()
-        .append_state_diff(
-            block_number,
-            starknet_api::state::ThinStateDiff {
-                declared_classes: IndexMap::from([(
-                    cairo1_class_hash,
-                    CompiledClassHash::default(),
-                )]),
-                deprecated_declared_classes: vec![cairo0_class_hash],
-                ..Default::default()
-            },
-        )
-        .unwrap()
-        .append_casm(&cairo1_class_hash, &cairo1_contract_class)
-        .unwrap()
-        .append_classes(
-            block_number,
-            &[(cairo1_class_hash, &sierra_contract_class)],
-            &[(cairo0_class_hash, &cairo0_contract_class)],
-        )
-        .unwrap()
-        .append_body(block_number, Default::default())
-        .unwrap()
-        .commit()
-        .unwrap();
-
-    // Verify the cairo1 class was written and is returned correctly.
-    let contract_class_v1 =
-        state_sync.get_compiled_class_deprecated(block_number, cairo1_class_hash).unwrap();
-    let sierra_version =
-        SierraVersion::extract_from_program(&sierra_contract_class.sierra_program).unwrap();
-    assert_eq!(contract_class_v1, ContractClass::V1((cairo1_contract_class, sierra_version)));
-
-    // Verify the cairo0 class was written and is returned correctly.
-    let contract_class_v0 =
-        state_sync.get_compiled_class_deprecated(block_number, cairo0_class_hash).unwrap();
-    assert_eq!(contract_class_v0, ContractClass::V0(cairo0_contract_class));
-
-    let other_class_hash = ClassHash::get_test_instance(&mut rng);
-    let result = state_sync.get_compiled_class_deprecated(block_number, other_class_hash);
-    assert_eq!(result, Err(StateSyncError::ClassNotFound(other_class_hash)));
-}
-
 // Verify we get None/BlockNotFound when trying to call read methods with a block number that does
 // not exist.
 #[tokio::test]
@@ -298,21 +236,6 @@ async fn test_block_not_found() {
 
     assert_eq!(
         get_class_hash_at_result,
-        Err(StateSyncError::BlockNotFound(non_existing_block_number))
-    );
-
-    let response = state_sync
-        .handle_request(StateSyncRequest::GetCompiledClassDeprecated(
-            non_existing_block_number,
-            Default::default(),
-        ))
-        .await;
-    let StateSyncResponse::GetCompiledClassDeprecated(get_compiled_class_result) = response else {
-        panic!("Expected StateSyncResponse::GetCompiledClassDeprecated(_), but got {:?}", response);
-    };
-
-    assert_eq!(
-        get_compiled_class_result,
         Err(StateSyncError::BlockNotFound(non_existing_block_number))
     );
 }

@@ -6,7 +6,6 @@ use mockall::automock;
 use papyrus_proc_macros::handle_all_response_variants;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
-use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_sequencer_infra::component_client::{
@@ -74,13 +73,6 @@ pub trait StateSyncClient: Send + Sync {
         contract_address: ContractAddress,
     ) -> StateSyncClientResult<ClassHash>;
 
-    // TODO(Shahak): Remove this and fix sync state reader once the compiler component is ready.
-    async fn get_compiled_class_deprecated(
-        &self,
-        block_number: BlockNumber,
-        class_hash: ClassHash,
-    ) -> StateSyncClientResult<ContractClass>;
-
     /// Request latest block number the sync has downloaded.
     /// Returns None if no latest block was yet downloaded.
     async fn get_latest_block_number(&self) -> StateSyncClientResult<Option<BlockNumber>>;
@@ -117,7 +109,6 @@ pub enum StateSyncRequest {
     GetStorageAt(BlockNumber, ContractAddress, StorageKey),
     GetNonceAt(BlockNumber, ContractAddress),
     GetClassHashAt(BlockNumber, ContractAddress),
-    GetCompiledClassDeprecated(BlockNumber, ClassHash),
     GetLatestBlockNumber(),
     IsClassDeclaredAt(BlockNumber, ClassHash),
 }
@@ -130,7 +121,6 @@ pub enum StateSyncResponse {
     GetStorageAt(StateSyncResult<Felt>),
     GetNonceAt(StateSyncResult<Nonce>),
     GetClassHashAt(StateSyncResult<ClassHash>),
-    GetCompiledClassDeprecated(StateSyncResult<ContractClass>),
     GetLatestBlockNumber(StateSyncResult<Option<BlockNumber>>),
     IsClassDeclaredAt(StateSyncResult<bool>),
 }
@@ -206,21 +196,6 @@ where
         handle_all_response_variants!(
             StateSyncResponse,
             GetClassHashAt,
-            StateSyncClientError,
-            StateSyncError,
-            Direct
-        )
-    }
-
-    async fn get_compiled_class_deprecated(
-        &self,
-        block_number: BlockNumber,
-        class_hash: ClassHash,
-    ) -> StateSyncClientResult<ContractClass> {
-        let request = StateSyncRequest::GetCompiledClassDeprecated(block_number, class_hash);
-        handle_all_response_variants!(
-            StateSyncResponse,
-            GetCompiledClassDeprecated,
             StateSyncClientError,
             StateSyncError,
             Direct
