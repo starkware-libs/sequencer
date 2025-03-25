@@ -1,11 +1,11 @@
 {
-  "chain_id": "SN_INTEGRATION_SEPOLIA",
-  "image": "ghcr.io/starkware-libs/sequencer/sequencer:dev",
-  "application_config_subdir": "config/sequencer/presets//consolidated_node/application_configs/",
+  "chain_id": "SN_GOERLI",
+  "image": "ghcr.io/starkware-libs/sequencer/sequencer:shahak-allowed_libs_func_list_name-a2658aa@sha256:4b56ad416512f91c8dece622bc8e225cbd8ec392a7269b9bc5ca57f9c17d1c94",
+  "application_config_subdir": "config/sequencer/presets/system_test_presets/single_node/",
   "services": [
     {
-      "name": "Node",
-      "config_path": "node.json",
+      "name": "AllInOne",
+      "config_path": "node_0/executable_0/node_config.json",
       "ingress": false,
       "autoscale": false,
       "replicas": 1,
