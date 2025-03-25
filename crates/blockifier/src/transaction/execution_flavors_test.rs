@@ -20,6 +20,7 @@ use starknet_api::transaction::fields::{
     Fee,
     GasVectorComputationMode,
     Resource,
+    Tip,
     TransactionSignature,
     ValidResourceBounds,
 };
@@ -119,6 +120,7 @@ fn gas_and_fee(
             &BlockContext::create_for_account_testing().block_info,
             GasVector::from_l1_gas(gas),
             fee_type,
+            Tip::ZERO,
         ),
     )
 }
@@ -164,7 +166,7 @@ fn check_gas_and_fee(
         &GasVectorComputationMode::NoL2Gas,
     );
     let no_l2_gas_fee =
-        get_fee_by_gas_vector(&block_context.block_info, no_l2_gas_vector, fee_type);
+        get_fee_by_gas_vector(&block_context.block_info, no_l2_gas_vector, fee_type, Tip::ZERO);
 
     assert_eq!(no_l2_gas_fee, expected_cost_of_resources);
 }
@@ -743,6 +745,7 @@ fn test_simulate_validate_charge_fee_mid_execution(
         &block_context.block_info,
         GasVector::from_l1_gas(block_limit_gas),
         &fee_type,
+        block_context.to_tx_context(&account_tx).effective_tip(),
     );
 
     let tx = executable_invoke_tx(invoke_tx_args! {

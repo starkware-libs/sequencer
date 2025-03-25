@@ -263,8 +263,13 @@ pub trait HasRelatedFeeType {
         }
     }
 
-    fn get_fee_by_gas_vector(&self, block_info: &BlockInfo, gas_vector: GasVector) -> Fee {
-        get_fee_by_gas_vector(block_info, gas_vector, &self.fee_type())
+    fn get_fee_by_gas_vector(
+        &self,
+        block_info: &BlockInfo,
+        gas_vector: GasVector,
+        tip: Tip,
+    ) -> Fee {
+        get_fee_by_gas_vector(block_info, gas_vector, &self.fee_type(), tip)
     }
 }
 
