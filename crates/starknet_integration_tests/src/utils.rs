@@ -304,8 +304,13 @@ struct EthToStrkOracleQuery {
 
 /// Returns a fake eth to fri rate response.
 async fn get_price(Query(query): Query<EthToStrkOracleQuery>) -> Json<serde_json::Value> {
-    // TODO(Asmaa): Retrun timestamp as price once we start mocking out time in the tests.
-    let price = format!("0x{:x}", 10000);
+    // This value must be large enough so that conversion for ETH to STRK is not zero (e.g. for gas
+    // prices). We set a value a bit higher than the min needed to avoid test failures due to
+    // small changes.
+    //
+    // TODO(Asmaa): Retrun timestamp as price once we start mocking out time in the
+    // tests.
+    let price = format!("0x{:x}", u128::pow(10, 19));
     let response = json!({ "timestamp": query.timestamp ,"price": price, "decimals": ETH_TO_STRK_QUANTIZATION });
     Json(response)
 }
