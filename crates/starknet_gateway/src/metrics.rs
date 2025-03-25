@@ -20,6 +20,7 @@ define_metrics!(
         LabeledMetricCounter { TRANSACTIONS_FAILED, "gateway_transactions_failed", "Counter of failed transactions", init = 0 , labels = TRANSACTION_TYPE_AND_SOURCE_LABELS},
         LabeledMetricCounter { TRANSACTIONS_SENT_TO_MEMPOOL, "gateway_transactions_sent_to_mempool", "Counter of transactions sent to the mempool", init = 0 , labels = TRANSACTION_TYPE_AND_SOURCE_LABELS},
         MetricHistogram { GATEWAY_ADD_TX_LATENCY, "gateway_add_tx_latency", "Latency of gateway add_tx function in secs" },
+        MetricHistogram { GATEWAY_VALIDATE_TX_LATENCY, "gateway_validate_tx_latency", "Latency of gateway validate function in secs" },
     },
 );
 
@@ -88,4 +89,5 @@ pub(crate) fn register_metrics() {
     TRANSACTIONS_FAILED.register();
     TRANSACTIONS_SENT_TO_MEMPOOL.register();
     GATEWAY_ADD_TX_LATENCY.register();
+    GATEWAY_VALIDATE_TX_LATENCY.register();
 }
