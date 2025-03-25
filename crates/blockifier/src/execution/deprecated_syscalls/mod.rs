@@ -87,6 +87,21 @@ pub enum DeprecatedSyscallSelector {
     StorageWrite,
 }
 
+impl DeprecatedSyscallSelector {
+    pub fn is_calling_syscall(&self) -> bool {
+        matches!(
+            self,
+            Self::CallContract
+                | Self::DelegateCall
+                | Self::DelegateL1Handler
+                | Self::Deploy
+                | Self::LibraryCall
+                | Self::LibraryCallL1Handler
+                | Self::MetaTxV0
+        )
+    }
+}
+
 impl TryFrom<Felt> for DeprecatedSyscallSelector {
     type Error = DeprecatedSyscallExecutionError;
     fn try_from(raw_selector: Felt) -> Result<Self, Self::Error> {
