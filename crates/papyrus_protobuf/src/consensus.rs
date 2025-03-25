@@ -1,3 +1,7 @@
+#[cfg(test)]
+#[path = "consensus_test.rs"]
+mod consensus_test;
+
 use std::fmt::Display;
 
 use bytes::{Buf, BufMut};
@@ -70,7 +74,18 @@ pub struct ConsensusBlockInfo {
     pub l2_gas_price_fri: u128,
     pub l1_gas_price_wei: u128,
     pub l1_data_gas_price_wei: u128,
+    /// The value of 1 ETH in FRI.
     pub eth_to_fri_rate: u128,
+}
+
+impl ConsensusBlockInfo {
+    pub fn fri_from_wei(wei: u128, eth_to_fri_rate: u128) -> u128 {
+        const ETH_TO_WEI: u128 = u128::pow(10, 18);
+
+        // We use integer division since wei * eth_to_fri_rate is expected to be high enough to not
+        // cause too much precision loss.
+        wei.checked_mul(eth_to_fri_rate).expect("Gas price is too high.") / ETH_TO_WEI
+    }
 }
 
 /// A temporary constant to use as a validator ID. Zero is not a valid contract address.
