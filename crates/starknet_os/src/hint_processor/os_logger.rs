@@ -13,6 +13,24 @@ pub enum OsLoggerError {
 
 pub type OsLoggerResult<T> = Result<T, OsLoggerError>;
 
+pub trait ResourceFinalizer {
+    fn get_optional_resources(&self) -> Option<&ExecutionResources>;
+
+    fn set_resources(&mut self, resources: ExecutionResources);
+
+    fn get_resources(&self) -> OsLoggerResult<&ExecutionResources> {
+        self.get_optional_resources().ok_or(OsLoggerError::ResourceAccessBeforeFinalize)
+    }
+
+    fn finalize_resources(&mut self, resources: ExecutionResources) -> OsLoggerResult<()> {
+        if self.get_optional_resources().is_some() {
+            return Err(OsLoggerError::DoubleFinalize);
+        }
+        self.set_resources(resources);
+        Ok(())
+    }
+}
+
 pub struct SyscallTrace {
     selector: SyscallSelector,
     is_deprecated: bool,
@@ -25,17 +43,15 @@ impl SyscallTrace {
     pub fn new(selector: SyscallSelector, is_deprecated: bool, tab_count: usize) -> Self {
         Self { selector, is_deprecated, tab_count, inner_syscalls: Vec::new(), resources: None }
     }
+}
 
-    pub fn get_resources(&self) -> OsLoggerResult<&ExecutionResources> {
-        self.resources.as_ref().ok_or(OsLoggerError::ResourceAccessBeforeFinalize)
+impl ResourceFinalizer for SyscallTrace {
+    fn get_optional_resources(&self) -> Option<&ExecutionResources> {
+        self.resources.as_ref()
     }
 
-    pub fn finalize_resources(&mut self, resources: ExecutionResources) -> OsLoggerResult<()> {
-        if self.resources.is_some() {
-            return Err(OsLoggerError::DoubleFinalize);
-        }
+    fn set_resources(&mut self, resources: ExecutionResources) {
         self.resources = Some(resources);
-        Ok(())
     }
 }
 
