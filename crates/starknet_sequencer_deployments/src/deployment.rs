@@ -11,7 +11,7 @@ use starknet_sequencer_node::config::config_utils::{
     PresetConfig,
 };
 
-use crate::service::{DeploymentName, IntoService, Service};
+use crate::service::{DeploymentName, Service};
 
 const DEPLOYMENT_IMAGE: &str = "ghcr.io/starkware-libs/sequencer/sequencer:dev";
 

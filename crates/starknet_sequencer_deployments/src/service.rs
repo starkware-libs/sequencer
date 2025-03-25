@@ -59,6 +59,10 @@ impl ServiceName {
         name
     }
 
+    pub fn create_service(&self) -> Service {
+        self.as_inner().create_service()
+    }
+
     fn as_inner(&self) -> &dyn ServiceNameInner {
         match self {
             ServiceName::ConsolidatedNode(inner) => inner,
@@ -67,16 +71,8 @@ impl ServiceName {
     }
 }
 
-pub(crate) trait ServiceNameInner: Display {}
-
-impl IntoService for ServiceName {
-    fn create_service(&self) -> Service {
-        // TODO(Tsabary): find a way to avoid this code duplication.
-        match self {
-            Self::ConsolidatedNode(inner) => inner.create_service(),
-            Self::DistributedNode(inner) => inner.create_service(),
-        }
-    }
+pub(crate) trait ServiceNameInner: Display {
+    fn create_service(&self) -> Service;
 }
 
 impl DeploymentName {
@@ -114,19 +110,15 @@ pub trait GetComponentConfigs {
     fn get_component_configs(base_port: Option<u16>) -> IndexMap<ServiceName, ComponentConfig>;
 }
 
-pub trait IntoService {
-    fn create_service(&self) -> Service;
-}
-
 impl Serialize for ServiceName {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        // TODO(Tsabary): find a way to avoid this code duplication.
+        // Serialize only the inner value.
         match self {
-            ServiceName::ConsolidatedNode(inner) => inner.serialize(serializer), /* Serialize only the inner value */
-            ServiceName::DistributedNode(inner) => inner.serialize(serializer), /* Serialize only the inner value */
+            ServiceName::ConsolidatedNode(inner) => inner.serialize(serializer),
+            ServiceName::DistributedNode(inner) => inner.serialize(serializer),
         }
     }
 }
