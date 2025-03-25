@@ -221,6 +221,7 @@ pub fn execute_simulate_transactions(
         validate,
         // TODO(DanB): Consider testing without overriding DA (It's already tested in the RPC)
         true,
+        None,
     )
     .unwrap()
 }
