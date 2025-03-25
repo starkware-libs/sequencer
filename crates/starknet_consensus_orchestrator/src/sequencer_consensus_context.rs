@@ -498,25 +498,38 @@ impl ConsensusContext for SequencerConsensusContext {
 
         let transaction_hashes =
             transactions.iter().map(|tx| tx.tx_hash()).collect::<Vec<TransactionHash>>();
-        // TODO(Asmaa/Eitan): update with the correct values.
-        let l1_gas_price =
-            GasPricePerToken { price_in_fri: GasPrice(1), price_in_wei: GasPrice(1) };
-        let l1_data_gas_price =
-            GasPricePerToken { price_in_fri: GasPrice(1), price_in_wei: GasPrice(1) };
-        let sequencer = SequencerContractAddress(ContractAddress::from(123_u128));
+        let l1_gas_price = GasPricePerToken {
+            price_in_fri: GasPrice(block_info.l1_gas_price_wei * block_info.eth_to_fri_rate),
+            price_in_wei: GasPrice(block_info.l1_gas_price_wei),
+        };
+        let l1_data_gas_price = GasPricePerToken {
+            price_in_fri: GasPrice(block_info.l1_data_gas_price_wei * block_info.eth_to_fri_rate),
+            price_in_wei: GasPrice(block_info.l1_data_gas_price_wei),
+        };
+        let sequencer = SequencerContractAddress(block_info.builder);
+
         let block_header_without_hash = BlockHeaderWithoutHash {
             block_number: BlockNumber(height),
             l1_gas_price,
             l1_data_gas_price,
             l2_gas_price: GasPricePerToken {
-                price_in_fri: GasPrice(self.l2_gas_price.into()),
+                price_in_fri: GasPrice(__self.l2_gas_price.into()),
+                // TODO(guy.f): We shouldn't be sending price_in_wei for l2, should we remove
+                // if from the Token or not use GasPriceToken here.
                 price_in_wei: GasPrice(1),
             },
             l2_gas_consumed: l2_gas_used.0,
             next_l2_gas_price,
             sequencer,
+            timestamp: BlockTimestamp(block_info.timestamp),
+            l1_da_mode: block_info.l1_da_mode,
+            // TODO(guy.f): Figure out where/if to get the values below from and fill them.
+            // starknet_version: todo!(),
+            // parent_hash: todo!(),
+            // state_root: todo!(),
             ..Default::default()
         };
+
         let sync_block = SyncBlock {
             state_diff: state_diff.clone(),
             transaction_hashes,
@@ -749,6 +762,7 @@ async fn build_proposal(mut args: ProposalBuildArguments) {
 async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<ConsensusBlockInfo> {
     let batcher_timeout = chrono::Duration::from_std(args.batcher_timeout)
         .expect("Can't convert timeout to chrono::Duration");
+    // TODO(guy.f): Replace this with a mockable call to be able to test the correct time is set.
     let now = chrono::Utc::now();
     let timestamp = now.timestamp().try_into().expect("Failed to convert timestamp");
     let eth_to_fri_rate = match &args.eth_to_strk_oracle_client {
@@ -1129,22 +1143,34 @@ async fn batcher_abort_proposal(batcher: &dyn BatcherClient, proposal_id: Propos
 }
 
 fn convert_to_sn_api_block_info(block_info: ConsensusBlockInfo) -> starknet_api::block::BlockInfo {
-    let l1_gas_price =
+    let l1_gas_price_fri =
         NonzeroGasPrice::new(GasPrice(block_info.l1_gas_price_wei * block_info.eth_to_fri_rate))
             .unwrap();
-    let l1_data_gas_price = NonzeroGasPrice::new(GasPrice(
+    let l1_data_gas_price_fri = NonzeroGasPrice::new(GasPrice(
         block_info.l1_data_gas_price_wei * block_info.eth_to_fri_rate,
     ))
     .unwrap();
-    let l2_gas_price = NonzeroGasPrice::new(GasPrice(block_info.l2_gas_price_fri)).unwrap();
+    let l2_gas_price_fri = NonzeroGasPrice::new(GasPrice(block_info.l2_gas_price_fri)).unwrap();
+
+    let l1_gas_price_wei = NonzeroGasPrice::new(GasPrice(block_info.l1_gas_price_wei)).unwrap();
+    let l1_data_gas_price_wei =
+        NonzeroGasPrice::new(GasPrice(block_info.l1_data_gas_price_wei)).unwrap();
 
     starknet_api::block::BlockInfo {
         block_number: block_info.height,
         block_timestamp: BlockTimestamp(block_info.timestamp),
         sequencer_address: block_info.builder,
         gas_prices: GasPrices {
-            strk_gas_prices: GasPriceVector { l1_gas_price, l1_data_gas_price, l2_gas_price },
-            ..TEMPORARY_GAS_PRICES
+            strk_gas_prices: GasPriceVector {
+                l1_gas_price: l1_gas_price_fri,
+                l1_data_gas_price: l1_data_gas_price_fri,
+                l2_gas_price: l2_gas_price_fri,
+            },
+            eth_gas_prices: GasPriceVector {
+                l1_gas_price: l1_gas_price_wei,
+                l1_data_gas_price: l1_data_gas_price_wei,
+                ..TEMPORARY_GAS_PRICES.eth_gas_prices
+            },
         },
         use_kzg_da: block_info.l1_da_mode == L1DataAvailabilityMode::Blob,
     }

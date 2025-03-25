@@ -70,6 +70,7 @@ pub struct ConsensusBlockInfo {
     pub l2_gas_price_fri: u128,
     pub l1_gas_price_wei: u128,
     pub l1_data_gas_price_wei: u128,
+    /// Fri price in eth **wei**.
     pub eth_to_fri_rate: u128,
 }
 
