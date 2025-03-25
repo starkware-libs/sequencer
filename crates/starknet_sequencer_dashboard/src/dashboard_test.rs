@@ -1,14 +1,15 @@
 use starknet_infra_utils::test_utils::assert_json_eq;
 
-use crate::dashboard::{Alert, AlertComparisonOp, AlertCondition, AlertLogicalOp};
+use crate::dashboard::{Alert, AlertComparisonOp, AlertCondition, AlertGroup, AlertLogicalOp};
 
 #[test]
 fn serialize_alert() {
     let alert = Alert {
         name: "Name",
-        message: "Message",
+        title: "Message",
+        alert_group: AlertGroup::Batcher,
+        expr: "max",
         conditions: &[AlertCondition {
-            expr: "max",
             comparison_op: AlertComparisonOp::GreaterThan,
             comparison_value: 10.0,
             logical_op: AlertLogicalOp::And,
@@ -19,12 +20,15 @@ fn serialize_alert() {
     let serialized = serde_json::to_value(&alert).unwrap();
     let expected = serde_json::json!({
         "name": "Name",
-        "message": "Message",
+        "title": "Message",
+        "ruleGroup": "batcher",
+        "expr": "max",
         "conditions": [
             {
                 "evaluator": { "params": [10.0], "type": "gt" },
                 "operator": { "type": "and" },
-                "query": { "expr": "max" }
+                "reducer": {"params": [], "type": "avg"},
+                "type": "query"
             }
         ],
         "for": "5m"
