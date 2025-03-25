@@ -238,9 +238,7 @@ impl FlowSequencerSetup {
         let (node_config, _config_pointers_map) = create_node_config(
             &mut available_ports,
             chain_info,
-            storage_config.batcher_storage_config,
-            storage_config.state_sync_storage_config,
-            storage_config.class_manager_storage_config,
+            storage_config,
             state_sync_config,
             consensus_manager_config,
             mempool_p2p_config,
