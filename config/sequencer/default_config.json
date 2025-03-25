@@ -1379,6 +1379,11 @@
     "privacy": "TemporaryValue",
     "value": false
   },
+  "starknet_url": {
+    "description": "URL for communicating with Starknet.",
+    "privacy": "TemporaryValue",
+    "value": "PointerTarget"
+  },
   "state_sync_config.central_sync_client_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
@@ -1431,8 +1436,8 @@
   },
   "state_sync_config.central_sync_client_config.central_source_config.starknet_url": {
     "description": "Starknet feeder-gateway URL. It should match chain_id.",
-    "privacy": "Public",
-    "value": "https://alpha-mainnet.starknet.io/"
+    "pointer_target": "starknet_url",
+    "privacy": "Public"
   },
   "state_sync_config.central_sync_client_config.sync_config.base_layer_propagation_sleep_duration": {
     "description": "Time in seconds to poll the base layer to get the latest proved block.",
@@ -1631,13 +1636,13 @@
   },
   "state_sync_config.rpc_config.execution_config.eth_fee_contract_address": {
     "description": "The eth fee token address to receive fees",
-    "privacy": "Public",
-    "value": "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7"
+    "pointer_target": "eth_fee_token_address",
+    "privacy": "Public"
   },
   "state_sync_config.rpc_config.execution_config.strk_fee_contract_address": {
     "description": "The strk fee token address to receive fees",
-    "privacy": "Public",
-    "value": "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d"
+    "pointer_target": "strk_fee_token_address",
+    "privacy": "Public"
   },
   "state_sync_config.rpc_config.max_events_chunk_size": {
     "description": "Maximum chunk size supported by the node in get_events requests.",
@@ -1656,8 +1661,8 @@
   },
   "state_sync_config.rpc_config.starknet_url": {
     "description": "URL for communicating with Starknet in write_api methods.",
-    "privacy": "Public",
-    "value": "https://alpha-mainnet.starknet.io/"
+    "pointer_target": "starknet_url",
+    "privacy": "Public"
   },
   "state_sync_config.storage_config.db_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
