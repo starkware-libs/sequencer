@@ -2,8 +2,13 @@ use std::collections::{HashMap, HashSet};
 
 use num_bigint::BigUint;
 use starknet_patricia::hash::hash_trait::HashOutput;
-use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{BinaryData, EdgeData};
+use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
+    BinaryData,
+    EdgeData,
+    EdgePathLength,
+};
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
+use starknet_types_core::felt::Felt;
 
 use crate::hints::hint_implementation::patricia::error::PatriciaError;
 
@@ -122,7 +127,7 @@ pub enum UpdateTree {
 
 type TreeLayer = HashMap<LayerIndex, UpdateTree>;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CanonicNode {
     BinaryOrLeaf(HashOutput),
     Edge(EdgeData),
@@ -154,6 +159,12 @@ impl CanonicNode {
     fn is_edge(&self) -> bool {
         matches!(self, CanonicNode::Edge(_))
     }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CanonicChildren {
+    left: Option<CanonicNode>,
+    right: Option<CanonicNode>,
 }
 
 /// Constructs layers of a tree from leaf updates. This is not a full state tree, it is just the
@@ -206,4 +217,52 @@ pub(crate) fn build_update_tree(
     Ok(layer
         .remove(&LayerIndex::FIRST_LEAF)
         .expect("There should be a root node since modifications are not empty."))
+}
+
+/// Retrieves the children of a CanonicNode.
+/// We call this function only from `preimage_tree`, which stops when we get to a leaf.
+/// So we assume node is not a leaf.
+fn get_children(
+    node: &CanonicNode,
+    preimage_map: &PreimageMap,
+) -> Result<CanonicChildren, PatriciaError> {
+    let node_hash = node.get_hash();
+
+    if !node.is_edge() {
+        let left;
+        let right;
+
+        if node_hash.0 == Felt::ZERO {
+            // An empty node.
+            (left, right) = (HashOutput(Felt::ZERO), HashOutput(Felt::ZERO));
+        } else {
+            // A binary node (not a leaf).
+            let preimage =
+                preimage_map.get(node_hash).ok_or(PatriciaError::MissingPreimage(*node_hash))?;
+
+            let binary = preimage.get_binary()?;
+            left = binary.left_hash;
+            right = binary.right_hash;
+        }
+        Ok(CanonicChildren {
+            left: Some(CanonicNode::new(preimage_map, &left)),
+            right: Some(CanonicNode::new(preimage_map, &right)),
+        })
+    } else {
+        let edge_data = node.get_edge()?;
+        let path_to_bottom = edge_data.path_to_bottom;
+
+        let child = match path_to_bottom.length.into() {
+            1 => CanonicNode::BinaryOrLeaf(*node_hash),
+            _ => {
+                let new_path = path_to_bottom.remove_first_edges(EdgePathLength::new(1)?)?;
+                CanonicNode::Edge(EdgeData { bottom_hash: *node_hash, path_to_bottom: new_path })
+            }
+        };
+
+        if path_to_bottom.is_left_descendant() {
+            return Ok(CanonicChildren { left: Some(child), right: None });
+        }
+        Ok(CanonicChildren { left: None, right: Some(child) })
+    }
 }

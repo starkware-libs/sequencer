@@ -134,7 +134,7 @@ impl PathToBottom {
     }
 
     /// Returns true iff the first step on the path is to the left.
-    pub(crate) fn is_left_descendant(&self) -> bool {
+    pub fn is_left_descendant(&self) -> bool {
         self.path.0 >> (self.length.0 - 1) == 0
     }
 
@@ -149,7 +149,7 @@ impl PathToBottom {
     }
 
     /// Returns the path after removing the first steps (the edges from the path's origin node).
-    pub(crate) fn remove_first_edges(&self, n_edges: EdgePathLength) -> PathToBottomResult {
+    pub fn remove_first_edges(&self, n_edges: EdgePathLength) -> PathToBottomResult {
         if self.length < n_edges {
             return Err(PathToBottomError::RemoveEdgesError { length: self.length, n_edges });
         }
