@@ -47,6 +47,8 @@ pub enum OsLoggerError {
     DoubleFinalize,
     #[error("Failed to fetch identifier data for struct {0}.")]
     InnerBuiltinPtrsIdentifierMissing(String),
+    #[error("No transaction should call another transaction.")]
+    InTxContext,
     #[error("{0}")]
     MissingBuiltinPtr(String),
     #[error("The `members` field is None in identifier data for struct {0}.")]
@@ -457,6 +459,33 @@ impl OsLogger {
             }
         }
 
+        Ok(())
+    }
+
+    pub fn enter_tx(
+        &mut self,
+        tx_type: TransactionType,
+        tx_hash: TransactionHash,
+        n_steps: usize,
+        range_check_ptr: Relocatable,
+        ids_data: &HashMap<String, HintReference>,
+        vm: &VirtualMachine,
+        ap_tracking: &ApTracking,
+        os_program: &Program,
+    ) -> OsLoggerResult<()> {
+        if self.current_tx.is_some() {
+            return Err(OsLoggerError::InTxContext);
+        }
+        self.resource_counter_stack.push(ResourceCounter::new(
+            n_steps,
+            range_check_ptr,
+            ids_data,
+            vm,
+            ap_tracking,
+            os_program,
+        )?);
+        self.current_tx = Some(OsTransactionTrace::new(tx_type, tx_hash));
+        self.log(&format!("Entering {tx_type:?}: {tx_hash}."), true);
         Ok(())
     }
 }
