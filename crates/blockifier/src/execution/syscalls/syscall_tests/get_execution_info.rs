@@ -162,6 +162,32 @@ use crate::transaction::objects::{
         "Native: V1 bound account: query"
     )
 )]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
+        ExecutionMode::Execute,
+        TransactionVersion::THREE,
+        true,
+        false,
+        false,
+        true;
+        "Native: data gas account: query"
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
+        ExecutionMode::Execute,
+        TransactionVersion::THREE,
+        false,
+        false,
+        false,
+        true;
+        "Native: data gas account"
+    )
+)]
 #[test_case(
     FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
     ExecutionMode::Validate,

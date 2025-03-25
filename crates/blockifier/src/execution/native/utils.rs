@@ -1,7 +1,7 @@
 use cairo_lang_starknet_classes::contract_class::ContractEntryPoint;
-use cairo_native::starknet::{ResourceBounds, SyscallResult, TxV2Info};
+use cairo_native::starknet::{ResourceBounds, TxV2Info};
 use starknet_api::core::EntryPointSelector;
-use starknet_api::transaction::fields::{Resource, ValidResourceBounds};
+use starknet_api::transaction::fields::{AllResourceBounds, Resource, ValidResourceBounds};
 use starknet_types_core::felt::Felt;
 
 use crate::transaction::objects::CurrentTransactionInfo;
@@ -45,40 +45,33 @@ pub fn default_tx_v2_info() -> TxV2Info {
 
 pub fn calculate_resource_bounds(
     tx_info: &CurrentTransactionInfo,
-) -> SyscallResult<Vec<ResourceBounds>> {
-    Ok(match tx_info.resource_bounds {
-        ValidResourceBounds::L1Gas(l1_bounds) => {
-            vec![
-                ResourceBounds {
-                    resource: Felt::from_hex(Resource::L1Gas.to_hex()).unwrap(),
-                    max_amount: l1_bounds.max_amount.0,
-                    max_price_per_unit: l1_bounds.max_price_per_unit.0,
-                },
-                ResourceBounds {
-                    resource: Felt::from_hex(Resource::L2Gas.to_hex()).unwrap(),
-                    max_amount: 0,
-                    max_price_per_unit: 0,
-                },
-            ]
-        }
-        ValidResourceBounds::AllResources(all_bounds) => {
-            vec![
-                ResourceBounds {
-                    resource: Felt::from_hex(Resource::L1Gas.to_hex()).unwrap(),
-                    max_amount: all_bounds.l1_gas.max_amount.0,
-                    max_price_per_unit: all_bounds.l1_gas.max_price_per_unit.0,
-                },
-                ResourceBounds {
-                    resource: Felt::from_hex(Resource::L2Gas.to_hex()).unwrap(),
-                    max_amount: all_bounds.l2_gas.max_amount.0,
-                    max_price_per_unit: all_bounds.l2_gas.max_price_per_unit.0,
-                },
-                ResourceBounds {
+    exclude_l1_data_gas: bool,
+) -> Vec<ResourceBounds> {
+    let l1_gas_bounds = tx_info.resource_bounds.get_l1_bounds();
+    let l2_gas_bounds = tx_info.resource_bounds.get_l2_bounds();
+    let mut res = vec![
+        ResourceBounds {
+            resource: Felt::from_hex(Resource::L1Gas.to_hex()).unwrap(),
+            max_amount: l1_gas_bounds.max_amount.0,
+            max_price_per_unit: l1_gas_bounds.max_price_per_unit.0,
+        },
+        ResourceBounds {
+            resource: Felt::from_hex(Resource::L2Gas.to_hex()).unwrap(),
+            max_amount: l2_gas_bounds.max_amount.0,
+            max_price_per_unit: l2_gas_bounds.max_price_per_unit.0,
+        },
+    ];
+    match tx_info.resource_bounds {
+        ValidResourceBounds::L1Gas(_) => return res,
+        ValidResourceBounds::AllResources(AllResourceBounds { l1_data_gas, .. }) => {
+            if !exclude_l1_data_gas {
+                res.push(ResourceBounds {
                     resource: Felt::from_hex(Resource::L1DataGas.to_hex()).unwrap(),
-                    max_amount: all_bounds.l1_data_gas.max_amount.0,
-                    max_price_per_unit: all_bounds.l1_data_gas.max_price_per_unit.0,
-                },
-            ]
+                    max_amount: l1_data_gas.max_amount.0,
+                    max_price_per_unit: l1_data_gas.max_price_per_unit.0,
+                })
+            }
         }
-    })
+    }
+    res
 }

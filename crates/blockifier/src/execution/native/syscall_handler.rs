@@ -25,6 +25,7 @@ use starknet_api::transaction::fields::{Calldata, ContractAddressSalt};
 use starknet_api::transaction::{EventContent, EventData, EventKey, L2ToL1Payload};
 use starknet_types_core::felt::Felt;
 
+use super::utils::calculate_resource_bounds;
 use crate::blockifier_versioned_constants::GasCosts;
 use crate::execution::call_info::{MessageToL1, Retdata};
 use crate::execution::common_hints::ExecutionMode;
@@ -35,7 +36,7 @@ use crate::execution::entry_point::{
     ExecutableCallEntryPoint,
 };
 use crate::execution::errors::EntryPointExecutionError;
-use crate::execution::native::utils::{calculate_resource_bounds, default_tx_v2_info};
+use crate::execution::native::utils::default_tx_v2_info;
 use crate::execution::secp;
 use crate::execution::syscalls::hint_processor::{SyscallExecutionError, OUT_OF_GAS_ERROR};
 use crate::execution::syscalls::syscall_base::SyscallHandlerBase;
@@ -218,7 +219,10 @@ impl<'state> NativeSyscallHandler<'state> {
         match tx_info {
             TransactionInfo::Deprecated(_) => Ok(native_tx_info),
             TransactionInfo::Current(context) => Ok(TxV2Info {
-                resource_bounds: calculate_resource_bounds(context)?,
+                resource_bounds: calculate_resource_bounds(
+                    context,
+                    self.base.should_exclude_l1_data_gas(),
+                ),
                 tip: context.tip.0.into(),
                 paymaster_data: context.paymaster_data.0.clone(),
                 nonce_data_availability_mode: context.nonce_data_availability_mode.into(),
