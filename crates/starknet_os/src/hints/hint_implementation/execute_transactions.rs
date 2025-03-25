@@ -2,6 +2,7 @@ use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
     get_ptr_from_var_name,
+    insert_value_into_ap,
 };
 use cairo_vm::types::relocatable::Relocatable;
 use starknet_types_core::felt::Felt;
@@ -85,6 +86,7 @@ pub(crate) fn os_input_transactions<S: StateReader>(
     insert_nondet_hint_value(vm, AllHints::OsHint(OsHint::OsInputTransactions), num_txns)
 }
 
-pub(crate) fn segments_add<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    todo!()
+pub(crate) fn segments_add<S: StateReader>(HintArgs { vm, .. }: HintArgs<'_, S>) -> OsHintResult {
+    let segment = vm.add_memory_segment();
+    Ok(insert_value_into_ap(vm, segment)?)
 }
