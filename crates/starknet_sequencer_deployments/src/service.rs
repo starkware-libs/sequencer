@@ -7,7 +7,7 @@ use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 use crate::deployments::consolidated::ConsolidatedNodeServiceName;
 use crate::deployments::distributed::DistributedNodeServiceName;
 
-const DEPLOYMENT_CONFIG_BASE_DIR_PATH: &str = "config/sequencer/presets/";
+const DEPLOYMENT_CONFIG_BASE_DIR_PATH: &str = "config/sequencer/presets";
 // TODO(Tsabary): need to distinguish between test and production configs in dir structure.
 const APPLICATION_CONFIG_DIR_NAME: &str = "application_configs";
 
