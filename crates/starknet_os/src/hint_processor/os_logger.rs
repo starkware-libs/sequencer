@@ -2,15 +2,33 @@ use std::collections::HashMap;
 
 use blockifier::execution::syscalls::SyscallSelector;
 use blockifier::transaction::transaction_types::TransactionType;
+use cairo_vm::hint_processor::hint_processor_definition::HintReference;
+use cairo_vm::serde::deserialize_program::ApTracking;
+use cairo_vm::types::builtin_name::BuiltinName;
+use cairo_vm::types::program::Program;
+use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::transaction::TransactionHash;
+
+use crate::hints::error::OsHintError;
+use crate::hints::vars::{CairoStruct, Ids};
+use crate::vm_utils::get_address_of_nested_fields;
 
 #[derive(Debug, thiserror::Error)]
 pub enum OsLoggerError {
+    #[error("Failed to build builtin pointer map: {0}.")]
+    BuiltinPtrs(OsHintError),
     #[error("SyscallTrace should be finalized only once.")]
     DoubleFinalize,
+    #[error("Failed to fetch identifier data for struct {0}.")]
+    InnerBuiltinPtrsIdentifierMissing(String),
+    #[error("The `members` field is None in identifier data for struct {0}.")]
+    MissingMembers(String),
     #[error("SyscallTrace should be finalized before accessing resources.")]
     ResourceAccessBeforeFinalize,
+    #[error("{0}")]
+    UnknownBuiltin(String),
 }
 
 pub type OsLoggerResult<T> = Result<T, OsLoggerError>;
@@ -127,5 +145,108 @@ impl TryFrom<OsTransactionTrace> for String {
             "Transaction: {:?}\n\tHash: {}\n\tSteps: {}{builtins}",
             trace.tx_type, trace.tx_hash, resources.n_steps
         ))
+    }
+}
+
+#[allow(dead_code)]
+pub struct ResourceCounter {
+    n_steps: usize,
+    range_check_ptr: Relocatable,
+    builtin_ptrs_dict: HashMap<BuiltinName, Relocatable>,
+}
+
+impl ResourceCounter {
+    #[allow(dead_code)]
+    pub(crate) fn new(
+        n_steps: usize,
+        range_check_ptr: Relocatable,
+        ids_data: &HashMap<String, HintReference>,
+        vm: &VirtualMachine,
+        ap_tracking: &ApTracking,
+        os_program: &Program,
+    ) -> OsLoggerResult<Self> {
+        Ok(Self {
+            n_steps,
+            range_check_ptr,
+            builtin_ptrs_dict: Self::build_builtin_ptrs_dict(
+                ids_data,
+                vm,
+                ap_tracking,
+                os_program,
+            )?,
+        })
+    }
+
+    fn build_builtin_ptrs_dict(
+        ids_data: &HashMap<String, HintReference>,
+        vm: &VirtualMachine,
+        ap_tracking: &ApTracking,
+        os_program: &Program,
+    ) -> OsLoggerResult<HashMap<BuiltinName, Relocatable>> {
+        let mut builtin_ptrs_dict: HashMap<BuiltinName, Relocatable> = HashMap::new();
+
+        // The `BuiltinPointers` struct has two fields: selectable and non-selectable builtins.
+        Self::insert_builtins(
+            "selectable",
+            CairoStruct::SelectableBuiltins,
+            &mut builtin_ptrs_dict,
+            ids_data,
+            vm,
+            ap_tracking,
+            os_program,
+        )?;
+        Self::insert_builtins(
+            "non_selectable",
+            CairoStruct::NonSelectableBuiltins,
+            &mut builtin_ptrs_dict,
+            ids_data,
+            vm,
+            ap_tracking,
+            os_program,
+        )?;
+
+        Ok(builtin_ptrs_dict)
+    }
+
+    fn insert_builtins(
+        inner_field_name: &str,
+        inner_field_type: CairoStruct,
+        builtin_ptrs_dict: &mut HashMap<BuiltinName, Relocatable>,
+        ids_data: &HashMap<String, HintReference>,
+        vm: &VirtualMachine,
+        ap_tracking: &ApTracking,
+        os_program: &Program,
+    ) -> OsLoggerResult<()> {
+        // We want all pointers except `segment_arena` and `sha256`.
+        let excluded_builtins = ["segment_arena", "sha256"];
+        let inner_struct_name: &str = inner_field_type.into();
+        let inner_members = os_program
+            .get_identifier(inner_struct_name)
+            .ok_or(OsLoggerError::InnerBuiltinPtrsIdentifierMissing(inner_struct_name.into()))?
+            .members
+            .as_ref()
+            .ok_or(OsLoggerError::MissingMembers(inner_struct_name.into()))?;
+
+        for member_name in inner_members.keys() {
+            if excluded_builtins.contains(&member_name.as_str()) {
+                continue;
+            }
+            let member_ptr = get_address_of_nested_fields(
+                ids_data,
+                Ids::BuiltinPtrs,
+                CairoStruct::BuiltinPointersPtr,
+                vm,
+                ap_tracking,
+                &[inner_field_name, member_name.as_str()],
+                os_program,
+            )
+            .map_err(OsLoggerError::BuiltinPtrs)?;
+            builtin_ptrs_dict.insert(
+                BuiltinName::from_str(member_name)
+                    .ok_or_else(|| OsLoggerError::UnknownBuiltin(member_name.clone()))?,
+                member_ptr,
+            );
+        }
+        Ok(())
     }
 }
