@@ -1468,6 +1468,7 @@ fn test_actual_fee_gt_resource_bounds(
     let tx = &invoke_tx_with_default_flags(tx_args.clone());
     let execution_result = tx.execute(state, block_context).unwrap();
     let mut actual_gas = execution_result.receipt.gas;
+    let tip = block_context.to_tx_context(tx).tip();
 
     // Create new gas bounds that are lower than the actual gas.
     let (expected_fee, overdraft_resource_bounds) = match gas_mode {
@@ -1476,7 +1477,7 @@ fn test_actual_fee_gt_resource_bounds(
                 actual_gas.to_l1_gas_for_fee(gas_prices, &block_context.versioned_constants).0 - 1,
             );
             (
-                GasVector::from_l1_gas(l1_gas_bound).cost(gas_prices),
+                GasVector::from_l1_gas(l1_gas_bound).cost(gas_prices, tip),
                 l1_resource_bounds(l1_gas_bound, gas_prices.l1_gas_price.into()),
             )
         }
@@ -1487,7 +1488,7 @@ fn test_actual_fee_gt_resource_bounds(
                 Resource::L1DataGas => actual_gas.l1_data_gas.0 -= 1,
             }
             (
-                actual_gas.cost(gas_prices),
+                actual_gas.cost(gas_prices, tip),
                 ValidResourceBounds::all_bounds_from_vectors(&actual_gas, gas_prices),
             )
         }
@@ -2667,8 +2668,9 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     let tx_no_fee = l1handler_tx(Fee(0), contract_address);
     let error = tx_no_fee.execute(state, block_context).unwrap_err(); // Do not charge fee as L1Handler's resource bounds (/max fee) is 0.
     // Today, we check that the paid_fee is positive, no matter what was the actual fee.
+    let tip = block_context.to_tx_context(&tx_no_fee).tip();
     let expected_actual_fee =
-        get_fee_by_gas_vector(&block_context.block_info, total_gas, &FeeType::Eth);
+        get_fee_by_gas_vector(&block_context.block_info, total_gas, &FeeType::Eth, tip);
 
     assert_matches!(
         error,

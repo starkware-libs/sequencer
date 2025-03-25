@@ -553,8 +553,13 @@ fn test_max_fee_limit_validate(
     });
     let estimated_min_gas_usage_vector =
         estimate_minimal_gas_vector(&block_context, &account_tx, &gas_computation_mode);
-    let estimated_min_fee =
-        get_fee_by_gas_vector(&block_info, estimated_min_gas_usage_vector, &account_tx.fee_type());
+    let tip = block_context.to_tx_context(&account_tx).tip();
+    let estimated_min_fee = get_fee_by_gas_vector(
+        &block_info,
+        estimated_min_gas_usage_vector,
+        &account_tx.fee_type(),
+        tip,
+    );
 
     // Make sure the resource bounds are the limiting factor by blowing up the block bounds.
     let old_validate_max_n_steps = block_context.versioned_constants.validate_max_n_steps;

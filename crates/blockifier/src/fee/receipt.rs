@@ -102,7 +102,11 @@ impl TransactionReceipt {
         let fee = if tx_type == TransactionType::Declare && tx_context.tx_info.is_v0() {
             Fee(0)
         } else {
-            tx_context.tx_info.get_fee_by_gas_vector(&tx_context.block_context.block_info, gas)
+            tx_context.tx_info.get_fee_by_gas_vector(
+                &tx_context.block_context.block_info,
+                gas,
+                tx_context.tip(),
+            )
         };
 
         let da_gas = tx_resources

@@ -9,7 +9,7 @@ use starknet_api::core::ContractAddress;
 use starknet_api::execution_resources::{to_discounted_l1_gas, GasAmount, GasVector};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::ValidResourceBounds::{AllResources, L1Gas};
-use starknet_api::transaction::fields::{Fee, GasVectorComputationMode, Resource};
+use starknet_api::transaction::fields::{Fee, GasVectorComputationMode, Resource, Tip};
 use starknet_types_core::felt::Felt;
 
 use crate::blockifier_versioned_constants::VersionedConstants;
@@ -114,8 +114,9 @@ pub fn get_fee_by_gas_vector(
     block_info: &BlockInfo,
     gas_vector: GasVector,
     fee_type: &FeeType,
+    tip: Tip,
 ) -> Fee {
-    gas_vector.cost(block_info.gas_prices.gas_price_vector(fee_type))
+    gas_vector.cost(block_info.gas_prices.gas_price_vector(fee_type), tip)
 }
 
 /// Returns the current fee balance and a boolean indicating whether the balance covers the fee.
