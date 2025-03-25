@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
-use num_rational::Ratio;
-use pretty_assertions::assert_eq;
-use rstest::{fixture, rstest};
 use starknet_api::block::{FeeType, StarknetVersion};
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::invoke_tx_args;
 use starknet_api::test_utils::{DEFAULT_ETH_L1_DATA_GAS_PRICE, DEFAULT_ETH_L1_GAS_PRICE};
 use starknet_api::transaction::fields::GasVectorComputationMode;
 use starknet_api::transaction::{EventContent, EventData, EventKey};
+use num_rational::Ratio;
+use pretty_assertions::assert_eq;
+use rstest::{fixture, rstest};
 use starknet_types_core::felt::Felt;
 
 use crate::abi::constants;

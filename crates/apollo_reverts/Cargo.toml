@@ -10,8 +10,8 @@ workspace = true
 
 [dependencies]
 futures.workspace = true
-papyrus_config.workspace = true
-papyrus_storage.workspace = true
+apollo_config.workspace = true
+apollo_storage.workspace = true
 serde.workspace = true
 starknet_api.workspace = true
 tracing.workspace = true

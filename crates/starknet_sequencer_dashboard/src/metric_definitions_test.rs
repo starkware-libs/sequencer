@@ -1,14 +1,14 @@
 use std::collections::HashSet;
 
-use papyrus_sync::metrics::PAPYRUS_SYNC_ALL_METRICS;
-use starknet_batcher::metrics::BATCHER_ALL_METRICS;
-use starknet_consensus_manager::metrics::CONSENSUS_ALL_METRICS;
-use starknet_gateway::metrics::GATEWAY_ALL_METRICS;
-use starknet_http_server::metrics::HTTP_SERVER_ALL_METRICS;
-use starknet_mempool::metrics::MEMPOOL_ALL_METRICS;
-use starknet_mempool_p2p::metrics::MEMPOOL_P2P_ALL_METRICS;
-use starknet_sequencer_infra::metrics::INFRA_ALL_METRICS;
-use starknet_state_sync::metrics::STATE_SYNC_ALL_METRICS;
+use apollo_batcher::metrics::BATCHER_ALL_METRICS;
+use apollo_consensus_manager::metrics::CONSENSUS_ALL_METRICS;
+use apollo_gateway::metrics::GATEWAY_ALL_METRICS;
+use apollo_http_server::metrics::HTTP_SERVER_ALL_METRICS;
+use apollo_mempool::metrics::MEMPOOL_ALL_METRICS;
+use apollo_mempool_p2p::metrics::MEMPOOL_P2P_ALL_METRICS;
+use apollo_sequencer_infra::metrics::INFRA_ALL_METRICS;
+use apollo_state_sync::metrics::STATE_SYNC_ALL_METRICS;
+use apollo_sync::metrics::PAPYRUS_SYNC_ALL_METRICS;
 
 #[test]
 fn metric_names_no_duplications() {

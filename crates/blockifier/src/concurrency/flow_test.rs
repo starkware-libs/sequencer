@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
-use rstest::rstest;
 use starknet_api::{contract_address, felt, storage_key};
+use rstest::rstest;
 
 use crate::abi::sierra_types::{SierraType, SierraU128};
 use crate::concurrency::scheduler::{Scheduler, Task, TransactionStatus};

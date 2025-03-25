@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
+use starknet_api::execution_resources::GasVector;
+use starknet_api::transaction::fields::Fee;
 use blockifier::abi::constants as abi_constants;
 use blockifier::execution::call_info::CallInfo;
 use blockifier::fee::receipt::TransactionReceipt;
 use blockifier::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionInfo};
 use serde::Serialize;
-use starknet_api::execution_resources::GasVector;
-use starknet_api::transaction::fields::Fee;
 
 /// A mapping from a transaction execution resource to its actual usage.
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]

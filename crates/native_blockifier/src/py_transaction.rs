@@ -1,10 +1,5 @@
 use std::collections::BTreeMap;
 
-use blockifier::transaction::account_transaction::AccountTransaction;
-use blockifier::transaction::transaction_execution::Transaction;
-use blockifier::transaction::transaction_types::TransactionType;
-use pyo3::exceptions::PyValueError;
-use pyo3::prelude::*;
 use starknet_api::block::GasPrice;
 use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
 use starknet_api::executable_transaction::AccountTransaction as ExecutableTransaction;
@@ -16,6 +11,11 @@ use starknet_api::transaction::fields::{
     ValidResourceBounds,
 };
 use starknet_api::StarknetApiError;
+use blockifier::transaction::account_transaction::AccountTransaction;
+use blockifier::transaction::transaction_execution::Transaction;
+use blockifier::transaction::transaction_types::TransactionType;
+use pyo3::exceptions::PyValueError;
+use pyo3::prelude::*;
 
 use crate::errors::{NativeBlockifierInputError, NativeBlockifierResult};
 use crate::py_declare::py_declare;

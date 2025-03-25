@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-use cached::proc_macro::cached;
-use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::abi::abi_utils::{get_fee_token_var_address, selector_from_name};
 use starknet_api::block::FeeType;
 use starknet_api::core::ContractAddress;
@@ -9,6 +7,8 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::transaction::constants;
 use starknet_api::{calldata, felt};
+use cached::proc_macro::cached;
+use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 
 use crate::context::BlockContext;
 use crate::execution::common_hints::ExecutionMode;

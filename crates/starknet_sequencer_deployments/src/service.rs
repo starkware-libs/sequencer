@@ -1,8 +1,8 @@
 use std::fmt::Display;
 
+use apollo_sequencer_node::config::component_config::ComponentConfig;
 use indexmap::IndexMap;
 use serde::{Serialize, Serializer};
-use starknet_sequencer_node::config::component_config::ComponentConfig;
 use strum::{Display, EnumVariantNames, IntoEnumIterator};
 use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 

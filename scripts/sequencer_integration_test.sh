@@ -13,7 +13,7 @@
 #   - "all" to run all tests.
 #
 # Note: Make sure the binaries exist in
-#   crates/starknet_integration_tests/src/bin/sequencer_node_integration_tests/
+#   crates/apollo_integration_tests/src/bin/sequencer_node_integration_tests/
 # with names such as positive_flow.rs, revert_flow.rs, restart_flow.rs, sync_flow.rs
 
 # The test requires sudo privileges for running certain commands.
@@ -39,7 +39,7 @@ TEST="${1:-positive}"
 
 echo "Running integration test alias: $TEST"
 
-SEQUENCER_BINARY="starknet_sequencer_node"
+SEQUENCER_BINARY="apollo_sequencer_node"
 ANVIL_PROCESS_NAME="anvil"
 
 # Stop any running instances of SEQUENCER_BINARY (ignore error if not found)

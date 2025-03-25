@@ -1,12 +1,12 @@
 #![allow(dead_code)]
 use std::collections::HashMap;
 
+use starknet_api::core::ClassHash;
+use starknet_api::hash::PoseidonHash;
 use cairo_lang_starknet_classes::casm_contract_class::{CasmContractClass, CasmContractEntryPoint};
 use cairo_lang_starknet_classes::NestedIntList;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::vm_core::VirtualMachine;
-use starknet_api::core::ClassHash;
-use starknet_api::hash::PoseidonHash;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Poseidon, StarkHash};
 

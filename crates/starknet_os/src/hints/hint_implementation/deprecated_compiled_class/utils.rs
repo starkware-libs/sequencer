@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
+use starknet_api::contract_class::EntryPointType;
+use starknet_api::deprecated_contract_class::{ContractClass, EntryPointV0};
 use cairo_vm::serde::deserialize_program::deserialize_array_of_bigint_hex;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::vm_core::VirtualMachine;
-use starknet_api::contract_class::EntryPointType;
-use starknet_api::deprecated_contract_class::{ContractClass, EntryPointV0};
 use starknet_types_core::felt::Felt;
 
 use crate::hints::class_hash::hinted_class_hash::{

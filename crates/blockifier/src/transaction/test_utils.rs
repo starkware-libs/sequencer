@@ -1,7 +1,3 @@
-use blockifier_test_utils::cairo_versions::CairoVersion;
-use blockifier_test_utils::calldata::create_calldata;
-use blockifier_test_utils::contracts::FeatureContract;
-use rstest::fixture;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::{FeeType, GasPrice};
 use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
@@ -34,6 +30,10 @@ use starknet_api::transaction::fields::{
 };
 use starknet_api::transaction::{constants, TransactionVersion};
 use starknet_api::{calldata, declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args};
+use blockifier_test_utils::cairo_versions::CairoVersion;
+use blockifier_test_utils::calldata::create_calldata;
+use blockifier_test_utils::contracts::FeatureContract;
+use rstest::fixture;
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 

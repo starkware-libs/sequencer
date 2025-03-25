@@ -1,7 +1,7 @@
-use blockifier::execution::contract_class::RunnableCompiledClass;
-use blockifier::state::state_api::{StateReader, StateResult};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
+use blockifier::execution::contract_class::RunnableCompiledClass;
+use blockifier::state::state_api::{StateReader, StateResult};
 use starknet_types_core::felt::Felt;
 
 /// State reader that always panics.

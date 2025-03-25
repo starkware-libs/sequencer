@@ -7,7 +7,7 @@ license-file.workspace = true
 description = "Workspace-level tests."
 
 [dev-dependencies]
-toml_test_utils.path = "../toml_test_utils"
+toml_test_utils = { path  = "../toml_test_utils" }
 
 [[test]]
 name = "workspace_tests"

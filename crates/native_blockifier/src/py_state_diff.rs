@@ -1,15 +1,15 @@
 use std::collections::HashMap;
 use std::convert::TryFrom;
 
+use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp, GasPrice, NonzeroGasPrice};
+use starknet_api::core::{ClassHash, ContractAddress, Nonce};
+use starknet_api::state::{StateDiff, StorageKey};
 use blockifier::blockifier::block::validated_gas_prices;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::state::cached_state::CommitmentStateDiff;
 use indexmap::IndexMap;
 use pyo3::prelude::*;
 use pyo3::FromPyObject;
-use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp, GasPrice, NonzeroGasPrice};
-use starknet_api::core::{ClassHash, ContractAddress, Nonce};
-use starknet_api::state::{StateDiff, StorageKey};
 
 use crate::errors::{
     InvalidNativeBlockifierInputError,

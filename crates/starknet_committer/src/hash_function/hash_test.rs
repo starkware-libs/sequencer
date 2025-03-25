@@ -1,6 +1,6 @@
+use starknet_api::core::{ClassHash, Nonce};
 use hex;
 use rstest::rstest;
-use starknet_api::core::{ClassHash, Nonce};
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     BinaryData,

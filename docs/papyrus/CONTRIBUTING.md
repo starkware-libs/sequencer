@@ -46,7 +46,7 @@ Then, you will need to install
 - [Rust nightly toolchain 2022-07-27](https://rust-lang.github.io/rustup/installation/index.html#installing-nightly)
 - [Ganache 7.4.3](https://www.npmjs.com/package/ganache)
   - You'll need to install 7.4.3 and not a version above it. We'll relax this in the future.
-  - You'll need Ganache only for the tests of the [papyrus_base_layer](../../crates/papyrus_base_layer/) crate.
+  - You'll need Ganache only for the tests of the [apollo_base_layer](../../crates/apollo_base_layer/) crate.
 
 ### CI
 Your code will need to pass [CI](../.github/workflows/ci.yml) before it can be merged. This means your code will need to:

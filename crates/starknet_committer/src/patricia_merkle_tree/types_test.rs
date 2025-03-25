@@ -1,5 +1,5 @@
-use rstest::rstest;
 use starknet_api::core::ContractAddress;
+use rstest::rstest;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
 use starknet_types_core::felt::Felt;
 

@@ -1,4 +1,4 @@
-use starknet_infra_utils::test_utils::assert_json_eq;
+use apollo_infra_utils::test_utils::assert_json_eq;
 
 use crate::dashboard::{Alert, AlertComparisonOp, AlertCondition, AlertGroup, AlertLogicalOp};
 

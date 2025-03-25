@@ -1,8 +1,8 @@
 use std::collections::{BTreeMap, HashMap};
 
+use starknet_api::core::{ClassHash, ContractAddress};
 use pretty_assertions::assert_eq;
 use rstest::rstest;
-use starknet_api::core::{ClassHash, ContractAddress};
 
 use crate::concurrency::test_utils::{class_hash, contract_address};
 use crate::concurrency::versioned_storage::VersionedStorage;

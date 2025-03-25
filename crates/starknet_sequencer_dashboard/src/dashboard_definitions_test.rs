@@ -1,4 +1,4 @@
-use starknet_infra_utils::dumping::serialize_to_file_test;
+use apollo_infra_utils::dumping::serialize_to_file_test;
 
 use crate::alert_definitions::{DEV_ALERTS_JSON_PATH, SEQUENCER_ALERTS};
 use crate::dashboard_definitions::{DEV_JSON_PATH, SEQUENCER_DASHBOARD};

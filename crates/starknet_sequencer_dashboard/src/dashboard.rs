@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
+use apollo_sequencer_metrics::metrics::{MetricCounter, MetricGauge, MetricHistogram};
 use indexmap::IndexMap;
 use serde::ser::{SerializeMap, SerializeStruct};
 use serde::{Serialize, Serializer};
-use starknet_sequencer_metrics::metrics::{MetricCounter, MetricGauge, MetricHistogram};
 
 #[cfg(test)]
 #[path = "dashboard_test.rs"]

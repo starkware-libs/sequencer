@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use cairo_vm::vm::errors::hint_errors::HintError;
 use starknet_api::core::ContractAddress;
 use starknet_api::state::StorageKey;
+use cairo_vm::vm::errors::hint_errors::HintError;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::OsHintError;

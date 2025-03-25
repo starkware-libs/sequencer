@@ -137,7 +137,7 @@ cargo run --release --package papyrus_node --bin papyrus_node -- --base_layer.no
 
 Note that the `<ethereum_node_url>` should refer to Sepolia.
 
-For more information, see the papyrus-config https://github.com/starkware-libs/papyrus/blob/main/crates/papyrus_config/README.md[README].
+For more information, see the papyrus-config https://github.com/starkware-libs/papyrus/blob/main/crates/apollo_config/README.md[README].
 
 === Running Papyrus with Docker
 

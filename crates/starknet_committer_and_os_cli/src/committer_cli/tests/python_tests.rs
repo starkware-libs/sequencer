@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
 
+use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use ethnum::U256;
 use serde_json::json;
-use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_committer::block_committer::input::{
     StarknetStorageKey,
     StarknetStorageValue,

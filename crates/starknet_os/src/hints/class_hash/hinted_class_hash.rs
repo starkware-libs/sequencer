@@ -2,12 +2,12 @@ use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap};
 use std::io::Write;
 
-use papyrus_common::python_json::PythonJsonFormatter;
-use serde::{Deserialize, Serialize};
-use sha3::digest::Digest;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::deprecated_contract_class::EntryPointV0;
 use starknet_api::state::truncated_keccak;
+use papyrus_common::python_json::PythonJsonFormatter;
+use serde::{Deserialize, Serialize};
+use sha3::digest::Digest;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::OsHintError;

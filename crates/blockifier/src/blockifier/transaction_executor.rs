@@ -1,9 +1,9 @@
 use std::panic::{self, catch_unwind, AssertUnwindSafe};
 use std::sync::{Arc, Mutex};
 
+use starknet_api::block::BlockHashAndNumber;
 use itertools::FoldWhile::{Continue, Done};
 use itertools::Itertools;
-use starknet_api::block::BlockHashAndNumber;
 use thiserror::Error;
 
 use crate::blockifier::block::pre_process_block;

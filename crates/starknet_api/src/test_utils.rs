@@ -5,7 +5,7 @@ use std::sync::LazyLock;
 
 use serde::{Deserialize, Serialize};
 use serde_json::to_string_pretty;
-use starknet_infra_utils::path::current_dir;
+use apollo_infra_utils::path::current_dir;
 use starknet_types_core::felt::Felt;
 
 use crate::block::{

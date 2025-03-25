@@ -404,7 +404,7 @@ impl Block {
         // Get the transactions.
         // Note: This cannot happen before getting the transaction outputs since we need to borrow
         // the block transactions inside the for loop for the transaction type (TransactionType is
-        // defined in starknet_client therefore starknet_api::Transaction cannot return it).
+        // defined in apollo_client therefore starknet_api::Transaction cannot return it).
         let transactions: Vec<_> = transactions
             .into_iter()
             .map(starknet_api::transaction::Transaction::try_from)

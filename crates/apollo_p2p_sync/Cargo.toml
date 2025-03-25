@@ -1,0 +1,54 @@
+[package]
+name = "apollo_p2p_sync"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+
+[dependencies]
+async-stream.workspace = true
+enum-iterator.workspace = true
+chrono.workspace = true
+futures.workspace = true
+indexmap.workspace = true
+lazy_static.workspace = true
+metrics.workspace = true
+papyrus_common.workspace = true
+apollo_config.workspace = true
+apollo_network.workspace = true
+apollo_proc_macros.workspace = true
+apollo_protobuf.workspace = true
+apollo_storage.workspace = true
+apollo_sync.workspace = true
+apollo_test_utils.workspace = true
+rand.workspace = true
+rand_chacha.workspace = true
+serde.workspace = true
+starknet_api.workspace = true
+apollo_state_sync_types.workspace = true
+starknet-types-core.workspace = true
+thiserror.workspace = true
+apollo_class_manager_types.workspace = true
+async-trait.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+tracing.workspace = true
+validator.workspace = true
+
+[dev-dependencies]
+assert_matches.workspace = true
+lazy_static.workspace = true
+mockall.workspace = true
+apollo_network = { workspace = true, features = ["testing"] }
+apollo_protobuf = { workspace = true, features = ["testing"] }
+apollo_storage = { workspace = true, features = ["testing"] }
+apollo_class_manager_types = { workspace = true, features = ["testing"] }
+static_assertions.workspace = true
+tokio = { workspace = true, features = ["test-util"] }
+
+# The `metrics` crate is used by `latency_histogram` proc macro, which is used in this crate.
+[package.metadata.cargo-machete]
+ignored = ["metrics"]
+
+[lints]
+workspace = true

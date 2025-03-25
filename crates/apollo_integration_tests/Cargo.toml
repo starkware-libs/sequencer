@@ -1,0 +1,81 @@
+[package]
+name = "apollo_integration_tests"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+alloy.workspace = true
+anyhow.workspace = true
+assert_matches.workspace = true
+axum.workspace = true
+blockifier.workspace = true
+blockifier_test_utils.workspace = true
+cairo-lang-starknet-classes.workspace = true
+clap.workspace = true
+futures.workspace = true
+indexmap.workspace = true
+itertools.workspace = true
+mempool_test_utils.workspace = true
+apollo_base_layer = { workspace = true, features = ["testing"] }
+apollo_network = { workspace = true, features = ["testing"] }
+apollo_protobuf.workspace = true
+apollo_storage = { workspace = true, features = ["testing"] }
+apollo_sync.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+starknet-types-core.workspace = true
+starknet_api.workspace = true
+apollo_batcher.workspace = true
+apollo_class_manager = { workspace = true, features = ["testing"] }
+apollo_consensus.workspace = true
+apollo_consensus_manager.workspace = true
+apollo_consensus_orchestrator.workspace = true
+apollo_gateway = { workspace = true, features = ["testing"] }
+apollo_gateway_types.workspace = true
+apollo_http_server = { workspace = true, features = ["testing"] }
+apollo_infra_utils = { workspace = true, features = ["testing"] }
+apollo_l1_gas_price.workspace = true
+apollo_l1_provider.workspace = true
+apollo_mempool.workspace = true
+apollo_mempool_p2p.workspace = true
+apollo_monitoring_endpoint = { workspace = true, features = ["testing"] }
+starknet_sequencer_deployments.workspace = true
+apollo_sequencer_infra = { workspace = true, features = ["testing"] }
+apollo_sequencer_node = { workspace = true, features = ["testing"] }
+apollo_state_sync.workspace = true
+strum.workspace = true
+tempfile.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+url.workspace = true
+
+[dev-dependencies]
+futures.workspace = true
+pretty_assertions.workspace = true
+rstest.workspace = true
+apollo_sequencer_infra.workspace = true
+
+[[bin]]
+name = "integration_test_positive_flow"
+path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_positive_flow.rs"
+
+[[bin]]
+name = "integration_test_restart_flow"
+path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_restart_flow.rs"
+
+[[bin]]
+name = "integration_test_revert_flow"
+path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_revert_flow.rs"
+
+[[bin]]
+name = "integration_test_central_and_p2p_sync_flow"
+path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_central_and_p2p_sync_flow.rs"
+
+[[bin]]
+name = "system_test_dump_single_node_config"
+path = "src/bin/dump_test_preset_configs/system_test_dump_single_node_config.rs"

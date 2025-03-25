@@ -1,5 +1,5 @@
-use pretty_assertions::assert_eq;
 use starknet_api::test_utils::read_json_file;
+use pretty_assertions::assert_eq;
 
 use super::{compress_and_encode, decode_and_decompress};
 

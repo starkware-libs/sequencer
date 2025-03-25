@@ -84,14 +84,14 @@ async fn test_add_transaction_fails_serde<
 
 #[tokio::test]
 async fn is_alive() {
-    let starknet_client =
+    let apollo_client =
         StarknetGatewayClient::new(&mockito::server_url(), NODE_VERSION, get_test_config())
             .unwrap();
     let mock_is_alive = mock("GET", "/gateway/is_alive")
         .with_status(200)
         .with_body(GATEWAY_ALIVE_RESPONSE)
         .create();
-    let response = starknet_client.is_alive().await;
+    let response = apollo_client.is_alive().await;
     mock_is_alive.assert();
     assert!(response);
 }

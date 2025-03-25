@@ -4,68 +4,68 @@
 resolver = "2"
 
 members = [
+  "crates/starknet_api",
+  "crates/apollo_base_layer",
+  "crates/apollo_batcher",
+  "crates/apollo_batcher_types",
+  "crates/apollo_class_manager",
+  "crates/apollo_class_manager_types",
+  "crates/apollo_client",
+  "crates/papyrus_common",
+  "crates/apollo_config",
+  "crates/apollo_consensus",
+  "crates/apollo_consensus_manager",
+  "crates/apollo_consensus_orchestrator",
+  "crates/apollo_rpc_execution",
+  "crates/apollo_gateway",
+  "crates/apollo_gateway_types",
+  "crates/apollo_http_server",
+  "crates/apollo_infra_utils",
+  "crates/apollo_l1_gas_price",
+  "crates/apollo_l1_gas_price_types",
+  "crates/apollo_l1_provider",
+  "crates/apollo_l1_provider_types",
+  "crates/apollo_mempool",
+  "crates/apollo_mempool_p2p",
+  "crates/apollo_mempool_p2p_types",
+  "crates/apollo_mempool_types",
+  "crates/apollo_monitoring_endpoint",
+  "crates/apollo_network",
+  "crates/apollo_network_types",
+  "crates/apollo_p2p_sync",
+  "crates/apollo_proc_macros",
+  "crates/apollo_protobuf",
   "crates/apollo_reverts",
+  "crates/apollo_rpc",
+  "crates/apollo_sequencer_infra",
+  "crates/apollo_sequencer_metrics",
+  "crates/apollo_sequencer_node",
+  "crates/apollo_sierra_multicompile",
+  "crates/apollo_sierra_multicompile_types",
+  "crates/apollo_state_reader",
+  "crates/apollo_state_sync",
+  "crates/apollo_state_sync_types",
+  "crates/apollo_storage",
+  "crates/apollo_sync",
+  "crates/apollo_task_executor",
+  "crates/apollo_test_utils",
   "crates/blockifier",
   "crates/blockifier_reexecution",
   "crates/blockifier_test_utils",
   "crates/mempool_test_utils",
   "crates/native_blockifier",
-  "crates/papyrus_base_layer",
-  "crates/papyrus_common",
-  "crates/papyrus_config",
-  "crates/papyrus_execution",
   "crates/papyrus_load_test",
   "crates/papyrus_monitoring_gateway",
-  "crates/papyrus_network",
-  "crates/papyrus_network_types",
   "crates/papyrus_node",
-  "crates/papyrus_p2p_sync",
-  "crates/papyrus_proc_macros",
-  "crates/papyrus_protobuf",
-  "crates/papyrus_rpc",
-  "crates/papyrus_state_reader",
-  "crates/papyrus_storage",
-  "crates/papyrus_sync",
-  "crates/papyrus_test_utils",
   "crates/shared_execution_objects",
-  "crates/starknet_api",
-  "crates/starknet_batcher",
-  "crates/starknet_batcher_types",
-  "crates/starknet_class_manager",
-  "crates/starknet_class_manager_types",
-  "crates/starknet_client",
   "crates/starknet_committer",
   "crates/starknet_committer_and_os_cli",
-  "crates/starknet_consensus",
-  "crates/starknet_consensus_manager",
-  "crates/starknet_consensus_orchestrator",
-  "crates/starknet_gateway",
-  "crates/starknet_gateway_types",
-  "crates/starknet_http_server",
-  "crates/starknet_infra_utils",
-  "crates/starknet_integration_tests",
-  "crates/starknet_l1_gas_price",
-  "crates/starknet_l1_gas_price_types",
-  "crates/starknet_l1_provider",
-  "crates/starknet_l1_provider_types",
-  "crates/starknet_mempool",
-  "crates/starknet_mempool_p2p",
-  "crates/starknet_mempool_p2p_types",
-  "crates/starknet_mempool_types",
-  "crates/starknet_monitoring_endpoint",
+  "crates/apollo_integration_tests",
   "crates/starknet_os",
   "crates/starknet_patricia",
   "crates/starknet_patricia_storage",
   "crates/starknet_sequencer_dashboard",
   "crates/starknet_sequencer_deployments",
-  "crates/starknet_sequencer_infra",
-  "crates/starknet_sequencer_metrics",
-  "crates/starknet_sequencer_node",
-  "crates/starknet_sierra_multicompile",
-  "crates/starknet_sierra_multicompile_types",
-  "crates/starknet_state_sync",
-  "crates/starknet_state_sync_types",
-  "crates/starknet_task_executor",
   "toml_test_utils",
   "workspace_tests",
 ]
@@ -80,7 +80,7 @@ license-file = "LICENSE"
 [workspace.dependencies]
 alloy = "0.9"
 anyhow = "1.0.44"
-apollo_reverts.path = "crates/apollo_reverts"
+apollo_reverts = { path = "crates/apollo_reverts" }
 ark-bls12-381 = "0.4.0"
 ark-ec = "0.4.2"
 ark-ff = "0.4.0-alpha.7"
@@ -99,7 +99,7 @@ bincode = "1.3.3"
 bisection = "0.1.0"
 bitvec = "1.0.1"
 blockifier = { path = "crates/blockifier", version = "0.0.0" }
-blockifier_reexecution.path = "crates/blockifier_reexecution"
+blockifier_reexecution = { path = "crates/blockifier_reexecution" }
 blockifier_test_utils = { path = "crates/blockifier_test_utils", version = "0.0.0" }
 byteorder = "1.4.3"
 bytes = "1"
@@ -157,13 +157,13 @@ libp2p-swarm-test = "0.3.0"
 log = "0.4"
 lru = "0.12.0"
 memmap2 = "0.8.0"
-mempool_test_utils.path = "crates/mempool_test_utils"
+mempool_test_utils = { path = "crates/mempool_test_utils" }
 metrics = "0.24.1"
 metrics-exporter-prometheus = "0.16.1"
 metrics-process = "1.0.11"
 mockall = "0.12.1"
 mockito = "1.4.0"
-native_blockifier.path = "crates/native_blockifier"
+native_blockifier = { path = "crates/native_blockifier" }
 nix = "0.20.0"
 num-bigint = "0.4"
 num-integer = "0.1.45"
@@ -172,23 +172,23 @@ num-traits = "0.2.15"
 once_cell = "1.19.0"
 os_info = "3.6.0"
 page_size = "0.6.0"
-papyrus_base_layer.path = "crates/papyrus_base_layer"
-papyrus_common.path = "crates/papyrus_common"
-papyrus_config = { path = "crates/papyrus_config", version = "0.0.0" }
-papyrus_execution.path = "crates/papyrus_execution"
-papyrus_load_test.path = "crates/papyrus_load_test"
-papyrus_monitoring_gateway.path = "crates/papyrus_monitoring_gateway"
-papyrus_network.path = "crates/papyrus_network"
-papyrus_network_types.path = "crates/papyrus_network_types"
-papyrus_node.path = "crates/papyrus_node"
-papyrus_p2p_sync.path = "crates/papyrus_p2p_sync"
-papyrus_proc_macros = { path = "crates/papyrus_proc_macros", version = "0.0.0" }
-papyrus_protobuf.path = "crates/papyrus_protobuf"
-papyrus_rpc.path = "crates/papyrus_rpc"
-papyrus_state_reader.path = "crates/papyrus_state_reader"
-papyrus_storage.path = "crates/papyrus_storage"
-papyrus_sync.path = "crates/papyrus_sync"
-papyrus_test_utils.path = "crates/papyrus_test_utils"
+apollo_base_layer = { path = "crates/apollo_base_layer" }
+papyrus_common = { path = "crates/papyrus_common" }
+apollo_config = { path = "crates/apollo_config", version = "0.0.0" }
+apollo_rpc_execution = { path = "crates/apollo_rpc_execution" }
+papyrus_load_test = { path = "crates/papyrus_load_test" }
+papyrus_monitoring_gateway = { path = "crates/papyrus_monitoring_gateway" }
+apollo_network = { path = "crates/apollo_network" }
+apollo_network_types = { path = "crates/apollo_network_types" }
+papyrus_node = { path = "crates/papyrus_node" }
+apollo_p2p_sync = { path = "crates/apollo_p2p_sync" }
+apollo_proc_macros = { path = "crates/apollo_proc_macros", version = "0.0.0" }
+apollo_protobuf = { path = "crates/apollo_protobuf" }
+apollo_rpc = { path = "crates/apollo_rpc" }
+apollo_state_reader = { path = "crates/apollo_state_reader" }
+apollo_storage = { path = "crates/apollo_storage" }
+apollo_sync = { path = "crates/apollo_sync" }
+apollo_test_utils = { path = "crates/apollo_test_utils" }
 parity-scale-codec = "3.6"
 parity-scale-codec-derive = "3.6"
 paste = "1.0.15"
@@ -222,49 +222,49 @@ serde_repr = "0.1.19"
 serde_yaml = "0.9.16"
 sha2 = "0.10.8"
 sha3 = "0.10.8"
-shared_execution_objects.path = "crates/shared_execution_objects"
+shared_execution_objects = { path = "crates/shared_execution_objects" }
 simple_logger = "4.0.0"
 starknet-core = "0.12.1"
 starknet-crypto = "0.7.1"
 starknet-types-core = "0.1.6"
 starknet_api = { path = "crates/starknet_api", version = "0.0.0" }
-starknet_batcher.path = "crates/starknet_batcher"
-starknet_batcher_types.path = "crates/starknet_batcher_types"
-starknet_class_manager.path = "crates/starknet_class_manager"
-starknet_class_manager_types.path = "crates/starknet_class_manager_types"
-starknet_client.path = "crates/starknet_client"
-starknet_committer.path = "crates/starknet_committer"
-starknet_committer_and_os_cli.path = "crates/starknet_committer_and_os_cli"
-starknet_consensus.path = "crates/starknet_consensus"
-starknet_consensus_manager.path = "crates/starknet_consensus_manager"
-starknet_consensus_orchestrator.path = "crates/starknet_consensus_orchestrator"
-starknet_gateway.path = "crates/starknet_gateway"
-starknet_gateway_types.path = "crates/starknet_gateway_types"
-starknet_http_server.path = "crates/starknet_http_server"
-starknet_infra_utils = { path = "crates/starknet_infra_utils", version = "0.0.0" }
-starknet_integration_tests.path = "crates/starknet_integration_tests"
-starknet_l1_gas_price.path = "crates/starknet_l1_gas_price"
-starknet_l1_gas_price_types.path = "crates/starknet_l1_gas_price_types"
-starknet_l1_provider.path = "crates/starknet_l1_provider"
-starknet_l1_provider_types.path = "crates/starknet_l1_provider_types"
-starknet_mempool.path = "crates/starknet_mempool"
-starknet_mempool_p2p.path = "crates/starknet_mempool_p2p"
-starknet_mempool_p2p_types.path = "crates/starknet_mempool_p2p_types"
-starknet_mempool_types.path = "crates/starknet_mempool_types"
-starknet_monitoring_endpoint.path = "crates/starknet_monitoring_endpoint"
-starknet_os.path = "crates/starknet_os"
-starknet_patricia.path = "crates/starknet_patricia"
-starknet_patricia_storage.path = "crates/starknet_patricia_storage"
-starknet_sequencer_dashboard.path = "crates/starknet_sequencer_dashboard"
-starknet_sequencer_deployments.path = "crates/starknet_sequencer_deployments"
-starknet_sequencer_infra = { path = "crates/starknet_sequencer_infra", version = "0.0.0" }
-starknet_sequencer_metrics = { path = "crates/starknet_sequencer_metrics", version = "0.0.0" }
-starknet_sequencer_node.path = "crates/starknet_sequencer_node"
-starknet_sierra_multicompile = { path = "crates/starknet_sierra_multicompile", version = "0.0.0" }
-starknet_sierra_multicompile_types = { path = "crates/starknet_sierra_multicompile_types", version = "0.0.0" }
-starknet_state_sync.path = "crates/starknet_state_sync"
-starknet_state_sync_types.path = "crates/starknet_state_sync_types"
-starknet_task_executor.path = "crates/starknet_task_executor"
+apollo_batcher = { path = "crates/apollo_batcher" }
+apollo_batcher_types = { path = "crates/apollo_batcher_types" }
+apollo_class_manager = { path = "crates/apollo_class_manager" }
+apollo_class_manager_types = { path = "crates/apollo_class_manager_types" }
+apollo_client = { path = "crates/apollo_client" }
+starknet_committer = { path = "crates/starknet_committer" }
+starknet_committer_and_os_cli = { path = "crates/starknet_committer_and_os_cli" }
+apollo_consensus = { path = "crates/apollo_consensus" }
+apollo_consensus_manager = { path = "crates/apollo_consensus_manager" }
+apollo_consensus_orchestrator = { path = "crates/apollo_consensus_orchestrator" }
+apollo_gateway = { path = "crates/apollo_gateway" }
+apollo_gateway_types = { path = "crates/apollo_gateway_types" }
+apollo_http_server = { path = "crates/apollo_http_server" }
+apollo_infra_utils = { path = "crates/apollo_infra_utils", version = "0.0.0" }
+starknet_ntegration_tests = { path = "crates/apollo_integration_tests" }
+apollo_l1_gas_price = { path = "crates/apollo_l1_gas_price" }
+apollo_l1_gas_price_types = { path = "crates/apollo_l1_gas_price_types" }
+apollo_l1_provider = { path = "crates/apollo_l1_provider" }
+apollo_l1_provider_types = { path = "crates/apollo_l1_provider_types" }
+apollo_mempool = { path = "crates/apollo_mempool" }
+apollo_mempool_p2p = { path = "crates/apollo_mempool_p2p" }
+apollo_mempool_p2p_types = { path = "crates/apollo_mempool_p2p_types" }
+apollo_mempool_types = { path = "crates/apollo_mempool_types" }
+apollo_monitoring_endpoint = { path = "crates/apollo_monitoring_endpoint" }
+starknet_os = { path = "crates/starknet_os" }
+starknet_patricia = { path = "crates/starknet_patricia" }
+starknet_patricia_storage = { path = "crates/starknet_patricia_storage" }
+starknet_sequencer_dashboard = { path = "crates/starknet_sequencer_dashboard" }
+starknet_sequencer_deployments = { path = "crates/starknet_sequencer_deployments" }
+apollo_sequencer_infra = { path = "crates/apollo_sequencer_infra", version = "0.0.0" }
+apollo_sequencer_metrics = { path = "crates/apollo_sequencer_metrics", version = "0.0.0" }
+apollo_sequencer_node = { path = "crates/apollo_sequencer_node" }
+apollo_sierra_multicompile = { path = "crates/apollo_sierra_multicompile", version = "0.0.0" }
+apollo_sierra_multicompile_types = { path = "crates/apollo_sierra_multicompile_types", version = "0.0.0" }
+apollo_state_sync = { path = "crates/apollo_state_sync" }
+apollo_state_sync_types = { path = "crates/apollo_state_sync_types" }
+apollo_task_executor = { path = "crates/apollo_task_executor" }
 static_assertions = "1.1.0"
 statistical = "1.0.0"
 strum = "0.25.0"
@@ -282,7 +282,7 @@ tokio-stream = "0.1.8"
 tokio-test = "0.4.4"
 tokio-util = "0.7.13"
 toml = "0.8"
-toml_test_utils.path = "toml_test_utils"
+toml_test_utils = { path = "toml_test_utils" }
 tower = "0.4.13"
 tracing = "0.1.37"
 tracing-subscriber = "0.3.16"
@@ -291,7 +291,7 @@ unsigned-varint = "0.8.0"
 url = "2.5.0"
 validator = "0.12"
 void = "1.0.2"
-workspace_tests.path = "workspace_tests"
+workspace_tests = { path = "workspace_tests" }
 zstd = "0.13.1"
 
 # Note: both rust and clippy lints are warning by default and denied on the CI (see run_tests.py).

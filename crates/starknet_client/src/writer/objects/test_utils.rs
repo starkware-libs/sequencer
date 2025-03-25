@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use papyrus_test_utils::{auto_impl_get_test_instance, get_number_of_variants, GetTestInstance};
+use apollo_test_utils::{auto_impl_get_test_instance, get_number_of_variants, GetTestInstance};
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::deprecated_contract_class::{

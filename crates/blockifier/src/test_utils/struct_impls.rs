@@ -4,13 +4,6 @@ use std::sync::Arc;
 #[cfg(feature = "cairo_native")]
 use std::sync::{LazyLock, RwLock};
 
-use blockifier_test_utils::contracts::get_raw_contract_class;
-use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
-#[cfg(feature = "cairo_native")]
-use cairo_lang_starknet_classes::contract_class::ContractClass as SierraContractClass;
-#[cfg(feature = "cairo_native")]
-use cairo_native::executor::AotContractExecutor;
-use serde_json::Value;
 use starknet_api::block::BlockInfo;
 use starknet_api::contract_address;
 #[cfg(feature = "cairo_native")]
@@ -23,6 +16,13 @@ use starknet_api::test_utils::{
     TEST_ERC20_CONTRACT_ADDRESS,
     TEST_ERC20_CONTRACT_ADDRESS2,
 };
+use blockifier_test_utils::contracts::get_raw_contract_class;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+#[cfg(feature = "cairo_native")]
+use cairo_lang_starknet_classes::contract_class::ContractClass as SierraContractClass;
+#[cfg(feature = "cairo_native")]
+use cairo_native::executor::AotContractExecutor;
+use serde_json::Value;
 
 use crate::blockifier::config::{CairoNativeRunConfig, ContractClassManagerConfig};
 use crate::blockifier_versioned_constants::{

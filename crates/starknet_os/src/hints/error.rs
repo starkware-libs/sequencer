@@ -1,5 +1,9 @@
 use std::string::FromUtf8Error;
 
+use starknet_api::block::BlockNumber;
+use starknet_api::core::ClassHash;
+use starknet_api::executable_transaction::Transaction;
+use starknet_api::StarknetApiError;
 use blockifier::execution::syscalls::hint_processor::SyscallExecutionError;
 use blockifier::state::errors::StateError;
 use cairo_vm::hint_processor::hint_processor_definition::HintExtension;
@@ -10,10 +14,6 @@ use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use num_bigint::{BigUint, TryFromBigIntError};
-use starknet_api::block::BlockNumber;
-use starknet_api::core::ClassHash;
-use starknet_api::executable_transaction::Transaction;
-use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::enum_definition::AllHints;

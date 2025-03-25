@@ -1,4 +1,4 @@
-use starknet_infra_utils::dumping::serialize_to_file;
+use apollo_infra_utils::dumping::serialize_to_file;
 use starknet_sequencer_deployments::deployment_definitions::DEPLOYMENTS;
 
 /// Creates the deployment json file.

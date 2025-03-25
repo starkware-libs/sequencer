@@ -1,12 +1,5 @@
 use std::collections::HashMap;
 
-use assert_matches::assert_matches;
-use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
-use blockifier_test_utils::calldata::create_calldata;
-use blockifier_test_utils::contracts::FeatureContract;
-use indexmap::indexmap;
-use pretty_assertions::assert_eq;
-use rstest::rstest;
 use starknet_api::transaction::fields::{Fee, TransactionSignature, ValidResourceBounds};
 use starknet_api::{
     class_hash,
@@ -17,6 +10,13 @@ use starknet_api::{
     nonce,
     storage_key,
 };
+use assert_matches::assert_matches;
+use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
+use blockifier_test_utils::calldata::create_calldata;
+use blockifier_test_utils::contracts::FeatureContract;
+use indexmap::indexmap;
+use pretty_assertions::assert_eq;
+use rstest::rstest;
 
 use crate::context::{BlockContext, ChainInfo};
 use crate::state::cached_state::*;

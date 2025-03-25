@@ -1,0 +1,49 @@
+[package]
+name = "apollo_mempool"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[features]
+testing = []
+
+[lints]
+workspace = true
+
+[dependencies]
+async-trait.workspace = true
+derive_more.workspace = true
+apollo_config.workspace = true
+apollo_network_types.workspace = true
+serde.workspace = true
+starknet_api.workspace = true
+apollo_sequencer_infra.workspace = true
+apollo_sequencer_metrics.workspace = true
+apollo_mempool_p2p_types.workspace = true
+apollo_mempool_types.workspace = true
+strum.workspace = true
+strum_macros.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+validator.workspace = true
+
+[dev-dependencies]
+assert_matches.workspace = true
+itertools.workspace = true
+mempool_test_utils.workspace = true
+metrics.workspace = true
+metrics-exporter-prometheus.workspace = true
+mockall.workspace = true
+apollo_network = { workspace = true, features = ["testing"] }
+apollo_network_types = { workspace = true, features = ["testing"] }
+apollo_test_utils.workspace = true
+pretty_assertions.workspace = true
+rstest.workspace = true
+starknet-types-core.workspace = true
+starknet_api = { workspace = true, features = ["testing"] }
+apollo_mempool_p2p_types = { workspace = true, features = ["testing"] }
+apollo_sequencer_metrics = { workspace = true, features = ["testing"] }
+
+[package.metadata.cargo-machete]
+ignored = ["starknet-types-core"]

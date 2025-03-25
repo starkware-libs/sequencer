@@ -1,4 +1,3 @@
-use serde::Deserialize;
 use starknet_api::block::{BlockHeaderWithoutHash, StarknetVersion};
 use starknet_api::block_hash::block_hash_calculator::{
     BlockHeaderCommitments,
@@ -6,6 +5,7 @@ use starknet_api::block_hash::block_hash_calculator::{
 };
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::state::ThinStateDiff;
+use serde::Deserialize;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 pub struct BlockCommitmentsInput {

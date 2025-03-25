@@ -1,16 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use assert_matches::assert_matches;
-use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
-use blockifier_test_utils::calldata::{create_calldata, create_trivial_calldata};
-use blockifier_test_utils::contracts::FeatureContract;
-use cairo_vm::types::builtin_name::BuiltinName;
-use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
-use num_traits::Inv;
-use pretty_assertions::{assert_eq, assert_ne};
-use rstest::rstest;
-use rstest_reuse::apply;
 use starknet_api::abi::abi_utils::{
     get_fee_token_var_address,
     get_storage_var_address,
@@ -65,6 +55,16 @@ use starknet_api::{
     nonce,
     storage_key,
 };
+use assert_matches::assert_matches;
+use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
+use blockifier_test_utils::calldata::{create_calldata, create_trivial_calldata};
+use blockifier_test_utils::contracts::FeatureContract;
+use cairo_vm::types::builtin_name::BuiltinName;
+use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
+use num_traits::Inv;
+use pretty_assertions::{assert_eq, assert_ne};
+use rstest::rstest;
+use rstest_reuse::apply;
 use starknet_types_core::felt::Felt;
 
 use crate::check_tx_execution_error_for_invalid_scenario;

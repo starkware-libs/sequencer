@@ -1,6 +1,6 @@
-use blockifier_test_utils::calldata::create_calldata;
 use starknet_api::felt;
 use starknet_api::transaction::fields::Calldata;
+use blockifier_test_utils::calldata::create_calldata;
 
 use crate::test_utils::CompilerBasedVersion;
 

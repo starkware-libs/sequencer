@@ -1,6 +1,6 @@
-use rstest::fixture;
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::{class_hash, contract_address};
+use rstest::fixture;
 
 use crate::concurrency::versioned_state::{ThreadSafeVersionedState, VersionedState};
 use crate::context::BlockContext;

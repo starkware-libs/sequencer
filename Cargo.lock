@@ -750,16 +750,1197 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "34ac096ce696dc2fcabef30516bb13c0a68a11d30131d3df6f04711467681b04"
 
 [[package]]
+name = "apollo_base_layer"
+version = "0.0.0"
+dependencies = [
+ "alloy",
+ "apollo_config",
+ "async-trait",
+ "colored 3.0.0",
+ "ethers",
+ "ethers-core",
+ "mempool_test_utils",
+ "mockall",
+ "pretty_assertions",
+ "serde",
+ "starknet-types-core",
+ "starknet_api",
+ "tar",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "url",
+ "validator",
+]
+
+[[package]]
+name = "apollo_batcher"
+version = "0.0.0"
+dependencies = [
+ "apollo_batcher_types",
+ "apollo_class_manager_types",
+ "apollo_config",
+ "apollo_infra_utils",
+ "apollo_l1_provider_types",
+ "apollo_mempool_types",
+ "apollo_reverts",
+ "apollo_sequencer_infra",
+ "apollo_sequencer_metrics",
+ "apollo_state_reader",
+ "apollo_state_sync_types",
+ "apollo_storage",
+ "assert_matches",
+ "async-trait",
+ "blockifier",
+ "cairo-lang-starknet-classes",
+ "chrono",
+ "futures",
+ "indexmap 2.7.0",
+ "mempool_test_utils",
+ "metrics 0.24.1",
+ "metrics-exporter-prometheus",
+ "mockall",
+ "pretty_assertions",
+ "rstest",
+ "serde",
+ "starknet-types-core",
+ "starknet_api",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "validator",
+]
+
+[[package]]
+name = "apollo_batcher_types"
+version = "0.0.0"
+dependencies = [
+ "apollo_proc_macros",
+ "apollo_sequencer_infra",
+ "apollo_state_sync_types",
+ "async-trait",
+ "blockifier",
+ "chrono",
+ "derive_more 0.99.18",
+ "mockall",
+ "serde",
+ "starknet_api",
+ "strum_macros 0.25.3",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "apollo_class_manager"
+version = "0.0.0"
+dependencies = [
+ "apollo_class_manager_types",
+ "apollo_config",
+ "apollo_sequencer_infra",
+ "apollo_sequencer_metrics",
+ "apollo_sierra_multicompile_types",
+ "apollo_storage",
+ "async-trait",
+ "hex",
+ "mockall",
+ "serde",
+ "starknet_api",
+ "strum 0.25.0",
+ "strum_macros 0.25.3",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "validator",
+]
+
+[[package]]
+name = "apollo_class_manager_types"
+version = "0.0.0"
+dependencies = [
+ "apollo_proc_macros",
+ "apollo_sequencer_infra",
+ "apollo_sierra_multicompile_types",
+ "async-trait",
+ "mockall",
+ "serde",
+ "serde_json",
+ "starknet_api",
+ "strum_macros 0.25.3",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "apollo_client"
+version = "0.0.0"
+dependencies = [
+ "papyrus_common",
+ "apollo_config",
+ "apollo_test_utils",
+ "assert_matches",
+ "async-trait",
+ "cairo-lang-starknet-classes",
+ "enum-iterator",
+ "http 0.2.12",
+ "indexmap 2.7.0",
+ "mockall",
+ "mockito 0.31.1",
+ "os_info",
+ "pretty_assertions",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "reqwest 0.11.27",
+ "serde",
+ "serde_json",
+ "serde_repr",
+ "simple_logger",
+ "starknet-types-core",
+ "starknet_api",
+ "strum 0.25.0",
+ "strum_macros 0.25.3",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-retry",
+ "tracing",
+ "url",
+]
+
+[[package]]
+name = "papyrus_common"
+version = "0.0.0"
+dependencies = [
+ "apollo_test_utils",
+ "assert_matches",
+ "base64 0.13.1",
+ "cairo-lang-starknet-classes",
+ "flate2",
+ "indexmap 2.7.0",
+ "pretty_assertions",
+ "rand 0.8.5",
+ "serde",
+ "serde_json",
+ "starknet-types-core",
+ "starknet_api",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "apollo_config"
+version = "0.0.0"
+dependencies = [
+ "apollo_infra_utils",
+ "apollo_test_utils",
+ "assert_matches",
+ "clap",
+ "itertools 0.12.1",
+ "lazy_static",
+ "serde",
+ "serde_json",
+ "starknet_api",
+ "strum_macros 0.25.3",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tracing",
+ "validator",
+]
+
+[[package]]
+name = "apollo_consensus"
+version = "0.0.0"
+dependencies = [
+ "papyrus_common",
+ "apollo_config",
+ "apollo_network",
+ "apollo_network_types",
+ "apollo_protobuf",
+ "apollo_sequencer_metrics",
+ "apollo_storage",
+ "apollo_test_utils",
+ "async-trait",
+ "clap",
+ "enum-as-inner",
+ "fs2",
+ "futures",
+ "lazy_static",
+ "lru",
+ "metrics 0.24.1",
+ "mockall",
+ "nix 0.20.2",
+ "prost",
+ "serde",
+ "starknet-types-core",
+ "starknet_api",
+ "strum 0.25.0",
+ "strum_macros 0.25.3",
+ "test-case",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "validator",
+]
+
+[[package]]
+name = "apollo_consensus_manager"
+version = "0.0.0"
+dependencies = [
+ "apollo_batcher_types",
+ "apollo_class_manager_types",
+ "apollo_config",
+ "apollo_consensus",
+ "apollo_consensus_orchestrator",
+ "apollo_infra_utils",
+ "apollo_l1_gas_price",
+ "apollo_network",
+ "apollo_protobuf",
+ "apollo_reverts",
+ "apollo_sequencer_infra",
+ "apollo_sequencer_metrics",
+ "apollo_state_sync_types",
+ "async-trait",
+ "futures",
+ "mockall",
+ "rstest",
+ "serde",
+ "starknet_api",
+ "tokio",
+ "tracing",
+ "validator",
+]
+
+[[package]]
+name = "apollo_consensus_orchestrator"
+version = "0.0.0"
+dependencies = [
+ "apollo_batcher",
+ "apollo_batcher_types",
+ "apollo_class_manager_types",
+ "apollo_config",
+ "apollo_consensus",
+ "apollo_infra_utils",
+ "apollo_l1_gas_price_types",
+ "apollo_network",
+ "apollo_protobuf",
+ "apollo_sequencer_metrics",
+ "apollo_state_sync_types",
+ "apollo_storage",
+ "apollo_test_utils",
+ "async-trait",
+ "blockifier",
+ "cairo-lang-casm",
+ "cairo-lang-starknet-classes",
+ "cairo-lang-utils",
+ "cairo-vm",
+ "chrono",
+ "futures",
+ "indexmap 2.7.0",
+ "lazy_static",
+ "mockall",
+ "mockito 1.6.1",
+ "num-bigint 0.4.6",
+ "paste",
+ "reqwest 0.11.27",
+ "rstest",
+ "serde",
+ "serde_json",
+ "shared_execution_objects",
+ "starknet-types-core",
+ "starknet_api",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "url",
+ "validator",
+]
+
+[[package]]
+name = "apollo_rpc_execution"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "papyrus_common",
+ "apollo_config",
+ "apollo_storage",
+ "apollo_test_utils",
+ "assert_matches",
+ "blockifier",
+ "cairo-lang-casm",
+ "cairo-lang-starknet-classes",
+ "cairo-lang-utils",
+ "cairo-vm",
+ "indexmap 2.7.0",
+ "itertools 0.12.1",
+ "lazy_static",
+ "pretty_assertions",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "serde",
+ "serde_json",
+ "starknet-types-core",
+ "starknet_api",
+ "thiserror 1.0.69",
+ "tracing",
+]
+
+[[package]]
+name = "apollo_gateway"
+version = "0.0.0"
+dependencies = [
+ "apollo_class_manager_types",
+ "apollo_config",
+ "apollo_gateway_types",
+ "apollo_mempool",
+ "apollo_mempool_types",
+ "apollo_network_types",
+ "apollo_proc_macros",
+ "apollo_rpc",
+ "apollo_sequencer_infra",
+ "apollo_sequencer_metrics",
+ "apollo_sierra_multicompile",
+ "apollo_state_sync_types",
+ "apollo_test_utils",
+ "assert_matches",
+ "async-trait",
+ "axum",
+ "blockifier",
+ "blockifier_test_utils",
+ "cairo-lang-sierra-to-casm",
+ "cairo-lang-starknet-classes",
+ "criterion",
+ "futures",
+ "mempool_test_utils",
+ "metrics 0.24.1",
+ "metrics-exporter-prometheus",
+ "mockall",
+ "mockito 1.6.1",
+ "num-bigint 0.4.6",
+ "pretty_assertions",
+ "reqwest 0.11.27",
+ "rstest",
+ "serde",
+ "serde_json",
+ "starknet-types-core",
+ "starknet_api",
+ "strum 0.25.0",
+ "strum_macros 0.25.3",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "tracing-test",
+ "validator",
+]
+
+[[package]]
+name = "apollo_gateway_types"
+version = "0.0.0"
+dependencies = [
+ "apollo_network_types",
+ "apollo_proc_macros",
+ "apollo_rpc",
+ "apollo_sequencer_infra",
+ "async-trait",
+ "enum-assoc",
+ "mockall",
+ "serde",
+ "serde_json",
+ "starknet_api",
+ "strum_macros 0.25.3",
+ "thiserror 1.0.69",
+ "tracing",
+]
+
+[[package]]
+name = "apollo_http_server"
+version = "0.0.0"
+dependencies = [
+ "apollo_config",
+ "apollo_gateway_types",
+ "apollo_infra_utils",
+ "apollo_sequencer_infra",
+ "apollo_sequencer_metrics",
+ "axum",
+ "blockifier",
+ "blockifier_test_utils",
+ "futures",
+ "hyper 0.14.32",
+ "jsonrpsee",
+ "mempool_test_utils",
+ "metrics 0.24.1",
+ "metrics-exporter-prometheus",
+ "reqwest 0.11.27",
+ "serde",
+ "serde_json",
+ "starknet-types-core",
+ "starknet_api",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "tracing-test",
+ "validator",
+]
+
+[[package]]
+name = "apollo_infra_utils"
+version = "0.0.0"
+dependencies = [
+ "assert-json-diff",
+ "cached",
+ "colored 3.0.0",
+ "nix 0.20.2",
+ "pretty_assertions",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "toml",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "apollo_integration_tests"
+version = "0.0.0"
+dependencies = [
+ "alloy",
+ "anyhow",
+ "apollo_base_layer",
+ "apollo_batcher",
+ "apollo_class_manager",
+ "apollo_consensus",
+ "apollo_consensus_manager",
+ "apollo_consensus_orchestrator",
+ "apollo_gateway",
+ "apollo_gateway_types",
+ "apollo_http_server",
+ "apollo_infra_utils",
+ "apollo_l1_gas_price",
+ "apollo_l1_provider",
+ "apollo_mempool",
+ "apollo_mempool_p2p",
+ "apollo_monitoring_endpoint",
+ "apollo_network",
+ "apollo_protobuf",
+ "apollo_sequencer_infra",
+ "apollo_sequencer_node",
+ "apollo_state_sync",
+ "apollo_storage",
+ "apollo_sync",
+ "assert_matches",
+ "axum",
+ "blockifier",
+ "blockifier_test_utils",
+ "cairo-lang-starknet-classes",
+ "clap",
+ "futures",
+ "indexmap 2.7.0",
+ "itertools 0.12.1",
+ "mempool_test_utils",
+ "pretty_assertions",
+ "rstest",
+ "serde",
+ "serde_json",
+ "starknet-types-core",
+ "starknet_api",
+ "starknet_sequencer_deployments",
+ "strum 0.25.0",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "url",
+]
+
+[[package]]
+name = "apollo_l1_gas_price"
+version = "0.0.0"
+dependencies = [
+ "apollo_base_layer",
+ "apollo_config",
+ "apollo_l1_gas_price_types",
+ "apollo_sequencer_infra",
+ "async-trait",
+ "mockall",
+ "mockito 1.6.1",
+ "reqwest 0.11.27",
+ "serde",
+ "serde_json",
+ "starknet_api",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "url",
+ "validator",
+]
+
+[[package]]
+name = "apollo_l1_gas_price_types"
+version = "0.0.0"
+dependencies = [
+ "apollo_base_layer",
+ "apollo_proc_macros",
+ "apollo_sequencer_infra",
+ "async-trait",
+ "mockall",
+ "reqwest 0.11.27",
+ "serde",
+ "serde_json",
+ "starknet_api",
+ "strum_macros 0.25.3",
+ "thiserror 1.0.69",
+ "tracing",
+]
+
+[[package]]
+name = "apollo_l1_provider"
+version = "0.0.0"
+dependencies = [
+ "alloy",
+ "apollo_base_layer",
+ "apollo_config",
+ "apollo_l1_provider_types",
+ "apollo_sequencer_infra",
+ "apollo_state_sync_types",
+ "assert_matches",
+ "async-trait",
+ "hex",
+ "indexmap 2.7.0",
+ "itertools 0.12.1",
+ "mempool_test_utils",
+ "pretty_assertions",
+ "serde",
+ "starknet-types-core",
+ "starknet_api",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "validator",
+]
+
+[[package]]
+name = "apollo_l1_provider_types"
+version = "0.0.0"
+dependencies = [
+ "apollo_base_layer",
+ "apollo_proc_macros",
+ "apollo_sequencer_infra",
+ "async-trait",
+ "mockall",
+ "serde",
+ "starknet_api",
+ "strum_macros 0.25.3",
+ "thiserror 1.0.69",
+ "tracing",
+]
+
+[[package]]
+name = "apollo_mempool"
+version = "0.0.0"
+dependencies = [
+ "apollo_config",
+ "apollo_mempool_p2p_types",
+ "apollo_mempool_types",
+ "apollo_network",
+ "apollo_network_types",
+ "apollo_sequencer_infra",
+ "apollo_sequencer_metrics",
+ "apollo_test_utils",
+ "assert_matches",
+ "async-trait",
+ "derive_more 0.99.18",
+ "itertools 0.12.1",
+ "mempool_test_utils",
+ "metrics 0.24.1",
+ "metrics-exporter-prometheus",
+ "mockall",
+ "pretty_assertions",
+ "rstest",
+ "serde",
+ "starknet-types-core",
+ "starknet_api",
+ "strum 0.25.0",
+ "strum_macros 0.25.3",
+ "tokio",
+ "tracing",
+ "validator",
+]
+
+[[package]]
+name = "apollo_mempool_p2p"
+version = "0.0.0"
+dependencies = [
+ "apollo_class_manager_types",
+ "apollo_config",
+ "apollo_gateway_types",
+ "apollo_mempool_p2p_types",
+ "apollo_network",
+ "apollo_network_types",
+ "apollo_protobuf",
+ "apollo_sequencer_infra",
+ "apollo_sequencer_metrics",
+ "apollo_test_utils",
+ "async-trait",
+ "futures",
+ "libp2p",
+ "mockall",
+ "rand_chacha 0.3.1",
+ "serde",
+ "starknet_api",
+ "tokio",
+ "tracing",
+ "validator",
+]
+
+[[package]]
+name = "apollo_mempool_p2p_types"
+version = "0.0.0"
+dependencies = [
+ "apollo_network_types",
+ "apollo_proc_macros",
+ "apollo_sequencer_infra",
+ "async-trait",
+ "mockall",
+ "serde",
+ "starknet_api",
+ "strum_macros 0.25.3",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "apollo_mempool_types"
+version = "0.0.0"
+dependencies = [
+ "apollo_network_types",
+ "apollo_proc_macros",
+ "apollo_sequencer_infra",
+ "async-trait",
+ "mockall",
+ "serde",
+ "starknet_api",
+ "strum_macros 0.25.3",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "apollo_monitoring_endpoint"
+version = "0.0.0"
+dependencies = [
+ "apollo_config",
+ "apollo_infra_utils",
+ "apollo_sequencer_infra",
+ "apollo_sequencer_metrics",
+ "axum",
+ "hyper 0.14.32",
+ "metrics 0.24.1",
+ "metrics-exporter-prometheus",
+ "num-traits",
+ "pretty_assertions",
+ "serde",
+ "thiserror 1.0.69",
+ "tokio",
+ "tower 0.4.13",
+ "tracing",
+ "validator",
+]
+
+[[package]]
+name = "apollo_network"
+version = "0.0.0"
+dependencies = [
+ "apollo_config",
+ "apollo_network_types",
+ "apollo_sequencer_metrics",
+ "assert_matches",
+ "async-stream",
+ "async-trait",
+ "bytes",
+ "deadqueue",
+ "defaultmap",
+ "derive_more 0.99.18",
+ "futures",
+ "lazy_static",
+ "libp2p",
+ "libp2p-swarm-test",
+ "metrics 0.24.1",
+ "mockall",
+ "pretty_assertions",
+ "replace_with",
+ "serde",
+ "starknet_api",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-retry",
+ "tokio-stream",
+ "tracing",
+ "unsigned-varint 0.8.0",
+ "validator",
+ "void",
+]
+
+[[package]]
+name = "apollo_network_types"
+version = "0.0.0"
+dependencies = [
+ "apollo_test_utils",
+ "libp2p",
+ "rand_chacha 0.3.1",
+ "serde",
+]
+
+[[package]]
+name = "apollo_p2p_sync"
+version = "0.0.0"
+dependencies = [
+ "apollo_class_manager_types",
+ "papyrus_common",
+ "apollo_config",
+ "apollo_network",
+ "apollo_proc_macros",
+ "apollo_protobuf",
+ "apollo_state_sync_types",
+ "apollo_storage",
+ "apollo_sync",
+ "apollo_test_utils",
+ "assert_matches",
+ "async-stream",
+ "async-trait",
+ "chrono",
+ "enum-iterator",
+ "futures",
+ "indexmap 2.7.0",
+ "lazy_static",
+ "metrics 0.24.1",
+ "mockall",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "serde",
+ "starknet-types-core",
+ "starknet_api",
+ "static_assertions",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-stream",
+ "tracing",
+ "validator",
+]
+
+[[package]]
+name = "apollo_proc_macros"
+version = "0.0.0"
+dependencies = [
+ "papyrus_common",
+ "apollo_monitoring_endpoint",
+ "apollo_sequencer_metrics",
+ "apollo_test_utils",
+ "metrics 0.24.1",
+ "metrics-exporter-prometheus",
+ "prometheus-parse",
+ "quote",
+ "rstest",
+ "syn 2.0.95",
+ "tracing",
+]
+
+[[package]]
+name = "apollo_protobuf"
+version = "0.0.0"
+dependencies = [
+ "papyrus_common",
+ "apollo_test_utils",
+ "bytes",
+ "indexmap 2.7.0",
+ "lazy_static",
+ "primitive-types",
+ "prost",
+ "prost-build",
+ "protoc-prebuilt",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "serde",
+ "serde_json",
+ "starknet-types-core",
+ "starknet_api",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tracing",
+]
+
+[[package]]
 name = "apollo_reverts"
 version = "0.0.0"
 dependencies = [
+ "apollo_config",
+ "apollo_storage",
  "futures",
- "papyrus_config",
- "papyrus_storage",
  "serde",
  "starknet_api",
  "tracing",
  "validator",
+]
+
+[[package]]
+name = "apollo_rpc"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "apollo_client",
+ "papyrus_common",
+ "apollo_config",
+ "apollo_rpc_execution",
+ "apollo_proc_macros",
+ "apollo_storage",
+ "apollo_test_utils",
+ "assert_matches",
+ "async-trait",
+ "base64 0.13.1",
+ "cairo-lang-casm",
+ "cairo-lang-starknet-classes",
+ "camelpaste",
+ "derive_more 0.99.18",
+ "enum-iterator",
+ "ethers",
+ "flate2",
+ "futures-util",
+ "hex",
+ "hyper 0.14.32",
+ "indexmap 2.7.0",
+ "insta",
+ "itertools 0.12.1",
+ "jsonrpsee",
+ "jsonschema",
+ "lazy_static",
+ "metrics 0.24.1",
+ "metrics-exporter-prometheus",
+ "mockall",
+ "pretty_assertions",
+ "prometheus-parse",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "regex",
+ "reqwest 0.11.27",
+ "serde",
+ "serde_json",
+ "starknet-core",
+ "starknet-types-core",
+ "starknet_api",
+ "strum 0.25.0",
+ "strum_macros 0.25.3",
+ "tokio",
+ "tower 0.4.13",
+ "tracing",
+ "validator",
+]
+
+[[package]]
+name = "apollo_sequencer_infra"
+version = "0.0.0"
+dependencies = [
+ "apollo_config",
+ "apollo_infra_utils",
+ "apollo_sequencer_metrics",
+ "assert_matches",
+ "async-trait",
+ "hyper 0.14.32",
+ "metrics 0.24.1",
+ "metrics-exporter-prometheus",
+ "once_cell",
+ "pretty_assertions",
+ "rstest",
+ "serde",
+ "serde_json",
+ "starknet-types-core",
+ "starknet_api",
+ "thiserror 1.0.69",
+ "tokio",
+ "tower 0.4.13",
+ "tracing",
+ "tracing-subscriber",
+ "validator",
+]
+
+[[package]]
+name = "apollo_sequencer_metrics"
+version = "0.0.0"
+dependencies = [
+ "indexmap 2.7.0",
+ "metrics 0.24.1",
+ "metrics-exporter-prometheus",
+ "num-traits",
+ "paste",
+ "regex",
+ "rstest",
+ "strum 0.25.0",
+ "strum_macros 0.25.3",
+]
+
+[[package]]
+name = "apollo_sequencer_node"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "apollo_base_layer",
+ "apollo_batcher",
+ "apollo_batcher_types",
+ "apollo_class_manager",
+ "apollo_class_manager_types",
+ "apollo_config",
+ "apollo_consensus_manager",
+ "apollo_gateway",
+ "apollo_gateway_types",
+ "apollo_http_server",
+ "apollo_infra_utils",
+ "apollo_l1_gas_price",
+ "apollo_l1_gas_price_types",
+ "apollo_l1_provider",
+ "apollo_l1_provider_types",
+ "apollo_mempool",
+ "apollo_mempool_p2p",
+ "apollo_mempool_p2p_types",
+ "apollo_mempool_types",
+ "apollo_monitoring_endpoint",
+ "apollo_reverts",
+ "apollo_sequencer_infra",
+ "apollo_sierra_multicompile",
+ "apollo_sierra_multicompile_types",
+ "apollo_state_sync",
+ "apollo_state_sync_types",
+ "assert_matches",
+ "clap",
+ "colored 3.0.0",
+ "const_format",
+ "futures",
+ "mempool_test_utils",
+ "pretty_assertions",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tikv-jemallocator",
+ "tokio",
+ "tracing",
+ "validator",
+]
+
+[[package]]
+name = "apollo_sierra_multicompile"
+version = "0.0.0"
+dependencies = [
+ "apollo_config",
+ "apollo_infra_utils",
+ "apollo_sequencer_infra",
+ "apollo_sierra_multicompile_types",
+ "assert_matches",
+ "async-trait",
+ "cairo-lang-sierra",
+ "cairo-lang-starknet-classes",
+ "cairo-lang-utils",
+ "cairo-native",
+ "mempool_test_utils",
+ "rlimit",
+ "rstest",
+ "serde",
+ "serde_json",
+ "starknet-types-core",
+ "starknet_api",
+ "tempfile",
+ "thiserror 1.0.69",
+ "toml_test_utils",
+ "tracing",
+ "validator",
+]
+
+[[package]]
+name = "apollo_sierra_multicompile_types"
+version = "0.0.0"
+dependencies = [
+ "apollo_proc_macros",
+ "apollo_sequencer_infra",
+ "async-trait",
+ "mockall",
+ "serde",
+ "serde_json",
+ "starknet_api",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "apollo_state_reader"
+version = "0.0.0"
+dependencies = [
+ "apollo_class_manager_types",
+ "apollo_storage",
+ "assert_matches",
+ "blockifier",
+ "blockifier_test_utils",
+ "cairo-lang-starknet-classes",
+ "indexmap 2.7.0",
+ "log",
+ "rstest",
+ "starknet-types-core",
+ "starknet_api",
+ "tokio",
+]
+
+[[package]]
+name = "apollo_state_sync"
+version = "0.0.0"
+dependencies = [
+ "apollo_class_manager_types",
+ "apollo_client",
+ "papyrus_common",
+ "apollo_config",
+ "apollo_network",
+ "apollo_p2p_sync",
+ "apollo_reverts",
+ "apollo_sequencer_infra",
+ "apollo_sequencer_metrics",
+ "apollo_state_sync_types",
+ "apollo_storage",
+ "apollo_sync",
+ "apollo_test_utils",
+ "async-trait",
+ "futures",
+ "indexmap 2.7.0",
+ "libp2p",
+ "rand_chacha 0.3.1",
+ "serde",
+ "starknet-types-core",
+ "starknet_api",
+ "tokio",
+ "validator",
+]
+
+[[package]]
+name = "apollo_state_sync_types"
+version = "0.0.0"
+dependencies = [
+ "apollo_proc_macros",
+ "apollo_sequencer_infra",
+ "apollo_storage",
+ "async-trait",
+ "futures",
+ "mockall",
+ "serde",
+ "starknet-types-core",
+ "starknet_api",
+ "strum_macros 0.25.3",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "apollo_storage"
+version = "0.0.0"
+dependencies = [
+ "papyrus_common",
+ "apollo_config",
+ "apollo_proc_macros",
+ "apollo_test_utils",
+ "assert_matches",
+ "byteorder",
+ "cairo-lang-casm",
+ "cairo-lang-starknet-classes",
+ "cairo-lang-utils",
+ "camelpaste",
+ "clap",
+ "human_bytes",
+ "indexmap 2.7.0",
+ "insta",
+ "integer-encoding",
+ "lazy_static",
+ "libmdbx",
+ "memmap2",
+ "metrics 0.24.1",
+ "metrics-exporter-prometheus",
+ "num-bigint 0.4.6",
+ "num-traits",
+ "page_size",
+ "parity-scale-codec",
+ "paste",
+ "pretty_assertions",
+ "primitive-types",
+ "prometheus-parse",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "rstest",
+ "schemars",
+ "serde",
+ "serde_json",
+ "simple_logger",
+ "starknet-types-core",
+ "starknet_api",
+ "statistical",
+ "tempfile",
+ "test-case",
+ "test-log",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "validator",
+ "zstd 0.13.2",
+]
+
+[[package]]
+name = "apollo_sync"
+version = "0.0.0"
+dependencies = [
+ "apollo_base_layer",
+ "apollo_class_manager_types",
+ "apollo_client",
+ "papyrus_common",
+ "apollo_config",
+ "apollo_proc_macros",
+ "apollo_sequencer_metrics",
+ "apollo_storage",
+ "apollo_test_utils",
+ "assert_matches",
+ "async-stream",
+ "async-trait",
+ "cairo-lang-starknet-classes",
+ "chrono",
+ "futures",
+ "futures-util",
+ "indexmap 2.7.0",
+ "itertools 0.12.1",
+ "lru",
+ "metrics 0.24.1",
+ "mockall",
+ "pretty_assertions",
+ "reqwest 0.11.27",
+ "serde",
+ "simple_logger",
+ "starknet-types-core",
+ "starknet_api",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-stream",
+ "tracing",
+]
+
+[[package]]
+name = "apollo_task_executor"
+version = "0.0.0"
+dependencies = [
+ "futures",
+ "rstest",
+ "tokio",
+ "tokio-test",
+]
+
+[[package]]
+name = "apollo_test_utils"
+version = "0.0.0"
+dependencies = [
+ "cairo-lang-casm",
+ "cairo-lang-starknet-classes",
+ "cairo-lang-utils",
+ "indexmap 2.7.0",
+ "num-bigint 0.4.6",
+ "pretty_assertions",
+ "primitive-types",
+ "prometheus-parse",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "reqwest 0.11.27",
+ "serde",
+ "serde_json",
+ "starknet-types-core",
+ "starknet_api",
 ]
 
 [[package]]
@@ -1835,6 +3016,9 @@ name = "blockifier"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "apollo_config",
+ "apollo_infra_utils",
+ "apollo_sierra_multicompile",
  "ark-ec 0.4.2",
  "ark-ff 0.4.2",
  "ark-secp256k1 0.4.0",
@@ -1859,7 +3043,6 @@ dependencies = [
  "num-integer",
  "num-rational 0.4.2",
  "num-traits",
- "papyrus_config",
  "paste",
  "phf",
  "pretty_assertions",
@@ -1873,8 +3056,6 @@ dependencies = [
  "sha2",
  "starknet-types-core",
  "starknet_api",
- "starknet_infra_utils",
- "starknet_sierra_multicompile",
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "test-case",
@@ -1886,6 +3067,8 @@ dependencies = [
 name = "blockifier_reexecution"
 version = "0.0.0"
 dependencies = [
+ "apollo_rpc_execution",
+ "apollo_gateway",
  "assert_matches",
  "blockifier",
  "cairo-lang-starknet-classes",
@@ -1894,7 +3077,6 @@ dependencies = [
  "flate2",
  "google-cloud-storage",
  "indexmap 2.7.0",
- "papyrus_execution",
  "pretty_assertions",
  "retry",
  "rstest",
@@ -1903,7 +3085,6 @@ dependencies = [
  "starknet-core",
  "starknet-types-core",
  "starknet_api",
- "starknet_gateway",
  "thiserror 1.0.69",
  "tokio",
 ]
@@ -1912,6 +3093,7 @@ dependencies = [
 name = "blockifier_test_utils"
 version = "0.0.0"
 dependencies = [
+ "apollo_infra_utils",
  "cairo-lang-starknet-classes",
  "itertools 0.12.1",
  "pretty_assertions",
@@ -1919,7 +3101,6 @@ dependencies = [
  "serde_json",
  "starknet-types-core",
  "starknet_api",
- "starknet_infra_utils",
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "tempfile",
@@ -6966,12 +8147,12 @@ dependencies = [
 name = "mempool_test_utils"
 version = "0.0.0"
 dependencies = [
+ "apollo_infra_utils",
  "assert_matches",
  "blockifier_test_utils",
  "serde_json",
  "starknet-types-core",
  "starknet_api",
- "starknet_infra_utils",
 ]
 
 [[package]]
@@ -7267,6 +8448,9 @@ dependencies = [
 name = "native_blockifier"
 version = "0.0.0"
 dependencies = [
+ "apollo_sierra_multicompile",
+ "apollo_state_reader",
+ "apollo_storage",
  "blockifier",
  "cached",
  "cairo-lang-starknet-classes",
@@ -7274,8 +8458,6 @@ dependencies = [
  "indexmap 2.7.0",
  "log",
  "num-bigint 0.4.6",
- "papyrus_state_reader",
- "papyrus_storage",
  "pretty_assertions",
  "pyo3",
  "pyo3-log",
@@ -7283,7 +8465,6 @@ dependencies = [
  "shared_execution_objects",
  "starknet-types-core",
  "starknet_api",
- "starknet_sierra_multicompile",
  "tempfile",
  "thiserror 1.0.69",
 ]
@@ -7802,98 +8983,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "papyrus_base_layer"
-version = "0.0.0"
-dependencies = [
- "alloy",
- "async-trait",
- "colored 3.0.0",
- "ethers",
- "ethers-core",
- "mempool_test_utils",
- "mockall",
- "papyrus_config",
- "pretty_assertions",
- "serde",
- "starknet-types-core",
- "starknet_api",
- "tar",
- "tempfile",
- "thiserror 1.0.69",
- "tokio",
- "url",
- "validator",
-]
-
-[[package]]
-name = "papyrus_common"
-version = "0.0.0"
-dependencies = [
- "assert_matches",
- "base64 0.13.1",
- "cairo-lang-starknet-classes",
- "flate2",
- "indexmap 2.7.0",
- "papyrus_test_utils",
- "pretty_assertions",
- "rand 0.8.5",
- "serde",
- "serde_json",
- "starknet-types-core",
- "starknet_api",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "papyrus_config"
-version = "0.0.0"
-dependencies = [
- "assert_matches",
- "clap",
- "itertools 0.12.1",
- "lazy_static",
- "papyrus_test_utils",
- "serde",
- "serde_json",
- "starknet_api",
- "starknet_infra_utils",
- "strum_macros 0.25.3",
- "tempfile",
- "thiserror 1.0.69",
- "tracing",
- "validator",
-]
-
-[[package]]
-name = "papyrus_execution"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "assert_matches",
- "blockifier",
- "cairo-lang-casm",
- "cairo-lang-starknet-classes",
- "cairo-lang-utils",
- "cairo-vm",
- "indexmap 2.7.0",
- "itertools 0.12.1",
- "lazy_static",
- "papyrus_common",
- "papyrus_config",
- "papyrus_storage",
- "papyrus_test_utils",
- "pretty_assertions",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
- "serde",
- "serde_json",
- "starknet-types-core",
- "starknet_api",
- "thiserror 1.0.69",
- "tracing",
-]
-
-[[package]]
 name = "papyrus_load_test"
 version = "0.0.0"
 dependencies = [
@@ -7915,18 +9004,18 @@ dependencies = [
 name = "papyrus_monitoring_gateway"
 version = "0.0.0"
 dependencies = [
+ "apollo_client",
+ "apollo_config",
+ "apollo_storage",
  "axum",
  "hyper 0.14.32",
  "metrics 0.24.1",
  "metrics-exporter-prometheus",
  "metrics-process",
- "papyrus_config",
- "papyrus_storage",
  "pretty_assertions",
  "rand 0.8.5",
  "serde",
  "serde_json",
- "starknet_client",
  "thiserror 1.0.69",
  "tokio",
  "tower 0.4.13",
@@ -7935,54 +9024,24 @@ dependencies = [
 ]
 
 [[package]]
-name = "papyrus_network"
-version = "0.0.0"
-dependencies = [
- "assert_matches",
- "async-stream",
- "async-trait",
- "bytes",
- "deadqueue",
- "defaultmap",
- "derive_more 0.99.18",
- "futures",
- "lazy_static",
- "libp2p",
- "libp2p-swarm-test",
- "metrics 0.24.1",
- "mockall",
- "papyrus_config",
- "papyrus_network_types",
- "pretty_assertions",
- "replace_with",
- "serde",
- "starknet_api",
- "starknet_sequencer_metrics",
- "thiserror 1.0.69",
- "tokio",
- "tokio-retry",
- "tokio-stream",
- "tracing",
- "unsigned-varint 0.8.0",
- "validator",
- "void",
-]
-
-[[package]]
-name = "papyrus_network_types"
-version = "0.0.0"
-dependencies = [
- "libp2p",
- "papyrus_test_utils",
- "rand_chacha 0.3.1",
- "serde",
-]
-
-[[package]]
 name = "papyrus_node"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "apollo_base_layer",
+ "apollo_class_manager_types",
+ "apollo_client",
+ "papyrus_common",
+ "apollo_config",
+ "apollo_consensus",
+ "apollo_consensus_orchestrator",
+ "apollo_infra_utils",
+ "apollo_network",
+ "apollo_p2p_sync",
+ "apollo_rpc",
+ "apollo_storage",
+ "apollo_sync",
+ "apollo_test_utils",
  "clap",
  "colored 3.0.0",
  "const_format",
@@ -7993,26 +9052,12 @@ dependencies = [
  "lazy_static",
  "metrics-exporter-prometheus",
  "once_cell",
- "papyrus_base_layer",
- "papyrus_common",
- "papyrus_config",
  "papyrus_monitoring_gateway",
- "papyrus_network",
- "papyrus_p2p_sync",
- "papyrus_rpc",
- "papyrus_storage",
- "papyrus_sync",
- "papyrus_test_utils",
  "pretty_assertions",
  "reqwest 0.11.27",
  "serde",
  "serde_json",
  "starknet_api",
- "starknet_class_manager_types",
- "starknet_client",
- "starknet_consensus",
- "starknet_consensus_orchestrator",
- "starknet_infra_utils",
  "strum 0.25.0",
  "tempfile",
  "tokio",
@@ -8020,265 +9065,6 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "validator",
-]
-
-[[package]]
-name = "papyrus_p2p_sync"
-version = "0.0.0"
-dependencies = [
- "assert_matches",
- "async-stream",
- "async-trait",
- "chrono",
- "enum-iterator",
- "futures",
- "indexmap 2.7.0",
- "lazy_static",
- "metrics 0.24.1",
- "mockall",
- "papyrus_common",
- "papyrus_config",
- "papyrus_network",
- "papyrus_proc_macros",
- "papyrus_protobuf",
- "papyrus_storage",
- "papyrus_sync",
- "papyrus_test_utils",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
- "serde",
- "starknet-types-core",
- "starknet_api",
- "starknet_class_manager_types",
- "starknet_state_sync_types",
- "static_assertions",
- "thiserror 1.0.69",
- "tokio",
- "tokio-stream",
- "tracing",
- "validator",
-]
-
-[[package]]
-name = "papyrus_proc_macros"
-version = "0.0.0"
-dependencies = [
- "metrics 0.24.1",
- "metrics-exporter-prometheus",
- "papyrus_common",
- "papyrus_test_utils",
- "prometheus-parse",
- "quote",
- "rstest",
- "starknet_monitoring_endpoint",
- "starknet_sequencer_metrics",
- "syn 2.0.95",
- "tracing",
-]
-
-[[package]]
-name = "papyrus_protobuf"
-version = "0.0.0"
-dependencies = [
- "bytes",
- "indexmap 2.7.0",
- "lazy_static",
- "papyrus_common",
- "papyrus_test_utils",
- "primitive-types",
- "prost",
- "prost-build",
- "protoc-prebuilt",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
- "serde",
- "serde_json",
- "starknet-types-core",
- "starknet_api",
- "tempfile",
- "thiserror 1.0.69",
- "tracing",
-]
-
-[[package]]
-name = "papyrus_rpc"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "assert_matches",
- "async-trait",
- "base64 0.13.1",
- "cairo-lang-casm",
- "cairo-lang-starknet-classes",
- "camelpaste",
- "derive_more 0.99.18",
- "enum-iterator",
- "ethers",
- "flate2",
- "futures-util",
- "hex",
- "hyper 0.14.32",
- "indexmap 2.7.0",
- "insta",
- "itertools 0.12.1",
- "jsonrpsee",
- "jsonschema",
- "lazy_static",
- "metrics 0.24.1",
- "metrics-exporter-prometheus",
- "mockall",
- "papyrus_common",
- "papyrus_config",
- "papyrus_execution",
- "papyrus_proc_macros",
- "papyrus_storage",
- "papyrus_test_utils",
- "pretty_assertions",
- "prometheus-parse",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
- "regex",
- "reqwest 0.11.27",
- "serde",
- "serde_json",
- "starknet-core",
- "starknet-types-core",
- "starknet_api",
- "starknet_client",
- "strum 0.25.0",
- "strum_macros 0.25.3",
- "tokio",
- "tower 0.4.13",
- "tracing",
- "validator",
-]
-
-[[package]]
-name = "papyrus_state_reader"
-version = "0.0.0"
-dependencies = [
- "assert_matches",
- "blockifier",
- "blockifier_test_utils",
- "cairo-lang-starknet-classes",
- "indexmap 2.7.0",
- "log",
- "papyrus_storage",
- "rstest",
- "starknet-types-core",
- "starknet_api",
- "starknet_class_manager_types",
- "tokio",
-]
-
-[[package]]
-name = "papyrus_storage"
-version = "0.0.0"
-dependencies = [
- "assert_matches",
- "byteorder",
- "cairo-lang-casm",
- "cairo-lang-starknet-classes",
- "cairo-lang-utils",
- "camelpaste",
- "clap",
- "human_bytes",
- "indexmap 2.7.0",
- "insta",
- "integer-encoding",
- "lazy_static",
- "libmdbx",
- "memmap2",
- "metrics 0.24.1",
- "metrics-exporter-prometheus",
- "num-bigint 0.4.6",
- "num-traits",
- "page_size",
- "papyrus_common",
- "papyrus_config",
- "papyrus_proc_macros",
- "papyrus_test_utils",
- "parity-scale-codec",
- "paste",
- "pretty_assertions",
- "primitive-types",
- "prometheus-parse",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
- "rstest",
- "schemars",
- "serde",
- "serde_json",
- "simple_logger",
- "starknet-types-core",
- "starknet_api",
- "statistical",
- "tempfile",
- "test-case",
- "test-log",
- "thiserror 1.0.69",
- "tokio",
- "tracing",
- "validator",
- "zstd 0.13.2",
-]
-
-[[package]]
-name = "papyrus_sync"
-version = "0.0.0"
-dependencies = [
- "assert_matches",
- "async-stream",
- "async-trait",
- "cairo-lang-starknet-classes",
- "chrono",
- "futures",
- "futures-util",
- "indexmap 2.7.0",
- "itertools 0.12.1",
- "lru",
- "metrics 0.24.1",
- "mockall",
- "papyrus_base_layer",
- "papyrus_common",
- "papyrus_config",
- "papyrus_proc_macros",
- "papyrus_storage",
- "papyrus_test_utils",
- "pretty_assertions",
- "reqwest 0.11.27",
- "serde",
- "simple_logger",
- "starknet-types-core",
- "starknet_api",
- "starknet_class_manager_types",
- "starknet_client",
- "starknet_sequencer_metrics",
- "thiserror 1.0.69",
- "tokio",
- "tokio-stream",
- "tracing",
-]
-
-[[package]]
-name = "papyrus_test_utils"
-version = "0.0.0"
-dependencies = [
- "cairo-lang-casm",
- "cairo-lang-starknet-classes",
- "cairo-lang-utils",
- "indexmap 2.7.0",
- "num-bigint 0.4.6",
- "pretty_assertions",
- "primitive-types",
- "prometheus-parse",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
- "reqwest 0.11.27",
- "serde",
- "serde_json",
- "starknet-types-core",
- "starknet_api",
 ]
 
 [[package]]
@@ -10846,6 +11632,7 @@ dependencies = [
 name = "starknet_api"
 version = "0.0.0"
 dependencies = [
+ "apollo_infra_utils",
  "assert_matches",
  "bitvec",
  "cached",
@@ -10867,141 +11654,9 @@ dependencies = [
  "sha3",
  "starknet-crypto 0.7.4",
  "starknet-types-core",
- "starknet_infra_utils",
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
-]
-
-[[package]]
-name = "starknet_batcher"
-version = "0.0.0"
-dependencies = [
- "apollo_reverts",
- "assert_matches",
- "async-trait",
- "blockifier",
- "cairo-lang-starknet-classes",
- "chrono",
- "futures",
- "indexmap 2.7.0",
- "mempool_test_utils",
- "metrics 0.24.1",
- "metrics-exporter-prometheus",
- "mockall",
- "papyrus_config",
- "papyrus_state_reader",
- "papyrus_storage",
- "pretty_assertions",
- "rstest",
- "serde",
- "starknet-types-core",
- "starknet_api",
- "starknet_batcher_types",
- "starknet_class_manager_types",
- "starknet_infra_utils",
- "starknet_l1_provider_types",
- "starknet_mempool_types",
- "starknet_sequencer_infra",
- "starknet_sequencer_metrics",
- "starknet_state_sync_types",
- "thiserror 1.0.69",
- "tokio",
- "tracing",
- "validator",
-]
-
-[[package]]
-name = "starknet_batcher_types"
-version = "0.0.0"
-dependencies = [
- "async-trait",
- "blockifier",
- "chrono",
- "derive_more 0.99.18",
- "mockall",
- "papyrus_proc_macros",
- "serde",
- "starknet_api",
- "starknet_sequencer_infra",
- "starknet_state_sync_types",
- "strum_macros 0.25.3",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "starknet_class_manager"
-version = "0.0.0"
-dependencies = [
- "async-trait",
- "hex",
- "mockall",
- "papyrus_config",
- "papyrus_storage",
- "serde",
- "starknet_api",
- "starknet_class_manager_types",
- "starknet_sequencer_infra",
- "starknet_sequencer_metrics",
- "starknet_sierra_multicompile_types",
- "strum 0.25.0",
- "strum_macros 0.25.3",
- "tempfile",
- "thiserror 1.0.69",
- "tokio",
- "tracing",
- "validator",
-]
-
-[[package]]
-name = "starknet_class_manager_types"
-version = "0.0.0"
-dependencies = [
- "async-trait",
- "mockall",
- "papyrus_proc_macros",
- "serde",
- "serde_json",
- "starknet_api",
- "starknet_sequencer_infra",
- "starknet_sierra_multicompile_types",
- "strum_macros 0.25.3",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "starknet_client"
-version = "0.0.0"
-dependencies = [
- "assert_matches",
- "async-trait",
- "cairo-lang-starknet-classes",
- "enum-iterator",
- "http 0.2.12",
- "indexmap 2.7.0",
- "mockall",
- "mockito 0.31.1",
- "os_info",
- "papyrus_common",
- "papyrus_config",
- "papyrus_test_utils",
- "pretty_assertions",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
- "reqwest 0.11.27",
- "serde",
- "serde_json",
- "serde_repr",
- "simple_logger",
- "starknet-types-core",
- "starknet_api",
- "strum 0.25.0",
- "strum_macros 0.25.3",
- "thiserror 1.0.69",
- "tokio",
- "tokio-retry",
- "tracing",
- "url",
 ]
 
 [[package]]
@@ -11056,477 +11711,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "starknet_consensus"
-version = "0.0.0"
-dependencies = [
- "async-trait",
- "clap",
- "enum-as-inner",
- "fs2",
- "futures",
- "lazy_static",
- "lru",
- "metrics 0.24.1",
- "mockall",
- "nix 0.20.2",
- "papyrus_common",
- "papyrus_config",
- "papyrus_network",
- "papyrus_network_types",
- "papyrus_protobuf",
- "papyrus_storage",
- "papyrus_test_utils",
- "prost",
- "serde",
- "starknet-types-core",
- "starknet_api",
- "starknet_sequencer_metrics",
- "strum 0.25.0",
- "strum_macros 0.25.3",
- "test-case",
- "thiserror 1.0.69",
- "tokio",
- "tracing",
- "validator",
-]
-
-[[package]]
-name = "starknet_consensus_manager"
-version = "0.0.0"
-dependencies = [
- "apollo_reverts",
- "async-trait",
- "futures",
- "mockall",
- "papyrus_config",
- "papyrus_network",
- "papyrus_protobuf",
- "rstest",
- "serde",
- "starknet_api",
- "starknet_batcher_types",
- "starknet_class_manager_types",
- "starknet_consensus",
- "starknet_consensus_orchestrator",
- "starknet_infra_utils",
- "starknet_l1_gas_price",
- "starknet_sequencer_infra",
- "starknet_sequencer_metrics",
- "starknet_state_sync_types",
- "tokio",
- "tracing",
- "validator",
-]
-
-[[package]]
-name = "starknet_consensus_orchestrator"
-version = "0.0.0"
-dependencies = [
- "async-trait",
- "blockifier",
- "cairo-lang-casm",
- "cairo-lang-starknet-classes",
- "cairo-lang-utils",
- "cairo-vm",
- "chrono",
- "futures",
- "indexmap 2.7.0",
- "lazy_static",
- "mockall",
- "mockito 1.6.1",
- "num-bigint 0.4.6",
- "papyrus_config",
- "papyrus_network",
- "papyrus_protobuf",
- "papyrus_storage",
- "papyrus_test_utils",
- "paste",
- "reqwest 0.11.27",
- "rstest",
- "serde",
- "serde_json",
- "shared_execution_objects",
- "starknet-types-core",
- "starknet_api",
- "starknet_batcher",
- "starknet_batcher_types",
- "starknet_class_manager_types",
- "starknet_consensus",
- "starknet_infra_utils",
- "starknet_l1_gas_price_types",
- "starknet_sequencer_metrics",
- "starknet_state_sync_types",
- "thiserror 1.0.69",
- "tokio",
- "tokio-util",
- "tracing",
- "url",
- "validator",
-]
-
-[[package]]
-name = "starknet_gateway"
-version = "0.0.0"
-dependencies = [
- "assert_matches",
- "async-trait",
- "axum",
- "blockifier",
- "blockifier_test_utils",
- "cairo-lang-sierra-to-casm",
- "cairo-lang-starknet-classes",
- "criterion",
- "futures",
- "mempool_test_utils",
- "metrics 0.24.1",
- "metrics-exporter-prometheus",
- "mockall",
- "mockito 1.6.1",
- "num-bigint 0.4.6",
- "papyrus_config",
- "papyrus_network_types",
- "papyrus_proc_macros",
- "papyrus_rpc",
- "papyrus_test_utils",
- "pretty_assertions",
- "reqwest 0.11.27",
- "rstest",
- "serde",
- "serde_json",
- "starknet-types-core",
- "starknet_api",
- "starknet_class_manager_types",
- "starknet_gateway_types",
- "starknet_mempool",
- "starknet_mempool_types",
- "starknet_sequencer_infra",
- "starknet_sequencer_metrics",
- "starknet_sierra_multicompile",
- "starknet_state_sync_types",
- "strum 0.25.0",
- "strum_macros 0.25.3",
- "thiserror 1.0.69",
- "tokio",
- "tracing",
- "tracing-test",
- "validator",
-]
-
-[[package]]
-name = "starknet_gateway_types"
-version = "0.0.0"
-dependencies = [
- "async-trait",
- "enum-assoc",
- "mockall",
- "papyrus_network_types",
- "papyrus_proc_macros",
- "papyrus_rpc",
- "serde",
- "serde_json",
- "starknet_api",
- "starknet_sequencer_infra",
- "strum_macros 0.25.3",
- "thiserror 1.0.69",
- "tracing",
-]
-
-[[package]]
-name = "starknet_http_server"
-version = "0.0.0"
-dependencies = [
- "axum",
- "blockifier",
- "blockifier_test_utils",
- "futures",
- "hyper 0.14.32",
- "jsonrpsee",
- "mempool_test_utils",
- "metrics 0.24.1",
- "metrics-exporter-prometheus",
- "papyrus_config",
- "reqwest 0.11.27",
- "serde",
- "serde_json",
- "starknet-types-core",
- "starknet_api",
- "starknet_gateway_types",
- "starknet_infra_utils",
- "starknet_sequencer_infra",
- "starknet_sequencer_metrics",
- "thiserror 1.0.69",
- "tokio",
- "tracing",
- "tracing-test",
- "validator",
-]
-
-[[package]]
-name = "starknet_infra_utils"
-version = "0.0.0"
-dependencies = [
- "assert-json-diff",
- "cached",
- "colored 3.0.0",
- "nix 0.20.2",
- "pretty_assertions",
- "rstest",
- "serde",
- "serde_json",
- "tokio",
- "toml",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "starknet_integration_tests"
-version = "0.0.0"
-dependencies = [
- "alloy",
- "anyhow",
- "assert_matches",
- "axum",
- "blockifier",
- "blockifier_test_utils",
- "cairo-lang-starknet-classes",
- "clap",
- "futures",
- "indexmap 2.7.0",
- "itertools 0.12.1",
- "mempool_test_utils",
- "papyrus_base_layer",
- "papyrus_network",
- "papyrus_protobuf",
- "papyrus_storage",
- "papyrus_sync",
- "pretty_assertions",
- "rstest",
- "serde",
- "serde_json",
- "starknet-types-core",
- "starknet_api",
- "starknet_batcher",
- "starknet_class_manager",
- "starknet_consensus",
- "starknet_consensus_manager",
- "starknet_consensus_orchestrator",
- "starknet_gateway",
- "starknet_gateway_types",
- "starknet_http_server",
- "starknet_infra_utils",
- "starknet_l1_gas_price",
- "starknet_l1_provider",
- "starknet_mempool",
- "starknet_mempool_p2p",
- "starknet_monitoring_endpoint",
- "starknet_sequencer_deployments",
- "starknet_sequencer_infra",
- "starknet_sequencer_node",
- "starknet_state_sync",
- "strum 0.25.0",
- "tempfile",
- "tokio",
- "tracing",
- "url",
-]
-
-[[package]]
-name = "starknet_l1_gas_price"
-version = "0.0.0"
-dependencies = [
- "async-trait",
- "mockall",
- "mockito 1.6.1",
- "papyrus_base_layer",
- "papyrus_config",
- "reqwest 0.11.27",
- "serde",
- "serde_json",
- "starknet_api",
- "starknet_l1_gas_price_types",
- "starknet_sequencer_infra",
- "thiserror 1.0.69",
- "tokio",
- "tracing",
- "url",
- "validator",
-]
-
-[[package]]
-name = "starknet_l1_gas_price_types"
-version = "0.0.0"
-dependencies = [
- "async-trait",
- "mockall",
- "papyrus_base_layer",
- "papyrus_proc_macros",
- "reqwest 0.11.27",
- "serde",
- "serde_json",
- "starknet_api",
- "starknet_sequencer_infra",
- "strum_macros 0.25.3",
- "thiserror 1.0.69",
- "tracing",
-]
-
-[[package]]
-name = "starknet_l1_provider"
-version = "0.0.0"
-dependencies = [
- "alloy",
- "assert_matches",
- "async-trait",
- "hex",
- "indexmap 2.7.0",
- "itertools 0.12.1",
- "mempool_test_utils",
- "papyrus_base_layer",
- "papyrus_config",
- "pretty_assertions",
- "serde",
- "starknet-types-core",
- "starknet_api",
- "starknet_l1_provider_types",
- "starknet_sequencer_infra",
- "starknet_state_sync_types",
- "thiserror 1.0.69",
- "tokio",
- "tracing",
- "validator",
-]
-
-[[package]]
-name = "starknet_l1_provider_types"
-version = "0.0.0"
-dependencies = [
- "async-trait",
- "mockall",
- "papyrus_base_layer",
- "papyrus_proc_macros",
- "serde",
- "starknet_api",
- "starknet_sequencer_infra",
- "strum_macros 0.25.3",
- "thiserror 1.0.69",
- "tracing",
-]
-
-[[package]]
-name = "starknet_mempool"
-version = "0.0.0"
-dependencies = [
- "assert_matches",
- "async-trait",
- "derive_more 0.99.18",
- "itertools 0.12.1",
- "mempool_test_utils",
- "metrics 0.24.1",
- "metrics-exporter-prometheus",
- "mockall",
- "papyrus_config",
- "papyrus_network",
- "papyrus_network_types",
- "papyrus_test_utils",
- "pretty_assertions",
- "rstest",
- "serde",
- "starknet-types-core",
- "starknet_api",
- "starknet_mempool_p2p_types",
- "starknet_mempool_types",
- "starknet_sequencer_infra",
- "starknet_sequencer_metrics",
- "strum 0.25.0",
- "strum_macros 0.25.3",
- "tokio",
- "tracing",
- "validator",
-]
-
-[[package]]
-name = "starknet_mempool_p2p"
-version = "0.0.0"
-dependencies = [
- "async-trait",
- "futures",
- "libp2p",
- "mockall",
- "papyrus_config",
- "papyrus_network",
- "papyrus_network_types",
- "papyrus_protobuf",
- "papyrus_test_utils",
- "rand_chacha 0.3.1",
- "serde",
- "starknet_api",
- "starknet_class_manager_types",
- "starknet_gateway_types",
- "starknet_mempool_p2p_types",
- "starknet_sequencer_infra",
- "starknet_sequencer_metrics",
- "tokio",
- "tracing",
- "validator",
-]
-
-[[package]]
-name = "starknet_mempool_p2p_types"
-version = "0.0.0"
-dependencies = [
- "async-trait",
- "mockall",
- "papyrus_network_types",
- "papyrus_proc_macros",
- "serde",
- "starknet_api",
- "starknet_sequencer_infra",
- "strum_macros 0.25.3",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "starknet_mempool_types"
-version = "0.0.0"
-dependencies = [
- "async-trait",
- "mockall",
- "papyrus_network_types",
- "papyrus_proc_macros",
- "serde",
- "starknet_api",
- "starknet_sequencer_infra",
- "strum_macros 0.25.3",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "starknet_monitoring_endpoint"
-version = "0.0.0"
-dependencies = [
- "axum",
- "hyper 0.14.32",
- "metrics 0.24.1",
- "metrics-exporter-prometheus",
- "num-traits",
- "papyrus_config",
- "pretty_assertions",
- "serde",
- "starknet_infra_utils",
- "starknet_sequencer_infra",
- "starknet_sequencer_metrics",
- "thiserror 1.0.69",
- "tokio",
- "tower 0.4.13",
- "tracing",
- "validator",
-]
-
-[[package]]
 name = "starknet_os"
 version = "0.0.0"
 dependencies = [
+ "papyrus_common",
+ "apollo_infra_utils",
  "ark-bls12-381",
  "ark-ff 0.4.2",
  "ark-poly 0.4.2",
@@ -11541,7 +11730,6 @@ dependencies = [
  "num-bigint 0.4.6",
  "num-integer",
  "num-traits",
- "papyrus_common",
  "rand 0.8.5",
  "rstest",
  "serde",
@@ -11550,7 +11738,6 @@ dependencies = [
  "shared_execution_objects",
  "starknet-types-core",
  "starknet_api",
- "starknet_infra_utils",
  "starknet_patricia",
  "strum 0.25.0",
  "strum_macros 0.25.3",
@@ -11594,224 +11781,37 @@ dependencies = [
 name = "starknet_sequencer_dashboard"
 version = "0.0.0"
 dependencies = [
+ "apollo_batcher",
+ "apollo_consensus",
+ "apollo_consensus_manager",
+ "apollo_gateway",
+ "apollo_http_server",
+ "apollo_infra_utils",
+ "apollo_mempool",
+ "apollo_mempool_p2p",
+ "apollo_sequencer_infra",
+ "apollo_sequencer_metrics",
+ "apollo_state_sync",
+ "apollo_sync",
  "const_format",
  "indexmap 2.7.0",
- "papyrus_sync",
  "serde",
  "serde_json",
- "starknet_batcher",
- "starknet_consensus",
- "starknet_consensus_manager",
- "starknet_gateway",
- "starknet_http_server",
- "starknet_infra_utils",
- "starknet_mempool",
- "starknet_mempool_p2p",
- "starknet_sequencer_infra",
- "starknet_sequencer_metrics",
- "starknet_state_sync",
 ]
 
 [[package]]
 name = "starknet_sequencer_deployments"
 version = "0.0.0"
 dependencies = [
+ "apollo_infra_utils",
+ "apollo_monitoring_endpoint",
+ "apollo_sequencer_node",
  "indexmap 2.7.0",
  "serde",
  "serde_json",
  "starknet_api",
- "starknet_infra_utils",
- "starknet_monitoring_endpoint",
- "starknet_sequencer_node",
  "strum 0.25.0",
  "strum_macros 0.25.3",
-]
-
-[[package]]
-name = "starknet_sequencer_infra"
-version = "0.0.0"
-dependencies = [
- "assert_matches",
- "async-trait",
- "hyper 0.14.32",
- "metrics 0.24.1",
- "metrics-exporter-prometheus",
- "once_cell",
- "papyrus_config",
- "pretty_assertions",
- "rstest",
- "serde",
- "serde_json",
- "starknet-types-core",
- "starknet_api",
- "starknet_infra_utils",
- "starknet_sequencer_metrics",
- "thiserror 1.0.69",
- "tokio",
- "tower 0.4.13",
- "tracing",
- "tracing-subscriber",
- "validator",
-]
-
-[[package]]
-name = "starknet_sequencer_metrics"
-version = "0.0.0"
-dependencies = [
- "indexmap 2.7.0",
- "metrics 0.24.1",
- "metrics-exporter-prometheus",
- "num-traits",
- "paste",
- "regex",
- "rstest",
- "strum 0.25.0",
- "strum_macros 0.25.3",
-]
-
-[[package]]
-name = "starknet_sequencer_node"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "apollo_reverts",
- "assert_matches",
- "clap",
- "colored 3.0.0",
- "const_format",
- "futures",
- "mempool_test_utils",
- "papyrus_base_layer",
- "papyrus_config",
- "pretty_assertions",
- "rstest",
- "serde",
- "serde_json",
- "starknet_batcher",
- "starknet_batcher_types",
- "starknet_class_manager",
- "starknet_class_manager_types",
- "starknet_consensus_manager",
- "starknet_gateway",
- "starknet_gateway_types",
- "starknet_http_server",
- "starknet_infra_utils",
- "starknet_l1_gas_price",
- "starknet_l1_gas_price_types",
- "starknet_l1_provider",
- "starknet_l1_provider_types",
- "starknet_mempool",
- "starknet_mempool_p2p",
- "starknet_mempool_p2p_types",
- "starknet_mempool_types",
- "starknet_monitoring_endpoint",
- "starknet_sequencer_infra",
- "starknet_sierra_multicompile",
- "starknet_sierra_multicompile_types",
- "starknet_state_sync",
- "starknet_state_sync_types",
- "tikv-jemallocator",
- "tokio",
- "tracing",
- "validator",
-]
-
-[[package]]
-name = "starknet_sierra_multicompile"
-version = "0.0.0"
-dependencies = [
- "assert_matches",
- "async-trait",
- "cairo-lang-sierra",
- "cairo-lang-starknet-classes",
- "cairo-lang-utils",
- "cairo-native",
- "mempool_test_utils",
- "papyrus_config",
- "rlimit",
- "rstest",
- "serde",
- "serde_json",
- "starknet-types-core",
- "starknet_api",
- "starknet_infra_utils",
- "starknet_sequencer_infra",
- "starknet_sierra_multicompile_types",
- "tempfile",
- "thiserror 1.0.69",
- "toml_test_utils",
- "tracing",
- "validator",
-]
-
-[[package]]
-name = "starknet_sierra_multicompile_types"
-version = "0.0.0"
-dependencies = [
- "async-trait",
- "mockall",
- "papyrus_proc_macros",
- "serde",
- "serde_json",
- "starknet_api",
- "starknet_sequencer_infra",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "starknet_state_sync"
-version = "0.0.0"
-dependencies = [
- "apollo_reverts",
- "async-trait",
- "futures",
- "indexmap 2.7.0",
- "libp2p",
- "papyrus_common",
- "papyrus_config",
- "papyrus_network",
- "papyrus_p2p_sync",
- "papyrus_storage",
- "papyrus_sync",
- "papyrus_test_utils",
- "rand_chacha 0.3.1",
- "serde",
- "starknet-types-core",
- "starknet_api",
- "starknet_class_manager_types",
- "starknet_client",
- "starknet_sequencer_infra",
- "starknet_sequencer_metrics",
- "starknet_state_sync_types",
- "tokio",
- "validator",
-]
-
-[[package]]
-name = "starknet_state_sync_types"
-version = "0.0.0"
-dependencies = [
- "async-trait",
- "futures",
- "mockall",
- "papyrus_proc_macros",
- "papyrus_storage",
- "serde",
- "starknet-types-core",
- "starknet_api",
- "starknet_sequencer_infra",
- "strum_macros 0.25.3",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "starknet_task_executor"
-version = "0.0.0"
-dependencies = [
- "futures",
- "rstest",
- "tokio",
- "tokio-test",
 ]
 
 [[package]]

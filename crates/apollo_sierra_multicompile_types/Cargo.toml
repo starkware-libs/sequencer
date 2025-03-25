@@ -1,0 +1,25 @@
+[package]
+name = "apollo_sierra_multicompile_types"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+version.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+testing = ["mockall"]
+
+[dependencies]
+async-trait.workspace = true
+mockall = { workspace = true, optional = true }
+apollo_proc_macros.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+starknet_api.workspace = true
+apollo_sequencer_infra.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+mockall.workspace = true

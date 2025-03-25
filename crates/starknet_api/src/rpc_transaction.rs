@@ -650,7 +650,7 @@ impl TryFrom<InvokeTransactionV3> for RpcInvokeTransactionV3 {
     }
 }
 
-// TODO(Aviv): remove duplication with sequencer/crates/papyrus_rpc/src/v0_8/state.rs
+// TODO(Aviv): remove duplication with sequencer/crates/apollo_rpc/src/v0_8/state.rs
 #[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize, Serialize, Hash)]
 pub struct EntryPointByType {
     #[serde(rename = "CONSTRUCTOR")]

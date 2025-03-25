@@ -94,14 +94,14 @@ pub trait StarknetReader {
         &self,
         class_hash: ClassHash,
     ) -> ReaderClientResult<Option<CasmContractClass>>;
-    /// Returns a [`starknet_client`][`StateUpdate`] corresponding to `block_number`.
+    /// Returns a [`apollo_client`][`StateUpdate`] corresponding to `block_number`.
     async fn state_update(
         &self,
         block_number: BlockNumber,
     ) -> ReaderClientResult<Option<StateUpdate>>;
 
     // TODO(dvir): delete this when stop supporting pending data.
-    /// Returns pending [`starknet_client`][`PendingData`].
+    /// Returns pending [`apollo_client`][`PendingData`].
     async fn pending_data(&self) -> ReaderClientResult<Option<PendingData>>;
 
     // Returns true if the reader is alive.

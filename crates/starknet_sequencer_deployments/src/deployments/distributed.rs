@@ -1,12 +1,12 @@
 use std::net::{IpAddr, Ipv4Addr};
 
-use indexmap::IndexMap;
-use serde::Serialize;
-use starknet_sequencer_node::config::component_config::ComponentConfig;
-use starknet_sequencer_node::config::component_execution_config::{
+use apollo_sequencer_node::config::component_config::ComponentConfig;
+use apollo_sequencer_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
     ReactiveComponentExecutionConfig,
 };
+use indexmap::IndexMap;
+use serde::Serialize;
 use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
 

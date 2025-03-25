@@ -1,7 +1,7 @@
 use std::env;
 
-use starknet_infra_utils::dumping::serialize_to_file_test;
-use starknet_infra_utils::path::resolve_project_relative_path;
+use apollo_infra_utils::dumping::serialize_to_file_test;
+use apollo_infra_utils::path::resolve_project_relative_path;
 
 use crate::deployment_definitions::DEPLOYMENTS;
 

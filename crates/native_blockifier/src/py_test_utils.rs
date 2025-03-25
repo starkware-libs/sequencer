@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
+use starknet_api::class_hash;
+use starknet_api::deprecated_contract_class::ContractClass;
 use blockifier::execution::contract_class::CompiledClassV0;
 use blockifier::state::cached_state::CachedState;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::struct_impls::LoadContractFromFile;
-use starknet_api::class_hash;
-use starknet_api::deprecated_contract_class::ContractClass;
 
 pub const TOKEN_FOR_TESTING_CLASS_HASH: &str = "0x30";
 // This package is run within the StarkWare repository build directory.
