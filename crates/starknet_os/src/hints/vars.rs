@@ -82,6 +82,7 @@ pub enum Ids {
     Bit,
     BucketIndex,
     BuiltinCosts,
+    BuiltinPtrs,
     CompiledClass,
     CompiledClassFact,
     CompressedDst,
@@ -141,6 +142,7 @@ impl From<Ids> for &'static str {
             Ids::Bit => "bit",
             Ids::BucketIndex => "bucket_index",
             Ids::BuiltinCosts => "builtin_costs",
+            Ids::BuiltinPtrs => "builtin_ptrs",
             Ids::CompiledClass => "compiled_class",
             Ids::CompiledClassFact => "compiled_class_fact",
             Ids::CompressedDst => "compressed_dst",
@@ -285,6 +287,7 @@ impl Const {
 #[derive(Copy, Clone)]
 pub enum CairoStruct {
     BigInt3,
+    BuiltinPointersPtr,
     CompiledClass,
     CompiledClassEntryPoint,
     CompiledClassFact,
@@ -294,8 +297,10 @@ pub enum CairoStruct {
     DictAccess,
     ExecutionContext,
     NodeEdge,
+    NonSelectableBuiltins,
     OsStateUpdate,
     ResourceBounds,
+    SelectableBuiltins,
     StateEntry,
     StorageReadPtr,
     StorageReadRequestPtr,
@@ -307,6 +312,9 @@ impl From<CairoStruct> for &'static str {
         match struct_name {
             CairoStruct::BigInt3 => {
                 "starkware.starknet.core.os.data_availability.bls_field.BigInt3"
+            }
+            CairoStruct::BuiltinPointersPtr => {
+                "starkware.starknet.core.os.builtins.BuiltinPointers*"
             }
             CairoStruct::CompiledClass => {
                 "starkware.starknet.core.os.contract_class.compiled_class.CompiledClass"
@@ -334,8 +342,14 @@ impl From<CairoStruct> for &'static str {
                 "starkware.starknet.core.os.execution.execute_entry_point.ExecutionContext"
             }
             CairoStruct::NodeEdge => "starkware.cairo.common.patricia_utils.NodeEdge",
+            CairoStruct::NonSelectableBuiltins => {
+                "starkware.starknet.core.os.builtins.NonSelectableBuiltins"
+            }
             CairoStruct::OsStateUpdate => "starkware.starknet.core.os.state.state.OsStateUpdate",
             CairoStruct::ResourceBounds => "starkware.starknet.common.new_syscalls.ResourceBounds",
+            CairoStruct::SelectableBuiltins => {
+                "starkware.starknet.core.os.builtins.SelectableBuiltins"
+            }
             CairoStruct::StateEntry => "starkware.starknet.core.os.state.state.StateEntry",
             CairoStruct::StorageReadPtr => "starkware.starknet.common.syscalls.StorageRead*",
             CairoStruct::StorageReadRequestPtr => {
