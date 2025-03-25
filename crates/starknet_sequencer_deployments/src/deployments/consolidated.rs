@@ -4,7 +4,7 @@ use starknet_sequencer_node::config::component_config::ComponentConfig;
 use strum::Display;
 use strum_macros::{AsRefStr, EnumIter};
 
-use crate::service::{GetComponentConfigs, IntoService, Service, ServiceName, ServiceNameInner};
+use crate::service::{GetComponentConfigs, Service, ServiceName, ServiceNameInner};
 
 #[derive(Clone, Copy, Debug, Display, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter)]
 #[strum(serialize_all = "snake_case")]
@@ -18,8 +18,6 @@ impl From<ConsolidatedNodeServiceName> for ServiceName {
     }
 }
 
-impl ServiceNameInner for ConsolidatedNodeServiceName {}
-
 impl GetComponentConfigs for ConsolidatedNodeServiceName {
     fn get_component_configs(_base_port: Option<u16>) -> IndexMap<ServiceName, ComponentConfig> {
         let mut component_config_map = IndexMap::new();
@@ -31,7 +29,7 @@ impl GetComponentConfigs for ConsolidatedNodeServiceName {
     }
 }
 
-impl IntoService for ConsolidatedNodeServiceName {
+impl ServiceNameInner for ConsolidatedNodeServiceName {
     fn create_service(&self) -> Service {
         match self {
             ConsolidatedNodeServiceName::Node => {
