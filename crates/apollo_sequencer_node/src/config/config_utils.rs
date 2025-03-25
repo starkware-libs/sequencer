@@ -203,6 +203,11 @@ pub fn get_deployment_from_config_path(config_path: &str) -> DeploymentBaseAppCo
         to_value(config.consensus_manager_config.cende_config.recorder_url.clone())
             .expect("Failed to serialize Url"),
     );
+    config_pointers_map.change_target_value(
+        "starknet_url",
+        to_value(config.state_sync_config.rpc_config.starknet_url.clone())
+            .expect("Failed to serialize starknet_url"),
+    );
 
     DeploymentBaseAppConfig::new(config, config_pointers_map, CONFIG_NON_POINTERS_WHITELIST.clone())
 }
