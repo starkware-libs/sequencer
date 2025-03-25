@@ -14,6 +14,7 @@ use starknet_api::test_utils::{
 };
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
+    AllResourceBounds,
     Calldata,
     Fee,
     PaymasterData,
@@ -31,6 +32,7 @@ use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::context::ChainInfo;
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::CallEntryPoint;
+use crate::execution::syscalls::hint_processor::valid_resource_bounds_as_felts;
 use crate::test_utils::contracts::FeatureContractData;
 use crate::test_utils::initial_test_state::test_state_ex;
 use crate::test_utils::{trivial_external_entry_point_with_address, BALANCE};
@@ -312,8 +314,13 @@ fn test_get_execution_info(
     let nonce = nonce!(3_u16);
     let sender_address = test_contract_address;
 
-    let max_amount = GasAmount(13);
-    let max_price_per_unit = GasPrice(61);
+    let resource_bounds =
+        ResourceBounds { max_amount: GasAmount(13), max_price_per_unit: GasPrice(61) };
+    let all_resource_bounds = ValidResourceBounds::AllResources(AllResourceBounds {
+        l1_gas: resource_bounds,
+        l2_gas: resource_bounds,
+        l1_data_gas: resource_bounds,
+    });
 
     let expected_resource_bounds: Vec<Felt> = match (test_contract, version) {
         (FeatureContract::LegacyTestContract, _) => vec![],
@@ -322,15 +329,15 @@ fn test_get_execution_info(
         (_, version) if version == TransactionVersion::ONE => vec![
             felt!(0_u16), // Length of resource bounds array.
         ],
-        (_, _) => vec![
-            Felt::from(2u32),                // Length of ResourceBounds array.
-            felt!(Resource::L1Gas.to_hex()), // Resource.
-            max_amount.into(),               // Max amount.
-            max_price_per_unit.into(),       // Max price per unit.
-            felt!(Resource::L2Gas.to_hex()), // Resource.
-            Felt::ZERO,                      // Max amount.
-            Felt::ZERO,                      // Max price per unit.
-        ],
+        (_, _) => vec![felt!(3_u8)] // Length of resource bounds array.
+            .into_iter()
+            .chain(
+                valid_resource_bounds_as_felts(&all_resource_bounds)
+                    .unwrap()
+                    .into_iter()
+                    .flat_map(|bounds| bounds.flatten()),
+            )
+            .collect(),
     };
 
     let expected_tx_info: Vec<Felt>;
@@ -377,10 +384,7 @@ fn test_get_execution_info(
                 only_query,
                 ..Default::default()
             },
-            resource_bounds: ValidResourceBounds::L1Gas(ResourceBounds {
-                max_amount,
-                max_price_per_unit,
-            }),
+            resource_bounds: all_resource_bounds,
             tip,
             nonce_data_availability_mode: DataAvailabilityMode::L1,
             fee_data_availability_mode: DataAvailabilityMode::L1,
