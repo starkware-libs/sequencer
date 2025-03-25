@@ -49,6 +49,8 @@ pub enum OsLoggerError {
     MissingBuiltinPtr(String),
     #[error("The `members` field is None in identifier data for struct {0}.")]
     MissingMembers(String),
+    #[error("All syscalls should be called inside a transaction.")]
+    NotInTxContext,
     #[error(
         "Range check in self and in the enter call counter are not in the same segment: \
          {self_ptr}, {enter_ptr}."
@@ -56,6 +58,8 @@ pub enum OsLoggerError {
     RangeCheckNotInSameSegment { self_ptr: Relocatable, enter_ptr: Relocatable },
     #[error("SyscallTrace should be finalized before accessing resources.")]
     ResourceAccessBeforeFinalize,
+    #[error("The {0} syscall is not supposed to have an inner syscall.")]
+    UnexpectedParentSyscall(String),
     #[error("{0}")]
     UnknownBuiltin(String),
     #[error("Builtin {0} is not in the known sizes mapping {:?}.", BUILTIN_INSTANCE_SIZES)]
@@ -316,6 +320,84 @@ impl ResourceCounter {
                 member_ptr,
             );
         }
+        Ok(())
+    }
+}
+
+pub struct OsLogger {
+    debug: bool,
+    current_tx: Option<OsTransactionTrace>,
+    tab_count: usize,
+    syscall_stack: Vec<SyscallTrace>,
+    #[allow(dead_code)]
+    txs: Vec<OsTransactionTrace>,
+    resource_counter_stack: Vec<ResourceCounter>,
+}
+
+impl OsLogger {
+    pub fn new(debug: bool) -> Self {
+        Self {
+            debug,
+            current_tx: None,
+            tab_count: 0,
+            syscall_stack: Vec::new(),
+            txs: Vec::new(),
+            resource_counter_stack: Vec::new(),
+        }
+    }
+
+    pub fn log(&mut self, msg: &str, enter: bool) {
+        if self.debug {
+            if enter {
+                self.tab_count += 1;
+            }
+            let indentation = "  ".repeat(self.tab_count);
+            log::debug!("{indentation}{msg}");
+            if !enter {
+                self.tab_count -= 1;
+            }
+        }
+    }
+
+    pub fn enter_syscall(
+        &mut self,
+        selector: SyscallSelector,
+        is_deprecated: bool,
+        n_steps: usize,
+        range_check_ptr: Relocatable,
+        ids_data: &HashMap<String, HintReference>,
+        vm: &VirtualMachine,
+        ap_tracking: &ApTracking,
+        os_program: &Program,
+    ) -> OsLoggerResult<()> {
+        if self.current_tx.is_none() {
+            return Err(OsLoggerError::NotInTxContext);
+        }
+
+        if let Some(last_call) = self.syscall_stack.last() {
+            if !last_call.selector.is_calling_syscall() {
+                return Err(OsLoggerError::UnexpectedParentSyscall(format!(
+                    "{:?}",
+                    last_call.selector
+                )));
+            }
+        }
+
+        self.resource_counter_stack.push(ResourceCounter::new(
+            n_steps,
+            range_check_ptr,
+            ids_data,
+            vm,
+            ap_tracking,
+            os_program,
+        )?);
+        self.syscall_stack.push(SyscallTrace::new(selector, is_deprecated, self.tab_count));
+
+        if selector.is_calling_syscall() {
+            let deprecated_str = if is_deprecated { "deprecated " } else { "" };
+            self.log(&format!("Entering {deprecated_str}{:?}.", selector), true);
+        }
+
         Ok(())
     }
 }
