@@ -282,7 +282,7 @@ fn test_cairo_function(
     explicit_args: &[EndpointArg],
     implicit_args: &[ImplicitArg],
     expected_explicit_retdata: &[EndpointArg],
-    expected_implicit_retdata: &[ImplicitArg],
+    expected_implicit_retdata: &[EndpointArg],
 ) -> OsPythonTestResult {
     run_cairo_function_and_check_result(
         program_str,
