@@ -1,6 +1,6 @@
+use starknet_api::felt;
 use cairo_lang_starknet_classes::NestedIntList;
 use rstest::rstest;
-use starknet_api::felt;
 use starknet_types_core::felt::Felt;
 
 use super::{

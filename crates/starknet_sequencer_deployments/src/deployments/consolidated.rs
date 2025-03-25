@@ -1,6 +1,6 @@
+use apollo_sequencer_node::config::component_config::ComponentConfig;
 use indexmap::IndexMap;
 use serde::Serialize;
-use starknet_sequencer_node::config::component_config::ComponentConfig;
 use strum::Display;
 use strum_macros::{AsRefStr, EnumIter};
 

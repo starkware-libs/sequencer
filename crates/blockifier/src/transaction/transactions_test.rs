@@ -1,16 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, LazyLock};
 
-use assert_matches::assert_matches;
-use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
-use blockifier_test_utils::calldata::{create_calldata, create_trivial_calldata};
-use blockifier_test_utils::contracts::FeatureContract;
-use cairo_vm::types::builtin_name::BuiltinName;
-use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-use num_bigint::BigUint;
-use pretty_assertions::assert_eq;
-use rstest::{fixture, rstest};
-use rstest_reuse::apply;
 use starknet_api::abi::abi_utils::{
     get_fee_token_var_address,
     get_storage_var_address,
@@ -79,6 +69,16 @@ use starknet_api::{
     invoke_tx_args,
     nonce,
 };
+use assert_matches::assert_matches;
+use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
+use blockifier_test_utils::calldata::{create_calldata, create_trivial_calldata};
+use blockifier_test_utils::contracts::FeatureContract;
+use cairo_vm::types::builtin_name::BuiltinName;
+use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use num_bigint::BigUint;
+use pretty_assertions::assert_eq;
+use rstest::{fixture, rstest};
+use rstest_reuse::apply;
 use starknet_types_core::felt::Felt;
 
 use crate::blockifier_versioned_constants::{AllocationCost, VersionedConstants};

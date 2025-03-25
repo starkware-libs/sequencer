@@ -14,13 +14,13 @@ workspace = true
 indexmap.workspace = true
 serde.workspace = true
 starknet_api.workspace = true
-starknet_infra_utils.workspace = true
-starknet_monitoring_endpoint.workspace = true
-starknet_sequencer_node.workspace = true
+apollo_infra_utils.workspace = true
+apollo_monitoring_endpoint.workspace = true
+apollo_sequencer_node.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true
-starknet_infra_utils = { workspace = true, features = ["testing"] }
-starknet_sequencer_node = { workspace = true, features = ["testing"] }
+apollo_infra_utils = { workspace = true, features = ["testing"] }
+apollo_sequencer_node = { workspace = true, features = ["testing"] }

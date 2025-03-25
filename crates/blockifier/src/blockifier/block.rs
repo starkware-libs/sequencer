@@ -1,4 +1,3 @@
-use log::warn;
 use starknet_api::block::{
     BlockHashAndNumber,
     BlockNumber,
@@ -8,6 +7,7 @@ use starknet_api::block::{
     NonzeroGasPrice,
 };
 use starknet_api::state::StorageKey;
+use log::warn;
 
 use crate::abi::constants;
 use crate::blockifier_versioned_constants::{OsConstants, VersionedConstants};

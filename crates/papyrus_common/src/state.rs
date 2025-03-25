@@ -1,8 +1,8 @@
+use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
+use starknet_api::state::{StorageKey, ThinStateDiff};
 use indexmap::indexmap;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
-use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::state::{StorageKey, ThinStateDiff};
 use starknet_types_core::felt::Felt;
 
 /// A storage entry in a contract.

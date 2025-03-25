@@ -2,6 +2,10 @@
 
 use std::str::FromStr;
 
+use starknet_api::block::BlockNumber;
+use starknet_api::contract_class::SierraVersion;
+use starknet_api::core::{ChainId, ContractAddress};
+use apollo_state_reader::papyrus_state::PapyrusReader;
 use blockifier::blockifier::config::{ContractClassManagerConfig, TransactionExecutorConfig};
 use blockifier::blockifier::transaction_executor::{
     BlockExecutionSummary,
@@ -14,14 +18,10 @@ use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction;
-use papyrus_state_reader::papyrus_state::PapyrusReader;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyList};
 use pyo3::{FromPyObject, PyAny, Python};
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
-use starknet_api::block::BlockNumber;
-use starknet_api::contract_class::SierraVersion;
-use starknet_api::core::{ChainId, ContractAddress};
 use starknet_types_core::felt::Felt;
 
 use crate::errors::{NativeBlockifierError, NativeBlockifierResult};

@@ -12,8 +12,6 @@
 use std::env;
 use std::sync::{Arc, Mutex};
 
-use assert_matches::assert_matches;
-use rstest::{fixture, rstest};
 use starknet_api::block::{BlockInfo, BlockNumber};
 use starknet_api::class_hash;
 use starknet_api::core::ChainId;
@@ -23,10 +21,12 @@ use starknet_api::transaction::{
     Transaction,
     TransactionVersion,
 };
+use apollo_gateway::config::RpcStateReaderConfig;
+use apollo_gateway::rpc_objects::BlockId;
+use apollo_gateway::rpc_state_reader::RpcStateReader;
+use assert_matches::assert_matches;
+use rstest::{fixture, rstest};
 use starknet_core::types::ContractClass::{Legacy, Sierra};
-use starknet_gateway::config::RpcStateReaderConfig;
-use starknet_gateway::rpc_objects::BlockId;
-use starknet_gateway::rpc_state_reader::RpcStateReader;
 
 use super::test_state_reader::RetryConfig;
 use super::utils::RPC_NODE_URL;

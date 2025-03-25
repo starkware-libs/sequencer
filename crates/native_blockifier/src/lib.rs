@@ -20,6 +20,7 @@ pub mod state_readers;
 pub mod storage;
 pub mod test_utils;
 
+use starknet_api::block::StarknetVersion;
 use blockifier::state::stateful_compression::{
     ALIAS_COUNTER_STORAGE_KEY,
     MAX_NON_COMPRESSED_CONTRACT_ADDRESS,
@@ -30,7 +31,6 @@ use py_block_executor::PyBlockExecutor;
 use py_objects::PyExecutionResources;
 use py_validator::PyValidator;
 use pyo3::prelude::*;
-use starknet_api::block::StarknetVersion;
 use storage::StorageConfig;
 
 use crate::py_objects::PyVersionedConstantsOverrides;

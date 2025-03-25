@@ -1,11 +1,11 @@
+use starknet_api::core::{felt_to_u128, ContractAddress};
+use starknet_api::state::StorageKey;
+use starknet_api::StarknetApiError;
 use cairo_vm::types::errors::math_errors::MathError;
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_bigint::{BigUint, ToBigUint};
-use starknet_api::core::{felt_to_u128, ContractAddress};
-use starknet_api::state::StorageKey;
-use starknet_api::StarknetApiError;
 use thiserror::Error;
 
 use crate::state::errors::StateError;

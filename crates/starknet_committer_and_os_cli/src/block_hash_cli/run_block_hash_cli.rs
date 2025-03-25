@@ -1,8 +1,8 @@
-use clap::{Parser, Subcommand};
 use starknet_api::block_hash::block_hash_calculator::{
     calculate_block_commitments,
     calculate_block_hash,
 };
+use clap::{Parser, Subcommand};
 use tracing::info;
 
 use crate::block_hash_cli::tests::python_tests::BlockHashPythonTestRunner;

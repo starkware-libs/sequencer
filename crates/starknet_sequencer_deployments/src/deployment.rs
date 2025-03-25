@@ -3,13 +3,10 @@ use std::net::{IpAddr, Ipv4Addr};
 use std::path::Path;
 use std::path::PathBuf;
 
-use serde::Serialize;
 use starknet_api::core::ChainId;
-use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
-use starknet_sequencer_node::config::config_utils::{
-    get_deployment_from_config_path,
-    PresetConfig,
-};
+use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
+use apollo_sequencer_node::config::config_utils::{get_deployment_from_config_path, PresetConfig};
+use serde::Serialize;
 
 use crate::service::{DeploymentName, IntoService, Service};
 

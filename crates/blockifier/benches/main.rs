@@ -10,6 +10,7 @@
 //! For Cairo Native compilation run the benchmarks using:
 //! `cargo bench --bench blockifier --features "cairo_native"`.
 
+use apollo_infra_utils::set_global_allocator;
 use blockifier::test_utils::transfers_generator::{
     RecipientGeneratorType,
     TransfersGenerator,
@@ -18,7 +19,6 @@ use blockifier::test_utils::transfers_generator::{
 #[cfg(feature = "cairo_native")]
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use criterion::{criterion_group, criterion_main, Criterion};
-use starknet_infra_utils::set_global_allocator;
 
 // TODO(Arni): Consider how to run this benchmark both with and without setting the allocator. Maybe
 // hide this macro call under a feature, and run this benchmark regularly or with

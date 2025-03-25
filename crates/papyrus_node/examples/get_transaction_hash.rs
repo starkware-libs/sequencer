@@ -2,6 +2,7 @@ use std::cmp::min;
 use std::collections::{BTreeMap, HashSet};
 use std::sync::Mutex;
 
+use apollo_client::reader::objects::transaction::TransactionType;
 use clap::{Arg, Command};
 use futures::future::join_all;
 use once_cell::sync::OnceCell;
@@ -10,7 +11,6 @@ use serde_json::{json, to_writer_pretty, Map, Value};
 use starknet_api::core::ChainId;
 use starknet_api::transaction::{self, Transaction, TransactionOptions};
 use starknet_api::transaction_hash::{get_transaction_hash, MAINNET_TRANSACTION_HASH_WITH_VERSION};
-use starknet_client::reader::objects::transaction::TransactionType;
 use strum::IntoEnumIterator;
 
 const DEFAULT_TRANSACTION_HASH_PATH: &str =

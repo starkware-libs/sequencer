@@ -1,10 +1,10 @@
+use starknet_api::core::ascii_as_felt;
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_ptr_from_var_name,
     insert_value_from_var_name,
     insert_value_into_ap,
 };
-use starknet_api::core::ascii_as_felt;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::enum_definition::{AllHints, OsHint};

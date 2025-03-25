@@ -1,10 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
-use blockifier_test_utils::calldata::{create_calldata, create_trivial_calldata};
-use blockifier_test_utils::contracts::FeatureContract;
-use rstest::rstest;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::test_utils::declare::executable_declare_tx;
@@ -13,6 +9,10 @@ use starknet_api::transaction::constants::DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_N
 use starknet_api::transaction::fields::{ContractAddressSalt, Fee, ValidResourceBounds};
 use starknet_api::transaction::TransactionVersion;
 use starknet_api::{contract_address, declare_tx_args, felt, invoke_tx_args, nonce, storage_key};
+use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
+use blockifier_test_utils::calldata::{create_calldata, create_trivial_calldata};
+use blockifier_test_utils::contracts::FeatureContract;
+use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
 use super::WorkerExecutor;

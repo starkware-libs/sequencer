@@ -1,6 +1,11 @@
 use std::collections::{HashMap, HashSet};
 use std::vec::IntoIter;
 
+use starknet_api::block::BlockNumber;
+use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
+use starknet_api::executable_transaction::Transaction;
+use starknet_api::state::StorageKey;
+use starknet_api::transaction::fields::ValidResourceBounds;
 use blockifier::state::state_api::{State, StateReader};
 use cairo_vm::any_box;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
@@ -11,11 +16,6 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     insert_value_into_ap,
 };
 use cairo_vm::types::relocatable::MaybeRelocatable;
-use starknet_api::block::BlockNumber;
-use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
-use starknet_api::executable_transaction::Transaction;
-use starknet_api::state::StorageKey;
-use starknet_api::transaction::fields::ValidResourceBounds;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintResult};

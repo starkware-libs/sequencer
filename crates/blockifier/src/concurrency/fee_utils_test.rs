@@ -1,11 +1,11 @@
+use starknet_api::block::FeeType;
+use starknet_api::transaction::fields::{Fee, ValidResourceBounds};
+use starknet_api::{felt, invoke_tx_args};
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_trivial_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use num_bigint::BigUint;
 use rstest::rstest;
-use starknet_api::block::FeeType;
-use starknet_api::transaction::fields::{Fee, ValidResourceBounds};
-use starknet_api::{felt, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 
 use crate::concurrency::fee_utils::{add_fee_to_sequencer_balance, fill_sequencer_balance_reads};

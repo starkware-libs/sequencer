@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use serde_json::Value;
 use starknet_api::core::{ClassHash, Nonce};
+use serde_json::Value;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_patricia_storage::db_object::{DBObject, Deserializable};

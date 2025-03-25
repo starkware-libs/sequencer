@@ -1,9 +1,3 @@
-use assert_matches::assert_matches;
-use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
-use blockifier_test_utils::calldata::create_calldata;
-use blockifier_test_utils::contracts::FeatureContract;
-use pretty_assertions::assert_eq;
-use rstest::rstest;
 use starknet_api::test_utils::declare::executable_declare_tx;
 use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
 use starknet_api::test_utils::invoke::executable_invoke_tx;
@@ -11,6 +5,12 @@ use starknet_api::test_utils::DEFAULT_STRK_L1_GAS_PRICE;
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::TransactionVersion;
 use starknet_api::{declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args, nonce};
+use assert_matches::assert_matches;
+use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
+use blockifier_test_utils::calldata::create_calldata;
+use blockifier_test_utils::contracts::FeatureContract;
+use pretty_assertions::assert_eq;
+use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
 use crate::blockifier::config::TransactionExecutorConfig;

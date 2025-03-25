@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use starknet_api::core::ClassHash;
 use blockifier::state::state_api::StateReader;
 use cairo_vm::any_box;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
@@ -10,7 +11,6 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
 };
 use cairo_vm::hint_processor::hint_processor_definition::HintExtension;
 use cairo_vm::types::relocatable::Relocatable;
-use starknet_api::core::ClassHash;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintExtensionResult, OsHintResult};

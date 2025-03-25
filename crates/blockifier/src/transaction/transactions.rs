@@ -10,12 +10,7 @@ use starknet_api::executable_transaction::{
     InvokeTransaction,
     L1HandlerTransaction,
 };
-use starknet_api::transaction::fields::{
-    AccountDeploymentData,
-    Calldata,
-    Fee,
-    TransactionSignature,
-};
+use starknet_api::transaction::fields::{AccountDeploymentData, Calldata, Fee, TransactionSignature};
 use starknet_api::transaction::{
     constants,
     DeclareTransactionV2,

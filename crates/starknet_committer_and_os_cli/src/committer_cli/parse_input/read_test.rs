@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
+use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
-use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_committer::block_committer::input::{
     ConfigImpl,
     Input,

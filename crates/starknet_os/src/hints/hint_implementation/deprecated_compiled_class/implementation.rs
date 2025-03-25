@@ -2,6 +2,8 @@ use std::any::Any;
 use std::collections::hash_map::IntoIter;
 use std::collections::{HashMap, HashSet};
 
+use starknet_api::core::ClassHash;
+use starknet_api::deprecated_contract_class::ContractClass;
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_from_var_name;
 use cairo_vm::hint_processor::hint_processor_definition::{
@@ -12,8 +14,6 @@ use cairo_vm::hint_processor::hint_processor_definition::{
 use cairo_vm::serde::deserialize_program::{HintParams, ReferenceManager};
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
-use starknet_api::core::ClassHash;
-use starknet_api::deprecated_contract_class::ContractClass;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintExtensionResult, OsHintResult};

@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
-use blockifier_test_utils::cairo_versions::CairoVersion;
-use blockifier_test_utils::contracts::FeatureContract;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::FeeType;
 use starknet_api::core::ContractAddress;
 use starknet_api::felt;
 use starknet_api::transaction::fields::Fee;
+use blockifier_test_utils::cairo_versions::CairoVersion;
+use blockifier_test_utils::contracts::FeatureContract;
 use strum::IntoEnumIterator;
 
 use crate::context::ChainInfo;

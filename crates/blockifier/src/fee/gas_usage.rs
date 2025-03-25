@@ -1,7 +1,7 @@
-use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::executable_transaction::AccountTransaction as Transaction;
 use starknet_api::execution_resources::GasVector;
 use starknet_api::transaction::fields::GasVectorComputationMode;
+use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 
 use super::fee_utils::get_vm_resources_cost;
 use crate::abi::constants;

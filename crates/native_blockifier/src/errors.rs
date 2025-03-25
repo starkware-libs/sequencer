@@ -1,3 +1,4 @@
+use starknet_api::StarknetApiError;
 use blockifier::blockifier::stateful_validator::StatefulValidatorError;
 use blockifier::blockifier::transaction_executor::TransactionExecutorError;
 use blockifier::bouncer::BuiltinCounterMap;
@@ -13,7 +14,6 @@ use num_bigint::BigUint;
 use pyo3::create_exception;
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
-use starknet_api::StarknetApiError;
 use starknet_types_core::felt::FromStrError;
 use thiserror::Error;
 
@@ -73,7 +73,7 @@ native_blockifier_errors!(
     (StarknetApiError, StarknetApiError, PyStarknetApiError),
     (StateError, StateError, PyStateError),
     (StatefulValidatorError, StatefulValidatorError, PyStatefulValidatorError),
-    (StorageError, papyrus_storage::StorageError, PyStorageError),
+    (StorageError, apollo_storage::StorageError, PyStorageError),
     (TransactionExecutionError, TransactionExecutionError, PyTransactionExecutionError),
     (TransactionExecutorError, TransactionExecutorError, PyTransactionExecutorError),
     (TransactionPreValidationError, TransactionPreValidationError, PyTransactionPreValidationError)

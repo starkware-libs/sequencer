@@ -1,7 +1,3 @@
-use blockifier_test_utils::cairo_versions::CairoVersion;
-use blockifier_test_utils::contracts::FeatureContract;
-use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::core::ContractAddress;
 use starknet_api::executable_transaction::AccountTransaction as ApiExecutableTransaction;
@@ -11,6 +7,10 @@ use starknet_api::transaction::constants::TRANSFER_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::TransactionVersion;
 use starknet_api::{calldata, felt, invoke_tx_args};
+use blockifier_test_utils::cairo_versions::CairoVersion;
+use blockifier_test_utils::contracts::FeatureContract;
+use rand::rngs::StdRng;
+use rand::{Rng, SeedableRng};
 use starknet_types_core::felt::Felt;
 
 use crate::blockifier::config::{ConcurrencyConfig, TransactionExecutorConfig};

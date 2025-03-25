@@ -5,8 +5,8 @@
 // use starknet_api::block::BlockNumber;
 // use starknet_api::core::ClassHash;
 // use starknet_api::hash::StarkHash;
-// use starknet_client::reader::{StarknetFeederGatewayClient, StarknetReader};
-// use starknet_client::retry::RetryConfig;
+// use apollo_client::reader::{StarknetFeederGatewayClient, StarknetReader};
+// use apollo_client::retry::RetryConfig;
 // use tokio::join;
 
 // const NODE_VERSION: &str = "PAPYRUS-INTEGRATION-TEST-STARKNET-FEEDER-GATEWAY-CLIENT";
@@ -138,7 +138,7 @@
 // }
 
 // async fn run(test_env_data: TestEnvData) {
-//     let starknet_client = StarknetFeederGatewayClient::new(
+//     let apollo_client = StarknetFeederGatewayClient::new(
 //         &test_env_data.url,
 //         None,
 //         NODE_VERSION,
@@ -147,41 +147,41 @@
 //     .expect("Create new client");
 
 //     join!(
-//         test_get_block(&starknet_client, test_env_data.get_blocks),
-//         test_get_state_update(&starknet_client, test_env_data.get_state_updates),
-//         test_class_hash(&starknet_client, test_env_data.class_hashes),
-//         async { starknet_client.pending_data().await.unwrap().unwrap() },
+//         test_get_block(&apollo_client, test_env_data.get_blocks),
+//         test_get_state_update(&apollo_client, test_env_data.get_state_updates),
+//         test_class_hash(&apollo_client, test_env_data.class_hashes),
+//         async { apollo_client.pending_data().await.unwrap().unwrap() },
 //     );
 // }
 
 // // Call get_block on the given list of block_numbers.
 // async fn test_get_block(
-//     starknet_client: &StarknetFeederGatewayClient,
+//     apollo_client: &StarknetFeederGatewayClient,
 //     block_numbers: BlocksForGetBlock,
 // ) { for block_number in into_block_number_vec(block_numbers) {
-//   starknet_client.block(block_number).await.unwrap().unwrap(); }
+//   apollo_client.block(block_number).await.unwrap().unwrap(); }
 
 //     // Get the last block.
-//     starknet_client.latest_block().await.unwrap().unwrap();
+//     apollo_client.latest_block().await.unwrap().unwrap();
 //     // Not existing block.
-//     assert!(starknet_client.block(BlockNumber(u64::MAX)).await.unwrap().is_none());
+//     assert!(apollo_client.block(BlockNumber(u64::MAX)).await.unwrap().is_none());
 // }
 
 // // Call get_state_update on the given list of block_numbers.
 // async fn test_get_state_update(
-//     starknet_client: &StarknetFeederGatewayClient,
+//     apollo_client: &StarknetFeederGatewayClient,
 //     block_numbers: BlocksForGetStateUpdate,
 // ) { for block_number in into_block_number_vec(block_numbers) {
-//   starknet_client.state_update(block_number).await.unwrap().unwrap(); }
+//   apollo_client.state_update(block_number).await.unwrap().unwrap(); }
 // }
 
 // // Call class_by_hash for the given list of class_hashes.
-// async fn test_class_hash(starknet_client: &StarknetFeederGatewayClient, class_hashes:
+// async fn test_class_hash(apollo_client: &StarknetFeederGatewayClient, class_hashes:
 // ClassHashes) {     let data = serde_json::to_value(class_hashes).unwrap();
 
 //     for class_hash_json_val in data.as_object().unwrap().values() {
 //         let class_hash_val = class_hash_json_val.as_str().unwrap();
 //         let class_hash = ClassHash(StarkHash::try_from(class_hash_val).unwrap());
-//         starknet_client.class_by_hash(class_hash).await.unwrap().unwrap();
+//         apollo_client.class_by_hash(class_hash).await.unwrap().unwrap();
 //     }
 // }

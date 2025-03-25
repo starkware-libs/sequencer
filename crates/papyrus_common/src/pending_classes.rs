@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use starknet_api::core::ClassHash;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::SierraContractClass;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 
 pub trait PendingClassesTrait {
     // TODO(shahak): Return an Arc to avoid cloning the class. This requires to re-implement

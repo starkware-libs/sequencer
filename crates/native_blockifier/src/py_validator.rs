@@ -1,5 +1,7 @@
 #![allow(non_local_definitions)]
 
+use starknet_api::core::Nonce;
+use starknet_api::transaction::TransactionHash;
 use blockifier::blockifier::stateful_validator::{StatefulValidator, StatefulValidatorResult};
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
@@ -9,8 +11,6 @@ use blockifier::transaction::account_transaction::AccountTransaction;
 use blockifier::transaction::objects::TransactionInfoCreator;
 use blockifier::transaction::transaction_types::TransactionType;
 use pyo3::{pyclass, pymethods, PyAny};
-use starknet_api::core::Nonce;
-use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
 
 use crate::errors::NativeBlockifierResult;

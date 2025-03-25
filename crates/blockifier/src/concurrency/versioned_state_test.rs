@@ -2,10 +2,6 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-use assert_matches::assert_matches;
-use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
-use blockifier_test_utils::contracts::FeatureContract;
-use rstest::{fixture, rstest};
 use starknet_api::abi::abi_utils::{get_fee_token_var_address, get_storage_var_address};
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
@@ -21,6 +17,10 @@ use starknet_api::{
     nonce,
     storage_key,
 };
+use assert_matches::assert_matches;
+use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
+use blockifier_test_utils::contracts::FeatureContract;
+use rstest::{fixture, rstest};
 
 use crate::concurrency::test_utils::{
     class_hash,

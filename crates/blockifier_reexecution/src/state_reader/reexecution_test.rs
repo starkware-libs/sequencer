@@ -1,5 +1,5 @@
-use rstest::rstest;
 use starknet_api::block::BlockNumber;
+use rstest::rstest;
 
 use crate::state_reader::utils::{get_block_numbers_for_reexecution, reexecute_block_for_testing};
 

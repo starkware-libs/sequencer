@@ -1,6 +1,3 @@
-use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
-use blockifier_test_utils::contracts::FeatureContract;
-use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use starknet_api::contract_class::{ContractClass, EntryPointType};
@@ -9,6 +6,9 @@ use starknet_api::deprecated_contract_class::{
     ContractClass as DeprecatedContractClass,
     EntryPointOffset,
 };
+use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
+use blockifier_test_utils::contracts::FeatureContract;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 
 use crate::execution::contract_class::RunnableCompiledClass;
 use crate::execution::entry_point::EntryPointTypeAndSelector;

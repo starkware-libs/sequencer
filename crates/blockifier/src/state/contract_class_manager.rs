@@ -5,9 +5,9 @@ pub use crate::state::native_class_manager::NativeClassManager as ContractClassM
 
 #[cfg(not(feature = "cairo_native"))]
 pub mod trivial_class_manager {
+    use starknet_api::core::ClassHash;
     #[cfg(any(feature = "testing", test))]
     use cached::Cached;
-    use starknet_api::core::ClassHash;
 
     use crate::blockifier::config::ContractClassManagerConfig;
     use crate::execution::contract_class::RunnableCompiledClass;

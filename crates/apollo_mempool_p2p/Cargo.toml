@@ -1,0 +1,45 @@
+[package]
+name = "apollo_mempool_p2p"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+testing = []
+
+[lints]
+workspace = true
+
+[dependencies]
+async-trait.workspace = true
+futures.workspace = true
+apollo_config.workspace = true
+apollo_network.workspace = true
+apollo_network_types.workspace = true
+apollo_protobuf.workspace = true
+serde.workspace = true
+starknet_api.workspace = true
+apollo_class_manager_types.workspace = true
+apollo_gateway_types.workspace = true
+apollo_mempool_p2p_types.workspace = true
+apollo_sequencer_infra.workspace = true
+apollo_sequencer_metrics.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+validator.workspace = true
+
+[dev-dependencies]
+futures.workspace = true
+libp2p.workspace = true
+mockall.workspace = true
+apollo_network = { workspace = true, features = ["testing"] }
+apollo_network_types = { workspace = true, features = ["testing"] }
+apollo_protobuf.workspace = true
+apollo_test_utils.workspace = true
+rand_chacha.workspace = true
+starknet_api.workspace = true
+apollo_class_manager_types = { workspace = true, features = ["testing"] }
+apollo_gateway_types = { workspace = true, features = ["testing"] }
+apollo_mempool_p2p_types = { workspace = true, features = ["testing"] }
+tokio = { workspace = true, features = ["full", "sync", "test-util"] }

@@ -1,8 +1,3 @@
-use assert_matches::assert_matches;
-use blockifier_test_utils::cairo_versions::CairoVersion;
-use blockifier_test_utils::contracts::FeatureContract;
-use cairo_vm::types::builtin_name::BuiltinName;
-use rstest::rstest;
 use starknet_api::block::{FeeType, GasPrice, NonzeroGasPrice};
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::invoke_tx_args;
@@ -22,6 +17,11 @@ use starknet_api::transaction::fields::{
     ResourceBounds,
     ValidResourceBounds,
 };
+use assert_matches::assert_matches;
+use blockifier_test_utils::cairo_versions::CairoVersion;
+use blockifier_test_utils::contracts::FeatureContract;
+use cairo_vm::types::builtin_name::BuiltinName;
+use rstest::rstest;
 
 use crate::blockifier::block::validated_gas_prices;
 use crate::blockifier_versioned_constants::VersionedConstants;

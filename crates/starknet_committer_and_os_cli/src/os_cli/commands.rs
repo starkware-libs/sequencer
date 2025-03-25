@@ -1,12 +1,12 @@
 use std::fs;
 use std::path::Path;
 
+use starknet_api::contract_class::ContractClass;
+use starknet_api::executable_transaction::{AccountTransaction, Transaction};
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::types::layout_name::LayoutName;
 use rand_distr::num_traits::Zero;
 use serde::Deserialize;
-use starknet_api::contract_class::ContractClass;
-use starknet_api::executable_transaction::{AccountTransaction, Transaction};
 use starknet_os::io::os_input::{CachedStateInput, StarknetOsInput};
 use starknet_os::runner::run_os_stateless;
 use tracing::info;
