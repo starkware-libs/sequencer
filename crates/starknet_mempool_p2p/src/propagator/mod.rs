@@ -15,7 +15,10 @@ use starknet_mempool_p2p_types::errors::MempoolP2pPropagatorError;
 use starknet_mempool_p2p_types::mempool_p2p_types::MempoolP2pPropagatorResult;
 use starknet_sequencer_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use starknet_sequencer_infra::component_server::{LocalComponentServer, RemoteComponentServer};
+use starknet_sequencer_metrics::metrics::LossyIntoF64;
 use tracing::{debug, info, warn};
+
+use crate::metrics::MEMPOOL_P2P_BROADCASTED_BATCH_SIZE;
 
 pub struct MempoolP2pPropagator {
     broadcast_topic_client: BroadcastTopicClient<RpcTransactionBatch>,
@@ -30,6 +33,7 @@ impl MempoolP2pPropagator {
         transaction_converter: Box<dyn TransactionConverterTrait + Send>,
         max_transaction_batch_size: usize,
     ) -> Self {
+        MEMPOOL_P2P_BROADCASTED_BATCH_SIZE.register();
         Self {
             broadcast_topic_client,
             transaction_converter,
@@ -109,7 +113,9 @@ impl MempoolP2pPropagator {
         if queued_transactions.is_empty() {
             return Ok(());
         }
-        self.broadcast_topic_client
+        let number_of_transactions_in_batch = queued_transactions.len().into_f64();
+        let result = self
+            .broadcast_topic_client
             .broadcast_message(RpcTransactionBatch(queued_transactions))
             .await
             .or_else(|err| {
@@ -121,7 +127,9 @@ impl MempoolP2pPropagator {
                      full. Dropping the transaction batch."
                 );
                 Ok(())
-            })
+            });
+        MEMPOOL_P2P_BROADCASTED_BATCH_SIZE.record(number_of_transactions_in_batch);
+        result
     }
 }
 
