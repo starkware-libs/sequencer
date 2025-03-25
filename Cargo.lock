@@ -1566,6 +1566,7 @@ name = "apollo_rpc_execution"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "apollo_class_manager_types",
  "apollo_config",
  "apollo_storage",
  "apollo_test_utils",
@@ -1575,9 +1576,11 @@ dependencies = [
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",
  "cairo-vm",
+ "futures",
  "indexmap 2.7.0",
  "itertools 0.12.1",
  "lazy_static",
+ "mockall",
  "papyrus_common",
  "pretty_assertions",
  "rand 0.8.5",
