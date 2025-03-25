@@ -9,6 +9,7 @@ use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::utils::is_subsequence;
 use cairo_vm::vm::runners::cairo_runner::{CairoArg, CairoRunner};
 use cairo_vm::vm::vm_core::VirtualMachine;
+use log::{debug, info};
 use serde_json::Value;
 use starknet_types_core::felt::Felt;
 
@@ -413,7 +414,8 @@ fn get_return_values(
     let mut current_address = return_values_address;
 
     let mut implicit_return_values: Vec<ImplicitArg> = vec![];
-    for implicit_arg in implicit_return_values_structures.iter() {
+    for (i, implicit_arg) in implicit_return_values_structures.iter().enumerate() {
+        debug!("Loading implicit return value {}. Value: {:?}", i, implicit_arg);
         match implicit_arg {
             ImplicitArg::Builtin(builtin) => {
                 implicit_return_values.push(ImplicitArg::Builtin(*builtin));
@@ -427,14 +429,17 @@ fn get_return_values(
             }
         }
     }
+    info!("Successfully loaded implicit return values.");
 
     let mut explicit_return_values: Vec<EndpointArg> = vec![];
-    for expected_return_value in explicit_return_values_structures.iter() {
+    for (i, expected_return_value) in explicit_return_values_structures.iter().enumerate() {
+        debug!("Loading explicit return value {}. Value: {:?}", i, expected_return_value);
         let (value, next_arg_address) =
             load_endpoint_arg_from_address(expected_return_value, current_address, vm)?;
         explicit_return_values.push(value);
         current_address = next_arg_address;
     }
+    info!("Successfully loaded explicit return values.");
 
     Ok((implicit_return_values, explicit_return_values))
 }
@@ -454,6 +459,7 @@ pub fn run_cairo_0_entry_point(
     let (state_reader, os_input) = (None, None);
     let mut hint_processor =
         SnosHintProcessor::new_for_testing(state_reader, os_input, Some(program.clone()));
+    info!("Program and Hint processor created successfully.");
 
     // TODO(Amos): Perform complete validations.
     perform_basic_validations_on_explicit_args(explicit_args, &program, entrypoint)?;
@@ -463,38 +469,42 @@ pub fn run_cairo_0_entry_point(
         entrypoint,
         &ordered_builtins,
     )?;
+    info!("Performed basic validations on explicit & implicit args.");
 
     let proof_mode = false;
     let trace_enabled = true;
     let mut cairo_runner =
         CairoRunner::new(&program, LayoutName::all_cairo, proof_mode, trace_enabled).unwrap();
-
     let allow_missing_builtins = false;
     cairo_runner.initialize_builtins(allow_missing_builtins).unwrap();
     let program_base: Option<Relocatable> = None;
     cairo_runner.initialize_segments(program_base);
+    info!("Created and initialized Cairo runner.");
 
     let explicit_cairo_args: Vec<CairoArg> =
         explicit_args.iter().flat_map(EndpointArg::to_cairo_arg_vec).collect();
-
     let implicit_cairo_args =
         convert_implicit_args_to_cairo_args(implicit_args, &cairo_runner.vm, &ordered_builtins);
-
     let entrypoint_args: Vec<&CairoArg> =
         implicit_cairo_args.iter().chain(explicit_cairo_args.iter()).collect();
+    info!("Converted explicit & implicit args to Cairo args.");
 
     let verify_secure = true;
     let program_segment_size: Option<usize> = None;
-    cairo_runner.run_from_entrypoint(
-        program
-            .get_identifier(&format!("__main__.{}", entrypoint))
-            .unwrap_or_else(|| panic!("entrypoint {} not found.", entrypoint))
-            .pc
-            .unwrap(),
-        &entrypoint_args,
-        verify_secure,
-        program_segment_size,
-        &mut hint_processor,
-    )?;
+    cairo_runner
+        .run_from_entrypoint(
+            program
+                .get_identifier(&format!("__main__.{}", entrypoint))
+                .unwrap_or_else(|| panic!("entrypoint {} not found.", entrypoint))
+                .pc
+                .unwrap(),
+            &entrypoint_args,
+            verify_secure,
+            program_segment_size,
+            &mut hint_processor,
+        )
+        .map_err(Cairo0EntryPointRunnerError::RunCairoEndpoint)?;
+    info!("Successfully finished running entrypoint {}", entrypoint);
+
     Ok(get_return_values(implicit_args, expected_explicit_return_values, &cairo_runner.vm)?)
 }

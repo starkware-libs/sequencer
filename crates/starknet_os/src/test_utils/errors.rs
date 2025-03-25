@@ -13,8 +13,6 @@ use crate::test_utils::cairo_runner::{EndpointArg, ImplicitArg};
 #[derive(Debug, thiserror::Error)]
 pub enum Cairo0EntryPointRunnerError {
     #[error(transparent)]
-    CairoRun(#[from] CairoRunError),
-    #[error(transparent)]
     ExplicitArg(#[from] ExplicitArgError),
     #[error(transparent)]
     VirtualMachine(#[from] VirtualMachineError),
@@ -33,6 +31,8 @@ pub enum Cairo0EntryPointRunnerError {
         cairo_runner_builtins: Vec<BuiltinName>,
         actual_builtins: HashSet<BuiltinName>,
     },
+    #[error(transparent)]
+    RunCairoEndpoint(CairoRunError),
     #[error(transparent)]
     LoadReturnValue(#[from] LoadReturnValueError),
 }
