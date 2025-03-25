@@ -94,6 +94,7 @@ struct BlockInfoValidation {
     block_timestamp_window: u64,
     last_block_timestamp: Option<u64>,
     l1_da_mode: L1DataAvailabilityMode,
+    l1_gas_price_margin_percent: u32,
 }
 
 const EMPTY_BLOCK_COMMITMENT: BlockHash = BlockHash(Felt::ONE);
@@ -255,6 +256,7 @@ struct ProposalValidateArguments {
     block_info_validation: BlockInfoValidation,
     proposal_id: ProposalId,
     batcher: Arc<dyn BatcherClient>,
+    eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
     timeout: Duration,
     batcher_timeout_margin: Duration,
     valid_proposals: Arc<Mutex<HeightToIdToContent>>,
@@ -368,6 +370,8 @@ impl ConsensusContext for SequencerConsensusContext {
                     block_timestamp_window: self.config.block_timestamp_window,
                     last_block_timestamp: self.last_block_timestamp,
                     l1_da_mode: self.l1_da_mode,
+                    l1_gas_price_margin_percent: VersionedConstants::latest_constants()
+                        .l1_gas_price_margin_percent,
                 };
                 self.validate_current_round_proposal(
                     block_info_validation,
@@ -637,6 +641,8 @@ impl ConsensusContext for SequencerConsensusContext {
             block_timestamp_window: self.config.block_timestamp_window,
             last_block_timestamp: self.last_block_timestamp,
             l1_da_mode: self.l1_da_mode,
+            l1_gas_price_margin_percent: VersionedConstants::latest_constants()
+                .l1_gas_price_margin_percent,
         };
         self.validate_current_round_proposal(
             block_info_validation,
@@ -663,6 +669,7 @@ impl SequencerConsensusContext {
         let cancel_token = CancellationToken::new();
         let cancel_token_clone = cancel_token.clone();
         let batcher = Arc::clone(&self.batcher);
+        let eth_to_strk_oracle_client = self.eth_to_strk_oracle_client.clone();
         let transaction_converter = self.transaction_converter.clone();
         let valid_proposals = Arc::clone(&self.valid_proposals);
         let proposal_id = ProposalId(self.proposal_id);
@@ -675,6 +682,7 @@ impl SequencerConsensusContext {
                     block_info_validation,
                     proposal_id,
                     batcher,
+                    eth_to_strk_oracle_client,
                     timeout,
                     batcher_timeout_margin,
                     valid_proposals,
@@ -886,7 +894,13 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
     else {
         return;
     };
-    if !is_block_info_valid(args.block_info_validation.clone(), block_info.clone()).await {
+    if !is_block_info_valid(
+        args.block_info_validation.clone(),
+        block_info.clone(),
+        args.eth_to_strk_oracle_client,
+    )
+    .await
+    {
         warn!(
             "Invalid BlockInfo. block_info_validation={:?}, block_info={:?}",
             args.block_info_validation, block_info
@@ -965,14 +979,30 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
 async fn is_block_info_valid(
     block_info_validation: BlockInfoValidation,
     block_info: ConsensusBlockInfo,
+    eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
 ) -> bool {
     let now: u64 =
         chrono::Utc::now().timestamp().try_into().expect("Failed to convert timestamp to u64");
     // TODO(Asmaa): Validate the rest of the block info.
-    block_info.height == block_info_validation.height
+    if !(block_info.height == block_info_validation.height
         && block_info.timestamp >= block_info_validation.last_block_timestamp.unwrap_or(0)
         && block_info.timestamp <= now + block_info_validation.block_timestamp_window
-        && block_info.l1_da_mode == block_info_validation.l1_da_mode
+        && block_info.l1_da_mode == block_info_validation.l1_da_mode)
+    {
+        return false;
+    }
+    // TODO(Asmaa, guyn): remove this once calculation l1 gas prices in fri is supported.
+    let eth_to_fri_rate =
+        match eth_to_strk_oracle_client.eth_to_fri_rate(block_info.timestamp).await {
+            Ok(rate) => rate,
+            Err(err) => {
+                warn!("Failed to get eth to fri rate: {err:?}");
+                return false;
+            }
+        };
+    let allowed_margin =
+        (eth_to_fri_rate * u128::from(block_info_validation.l1_gas_price_margin_percent)) / 100;
+    block_info.eth_to_fri_rate.abs_diff(eth_to_fri_rate) <= allowed_margin
 }
 
 // The second proposal part when validating a proposal must be:
