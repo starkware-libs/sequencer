@@ -1513,6 +1513,7 @@ name = "apollo_rpc"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "apollo_class_manager_types",
  "apollo_config",
  "apollo_proc_macros",
  "apollo_rpc_execution",
