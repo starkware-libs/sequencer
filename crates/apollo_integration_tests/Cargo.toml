@@ -32,9 +32,11 @@ apollo_monitoring_endpoint = { workspace = true, features = ["testing"] }
 apollo_network = { workspace = true, features = ["testing"] }
 apollo_node = { workspace = true, features = ["testing"] }
 apollo_protobuf.workspace = true
+apollo_rpc.workspace = true
 apollo_state_sync.workspace = true
 apollo_state_sync_metrics.workspace = true
 apollo_storage = { workspace = true, features = ["testing"] }
+apollo_test_utils.workspace = true
 assert_matches.workspace = true
 axum.workspace = true
 blockifier.workspace = true
