@@ -96,16 +96,6 @@ where
     }
 }
 
-impl<Request, Response> Drop for LocalComponentClient<Request, Response>
-where
-    Request: Send,
-    Response: Send,
-{
-    fn drop(&mut self) {
-        warn!("Dropping {}.", short_type_name::<Self>());
-    }
-}
-
 // Can't derive because derive forces the generics to also be `Clone`, which we prefer not to do
 // since it'll require transactions to be cloneable.
 impl<Request, Response> Clone for LocalComponentClient<Request, Response>
