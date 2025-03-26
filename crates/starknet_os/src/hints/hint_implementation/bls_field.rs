@@ -26,7 +26,7 @@ pub(crate) fn compute_ids_low<S: StateReader>(
             vm,
             ap_tracking,
             &["d0"],
-            &hint_processor.execution_helper.os_program,
+            &hint_processor.os_program,
         )?)?
         .into_owned();
     let d1 = vm
@@ -37,7 +37,7 @@ pub(crate) fn compute_ids_low<S: StateReader>(
             vm,
             ap_tracking,
             &["d1"],
-            &hint_processor.execution_helper.os_program,
+            &hint_processor.os_program,
         )?)?
         .into_owned();
     let base = get_constant_from_var_name(Const::Base.into(), constants)?;

@@ -43,16 +43,19 @@ pub fn run_os<S: StateReader>(
     let end = cairo_runner.initialize(allow_missing_builtins)?;
 
     // Create execution helper.
-    let execution_helper =
-        OsExecutionHelper::new(os_input, os_program, state_reader, cached_state_input)?;
+    let execution_helper = OsExecutionHelper::new(os_input, state_reader, cached_state_input)?;
 
     // Create syscall handlers.
     let syscall_handler = SyscallHintProcessor::new();
     let deprecated_syscall_handler = DeprecatedSyscallHintProcessor {};
 
     // Create the hint processor.
-    let mut snos_hint_processor =
-        SnosHintProcessor::new(execution_helper, syscall_handler, deprecated_syscall_handler);
+    let mut snos_hint_processor = SnosHintProcessor::new(
+        os_program,
+        execution_helper,
+        syscall_handler,
+        deprecated_syscall_handler,
+    );
 
     // Run the Cairo VM.
     cairo_runner
