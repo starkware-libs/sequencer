@@ -2,12 +2,12 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use apollo_reverts::revert_block;
+use apollo_storage::state::{StateStorageReader, StateStorageWriter};
 use async_trait::async_trait;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use indexmap::IndexSet;
 #[cfg(test)]
 use mockall::automock;
-use papyrus_storage::state::{StateStorageReader, StateStorageWriter};
 use starknet_api::block::{BlockHeaderWithoutHash, BlockNumber};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
@@ -737,7 +737,7 @@ pub fn create_batcher(
     l1_provider_client: SharedL1ProviderClient,
     class_manager_client: SharedClassManagerClient,
 ) -> Batcher {
-    let (storage_reader, storage_writer) = papyrus_storage::open_storage(config.storage.clone())
+    let (storage_reader, storage_writer) = apollo_storage::open_storage(config.storage.clone())
         .expect("Failed to open batcher's storage");
 
     let block_builder_factory = Box::new(BlockBuilderFactory {
@@ -767,11 +767,11 @@ pub fn create_batcher(
 #[cfg_attr(test, automock)]
 pub trait BatcherStorageReaderTrait: Send + Sync {
     /// Returns the next height that the batcher should work on.
-    fn height(&self) -> papyrus_storage::StorageResult<BlockNumber>;
+    fn height(&self) -> apollo_storage::StorageResult<BlockNumber>;
 }
 
-impl BatcherStorageReaderTrait for papyrus_storage::StorageReader {
-    fn height(&self) -> papyrus_storage::StorageResult<BlockNumber> {
+impl BatcherStorageReaderTrait for apollo_storage::StorageReader {
+    fn height(&self) -> apollo_storage::StorageResult<BlockNumber> {
         self.begin_ro_txn()?.get_state_marker()
     }
 }
@@ -782,17 +782,17 @@ pub trait BatcherStorageWriterTrait: Send + Sync {
         &mut self,
         height: BlockNumber,
         state_diff: ThinStateDiff,
-    ) -> papyrus_storage::StorageResult<()>;
+    ) -> apollo_storage::StorageResult<()>;
 
     fn revert_block(&mut self, height: BlockNumber);
 }
 
-impl BatcherStorageWriterTrait for papyrus_storage::StorageWriter {
+impl BatcherStorageWriterTrait for apollo_storage::StorageWriter {
     fn commit_proposal(
         &mut self,
         height: BlockNumber,
         state_diff: ThinStateDiff,
-    ) -> papyrus_storage::StorageResult<()> {
+    ) -> apollo_storage::StorageResult<()> {
         // TODO(AlonH): write casms.
         self.begin_rw_txn()?.append_state_diff(height, state_diff)?.commit()
     }

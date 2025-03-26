@@ -3,6 +3,9 @@ use std::net::SocketAddr;
 use std::time::Duration;
 
 use alloy::primitives::U256;
+use apollo_network::network_manager::test_utils::create_connected_network_configs;
+use apollo_network::NetworkConfig;
+use apollo_storage::StorageConfig;
 use axum::extract::Query;
 use axum::http::StatusCode;
 use axum::routing::{get, post};
@@ -21,9 +24,6 @@ use mempool_test_utils::starknet_api_test_utils::{
 };
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use papyrus_base_layer::test_utils::StarknetL1Contract;
-use papyrus_network::network_manager::test_utils::create_connected_network_configs;
-use papyrus_network::NetworkConfig;
-use papyrus_storage::StorageConfig;
 use serde::Deserialize;
 use serde_json::{json, to_value};
 use starknet_api::block::BlockNumber;

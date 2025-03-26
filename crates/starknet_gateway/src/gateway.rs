@@ -1,10 +1,10 @@
 use std::clone::Clone;
 use std::sync::Arc;
 
+use apollo_network_types::network_types::BroadcastedMessageMetadata;
+use apollo_proc_macros::sequencer_latency_histogram;
 use axum::async_trait;
 use blockifier::context::ChainInfo;
-use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use papyrus_proc_macros::sequencer_latency_histogram;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;

@@ -10,11 +10,11 @@ use std::process::Command;
 use std::str::FromStr;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+use apollo_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 use clap::Parser;
 use fs2::FileExt;
 use lazy_static::lazy_static;
 use nix::unistd::Pid;
-use papyrus_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 use tokio::process::Command as TokioCommand;
 
 lazy_static! {

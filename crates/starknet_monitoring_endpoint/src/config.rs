@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter, Result};
 use std::net::{IpAddr, Ipv4Addr};
 
-use papyrus_config::dumping::{ser_param, SerializeConfig};
-use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 

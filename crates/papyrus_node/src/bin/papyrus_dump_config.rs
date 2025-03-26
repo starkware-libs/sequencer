@@ -3,7 +3,7 @@
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 
 #[cfg(feature = "rpc")]
-use papyrus_config::dumping::SerializeConfig;
+use apollo_config::dumping::SerializeConfig;
 #[cfg(feature = "rpc")]
 use papyrus_node::config::pointers::{CONFIG_NON_POINTERS_WHITELIST, CONFIG_POINTERS};
 #[cfg(feature = "rpc")]

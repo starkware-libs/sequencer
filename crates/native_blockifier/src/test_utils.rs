@@ -41,11 +41,11 @@ impl Storage for MockStorage {
         todo!()
     }
 
-    fn reader(&self) -> &papyrus_storage::StorageReader {
+    fn reader(&self) -> &apollo_storage::StorageReader {
         todo!()
     }
 
-    fn writer(&mut self) -> &mut papyrus_storage::StorageWriter {
+    fn writer(&mut self) -> &mut apollo_storage::StorageWriter {
         todo!()
     }
 

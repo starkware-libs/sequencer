@@ -1,4 +1,4 @@
-use papyrus_network_types::network_types::BroadcastedMessageMetadata;
+use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use starknet_api::rpc_transaction::{RpcTransaction, RpcTransactionLabelValue};
 use starknet_sequencer_metrics::metrics::{LabeledMetricCounter, MetricHistogram};
 use starknet_sequencer_metrics::{define_metrics, generate_permutation_labels};

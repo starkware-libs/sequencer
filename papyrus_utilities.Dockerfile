@@ -16,7 +16,7 @@ COPY . .
 RUN cargo build --release --package papyrus_load_test --bin papyrus_load_test
 
 # Build storage_benchmark.
-RUN cargo build --release --package papyrus_storage \
+RUN cargo build --release --package apollo_storage \
     --features "clap statistical" --bin storage_benchmark
 
 # Starting a new stage so that the final image will contain only the executables.
