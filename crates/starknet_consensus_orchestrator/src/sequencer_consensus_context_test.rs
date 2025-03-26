@@ -52,7 +52,7 @@ use starknet_class_manager_types::transaction_converter::{
 };
 use starknet_class_manager_types::EmptyClassManagerClient;
 use starknet_consensus::types::{ConsensusContext, Round};
-use starknet_l1_gas_price_types::MockEthToStrkOracleClientTrait;
+use starknet_l1_gas_price_types::{MockEthToStrkOracleClientTrait, MockL1GasPriceProviderClient};
 use starknet_state_sync_types::communication::MockStateSyncClient;
 use starknet_types_core::felt::Felt;
 
@@ -133,6 +133,7 @@ fn setup(
         votes_topic_client,
         Arc::new(cende_ambassador),
         Arc::new(eth_to_strk_oracle_client),
+        Arc::new(MockL1GasPriceProviderClient::new()),
     );
 
     let network_dependencies =

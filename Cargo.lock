@@ -11109,6 +11109,7 @@ dependencies = [
  "starknet_consensus_orchestrator",
  "starknet_infra_utils",
  "starknet_l1_gas_price",
+ "starknet_l1_gas_price_types",
  "starknet_sequencer_infra",
  "starknet_sequencer_metrics",
  "starknet_state_sync_types",
