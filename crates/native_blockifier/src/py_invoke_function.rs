@@ -1,11 +1,10 @@
 use std::convert::TryFrom;
 use std::sync::Arc;
 
-use blockifier::transaction::transaction_types::TransactionType;
 use pyo3::prelude::*;
 use starknet_api::core::{ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
-use starknet_api::executable_transaction::InvokeTransaction;
+use starknet_api::executable_transaction::{InvokeTransaction, TransactionType};
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
     Calldata,

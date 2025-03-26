@@ -2,7 +2,7 @@ use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use rstest::rstest;
-use starknet_api::executable_transaction::AccountTransaction as Transaction;
+use starknet_api::executable_transaction::{AccountTransaction as Transaction, TransactionType};
 use starknet_api::transaction::fields::ValidResourceBounds;
 use starknet_api::transaction::TransactionVersion;
 
@@ -19,7 +19,6 @@ use crate::transaction::test_utils::{
     INVALID,
     VALID,
 };
-use crate::transaction::transaction_types::TransactionType;
 
 #[rstest]
 #[case::validate_version_1(TransactionType::InvokeFunction, false, TransactionVersion::ONE)]

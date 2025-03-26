@@ -21,6 +21,7 @@ use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress}
 use starknet_api::executable_transaction::{
     AccountTransaction as ApiExecutableTransaction,
     DeclareTransaction as ApiExecutableDeclareTransaction,
+    TransactionType,
 };
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::hash::StarkHash;
@@ -116,7 +117,6 @@ use crate::transaction::test_utils::{
     TestInitData,
     INVALID,
 };
-use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::ExecutableTransaction;
 use crate::utils::u64_from_usize;
 

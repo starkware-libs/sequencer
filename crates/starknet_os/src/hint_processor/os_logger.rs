@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use blockifier::execution::syscalls::SyscallSelector;
-use blockifier::transaction::transaction_types::TransactionType;
 use cairo_vm::hint_processor::hint_processor_definition::HintReference;
 use cairo_vm::serde::deserialize_program::ApTracking;
 use cairo_vm::types::builtin_name::BuiltinName;
@@ -9,6 +8,7 @@ use cairo_vm::types::program::Program;
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use cairo_vm::vm::vm_core::VirtualMachine;
+use starknet_api::executable_transaction::TransactionType;
 use starknet_api::transaction::TransactionHash;
 
 use crate::hint_processor::constants::BUILTIN_INSTANCE_SIZES;

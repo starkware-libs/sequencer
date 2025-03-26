@@ -10,6 +10,7 @@ use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
+use starknet_api::executable_transaction::TransactionType;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::{
@@ -35,7 +36,6 @@ use crate::execution::execution_utils::execute_entry_point_call_wrapper;
 use crate::execution::stack_trace::{extract_trailing_cairo1_revert_trace, Cairo1RevertHeader};
 use crate::state::state_api::{State, StateResult};
 use crate::transaction::objects::{HasRelatedFeeType, TransactionInfo};
-use crate::transaction::transaction_types::TransactionType;
 use crate::utils::usize_from_u64;
 
 #[cfg(test)]

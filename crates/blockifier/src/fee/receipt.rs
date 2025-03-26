@@ -1,4 +1,5 @@
 use starknet_api::core::ContractAddress;
+use starknet_api::executable_transaction::TransactionType;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::transaction::fields::{Fee, GasVectorComputationMode};
 
@@ -13,7 +14,6 @@ use crate::fee::resources::{
 use crate::state::cached_state::StateChanges;
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::objects::HasRelatedFeeType;
-use crate::transaction::transaction_types::TransactionType;
 
 #[cfg(test)]
 #[path = "receipt_test.rs"]

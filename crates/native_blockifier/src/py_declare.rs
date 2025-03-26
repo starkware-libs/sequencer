@@ -1,10 +1,9 @@
 use std::convert::TryFrom;
 
-use blockifier::transaction::transaction_types::TransactionType;
 use pyo3::prelude::*;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
-use starknet_api::executable_transaction::DeclareTransaction;
+use starknet_api::executable_transaction::{DeclareTransaction, TransactionType};
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
     Fee,

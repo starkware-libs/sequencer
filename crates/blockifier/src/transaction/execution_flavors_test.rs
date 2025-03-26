@@ -6,6 +6,7 @@ use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::block::FeeType;
 use starknet_api::core::ContractAddress;
+use starknet_api::executable_transaction::TransactionType;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{
@@ -49,7 +50,6 @@ use crate::transaction::test_utils::{
     l1_resource_bounds,
     INVALID,
 };
-use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::ExecutableTransaction;
 use crate::utils::u64_from_usize;
 const VALIDATE_GAS_OVERHEAD: GasAmount = GasAmount(21);

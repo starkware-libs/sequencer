@@ -1,10 +1,9 @@
 use std::sync::Arc;
 
-use blockifier::transaction::transaction_types::TransactionType;
 use pyo3::prelude::*;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
-use starknet_api::executable_transaction::DeployAccountTransaction;
+use starknet_api::executable_transaction::{DeployAccountTransaction, TransactionType};
 use starknet_api::transaction::fields::{
     Calldata,
     ContractAddressSalt,
