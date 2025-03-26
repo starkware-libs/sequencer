@@ -1150,6 +1150,7 @@ dependencies = [
  "apollo_monitoring_endpoint",
  "apollo_network",
  "apollo_protobuf",
+ "apollo_rpc",
  "apollo_sequencer_deployments",
  "apollo_sequencer_infra",
  "apollo_sequencer_node",

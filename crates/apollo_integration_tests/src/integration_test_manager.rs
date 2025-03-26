@@ -718,6 +718,8 @@ pub async fn get_sequencer_setup_configs(
     let mut state_sync_configs = create_state_sync_configs(
         StorageConfig::default(),
         state_sync_ports.get_next_ports(component_configs_len),
+        &chain_info.chain_id,
+        state_sync_ports.get_next_ports(component_configs_len),
     );
 
     let mut mempool_p2p_ports = available_ports_generator
