@@ -7,6 +7,7 @@ use starknet_api::block::BlockNumber;
 use starknet_batcher_types::batcher_types::{GetHeightResponse, RevertBlockInput};
 use starknet_batcher_types::communication::MockBatcherClient;
 use starknet_class_manager_types::EmptyClassManagerClient;
+use starknet_l1_gas_price_types::MockL1GasPriceProviderClient;
 use starknet_state_sync_types::communication::MockStateSyncClient;
 use tokio::time::{timeout, Duration};
 
@@ -47,6 +48,7 @@ async fn revert_batcher_blocks() {
         Arc::new(mock_batcher_client),
         Arc::new(MockStateSyncClient::new()),
         Arc::new(EmptyClassManagerClient),
+        Arc::new(MockL1GasPriceProviderClient::new()),
     );
 
     // TODO(Shahak, dvir): try to solve this better (the test will take 100 milliseconds to run).
@@ -75,6 +77,7 @@ async fn revert_with_invalid_height_panics(#[case] revert_up_to_and_including: B
         Arc::new(mock_batcher),
         Arc::new(MockStateSyncClient::new()),
         Arc::new(EmptyClassManagerClient),
+        Arc::new(MockL1GasPriceProviderClient::new()),
     );
 
     consensus_manager.run().await.unwrap();
@@ -91,6 +94,7 @@ async fn no_reverts_without_config() {
         Arc::new(mock_batcher),
         Arc::new(MockStateSyncClient::new()),
         Arc::new(EmptyClassManagerClient),
+        Arc::new(MockL1GasPriceProviderClient::new()),
     );
 
     // TODO(Shahak, dvir): try to solve this better (the test will take 100 milliseconds to run).

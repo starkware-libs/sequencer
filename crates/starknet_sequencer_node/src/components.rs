@@ -63,7 +63,6 @@ pub async fn create_node_components(
             let l1_provider_client = clients
                 .get_l1_provider_shared_client()
                 .expect("L1 Provider Client should be available");
-            // TODO(guyn): Should also create a gas price shared client and give it to batcher?
             let class_manager_client = clients
                 .get_class_manager_shared_client()
                 .expect("Class Manager Client should be available");
@@ -103,6 +102,7 @@ pub async fn create_node_components(
                 batcher_client,
                 state_sync_client,
                 class_manager_client,
+                clients.get_l1_gas_price_shared_client().unwrap(),
             ))
         }
         ActiveComponentExecutionMode::Disabled => None,
