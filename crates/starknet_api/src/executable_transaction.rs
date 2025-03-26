@@ -1,7 +1,12 @@
+#[cfg(test)]
+#[path = "executable_transaction_test.rs"]
+mod executable_transaction_test;
+
 use std::str::FromStr;
 
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use serde::{Deserialize, Serialize};
+use starknet_types_core::felt::Felt;
 use strum_macros::EnumIter;
 
 use crate::contract_class::{ClassInfo, ContractClass};
@@ -75,6 +80,25 @@ impl FromStr for TransactionType {
     }
 }
 
+impl std::fmt::Display for TransactionType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let type_str = match self {
+            TransactionType::Declare => "DECLARE",
+            TransactionType::DeployAccount => "DEPLOY_ACCOUNT",
+            TransactionType::InvokeFunction => "INVOKE_FUNCTION",
+            TransactionType::L1Handler => "L1_HANDLER",
+        };
+        write!(f, "{type_str}")
+    }
+}
+
+impl TransactionType {
+    pub fn tx_name_as_felt(&self) -> Felt {
+        let tx_type_name = self.to_string();
+        Felt::from_bytes_be_slice(tx_type_name.as_str().as_bytes())
+    }
+}
+
 /// Represents a paid Starknet transaction.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum AccountTransaction {
@@ -112,14 +136,6 @@ impl AccountTransaction {
             AccountTransaction::Declare(tx_data) => tx_data.tx_hash,
             AccountTransaction::DeployAccount(tx_data) => tx_data.tx_hash,
             AccountTransaction::Invoke(tx_data) => tx_data.tx_hash,
-        }
-    }
-
-    pub fn account_tx_type_name(&self) -> &'static str {
-        match self {
-            AccountTransaction::Declare(_) => "DECLARE",
-            AccountTransaction::DeployAccount(_) => "DEPLOY_ACCOUNT",
-            AccountTransaction::Invoke(_) => "INVOKE_FUNCTION",
         }
     }
 }
@@ -323,10 +339,14 @@ impl Transaction {
         }
     }
 
-    pub fn tx_type_name(&self) -> &'static str {
+    pub fn tx_type(&self) -> TransactionType {
         match self {
-            Transaction::Account(tx) => tx.account_tx_type_name(),
-            Transaction::L1Handler(_) => L1HandlerTransaction::L1_HANDLER_TYPE_NAME,
+            Transaction::Account(AccountTransaction::Declare(_)) => TransactionType::Declare,
+            Transaction::Account(AccountTransaction::DeployAccount(_)) => {
+                TransactionType::DeployAccount
+            }
+            Transaction::Account(AccountTransaction::Invoke(_)) => TransactionType::InvokeFunction,
+            Transaction::L1Handler(_) => TransactionType::L1Handler,
         }
     }
 }
