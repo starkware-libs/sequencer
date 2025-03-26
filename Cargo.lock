@@ -1552,6 +1552,7 @@ dependencies = [
  "starknet-core",
  "starknet-types-core",
  "starknet_api",
+ "starknet_class_manager_types",
  "starknet_client",
  "strum 0.25.0",
  "strum_macros 0.25.3",

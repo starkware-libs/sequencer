@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::core::{ChainId, ContractAddress, EntryPointSelector};
 use starknet_api::transaction::fields::Calldata;
+use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_client::reader::PendingData;
 use starknet_client::writer::StarknetWriter;
 use tokio::sync::RwLock;
@@ -62,6 +63,7 @@ pub fn get_methods_from_supported_apis(
     pending_data: Arc<RwLock<PendingData>>,
     pending_classes: Arc<RwLock<PendingClasses>>,
     starknet_writer: Arc<dyn StarknetWriter>,
+    class_manager_client: Option<SharedClassManagerClient>,
 ) -> Methods {
     let mut methods: Methods = Methods::new();
     let server_gen = JsonRpcServerImplGenerator {
@@ -75,6 +77,7 @@ pub fn get_methods_from_supported_apis(
         pending_data,
         pending_classes,
         starknet_writer,
+        class_manager_client,
     };
     version_config::VERSION_CONFIG
         .iter()
@@ -114,6 +117,7 @@ pub trait JsonRpcServerTrait: Sized {
         pending_data: Arc<RwLock<PendingData>>,
         pending_classes: Arc<RwLock<PendingClasses>>,
         starknet_writer: Arc<dyn StarknetWriter>,
+        class_manager_client: Option<SharedClassManagerClient>,
     ) -> Self;
 
     fn into_rpc_module(self) -> RpcModule<Self>;
@@ -132,6 +136,7 @@ struct JsonRpcServerImplGenerator {
     pending_classes: Arc<RwLock<PendingClasses>>,
     // TODO(shahak): Change this struct to be with a generic type of StarknetWriter.
     starknet_writer: Arc<dyn StarknetWriter>,
+    class_manager_client: Option<SharedClassManagerClient>,
 }
 
 type JsonRpcServerImplParams = (
@@ -145,6 +150,7 @@ type JsonRpcServerImplParams = (
     Arc<RwLock<PendingData>>,
     Arc<RwLock<PendingClasses>>,
     Arc<dyn StarknetWriter>,
+    Option<SharedClassManagerClient>,
 );
 
 impl JsonRpcServerImplGenerator {
@@ -160,6 +166,7 @@ impl JsonRpcServerImplGenerator {
             self.pending_data,
             self.pending_classes,
             self.starknet_writer,
+            self.class_manager_client,
         )
     }
 
@@ -178,6 +185,7 @@ impl JsonRpcServerImplGenerator {
             pending_data,
             pending_classes,
             starknet_writer,
+            class_manager_client,
         ) = self.get_params();
         Into::<Methods>::into(
             T::new(
@@ -191,6 +199,7 @@ impl JsonRpcServerImplGenerator {
                 pending_data,
                 pending_classes,
                 starknet_writer,
+                class_manager_client,
             )
             .into_rpc_module(),
         )
