@@ -8,6 +8,7 @@ use blockifier_test_utils::cairo_versions::CairoVersion;
 use futures::FutureExt;
 use jsonrpsee::types::ErrorObjectOwned;
 use mempool_test_utils::starknet_api_test_utils::invoke_tx;
+use rstest::rstest;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::communication::{GatewayClientError, MockGatewayClient};
 use starknet_gateway_types::errors::{GatewayError, GatewaySpecError};
@@ -134,4 +135,37 @@ async fn test_response() {
     let error = panicking_task.catch_unwind().await.unwrap_err().downcast::<String>().unwrap();
     let error_str = format!("{}", error);
     assert_eq!(error_str, expected_err_str);
+}
+
+#[rstest]
+#[case::not_a_json(
+    "not a json".to_string(),
+    "Failed to parse the request body as JSON: expected ident at line 1 column 2".to_string(),
+    3
+)]
+#[case::not_rpc_tx(
+    "{}".to_string(),
+    "Failed to deserialize the JSON body into the target type: missing field `type` at line 1 \
+    column 2".to_string(),
+    4
+)]
+#[tokio::test]
+async fn malformed_request_body(
+    #[case] body: String,
+    #[case] expected_response: String,
+    #[case] instance_index: u16,
+) {
+    let mock_gateway_client = MockGatewayClient::new();
+
+    let ip = IpAddr::from(Ipv4Addr::LOCALHOST);
+    let mut available_ports =
+        AvailablePorts::new(TestIdentifier::HttpServerUnitTests.into(), instance_index);
+    let http_server_config = HttpServerConfig { ip, port: available_ports.get_next_port() };
+    let add_tx_http_client =
+        http_client_server_setup(mock_gateway_client, http_server_config).await;
+
+    // Test a failed response.
+    let response = add_tx_http_client.send_raw_request(body).await.text().await.unwrap();
+
+    assert_eq!(response, expected_response);
 }

@@ -11246,6 +11246,7 @@ dependencies = [
  "metrics-exporter-prometheus",
  "papyrus_config",
  "reqwest 0.11.27",
+ "rstest",
  "serde",
  "serde_json",
  "starknet-types-core",
