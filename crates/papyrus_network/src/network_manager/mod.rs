@@ -21,7 +21,7 @@ use libp2p::gossipsub::{SubscriptionError, TopicHash};
 use libp2p::identity::Keypair;
 use libp2p::swarm::SwarmEvent;
 use libp2p::{noise, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder};
-use metrics::NetworkMetrics;
+use metrics::{BroadcastNetworkMetrics, NetworkMetrics, SqmrNetworkMetrics};
 use papyrus_network_types::network_types::{BroadcastedMessageMetadata, OpaquePeerId};
 use sqmr::Bytes;
 use tracing::{debug, error, trace, warn};
@@ -64,7 +64,8 @@ pub struct GenericNetworkManager<SwarmT: SwarmTrait> {
     reported_peers_sender: Sender<PeerId>,
     continue_propagation_sender: Sender<BroadcastedMessageMetadata>,
     continue_propagation_receiver: Receiver<BroadcastedMessageMetadata>,
-    metrics: Option<NetworkMetrics>,
+    broadcast_metrics_by_topic: Option<HashMap<TopicHash, BroadcastNetworkMetrics>>,
+    sqmr_metrics: Option<SqmrNetworkMetrics>,
 }
 
 impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
@@ -99,10 +100,16 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     pub(crate) fn generic_new(
         mut swarm: SwarmT,
         advertised_multiaddr: Option<Multiaddr>,
-        metrics: Option<NetworkMetrics>,
+        broadcast_metrics_by_topic: Option<HashMap<TopicHash, BroadcastNetworkMetrics>>,
+        sqmr_metrics: Option<SqmrNetworkMetrics>,
     ) -> Self {
-        if let Some(metrics) = metrics.as_ref() {
-            metrics.register();
+        if let Some(broadcast_metrics_by_topic) = broadcast_metrics_by_topic.as_ref() {
+            for broadcast_metric in broadcast_metrics_by_topic.values() {
+                broadcast_metric.register();
+            }
+        }
+        if let Some(sqmr_metrics) = sqmr_metrics.as_ref() {
+            sqmr_metrics.register();
         }
         let reported_peer_receivers = FuturesUnordered::new();
         reported_peer_receivers.push(futures::future::pending().boxed());
@@ -129,7 +136,8 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             reported_peers_sender,
             continue_propagation_sender,
             continue_propagation_receiver,
-            metrics,
+            broadcast_metrics_by_topic,
+            sqmr_metrics,
         }
     }
 
