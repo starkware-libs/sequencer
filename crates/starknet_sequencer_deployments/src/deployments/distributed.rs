@@ -52,38 +52,45 @@ impl GetComponentConfigs for DistributedNodeServiceName {
 
         for inner_service_name in DistributedNodeServiceName::iter() {
             let component_config = match inner_service_name {
-                DistributedNodeServiceName::Batcher => get_batcher_config(
+                DistributedNodeServiceName::Batcher => get_batcher_component_config(
                     batcher.local(),
                     class_manager.remote(),
                     l1_provider.remote(),
                     mempool.remote(),
                 ),
-                DistributedNodeServiceName::ClassManager => {
-                    get_class_manager_config(class_manager.local(), sierra_compiler.remote())
-                }
-                DistributedNodeServiceName::ConsensusManager => get_consensus_manager_config(
-                    batcher.remote(),
-                    class_manager.remote(),
-                    state_sync.remote(),
+                DistributedNodeServiceName::ClassManager => get_class_manager_component_config(
+                    class_manager.local(),
+                    sierra_compiler.remote(),
                 ),
-                DistributedNodeServiceName::HttpServer => get_http_server_config(gateway.remote()),
-                DistributedNodeServiceName::Gateway => get_gateway_config(
+                DistributedNodeServiceName::ConsensusManager => {
+                    get_consensus_manager_component_config(
+                        batcher.remote(),
+                        class_manager.remote(),
+                        state_sync.remote(),
+                    )
+                }
+                DistributedNodeServiceName::HttpServer => {
+                    get_http_server_component_config(gateway.remote())
+                }
+                DistributedNodeServiceName::Gateway => get_gateway_component_config(
                     gateway.local(),
                     class_manager.remote(),
                     mempool.remote(),
                     state_sync.remote(),
                 ),
                 DistributedNodeServiceName::L1Provider => {
-                    get_l1_provider_config(l1_provider.local(), state_sync.remote())
+                    get_l1_provider_component_config(l1_provider.local(), state_sync.remote())
                 }
-                DistributedNodeServiceName::Mempool => {
-                    get_mempool_config(mempool.local(), class_manager.remote(), gateway.remote())
-                }
+                DistributedNodeServiceName::Mempool => get_mempool_component_config(
+                    mempool.local(),
+                    class_manager.remote(),
+                    gateway.remote(),
+                ),
                 DistributedNodeServiceName::SierraCompiler => {
-                    get_sierra_compiler_config(sierra_compiler.local())
+                    get_sierra_compiler_component_config(sierra_compiler.local())
                 }
                 DistributedNodeServiceName::StateSync => {
-                    get_state_sync_config(state_sync.local(), class_manager.remote())
+                    get_state_sync_component_config(state_sync.local(), class_manager.remote())
                 }
             };
             let service_name = inner_service_name.into();
@@ -201,7 +208,7 @@ impl DistributedNodeServiceConfigPair {
     }
 }
 
-fn get_batcher_config(
+fn get_batcher_component_config(
     batcher_local_config: ReactiveComponentExecutionConfig,
     class_manager_remote_config: ReactiveComponentExecutionConfig,
     l1_provider_remote_config: ReactiveComponentExecutionConfig,
@@ -216,7 +223,7 @@ fn get_batcher_config(
     config
 }
 
-fn get_class_manager_config(
+fn get_class_manager_component_config(
     class_manager_local_config: ReactiveComponentExecutionConfig,
     sierra_compiler_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
@@ -227,7 +234,7 @@ fn get_class_manager_config(
     config
 }
 
-fn get_gateway_config(
+fn get_gateway_component_config(
     gateway_local_config: ReactiveComponentExecutionConfig,
     class_manager_remote_config: ReactiveComponentExecutionConfig,
     mempool_remote_config: ReactiveComponentExecutionConfig,
@@ -242,7 +249,7 @@ fn get_gateway_config(
     config
 }
 
-fn get_mempool_config(
+fn get_mempool_component_config(
     mempool_local_config: ReactiveComponentExecutionConfig,
     class_manager_remote_config: ReactiveComponentExecutionConfig,
     gateway_remote_config: ReactiveComponentExecutionConfig,
@@ -256,7 +263,7 @@ fn get_mempool_config(
     config
 }
 
-fn get_sierra_compiler_config(
+fn get_sierra_compiler_component_config(
     sierra_compiler_local_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
@@ -265,7 +272,7 @@ fn get_sierra_compiler_config(
     config
 }
 
-fn get_state_sync_config(
+fn get_state_sync_component_config(
     state_sync_local_config: ReactiveComponentExecutionConfig,
     class_manager_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
@@ -276,7 +283,7 @@ fn get_state_sync_config(
     config
 }
 
-fn get_consensus_manager_config(
+fn get_consensus_manager_component_config(
     batcher_remote_config: ReactiveComponentExecutionConfig,
     class_manager_remote_config: ReactiveComponentExecutionConfig,
     state_sync_remote_config: ReactiveComponentExecutionConfig,
@@ -290,7 +297,7 @@ fn get_consensus_manager_config(
     config
 }
 
-fn get_http_server_config(
+fn get_http_server_component_config(
     gateway_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
@@ -300,7 +307,7 @@ fn get_http_server_config(
     config
 }
 
-fn get_l1_provider_config(
+fn get_l1_provider_component_config(
     l1_provider_local_config: ReactiveComponentExecutionConfig,
     state_sync_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
@@ -311,5 +318,3 @@ fn get_l1_provider_config(
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
 }
-
-// TODO(Tsabary): rename get_X_config fns to get_X_component_config.
