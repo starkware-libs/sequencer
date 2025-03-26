@@ -8,9 +8,9 @@ on:
       - v[0-9].**
     paths:
       - ".github/workflows/sequencer_cdk8s-test.yml"
-      - "config/sequencer"
-      - "deployments/sequencer"
-      - "Monitoring/sequencer"
+      - "config/sequencer/**"
+      - "deployments/sequencer/**"
+      - "Monitoring/sequencer/**"
 
   pull_request:
     branches:
@@ -18,9 +18,9 @@ on:
       - main-v[0-9].**
     paths:
       - ".github/workflows/sequencer_cdk8s-test.yml"
-      - "config/sequencer"
-      - "deployments/sequencer"
-      - "Monitoring/sequencer"
+      - "config/sequencer/**"
+      - "deployments/sequencer/**"
+      - "Monitoring/sequencer/**"
 
 jobs:
   deployment:
