@@ -35,14 +35,14 @@ impl Preimage {
 
 pub type PreimageMap = HashMap<HashOutput, Preimage>;
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum DecodeNodeCase {
     Left,
     Right,
     Both,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct DecodedNode<'a> {
     pub left_child: &'a UpdateTree,
     pub right_child: &'a UpdateTree,
