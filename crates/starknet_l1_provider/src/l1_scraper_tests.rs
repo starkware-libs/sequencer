@@ -163,9 +163,8 @@ async fn bootstrap_e2e() {
     let sync_response = Arc::new(Mutex::new(HashMap::<BlockNumber, SyncBlock>::new()));
     let mut sync_response_clone = sync_response.lock().unwrap().clone();
     sync_client.expect_get_block().returning(move |input| Ok(sync_response_clone.remove(&input)));
-
+    sync_client.expect_get_latest_block_number().returning(move || Ok(Some(CATCH_UP_HEIGHT)));
     let config = L1ProviderConfig {
-        bootstrap_catch_up_height_override: Some(CATCH_UP_HEIGHT),
         startup_sync_sleep_retry_interval: Duration::from_millis(10),
         ..Default::default()
     };
