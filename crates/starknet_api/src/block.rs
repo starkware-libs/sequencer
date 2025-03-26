@@ -433,6 +433,30 @@ impl Default for NonzeroGasPrice {
     }
 }
 
+// impl std::ops::Mul<u128> for NonzeroGasPrice {
+//     type Output = NonzeroGasPrice;
+
+//     fn mul(self, rhs: u128) -> Self::Output {
+//         NonzeroGasPrice::new(GasPrice(self.get().0.checked_mul(rhs).unwrap_or_else(|| {
+//             panic!("Could not multiply {}x{} safely in u128", self.get().0, rhs)
+//         })))
+//         .unwrap()
+//     }
+// }
+
+// impl std::ops::Div<u128> for NonzeroGasPrice {
+//     type Output = NonzeroGasPrice;
+
+//     fn div(self, rhs: u128) -> Self::Output {
+//         NonzeroGasPrice::new(GasPrice(
+//             self.get().0.checked_div(rhs).unwrap_or_else(|| {
+//                 panic!("Could not divide {}/{} safely in u128", self.get().0, rhs)
+//             }),
+//         ))
+//         .unwrap()
+//     }
+// }
+
 impl From<NonzeroGasPrice> for GasPrice {
     fn from(val: NonzeroGasPrice) -> Self {
         val.0

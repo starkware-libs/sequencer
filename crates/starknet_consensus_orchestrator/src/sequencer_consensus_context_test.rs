@@ -52,7 +52,11 @@ use starknet_class_manager_types::transaction_converter::{
 };
 use starknet_class_manager_types::EmptyClassManagerClient;
 use starknet_consensus::types::{ConsensusContext, Round};
-use starknet_l1_gas_price_types::{MockEthToStrkOracleClientTrait, MockL1GasPriceProviderClient};
+use starknet_l1_gas_price_types::{
+    MockEthToStrkOracleClientTrait,
+    MockL1GasPriceProviderClient,
+    PriceInfo,
+};
 use starknet_state_sync_types::communication::MockStateSyncClient;
 use starknet_types_core::felt::Felt;
 
@@ -121,7 +125,10 @@ fn setup(
     let state_sync_client = MockStateSyncClient::new();
     let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
     eth_to_strk_oracle_client.expect_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
-
+    let mut gas_price_provider = MockL1GasPriceProviderClient::new();
+    gas_price_provider
+        .expect_get_price_info()
+        .returning(|_| Ok(PriceInfo { base_fee_per_gas: 1, blob_fee: 1 }));
     let context = SequencerConsensusContext::new(
         ContextConfig {
             proposal_buffer_size: CHANNEL_SIZE,
@@ -137,7 +144,7 @@ fn setup(
         votes_topic_client,
         Arc::new(cende_ambassador),
         Arc::new(eth_to_strk_oracle_client),
-        Arc::new(MockL1GasPriceProviderClient::new()),
+        Arc::new(gas_price_provider),
     );
 
     let network_dependencies =

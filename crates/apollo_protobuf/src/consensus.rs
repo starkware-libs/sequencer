@@ -86,6 +86,10 @@ impl ConsensusBlockInfo {
         // cause too much precision loss.
         wei.checked_mul(eth_to_fri_rate).expect("Gas price is too high.") / ETH_TO_WEI
     }
+    pub fn wei_from_fri(fri: u128, eth_to_fri_rate: u128) -> u128 {
+        const ETH_TO_WEI: u128 = u128::pow(10, 18);
+        fri.checked_mul(ETH_TO_WEI).expect("Gas price is too high") / eth_to_fri_rate
+    }
 }
 
 /// A temporary constant to use as a validator ID. Zero is not a valid contract address.
