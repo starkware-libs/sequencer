@@ -218,7 +218,10 @@ impl<'state> NativeSyscallHandler<'state> {
         match tx_info {
             TransactionInfo::Deprecated(_) => Ok(native_tx_info),
             TransactionInfo::Current(context) => Ok(TxV2Info {
-                resource_bounds: calculate_resource_bounds(context)?,
+                resource_bounds: calculate_resource_bounds(
+                    context,
+                    self.base.should_exclude_l1_data_gas(),
+                ),
                 tip: context.tip.0.into(),
                 paymaster_data: context.paymaster_data.0.clone(),
                 nonce_data_availability_mode: context.nonce_data_availability_mode.into(),
