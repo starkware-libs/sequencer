@@ -1,9 +1,7 @@
 use async_trait::async_trait;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use starknet_infra_utils::type_name::short_type_name;
 use tokio::sync::mpsc::{channel, Sender};
-use tracing::warn;
 
 use crate::component_client::ClientResult;
 use crate::component_definitions::{ComponentClient, ComponentRequestAndResponseSender};
@@ -93,16 +91,6 @@ where
         let request_and_res_tx = ComponentRequestAndResponseSender { request, tx: res_tx };
         self.tx.send(request_and_res_tx).await.expect("Outbound connection should be open.");
         Ok(res_rx.recv().await.expect("Inbound connection should be open."))
-    }
-}
-
-impl<Request, Response> Drop for LocalComponentClient<Request, Response>
-where
-    Request: Send,
-    Response: Send,
-{
-    fn drop(&mut self) {
-        warn!("Dropping {}.", short_type_name::<Self>());
     }
 }
 
