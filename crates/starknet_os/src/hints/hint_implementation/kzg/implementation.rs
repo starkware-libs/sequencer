@@ -74,3 +74,7 @@ pub(crate) fn store_da_segment<S: StateReader>(
 
     Ok(())
 }
+
+pub(crate) fn write_split_result<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
+    todo!()
+}
