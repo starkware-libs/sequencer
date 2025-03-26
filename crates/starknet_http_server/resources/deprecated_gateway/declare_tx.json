@@ -1,0 +1,42 @@
+{
+  "version": "0x3",
+  "signature": ["0x7"],
+  "nonce": "0x6",
+  "nonce_data_availability_mode": 0,
+  "fee_data_availability_mode": 0,
+  "resource_bounds": {
+    "L1_GAS": {
+      "max_amount": "0x10000000000",
+      "max_price_per_unit": "0x10000000000"
+    },
+    "L1_DATA_GAS": {
+      "max_amount": "0x10000000000",
+      "max_price_per_unit": "0x10000000000"
+    },
+    "L2_GAS": {
+      "max_amount": "0x10000000000",
+      "max_price_per_unit": "0x10000000000"
+    }
+  },
+  "tip": "0x0",
+  "paymaster_data": [],
+  "contract_class": {
+    "contract_class_version": "0.1.0",
+    "sierra_program": "H4sIAAFx4mcC/4tWMqgwUtJRAFLGSrEAduCMSg4AAAA=",
+    "entry_points_by_type": {
+      "CONSTRUCTOR": [
+        {
+          "selector": "0x4",
+          "function_idx": 5
+        }
+      ],
+      "L1_HANDLER": [],
+      "EXTERNAL": []
+    },
+    "abi": "abi"
+  },
+  "compiled_class_hash": "0x1e61",
+  "sender_address": "0x3e7",
+  "account_deployment_data": [],
+  "type": "DECLARE"
+}
