@@ -17,6 +17,7 @@ hyper.workspace = true
 jsonrpsee = { workspace = true, features = ["full"] }
 papyrus_config.workspace = true
 reqwest = { workspace = true, optional = true }
+rstest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 starknet_api.workspace = true
