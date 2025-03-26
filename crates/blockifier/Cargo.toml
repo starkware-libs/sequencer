@@ -26,6 +26,7 @@ transaction_serde = []
 
 [dependencies]
 anyhow.workspace = true
+apollo_config.workspace = true
 ark-ec.workspace = true
 ark-ff.workspace = true
 ark-secp256k1.workspace = true
@@ -39,15 +40,14 @@ cairo-native = { workspace = true, optional = true }
 cairo-vm.workspace = true
 derive_more.workspace = true
 indexmap.workspace = true
-mockall.workspace = true
 itertools.workspace = true
 keccak.workspace = true
 log.workspace = true
+mockall.workspace = true
 num-bigint.workspace = true
 num-integer.workspace = true
 num-rational = { workspace = true, features = ["serde"] }
 num-traits.workspace = true
-papyrus_config.workspace = true
 paste.workspace = true
 phf = { workspace = true, features = ["macros"] }
 rand = { workspace = true, optional = true }

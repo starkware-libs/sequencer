@@ -7,15 +7,15 @@ license-file.workspace = true
 description = "Implements the consensus context and orchestrates the node's components accordingly"
 
 [dependencies]
+apollo_config.workspace = true
+apollo_network.workspace = true
+apollo_protobuf.workspace = true
 async-trait.workspace = true
-cairo-lang-starknet-classes.workspace = true
 blockifier.workspace = true
+cairo-lang-starknet-classes.workspace = true
 chrono.workspace = true
 futures.workspace = true
 indexmap.workspace = true
-papyrus_config.workspace = true
-papyrus_network.workspace = true
-papyrus_protobuf.workspace = true
 paste.workspace = true
 reqwest = { workspace = true, features = ["json"] }
 serde.workspace = true
@@ -38,6 +38,9 @@ url = { workspace = true, features = ["serde"] }
 validator.workspace = true
 
 [dev-dependencies]
+apollo_network = { workspace = true, features = ["testing"] }
+apollo_storage = { workspace = true, features = ["testing"] }
+apollo_test_utils.workspace = true
 cairo-lang-casm.workspace = true
 cairo-lang-utils.workspace = true
 cairo-vm.workspace = true
@@ -45,13 +48,10 @@ lazy_static.workspace = true
 mockall.workspace = true
 mockito.workspace = true
 num-bigint.workspace = true
-papyrus_network = { workspace = true, features = ["testing"] }
-papyrus_storage = { workspace = true, features = ["testing"] }
-papyrus_test_utils.workspace = true
 rstest.workspace = true
 serde_json.workspace = true
-starknet_batcher_types = { workspace = true, features = ["testing"] }
 starknet_batcher.workspace = true
+starknet_batcher_types = { workspace = true, features = ["testing"] }
 starknet_class_manager_types = { workspace = true, features = ["testing"] }
 starknet_infra_utils = { workspace = true, features = ["testing"] }
 starknet_l1_gas_price_types = { workspace = true, features = ["testing"] }
