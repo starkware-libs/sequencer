@@ -11,6 +11,9 @@ use crate::test_utils::utils::run_cairo_function_and_check_result;
 
 /// from starkware.cairo.common.alloc import alloc
 /// from starkware.cairo.common.math import assert_lt
+/// from starkware.cairo.common.cairo_builtins import HashBuiltin
+/// from starkware.cairo.common.hash import hash2
+/// from starkware.cairo.common.serialize import serialize_word
 ///
 /// struct CompoundStruct {
 ///     a: felt,
@@ -52,9 +55,14 @@ use crate::test_utils::utils::run_cairo_function_and_check_result;
 ///     return (res1=res_named_tuple, res2=res_simple_struct, res3=res_compound_struct);
 /// }
 ///
-/// func pass_implicit_args{range_check_ptr, compound_struct: CompoundStruct*, simple_struct:
-///     SimpleStruct}(number_1: felt, number_2: felt) -> (res: felt) {
-///     assert_lt(number_1, number_2);
+/// func pass_implicit_args{output_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr,
+///     compound_struct: CompoundStruct*, simple_struct: SimpleStruct}
+///     (number_1: felt, number_2: felt) -> (res: felt) {
+///     assert_lt{range_check_ptr=range_check_ptr}(number_1, number_2);
+///     let (hash) = hash2{hash_ptr=pedersen_ptr}(number_1, number_2);
+///     let (_) = hash2{hash_ptr=pedersen_ptr}(hash, number_2);
+///     serialize_word{output_ptr=output_ptr}(number_1);
+///     serialize_word{output_ptr=output_ptr}(number_2);
 ///     let sum = number_1 + number_2;
 ///     return (res=sum);
 /// }
@@ -191,11 +199,19 @@ fn test_implicit_args() -> Cairo0EntryPointRunnerResult<()> {
         "pass_implicit_args",
         &[number_1.into(), number_2.into()],
         &[
+            ImplicitArg::Builtin(BuiltinName::output),
+            ImplicitArg::Builtin(BuiltinName::pedersen),
             ImplicitArg::Builtin(BuiltinName::range_check),
             ImplicitArg::NonBuiltin(compound_struct.clone()),
             ImplicitArg::NonBuiltin(simple_struct.clone()),
         ],
         &[(number_1 + number_2).into()],
-        &[1.into(), compound_struct, simple_struct],
+        &[
+            EndpointArg::Value(ValueArg::Array(vec![number_1.into(), number_2.into()])),
+            2.into(), // Number of uses of pedersen builtin.
+            1.into(), // Number of uses of range check builtin.
+            compound_struct,
+            simple_struct,
+        ],
     )
 }
