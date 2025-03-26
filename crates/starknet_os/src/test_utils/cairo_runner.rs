@@ -399,9 +399,42 @@ fn load_endpoint_arg_from_address(
     }
 }
 
+/// Push the number of used instances of a builtin to the implicit return values.
+fn push_n_used_instances(
+    builtin_name: &BuiltinName,
+    builtin_name_to_runner: &HashMap<&BuiltinName, &BuiltinRunner>,
+    implicit_return_values: &mut Vec<EndpointArg>,
+    vm: &VirtualMachine,
+) -> Result<(), LoadReturnValueError> {
+    let n_used_instances =
+        builtin_name_to_runner.get(builtin_name).unwrap().get_used_instances(&vm.segments)?;
+    implicit_return_values.push(EndpointArg::Value(ValueArg::Single(Felt::from(n_used_instances))));
+    Ok(())
+}
+
+/// Push the program's output into the implicit return values.
+fn push_program_output(
+    builtin_name: &BuiltinName,
+    builtin_name_to_runner: &HashMap<&BuiltinName, &BuiltinRunner>,
+    implicit_return_values: &mut Vec<EndpointArg>,
+    vm: &VirtualMachine,
+) -> Result<(), LoadReturnValueError> {
+    let output_builtin_runner = builtin_name_to_runner.get(builtin_name).unwrap();
+    let output_builtin_segment = output_builtin_runner.base();
+    let ptr_to_segment =
+        Relocatable { segment_index: isize::try_from(output_builtin_segment).unwrap(), offset: 0 };
+    let output =
+        vm.get_integer_range(ptr_to_segment, output_builtin_runner.get_used_cells(&vm.segments)?)?;
+    let output: Vec<Felt> = output.into_iter().map(|cow| cow.into_owned()).collect();
+    implicit_return_values.push(EndpointArg::Value(ValueArg::Array(output)));
+    Ok(())
+}
+
 /// Loads the explicit and implicit return values from the VM.
 /// The implicit & explicit return values params are used to determine the return
 /// values' structures (their values are ignored).
+/// If the endpoint used builtins, the respective returned (implicit) arg is the builtin instance
+/// usage, unless the builtin is the output builtin, in which case the arg is the output.
 fn get_return_values(
     implicit_return_values_structures: &[ImplicitArg],
     explicit_return_values_structures: &[EndpointArg],
@@ -423,12 +456,20 @@ fn get_return_values(
         debug!("Loading implicit return value {}. Value: {:?}", i, implicit_arg);
         match implicit_arg {
             ImplicitArg::Builtin(builtin) => {
-                let n_used_instances = builtin_name_to_runner
-                    .get(builtin)
-                    .unwrap()
-                    .get_used_instances(&vm.segments)?;
-                implicit_return_values
-                    .push(EndpointArg::Value(ValueArg::Single(Felt::from(n_used_instances))));
+                match builtin {
+                    BuiltinName::output => push_program_output(
+                        builtin,
+                        &builtin_name_to_runner,
+                        &mut implicit_return_values,
+                        vm,
+                    )?,
+                    _ => push_n_used_instances(
+                        builtin,
+                        &builtin_name_to_runner,
+                        &mut implicit_return_values,
+                        vm,
+                    )?,
+                }
                 current_address = (current_address + implicit_arg.memory_length())?;
             }
             ImplicitArg::NonBuiltin(non_builtin_return_value) => {
@@ -455,7 +496,8 @@ fn get_return_values(
 }
 
 /// Runs a Cairo program's entrypoint and returns the explicit and implicit return values.
-/// If the endpoint uses builtins, the respective returned arg is the builtin instance usage.
+/// If the endpoint used builtins, the respective returned (implicit) arg is the builtin instance
+/// usage, unless the builtin is the output builtin, in which case the arg is the output.
 pub fn run_cairo_0_entry_point(
     program_str: &str,
     entrypoint: &str,
