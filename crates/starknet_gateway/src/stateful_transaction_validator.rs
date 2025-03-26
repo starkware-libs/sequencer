@@ -10,6 +10,7 @@ use blockifier::transaction::account_transaction::{AccountTransaction, Execution
 use blockifier::transaction::transactions::enforce_fee;
 #[cfg(test)]
 use mockall::automock;
+use papyrus_proc_macros::sequencer_latency_histogram;
 use starknet_api::block::BlockInfo;
 use starknet_api::core::Nonce;
 use starknet_api::executable_transaction::{
@@ -23,6 +24,7 @@ use tracing::error;
 
 use crate::config::StatefulTransactionValidatorConfig;
 use crate::errors::StatefulTransactionValidatorResult;
+use crate::metrics::GATEWAY_VALIDATE_TX_LATENCY;
 use crate::state_reader::{MempoolStateReader, StateReaderFactory};
 
 #[cfg(test)]
@@ -43,6 +45,7 @@ pub trait StatefulTransactionValidatorTrait {
 }
 
 impl StatefulTransactionValidatorTrait for BlockifierStatefulValidator {
+    #[sequencer_latency_histogram(GATEWAY_VALIDATE_TX_LATENCY, true)]
     fn validate(
         &mut self,
         account_tx: AccountTransaction,

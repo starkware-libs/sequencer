@@ -259,6 +259,13 @@
         "extra_params": {}
       },
       {
+        "title": "gateway_validate_tx_latency",
+        "description": "Latency of gateway validate function in secs",
+        "type": "graph",
+        "expr": "avg_over_time(gateway_validate_tx_latency[2m])",
+        "extra_params": {}
+      },
+      {
         "title": "gateway_transactions_failed",
         "description": "Counter of failed transactions",
         "type": "stat",
