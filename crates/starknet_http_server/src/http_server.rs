@@ -53,15 +53,16 @@ impl HttpServer {
         Ok(axum::Server::bind(&addr).serve(app.into_make_service()).await?)
     }
 
+    // TODO(Yael) : consider supporting both formats in the same endpoints if possible.
     pub fn app(&self) -> Router {
-        Router::new().route("/add_tx", post(add_tx)).with_state(self.app_state.clone())
+        Router::new().route("/add_rpc_tx", post(add_rpc_tx)).with_state(self.app_state.clone())
     }
 }
 
 // HttpServer handlers.
 
 #[instrument(skip(app_state))]
-async fn add_tx(
+async fn add_rpc_tx(
     State(app_state): State<AppState>,
     headers: HeaderMap,
     Json(tx): Json<RpcTransaction>,
