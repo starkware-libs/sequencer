@@ -2523,7 +2523,12 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
             storage_address: contract_address,
             caller_address: ContractAddress::default(),
             call_type: CallType::Call,
-            initial_gas: block_context.versioned_constants.os_constants.execute_max_sierra_gas.0,
+            initial_gas: block_context
+                .versioned_constants
+                .os_constants
+                .l1_handler_max_amount_bounds
+                .l2_gas
+                .0,
         },
         execution: CallExecution {
             retdata: Retdata(vec![value]),
