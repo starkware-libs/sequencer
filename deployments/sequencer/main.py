@@ -61,6 +61,7 @@ def main():
                 ingress=svc["ingress"],
                 storage=svc["storage"],
                 resources=svc["resources"],
+                external_secret=svc["external_secret"],
             ),
         )
 

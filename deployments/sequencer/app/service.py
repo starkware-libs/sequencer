@@ -25,7 +25,6 @@ class ServiceApp(Construct):
         *,
         namespace: str,
         service_topology: topology.ServiceTopology,
-        external_secret=None,  # Disabled for now
     ):
         super().__init__(scope, id)
 
@@ -35,7 +34,6 @@ class ServiceApp(Construct):
             "service": Names.to_label_value(self, include_hash=False),
         }
         self.service_topology = service_topology
-        self.external_secret = external_secret
         self.node_config = service_topology.config.get_config()
 
         self.config_map = k8s.KubeConfigMap(
@@ -98,6 +96,9 @@ class ServiceApp(Construct):
         if self.service_topology.autoscale:
             self.hpa = self._get_hpa()
 
+        if self.service_topology.external_secret is not None:
+            self.external_secret = self._get_external_secret()
+
     def _get_external_secret(self) -> ExternalSecret:
         return ExternalSecret(
             self,
@@ -116,7 +117,7 @@ class ServiceApp(Construct):
                     ExternalSecretSpecData(
                         secret_key="secrets.json",
                         remote_ref=ExternalSecretSpecDataRemoteRef(
-                            key=f"{self.node.id}-{self.namespace}",
+                            key=self.service_topology.external_secret["gcsm_key"],
                             conversion_strategy=ExternalSecretSpecDataRemoteRefConversionStrategy.DEFAULT,
                         ),
                     ),
@@ -267,7 +268,7 @@ class ServiceApp(Construct):
                     mount_path="/etc/secrets",
                     read_only=True,
                 )
-                if self.external_secret is not None
+                if self.service_topology.external_secret is not None
                 else None
             ),
             (
@@ -305,7 +306,7 @@ class ServiceApp(Construct):
                         ],
                     ),
                 )
-                if self.external_secret is not None
+                if self.service_topology.external_secret is not None
                 else None
             ),
             (
