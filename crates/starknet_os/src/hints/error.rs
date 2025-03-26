@@ -16,6 +16,7 @@ use starknet_api::executable_transaction::Transaction;
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
 
+use crate::hint_processor::os_logger::OsLoggerError;
 use crate::hints::enum_definition::AllHints;
 use crate::hints::hint_implementation::kzg::utils::FftError;
 use crate::hints::vars::{Const, Ids};
@@ -65,6 +66,8 @@ pub enum OsHintError {
     MissingBytecodeSegmentStructure(ClassHash),
     #[error("No preimage found for value {0:?}.")]
     MissingPreimage(Felt),
+    #[error(transparent)]
+    OsLogger(#[from] OsLoggerError),
     #[error("Failed to parse resource bounds: {0}.")]
     ResourceBoundsParsing(SyscallExecutionError),
     #[error("{error:?} for json value {value}.")]
