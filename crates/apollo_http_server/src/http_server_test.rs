@@ -206,3 +206,63 @@ async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) 
     let error_str = http_client.assert_add_tx_error(tx, StatusCode::INTERNAL_SERVER_ERROR).await;
     assert_eq!(error_str, expected_gateway_client_err_str);
 }
+
+const VERSION_1_DEPLOY_ACCOUNT_JSON: &str = r#"{"version": "0x1", "signature": [], "nonce": "0x0", "max_fee": "0x10000000000000000000000000", "class_hash": "0x1", "contract_address_salt": "0x2", "constructor_calldata": [], "type": "DEPRECATED_DEPLOY_ACCOUNT"}"#;
+const VERSION_3_INVOKE_JSON: &str = r#"{"version": "0x3", "signature": ["0x1132577", "0x17df53c", "0x0"], "nonce": "0x0", "nonce_data_availability_mode": 0, "fee_data_availability_mode": 0, "resource_bounds": {"L1_GAS": {"max_amount": "0x4000000000000", "max_price_per_unit": "0x4000000000000"}, "L2_GAS": {"max_amount": "0x0", "max_price_per_unit": "0x0"}}, "tip": "0x0", "paymaster_data": [], "sender_address": "0x64", "calldata": ["0x0", "0x1", "0x2", "0x3", "0x4", "0x5", "0x6", "0x7", "0x8", "0x9"], "account_deployment_data": [], "type": "INVOKE_FUNCTION"}"#;
+const MODIFIED_VERSION_3_INVOKE_JSON: &str = r#"{"version": "0x3", "signature": ["0x1132577", "0x17df53c", "0x0"], "nonce": "0x0", "nonce_data_availability_mode": 0, "fee_data_availability_mode": 0, "resource_bounds": {"l1_gas": {"max_amount": "0x4000000000000", "max_price_per_unit": "0x4000000000000"}, "l2_gas": {"max_amount": "0x0", "max_price_per_unit": "0x0"}}, "tip": "0x0", "paymaster_data": [], "sender_address": "0x64", "calldata": ["0x0", "0x1", "0x2", "0x3", "0x4", "0x5", "0x6", "0x7", "0x8", "0x9"], "account_deployment_data": [], "type": "INVOKE"}"#;
+
+#[rstest]
+#[case::not_a_json(
+    "not a json".to_string(),
+    "Failed to parse the request body as JSON: expected ident",
+    4
+)]
+#[case::empty_json(
+    "{}".to_string(),
+    "Failed to deserialize the JSON body into the target type: missing field `type`",
+    5
+)]
+// TODO(Arni): Fix the HTTP server so it behaves differently for this case. The error message should
+// be more informative.
+#[case::version_1_deploy_account(
+    VERSION_1_DEPLOY_ACCOUNT_JSON.to_string(),
+    "Failed to deserialize the JSON body into the target type: type: unknown variant \
+    `DEPRECATED_DEPLOY_ACCOUNT`, expected one of `DECLARE`, `DEPLOY_ACCOUNT`, `INVOKE`",
+    6
+)]
+#[case::version_3_invoke_function(
+    VERSION_3_INVOKE_JSON.to_string(),
+    "Failed to deserialize the JSON body into the target type: type: unknown variant \
+    `INVOKE_FUNCTION`, expected one of `DECLARE`, `DEPLOY_ACCOUNT`, `INVOKE`",
+    7
+)]
+#[case::formalized_version_3_invoke(
+    MODIFIED_VERSION_3_INVOKE_JSON.to_string(),
+    "Failed to deserialize the JSON body into the target type: missing field `l1_data_gas`",
+    8
+)]
+#[tokio::test]
+async fn malformed_request_body(
+    #[case] body: String,
+    #[case] expected_response: &str,
+    #[case] instance_index: u16,
+) {
+    let mock_gateway_client = MockGatewayClient::new();
+
+    let ip = IpAddr::from(Ipv4Addr::LOCALHOST);
+    let mut available_ports =
+        AvailablePorts::new(TestIdentifier::HttpServerUnitTests.into(), instance_index);
+    let http_server_config = HttpServerConfig { ip, port: available_ports.get_next_port() };
+    let add_tx_http_client =
+        http_client_server_setup(mock_gateway_client, http_server_config).await;
+
+    // Test a failed response.
+    // TODO(Arni): Send a request to the URL '/gateway/add_transaction' as well as to
+    // '/gateway/add_rpc_transaction'.
+    let response = add_tx_http_client.send_raw_request(body).await.text().await.unwrap();
+
+    assert!(
+        response.contains(expected_response),
+        "Unexpected response; the response is: \n{response}"
+    );
+}

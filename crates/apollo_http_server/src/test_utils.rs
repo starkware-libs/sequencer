@@ -77,6 +77,18 @@ impl HttpTestClient {
             .await
             .unwrap()
     }
+
+    // Body a json formatted string.
+    pub async fn send_raw_request(&self, body: String) -> Response {
+        let request =
+            self.client.post(format!("http://{}/gateway/add_rpc_transaction", self.socket));
+        request
+            .header("content-type", "application/json")
+            .body(Body::from(body))
+            .send()
+            .await
+            .unwrap()
+    }
 }
 
 pub fn create_http_server_config(socket: SocketAddr) -> HttpServerConfig {
