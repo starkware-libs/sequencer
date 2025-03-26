@@ -104,22 +104,22 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 Service::new(Into::<ServiceName>::into(*self), false, false, 1, Some(32))
             }
             DistributedNodeServiceName::ConsensusManager => {
-                Service::new(Into::<ServiceName>::into(*self), false, false, 1, Some(32))
+                Service::new(Into::<ServiceName>::into(*self), false, false, 1, None)
             }
             DistributedNodeServiceName::HttpServer => {
-                Service::new(Into::<ServiceName>::into(*self), false, false, 1, Some(32))
+                Service::new(Into::<ServiceName>::into(*self), false, false, 1, None)
             }
             DistributedNodeServiceName::Gateway => {
-                Service::new(Into::<ServiceName>::into(*self), false, false, 1, Some(32))
+                Service::new(Into::<ServiceName>::into(*self), false, false, 1, None)
             }
             DistributedNodeServiceName::L1Provider => {
-                Service::new(Into::<ServiceName>::into(*self), false, false, 1, Some(32))
+                Service::new(Into::<ServiceName>::into(*self), false, false, 1, None)
             }
             DistributedNodeServiceName::Mempool => {
-                Service::new(Into::<ServiceName>::into(*self), false, false, 1, Some(32))
+                Service::new(Into::<ServiceName>::into(*self), false, false, 1, None)
             }
             DistributedNodeServiceName::SierraCompiler => {
-                Service::new(Into::<ServiceName>::into(*self), false, false, 1, Some(32))
+                Service::new(Into::<ServiceName>::into(*self), false, false, 1, None)
             }
             DistributedNodeServiceName::StateSync => {
                 Service::new(Into::<ServiceName>::into(*self), false, false, 1, Some(32))
