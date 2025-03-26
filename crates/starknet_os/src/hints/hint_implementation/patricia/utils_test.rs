@@ -2,7 +2,17 @@ use assert_matches::assert_matches;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_types_core::felt::Felt;
 
-use super::{build_update_tree, Height, TreeIndex, UpdateTree, UpdateTreeInner};
+use super::{
+    build_update_tree,
+    decode_node,
+    DecodeNodeCase,
+    DecodedNode,
+    Height,
+    TreeIndex,
+    UpdateTree,
+    UpdateTreeInner,
+};
+use crate::hints::hint_implementation::patricia::error::PatriciaError;
 
 #[test]
 fn test_build_update_tree_empty() {
@@ -53,4 +63,46 @@ fn test_build_update_tree() {
     ));
 
     assert_eq!(update_tree, expected_update_tree);
+}
+
+#[test]
+fn test_decode_node() {
+    let leaf_left = HashOutput(Felt::from(252));
+    let leaf_right = HashOutput(Felt::from(3000));
+
+    // Left node
+    let node =
+        UpdateTreeInner::Tuple(Box::new(Some(UpdateTreeInner::Leaf(leaf_left))), Box::new(None));
+    let DecodedNode { left_child, right_child, case } = decode_node(&node).unwrap();
+    assert_matches!(left_child, Some(UpdateTreeInner::Leaf(value)) if value.0 == leaf_left.0);
+    assert_matches!(right_child, None);
+    assert_matches!(case, DecodeNodeCase::Left);
+
+    // Right node
+    let node =
+        UpdateTreeInner::Tuple(Box::new(None), Box::new(Some(UpdateTreeInner::Leaf(leaf_right))));
+    let DecodedNode { left_child, right_child, case } = decode_node(&node).unwrap();
+    assert_matches!(left_child, None);
+    assert_matches!(right_child, Some(UpdateTreeInner::Leaf(value)) if value.0 == leaf_right.0);
+    assert_matches!(case, DecodeNodeCase::Right);
+
+    // Two children
+    let node = UpdateTreeInner::Tuple(
+        Box::new(Some(UpdateTreeInner::Leaf(leaf_left))),
+        Box::new(Some(UpdateTreeInner::Leaf(leaf_right))),
+    );
+    let DecodedNode { left_child, right_child, case } = decode_node(&node).unwrap();
+    assert_matches!(left_child, Some(UpdateTreeInner::Leaf(value)) if value.0 == leaf_left.0);
+    assert_matches!(right_child, Some(UpdateTreeInner::Leaf(value)) if value.0 == leaf_right.0);
+    assert_matches!(case, DecodeNodeCase::Both);
+
+    // No children
+    let node = UpdateTreeInner::Tuple(Box::new(None), Box::new(None));
+    let result = decode_node(&node);
+    assert_matches!(result, Err(PatriciaError::IsEmpty));
+
+    // Leaf
+    let node = UpdateTreeInner::Leaf(leaf_left);
+    let result = decode_node(&node);
+    assert_matches!(result, Err(PatriciaError::IsLeaf));
 }
