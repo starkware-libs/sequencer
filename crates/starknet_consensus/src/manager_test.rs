@@ -1,17 +1,17 @@
 use std::time::Duration;
 use std::vec;
 
-use futures::channel::{mpsc, oneshot};
-use futures::{FutureExt, SinkExt};
-use lazy_static::lazy_static;
-use papyrus_network::network_manager::test_utils::{
+use apollo_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     MockBroadcastedMessagesSender,
     TestSubscriberChannels,
 };
-use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use papyrus_protobuf::consensus::{ProposalFin, Vote, DEFAULT_VALIDATOR_ID};
-use papyrus_test_utils::{get_rng, GetTestInstance};
+use apollo_network_types::network_types::BroadcastedMessageMetadata;
+use apollo_protobuf::consensus::{ProposalFin, Vote, DEFAULT_VALIDATOR_ID};
+use apollo_test_utils::{get_rng, GetTestInstance};
+use futures::channel::{mpsc, oneshot};
+use futures::{FutureExt, SinkExt};
+use lazy_static::lazy_static;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_types_core::felt::Felt;
 

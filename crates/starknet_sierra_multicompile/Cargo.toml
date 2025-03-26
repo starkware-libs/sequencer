@@ -13,12 +13,12 @@ cairo_native = ["dep:cairo-native"]
 workspace = true
 
 [dependencies]
+apollo_config.workspace = true
 async-trait.workspace = true
 cairo-lang-sierra.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
 cairo-native = { workspace = true, optional = true }
-papyrus_config.workspace = true
 rlimit.workspace = true
 serde.workspace = true
 serde_json.workspace = true

@@ -1,17 +1,17 @@
-use futures::channel::mpsc::Receiver;
-use futures::stream::StreamExt;
-use futures::FutureExt;
-use mockall::predicate;
-use papyrus_network::network_manager::test_utils::{
+use apollo_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     BroadcastNetworkMock,
     MockMessagesToBroadcastReceiver,
     TestSubscriberChannels,
 };
-use papyrus_network::network_manager::{BroadcastTopicChannels, BroadcastTopicClient};
-use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use papyrus_protobuf::mempool::RpcTransactionBatch;
-use papyrus_test_utils::{get_rng, GetTestInstance};
+use apollo_network::network_manager::{BroadcastTopicChannels, BroadcastTopicClient};
+use apollo_network_types::network_types::BroadcastedMessageMetadata;
+use apollo_protobuf::mempool::RpcTransactionBatch;
+use apollo_test_utils::{get_rng, GetTestInstance};
+use futures::channel::mpsc::Receiver;
+use futures::stream::StreamExt;
+use futures::FutureExt;
+use mockall::predicate;
 use starknet_api::rpc_transaction::{InternalRpcTransaction, RpcTransaction};
 use starknet_class_manager_types::transaction_converter::{
     MockTransactionConverterTrait,

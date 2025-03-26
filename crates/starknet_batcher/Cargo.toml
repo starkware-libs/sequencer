@@ -12,15 +12,15 @@ testing = []
 workspace = true
 
 [dependencies]
+apollo_config.workspace = true
 apollo_reverts.workspace = true
+apollo_state_reader.workspace = true
+apollo_storage.workspace = true
 async-trait.workspace = true
 blockifier.workspace = true
 chrono.workspace = true
 futures.workspace = true
 indexmap.workspace = true
-papyrus_config.workspace = true
-papyrus_state_reader.workspace = true
-papyrus_storage.workspace = true
 serde.workspace = true
 starknet_api.workspace = true
 starknet_batcher_types.workspace = true
@@ -36,6 +36,7 @@ tracing.workspace = true
 validator.workspace = true
 
 [dev-dependencies]
+apollo_storage = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 cairo-lang-starknet-classes.workspace = true
@@ -44,7 +45,6 @@ mempool_test_utils.workspace = true
 metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
 mockall.workspace = true
-papyrus_storage = { workspace = true, features = ["testing"] }
 pretty_assertions.workspace = true
 rstest.workspace = true
 starknet-types-core.workspace = true

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use papyrus_config::dumping::{ConfigPointers, Pointers};
-use papyrus_config::{ParamPath, SerializedContent, SerializedParam};
+use apollo_config::dumping::{ConfigPointers, Pointers};
+use apollo_config::{ParamPath, SerializedContent, SerializedParam};
 use serde_json::Value;
 
 #[derive(Debug, Clone, Default)]

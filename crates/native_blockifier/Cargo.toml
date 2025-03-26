@@ -9,14 +9,14 @@ description = "A Bridge between the Rust blockifier crate and Python."
 [features]
 cairo_native = [
   "blockifier/cairo_native",
-  "papyrus_state_reader/cairo_native",
+  "apollo_state_reader/cairo_native",
   "starknet_sierra_multicompile/cairo_native",
 ]
 # Required for `cargo test` to work with Pyo3.
 # On Python, make sure to compile this with the extension-module feature enabled.
 # https://pyo3.rs/v0.19.1/faq#i-cant-run-cargo-test-or-i-cant-build-in-a-cargo-workspace-im-having-linker-issues-like-symbol-not-found-or-undefined-reference-to-_pyexc_systemerror
 extension-module = ["pyo3/extension-module"]
-testing = ["blockifier/testing", "papyrus_storage/testing", "starknet_api/testing"]
+testing = ["blockifier/testing", "apollo_storage/testing", "starknet_api/testing"]
 
 [lints]
 workspace = true
@@ -31,14 +31,14 @@ name = "native_blockifier"
 crate-type = ["cdylib"]
 
 [dependencies]
+apollo_state_reader.workspace = true
+apollo_storage.workspace = true
 blockifier = { workspace = true, features = ["native_blockifier"] }
 cairo-lang-starknet-classes.workspace = true
 cairo-vm.workspace = true
 indexmap.workspace = true
 log.workspace = true
 num-bigint.workspace = true
-papyrus_state_reader.workspace = true
-papyrus_storage.workspace = true
 pyo3 = { workspace = true, features = ["hashbrown", "num-bigint"] }
 pyo3-log.workspace = true
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
@@ -49,9 +49,9 @@ starknet_sierra_multicompile.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+apollo_storage = { workspace = true, features = ["testing"] }
 blockifier = { workspace = true, features = ["native_blockifier", "testing"] }
 cached.workspace = true
-papyrus_storage = { workspace = true, features = ["testing"] }
 pretty_assertions.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 tempfile.workspace = true
