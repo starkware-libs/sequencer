@@ -92,7 +92,7 @@ fn block_info(height: BlockNumber) -> ConsensusBlockInfo {
         timestamp: chrono::Utc::now().timestamp().try_into().expect("Timestamp conversion failed"),
         builder: Default::default(),
         l1_da_mode: L1DataAvailabilityMode::Blob,
-        l2_gas_price_fri: 1,
+        l2_gas_price_fri: 100000,
         l1_gas_price_wei: 1,
         l1_data_gas_price_wei: 1,
         eth_to_fri_rate: ETH_TO_FRI_RATE,
