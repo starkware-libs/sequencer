@@ -13,9 +13,9 @@ testing = []
 workspace = true
 
 [dependencies]
+apollo_central_sync.workspace = true
 const_format.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
-papyrus_sync.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
 starknet_batcher.workspace = true
@@ -31,7 +31,7 @@ starknet_sequencer_metrics.workspace = true
 starknet_state_sync.workspace = true
 
 [dev-dependencies]
-papyrus_sync = { workspace = true, features = ["testing"] }
+apollo_central_sync = { workspace = true, features = ["testing"] }
 starknet_batcher = { workspace = true, features = ["testing"] }
 starknet_consensus = { workspace = true, features = ["testing"] }
 starknet_consensus_manager = { workspace = true, features = ["testing"] }

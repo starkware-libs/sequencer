@@ -9,6 +9,7 @@ license.workspace = true
 blockifier_regression_https_testing = []
 
 [dependencies]
+apollo_rpc_execution.workspace = true
 assert_matches.workspace = true
 blockifier = { workspace = true, features = ["reexecution"] }
 cairo-lang-starknet-classes.workspace = true
@@ -17,7 +18,6 @@ clap = { workspace = true, features = ["cargo", "derive"] }
 flate2.workspace = true
 google-cloud-storage.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
-papyrus_execution.workspace = true
 pretty_assertions.workspace = true
 retry.workspace = true
 serde.workspace = true

@@ -2,15 +2,15 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::result;
 
+use apollo_config::dumping::{append_sub_config_name, ser_optional_sub_config, SerializeConfig};
+use apollo_config::{ParamPath, SerializedParam};
+use apollo_network::NetworkConfig;
+use apollo_p2p_sync::client::P2pSyncClientConfig;
 use apollo_reverts::RevertConfig;
-use papyrus_config::dumping::{append_sub_config_name, ser_optional_sub_config, SerializeConfig};
-use papyrus_config::{ParamPath, SerializedParam};
-use papyrus_network::NetworkConfig;
-use papyrus_p2p_sync::client::P2pSyncClientConfig;
-use papyrus_storage::db::DbConfig;
-use papyrus_storage::StorageConfig;
-use papyrus_sync::sources::central::CentralSourceConfig;
-use papyrus_sync::SyncConfig;
+use apollo_storage::db::DbConfig;
+use apollo_storage::StorageConfig;
+use apollo_central_sync::sources::central::CentralSourceConfig;
+use apollo_central_sync::SyncConfig;
 use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationError};
 

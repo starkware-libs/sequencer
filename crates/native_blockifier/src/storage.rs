@@ -6,10 +6,10 @@ use std::path::PathBuf;
 
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::IndexMap;
-use papyrus_storage::class::ClassStorageWriter;
-use papyrus_storage::compiled_class::CasmStorageWriter;
-use papyrus_storage::header::{HeaderStorageReader, HeaderStorageWriter};
-use papyrus_storage::state::{StateStorageReader, StateStorageWriter};
+use apollo_storage::class::ClassStorageWriter;
+use apollo_storage::compiled_class::CasmStorageWriter;
+use apollo_storage::header::{HeaderStorageReader, HeaderStorageWriter};
+use apollo_storage::state::{StateStorageReader, StateStorageWriter};
 use pyo3::prelude::*;
 use starknet_api::block::{BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber};
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash};
@@ -34,14 +34,14 @@ pub type RawDeprecatedDeclaredClassMapping = HashMap<PyFelt, String>;
 // to prevent possible memory leaks
 // TODO(Dori): see if this is indeed necessary.
 pub struct PapyrusStorage {
-    reader: Option<papyrus_storage::StorageReader>,
-    writer: Option<papyrus_storage::StorageWriter>,
+    reader: Option<apollo_storage::StorageReader>,
+    writer: Option<apollo_storage::StorageWriter>,
 }
 
 impl PapyrusStorage {
     pub fn new(config: StorageConfig) -> NativeBlockifierResult<PapyrusStorage> {
         log::debug!("Initializing Blockifier storage...");
-        let db_config = papyrus_storage::db::DbConfig {
+        let db_config = apollo_storage::db::DbConfig {
             path_prefix: config.path_prefix,
             enforce_file_exists: config.enforce_file_exists,
             chain_id: config.chain_id,
@@ -49,18 +49,18 @@ impl PapyrusStorage {
             max_size: config.max_size,
             growth_step: 1 << 26, // 64MB.
         };
-        let storage_config = papyrus_storage::StorageConfig {
+        let storage_config = apollo_storage::StorageConfig {
             db_config,
-            scope: papyrus_storage::StorageScope::StateOnly, // Only stores blockifier-related data.
+            scope: apollo_storage::StorageScope::StateOnly, // Only stores blockifier-related data.
             // Storage for large objects (state-diffs, contracts). This sets total storage
             // allocated, maximum space an object can take, and how fast the storage grows.
-            mmap_file_config: papyrus_storage::mmap_file::MmapFileConfig {
+            mmap_file_config: apollo_storage::mmap_file::MmapFileConfig {
                 max_size: 1 << 40,        // 1TB
                 growth_step: 2 << 30,     // 2GB
                 max_object_size: 1 << 30, // 1GB
             },
         };
-        let (reader, writer) = papyrus_storage::open_storage(storage_config)?;
+        let (reader, writer) = apollo_storage::open_storage(storage_config)?;
         log::debug!("Initialized Blockifier storage.");
 
         Ok(PapyrusStorage { reader: Some(reader), writer: Some(writer) })
@@ -69,7 +69,7 @@ impl PapyrusStorage {
     /// Manually drops the storage reader and writer.
     /// Python does not necessarily drop them even if instance is no longer live.
     pub fn new_for_testing(path_prefix: PathBuf, chain_id: &ChainId) -> PapyrusStorage {
-        let db_config = papyrus_storage::db::DbConfig {
+        let db_config = apollo_storage::db::DbConfig {
             path_prefix,
             chain_id: chain_id.clone(),
             enforce_file_exists: false,
@@ -77,8 +77,8 @@ impl PapyrusStorage {
             max_size: 1 << 35,    // 32GB
             growth_step: 1 << 26, // 64MB
         };
-        let storage_config = papyrus_storage::StorageConfig { db_config, ..Default::default() };
-        let (reader, writer) = papyrus_storage::open_storage(storage_config).unwrap();
+        let storage_config = apollo_storage::StorageConfig { db_config, ..Default::default() };
+        let (reader, writer) = apollo_storage::open_storage(storage_config).unwrap();
 
         PapyrusStorage { reader: Some(reader), writer: Some(writer) }
     }
@@ -235,11 +235,11 @@ impl Storage for PapyrusStorage {
         );
     }
 
-    fn reader(&self) -> &papyrus_storage::StorageReader {
+    fn reader(&self) -> &apollo_storage::StorageReader {
         self.reader.as_ref().expect("Storage should be initialized.")
     }
 
-    fn writer(&mut self) -> &mut papyrus_storage::StorageWriter {
+    fn writer(&mut self) -> &mut apollo_storage::StorageWriter {
         self.writer.as_mut().expect("Storage should be initialized.")
     }
 
@@ -291,8 +291,8 @@ pub trait Storage {
 
     fn validate_aligned(&self, source_block_number: u64);
 
-    fn reader(&self) -> &papyrus_storage::StorageReader;
-    fn writer(&mut self) -> &mut papyrus_storage::StorageWriter;
+    fn reader(&self) -> &apollo_storage::StorageReader;
+    fn writer(&mut self) -> &mut apollo_storage::StorageWriter;
 
     fn close(&mut self);
 }

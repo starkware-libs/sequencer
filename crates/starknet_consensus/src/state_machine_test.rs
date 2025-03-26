@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 
 use lazy_static::lazy_static;
-use papyrus_protobuf::consensus::DEFAULT_VALIDATOR_ID;
+use apollo_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 use starknet_api::block::BlockHash;
 use starknet_types_core::felt::Felt;
 use test_case::test_case;

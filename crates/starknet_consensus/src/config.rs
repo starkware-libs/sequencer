@@ -5,13 +5,13 @@
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-use papyrus_config::converters::{
+use apollo_config::converters::{
     deserialize_float_seconds_to_duration,
     deserialize_seconds_to_duration,
 };
-use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
-use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use papyrus_protobuf::consensus::DEFAULT_VALIDATOR_ID;
+use apollo_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 

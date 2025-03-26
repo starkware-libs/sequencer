@@ -7,12 +7,12 @@ use std::ops::IndexMut;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use colored::Colorize;
 use itertools::Itertools;
-use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
-use papyrus_config::dumping::SerializeConfig;
-use papyrus_config::presentation::get_config_presentation;
-use papyrus_config::{SerializationType, SerializedContent, SerializedParam};
+use apollo_config::dumping::SerializeConfig;
+use apollo_config::presentation::get_config_presentation;
+use apollo_config::{SerializationType, SerializedContent, SerializedParam};
 use papyrus_monitoring_gateway::MonitoringGatewayConfig;
 use pretty_assertions::assert_eq;
 use serde_json::{json, Map, Value};

@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
-use papyrus_config::dumping::{append_sub_config_name, SerializeConfig};
-use papyrus_config::{ParamPath, SerializedParam};
+use apollo_config::dumping::{append_sub_config_name, SerializeConfig};
+use apollo_config::{ParamPath, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 

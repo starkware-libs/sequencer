@@ -3,7 +3,7 @@ use std::fs::File;
 use std::net::{IpAddr, Ipv4Addr};
 
 use colored::Colorize;
-use papyrus_config::dumping::SerializeConfig;
+use apollo_config::dumping::SerializeConfig;
 use rstest::rstest;
 use starknet_infra_utils::path::resolve_project_relative_path;
 use starknet_infra_utils::test_utils::assert_json_eq;

@@ -10,6 +10,10 @@ description = "Reach consensus for Starknet"
 testing = []
 
 [dependencies]
+apollo_config.workspace = true
+apollo_network.workspace = true
+apollo_network_types.workspace = true
+apollo_protobuf.workspace = true
 async-trait.workspace = true
 clap = { workspace = true, features = ["derive"] }
 fs2.workspace = true
@@ -19,10 +23,6 @@ lru.workspace = true
 metrics.workspace = true
 nix.workspace = true
 papyrus_common.workspace = true
-papyrus_config.workspace = true
-papyrus_network.workspace = true
-papyrus_network_types.workspace = true
-papyrus_protobuf.workspace = true
 prost.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet-types-core.workspace = true
@@ -36,12 +36,12 @@ tracing.workspace = true
 validator.workspace = true
 
 [dev-dependencies]
+apollo_network = { workspace = true, features = ["testing"] }
+apollo_network_types = { workspace = true, features = ["testing"] }
+apollo_storage = { workspace = true, features = ["testing"] }
+apollo_test_utils.workspace = true
 enum-as-inner.workspace = true
 mockall.workspace = true
-papyrus_network = { workspace = true, features = ["testing"] }
-papyrus_network_types = { workspace = true, features = ["testing"] }
-papyrus_storage = { workspace = true, features = ["testing"] }
-papyrus_test_utils.workspace = true
 test-case.workspace = true
 
 [lints]

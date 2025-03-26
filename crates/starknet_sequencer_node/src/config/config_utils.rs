@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 
-use papyrus_config::dumping::{
+use apollo_config::dumping::{
     combine_config_map_and_pointers,
     ConfigPointers,
     Pointers,

@@ -3,11 +3,11 @@ use std::fmt::Display;
 
 use futures::channel::mpsc::{self, Receiver, SendError, Sender};
 use futures::{FutureExt, SinkExt, StreamExt};
-use papyrus_network::network_manager::{BroadcastTopicClientTrait, ReceivedBroadcastedMessage};
-use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use papyrus_protobuf::consensus::{ProposalInit, ProposalPart, StreamMessageBody};
-use papyrus_protobuf::converters::ProtobufConversionError;
-use papyrus_test_utils::{get_rng, GetTestInstance};
+use apollo_network::network_manager::{BroadcastTopicClientTrait, ReceivedBroadcastedMessage};
+use apollo_network_types::network_types::BroadcastedMessageMetadata;
+use apollo_protobuf::consensus::{ProposalInit, ProposalPart, StreamMessageBody};
+use apollo_protobuf::converters::ProtobufConversionError;
+use apollo_test_utils::{get_rng, GetTestInstance};
 use prost::DecodeError;
 
 use crate::stream_handler::StreamHandler;
@@ -52,7 +52,7 @@ impl Display for TestStreamId {
     }
 }
 
-type StreamMessage = papyrus_protobuf::consensus::StreamMessage<ProposalPart, TestStreamId>;
+type StreamMessage = apollo_protobuf::consensus::StreamMessage<ProposalPart, TestStreamId>;
 
 struct FakeBroadcastClient {
     sender: Sender<StreamMessage>,

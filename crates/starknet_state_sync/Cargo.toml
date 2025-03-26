@@ -12,15 +12,15 @@ testing = []
 workspace = true
 
 [dependencies]
+apollo_central_sync.workspace = true
+apollo_config.workspace = true
+apollo_network.workspace = true
+apollo_p2p_sync.workspace = true
 apollo_reverts.workspace = true
+apollo_storage.workspace = true
 async-trait.workspace = true
 futures.workspace = true
 papyrus_common.workspace = true
-papyrus_config.workspace = true
-papyrus_network.workspace = true
-papyrus_p2p_sync.workspace = true
-papyrus_storage.workspace = true
-papyrus_sync.workspace = true
 serde.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
@@ -33,8 +33,8 @@ tokio.workspace = true
 validator.workspace = true
 
 [dev-dependencies]
+apollo_storage = { workspace = true, features = ["testing"] }
+apollo_test_utils.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
 libp2p.workspace = true
-papyrus_storage = { workspace = true, features = ["testing"] }
-papyrus_test_utils.workspace = true
 rand_chacha.workspace = true

@@ -12,28 +12,28 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 use std::{env, fs, io};
 
-use clap::{arg, value_parser, Arg, ArgMatches, Command};
-use itertools::{chain, Itertools};
-use lazy_static::lazy_static;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
-use papyrus_config::dumping::{
+use apollo_config::dumping::{
     append_sub_config_name,
     ser_optional_sub_config,
     ser_param,
     ser_pointer_target_param,
     SerializeConfig,
 };
-use papyrus_config::loading::load_and_process_config;
-use papyrus_config::{ConfigError, ParamPath, ParamPrivacyInput, SerializedParam};
-use papyrus_monitoring_gateway::MonitoringGatewayConfig;
-use papyrus_network::NetworkConfig;
-use papyrus_p2p_sync::client::{P2pSyncClient, P2pSyncClientConfig};
+use apollo_config::loading::load_and_process_config;
+use apollo_config::{ConfigError, ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_network::NetworkConfig;
+use apollo_p2p_sync::client::{P2pSyncClient, P2pSyncClientConfig};
 #[cfg(feature = "rpc")]
-use papyrus_rpc::RpcConfig;
-use papyrus_storage::db::DbConfig;
-use papyrus_storage::StorageConfig;
-use papyrus_sync::sources::central::CentralSourceConfig;
-use papyrus_sync::SyncConfig;
+use apollo_rpc::RpcConfig;
+use apollo_storage::db::DbConfig;
+use apollo_storage::StorageConfig;
+use apollo_central_sync::sources::central::CentralSourceConfig;
+use apollo_central_sync::SyncConfig;
+use clap::{arg, value_parser, Arg, ArgMatches, Command};
+use itertools::{chain, Itertools};
+use lazy_static::lazy_static;
+use papyrus_monitoring_gateway::MonitoringGatewayConfig;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use starknet_api::core::ChainId;

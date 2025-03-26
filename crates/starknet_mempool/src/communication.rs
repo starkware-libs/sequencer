@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use papyrus_network_types::network_types::BroadcastedMessageMetadata;
+use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use starknet_api::block::NonzeroGasPrice;
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::InternalRpcTransaction;

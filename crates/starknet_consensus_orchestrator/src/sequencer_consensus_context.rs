@@ -13,8 +13,8 @@ use std::time::Duration;
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use futures::{FutureExt, SinkExt, StreamExt};
-use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
-use papyrus_protobuf::consensus::{
+use apollo_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
+use apollo_protobuf::consensus::{
     ConsensusBlockInfo,
     HeightAndRound,
     ProposalFin,
