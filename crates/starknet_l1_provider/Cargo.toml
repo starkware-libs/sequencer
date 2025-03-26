@@ -40,8 +40,3 @@ starknet_state_sync_types = { workspace = true, features = ["testing"] }
 
 [lints]
 workspace = true
-
-[[test]]
-name = "startup_flows"
-path = "tests/startup_flows.rs"
-required-features = ["testing"]
