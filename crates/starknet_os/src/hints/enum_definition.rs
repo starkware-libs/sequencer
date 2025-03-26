@@ -441,7 +441,7 @@ define_hint_enum!(
         WriteUseKzgDaToMemory,
         write_use_kzg_da_to_memory,
         indoc! {r#"memory[fp + 19] = to_felt_or_relocatable(syscall_handler.block_info.use_kzg_da and (
-    not block_input.full_output
+    not os_hints_config.full_output
 ))"#}
     ),
     (
@@ -1697,10 +1697,11 @@ memory[ap] = 1 if case != 'both' else 0"#
     (
         StarknetOsInput,
         starknet_os_input,
-        indoc! {r#"from starkware.starknet.core.os.os_input import StarknetOsInput
-
-os_input = StarknetOsInput.load(data=program_input)
-block_input_iterator = iter(os_input.block_inputs)"#
+        indoc! {r#"from starkware.starknet.core.os.os_hints import OsHintsConfig
+        from starkware.starknet.core.os.os_input import StarknetOsInput
+        os_input = StarknetOsInput.load(data=program_input)
+        os_hints_config = OsHintsConfig.load(data=os_hints_config)
+        block_input_iterator = iter(os_input.block_inputs)"#
         }
     ),
     (
@@ -1739,7 +1740,7 @@ block_input = next(block_input_iterator)
     syscall_handler,
     deprecated_syscall_handler
 ) = get_execution_helper_and_syscall_handlers(
-    block_input=block_input, global_hints=global_hints
+    block_input=block_input, global_hints=global_hints, os_hints_config=os_hints_config
 )"#}
     )
 );
