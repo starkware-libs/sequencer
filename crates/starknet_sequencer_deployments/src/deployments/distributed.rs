@@ -159,7 +159,8 @@ impl DistributedNodeServiceName {
 
     /// Url for the service.
     fn url(&self) -> String {
-        format!("sequencer-{}-service", self.as_ref())
+        let formatted_service_name = self.as_ref().replace('_', "-");
+        format!("sequencer-{}-service", formatted_service_name)
     }
 
     /// Unique port number per service.
