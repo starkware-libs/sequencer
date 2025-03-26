@@ -23,7 +23,11 @@ use apollo_class_manager_types::transaction_converter::{
 };
 use apollo_class_manager_types::EmptyClassManagerClient;
 use apollo_consensus::types::{ConsensusContext, Round};
-use apollo_l1_gas_price_types::{MockEthToStrkOracleClientTrait, MockL1GasPriceProviderClient};
+use apollo_l1_gas_price_types::{
+    MockEthToStrkOracleClientTrait,
+    MockL1GasPriceProviderClient,
+    PriceInfo,
+};
 use apollo_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     BroadcastNetworkMock,
@@ -46,7 +50,12 @@ use futures::executor::block_on;
 use futures::future::pending;
 use futures::{FutureExt, SinkExt, StreamExt};
 use rstest::rstest;
-use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block::{
+    BlockHash,
+    BlockNumber,
+    TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
+    TEMP_ETH_GAS_FEE_IN_WEI,
+};
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
 use starknet_api::core::{ChainId, Nonce, StateDiffCommitment};
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -101,8 +110,8 @@ fn block_info(height: BlockNumber) -> ConsensusBlockInfo {
         builder: Default::default(),
         l1_da_mode: L1DataAvailabilityMode::Blob,
         l2_gas_price_fri: 100000,
-        l1_gas_price_wei: 1,
-        l1_data_gas_price_wei: 1,
+        l1_gas_price_wei: TEMP_ETH_GAS_FEE_IN_WEI,
+        l1_data_gas_price_wei: TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
         eth_to_fri_rate: ETH_TO_FRI_RATE,
     }
 }
@@ -126,7 +135,13 @@ fn setup(
     let state_sync_client = MockStateSyncClient::new();
     let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
     eth_to_strk_oracle_client.expect_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
-
+    let mut l1_gas_price_provider = MockL1GasPriceProviderClient::new();
+    l1_gas_price_provider.expect_get_price_info().returning(|_| {
+        Ok(PriceInfo {
+            base_fee_per_gas: TEMP_ETH_GAS_FEE_IN_WEI,
+            blob_fee: TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
+        })
+    });
     let context = SequencerConsensusContext::new(
         ContextConfig {
             proposal_buffer_size: CHANNEL_SIZE,
@@ -143,7 +158,7 @@ fn setup(
             vote_broadcast_client: votes_topic_client,
             cende_ambassador: Arc::new(cende_ambassador),
             eth_to_strk_oracle_client: Arc::new(eth_to_strk_oracle_client),
-            l1_gas_price_provider: Arc::new(MockL1GasPriceProviderClient::new()),
+            l1_gas_price_provider: Arc::new(l1_gas_price_provider),
             // TODO(guy.f): Set with mock.
             clock: Arc::new(DefaultClock::default()),
         },
