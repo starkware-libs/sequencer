@@ -266,3 +266,86 @@ fn get_children(
         Ok(CanonicChildren { left: None, right: Some(child) })
     }
 }
+
+#[derive(Debug)]
+enum PreimageNode<'pm> {
+    Leaf,
+    Branch { left: Option<PreimageNodeIterator<'pm>>, right: Option<PreimageNodeIterator<'pm>> },
+}
+
+/// Builds the children of the root node lazily.
+#[derive(Debug)]
+struct PreimageNodeIterator<'pm> {
+    height: SubTreeHeight,
+    preimage_map: &'pm PreimageMap,
+    node: CanonicNode,
+    is_done: bool,
+}
+
+impl<'pm> PreimageNodeIterator<'pm> {
+    fn new(height: SubTreeHeight, preimage_map: &'pm PreimageMap, node: CanonicNode) -> Self {
+        Self { height, preimage_map, node, is_done: false }
+    }
+
+    fn get_children(
+        &mut self,
+    ) -> Result<(Option<PreimageNodeIterator<'pm>>, Option<PreimageNodeIterator<'pm>>), PatriciaError>
+    {
+        match self.next() {
+            Some(Ok(PreimageNode::Branch { left, right })) => Ok((left, right)),
+            Some(Ok(PreimageNode::Leaf)) => Err(PatriciaError::ExpectedBranch("Leaf".to_string())),
+            Some(Err(e)) => Err(e),
+            None => unreachable!("Iterator should not be empty."),
+        }
+    }
+}
+
+impl<'pm> Iterator for PreimageNodeIterator<'pm> {
+    type Item = Result<PreimageNode<'pm>, PatriciaError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.is_done {
+            return None;
+        }
+        self.is_done = true;
+
+        // Check for children
+        if self.height.0 == 0 {
+            return Some(Ok(PreimageNode::Leaf));
+        }
+        let children = match get_children(&self.node, self.preimage_map) {
+            Ok(children) => children,
+            Err(e) => return Some(Err(e)),
+        };
+
+        let left_child = match children.left {
+            None => None,
+            Some(left) => Some(PreimageNodeIterator::new(self.height - 1, self.preimage_map, left)),
+        };
+        let right_child = match children.right {
+            None => None,
+            Some(right) => {
+                Some(PreimageNodeIterator::new(self.height - 1, self.preimage_map, right))
+            }
+        };
+
+        Some(Ok(PreimageNode::Branch { left: left_child, right: right_child }))
+    }
+}
+
+/// Builds a tree structure similar to build_update_tree(), from a root hash, and a preimage
+/// dictionary.
+/// The Python implementation returns a generator as follows:
+/// * if node is a leaf: [0]
+/// * Otherwise: [left, right] where each child is either None if empty or a generator defined
+///   recursively.
+///
+/// Note that this does not necessarily traverse the entire tree. The caller may open the branches
+/// as they wish.
+fn preimage_tree(
+    height: SubTreeHeight,
+    preimage_map: &PreimageMap,
+    node: CanonicNode,
+) -> PreimageNodeIterator<'_> {
+    PreimageNodeIterator::new(height, preimage_map, node)
+}
