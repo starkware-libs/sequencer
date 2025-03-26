@@ -10,7 +10,14 @@ use starknet_sequencer_node::config::component_execution_config::{
 use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
 
-use crate::service::{GetComponentConfigs, Service, ServiceName, ServiceNameInner};
+use crate::service::{
+    GetComponentConfigs,
+    Resource,
+    Resources,
+    Service,
+    ServiceName,
+    ServiceNameInner,
+};
 
 const BASE_PORT: u16 = 55000; // TODO(Tsabary): arbitrary port, need to resolve.
 
@@ -97,33 +104,87 @@ impl GetComponentConfigs for DistributedNodeServiceName {
 impl ServiceNameInner for DistributedNodeServiceName {
     fn create_service(&self) -> Service {
         match self {
-            DistributedNodeServiceName::Batcher => {
-                Service::new(Into::<ServiceName>::into(*self), false, false, 1, Some(32))
-            }
-            DistributedNodeServiceName::ClassManager => {
-                Service::new(Into::<ServiceName>::into(*self), false, false, 1, Some(32))
-            }
-            DistributedNodeServiceName::ConsensusManager => {
-                Service::new(Into::<ServiceName>::into(*self), false, false, 1, None)
-            }
-            DistributedNodeServiceName::HttpServer => {
-                Service::new(Into::<ServiceName>::into(*self), false, false, 1, None)
-            }
-            DistributedNodeServiceName::Gateway => {
-                Service::new(Into::<ServiceName>::into(*self), false, false, 1, None)
-            }
-            DistributedNodeServiceName::L1Provider => {
-                Service::new(Into::<ServiceName>::into(*self), false, false, 1, None)
-            }
-            DistributedNodeServiceName::Mempool => {
-                Service::new(Into::<ServiceName>::into(*self), false, false, 1, None)
-            }
-            DistributedNodeServiceName::SierraCompiler => {
-                Service::new(Into::<ServiceName>::into(*self), false, false, 1, None)
-            }
-            DistributedNodeServiceName::StateSync => {
-                Service::new(Into::<ServiceName>::into(*self), false, false, 1, Some(32))
-            }
+            DistributedNodeServiceName::Batcher => Service::new(
+                Into::<ServiceName>::into(*self),
+                false,
+                false,
+                1,
+                Some(32),
+                Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
+                None,
+            ),
+            DistributedNodeServiceName::ClassManager => Service::new(
+                Into::<ServiceName>::into(*self),
+                false,
+                false,
+                1,
+                Some(32),
+                Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
+                None,
+            ),
+            DistributedNodeServiceName::ConsensusManager => Service::new(
+                Into::<ServiceName>::into(*self),
+                false,
+                false,
+                1,
+                None,
+                Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
+                None,
+            ),
+            DistributedNodeServiceName::HttpServer => Service::new(
+                Into::<ServiceName>::into(*self),
+                false,
+                false,
+                1,
+                None,
+                Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
+                None,
+            ),
+            DistributedNodeServiceName::Gateway => Service::new(
+                Into::<ServiceName>::into(*self),
+                false,
+                false,
+                1,
+                None,
+                Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
+                None,
+            ),
+            DistributedNodeServiceName::L1Provider => Service::new(
+                Into::<ServiceName>::into(*self),
+                false,
+                false,
+                1,
+                None,
+                Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
+                None,
+            ),
+            DistributedNodeServiceName::Mempool => Service::new(
+                Into::<ServiceName>::into(*self),
+                false,
+                false,
+                1,
+                None,
+                Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
+                None,
+            ),
+            DistributedNodeServiceName::SierraCompiler => Service::new(
+                Into::<ServiceName>::into(*self),
+                false,
+                false,
+                1,
+                None,
+                Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
+                None,
+            ),
+            DistributedNodeServiceName::StateSync => Service::new(
+                Into::<ServiceName>::into(*self),
+                false,
+                false,
+                1,
+                Some(32),
+                Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
+                None,
+            ),
         }
     }
 }
