@@ -87,6 +87,7 @@ pub(crate) fn get_test_rpc_server_and_storage_writer_from_params<T: JsonRpcServe
             pending_data,
             pending_classes,
             mock_client_arc,
+            None,
         )
         .into_rpc_module(),
         storage_writer,
