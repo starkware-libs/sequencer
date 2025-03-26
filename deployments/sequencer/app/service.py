@@ -81,6 +81,7 @@ class ServiceApp(Construct):
                                 ),
                                 liveness_probe=self._get_http_probe(),
                                 volume_mounts=self._get_volume_mounts(),
+                                resources=self._get_container_resources(),
                             )
                         ],
                     ),
@@ -348,6 +349,30 @@ class ServiceApp(Construct):
 
     def _get_ingress_tls(self) -> typing.List[k8s.IngressTls]:
         return [k8s.IngressTls(hosts=[self.host], secret_name=f"{self.node.id}-tls")]
+
+    def _get_container_resources(self):
+        return (
+            k8s.ResourceRequirements(
+                requests={
+                    "cpu": k8s.Quantity.from_number(
+                        self.service_topology.resources["requests"]["cpu"]
+                    ),
+                    "memory": k8s.Quantity.from_number(
+                        self.service_topology.resources["requests"]["memory"]
+                    ),
+                },
+                limits={
+                    "cpu": k8s.Quantity.from_number(
+                        self.service_topology.resources["limits"]["cpu"]
+                    ),
+                    "memory": k8s.Quantity.from_number(
+                        self.service_topology.resources["limits"]["memory"]
+                    ),
+                },
+            )
+            if self.service_topology.resources
+            else None
+        )
 
     @staticmethod
     def _get_container_env() -> typing.List[k8s.EnvVar]:

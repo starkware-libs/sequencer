@@ -12,4 +12,5 @@ class ServiceTopology:
     ingress: bool
     replicas: int
     autoscale: bool
-    storage: int | None
+    storage: typing.Optional[int]
+    resources: typing.Optional[dict[str, typing.Any]]
