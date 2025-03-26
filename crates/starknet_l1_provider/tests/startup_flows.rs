@@ -142,7 +142,7 @@ async fn bootstrap_delayed_sync_state_with_trivial_catch_up() {
     // Setup.
 
     let l1_provider_client = Arc::new(FakeL1ProviderClient::default());
-    let startup_height = BlockNumber(2);
+    let startup_height = BlockNumber(3);
 
     let mut sync_client = MockStateSyncClient::default();
     // Mock sync response for an arbitrary number of calls to get_latest_block_number.
