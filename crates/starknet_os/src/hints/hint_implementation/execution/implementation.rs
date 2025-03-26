@@ -19,7 +19,6 @@ use starknet_api::transaction::fields::ValidResourceBounds;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintResult};
-use crate::hints::hint_implementation::execution::utils::tx_name_as_felt;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
 use crate::syscall_handler_utils::SyscallHandlerType;
@@ -30,7 +29,7 @@ pub(crate) fn load_next_tx<S: StateReader>(
 ) -> OsHintResult {
     let mut txs_iter: IntoIter<Transaction> = exec_scopes.get(Scope::Transactions.into())?;
     let tx = txs_iter.next().ok_or(OsHintError::EndOfIterator { item_type: "txs".to_string() })?;
-    let tx_type = tx_name_as_felt(tx.tx_type_name());
+    let tx_type = tx.tx_type().tx_name_as_felt();
     insert_value_from_var_name(Ids::TxType.into(), tx_type, vm, ids_data, ap_tracking)?;
 
     // TODO(Yoav): add logger and log enter_tx.

@@ -1,7 +1,12 @@
+#[cfg(test)]
+#[path = "executable_transaction_test.rs"]
+mod executable_transaction_test;
+
 use std::str::FromStr;
 
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use serde::{Deserialize, Serialize};
+use starknet_types_core::felt::Felt;
 use strum_macros::EnumIter;
 
 use crate::contract_class::{ClassInfo, ContractClass};
@@ -66,12 +71,31 @@ impl FromStr for TransactionType {
 
     fn from_str(tx_type: &str) -> Result<Self, Self::Err> {
         match tx_type {
-            "Declare" | "DECLARE" => Ok(TransactionType::Declare),
-            "DeployAccount" | "DEPLOY_ACCOUNT" => Ok(TransactionType::DeployAccount),
-            "InvokeFunction" | "INVOKE_FUNCTION" => Ok(TransactionType::InvokeFunction),
-            "L1Handler" | "L1_HANDLER" => Ok(TransactionType::L1Handler),
+            "Declare" | "DECLARE" => Ok(Self::Declare),
+            "DeployAccount" | "DEPLOY_ACCOUNT" => Ok(Self::DeployAccount),
+            "InvokeFunction" | "INVOKE_FUNCTION" => Ok(Self::InvokeFunction),
+            "L1Handler" | "L1_HANDLER" => Ok(Self::L1Handler),
             unknown_tx_type => Err(Self::Err::UnknownTransactionType(unknown_tx_type.to_string())),
         }
+    }
+}
+
+impl std::fmt::Display for TransactionType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let type_str = match self {
+            Self::Declare => "DECLARE",
+            Self::DeployAccount => "DEPLOY_ACCOUNT",
+            Self::InvokeFunction => "INVOKE_FUNCTION",
+            Self::L1Handler => "L1_HANDLER",
+        };
+        write!(f, "{type_str}")
+    }
+}
+
+impl TransactionType {
+    pub fn tx_name_as_felt(&self) -> Felt {
+        let tx_type_name = self.to_string();
+        Felt::from_bytes_be_slice(tx_type_name.as_bytes())
     }
 }
 
@@ -112,14 +136,6 @@ impl AccountTransaction {
             AccountTransaction::Declare(tx_data) => tx_data.tx_hash,
             AccountTransaction::DeployAccount(tx_data) => tx_data.tx_hash,
             AccountTransaction::Invoke(tx_data) => tx_data.tx_hash,
-        }
-    }
-
-    pub fn account_tx_type_name(&self) -> &'static str {
-        match self {
-            AccountTransaction::Declare(_) => "DECLARE",
-            AccountTransaction::DeployAccount(_) => "DEPLOY_ACCOUNT",
-            AccountTransaction::Invoke(_) => "INVOKE_FUNCTION",
         }
     }
 }
@@ -323,10 +339,14 @@ impl Transaction {
         }
     }
 
-    pub fn tx_type_name(&self) -> &'static str {
+    pub fn tx_type(&self) -> TransactionType {
         match self {
-            Transaction::Account(tx) => tx.account_tx_type_name(),
-            Transaction::L1Handler(_) => L1HandlerTransaction::L1_HANDLER_TYPE_NAME,
+            Transaction::Account(AccountTransaction::Declare(_)) => TransactionType::Declare,
+            Transaction::Account(AccountTransaction::DeployAccount(_)) => {
+                TransactionType::DeployAccount
+            }
+            Transaction::Account(AccountTransaction::Invoke(_)) => TransactionType::InvokeFunction,
+            Transaction::L1Handler(_) => TransactionType::L1Handler,
         }
     }
 }
