@@ -4,7 +4,6 @@ use std::time::Duration;
 
 use alloy::primitives::U256;
 use itertools::Itertools;
-use mempool_test_utils::in_ci;
 use mempool_test_utils::starknet_api_test_utils::DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;
 use papyrus_base_layer::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
@@ -32,6 +31,10 @@ use crate::l1_provider::create_l1_provider;
 use crate::l1_scraper::{L1Scraper, L1ScraperConfig};
 use crate::test_utils::FakeL1ProviderClient;
 use crate::{event_identifiers_to_track, L1ProviderConfig};
+
+pub fn in_ci() -> bool {
+    std::env::var("CI").is_ok()
+}
 
 // TODO(Gilad): Replace EthereumBaseLayerContract with a mock that has a provider initialized with
 // `with_recommended_fillers`, in order to be able to create txs from non-default users.
