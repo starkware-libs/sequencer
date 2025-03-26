@@ -94,6 +94,7 @@ struct BlockInfoValidation {
     block_timestamp_window: u64,
     last_block_timestamp: Option<u64>,
     l1_da_mode: L1DataAvailabilityMode,
+    l2_gas_price_fri: u64,
 }
 
 const EMPTY_BLOCK_COMMITMENT: BlockHash = BlockHash(Felt::ONE);
@@ -372,6 +373,7 @@ impl ConsensusContext for SequencerConsensusContext {
                     block_timestamp_window: self.config.block_timestamp_window,
                     last_block_timestamp: self.last_block_timestamp,
                     l1_da_mode: self.l1_da_mode,
+                    l2_gas_price_fri: self.l2_gas_price,
                 };
                 self.validate_current_round_proposal(
                     block_info_validation,
@@ -656,6 +658,7 @@ impl ConsensusContext for SequencerConsensusContext {
             block_timestamp_window: self.config.block_timestamp_window,
             last_block_timestamp: self.last_block_timestamp,
             l1_da_mode: self.l1_da_mode,
+            l2_gas_price_fri: self.l2_gas_price,
         };
         self.validate_current_round_proposal(
             block_info_validation,
@@ -1001,7 +1004,8 @@ async fn is_block_info_valid(
     if !(block_info.height == block_info_validation.height
         && block_info.timestamp >= block_info_validation.last_block_timestamp.unwrap_or(0)
         && block_info.timestamp <= now + block_info_validation.block_timestamp_window
-        && block_info.l1_da_mode == block_info_validation.l1_da_mode)
+        && block_info.l1_da_mode == block_info_validation.l1_da_mode
+        && block_info.l2_gas_price_fri == u128::from(block_info_validation.l2_gas_price_fri))
     {
         return false;
     }
