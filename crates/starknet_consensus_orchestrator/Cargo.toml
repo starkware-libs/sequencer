@@ -13,9 +13,9 @@ blockifier.workspace = true
 chrono.workspace = true
 futures.workspace = true
 indexmap.workspace = true
-papyrus_config.workspace = true
-papyrus_network.workspace = true
-papyrus_protobuf.workspace = true
+apollo_config.workspace = true
+apollo_network.workspace = true
+apollo_protobuf.workspace = true
 paste.workspace = true
 reqwest = { workspace = true, features = ["json"] }
 serde.workspace = true
@@ -45,9 +45,9 @@ lazy_static.workspace = true
 mockall.workspace = true
 mockito.workspace = true
 num-bigint.workspace = true
-papyrus_network = { workspace = true, features = ["testing"] }
-papyrus_storage = { workspace = true, features = ["testing"] }
-papyrus_test_utils.workspace = true
+apollo_network = { workspace = true, features = ["testing"] }
+apollo_storage = { workspace = true, features = ["testing"] }
+apollo_test_utils.workspace = true
 rstest.workspace = true
 serde_json.workspace = true
 starknet_batcher_types = { workspace = true, features = ["testing"] }

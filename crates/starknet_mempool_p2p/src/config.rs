@@ -1,10 +1,10 @@
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-use papyrus_config::converters::deserialize_milliseconds_to_duration;
-use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
-use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use papyrus_network::NetworkConfig;
+use apollo_config::converters::deserialize_milliseconds_to_duration;
+use apollo_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_network::NetworkConfig;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 

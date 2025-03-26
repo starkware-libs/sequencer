@@ -1,8 +1,8 @@
 use std::collections::{BTreeMap, VecDeque};
 
-use papyrus_base_layer::{L1BlockNumber, PriceSample};
-use papyrus_config::dumping::{ser_param, SerializeConfig};
-use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_base_layer::{L1BlockNumber, PriceSample};
+use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockTimestamp;
 use starknet_l1_gas_price_types::errors::L1GasPriceProviderError;

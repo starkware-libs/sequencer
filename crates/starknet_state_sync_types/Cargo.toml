@@ -15,8 +15,8 @@ workspace = true
 async-trait.workspace = true
 futures.workspace = true
 mockall = { workspace = true, optional = true }
-papyrus_proc_macros.workspace = true
-papyrus_storage.workspace = true
+apollo_proc_macros.workspace = true
+apollo_storage.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet-types-core.workspace = true
 starknet_api.workspace = true

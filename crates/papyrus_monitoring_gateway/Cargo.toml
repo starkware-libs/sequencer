@@ -10,8 +10,8 @@ axum.workspace = true
 hyper = { workspace = true, features = ["full"] }
 metrics-exporter-prometheus.workspace = true
 metrics-process.workspace = true
-papyrus_config.workspace = true
-papyrus_storage.workspace = true
+apollo_config.workspace = true
+apollo_storage.workspace = true
 rand.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
@@ -23,7 +23,7 @@ validator = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
 metrics.workspace = true
-papyrus_storage = { workspace = true, features = ["testing"] }
+apollo_storage = { workspace = true, features = ["testing"] }
 pretty_assertions.workspace = true
 starknet_client = { workspace = true, features = ["testing"] }
 tower = { workspace = true, features = ["util"] }

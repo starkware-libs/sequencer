@@ -1,6 +1,6 @@
 pub mod bootstrapper;
 
-use papyrus_config::converters::deserialize_float_seconds_to_duration;
+use apollo_config::converters::deserialize_float_seconds_to_duration;
 pub mod communication;
 pub mod l1_provider;
 pub mod l1_scraper;
@@ -13,15 +13,15 @@ pub mod test_utils;
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-use papyrus_base_layer::constants::{
+use apollo_base_layer::constants::{
     EventIdentifier,
     CONSUMED_MESSAGE_TO_L1_EVENT_IDENTIFIER,
     LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER,
     MESSAGE_TO_L2_CANCELED_EVENT_IDENTIFIER,
     MESSAGE_TO_L2_CANCELLATION_STARTED_EVENT_IDENTIFIER,
 };
-use papyrus_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
-use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
+use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_l1_provider_types::SessionState;

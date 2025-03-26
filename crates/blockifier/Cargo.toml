@@ -47,7 +47,7 @@ num-bigint.workspace = true
 num-integer.workspace = true
 num-rational = { workspace = true, features = ["serde"] }
 num-traits.workspace = true
-papyrus_config.workspace = true
+apollo_config.workspace = true
 paste.workspace = true
 phf = { workspace = true, features = ["macros"] }
 rand = { workspace = true, optional = true }

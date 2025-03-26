@@ -38,7 +38,7 @@ jobs:
           retVal=0;
           INTEGRATION_TESTNET_NODE_URL=${{ secrets.INTEGRATION_TESTNET_NODE_URL }}
           SENDER_PRIVATE_KEY=${{ secrets.INTEGRATION_TESTNET_SENDER_PRIVATE_KEY }}
-          cargo test --test gateway_integration_test -p papyrus_rpc test_gw_integration_testnet
+          cargo test --test gateway_integration_test -p apollo_rpc test_gw_integration_testnet
           -- --ignored || retVal=$?;
           echo "retVal=$retVal" >> $GITHUB_OUTPUT;
           if [ $retVal -ne 0 ]; then

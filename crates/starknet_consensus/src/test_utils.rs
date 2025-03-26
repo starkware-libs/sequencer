@@ -3,8 +3,8 @@ use std::time::Duration;
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use mockall::mock;
-use papyrus_protobuf::consensus::{ProposalFin, ProposalInit, Vote, VoteType};
-use papyrus_protobuf::converters::ProtobufConversionError;
+use apollo_protobuf::consensus::{ProposalFin, ProposalInit, Vote, VoteType};
+use apollo_protobuf::converters::ProtobufConversionError;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_types_core::felt::Felt;
 

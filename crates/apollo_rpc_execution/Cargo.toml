@@ -1,0 +1,49 @@
+[package]
+name = "apollo_rpc_execution"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "Transaction and entry point execution functionality for a Papyrus node."
+
+[features]
+testing = ["apollo_test_utils", "rand", "rand_chacha"]
+
+[dependencies]
+anyhow.workspace = true
+blockifier.workspace = true
+cairo-lang-starknet-classes.workspace = true
+cairo-vm.workspace = true
+indexmap.workspace = true
+itertools.workspace = true
+lazy_static.workspace = true
+papyrus_common.workspace = true
+apollo_config.workspace = true
+apollo_storage.workspace = true
+rand = { workspace = true, optional = true }
+rand_chacha = { workspace = true, optional = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, features = ["arbitrary_precision"] }
+starknet_api.workspace = true
+starknet-types-core.workspace = true
+apollo_test_utils = { workspace = true, optional = true }
+thiserror.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+assert_matches.workspace = true
+cairo-lang-casm.workspace = true
+cairo-lang-utils.workspace = true
+indexmap = { workspace = true, features = ["serde"] }
+apollo_storage = { workspace = true, features = ["testing"] }
+pretty_assertions.workspace = true
+rand.workspace = true
+rand_chacha.workspace = true
+apollo_test_utils.workspace = true
+
+[package.metadata.cargo-machete]
+# The `rand` crate is used in the `testing` feature, which is optional.
+ignored = ["rand"]
+
+[lints]
+workspace = true

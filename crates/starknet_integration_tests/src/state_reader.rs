@@ -12,13 +12,13 @@ use mempool_test_utils::starknet_api_test_utils::{
     Contract,
     VALID_ACCOUNT_BALANCE,
 };
-use papyrus_storage::body::BodyStorageWriter;
-use papyrus_storage::class::ClassStorageWriter;
-use papyrus_storage::compiled_class::CasmStorageWriter;
-use papyrus_storage::header::HeaderStorageWriter;
-use papyrus_storage::state::StateStorageWriter;
-use papyrus_storage::test_utils::TestStorageBuilder;
-use papyrus_storage::{StorageConfig, StorageScope, StorageWriter};
+use apollo_storage::body::BodyStorageWriter;
+use apollo_storage::class::ClassStorageWriter;
+use apollo_storage::compiled_class::CasmStorageWriter;
+use apollo_storage::header::HeaderStorageWriter;
+use apollo_storage::state::StateStorageWriter;
+use apollo_storage::test_utils::TestStorageBuilder;
+use apollo_storage::{StorageConfig, StorageScope, StorageWriter};
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::{
     BlockBody,
@@ -249,7 +249,7 @@ fn initialize_papyrus_test_state(
 ) {
     let state_diff = prepare_state_diff(chain_info, test_defined_accounts, &preset_test_contracts);
 
-    write_state_to_papyrus_storage(storage_writer, state_diff, classes)
+    write_state_to_apollo_storage(storage_writer, state_diff, classes)
 }
 
 fn prepare_state_diff(
@@ -313,7 +313,7 @@ fn prepare_contract_classes(
     (cairo0_contract_classes.into_iter().collect(), cairo1_contract_classes.into_iter().collect())
 }
 
-fn write_state_to_papyrus_storage(
+fn write_state_to_apollo_storage(
     storage_writer: &mut StorageWriter,
     state_diff: ThinStateDiff,
     classes: &TestClasses,

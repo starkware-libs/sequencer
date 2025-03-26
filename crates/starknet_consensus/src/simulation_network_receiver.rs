@@ -9,10 +9,10 @@ use std::task::Poll;
 
 use futures::{Stream, StreamExt};
 use lru::LruCache;
-use papyrus_network::network_manager::BroadcastTopicServer;
-use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use papyrus_protobuf::consensus::Vote;
-use papyrus_protobuf::converters::ProtobufConversionError;
+use apollo_network::network_manager::BroadcastTopicServer;
+use apollo_network_types::network_types::BroadcastedMessageMetadata;
+use apollo_protobuf::consensus::Vote;
+use apollo_protobuf::converters::ProtobufConversionError;
 use starknet_api::core::{ContractAddress, PatriciaKey};
 use tracing::{debug, instrument};
 

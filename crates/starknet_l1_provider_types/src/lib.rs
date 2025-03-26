@@ -5,8 +5,8 @@ use std::sync::Arc;
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
-use papyrus_base_layer::L1Event;
-use papyrus_proc_macros::handle_all_response_variants;
+use apollo_base_layer::L1Event;
+use apollo_proc_macros::handle_all_response_variants;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::L1HandlerTransaction;

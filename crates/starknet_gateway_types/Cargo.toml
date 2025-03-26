@@ -15,9 +15,9 @@ workspace = true
 async-trait.workspace = true
 enum-assoc.workspace = true
 mockall = { workspace = true, optional = true }
-papyrus_network_types.workspace = true
-papyrus_proc_macros.workspace = true
-papyrus_rpc.workspace = true
+apollo_network_types.workspace = true
+apollo_proc_macros.workspace = true
+apollo_rpc.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 starknet_api.workspace = true

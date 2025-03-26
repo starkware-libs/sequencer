@@ -13,8 +13,8 @@ async-trait.workspace = true
 hex.workspace = true
 indexmap.workspace = true
 itertools = { workspace = true, optional = true }
-papyrus_base_layer.workspace = true
-papyrus_config.workspace = true
+apollo_base_layer.workspace = true
+apollo_config.workspace = true
 pretty_assertions = { workspace = true, optional = true }
 serde.workspace = true
 starknet_api.workspace = true
@@ -31,7 +31,7 @@ alloy.workspace = true
 assert_matches.workspace = true
 itertools.workspace = true
 mempool_test_utils.workspace = true
-papyrus_base_layer = { workspace = true, features = ["testing"] }
+apollo_base_layer = { workspace = true, features = ["testing"] }
 pretty_assertions.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }

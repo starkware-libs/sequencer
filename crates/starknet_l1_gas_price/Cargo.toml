@@ -7,8 +7,8 @@ license.workspace = true
 
 [dependencies]
 async-trait.workspace = true
-papyrus_base_layer.workspace = true
-papyrus_config.workspace = true
+apollo_base_layer.workspace = true
+apollo_config.workspace = true
 reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -24,7 +24,7 @@ validator.workspace = true
 [dev-dependencies]
 mockall.workspace = true
 mockito.workspace = true
-papyrus_base_layer = { workspace = true, features = ["testing"] }
+apollo_base_layer = { workspace = true, features = ["testing"] }
 starknet_l1_gas_price_types = { workspace = true, features = ["testing"] }
 
 [lints]

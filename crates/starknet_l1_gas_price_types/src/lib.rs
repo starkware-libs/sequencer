@@ -2,12 +2,12 @@ pub mod errors;
 
 use std::sync::Arc;
 
+use apollo_base_layer::{L1BlockNumber, PriceSample};
 use async_trait::async_trait;
 use errors::{EthToStrkOracleClientError, L1GasPriceClientError, L1GasPriceProviderError};
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
-use papyrus_base_layer::{L1BlockNumber, PriceSample};
-use papyrus_proc_macros::handle_all_response_variants;
+use apollo_proc_macros::handle_all_response_variants;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockTimestamp;
 use starknet_sequencer_infra::component_client::ClientError;

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use papyrus_base_layer::{MockBaseLayerContract, PriceSample};
+use apollo_base_layer::{MockBaseLayerContract, PriceSample};
 use starknet_l1_gas_price_types::MockL1GasPriceProviderClient;
 
 use crate::l1_gas_price_scraper::{L1GasPriceScraper, L1GasPriceScraperConfig};

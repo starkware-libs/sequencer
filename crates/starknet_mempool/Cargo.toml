@@ -14,8 +14,8 @@ workspace = true
 [dependencies]
 async-trait.workspace = true
 derive_more.workspace = true
-papyrus_config.workspace = true
-papyrus_network_types.workspace = true
+apollo_config.workspace = true
+apollo_network_types.workspace = true
 serde.workspace = true
 starknet_api.workspace = true
 starknet_sequencer_infra.workspace = true
@@ -35,9 +35,9 @@ mempool_test_utils.workspace = true
 metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
 mockall.workspace = true
-papyrus_network = { workspace = true, features = ["testing"] }
-papyrus_network_types = { workspace = true, features = ["testing"] }
-papyrus_test_utils.workspace = true
+apollo_network = { workspace = true, features = ["testing"] }
+apollo_network_types = { workspace = true, features = ["testing"] }
+apollo_test_utils.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
 starknet-types-core.workspace = true

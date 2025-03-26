@@ -14,7 +14,7 @@ workspace = true
 [dependencies]
 async-trait.workspace = true
 mockall = { workspace = true, optional = true }
-papyrus_proc_macros.workspace = true
+apollo_proc_macros.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 starknet_api.workspace = true

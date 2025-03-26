@@ -1,10 +1,10 @@
 use std::{env, fs};
 
+use apollo_storage::open_storage;
+use apollo_sync::sources::central::{CentralSource, CentralSourceTrait};
 use futures_util::pin_mut;
 use papyrus_node::config::NodeConfig;
 use papyrus_node::version::VERSION_FULL;
-use papyrus_storage::open_storage;
-use papyrus_sync::sources::central::{CentralSource, CentralSourceTrait};
 use starknet_api::block::BlockNumber;
 use tokio_stream::StreamExt;
 

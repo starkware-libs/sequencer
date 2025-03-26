@@ -1,6 +1,6 @@
 use enum_assoc::Assoc;
-use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use papyrus_rpc::error::{
+use apollo_network_types::network_types::BroadcastedMessageMetadata;
+use apollo_rpc::error::{
     unexpected_error,
     validation_failure,
     JsonRpcError,
@@ -22,7 +22,7 @@ use thiserror::Error;
 
 /// Error returned by the gateway, adhering to the Starknet RPC error format.
 // To get JsonRpcError from GatewaySpecError, use `into_rpc` method.
-// TODO(yair): papyrus_rpc has a test that the add_tx functions return the correct error. Make sure
+// TODO(yair): apollo_rpc has a test that the add_tx functions return the correct error. Make sure
 // it is tested when we have a single gateway.
 #[derive(Debug, Clone, Eq, PartialEq, Assoc, Error, Serialize, Deserialize)]
 #[func(pub fn into_rpc(self) -> JsonRpcError<String>)]

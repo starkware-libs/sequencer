@@ -1,8 +1,8 @@
 use std::time::Duration;
 
 use metrics_exporter_prometheus::PrometheusBuilder;
-use papyrus_storage::{open_storage, StorageConfig};
-use papyrus_test_utils::prometheus_is_contained;
+use apollo_storage::{open_storage, StorageConfig};
+use apollo_test_utils::prometheus_is_contained;
 use tempfile::TempDir;
 
 use crate::config::NodeConfig;

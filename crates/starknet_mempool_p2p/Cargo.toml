@@ -14,10 +14,10 @@ workspace = true
 [dependencies]
 async-trait.workspace = true
 futures.workspace = true
-papyrus_config.workspace = true
-papyrus_network.workspace = true
-papyrus_network_types.workspace = true
-papyrus_protobuf.workspace = true
+apollo_config.workspace = true
+apollo_network.workspace = true
+apollo_network_types.workspace = true
+apollo_protobuf.workspace = true
 serde.workspace = true
 starknet_api.workspace = true
 starknet_class_manager_types.workspace = true
@@ -33,10 +33,10 @@ validator.workspace = true
 futures.workspace = true
 libp2p.workspace = true
 mockall.workspace = true
-papyrus_network = { workspace = true, features = ["testing"] }
-papyrus_network_types = { workspace = true, features = ["testing"] }
-papyrus_protobuf.workspace = true
-papyrus_test_utils.workspace = true
+apollo_network = { workspace = true, features = ["testing"] }
+apollo_network_types = { workspace = true, features = ["testing"] }
+apollo_protobuf.workspace = true
+apollo_test_utils.workspace = true
 rand_chacha.workspace = true
 starknet_api.workspace = true
 starknet_class_manager_types = { workspace = true, features = ["testing"] }

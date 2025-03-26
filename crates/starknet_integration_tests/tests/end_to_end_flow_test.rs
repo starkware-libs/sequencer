@@ -3,8 +3,8 @@ use std::time::Duration;
 
 use futures::StreamExt;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
-use papyrus_network::network_manager::BroadcastTopicChannels;
-use papyrus_protobuf::consensus::{
+use apollo_network::network_manager::BroadcastTopicChannels;
+use apollo_protobuf::consensus::{
     HeightAndRound,
     ProposalFin,
     ProposalInit,
@@ -315,7 +315,7 @@ async fn listen_to_broadcasted_messages(
                 expected_height.0, message.stream_id.0
             );
         }
-        if message.message == papyrus_protobuf::consensus::StreamMessageBody::Fin {
+        if message.message == apollo_protobuf::consensus::StreamMessageBody::Fin {
             last_message_id = message.message_id;
         }
         // Check that we got the Fin message and all previous messages.

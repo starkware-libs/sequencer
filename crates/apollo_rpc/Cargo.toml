@@ -1,0 +1,66 @@
+[package]
+name = "apollo_rpc"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+async-trait.workspace = true
+base64.workspace = true
+cairo-lang-starknet-classes.workspace = true
+ethers.workspace = true
+flate2.workspace = true
+futures-util.workspace = true
+hex.workspace = true
+hyper = { workspace = true, features = ["full"] }
+jsonrpsee = { workspace = true, features = ["full"] }
+lazy_static.workspace = true
+metrics.workspace = true
+papyrus_common.workspace = true
+apollo_config.workspace = true
+apollo_rpc_execution.workspace = true
+apollo_proc_macros.workspace = true
+apollo_storage.workspace = true
+regex = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, features = ["arbitrary_precision"] }
+starknet-types-core.workspace = true
+starknet_api.workspace = true
+starknet_client.workspace = true
+tokio = { workspace = true, features = ["full", "sync"] }
+tower = { workspace = true, features = ["full"] }
+tracing.workspace = true
+validator = { workspace = true, features = ["derive"] }
+
+[dev-dependencies]
+assert_matches.workspace = true
+cairo-lang-casm.workspace = true
+cairo-lang-starknet-classes.workspace = true
+camelpaste.workspace = true
+derive_more.workspace = true
+enum-iterator.workspace = true
+indexmap = { workspace = true, features = ["serde"] }
+insta = { workspace = true, features = ["json"] }
+itertools.workspace = true
+jsonschema.workspace = true
+lazy_static.workspace = true
+metrics-exporter-prometheus.workspace = true
+mockall.workspace = true
+apollo_rpc_execution = { workspace = true, features = ["testing"] }
+apollo_storage = { workspace = true, features = ["testing"] }
+apollo_test_utils.workspace = true
+pretty_assertions.workspace = true
+prometheus-parse.workspace = true
+rand.workspace = true
+rand_chacha.workspace = true
+reqwest.workspace = true
+starknet-core.workspace = true
+starknet_api = { workspace = true, features = ["testing"] }
+starknet_client = { workspace = true, features = ["testing"] }
+strum.workspace = true
+strum_macros.workspace = true
+
+[lints]
+workspace = true

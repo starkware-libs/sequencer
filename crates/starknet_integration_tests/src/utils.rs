@@ -19,11 +19,11 @@ use mempool_test_utils::starknet_api_test_utils::{
     Contract,
     MultiAccountTransactionGenerator,
 };
-use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
-use papyrus_base_layer::test_utils::StarknetL1Contract;
-use papyrus_network::network_manager::test_utils::create_connected_network_configs;
-use papyrus_network::NetworkConfig;
-use papyrus_storage::StorageConfig;
+use apollo_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
+use apollo_base_layer::test_utils::StarknetL1Contract;
+use apollo_network::network_manager::test_utils::create_connected_network_configs;
+use apollo_network::NetworkConfig;
+use apollo_storage::StorageConfig;
 use serde::Deserialize;
 use serde_json::{json, to_value};
 use starknet_api::block::BlockNumber;

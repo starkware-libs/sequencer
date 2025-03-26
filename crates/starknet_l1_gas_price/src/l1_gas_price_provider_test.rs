@@ -1,4 +1,4 @@
-use papyrus_base_layer::PriceSample;
+use apollo_base_layer::PriceSample;
 use starknet_api::block::BlockTimestamp;
 use starknet_l1_gas_price_types::PriceInfo;
 

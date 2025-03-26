@@ -3,7 +3,7 @@ use std::pin::Pin;
 
 use futures::stream::FuturesUnordered;
 use futures::{Future, FutureExt, StreamExt};
-use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
+use apollo_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
 use starknet_batcher::communication::{LocalBatcherServer, RemoteBatcherServer};
 use starknet_class_manager::communication::{LocalClassManagerServer, RemoteClassManagerServer};
 use starknet_consensus_manager::communication::ConsensusManagerServer;

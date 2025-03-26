@@ -1,5 +1,5 @@
-use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
-use papyrus_base_layer::BaseLayerContract;
+use apollo_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
+use apollo_base_layer::BaseLayerContract;
 use starknet_batcher::batcher::{create_batcher, Batcher};
 use starknet_class_manager::class_manager::create_class_manager;
 use starknet_class_manager::ClassManager;
