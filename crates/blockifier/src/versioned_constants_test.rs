@@ -221,3 +221,14 @@ fn test_call_data_factor_gas_cost_calculation() {
             > 0
     )
 }
+
+// The OS `get_execution_info` syscall implementation assumes these sets are disjoint.
+#[test]
+fn verify_v1_bound_and_data_gas_accounts_disjoint() {
+    let versioned_constants = VersionedConstants::latest_constants();
+    let data_gas_accounts_set: HashSet<_> =
+        versioned_constants.os_constants.data_gas_accounts.iter().collect();
+    let v1_bound_accounts_set: HashSet<_> =
+        versioned_constants.os_constants.v1_bound_accounts_cairo1.iter().collect();
+    assert!(data_gas_accounts_set.is_disjoint(&v1_bound_accounts_set));
+}
