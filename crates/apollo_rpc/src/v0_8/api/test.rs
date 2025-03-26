@@ -3563,6 +3563,7 @@ async fn serialize_returns_valid_json() {
         get_test_pending_classes(),
         storage_reader,
         NODE_VERSION,
+        None,
     )
     .await
     .unwrap();
