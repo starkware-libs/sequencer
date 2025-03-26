@@ -10,11 +10,8 @@ use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use async_trait::async_trait;
-use futures::channel::{mpsc, oneshot};
-use futures::{FutureExt, SinkExt, StreamExt};
-use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
-use papyrus_protobuf::consensus::{
+use apollo_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
+use apollo_protobuf::consensus::{
     ConsensusBlockInfo,
     HeightAndRound,
     ProposalFin,
@@ -24,6 +21,9 @@ use papyrus_protobuf::consensus::{
     Vote,
     DEFAULT_VALIDATOR_ID,
 };
+use async_trait::async_trait;
+use futures::channel::{mpsc, oneshot};
+use futures::{FutureExt, SinkExt, StreamExt};
 use starknet_api::block::{
     BlockHash,
     BlockHashAndNumber,

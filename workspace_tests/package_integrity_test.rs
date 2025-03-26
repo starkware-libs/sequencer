@@ -6,7 +6,7 @@ use toml_test_utils::{DependencyValue, PackageEntryValue, MEMBER_TOMLS};
 /// Should only contain test-related crates.
 static CRATES_ALLOWED_TO_USE_TESTING_FEATURE: [&str; 6] = [
     "starknet_integration_tests",
-    "papyrus_test_utils",
+    "apollo_test_utils",
     "blockifier_test_utils",
     "papyrus_load_test",
     "mempool_test_utils",

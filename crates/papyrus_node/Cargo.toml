@@ -7,7 +7,7 @@ license-file.workspace = true
 
 [features]
 default = ["rpc"]
-rpc = ["papyrus_rpc"]
+rpc = ["apollo_rpc"]
 testing = []
 
 [[bin]]
@@ -17,6 +17,12 @@ required-features = ["futures-util", "tokio-stream"]
 
 [dependencies]
 anyhow.workspace = true
+apollo_central_sync.workspace = true
+apollo_config.workspace = true
+apollo_network.workspace = true
+apollo_p2p_sync.workspace = true
+apollo_rpc = { workspace = true, optional = true }
+apollo_storage.workspace = true
 clap = { workspace = true }
 const_format.workspace = true
 futures.workspace = true
@@ -25,13 +31,7 @@ lazy_static.workspace = true
 once_cell.workspace = true
 papyrus_base_layer.workspace = true
 papyrus_common.workspace = true
-papyrus_config.workspace = true
 papyrus_monitoring_gateway.workspace = true
-papyrus_network.workspace = true
-papyrus_p2p_sync.workspace = true
-papyrus_rpc = { workspace = true, optional = true }
-papyrus_storage.workspace = true
-papyrus_sync.workspace = true
 reqwest = { workspace = true, features = ["blocking", "json"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
@@ -51,10 +51,10 @@ futures-util = { workspace = true, optional = true }
 tokio-stream = { workspace = true, optional = true }
 
 [dev-dependencies]
+apollo_test_utils.workspace = true
 colored.workspace = true
 insta = { workspace = true, features = ["json"] }
 metrics-exporter-prometheus.workspace = true
-papyrus_test_utils.workspace = true
 pretty_assertions.workspace = true
 starknet_infra_utils = { workspace = true, features = ["testing"] }
 tempfile.workspace = true

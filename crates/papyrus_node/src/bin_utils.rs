@@ -1,7 +1,7 @@
 use std::env::args;
 
+use apollo_config::ConfigError;
 use clap::Parser;
-use papyrus_config::ConfigError;
 
 use crate::config::NodeConfig;
 

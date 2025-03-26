@@ -4,9 +4,9 @@ use std::mem;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use papyrus_config::dumping::{ser_param, SerializeConfig};
-use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use papyrus_storage::class_hash::{ClassHashStorageReader, ClassHashStorageWriter};
+use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_storage::class_hash::{ClassHashStorageReader, ClassHashStorageWriter};
 use serde::{Deserialize, Serialize};
 use starknet_api::class_cache::GlobalContractCache;
 use starknet_api::contract_class::ContractClass;
@@ -267,22 +267,22 @@ impl Clone for CachedClassStorage<FsClassStorage> {
 #[derive(Debug, Error)]
 pub enum ClassHashStorageError {
     #[error(transparent)]
-    Storage(#[from] papyrus_storage::StorageError),
+    Storage(#[from] apollo_storage::StorageError),
 }
 
 type ClassHashStorageResult<T> = Result<T, ClassHashStorageError>;
-type LockedWriter<'a> = MutexGuard<'a, papyrus_storage::StorageWriter>;
+type LockedWriter<'a> = MutexGuard<'a, apollo_storage::StorageWriter>;
 
 #[derive(Clone)]
 pub struct ClassHashStorage {
-    reader: papyrus_storage::StorageReader,
-    writer: Arc<Mutex<papyrus_storage::StorageWriter>>,
+    reader: apollo_storage::StorageReader,
+    writer: Arc<Mutex<apollo_storage::StorageWriter>>,
 }
 
 impl ClassHashStorage {
     pub fn new(config: ClassHashStorageConfig) -> ClassHashStorageResult<Self> {
-        let storage_config = papyrus_storage::StorageConfig {
-            db_config: papyrus_storage::db::DbConfig {
+        let storage_config = apollo_storage::StorageConfig {
+            db_config: apollo_storage::db::DbConfig {
                 path_prefix: config.path_prefix,
                 chain_id: ChainId::Other("UnusedChainID".to_string()),
                 enforce_file_exists: config.enforce_file_exists,
@@ -290,14 +290,14 @@ impl ClassHashStorage {
                 growth_step: 1 << 20, // 1MB.
                 ..Default::default()
             },
-            scope: papyrus_storage::StorageScope::StateOnly,
-            mmap_file_config: papyrus_storage::mmap_file::MmapFileConfig {
+            scope: apollo_storage::StorageScope::StateOnly,
+            mmap_file_config: apollo_storage::mmap_file::MmapFileConfig {
                 max_size: 1 << 30,        // 1GB.
                 growth_step: 1 << 20,     // 1MB.
                 max_object_size: 1 << 10, // 1KB; a class hash is 32B.
             },
         };
-        let (reader, writer) = papyrus_storage::open_storage(storage_config)?;
+        let (reader, writer) = apollo_storage::open_storage(storage_config)?;
 
         Ok(Self { reader, writer: Arc::new(Mutex::new(writer)) })
     }

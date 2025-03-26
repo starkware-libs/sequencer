@@ -1,4 +1,4 @@
-use papyrus_test_utils::validate_load_and_dump;
+use apollo_test_utils::validate_load_and_dump;
 
 use super::{DeclareResponse, DeployAccountResponse, InvokeResponse};
 

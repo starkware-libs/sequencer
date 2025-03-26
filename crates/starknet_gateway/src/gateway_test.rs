@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
+use apollo_network_types::network_types::BroadcastedMessageMetadata;
+use apollo_test_utils::{get_rng, GetTestInstance};
 use assert_matches::assert_matches;
 use blockifier::context::ChainInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use mempool_test_utils::starknet_api_test_utils::{declare_tx, invoke_tx};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
-use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use papyrus_test_utils::{get_rng, GetTestInstance};
 use rstest::{fixture, rstest};
 use starknet_api::core::{CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::rpc_transaction::{

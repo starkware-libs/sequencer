@@ -1,5 +1,5 @@
+use apollo_storage::StorageError;
 use futures::channel::mpsc::SendError;
-use papyrus_storage::StorageError;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress};
