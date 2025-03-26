@@ -81,7 +81,7 @@
   "components.gateway.remote_client_config.idle_timeout": 90,
   "components.gateway.remote_client_config.retries": 3,
   "components.gateway.remote_client_config.retry_interval": 3,
-  "components.gateway.url": "gateway.preintegration-test.svc.cluster.local",
+  "components.gateway.url": "sequencer-gateway-service",
   "components.http_server.execution_mode": "Enabled",
   "components.l1_gas_price_provider.execution_mode": "Disabled",
   "components.l1_gas_price_provider.ip": "0.0.0.0",
