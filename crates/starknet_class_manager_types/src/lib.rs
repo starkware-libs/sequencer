@@ -3,10 +3,10 @@ pub mod transaction_converter;
 use std::error::Error;
 use std::sync::Arc;
 
+use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
 #[cfg(feature = "testing")]
 use mockall::automock;
-use papyrus_proc_macros::handle_all_response_variants;
 use serde::{Deserialize, Serialize};
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash};

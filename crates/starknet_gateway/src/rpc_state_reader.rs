@@ -1,3 +1,4 @@
+use apollo_rpc::CompiledContractClass;
 use blockifier::execution::contract_class::{
     CompiledClassV0,
     CompiledClassV1,
@@ -5,7 +6,6 @@ use blockifier::execution::contract_class::{
 };
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
-use papyrus_rpc::CompiledContractClass;
 use reqwest::blocking::Client as BlockingClient;
 use serde::Serialize;
 use serde_json::{json, Value};

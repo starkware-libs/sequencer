@@ -2,11 +2,11 @@ use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 use std::time::Duration;
 
+use apollo_network_types::network_types::BroadcastedMessageMetadata;
+use apollo_test_utils::{get_rng, GetTestInstance};
 use mempool_test_utils::starknet_api_test_utils::test_valid_resource_bounds;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate;
-use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use papyrus_test_utils::{get_rng, GetTestInstance};
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::{GasPrice, NonzeroGasPrice};

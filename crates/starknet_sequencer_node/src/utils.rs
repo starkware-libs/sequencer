@@ -1,8 +1,8 @@
 use std::process::exit;
 
-use papyrus_config::presentation::get_config_presentation;
-use papyrus_config::validators::config_validate;
-use papyrus_config::ConfigError;
+use apollo_config::presentation::get_config_presentation;
+use apollo_config::validators::config_validate;
+use apollo_config::ConfigError;
 use tracing::{error, info};
 
 use crate::clients::{create_node_clients, SequencerNodeClients};

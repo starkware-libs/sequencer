@@ -2,16 +2,16 @@
 use std::fmt::Debug;
 use std::time::Duration;
 
-use async_trait::async_trait;
-use futures::channel::{mpsc, oneshot};
-use papyrus_network::network_manager::{
+use apollo_network::network_manager::{
     BroadcastTopicChannels,
     BroadcastTopicClient,
     GenericReceiver,
 };
-use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use papyrus_protobuf::consensus::{ProposalFin, ProposalInit, Vote};
-use papyrus_protobuf::converters::ProtobufConversionError;
+use apollo_network_types::network_types::BroadcastedMessageMetadata;
+use apollo_protobuf::consensus::{ProposalFin, ProposalInit, Vote};
+use apollo_protobuf::converters::ProtobufConversionError;
+use async_trait::async_trait;
+use futures::channel::{mpsc, oneshot};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
 

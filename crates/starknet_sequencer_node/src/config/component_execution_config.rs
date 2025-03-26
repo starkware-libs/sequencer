@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 use std::net::{IpAddr, Ipv4Addr, ToSocketAddrs};
 
-use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
-use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_sequencer_infra::component_definitions::{LocalServerConfig, RemoteClientConfig};
 use tracing::error;
@@ -30,7 +30,7 @@ pub enum ActiveComponentExecutionMode {
     Enabled,
 }
 
-// TODO(Lev/Tsabary): When papyrus_config will support it, change to include communication config in
+// TODO(Lev/Tsabary): When apollo_config will support it, change to include communication config in
 // the enum.
 
 /// Reactive component configuration.

@@ -238,36 +238,36 @@ async fn serialization_precision() {
 async fn contract_class() {
     let starknet_client = starknet_client();
     let expected_contract_class = ContractClass {
-        sierra_program: vec![
-            felt!("0x302e312e30"),
-            felt!("0x1c"),
-            felt!("0x52616e6765436865636b"),
-        ],
-        entry_points_by_type: HashMap::from([(
-            EntryPointType::External,
-            vec! [EntryPoint {
-                function_idx: FunctionIndex(0),
-                selector: EntryPointSelector(felt!(
-                    "0x22ff5f21f0b81b113e63f7db6da94fedef11b2119b4088b89664fb9a3cb658"
-                )),
-            }],
-        ),
-        (EntryPointType::Constructor, vec![]),
-        (EntryPointType::L1Handler, vec![]),
+        sierra_program: vec![felt!("0x302e312e30"), felt!("0x1c"), felt!("0x52616e6765436865636b")],
+        entry_points_by_type: HashMap::from([
+            (
+                EntryPointType::External,
+                vec![EntryPoint {
+                    function_idx: FunctionIndex(0),
+                    selector: EntryPointSelector(felt!(
+                        "0x22ff5f21f0b81b113e63f7db6da94fedef11b2119b4088b89664fb9a3cb658"
+                    )),
+                }],
+            ),
+            (EntryPointType::Constructor, vec![]),
+            (EntryPointType::L1Handler, vec![]),
         ]),
         contract_class_version: String::from("0.1.0"),
-        abi: String::from("[\n  {\n    \"type\": \"function\",\n    \"name\": \"test\",\n    \"inputs\": [\n      {\n        \"name\": \"arg\",\n        \"ty\": \"core::felt\"\n      },\n      {\n        \"name\": \"arg1\",\n        \"ty\": \"core::felt\"\n      },\n      {\n        \"name\": \"arg2\",\n        \"ty\": \"core::felt\"\n      }\n    ],\n    \"output_ty\": \"core::felt\",\n    \"state_mutability\": \"external\"\n  },\n  {\n    \"type\": \"function\",\n    \"name\": \"empty\",\n    \"inputs\": [],\n    \"output_ty\": \"()\",\n    \"state_mutability\": \"external\"\n  },\n  {\n    \"type\": \"function\",\n    \"name\": \"call_foo\",\n    \"inputs\": [\n      {\n        \"name\": \"a\",\n        \"ty\": \"core::integer::u128\"\n      }\n    ],\n    \"output_ty\": \"core::integer::u128\",\n    \"state_mutability\": \"external\"\n  }\n]"),
+        abi: String::from(
+            "[\n  {\n    \"type\": \"function\",\n    \"name\": \"test\",\n    \"inputs\": [\n      {\n        \"name\": \"arg\",\n        \"ty\": \"core::felt\"\n      },\n      {\n        \"name\": \"arg1\",\n        \"ty\": \"core::felt\"\n      },\n      {\n        \"name\": \"arg2\",\n        \"ty\": \"core::felt\"\n      }\n    ],\n    \"output_ty\": \"core::felt\",\n    \"state_mutability\": \"external\"\n  },\n  {\n    \"type\": \"function\",\n    \"name\": \"empty\",\n    \"inputs\": [],\n    \"output_ty\": \"()\",\n    \"state_mutability\": \"external\"\n  },\n  {\n    \"type\": \"function\",\n    \"name\": \"call_foo\",\n    \"inputs\": [\n      {\n        \"name\": \"a\",\n        \"ty\": \"core::integer::u128\"\n      }\n    ],\n    \"output_ty\": \"core::integer::u128\",\n    \"state_mutability\": \"external\"\n  }\n]",
+        ),
     };
 
-    let mock_by_hash =
-        mock(
-            "GET",
-            &format!("/feeder_gateway/get_class_by_hash?blockNumber=pending&\
-         {CLASS_HASH_QUERY}=0x4e70b19333ae94bd958625f7b61ce9eec631653597e68645e13780061b2136c")[..],
-        )
-        .with_status(200)
-        .with_body(read_resource_file("reader/contract_class.json"))
-        .create();
+    let mock_by_hash = mock(
+        "GET",
+        &format!(
+            "/feeder_gateway/get_class_by_hash?blockNumber=pending&\
+             {CLASS_HASH_QUERY}=0x4e70b19333ae94bd958625f7b61ce9eec631653597e68645e13780061b2136c"
+        )[..],
+    )
+    .with_status(200)
+    .with_body(read_resource_file("reader/contract_class.json"))
+    .create();
     let contract_class = starknet_client
         .class_by_hash(class_hash!(
             "0x4e70b19333ae94bd958625f7b61ce9eec631653597e68645e13780061b2136c"
@@ -338,15 +338,16 @@ async fn deprecated_contract_class() {
             ),
         ]),
     };
-    let mock_by_hash =
-        mock(
-            "GET",
-            &format!("/feeder_gateway/get_class_by_hash?blockNumber=pending&\
-         {CLASS_HASH_QUERY}=0x7af612493193c771c1b12f511a8b4d3b0c6d0648242af4680c7cd0d06186f17")[..],
-        )
-        .with_status(200)
-        .with_body(read_resource_file("reader/deprecated_contract_class.json"))
-        .create();
+    let mock_by_hash = mock(
+        "GET",
+        &format!(
+            "/feeder_gateway/get_class_by_hash?blockNumber=pending&\
+             {CLASS_HASH_QUERY}=0x7af612493193c771c1b12f511a8b4d3b0c6d0648242af4680c7cd0d06186f17"
+        )[..],
+    )
+    .with_status(200)
+    .with_body(read_resource_file("reader/deprecated_contract_class.json"))
+    .create();
     let contract_class = starknet_client
         .class_by_hash(class_hash!(
             "0x7af612493193c771c1b12f511a8b4d3b0c6d0648242af4680c7cd0d06186f17"

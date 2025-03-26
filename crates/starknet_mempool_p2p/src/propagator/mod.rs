@@ -1,10 +1,10 @@
 #[cfg(test)]
 mod test;
 
+use apollo_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
+use apollo_network_types::network_types::BroadcastedMessageMetadata;
+use apollo_protobuf::mempool::RpcTransactionBatch;
 use async_trait::async_trait;
-use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
-use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use papyrus_protobuf::mempool::RpcTransactionBatch;
 use starknet_api::rpc_transaction::{InternalRpcTransaction, RpcTransaction};
 use starknet_class_manager_types::transaction_converter::TransactionConverterTrait;
 use starknet_mempool_p2p_types::communication::{

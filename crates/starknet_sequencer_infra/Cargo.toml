@@ -13,9 +13,9 @@ testing = ["starknet_sequencer_metrics/testing"]
 workspace = true
 
 [dependencies]
+apollo_config.workspace = true
 async-trait.workspace = true
 hyper = { workspace = true, features = ["client", "http2", "server", "tcp"] }
-papyrus_config.workspace = true
 rstest.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true

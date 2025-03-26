@@ -3,31 +3,7 @@ mod test;
 
 use std::sync::Arc;
 
-use apollo_reverts::{revert_block, revert_blocks_and_eternal_pending};
-use async_trait::async_trait;
-use futures::channel::mpsc::Receiver;
-use futures::future::{self, pending, BoxFuture};
-use futures::never::Never;
-use futures::{FutureExt, StreamExt};
-use papyrus_common::pending_classes::PendingClasses;
-use papyrus_network::network_manager::metrics::{NetworkMetrics, SqmrNetworkMetrics};
-use papyrus_network::network_manager::{self, NetworkError, NetworkManager};
-use papyrus_p2p_sync::client::{
-    P2pSyncClient,
-    P2pSyncClientChannels,
-    P2pSyncClientConfig,
-    P2pSyncClientError,
-};
-use papyrus_p2p_sync::server::{P2pSyncServer, P2pSyncServerChannels};
-use papyrus_p2p_sync::{Protocol, BUFFER_SIZE};
-use papyrus_storage::body::BodyStorageReader;
-use papyrus_storage::class_manager::ClassManagerStorageReader;
-use papyrus_storage::compiled_class::CasmStorageReader;
-use papyrus_storage::db::TransactionKind;
-use papyrus_storage::header::HeaderStorageReader;
-use papyrus_storage::state::StateStorageReader;
-use papyrus_storage::{open_storage, StorageReader, StorageTxn, StorageWriter};
-use papyrus_sync::metrics::{
+use apollo_central_sync::metrics::{
     SYNC_BODY_MARKER,
     SYNC_CLASS_MANAGER_MARKER,
     SYNC_COMPILED_CLASS_MARKER,
@@ -36,13 +12,37 @@ use papyrus_sync::metrics::{
     SYNC_REVERTED_TRANSACTIONS,
     SYNC_STATE_MARKER,
 };
-use papyrus_sync::sources::central::{CentralError, CentralSource};
-use papyrus_sync::sources::pending::PendingSource;
-use papyrus_sync::{
+use apollo_central_sync::sources::central::{CentralError, CentralSource};
+use apollo_central_sync::sources::pending::PendingSource;
+use apollo_central_sync::{
     StateSync as CentralStateSync,
     StateSyncError as CentralStateSyncError,
     GENESIS_HASH,
 };
+use apollo_network::network_manager::metrics::{NetworkMetrics, SqmrNetworkMetrics};
+use apollo_network::network_manager::{self, NetworkError, NetworkManager};
+use apollo_p2p_sync::client::{
+    P2pSyncClient,
+    P2pSyncClientChannels,
+    P2pSyncClientConfig,
+    P2pSyncClientError,
+};
+use apollo_p2p_sync::server::{P2pSyncServer, P2pSyncServerChannels};
+use apollo_p2p_sync::{Protocol, BUFFER_SIZE};
+use apollo_reverts::{revert_block, revert_blocks_and_eternal_pending};
+use apollo_storage::body::BodyStorageReader;
+use apollo_storage::class_manager::ClassManagerStorageReader;
+use apollo_storage::compiled_class::CasmStorageReader;
+use apollo_storage::db::TransactionKind;
+use apollo_storage::header::HeaderStorageReader;
+use apollo_storage::state::StateStorageReader;
+use apollo_storage::{open_storage, StorageReader, StorageTxn, StorageWriter};
+use async_trait::async_trait;
+use futures::channel::mpsc::Receiver;
+use futures::future::{self, pending, BoxFuture};
+use futures::never::Never;
+use futures::{FutureExt, StreamExt};
+use papyrus_common::pending_classes::PendingClasses;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::felt;
 use starknet_class_manager_types::SharedClassManagerClient;

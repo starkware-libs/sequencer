@@ -21,7 +21,7 @@ version = "Two"
 wrap_comments = true
 
 # Automatically generated files by protoc
-ignore = ["/crates/papyrus_protobuf/src/protobuf/protoc_output.rs"]
+ignore = ["/crates/apollo_protobuf/src/protobuf/protoc_output.rs"]
 
 # To use these settings in vscode, add the following line to your settings:
 #     "rust-analyzer.rustfmt.overrideCommand": [
