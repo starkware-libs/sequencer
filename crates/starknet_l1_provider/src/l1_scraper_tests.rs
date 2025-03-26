@@ -152,8 +152,8 @@ async fn bootstrap_e2e() {
     // Setup.
 
     let l1_provider_client = Arc::new(FakeL1ProviderClient::default());
-    let startup_height = BlockNumber(2);
-    let catch_up_height = BlockNumber(5);
+    const STARTUP_HEIGHT: BlockNumber = BlockNumber(2);
+    const CATCH_UP_HEIGHT: BlockNumber = BlockNumber(5);
 
     // Make the mocked sync client try removing from a hashmap as a response to get block.
     let mut sync_client = MockStateSyncClient::default();
@@ -162,7 +162,7 @@ async fn bootstrap_e2e() {
     sync_client.expect_get_block().returning(move |input| Ok(sync_response_clone.remove(&input)));
 
     let config = L1ProviderConfig {
-        bootstrap_catch_up_height_override: Some(catch_up_height),
+        bootstrap_catch_up_height_override: Some(CATCH_UP_HEIGHT),
         startup_sync_sleep_retry_interval: Duration::from_millis(10),
         ..Default::default()
     };
@@ -170,7 +170,7 @@ async fn bootstrap_e2e() {
         config,
         l1_provider_client.clone(),
         Arc::new(sync_client),
-        startup_height,
+        STARTUP_HEIGHT,
     );
 
     // Test.
@@ -185,22 +185,22 @@ async fn bootstrap_e2e() {
 
     // Load first **Sync** response: the initializer task will pick it up within the specified
     // interval.
-    sync_response.lock().unwrap().insert(startup_height, SyncBlock::default());
+    sync_response.lock().unwrap().insert(STARTUP_HEIGHT, SyncBlock::default());
     tokio::time::sleep(config.startup_sync_sleep_retry_interval).await;
 
     // **Commit** 2 blocks past catchup height, should be received after the previous sync.
     let no_txs_committed = vec![]; // Not testing txs in this test.
-    l1_provider_client.commit_block(no_txs_committed.clone(), catch_up_height).await.unwrap();
+    l1_provider_client.commit_block(no_txs_committed.clone(), CATCH_UP_HEIGHT).await.unwrap();
     tokio::time::sleep(config.startup_sync_sleep_retry_interval).await;
     l1_provider_client
-        .commit_block(no_txs_committed, height_add(catch_up_height, 1))
+        .commit_block(no_txs_committed, height_add(CATCH_UP_HEIGHT, 1))
         .await
         .unwrap();
     tokio::time::sleep(config.startup_sync_sleep_retry_interval).await;
 
     // Feed sync task the remaining blocks, will be received after the commits above.
-    sync_response.lock().unwrap().insert(height_add(startup_height, 1), SyncBlock::default());
-    sync_response.lock().unwrap().insert(height_add(startup_height, 2), SyncBlock::default());
+    sync_response.lock().unwrap().insert(height_add(STARTUP_HEIGHT, 1), SyncBlock::default());
+    sync_response.lock().unwrap().insert(height_add(STARTUP_HEIGHT, 2), SyncBlock::default());
     tokio::time::sleep(2 * config.startup_sync_sleep_retry_interval).await;
 
     // Assert that initializer task has received the stubbed responses from the sync client and sent
@@ -265,7 +265,7 @@ async fn bootstrap_delayed_sync_state_with_trivial_catch_up() {
     // Setup.
 
     let l1_provider_client = Arc::new(FakeL1ProviderClient::default());
-    let startup_height = BlockNumber(3);
+    const STARTUP_HEIGHT: BlockNumber = BlockNumber(3);
 
     let mut sync_client = MockStateSyncClient::default();
     // Mock sync response for an arbitrary number of calls to get_latest_block_number.
@@ -284,7 +284,7 @@ async fn bootstrap_delayed_sync_state_with_trivial_catch_up() {
         config,
         l1_provider_client.clone(),
         Arc::new(sync_client),
-        startup_height,
+        STARTUP_HEIGHT,
     );
 
     // Test.
@@ -297,9 +297,9 @@ async fn bootstrap_delayed_sync_state_with_trivial_catch_up() {
     // is a trivial catchup scenario (nothing to catch up).
     // This checks that the trivial catch_up_height doesn't mess up this flow.
     let no_txs_committed = []; // Not testing txs in this test.
-    l1_provider_client.commit_block(no_txs_committed.to_vec(), startup_height).await.unwrap();
+    l1_provider_client.commit_block(no_txs_committed.to_vec(), STARTUP_HEIGHT).await.unwrap();
     l1_provider_client
-        .commit_block(no_txs_committed.to_vec(), height_add(startup_height, 1))
+        .commit_block(no_txs_committed.to_vec(), height_add(STARTUP_HEIGHT, 1))
         .await
         .unwrap();
 
@@ -307,7 +307,7 @@ async fn bootstrap_delayed_sync_state_with_trivial_catch_up() {
     l1_provider_client.flush_messages(&mut l1_provider).await;
 
     // Commit blocks should have been applied.
-    let start_height_plus_2 = height_add(startup_height, 2);
+    let start_height_plus_2 = height_add(STARTUP_HEIGHT, 2);
     assert_eq!(l1_provider.current_height, start_height_plus_2);
     // Should still be bootstrapping, since catchup height isn't determined yet.
     // Technically we could end bootstrapping at this point, but its simpler to let it
