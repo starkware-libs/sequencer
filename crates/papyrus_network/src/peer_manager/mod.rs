@@ -1,7 +1,10 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
+use std::future::Future;
+use std::pin::Pin;
 use std::time::Duration;
 
 use futures::future::BoxFuture;
+use futures::stream::FuturesUnordered;
 use futures::FutureExt;
 use libp2p::swarm::dial_opts::DialOpts;
 use libp2p::swarm::{ConnectionId, ToSwarm};
@@ -53,6 +56,11 @@ pub struct PeerManager {
     sleep_waiting_for_unblocked_peer: Option<BoxFuture<'static, ()>>,
     // A peer is known only after we get the identify message.
     connections_for_unknown_peers: HashMap<PeerId, Vec<ConnectionId>>,
+
+    // a set of futures indicating when a peer should no longer be considered as blacklisted
+    pub blacklisted_peers_futures: FuturesUnordered<Pin<Box<dyn Future<Output = PeerId> + Send>>>,
+    // A set of blacklisted peers
+    pub blacklisted_peers: HashSet<PeerId>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
@@ -116,6 +124,8 @@ impl PeerManager {
             sessions_received_when_no_peers: Vec::new(),
             sleep_waiting_for_unblocked_peer: None,
             connections_for_unknown_peers: HashMap::default(),
+            blacklisted_peers_futures: FuturesUnordered::new(),
+            blacklisted_peers: HashSet::new(),
         }
     }
 
@@ -223,6 +233,7 @@ impl PeerManager {
                         ));
                         peer.blacklist_peer(self.config.malicious_timeout_seconds);
                         peer.reset_misconduct_score();
+                        self.blacklist_peer(peer_id, reason);
                     }
                 }
                 ReputationModifier::Unstable => {
@@ -230,6 +241,7 @@ impl PeerManager {
                         ToOtherBehaviourEvent::PeerBlacklisted { peer_id },
                     ));
                     peer.blacklist_peer(self.config.unstable_timeout_millis);
+                    self.blacklist_peer(peer_id, reason);
                 }
             }
             Ok(())
@@ -248,6 +260,25 @@ impl PeerManager {
         } else {
             Err(PeerManagerError::NoSuchSession(outbound_session_id))
         }
+    }
+
+    pub(crate) fn blacklist_peer(&mut self, peer_id: PeerId, reason: ReputationModifier) {
+        // TODO(alonl): update number of blacklisted peers metric
+        self.blacklisted_peers.insert(peer_id);
+
+        let blacklist_duration = match reason {
+            ReputationModifier::Misconduct { misconduct_score: _ } => {
+                self.config.malicious_timeout_seconds
+            }
+            ReputationModifier::Unstable => self.config.unstable_timeout_millis,
+        };
+        self.blacklisted_peers_futures
+            .push(tokio::time::sleep(blacklist_duration).map(move |_| peer_id).boxed());
+    }
+
+    pub(crate) fn unblacklist_peer(&mut self, peer_id: &PeerId) {
+        // TODO(alonl): update number of blacklisted peers metric
+        self.blacklisted_peers.remove(peer_id);
     }
 }
 

@@ -277,6 +277,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                 }
             }
             SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
+                self.swarm.behaviour_mut().peer_manager.unblacklist_peer(&peer_id);
                 match cause {
                     Some(connection_error) => {
                         debug!("Connection to {peer_id:?} closed due to {connection_error:?}.")
