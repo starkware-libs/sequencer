@@ -2546,7 +2546,6 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     };
 
     // Build the expected resource mapping.
-    // l2_gas is 0 in the receipt even though execution resources is not, as we're in NoL2Gas mode.
     // TODO(Nimrod, 1/5/2024): Change these hard coded values to match to the transaction resources
     // (currently matches only starknet resources).
     let expected_gas = match use_kzg_da {
