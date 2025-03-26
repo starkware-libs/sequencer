@@ -23,7 +23,7 @@ pub mod http_server_test;
 
 pub type HttpServerResult<T> = Result<T, HttpServerError>;
 
-const CLIENT_REGION_HEADER: &str = "X-Client-Region";
+pub const CLIENT_REGION_HEADER: &str = "X-Client-Region";
 
 pub struct HttpServer {
     pub config: HttpServerConfig,
@@ -54,7 +54,11 @@ impl HttpServer {
     }
 
     pub fn app(&self) -> Router {
-        Router::new().route("/add_tx", post(add_tx)).with_state(self.app_state.clone())
+        Router::new()
+            .route("/add_tx", post(add_tx))
+            .with_state(self.app_state.clone())
+            .route("/rest_add_tx", post(add_tx))
+            .with_state(self.app_state.clone())
     }
 }
 
@@ -79,7 +83,7 @@ async fn add_tx(
     add_tx_result_as_json(add_tx_result)
 }
 
-fn record_added_transactions(add_tx_result: &HttpServerResult<TransactionHash>, region: &str) {
+pub fn record_added_transactions(add_tx_result: &HttpServerResult<TransactionHash>, region: &str) {
     if let Ok(tx_hash) = add_tx_result {
         trace!("Recorded transaction with hash: {} from region: {}", tx_hash, region);
     }
@@ -108,3 +112,22 @@ impl ComponentStarter for HttpServer {
         self.run().await.unwrap_or_else(|e| panic!("Failed to start HttpServer component: {:?}", e))
     }
 }
+
+// #[instrument(skip(app_state))]
+// async fn add_tx_rpc(
+//     State(app_state): State<AppState>,
+//     headers: HeaderMap,
+//     Json(tx): Json<RpcTransaction>,
+// ) -> HttpServerResult<Json<TransactionHash>> {
+//     record_added_transaction();
+//     let gateway_input: GatewayInput = GatewayInput { rpc_tx: tx, message_metadata: None };
+//     let add_tx_result = app_state.gateway_client.add_tx(gateway_input).await.map_err(|e| {
+//         debug!("Error while adding transaction: {}", e);
+//         HttpServerError::from(e)
+//     });
+
+//     let region =
+//         headers.get(CLIENT_REGION_HEADER).and_then(|region|
+// region.to_str().ok()).unwrap_or("N/A");     record_added_transactions(&add_tx_result, region);
+//     add_tx_result_as_json(add_tx_result)
+// }

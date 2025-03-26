@@ -3,5 +3,6 @@ pub mod config;
 pub mod errors;
 pub mod http_server;
 pub mod metrics;
+pub mod rest_api;
 #[cfg(any(feature = "testing", test))]
 pub mod test_utils;

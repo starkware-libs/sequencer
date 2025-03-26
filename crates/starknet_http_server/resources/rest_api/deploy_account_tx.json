@@ -1,0 +1,27 @@
+{
+  "version": "0x3",
+  "signature": ["0x6"],
+  "nonce": "0x0",
+  "nonce_data_availability_mode": 0,
+  "fee_data_availability_mode": 0,
+  "resource_bounds": {
+    "L1_GAS": {
+      "max_amount": "0x10000000000",
+      "max_price_per_unit": "0x10000000000"
+    },
+    "L1_DATA_GAS": {
+      "max_amount": "0x10000000000",
+      "max_price_per_unit": "0x10000000000"
+    },
+    "L2_GAS": {
+      "max_amount": "0x10000000000",
+      "max_price_per_unit": "0x10000000000"
+    }
+  },
+  "tip": "0x0",
+  "paymaster_data": [],
+  "class_hash": "0xaa17",
+  "contract_address_salt": "0x14d",
+  "constructor_calldata": ["0x7", "0x8"],
+  "type": "DEPLOY_ACCOUNT"
+}
