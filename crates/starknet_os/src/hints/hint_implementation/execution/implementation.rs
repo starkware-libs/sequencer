@@ -25,14 +25,28 @@ use crate::syscall_handler_utils::SyscallHandlerType;
 use crate::vm_utils::{get_address_of_nested_fields, LoadCairoObject};
 
 pub(crate) fn load_next_tx<S: StateReader>(
-    HintArgs { exec_scopes, vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, exec_scopes, vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
     let mut txs_iter: IntoIter<Transaction> = exec_scopes.get(Scope::Transactions.into())?;
     let tx = txs_iter.next().ok_or(OsHintError::EndOfIterator { item_type: "txs".to_string() })?;
     let tx_type = tx.tx_type().tx_type_as_felt();
     insert_value_from_var_name(Ids::TxType.into(), tx_type, vm, ids_data, ap_tracking)?;
 
-    // TODO(Yoav): add logger and log enter_tx.
+    // Log enter tx.
+    let current_step = exec_scopes.get::<usize>(Scope::CurrentStep.into())?;
+    let range_check_ptr =
+        get_ptr_from_var_name(Ids::RangeCheckPtr.into(), vm, ids_data, ap_tracking)?;
+    hint_processor.execution_helper.os_logger.enter_tx(
+        tx.tx_type(),
+        tx.tx_hash(),
+        current_step,
+        range_check_ptr,
+        ids_data,
+        vm,
+        ap_tracking,
+        &hint_processor.os_program,
+    )?;
+
     exec_scopes.insert_value(Scope::Transactions.into(), txs_iter);
     exec_scopes.insert_value(Scope::Tx.into(), tx);
     Ok(())
