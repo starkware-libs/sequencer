@@ -141,7 +141,6 @@ async fn txs_happy_flow() {
 /// commit_blocks are processed as they come, and the two new blocks are backlogged until the synced
 /// blocks are processed, after which they are processed in order.
 #[tokio::test]
-#[ignore = "stale and broken, will be fixed in next PR"]
 async fn bootstrap_e2e() {
     if !in_ci() {
         return;
@@ -152,13 +151,15 @@ async fn bootstrap_e2e() {
 
     let l1_provider_client = Arc::new(FakeL1ProviderClient::default());
     const STARTUP_HEIGHT: BlockNumber = BlockNumber(2);
-    const CATCH_UP_HEIGHT: BlockNumber = BlockNumber(5);
+    const CATCH_UP_HEIGHT: BlockNumber = BlockNumber(4);
 
     // Make the mocked sync client try removing from a hashmap as a response to get block.
     let mut sync_client = MockStateSyncClient::default();
     let sync_response = Arc::new(Mutex::new(HashMap::<BlockNumber, SyncBlock>::new()));
-    let mut sync_response_clone = sync_response.lock().unwrap().clone();
-    sync_client.expect_get_block().returning(move |input| Ok(sync_response_clone.remove(&input)));
+    let sync_response_clone = sync_response.clone();
+    sync_client
+        .expect_get_block()
+        .returning(move |input| Ok(sync_response_clone.lock().unwrap().remove(&input)));
     sync_client.expect_get_latest_block_number().returning(move || Ok(Some(CATCH_UP_HEIGHT)));
     let config = L1ProviderConfig {
         startup_sync_sleep_retry_interval: Duration::from_millis(10),
