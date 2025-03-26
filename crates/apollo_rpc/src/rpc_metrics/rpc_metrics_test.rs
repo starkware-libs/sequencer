@@ -168,6 +168,7 @@ async fn server_metrics() {
         get_test_pending_classes(),
         storage_reader,
         "NODE VERSION",
+        None,
     )
     .await
     .unwrap();

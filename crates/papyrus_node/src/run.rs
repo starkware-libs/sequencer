@@ -140,6 +140,7 @@ async fn spawn_rpc_server(
         pending_classes,
         storage_reader,
         VERSION_FULL,
+        None,
     )
     .await?;
     Ok(tokio::spawn(async move {
