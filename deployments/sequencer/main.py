@@ -60,6 +60,7 @@ def main():
                 autoscale=svc["autoscale"],
                 ingress=svc["ingress"],
                 storage=svc["storage"],
+                resources=svc["resources"],
             ),
         )
 
