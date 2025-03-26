@@ -24,7 +24,7 @@ pub fn cairo1_compiler_tag() -> String {
     //   If the compiler version is updated in the toml to a version < 2.11.0,
     //   only update the version in the assert below.
     // format!("v{}", cairo1_compiler_version())
-    assert_eq!(cairo1_compiler_version(), "2.10.0", "Unsupported compiler version.");
+    assert_eq!(cairo1_compiler_version(), "=2.10.0", "Unsupported compiler version.");
     "v2.11.0-dev.2".into()
 }
 
