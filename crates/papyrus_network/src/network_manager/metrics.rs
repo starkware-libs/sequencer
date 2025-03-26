@@ -29,21 +29,31 @@ impl SqmrNetworkMetrics {
     }
 }
 
+pub struct PeerManagerMetrics {
+    pub num_connected_peers: MetricGauge,
+    pub num_blacklisted_peers: MetricGauge,
+}
+
+impl PeerManagerMetrics {
+    pub fn register(&self) {
+        self.num_connected_peers.register();
+        self.num_connected_peers.set(0f64);
+        self.num_blacklisted_peers.register();
+        self.num_blacklisted_peers.set(0f64);
+    }
+}
+
 // TODO(alonl, shahak): Consider making these fields private and receive Topics instead of
 // TopicHashes in the constructor
 pub struct NetworkMetrics {
-    pub num_connected_peers: MetricGauge,
-    pub num_blacklisted_peers: MetricGauge,
+    pub peer_manager_metrics: PeerManagerMetrics,
     pub broadcast_metrics_by_topic: Option<HashMap<TopicHash, BroadcastNetworkMetrics>>,
     pub sqmr_metrics: Option<SqmrNetworkMetrics>,
 }
 
 impl NetworkMetrics {
     pub fn register(&self) {
-        self.num_connected_peers.register();
-        self.num_connected_peers.set(0f64);
-        self.num_blacklisted_peers.register();
-        self.num_blacklisted_peers.set(0f64);
+        self.peer_manager_metrics.register();
         if let Some(broadcast_metrics_by_topic) = self.broadcast_metrics_by_topic.as_ref() {
             for broadcast_metrics in broadcast_metrics_by_topic.values() {
                 broadcast_metrics.register();

@@ -8,7 +8,11 @@ use std::collections::HashMap;
 use futures::FutureExt;
 use metrics::MEMPOOL_P2P_NUM_BLACKLISTED_PEERS;
 use papyrus_network::gossipsub_impl::Topic;
-use papyrus_network::network_manager::metrics::{BroadcastNetworkMetrics, NetworkMetrics};
+use papyrus_network::network_manager::metrics::{
+    BroadcastNetworkMetrics,
+    NetworkMetrics,
+    PeerManagerMetrics,
+};
 use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use starknet_class_manager_types::transaction_converter::TransactionConverter;
 use starknet_class_manager_types::SharedClassManagerClient;
@@ -45,8 +49,10 @@ pub fn create_p2p_propagator_and_runner(
         },
     );
     let network_manager_metrics = Some(NetworkMetrics {
-        num_connected_peers: MEMPOOL_P2P_NUM_CONNECTED_PEERS,
-        num_blacklisted_peers: MEMPOOL_P2P_NUM_BLACKLISTED_PEERS,
+        peer_manager_metrics: PeerManagerMetrics {
+            num_connected_peers: MEMPOOL_P2P_NUM_CONNECTED_PEERS,
+            num_blacklisted_peers: MEMPOOL_P2P_NUM_BLACKLISTED_PEERS,
+        },
         broadcast_metrics_by_topic: Some(broadcast_metrics_by_topic),
         sqmr_metrics: None,
     });

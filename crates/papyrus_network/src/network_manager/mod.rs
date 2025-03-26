@@ -273,7 +273,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             SwarmEvent::ConnectionEstablished { peer_id, .. } => {
                 debug!("Connected to peer id: {peer_id:?}");
                 if let Some(metrics) = self.metrics.as_ref() {
-                    metrics.num_connected_peers.increment(1);
+                    metrics.peer_manager_metrics.num_connected_peers.increment(1);
                 }
             }
             SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
@@ -284,7 +284,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                     None => debug!("Connection to {peer_id:?} closed."),
                 }
                 if let Some(metrics) = self.metrics.as_ref() {
-                    metrics.num_connected_peers.decrement(1);
+                    metrics.peer_manager_metrics.num_connected_peers.decrement(1);
                 }
             }
             SwarmEvent::Behaviour(event) => {

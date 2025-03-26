@@ -9,7 +9,11 @@ use apollo_reverts::revert_blocks_and_eternal_pending;
 use async_trait::async_trait;
 use futures::channel::mpsc;
 use papyrus_network::gossipsub_impl::Topic;
-use papyrus_network::network_manager::metrics::{BroadcastNetworkMetrics, NetworkMetrics};
+use papyrus_network::network_manager::metrics::{
+    BroadcastNetworkMetrics,
+    NetworkMetrics,
+    PeerManagerMetrics,
+};
 use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use papyrus_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, Vote};
 use starknet_api::block::BlockNumber;
@@ -75,8 +79,10 @@ impl ConsensusManager {
             },
         );
         let network_manager_metrics = Some(NetworkMetrics {
-            num_connected_peers: CONSENSUS_NUM_CONNECTED_PEERS,
-            num_blacklisted_peers: CONSENSUS_NUM_BLACKLISTED_PEERS,
+            peer_manager_metrics: PeerManagerMetrics {
+                num_connected_peers: CONSENSUS_NUM_CONNECTED_PEERS,
+                num_blacklisted_peers: CONSENSUS_NUM_BLACKLISTED_PEERS,
+            },
             broadcast_metrics_by_topic: Some(broadcast_metrics_by_topic),
             sqmr_metrics: None,
         });
