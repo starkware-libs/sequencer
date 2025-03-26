@@ -33,6 +33,7 @@ use apollo_p2p_sync::client::{
 use apollo_p2p_sync::server::{P2pSyncServer, P2pSyncServerChannels};
 use apollo_p2p_sync::{Protocol, BUFFER_SIZE};
 use apollo_reverts::{revert_block, revert_blocks_and_eternal_pending};
+use apollo_rpc::{run_server, RpcConfig};
 use apollo_starknet_client::reader::objects::pending_data::{
     PendingBlock,
     PendingBlockOrDeprecated,
@@ -45,14 +46,14 @@ use apollo_storage::compiled_class::CasmStorageReader;
 use apollo_storage::db::TransactionKind;
 use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::state::StateStorageReader;
-use apollo_storage::{open_storage, StorageReader, StorageTxn, StorageWriter};
+use apollo_storage::{open_storage, StorageConfig, StorageReader, StorageTxn, StorageWriter};
 use async_trait::async_trait;
 use futures::channel::mpsc::Receiver;
 use futures::future::{self, pending, BoxFuture};
 use futures::never::Never;
 use futures::{FutureExt, StreamExt};
 use papyrus_common::pending_classes::PendingClasses;
-use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::felt;
 use tokio::sync::RwLock;
 use tracing::info_span;
@@ -73,6 +74,7 @@ pub struct StateSyncRunner {
     p2p_sync_server_future: BoxFuture<'static, Never>,
     central_sync_client_future: BoxFuture<'static, Result<(), CentralStateSyncError>>,
     new_block_dev_null_future: BoxFuture<'static, Never>,
+    rpc_server_future: BoxFuture<'static, ()>,
 }
 
 #[async_trait]
@@ -94,8 +96,37 @@ impl ComponentStarter for StateSyncRunner {
             _never = &mut self.new_block_dev_null_future => {
                 unreachable!("Return type Never should never be constructed")
             }
-
+            _ = &mut self.rpc_server_future => {
+                panic!("JSON_RPC server stopped unexpectedly");
+            }
         }
+    }
+}
+
+pub struct StateSyncResources {
+    pub storage_reader: StorageReader,
+    pub storage_writer: StorageWriter,
+    pub shared_highest_block: Arc<RwLock<Option<BlockHashAndNumber>>>,
+    pub pending_data: Arc<RwLock<PendingData>>,
+    pub pending_classes: Arc<RwLock<PendingClasses>>,
+}
+
+impl StateSyncResources {
+    pub fn new(storage_config: &StorageConfig) -> Self {
+        let (storage_reader, storage_writer) =
+            open_storage(storage_config.clone()).expect("StateSyncRunner failed opening storage");
+        let shared_highest_block = Arc::new(RwLock::new(None));
+        let pending_data = Arc::new(RwLock::new(PendingData {
+            // The pending data might change later to DeprecatedPendingBlock, depending on the
+            // response from the feeder gateway.
+            block: PendingBlockOrDeprecated::Current(PendingBlock {
+                parent_block_hash: BlockHash(felt!(GENESIS_HASH)),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }));
+        let pending_classes = Arc::new(RwLock::new(PendingClasses::default()));
+        Self { storage_reader, storage_writer, shared_highest_block, pending_data, pending_classes }
     }
 }
 
@@ -111,11 +142,16 @@ impl StateSyncRunner {
             central_sync_client_config,
             network_config,
             revert_config,
-            rpc_config: _,
+            rpc_config,
         } = config;
 
-        let (storage_reader, mut storage_writer) =
-            open_storage(storage_config).expect("StateSyncRunner failed opening storage");
+        let StateSyncResources {
+            storage_reader,
+            mut storage_writer,
+            shared_highest_block,
+            pending_data,
+            pending_classes,
+        } = StateSyncResources::new(&storage_config);
 
         register_metrics(&storage_reader.begin_ro_txn().unwrap());
 
@@ -157,6 +193,7 @@ impl StateSyncRunner {
                     p2p_sync_server_future: pending().boxed(),
                     central_sync_client_future: pending().boxed(),
                     new_block_dev_null_future: pending().boxed(),
+                    rpc_server_future: pending().boxed(),
                 },
                 storage_reader,
             );
@@ -207,6 +244,9 @@ impl StateSyncRunner {
                     let central_sync_client = Self::new_central_state_sync_client(
                         storage_reader.clone(),
                         storage_writer,
+                        shared_highest_block.clone(),
+                        pending_data.clone(),
+                        pending_classes.clone(),
                         central_sync_client_config,
                         class_manager_client.clone(),
                     );
@@ -234,7 +274,7 @@ impl StateSyncRunner {
                 let p2p_sync_server = Self::new_p2p_state_sync_server(
                     storage_reader.clone(),
                     &mut network_manager,
-                    class_manager_client,
+                    class_manager_client.clone(),
                 );
 
                 let p2p_sync_server_future = p2p_sync_server.run().boxed();
@@ -250,6 +290,15 @@ impl StateSyncRunner {
                 (p2p_sync_server_future, network_future)
             }
         };
+        // Creating the JSON-RPC server future
+        let rpc_server_future = spawn_rpc_server(
+            &rpc_config,
+            shared_highest_block.clone(),
+            pending_data.clone(),
+            pending_classes.clone(),
+            storage_reader.clone(),
+            Some(class_manager_client.clone()),
+        );
 
         (
             Self {
@@ -258,6 +307,7 @@ impl StateSyncRunner {
                 p2p_sync_server_future,
                 central_sync_client_future,
                 new_block_dev_null_future,
+                rpc_server_future,
             },
             storage_reader,
         )
@@ -323,22 +373,14 @@ impl StateSyncRunner {
     fn new_central_state_sync_client(
         storage_reader: StorageReader,
         storage_writer: StorageWriter,
+        shared_highest_block: Arc<RwLock<Option<BlockHashAndNumber>>>,
+        pending_data: Arc<RwLock<PendingData>>,
+        pending_classes: Arc<RwLock<PendingClasses>>,
         central_sync_client_config: CentralSyncClientConfig,
         class_manager_client: SharedClassManagerClient,
     ) -> CentralStateSync {
         let CentralSyncClientConfig { sync_config, central_source_config } =
             central_sync_client_config;
-        let shared_highest_block = Arc::new(RwLock::new(None));
-        let pending_data = Arc::new(RwLock::new(PendingData {
-            // The pending data might change later to DeprecatedPendingBlock, depending on the
-            // response from the feeder gateway.
-            block: PendingBlockOrDeprecated::Current(PendingBlock {
-                parent_block_hash: BlockHash(felt!(GENESIS_HASH)),
-                ..Default::default()
-            }),
-            ..Default::default()
-        }));
-        let pending_classes = Arc::new(RwLock::new(PendingClasses::default()));
         let central_source =
             CentralSource::new(central_source_config.clone(), VERSION_FULL, storage_reader.clone())
                 .map_err(CentralError::ClientCreation)
@@ -355,7 +397,7 @@ impl StateSyncRunner {
             central_source,
             pending_source,
             base_layer_source,
-            storage_reader,
+            storage_reader.clone(),
             storage_writer,
             Some(class_manager_client),
         )
@@ -371,6 +413,37 @@ fn create_new_block_receiver_future_dev_null(
         loop {
             let _sync_block = new_block_receiver.next().await;
         }
+    }
+    .boxed()
+}
+
+// Create JSON-RPC server
+fn spawn_rpc_server(
+    rpc_config: &RpcConfig,
+    shared_highest_block: Arc<RwLock<Option<BlockHashAndNumber>>>,
+    pending_data: Arc<RwLock<PendingData>>,
+    pending_classes: Arc<RwLock<PendingClasses>>,
+    storage_reader: StorageReader,
+    class_manager_client: Option<SharedClassManagerClient>,
+) -> BoxFuture<'static, ()> {
+    let rpc_config = rpc_config.clone();
+    async move {
+        let (_, server_handle) = run_server(
+            &rpc_config,
+            shared_highest_block,
+            pending_data,
+            pending_classes,
+            storage_reader,
+            VERSION_FULL,
+            class_manager_client,
+        )
+        .await
+        .expect("Failed running JSON-RPC server");
+        tokio::spawn(async move {
+            server_handle.stopped().await;
+        })
+        .await
+        .expect("Failed spawning JSON-RPC server");
     }
     .boxed()
 }
