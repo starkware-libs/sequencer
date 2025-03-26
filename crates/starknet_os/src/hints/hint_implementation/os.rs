@@ -50,7 +50,7 @@ pub(crate) fn initialize_state_changes<S: StateReader>(
                 ("storage_ptr", storage_ptr.into()),
                 ("nonce", nonce.0.into()),
             ],
-            &hint_processor.execution_helper.os_program,
+            &hint_processor.os_program,
         )?;
         initial_dict.insert((*contract_address.0.key()).into(), state_entry_base.into());
     }

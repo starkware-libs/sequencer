@@ -46,7 +46,7 @@ pub(crate) fn set_bit<S: StateReader>(
         vm,
         ap_tracking,
         &["path"],
-        &hint_processor.execution_helper.os_program,
+        &hint_processor.os_program,
     )?;
     let edge_path = vm.get_integer(edge_path_addr)?.into_owned();
     let new_length = u8::try_from(
