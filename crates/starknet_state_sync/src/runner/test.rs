@@ -1,7 +1,7 @@
 use futures::future::{pending, ready};
 use futures::FutureExt;
-use papyrus_network::network_manager::NetworkError;
-use papyrus_p2p_sync::client::P2pSyncClientError;
+use apollo_network::network_manager::NetworkError;
+use apollo_p2p_sync::client::P2pSyncClientError;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 
 use super::StateSyncRunner;

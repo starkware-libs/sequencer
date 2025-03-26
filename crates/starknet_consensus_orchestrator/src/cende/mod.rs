@@ -23,8 +23,8 @@ use central_objects::{
 };
 #[cfg(test)]
 use mockall::automock;
-use papyrus_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
-use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
+use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use reqwest::{Client, RequestBuilder, Response};
 use serde::{Deserialize, Serialize};
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;

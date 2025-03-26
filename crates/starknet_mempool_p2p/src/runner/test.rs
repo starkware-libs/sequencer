@@ -4,15 +4,15 @@ use std::time::Duration;
 use futures::future::{pending, ready, BoxFuture};
 use futures::stream::StreamExt;
 use futures::{FutureExt, SinkExt};
-use papyrus_network::network_manager::test_utils::{
+use apollo_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     BroadcastNetworkMock,
     TestSubscriberChannels,
 };
-use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkError};
-use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use papyrus_protobuf::mempool::RpcTransactionBatch;
-use papyrus_test_utils::{get_rng, GetTestInstance};
+use apollo_network::network_manager::{BroadcastTopicChannels, NetworkError};
+use apollo_network_types::network_types::BroadcastedMessageMetadata;
+use apollo_protobuf::mempool::RpcTransactionBatch;
+use apollo_test_utils::{get_rng, GetTestInstance};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::communication::{GatewayClient, GatewayClientError, MockGatewayClient};

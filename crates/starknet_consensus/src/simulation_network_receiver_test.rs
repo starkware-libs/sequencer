@@ -1,11 +1,11 @@
 use futures::{SinkExt, StreamExt};
-use papyrus_network::network_manager::test_utils::{
+use apollo_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     TestSubscriberChannels,
 };
-use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use papyrus_protobuf::consensus::Vote;
-use papyrus_test_utils::{get_rng, GetTestInstance};
+use apollo_network_types::network_types::BroadcastedMessageMetadata;
+use apollo_protobuf::consensus::Vote;
+use apollo_test_utils::{get_rng, GetTestInstance};
 use test_case::test_case;
 
 use super::NetworkReceiver;

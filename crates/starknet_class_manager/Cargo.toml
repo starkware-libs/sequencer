@@ -12,10 +12,10 @@ testing = []
 workspace = true
 
 [dependencies]
+apollo_config.workspace = true
+apollo_storage.workspace = true
 async-trait.workspace = true
 hex.workspace = true
-papyrus_config.workspace = true
-papyrus_storage.workspace = true
 serde.workspace = true
 starknet_api.workspace = true
 starknet_class_manager_types.workspace = true

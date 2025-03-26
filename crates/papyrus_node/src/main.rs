@@ -1,6 +1,6 @@
 use std::env::args;
 
-use papyrus_config::ConfigError;
+use apollo_config::ConfigError;
 use papyrus_node::config::NodeConfig;
 use papyrus_node::run::{run, PapyrusResources, PapyrusTaskHandles};
 

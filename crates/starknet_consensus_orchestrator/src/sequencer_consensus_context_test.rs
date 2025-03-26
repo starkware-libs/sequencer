@@ -9,13 +9,13 @@ use futures::executor::block_on;
 use futures::future::pending;
 use futures::{FutureExt, SinkExt, StreamExt};
 use lazy_static::lazy_static;
-use papyrus_network::network_manager::test_utils::{
+use apollo_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     BroadcastNetworkMock,
     TestSubscriberChannels,
 };
-use papyrus_network::network_manager::BroadcastTopicChannels;
-use papyrus_protobuf::consensus::{
+use apollo_network::network_manager::BroadcastTopicChannels;
+use apollo_protobuf::consensus::{
     ConsensusBlockInfo,
     HeightAndRound,
     ProposalFin,

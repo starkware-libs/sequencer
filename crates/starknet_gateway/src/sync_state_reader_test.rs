@@ -4,7 +4,7 @@ use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::state_api::StateReader;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use mockall::predicate;
-use papyrus_test_utils::{get_rng, GetTestInstance};
+use apollo_test_utils::{get_rng, GetTestInstance};
 use starknet_api::block::{
     BlockHeaderWithoutHash,
     BlockInfo,

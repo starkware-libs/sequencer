@@ -17,7 +17,7 @@ use std::time::Duration;
 #[cfg(test)]
 use enum_as_inner::EnumAsInner;
 use futures::channel::{mpsc, oneshot};
-use papyrus_protobuf::consensus::{ProposalFin, ProposalInit, Vote, VoteType};
+use apollo_protobuf::consensus::{ProposalFin, ProposalInit, Vote, VoteType};
 use starknet_api::block::BlockNumber;
 use tracing::{debug, info, instrument, trace, warn};
 

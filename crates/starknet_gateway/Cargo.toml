@@ -12,6 +12,10 @@ workspace = true
 testing = ["blockifier/testing", "blockifier_test_utils"]
 
 [dependencies]
+apollo_config.workspace = true
+apollo_network_types.workspace = true
+apollo_proc_macros.workspace = true
+apollo_rpc.workspace = true
 async-trait.workspace = true
 axum.workspace = true
 blockifier.workspace = true
@@ -19,10 +23,6 @@ blockifier_test_utils = { workspace = true, optional = true }
 cairo-lang-starknet-classes.workspace = true
 futures.workspace = true
 mempool_test_utils.workspace = true
-papyrus_config.workspace = true
-papyrus_network_types.workspace = true
-papyrus_proc_macros.workspace = true
-papyrus_rpc.workspace = true
 reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -43,6 +43,8 @@ tracing.workspace = true
 validator.workspace = true
 
 [dev-dependencies]
+apollo_network_types = { workspace = true, features = ["testing"] }
+apollo_test_utils.workspace = true
 assert_matches.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
@@ -53,8 +55,6 @@ metrics-exporter-prometheus.workspace = true
 mockall.workspace = true
 mockito.workspace = true
 num-bigint.workspace = true
-papyrus_network_types = { workspace = true, features = ["testing"] }
-papyrus_test_utils.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
 starknet_class_manager_types = { workspace = true, features = ["testing"] }

@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 
 use apollo_reverts::RevertConfig;
-use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
-use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use papyrus_network::NetworkConfig;
+use apollo_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_network::NetworkConfig;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_consensus::config::ConsensusConfig;

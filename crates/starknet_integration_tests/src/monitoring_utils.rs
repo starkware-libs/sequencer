@@ -1,4 +1,4 @@
-use papyrus_sync::metrics::{
+use apollo_sync::metrics::{
     SYNC_BODY_MARKER,
     SYNC_CLASS_MANAGER_MARKER,
     SYNC_COMPILED_CLASS_MARKER,

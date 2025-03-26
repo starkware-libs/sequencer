@@ -5,6 +5,8 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use alloy::node_bindings::AnvilInstance;
+use apollo_network::network_manager::test_utils::create_connected_network_configs;
+use apollo_storage::StorageConfig;
 use blockifier::context::ChainInfo;
 use futures::future::join_all;
 use futures::TryFutureExt;
@@ -14,8 +16,6 @@ use papyrus_base_layer::test_utils::{
     spawn_anvil_and_deploy_starknet_l1_contract,
     StarknetL1Contract,
 };
-use papyrus_network::network_manager::test_utils::create_connected_network_configs;
-use papyrus_storage::StorageConfig;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, Nonce};
 use starknet_api::execution_resources::GasAmount;

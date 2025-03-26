@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use papyrus_sync::metrics::PAPYRUS_SYNC_ALL_METRICS;
+use apollo_sync::metrics::APOLLO_SYNC_ALL_METRICS;
 use starknet_batcher::metrics::BATCHER_ALL_METRICS;
 use starknet_consensus_manager::metrics::CONSENSUS_ALL_METRICS;
 use starknet_gateway::metrics::GATEWAY_ALL_METRICS;
@@ -20,7 +20,7 @@ fn metric_names_no_duplications() {
         .chain(INFRA_ALL_METRICS.iter())
         .chain(MEMPOOL_ALL_METRICS.iter())
         .chain(MEMPOOL_P2P_ALL_METRICS.iter())
-        .chain(PAPYRUS_SYNC_ALL_METRICS.iter())
+        .chain(APOLLO_SYNC_ALL_METRICS.iter())
         .chain(STATE_SYNC_ALL_METRICS.iter())
         .collect::<Vec<&&'static str>>();
 

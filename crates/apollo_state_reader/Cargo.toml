@@ -1,0 +1,30 @@
+[package]
+name = "apollo_state_reader"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[features]
+cairo_native = ["blockifier/cairo_native"]
+
+[lints]
+workspace = true
+
+[dependencies]
+apollo_storage.workspace = true
+blockifier.workspace = true
+cairo-lang-starknet-classes.workspace = true
+log.workspace = true
+starknet-types-core.workspace = true
+starknet_api.workspace = true
+starknet_class_manager_types.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+apollo_storage = { workspace = true, features = ["testing"] }
+assert_matches.workspace = true
+blockifier = { workspace = true, features = ["testing"] }
+blockifier_test_utils.workspace = true
+indexmap.workspace = true
+rstest.workspace = true

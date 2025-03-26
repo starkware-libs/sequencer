@@ -1,7 +1,7 @@
 use futures::channel::{mpsc, oneshot};
 use futures::SinkExt;
 use lazy_static::lazy_static;
-use papyrus_protobuf::consensus::{ProposalFin, ProposalInit, Vote, DEFAULT_VALIDATOR_ID};
+use apollo_protobuf::consensus::{ProposalFin, ProposalInit, Vote, DEFAULT_VALIDATOR_ID};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_types_core::felt::Felt;
 use test_case::test_case;

@@ -3,6 +3,14 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use alloy::node_bindings::AnvilInstance;
+use apollo_network::gossipsub_impl::Topic;
+use apollo_network::network_manager::test_utils::{
+    create_connected_network_configs,
+    network_config_into_broadcast_channels,
+};
+use apollo_network::network_manager::BroadcastTopicChannels;
+use apollo_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, StreamMessageBody};
+use apollo_storage::StorageConfig;
 use blockifier::context::ChainInfo;
 use futures::StreamExt;
 use mempool_test_utils::starknet_api_test_utils::{
@@ -15,14 +23,6 @@ use papyrus_base_layer::test_utils::{
     spawn_anvil_and_deploy_starknet_l1_contract,
     StarknetL1Contract,
 };
-use papyrus_network::gossipsub_impl::Topic;
-use papyrus_network::network_manager::test_utils::{
-    create_connected_network_configs,
-    network_config_into_broadcast_channels,
-};
-use papyrus_network::network_manager::BroadcastTopicChannels;
-use papyrus_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, StreamMessageBody};
-use papyrus_storage::StorageConfig;
 use starknet_api::block::BlockNumber;
 use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::core::{ChainId, ContractAddress};
@@ -348,7 +348,7 @@ impl _TxCollector {
         while let Some((Ok(message), _)) = broadcasted_messages_receiver.next().await {
             messages_cache.insert(message.message_id, message.clone());
 
-            if message.message == papyrus_protobuf::consensus::StreamMessageBody::Fin {
+            if message.message == apollo_protobuf::consensus::StreamMessageBody::Fin {
                 last_message_id = message.message_id;
             }
             // Check that we got the Fin message and all previous messages.

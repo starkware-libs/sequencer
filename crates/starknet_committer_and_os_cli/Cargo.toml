@@ -18,6 +18,7 @@ tempfile.workspace = true
 
 # TODO(Amos): Add `testing` feature and move Python test dependencies under it.
 [dependencies]
+# Should be moved under `testing` feature, when it exists.
 cairo-lang-starknet-classes.workspace = true
 cairo-vm.workspace = true                                   # Should be moved under `testing` feature, when it exists.
 clap = { workspace = true, features = ["cargo", "derive"] }
@@ -32,7 +33,6 @@ serde_repr.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_committer.workspace = true
-# Should be moved under `testing` feature, when it exists.
 starknet_os = { workspace = true, features = ["deserialize", "testing"] }
 starknet_patricia = { workspace = true, features = ["testing"] }
 starknet_patricia_storage.workspace = true
@@ -40,8 +40,8 @@ strum.workspace = true
 strum_macros.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
-tracing-subscriber.workspace = true
 tracing.workspace = true
+tracing-subscriber.workspace = true
 
 [[bench]]
 harness = false

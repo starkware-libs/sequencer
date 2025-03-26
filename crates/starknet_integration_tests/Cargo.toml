@@ -11,6 +11,10 @@ workspace = true
 [dependencies]
 alloy.workspace = true
 anyhow.workspace = true
+apollo_network = { workspace = true, features = ["testing"] }
+apollo_protobuf.workspace = true
+apollo_storage = { workspace = true, features = ["testing"] }
+apollo_sync.workspace = true
 assert_matches.workspace = true
 axum.workspace = true
 blockifier.workspace = true
@@ -22,10 +26,6 @@ indexmap.workspace = true
 itertools.workspace = true
 mempool_test_utils.workspace = true
 papyrus_base_layer = { workspace = true, features = ["testing"] }
-papyrus_network = { workspace = true, features = ["testing"] }
-papyrus_protobuf.workspace = true
-papyrus_storage = { workspace = true, features = ["testing"] }
-papyrus_sync.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true

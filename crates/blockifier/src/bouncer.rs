@@ -2,8 +2,8 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
-use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ClassHash;
 use starknet_api::execution_resources::GasAmount;
