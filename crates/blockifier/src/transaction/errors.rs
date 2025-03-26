@@ -145,12 +145,6 @@ pub enum TransactionPreValidationError {
 }
 
 #[derive(Debug, Error)]
-pub enum ParseError {
-    #[error("Unsupported transaction type: {0}")]
-    UnknownTransactionType(String),
-}
-
-#[derive(Debug, Error)]
 pub enum NumericConversionError {
     #[error("Conversion of {0} to u128 unsuccessful.")]
     U128ToUsizeError(u128),

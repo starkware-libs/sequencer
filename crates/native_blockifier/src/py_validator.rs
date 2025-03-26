@@ -7,9 +7,9 @@ use blockifier::context::BlockContext;
 use blockifier::state::cached_state::CachedState;
 use blockifier::transaction::account_transaction::AccountTransaction;
 use blockifier::transaction::objects::TransactionInfoCreator;
-use blockifier::transaction::transaction_types::TransactionType;
 use pyo3::{pyclass, pymethods, PyAny};
 use starknet_api::core::Nonce;
+use starknet_api::executable_transaction::TransactionType;
 use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
 

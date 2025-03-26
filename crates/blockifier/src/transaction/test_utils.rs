@@ -6,6 +6,7 @@ use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::{FeeType, GasPrice};
 use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
+use starknet_api::executable_transaction::TransactionType;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::test_utils::declare::executable_declare_tx;
 use starknet_api::test_utils::deploy_account::{
@@ -47,7 +48,6 @@ use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::BALANCE;
 use crate::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use crate::transaction::objects::{TransactionExecutionInfo, TransactionExecutionResult};
-use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::ExecutableTransaction;
 
 // Corresponding constants to the ones in faulty_account.

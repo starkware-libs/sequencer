@@ -6,7 +6,7 @@ use starknet_api::calldata;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
-use starknet_api::executable_transaction::AccountTransaction as Transaction;
+use starknet_api::executable_transaction::{AccountTransaction as Transaction, TransactionType};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::Resource::{L1DataGas, L1Gas, L2Gas};
 use starknet_api::transaction::fields::{
@@ -66,7 +66,6 @@ use crate::transaction::objects::{
     TransactionInfoCreatorInner,
     TransactionPreValidationResult,
 };
-use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::{
     enforce_fee,
     Executable,

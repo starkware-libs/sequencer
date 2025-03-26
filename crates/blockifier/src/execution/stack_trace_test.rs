@@ -15,7 +15,7 @@ use starknet_api::core::{
     EntryPointSelector,
     Nonce,
 };
-use starknet_api::executable_transaction::AccountTransaction as Transaction;
+use starknet_api::executable_transaction::{AccountTransaction as Transaction, TransactionType};
 use starknet_api::transaction::constants::{
     DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME,
     EXECUTE_ENTRY_POINT_NAME,
@@ -60,7 +60,6 @@ use crate::transaction::test_utils::{
     FaultyAccountTxCreatorArgs,
     INVALID,
 };
-use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::ExecutableTransaction;
 
 #[rstest]

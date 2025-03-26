@@ -18,6 +18,7 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::core::{ClassHash, ContractAddress};
+use starknet_api::executable_transaction::TransactionType;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::hash::StarkHash;
 use starknet_api::state::StorageKey;
@@ -50,7 +51,6 @@ use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::syscalls::hint_processor::{SyscallUsage, SyscallUsageMap};
 use crate::execution::syscalls::SyscallSelector;
 use crate::fee::resources::{StarknetResources, StateResources};
-use crate::transaction::transaction_types::TransactionType;
 use crate::utils::{const_max, u64_from_usize};
 // Class hashes.
 // TODO(Adi, 15/01/2023): Remove and compute the class hash corresponding to the ERC20 contract in
