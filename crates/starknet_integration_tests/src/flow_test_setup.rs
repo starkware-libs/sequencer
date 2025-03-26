@@ -49,12 +49,11 @@ use starknet_sequencer_node::servers::run_component_servers;
 use starknet_sequencer_node::utils::create_node_modules;
 use starknet_state_sync::config::StateSyncConfig;
 use starknet_types_core::felt::Felt;
-use tempfile::TempDir;
 use tokio::sync::Mutex;
 use tracing::{debug, instrument};
 use url::Url;
 
-use crate::state_reader::StorageTestSetup;
+use crate::state_reader::{StorageTestHandles, StorageTestSetup};
 use crate::utils::{
     create_consensus_manager_configs_from_network_configs,
     create_mempool_p2p_configs,
@@ -179,10 +178,8 @@ pub struct FlowSequencerSetup {
     // Client for adding transactions to the sequencer node.
     pub add_tx_http_client: HttpTestClient,
 
-    // Handlers for the storage files, maintained so the files are not deleted.
-    pub batcher_storage_file_handle: Option<TempDir>,
-    pub state_sync_storage_file_handle: Option<TempDir>,
-    pub class_manager_storage_file_handles: Option<starknet_class_manager::test_utils::FileHandles>,
+    // Handles for the storage files, maintained so the files are not deleted.
+    pub storage_handles: StorageTestHandles,
 
     // Node configuration.
     pub node_config: SequencerNodeConfig,
@@ -211,12 +208,8 @@ impl FlowSequencerSetup {
         block_max_capacity_sierra_gas: GasAmount,
     ) -> Self {
         let path = None;
-        let StorageTestSetup {
-            storage_config,
-            batcher_storage_handle,
-            state_sync_storage_handle,
-            class_manager_storage_handles,
-        } = StorageTestSetup::new(accounts, &chain_info, path);
+        let StorageTestSetup { storage_config, storage_handles } =
+            StorageTestSetup::new(accounts, &chain_info, path);
 
         let (recorder_url, _join_handle) =
             spawn_local_success_recorder(available_ports.get_next_port());
@@ -269,9 +262,7 @@ impl FlowSequencerSetup {
         Self {
             node_index,
             add_tx_http_client,
-            batcher_storage_file_handle: batcher_storage_handle,
-            state_sync_storage_file_handle: state_sync_storage_handle,
-            class_manager_storage_file_handles: class_manager_storage_handles,
+            storage_handles,
             node_config,
             monitoring_client,
             clients,

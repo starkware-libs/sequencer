@@ -21,7 +21,6 @@ use starknet_api::core::{ChainId, Nonce};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
-use starknet_class_manager::test_utils::FileHandles;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_http_server::test_utils::HttpTestClient;
 use starknet_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
@@ -36,7 +35,6 @@ use starknet_sequencer_node::config::node_config::{
     CONFIG_NON_POINTERS_WHITELIST,
 };
 use starknet_sequencer_node::test_utils::node_runner::{get_node_executable_path, spawn_run_node};
-use tempfile::TempDir;
 use tokio::join;
 use tokio::task::JoinHandle;
 use tracing::info;
@@ -55,6 +53,7 @@ use crate::node_component_configs::{
     create_nodes_deployment_units_configs,
 };
 use crate::sequencer_simulator_utils::SequencerSimulator;
+use crate::state_reader::StorageTestHandles;
 use crate::storage::{get_integration_test_storage, CustomPaths};
 use crate::utils::{
     create_consensus_manager_configs_from_network_configs,
@@ -88,15 +87,11 @@ pub struct NodeSetup {
     // Client for adding transactions to the sequencer node.
     pub add_tx_http_client: HttpTestClient,
 
-    // Handlers for the storage files, maintained so the files are not deleted. Since
-    // these are only maintained to avoid dropping the handlers, private visibility suffices, and
+    // Handles for the storage files, maintained so the files are not deleted. Since
+    // these are only maintained to avoid dropping the handles, private visibility suffices, and
     // as such, the '#[allow(dead_code)]' attributes are used to suppress the warning.
     #[allow(dead_code)]
-    batcher_storage_handle: Option<TempDir>,
-    #[allow(dead_code)]
-    state_sync_storage_handle: Option<TempDir>,
-    #[allow(dead_code)]
-    class_manager_storage_handles: Option<FileHandles>,
+    storage_handles: StorageTestHandles,
 }
 
 // TODO(Nadin): reduce the number of arguments.
@@ -108,9 +103,7 @@ impl NodeSetup {
         http_server_index: usize,
         state_sync_index: usize,
         add_tx_http_client: HttpTestClient,
-        batcher_storage_handle: Option<TempDir>,
-        state_sync_storage_handle: Option<TempDir>,
-        class_manager_storage_handles: Option<FileHandles>,
+        storage_handles: StorageTestHandles,
     ) -> Self {
         let len = executables.len();
 
@@ -134,9 +127,7 @@ impl NodeSetup {
             http_server_index,
             state_sync_index,
             add_tx_http_client,
-            batcher_storage_handle,
-            state_sync_storage_handle,
-            class_manager_storage_handles,
+            storage_handles,
         }
     }
 
@@ -818,9 +809,7 @@ pub async fn get_sequencer_setup_configs(
             http_server_index,
             state_sync_index,
             add_tx_http_client,
-            storage_setup.batcher_storage_handle,
-            storage_setup.state_sync_storage_handle,
-            storage_setup.class_manager_storage_handles,
+            storage_setup.storage_handles,
         ));
     }
 
