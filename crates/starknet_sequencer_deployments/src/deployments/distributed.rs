@@ -157,10 +157,9 @@ impl DistributedNodeServiceName {
         }
     }
 
-    // TODO(Tsabary): currently hard coded for the preintegration test env.
     /// Url for the service.
     fn url(&self) -> String {
-        format!("{}.preintegration-test.svc.cluster.local", self.as_ref())
+        format!("sequencer-{}-service", self.as_ref())
     }
 
     /// Unique port number per service.
