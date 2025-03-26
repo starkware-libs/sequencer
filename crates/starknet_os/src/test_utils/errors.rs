@@ -22,15 +22,8 @@ pub enum Cairo0EntryPointRunnerError {
     Program(#[from] ProgramError),
     #[error(transparent)]
     ProgramSerde(serde_json::Error),
-    #[error(
-        "The cairo runner's builtin list does not match the actual builtins, it should be \
-         updated. Cairo Runner's builtins: {cairo_runner_builtins:?}, actual builtins: \
-         {actual_builtins:?}"
-    )]
-    BuiltinMismatch {
-        cairo_runner_builtins: Vec<BuiltinName>,
-        actual_builtins: HashSet<BuiltinName>,
-    },
+    #[error(transparent)]
+    BuiltinMismatchError(#[from] BuiltinMismatchError),
     #[error(transparent)]
     RunCairoEndpoint(CairoRunError),
     #[error(transparent)]
@@ -73,4 +66,16 @@ pub enum LoadReturnValueError {
     Math(#[from] MathError),
     #[error(transparent)]
     Memory(#[from] MemoryError),
+    #[error(transparent)]
+    BuiltinMismatchError(#[from] BuiltinMismatchError),
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error(
+    "The cairo runner's builtin list does not match the actual builtins, it should be updated. \
+     Cairo Runner's builtins: {cairo_runner_builtins:?}, actual builtins: {actual_builtins:?}"
+)]
+pub struct BuiltinMismatchError {
+    pub cairo_runner_builtins: Vec<BuiltinName>,
+    pub actual_builtins: HashSet<BuiltinName>,
 }
