@@ -106,9 +106,14 @@ impl FlowTestSetup {
             2] = mempool_p2p_configs.try_into().unwrap();
 
         let [sequencer_0_state_sync_config, sequencer_1_state_sync_config]: [StateSyncConfig; 2] =
-            create_state_sync_configs(StorageConfig::default(), available_ports.get_next_ports(2))
-                .try_into()
-                .unwrap();
+            create_state_sync_configs(
+                StorageConfig::default(),
+                available_ports.get_next_ports(2),
+                &chain_info.chain_id,
+                available_ports.get_next_ports(2),
+            )
+            .try_into()
+            .unwrap();
 
         let base_layer_config =
             ethereum_base_layer_config_for_anvil(Some(available_ports.get_next_port()));
