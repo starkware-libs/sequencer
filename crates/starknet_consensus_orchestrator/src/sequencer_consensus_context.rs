@@ -94,6 +94,7 @@ struct BlockInfoValidation {
     block_timestamp_window: u64,
     last_block_timestamp: Option<u64>,
     l1_da_mode: L1DataAvailabilityMode,
+    l2_gas_price_fri: u64,
     eth_to_fri_rate: u128,
     eth_to_fri_rate_margin_percent: u32,
 }
@@ -380,6 +381,7 @@ impl ConsensusContext for SequencerConsensusContext {
                     block_timestamp_window: self.config.block_timestamp_window,
                     last_block_timestamp: self.last_block_timestamp,
                     l1_da_mode: self.l1_da_mode,
+                    l2_gas_price_fri: self.l2_gas_price,
                     eth_to_fri_rate,
                     eth_to_fri_rate_margin_percent: VersionedConstants::latest_constants()
                         .eth_to_fri_rate_margin_percent,
@@ -662,6 +664,7 @@ impl ConsensusContext for SequencerConsensusContext {
             block_timestamp_window: self.config.block_timestamp_window,
             last_block_timestamp: self.last_block_timestamp,
             l1_da_mode: self.l1_da_mode,
+            l2_gas_price_fri: self.l2_gas_price,
             eth_to_fri_rate,
             eth_to_fri_rate_margin_percent: VersionedConstants::latest_constants()
                 .eth_to_fri_rate_margin_percent,
@@ -1005,6 +1008,7 @@ async fn is_block_info_valid(
         && block_info.timestamp >= block_info_validation.last_block_timestamp.unwrap_or(0)
         && block_info.timestamp <= now + block_info_validation.block_timestamp_window
         && block_info.l1_da_mode == block_info_validation.l1_da_mode
+        && block_info.l2_gas_price_fri == u128::from(block_info_validation.l2_gas_price_fri)
         && block_info.eth_to_fri_rate.abs_diff(block_info_validation.eth_to_fri_rate)
             <= allowed_margin
 }
