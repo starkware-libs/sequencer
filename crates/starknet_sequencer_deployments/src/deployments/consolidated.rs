@@ -32,9 +32,15 @@ impl GetComponentConfigs for ConsolidatedNodeServiceName {
 impl ServiceNameInner for ConsolidatedNodeServiceName {
     fn create_service(&self) -> Service {
         match self {
-            ConsolidatedNodeServiceName::Node => {
-                Service::new(Into::<ServiceName>::into(*self), false, false, 1, Some(32))
-            }
+            ConsolidatedNodeServiceName::Node => Service::new(
+                Into::<ServiceName>::into(*self),
+                false,
+                false,
+                1,
+                Some(32),
+                None,
+                None,
+            ),
         }
     }
 }
