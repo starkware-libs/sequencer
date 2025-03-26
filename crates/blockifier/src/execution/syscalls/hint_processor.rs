@@ -69,7 +69,7 @@ use crate::execution::syscalls::{
     meta_tx_v0,
     replace_class,
     send_message_to_l1,
-    sha_256_process_block,
+    sha256_process_block,
     storage_read,
     storage_write,
     SyscallRequest,
@@ -391,7 +391,7 @@ impl<'a> SyscallHintProcessor<'a> {
             }
             SyscallSelector::Sha256ProcessBlock => self.execute_syscall(
                 vm,
-                sha_256_process_block,
+                sha256_process_block,
                 self.gas_costs().syscalls.sha256_process_block,
             ),
             SyscallSelector::LibraryCall => {
