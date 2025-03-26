@@ -9,7 +9,9 @@
       "ingress": false,
       "autoscale": false,
       "replicas": 1,
-      "storage": 32
+      "storage": 32,
+      "resources": null,
+      "external_secret": null
     },
     {
       "name": "ClassManager",
@@ -17,7 +19,9 @@
       "ingress": false,
       "autoscale": false,
       "replicas": 1,
-      "storage": 32
+      "storage": 32,
+      "resources": null,
+      "external_secret": null
     },
     {
       "name": "ConsensusManager",
@@ -25,7 +29,9 @@
       "ingress": false,
       "autoscale": false,
       "replicas": 1,
-      "storage": null
+      "storage": null,
+      "resources": null,
+      "external_secret": null
     },
     {
       "name": "HttpServer",
@@ -33,7 +39,9 @@
       "ingress": false,
       "autoscale": false,
       "replicas": 1,
-      "storage": null
+      "storage": null,
+      "resources": null,
+      "external_secret": null
     },
     {
       "name": "Gateway",
@@ -41,7 +49,18 @@
       "ingress": false,
       "autoscale": false,
       "replicas": 1,
-      "storage": null
+      "storage": null,
+      "resources": {
+        "requests": {
+          "cpu": 1,
+          "memory": 2
+        },
+        "limits": {
+          "cpu": 4,
+          "memory": 8
+        }
+      },
+      "external_secret": null
     },
     {
       "name": "L1Provider",
@@ -49,7 +68,11 @@
       "ingress": false,
       "autoscale": false,
       "replicas": 1,
-      "storage": null
+      "storage": null,
+      "resources": null,
+      "external_secret": {
+        "gcsm_key": "google-cloud-secret-manager-key"
+      }
     },
     {
       "name": "Mempool",
@@ -57,7 +80,9 @@
       "ingress": false,
       "autoscale": false,
       "replicas": 1,
-      "storage": null
+      "storage": null,
+      "resources": null,
+      "external_secret": null
     },
     {
       "name": "SierraCompiler",
@@ -65,7 +90,9 @@
       "ingress": false,
       "autoscale": false,
       "replicas": 1,
-      "storage": null
+      "storage": null,
+      "resources": null,
+      "external_secret": null
     },
     {
       "name": "StateSync",
@@ -73,7 +100,9 @@
       "ingress": false,
       "autoscale": false,
       "replicas": 1,
-      "storage": 32
+      "storage": 32,
+      "resources": null,
+      "external_secret": null
     }
   ]
 }

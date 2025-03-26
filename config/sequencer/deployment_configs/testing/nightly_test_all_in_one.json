@@ -9,7 +9,9 @@
       "ingress": false,
       "autoscale": false,
       "replicas": 1,
-      "storage": 32
+      "storage": 32,
+      "resources": null,
+      "external_secret": null
     }
   ]
 }
