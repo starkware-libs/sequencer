@@ -62,9 +62,9 @@ use crate::utils::{
     AccumulatedTransactions,
 };
 
+const NUM_OF_SEQUENCERS: usize = 2;
 const SEQUENCER_0: usize = 0;
 const SEQUENCER_1: usize = 1;
-const SEQUENCER_INDICES: [usize; 2] = [SEQUENCER_0, SEQUENCER_1];
 const BUILDER_BASE_ADDRESS: Felt = Felt::from_hex_unchecked("0x42");
 
 pub struct FlowTestSetup {
@@ -94,21 +94,25 @@ impl FlowTestSetup {
         let accounts = tx_generator.accounts();
         let (consensus_manager_configs, consensus_proposals_channels) =
             create_consensus_manager_configs_and_channels(
-                available_ports.get_next_ports(SEQUENCER_INDICES.len() + 1),
+                available_ports.get_next_ports(NUM_OF_SEQUENCERS + 1),
                 &chain_info.chain_id,
             );
-        let [sequencer_0_consensus_manager_config, sequencer_1_consensus_manager_config]: [ConsensusManagerConfig;
-            2] = consensus_manager_configs.try_into().unwrap();
+        let [sequencer_0_consensus_manager_config, sequencer_1_consensus_manager_config] =
+            consensus_manager_configs.try_into().unwrap();
 
-        let ports = available_ports.get_next_ports(SEQUENCER_INDICES.len());
+        let ports = available_ports.get_next_ports(NUM_OF_SEQUENCERS);
         let mempool_p2p_configs = create_mempool_p2p_configs(chain_info.chain_id.clone(), ports);
-        let [sequencer_0_mempool_p2p_config, sequencer_1_mempool_p2p_config]: [MempoolP2pConfig;
-            2] = mempool_p2p_configs.try_into().unwrap();
+        let [sequencer_0_mempool_p2p_config, sequencer_1_mempool_p2p_config] =
+            mempool_p2p_configs.try_into().unwrap();
 
-        let [sequencer_0_state_sync_config, sequencer_1_state_sync_config]: [StateSyncConfig; 2] =
-            create_state_sync_configs(StorageConfig::default(), available_ports.get_next_ports(2))
-                .try_into()
-                .unwrap();
+        let [sequencer_0_state_sync_config, sequencer_1_state_sync_config] =
+            create_state_sync_configs(
+                StorageConfig::default(),
+                available_ports.get_next_ports(NUM_OF_SEQUENCERS),
+                available_ports.get_next_ports(NUM_OF_SEQUENCERS),
+            )
+            .try_into()
+            .unwrap();
 
         let base_layer_config =
             ethereum_base_layer_config_for_anvil(Some(available_ports.get_next_port()));
