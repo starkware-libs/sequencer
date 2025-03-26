@@ -26,6 +26,7 @@ use starknet_sequencer_infra::trace_util::configure_tracing;
 use starknet_state_sync_types::communication::MockStateSyncClient;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 
+use crate::bootstrapper::Bootstrapper;
 use crate::l1_provider::create_l1_provider;
 use crate::l1_scraper::{L1Scraper, L1ScraperConfig};
 use crate::test_utils::FakeL1ProviderClient;
@@ -413,6 +414,35 @@ async fn bootstrap_delayed_sync_state_with_sync_behind_batcher() {
     );
     // Sync height was reached, bootstrapping was completed.
     assert!(!l1_provider.state.is_bootstrapping());
+}
+
+#[tokio::test]
+#[should_panic = "Sync task is stuck"]
+async fn test_stuck_sync() {
+    configure_tracing().await;
+    const STARTUP_HEIGHT: BlockNumber = BlockNumber(1);
+
+    let mut sync_client = MockStateSyncClient::default();
+    sync_client.expect_get_latest_block_number().once().returning(|| panic!("CRASH the sync task"));
+
+    let l1_provider_client = Arc::new(FakeL1ProviderClient::default());
+    let config = Default::default();
+    let mut l1_provider = create_l1_provider(
+        config,
+        l1_provider_client.clone(),
+        Arc::new(sync_client),
+        STARTUP_HEIGHT,
+    );
+
+    // Test.
+
+    // Start sync.
+    l1_provider.initialize(Default::default()).await.unwrap();
+
+    for i in 0..=(Bootstrapper::MAX_HEALTH_CHECK_FAILURES + 1) {
+        l1_provider.commit_block(&[], height_add(STARTUP_HEIGHT, i.into())).unwrap();
+        tokio::time::sleep(config.startup_sync_sleep_retry_interval).await;
+    }
 }
 
 #[test]
