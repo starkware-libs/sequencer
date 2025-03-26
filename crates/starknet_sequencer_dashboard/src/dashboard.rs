@@ -70,13 +70,17 @@ impl Serialize for Panel {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Row<'a> {
+pub struct Row {
     name: &'static str,
-    panels: &'a [Panel],
+    panels: &'static [Panel],
 }
 
-impl<'a> Row<'a> {
-    pub const fn new(name: &'static str, description: &'static str, panels: &'a [Panel]) -> Self {
+impl Row {
+    pub const fn new(
+        name: &'static str,
+        description: &'static str,
+        panels: &'static [Panel],
+    ) -> Self {
         // TODO(Tsabary): remove description.
         let _ = description;
         Self { name, panels }
@@ -84,7 +88,7 @@ impl<'a> Row<'a> {
 }
 
 // Custom Serialize implementation for Row.
-impl Serialize for Row<'_> {
+impl Serialize for Row {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -96,13 +100,13 @@ impl Serialize for Row<'_> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Dashboard<'a> {
+pub struct Dashboard {
     name: &'static str,
-    rows: &'a [Row<'a>],
+    rows: &'static [Row],
 }
 
-impl<'a> Dashboard<'a> {
-    pub const fn new(name: &'static str, description: &'static str, rows: &'a [Row<'a>]) -> Self {
+impl Dashboard {
+    pub const fn new(name: &'static str, description: &'static str, rows: &'static [Row]) -> Self {
         // TODO(Tsabary): remove description.
         let _ = description;
         Self { name, rows }
@@ -110,7 +114,7 @@ impl<'a> Dashboard<'a> {
 }
 
 // Custom Serialize implementation for Dashboard.
-impl Serialize for Dashboard<'_> {
+impl Serialize for Dashboard {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
