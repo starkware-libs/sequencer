@@ -38,6 +38,7 @@ use rpc_metrics::MetricLogger;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHashAndNumber, BlockNumber, BlockStatus};
 use starknet_api::core::ChainId;
+use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_client::reader::PendingData;
 use starknet_client::writer::StarknetGatewayClient;
 use starknet_client::RetryConfig;
@@ -200,7 +201,7 @@ fn get_block_status<Mode: TransactionKind>(
 #[derive(Clone, Debug, PartialEq)]
 struct ContinuationTokenAsStruct(EventIndex);
 
-#[instrument(skip(storage_reader), level = "debug", err)]
+#[instrument(skip(storage_reader, class_manager_client), level = "debug", err)]
 pub async fn run_server(
     config: &RpcConfig,
     shared_highest_block: Arc<RwLock<Option<BlockHashAndNumber>>>,
@@ -208,6 +209,7 @@ pub async fn run_server(
     pending_classes: Arc<RwLock<PendingClasses>>,
     storage_reader: StorageReader,
     node_version: &'static str,
+    class_manager_client: Option<SharedClassManagerClient>,
 ) -> anyhow::Result<(SocketAddr, ServerHandle)> {
     let starting_block = get_last_synced_block(storage_reader.clone())?;
     debug!("Starting JSON-RPC.");
@@ -226,6 +228,7 @@ pub async fn run_server(
             node_version,
             config.starknet_gateway_retry_config,
         )?),
+        class_manager_client,
     );
     let addr;
     let handle;
