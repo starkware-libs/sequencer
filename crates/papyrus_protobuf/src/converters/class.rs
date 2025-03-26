@@ -5,11 +5,11 @@ mod class_test;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 
-use papyrus_common::compression_utils::{compress_and_encode, decode_and_decompress};
 use papyrus_common::pending_classes::ApiContractClass;
 use papyrus_common::python_json::PythonJsonFormatter;
 use prost::Message;
 use serde::Serialize;
+use starknet_api::compression_utils::{compress_and_encode, decode_and_decompress};
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, EntryPointSelector};
 use starknet_api::data_availability::DataAvailabilityMode;
