@@ -10,7 +10,6 @@ use cairo_vm::stdlib::any::Any;
 use cairo_vm::stdlib::boxed::Box;
 use cairo_vm::stdlib::collections::HashMap;
 use cairo_vm::types::exec_scope::ExecutionScopes;
-#[cfg(any(feature = "testing", test))]
 use cairo_vm::types::program::Program;
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
@@ -30,6 +29,7 @@ type VmHintResult = VmHintResultType<()>;
 type VmHintExtensionResult = VmHintResultType<HintExtension>;
 
 pub struct SnosHintProcessor<S: StateReader> {
+    pub(crate) os_program: Program,
     pub execution_helper: OsExecutionHelper<S>,
     pub syscall_hint_processor: SyscallHintProcessor,
     _deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
@@ -40,11 +40,13 @@ pub struct SnosHintProcessor<S: StateReader> {
 
 impl<S: StateReader> SnosHintProcessor<S> {
     pub fn new(
+        os_program: Program,
         execution_helper: OsExecutionHelper<S>,
         syscall_hint_processor: SyscallHintProcessor,
         deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
     ) -> Self {
         Self {
+            os_program,
             execution_helper,
             syscall_hint_processor,
             _deprecated_syscall_hint_processor: deprecated_syscall_hint_processor,
@@ -135,16 +137,18 @@ impl SnosHintProcessor<DictStateReader> {
         let state_reader = state_reader.unwrap_or_default();
         let os_input = os_input.unwrap_or_default();
         let os_program = os_program.unwrap_or_default();
-        let execution_helper = OsExecutionHelper::<DictStateReader>::new_for_testing(
-            state_reader,
-            os_input,
-            os_program,
-        );
+        let execution_helper =
+            OsExecutionHelper::<DictStateReader>::new_for_testing(state_reader, os_input);
 
         let syscall_handler = SyscallHintProcessor::new();
         let deprecated_syscall_handler = DeprecatedSyscallHintProcessor {};
 
-        SnosHintProcessor::new(execution_helper, syscall_handler, deprecated_syscall_handler)
+        SnosHintProcessor::new(
+            os_program,
+            execution_helper,
+            syscall_handler,
+            deprecated_syscall_handler,
+        )
     }
 }
 

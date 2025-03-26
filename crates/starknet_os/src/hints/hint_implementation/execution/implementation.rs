@@ -57,12 +57,7 @@ pub(crate) fn load_resource_bounds<S: StateReader>(
     }
 
     let resource_bound_address = vm.add_memory_segment();
-    resource_bounds.load_into(
-        vm,
-        &hint_processor.execution_helper.os_program,
-        resource_bound_address,
-        constants,
-    )?;
+    resource_bounds.load_into(vm, &hint_processor.os_program, resource_bound_address, constants)?;
 
     insert_value_from_var_name(
         Ids::ResourceBounds.into(),
@@ -161,7 +156,7 @@ pub(crate) fn check_is_deprecated<S: StateReader>(
                 vm,
                 ap_tracking,
                 &["class_hash"],
-                &hint_processor.execution_helper.os_program,
+                &hint_processor.os_program,
             )?
             .to_owned(),
         )?,
@@ -403,7 +398,7 @@ fn write_syscall_result_helper<S: StateReader>(
             vm,
             ap_tracking,
             &[key_name],
-            &hint_processor.execution_helper.os_program,
+            &hint_processor.os_program,
         )?)?
         .into_owned(),
     )?);
@@ -426,7 +421,7 @@ fn write_syscall_result_helper<S: StateReader>(
             vm,
             ap_tracking,
             &["value"],
-            &hint_processor.execution_helper.os_program,
+            &hint_processor.os_program,
         )?)?
         .into_owned();
 
@@ -507,7 +502,7 @@ fn assert_value_cached_by_reading<S: StateReader>(
             vm,
             ap_tracking,
             nested_fields,
-            &hint_processor.execution_helper.os_program,
+            &hint_processor.os_program,
         )?)?
         .into_owned(),
     )?);

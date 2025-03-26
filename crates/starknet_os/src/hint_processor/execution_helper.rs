@@ -4,7 +4,6 @@ use blockifier::state::cached_state::{CachedState, StateMaps};
 use blockifier::state::state_api::StateReader;
 #[cfg(any(feature = "testing", test))]
 use blockifier::test_utils::dict_state_reader::DictStateReader;
-use cairo_vm::types::program::Program;
 
 use crate::errors::StarknetOsError;
 use crate::io::os_input::{CachedStateInput, StarknetOsInput};
@@ -13,20 +12,17 @@ use crate::io::os_input::{CachedStateInput, StarknetOsInput};
 pub struct OsExecutionHelper<S: StateReader> {
     pub(crate) cached_state: CachedState<S>,
     pub(crate) os_input: StarknetOsInput,
-    pub(crate) os_program: Program,
 }
 
 impl<S: StateReader> OsExecutionHelper<S> {
     pub fn new(
         os_input: StarknetOsInput,
-        os_program: Program,
         state_reader: S,
         state_input: CachedStateInput,
     ) -> Result<Self, StarknetOsError> {
         Ok(Self {
             cached_state: Self::initialize_cached_state(state_reader, state_input)?,
             os_input,
-            os_program,
         })
     }
 
@@ -61,11 +57,7 @@ impl<S: StateReader> OsExecutionHelper<S> {
 
 #[cfg(any(feature = "testing", test))]
 impl OsExecutionHelper<DictStateReader> {
-    pub fn new_for_testing(
-        state_reader: DictStateReader,
-        os_input: StarknetOsInput,
-        os_program: Program,
-    ) -> Self {
-        Self { cached_state: CachedState::from(state_reader), os_input, os_program }
+    pub fn new_for_testing(state_reader: DictStateReader, os_input: StarknetOsInput) -> Self {
+        Self { cached_state: CachedState::from(state_reader), os_input }
     }
 }
