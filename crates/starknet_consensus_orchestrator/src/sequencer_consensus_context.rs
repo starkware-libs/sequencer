@@ -70,7 +70,7 @@ use starknet_consensus::types::{
     Round,
     ValidatorId,
 };
-use starknet_l1_gas_price_types::errors::EthToStrkOracleClientError;
+use starknet_l1_gas_price_types::errors::{EthToStrkOracleClientError, L1GasPriceClientError};
 use starknet_l1_gas_price_types::{EthToStrkOracleClientTrait, L1GasPriceProviderClient};
 use starknet_state_sync_types::communication::SharedStateSyncClient;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
@@ -97,20 +97,6 @@ struct BlockInfoValidation {
 }
 
 const EMPTY_BLOCK_COMMITMENT: BlockHash = BlockHash(Felt::ONE);
-
-// TODO(Dan, Matan): Remove this once and replace with real gas prices.
-const TEMPORARY_GAS_PRICES: GasPrices = GasPrices {
-    eth_gas_prices: GasPriceVector {
-        l1_gas_price: NonzeroGasPrice::TEMP_ETH_GAS_FEE_IN_WEI,
-        l1_data_gas_price: NonzeroGasPrice::TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
-        l2_gas_price: NonzeroGasPrice::MIN,
-    },
-    strk_gas_prices: GasPriceVector {
-        l1_gas_price: NonzeroGasPrice::MIN,
-        l1_data_gas_price: NonzeroGasPrice::MIN,
-        l2_gas_price: NonzeroGasPrice::MIN,
-    },
-};
 
 // {height: {proposal_commitment: (block_info, content, [proposal_ids])}}
 // Note that multiple proposals IDs can be associated with the same content, but we only need to
@@ -139,6 +125,9 @@ enum BuildProposalError {
 
     #[error("EthToStrkOracle error: {0}")]
     EthToStrkOracle(#[from] EthToStrkOracleClientError),
+
+    #[error("L1GasPriceProvider error: {0}")]
+    L1GasPriceProvider(#[from] L1GasPriceClientError),
 }
 
 pub struct SequencerConsensusContext {
@@ -173,7 +162,7 @@ pub struct SequencerConsensusContext {
     eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
     // The next block's l2 gas price, calculated based on EIP-1559, used for building and
     // validating proposals.
-    _l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
+    l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     l2_gas_price: u64,
     l1_da_mode: L1DataAvailabilityMode,
     last_block_timestamp: Option<u64>,
@@ -218,21 +207,10 @@ impl SequencerConsensusContext {
             queued_proposals: BTreeMap::new(),
             cende_ambassador,
             eth_to_strk_oracle_client,
-            _l1_gas_price_provider: l1_gas_price_provider,
+            l1_gas_price_provider,
             l2_gas_price: VersionedConstants::latest_constants().min_gas_price,
             l1_da_mode,
             last_block_timestamp: None,
-        }
-    }
-
-    fn gas_prices(&self) -> GasPrices {
-        GasPrices {
-            strk_gas_prices: GasPriceVector {
-                l2_gas_price: NonzeroGasPrice::new(self.l2_gas_price.into())
-                    .expect("Failed to convert l2_gas_price to NonzeroGasPrice, should not be 0."),
-                ..TEMPORARY_GAS_PRICES.strk_gas_prices
-            },
-            ..TEMPORARY_GAS_PRICES
         }
     }
 }
@@ -245,10 +223,11 @@ struct ProposalBuildArguments {
     fin_sender: oneshot::Sender<ProposalCommitment>,
     batcher: Arc<dyn BatcherClient>,
     eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
+    l1_gas_price_provider_client: Arc<dyn L1GasPriceProviderClient>,
     valid_proposals: Arc<Mutex<HeightToIdToContent>>,
     proposal_id: ProposalId,
     cende_write_success: AbortOnDropHandle<bool>,
-    gas_prices: GasPrices,
+    l2_gas_price: u64,
     transaction_converter: TransactionConverter,
     builder_address: ContractAddress,
     cancel_token: CancellationToken,
@@ -288,46 +267,39 @@ impl ConsensusContext for SequencerConsensusContext {
         self.set_height_and_round(proposal_init.height, proposal_init.round).await;
 
         let (fin_sender, fin_receiver) = oneshot::channel();
-        let batcher = Arc::clone(&self.batcher);
-        let eth_to_strk_oracle_client = self.eth_to_strk_oracle_client.clone();
-        let valid_proposals = Arc::clone(&self.valid_proposals);
         let proposal_id = ProposalId(self.proposal_id);
         self.proposal_id += 1;
         assert!(timeout > self.config.build_proposal_margin);
         let (proposal_sender, proposal_receiver) = mpsc::channel(self.config.proposal_buffer_size);
-        let l1_da_mode = self.l1_da_mode;
         let stream_id = HeightAndRound(proposal_init.height.0, proposal_init.round);
         self.outbound_proposal_sender
             .send((stream_id, proposal_receiver))
             .await
             .expect("Failed to send proposal receiver");
-        let gas_prices = self.gas_prices();
-        let transaction_converter = self.transaction_converter.clone();
-        let builder_address = self.config.builder_address;
 
         info!(?proposal_init, ?timeout, %proposal_id, "Building proposal");
-        let batcher_timeout = timeout - self.config.build_proposal_margin;
         let cancel_token = CancellationToken::new();
         let cancel_token_clone = cancel_token.clone();
+        let args = ProposalBuildArguments {
+            batcher_timeout: timeout - self.config.build_proposal_margin,
+            proposal_init,
+            l1_da_mode: self.l1_da_mode,
+            proposal_sender,
+            fin_sender,
+            batcher: Arc::clone(&self.batcher),
+            eth_to_strk_oracle_client: Arc::clone(&self.eth_to_strk_oracle_client),
+            l1_gas_price_provider_client: Arc::clone(&self.l1_gas_price_provider),
+            valid_proposals: Arc::clone(&self.valid_proposals),
+            proposal_id,
+            cende_write_success,
+            l2_gas_price: self.l2_gas_price,
+            transaction_converter: self.transaction_converter.clone(),
+            builder_address: self.config.builder_address,
+            cancel_token,
+        };
         let handle = tokio::spawn(
             async move {
-                build_proposal(ProposalBuildArguments {
-                    batcher_timeout,
-                    proposal_init,
-                    l1_da_mode,
-                    proposal_sender,
-                    fin_sender,
-                    batcher,
-                    eth_to_strk_oracle_client,
-                    valid_proposals,
-                    proposal_id,
-                    cende_write_success,
-                    gas_prices,
-                    transaction_converter,
-                    builder_address,
-                    cancel_token,
-                })
-                .await;
+                build_proposal(args).await;
             }
             .instrument(
                 error_span!("consensus_build_proposal", %proposal_id, round=proposal_init.round),
@@ -773,15 +745,16 @@ async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<Co
     let now = chrono::Utc::now();
     let timestamp = now.timestamp().try_into().expect("Failed to convert timestamp");
     let eth_to_fri_rate = args.eth_to_strk_oracle_client.eth_to_fri_rate(timestamp).await?;
-    // TODO(Asmaa): change this to the real values.
+    let l1_prices =
+        args.l1_gas_price_provider_client.get_price_info(BlockTimestamp(timestamp)).await?;
     let block_info = ConsensusBlockInfo {
         height: args.proposal_init.height,
         timestamp,
         builder: args.builder_address,
         l1_da_mode: args.l1_da_mode,
-        l2_gas_price_fri: args.gas_prices.strk_gas_prices.l2_gas_price.get().0,
-        l1_gas_price_wei: args.gas_prices.eth_gas_prices.l1_gas_price.get().0,
-        l1_data_gas_price_wei: args.gas_prices.eth_gas_prices.l1_data_gas_price.get().0,
+        l2_gas_price_fri: args.l2_gas_price.into(),
+        l1_gas_price_wei: l1_prices.base_fee_per_gas,
+        l1_data_gas_price_wei: l1_prices.blob_fee,
         eth_to_fri_rate,
     };
     let build_proposal_input = ProposeBlockInput {
@@ -1179,7 +1152,11 @@ fn convert_to_sn_api_block_info(block_info: &ConsensusBlockInfo) -> starknet_api
     )))
     .unwrap();
     let l2_gas_price_fri = NonzeroGasPrice::new(GasPrice(block_info.l2_gas_price_fri)).unwrap();
-
+    let l2_gas_price_wei = NonzeroGasPrice::new(GasPrice(ConsensusBlockInfo::wei_from_fri(
+        block_info.l2_gas_price_fri,
+        block_info.eth_to_fri_rate,
+    )))
+    .unwrap();
     let l1_gas_price_wei = NonzeroGasPrice::new(GasPrice(block_info.l1_gas_price_wei)).unwrap();
     let l1_data_gas_price_wei =
         NonzeroGasPrice::new(GasPrice(block_info.l1_data_gas_price_wei)).unwrap();
@@ -1197,7 +1174,7 @@ fn convert_to_sn_api_block_info(block_info: &ConsensusBlockInfo) -> starknet_api
             eth_gas_prices: GasPriceVector {
                 l1_gas_price: l1_gas_price_wei,
                 l1_data_gas_price: l1_data_gas_price_wei,
-                ..TEMPORARY_GAS_PRICES.eth_gas_prices
+                l2_gas_price: l2_gas_price_wei,
             },
         },
         use_kzg_da: block_info.l1_da_mode == L1DataAvailabilityMode::Blob,

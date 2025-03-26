@@ -27,6 +27,9 @@ use crate::transaction::fields::{Fee, Tip};
 use crate::transaction::{Transaction, TransactionHash, TransactionOutput};
 use crate::StarknetApiError;
 
+const TEMP_ETH_GAS_FEE_IN_WEI: u128 = u128::pow(10, 9); // 1 GWei
+const TEMP_ETH_BLOB_GAS_FEE_IN_WEI: u128 = u128::pow(10, 8); // 0.1 GWei
+
 /// A block.
 #[derive(Debug, Default, Clone, Eq, PartialEq, Deserialize, Serialize)]
 pub struct Block {
@@ -397,8 +400,8 @@ impl NonzeroGasPrice {
     // to FRI will be 0 (not allowed).
     //
     // TODO(guy.n, Matan): Remove this once we use real gas prices.
-    pub const TEMP_ETH_GAS_FEE_IN_WEI: Self = Self(GasPrice(u128::pow(10, 9))); // 1 GWei.
-    pub const TEMP_ETH_BLOB_GAS_FEE_IN_WEI: Self = Self(GasPrice(u128::pow(10, 8))); // 0.1 GWei.
+    pub const TEMP_ETH_GAS_FEE_IN_WEI: Self = Self(GasPrice(TEMP_ETH_GAS_FEE_IN_WEI)); // 1 GWei.
+    pub const TEMP_ETH_BLOB_GAS_FEE_IN_WEI: Self = Self(GasPrice(TEMP_ETH_BLOB_GAS_FEE_IN_WEI)); // 0.1 GWei.
 
     pub fn new(price: GasPrice) -> Result<Self, StarknetApiError> {
         if price.0 == 0 {
