@@ -34,6 +34,7 @@ impl DiscoveryMixedBehaviour {
             None,
             DiscoveryConfig::default(),
             PeerManagerConfig::default(),
+            None,
         );
         Self {
             identify: mixed_behaviour.identify,

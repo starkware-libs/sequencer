@@ -19,6 +19,7 @@ use tracing::info;
 pub use self::behaviour_impl::ToOtherBehaviourEvent;
 use crate::discovery::identify_impl::IdentifyToOtherBehaviourEvent;
 use crate::mixed_behaviour::BridgedBehaviour;
+use crate::network_manager::metrics::PeerManagerMetrics;
 use crate::sqmr::OutboundSessionId;
 use crate::{discovery, mixed_behaviour, sqmr};
 
@@ -53,6 +54,8 @@ pub struct PeerManager {
     sleep_waiting_for_unblocked_peer: Option<BoxFuture<'static, ()>>,
     // A peer is known only after we get the identify message.
     connections_for_unknown_peers: HashMap<PeerId, Vec<ConnectionId>>,
+    #[allow(dead_code)]
+    metrics: Option<PeerManagerMetrics>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
@@ -104,7 +107,10 @@ impl SerializeConfig for PeerManagerConfig {
 
 #[allow(dead_code)]
 impl PeerManager {
-    pub(crate) fn new(config: PeerManagerConfig) -> Self {
+    pub(crate) fn new(
+        config: PeerManagerConfig,
+        peer_manager_metrics: Option<PeerManagerMetrics>,
+    ) -> Self {
         let peers = HashMap::new();
         Self {
             peers,
@@ -116,6 +122,7 @@ impl PeerManager {
             sessions_received_when_no_peers: Vec::new(),
             sleep_waiting_for_unblocked_peer: None,
             connections_for_unknown_peers: HashMap::default(),
+            metrics: peer_manager_metrics,
         }
     }
 

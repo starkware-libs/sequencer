@@ -701,7 +701,7 @@ impl NetworkManager {
             None => Keypair::generate_ed25519(),
         };
 
-        let (_peer_manager_metric, generic_network_metrics) = match metrics {
+        let (peer_manager_metrics, generic_network_metrics) = match metrics {
             Some(metrics) => {
                 let peer_manager_metric = Some(metrics.peer_manager_metrics);
                 let generic_network_metrics = Some(metrics.generic_network_metrics);
@@ -726,6 +726,7 @@ impl NetworkManager {
                 node_version,
                 discovery_config,
                 peer_manager_config,
+                peer_manager_metrics
             ))
         .expect("Error while building the swarm")
         .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(idle_connection_timeout))
