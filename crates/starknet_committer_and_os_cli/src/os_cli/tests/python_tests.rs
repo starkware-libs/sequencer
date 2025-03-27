@@ -1,4 +1,5 @@
-use std::collections::HashSet;
+use std::any::Any;
+use std::collections::{HashMap, HashSet};
 
 // TODO(Amos): When available in the VM crate, use an existing set, instead of using each hint
 //   const explicitly.
@@ -283,6 +284,7 @@ fn test_cairo_function(
     implicit_args: &[ImplicitArg],
     expected_explicit_retdata: &[EndpointArg],
     expected_implicit_retdata: &[EndpointArg],
+    hint_locals: HashMap<String, Box<dyn Any>>,
 ) -> OsPythonTestResult {
     run_cairo_function_and_check_result(
         program_str,
@@ -291,6 +293,7 @@ fn test_cairo_function(
         implicit_args,
         expected_explicit_retdata,
         expected_implicit_retdata,
+        hint_locals,
     )
     .map_err(|error| {
         PythonTestError::SpecificError(OsSpecificTestError::Cairo0EntryPointRunner(error))
@@ -309,6 +312,7 @@ fn run_dummy_cairo_function(input: &str) -> OsPythonTestResult {
         &[],
         &[(789 + param_1).into(), param_1.into(), param_2.into()],
         &[],
+        HashMap::new(),
     )
 }
 
@@ -335,6 +339,7 @@ fn test_constants(input: &str) -> OsPythonTestResult {
         &[],
         &[],
         &[],
+        HashMap::new(),
     )
 }
 

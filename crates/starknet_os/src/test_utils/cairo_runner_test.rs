@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use cairo_vm::types::builtin_name::BuiltinName;
 
 use crate::test_utils::cairo_runner::{
@@ -119,6 +121,7 @@ fn test_felt_and_pointers() -> Cairo0EntryPointRunnerResult<()> {
         &[],
         &[res1, res2, res3, res4],
         &[],
+        HashMap::new(),
     )
 }
 
@@ -173,6 +176,7 @@ fn test_tuples_and_structs() -> Cairo0EntryPointRunnerResult<()> {
         &[],
         &[res1, res2, res3],
         &[],
+        HashMap::new(),
     )
 }
 
@@ -213,5 +217,6 @@ fn test_implicit_args() -> Cairo0EntryPointRunnerResult<()> {
             compound_struct,
             simple_struct,
         ],
+        HashMap::new(),
     )
 }
