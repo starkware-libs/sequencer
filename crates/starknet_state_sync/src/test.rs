@@ -9,7 +9,7 @@ use futures::channel::mpsc::channel;
 use indexmap::IndexMap;
 use rand_chacha::rand_core::RngCore;
 use starknet_api::block::{Block, BlockHeader, BlockNumber};
-use starknet_api::core::{ClassHash, ContractAddress, Nonce};
+use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{StorageKey, ThinStateDiff};
 use starknet_sequencer_infra::component_definitions::ComponentRequestHandler;
 use starknet_state_sync_types::communication::{StateSyncRequest, StateSyncResponse};
@@ -301,4 +301,39 @@ async fn test_contract_not_found() {
     };
 
     assert_eq!(get_class_hash_at_result, Err(StateSyncError::ContractNotFound(address)));
+}
+
+#[tokio::test]
+async fn class_declared_at_block() {
+    let (mut state_sync, mut storage_writer) = setup();
+
+    let mut rng = get_rng();
+    let class_hash = ClassHash::get_test_instance(&mut rng);
+    let compiled_class_hash = CompiledClassHash::get_test_instance(&mut rng);
+
+    let mut diff = ThinStateDiff::from(get_test_state_diff());
+    diff.declared_classes.insert(class_hash, compiled_class_hash);
+
+    let header = BlockHeader::default();
+
+    storage_writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_header(header.block_header_without_hash.block_number, &header)
+        .unwrap()
+        .append_state_diff(header.block_header_without_hash.block_number, diff)
+        .unwrap()
+        .append_body(header.block_header_without_hash.block_number, Default::default())
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    let response = state_sync
+        .handle_request(StateSyncRequest::IsClassDeclaredAt(BlockNumber(1), class_hash))
+        .await;
+    let StateSyncResponse::IsClassDeclaredAt(is_class_declared_at_result) = response else {
+        panic!("Expected StateSyncResponse::IsClassDeclaredAt(_), but got {:?}", response);
+    };
+
+    assert_eq!(is_class_declared_at_result, Ok(true));
 }
