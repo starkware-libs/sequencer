@@ -34,6 +34,7 @@ macro_rules! bootstrapper {
             l1_provider_client: Arc::new(FakeL1ProviderClient::default()),
             sync_client: Arc::new(MockStateSyncClient::default()),
             sync_task_handle: SyncTaskHandle::default(),
+            n_sync_health_check_failures: Default::default(),
             sync_retry_interval: Duration::from_millis(10)
         }
     }};

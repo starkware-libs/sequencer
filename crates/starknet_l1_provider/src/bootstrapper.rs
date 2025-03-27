@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -24,9 +25,14 @@ pub struct Bootstrapper {
     pub sync_client: SharedStateSyncClient,
     // Keep track of sync task for health checks and logging status.
     pub sync_task_handle: SyncTaskHandle,
+    pub n_sync_health_check_failures: Arc<AtomicU8>,
 }
 
 impl Bootstrapper {
+    // FIXME: this isn't added to configs, since this test shouldn't be made here, it should be
+    // handled through a task management layer.
+    pub const MAX_HEALTH_CHECK_FAILURES: u8 = 5;
+
     pub fn new(
         l1_provider_client: SharedL1ProviderClient,
         sync_client: SharedStateSyncClient,
@@ -39,6 +45,7 @@ impl Bootstrapper {
             l1_provider_client,
             sync_client,
             sync_task_handle: SyncTaskHandle::NotStartedYet,
+            n_sync_health_check_failures: Default::default(),
             catch_up_height,
         }
     }
@@ -46,10 +53,13 @@ impl Bootstrapper {
     /// Check if the caller has caught up with the bootstrapper.
     /// If catch_up_height is unset, the sync isn't even ready yet.
     pub fn is_caught_up(&self, current_provider_height: BlockNumber) -> bool {
-        self.catch_up_height()
-            .is_some_and(|catch_up_height| current_provider_height > catch_up_height)
-        // TODO(Gilad): add health_check here, making sure that the sync task isn't stuck, which is
-        // `handle dropped && backlog empty && not caught up`.
+        let is_caught_up = self
+            .catch_up_height()
+            .is_some_and(|catch_up_height| current_provider_height > catch_up_height);
+
+        self.sync_task_health_check(is_caught_up);
+
+        is_caught_up
     }
 
     pub fn add_commit_block_to_backlog(
@@ -88,6 +98,25 @@ impl Bootstrapper {
 
     pub fn catch_up_height(&self) -> Option<BlockNumber> {
         self.catch_up_height.get().copied()
+    }
+
+    fn sync_task_health_check(&self, is_caught_up: bool) {
+        let SyncTaskHandle::Started(sync_task) = &self.sync_task_handle else {
+            return;
+        };
+
+        if sync_task.is_finished() && !is_caught_up && self.commit_block_backlog.is_empty() {
+            let new_n_failures =
+                self.n_sync_health_check_failures.fetch_add(1, Ordering::SeqCst) + 1;
+            if new_n_failures <= Self::MAX_HEALTH_CHECK_FAILURES {
+                debug!(
+                    "Sync task complete but not caught up yet, health-check failure number: {}",
+                    new_n_failures
+                );
+            } else {
+                panic!("Sync task is stuck, not caught up and no backlog to process.");
+            }
+        }
     }
 }
 
