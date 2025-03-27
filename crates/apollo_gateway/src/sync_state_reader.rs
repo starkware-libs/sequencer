@@ -32,6 +32,7 @@ impl SyncStateReader {
         block_number: BlockNumber,
         runtime: tokio::runtime::Handle,
     ) -> Self {
+        tracing::info!("!!!!!! sync block number {block_number:?}");
         Self { block_number, state_sync_client, class_manager_client, runtime }
     }
 }
