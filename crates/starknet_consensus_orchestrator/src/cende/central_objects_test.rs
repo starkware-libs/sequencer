@@ -120,6 +120,7 @@ use super::{
 };
 use crate::cende::central_objects::CentralCasmContractClass;
 use crate::cende::{AerospikeBlob, BlobParameters};
+use crate::fee_market::FeeMarketInfo;
 
 // TODO(yael, dvir): add default object serialization tests.
 
@@ -193,6 +194,10 @@ fn block_info() -> BlockInfo {
         },
         use_kzg_da: true,
     }
+}
+
+fn fee_market_info() -> FeeMarketInfo {
+    FeeMarketInfo { l2_gas_consumed: GasAmount(150000), next_l2_gas_price: GasPrice(100000) }
 }
 
 fn central_state_diff() -> CentralStateDiff {
@@ -607,7 +612,7 @@ fn central_blob() -> AerospikeBlob {
         compressed_state_diff: Some(commitment_state_diff()),
         transactions: input_txs,
         bouncer_weights: central_bouncer_weights(),
-        fee_market_info: central_fee_market_info(),
+        fee_market_info: fee_market_info(),
         execution_infos: vec![transaction_execution_info()],
     };
 
