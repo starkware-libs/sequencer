@@ -36,7 +36,7 @@ use starknet_sequencer_node::config::node_config::{
 };
 use starknet_sequencer_node::test_utils::node_runner::{get_node_executable_path, spawn_run_node};
 use tokio::join;
-use tokio::task::JoinHandle;
+use tokio_util::task::AbortOnDropHandle;
 use tracing::info;
 
 use crate::executable_setup::{ExecutableSetup, NodeExecutionId};
@@ -203,7 +203,7 @@ impl NodeSetup {
 
 pub struct RunningNode {
     node_setup: NodeSetup,
-    executable_handles: Vec<JoinHandle<()>>,
+    executable_handles: Vec<AbortOnDropHandle<()>>,
 }
 
 impl RunningNode {
