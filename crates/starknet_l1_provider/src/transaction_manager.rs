@@ -56,4 +56,8 @@ impl TransactionManager {
     pub fn add_tx(&mut self, tx: L1HandlerTransaction) -> bool {
         self.committed.contains(&tx.tx_hash) || self.txs.insert(tx)
     }
+
+    pub fn committed_includes(&self, tx_hashes: &[TransactionHash]) -> bool {
+        tx_hashes.iter().all(|tx| self.committed.contains(tx))
+    }
 }
