@@ -1,6 +1,7 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
 use std::sync::Arc;
+use std::time;
 
 #[cfg(any(feature = "testing", test))]
 use cached::Cached;
@@ -278,6 +279,7 @@ fn process_compilation_request(
     compiler: Arc<dyn SierraToNativeCompiler>,
     compilation_request: CompilationRequest,
 ) -> Result<(), CompilationUtilError> {
+    let compilation_start = time::Instant::now();
     let (class_hash, sierra, casm) = compilation_request;
     if let Some(CachedClass::V1Native(_)) = cache.get(&class_hash) {
         // The contract class is already compiled to native - skip the compilation.
@@ -285,6 +287,10 @@ fn process_compilation_request(
     }
     let sierra_for_compilation = into_contract_class_for_compilation(sierra.as_ref());
     let compilation_result = compiler.compile_to_native(sierra_for_compilation);
+    log::info!(
+        "Native contract compilation took {:.3} seconds.",
+        compilation_start.elapsed().as_secs_f32()
+    );
     match compilation_result {
         Ok(executor) => {
             let native_compiled_class = NativeCompiledClassV1::new(executor, casm);
