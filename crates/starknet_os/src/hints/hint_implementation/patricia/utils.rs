@@ -173,6 +173,14 @@ impl Path {
     }
 }
 
+#[derive(Debug, Eq, Hash, PartialEq)]
+pub struct DescentStart {
+    height: SubTreeHeight,
+    path_to_upper_node: Path,
+}
+
+pub type DescentMap = HashMap<DescentStart, Path>;
+
 /// Constructs layers of a tree from leaf updates. This is not a full state tree, it is just the
 /// subtree induced by the modification leaves.
 /// Returns a tree of updates. A tree is built from layers, where each layer represents the nodes in
@@ -296,4 +304,128 @@ fn get_children(
             Ok((CanonicNode::Empty, child))
         }
     }
+}
+
+/// Builds a descent map given multiple trees.
+/// A descent is a maximal subpath s.t.
+/// 1. In each tree (previous, new, and update tree), the authentication subpath consists of empty
+///    nodes.
+/// 2. The subpath is longer than 1.
+///
+/// Simply put, a descent is a path of length > 1 where there is only one path with data
+/// in the tree. Each entry in the descent map is of the form:
+/// (start_node_height, start_node_path) -> (descent_length, end_node_relative_path).
+///
+/// The descent map is computed over three trees: The update tree, previous tree, new tree.
+/// Each descent represents the longest path from the start node until a binary node is encountered
+/// in at least one of the trees.
+/// The function does not return descents that begin at an empty node in the first tree.
+///
+/// Args:
+/// height - height of the current node. The length of a path from the node to a leaf.
+/// path - path from the root to the current node.
+/// preimage_map - mapping from hash to preimage.
+/// trees - as described above.
+///
+/// It is assumed that a non empty node cannot have two empty children.
+fn get_descents(
+    height: SubTreeHeight,
+    path: Path,
+    preimage_map: &PreimageMap,
+    mut update_tree: &UpdateTree,
+    mut previous_tree: CanonicNode,
+    mut new_tree: CanonicNode,
+) -> Result<DescentMap, PatriciaError> {
+    let mut descent_map = DescentMap::new();
+
+    if update_tree == &UpdateTree::None || height.0 == 0 {
+        return Ok(descent_map);
+    }
+
+    let mut curr_height = height;
+    let mut curr_path = path.clone();
+
+    // Traverse all the trees simultaneously, as long as they all satisfy the descent condition,
+    // to find the maximal descent subpath.
+    let (lefts, rights) = loop {
+        let (update_left, update_right) = match update_tree {
+            UpdateTree::InnerNode(inner_node) => inner_node.get_children(),
+            _ => unreachable!("Expected an inner node."),
+        };
+
+        let (previous_left, previous_right) = get_children(&previous_tree, preimage_map)?;
+        let (new_left, new_right) = get_children(&new_tree, preimage_map)?;
+
+        // We decrement height in each branch to avoid having to clone the trees.
+        if update_left == &UpdateTree::None
+            && previous_left == CanonicNode::Empty
+            && new_left == CanonicNode::Empty
+        {
+            curr_path = curr_path.turn_right()?;
+            curr_height = SubTreeHeight(curr_height.0 - 1);
+            if curr_height.0 == 0 {
+                break (
+                    (update_left, previous_left, new_left),
+                    (update_right, previous_right, new_right),
+                );
+            }
+
+            update_tree = update_right;
+            previous_tree = previous_right;
+            new_tree = new_right;
+        } else if update_right == &UpdateTree::None
+            && previous_right == CanonicNode::Empty
+            && new_right == CanonicNode::Empty
+        {
+            curr_path = curr_path.turn_left()?;
+            curr_height = SubTreeHeight(curr_height.0 - 1);
+            if curr_height.0 == 0 {
+                break (
+                    (update_left, previous_left, new_left),
+                    (update_right, previous_right, new_right),
+                );
+            }
+
+            update_tree = update_left;
+            previous_tree = previous_left;
+            new_tree = new_left;
+        } else {
+            break (
+                (update_left, previous_left, new_left),
+                (update_right, previous_right, new_right),
+            );
+        }
+    };
+
+    let length = height.0 - curr_height.0;
+    // length <= 1 is not a descent.
+    if length > 1 {
+        descent_map.insert(
+            DescentStart { height, path_to_upper_node: path },
+            curr_path
+                .remove_first_edges(EdgePathLength::new(u8::from(curr_path.0.length) - length)?)?,
+        );
+    }
+
+    if curr_height.0 > 0 {
+        let next_height = SubTreeHeight::new(curr_height.0 - 1);
+        descent_map.extend(get_descents(
+            next_height,
+            curr_path.turn_left()?,
+            preimage_map,
+            lefts.0,
+            lefts.1,
+            lefts.2,
+        )?);
+        descent_map.extend(get_descents(
+            next_height,
+            curr_path.turn_right()?,
+            preimage_map,
+            rights.0,
+            rights.1,
+            rights.2,
+        )?);
+    }
+
+    Ok(descent_map)
 }

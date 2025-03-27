@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use assert_matches::assert_matches;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
@@ -13,6 +15,7 @@ use starknet_types_core::felt::Felt;
 use super::{
     build_update_tree,
     get_children,
+    get_descents,
     CanonicNode,
     DecodeNodeCase,
     InnerNode,
@@ -275,4 +278,18 @@ fn test_node_path_remove_first_edges() {
 
     let result = path.remove_first_edges(EdgePathLength::new(5).unwrap());
     assert_matches!(result, Err(PatriciaError::PathToBottom(_)));
+}
+
+#[test]
+fn test_get_descents_empty() {
+    let descent_map = get_descents(
+        SubTreeHeight(1),
+        Path(PathToBottom::new_zero()),
+        &HashMap::new(),
+        &UpdateTree::None,
+        CanonicNode::Empty,
+        CanonicNode::Empty,
+    )
+    .unwrap();
+    assert!(descent_map.is_empty());
 }
