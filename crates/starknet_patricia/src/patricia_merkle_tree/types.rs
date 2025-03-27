@@ -10,7 +10,7 @@ use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToB
 pub mod types_test;
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
-#[derive(Clone, Copy, Debug, Eq, PartialEq, derive_more::Sub, derive_more::Display)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, derive_more::Sub, derive_more::Display)]
 pub struct SubTreeHeight(pub u8);
 
 impl SubTreeHeight {
