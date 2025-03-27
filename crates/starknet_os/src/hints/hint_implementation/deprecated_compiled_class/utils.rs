@@ -11,9 +11,15 @@ use crate::hints::class_hash::hinted_class_hash::{
     compute_cairo_hinted_class_hash,
     CairoContractDefinition,
 };
-use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::vars::{CairoStruct, Const};
-use crate::vm_utils::{insert_values_to_fields, CairoSized, IdentifierGetter, LoadCairoObject};
+use crate::vm_utils::{
+    insert_values_to_fields,
+    CairoSized,
+    IdentifierGetter,
+    LoadCairoObject,
+    VmUtilsError,
+    VmUtilsResult,
+};
 
 impl<IG: IdentifierGetter> LoadCairoObject<IG> for ContractClass {
     fn load_into(
@@ -22,7 +28,7 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for ContractClass {
         identifier_getter: &IG,
         address: Relocatable,
         constants: &HashMap<String, Felt>,
-    ) -> OsHintResult {
+    ) -> VmUtilsResult<()> {
         // Insert compiled class version field.
         let compiled_class_version = Const::DeprecatedCompiledClassVersion.fetch(constants)?;
 
@@ -51,7 +57,10 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for ContractClass {
         // Insert builtins.
         let builtins: Vec<String> =
             serde_json::from_value(self.program.builtins.clone()).map_err(|e| {
-                OsHintError::SerdeJsonDeserialize { error: e, value: self.program.builtins.clone() }
+                VmUtilsError::SerdeJsonDeserialize {
+                    error: e,
+                    value: self.program.builtins.clone(),
+                }
             })?;
         let builtins: Vec<MaybeRelocatable> = builtins
             .into_iter()
@@ -64,7 +73,7 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for ContractClass {
         // Insert hinted class hash.
         let contract_definition_vec = serde_json::to_vec(&self)?;
         let contract_definition: CairoContractDefinition<'_> =
-            serde_json::from_slice(&contract_definition_vec).map_err(OsHintError::SerdeJson)?;
+            serde_json::from_slice(&contract_definition_vec).map_err(VmUtilsError::SerdeJson)?;
 
         let hinted_class_hash = compute_cairo_hinted_class_hash(&contract_definition)?;
 
@@ -107,7 +116,7 @@ fn insert_entry_points<IG: IdentifierGetter>(
     identifier_getter: &IG,
     constants: &HashMap<String, Felt>,
     entry_point_type: &EntryPointType,
-) -> Result<(Relocatable, usize), OsHintError> {
+) -> Result<(Relocatable, usize), VmUtilsError> {
     let list_base = vm.add_memory_segment();
     let n_entry_points = match dep_contract_class.entry_points_by_type.get(entry_point_type) {
         Some(entry_points) => {
@@ -127,7 +136,7 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for EntryPointV0 {
         identifier_getter: &IG,
         address: Relocatable,
         _constants: &HashMap<String, Felt>,
-    ) -> OsHintResult {
+    ) -> VmUtilsResult<()> {
         // Insert the fields.
         let nested_fields_and_value =
             [("selector", self.selector.0.into()), ("offset", self.offset.0.into())];

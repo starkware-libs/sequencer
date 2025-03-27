@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap};
 use std::io::Write;
+use std::string::FromUtf8Error;
 
 use papyrus_common::python_json::PythonJsonFormatter;
 use serde::{Deserialize, Serialize};
@@ -10,7 +11,13 @@ use starknet_api::deprecated_contract_class::EntryPointV0;
 use starknet_api::state::truncated_keccak;
 use starknet_types_core::felt::Felt;
 
-use crate::hints::error::OsHintError;
+#[derive(Debug, thiserror::Error)]
+pub enum HintedClassHashError {
+    #[error(transparent)]
+    FromUtf8(#[from] FromUtf8Error),
+    #[error(transparent)]
+    SerdeJson(#[from] serde_json::Error),
+}
 
 /// Our version of the cairo contract definition used to deserialize and re-serialize a modified
 /// version for a hash of the contract definition.
@@ -99,7 +106,7 @@ impl std::io::Write for KeccakWriter {
 
 pub fn compute_cairo_hinted_class_hash(
     contract_definition: &CairoContractDefinition<'_>,
-) -> Result<Felt, OsHintError> {
+) -> Result<Felt, HintedClassHashError> {
     let mut string_buffer = vec![];
 
     let mut ser = serde_json::Serializer::with_formatter(&mut string_buffer, PythonJsonFormatter);

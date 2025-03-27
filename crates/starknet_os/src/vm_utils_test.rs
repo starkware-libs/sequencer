@@ -6,13 +6,10 @@ use cairo_vm::vm::vm_core::VirtualMachine;
 use rstest::rstest;
 use serde_json;
 
-use super::{fetch_nested_fields_address, IdentifierGetter};
+use super::{fetch_nested_fields_address, IdentifierGetter, VmUtilsResult};
 
 impl IdentifierGetter for HashMap<String, Identifier> {
-    fn get_identifier(
-        &self,
-        identifier_name: &str,
-    ) -> Result<&Identifier, crate::hints::error::OsHintError> {
+    fn get_identifier(&self, identifier_name: &str) -> VmUtilsResult<&Identifier> {
         Ok(self.get(identifier_name).unwrap())
     }
 }

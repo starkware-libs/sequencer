@@ -9,9 +9,15 @@ use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::transaction::fields::ValidResourceBounds;
 use starknet_types_core::felt::Felt;
 
-use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::vars::CairoStruct;
-use crate::vm_utils::{insert_values_to_fields, CairoSized, IdentifierGetter, LoadCairoObject};
+use crate::vm_utils::{
+    insert_values_to_fields,
+    CairoSized,
+    IdentifierGetter,
+    LoadCairoObject,
+    VmUtilsError,
+    VmUtilsResult,
+};
 
 impl<IG: IdentifierGetter> LoadCairoObject<IG> for ResourceAsFelts {
     fn load_into(
@@ -20,7 +26,7 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for ResourceAsFelts {
         identifier_getter: &IG,
         address: Relocatable,
         _constants: &HashMap<String, Felt>,
-    ) -> OsHintResult {
+    ) -> VmUtilsResult<()> {
         let resource_bounds_list = vec![
             ("resource_name", self.resource_name.into()),
             ("max_amount", self.max_amount.into()),
@@ -49,9 +55,9 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for ValidResourceBounds {
         identifier_getter: &IG,
         address: Relocatable,
         constants: &HashMap<String, Felt>,
-    ) -> OsHintResult {
+    ) -> VmUtilsResult<()> {
         valid_resource_bounds_as_felts(self, false)
-            .map_err(OsHintError::ResourceBoundsParsing)?
+            .map_err(VmUtilsError::ResourceBoundsParsing)?
             .load_into(vm, identifier_getter, address, constants)
     }
 }
