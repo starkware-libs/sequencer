@@ -5,7 +5,7 @@
 pub mod objects;
 
 #[cfg(test)]
-mod starknet_gateway_client_test;
+mod apollo_gateway_client_test;
 
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]

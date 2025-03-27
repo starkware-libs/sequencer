@@ -382,6 +382,27 @@ expression: dumped_default_config
     },
     "privacy": "Public"
   },
+  "rpc.apollo_gateway_retry_config.max_retries": {
+    "description": "For communicating with Starknet gateway, maximum number of retries before the node stops retrying.",
+    "value": {
+      "$serde_json::private::Number": "5"
+    },
+    "privacy": "Public"
+  },
+  "rpc.apollo_gateway_retry_config.retry_base_millis": {
+    "description": "For communicating with Starknet gateway, base waiting time after a failed request. After that, the time increases exponentially.",
+    "value": {
+      "$serde_json::private::Number": "50"
+    },
+    "privacy": "Public"
+  },
+  "rpc.apollo_gateway_retry_config.retry_max_delay_millis": {
+    "description": "For communicating with Starknet gateway, max waiting time after a failed request.",
+    "value": {
+      "$serde_json::private::Number": "1000"
+    },
+    "privacy": "Public"
+  },
   "rpc.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
     "value": "SN_MAIN",
@@ -426,27 +447,6 @@ expression: dumped_default_config
   "rpc.server_address": {
     "description": "IP:PORT of the node`s JSON-RPC server.",
     "value": "0.0.0.0:8080",
-    "privacy": "Public"
-  },
-  "rpc.starknet_gateway_retry_config.max_retries": {
-    "description": "For communicating with Starknet gateway, maximum number of retries before the node stops retrying.",
-    "value": {
-      "$serde_json::private::Number": "5"
-    },
-    "privacy": "Public"
-  },
-  "rpc.starknet_gateway_retry_config.retry_base_millis": {
-    "description": "For communicating with Starknet gateway, base waiting time after a failed request. After that, the time increases exponentially.",
-    "value": {
-      "$serde_json::private::Number": "50"
-    },
-    "privacy": "Public"
-  },
-  "rpc.starknet_gateway_retry_config.retry_max_delay_millis": {
-    "description": "For communicating with Starknet gateway, max waiting time after a failed request.",
-    "value": {
-      "$serde_json::private::Number": "1000"
-    },
     "privacy": "Public"
   },
   "rpc.starknet_url": {

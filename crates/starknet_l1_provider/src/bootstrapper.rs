@@ -1,10 +1,10 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use apollo_state_sync_types::communication::SharedStateSyncClient;
 use starknet_api::block::BlockNumber;
 use starknet_api::transaction::TransactionHash;
 use starknet_l1_provider_types::SharedL1ProviderClient;
-use starknet_state_sync_types::communication::SharedStateSyncClient;
 use tokio::sync::OnceCell;
 use tracing::{debug, info};
 
