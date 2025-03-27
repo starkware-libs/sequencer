@@ -11,7 +11,14 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use tracing::{info, trace};
 
-use crate::metrics::{CONSENSUS_HELD_LOCKS, CONSENSUS_NEW_VALUE_LOCKS, CONSENSUS_ROUND};
+use crate::metrics::{
+    TimeoutReason,
+    CONSENSUS_HELD_LOCKS,
+    CONSENSUS_NEW_VALUE_LOCKS,
+    CONSENSUS_ROUND,
+    CONSENSUS_TIMEOUTS,
+    LABEL_NAME_TIMEOUT_REASON,
+};
 use crate::types::{ProposalCommitment, Round, ValidatorId};
 
 /// Events which the state machine sends/receives.
@@ -265,6 +272,8 @@ impl StateMachine {
         if self.step != Step::Propose || round != self.round {
             return VecDeque::new();
         };
+        CONSENSUS_TIMEOUTS
+            .increment(1, &[(LABEL_NAME_TIMEOUT_REASON, TimeoutReason::Propose.into())]);
         let mut output = VecDeque::from([StateMachineEvent::Prevote(None, round)]);
         output.append(&mut self.advance_to_step(Step::Prevote));
         output
@@ -290,6 +299,8 @@ impl StateMachine {
         if self.step != Step::Prevote || round != self.round {
             return VecDeque::new();
         };
+        CONSENSUS_TIMEOUTS
+            .increment(1, &[(LABEL_NAME_TIMEOUT_REASON, TimeoutReason::Prevote.into())]);
         let mut output = VecDeque::from([StateMachineEvent::Precommit(None, round)]);
         output.append(&mut self.advance_to_step(Step::Precommit));
         output
@@ -323,6 +334,8 @@ impl StateMachine {
         if round != self.round {
             return VecDeque::new();
         };
+        CONSENSUS_TIMEOUTS
+            .increment(1, &[(LABEL_NAME_TIMEOUT_REASON, TimeoutReason::Precommit.into())]);
         self.advance_to_round(round + 1, leader_fn)
     }
 
