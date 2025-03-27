@@ -1,5 +1,6 @@
-use std::task::{ready, Poll};
+use std::task::{ready, Context, Poll};
 
+use futures::StreamExt;
 use libp2p::swarm::behaviour::ConnectionEstablished;
 use libp2p::swarm::{
     dummy,
@@ -180,9 +181,8 @@ impl NetworkBehaviour for PeerManager {
 
     fn poll(
         &mut self,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<libp2p::swarm::ToSwarm<Self::ToSwarm, libp2p::swarm::THandlerInEvent<Self>>>
-    {
+        cx: &mut Context<'_>,
+    ) -> Poll<libp2p::swarm::ToSwarm<Self::ToSwarm, libp2p::swarm::THandlerInEvent<Self>>> {
         if let Some(event) = self.pending_events.pop() {
             return Poll::Ready(event);
         }
@@ -193,6 +193,11 @@ impl NetworkBehaviour for PeerManager {
             }
         }
         self.sleep_waiting_for_unblocked_peer = None;
+
+        if let Poll::Ready(Some(peer_id)) = self.blacklisted_peers_futures.poll_next_unpin(cx) {
+            self.unblacklist_peer(&peer_id);
+        }
+
         self.pending_events.pop().map(Poll::Ready).unwrap_or(Poll::Pending)
     }
 }
