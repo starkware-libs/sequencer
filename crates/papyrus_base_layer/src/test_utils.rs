@@ -114,6 +114,7 @@ pub fn ethereum_base_layer_config_for_anvil(port: Option<u16>) -> EthereumBaseLa
     EthereumBaseLayerConfig {
         node_url: Url::parse(&endpoint).unwrap(),
         starknet_contract_address: DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS.parse().unwrap(),
+        ..Default::default()
     }
 }
 
