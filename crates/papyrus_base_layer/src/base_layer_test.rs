@@ -22,6 +22,7 @@ async fn latest_proved_block_ethereum() {
     let contract = EthereumBaseLayerContract::new(EthereumBaseLayerConfig {
         node_url: node_handle.0.endpoint().parse().unwrap(),
         starknet_contract_address,
+        ..Default::default()
     });
 
     let first_sn_state_update =
@@ -76,6 +77,7 @@ async fn get_gas_price_and_timestamps() {
     let contract = EthereumBaseLayerContract::new(EthereumBaseLayerConfig {
         node_url: node_handle.0.endpoint().parse().unwrap(),
         starknet_contract_address,
+        ..Default::default()
     });
 
     let block_number = 30;
