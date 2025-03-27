@@ -13,6 +13,7 @@ use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::runners::cairo_runner::{ResourceTracker, RunResources};
 use cairo_vm::vm::vm_core::VirtualMachine;
+use paste::paste;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::{
@@ -364,7 +365,7 @@ impl<'a> SyscallHintProcessor<'a> {
             self.increment_syscall_count(&selector);
         }
 
-        // Use macro to generate the code
+        // Use macro to generate the following code:
         // match selector {
         //     SyscallSelector::CallContract => {
         //         self.execute_syscall(vm, call_contract, self.gas_costs().syscalls.call_contract)
@@ -374,6 +375,8 @@ impl<'a> SyscallHintProcessor<'a> {
         //     }
         //     ...
         // }
+        // Note: if not stated explicitly, the macro will use the snake case of the syscall selector
+        // as the function name and gas cost name by default.
         // TODO(Aner): enforce macro expansion correctness.
         match_selector_to_execute_syscall!(
             self,
@@ -382,29 +385,29 @@ impl<'a> SyscallHintProcessor<'a> {
             selector,
             SyscallSelector,
             (CallContract, call_contract, call_contract),
-            (Deploy, deploy, deploy),
-            (EmitEvent, emit_event, emit_event),
-            (GetBlockHash, get_block_hash, get_block_hash),
-            (GetClassHashAt, get_class_hash_at, get_class_hash_at),
-            (GetExecutionInfo, get_execution_info, get_execution_info),
-            (Keccak, keccak, keccak),
-            (Sha256ProcessBlock, sha256_process_block, sha256_process_block),
-            (LibraryCall, library_call, library_call),
-            (MetaTxV0, meta_tx_v0, meta_tx_v0),
-            (ReplaceClass, replace_class, replace_class),
-            (Secp256k1Add, secp256k1_add, secp256k1_add),
-            (Secp256k1GetPointFromX, secp256k1_get_point_from_x, secp256k1_get_point_from_x),
-            (Secp256k1GetXy, secp256k1_get_xy, secp256k1_get_xy),
-            (Secp256k1Mul, secp256k1_mul, secp256k1_mul),
-            (Secp256k1New, secp256k1_new, secp256k1_new),
-            (Secp256r1Add, secp256r1_add, secp256r1_add),
-            (Secp256r1GetPointFromX, secp256r1_get_point_from_x, secp256r1_get_point_from_x),
-            (Secp256r1GetXy, secp256r1_get_xy, secp256r1_get_xy),
-            (Secp256r1Mul, secp256r1_mul, secp256r1_mul),
-            (Secp256r1New, secp256r1_new, secp256r1_new),
-            (SendMessageToL1, send_message_to_l1, send_message_to_l1),
-            (StorageRead, storage_read, storage_read),
-            (StorageWrite, storage_write, storage_write)
+            (Deploy),
+            (EmitEvent),
+            (GetBlockHash),
+            (GetClassHashAt),
+            (GetExecutionInfo),
+            (Keccak),
+            (Sha256ProcessBlock),
+            (LibraryCall),
+            (MetaTxV0),
+            (ReplaceClass),
+            (Secp256k1Add),
+            (Secp256k1GetPointFromX),
+            (Secp256k1GetXy),
+            (Secp256k1Mul),
+            (Secp256k1New),
+            (Secp256r1Add),
+            (Secp256r1GetPointFromX),
+            (Secp256r1GetXy),
+            (Secp256r1Mul),
+            (Secp256r1New),
+            (SendMessageToL1),
+            (StorageRead),
+            (StorageWrite)
         )
     }
 
