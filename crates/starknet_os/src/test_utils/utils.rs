@@ -1,3 +1,6 @@
+use std::any::Any;
+use std::collections::HashMap;
+
 use crate::test_utils::cairo_runner::{
     run_cairo_0_entry_point,
     Cairo0EntryPointRunnerResult,
@@ -12,6 +15,7 @@ pub fn run_cairo_function_and_check_result(
     implicit_args: &[ImplicitArg],
     expected_explicit_retdata: &[EndpointArg],
     expected_implicit_retdata: &[EndpointArg],
+    hint_locals: HashMap<String, Box<dyn Any>>,
 ) -> Cairo0EntryPointRunnerResult<()> {
     let (actual_implicit_retdata, actual_explicit_retdata) = run_cairo_0_entry_point(
         program_str,
@@ -19,6 +23,7 @@ pub fn run_cairo_function_and_check_result(
         explicit_args,
         implicit_args,
         expected_explicit_retdata,
+        hint_locals,
     )?;
     assert_eq!(expected_explicit_retdata, &actual_explicit_retdata);
     assert_eq!(expected_implicit_retdata, &actual_implicit_retdata);

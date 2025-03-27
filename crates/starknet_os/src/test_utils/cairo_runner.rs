@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::collections::{HashMap, HashSet};
 
 use blockifier::blockifier_versioned_constants::VersionedConstants;
@@ -494,6 +495,7 @@ fn get_return_values(
 }
 
 /// Runs a Cairo program's entrypoint and returns the explicit and implicit return values.
+/// Hint locals are added to the outermost exec scope.
 /// If the endpoint used builtins, the respective returned (implicit) arg is the builtin instance
 /// usage, unless the builtin is the output builtin, in which case the arg is the output.
 pub fn run_cairo_0_entry_point(
@@ -502,6 +504,7 @@ pub fn run_cairo_0_entry_point(
     explicit_args: &[EndpointArg],
     implicit_args: &[ImplicitArg],
     expected_explicit_return_values: &[EndpointArg],
+    hint_locals: HashMap<String, Box<dyn Any>>,
 ) -> Cairo0EntryPointRunnerResult<(Vec<EndpointArg>, Vec<EndpointArg>)> {
     let ordered_builtins = get_ordered_builtins()?;
     let program = inject_builtins(program_str, &ordered_builtins, entrypoint)?;
@@ -524,6 +527,9 @@ pub fn run_cairo_0_entry_point(
     let trace_enabled = true;
     let mut cairo_runner =
         CairoRunner::new(&program, LayoutName::all_cairo, proof_mode, trace_enabled).unwrap();
+    for (key, value) in hint_locals.into_iter() {
+        cairo_runner.exec_scopes.insert_value(&key, value);
+    }
     let allow_missing_builtins = false;
     cairo_runner.initialize_builtins(allow_missing_builtins).unwrap();
     let program_base: Option<Relocatable> = None;
