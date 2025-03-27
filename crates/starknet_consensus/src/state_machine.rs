@@ -9,13 +9,14 @@ mod state_machine_test;
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
+use serde::{Deserialize, Serialize};
 use tracing::{info, trace};
 
 use crate::metrics::{CONSENSUS_HELD_LOCKS, CONSENSUS_NEW_VALUE_LOCKS, CONSENSUS_ROUND};
 use crate::types::{ProposalCommitment, Round, ValidatorId};
 
 /// Events which the state machine sends/receives.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum StateMachineEvent {
     /// Sent by the state machine when a block is required to propose (ProposalCommitment is always
     /// None). While waiting for the response of GetProposal, the state machine will buffer all
@@ -41,7 +42,7 @@ pub enum StateMachineEvent {
     TimeoutPrecommit(Round),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Step {
     Propose,
     Prevote,
@@ -53,6 +54,7 @@ pub enum Step {
 /// 2. SM must handle "out of order" messages (E.g. vote arrives before proposal).
 ///
 /// Each height is begun with a call to `start`, with no further calls to it.
+#[derive(Serialize, Deserialize)]
 pub struct StateMachine {
     id: ValidatorId,
     round: Round,
