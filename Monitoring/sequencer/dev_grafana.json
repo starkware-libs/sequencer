@@ -128,6 +128,27 @@
         "type": "stat",
         "expr": "consensus_reproposals",
         "extra_params": {}
+      },
+      {
+        "title": "consensus_new_value_locks",
+        "description": "The number of times consensus has attained a lock on a new value",
+        "type": "stat",
+        "expr": "consensus_new_value_locks",
+        "extra_params": {}
+      },
+      {
+        "title": "consensus_held_locks",
+        "description": "The number of times consensus progressed to a new round while holding a lock",
+        "type": "stat",
+        "expr": "consensus_held_locks",
+        "extra_params": {}
+      },
+      {
+        "title": "consensus_timeouts",
+        "description": "The number of times consensus has timed out",
+        "type": "stat",
+        "expr": "sum  by (timeout_reason) (consensus_timeouts)",
+        "extra_params": {}
       }
     ],
     "Http Server": [
