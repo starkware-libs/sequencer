@@ -801,7 +801,7 @@ impl SyscallResponse for Sha256ProcessBlockResponse {
     }
 }
 
-pub fn sha_256_process_block(
+pub fn sha256_process_block(
     request: Sha256ProcessBlockRequest,
     vm: &mut VirtualMachine,
     syscall_handler: &mut SyscallHintProcessor<'_>,
