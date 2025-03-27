@@ -3,7 +3,6 @@ use std::path::PathBuf;
 use clap::Parser;
 use starknet_infra_utils::test_utils::TestIdentifier;
 use starknet_integration_tests::integration_test_manager::IntegrationTestManager;
-use starknet_integration_tests::integration_test_utils::set_panic_hook;
 use starknet_integration_tests::storage::CustomPaths;
 use starknet_sequencer_infra::trace_util::configure_tracing;
 use tokio::fs::create_dir_all;
@@ -16,8 +15,6 @@ async fn main() {
 
     // Parse command line arguments.
     let args = Args::parse();
-
-    set_panic_hook();
 
     info!("Generate config and db files under {:?}", args.output_base_dir);
 

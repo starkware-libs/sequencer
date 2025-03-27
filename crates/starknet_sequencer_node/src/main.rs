@@ -8,9 +8,20 @@ use tracing::info;
 
 set_global_allocator!();
 
+// TODO(Tsabary): remove the hook definition once we transition to proper usage of task spawning.
+fn set_exit_process_on_panic() {
+    let default_panic = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        default_panic(info);
+        std::process::exit(1);
+    }));
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     configure_tracing().await;
+
+    set_exit_process_on_panic();
 
     let config =
         load_and_validate_config(args().collect()).expect("Failed to load and validate config");
