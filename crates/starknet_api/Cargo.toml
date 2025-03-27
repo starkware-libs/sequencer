@@ -10,11 +10,13 @@ description = "Starknet Rust types related to computation and execution."
 testing = []
 
 [dependencies]
+base64.workspace = true
 bitvec.workspace = true
 cached.workspace = true
 cairo-lang-runner.workspace = true
 cairo-lang-starknet-classes.workspace = true
 derive_more.workspace = true
+flate2.workspace = true
 hex.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
 itertools.workspace = true
