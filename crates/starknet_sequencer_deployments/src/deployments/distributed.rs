@@ -30,7 +30,7 @@ pub enum DistributedNodeServiceName {
     ConsensusManager,
     HttpServer,
     Gateway,
-    L1Provider,
+    L1,
     Mempool,
     SierraCompiler,
     StateSync,
@@ -47,11 +47,17 @@ impl GetComponentConfigs for DistributedNodeServiceName {
     fn get_component_configs(base_port: Option<u16>) -> IndexMap<ServiceName, ComponentConfig> {
         let mut component_config_map = IndexMap::<ServiceName, ComponentConfig>::new();
 
+        // TODO(Tsabary): the following is a temporary solution to differentiate the l1 provider
+        // and the l1 gas price provider ports. Need to come up with a better way for that.
+        let base_port_offset_by_one = Some(base_port.unwrap_or(BASE_PORT) + 1);
+
         let batcher = DistributedNodeServiceName::Batcher.component_config_pair(base_port);
         let class_manager =
             DistributedNodeServiceName::ClassManager.component_config_pair(base_port);
         let gateway = DistributedNodeServiceName::Gateway.component_config_pair(base_port);
-        let l1_provider = DistributedNodeServiceName::L1Provider.component_config_pair(base_port);
+        let l1_gas_price_provider =
+            DistributedNodeServiceName::L1.component_config_pair(base_port_offset_by_one);
+        let l1_provider = DistributedNodeServiceName::L1.component_config_pair(base_port);
         let mempool = DistributedNodeServiceName::Mempool.component_config_pair(base_port);
         let sierra_compiler =
             DistributedNodeServiceName::SierraCompiler.component_config_pair(base_port);
@@ -73,6 +79,7 @@ impl GetComponentConfigs for DistributedNodeServiceName {
                     get_consensus_manager_component_config(
                         batcher.remote(),
                         class_manager.remote(),
+                        l1_gas_price_provider.remote(),
                         state_sync.remote(),
                     )
                 }
@@ -85,9 +92,11 @@ impl GetComponentConfigs for DistributedNodeServiceName {
                     mempool.remote(),
                     state_sync.remote(),
                 ),
-                DistributedNodeServiceName::L1Provider => {
-                    get_l1_provider_component_config(l1_provider.local(), state_sync.remote())
-                }
+                DistributedNodeServiceName::L1 => get_l1_component_config(
+                    l1_gas_price_provider.local(),
+                    l1_provider.local(),
+                    state_sync.remote(),
+                ),
                 DistributedNodeServiceName::Mempool => get_mempool_component_config(
                     mempool.local(),
                     class_manager.remote(),
@@ -156,7 +165,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                 None,
             ),
-            DistributedNodeServiceName::L1Provider => Service::new(
+            DistributedNodeServiceName::L1 => Service::new(
                 Into::<ServiceName>::into(*self),
                 false,
                 false,
@@ -347,12 +356,14 @@ fn get_state_sync_component_config(
 fn get_consensus_manager_component_config(
     batcher_remote_config: ReactiveComponentExecutionConfig,
     class_manager_remote_config: ReactiveComponentExecutionConfig,
+    l1_gas_price_provider_remote_config: ReactiveComponentExecutionConfig,
     state_sync_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
     config.consensus_manager = ActiveComponentExecutionConfig::enabled();
     config.batcher = batcher_remote_config;
     config.class_manager = class_manager_remote_config;
+    config.l1_gas_price_provider = l1_gas_price_provider_remote_config;
     config.state_sync = state_sync_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
@@ -368,11 +379,13 @@ fn get_http_server_component_config(
     config
 }
 
-fn get_l1_provider_component_config(
+fn get_l1_component_config(
+    l1_gas_price_provider_local_config: ReactiveComponentExecutionConfig,
     l1_provider_local_config: ReactiveComponentExecutionConfig,
     state_sync_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
+    config.l1_gas_price_provider = l1_gas_price_provider_local_config;
     config.l1_provider = l1_provider_local_config;
     config.l1_scraper = ActiveComponentExecutionConfig::enabled();
     config.state_sync = state_sync_remote_config;
