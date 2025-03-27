@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use papyrus_common::compression_utils::compress_and_encode;
 use papyrus_storage::db::serialization::StorageSerdeError;
 use serde::{Deserialize, Serialize};
+use starknet_api::compression_utils::compress_and_encode;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::deprecated_contract_class::{ContractClassAbiEntry, EntryPointV0};
 
