@@ -3,6 +3,7 @@ use std::future::IntoFuture;
 use std::ops::RangeInclusive;
 
 use alloy::dyn_abi::SolType;
+use alloy::eips::eip7840;
 use alloy::primitives::Address as EthereumContractAddress;
 use alloy::providers::network::Ethereum;
 use alloy::providers::{Provider, ProviderBuilder, RootProvider};
@@ -154,14 +155,24 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         let Some(block) = block else {
             return Ok(None);
         };
-        match (block.header.timestamp, block.header.base_fee_per_gas) {
-            (timestamp, Some(base_fee_per_gas)) => Ok(Some(PriceSample {
-                timestamp,
-                base_fee_per_gas: base_fee_per_gas.into(),
-                blob_fee: block.header.blob_fee().unwrap_or(0),
-            })),
-            _ => Ok(None),
-        }
+
+        let (Some(base_fee_per_gas), Some(excess_blob_gas)) =
+            (block.header.base_fee_per_gas, block.header.excess_blob_gas)
+        else {
+            return Ok(None);
+        };
+        let blob_fee = if self.config.prague_blob_gas_calc {
+            // Pectra update.
+            eip7840::BlobParams::prague().calc_blob_fee(excess_blob_gas)
+        } else {
+            // EIP 4844 - original blob pricing.
+            eip7840::BlobParams::cancun().calc_blob_fee(excess_blob_gas)
+        };
+        Ok(Some(PriceSample {
+            timestamp: block.header.timestamp,
+            base_fee_per_gas: base_fee_per_gas.into(),
+            blob_fee,
+        }))
     }
 }
 
@@ -185,6 +196,7 @@ pub enum EthereumBaseLayerError {
 pub struct EthereumBaseLayerConfig {
     pub node_url: Url,
     pub starknet_contract_address: EthereumContractAddress,
+    pub prague_blob_gas_calc: bool,
 }
 
 impl SerializeConfig for EthereumBaseLayerConfig {
@@ -202,6 +214,12 @@ impl SerializeConfig for EthereumBaseLayerConfig {
                 "Starknet contract address in ethereum.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "prague_blob_gas_calc",
+                &self.prague_blob_gas_calc.to_string(),
+                "If true use the blob gas calculcation from the Pectra upgrade. If false use the EIP 4844 calculation.",
+                ParamPrivacyInput::Public,
+            ),
         ])
     }
 }
@@ -214,6 +232,7 @@ impl Default for EthereumBaseLayerConfig {
         Self {
             node_url: "https://mainnet.infura.io/v3/<your_api_key>".parse().unwrap(),
             starknet_contract_address,
+            prague_blob_gas_calc: false,
         }
     }
 }
