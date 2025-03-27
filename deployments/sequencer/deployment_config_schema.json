@@ -1,27 +1,54 @@
 {
   "type": "object",
   "properties": {
-    "chain_id": {"type": "string"},
-    "image": {"type": "string"},
-    "application_config_subdir": {"type": "string"},
+    "chain_id": { "type": "string" },
+    "image": { "type": "string" },
+    "application_config_subdir": { "type": "string" },
     "services": {
       "type": "array",
       "items": {
         "type": "object",
         "properties": {
-          "name": {"type": "string"},
-          "config_path": {"type": "string"},
-          "ingress": {"type": "boolean"},
-          "replicas": {"type": "integer", "minimum":  1},
-          "autoscale": {"type": "boolean"},
+          "name": { "type": "string" },
+          "config_path": { "type": "string" },
+          "ingress": { "type": "boolean" },
+          "replicas": { "type": "integer", "minimum": 1 },
+          "autoscale": { "type": "boolean" },
           "storage": {
-            "anyOf": [
-              {"type": "integer", "minimum": 1},
-              {"type": "null"}
-            ]
+            "anyOf": [{ "type": "integer", "minimum": 1 }, { "type": "null" }]
+          },
+          "resources": {
+            "type": "object",
+            "properties": {
+              "requests": {
+                "type": "object",
+                "properties": {
+                  "cpu": { "type": "number", "minimum": 1 },
+                  "memory": { "type": "integer", "minimum": 1 }
+                },
+                "required": ["cpu", "memory"]
+              },
+              "limits": {
+                "type": "object",
+                "properties": {
+                  "cpu": { "type": "number", "minimum": 1 },
+                  "memory": { "type": "integer", "minimum": 1 }
+                },
+                "required": ["cpu", "memory"]
+              }
+            },
+            "required": ["requests", "limits"]
           }
         },
-        "required": ["name", "config_path", "ingress", "replicas", "autoscale", "storage"]
+        "required": [
+          "name",
+          "config_path",
+          "ingress",
+          "replicas",
+          "autoscale",
+          "storage",
+          "resources"
+        ]
       }
     }
   },

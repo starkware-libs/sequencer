@@ -7,9 +7,10 @@ from services.config import SequencerConfig
 
 @dataclasses.dataclass
 class ServiceTopology:
-    config: typing.Optional[SequencerConfig]
+    config: SequencerConfig
     image: str
     ingress: bool
     replicas: int
     autoscale: bool
-    storage: int | None
+    storage: typing.Optional[int]
+    resources: typing.Optional[dict[str, dict[str, int]]]
