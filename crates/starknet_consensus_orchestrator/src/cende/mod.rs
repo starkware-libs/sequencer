@@ -227,6 +227,11 @@ impl CendeContext for CendeAmbassador {
 }
 
 async fn send_write_blob(request_builder: RequestBuilder, blob: &AerospikeBlob) -> bool {
+    info!(
+        "Writing blob!!!. Blob height {:?}. Num txs in blob: {}",
+        blob.block_number,
+        blob.transactions.len()
+    );
     // TODO(dvir): use compression to reduce the size of the blob in the network.
     match request_builder.json(blob).send().await {
         Ok(response) => {

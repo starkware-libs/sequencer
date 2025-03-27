@@ -751,12 +751,7 @@ async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<Co
         .expect("Can't convert timeout to chrono::Duration");
     let now = chrono::Utc::now();
     let timestamp = now.timestamp().try_into().expect("Failed to convert timestamp");
-    let eth_to_fri_rate = match &args.eth_to_strk_oracle_client {
-        Some(eth_to_strk_oracle_client) => {
-            eth_to_strk_oracle_client.eth_to_fri_rate(timestamp).await?
-        }
-        None => 1,
-    };
+    let eth_to_fri_rate = 1;
     // TODO(Asmaa): change this to the real values.
     let block_info = ConsensusBlockInfo {
         height: args.proposal_init.height,
