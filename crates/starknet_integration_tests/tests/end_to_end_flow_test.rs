@@ -12,9 +12,9 @@ use starknet_integration_tests::utils::{
     create_deploy_account_tx_and_invoke_tx,
     create_flow_test_tx_generator,
     create_funding_txs,
-    create_l1_handler_tx,
     create_many_invoke_txs,
     create_multiple_account_txs,
+    create_send_message_to_l2_args,
     run_test_scenario,
     test_many_invoke_txs,
     test_multiple_account_txs,
@@ -92,6 +92,10 @@ async fn end_to_end_flow(
         // TODO(Arni): move send messages to l2 into [run_test_scenario].
         let l1_handler_txs = create_l1_handler_txs_fn(&mut tx_generator);
         mock_running_system.send_messages_to_l2(&l1_handler_txs).await;
+        let l1_handler_txs = l1_handler_txs
+            .into_iter()
+            .map(|send_message_to_l2_args| send_message_to_l2_args.tx)
+            .collect();
         let mut expected_batched_tx_hashes = run_test_scenario(
             &mut tx_generator,
             create_rpc_txs_fn,
@@ -144,7 +148,7 @@ fn create_test_scenarios() -> Vec<TestScenario> {
         // TODO(Arni): Fix this. Move the L1 handler to be not the first block.
         TestScenario {
             create_rpc_txs_fn: |_| vec![],
-            create_l1_handler_txs_fn: create_l1_handler_tx,
+            create_l1_handler_txs_fn: create_send_message_to_l2_args,
             test_tx_hashes_fn: test_single_tx,
         },
         TestScenario {

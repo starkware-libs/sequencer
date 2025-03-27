@@ -162,21 +162,27 @@ pub type AccountId = usize;
 
 type SharedNonceManager = Rc<RefCell<NonceManager>>;
 
+pub struct SendMessageToL2Args {
+    pub tx: L1HandlerTransaction,
+    pub l1_tx_nonce: u64,
+}
+
 #[derive(Default)]
 struct L1HandlerTransactionGenerator {
-    tx_number: usize,
+    // The L1 nonce for the last created L1 handler transaction.
+    l1_tx_nonce: u64,
 }
 
 impl L1HandlerTransactionGenerator {
     /// Creates an L1 handler transaction calling the "l1_handler_set_value" entry point in
     /// [TestContract](FeatureContract::TestContract).
-    fn create_l1_handler_tx(&mut self) -> L1HandlerTransaction {
-        self.tx_number += 1;
+    fn create_l1_handler_tx(&mut self) -> SendMessageToL2Args {
+        self.l1_tx_nonce += 1;
         // TODO(Arni): Get test contract from test setup.
         let test_contract =
             FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
 
-        L1HandlerTransaction {
+        let l1_handler_tx = L1HandlerTransaction {
             contract_address: test_contract.get_instance_address(0),
             // TODO(Arni): Consider saving this value as a lazy constant.
             entry_point_selector: selector_from_name("l1_handler_set_value"),
@@ -187,7 +193,9 @@ impl L1HandlerTransactionGenerator {
                 felt!("0x44")   // value
             ],
             ..Default::default()
-        }
+        };
+
+        SendMessageToL2Args { tx: l1_handler_tx, l1_tx_nonce: self.l1_tx_nonce }
     }
 }
 
@@ -263,7 +271,7 @@ impl MultiAccountTransactionGenerator {
             })
             .collect();
         let l1_handler_tx_generator =
-            L1HandlerTransactionGenerator { tx_number: self.l1_handler_tx_generator.tx_number };
+            L1HandlerTransactionGenerator { l1_tx_nonce: self.l1_handler_tx_generator.l1_tx_nonce };
 
         Self { account_tx_generators, nonce_manager, l1_handler_tx_generator }
     }
@@ -345,12 +353,15 @@ impl MultiAccountTransactionGenerator {
             .collect()
     }
 
-    pub fn create_l1_handler_tx(&mut self) -> L1HandlerTransaction {
+    pub fn create_send_message_to_l2_args(&mut self) -> SendMessageToL2Args {
         self.l1_handler_tx_generator.create_l1_handler_tx()
     }
 
     pub fn n_l1_txs(&self) -> usize {
-        self.l1_handler_tx_generator.tx_number
+        self.l1_handler_tx_generator
+            .l1_tx_nonce
+            .try_into()
+            .expect("Failed to convert nonce to usize")
     }
 }
 
