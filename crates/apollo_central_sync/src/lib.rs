@@ -13,6 +13,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
 
+use apollo_class_manager_types::{ClassManagerClientError, SharedClassManagerClient};
 use apollo_config::converters::deserialize_seconds_to_duration;
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -48,7 +49,6 @@ use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::{ClassHash, CompiledClassHash, SequencerPublicKey};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{StateDiff, ThinStateDiff};
-use starknet_class_manager_types::{ClassManagerClientError, SharedClassManagerClient};
 use starknet_client::reader::PendingData;
 use tokio::sync::{Mutex, RwLock};
 use tokio::task::{spawn_blocking, JoinError};

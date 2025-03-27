@@ -319,6 +319,21 @@
     "privacy": "Public",
     "value": 50
   },
+  "rpc.apollo_gateway_retry_config.max_retries": {
+    "description": "For communicating with Starknet gateway, maximum number of retries before the node stops retrying.",
+    "privacy": "Public",
+    "value": 5
+  },
+  "rpc.apollo_gateway_retry_config.retry_base_millis": {
+    "description": "For communicating with Starknet gateway, base waiting time after a failed request. After that, the time increases exponentially.",
+    "privacy": "Public",
+    "value": 50
+  },
+  "rpc.apollo_gateway_retry_config.retry_max_delay_millis": {
+    "description": "For communicating with Starknet gateway, max waiting time after a failed request.",
+    "privacy": "Public",
+    "value": 1000
+  },
   "rpc.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
     "pointer_target": "chain_id",
@@ -358,21 +373,6 @@
     "description": "IP:PORT of the node`s JSON-RPC server.",
     "privacy": "Public",
     "value": "0.0.0.0:8080"
-  },
-  "rpc.starknet_gateway_retry_config.max_retries": {
-    "description": "For communicating with Starknet gateway, maximum number of retries before the node stops retrying.",
-    "privacy": "Public",
-    "value": 5
-  },
-  "rpc.starknet_gateway_retry_config.retry_base_millis": {
-    "description": "For communicating with Starknet gateway, base waiting time after a failed request. After that, the time increases exponentially.",
-    "privacy": "Public",
-    "value": 50
-  },
-  "rpc.starknet_gateway_retry_config.retry_max_delay_millis": {
-    "description": "For communicating with Starknet gateway, max waiting time after a failed request.",
-    "privacy": "Public",
-    "value": 1000
   },
   "rpc.starknet_url": {
     "description": "URL for communicating with Starknet in write_api methods.",

@@ -1,44 +1,51 @@
 use std::sync::Arc;
 
-use starknet_batcher_types::communication::{
+use apollo_batcher_types::communication::{
     BatcherRequest,
     BatcherResponse,
     LocalBatcherClient,
     RemoteBatcherClient,
     SharedBatcherClient,
 };
-use starknet_class_manager_types::{
+use apollo_class_manager_types::{
     ClassManagerRequest,
     ClassManagerResponse,
     LocalClassManagerClient,
     RemoteClassManagerClient,
     SharedClassManagerClient,
 };
-use starknet_gateway_types::communication::{
+use apollo_gateway_types::communication::{
     GatewayRequest,
     GatewayResponse,
     LocalGatewayClient,
     RemoteGatewayClient,
     SharedGatewayClient,
 };
-use starknet_l1_gas_price::communication::{LocalL1GasPriceClient, RemoteL1GasPriceClient};
-use starknet_l1_gas_price_types::{L1GasPriceRequest, L1GasPriceResponse, SharedL1GasPriceClient};
-use starknet_l1_provider::communication::{LocalL1ProviderClient, RemoteL1ProviderClient};
-use starknet_l1_provider_types::{L1ProviderRequest, L1ProviderResponse, SharedL1ProviderClient};
-use starknet_mempool_p2p_types::communication::{
+use apollo_mempool_p2p_types::communication::{
     LocalMempoolP2pPropagatorClient,
     MempoolP2pPropagatorRequest,
     MempoolP2pPropagatorResponse,
     RemoteMempoolP2pPropagatorClient,
     SharedMempoolP2pPropagatorClient,
 };
-use starknet_mempool_types::communication::{
+use apollo_mempool_types::communication::{
     LocalMempoolClient,
     MempoolRequest,
     MempoolResponse,
     RemoteMempoolClient,
     SharedMempoolClient,
 };
+use apollo_state_sync_types::communication::{
+    LocalStateSyncClient,
+    RemoteStateSyncClient,
+    SharedStateSyncClient,
+    StateSyncRequest,
+    StateSyncResponse,
+};
+use starknet_l1_gas_price::communication::{LocalL1GasPriceClient, RemoteL1GasPriceClient};
+use starknet_l1_gas_price_types::{L1GasPriceRequest, L1GasPriceResponse, SharedL1GasPriceClient};
+use starknet_l1_provider::communication::{LocalL1ProviderClient, RemoteL1ProviderClient};
+use starknet_l1_provider_types::{L1ProviderRequest, L1ProviderResponse, SharedL1ProviderClient};
 use starknet_sequencer_infra::component_client::{Client, LocalComponentClient};
 use starknet_sierra_multicompile_types::{
     LocalSierraCompilerClient,
@@ -46,13 +53,6 @@ use starknet_sierra_multicompile_types::{
     SharedSierraCompilerClient,
     SierraCompilerRequest,
     SierraCompilerResponse,
-};
-use starknet_state_sync_types::communication::{
-    LocalStateSyncClient,
-    RemoteStateSyncClient,
-    SharedStateSyncClient,
-    StateSyncRequest,
-    StateSyncResponse,
 };
 
 use crate::communication::SequencerNodeCommunication;

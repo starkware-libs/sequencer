@@ -1,13 +1,13 @@
-use starknet_batcher_types::communication::BatcherRequestAndResponseSender;
-use starknet_class_manager_types::ClassManagerRequestAndResponseSender;
-use starknet_gateway_types::communication::GatewayRequestAndResponseSender;
+use apollo_batcher_types::communication::BatcherRequestAndResponseSender;
+use apollo_class_manager_types::ClassManagerRequestAndResponseSender;
+use apollo_gateway_types::communication::GatewayRequestAndResponseSender;
+use apollo_mempool_p2p_types::communication::MempoolP2pPropagatorRequestAndResponseSender;
+use apollo_mempool_types::communication::MempoolRequestAndResponseSender;
+use apollo_state_sync_types::communication::StateSyncRequestAndResponseSender;
 use starknet_l1_gas_price::communication::L1GasPriceRequestAndResponseSender;
 use starknet_l1_provider::communication::L1ProviderRequestAndResponseSender;
-use starknet_mempool_p2p_types::communication::MempoolP2pPropagatorRequestAndResponseSender;
-use starknet_mempool_types::communication::MempoolRequestAndResponseSender;
 use starknet_sequencer_infra::component_definitions::ComponentCommunication;
 use starknet_sierra_multicompile_types::SierraCompilerRequestAndResponseSender;
-use starknet_state_sync_types::communication::StateSyncRequestAndResponseSender;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 
 pub struct SequencerNodeCommunication {

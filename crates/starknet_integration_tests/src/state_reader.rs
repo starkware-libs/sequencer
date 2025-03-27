@@ -1,5 +1,8 @@
 use std::collections::HashMap;
 
+use apollo_class_manager::class_storage::{ClassStorage, FsClassStorage};
+use apollo_class_manager::config::FsClassStorageConfig;
+use apollo_class_manager::test_utils::FsClassStorageBuilderForTesting;
 use apollo_storage::body::BodyStorageWriter;
 use apollo_storage::class::ClassStorageWriter;
 use apollo_storage::compiled_class::CasmStorageWriter;
@@ -40,9 +43,6 @@ use starknet_api::test_utils::{
     TEST_SEQUENCER_ADDRESS,
 };
 use starknet_api::{contract_address, felt};
-use starknet_class_manager::class_storage::{ClassStorage, FsClassStorage};
-use starknet_class_manager::config::FsClassStorageConfig;
-use starknet_class_manager::test_utils::FsClassStorageBuilderForTesting;
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 use tempfile::TempDir;
