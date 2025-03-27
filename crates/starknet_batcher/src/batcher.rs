@@ -64,10 +64,12 @@ use crate::metrics::{
     BATCHED_TRANSACTIONS,
     CLASS_CACHE_HITS,
     CLASS_CACHE_MISSES,
+    LAST_BATCHED_BLOCK,
+    LAST_PROPOSED_BLOCK,
+    LAST_SYNCED_BLOCK,
     REJECTED_TRANSACTIONS,
     REVERTED_BLOCKS,
     STORAGE_HEIGHT,
-    SYNCED_BLOCKS,
     SYNCED_TRANSACTIONS,
 };
 use crate::transaction_provider::{ProposeTransactionProvider, ValidateTransactionProvider};
@@ -171,11 +173,12 @@ impl Batcher {
         &mut self,
         propose_block_input: ProposeBlockInput,
     ) -> BatcherResult<()> {
+        let block_number = propose_block_input.block_info.block_number;
         let proposal_metrics_handle = ProposalMetricsHandle::new();
         let active_height = self.active_height.ok_or(BatcherError::NoActiveHeight)?;
         verify_block_input(
             active_height,
-            propose_block_input.block_info.block_number,
+            block_number,
             propose_block_input.retrospective_block_hash,
         )?;
 
@@ -246,6 +249,7 @@ impl Batcher {
         .await?;
 
         self.propose_tx_streams.insert(propose_block_input.proposal_id, output_tx_receiver);
+        LAST_PROPOSED_BLOCK.set_lossy(block_number.0);
         Ok(())
     }
 
@@ -490,7 +494,7 @@ impl Batcher {
             Default::default(),
         )
         .await?;
-        SYNCED_BLOCKS.increment(1);
+        LAST_SYNCED_BLOCK.set_lossy(block_number.0);
         SYNCED_TRANSACTIONS.increment(transaction_hashes.len().try_into().unwrap());
         Ok(())
     }
@@ -531,6 +535,7 @@ impl Batcher {
             .map(|(_, info)| info)
             .collect();
 
+        LAST_BATCHED_BLOCK.set_lossy(height.0);
         CLASS_CACHE_MISSES.increment(self.block_builder_factory.take_class_cache_miss_counter());
         CLASS_CACHE_HITS.increment(self.block_builder_factory.take_class_cache_hit_counter());
         BATCHED_TRANSACTIONS.increment(n_txs);

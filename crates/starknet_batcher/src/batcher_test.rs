@@ -58,6 +58,7 @@ use crate::block_builder::{
 use crate::config::BatcherConfig;
 use crate::metrics::{
     BATCHED_TRANSACTIONS,
+    LAST_SYNCED_BLOCK,
     PROPOSAL_ABORTED,
     PROPOSAL_FAILED,
     PROPOSAL_STARTED,
@@ -65,7 +66,6 @@ use crate::metrics::{
     REJECTED_TRANSACTIONS,
     REVERTED_BLOCKS,
     STORAGE_HEIGHT,
-    SYNCED_BLOCKS,
     SYNCED_TRANSACTIONS,
 };
 use crate::test_utils::{
@@ -863,7 +863,7 @@ async fn add_sync_block() {
         Some(INITIAL_HEIGHT.unchecked_next().0)
     );
     let metrics = recorder.handle().render();
-    assert_eq!(SYNCED_BLOCKS.parse_numeric_metric::<usize>(&metrics), Some(1));
+    assert_eq!(LAST_SYNCED_BLOCK.parse_numeric_metric::<u64>(&metrics), Some(INITIAL_HEIGHT.0));
     assert_eq!(
         SYNCED_TRANSACTIONS.parse_numeric_metric::<usize>(&metrics),
         Some(n_synced_transactions)

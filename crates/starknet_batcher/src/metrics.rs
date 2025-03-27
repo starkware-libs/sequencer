@@ -6,8 +6,10 @@ define_metrics!(
     Batcher => {
         // Heights
         MetricGauge { STORAGE_HEIGHT, "batcher_storage_height", "The height of the batcher's storage" },
+        MetricGauge { LAST_BATCHED_BLOCK, "batcher_last_batched_block", "The last block received by batching" },
+        MetricGauge { LAST_SYNCED_BLOCK, "batcher_last_synced_block", "The last block received by syncing" },
+        MetricGauge { LAST_PROPOSED_BLOCK, "batcher_last_proposed_block", "The last block proposed by this sequencer" },
         MetricCounter { REVERTED_BLOCKS, "batcher_reverted_blocks", "Counter of reverted blocks", init = 0 },
-        MetricCounter { SYNCED_BLOCKS, "batcher_synced_blocks", "Counter of synced blocks", init = 0 },
         // Proposals
         MetricCounter { PROPOSAL_STARTED, "batcher_proposal_started", "Counter of proposals started", init = 0 },
         MetricCounter { PROPOSAL_SUCCEEDED, "batcher_proposal_succeeded", "Counter of successful proposals", init = 0 },
@@ -26,6 +28,9 @@ define_metrics!(
 pub fn register_metrics(storage_height: BlockNumber) {
     STORAGE_HEIGHT.register();
     STORAGE_HEIGHT.set_lossy(storage_height.0);
+    LAST_BATCHED_BLOCK.register();
+    LAST_SYNCED_BLOCK.register();
+    LAST_PROPOSED_BLOCK.register();
     REVERTED_BLOCKS.register();
 
     PROPOSAL_STARTED.register();
