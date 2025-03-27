@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use starknet_api::compression_utils::{decode_and_decompress, CompressionError};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::rpc_transaction::{
@@ -40,11 +41,13 @@ pub enum RestTransactionV3 {
     Invoke(RestInvokeTransactionV3),
 }
 
-impl From<RestTransactionV3> for RpcTransaction {
-    fn from(rest_tx: RestTransactionV3) -> Self {
-        match rest_tx {
+impl TryFrom<RestTransactionV3> for RpcTransaction {
+    type Error = CompressionError;
+
+    fn try_from(rest_tx: RestTransactionV3) -> Result<Self, Self::Error> {
+        Ok(match rest_tx {
             RestTransactionV3::Declare(rest_declare_tx) => {
-                RpcTransaction::Declare(RpcDeclareTransaction::V3(rest_declare_tx.into()))
+                RpcTransaction::Declare(RpcDeclareTransaction::V3(rest_declare_tx.try_into()?))
             }
             RestTransactionV3::DeployAccount(rest_deploy_account_tx) => {
                 RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(
@@ -54,7 +57,7 @@ impl From<RestTransactionV3> for RpcTransaction {
             RestTransactionV3::Invoke(rest_invoke_tx) => {
                 RpcTransaction::Invoke(RpcInvokeTransaction::V3(rest_invoke_tx.into()))
             }
-        }
+        })
     }
 }
 
@@ -138,35 +141,48 @@ pub struct RestDeclareTransactionV3 {
     pub fee_data_availability_mode: DataAvailabilityMode,
 }
 
-impl From<RestDeclareTransactionV3> for RpcDeclareTransactionV3 {
-    fn from(rest_declare_tx: RestDeclareTransactionV3) -> Self {
-        RpcDeclareTransactionV3 {
+impl TryFrom<RestDeclareTransactionV3> for RpcDeclareTransactionV3 {
+    type Error = CompressionError;
+
+    fn try_from(rest_declare_tx: RestDeclareTransactionV3) -> Result<Self, Self::Error> {
+        Ok(RpcDeclareTransactionV3 {
             sender_address: rest_declare_tx.sender_address,
             compiled_class_hash: rest_declare_tx.compiled_class_hash,
             signature: rest_declare_tx.signature,
             nonce: rest_declare_tx.nonce,
-            contract_class: rest_declare_tx.contract_class.into(),
+            contract_class: rest_declare_tx.contract_class.try_into()?,
             resource_bounds: rest_declare_tx.resource_bounds.into(),
             tip: rest_declare_tx.tip,
             paymaster_data: rest_declare_tx.paymaster_data,
             account_deployment_data: rest_declare_tx.account_deployment_data,
             nonce_data_availability_mode: rest_declare_tx.nonce_data_availability_mode,
             fee_data_availability_mode: rest_declare_tx.fee_data_availability_mode,
-        }
+        })
     }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, Hash)]
 pub struct RestSierraContractClass {
+    // The sierra program is compressed and encoded in base64.
     pub sierra_program: String,
     pub contract_class_version: String,
     pub entry_points_by_type: EntryPointByType,
     pub abi: String,
 }
 
-impl From<RestSierraContractClass> for SierraContractClass {
-    fn from(_rest_sierra_contract_class: RestSierraContractClass) -> Self {
-        unimplemented!()
+impl TryFrom<RestSierraContractClass> for SierraContractClass {
+    type Error = CompressionError;
+
+    fn try_from(rest_sierra_contract_class: RestSierraContractClass) -> Result<Self, Self::Error> {
+        let sierra_program = serde_json::from_value(decode_and_decompress(
+            &rest_sierra_contract_class.sierra_program,
+        )?)?;
+        Ok(SierraContractClass {
+            sierra_program,
+            contract_class_version: rest_sierra_contract_class.contract_class_version,
+            entry_points_by_type: rest_sierra_contract_class.entry_points_by_type,
+            abi: rest_sierra_contract_class.abi,
+        })
     }
 }
 

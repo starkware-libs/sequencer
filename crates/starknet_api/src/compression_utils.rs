@@ -22,6 +22,7 @@ pub fn compress_and_encode(value: serde_json::Value) -> Result<String, std::io::
     Ok(base64::encode(compressed_data))
 }
 
+// TODO(Arni): Refactor this function so it returns a generic T where T: DeserializeOwned.
 // Decompress the value from base64 and gzip.
 pub fn decode_and_decompress(value: &str) -> Result<serde_json::Value, CompressionError> {
     let decoded_data = base64::decode(value)?;

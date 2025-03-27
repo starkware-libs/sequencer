@@ -1,5 +1,6 @@
 use axum::response::{IntoResponse, Response};
 use jsonrpsee::types::error::ErrorCode;
+use starknet_api::compression_utils::CompressionError;
 use starknet_gateway_types::communication::GatewayClientError;
 use starknet_gateway_types::errors::GatewayError;
 use thiserror::Error;
@@ -12,13 +13,15 @@ pub enum HttpServerRunError {
     ServerStartupError(#[from] hyper::Error),
 }
 
-/// Errors that may occure during the runtime of the HTTP server.
+/// Errors that may occur during the runtime of the HTTP server.
 #[derive(Error, Debug)]
 pub enum HttpServerError {
     #[error(transparent)]
     GatewayClientError(#[from] GatewayClientError),
     #[error(transparent)]
     DeserializationError(#[from] serde_json::Error),
+    #[error(transparent)]
+    DecompressionError(#[from] CompressionError),
 }
 
 impl IntoResponse for HttpServerError {
@@ -26,8 +29,19 @@ impl IntoResponse for HttpServerError {
         match self {
             HttpServerError::GatewayClientError(e) => gw_client_err_into_response(e),
             HttpServerError::DeserializationError(e) => serde_error_into_response(e),
+            HttpServerError::DecompressionError(e) => compression_error_into_response(e),
         }
     }
+}
+
+fn compression_error_into_response(err: CompressionError) -> Response {
+    debug!("Failed to decompress the transaction: {}", err);
+    let parse_error = jsonrpsee::types::ErrorObject::owned(
+        ErrorCode::InvalidParams.code(),
+        "Failed to decompress the provided Sierra program.",
+        None::<()>,
+    );
+    serde_json::to_vec(&parse_error).expect("Expecting a serializable error.").into_response()
 }
 
 fn serde_error_into_response(err: serde_json::Error) -> Response {
