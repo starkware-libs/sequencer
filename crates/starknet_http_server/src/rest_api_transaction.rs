@@ -90,6 +90,25 @@ impl From<RestInvokeTransactionV3> for RpcInvokeTransactionV3 {
     }
 }
 
+#[cfg(any(feature = "testing", test))]
+impl From<RpcInvokeTransactionV3> for RestInvokeTransactionV3 {
+    fn from(value: RpcInvokeTransactionV3) -> Self {
+        Self {
+            version: TransactionVersion::THREE,
+            calldata: value.calldata,
+            tip: value.tip,
+            resource_bounds: RestAllResourceBounds::from(value.resource_bounds),
+            paymaster_data: value.paymaster_data,
+            sender_address: value.sender_address,
+            signature: value.signature,
+            nonce: value.nonce,
+            account_deployment_data: value.account_deployment_data,
+            nonce_data_availability_mode: value.nonce_data_availability_mode,
+            fee_data_availability_mode: value.fee_data_availability_mode,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct RestDeployAccountTransactionV3 {
     pub version: TransactionVersion,
@@ -186,6 +205,17 @@ impl From<RestAllResourceBounds> for AllResourceBounds {
             l1_gas: rest_all_resource_bounds.l1_gas,
             l2_gas: rest_all_resource_bounds.l2_gas,
             l1_data_gas: rest_all_resource_bounds.l1_data_gas,
+        }
+    }
+}
+
+#[cfg(any(feature = "testing", test))]
+impl From<AllResourceBounds> for RestAllResourceBounds {
+    fn from(all_resource_bounds: AllResourceBounds) -> Self {
+        RestAllResourceBounds {
+            l1_gas: all_resource_bounds.l1_gas,
+            l2_gas: all_resource_bounds.l2_gas,
+            l1_data_gas: all_resource_bounds.l1_data_gas,
         }
     }
 }
