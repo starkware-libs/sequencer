@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use apollo_state_sync_types::communication::MockStateSyncClient;
 use assert_matches::assert_matches;
 use itertools::Itertools;
 use pretty_assertions::assert_eq;
@@ -15,7 +16,6 @@ use starknet_l1_provider_types::SessionState::{
     Validate as ValidateSession,
 };
 use starknet_l1_provider_types::{Event, InvalidValidationStatus, ValidationStatus};
-use starknet_state_sync_types::communication::MockStateSyncClient;
 
 use crate::bootstrapper::{Bootstrapper, CommitBlockBacklog, SyncTaskHandle};
 use crate::test_utils::{l1_handler, FakeL1ProviderClient, L1ProviderContentBuilder};

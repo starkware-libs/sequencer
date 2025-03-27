@@ -1,7 +1,7 @@
+use apollo_gateway_types::communication::GatewayClientError;
+use apollo_gateway_types::errors::GatewayError;
 use axum::response::{IntoResponse, Response};
 use jsonrpsee::types::error::ErrorCode;
-use starknet_gateway_types::communication::GatewayClientError;
-use starknet_gateway_types::errors::GatewayError;
 use thiserror::Error;
 use tracing::error;
 

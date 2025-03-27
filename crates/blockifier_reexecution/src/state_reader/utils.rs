@@ -3,6 +3,7 @@ use std::env;
 use std::fs::read_to_string;
 use std::sync::LazyLock;
 
+use apollo_gateway::config::RpcStateReaderConfig;
 use apollo_rpc_execution::{ETH_FEE_CONTRACT_ADDRESS, STRK_FEE_CONTRACT_ADDRESS};
 use assert_matches::assert_matches;
 use blockifier::context::{ChainInfo, FeeTokenAddresses};
@@ -14,7 +15,6 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
-use starknet_gateway::config::RpcStateReaderConfig;
 use starknet_types_core::felt::Felt;
 
 use crate::assert_eq_state_diff;

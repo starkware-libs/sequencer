@@ -153,7 +153,7 @@ fn assert_only_expected_txs(
 fn assert_full_blocks_flow(recorder: &PrometheusRecorder, expecting_full_blocks: bool) {
     let metrics = recorder.handle().render();
     let full_blocks_metric =
-        starknet_batcher::metrics::FULL_BLOCKS.parse_numeric_metric::<u64>(&metrics).unwrap();
+        apollo_batcher::metrics::FULL_BLOCKS.parse_numeric_metric::<u64>(&metrics).unwrap();
     if expecting_full_blocks {
         assert!(full_blocks_metric > 0);
     } else {

@@ -3,6 +3,8 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use alloy::primitives::U256;
+use apollo_state_sync_types::communication::MockStateSyncClient;
+use apollo_state_sync_types::state_sync_types::SyncBlock;
 use itertools::Itertools;
 use mempool_test_utils::starknet_api_test_utils::DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;
 use papyrus_base_layer::ethereum_base_layer_contract::{
@@ -23,8 +25,6 @@ use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::{L1HandlerTransaction, TransactionHasher, TransactionVersion};
 use starknet_l1_provider_types::{Event, L1ProviderClient};
 use starknet_sequencer_infra::trace_util::configure_tracing;
-use starknet_state_sync_types::communication::MockStateSyncClient;
-use starknet_state_sync_types::state_sync_types::SyncBlock;
 
 use crate::l1_provider::create_l1_provider;
 use crate::l1_scraper::{L1Scraper, L1ScraperConfig};
