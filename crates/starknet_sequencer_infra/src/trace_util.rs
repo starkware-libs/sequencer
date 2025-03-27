@@ -13,8 +13,16 @@ pub async fn configure_tracing() {
     TRACING_INITIALIZED
         .get_or_init(|| async {
             let fmt_layer = fmt::layer().compact().with_target(true);
-            let level_filter_layer =
-                EnvFilter::builder().with_default_directive(DEFAULT_LEVEL.into()).from_env_lossy();
+            let level_filter_layer = EnvFilter::builder()
+                .with_default_directive(DEFAULT_LEVEL.into())
+                .from_env_lossy()
+                .add_directive("alloy_provider=info".parse().unwrap())
+                .add_directive("alloy_transport_http=info".parse().unwrap())
+                .add_directive("alloy_rpc_client=info".parse().unwrap())
+                .add_directive("hyper=info".parse().unwrap())
+                .add_directive("hyper_util=info".parse().unwrap())
+                .add_directive("multistream_select=info".parse().unwrap())
+                .add_directive("yamux=info".parse().unwrap());
 
             // This sets a single subscriber to all of the threads. We may want to implement
             // different subscriber for some threads and use set_global_default instead
