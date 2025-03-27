@@ -65,6 +65,9 @@ const CHANNEL_SIZE: usize = 5000;
 const NUM_VALIDATORS: u64 = 4;
 const STATE_DIFF_COMMITMENT: StateDiffCommitment = StateDiffCommitment(PoseidonHash(Felt::ZERO));
 const CHAIN_ID: ChainId = ChainId::Mainnet;
+
+// In order for gas price in ETH to be greather than 0 (required) we must have large enough
+// values here.
 const ETH_TO_FRI_RATE: u128 = u128::pow(10, 18);
 
 lazy_static! {
