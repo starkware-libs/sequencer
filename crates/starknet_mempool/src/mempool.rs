@@ -166,19 +166,32 @@ impl MempoolState {
 // A queue to hold transactions that are waiting to be added to the tx pool.
 struct AddTransactionQueue {
     elements: VecDeque<(Instant, AddTransactionArgs)>,
+    // Keeps track of the total size of the transactions in this queue.
+    size_in_bytes: u64,
 }
 
 impl AddTransactionQueue {
     fn new() -> Self {
-        AddTransactionQueue { elements: VecDeque::new() }
+        AddTransactionQueue { elements: VecDeque::new(), size_in_bytes: 0 }
     }
 
     fn push_back(&mut self, submission_time: Instant, args: AddTransactionArgs) {
+        self.size_in_bytes = self
+            .size_in_bytes
+            .checked_add(args.tx.size_of())
+            .expect("Overflow when adding a transaction to AddTransactionQueue.");
         self.elements.push_back((submission_time, args));
     }
 
     fn pop_front(&mut self) -> Option<(Instant, AddTransactionArgs)> {
-        self.elements.pop_front()
+        let removed_element = self.elements.pop_front();
+        if let Some((_, args)) = &removed_element {
+            self.size_in_bytes = self
+                .size_in_bytes
+                .checked_sub(args.tx.size_of())
+                .expect("Underflow when removing a transaction from AddTransactionQueue.");
+        }
+        removed_element
     }
 
     fn front(&self) -> Option<&(Instant, AddTransactionArgs)> {
@@ -231,7 +244,7 @@ impl Mempool {
     }
 
     pub fn tx_pool_len(&self) -> usize {
-        self.tx_pool.capacity()
+        self.tx_pool.len()
     }
 
     pub fn delayed_declares_len(&self) -> usize {

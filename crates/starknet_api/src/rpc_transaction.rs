@@ -228,6 +228,11 @@ impl InternalRpcTransaction {
         }
     }
 
+    pub fn size_of(&self) -> u64 {
+        // TODO(Dafna): implement.
+        1
+    }
+
     pub fn tx_hash(&self) -> TransactionHash {
         self.tx_hash
     }
