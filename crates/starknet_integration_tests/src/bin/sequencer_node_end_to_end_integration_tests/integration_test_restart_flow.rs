@@ -16,9 +16,8 @@ use tracing::info;
 async fn main() {
     integration_test_setup("restart").await;
     const TOTAL_PHASES: u64 = 4;
-    const PHASE_DURATION: u64 = 30;
-    const PHASE_DURATION_SECS: Duration = Duration::from_secs(PHASE_DURATION);
-    const TOTAL_DURATION: u64 = PHASE_DURATION * TOTAL_PHASES;
+    const PHASE_DURATION: Duration = Duration::from_secs(45);
+    const TOTAL_DURATION: u64 = PHASE_DURATION.as_secs() * TOTAL_PHASES;
     const TOTAL_INVOKE_TXS: u64 = TPS * TOTAL_DURATION;
     /// The number of consolidated local sequencers that participate in the test.
     const N_CONSOLIDATED_SEQUENCERS: usize = 5;
@@ -64,7 +63,7 @@ async fn main() {
     // Task that awaits transactions and restarts nodes in phases.
     let await_and_restart_nodes_task = async {
         info!("Awaiting transactions while all nodes are up");
-        sleep(PHASE_DURATION_SECS).await;
+        sleep(PHASE_DURATION).await;
         verify_running_nodes_received_more_txs(
             &mut nodes_accepted_txs_mapping,
             &integration_test_manager,
@@ -73,7 +72,7 @@ async fn main() {
 
         integration_test_manager.shutdown_nodes([NODE_1].into());
         info!("Awaiting transactions while node {NODE_1} is down");
-        sleep(PHASE_DURATION_SECS).await;
+        sleep(PHASE_DURATION).await;
         verify_running_nodes_received_more_txs(
             &mut nodes_accepted_txs_mapping,
             &integration_test_manager,
@@ -87,7 +86,7 @@ async fn main() {
             "Awaiting transactions after node {NODE_1} was restarted and before node {NODE_2} is \
              shut down"
         );
-        sleep(PHASE_DURATION_SECS).await;
+        sleep(PHASE_DURATION).await;
         verify_running_nodes_received_more_txs(
             &mut nodes_accepted_txs_mapping,
             &integration_test_manager,
@@ -101,7 +100,7 @@ async fn main() {
         // here.
         node_indices.remove(&NODE_2);
         info!("Awaiting transactions while node {NODE_1} is up and node {NODE_2} is down");
-        sleep(PHASE_DURATION_SECS).await;
+        sleep(PHASE_DURATION).await;
         verify_running_nodes_received_more_txs(
             &mut nodes_accepted_txs_mapping,
             &integration_test_manager,
