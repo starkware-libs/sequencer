@@ -63,7 +63,6 @@ pub async fn create_node_components(
             let l1_provider_client = clients
                 .get_l1_provider_shared_client()
                 .expect("L1 Provider Client should be available");
-            // TODO(guyn): Should also create a gas price shared client and give it to batcher?
             let class_manager_client = clients
                 .get_class_manager_shared_client()
                 .expect("Class Manager Client should be available");
@@ -98,11 +97,15 @@ pub async fn create_node_components(
             let class_manager_client = clients
                 .get_class_manager_shared_client()
                 .expect("Class Manager Client should be available");
+            let l1_gas_price_client = clients
+                .get_l1_gas_price_shared_client()
+                .expect("L1 gas price shared client should be available");
             Some(ConsensusManager::new(
                 config.consensus_manager_config.clone(),
                 batcher_client,
                 state_sync_client,
                 class_manager_client,
+                l1_gas_price_client,
             ))
         }
         ActiveComponentExecutionMode::Disabled => None,
@@ -278,7 +281,9 @@ pub async fn create_node_components(
     };
     let l1_gas_price_scraper = match config.components.l1_gas_price_scraper.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
-            let l1_gas_price_client = clients.get_l1_gas_price_shared_client().unwrap();
+            let l1_gas_price_client = clients
+                .get_l1_gas_price_shared_client()
+                .expect("L1 gas price client should be available");
             let l1_gas_price_scraper_config = config.l1_gas_price_scraper_config.clone();
             let base_layer = EthereumBaseLayerContract::new(config.base_layer_config.clone());
 

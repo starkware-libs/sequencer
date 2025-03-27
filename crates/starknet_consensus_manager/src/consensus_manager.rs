@@ -22,6 +22,7 @@ use starknet_consensus_orchestrator::cende::CendeAmbassador;
 use starknet_consensus_orchestrator::sequencer_consensus_context::SequencerConsensusContext;
 use starknet_infra_utils::type_name::short_type_name;
 use starknet_l1_gas_price::eth_to_strk_oracle::EthToStrkOracleClient;
+use starknet_l1_gas_price_types::L1GasPriceProviderClient;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_state_sync_types::communication::SharedStateSyncClient;
 use tracing::info;
@@ -42,6 +43,7 @@ pub struct ConsensusManager {
     pub batcher_client: SharedBatcherClient,
     pub state_sync_client: SharedStateSyncClient,
     pub class_manager_client: SharedClassManagerClient,
+    l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
 }
 
 impl ConsensusManager {
@@ -50,8 +52,15 @@ impl ConsensusManager {
         batcher_client: SharedBatcherClient,
         state_sync_client: SharedStateSyncClient,
         class_manager_client: SharedClassManagerClient,
+        l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     ) -> Self {
-        Self { config, batcher_client, state_sync_client, class_manager_client }
+        Self {
+            config,
+            batcher_client,
+            state_sync_client,
+            class_manager_client,
+            l1_gas_price_provider,
+        }
     }
 
     pub async fn run(&self) -> Result<(), ConsensusError> {
@@ -144,6 +153,7 @@ impl ConsensusManager {
                 self.config.eth_to_strk_oracle_config.base_url.clone(),
                 self.config.eth_to_strk_oracle_config.headers.clone(),
             )),
+            self.l1_gas_price_provider.clone(),
         );
 
         let network_task = tokio::spawn(network_manager.run());
@@ -209,8 +219,15 @@ pub fn create_consensus_manager(
     batcher_client: SharedBatcherClient,
     state_sync_client: SharedStateSyncClient,
     class_manager_client: SharedClassManagerClient,
+    l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
 ) -> ConsensusManager {
-    ConsensusManager::new(config, batcher_client, state_sync_client, class_manager_client)
+    ConsensusManager::new(
+        config,
+        batcher_client,
+        state_sync_client,
+        class_manager_client,
+        l1_gas_price_provider,
+    )
 }
 
 #[async_trait]

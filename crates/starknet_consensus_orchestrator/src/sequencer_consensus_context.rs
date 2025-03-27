@@ -71,7 +71,7 @@ use starknet_consensus::types::{
     ValidatorId,
 };
 use starknet_l1_gas_price_types::errors::EthToStrkOracleClientError;
-use starknet_l1_gas_price_types::EthToStrkOracleClientTrait;
+use starknet_l1_gas_price_types::{EthToStrkOracleClientTrait, L1GasPriceProviderClient};
 use starknet_state_sync_types::communication::SharedStateSyncClient;
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 use starknet_types_core::felt::Felt;
@@ -173,6 +173,7 @@ pub struct SequencerConsensusContext {
     eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
     // The next block's l2 gas price, calculated based on EIP-1559, used for building and
     // validating proposals.
+    _l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     l2_gas_price: u64,
     l1_da_mode: L1DataAvailabilityMode,
     last_block_timestamp: Option<u64>,
@@ -189,6 +190,7 @@ impl SequencerConsensusContext {
         vote_broadcast_client: BroadcastTopicClient<Vote>,
         cende_ambassador: Arc<dyn CendeContext>,
         eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
+        l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     ) -> Self {
         let chain_id = config.chain_id.clone();
         let num_validators = config.num_validators;
@@ -216,6 +218,7 @@ impl SequencerConsensusContext {
             queued_proposals: BTreeMap::new(),
             cende_ambassador,
             eth_to_strk_oracle_client,
+            _l1_gas_price_provider: l1_gas_price_provider,
             l2_gas_price: VersionedConstants::latest_constants().min_gas_price,
             l1_da_mode,
             last_block_timestamp: None,
