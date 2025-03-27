@@ -38,6 +38,18 @@
               }
             },
             "required": ["requests", "limits"]
+          },
+          "external_secret": {
+            "anyOf": [
+              { "type": "null" },
+              {
+                "type": "object",
+                "properties": {
+                  "gcsm_key": { "type": "string" }
+                },
+                "required": ["gcsm_key"]
+              }
+            ]
           }
         },
         "required": [
@@ -47,7 +59,8 @@
           "replicas",
           "autoscale",
           "storage",
-          "resources"
+          "resources",
+          "external_secret"
         ]
       }
     }
