@@ -6,7 +6,14 @@ license.workspace = true
 repository.workspace = true
 
 [features]
-testing = ["apollo_gateway_types/testing", "reqwest", "starknet_api/testing"]
+testing = [
+  "apollo_gateway_types/testing",
+  "blockifier_test_utils",
+  "mempool_test_utils",
+  "reqwest",
+  "starknet_api/testing",
+  "strum_macros",
+]
 
 [lints]
 workspace = true
@@ -18,12 +25,15 @@ apollo_infra.workspace = true
 apollo_infra_utils.workspace = true
 apollo_metrics.workspace = true
 axum.workspace = true
+blockifier_test_utils = { workspace = true, optional = true }
 hyper.workspace = true
 jsonrpsee = { workspace = true, features = ["full"] }
+mempool_test_utils = { workspace = true, optional = true }
 reqwest = { workspace = true, optional = true }
 serde.workspace = true
 serde_json.workspace = true
 starknet_api.workspace = true
+strum_macros = { workspace = true, optional = true }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt"] }
 tracing.workspace = true
@@ -45,4 +55,5 @@ reqwest.workspace = true
 rstest.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true
+strum_macros.workspace = true
 tracing-test.workspace = true

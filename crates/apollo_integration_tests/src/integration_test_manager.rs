@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use alloy::node_bindings::AnvilInstance;
 use apollo_http_server::config::HttpServerConfig;
-use apollo_http_server::test_utils::HttpTestClient;
+use apollo_http_server::test_utils::{HttpTestClient};
 use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
