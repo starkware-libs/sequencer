@@ -14,6 +14,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::StarknetApiError;
+use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::enum_definition::AllHints;
@@ -64,7 +65,7 @@ pub enum OsHintError {
     #[error("No bytecode segment structure for class hash: {0:?}.")]
     MissingBytecodeSegmentStructure(ClassHash),
     #[error("No preimage found for value {0:?}.")]
-    MissingPreimage(Felt),
+    MissingPreimage(HashOutput),
     #[error("Failed to parse resource bounds: {0}.")]
     ResourceBoundsParsing(SyscallExecutionError),
     #[error("{error:?} for json value {value}.")]
