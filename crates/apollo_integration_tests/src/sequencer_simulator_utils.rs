@@ -1,6 +1,6 @@
 use std::net::{SocketAddr, ToSocketAddrs};
 
-use apollo_http_server::test_utils::HttpTestClient;
+use apollo_http_server::test_utils::{HttpServerEndpoint, HttpTestClient};
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use starknet_api::rpc_transaction::RpcTransaction;
@@ -34,7 +34,7 @@ impl SequencerSimulator {
 
     pub async fn assert_add_tx_success(&self, tx: RpcTransaction) -> TransactionHash {
         info!("Sending transaction: {:?}", tx);
-        self.http_client.assert_add_tx_success(tx).await
+        self.http_client.assert_add_tx_success(tx, HttpServerEndpoint::AddRpcTx).await
     }
 
     pub async fn send_txs(

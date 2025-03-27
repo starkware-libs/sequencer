@@ -3,8 +3,6 @@ use std::net::{IpAddr, Ipv4Addr};
 use apollo_gateway_types::communication::{GatewayClientError, MockGatewayClient};
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use apollo_sequencer_infra::component_client::ClientError;
-use blockifier_test_utils::cairo_versions::CairoVersion;
-use mempool_test_utils::starknet_api_test_utils::invoke_tx;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use starknet_api::transaction::TransactionHash;
 
@@ -14,8 +12,9 @@ use crate::metrics::{
     ADDED_TRANSACTIONS_SUCCESS,
     ADDED_TRANSACTIONS_TOTAL,
 };
-use crate::test_utils::http_client_server_setup;
+use crate::test_utils::{http_client_server_setup, rpc_tx, HttpServerEndpoint};
 
+// TODO(Yael): add a test for rest_api endpoint
 #[tokio::test]
 async fn get_metrics_test() {
     // Create a mock gateway client that returns a successful response and a failure response.
@@ -48,8 +47,7 @@ async fn get_metrics_test() {
 
     // Send transactions to the server.
     for _ in std::iter::repeat(()).take(SUCCESS_TXS_TO_SEND + FAILURE_TXS_TO_SEND) {
-        let rpc_tx = invoke_tx(CairoVersion::default());
-        add_tx_http_client.add_tx(rpc_tx).await;
+        add_tx_http_client.add_tx(rpc_tx(), HttpServerEndpoint::AddRpcTx).await;
     }
 
     // Obtain and parse metrics.
