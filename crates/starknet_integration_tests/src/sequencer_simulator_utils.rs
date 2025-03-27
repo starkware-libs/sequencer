@@ -1,6 +1,5 @@
 use std::net::{SocketAddr, ToSocketAddrs};
 
-use futures::executor::block_on;
 use mempool_test_utils::starknet_api_test_utils::{
     AccountId,
     MultiAccountTransactionGenerator,
@@ -29,7 +28,7 @@ pub struct SequencerSimulator {
 }
 
 impl SequencerSimulator {
-    pub fn new(
+    pub async fn create(
         http_url: String,
         http_port: u16,
         monitoring_url: String,
@@ -45,8 +44,7 @@ impl SequencerSimulator {
         let mut base_layer_config = ethereum_base_layer_config_for_anvil(Some(base_layer_port));
         base_layer_config.node_url =
             Url::parse(format!("{}:{}", base_layer_url, base_layer_port).as_str()).unwrap();
-        // TODO(Arni): Don't use block on.
-        let starknet_l1_contract = block_on(deploy_starknet_l1_contract(base_layer_config));
+        let starknet_l1_contract = deploy_starknet_l1_contract(base_layer_config).await;
 
         Self { monitoring_client, http_client, starknet_l1_contract }
     }
