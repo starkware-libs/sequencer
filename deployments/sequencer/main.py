@@ -49,8 +49,8 @@ def main():
     for svc in services:
         SequencerNode(
             scope=app,
-            name=f'sequencer-{svc["name"].lower()}',
-            namespace=args.namespace,
+            name=helpers.sanitize_name(f'sequencer-{svc["name"]}'),
+            namespace=helpers.sanitize_name(args.namespace),
             service_topology=topology.ServiceTopology(
                 config=config.SequencerConfig(
                     config_subdir=application_config_subdir, config_path=svc["config_path"]
