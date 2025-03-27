@@ -15,6 +15,7 @@ use serde_json::Value;
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
+use crate::io::os_input::OsHintsConfig;
 use crate::test_utils::errors::{
     BuiltinMismatchError,
     Cairo0EntryPointRunnerError,
@@ -506,8 +507,13 @@ pub fn run_cairo_0_entry_point(
     let ordered_builtins = get_ordered_builtins()?;
     let program = inject_builtins(program_str, &ordered_builtins, entrypoint)?;
     let (state_reader, os_input) = (None, None);
-    let mut hint_processor =
-        SnosHintProcessor::new_for_testing(state_reader, os_input, Some(program.clone()));
+    let os_config = OsHintsConfig::default();
+    let mut hint_processor = SnosHintProcessor::new_for_testing(
+        state_reader,
+        os_input,
+        Some(program.clone()),
+        Some(os_config),
+    );
     info!("Program and Hint processor created successfully.");
 
     // TODO(Amos): Perform complete validations.

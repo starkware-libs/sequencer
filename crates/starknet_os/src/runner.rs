@@ -13,13 +13,13 @@ use crate::hint_processor::snos_hint_processor::{
     SnosHintProcessor,
     SyscallHintProcessor,
 };
-use crate::io::os_input::{CachedStateInput, StarknetOsInput};
+use crate::io::os_input::{CachedStateInput, OsHints};
 use crate::io::os_output::{get_run_output, StarknetOsRunnerOutput};
 
 pub fn run_os<S: StateReader>(
     compiled_os: &[u8],
     layout: LayoutName,
-    os_input: StarknetOsInput,
+    os_hints: OsHints,
     state_reader: S,
     cached_state_input: CachedStateInput,
 ) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
@@ -43,7 +43,12 @@ pub fn run_os<S: StateReader>(
     let end = cairo_runner.initialize(allow_missing_builtins)?;
 
     // Create execution helper.
-    let execution_helper = OsExecutionHelper::new(os_input, state_reader, cached_state_input)?;
+    let execution_helper = OsExecutionHelper::new(
+        os_hints.os_input,
+        state_reader,
+        cached_state_input,
+        os_hints.os_hints_config.debug_mode,
+    )?;
 
     // Create syscall handlers.
     let syscall_handler = SyscallHintProcessor::new();
@@ -53,6 +58,7 @@ pub fn run_os<S: StateReader>(
     let mut snos_hint_processor = SnosHintProcessor::new(
         os_program,
         execution_helper,
+        os_hints.os_hints_config,
         syscall_handler,
         deprecated_syscall_handler,
     );
@@ -96,8 +102,8 @@ pub fn run_os<S: StateReader>(
 pub fn run_os_stateless(
     compiled_os: &[u8],
     layout: LayoutName,
-    os_input: StarknetOsInput,
+    os_hints: OsHints,
     cached_state_input: CachedStateInput,
 ) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
-    run_os(compiled_os, layout, os_input, PanickingStateReader, cached_state_input)
+    run_os(compiled_os, layout, os_hints, PanickingStateReader, cached_state_input)
 }
