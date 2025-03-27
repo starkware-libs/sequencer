@@ -337,3 +337,20 @@ async fn class_declared_at_block() {
 
     assert_eq!(is_class_declared_at_result, Ok(true));
 }
+
+#[tokio::test]
+async fn class_not_declared() {
+    let (mut state_sync, _storage_writer) = setup();
+
+    let mut rng = get_rng();
+    let class_hash = ClassHash::get_test_instance(&mut rng);
+
+    let response = state_sync
+        .handle_request(StateSyncRequest::IsClassDeclaredAt(BlockNumber(0), class_hash))
+        .await;
+    let StateSyncResponse::IsClassDeclaredAt(is_class_declared_at_result) = response else {
+        panic!("Expected StateSyncResponse::IsClassDeclaredAt(_), but got {:?}", response);
+    };
+
+    assert_eq!(is_class_declared_at_result, Ok(false));
+}
