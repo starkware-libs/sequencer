@@ -61,13 +61,14 @@ def main():
                 ingress=svc["ingress"],
                 storage=svc["storage"],
                 resources=svc["resources"],
+                external_secret=svc["external_secret"],
             ),
         )
 
     SequencerMonitoring(
         scope=app,
         name="sequencer-monitoring",
-        namespace=args.namespace,
+        namespace=helpers.sanitize_name(args.namespace),
         grafana_dashboard=monitoring.GrafanaDashboard("dev_grafana.json"),
     )
 

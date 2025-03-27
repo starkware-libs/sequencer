@@ -14,3 +14,4 @@ class ServiceTopology:
     autoscale: bool
     storage: typing.Optional[int]
     resources: typing.Optional[dict[str, dict[str, int]]]
+    external_secret: typing.Optional[dict[str, str]]
