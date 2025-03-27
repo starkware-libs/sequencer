@@ -1579,6 +1579,66 @@
     "pointer_target": "revert_config.should_revert",
     "privacy": "Public"
   },
+  "state_sync_config.rpc_config.chain_id": {
+    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "pointer_target": "chain_id",
+    "privacy": "Public"
+  },
+  "state_sync_config.rpc_config.collect_metrics": {
+    "description": "If true, collect metrics for the rpc.",
+    "privacy": "Public",
+    "value": false
+  },
+  "state_sync_config.rpc_config.execution_config.default_initial_gas_cost": {
+    "description": "The initial gas cost for a transaction",
+    "privacy": "Public",
+    "value": 10000000000
+  },
+  "state_sync_config.rpc_config.execution_config.eth_fee_contract_address": {
+    "description": "The eth fee token address to receive fees",
+    "privacy": "Public",
+    "value": "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7"
+  },
+  "state_sync_config.rpc_config.execution_config.strk_fee_contract_address": {
+    "description": "The strk fee token address to receive fees",
+    "privacy": "Public",
+    "value": "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d"
+  },
+  "state_sync_config.rpc_config.max_events_chunk_size": {
+    "description": "Maximum chunk size supported by the node in get_events requests.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "state_sync_config.rpc_config.max_events_keys": {
+    "description": "Maximum number of keys supported by the node in get_events requests.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "state_sync_config.rpc_config.server_address": {
+    "description": "IP:PORT of the node`s JSON-RPC server.",
+    "privacy": "Public",
+    "value": "0.0.0.0:8080"
+  },
+  "state_sync_config.rpc_config.starknet_gateway_retry_config.max_retries": {
+    "description": "For communicating with Starknet gateway, maximum number of retries before the node stops retrying.",
+    "privacy": "Public",
+    "value": 5
+  },
+  "state_sync_config.rpc_config.starknet_gateway_retry_config.retry_base_millis": {
+    "description": "For communicating with Starknet gateway, base waiting time after a failed request. After that, the time increases exponentially.",
+    "privacy": "Public",
+    "value": 50
+  },
+  "state_sync_config.rpc_config.starknet_gateway_retry_config.retry_max_delay_millis": {
+    "description": "For communicating with Starknet gateway, max waiting time after a failed request.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "state_sync_config.rpc_config.starknet_url": {
+    "description": "URL for communicating with Starknet in write_api methods.",
+    "privacy": "Public",
+    "value": "https://alpha-mainnet.starknet.io/"
+  },
   "state_sync_config.storage_config.db_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
     "pointer_target": "chain_id",

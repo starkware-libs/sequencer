@@ -64,6 +64,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 "mempool_p2p_config.network_config.chain_id",
                 "state_sync_config.storage_config.db_config.chain_id",
                 "state_sync_config.network_config.chain_id",
+                "state_sync_config.rpc_config.chain_id",
             ]),
         ),
         (

@@ -9,6 +9,7 @@ use apollo_config::{ParamPath, SerializedParam};
 use apollo_network::NetworkConfig;
 use apollo_p2p_sync::client::P2pSyncClientConfig;
 use apollo_reverts::RevertConfig;
+use apollo_rpc::RpcConfig;
 use apollo_storage::db::DbConfig;
 use apollo_storage::StorageConfig;
 use serde::{Deserialize, Serialize};
@@ -30,6 +31,8 @@ pub struct StateSyncConfig {
     pub network_config: NetworkConfig,
     #[validate]
     pub revert_config: RevertConfig,
+    #[validate]
+    pub rpc_config: RpcConfig,
 }
 
 impl SerializeConfig for StateSyncConfig {
@@ -39,6 +42,7 @@ impl SerializeConfig for StateSyncConfig {
         config.extend(append_sub_config_name(self.storage_config.dump(), "storage_config"));
         config.extend(append_sub_config_name(self.network_config.dump(), "network_config"));
         config.extend(append_sub_config_name(self.revert_config.dump(), "revert_config"));
+        config.extend(append_sub_config_name(self.rpc_config.dump(), "rpc_config"));
         config.extend(ser_optional_sub_config(
             &self.p2p_sync_client_config,
             "p2p_sync_client_config",
@@ -76,6 +80,7 @@ impl Default for StateSyncConfig {
             central_sync_client_config: None,
             network_config: NetworkConfig { port: STATE_SYNC_TCP_PORT, ..Default::default() },
             revert_config: RevertConfig::default(),
+            rpc_config: RpcConfig::default(),
         }
     }
 }
