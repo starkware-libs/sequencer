@@ -4,10 +4,13 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_ptr_from_var_name,
     insert_value_from_var_name,
 };
+use cairo_vm::hint_processor::hint_processor_utils::felt_to_usize;
 use cairo_vm::types::relocatable::MaybeRelocatable;
 
-use crate::hints::error::OsHintResult;
+use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::HintArgs;
+use crate::hints::vars::{CairoStruct, Ids};
+use crate::vm_utils::get_address_of_nested_fields;
 
 pub(crate) fn selected_builtins<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
     todo!()
@@ -17,27 +20,36 @@ pub(crate) fn select_builtin<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -
     todo!()
 }
 
+/// Update subsets of the pointer at 'builtin_ptrs' with the pointers at 'selected_ptrs' according
+/// to the location specified by 'selected_encodings'.
+///
+/// Assumption: selected builtins encoding is an ordered subset of builtin_params.
 pub(crate) fn update_builtin_ptrs<S: StateReader>(
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let n_builtins = get_integer_from_var_name(vars::ids::N_BUILTINS, vm, ids_data, ap_tracking)?;
+    let n_builtins = get_integer_from_var_name(Ids::NBuiltins.into(), vm, ids_data, ap_tracking)?;
 
-    let builtin_params =
-        get_ptr_from_var_name(vars::ids::BUILTIN_PARAMS, vm, ids_data, ap_tracking)?;
-    let builtins_encoding_addr =
-        vm.get_relocatable((builtin_params + BuiltinParams::builtin_encodings_offset())?)?;
+    let builtins_encoding_addr = get_address_of_nested_fields(
+        ids_data,
+        Ids::BuiltinParams,
+        CairoStruct::BuiltinParamsPtr,
+        vm,
+        ap_tracking,
+        &["builtin_encodings"],
+        &hint_processor.os_program,
+    )?;
 
     let n_selected_builtins =
-        get_integer_from_var_name(vars::ids::N_SELECTED_BUILTINS, vm, ids_data, ap_tracking)?;
+        get_integer_from_var_name(Ids::NSelectedBuiltins.into(), vm, ids_data, ap_tracking)?;
 
     let selected_encodings =
-        get_ptr_from_var_name(vars::ids::SELECTED_ENCODINGS, vm, ids_data, ap_tracking)?;
+        get_ptr_from_var_name(Ids::SelectedEncodings.into(), vm, ids_data, ap_tracking)?;
 
-    let builtin_ptrs = get_ptr_from_var_name(vars::ids::BUILTIN_PTRS, vm, ids_data, ap_tracking)?;
+    let builtin_ptrs = get_ptr_from_var_name(Ids::BuiltinPtrs.into(), vm, ids_data, ap_tracking)?;
 
     let orig_builtin_ptrs = builtin_ptrs;
 
-    let selected_ptrs = get_ptr_from_var_name(vars::ids::SELECTED_PTRS, vm, ids_data, ap_tracking)?;
+    let selected_ptrs = get_ptr_from_var_name(Ids::SelectedPtrs.into(), vm, ids_data, ap_tracking)?;
 
     let all_builtins =
         vm.get_continuous_range(builtins_encoding_addr, felt_to_usize(&n_builtins)?)?;
@@ -50,18 +62,30 @@ pub(crate) fn update_builtin_ptrs<S: StateReader>(
 
     for (i, builtin) in all_builtins.iter().enumerate() {
         if selected_builtins.contains(builtin) {
-            returned_builtins
-                .push(vm.get_maybe(&(selected_ptrs + selected_builtin_offset)?).unwrap());
+            // TODO(Dori): consider computing the address of the selected builtin via the
+            //   `get_address_of_nested_fields` utility. See `OsLogger::insert_builtins` for an
+            //   example for accessing fields of `CairoStruct::BuiltinPointers`.
+            returned_builtins.push(
+                vm.get_maybe(&(selected_ptrs + selected_builtin_offset)?).ok_or_else(|| {
+                    OsHintError::MissingSelectedBuiltinPtr {
+                        builtin: builtin.clone(),
+                        selected_builtin_offset,
+                    }
+                })?,
+            );
             selected_builtin_offset += 1;
         } else {
-            returned_builtins.push(vm.get_maybe(&(orig_builtin_ptrs + i)?).unwrap());
+            // The builtin is unselected, hence its value is the same as before calling the program.
+            returned_builtins.push(vm.get_maybe(&(orig_builtin_ptrs + i)?).ok_or_else(|| {
+                OsHintError::MissingUnselectedBuiltinPtr { builtin: orig_builtin_ptrs, offset: i }
+            })?);
         }
     }
 
     let return_builtin_ptrs_base = vm.add_memory_segment();
     vm.load_data(return_builtin_ptrs_base, &returned_builtins)?;
     insert_value_from_var_name(
-        vars::ids::RETURN_BUILTIN_PTRS,
+        Ids::ReturnBuiltinPtrs.into(),
         return_builtin_ptrs_base,
         vm,
         ids_data,
