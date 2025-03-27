@@ -81,6 +81,7 @@ use starknet_api::transaction::{
 };
 use starknet_api::transaction_hash::get_transaction_hash;
 use starknet_api::StarknetApiError;
+use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_types_core::felt::Felt;
 use state_reader::ExecutionStateReader;
 use tracing::trace;
@@ -231,6 +232,7 @@ pub fn execute_call(
     calldata: Calldata,
     execution_config: &ExecutionConfig,
     override_kzg_da_to_false: bool,
+    class_manager_client: Option<SharedClassManagerClient>,
 ) -> ExecutionResult<CallExecution> {
     verify_contract_exists(
         *contract_address,
@@ -258,6 +260,7 @@ pub fn execute_call(
         state_number,
         maybe_pending_data: maybe_pending_data.clone(),
         missing_compiled_class: Cell::new(None),
+        class_manager_client,
     });
 
     let block_context = create_block_context(
@@ -628,6 +631,7 @@ pub fn estimate_fee(
     execution_config: &ExecutionConfig,
     validate: bool,
     override_kzg_da_to_false: bool,
+    class_manager_client: Option<SharedClassManagerClient>,
 ) -> ExecutionResult<FeeEstimationResult> {
     let (txs_execution_info, block_context) = execute_transactions(
         txs,
@@ -641,6 +645,7 @@ pub fn estimate_fee(
         false,
         validate,
         override_kzg_da_to_false,
+        class_manager_client,
     )?;
     let mut result = Vec::new();
     for (index, tx_execution_output) in txs_execution_info.into_iter().enumerate() {
@@ -682,6 +687,7 @@ fn execute_transactions(
     charge_fee: bool,
     validate: bool,
     override_kzg_da_to_false: bool,
+    class_manager_client: Option<SharedClassManagerClient>,
 ) -> ExecutionResult<(Vec<TransactionExecutionOutput>, BlockContext)> {
     // The starknet state will be from right before the block in which the transactions should run.
     let mut cached_state = CachedState::new(ExecutionStateReader {
@@ -689,6 +695,7 @@ fn execute_transactions(
         state_number,
         maybe_pending_data: maybe_pending_data.clone(),
         missing_compiled_class: Cell::new(None),
+        class_manager_client,
     });
 
     let block_context = create_block_context(
@@ -987,6 +994,7 @@ pub fn simulate_transactions(
     charge_fee: bool,
     validate: bool,
     override_kzg_da_to_false: bool,
+    class_manager_client: Option<SharedClassManagerClient>,
 ) -> ExecutionResult<Vec<TransactionSimulationOutput>> {
     let trace_constructors = txs.iter().map(get_trace_constructor).collect::<Vec<_>>();
     let (execution_results, block_context) = execute_transactions(
@@ -1001,6 +1009,7 @@ pub fn simulate_transactions(
         charge_fee,
         validate,
         override_kzg_da_to_false,
+        class_manager_client,
     )?;
     execution_results
         .into_iter()
