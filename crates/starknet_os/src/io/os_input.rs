@@ -50,6 +50,14 @@ pub struct ContractClassComponentHashes {
     _sierra_program_hash: HashOutput,
 }
 
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
+#[cfg_attr(any(test, feature = "testing"), derive(Default))]
+#[derive(Debug)]
+pub struct OsHints {
+    pub os_input: StarknetOsInput,
+    pub os_hints_config: OsHintsConfig,
+}
+
 /// All input needed to initialize the execution helper.
 // TODO(Dori): Add all fields needed to compute commitments, initialize a CachedState and other data
 //   required by the execution helper.
@@ -79,8 +87,14 @@ pub struct StarknetOsInput {
     // buffer=STORED_BLOCK_HASH_BUFFER.
     // It is the hash that is going to be written by this OS run.
     pub(crate) old_block_number_and_hash: Option<(BlockNumber, BlockHash)>,
-    pub(crate) debug_mode: bool,
-    pub(crate) full_output: bool,
+}
+
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
+#[cfg_attr(any(test, feature = "testing"), derive(Default))]
+#[derive(Debug)]
+pub struct OsHintsConfig {
+    pub debug_mode: bool,
+    pub full_output: bool,
 }
 
 #[derive(Default, Debug)]
