@@ -12,7 +12,6 @@ use starknet_api::executable_transaction::TransactionType;
 use starknet_api::transaction::TransactionHash;
 
 use crate::hint_processor::constants::BUILTIN_INSTANCE_SIZES;
-use crate::hints::error::OsHintError;
 use crate::hints::vars::{CairoStruct, Ids};
 use crate::vm_utils::get_address_of_nested_fields;
 
@@ -24,7 +23,7 @@ pub enum OsLoggerError {
     )]
     BuiltinsNotInSameSegment { builtin: BuiltinName, self_ptr: Relocatable, enter_ptr: Relocatable },
     #[error("Failed to build builtin pointer map: {0}.")]
-    BuiltinPtrs(OsHintError),
+    BuiltinPtrs(String),
     #[error("Called exit_syscall with empty call stack.")]
     CallStackEmpty,
     #[error("SyscallTrace should be finalized only once.")]
@@ -317,7 +316,7 @@ impl ResourceCounter {
                 &[inner_field_name, member_name.as_str()],
                 os_program,
             )
-            .map_err(OsLoggerError::BuiltinPtrs)?;
+            .map_err(|error| OsLoggerError::BuiltinPtrs(error.to_string()))?;
             builtin_ptrs_dict.insert(
                 BuiltinName::from_str(member_name)
                     .ok_or_else(|| OsLoggerError::UnknownBuiltin(member_name.clone()))?,
