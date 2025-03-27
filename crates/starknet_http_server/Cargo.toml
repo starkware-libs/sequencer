@@ -37,7 +37,11 @@ mempool_test_utils.workspace = true
 metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
 reqwest.workspace = true
+rstest.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_gateway_types = { workspace = true, features = ["testing"] }
+strum.workspace = true
+strum_macros.workspace = true
 tracing-test.workspace = true
+
