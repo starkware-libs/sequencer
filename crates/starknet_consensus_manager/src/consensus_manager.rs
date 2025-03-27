@@ -6,7 +6,12 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use apollo_network::gossipsub_impl::Topic;
-use apollo_network::network_manager::metrics::{BroadcastNetworkMetrics, NetworkMetrics};
+use apollo_network::network_manager::metrics::{
+    BroadcastNetworkMetrics,
+    GenericNetworkMetrics,
+    NetworkMetrics,
+    PeerManagerMetrics,
+};
 use apollo_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use apollo_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, Vote};
 use apollo_reverts::revert_blocks_and_eternal_pending;
@@ -75,10 +80,14 @@ impl ConsensusManager {
             },
         );
         let network_manager_metrics = Some(NetworkMetrics {
-            num_connected_peers: CONSENSUS_NUM_CONNECTED_PEERS,
-            num_blacklisted_peers: CONSENSUS_NUM_BLACKLISTED_PEERS,
-            broadcast_metrics_by_topic: Some(broadcast_metrics_by_topic),
-            sqmr_metrics: None,
+            peer_manager_metrics: PeerManagerMetrics {
+                num_blacklisted_peers: CONSENSUS_NUM_BLACKLISTED_PEERS,
+            },
+            generic_network_metrics: GenericNetworkMetrics {
+                num_connected_peers: CONSENSUS_NUM_CONNECTED_PEERS,
+                broadcast_metrics_by_topic: Some(broadcast_metrics_by_topic),
+                sqmr_metrics: None,
+            },
         });
         let mut network_manager =
             NetworkManager::new(self.config.network_config.clone(), None, network_manager_metrics);

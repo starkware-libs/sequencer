@@ -22,7 +22,7 @@ use libp2p::gossipsub::{SubscriptionError, TopicHash};
 use libp2p::identity::Keypair;
 use libp2p::swarm::SwarmEvent;
 use libp2p::{noise, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder};
-use metrics::NetworkMetrics;
+use metrics::{GenericNetworkMetrics, NetworkMetrics};
 use sqmr::Bytes;
 use tracing::{debug, error, trace, warn};
 
@@ -64,7 +64,7 @@ pub struct GenericNetworkManager<SwarmT: SwarmTrait> {
     reported_peers_sender: Sender<PeerId>,
     continue_propagation_sender: Sender<BroadcastedMessageMetadata>,
     continue_propagation_receiver: Receiver<BroadcastedMessageMetadata>,
-    metrics: Option<NetworkMetrics>,
+    metrics: Option<GenericNetworkMetrics>,
 }
 
 impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
@@ -99,7 +99,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     pub(crate) fn generic_new(
         mut swarm: SwarmT,
         advertised_multiaddr: Option<Multiaddr>,
-        metrics: Option<NetworkMetrics>,
+        metrics: Option<GenericNetworkMetrics>,
     ) -> Self {
         if let Some(metrics) = metrics.as_ref() {
             metrics.register();
@@ -700,6 +700,16 @@ impl NetworkManager {
             }
             None => Keypair::generate_ed25519(),
         };
+
+        let (_peer_manager_metric, generic_network_metrics) = match metrics {
+            Some(metrics) => {
+                let peer_manager_metric = Some(metrics.peer_manager_metrics);
+                let generic_network_metrics = Some(metrics.generic_network_metrics);
+                (peer_manager_metric, generic_network_metrics)
+            }
+            None => (None, None),
+        };
+
         let mut swarm = SwarmBuilder::with_existing_identity(key_pair)
         .with_tokio()
         .with_tcp(Default::default(), noise::Config::new, yamux::Config::default)
@@ -730,7 +740,7 @@ impl NetworkManager {
                 .with_p2p(*swarm.local_peer_id())
                 .expect("advertised_multiaddr has a peer id different than the local peer id")
         });
-        Self::generic_new(swarm, advertised_multiaddr, metrics)
+        Self::generic_new(swarm, advertised_multiaddr, generic_network_metrics)
     }
 
     pub fn get_local_peer_id(&self) -> String {

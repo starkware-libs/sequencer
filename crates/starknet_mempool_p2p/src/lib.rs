@@ -6,7 +6,12 @@ pub mod runner;
 use std::collections::HashMap;
 
 use apollo_network::gossipsub_impl::Topic;
-use apollo_network::network_manager::metrics::{BroadcastNetworkMetrics, NetworkMetrics};
+use apollo_network::network_manager::metrics::{
+    BroadcastNetworkMetrics,
+    GenericNetworkMetrics,
+    NetworkMetrics,
+    PeerManagerMetrics,
+};
 use apollo_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use futures::FutureExt;
 use metrics::MEMPOOL_P2P_NUM_BLACKLISTED_PEERS;
@@ -45,10 +50,14 @@ pub fn create_p2p_propagator_and_runner(
         },
     );
     let network_manager_metrics = Some(NetworkMetrics {
-        num_connected_peers: MEMPOOL_P2P_NUM_CONNECTED_PEERS,
-        num_blacklisted_peers: MEMPOOL_P2P_NUM_BLACKLISTED_PEERS,
-        broadcast_metrics_by_topic: Some(broadcast_metrics_by_topic),
-        sqmr_metrics: None,
+        peer_manager_metrics: PeerManagerMetrics {
+            num_blacklisted_peers: MEMPOOL_P2P_NUM_BLACKLISTED_PEERS,
+        },
+        generic_network_metrics: GenericNetworkMetrics {
+            num_connected_peers: MEMPOOL_P2P_NUM_CONNECTED_PEERS,
+            broadcast_metrics_by_topic: Some(broadcast_metrics_by_topic),
+            sqmr_metrics: None,
+        },
     });
     let mut network_manager = NetworkManager::new(
         mempool_p2p_config.network_config,
