@@ -28,7 +28,7 @@ reqwest = { workspace = true, features = ["blocking", "json"] }
 serde = { workspace = true, features = ["derive"] }
 starknet-types-core.workspace = true
 starknet_api.workspace = true
-starknet_class_manager_types.workspace = true
+apollo_class_manager_types.workspace = true
 starknet_client.workspace = true
 starknet_sequencer_metrics.workspace = true
 thiserror.workspace = true
@@ -43,7 +43,7 @@ mockall.workspace = true
 pretty_assertions.workspace = true
 simple_logger.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
-starknet_class_manager_types = { workspace = true, features = ["testing"] }
+apollo_class_manager_types = { workspace = true, features = ["testing"] }
 starknet_client = { workspace = true, features = ["testing"] }
 tokio-stream.workspace = true
 

@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 use std::sync::Arc;
 
+use apollo_class_manager_types::{MockClassManagerClient, SharedClassManagerClient};
 use apollo_network::network_manager::test_utils::{
     create_test_server_query_manager,
     mock_register_sqmr_protocol_server,
@@ -52,7 +53,6 @@ use starknet_api::transaction::{
     TransactionHash,
     TransactionOutput,
 };
-use starknet_class_manager_types::{MockClassManagerClient, SharedClassManagerClient};
 
 use super::{split_thin_state_diff, FetchBlockData, P2pSyncServer, P2pSyncServerChannels};
 use crate::server::register_query;
