@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_storage::compiled_class::CasmStorageReader;
 use apollo_storage::db::RO;
 use apollo_storage::state::StateStorageReader;
@@ -20,7 +21,6 @@ use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedClass;
 use starknet_api::state::{SierraContractClass, StateNumber, StorageKey};
-use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_types_core::felt::Felt;
 
 #[cfg(test)]

@@ -1,5 +1,4 @@
-use const_format::formatcp;
-use starknet_batcher::metrics::{
+use apollo_batcher::metrics::{
     BATCHED_TRANSACTIONS,
     CLASS_CACHE_HITS,
     CLASS_CACHE_MISSES,
@@ -7,7 +6,7 @@ use starknet_batcher::metrics::{
     PROPOSAL_STARTED,
     PROPOSAL_SUCCEEDED,
 };
-use starknet_consensus::metrics::{
+use apollo_consensus::metrics::{
     CONSENSUS_BLOCK_NUMBER,
     CONSENSUS_BUILD_PROPOSAL_FAILED,
     CONSENSUS_BUILD_PROPOSAL_TOTAL,
@@ -22,14 +21,14 @@ use starknet_consensus::metrics::{
     CONSENSUS_REPROPOSALS,
     CONSENSUS_ROUND,
 };
-use starknet_consensus_manager::metrics::{
+use apollo_consensus_manager::metrics::{
     CONSENSUS_NUM_CONNECTED_PEERS,
     CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES,
     CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES,
     CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES,
     CONSENSUS_VOTES_NUM_SENT_MESSAGES,
 };
-use starknet_gateway::metrics::{
+use apollo_gateway::metrics::{
     GATEWAY_ADD_TX_LATENCY,
     GATEWAY_VALIDATE_TX_LATENCY,
     LABEL_NAME_SOURCE,
@@ -38,8 +37,7 @@ use starknet_gateway::metrics::{
     TRANSACTIONS_RECEIVED,
     TRANSACTIONS_SENT_TO_MEMPOOL,
 };
-use starknet_http_server::metrics::ADDED_TRANSACTIONS_TOTAL;
-use starknet_mempool::metrics::{
+use apollo_mempool::metrics::{
     LABEL_NAME_DROP_REASON,
     LABEL_NAME_TX_TYPE as MEMPOOL_LABEL_NAME_TX_TYPE,
     MEMPOOL_GET_TXS_SIZE,
@@ -51,17 +49,19 @@ use starknet_mempool::metrics::{
     MEMPOOL_TRANSACTIONS_RECEIVED,
     TRANSACTION_TIME_SPENT_IN_MEMPOOL,
 };
-use starknet_mempool_p2p::metrics::{
+use apollo_mempool_p2p::metrics::{
     MEMPOOL_P2P_BROADCASTED_BATCH_SIZE,
     MEMPOOL_P2P_NUM_CONNECTED_PEERS,
     MEMPOOL_P2P_NUM_RECEIVED_MESSAGES,
     MEMPOOL_P2P_NUM_SENT_MESSAGES,
 };
-use starknet_state_sync::metrics::{
+use apollo_state_sync::metrics::{
     STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS,
     STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS,
     STATE_SYNC_P2P_NUM_CONNECTED_PEERS,
 };
+use const_format::formatcp;
+use starknet_http_server::metrics::ADDED_TRANSACTIONS_TOTAL;
 
 use crate::dashboard::{Dashboard, Panel, PanelType, Row};
 

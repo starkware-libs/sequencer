@@ -1,3 +1,4 @@
+use apollo_state_sync::config::CentralSyncClientConfig;
 use starknet_api::block::BlockNumber;
 use starknet_infra_utils::test_utils::TestIdentifier;
 use starknet_integration_tests::integration_test_manager::IntegrationTestManager;
@@ -7,7 +8,6 @@ use starknet_sequencer_node::config::component_execution_config::{
     ReactiveComponentExecutionMode,
 };
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
-use starknet_state_sync::config::CentralSyncClientConfig;
 #[tokio::main]
 async fn main() {
     integration_test_setup("sync").await;
