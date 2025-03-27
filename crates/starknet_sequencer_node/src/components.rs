@@ -1,5 +1,8 @@
-use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
-use papyrus_base_layer::BaseLayerContract;
+use papyrus_base_layer::dummy_base_layer::DummyBaseLayer;
+use papyrus_base_layer::ethereum_base_layer_contract::{
+    EthereumBaseLayerContract,
+    EthereumBaseLayerError,
+};
 use starknet_batcher::batcher::{create_batcher, Batcher};
 use starknet_class_manager::class_manager::create_class_manager;
 use starknet_class_manager::ClassManager;
@@ -38,7 +41,7 @@ pub struct SequencerNodeComponents {
     pub consensus_manager: Option<ConsensusManager>,
     pub gateway: Option<Gateway>,
     pub http_server: Option<HttpServer>,
-    pub l1_scraper: Option<L1Scraper<EthereumBaseLayerContract>>,
+    pub l1_scraper: Option<L1Scraper<EthereumBaseLayerError>>,
     pub l1_provider: Option<L1Provider>,
     pub l1_gas_price_scraper: Option<L1GasPriceScraper<EthereumBaseLayerContract>>,
     pub l1_gas_price_provider: Option<L1GasPriceProvider>,
@@ -203,19 +206,29 @@ pub async fn create_node_components(
 
     let l1_scraper = match config.components.l1_scraper.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
-            let l1_provider_client = clients.get_l1_provider_shared_client().unwrap();
             let l1_scraper_config = config.l1_scraper_config.clone();
-            let base_layer = EthereumBaseLayerContract::new(config.base_layer_config.clone());
-            Some(
-                L1Scraper::new(
-                    l1_scraper_config,
-                    l1_provider_client,
-                    base_layer,
-                    event_identifiers_to_track(),
+            let l1_provider_client = clients.get_l1_provider_shared_client().unwrap();
+            if l1_scraper_config.disable_base_layer {
+                let base_layer = Box::new(DummyBaseLayer);
+                Some(
+                    L1Scraper::new(l1_scraper_config, l1_provider_client, base_layer, &[])
+                        .await
+                        .unwrap(),
                 )
-                .await
-                .unwrap(),
-            )
+            } else {
+                let base_layer =
+                    Box::new(EthereumBaseLayerContract::new(config.base_layer_config.clone()));
+                Some(
+                    L1Scraper::new(
+                        l1_scraper_config,
+                        l1_provider_client,
+                        base_layer,
+                        event_identifiers_to_track(),
+                    )
+                    .await
+                    .unwrap(),
+                )
+            }
         }
         ActiveComponentExecutionMode::Disabled => None,
     };
@@ -228,7 +241,7 @@ pub async fn create_node_components(
             let provider_startup_height = match &l1_scraper {
                 Some(l1_scraper) => {
                     let (base_layer, l1_scraper_start_l1_height) =
-                        (l1_scraper.base_layer.clone(), l1_scraper.last_l1_block_processed.number);
+                        (&l1_scraper.base_layer, l1_scraper.last_l1_block_processed.number);
                     base_layer
                         .get_proved_block_at(l1_scraper_start_l1_height)
                         .await

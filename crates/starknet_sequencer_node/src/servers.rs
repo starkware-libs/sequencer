@@ -3,7 +3,10 @@ use std::pin::Pin;
 
 use futures::stream::FuturesUnordered;
 use futures::{Future, FutureExt, StreamExt};
-use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
+use papyrus_base_layer::ethereum_base_layer_contract::{
+    EthereumBaseLayerContract,
+    EthereumBaseLayerError,
+};
 use starknet_batcher::communication::{LocalBatcherServer, RemoteBatcherServer};
 use starknet_class_manager::communication::{LocalClassManagerServer, RemoteClassManagerServer};
 use starknet_consensus_manager::communication::ConsensusManagerServer;
@@ -118,7 +121,7 @@ struct LocalServers {
 struct WrapperServers {
     pub(crate) consensus_manager: Option<Box<ConsensusManagerServer>>,
     pub(crate) http_server: Option<Box<HttpServer>>,
-    pub(crate) l1_scraper_server: Option<Box<L1ScraperServer<EthereumBaseLayerContract>>>,
+    pub(crate) l1_scraper_server: Option<Box<L1ScraperServer<EthereumBaseLayerError>>>,
     pub(crate) l1_gas_price_scraper_server:
         Option<Box<L1GasPriceScraperServer<EthereumBaseLayerContract>>>,
     pub(crate) monitoring_endpoint: Option<Box<MonitoringEndpointServer>>,

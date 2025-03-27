@@ -1184,6 +1184,11 @@
     "pointer_target": "chain_id",
     "privacy": "Public"
   },
+  "l1_scraper_config.disable_base_layer": {
+    "description": "Unused by the scraper, used by the infra during dependency injection.",
+    "privacy": "Public",
+    "value": false
+  },
   "l1_scraper_config.finality": {
     "description": "Number of blocks to wait for finality",
     "privacy": "Public",

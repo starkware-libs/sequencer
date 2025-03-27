@@ -13,6 +13,7 @@ use starknet_api::transaction::L1HandlerTransaction;
 use thiserror::Error;
 
 pub mod constants;
+pub mod dummy_base_layer;
 pub mod ethereum_base_layer_contract;
 
 pub(crate) mod eth_events;

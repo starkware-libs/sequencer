@@ -1,5 +1,6 @@
 use std::any::type_name;
 use std::collections::BTreeMap;
+use std::error::Error as StdError;
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -31,21 +32,23 @@ type L1ScraperResult<T, B> = Result<T, L1ScraperError<B>>;
 // Sensible lower bound.
 const L1_BLOCK_TIME: u64 = 10;
 
-pub struct L1Scraper<B: BaseLayerContract> {
+type BaseLayer<BaseLayerError> = Box<dyn BaseLayerContract<Error = BaseLayerError> + Send + Sync>;
+
+pub struct L1Scraper<BaseLayerError: StdError> {
     pub config: L1ScraperConfig,
-    pub base_layer: B,
+    pub base_layer: BaseLayer<BaseLayerError>,
     pub last_l1_block_processed: L1BlockReference,
     pub l1_provider_client: SharedL1ProviderClient,
     tracked_event_identifiers: Vec<EventIdentifier>,
 }
 
-impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
+impl<E: StdError + Send + Sync> L1Scraper<E> {
     pub async fn new(
         config: L1ScraperConfig,
         l1_provider_client: SharedL1ProviderClient,
-        base_layer: B,
+        base_layer: BaseLayer<E>,
         events_identifiers_to_track: &[EventIdentifier],
-    ) -> L1ScraperResult<Self, B> {
+    ) -> L1ScraperResult<Self, E> {
         let latest_l1_block = get_latest_l1_block_number(config.finality, &base_layer).await?;
         // Estimate the number of blocks in the interval, to rewind from the latest block.
         let blocks_in_interval = config.startup_rewind_time.as_secs() / L1_BLOCK_TIME;
@@ -73,7 +76,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
     }
 
     #[instrument(skip(self), err)]
-    pub async fn initialize(&mut self) -> L1ScraperResult<(), B> {
+    pub async fn initialize(&mut self) -> L1ScraperResult<(), E> {
         let (latest_l1_block, events) = self.fetch_events().await?;
 
         // If this gets too high, send in batches.
@@ -85,7 +88,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         Ok(())
     }
 
-    pub async fn send_events_to_l1_provider(&mut self) -> L1ScraperResult<(), B> {
+    pub async fn send_events_to_l1_provider(&mut self) -> L1ScraperResult<(), E> {
         self.assert_no_l1_reorgs().await?;
 
         let (latest_l1_block, events) = self.fetch_events().await?;
@@ -101,7 +104,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         Ok(())
     }
 
-    async fn fetch_events(&self) -> L1ScraperResult<(L1BlockReference, Vec<Event>), B> {
+    async fn fetch_events(&self) -> L1ScraperResult<(L1BlockReference, Vec<Event>), E> {
         let latest_l1_block = self
             .base_layer
             .latest_l1_block(self.config.finality)
@@ -130,7 +133,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
     }
 
     #[instrument(skip(self), err)]
-    async fn run(&mut self) -> L1ScraperResult<(), B> {
+    async fn run(&mut self) -> L1ScraperResult<(), E> {
         self.initialize().await?;
         loop {
             sleep(self.config.polling_interval).await;
@@ -139,7 +142,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         }
     }
 
-    fn event_from_raw_l1_event(&self, l1_event: L1Event) -> L1ScraperResult<Event, B> {
+    fn event_from_raw_l1_event(&self, l1_event: L1Event) -> L1ScraperResult<Event, E> {
         match l1_event {
             L1Event::LogMessageToL2 { tx, fee } => {
                 let chain_id = &self.config.chain_id;
@@ -154,7 +157,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         }
     }
 
-    async fn assert_no_l1_reorgs(&self) -> L1ScraperResult<(), B> {
+    async fn assert_no_l1_reorgs(&self) -> L1ScraperResult<(), E> {
         let last_processed_l1_block_number = self.last_l1_block_processed.number;
         let last_block_processed_fresh = self
             .base_layer
@@ -188,7 +191,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
 }
 
 #[async_trait]
-impl<B: BaseLayerContract + Send + Sync> ComponentStarter for L1Scraper<B> {
+impl<E: StdError + Send + Sync> ComponentStarter for L1Scraper<E> {
     async fn start(&mut self) {
         info!("Starting component {}.", type_name::<Self>());
         self.run().await.unwrap_or_else(|e| panic!("Failed to start L1Scraper component: {}", e))
@@ -204,6 +207,9 @@ pub struct L1ScraperConfig {
     pub finality: u64,
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
     pub polling_interval: Duration,
+    // FIXME: this is unused by the scraper, only the infra uses it for dependency injection.
+    // Once we have presets, remove this.
+    pub disable_base_layer: bool,
 }
 
 impl Default for L1ScraperConfig {
@@ -213,6 +219,7 @@ impl Default for L1ScraperConfig {
             chain_id: ChainId::Mainnet,
             finality: 0,
             polling_interval: Duration::from_secs(1),
+            disable_base_layer: false,
         }
     }
 }
@@ -244,14 +251,20 @@ impl SerializeConfig for L1ScraperConfig {
                 "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "disable_base_layer",
+                &self.disable_base_layer,
+                "Unused by the scraper, used by the infra during dependency injection.",
+                ParamPrivacyInput::Public,
+            ),
         ])
     }
 }
 
 #[derive(Error, Debug)]
-pub enum L1ScraperError<T: BaseLayerContract + Send + Sync> {
+pub enum L1ScraperError<E: StdError + Send + Sync> {
     #[error("Base layer error: {0}")]
-    BaseLayerError(T::Error),
+    BaseLayerError(E),
     #[error("Finality too high: {finality:?} > {latest_l1_block_no_finality:?}")]
     FinalityTooHigh { finality: u64, latest_l1_block_no_finality: L1BlockNumber },
     #[error("Failed to calculate hash: {0}")]
@@ -263,8 +276,8 @@ pub enum L1ScraperError<T: BaseLayerContract + Send + Sync> {
     L1ReorgDetected { reason: String },
 }
 
-impl<B: BaseLayerContract + Send + Sync> L1ScraperError<B> {
-    pub async fn finality_too_high(finality: u64, base_layer: &B) -> L1ScraperError<B> {
+impl<E: StdError + Send + Sync> L1ScraperError<E> {
+    pub async fn finality_too_high(finality: u64, base_layer: &BaseLayer<E>) -> L1ScraperError<E> {
         let latest_l1_block_number_no_finality = base_layer.latest_l1_block_number(0).await;
         let latest_l1_block_no_finality = match latest_l1_block_number_no_finality {
             Ok(block_number) => block_number
@@ -276,19 +289,19 @@ impl<B: BaseLayerContract + Send + Sync> L1ScraperError<B> {
     }
 }
 
-fn handle_client_error<B: BaseLayerContract + Send + Sync>(
+fn handle_client_error<E: StdError + Send + Sync>(
     client_result: Result<(), L1ProviderClientError>,
-) -> Result<(), L1ScraperError<B>> {
+) -> L1ScraperResult<(), E> {
     if let Err(L1ProviderClientError::ClientError(client_error)) = client_result {
         return Err(L1ScraperError::NetworkError(client_error));
     }
     Ok(())
 }
 
-async fn get_latest_l1_block_number<B: BaseLayerContract + Send + Sync>(
+async fn get_latest_l1_block_number<E: StdError + Send + Sync>(
     finality: u64,
-    base_layer: &B,
-) -> Result<L1BlockNumber, L1ScraperError<B>> {
+    base_layer: &BaseLayer<E>,
+) -> L1ScraperResult<L1BlockNumber, E> {
     let latest_l1_block_number = base_layer
         .latest_l1_block_number(finality)
         .await

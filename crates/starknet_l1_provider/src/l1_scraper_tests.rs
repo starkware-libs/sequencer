@@ -6,8 +6,8 @@ use alloy::primitives::U256;
 use itertools::Itertools;
 use mempool_test_utils::starknet_api_test_utils::DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;
 use papyrus_base_layer::ethereum_base_layer_contract::{
-    EthereumBaseLayerConfig,
     EthereumBaseLayerContract,
+    EthereumBaseLayerError,
     Starknet,
 };
 use papyrus_base_layer::test_utils::{
@@ -42,18 +42,14 @@ const fn height_add(block_number: BlockNumber, k: u64) -> BlockNumber {
 // TODO(Gilad): Replace EthereumBaseLayerContract with a mock that has a provider initialized with
 // `with_recommended_fillers`, in order to be able to create txs from non-default users.
 async fn scraper(
-    base_layer_config: EthereumBaseLayerConfig,
-) -> (L1Scraper<EthereumBaseLayerContract>, Arc<FakeL1ProviderClient>) {
+    base_layer: EthereumBaseLayerContract,
+) -> (L1Scraper<EthereumBaseLayerError>, Arc<FakeL1ProviderClient>) {
     let fake_client = Arc::new(FakeL1ProviderClient::default());
-    let base_layer = EthereumBaseLayerContract::new(base_layer_config);
-
-    // Deploy a fresh Starknet contract on Anvil from the bytecode in the JSON file.
-    Starknet::deploy(base_layer.contract.provider().clone()).await.unwrap();
 
     let scraper = L1Scraper::new(
         L1ScraperConfig::default(),
         fake_client.clone(),
-        base_layer,
+        Box::new(base_layer),
         event_identifiers_to_track(),
     )
     .await
@@ -69,31 +65,33 @@ async fn txs_happy_flow() {
         return;
     }
 
+    // Setup.
     let base_layer_config = ethereum_base_layer_config_for_anvil(None);
     let _anvil = anvil_instance_from_config(&base_layer_config);
-    // Setup.
-    let (mut scraper, fake_client) = scraper(base_layer_config).await;
-
-    // Test.
-    // Scrape multiple events.
+    // Initialize l1 handler messages.
     let l2_contract_address = "0x12";
     let l2_entry_point = "0x34";
-
-    let message_to_l2_0 = scraper.base_layer.contract.sendMessageToL2(
+    let base_layer = EthereumBaseLayerContract::new(base_layer_config);
+    // Deploy a fresh Starknet contract on Anvil from the bytecode in the JSON file.
+    Starknet::deploy(base_layer.contract.provider().clone()).await.unwrap();
+    let message_to_l2_0 = base_layer.contract.sendMessageToL2(
         l2_contract_address.parse().unwrap(),
         l2_entry_point.parse().unwrap(),
         vec![U256::from(1_u8), U256::from(2_u8)],
     );
-    let message_to_l2_1 = scraper.base_layer.contract.sendMessageToL2(
+    let message_to_l2_1 = base_layer.contract.sendMessageToL2(
         l2_contract_address.parse().unwrap(),
         l2_entry_point.parse().unwrap(),
         vec![U256::from(3_u8), U256::from(4_u8)],
     );
-
-    // Send the transactions.
+    // Submit the L1 transactions.
     for msg in &[message_to_l2_0, message_to_l2_1] {
         msg.send().await.unwrap().get_receipt().await.unwrap();
     }
+
+    let (mut scraper, fake_client) = scraper(base_layer).await;
+
+    // Test.
 
     const EXPECTED_VERSION: TransactionVersion = TransactionVersion(StarkHash::ZERO);
     let expected_internal_l1_tx = L1HandlerTransaction {
