@@ -163,11 +163,45 @@ impl MempoolState {
     }
 }
 
+// A queue to hold transactions that are waiting to be added to the tx pool.
+struct AddTransactionQueue {
+    elements: VecDeque<(Instant, AddTransactionArgs)>,
+}
+
+impl AddTransactionQueue {
+    fn new() -> Self {
+        AddTransactionQueue { elements: VecDeque::new() }
+    }
+
+    fn push_back(&mut self, submission_time: Instant, args: AddTransactionArgs) {
+        self.elements.push_back((submission_time, args));
+    }
+
+    fn pop_front(&mut self) -> Option<(Instant, AddTransactionArgs)> {
+        self.elements.pop_front()
+    }
+
+    fn front(&self) -> Option<&(Instant, AddTransactionArgs)> {
+        self.elements.front()
+    }
+
+    fn contains(&self, contract_address: ContractAddress, nonce: Nonce) -> bool {
+        self.elements.iter().any(|(_, tx_args)| {
+            let tx = &tx_args.tx;
+            tx.contract_address() == contract_address && tx.nonce() == nonce
+        })
+    }
+
+    fn len(&self) -> usize {
+        self.elements.len()
+    }
+}
+
 pub struct Mempool {
     config: MempoolConfig,
     // TODO(AlonH): add docstring explaining visibility and coupling of the fields.
     // Declare transactions that are waiting to be added to the tx pool after a delay.
-    delayed_declares: VecDeque<(Instant, AddTransactionArgs)>,
+    delayed_declares: AddTransactionQueue,
     // All transactions currently held in the mempool (excluding the delayed declares).
     tx_pool: TransactionPool,
     // Transactions eligible for sequencing.
@@ -180,7 +214,7 @@ impl Mempool {
     pub fn new(config: MempoolConfig, clock: Arc<dyn Clock>) -> Self {
         Mempool {
             config: config.clone(),
-            delayed_declares: VecDeque::new(),
+            delayed_declares: AddTransactionQueue::new(),
             tx_pool: TransactionPool::new(clock.clone()),
             tx_queue: TransactionQueue::default(),
             state: MempoolState::new(config.committed_nonce_retention_block_count),
@@ -284,7 +318,7 @@ impl Mempool {
         metric_handle.transaction_inserted();
 
         if let InternalRpcTransactionWithoutTxHash::Declare(_) = &args.tx.tx {
-            self.delayed_declares.push_back((self.clock.now(), args));
+            self.delayed_declares.push_back(self.clock.now(), args);
         } else {
             self.add_tx_inner(args);
         }
@@ -414,10 +448,7 @@ impl Mempool {
         &self,
         tx_reference: TransactionReference,
     ) -> MempoolResult<()> {
-        if self.delayed_declares.iter().any(|(_, tx_args)| {
-            let tx = &tx_args.tx;
-            tx.contract_address() == tx_reference.address && tx.nonce() == tx_reference.nonce
-        }) {
+        if self.delayed_declares.contains(tx_reference.address, tx_reference.nonce) {
             return Err(MempoolError::DuplicateNonce {
                 address: tx_reference.address,
                 nonce: tx_reference.nonce,
