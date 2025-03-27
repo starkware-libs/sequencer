@@ -208,6 +208,7 @@ pub struct RunningNode {
 
 impl RunningNode {
     async fn await_alive(&self, interval: u64, max_attempts: usize) {
+        self.propagate_executable_panic();
         let await_alive_tasks = self.node_setup.executables.iter().map(|executable| {
             let result = executable.monitoring_client.await_alive(interval, max_attempts);
             result.unwrap_or_else(|_| {
@@ -216,6 +217,16 @@ impl RunningNode {
         });
 
         join_all(await_alive_tasks).await;
+    }
+
+    fn propagate_executable_panic(&self) {
+        for handle in &self.executable_handles {
+            // A finished handle implies a running node executable has panicked.
+            if handle.is_finished() {
+                // Panic, dropping all other handles, which should drop.
+                panic!("A running node executable has unexpectedly panicked.");
+            }
+        }
     }
 }
 
@@ -608,10 +619,10 @@ impl IntegrationTestManager {
         F: Fn(usize, &'a RunningNode) -> Fut,
         Fut: Future<Output = ()> + 'a,
     {
-        let futures = self
-            .running_nodes
-            .iter()
-            .map(|(sequencer_idx, running_node)| f(*sequencer_idx, running_node));
+        let futures = self.running_nodes.iter().map(|(sequencer_idx, running_node)| {
+            running_node.propagate_executable_panic();
+            f(*sequencer_idx, running_node)
+        });
         join_all(futures).await;
     }
 
