@@ -621,9 +621,13 @@ impl<
     ) -> StateSyncResult {
         if !is_compiler_backward_compatible {
             if let Some(class_manager_client) = &self.class_manager_client {
-                let class = self.reader.begin_ro_txn()?.get_class(&class_hash)?.expect(
-                    "Compiled classes stream gave class hash that doesn't appear in storage.",
-                );
+                let class =
+                    self.reader.begin_ro_txn()?.get_class(&class_hash)?.unwrap_or_else(|| {
+                        panic!(
+                            "Compiled classes stream gave class hash {class_hash:?} that does not
+                            appear in storage."
+                        )
+                    });
                 let sierra_version = SierraVersion::extract_from_program(&class.sierra_program)
                     .expect("Failed reading sierra version from program.");
                 let contract_class = ContractClass::V1((compiled_class.clone(), sierra_version));
