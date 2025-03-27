@@ -11,6 +11,7 @@ use starknet_api::core::ChainId;
 use crate::discovery::identify_impl::{IdentifyToOtherBehaviourEvent, IDENTIFY_PROTOCOL_VERSION};
 use crate::discovery::kad_impl::KadToOtherBehaviourEvent;
 use crate::discovery::DiscoveryConfig;
+use crate::network_manager::metrics::PeerManagerMetrics;
 use crate::peer_manager::PeerManagerConfig;
 use crate::{discovery, gossipsub_impl, peer_manager, sqmr};
 
@@ -58,6 +59,7 @@ pub trait BridgedBehaviour {
 impl MixedBehaviour {
     // TODO(Shahak): get config details from network manager config
     /// Panics if bootstrap_peer_multiaddr doesn't have a peer id.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         keypair: Keypair,
         bootstrap_peer_multiaddr: Option<Multiaddr>,
@@ -66,6 +68,7 @@ impl MixedBehaviour {
         node_version: Option<String>,
         discovery_config: DiscoveryConfig,
         peer_manager_config: PeerManagerConfig,
+        peer_manager_metrics: Option<PeerManagerMetrics>,
     ) -> Self {
         let public_key = keypair.public();
         let local_peer_id = PeerId::from_public_key(&public_key);
@@ -75,7 +78,7 @@ impl MixedBehaviour {
                 .expect("Failed to create StreamProtocol from a string that starts with /"),
         ]);
         Self {
-            peer_manager: peer_manager::PeerManager::new(peer_manager_config),
+            peer_manager: peer_manager::PeerManager::new(peer_manager_config, peer_manager_metrics),
             discovery: bootstrap_peer_multiaddr
                 .map(|bootstrap_peer_multiaddr| {
                     discovery::Behaviour::new(

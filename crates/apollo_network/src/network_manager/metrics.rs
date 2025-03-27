@@ -29,6 +29,7 @@ impl SqmrNetworkMetrics {
     }
 }
 
+// TODO(shahak): Consider moving num_connected_peers to PeerManagerMetrics
 pub struct PeerManagerMetrics {
     pub num_blacklisted_peers: MetricGauge,
 }
