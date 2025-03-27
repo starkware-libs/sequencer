@@ -8,8 +8,9 @@ use apollo_test_utils::{get_rng, get_test_block, get_test_state_diff, GetTestIns
 use futures::channel::mpsc::channel;
 use indexmap::IndexMap;
 use rand_chacha::rand_core::RngCore;
-use starknet_api::block::{Block, BlockHeader, BlockNumber};
+use starknet_api::block::{Block, BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
+use starknet_api::hash::StarkHash;
 use starknet_api::state::{StorageKey, ThinStateDiff};
 use starknet_sequencer_infra::component_definitions::ComponentRequestHandler;
 use starknet_state_sync_types::communication::{StateSyncRequest, StateSyncResponse};
@@ -347,6 +348,65 @@ async fn class_not_declared() {
 
     let response = state_sync
         .handle_request(StateSyncRequest::IsClassDeclaredAt(BlockNumber(0), class_hash))
+        .await;
+    let StateSyncResponse::IsClassDeclaredAt(is_class_declared_at_result) = response else {
+        panic!("Expected StateSyncResponse::IsClassDeclaredAt(_), but got {:?}", response);
+    };
+
+    assert_eq!(is_class_declared_at_result, Ok(false));
+}
+
+#[tokio::test]
+async fn class_declared_after_block() {
+    let (mut state_sync, mut storage_writer) = setup();
+
+    let mut rng = get_rng();
+    let class_hash = ClassHash::get_test_instance(&mut rng);
+    let compiled_class_hash = CompiledClassHash::get_test_instance(&mut rng);
+
+    let block_number_0 = BlockNumber(0);
+    let block_number_1 = BlockNumber(1);
+
+    let diff_0 = ThinStateDiff::from(get_test_state_diff());
+    let header_0 = BlockHeader::default();
+
+    storage_writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_header(header_0.block_header_without_hash.block_number, &header_0)
+        .unwrap()
+        .append_state_diff(header_0.block_header_without_hash.block_number, diff_0)
+        .unwrap()
+        .append_body(header_0.block_header_without_hash.block_number, Default::default())
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    let mut diff_1 = ThinStateDiff::from(get_test_state_diff());
+    diff_1.declared_classes.insert(class_hash, compiled_class_hash);
+    let header_1 = BlockHeader {
+        block_hash: BlockHash(StarkHash::from(Felt::from(1))),
+        block_header_without_hash: BlockHeaderWithoutHash {
+            block_number: block_number_1,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    storage_writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_header(header_1.block_header_without_hash.block_number, &header_1)
+        .unwrap()
+        .append_state_diff(header_1.block_header_without_hash.block_number, diff_1)
+        .unwrap()
+        .append_body(header_1.block_header_without_hash.block_number, Default::default())
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    let response = state_sync
+        .handle_request(StateSyncRequest::IsClassDeclaredAt(block_number_0, class_hash))
         .await;
     let StateSyncResponse::IsClassDeclaredAt(is_class_declared_at_result) = response else {
         panic!("Expected StateSyncResponse::IsClassDeclaredAt(_), but got {:?}", response);
