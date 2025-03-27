@@ -17,6 +17,7 @@ use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::runners::cairo_runner::{ResourceTracker, RunResources};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_bigint::{BigUint, TryFromBigIntError};
+use paste::paste;
 use starknet_api::block::BlockInfo;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
@@ -276,6 +277,9 @@ impl<'a> DeprecatedSyscallHintProcessor<'a> {
         //     }
         //     ...
         // }
+        // Note: if not stated explicitly (e.g., (CallContract, call_contract)), the macro will use
+        // the snake case of the syscall selector as the function name by default (e.g.,
+        // CallContract snake case is call_contract).
         // TODO(Aner): enforce macro expansion correctness.
         match_selector_to_execute_syscall!(
             self,
@@ -283,24 +287,24 @@ impl<'a> DeprecatedSyscallHintProcessor<'a> {
             DeprecatedSyscallHintProcessor,
             selector,
             DeprecatedSyscallSelector,
-            (CallContract, call_contract),
-            (DelegateCall, delegate_call),
-            (DelegateL1Handler, delegate_l1_handler),
-            (Deploy, deploy),
-            (EmitEvent, emit_event),
-            (GetBlockNumber, get_block_number),
-            (GetBlockTimestamp, get_block_timestamp),
-            (GetCallerAddress, get_caller_address),
-            (GetContractAddress, get_contract_address),
-            (GetSequencerAddress, get_sequencer_address),
-            (GetTxInfo, get_tx_info),
-            (GetTxSignature, get_tx_signature),
-            (LibraryCall, library_call),
-            (LibraryCallL1Handler, library_call_l1_handler),
-            (ReplaceClass, replace_class),
-            (SendMessageToL1, send_message_to_l1),
-            (StorageRead, storage_read),
-            (StorageWrite, storage_write)
+            (CallContract),
+            (DelegateCall),
+            (DelegateL1Handler),
+            (Deploy),
+            (EmitEvent),
+            (GetBlockNumber),
+            (GetBlockTimestamp),
+            (GetCallerAddress),
+            (GetContractAddress),
+            (GetSequencerAddress),
+            (GetTxInfo),
+            (GetTxSignature),
+            (LibraryCall),
+            (LibraryCallL1Handler),
+            (ReplaceClass),
+            (SendMessageToL1),
+            (StorageRead),
+            (StorageWrite)
         )
     }
 
