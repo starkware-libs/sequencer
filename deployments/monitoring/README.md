@@ -47,3 +47,8 @@ docker compose --version
 deactivate
 rm -rf monitoring_venv
 ```
+## Making changes:
+After making changes, update dev_grafana.json by running:
+```bash
+cargo run --bin sequencer_dashboard_generator
+```
