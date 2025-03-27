@@ -84,7 +84,7 @@ impl Default for RpcConfig {
     fn default() -> Self {
         RpcConfig {
             chain_id: ChainId::Mainnet,
-            server_address: String::from("0.0.0.0:8080"),
+            server_address: String::from("0.0.0.0:8090"),
             max_events_chunk_size: 1000,
             max_events_keys: 100,
             collect_metrics: false,
