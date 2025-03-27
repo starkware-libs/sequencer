@@ -6,7 +6,7 @@ repository.workspace = true
 license.workspace = true
 
 [features]
-testing = []
+testing = ["tokio-util"]
 
 [lints]
 workspace = true
@@ -46,6 +46,7 @@ starknet_sierra_multicompile_types.workspace = true
 starknet_state_sync.workspace = true
 starknet_state_sync_types.workspace = true
 tikv-jemallocator.workspace = true
+tokio-util = { workspace = true, optional = true, features = ["rt"] }
 tokio.workspace = true
 tracing.workspace = true
 validator.workspace = true
@@ -56,6 +57,8 @@ colored.workspace = true
 mempool_test_utils.workspace = true
 pretty_assertions.workspace = true
 starknet_infra_utils = { workspace = true, features = ["testing"] }
+tokio-util = { workspace = true, features = ["rt"] }
+
 
 [package.metadata.cargo-machete]
 ignored = ["tikv-jemallocator"]
