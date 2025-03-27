@@ -11325,6 +11325,7 @@ dependencies = [
  "strum 0.25.0",
  "tempfile",
  "tokio",
+ "tokio-util",
  "tracing",
  "url",
 ]
@@ -11710,6 +11711,7 @@ dependencies = [
  "starknet_state_sync_types",
  "tikv-jemallocator",
  "tokio",
+ "tokio-util",
  "tracing",
  "validator",
 ]
