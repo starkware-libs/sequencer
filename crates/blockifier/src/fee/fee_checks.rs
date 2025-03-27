@@ -118,6 +118,7 @@ impl FeeCheckReport {
                     &tx_context.block_context.block_info,
                     gas_for_fee_charge,
                     &FeeType::Strk,
+                    tx_context.effective_tip(),
                 )
             }
         };

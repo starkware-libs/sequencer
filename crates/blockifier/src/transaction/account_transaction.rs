@@ -353,8 +353,12 @@ impl AccountTransaction {
             }
             TransactionInfo::Deprecated(context) => {
                 let max_fee = context.max_fee;
-                let min_fee =
-                    get_fee_by_gas_vector(block_info, minimal_gas_amount_vector, fee_type);
+                let min_fee = get_fee_by_gas_vector(
+                    block_info,
+                    minimal_gas_amount_vector,
+                    fee_type,
+                    tx_context.effective_tip(),
+                );
                 if max_fee < min_fee {
                     return Err(TransactionPreValidationError::TransactionFeeError(
                         TransactionFeeError::MaxFeeTooLow { min_fee, max_fee },
