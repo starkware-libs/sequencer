@@ -3,10 +3,7 @@ use std::fs::File;
 use std::sync::LazyLock;
 use std::vec::Vec;
 
-use apollo_reverts::RevertConfig;
-use clap::Command;
-use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
-use papyrus_config::dumping::{
+use apollo_config::dumping::{
     append_sub_config_name,
     generate_struct_pointer,
     ser_pointer_target_param,
@@ -15,8 +12,11 @@ use papyrus_config::dumping::{
     Pointers,
     SerializeConfig,
 };
-use papyrus_config::loading::load_and_process_config;
-use papyrus_config::{ConfigError, ParamPath, SerializedParam};
+use apollo_config::loading::load_and_process_config;
+use apollo_config::{ConfigError, ParamPath, SerializedParam};
+use apollo_reverts::RevertConfig;
+use clap::Command;
+use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use serde::{Deserialize, Serialize};
 use starknet_batcher::config::BatcherConfig;
 use starknet_batcher::VersionedConstantsOverrides;

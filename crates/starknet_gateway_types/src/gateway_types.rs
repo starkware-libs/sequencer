@@ -1,4 +1,4 @@
-use papyrus_network_types::network_types::BroadcastedMessageMetadata;
+use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use serde::{Deserialize, Serialize};
 use starknet_api::rpc_transaction::RpcTransaction;
 

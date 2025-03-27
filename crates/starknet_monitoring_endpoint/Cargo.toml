@@ -12,11 +12,11 @@ testing = ["num-traits", "thiserror", "tokio", "tower"]
 workspace = true
 
 [dependencies]
+apollo_config.workspace = true
 axum.workspace = true
 hyper = { workspace = true }
 metrics-exporter-prometheus.workspace = true
 num-traits = { workspace = true, optional = true }
-papyrus_config.workspace = true
 serde.workspace = true
 starknet_infra_utils.workspace = true
 starknet_sequencer_infra.workspace = true

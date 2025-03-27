@@ -3,12 +3,12 @@ use std::env;
 use std::fs::read_to_string;
 use std::sync::LazyLock;
 
+use apollo_rpc_execution::{ETH_FEE_CONTRACT_ADDRESS, STRK_FEE_CONTRACT_ADDRESS};
 use assert_matches::assert_matches;
 use blockifier::context::{ChainInfo, FeeTokenAddresses};
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps};
 use blockifier::state::state_api::StateReader;
 use indexmap::IndexMap;
-use papyrus_execution::{ETH_FEE_CONTRACT_ADDRESS, STRK_FEE_CONTRACT_ADDRESS};
 use pretty_assertions::assert_eq;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;

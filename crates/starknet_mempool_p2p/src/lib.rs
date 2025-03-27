@@ -5,11 +5,11 @@ pub mod runner;
 
 use std::collections::HashMap;
 
+use apollo_network::gossipsub_impl::Topic;
+use apollo_network::network_manager::metrics::{BroadcastNetworkMetrics, NetworkMetrics};
+use apollo_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use futures::FutureExt;
 use metrics::MEMPOOL_P2P_NUM_BLACKLISTED_PEERS;
-use papyrus_network::gossipsub_impl::Topic;
-use papyrus_network::network_manager::metrics::{BroadcastNetworkMetrics, NetworkMetrics};
-use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use starknet_class_manager_types::transaction_converter::TransactionConverter;
 use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_gateway_types::communication::SharedGatewayClient;
