@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use starknet_api::compression_utils::{decode_and_decompress, CompressionError};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::rpc_transaction::{
@@ -42,12 +43,16 @@ pub enum DeprecatedGatewayTransactionV3 {
     Invoke(DeprecatedGatewayInvokeTransaction),
 }
 
-impl From<DeprecatedGatewayTransactionV3> for RpcTransaction {
-    fn from(deprecated_tx: DeprecatedGatewayTransactionV3) -> Self {
-        match deprecated_tx {
+impl TryFrom<DeprecatedGatewayTransactionV3> for RpcTransaction {
+    type Error = CompressionError;
+
+    fn try_from(deprecated_tx: DeprecatedGatewayTransactionV3) -> Result<Self, Self::Error> {
+        Ok(match deprecated_tx {
             DeprecatedGatewayTransactionV3::Declare(DeprecatedGatewayDeclareTransaction::V3(
                 deprecated_declare_tx,
-            )) => RpcTransaction::Declare(RpcDeclareTransaction::V3(deprecated_declare_tx.into())),
+            )) => RpcTransaction::Declare(RpcDeclareTransaction::V3(
+                deprecated_declare_tx.try_into()?,
+            )),
             DeprecatedGatewayTransactionV3::DeployAccount(
                 DeprecatedGatewayDeployAccountTransaction::V3(deprecated_deploy_account_tx),
             ) => RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(
@@ -56,7 +61,7 @@ impl From<DeprecatedGatewayTransactionV3> for RpcTransaction {
             DeprecatedGatewayTransactionV3::Invoke(DeprecatedGatewayInvokeTransaction::V3(
                 deprecated_invoke_tx,
             )) => RpcTransaction::Invoke(RpcInvokeTransaction::V3(deprecated_invoke_tx.into())),
-        }
+        })
     }
 }
 
@@ -158,35 +163,52 @@ pub struct DeprecatedGatewayDeclareTransactionV3 {
     pub fee_data_availability_mode: DataAvailabilityMode,
 }
 
-impl From<DeprecatedGatewayDeclareTransactionV3> for RpcDeclareTransactionV3 {
-    fn from(deprecated_declare_tx: DeprecatedGatewayDeclareTransactionV3) -> Self {
-        RpcDeclareTransactionV3 {
+impl TryFrom<DeprecatedGatewayDeclareTransactionV3> for RpcDeclareTransactionV3 {
+    type Error = CompressionError;
+
+    fn try_from(
+        deprecated_declare_tx: DeprecatedGatewayDeclareTransactionV3,
+    ) -> Result<Self, Self::Error> {
+        Ok(RpcDeclareTransactionV3 {
             sender_address: deprecated_declare_tx.sender_address,
             compiled_class_hash: deprecated_declare_tx.compiled_class_hash,
             signature: deprecated_declare_tx.signature,
             nonce: deprecated_declare_tx.nonce,
-            contract_class: deprecated_declare_tx.contract_class.into(),
+            contract_class: deprecated_declare_tx.contract_class.try_into()?,
             resource_bounds: deprecated_declare_tx.resource_bounds.into(),
             tip: deprecated_declare_tx.tip,
             paymaster_data: deprecated_declare_tx.paymaster_data,
             account_deployment_data: deprecated_declare_tx.account_deployment_data,
             nonce_data_availability_mode: deprecated_declare_tx.nonce_data_availability_mode,
             fee_data_availability_mode: deprecated_declare_tx.fee_data_availability_mode,
-        }
+        })
     }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, Hash)]
 pub struct DeprecatedGatewaySierraContractClass {
+    // The sierra program is compressed and encoded in base64.
     pub sierra_program: String,
     pub contract_class_version: String,
     pub entry_points_by_type: EntryPointByType,
     pub abi: String,
 }
 
-impl From<DeprecatedGatewaySierraContractClass> for SierraContractClass {
-    fn from(_deprecated_sierra_contract_class: DeprecatedGatewaySierraContractClass) -> Self {
-        unimplemented!()
+impl TryFrom<DeprecatedGatewaySierraContractClass> for SierraContractClass {
+    type Error = CompressionError;
+
+    fn try_from(
+        rest_sierra_contract_class: DeprecatedGatewaySierraContractClass,
+    ) -> Result<Self, Self::Error> {
+        let sierra_program = serde_json::from_value(decode_and_decompress(
+            &rest_sierra_contract_class.sierra_program,
+        )?)?;
+        Ok(SierraContractClass {
+            sierra_program,
+            contract_class_version: rest_sierra_contract_class.contract_class_version,
+            entry_points_by_type: rest_sierra_contract_class.entry_points_by_type,
+            abi: rest_sierra_contract_class.abi,
+        })
     }
 }
 
