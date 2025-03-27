@@ -48,6 +48,7 @@ use starknet_api::transaction::{
     TransactionOffsetInBlock,
     TransactionVersion,
 };
+use starknet_class_manager_types::SharedClassManagerClient;
 use starknet_client::reader::objects::pending_data::{
     DeprecatedPendingBlock,
     PendingBlockOrDeprecated,
@@ -169,6 +170,7 @@ pub struct JsonRpcServerImpl {
     pub pending_data: Arc<RwLock<PendingData>>,
     pub pending_classes: Arc<RwLock<PendingClasses>>,
     pub writer_client: Arc<dyn StarknetWriter>,
+    pub class_manager_client: Option<SharedClassManagerClient>,
 }
 
 #[async_trait]
@@ -875,6 +877,7 @@ impl JsonRpcServer for JsonRpcServerImpl {
         let chain_id = self.chain_id.clone();
         let reader = self.storage_reader.clone();
         let contract_address_copy = request.contract_address;
+        let class_manager_client = self.class_manager_client.clone();
 
         let res = tokio::task::spawn_blocking(move || {
             execute_call(
@@ -888,7 +891,7 @@ impl JsonRpcServer for JsonRpcServerImpl {
                 request.calldata,
                 &execution_config,
                 DONT_IGNORE_L1_DA_MODE,
-                None,
+                class_manager_client,
             )
         })
         .await
@@ -992,6 +995,7 @@ impl JsonRpcServer for JsonRpcServerImpl {
 
         let chain_id = self.chain_id.clone();
         let reader = self.storage_reader.clone();
+        let class_manager_client = self.class_manager_client.clone();
 
         let estimate_fee_result = tokio::task::spawn_blocking(move || {
             exec_estimate_fee(
@@ -1004,7 +1008,7 @@ impl JsonRpcServer for JsonRpcServerImpl {
                 &execution_config,
                 validate,
                 DONT_IGNORE_L1_DA_MODE,
-                None,
+                class_manager_client,
             )
         })
         .await
@@ -1060,6 +1064,7 @@ impl JsonRpcServer for JsonRpcServerImpl {
 
         let charge_fee = !simulation_flags.contains(&SimulationFlag::SkipFeeCharge);
         let validate = !simulation_flags.contains(&SimulationFlag::SkipValidate);
+        let class_manager_client = self.class_manager_client.clone();
 
         let simulation_results = tokio::task::spawn_blocking(move || {
             exec_simulate_transactions(
@@ -1074,7 +1079,7 @@ impl JsonRpcServer for JsonRpcServerImpl {
                 charge_fee,
                 validate,
                 DONT_IGNORE_L1_DA_MODE,
-                None,
+                class_manager_client,
             )
         })
         .await
@@ -1214,6 +1219,7 @@ impl JsonRpcServer for JsonRpcServerImpl {
 
         let chain_id = self.chain_id.clone();
         let reader = self.storage_reader.clone();
+        let class_manager_client = self.class_manager_client.clone();
 
         let is_pending = maybe_pending_data.is_some();
         let mut simulation_results = tokio::task::spawn_blocking(move || {
@@ -1229,7 +1235,7 @@ impl JsonRpcServer for JsonRpcServerImpl {
                 true,
                 true,
                 DONT_IGNORE_L1_DA_MODE,
-                None,
+                class_manager_client,
             )
         })
         .await
@@ -1341,6 +1347,7 @@ impl JsonRpcServer for JsonRpcServerImpl {
         let chain_id = self.chain_id.clone();
         let reader = self.storage_reader.clone();
         let transaction_hashes_clone = transaction_hashes.clone();
+        let class_manager_client = self.class_manager_client.clone();
 
         let simulation_results = tokio::task::spawn_blocking(move || {
             exec_simulate_transactions(
@@ -1355,7 +1362,7 @@ impl JsonRpcServer for JsonRpcServerImpl {
                 true,
                 true,
                 DONT_IGNORE_L1_DA_MODE,
-                None,
+                class_manager_client,
             )
         })
         .await
@@ -1415,6 +1422,7 @@ impl JsonRpcServer for JsonRpcServerImpl {
 
         let chain_id = self.chain_id.clone();
         let reader = self.storage_reader.clone();
+        let class_manager_client = self.class_manager_client.clone();
 
         let estimate_fee_result = tokio::task::spawn_blocking(move || {
             exec_estimate_fee(
@@ -1427,7 +1435,7 @@ impl JsonRpcServer for JsonRpcServerImpl {
                 &execution_config,
                 false,
                 DONT_IGNORE_L1_DA_MODE,
-                None,
+                class_manager_client,
             )
         })
         .await
@@ -1741,6 +1749,7 @@ impl JsonRpcServerTrait for JsonRpcServerImpl {
         pending_data: Arc<RwLock<PendingData>>,
         pending_classes: Arc<RwLock<PendingClasses>>,
         writer_client: Arc<dyn StarknetWriter>,
+        class_manager_client: Option<SharedClassManagerClient>,
     ) -> Self {
         Self {
             chain_id,
@@ -1753,6 +1762,7 @@ impl JsonRpcServerTrait for JsonRpcServerImpl {
             pending_data,
             pending_classes,
             writer_client,
+            class_manager_client,
         }
     }
 
