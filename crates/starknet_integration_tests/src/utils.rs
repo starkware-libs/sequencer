@@ -3,8 +3,29 @@ use std::net::SocketAddr;
 use std::time::Duration;
 
 use alloy::primitives::U256;
+use apollo_batcher::block_builder::BlockBuilderConfig;
+use apollo_batcher::config::BatcherConfig;
+use apollo_class_manager::class_storage::CachedClassStorageConfig;
+use apollo_class_manager::config::{
+    ClassManagerConfig,
+    FsClassManagerConfig,
+    FsClassStorageConfig,
+};
+use apollo_consensus::config::{ConsensusConfig, TimeoutsConfig};
+use apollo_consensus::types::ValidatorId;
+use apollo_consensus_manager::config::ConsensusManagerConfig;
+use apollo_consensus_orchestrator::cende::{CendeConfig, RECORDER_WRITE_BLOB_PATH};
+use apollo_consensus_orchestrator::config::ContextConfig;
+use apollo_gateway::config::{
+    GatewayConfig,
+    StatefulTransactionValidatorConfig,
+    StatelessTransactionValidatorConfig,
+};
+use apollo_mempool::config::MempoolConfig;
+use apollo_mempool_p2p::config::MempoolP2pConfig;
 use apollo_network::network_manager::test_utils::create_connected_network_configs;
 use apollo_network::NetworkConfig;
+use apollo_state_sync::config::StateSyncConfig;
 use apollo_storage::StorageConfig;
 use axum::extract::Query;
 use axum::http::StatusCode;
@@ -32,36 +53,15 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::fields::ContractAddressSalt;
 use starknet_api::transaction::{L1HandlerTransaction, TransactionHash, TransactionHasher};
-use starknet_batcher::block_builder::BlockBuilderConfig;
-use starknet_batcher::config::BatcherConfig;
-use starknet_class_manager::class_storage::CachedClassStorageConfig;
-use starknet_class_manager::config::{
-    ClassManagerConfig,
-    FsClassManagerConfig,
-    FsClassStorageConfig,
-};
-use starknet_consensus::config::{ConsensusConfig, TimeoutsConfig};
-use starknet_consensus::types::ValidatorId;
-use starknet_consensus_manager::config::ConsensusManagerConfig;
-use starknet_consensus_orchestrator::cende::{CendeConfig, RECORDER_WRITE_BLOB_PATH};
-use starknet_consensus_orchestrator::config::ContextConfig;
-use starknet_gateway::config::{
-    GatewayConfig,
-    StatefulTransactionValidatorConfig,
-    StatelessTransactionValidatorConfig,
-};
 use starknet_http_server::test_utils::create_http_server_config;
 use starknet_infra_utils::test_utils::AvailablePorts;
 use starknet_l1_gas_price::eth_to_strk_oracle::{EthToStrkOracleConfig, ETH_TO_STRK_QUANTIZATION};
 use starknet_l1_provider::l1_scraper::L1ScraperConfig;
 use starknet_l1_provider::L1ProviderConfig;
-use starknet_mempool::config::MempoolConfig;
-use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::definitions::ConfigPointersMap;
 use starknet_sequencer_node::config::node_config::{SequencerNodeConfig, CONFIG_POINTERS};
-use starknet_state_sync::config::StateSyncConfig;
 use starknet_types_core::felt::Felt;
 use tokio::task::JoinHandle;
 use tracing::{debug, info, Instrument};
