@@ -171,9 +171,10 @@ async fn test_get_class_hash_at() {
 }
 
 // TODO(NoamS): test undeclared class flow (when class manager client returns None).
+// TODO(shahak): test undeclared class flow (when sync client returns false).
 #[tokio::test]
 async fn test_get_compiled_class() {
-    let mock_state_sync_client = MockStateSyncClient::new();
+    let mut mock_state_sync_client = MockStateSyncClient::new();
     let mut mock_class_manager_client = MockClassManagerClient::new();
     let block_number = BlockNumber(1);
     let class_hash = class_hash!("0x2");
@@ -195,6 +196,12 @@ async fn test_get_compiled_class() {
         .returning(move |_| {
             Ok(Some(ContractClass::V1((casm_contract_class.clone(), SierraVersion::default()))))
         });
+
+    mock_state_sync_client
+        .expect_is_class_declared_at()
+        .times(1)
+        .with(predicate::eq(block_number), predicate::eq(class_hash))
+        .return_once(|_, _| Ok(true));
 
     let state_sync_reader = SyncStateReader::from_number(
         Arc::new(mock_state_sync_client),
