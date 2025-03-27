@@ -462,6 +462,11 @@ impl<'a> SyscallHintProcessor<'a> {
         &mut self,
         vm: &mut VirtualMachine,
     ) -> SyscallResult<Relocatable> {
+        // Note: the returned version in the transaction info struct might not be equal to the
+        // actual transaction version.
+        // Also, the returned version is a property of the current entry-point execution,
+        // so it is okay to allocate and cache it once without re-checking the version in every
+        // `get_execution_info` syscall invocation.
         match self.execution_info_ptr {
             Some(execution_info_ptr) => Ok(execution_info_ptr),
             None => {
@@ -641,9 +646,6 @@ impl<'a> SyscallHintProcessor<'a> {
             &self.allocate_data_segment(vm, &tx_info.signature().0)?;
 
         // Note: the returned version might not be equal to the actual transaction version.
-        // Also, the returned version is a property of the current VM execution (of some contract
-        // call) so it is okay to allocate it once whithout re-checking the version in every
-        // `get_execution_info` syscall invocation.
         let returned_version = self.base.tx_version_for_get_execution_info();
         let mut tx_data: Vec<MaybeRelocatable> = vec![
             returned_version.0.into(),
@@ -661,7 +663,6 @@ impl<'a> SyscallHintProcessor<'a> {
 
         match tx_info {
             TransactionInfo::Current(context) => {
-                // See comment above about the returned version.
                 let should_exclude_l1_data_gas = self.base.should_exclude_l1_data_gas();
                 let (tx_resource_bounds_start_ptr, tx_resource_bounds_end_ptr) = &self
                     .allocate_tx_resource_bounds_segment(vm, context, should_exclude_l1_data_gas)?;
