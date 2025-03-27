@@ -16,7 +16,7 @@ pub fn short_type_name<T: ?Sized>() -> String {
 /// This function processes a Rust type string containing module paths, type names, and generic
 /// parameters, such as:
 /// ```text
-/// starknet_sequencer_infra::component_client::local_component_client::LocalComponentClient<starknet_batcher_types::communication::BatcherRequest, starknet_batcher_types::communication::BatcherResponse>
+/// starknet_sequencer_infra::component_client::local_component_client::LocalComponentClient<apollo_batcher_types::communication::BatcherRequest, apollo_batcher_types::communication::BatcherResponse>
 /// ```
 /// It removes the module paths (`::module_name`) and keeps only the type name and its
 /// generic parameters:

@@ -2,9 +2,11 @@ use std::cmp::min;
 use std::collections::HashMap;
 use std::time::Duration;
 
+use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_network::network_manager::{ClientResponsesManager, SqmrClientSender};
 use apollo_protobuf::converters::ProtobufConversionError;
 use apollo_protobuf::sync::{BlockHashOrNumber, DataOrFin, Direction, Query};
+use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::state::StateStorageReader;
 use apollo_storage::{StorageError, StorageReader, StorageWriter};
@@ -15,8 +17,6 @@ use futures::stream::BoxStream;
 use futures::{FutureExt, StreamExt};
 use starknet_api::block::{BlockNumber, BlockSignature};
 use starknet_api::core::ClassHash;
-use starknet_class_manager_types::SharedClassManagerClient;
-use starknet_state_sync_types::state_sync_types::SyncBlock;
 use tracing::{debug, info, trace, warn};
 
 use super::{P2pSyncClientError, STEP};

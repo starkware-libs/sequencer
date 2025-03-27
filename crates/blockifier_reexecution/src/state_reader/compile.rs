@@ -5,6 +5,7 @@
 use std::collections::HashMap;
 use std::io::{self, Read};
 
+use apollo_gateway::errors::serde_err_to_state_err;
 use blockifier::state::state_api::StateResult;
 use cairo_lang_starknet_classes::contract_class::ContractEntryPoints;
 use cairo_lang_utils::bigint::BigUintAsHex;
@@ -25,7 +26,6 @@ use starknet_core::types::{
     LegacyContractEntryPoint,
     LegacyEntryPointsByType,
 };
-use starknet_gateway::errors::serde_err_to_state_err;
 
 #[derive(Debug, Deserialize)]
 pub struct MiddleSierraContractClass {

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use apollo_class_manager_types::{ClassHashes, MockClassManagerClient};
 use apollo_protobuf::sync::{
     BlockHashOrNumber,
     DataOrFin,
@@ -24,7 +25,6 @@ use starknet_api::deprecated_contract_class::{
     EntryPointV0,
 };
 use starknet_api::state::SierraContractClass;
-use starknet_class_manager_types::{ClassHashes, MockClassManagerClient};
 
 use super::test_utils::{
     random_header,

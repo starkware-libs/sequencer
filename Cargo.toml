@@ -4,8 +4,21 @@
 resolver = "2"
 
 members = [
+  "crates/apollo_batcher",
+  "crates/apollo_batcher_types",
   "crates/apollo_central_sync",
+  "crates/apollo_class_manager",
+  "crates/apollo_class_manager_types",
   "crates/apollo_config",
+  "crates/apollo_consensus",
+  "crates/apollo_consensus_manager",
+  "crates/apollo_consensus_orchestrator",
+  "crates/apollo_gateway",
+  "crates/apollo_gateway_types",
+  "crates/apollo_mempool",
+  "crates/apollo_mempool_p2p",
+  "crates/apollo_mempool_p2p_types",
+  "crates/apollo_mempool_types",
   "crates/apollo_network",
   "crates/apollo_network_types",
   "crates/apollo_p2p_sync",
@@ -15,6 +28,8 @@ members = [
   "crates/apollo_rpc",
   "crates/apollo_rpc_execution",
   "crates/apollo_state_reader",
+  "crates/apollo_state_sync",
+  "crates/apollo_state_sync_types",
   "crates/apollo_storage",
   "crates/apollo_test_utils",
   "crates/blockifier",
@@ -29,18 +44,9 @@ members = [
   "crates/papyrus_node",
   "crates/shared_execution_objects",
   "crates/starknet_api",
-  "crates/starknet_batcher",
-  "crates/starknet_batcher_types",
-  "crates/starknet_class_manager",
-  "crates/starknet_class_manager_types",
   "crates/starknet_client",
   "crates/starknet_committer",
   "crates/starknet_committer_and_os_cli",
-  "crates/starknet_consensus",
-  "crates/starknet_consensus_manager",
-  "crates/starknet_consensus_orchestrator",
-  "crates/starknet_gateway",
-  "crates/starknet_gateway_types",
   "crates/starknet_http_server",
   "crates/starknet_infra_utils",
   "crates/starknet_integration_tests",
@@ -48,10 +54,6 @@ members = [
   "crates/starknet_l1_gas_price_types",
   "crates/starknet_l1_provider",
   "crates/starknet_l1_provider_types",
-  "crates/starknet_mempool",
-  "crates/starknet_mempool_p2p",
-  "crates/starknet_mempool_p2p_types",
-  "crates/starknet_mempool_types",
   "crates/starknet_monitoring_endpoint",
   "crates/starknet_os",
   "crates/starknet_patricia",
@@ -63,8 +65,6 @@ members = [
   "crates/starknet_sequencer_node",
   "crates/starknet_sierra_multicompile",
   "crates/starknet_sierra_multicompile_types",
-  "crates/starknet_state_sync",
-  "crates/starknet_state_sync_types",
   "crates/starknet_task_executor",
   "toml_test_utils",
   "workspace_tests",
@@ -80,8 +80,21 @@ license-file = "LICENSE"
 [workspace.dependencies]
 alloy = "0.9"
 anyhow = "1.0.44"
+apollo_batcher.path = "crates/apollo_batcher"
+apollo_batcher_types.path = "crates/apollo_batcher_types"
 apollo_central_sync.path = "crates/apollo_central_sync"
+apollo_class_manager.path = "crates/apollo_class_manager"
+apollo_class_manager_types.path = "crates/apollo_class_manager_types"
 apollo_config = { path = "crates/apollo_config", version = "0.0.0" }
+apollo_consensus.path = "crates/apollo_consensus"
+apollo_consensus_manager.path = "crates/apollo_consensus_manager"
+apollo_consensus_orchestrator.path = "crates/apollo_consensus_orchestrator"
+apollo_gateway.path = "crates/apollo_gateway"
+apollo_gateway_types.path = "crates/apollo_gateway_types"
+apollo_mempool.path = "crates/apollo_mempool"
+apollo_mempool_p2p.path = "crates/apollo_mempool_p2p"
+apollo_mempool_p2p_types.path = "crates/apollo_mempool_p2p_types"
+apollo_mempool_types.path = "crates/apollo_mempool_types"
 apollo_network.path = "crates/apollo_network"
 apollo_network_types.path = "crates/apollo_network_types"
 apollo_p2p_sync.path = "crates/apollo_p2p_sync"
@@ -91,6 +104,8 @@ apollo_reverts.path = "crates/apollo_reverts"
 apollo_rpc.path = "crates/apollo_rpc"
 apollo_rpc_execution.path = "crates/apollo_rpc_execution"
 apollo_state_reader.path = "crates/apollo_state_reader"
+apollo_state_sync.path = "crates/apollo_state_sync"
+apollo_state_sync_types.path = "crates/apollo_state_sync_types"
 apollo_storage.path = "crates/apollo_storage"
 apollo_test_utils.path = "crates/apollo_test_utils"
 ark-bls12-381 = "0.4.0"
@@ -229,18 +244,9 @@ starknet-core = "0.12.1"
 starknet-crypto = "0.7.1"
 starknet-types-core = "0.1.6"
 starknet_api = { path = "crates/starknet_api", version = "0.0.0" }
-starknet_batcher.path = "crates/starknet_batcher"
-starknet_batcher_types.path = "crates/starknet_batcher_types"
-starknet_class_manager.path = "crates/starknet_class_manager"
-starknet_class_manager_types.path = "crates/starknet_class_manager_types"
 starknet_client.path = "crates/starknet_client"
 starknet_committer.path = "crates/starknet_committer"
 starknet_committer_and_os_cli.path = "crates/starknet_committer_and_os_cli"
-starknet_consensus.path = "crates/starknet_consensus"
-starknet_consensus_manager.path = "crates/starknet_consensus_manager"
-starknet_consensus_orchestrator.path = "crates/starknet_consensus_orchestrator"
-starknet_gateway.path = "crates/starknet_gateway"
-starknet_gateway_types.path = "crates/starknet_gateway_types"
 starknet_http_server.path = "crates/starknet_http_server"
 starknet_infra_utils = { path = "crates/starknet_infra_utils", version = "0.0.0" }
 starknet_integration_tests.path = "crates/starknet_integration_tests"
@@ -248,10 +254,6 @@ starknet_l1_gas_price.path = "crates/starknet_l1_gas_price"
 starknet_l1_gas_price_types.path = "crates/starknet_l1_gas_price_types"
 starknet_l1_provider.path = "crates/starknet_l1_provider"
 starknet_l1_provider_types.path = "crates/starknet_l1_provider_types"
-starknet_mempool.path = "crates/starknet_mempool"
-starknet_mempool_p2p.path = "crates/starknet_mempool_p2p"
-starknet_mempool_p2p_types.path = "crates/starknet_mempool_p2p_types"
-starknet_mempool_types.path = "crates/starknet_mempool_types"
 starknet_monitoring_endpoint.path = "crates/starknet_monitoring_endpoint"
 starknet_os.path = "crates/starknet_os"
 starknet_patricia.path = "crates/starknet_patricia"
@@ -263,8 +265,6 @@ starknet_sequencer_metrics = { path = "crates/starknet_sequencer_metrics", versi
 starknet_sequencer_node.path = "crates/starknet_sequencer_node"
 starknet_sierra_multicompile = { path = "crates/starknet_sierra_multicompile", version = "0.0.0" }
 starknet_sierra_multicompile_types = { path = "crates/starknet_sierra_multicompile_types", version = "0.0.0" }
-starknet_state_sync.path = "crates/starknet_state_sync"
-starknet_state_sync_types.path = "crates/starknet_state_sync_types"
 starknet_task_executor.path = "crates/starknet_task_executor"
 static_assertions = "1.1.0"
 statistical = "1.0.0"
