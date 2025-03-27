@@ -221,6 +221,7 @@
   "mempool_config.enable_fee_escalation": true,
   "mempool_config.fee_escalation_percentage": 10,
   "mempool_config.transaction_ttl": 300,
+  "mempool_config.capacity_bytes": 1073741824,
   "mempool_p2p_config.max_transaction_batch_size": 1,
   "mempool_p2p_config.network_buffer_size": 10000,
   "mempool_p2p_config.network_config.advertised_multiaddr": "",

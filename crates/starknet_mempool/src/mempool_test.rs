@@ -574,6 +574,41 @@ fn test_add_tx_fills_nonce_gap(mut mempool: Mempool) {
     expected_mempool_content.assert_eq(&mempool.content());
 }
 
+#[rstest]
+fn add_tx_exceeds_capacity() {
+    // Setup.
+    let mut mempool = Mempool::new(
+        MempoolConfig { capacity_bytes: 10, ..Default::default() },
+        Arc::new(FakeClock::default()),
+    );
+
+    // Add the allowed number of transactions.
+    // Adding also declare transactions, to make sure delayed declares are counted.
+    for i in 0..5 {
+        let invoke_tx = add_tx_input!(tx_hash: i, tx_nonce: i);
+        let declare_tx = declare_add_tx_input(declare_tx_args!(
+            tx_hash: tx_hash!(5+i),
+            nonce: nonce!(5+i),
+            resource_bounds: test_valid_resource_bounds(),
+        ));
+
+        add_tx(&mut mempool, &invoke_tx);
+        add_tx(&mut mempool, &declare_tx);
+    }
+
+    // The next transaction should be rejected.
+    let input_tx = add_tx_input!(tx_hash: 10, tx_nonce: 10, account_nonce: 0);
+    add_tx_expect_error(&mut mempool, &input_tx, MempoolError::MempoolFull);
+
+    // Also make sure declare transaction are rejected.
+    let input_declare = declare_add_tx_input(declare_tx_args!(
+        tx_hash: tx_hash!(10),
+        nonce: nonce!(10),
+        resource_bounds: test_valid_resource_bounds(),
+    ));
+    add_tx_expect_error(&mut mempool, &input_declare, MempoolError::MempoolFull);
+}
+
 // `commit_block` tests.
 
 #[rstest]
