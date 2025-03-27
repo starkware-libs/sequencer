@@ -1,6 +1,7 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
 use std::sync::Arc;
+use std::time::Instant;
 
 #[cfg(any(feature = "testing", test))]
 use cached::Cached;
@@ -299,7 +300,14 @@ fn process_compilation_request(
         return Ok(());
     }
     let sierra_for_compilation = into_contract_class_for_compilation(sierra.as_ref());
+    let start = Instant::now();
     let compilation_result = compiler.compile_to_native(sierra_for_compilation);
+    let duration = start.elapsed();
+    log::debug!(
+        "Compiling to native contract with class hash: {}. Duration:{:?}",
+        class_hash,
+        duration
+    );
     match compilation_result {
         Ok(executor) => {
             let native_compiled_class = NativeCompiledClassV1::new(executor, casm);
@@ -307,6 +315,7 @@ fn process_compilation_request(
                 class_hash,
                 CachedClass::V1Native(CachedCairoNative::Compiled(native_compiled_class)),
             );
+            log::debug!("Compilation  Succeeded");
             Ok(())
         }
         Err(err) => {
@@ -314,7 +323,7 @@ fn process_compilation_request(
                 .set(class_hash, CachedClass::V1Native(CachedCairoNative::CompilationFailed(casm)));
             log::debug!("Error compiling contract class: {}", err);
             if compiler.panic_on_compilation_failure() {
-                panic!("Compilation failed: {}", err);
+                panic!("Compilation failed");
             }
             Err(err)
         }
