@@ -8,10 +8,12 @@ description = "A library for handling node configuration."
 
 [dependencies]
 clap = { workspace = true, features = ["env", "string"] }
+colored = { workspace = true, optional = true }
 itertools.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
-starknet_infra_utils.workspace = true
+starknet_api = { workspace = true, features = ["testing"] }
+starknet_infra_utils = { workspace = true, optional = true }
 strum_macros.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
@@ -19,6 +21,7 @@ validator = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
 assert_matches.workspace = true
+colored.workspace = true
 itertools.workspace = true
 lazy_static.workspace = true
 papyrus_test_utils.workspace = true
@@ -28,3 +31,6 @@ tempfile.workspace = true
 
 [lints]
 workspace = true
+
+[features]
+testing = ["dep:colored", "dep:starknet_infra_utils"]
