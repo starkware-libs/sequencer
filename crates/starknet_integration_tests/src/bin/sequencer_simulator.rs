@@ -3,7 +3,11 @@ use std::fs::read_to_string;
 use clap::Parser;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use serde_json::Value;
-use starknet_integration_tests::integration_test_manager::{HTTP_PORT_ARG, MONITORING_PORT_ARG};
+use starknet_integration_tests::integration_test_manager::{
+    BASE_LAYER_PORT_ARG,
+    HTTP_PORT_ARG,
+    MONITORING_PORT_ARG,
+};
 use starknet_integration_tests::integration_test_utils::set_panic_hook;
 use starknet_integration_tests::sequencer_simulator_utils::SequencerSimulator;
 use starknet_integration_tests::utils::{
@@ -17,7 +21,7 @@ use starknet_sequencer_infra::trace_util::configure_tracing;
 use tokio::time::{sleep, Duration};
 use tracing::info;
 
-fn read_ports_from_file(path: &str) -> (u16, u16) {
+fn read_ports_from_file(path: &str) -> (u16, u16, u16) {
     // Read the file content
     let file_content = read_to_string(path).unwrap();
 
@@ -36,24 +40,31 @@ fn read_ports_from_file(path: &str) -> (u16, u16) {
         .try_into()
         .expect("monitoring port should be within the valid range for u16");
 
-    (http_port, monitoring_port)
+    let base_layer_port: u16 = json[BASE_LAYER_PORT_ARG]
+        .as_u64()
+        .unwrap_or_else(|| panic!("base layer port should be available in {}", path))
+        .try_into()
+        .expect("base layer port should be within the valid range for u16");
+
+    (http_port, monitoring_port, base_layer_port)
 }
 
-fn get_ports(args: &Args) -> (u16, u16) {
-    match (args.http_port, args.monitoring_port) {
-        (Some(http), Some(monitoring)) => (http, monitoring),
-        (None, None) => {
+fn get_ports(args: &Args) -> (u16, u16, u16) {
+    match (args.http_port, args.monitoring_port, args.base_layer_port) {
+        (Some(http), Some(monitoring), Some(base_layer)) => (http, monitoring, base_layer),
+        (None, None, None) => {
             if let Some(ref path) = args.simulator_ports_path {
                 read_ports_from_file(path)
             } else {
                 panic!(
-                    "Either both --http-port and --monitoring-port should be supplied, or a \
-                     --simulator-ports-path should be provided."
+                    "Either all of --http-port --monitoring-port and --base-layer-port should be \
+                     supplied, or a --simulator-ports-path should be provided."
                 );
             }
         }
         _ => panic!(
-            "Either supply both --http-port and --monitoring-port, or use --simulator-ports-path."
+            "Either supply all of --http-port --monitoring-port and --base-layer-port, or use \
+             --simulator-ports-path."
         ),
     }
 }
@@ -63,7 +74,9 @@ async fn run_simulation(
     tx_generator: &mut MultiAccountTransactionGenerator,
     run_forever: bool,
 ) {
-    const N_TXS: usize = 50;
+    const N_INVOKE_TXS: usize = 50;
+    const N_L1_TXS: usize = 10;
+    const N_TXS: usize = N_INVOKE_TXS + N_L1_TXS;
     const SLEEP_DURATION: Duration = Duration::from_secs(1);
 
     let mut i = 1;
@@ -71,11 +84,7 @@ async fn run_simulation(
         sequencer_simulator
             .send_txs(
                 tx_generator,
-                &ConsensusTxs {
-                    n_invoke_txs: N_TXS,
-                    // TODO(Arni): Add non-zero value.
-                    n_l1_handler_txs: 0,
-                },
+                &ConsensusTxs { n_invoke_txs: N_INVOKE_TXS, n_l1_handler_txs: N_L1_TXS },
                 ACCOUNT_ID_0,
             )
             .await;
@@ -99,6 +108,9 @@ struct Args {
     #[arg(long, default_value = "http://127.0.0.1")]
     monitoring_url: String,
 
+    #[arg(long, default_value = "http://anvil")]
+    base_layer_url: String,
+
     #[arg(long)]
     simulator_ports_path: Option<String>,
 
@@ -107,6 +119,9 @@ struct Args {
 
     #[arg(long)]
     monitoring_port: Option<u16>,
+
+    #[arg(long)]
+    base_layer_port: Option<u16>,
 
     #[arg(long, help = "Run the simulator in an infinite loop")]
     run_forever: bool,
@@ -121,10 +136,16 @@ async fn main() -> anyhow::Result<()> {
 
     let mut tx_generator = create_integration_test_tx_generator();
 
-    let (http_port, monitoring_port) = get_ports(&args);
+    let (http_port, monitoring_port, base_layer_port) = get_ports(&args);
 
-    let sequencer_simulator =
-        SequencerSimulator::new(args.http_url, http_port, args.monitoring_url, monitoring_port);
+    let sequencer_simulator = SequencerSimulator::new(
+        args.http_url,
+        http_port,
+        args.monitoring_url,
+        monitoring_port,
+        args.base_layer_url,
+        base_layer_port,
+    );
 
     info!("Sending bootstrap txs");
     sequencer_simulator.send_txs(&mut tx_generator, &BootstrapTxs, ACCOUNT_ID_0).await;
