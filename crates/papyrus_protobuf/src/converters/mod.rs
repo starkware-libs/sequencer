@@ -11,8 +11,8 @@ mod state_diff;
 mod test_instances;
 mod transaction;
 
-use papyrus_common::compression_utils::CompressionError;
 use prost::DecodeError;
+use starknet_api::compression_utils::CompressionError;
 
 #[derive(thiserror::Error, PartialEq, Debug, Clone)]
 pub enum ProtobufConversionError {

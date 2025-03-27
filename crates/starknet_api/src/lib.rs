@@ -6,6 +6,7 @@ pub mod abi;
 pub mod block;
 pub mod block_hash;
 pub mod class_cache;
+pub mod compression_utils;
 pub mod consensus_transaction;
 pub mod contract_class;
 pub mod core;

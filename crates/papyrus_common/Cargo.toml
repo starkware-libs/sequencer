@@ -7,16 +7,13 @@ license-file.workspace = true
 description = "Common utils and objects for a Starknet node."
 
 [dependencies]
-base64.workspace = true
 cairo-lang-starknet-classes.workspace = true
-flate2.workspace = true
 indexmap.workspace = true
 rand.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 starknet-types-core = { workspace = true, features = ["hash"] }
 starknet_api.workspace = true
-thiserror.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true

@@ -1,7 +1,7 @@
 use pretty_assertions::assert_eq;
-use starknet_api::test_utils::read_json_file;
 
 use super::{compress_and_encode, decode_and_decompress};
+use crate::test_utils::read_json_file;
 
 #[test]
 fn compress_and_encode_hardcoded_value() {

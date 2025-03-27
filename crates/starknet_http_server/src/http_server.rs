@@ -86,11 +86,14 @@ async fn add_tx(
 ) -> HttpServerResult<Json<TransactionHash>> {
     record_added_transaction();
     // TODO(Yael): increment the failure metric for parsing error.
-    let tx: RestTransactionV3 = serde_json::from_str(&tx).map_err(|e| {
+    let tx: RestTransactionV3 = serde_json::from_str(&tx).inspect_err(|e| {
         debug!("Error while parsing transaction: {}", e);
-        HttpServerError::from(e)
     })?;
-    add_tx_inner(app_state, headers, tx.into()).await
+    let rpc_tx = tx.try_into().inspect_err(|e| {
+        debug!("Error while converting Rest API transaction into RPC: {}", e);
+    })?;
+
+    add_tx_inner(app_state, headers, rpc_tx).await
 }
 
 async fn add_tx_inner(
