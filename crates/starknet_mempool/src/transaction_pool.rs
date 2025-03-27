@@ -16,7 +16,7 @@ use crate::utils::{try_increment_nonce, Clock};
 type HashToTransaction = HashMap<TransactionHash, InternalRpcTransaction>;
 
 /// Contains all transactions currently held in the mempool.
-/// Invariant: both data structures are consistent regarding the existence of transactions:
+/// Invariant: all data structures are consistent regarding the existence of transactions:
 /// A transaction appears in one if and only if it appears in the other.
 /// No duplicate transactions appear in the pool.
 pub struct TransactionPool {
