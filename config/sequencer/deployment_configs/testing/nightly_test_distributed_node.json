@@ -99,8 +99,8 @@
       "external_secret": null
     },
     {
-      "name": "L1Provider",
-      "config_path": "l1_provider.json",
+      "name": "L1",
+      "config_path": "l1.json",
       "ingress": false,
       "autoscale": false,
       "replicas": 1,
