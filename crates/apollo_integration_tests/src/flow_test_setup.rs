@@ -6,7 +6,7 @@ use alloy::node_bindings::AnvilInstance;
 use apollo_consensus_manager::config::ConsensusManagerConfig;
 use apollo_gateway_types::errors::GatewaySpecError;
 use apollo_http_server::config::HttpServerConfig;
-use apollo_http_server::test_utils::HttpTestClient;
+use apollo_http_server::test_utils::{HttpServerEndpoint, HttpTestClient};
 use apollo_infra_utils::test_utils::AvailablePorts;
 use apollo_mempool_p2p::config::MempoolP2pConfig;
 use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
@@ -270,7 +270,9 @@ impl FlowSequencerSetup {
     }
 
     pub async fn assert_add_tx_success(&self, tx: RpcTransaction) -> TransactionHash {
-        self.add_tx_http_client.assert_add_tx_success(tx).await
+        self.add_tx_http_client
+            .assert_add_tx_success(tx, HttpServerEndpoint::AddRpcTransaction)
+            .await
     }
 
     pub async fn batcher_height(&self) -> BlockNumber {
