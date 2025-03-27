@@ -18,6 +18,7 @@ use starknet_api::block::{GasPrice, StarknetVersion};
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::define_versioned_constants;
+use starknet_api::executable_transaction::TransactionType;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::transaction::fields::{GasVectorComputationMode, Tip};
 use strum::IntoEnumIterator;
@@ -28,7 +29,6 @@ use crate::execution::execution_utils::poseidon_hash_many_cost;
 use crate::execution::syscalls::hint_processor::SyscallUsageMap;
 use crate::execution::syscalls::SyscallSelector;
 use crate::fee::resources::StarknetResources;
-use crate::transaction::transaction_types::TransactionType;
 use crate::utils::get_gas_cost_from_vm_resources;
 
 #[cfg(test)]

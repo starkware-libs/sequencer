@@ -23,6 +23,7 @@ use starknet_api::core::{ClassHash, ContractAddress, EthAddress, Nonce};
 use starknet_api::executable_transaction::{
     AccountTransaction as ApiExecutableTransaction,
     DeployAccountTransaction,
+    TransactionType,
 };
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::state::StorageKey;
@@ -166,7 +167,6 @@ use crate::transaction::test_utils::{
     INVALID,
     VALID,
 };
-use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::ExecutableTransaction;
 use crate::{
     check_tx_execution_error_for_custom_hint,

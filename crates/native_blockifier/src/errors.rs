@@ -2,17 +2,13 @@ use blockifier::blockifier::stateful_validator::StatefulValidatorError;
 use blockifier::blockifier::transaction_executor::TransactionExecutorError;
 use blockifier::bouncer::BuiltinCounterMap;
 use blockifier::state::errors::StateError;
-use blockifier::transaction::errors::{
-    ParseError,
-    TransactionExecutionError,
-    TransactionPreValidationError,
-};
-use blockifier::transaction::transaction_types::TransactionType;
+use blockifier::transaction::errors::{TransactionExecutionError, TransactionPreValidationError};
 use cairo_vm::types::errors::program_errors::ProgramError;
 use num_bigint::BigUint;
 use pyo3::create_exception;
 use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
+use starknet_api::executable_transaction::TransactionType;
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::FromStrError;
 use thiserror::Error;
@@ -83,8 +79,6 @@ native_blockifier_errors!(
 pub enum NativeBlockifierInputError {
     #[error(transparent)]
     InvalidNativeBlockifierInputError(#[from] InvalidNativeBlockifierInputError),
-    #[error(transparent)]
-    ParseError(#[from] ParseError),
     #[error(transparent)]
     ProgramError(#[from] ProgramError),
     #[error(transparent)]

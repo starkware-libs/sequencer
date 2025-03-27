@@ -2,12 +2,14 @@ use std::collections::BTreeMap;
 
 use blockifier::transaction::account_transaction::AccountTransaction;
 use blockifier::transaction::transaction_execution::Transaction;
-use blockifier::transaction::transaction_types::TransactionType;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use starknet_api::block::GasPrice;
 use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
-use starknet_api::executable_transaction::AccountTransaction as ExecutableTransaction;
+use starknet_api::executable_transaction::{
+    AccountTransaction as ExecutableTransaction,
+    TransactionType,
+};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::{
     DeprecatedResourceBoundsMapping,
@@ -135,7 +137,7 @@ pub fn py_tx(
 ) -> NativeBlockifierResult<Transaction> {
     let tx_type = get_py_tx_type(tx)?;
     let tx_type: TransactionType =
-        tx_type.parse().map_err(NativeBlockifierInputError::ParseError)?;
+        tx_type.parse().map_err(NativeBlockifierInputError::StarknetApiError)?;
 
     Ok(match tx_type {
         TransactionType::Declare => {

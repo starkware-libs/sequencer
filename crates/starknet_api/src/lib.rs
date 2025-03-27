@@ -71,6 +71,8 @@ pub enum StarknetApiError {
     ContractClassVersionMismatch { declare_version: TransactionVersion, cairo_version: u64 },
     #[error("Failed to parse Sierra version: {0}")]
     ParseSierraVersionError(String),
+    #[error("Unsupported transaction type: {0}")]
+    UnknownTransactionType(String),
 }
 
 pub type StarknetApiResult<T> = Result<T, StarknetApiError>;
