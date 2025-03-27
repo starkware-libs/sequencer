@@ -150,12 +150,13 @@ async fn build_proposal_setup(
     let mut batcher = MockBatcherClient::new();
     let proposal_id = Arc::new(OnceLock::new());
     let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_propose_block().returning(move |input: ProposeBlockInput| {
+    batcher.expect_propose_block().times(1).returning(move |input: ProposeBlockInput| {
         proposal_id_clone.set(input.proposal_id).unwrap();
         Ok(())
     });
     batcher
         .expect_start_height()
+        .times(1)
         .withf(|input| input.height == BlockNumber(0))
         .return_once(|_| Ok(()));
     let proposal_id_clone = Arc::clone(&proposal_id);
@@ -191,13 +192,9 @@ fn success_cende_ammbassador() -> MockCendeContext {
 #[tokio::test]
 async fn cancelled_proposal_aborts() {
     let mut batcher = MockBatcherClient::new();
-    batcher.expect_propose_block().return_once(|_| Ok(()));
+    batcher.expect_propose_block().times(1).return_once(|_| Ok(()));
 
-    batcher.expect_start_height().return_once(|_| Ok(()));
-
-    batcher.expect_get_proposal_content().returning(move |_| {
-        Ok(GetProposalContentResponse { content: GetProposalContent::Txs(Vec::new()) })
-    });
+    batcher.expect_start_height().times(1).return_once(|_| Ok(()));
 
     let (mut context, _network) = setup(batcher, success_cende_ammbassador());
 
@@ -214,12 +211,13 @@ async fn validate_proposal_success() {
     let mut batcher = MockBatcherClient::new();
     let proposal_id: Arc<OnceLock<ProposalId>> = Arc::new(OnceLock::new());
     let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_validate_block().returning(move |input: ValidateBlockInput| {
+    batcher.expect_validate_block().times(1).returning(move |input: ValidateBlockInput| {
         proposal_id_clone.set(input.proposal_id).unwrap();
         Ok(())
     });
     batcher
         .expect_start_height()
+        .times(1)
         .withf(|input| input.height == BlockNumber(0))
         .return_once(|_| Ok(()));
     let proposal_id_clone = Arc::clone(&proposal_id);
@@ -273,6 +271,7 @@ async fn dont_send_block_info() {
     let mut batcher = MockBatcherClient::new();
     batcher
         .expect_start_height()
+        .times(1)
         .withf(|input| input.height == BlockNumber(0))
         .return_once(|_| Ok(()));
     let (mut context, _network) = setup(batcher, success_cende_ammbassador());
@@ -292,9 +291,10 @@ async fn dont_send_block_info() {
 async fn repropose() {
     // Receive a proposal. Then re-retrieve it.
     let mut batcher = MockBatcherClient::new();
-    batcher.expect_validate_block().returning(move |_| Ok(()));
+    batcher.expect_validate_block().times(1).returning(move |_| Ok(()));
     batcher
         .expect_start_height()
+        .times(1)
         .withf(|input| input.height == BlockNumber(0))
         .return_once(|_| Ok(()));
     batcher.expect_send_proposal_content().times(1).returning(
@@ -349,12 +349,13 @@ async fn proposals_from_different_rounds() {
     let mut batcher = MockBatcherClient::new();
     let proposal_id: Arc<OnceLock<ProposalId>> = Arc::new(OnceLock::new());
     let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_validate_block().returning(move |input: ValidateBlockInput| {
+    batcher.expect_validate_block().times(1).returning(move |input: ValidateBlockInput| {
         proposal_id_clone.set(input.proposal_id).unwrap();
         Ok(())
     });
     batcher
         .expect_start_height()
+        .times(1)
         .withf(|input| input.height == BlockNumber(0))
         .return_once(|_| Ok(()));
     let proposal_id_clone = Arc::clone(&proposal_id);
@@ -433,6 +434,7 @@ async fn interrupt_active_proposal() {
     let mut batcher = MockBatcherClient::new();
     batcher
         .expect_start_height()
+        .times(1)
         .withf(|input| input.height == BlockNumber(0))
         .return_once(|_| Ok(()));
     batcher
@@ -538,6 +540,7 @@ async fn build_proposal_cende_failure() {
     let mut mock_cende_context = MockCendeContext::new();
     mock_cende_context
         .expect_write_prev_height_blob()
+        .times(1)
         .return_once(|_height| tokio::spawn(ready(false)));
 
     let (fin_receiver, _, _network) = build_proposal_setup(mock_cende_context).await;
@@ -550,6 +553,7 @@ async fn build_proposal_cende_incomplete() {
     let mut mock_cende_context = MockCendeContext::new();
     mock_cende_context
         .expect_write_prev_height_blob()
+        .times(1)
         .return_once(|_height| tokio::spawn(pending()));
 
     let (fin_receiver, _, _network) = build_proposal_setup(mock_cende_context).await;
@@ -563,7 +567,7 @@ async fn build_proposal_cende_incomplete() {
 #[tokio::test]
 async fn batcher_not_ready(#[case] proposer: bool) {
     let mut batcher = MockBatcherClient::new();
-    batcher.expect_start_height().return_once(|_| Ok(()));
+    batcher.expect_start_height().times(1).return_once(|_| Ok(()));
     if proposer {
         batcher
             .expect_propose_block()
@@ -627,6 +631,7 @@ async fn eth_to_fri_rate_out_of_range() {
 
     batcher
         .expect_start_height()
+        .times(1)
         .withf(|input| input.height == BlockNumber(0))
         .return_once(|_| Ok(()));
 
