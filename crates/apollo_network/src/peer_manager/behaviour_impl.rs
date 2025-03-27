@@ -1,5 +1,6 @@
 use std::task::{ready, Poll};
 
+use futures::StreamExt;
 use libp2p::swarm::behaviour::ConnectionEstablished;
 use libp2p::swarm::{
     dummy,
@@ -193,6 +194,13 @@ impl NetworkBehaviour for PeerManager {
             }
         }
         self.sleep_waiting_for_unblocked_peer = None;
+
+        if let Poll::Ready(Some(())) = self.blacklisted_peers_futures.poll_next_unpin(cx) {
+            if let Some(peer_manager_metrics) = &self.metrics {
+                peer_manager_metrics.num_blacklisted_peers.decrement(1);
+            }
+        }
+
         self.pending_events.pop().map(Poll::Ready).unwrap_or(Poll::Pending)
     }
 }
