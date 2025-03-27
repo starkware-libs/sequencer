@@ -2,6 +2,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use assert_json_diff::{assert_json_matches_no_panic, CompareMode, Config};
 use serde::Serialize;
+use socket2::{Domain, Socket, Type};
 use tracing::{info, instrument};
 
 const PORTS_PER_INSTANCE: u16 = 60;
@@ -81,11 +82,22 @@ impl AvailablePorts {
 
     #[instrument]
     pub fn get_next_port(&mut self) -> u16 {
-        let port = self.current_port;
-        self.current_port += 1;
-        assert!(self.current_port < self.max_port, "Exceeded available ports.");
-        info!("Allocated port: {} in range [{},{}]", port, self.start_port, self.max_port);
-        port
+        while self.current_port < self.max_port {
+            let port = self.current_port;
+            self.current_port += 1;
+
+            if is_port_in_use(port) {
+                info!(
+                    "Skipping occupied port: {} in range [{},{}]",
+                    port, self.start_port, self.max_port
+                );
+            } else {
+                info!("Allocated port: {} in range [{},{}]", port, self.start_port, self.max_port);
+                return port;
+            }
+        }
+
+        panic!("No available ports found in range [{},{}]", self.start_port, self.max_port);
     }
 
     pub fn get_next_ports(&mut self, n: usize) -> Vec<u16> {
@@ -96,6 +108,16 @@ impl AvailablePorts {
     pub fn get_next_local_host_socket(&mut self) -> SocketAddr {
         SocketAddr::new(IpAddr::from(Ipv4Addr::LOCALHOST), self.get_next_port())
     }
+}
+
+// Checks if a port is occupied, without side effects.
+fn is_port_in_use(port: u16) -> bool {
+    let addr = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), port);
+    let socket =
+        Socket::new(Domain::IPV4, Type::STREAM, None).expect("Should be able to create a socket.");
+    // Enable SO_REUSEADDR, which enables later binding to the address
+    socket.set_reuse_address(true).expect("Should be able to set socket properties.");
+    socket.bind(&addr.into()).is_err()
 }
 
 #[derive(Debug)]

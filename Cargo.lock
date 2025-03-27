@@ -11273,6 +11273,7 @@ dependencies = [
  "rstest",
  "serde",
  "serde_json",
+ "socket2 0.5.8",
  "tokio",
  "toml",
  "tracing",
