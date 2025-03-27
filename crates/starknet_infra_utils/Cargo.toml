@@ -7,7 +7,7 @@ license-file.workspace = true
 description = "Infrastructure utility."
 
 [features]
-testing = ["cached", "colored", "dep:assert-json-diff", "toml"]
+testing = ["cached", "colored", "dep:assert-json-diff", "socket2", "toml"]
 
 [lints]
 workspace = true
@@ -18,6 +18,7 @@ cached = { workspace = true, optional = true }
 colored = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
+socket2 = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["process", "rt", "time"] }
 toml = { workspace = true, optional = true }
 tracing.workspace = true
@@ -27,6 +28,7 @@ cached.workspace = true
 nix.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
+socket2.workspace = true
 tokio = { workspace = true, features = ["macros", "rt", "signal", "sync"] }
 toml.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
