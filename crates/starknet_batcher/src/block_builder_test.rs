@@ -13,6 +13,7 @@ use blockifier::state::errors::StateError;
 use blockifier::transaction::objects::{RevertError, TransactionExecutionInfo};
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use indexmap::{IndexMap, IndexSet};
+use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use mockall::Sequence;
 use pretty_assertions::assert_eq;
@@ -51,6 +52,7 @@ struct TestExpectations {
     mock_tx_provider: MockTransactionProvider,
     expected_block_artifacts: BlockExecutionArtifacts,
     expected_txs_output: Vec<InternalConsensusTransaction>,
+    expected_full_blocks_metric: u64,
 }
 
 fn output_channel()
@@ -107,6 +109,7 @@ fn one_chunk_test_expectations() -> TestExpectations {
         mock_tx_provider,
         expected_block_artifacts,
         expected_txs_output: input_txs,
+        expected_full_blocks_metric: 0,
     }
 }
 
@@ -159,6 +162,7 @@ fn two_chunks_test_expectations() -> TestExpectations {
         mock_tx_provider,
         expected_block_artifacts,
         expected_txs_output: input_txs,
+        expected_full_blocks_metric: 0,
     }
 }
 
@@ -175,6 +179,7 @@ fn empty_block_test_expectations() -> TestExpectations {
         mock_tx_provider,
         expected_block_artifacts,
         expected_txs_output: vec![],
+        expected_full_blocks_metric: 0,
     }
 }
 
@@ -207,6 +212,7 @@ fn block_full_test_expectations() -> TestExpectations {
         mock_tx_provider,
         expected_block_artifacts,
         expected_txs_output: vec![input_txs[0].clone()],
+        expected_full_blocks_metric: 1,
     }
 }
 
@@ -241,6 +247,7 @@ fn test_expectations_with_delay() -> TestExpectations {
         mock_tx_provider,
         expected_block_artifacts,
         expected_txs_output: first_chunk,
+        expected_full_blocks_metric: 0,
     }
 }
 
@@ -266,6 +273,7 @@ fn stream_done_test_expectations() -> TestExpectations {
         mock_tx_provider,
         expected_block_artifacts,
         expected_txs_output: input_txs,
+        expected_full_blocks_metric: 0,
     }
 }
 
@@ -325,6 +333,7 @@ fn transaction_failed_test_expectations() -> TestExpectations {
         mock_tx_provider,
         expected_block_artifacts,
         expected_txs_output,
+        expected_full_blocks_metric: 0,
     }
 }
 
@@ -417,11 +426,14 @@ fn compare_tx_hashes(
     expected_tx_hashes == input_tx_hashes
 }
 
+// TODO(yair): refactor to be a method of TestExpectations.
 async fn verify_build_block_output(
     expected_output_txs: Vec<InternalConsensusTransaction>,
     expected_block_artifacts: BlockExecutionArtifacts,
     result_block_artifacts: BlockExecutionArtifacts,
     mut output_stream_receiver: UnboundedReceiver<InternalConsensusTransaction>,
+    expected_full_blocks_metric: u64,
+    metrics: &str,
 ) {
     // Verify the transactions in the output channel.
     let mut output_txs = vec![];
@@ -430,6 +442,8 @@ async fn verify_build_block_output(
 
     // Verify the block artifacts.
     assert_eq!(result_block_artifacts, expected_block_artifacts);
+
+    crate::metrics::FULL_BLOCKS.assert_eq::<u64>(metrics, expected_full_blocks_metric)
 }
 
 async fn run_build_block(
@@ -468,6 +482,13 @@ async fn run_build_block(
 #[case::transaction_failed(transaction_failed_test_expectations())]
 #[tokio::test]
 async fn test_build_block(#[case] test_expectations: TestExpectations) {
+    let recorder: metrics_exporter_prometheus::PrometheusRecorder =
+        PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    crate::metrics::FULL_BLOCKS.register();
+    let metrics = recorder.handle().render();
+    crate::metrics::FULL_BLOCKS.assert_eq::<u64>(&metrics, 0);
+
     let (output_tx_sender, output_tx_receiver) = output_channel();
     let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
 
@@ -487,6 +508,8 @@ async fn test_build_block(#[case] test_expectations: TestExpectations) {
         test_expectations.expected_block_artifacts,
         result_block_artifacts,
         output_tx_receiver,
+        test_expectations.expected_full_blocks_metric,
+        &recorder.handle().render(),
     )
     .await;
 }

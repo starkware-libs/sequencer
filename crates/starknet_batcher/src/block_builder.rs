@@ -44,6 +44,7 @@ use thiserror::Error;
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, trace};
 
+use crate::metrics::FULL_BLOCKS;
 use crate::transaction_executor::TransactionExecutorTrait;
 use crate::transaction_provider::{NextTxs, TransactionProvider, TransactionProviderError};
 
@@ -283,6 +284,7 @@ async fn collect_execution_results_and_stream_txs(
         if fail_on_err {
             return Err(BlockBuilderError::FailOnError(FailOnErrorCause::BlockFull));
         } else {
+            FULL_BLOCKS.increment(1);
             block_is_full = true;
         }
     }
