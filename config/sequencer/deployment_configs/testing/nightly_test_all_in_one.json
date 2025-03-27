@@ -9,7 +9,18 @@
       "ingress": false,
       "autoscale": false,
       "replicas": 1,
-      "storage": 32
+      "storage": 32,
+      "resources": {
+        "requests": {
+          "cpu": 1,
+          "memory": 2
+        },
+        "limits": {
+          "cpu": 4,
+          "memory": 8
+        }
+      },
+      "external_secret": null
     }
   ]
 }

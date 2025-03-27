@@ -22,6 +22,43 @@ pub struct Service {
     autoscale: bool,
     replicas: usize,
     storage: Option<usize>,
+    resources: Resources,
+    external_secret: Option<ExternalSecret>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct ExternalSecret {
+    gcsm_key: &'static str,
+}
+
+impl ExternalSecret {
+    pub fn new(gcsm_key: &'static str) -> Self {
+        Self { gcsm_key }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct Resource {
+    cpu: usize,
+    memory: usize,
+}
+
+impl Resource {
+    pub fn new(cpu: usize, memory: usize) -> Self {
+        Self { cpu, memory }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct Resources {
+    requests: Resource,
+    limits: Resource,
+}
+
+impl Resources {
+    pub fn new(requests: Resource, limits: Resource) -> Self {
+        Self { requests, limits }
+    }
 }
 
 impl Service {
@@ -31,9 +68,20 @@ impl Service {
         autoscale: bool,
         replicas: usize,
         storage: Option<usize>,
+        resources: Resources,
+        external_secret: Option<ExternalSecret>,
     ) -> Self {
         let config_path = name.get_config_file_path();
-        Self { name, config_path, ingress, autoscale, replicas, storage }
+        Self {
+            name,
+            config_path,
+            ingress,
+            autoscale,
+            replicas,
+            storage,
+            resources,
+            external_secret,
+        }
     }
 
     pub fn get_config_path(&self) -> String {
