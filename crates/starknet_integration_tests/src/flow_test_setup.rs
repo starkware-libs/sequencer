@@ -37,7 +37,7 @@ use starknet_api::transaction::{
 use starknet_consensus_manager::config::ConsensusManagerConfig;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
-use starknet_http_server::test_utils::HttpTestClient;
+use starknet_http_server::test_utils::{HttpServerEndpoint, HttpTestClient};
 use starknet_infra_utils::test_utils::AvailablePorts;
 use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
@@ -274,7 +274,7 @@ impl FlowSequencerSetup {
     }
 
     pub async fn assert_add_tx_success(&self, tx: RpcTransaction) -> TransactionHash {
-        self.add_tx_http_client.assert_add_tx_success(tx).await
+        self.add_tx_http_client.assert_add_tx_success(tx, HttpServerEndpoint::AddRpcTx).await
     }
 
     pub async fn batcher_height(&self) -> BlockNumber {

@@ -3,7 +3,7 @@ use std::net::{SocketAddr, ToSocketAddrs};
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::{L1HandlerTransaction, TransactionHash};
-use starknet_http_server::test_utils::HttpTestClient;
+use starknet_http_server::test_utils::{HttpServerEndpoint, HttpTestClient};
 use starknet_monitoring_endpoint::test_utils::MonitoringClient;
 use tracing::info;
 use url::Url;
@@ -34,7 +34,7 @@ impl SequencerSimulator {
 
     pub async fn assert_add_tx_success(&self, tx: RpcTransaction) -> TransactionHash {
         info!("Sending transaction: {:?}", tx);
-        self.http_client.assert_add_tx_success(tx).await
+        self.http_client.assert_add_tx_success(tx, HttpServerEndpoint::AddRpcTx).await
     }
 
     pub async fn send_txs(

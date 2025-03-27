@@ -22,7 +22,7 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_http_server::config::HttpServerConfig;
-use starknet_http_server::test_utils::HttpTestClient;
+use starknet_http_server::test_utils::{HttpServerEndpoint, HttpTestClient};
 use starknet_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use starknet_infra_utils::tracing::{CustomLogger, TraceLevel};
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
@@ -132,7 +132,7 @@ impl NodeSetup {
     }
 
     async fn send_rpc_tx_fn(&self, rpc_tx: RpcTransaction) -> TransactionHash {
-        self.add_tx_http_client.assert_add_tx_success(rpc_tx).await
+        self.add_tx_http_client.assert_add_tx_success(rpc_tx, HttpServerEndpoint::AddRpcTx).await
     }
 
     pub fn batcher_monitoring_client(&self) -> &MonitoringClient {
