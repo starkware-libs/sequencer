@@ -1,4 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
+use std::future::Future;
+use std::pin::Pin;
 use std::time::Duration;
 
 use apollo_config::converters::{
@@ -8,6 +10,7 @@ use apollo_config::converters::{
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use futures::future::BoxFuture;
+use futures::stream::FuturesUnordered;
 use futures::FutureExt;
 use libp2p::swarm::dial_opts::DialOpts;
 use libp2p::swarm::{ConnectionId, ToSwarm};
@@ -54,7 +57,7 @@ pub struct PeerManager {
     sleep_waiting_for_unblocked_peer: Option<BoxFuture<'static, ()>>,
     // A peer is known only after we get the identify message.
     connections_for_unknown_peers: HashMap<PeerId, Vec<ConnectionId>>,
-    #[allow(dead_code)]
+    blacklisted_peers_futures: FuturesUnordered<Pin<Box<dyn Future<Output = ()> + Send>>>,
     metrics: Option<PeerManagerMetrics>,
 }
 
@@ -122,6 +125,7 @@ impl PeerManager {
             sessions_received_when_no_peers: Vec::new(),
             sleep_waiting_for_unblocked_peer: None,
             connections_for_unknown_peers: HashMap::default(),
+            blacklisted_peers_futures: FuturesUnordered::new(),
             metrics: peer_manager_metrics,
         }
     }
@@ -228,15 +232,27 @@ impl PeerManager {
                         self.pending_events.push(ToSwarm::GenerateEvent(
                             ToOtherBehaviourEvent::PeerBlacklisted { peer_id },
                         ));
-                        peer.blacklist_peer(self.config.malicious_timeout_seconds);
+                        let blacklist_duration = self.config.malicious_timeout_seconds;
+                        peer.blacklist_peer(blacklist_duration);
                         peer.reset_misconduct_score();
+                        self.blacklisted_peers_futures
+                            .push(tokio::time::sleep(blacklist_duration).boxed());
+                        if let Some(peer_manager_metrics) = &self.metrics {
+                            peer_manager_metrics.num_blacklisted_peers.increment(1);
+                        }
                     }
                 }
                 ReputationModifier::Unstable => {
                     self.pending_events.push(ToSwarm::GenerateEvent(
                         ToOtherBehaviourEvent::PeerBlacklisted { peer_id },
                     ));
-                    peer.blacklist_peer(self.config.unstable_timeout_millis);
+                    let blacklist_duration = self.config.unstable_timeout_millis;
+                    peer.blacklist_peer(blacklist_duration);
+                    self.blacklisted_peers_futures
+                        .push(tokio::time::sleep(blacklist_duration).boxed());
+                    if let Some(peer_manager_metrics) = &self.metrics {
+                        peer_manager_metrics.num_blacklisted_peers.increment(1);
+                    }
                 }
             }
             Ok(())
