@@ -1,5 +1,7 @@
 name: Sequencer-Cdk8s-Test
 on:
+  workflow_dispatch:
+
   push:
     branches:
       - main
@@ -25,9 +27,22 @@ on:
 jobs:
   deployment:
     runs-on: ubuntu-24.04
+    env:
+      namespace: test
+      deployment_config_path: ${{ github.workspace }}/config/sequencer/deployment_configs/testing/nightly_test_all_in_one.json
     steps:
       - name: Checkout sequencer
         uses: actions/checkout@v4
+
+      - name: Create local K3D cluster
+        uses: AbsaOSS/k3d-action@v2
+        with:
+          cluster-name: "test-cluster-1"
+          args: >-
+            --agents 1
+            --no-lb
+            --wait
+            --timeout "120s"
 
       - name: Setup python
         uses: actions/setup-python@v5.4.0
@@ -55,9 +70,21 @@ jobs:
       # Synthesize the CDK8s Sequencer app.
       - name: CDk8s synth
         working-directory: deployments/sequencer
-        env:
-          deployment_config_path: ${{ github.workspace }}/config/sequencer/deployment_configs/testing/nightly_test_all_in_one.json
         run: |
           cdk8s import
           pipenv install
-          cdk8s synth --app "pipenv run python main.py --namespace test --deployment-config-file ${{ env.deployment_config_path }}"
+          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.namespace }} --deployment-config-file ${{ env.deployment_config_path }}"
+
+      - name: Deploy CRD`s used by CDk8s
+        working-directory: deployments/sequencer
+        run: kubectl create -R -f resources/crds
+
+      - name: kubectl create dry-run test
+        working-directory: deployments/sequencer
+        run: |
+          kubectl create namespace ${{ env.namespace }}
+          kubectl create -R -f ./dist --dry-run=server
+
+      - name: Shutdown k3d
+        if: always()
+        run: k3d cluster delete --all
