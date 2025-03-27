@@ -11,10 +11,10 @@ define_metrics!(
         MetricGauge { LAST_PROPOSED_BLOCK, "batcher_last_proposed_block", "The last block proposed by this sequencer" },
         MetricCounter { REVERTED_BLOCKS, "batcher_reverted_blocks", "Counter of reverted blocks", init = 0 },
         // Proposals
-        MetricCounter { PROPOSAL_STARTED, "batcher_proposal_started", "Counter of proposals started", init = 0 },
-        MetricCounter { PROPOSAL_SUCCEEDED, "batcher_proposal_succeeded", "Counter of successful proposals", init = 0 },
-        MetricCounter { PROPOSAL_FAILED, "batcher_proposal_failed", "Counter of failed proposals", init = 0 },
-        MetricCounter { PROPOSAL_ABORTED, "batcher_proposal_aborted", "Counter of aborted proposals", init = 0 },
+        MetricGauge { PROPOSAL_STARTED, "batcher_proposal_started", "Counter of proposals started at current height" },
+        MetricGauge { PROPOSAL_SUCCEEDED, "batcher_proposal_succeeded", "Counter of successful proposals  at current height" },
+        MetricGauge { PROPOSAL_FAILED, "batcher_proposal_failed", "Counter of failed proposals at current height" },
+        MetricGauge { PROPOSAL_ABORTED, "batcher_proposal_aborted", "Counter of aborted proposals at current height"},
         // Transactions
         MetricCounter { BATCHED_TRANSACTIONS, "batcher_batched_transactions", "Counter of batched transactions across all forks", init = 0 },
         MetricCounter { REJECTED_TRANSACTIONS, "batcher_rejected_transactions", "Counter of rejected transactions", init = 0 },
@@ -44,6 +44,13 @@ pub fn register_metrics(storage_height: BlockNumber) {
 
     CLASS_CACHE_MISSES.register();
     CLASS_CACHE_HITS.register();
+}
+
+pub fn reset_proposals() {
+    PROPOSAL_STARTED.set(0);
+    PROPOSAL_SUCCEEDED.set(0);
+    PROPOSAL_FAILED.set(0);
+    PROPOSAL_ABORTED.set(0);
 }
 
 /// A handle to update the proposal metrics when the proposal is created and dropped.

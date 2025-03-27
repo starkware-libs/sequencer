@@ -60,6 +60,7 @@ use crate::block_builder::{
 use crate::config::BatcherConfig;
 use crate::metrics::{
     register_metrics,
+    reset_proposals,
     ProposalMetricsHandle,
     BATCHED_TRANSACTIONS,
     CLASS_CACHE_HITS,
@@ -164,6 +165,7 @@ impl Batcher {
 
         info!("Starting to work on height {}.", input.height);
         self.active_height = Some(input.height);
+        reset_proposals();
 
         Ok(())
     }

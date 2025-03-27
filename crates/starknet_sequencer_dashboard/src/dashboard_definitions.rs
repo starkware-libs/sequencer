@@ -73,9 +73,9 @@ pub const DEV_JSON_PATH: &str = "Monitoring/sequencer/dev_grafana.json";
 
 const PANEL_ADDED_TRANSACTIONS_TOTAL: Panel =
     Panel::from_counter(ADDED_TRANSACTIONS_TOTAL, PanelType::Stat);
-const PANEL_PROPOSAL_STARTED: Panel = Panel::from_counter(PROPOSAL_STARTED, PanelType::Stat);
-const PANEL_PROPOSAL_SUCCEEDED: Panel = Panel::from_counter(PROPOSAL_SUCCEEDED, PanelType::Stat);
-const PANEL_PROPOSAL_FAILED: Panel = Panel::from_counter(PROPOSAL_FAILED, PanelType::Stat);
+const PANEL_PROPOSAL_STARTED: Panel = Panel::from_gauge(PROPOSAL_STARTED, PanelType::Stat);
+const PANEL_PROPOSAL_SUCCEEDED: Panel = Panel::from_gauge(PROPOSAL_SUCCEEDED, PanelType::Stat);
+const PANEL_PROPOSAL_FAILED: Panel = Panel::from_gauge(PROPOSAL_FAILED, PanelType::Stat);
 const PANEL_BATCHED_TRANSACTIONS: Panel =
     Panel::from_counter(BATCHED_TRANSACTIONS, PanelType::Stat);
 const PANEL_CAIRO_NATIVE_CACHE_MISS_RATIO: Panel = Panel::new(

@@ -3,21 +3,21 @@
     "Batcher": [
       {
         "title": "batcher_proposal_started",
-        "description": "Counter of proposals started",
+        "description": "Counter of proposals started at current height",
         "type": "stat",
         "expr": "batcher_proposal_started",
         "extra_params": {}
       },
       {
         "title": "batcher_proposal_succeeded",
-        "description": "Counter of successful proposals",
+        "description": "Counter of successful proposals  at current height",
         "type": "stat",
         "expr": "batcher_proposal_succeeded",
         "extra_params": {}
       },
       {
         "title": "batcher_proposal_failed",
-        "description": "Counter of failed proposals",
+        "description": "Counter of failed proposals at current height",
         "type": "stat",
         "expr": "batcher_proposal_failed",
         "extra_params": {}
