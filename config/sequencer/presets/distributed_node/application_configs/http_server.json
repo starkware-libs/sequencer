@@ -213,6 +213,7 @@
   "l1_provider_config.provider_startup_height_override": 1,
   "l1_provider_config.provider_startup_height_override.#is_none": false,
   "l1_provider_config.startup_sync_sleep_retry_interval": 0.0,
+  "l1_scraper_config.disable_base_layer": false,
   "l1_scraper_config.finality": 0,
   "l1_scraper_config.polling_interval": 1,
   "l1_scraper_config.startup_rewind_time": 0,
