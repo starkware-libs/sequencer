@@ -30,6 +30,7 @@ impl SyncStateReader {
         class_manager_client: SharedClassManagerClient,
         block_number: BlockNumber,
     ) -> Self {
+        tracing::info!("!!!!!! sync block number {block_number:?}");
         Self { block_number, state_sync_client, class_manager_client }
     }
 }
