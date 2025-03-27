@@ -6,7 +6,13 @@ license.workspace = true
 repository.workspace = true
 
 [features]
-testing = ["apollo_gateway_types/testing", "reqwest", "starknet_api/testing"]
+testing = [
+  "apollo_gateway_types/testing",
+  "blockifier_test_utils",
+  "mempool_test_utils",
+  "reqwest",
+  "starknet_api/testing",
+]
 
 [lints]
 workspace = true
@@ -18,8 +24,10 @@ apollo_infra.workspace = true
 apollo_infra_utils.workspace = true
 apollo_metrics.workspace = true
 axum.workspace = true
+blockifier_test_utils = { workspace = true, optional = true }
 hyper.workspace = true
 jsonrpsee = { workspace = true, features = ["full"] }
+mempool_test_utils = { workspace = true, optional = true }
 reqwest = { workspace = true, optional = true }
 serde.workspace = true
 serde_json.workspace = true
