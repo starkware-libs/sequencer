@@ -82,6 +82,7 @@ pub enum Ids {
     Bit,
     BucketIndex,
     BuiltinCosts,
+    BuiltinParams,
     BuiltinPtrs,
     CompiledClass,
     CompiledClassFact,
@@ -109,7 +110,9 @@ pub enum Ids {
     Low,
     MaxGas,
     NBlobs,
+    NBuiltins,
     NCompiledClassFacts,
+    NSelectedBuiltins,
     NTxs,
     NewLength,
     NextAvailableAlias,
@@ -125,8 +128,11 @@ pub enum Ids {
     RangeCheckPtr,
     RemainingGas,
     ResourceBounds,
+    ReturnBuiltinPtrs,
     Request,
     Res,
+    SelectedEncodings,
+    SelectedPtrs,
     Sha256Ptr,
     StateEntry,
     StateUpdatesStart,
@@ -144,6 +150,7 @@ impl From<Ids> for &'static str {
             Ids::Bit => "bit",
             Ids::BucketIndex => "bucket_index",
             Ids::BuiltinCosts => "builtin_costs",
+            Ids::BuiltinParams => "builtin_params",
             Ids::BuiltinPtrs => "builtin_ptrs",
             Ids::CompiledClass => "compiled_class",
             Ids::CompiledClassFact => "compiled_class_fact",
@@ -171,7 +178,9 @@ impl From<Ids> for &'static str {
             Ids::Low => "low",
             Ids::MaxGas => "max_gas",
             Ids::NBlobs => "n_blobs",
+            Ids::NBuiltins => "n_builtins",
             Ids::NCompiledClassFacts => "n_compiled_class_facts",
+            Ids::NSelectedBuiltins => "n_selected_builtins",
             Ids::NTxs => "n_txs",
             Ids::NewLength => "new_length",
             Ids::NextAvailableAlias => "next_available_alias",
@@ -187,8 +196,11 @@ impl From<Ids> for &'static str {
             Ids::RangeCheckPtr => "range_check_ptr",
             Ids::RemainingGas => "remaining_gas",
             Ids::ResourceBounds => "resource_bounds,",
+            Ids::ReturnBuiltinPtrs => "return_builtin_ptrs",
             Ids::Request => "request",
             Ids::Res => "res",
+            Ids::SelectedEncodings => "selected_encodings",
+            Ids::SelectedPtrs => "selected_ptrs",
             Ids::Sha256Ptr => "sha256_ptr",
             Ids::StateEntry => "state_entry",
             Ids::StateUpdatesStart => "state_updates_start",
@@ -291,6 +303,7 @@ impl Const {
 #[derive(Copy, Clone)]
 pub enum CairoStruct {
     BigInt3,
+    BuiltinParamsPtr,
     BuiltinPointersPtr,
     CompiledClass,
     CompiledClassEntryPoint,
@@ -317,6 +330,7 @@ impl From<CairoStruct> for &'static str {
             CairoStruct::BigInt3 => {
                 "starkware.starknet.core.os.data_availability.bls_field.BigInt3"
             }
+            CairoStruct::BuiltinParamsPtr => "starkware.starknet.core.os.builtins.BuiltinParams*",
             CairoStruct::BuiltinPointersPtr => {
                 "starkware.starknet.core.os.builtins.BuiltinPointers*"
             }
