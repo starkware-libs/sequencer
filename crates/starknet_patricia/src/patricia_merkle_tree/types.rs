@@ -11,7 +11,7 @@ pub mod types_test;
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, derive_more::Sub, derive_more::Display)]
-pub struct SubTreeHeight(pub(crate) u8);
+pub struct SubTreeHeight(pub u8);
 
 impl SubTreeHeight {
     pub const ACTUAL_HEIGHT: SubTreeHeight = SubTreeHeight(251);
