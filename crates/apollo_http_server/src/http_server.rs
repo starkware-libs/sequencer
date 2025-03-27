@@ -1,5 +1,6 @@
 use std::clone::Clone;
 use std::net::SocketAddr;
+use std::string::String;
 
 use apollo_gateway_types::communication::SharedGatewayClient;
 use apollo_gateway_types::gateway_types::GatewayInput;
@@ -14,6 +15,7 @@ use starknet_api::transaction::TransactionHash;
 use tracing::{debug, info, instrument, trace};
 
 use crate::config::HttpServerConfig;
+use crate::deprecated_gateway_transaction::DeprecatedGatewayTransactionV3;
 use crate::errors::{HttpServerError, HttpServerRunError};
 use crate::metrics::{init_metrics, record_added_transaction, record_added_transaction_status};
 
@@ -55,7 +57,13 @@ impl HttpServer {
 
     // TODO(Yael): consider supporting both formats in the same endpoint if possible.
     pub fn app(&self) -> Router {
-        Router::new().route("/add_rpc_tx", post(add_rpc_tx)).with_state(self.app_state.clone())
+        Router::new()
+            // Json Rpc endpoint
+            .route("/add_rpc_tx", post(add_rpc_tx))
+            .with_state(self.app_state.clone())
+            // Rest api endpoint
+            .route("/add_tx", post(add_tx))
+            .with_state(self.app_state.clone())
     }
 }
 
@@ -68,6 +76,27 @@ async fn add_rpc_tx(
     Json(tx): Json<RpcTransaction>,
 ) -> HttpServerResult<Json<TransactionHash>> {
     record_added_transaction();
+    add_tx_inner(app_state, headers, tx).await
+}
+
+#[instrument(skip(app_state))]
+async fn add_tx(
+    State(app_state): State<AppState>,
+    headers: HeaderMap,
+    tx: String,
+) -> HttpServerResult<Json<TransactionHash>> {
+    record_added_transaction();
+    // TODO(Yael): increment the failure metric for parsing error.
+    let tx: DeprecatedGatewayTransactionV3 = serde_json::from_str(&tx)
+        .inspect_err(|e| debug!("Error while parsing transaction: {}", e))?;
+    add_tx_inner(app_state, headers, tx.into()).await
+}
+
+async fn add_tx_inner(
+    app_state: AppState,
+    headers: HeaderMap,
+    tx: RpcTransaction,
+) -> HttpServerResult<Json<TransactionHash>> {
     let gateway_input: GatewayInput = GatewayInput { rpc_tx: tx, message_metadata: None };
     let add_tx_result = app_state.gateway_client.add_tx(gateway_input).await.map_err(|e| {
         debug!("Error while adding transaction: {}", e);
