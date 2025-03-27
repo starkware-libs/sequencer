@@ -57,6 +57,7 @@ use starknet_api::transaction::fields::{
     GasVectorComputationMode,
     Resource,
     ResourceBounds,
+    Tip,
     TransactionSignature,
     ValidResourceBounds,
 };
@@ -1124,6 +1125,13 @@ fn test_max_fee_exceeds_balance(
             base_resource_bounds.l1_data_gas.max_amount.0 += 10;
             assert_resource_overdraft!(ValidResourceBounds::AllResources(base_resource_bounds));
             base_resource_bounds.l1_data_gas.max_amount.0 -= 10;
+            // Tip yields l2 gas overdraft.
+            let invalid_tx = invoke_tx_with_default_flags(invoke_tx_args! {
+                resource_bounds: ValidResourceBounds::AllResources(base_resource_bounds),
+                tip: Tip(1_u64),
+                ..default_invoke_args.clone()
+            });
+            assert_resource_bounds_exceed_balance_failure(&mut state, &block_context, invalid_tx);
         }
     }
 }
