@@ -11,13 +11,11 @@ use apollo_gateway_types::gateway_types::{
 use apollo_infra::component_client::ClientError;
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use axum::body::{Bytes, HttpBody};
-use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
-use blockifier_test_utils::cairo_versions::CairoVersion;
+use hyper::StatusCode;
 use jsonrpsee::types::error::ErrorCode;
 use jsonrpsee::types::ErrorObjectOwned;
-use mempool_test_utils::starknet_api_test_utils::invoke_tx;
 use rstest::rstest;
 use serde_json::Value;
 use starknet_api::test_utils::read_json_file;
@@ -29,7 +27,12 @@ use tracing_test::traced_test;
 use crate::config::HttpServerConfig;
 use crate::errors::HttpServerError;
 use crate::http_server::CLIENT_REGION_HEADER;
-use crate::test_utils::http_client_server_setup;
+use crate::test_utils::{
+    deprecated_gateway_tx,
+    http_client_server_setup,
+    rpc_tx,
+    GatewayTransaction,
+};
 
 const DEPRECATED_GATEWAY_INVOKE_TX_RESPONSE_JSON_PATH: &str =
     "expected_gateway_response/invoke_gateway_output.json";
@@ -95,10 +98,13 @@ async fn error_into_response() {
 }
 
 #[traced_test]
+#[rstest]
+#[case::add_rest_tx(0, deprecated_gateway_tx())]
+#[case::add_rpc_tx(1, rpc_tx())]
 #[tokio::test]
-/// Test that when an "add_tx" HTTP request is sent to the server, the region of the http request is
-/// recorded to the info log.
-async fn record_region_test() {
+/// Test that when an add transaction HTTP request is sent to the server, the region of the http
+/// request is recorded to the info log.
+async fn record_region_test(#[case] index: u16, #[case] tx: impl GatewayTransaction) {
     let mut mock_gateway_client = MockGatewayClient::new();
     // Set the successful response.
     let tx_hash_1 = TransactionHash(Felt::ONE);
@@ -113,32 +119,34 @@ async fn record_region_test() {
         .return_const(Ok(GatewayOutput::Invoke(InvokeGatewayOutput::new(tx_hash_2))));
 
     let ip = IpAddr::from(Ipv4Addr::LOCALHOST);
-    let mut available_ports = AvailablePorts::new(TestIdentifier::HttpServerUnitTests.into(), 1);
+    let mut available_ports =
+        AvailablePorts::new(TestIdentifier::HttpServerUnitTests.into(), 1 + index);
     let http_server_config = HttpServerConfig { ip, port: available_ports.get_next_port() };
     let add_tx_http_client =
         http_client_server_setup(mock_gateway_client, http_server_config).await;
 
     // Send a transaction to the server, without a region.
-    let rpc_tx = invoke_tx(CairoVersion::default());
-    add_tx_http_client.add_tx(rpc_tx).await;
+    add_tx_http_client.add_tx(tx.clone()).await;
     assert!(logs_contain(
         format!("Recorded transaction with hash: {} from region: {}", tx_hash_1, "N/A").as_str()
     ));
 
     // Send transaction to the server, with a region.
-    let rpc_tx = invoke_tx(CairoVersion::default());
     let region = "test";
-    add_tx_http_client.add_tx_with_headers(rpc_tx, [(CLIENT_REGION_HEADER, region)]).await;
+    add_tx_http_client.add_tx_with_headers(tx, [(CLIENT_REGION_HEADER, region)]).await;
     assert!(logs_contain(
         format!("Recorded transaction with hash: {} from region: {}", tx_hash_2, region).as_str()
     ));
 }
 
 #[traced_test]
+#[rstest]
+#[case::add_rest_tx(0, deprecated_gateway_tx())]
+#[case::add_rpc_tx(1, rpc_tx())]
 #[tokio::test]
 /// Test that when an "add_tx" HTTP request is sent to the server, and it fails in the Gateway, no
 /// record of the region is logged.
-async fn record_region_gateway_failing_tx() {
+async fn record_region_gateway_failing_tx(#[case] index: u16, #[case] tx: impl GatewayTransaction) {
     let mut mock_gateway_client = MockGatewayClient::new();
     // Set the failed response.
     mock_gateway_client.expect_add_tx().times(1).return_const(Err(
@@ -148,20 +156,24 @@ async fn record_region_gateway_failing_tx() {
     ));
 
     let ip = IpAddr::from(Ipv4Addr::LOCALHOST);
-    let mut available_ports = AvailablePorts::new(TestIdentifier::HttpServerUnitTests.into(), 2);
+    let mut available_ports =
+        AvailablePorts::new(TestIdentifier::HttpServerUnitTests.into(), 3 + index);
     let http_server_config = HttpServerConfig { ip, port: available_ports.get_next_port() };
     // let http_server_config = HttpServerConfig { ip, port };
     let add_tx_http_client =
         http_client_server_setup(mock_gateway_client, http_server_config).await;
 
     // Send a transaction to the server.
-    let rpc_tx = invoke_tx(CairoVersion::default());
-    add_tx_http_client.add_tx(rpc_tx).await;
+    add_tx_http_client.add_tx(tx).await;
     assert!(!logs_contain("Recorded transaction with hash: "));
 }
 
+// TODO(Yael): add rest_api tests for deploy_account and declare
+#[rstest]
+#[case::add_rest_tx(0, deprecated_gateway_tx())]
+#[case::add_rpc_tx(1, rpc_tx())]
 #[tokio::test]
-async fn test_response() {
+async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) {
     let mut mock_gateway_client = MockGatewayClient::new();
 
     // Set the successful response.
@@ -184,19 +196,18 @@ async fn test_response() {
     ));
 
     let ip = IpAddr::from(Ipv4Addr::LOCALHOST);
-    let mut available_ports = AvailablePorts::new(TestIdentifier::HttpServerUnitTests.into(), 3);
+    let mut available_ports =
+        AvailablePorts::new(TestIdentifier::HttpServerUnitTests.into(), 5 + index);
     let http_server_config = HttpServerConfig { ip, port: available_ports.get_next_port() };
     let add_tx_http_client =
         http_client_server_setup(mock_gateway_client, http_server_config).await;
 
     // Test a successful response.
-    let rpc_tx = invoke_tx(CairoVersion::default());
-    let tx_hash = add_tx_http_client.assert_add_tx_success(rpc_tx).await;
+    let tx_hash = add_tx_http_client.assert_add_tx_success(tx.clone()).await;
     assert_eq!(tx_hash, expected_tx_hash);
 
     // Test a failed response.
-    let rpc_tx = invoke_tx(CairoVersion::default());
-    let error_str = add_tx_http_client.assert_add_tx_error(rpc_tx, StatusCode::BAD_REQUEST).await;
+    let error_str = add_tx_http_client.assert_add_tx_error(tx, StatusCode::BAD_REQUEST).await;
     assert_eq!(error_str, expected_err_str);
     // TODO(noamsp): mock that gateway client returned client error and check the error.
 }
