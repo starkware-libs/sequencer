@@ -297,7 +297,7 @@
   "state_sync_config.rpc_config.execution_config.strk_fee_contract_address": "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d",
   "state_sync_config.rpc_config.max_events_chunk_size": 1000,
   "state_sync_config.rpc_config.max_events_keys": 100,
-  "state_sync_config.rpc_config.server_address": "0.0.0.0:8080",
+  "state_sync_config.rpc_config.server_address": "0.0.0.0:8090",
   "state_sync_config.rpc_config.starknet_gateway_retry_config.max_retries": 5,
   "state_sync_config.rpc_config.starknet_gateway_retry_config.retry_base_millis": 50,
   "state_sync_config.rpc_config.starknet_gateway_retry_config.retry_max_delay_millis": 1000,

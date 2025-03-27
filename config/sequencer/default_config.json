@@ -1632,7 +1632,7 @@
   "state_sync_config.rpc_config.server_address": {
     "description": "IP:PORT of the node`s JSON-RPC server.",
     "privacy": "Public",
-    "value": "0.0.0.0:8080"
+    "value": "0.0.0.0:8090"
   },
   "state_sync_config.rpc_config.starknet_gateway_retry_config.max_retries": {
     "description": "For communicating with Starknet gateway, maximum number of retries before the node stops retrying.",
