@@ -7,7 +7,8 @@ use starknet_infra_utils::path::resolve_project_relative_path;
 use tokio::fs::File;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::Child;
-use tokio::task::{self, JoinHandle};
+use tokio::task;
+use tokio_util::task::AbortOnDropHandle;
 use tracing::{error, info, instrument};
 
 pub const NODE_EXECUTABLE_PATH: &str = "target/debug/starknet_sequencer_node";
@@ -35,29 +36,29 @@ impl NodeRunner {
     }
 }
 
-pub fn spawn_run_node(node_config_path: PathBuf, node_runner: NodeRunner) -> JoinHandle<()> {
-    task::spawn(async move {
+pub fn spawn_run_node(node_config_path: PathBuf, node_runner: NodeRunner) -> AbortOnDropHandle<()> {
+    AbortOnDropHandle::new(task::spawn(async move {
         info!("Running the node from its spawned task.");
-        // Obtain both handles, as the processes are terminated when their handles are dropped.
-        let (mut node_handle, _annotator_handle) =
+        // Obtain handles, as the processes and task are terminated when their handles are dropped.
+        let (mut node_handle, _annotator_handle, _pipe_task) =
             spawn_node_child_process(node_config_path, node_runner.clone()).await;
         let _node_run_result = node_handle.
             wait(). // Runs the node until completion, should be running indefinitely.
             await; // Awaits the completion of the node.
         panic!("Node {:?} stopped unexpectedly.", node_runner);
-    })
+    }))
 }
 
 #[instrument(skip(node_runner))]
 async fn spawn_node_child_process(
     node_config_path: PathBuf,
     node_runner: NodeRunner,
-) -> (Child, Child) {
+) -> (Child, Child, AbortOnDropHandle<()>) {
     info!("Getting the node executable.");
     let node_executable = get_node_executable_path();
 
     info!("Running the node from: {}", node_executable);
-    let mut node_cmd: Child = create_shell_command(node_executable.as_str())
+    let mut node_process: Child = create_shell_command(node_executable.as_str())
         .arg("--config_file")
         .arg(node_config_path.to_str().unwrap())
         .stderr(Stdio::inherit())
@@ -66,7 +67,7 @@ async fn spawn_node_child_process(
         .spawn()
         .expect("Spawning sequencer node should succeed.");
 
-    let mut annotator_cmd: Child = create_shell_command("awk")
+    let mut annotator_process: Child = create_shell_command("awk")
         .arg("-v")
         // Print the prefix in different colors.
         .arg(format!("prefix=\u{1b}[3{}m{}\u{1b}[0m", node_runner.node_index+1, node_runner.get_description()))
@@ -78,13 +79,15 @@ async fn spawn_node_child_process(
         .spawn()
         .expect("Spawning node output annotation should succeed.");
 
+    info!("Node PID: {:?}, Annotator PID: {:?}", node_process.id(), annotator_process.id());
+
     // Get the node stdout and the annotator stdin.
-    let node_stdout = node_cmd.stdout.take().expect("Node stdout should be available.");
+    let node_stdout = node_process.stdout.take().expect("Node stdout should be available.");
     let mut annotator_stdin =
-        annotator_cmd.stdin.take().expect("Annotator stdin should be available.");
+        annotator_process.stdin.take().expect("Annotator stdin should be available.");
 
     // Spawn a task to connect the node stdout with the annotator stdin.
-    tokio::spawn(async move {
+    let pipe_task = AbortOnDropHandle::new(tokio::spawn(async move {
         let mut reader = BufReader::new(node_stdout).lines();
         info!("Writing node logs to file: {:?}", node_runner.logs_file_path());
         let mut file =
@@ -118,9 +121,9 @@ async fn spawn_node_child_process(
         if let Err(e) = annotator_stdin.shutdown().await {
             error!("Failed to shut down annotator stdin: {}", e);
         }
-    });
+    }));
 
-    (node_cmd, annotator_cmd)
+    (node_process, annotator_process, pipe_task)
 }
 
 pub fn get_node_executable_path() -> String {
