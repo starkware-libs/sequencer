@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use alloy::node_bindings::AnvilInstance;
 use apollo_http_server::config::HttpServerConfig;
-use apollo_http_server::test_utils::HttpTestClient;
+use apollo_http_server::test_utils::{HttpServerEndpoint, HttpTestClient};
 use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
@@ -130,7 +130,9 @@ impl NodeSetup {
     }
 
     async fn send_rpc_tx_fn(&self, rpc_tx: RpcTransaction) -> TransactionHash {
-        self.add_tx_http_client.assert_add_tx_success(rpc_tx).await
+        self.add_tx_http_client
+            .assert_add_tx_success(rpc_tx, HttpServerEndpoint::AddRpcTransaction)
+            .await
     }
 
     pub fn batcher_monitoring_client(&self) -> &MonitoringClient {
