@@ -61,8 +61,7 @@ pub(crate) fn initialize_state_changes<S: StateReader>(
 pub(crate) fn write_full_output_to_memory<S: StateReader>(
     HintArgs { vm, hint_processor, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let os_input = &hint_processor.execution_helper.os_input;
-    let full_output = Felt::from(os_input.full_output);
+    let full_output = Felt::from(hint_processor.os_hints_config.full_output);
     insert_nondet_hint_value(vm, AllHints::OsHint(OsHint::WriteFullOutputToMemory), full_output)
 }
 

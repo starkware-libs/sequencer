@@ -21,8 +21,8 @@ impl<S: StateReader> OsExecutionHelper<S> {
         os_input: StarknetOsInput,
         state_reader: S,
         state_input: CachedStateInput,
+        debug_mode: bool,
     ) -> Result<Self, StarknetOsError> {
-        let debug_mode = os_input.debug_mode;
         Ok(Self {
             cached_state: Self::initialize_cached_state(state_reader, state_input)?,
             os_input,

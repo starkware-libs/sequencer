@@ -81,7 +81,7 @@ pub(crate) fn write_use_kzg_da_to_memory<S: StateReader>(
     HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
     let use_kzg_da = hint_processor.execution_helper.os_input.block_info.use_kzg_da
-        && !hint_processor.execution_helper.os_input.full_output;
+        && !hint_processor.os_hints_config.full_output;
 
     insert_nondet_hint_value(
         vm,

@@ -21,6 +21,7 @@ use crate::hint_processor::execution_helper::OsExecutionHelper;
 use crate::hints::enum_definition::AllHints;
 use crate::hints::error::OsHintError;
 use crate::hints::types::{HintArgs, HintEnum, HintExtensionImplementation, HintImplementation};
+use crate::io::os_input::OsHintsConfig;
 #[cfg(any(feature = "testing", test))]
 use crate::io::os_input::StarknetOsInput;
 
@@ -31,6 +32,7 @@ type VmHintExtensionResult = VmHintResultType<HintExtension>;
 pub struct SnosHintProcessor<S: StateReader> {
     pub(crate) os_program: Program,
     pub execution_helper: OsExecutionHelper<S>,
+    pub(crate) os_hints_config: OsHintsConfig,
     pub syscall_hint_processor: SyscallHintProcessor,
     _deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
     builtin_hint_processor: BuiltinHintProcessor,
@@ -42,12 +44,14 @@ impl<S: StateReader> SnosHintProcessor<S> {
     pub fn new(
         os_program: Program,
         execution_helper: OsExecutionHelper<S>,
+        os_hints_config: OsHintsConfig,
         syscall_hint_processor: SyscallHintProcessor,
         deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
     ) -> Self {
         Self {
             os_program,
             execution_helper,
+            os_hints_config,
             syscall_hint_processor,
             _deprecated_syscall_hint_processor: deprecated_syscall_hint_processor,
             da_segment: None,
@@ -133,10 +137,12 @@ impl SnosHintProcessor<DictStateReader> {
         state_reader: Option<DictStateReader>,
         os_input: Option<StarknetOsInput>,
         os_program: Option<Program>,
+        os_hints_config: Option<OsHintsConfig>,
     ) -> Self {
         let state_reader = state_reader.unwrap_or_default();
         let os_input = os_input.unwrap_or_default();
         let os_program = os_program.unwrap_or_default();
+        let os_hints_config = os_hints_config.unwrap_or_default();
         let execution_helper =
             OsExecutionHelper::<DictStateReader>::new_for_testing(state_reader, os_input);
 
@@ -146,6 +152,7 @@ impl SnosHintProcessor<DictStateReader> {
         SnosHintProcessor::new(
             os_program,
             execution_helper,
+            os_hints_config,
             syscall_handler,
             deprecated_syscall_handler,
         )
