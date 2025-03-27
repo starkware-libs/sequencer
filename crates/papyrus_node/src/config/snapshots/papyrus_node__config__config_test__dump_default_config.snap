@@ -479,7 +479,7 @@ expression: dumped_default_config
   },
   "rpc.server_address": {
     "description": "IP:PORT of the node`s JSON-RPC server.",
-    "value": "0.0.0.0:8080",
+    "value": "0.0.0.0:8090",
     "privacy": "Public"
   },
   "rpc.starknet_url": {
