@@ -6,6 +6,7 @@ use assert_matches::assert_matches;
 use async_stream::stream;
 use async_trait::async_trait;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use futures::stream::BoxStream;
 use futures::StreamExt;
 use indexmap::IndexMap;
 use papyrus_common::pending_classes::{ApiContractClass, PendingClasses};
@@ -38,6 +39,7 @@ use super::pending::MockPendingSourceTrait;
 use crate::sources::base_layer::{BaseLayerSourceTrait, MockBaseLayerSourceTrait};
 use crate::sources::central::{
     BlocksStream,
+    CentralResult,
     CompiledClassesStream,
     MockCentralSourceTrait,
     StateUpdatesStream,
@@ -200,49 +202,38 @@ async fn sync_happy_flow() {
             hash: create_block_hash(LATEST_BLOCK_NUMBER, false),
         }))
     });
-    central_mock.expect_stream_new_blocks().returning(move |initial, up_to| {
-        let blocks_stream: BlocksStream<'_> = stream! {
-            for block_number in initial.iter_up_to(up_to) {
-                if block_number.0 >= N_BLOCKS {
-                    yield Err(CentralError::BlockNotFound { block_number });
-                }
-                let header = BlockHeader {
-                    block_hash: create_block_hash(block_number, false),
-                    block_header_without_hash: BlockHeaderWithoutHash {
-                        block_number,
-                        parent_hash: create_block_hash(block_number.prev().unwrap_or_default(), false),
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                };
-                yield Ok((
-                    block_number,
-                    Block { header, body: BlockBody::default() },
-                    BlockSignature::default(),
-                ));
-            }
+    central_mock.expect_stream_new_blocks().returning(mock_stream_call(|block_number| {
+        if block_number.0 >= N_BLOCKS {
+            return None;
         }
-        .boxed();
-        blocks_stream
-    });
-    central_mock.expect_stream_state_updates().returning(move |initial, up_to| {
-        let state_stream: StateUpdatesStream<'_> = stream! {
-            for block_number in initial.iter_up_to(up_to) {
-                // TODO(Eitan): test classes were added to class manager by including declared classes and deprecated declared classes
-                if block_number.0 >= N_BLOCKS {
-                    yield Err(CentralError::BlockNotFound { block_number })
-                }
-                yield Ok((
-                    block_number,
-                    create_block_hash(block_number, false),
-                    StateDiff::default(),
-                    IndexMap::new(),
-                ));
-            }
+        let header = BlockHeader {
+            block_hash: create_block_hash(block_number, false),
+            block_header_without_hash: BlockHeaderWithoutHash {
+                block_number,
+                parent_hash: create_block_hash(block_number.prev().unwrap_or_default(), false),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        Some((
+            block_number,
+            Block { header, body: BlockBody::default() },
+            BlockSignature::default(),
+        ))
+    }));
+    central_mock.expect_stream_state_updates().returning(mock_stream_call(|block_number| {
+        // TODO(Eitan): test classes were added to class manager by including declared classes and
+        // deprecated declared classes
+        if block_number.0 >= N_BLOCKS {
+            return None;
         }
-        .boxed();
-        state_stream
-    });
+        Some((
+            block_number,
+            create_block_hash(block_number, false),
+            StateDiff::default(),
+            IndexMap::new(),
+        ))
+    }));
     central_mock.expect_get_block_hash().returning(|bn| Ok(Some(create_block_hash(bn, false))));
 
     // TODO(dvir): find a better way to do this.
@@ -639,38 +630,30 @@ async fn test_unrecoverable_sync_error_flow() {
             hash: create_block_hash(LATEST_BLOCK_NUMBER, false),
         }))
     });
-    mock.expect_stream_new_blocks().returning(move |_, _| {
-        let blocks_stream: BlocksStream<'_> = stream! {
-            let header = BlockHeader {
-                    block_hash: create_block_hash(BLOCK_NUMBER, false),
-                    block_header_without_hash: BlockHeaderWithoutHash {
-                        block_number: BLOCK_NUMBER,
-                        parent_hash: create_block_hash(BLOCK_NUMBER.prev().unwrap_or_default(), false),
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                };
-            yield Ok((
-                BLOCK_NUMBER,
-                Block { header, body: BlockBody::default()},
-                BlockSignature::default(),
-            ));
-        }
-        .boxed();
-        blocks_stream
-    });
-    mock.expect_stream_state_updates().returning(move |_, _| {
-        let state_stream: StateUpdatesStream<'_> = stream! {
-            yield Ok((
-                BLOCK_NUMBER,
-                create_block_hash(BLOCK_NUMBER, false),
-                StateDiff::default(),
-                IndexMap::new(),
-            ));
-        }
-        .boxed();
-        state_stream
-    });
+    mock.expect_stream_new_blocks().returning(mock_stream_call(|_block_number| {
+        let header = BlockHeader {
+            block_hash: create_block_hash(BLOCK_NUMBER, false),
+            block_header_without_hash: BlockHeaderWithoutHash {
+                block_number: BLOCK_NUMBER,
+                parent_hash: create_block_hash(BLOCK_NUMBER.prev().unwrap_or_default(), false),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        Some((
+            BLOCK_NUMBER,
+            Block { header, body: BlockBody::default() },
+            BlockSignature::default(),
+        ))
+    }));
+    mock.expect_stream_state_updates().returning(mock_stream_call(|_block_number| {
+        Some((
+            BLOCK_NUMBER,
+            create_block_hash(BLOCK_NUMBER, false),
+            StateDiff::default(),
+            IndexMap::new(),
+        ))
+    }));
     // make get_block_hash return a hash for the wrong block number
     mock.expect_get_block_hash()
         .returning(|_| Ok(Some(create_block_hash(WRONG_BLOCK_NUMBER, false))));
@@ -746,5 +729,19 @@ fn create_block_hash(bn: BlockNumber, is_reverted_block: bool) -> BlockHash {
         BlockHash(felt!(format!("0x{}10", bn.0).as_str()))
     } else {
         BlockHash(felt!(format!("0x{}", bn.0).as_str()))
+    }
+}
+
+fn mock_stream_call<T: Sync + Send + 'static>(
+    block_number_to_block_data_fn: impl FnMut(BlockNumber) -> Option<T> + Send + 'static + Clone,
+) -> impl FnMut(BlockNumber, BlockNumber) -> BoxStream<'static, CentralResult<T>> {
+    move |initial, up_to| {
+        assert!(initial.0 < up_to.0);
+        let mut block_number_to_block_data_fn_clone = block_number_to_block_data_fn.clone();
+        futures::stream::iter(initial.iter_up_to(up_to).map(move |block_number| {
+            block_number_to_block_data_fn_clone(block_number)
+                .ok_or(CentralError::BlockNotFound { block_number })
+        }))
+        .boxed()
     }
 }
