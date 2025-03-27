@@ -10,7 +10,7 @@ use starknet_api::deprecated_contract_class::EntryPointV0;
 use starknet_api::state::truncated_keccak;
 use starknet_types_core::felt::Felt;
 
-use crate::hints::error::OsHintError;
+use crate::vm_utils::VmUtilsResult;
 
 /// Our version of the cairo contract definition used to deserialize and re-serialize a modified
 /// version for a hash of the contract definition.
@@ -99,7 +99,7 @@ impl std::io::Write for KeccakWriter {
 
 pub fn compute_cairo_hinted_class_hash(
     contract_definition: &CairoContractDefinition<'_>,
-) -> Result<Felt, OsHintError> {
+) -> VmUtilsResult<Felt> {
     let mut string_buffer = vec![];
 
     let mut ser = serde_json::Serializer::with_formatter(&mut string_buffer, PythonJsonFormatter);

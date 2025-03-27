@@ -1,9 +1,5 @@
-use std::string::FromUtf8Error;
-
-use blockifier::execution::syscalls::hint_processor::SyscallExecutionError;
 use blockifier::state::errors::StateError;
 use cairo_vm::hint_processor::hint_processor_definition::HintExtension;
-use cairo_vm::serde::deserialize_program::Identifier;
 use cairo_vm::types::errors::math_errors::MathError;
 use cairo_vm::vm::errors::exec_scope_errors::ExecScopeError;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
@@ -20,6 +16,7 @@ use crate::hint_processor::os_logger::OsLoggerError;
 use crate::hints::enum_definition::AllHints;
 use crate::hints::hint_implementation::kzg::utils::FftError;
 use crate::hints::vars::{Const, Ids};
+use crate::vm_utils::VmUtilsError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum OsHintError {
@@ -41,12 +38,6 @@ pub enum OsHintError {
     ExpectedBit { id: Ids, felt: Felt },
     #[error(transparent)]
     Fft(#[from] FftError),
-    #[error(transparent)]
-    FromUtf8(#[from] FromUtf8Error),
-    #[error("The identifier {0:?} has no full name.")]
-    IdentifierHasNoFullName(Box<Identifier>),
-    #[error("The identifier {0:?} has no members.")]
-    IdentifierHasNoMembers(Box<Identifier>),
     #[error("Failed to convert {variant:?} felt value {felt:?} to type {ty}: {reason:?}.")]
     IdsConversion { variant: Ids, felt: Felt, ty: String, reason: String },
     #[error(
@@ -68,12 +59,8 @@ pub enum OsHintError {
     MissingPreimage(Felt),
     #[error(transparent)]
     OsLogger(#[from] OsLoggerError),
-    #[error("Failed to parse resource bounds: {0}.")]
-    ResourceBoundsParsing(SyscallExecutionError),
     #[error("{error:?} for json value {value}.")]
     SerdeJsonDeserialize { error: serde_json::Error, value: serde_json::value::Value },
-    #[error(transparent)]
-    SerdeJson(#[from] serde_json::Error),
     #[error(transparent)]
     StarknetApi(#[from] StarknetApiError),
     #[error(transparent)]
@@ -90,6 +77,8 @@ pub enum OsHintError {
     Vm(#[from] VirtualMachineError),
     #[error(transparent)]
     VmHint(#[from] VmHintError),
+    #[error(transparent)]
+    VmUtils(#[from] VmUtilsError),
 }
 
 /// `OsHintError` and the VM's `HintError` must have conversions in both directions, as execution

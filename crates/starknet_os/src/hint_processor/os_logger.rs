@@ -13,7 +13,7 @@ use starknet_api::transaction::TransactionHash;
 
 use crate::hint_processor::constants::BUILTIN_INSTANCE_SIZES;
 use crate::hints::vars::{CairoStruct, Ids};
-use crate::vm_utils::get_address_of_nested_fields;
+use crate::vm_utils::{get_address_of_nested_fields, VmUtilsError};
 
 #[derive(Debug, thiserror::Error)]
 pub enum OsLoggerError {
@@ -22,8 +22,6 @@ pub enum OsLoggerError {
          {self_ptr}, {enter_ptr}."
     )]
     BuiltinsNotInSameSegment { builtin: BuiltinName, self_ptr: Relocatable, enter_ptr: Relocatable },
-    #[error("Failed to build builtin pointer map: {0}.")]
-    BuiltinPtrs(String),
     #[error("Called exit_syscall with empty call stack.")]
     CallStackEmpty,
     #[error("SyscallTrace should be finalized only once.")]
@@ -57,6 +55,8 @@ pub enum OsLoggerError {
     UnknownBuiltin(String),
     #[error("Builtin {0} is not in the known sizes mapping {:?}.", BUILTIN_INSTANCE_SIZES)]
     UnknownBuiltinSize(String),
+    #[error(transparent)]
+    VmUtils(#[from] VmUtilsError),
 }
 
 pub type OsLoggerResult<T> = Result<T, OsLoggerError>;
@@ -315,8 +315,7 @@ impl ResourceCounter {
                 ap_tracking,
                 &[inner_field_name, member_name.as_str()],
                 os_program,
-            )
-            .map_err(|error| OsLoggerError::BuiltinPtrs(error.to_string()))?;
+            )?;
             builtin_ptrs_dict.insert(
                 BuiltinName::from_str(member_name)
                     .ok_or_else(|| OsLoggerError::UnknownBuiltin(member_name.clone()))?,
