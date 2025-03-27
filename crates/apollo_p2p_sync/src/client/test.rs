@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use apollo_protobuf::sync::DataOrFin;
+use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::body::BodyStorageReader;
 use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::state::StateStorageReader;
@@ -13,7 +14,6 @@ use starknet_api::block::{BlockHeaderWithoutHash, BlockNumber};
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
-use starknet_state_sync_types::state_sync_types::SyncBlock;
 
 use crate::client::test_utils::{
     random_header,

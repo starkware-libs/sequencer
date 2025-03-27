@@ -1,0 +1,26 @@
+[package]
+name = "apollo_mempool_types"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+version.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+testing = ["mockall"]
+
+[dependencies]
+apollo_network_types.workspace = true
+apollo_proc_macros.workspace = true
+async-trait.workspace = true
+mockall = { workspace = true, optional = true }
+serde = { workspace = true, features = ["derive"] }
+starknet_api.workspace = true
+starknet_sequencer_infra.workspace = true
+strum_macros.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+mockall.workspace = true

@@ -1,6 +1,8 @@
 use apollo_central_sync::metrics::{SYNC_HEADER_LATENCY_SEC, SYNC_HEADER_MARKER};
+use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_network::network_manager::ClientResponsesManager;
 use apollo_protobuf::sync::{DataOrFin, SignedBlockHeader};
+use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::header::{HeaderStorageReader, HeaderStorageWriter};
 use apollo_storage::{StorageError, StorageReader, StorageWriter};
 use chrono::{TimeZone, Utc};
@@ -8,8 +10,6 @@ use futures::future::BoxFuture;
 use futures::{FutureExt, StreamExt};
 use starknet_api::block::{BlockHash, BlockHeader, BlockNumber, BlockSignature};
 use starknet_api::hash::StarkHash;
-use starknet_class_manager_types::SharedClassManagerClient;
-use starknet_state_sync_types::state_sync_types::SyncBlock;
 use tracing::debug;
 
 use super::block_data_stream_builder::{

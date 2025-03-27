@@ -2,6 +2,7 @@ use std::cmp::Ordering::{Equal, Greater, Less};
 use std::collections::HashSet;
 use std::sync::Arc;
 
+use apollo_state_sync_types::communication::SharedStateSyncClient;
 use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -14,7 +15,6 @@ use starknet_l1_provider_types::{
     ValidationStatus,
 };
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
-use starknet_state_sync_types::communication::SharedStateSyncClient;
 use tracing::{debug, error, info, instrument, trace, warn};
 
 use crate::bootstrapper::Bootstrapper;

@@ -1,6 +1,10 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+use apollo_gateway::config::RpcStateReaderConfig;
+use apollo_gateway::errors::{serde_err_to_state_err, RPCStateReaderError};
+use apollo_gateway::rpc_objects::{BlockHeader, BlockId, GetBlockWithTxHashesParams};
+use apollo_gateway::rpc_state_reader::RpcStateReader;
 use assert_matches::assert_matches;
 use blockifier::abi::constants;
 use blockifier::blockifier::config::TransactionExecutorConfig;
@@ -27,10 +31,6 @@ use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress,
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_core::types::ContractClass as StarknetContractClass;
-use starknet_gateway::config::RpcStateReaderConfig;
-use starknet_gateway::errors::{serde_err_to_state_err, RPCStateReaderError};
-use starknet_gateway::rpc_objects::{BlockHeader, BlockId, GetBlockWithTxHashesParams};
-use starknet_gateway::rpc_state_reader::RpcStateReader;
 use starknet_types_core::felt::Felt;
 
 use crate::retry_request;

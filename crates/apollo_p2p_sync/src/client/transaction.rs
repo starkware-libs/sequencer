@@ -1,6 +1,8 @@
 use apollo_central_sync::metrics::{SYNC_BODY_MARKER, SYNC_PROCESSED_TRANSACTIONS};
+use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_network::network_manager::ClientResponsesManager;
 use apollo_protobuf::sync::DataOrFin;
+use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::body::{BodyStorageReader, BodyStorageWriter};
 use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::{StorageError, StorageReader, StorageWriter};
@@ -9,8 +11,6 @@ use futures::{FutureExt, StreamExt};
 use starknet_api::block::{BlockBody, BlockNumber};
 use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use starknet_api::transaction::{FullTransaction, Transaction, TransactionOutput};
-use starknet_class_manager_types::SharedClassManagerClient;
-use starknet_state_sync_types::state_sync_types::SyncBlock;
 
 use super::block_data_stream_builder::{
     BadPeerError,

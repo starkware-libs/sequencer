@@ -3,6 +3,9 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use alloy::node_bindings::AnvilInstance;
+use apollo_consensus_manager::config::ConsensusManagerConfig;
+use apollo_gateway_types::errors::GatewaySpecError;
+use apollo_mempool_p2p::config::MempoolP2pConfig;
 use apollo_network::gossipsub_impl::Topic;
 use apollo_network::network_manager::test_utils::{
     create_connected_network_configs,
@@ -10,6 +13,7 @@ use apollo_network::network_manager::test_utils::{
 };
 use apollo_network::network_manager::BroadcastTopicChannels;
 use apollo_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, StreamMessageBody};
+use apollo_state_sync::config::StateSyncConfig;
 use apollo_storage::StorageConfig;
 use blockifier::context::ChainInfo;
 use futures::StreamExt;
@@ -34,12 +38,9 @@ use starknet_api::transaction::{
     TransactionHasher,
     TransactionVersion,
 };
-use starknet_consensus_manager::config::ConsensusManagerConfig;
-use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_http_server::test_utils::HttpTestClient;
 use starknet_infra_utils::test_utils::AvailablePorts;
-use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_monitoring_endpoint::test_utils::MonitoringClient;
 use starknet_sequencer_node::clients::SequencerNodeClients;
@@ -47,7 +48,6 @@ use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::servers::run_component_servers;
 use starknet_sequencer_node::utils::create_node_modules;
-use starknet_state_sync::config::StateSyncConfig;
 use starknet_types_core::felt::Felt;
 use tokio::sync::Mutex;
 use tracing::{debug, instrument, Instrument};

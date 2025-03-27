@@ -4,6 +4,7 @@ use std::fmt::Debug;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use apollo_class_manager_types::MockClassManagerClient;
 use apollo_network::network_manager::test_utils::{
     mock_register_sqmr_protocol_client,
     MockClientResponsesManager,
@@ -19,6 +20,7 @@ use apollo_protobuf::sync::{
     StateDiffQuery,
     TransactionQuery,
 };
+use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::body::BodyStorageReader;
 use apollo_storage::class_manager::ClassManagerStorageReader;
 use apollo_storage::header::HeaderStorageReader;
@@ -44,8 +46,6 @@ use starknet_api::core::ClassHash;
 use starknet_api::crypto::utils::Signature;
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::FullTransaction;
-use starknet_class_manager_types::MockClassManagerClient;
-use starknet_state_sync_types::state_sync_types::SyncBlock;
 use starknet_types_core::felt::Felt;
 use tokio::sync::oneshot;
 

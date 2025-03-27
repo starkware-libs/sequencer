@@ -10,6 +10,7 @@ testing = ["itertools", "pretty_assertions", "starknet_api/testing"]
 
 [dependencies]
 apollo_config.workspace = true
+apollo_state_sync_types.workspace = true
 async-trait.workspace = true
 hex.workspace = true
 indexmap.workspace = true
@@ -20,7 +21,6 @@ serde.workspace = true
 starknet_api.workspace = true
 starknet_l1_provider_types.workspace = true
 starknet_sequencer_infra.workspace = true
-starknet_state_sync_types.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
@@ -28,6 +28,7 @@ validator.workspace = true
 
 [dev-dependencies]
 alloy.workspace = true
+apollo_state_sync_types = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
 itertools.workspace = true
 mempool_test_utils.workspace = true
@@ -36,7 +37,6 @@ pretty_assertions.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 starknet_l1_provider_types = { workspace = true, features = ["testing"] }
-starknet_state_sync_types = { workspace = true, features = ["testing"] }
 
 [lints]
 workspace = true

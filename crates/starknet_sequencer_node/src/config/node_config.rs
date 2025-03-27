@@ -3,6 +3,9 @@ use std::fs::File;
 use std::sync::LazyLock;
 use std::vec::Vec;
 
+use apollo_batcher::config::BatcherConfig;
+use apollo_batcher::VersionedConstantsOverrides;
+use apollo_class_manager::config::FsClassManagerConfig;
 use apollo_config::dumping::{
     append_sub_config_name,
     generate_struct_pointer,
@@ -14,26 +17,23 @@ use apollo_config::dumping::{
 };
 use apollo_config::loading::load_and_process_config;
 use apollo_config::{ConfigError, ParamPath, SerializedParam};
+use apollo_consensus_manager::config::ConsensusManagerConfig;
+use apollo_gateway::config::GatewayConfig;
+use apollo_mempool::config::MempoolConfig;
+use apollo_mempool_p2p::config::MempoolP2pConfig;
 use apollo_reverts::RevertConfig;
+use apollo_state_sync::config::StateSyncConfig;
 use clap::Command;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use serde::{Deserialize, Serialize};
-use starknet_batcher::config::BatcherConfig;
-use starknet_batcher::VersionedConstantsOverrides;
-use starknet_class_manager::config::FsClassManagerConfig;
-use starknet_consensus_manager::config::ConsensusManagerConfig;
-use starknet_gateway::config::GatewayConfig;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_infra_utils::path::resolve_project_relative_path;
 use starknet_l1_gas_price::l1_gas_price_provider::L1GasPriceProviderConfig;
 use starknet_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraperConfig;
 use starknet_l1_provider::l1_scraper::L1ScraperConfig;
 use starknet_l1_provider::L1ProviderConfig;
-use starknet_mempool::config::MempoolConfig;
-use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_sierra_multicompile::config::SierraCompilationConfig;
-use starknet_state_sync::config::StateSyncConfig;
 use validator::Validate;
 
 use crate::config::component_config::ComponentConfig;

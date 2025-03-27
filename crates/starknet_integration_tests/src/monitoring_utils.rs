@@ -1,3 +1,4 @@
+use apollo_batcher::metrics::STORAGE_HEIGHT;
 use apollo_central_sync::metrics::{
     SYNC_BODY_MARKER,
     SYNC_CLASS_MANAGER_MARKER,
@@ -7,7 +8,6 @@ use apollo_central_sync::metrics::{
     SYNC_STATE_MARKER,
 };
 use starknet_api::block::BlockNumber;
-use starknet_batcher::metrics::STORAGE_HEIGHT;
 use starknet_infra_utils::run_until::run_until;
 use starknet_infra_utils::tracing::{CustomLogger, TraceLevel};
 use starknet_monitoring_endpoint::test_utils::MonitoringClient;

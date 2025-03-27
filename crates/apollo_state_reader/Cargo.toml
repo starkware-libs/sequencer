@@ -12,13 +12,13 @@ cairo_native = ["blockifier/cairo_native"]
 workspace = true
 
 [dependencies]
+apollo_class_manager_types.workspace = true
 apollo_storage.workspace = true
 blockifier.workspace = true
 cairo-lang-starknet-classes.workspace = true
 log.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
-starknet_class_manager_types.workspace = true
 tokio.workspace = true
 
 [dev-dependencies]

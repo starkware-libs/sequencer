@@ -19,6 +19,7 @@ mod transaction_test;
 use std::collections::BTreeMap;
 use std::time::Duration;
 
+use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_config::converters::deserialize_milliseconds_to_duration;
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -32,6 +33,7 @@ use apollo_protobuf::sync::{
     StateDiffQuery,
     TransactionQuery,
 };
+use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::{StorageError, StorageReader, StorageWriter};
 use block_data_stream_builder::{BlockDataResult, BlockDataStreamBuilder};
 use class::ClassStreamBuilder;
@@ -45,8 +47,6 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
 use starknet_api::transaction::FullTransaction;
-use starknet_class_manager_types::SharedClassManagerClient;
-use starknet_state_sync_types::state_sync_types::SyncBlock;
 use state_diff::StateDiffStreamBuilder;
 use tokio_stream::StreamExt;
 use tracing::{info, instrument};

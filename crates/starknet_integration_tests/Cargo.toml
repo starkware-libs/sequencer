@@ -11,9 +11,19 @@ workspace = true
 [dependencies]
 alloy.workspace = true
 anyhow.workspace = true
+apollo_batcher.workspace = true
 apollo_central_sync.workspace = true
+apollo_class_manager = { workspace = true, features = ["testing"] }
+apollo_consensus.workspace = true
+apollo_consensus_manager.workspace = true
+apollo_consensus_orchestrator.workspace = true
+apollo_gateway = { workspace = true, features = ["testing"] }
+apollo_gateway_types.workspace = true
+apollo_mempool.workspace = true
+apollo_mempool_p2p.workspace = true
 apollo_network = { workspace = true, features = ["testing"] }
 apollo_protobuf.workspace = true
+apollo_state_sync.workspace = true
 apollo_storage = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
 axum.workspace = true
@@ -29,24 +39,14 @@ serde.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
-starknet_batcher.workspace = true
-starknet_class_manager = { workspace = true, features = ["testing"] }
-starknet_consensus.workspace = true
-starknet_consensus_manager.workspace = true
-starknet_consensus_orchestrator.workspace = true
-starknet_gateway = { workspace = true, features = ["testing"] }
-starknet_gateway_types.workspace = true
 starknet_http_server = { workspace = true, features = ["testing"] }
 starknet_infra_utils = { workspace = true, features = ["testing"] }
 starknet_l1_gas_price.workspace = true
 starknet_l1_provider.workspace = true
-starknet_mempool.workspace = true
-starknet_mempool_p2p.workspace = true
 starknet_monitoring_endpoint = { workspace = true, features = ["testing"] }
 starknet_sequencer_deployments.workspace = true
 starknet_sequencer_infra = { workspace = true, features = ["testing"] }
 starknet_sequencer_node = { workspace = true, features = ["testing"] }
-starknet_state_sync.workspace = true
 strum.workspace = true
 tempfile.workspace = true
 tokio.workspace = true

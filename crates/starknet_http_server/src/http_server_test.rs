@@ -1,6 +1,8 @@
 use std::net::{IpAddr, Ipv4Addr};
 use std::panic::AssertUnwindSafe;
 
+use apollo_gateway_types::communication::{GatewayClientError, MockGatewayClient};
+use apollo_gateway_types::errors::{GatewayError, GatewaySpecError};
 use axum::body::{Bytes, HttpBody};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
@@ -9,8 +11,6 @@ use futures::FutureExt;
 use jsonrpsee::types::ErrorObjectOwned;
 use mempool_test_utils::starknet_api_test_utils::invoke_tx;
 use starknet_api::transaction::TransactionHash;
-use starknet_gateway_types::communication::{GatewayClientError, MockGatewayClient};
-use starknet_gateway_types::errors::{GatewayError, GatewaySpecError};
 use starknet_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use starknet_sequencer_infra::component_client::ClientError;
 use starknet_types_core::felt::Felt;

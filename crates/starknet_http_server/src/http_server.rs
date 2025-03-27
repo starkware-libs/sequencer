@@ -1,14 +1,14 @@
 use std::clone::Clone;
 use std::net::SocketAddr;
 
+use apollo_gateway_types::communication::SharedGatewayClient;
+use apollo_gateway_types::gateway_types::GatewayInput;
 use axum::extract::State;
 use axum::http::HeaderMap;
 use axum::routing::post;
 use axum::{async_trait, Json, Router};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
-use starknet_gateway_types::communication::SharedGatewayClient;
-use starknet_gateway_types::gateway_types::GatewayInput;
 use starknet_infra_utils::type_name::short_type_name;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use tracing::{debug, info, instrument, trace};

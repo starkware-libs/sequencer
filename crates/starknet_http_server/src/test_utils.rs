@@ -1,13 +1,13 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use apollo_gateway_types::communication::MockGatewayClient;
+use apollo_gateway_types::errors::GatewaySpecError;
 use axum::body::Body;
 use reqwest::{Client, Response};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::test_utils::rpc_tx_to_json;
 use starknet_api::transaction::TransactionHash;
-use starknet_gateway_types::communication::MockGatewayClient;
-use starknet_gateway_types::errors::GatewaySpecError;
 
 use crate::config::HttpServerConfig;
 use crate::http_server::HttpServer;
