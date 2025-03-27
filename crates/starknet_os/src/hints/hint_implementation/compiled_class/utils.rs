@@ -10,9 +10,15 @@ use starknet_api::hash::PoseidonHash;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Poseidon, StarkHash};
 
-use crate::hints::error::{OsHintError, OsHintResult};
+use crate::hints::error::OsHintError;
 use crate::hints::vars::{CairoStruct, Const};
-use crate::vm_utils::{insert_values_to_fields, CairoSized, IdentifierGetter, LoadCairoObject};
+use crate::vm_utils::{
+    insert_values_to_fields,
+    CairoSized,
+    IdentifierGetter,
+    LoadCairoObject,
+    VmUtilsResult,
+};
 
 #[cfg(test)]
 #[path = "utils_test.rs"]
@@ -25,7 +31,7 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for CasmContractEntryPoint {
         identifier_getter: &IG,
         address: Relocatable,
         _constants: &HashMap<String, Felt>,
-    ) -> OsHintResult {
+    ) -> VmUtilsResult<()> {
         // Allocate a segment for the builtin list.
         let builtin_list_base = vm.add_memory_segment();
         let mut next_builtin_address = builtin_list_base;
@@ -68,7 +74,7 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for CasmContractClass {
         identifier_getter: &IG,
         address: Relocatable,
         constants: &HashMap<String, Felt>,
-    ) -> OsHintResult {
+    ) -> VmUtilsResult<()> {
         // Insert compiled class version field.
         let compiled_class_version = Const::CompiledClassVersion.fetch(constants)?;
         // Insert l1 handler entry points.
@@ -143,7 +149,7 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for CompiledClassFact<'_> {
         identifier_getter: &IG,
         address: Relocatable,
         constants: &HashMap<String, Felt>,
-    ) -> OsHintResult {
+    ) -> VmUtilsResult<()> {
         let compiled_class_address = vm.add_memory_segment();
         self.compiled_class.load_into(vm, identifier_getter, compiled_class_address, constants)?;
         let nested_fields_and_value = [
