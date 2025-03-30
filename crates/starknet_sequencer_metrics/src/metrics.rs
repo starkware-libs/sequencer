@@ -80,6 +80,7 @@ impl MetricCounter {
     }
 
     #[cfg(any(feature = "testing", test))]
+    #[track_caller]
     pub fn assert_eq<T: Num + FromStr + Debug>(&self, metrics_as_string: &str, expected_value: T) {
         let metric_value = self.parse_numeric_metric::<T>(metrics_as_string).unwrap();
         assert_eq!(
@@ -145,6 +146,7 @@ impl LabeledMetricCounter {
     }
 
     #[cfg(any(feature = "testing", test))]
+    #[track_caller]
     pub fn assert_eq<T: Num + FromStr + Debug>(
         &self,
         metrics_as_string: &str,
@@ -214,6 +216,7 @@ impl MetricGauge {
     }
 
     #[cfg(any(feature = "testing", test))]
+    #[track_caller]
     pub fn assert_eq<T: Num + FromStr + Debug>(&self, metrics_as_string: &str, expected_value: T) {
         let metric_value = self.parse_numeric_metric::<T>(metrics_as_string).unwrap();
         assert_eq!(
@@ -310,6 +313,7 @@ impl LabeledMetricGauge {
     }
 
     #[cfg(any(feature = "testing", test))]
+    #[track_caller]
     pub fn assert_eq<T: Num + FromStr + Debug>(
         &self,
         metrics_as_string: &str,
@@ -384,6 +388,7 @@ impl MetricHistogram {
     }
 
     #[cfg(any(feature = "testing", test))]
+    #[track_caller]
     pub fn assert_eq(&self, metrics_as_string: &str, expected_value: &HistogramValue) {
         let metric_value = self.parse_histogram_metric(metrics_as_string).unwrap();
         assert!(
@@ -455,6 +460,7 @@ impl LabeledMetricHistogram {
     }
 
     #[cfg(any(feature = "testing", test))]
+    #[track_caller]
     // TODO(tsabary): unite the labeled and unlabeld assert_eq functions.
     pub fn assert_eq(
         &self,
