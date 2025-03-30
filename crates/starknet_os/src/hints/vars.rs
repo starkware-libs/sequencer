@@ -7,58 +7,84 @@ use starknet_types_core::felt::Felt;
 
 use crate::hints::error::OsHintError;
 
-#[derive(Copy, Clone)]
-pub(crate) enum Scope {
-    BytecodeSegments,
-    BytecodeSegmentStructure,
-    BytecodeSegmentStructures,
-    Case,
-    CommitmentInfoByAddress,
-    CompiledClass,
-    CompiledClassFacts,
-    CompiledClassHash,
-    ComponentHashes,
-    DeprecatedClassHashes,
-    DictManager,
-    DictTracker,
-    InitialDict,
-    IsDeprecated,
-    Preimage,
-    SerializeDataAvailabilityCreatePages,
-    StateUpdatePointers,
-    SyscallHandlerType,
-    Transactions,
-    Tx,
-    UseKzgDa,
+/// Defines an enum with a conversion to a `&'static str`.
+///
+/// Example:
+///
+/// Input:
+/// ```
+/// define_string_enum! {
+///     #[derive(Copy, Clone)]
+///     pub enum X {
+///         (Y, "y"),
+///         (Z, "z"),
+///     }
+/// }
+/// ```
+///
+/// Output:
+/// ```
+/// #[derive(Copy, Clone)]
+/// pub enum X {
+///     Y,
+///     Z,
+/// }
+///
+/// impl From<X> for &'static str {
+///     fn from(value: X) -> Self {
+///         match value {
+///             X::Y => "y",
+///             X::Z => "z",
+///         }
+///     }
+/// }
+/// ```
+macro_rules! define_string_enum {
+    (
+        $(#[$cfgs:meta])*
+        $visibility:vis enum $enum_name:ident {
+            $(($variant:ident, $variant_str:expr)),+ $(,)?
+        }
+    ) => {
+        $(#[$cfgs])*
+        $visibility enum $enum_name {
+            $($variant),+
+        }
+
+        impl From<$enum_name> for &'static str {
+            fn from(value: $enum_name) -> Self {
+                match value {
+                    $($enum_name::$variant => $variant_str,)+
+                }
+            }
+        }
+    };
 }
 
-impl From<Scope> for &'static str {
-    fn from(scope: Scope) -> &'static str {
-        match scope {
-            Scope::BytecodeSegments => "bytecode_segments",
-            Scope::BytecodeSegmentStructure => "bytecode_segment_structure",
-            Scope::BytecodeSegmentStructures => "bytecode_segment_structures",
-            Scope::Case => "case",
-            Scope::CommitmentInfoByAddress => "commitment_info_by_address",
-            Scope::CompiledClass => "compiled_class",
-            Scope::CompiledClassFacts => "compiled_class_facts",
-            Scope::CompiledClassHash => "compiled_class_hash",
-            Scope::ComponentHashes => "component_hashes",
-            Scope::DeprecatedClassHashes => "__deprecated_class_hashes",
-            Scope::DictManager => "dict_manager",
-            Scope::DictTracker => "dict_tracker",
-            Scope::InitialDict => "initial_dict",
-            Scope::IsDeprecated => "is_deprecated",
-            Scope::Preimage => "preimage",
-            Scope::SerializeDataAvailabilityCreatePages => {
-                "__serialize_data_availability_create_pages__"
-            }
-            Scope::StateUpdatePointers => "state_update_pointers",
-            Scope::SyscallHandlerType => "syscall_handler_type",
-            Scope::Transactions => "transactions",
-            Scope::Tx => "tx",
-            Scope::UseKzgDa => "use_kzg_da",
-        }
+define_string_enum! {
+    #[derive(Copy, Clone)]
+    pub(crate) enum Scope {
+        (BytecodeSegments, "bytecode_segments"),
+        (BytecodeSegmentStructure, "bytecode_segment_structure"),
+        (BytecodeSegmentStructures, "bytecode_segment_structures"),
+        (Case, "case"),
+        (CommitmentInfoByAddress, "commitment_info_by_address"),
+        (CompiledClass, "compiled_class"),
+        (CompiledClassFacts, "compiled_class_facts"),
+        (CompiledClassHash, "compiled_class_hash"),
+        (ComponentHashes, "component_hashes"),
+        (DeprecatedClassHashes, "__deprecated_class_hashes"),
+        (DictManager, "dict_manager"),
+        (DictTracker, "dict_tracker"),
+        (InitialDict, "initial_dict"),
+        (IsDeprecated, "is_deprecated"),
+        (Preimage, "preimage"),
+        (SerializeDataAvailabilityCreatePages, "__serialize_data_availability_create_pages__"),
+        (StateUpdatePointers, "state_update_pointers"),
+        (SyscallHandlerType, "syscall_handler_type"),
+        (Transactions, "transactions"),
+        (Tx, "tx"),
+        (UseKzgDa, "use_kzg_da"),
     }
 }
 
