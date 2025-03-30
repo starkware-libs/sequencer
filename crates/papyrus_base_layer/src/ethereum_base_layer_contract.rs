@@ -235,7 +235,7 @@ impl Default for EthereumBaseLayerConfig {
         Self {
             node_url: "https://mainnet.infura.io/v3/<your_api_key>".parse().unwrap(),
             starknet_contract_address,
-            prague_blob_gas_calc: false,
+            prague_blob_gas_calc: true,
         }
     }
 }
