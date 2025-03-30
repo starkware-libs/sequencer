@@ -22,6 +22,7 @@ serde.workspace = true
 starknet_api.workspace = true
 starknet_class_manager_types.workspace = true
 starknet_gateway_types.workspace = true
+starknet_infra_utils.workspace = true
 starknet_mempool_p2p_types.workspace = true
 starknet_sequencer_infra.workspace = true
 starknet_sequencer_metrics.workspace = true

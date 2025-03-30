@@ -7,6 +7,7 @@ use apollo_protobuf::mempool::RpcTransactionBatch;
 use async_trait::async_trait;
 use starknet_api::rpc_transaction::{InternalRpcTransaction, RpcTransaction};
 use starknet_class_manager_types::transaction_converter::TransactionConverterTrait;
+use starknet_infra_utils::dump_debug::DumpDebug;
 use starknet_mempool_p2p_types::communication::{
     MempoolP2pPropagatorRequest,
     MempoolP2pPropagatorResponse,
@@ -40,6 +41,18 @@ impl MempoolP2pPropagator {
             max_transaction_batch_size,
             transaction_queue: vec![],
         }
+    }
+}
+
+impl DumpDebug for MempoolP2pPropagator {
+    fn dump_debug(&self) -> String {
+        format!(
+            "MempoolP2pPropagator {{ max_transaction_batch_size: {}, transaction_queue_size: {}, \
+             transaction_queue: {:?} }}",
+            self.max_transaction_batch_size,
+            self.transaction_queue.len(),
+            self.transaction_queue,
+        )
     }
 }
 
