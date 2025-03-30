@@ -6,6 +6,7 @@ use axum::extract::State;
 use axum::http::HeaderMap;
 use axum::routing::{get, post};
 use axum::{async_trait, Json, Router};
+use serde::{Deserialize, Serialize};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::communication::SharedGatewayClient;
@@ -83,7 +84,7 @@ async fn add_rpc_tx(
     State(app_state): State<AppState>,
     headers: HeaderMap,
     Json(tx): Json<RpcTransaction>,
-) -> HttpServerResult<Json<TransactionHash>> {
+) -> HttpServerResult<Json<GatewayResponse>> {
     record_added_transaction();
     add_tx_inner(app_state, headers, tx).await
 }
@@ -93,7 +94,7 @@ async fn add_tx(
     State(app_state): State<AppState>,
     headers: HeaderMap,
     tx: String,
-) -> HttpServerResult<Json<TransactionHash>> {
+) -> HttpServerResult<Json<GatewayResponse>> {
     tracing::info!("!!!! tx string: {tx:?}");
     record_added_transaction();
     // TODO(Yael): increment the failure metric for parsing error.
@@ -109,7 +110,7 @@ async fn add_tx_inner(
     app_state: AppState,
     headers: HeaderMap,
     tx: RpcTransaction,
-) -> HttpServerResult<Json<TransactionHash>> {
+) -> HttpServerResult<Json<GatewayResponse>> {
     tracing::info!("!!!! tx rpc: {tx:?}");
     let gateway_input: GatewayInput = GatewayInput { rpc_tx: tx, message_metadata: None };
     let add_tx_result = app_state.gateway_client.add_tx(gateway_input).await.map_err(|e| {
@@ -130,12 +131,26 @@ fn record_added_transactions(add_tx_result: &HttpServerResult<TransactionHash>, 
     record_added_transaction_status(add_tx_result.is_ok());
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+pub struct GatewayResponse {
+    code: String,
+    transaction_hash: TransactionHash,
+}
+
+impl GatewayResponse {
+    pub fn transaction_hash(&self) -> TransactionHash {
+        self.transaction_hash
+    }
+}
+
 #[allow(clippy::result_large_err)]
 pub(crate) fn add_tx_result_as_json(
     result: HttpServerResult<TransactionHash>,
-) -> HttpServerResult<Json<TransactionHash>> {
+) -> HttpServerResult<Json<GatewayResponse>> {
     let tx_hash = result?;
-    Ok(Json(tx_hash))
+    let response =
+        GatewayResponse { code: "TRANSACTION_RECEIVED".to_string(), transaction_hash: tx_hash };
+    Ok(Json(response))
 }
 
 pub fn create_http_server(
