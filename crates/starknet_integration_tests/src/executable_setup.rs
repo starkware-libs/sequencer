@@ -105,14 +105,10 @@ impl ExecutableSetup {
         let monitoring_client = MonitoringClient::new(SocketAddr::from((ip, port)));
 
         let config_path = node_config_dir.join(NODE_CONFIG_CHANGES_FILE_PATH);
-        let preset_config = PresetConfig {
-            config_path: config_path.clone(),
-            component_config,
-            monitoring_endpoint_config,
-        };
+        let preset_config = PresetConfig { component_config, monitoring_endpoint_config };
 
         base_app_config.update_config_with_preset(preset_config.clone());
-        base_app_config.dump_config_file(preset_config);
+        base_app_config.dump_config_file(&config_path);
 
         Self {
             node_execution_id,
