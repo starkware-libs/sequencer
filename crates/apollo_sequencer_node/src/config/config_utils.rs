@@ -164,6 +164,10 @@ impl DeploymentBaseAppConfig {
         self.config.clone()
     }
 
+    pub fn get_config_pointers_map(&self) -> ConfigPointersMap {
+        self.config_pointers_map.clone()
+    }
+
     pub fn override_base_app_config(&mut self, base_app_config_override: BaseAppConfigOverride) {
         self.config.components = base_app_config_override.component_config;
         self.config.monitoring_endpoint_config =
