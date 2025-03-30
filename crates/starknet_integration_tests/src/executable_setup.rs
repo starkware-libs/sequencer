@@ -7,8 +7,8 @@ use starknet_monitoring_endpoint::test_utils::MonitoringClient;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::config_utils::{
     dump_config_file,
+    BaseAppConfigOverride,
     DeploymentBaseAppConfig,
-    PresetConfig,
 };
 use starknet_sequencer_node::config::definitions::ConfigPointersMap;
 use starknet_sequencer_node::config::node_config::{
@@ -105,9 +105,10 @@ impl ExecutableSetup {
         let monitoring_client = MonitoringClient::new(SocketAddr::from((ip, port)));
 
         let config_path = node_config_dir.join(NODE_CONFIG_CHANGES_FILE_PATH);
-        let preset_config = PresetConfig { component_config, monitoring_endpoint_config };
+        let base_app_config_override =
+            BaseAppConfigOverride { component_config, monitoring_endpoint_config };
 
-        base_app_config.update_config_with_preset(preset_config.clone());
+        base_app_config.override_base_app_config(base_app_config_override.clone());
         base_app_config.dump_config_file(&config_path);
 
         Self {
