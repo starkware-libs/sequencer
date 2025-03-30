@@ -162,6 +162,7 @@ pub type AccountId = usize;
 
 type SharedNonceManager = Rc<RefCell<NonceManager>>;
 
+#[derive(Debug)]
 pub struct L1ToL2MessageArgs {
     pub tx: L1HandlerTransaction,
     pub l1_tx_nonce: u64,
