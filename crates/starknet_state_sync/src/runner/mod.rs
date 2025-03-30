@@ -19,7 +19,12 @@ use apollo_central_sync::{
     StateSyncError as CentralStateSyncError,
     GENESIS_HASH,
 };
-use apollo_network::network_manager::metrics::{NetworkMetrics, SqmrNetworkMetrics};
+use apollo_network::network_manager::metrics::{
+    GenericNetworkMetrics,
+    NetworkMetrics,
+    PeerManagerMetrics,
+    SqmrNetworkMetrics,
+};
 use apollo_network::network_manager::{self, NetworkError, NetworkManager};
 use apollo_p2p_sync::client::{
     P2pSyncClient,
@@ -157,13 +162,17 @@ impl StateSyncRunner {
         }
 
         let network_manager_metrics = Some(NetworkMetrics {
-            num_connected_peers: STATE_SYNC_P2P_NUM_CONNECTED_PEERS,
-            num_blacklisted_peers: STATE_SYNC_P2P_NUM_BLACKLISTED_PEERS,
-            broadcast_metrics_by_topic: None,
-            sqmr_metrics: Some(SqmrNetworkMetrics {
-                num_active_inbound_sessions: STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS,
-                num_active_outbound_sessions: STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS,
-            }),
+            peer_manager_metrics: PeerManagerMetrics {
+                num_blacklisted_peers: STATE_SYNC_P2P_NUM_BLACKLISTED_PEERS,
+            },
+            generic_network_metrics: GenericNetworkMetrics {
+                num_connected_peers: STATE_SYNC_P2P_NUM_CONNECTED_PEERS,
+                broadcast_metrics_by_topic: None,
+                sqmr_metrics: Some(SqmrNetworkMetrics {
+                    num_active_inbound_sessions: STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS,
+                    num_active_outbound_sessions: STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS,
+                }),
+            },
         });
         let mut network_manager = network_manager::NetworkManager::new(
             network_config,
