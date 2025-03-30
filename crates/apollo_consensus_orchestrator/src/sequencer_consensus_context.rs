@@ -91,6 +91,8 @@ struct BlockInfoValidation {
     last_block_timestamp: Option<u64>,
     l1_da_mode: L1DataAvailabilityMode,
     l2_gas_price_fri: u64,
+    l1_gas_price_wei: u128,
+    l1_data_gas_price_wei: u128,
 }
 
 const EMPTY_BLOCK_COMMITMENT: BlockHash = BlockHash(Felt::ONE);
@@ -336,12 +338,21 @@ impl ConsensusContext for SequencerConsensusContext {
                 fin_receiver
             }
             std::cmp::Ordering::Equal => {
+                let timestamp =
+                    chrono::Utc::now().timestamp().try_into().expect("Failed to convert timestamp");
+                let gas_prices = self
+                    .l1_gas_price_provider
+                    .get_price_info(BlockTimestamp(timestamp))
+                    .await
+                    .expect("Failed to get L1 gas price info");
                 let block_info_validation = BlockInfoValidation {
                     height: proposal_init.height,
                     block_timestamp_window: self.config.block_timestamp_window,
                     last_block_timestamp: self.last_block_timestamp,
                     l1_da_mode: self.l1_da_mode,
                     l2_gas_price_fri: self.l2_gas_price,
+                    l1_gas_price_wei: gas_prices.base_fee_per_gas,
+                    l1_data_gas_price_wei: gas_prices.blob_fee,
                 };
                 self.validate_current_round_proposal(
                     block_info_validation,
@@ -618,12 +629,21 @@ impl ConsensusContext for SequencerConsensusContext {
         let Some(((height, validator, timeout, content), fin_sender)) = to_process else {
             return;
         };
+        let timestamp =
+            chrono::Utc::now().timestamp().try_into().expect("Failed to convert timestamp");
+        let gas_prices = self
+            .l1_gas_price_provider
+            .get_price_info(BlockTimestamp(timestamp))
+            .await
+            .expect("Failed to get L1 gas price info");
         let block_info_validation = BlockInfoValidation {
             height,
             block_timestamp_window: self.config.block_timestamp_window,
             last_block_timestamp: self.last_block_timestamp,
             l1_da_mode: self.l1_da_mode,
             l2_gas_price_fri: self.l2_gas_price,
+            l1_gas_price_wei: gas_prices.base_fee_per_gas,
+            l1_data_gas_price_wei: gas_prices.blob_fee,
         };
         self.validate_current_round_proposal(
             block_info_validation,
@@ -971,7 +991,9 @@ async fn is_block_info_valid(
         && block_info.timestamp >= block_info_validation.last_block_timestamp.unwrap_or(0)
         && block_info.timestamp <= now + block_info_validation.block_timestamp_window
         && block_info.l1_da_mode == block_info_validation.l1_da_mode
-        && block_info.l2_gas_price_fri == u128::from(block_info_validation.l2_gas_price_fri))
+        && block_info.l2_gas_price_fri == u128::from(block_info_validation.l2_gas_price_fri)
+        && block_info.l1_gas_price_wei == block_info_validation.l1_gas_price_wei
+        && block_info.l1_data_gas_price_wei == block_info_validation.l1_data_gas_price_wei)
     {
         return false;
     }
