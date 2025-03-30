@@ -7,6 +7,7 @@ use mempool_test_utils::starknet_api_test_utils::invoke_tx;
 use reqwest::{Client, Response};
 use serde::Serialize;
 use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcTransaction};
+use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::communication::MockGatewayClient;
 use starknet_gateway_types::errors::GatewaySpecError;
@@ -18,6 +19,11 @@ use crate::deprecated_gateway_transaction::{
     DeprecatedGatewayTransactionV3,
 };
 use crate::http_server::HttpServer;
+
+const DEPRECATED_GATEWAY_INVOKE_TX_JSON_PATH: &str = "deprecated_gateway/invoke_tx.json";
+const DEPRECATED_GATEWAY_DEPLOY_ACCOUNT_TX_JSON_PATH: &str =
+    "deprecated_gateway/deploy_account_tx.json";
+const DEPRECATED_GATEWAY_DECLARE_TX_JSON_PATH: &str = "deprecated_gateway/declare_tx.json";
 
 /// A test utility client for interacting with an http server.
 pub struct HttpTestClient {
@@ -124,4 +130,19 @@ pub fn rest_tx() -> DeprecatedGatewayTransactionV3 {
     } else {
         panic!("Expected invoke transaction")
     }
+}
+
+pub fn deprecated_gateway_invoke_tx() -> DeprecatedGatewayInvokeTransaction {
+    serde_json::from_value(read_json_file(DEPRECATED_GATEWAY_INVOKE_TX_JSON_PATH))
+        .expect("Failed to deserialize json to RestInvokeTransactionV3")
+}
+
+pub fn deprecated_gateway_deploy_account_tx() -> DeprecatedGatewayTransactionV3 {
+    serde_json::from_value(read_json_file(DEPRECATED_GATEWAY_DEPLOY_ACCOUNT_TX_JSON_PATH))
+        .expect("Failed to deserialize json to RestDeployAccountTransactionV3")
+}
+
+pub fn deprecated_gateway_declare_tx() -> DeprecatedGatewayTransactionV3 {
+    serde_json::from_value(read_json_file(DEPRECATED_GATEWAY_DECLARE_TX_JSON_PATH))
+        .expect("Failed to deserialize json to RestDeclareTransactionV3")
 }
