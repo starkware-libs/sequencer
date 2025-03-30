@@ -16,6 +16,7 @@ deserialize = [
 testing = ["blockifier/testing"]
 
 [dependencies]
+apollo_infra_utils.workspace = true
 ark-bls12-381.workspace = true
 ark-ff.workspace = true
 ark-poly.workspace = true
@@ -35,7 +36,6 @@ sha3.workspace = true
 shared_execution_objects.workspace = true
 starknet-types-core = { workspace = true, features = ["hash"] }
 starknet_api.workspace = true
-starknet_infra_utils.workspace = true
 starknet_patricia.workspace = true
 strum.workspace = true
 strum_macros.workspace = true

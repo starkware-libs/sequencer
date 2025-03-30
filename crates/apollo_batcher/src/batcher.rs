@@ -24,9 +24,12 @@ use apollo_batcher_types::batcher_types::{
 use apollo_batcher_types::errors::BatcherError;
 use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::SharedClassManagerClient;
+use apollo_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
+use apollo_l1_provider_types::{SessionState, SharedL1ProviderClient};
 use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use apollo_reverts::revert_block;
+use apollo_sequencer_infra::component_definitions::{default_component_start_fn, ComponentStarter};
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
 use async_trait::async_trait;
@@ -39,12 +42,6 @@ use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
-use starknet_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
-use starknet_l1_provider_types::{SessionState, SharedL1ProviderClient};
-use starknet_sequencer_infra::component_definitions::{
-    default_component_start_fn,
-    ComponentStarter,
-};
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, instrument, trace, Instrument};
 

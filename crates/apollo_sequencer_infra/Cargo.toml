@@ -1,0 +1,41 @@
+[package]
+name = "apollo_sequencer_infra"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+
+[features]
+testing = ["apollo_sequencer_metrics/testing"]
+
+[lints]
+workspace = true
+
+[dependencies]
+apollo_config.workspace = true
+apollo_infra_utils.workspace = true
+apollo_sequencer_metrics.workspace = true
+async-trait.workspace = true
+hyper = { workspace = true, features = ["client", "http2", "server", "tcp"] }
+rstest.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+starknet_api.workspace = true
+thiserror.workspace = true
+time = { workspace = true, features = ["macros"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tower = { workspace = true, features = ["limit"] }
+tracing.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter", "time"] }
+validator.workspace = true
+
+[dev-dependencies]
+apollo_infra_utils = { workspace = true, features = ["testing"] }
+apollo_sequencer_metrics = { workspace = true, features = ["testing"] }
+assert_matches.workspace = true
+metrics.workspace = true
+metrics-exporter-prometheus.workspace = true
+once_cell.workspace = true
+pretty_assertions.workspace = true
+starknet-types-core.workspace = true

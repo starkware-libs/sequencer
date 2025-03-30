@@ -1,8 +1,8 @@
 use apollo_gateway_types::communication::{GatewayRequest, GatewayResponse};
 use apollo_gateway_types::errors::GatewayError;
+use apollo_sequencer_infra::component_definitions::ComponentRequestHandler;
+use apollo_sequencer_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 use async_trait::async_trait;
-use starknet_sequencer_infra::component_definitions::ComponentRequestHandler;
-use starknet_sequencer_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 
 use crate::gateway::Gateway;
 

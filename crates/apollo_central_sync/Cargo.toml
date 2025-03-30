@@ -30,7 +30,7 @@ starknet-types-core.workspace = true
 starknet_api.workspace = true
 apollo_class_manager_types.workspace = true
 starknet_client.workspace = true
-starknet_sequencer_metrics.workspace = true
+apollo_sequencer_metrics.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full", "sync"] }
 tracing.workspace = true

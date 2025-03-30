@@ -12,13 +12,13 @@ syn = { workspace = true, features = ["full"] }
 tracing.workspace = true
 
 [dev-dependencies]
+apollo_sequencer_metrics.workspace = true
 apollo_test_utils.workspace = true
 metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
 papyrus_common.workspace = true
 prometheus-parse.workspace = true
 rstest.workspace = true
-starknet_sequencer_metrics.workspace = true
 
 [lib]
 proc-macro = true

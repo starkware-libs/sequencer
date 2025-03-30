@@ -15,13 +15,13 @@ workspace = true
 apollo_network_types.workspace = true
 apollo_proc_macros.workspace = true
 apollo_rpc.workspace = true
+apollo_sequencer_infra.workspace = true
 async-trait.workspace = true
 enum-assoc.workspace = true
 mockall = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 starknet_api.workspace = true
-starknet_sequencer_infra.workspace = true
 strum_macros.workspace = true
 thiserror.workspace = true
 tracing.workspace = true

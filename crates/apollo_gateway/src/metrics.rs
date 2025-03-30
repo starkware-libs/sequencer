@@ -1,7 +1,7 @@
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
+use apollo_sequencer_metrics::metrics::{LabeledMetricCounter, MetricHistogram};
+use apollo_sequencer_metrics::{define_metrics, generate_permutation_labels};
 use starknet_api::rpc_transaction::{RpcTransaction, RpcTransactionLabelValue};
-use starknet_sequencer_metrics::metrics::{LabeledMetricCounter, MetricHistogram};
-use starknet_sequencer_metrics::{define_metrics, generate_permutation_labels};
 use strum::{EnumVariantNames, VariantNames};
 use strum_macros::IntoStaticStr;
 

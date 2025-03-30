@@ -11,11 +11,11 @@ use apollo_mempool_p2p_types::mempool_p2p_types::MempoolP2pPropagatorResult;
 use apollo_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::mempool::RpcTransactionBatch;
+use apollo_sequencer_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
+use apollo_sequencer_infra::component_server::{LocalComponentServer, RemoteComponentServer};
+use apollo_sequencer_metrics::metrics::LossyIntoF64;
 use async_trait::async_trait;
 use starknet_api::rpc_transaction::{InternalRpcTransaction, RpcTransaction};
-use starknet_sequencer_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
-use starknet_sequencer_infra::component_server::{LocalComponentServer, RemoteComponentServer};
-use starknet_sequencer_metrics::metrics::LossyIntoF64;
 use tracing::{debug, info, warn};
 
 use crate::metrics::MEMPOOL_P2P_BROADCASTED_BATCH_SIZE;

@@ -3,12 +3,12 @@ use std::sync::Arc;
 use apollo_batcher_types::batcher_types::{GetHeightResponse, RevertBlockInput};
 use apollo_batcher_types::communication::MockBatcherClient;
 use apollo_class_manager_types::EmptyClassManagerClient;
+use apollo_l1_gas_price_types::MockL1GasPriceProviderClient;
 use apollo_reverts::RevertConfig;
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use mockall::predicate::eq;
 use rstest::rstest;
 use starknet_api::block::BlockNumber;
-use starknet_l1_gas_price_types::MockL1GasPriceProviderClient;
 use tokio::time::{timeout, Duration};
 
 use crate::config::ConsensusManagerConfig;

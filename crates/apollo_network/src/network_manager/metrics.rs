@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
+use apollo_sequencer_metrics::metrics::{MetricCounter, MetricGauge};
 use libp2p::gossipsub::TopicHash;
-use starknet_sequencer_metrics::metrics::{MetricCounter, MetricGauge};
 
 pub struct BroadcastNetworkMetrics {
     pub num_sent_broadcast_messages: MetricCounter,

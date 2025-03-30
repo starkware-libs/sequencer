@@ -14,12 +14,12 @@ use apollo_network::network_manager::{
     NetworkError,
 };
 use apollo_protobuf::mempool::RpcTransactionBatch;
+use apollo_sequencer_infra::component_definitions::ComponentStarter;
+use apollo_sequencer_infra::component_server::WrapperServer;
 use async_trait::async_trait;
 use futures::future::BoxFuture;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
-use starknet_sequencer_infra::component_definitions::ComponentStarter;
-use starknet_sequencer_infra::component_server::WrapperServer;
 use tokio::time::MissedTickBehavior::Delay;
 use tracing::{debug, info, warn};
 

@@ -50,7 +50,7 @@ macro_rules! define_versioned_constants {
         pub static VERSIONED_CONSTANTS_LATEST_JSON: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
             let latest_variant = StarknetVersion::LATEST;
             let path_to_json: std::path::PathBuf = [
-                starknet_infra_utils::compile_time_cargo_manifest_dir!(),
+                apollo_infra_utils::compile_time_cargo_manifest_dir!(),
                 "src".into(),
                 $struct_name::path_to_json(&latest_variant)
                     .expect("Latest variant should have a path to json.").into()

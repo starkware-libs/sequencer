@@ -23,6 +23,7 @@ use apollo_class_manager_types::transaction_converter::{
 };
 use apollo_class_manager_types::EmptyClassManagerClient;
 use apollo_consensus::types::{ConsensusContext, Round};
+use apollo_l1_gas_price_types::{MockEthToStrkOracleClientTrait, MockL1GasPriceProviderClient};
 use apollo_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     BroadcastNetworkMock,
@@ -53,7 +54,6 @@ use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::felt;
 use starknet_api::hash::PoseidonHash;
 use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
-use starknet_l1_gas_price_types::{MockEthToStrkOracleClientTrait, MockL1GasPriceProviderClient};
 use starknet_types_core::felt::Felt;
 
 use crate::cende::MockCendeContext;

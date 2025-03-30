@@ -1,0 +1,26 @@
+[package]
+name = "apollo_sequencer_deployments"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+
+[lints]
+workspace = true
+
+
+[dependencies]
+apollo_infra_utils.workspace = true
+apollo_monitoring_endpoint.workspace = true
+apollo_sequencer_node.workspace = true
+indexmap.workspace = true
+serde.workspace = true
+starknet_api.workspace = true
+strum.workspace = true
+strum_macros.workspace = true
+
+[dev-dependencies]
+apollo_infra_utils = { workspace = true, features = ["testing"] }
+apollo_sequencer_node = { workspace = true, features = ["testing"] }
+serde_json.workspace = true

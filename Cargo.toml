@@ -15,10 +15,18 @@ members = [
   "crates/apollo_consensus_orchestrator",
   "crates/apollo_gateway",
   "crates/apollo_gateway_types",
+  "crates/apollo_http_server",
+  "crates/apollo_infra_utils",
+  "crates/apollo_integration_tests",
+  "crates/apollo_l1_gas_price",
+  "crates/apollo_l1_gas_price_types",
+  "crates/apollo_l1_provider",
+  "crates/apollo_l1_provider_types",
   "crates/apollo_mempool",
   "crates/apollo_mempool_p2p",
   "crates/apollo_mempool_p2p_types",
   "crates/apollo_mempool_types",
+  "crates/apollo_monitoring_endpoint",
   "crates/apollo_network",
   "crates/apollo_network_types",
   "crates/apollo_p2p_sync",
@@ -27,10 +35,18 @@ members = [
   "crates/apollo_reverts",
   "crates/apollo_rpc",
   "crates/apollo_rpc_execution",
+  "crates/apollo_sequencer_dashboard",
+  "crates/apollo_sequencer_deployments",
+  "crates/apollo_sequencer_infra",
+  "crates/apollo_sequencer_metrics",
+  "crates/apollo_sequencer_node",
+  "crates/apollo_sierra_multicompile",
+  "crates/apollo_sierra_multicompile_types",
   "crates/apollo_state_reader",
   "crates/apollo_state_sync",
   "crates/apollo_state_sync_types",
   "crates/apollo_storage",
+  "crates/apollo_task_executor",
   "crates/apollo_test_utils",
   "crates/blockifier",
   "crates/blockifier_reexecution",
@@ -47,25 +63,9 @@ members = [
   "crates/starknet_client",
   "crates/starknet_committer",
   "crates/starknet_committer_and_os_cli",
-  "crates/starknet_http_server",
-  "crates/starknet_infra_utils",
-  "crates/starknet_integration_tests",
-  "crates/starknet_l1_gas_price",
-  "crates/starknet_l1_gas_price_types",
-  "crates/starknet_l1_provider",
-  "crates/starknet_l1_provider_types",
-  "crates/starknet_monitoring_endpoint",
   "crates/starknet_os",
   "crates/starknet_patricia",
   "crates/starknet_patricia_storage",
-  "crates/starknet_sequencer_dashboard",
-  "crates/starknet_sequencer_deployments",
-  "crates/starknet_sequencer_infra",
-  "crates/starknet_sequencer_metrics",
-  "crates/starknet_sequencer_node",
-  "crates/starknet_sierra_multicompile",
-  "crates/starknet_sierra_multicompile_types",
-  "crates/starknet_task_executor",
   "toml_test_utils",
   "workspace_tests",
 ]
@@ -91,10 +91,18 @@ apollo_consensus_manager.path = "crates/apollo_consensus_manager"
 apollo_consensus_orchestrator.path = "crates/apollo_consensus_orchestrator"
 apollo_gateway.path = "crates/apollo_gateway"
 apollo_gateway_types.path = "crates/apollo_gateway_types"
+apollo_http_server.path = "crates/apollo_http_server"
+apollo_infra_utils = { path = "crates/apollo_infra_utils", version = "0.0.0" }
+apollo_integration_tests.path = "crates/apollo_integration_tests"
+apollo_l1_gas_price.path = "crates/apollo_l1_gas_price"
+apollo_l1_gas_price_types.path = "crates/apollo_l1_gas_price_types"
+apollo_l1_provider.path = "crates/apollo_l1_provider"
+apollo_l1_provider_types.path = "crates/apollo_l1_provider_types"
 apollo_mempool.path = "crates/apollo_mempool"
 apollo_mempool_p2p.path = "crates/apollo_mempool_p2p"
 apollo_mempool_p2p_types.path = "crates/apollo_mempool_p2p_types"
 apollo_mempool_types.path = "crates/apollo_mempool_types"
+apollo_monitoring_endpoint.path = "crates/apollo_monitoring_endpoint"
 apollo_network.path = "crates/apollo_network"
 apollo_network_types.path = "crates/apollo_network_types"
 apollo_p2p_sync.path = "crates/apollo_p2p_sync"
@@ -103,10 +111,18 @@ apollo_protobuf.path = "crates/apollo_protobuf"
 apollo_reverts.path = "crates/apollo_reverts"
 apollo_rpc.path = "crates/apollo_rpc"
 apollo_rpc_execution.path = "crates/apollo_rpc_execution"
+apollo_sequencer_dashboard.path = "crates/apollo_sequencer_dashboard"
+apollo_sequencer_deployments.path = "crates/apollo_sequencer_deployments"
+apollo_sequencer_infra = { path = "crates/apollo_sequencer_infra", version = "0.0.0" }
+apollo_sequencer_metrics = { path = "crates/apollo_sequencer_metrics", version = "0.0.0" }
+apollo_sequencer_node.path = "crates/apollo_sequencer_node"
+apollo_sierra_multicompile = { path = "crates/apollo_sierra_multicompile", version = "0.0.0" }
+apollo_sierra_multicompile_types = { path = "crates/apollo_sierra_multicompile_types", version = "0.0.0" }
 apollo_state_reader.path = "crates/apollo_state_reader"
 apollo_state_sync.path = "crates/apollo_state_sync"
 apollo_state_sync_types.path = "crates/apollo_state_sync_types"
 apollo_storage.path = "crates/apollo_storage"
+apollo_task_executor.path = "crates/apollo_task_executor"
 apollo_test_utils.path = "crates/apollo_test_utils"
 ark-bls12-381 = "0.4.0"
 ark-ec = "0.4.2"
@@ -247,25 +263,9 @@ starknet_api = { path = "crates/starknet_api", version = "0.0.0" }
 starknet_client.path = "crates/starknet_client"
 starknet_committer.path = "crates/starknet_committer"
 starknet_committer_and_os_cli.path = "crates/starknet_committer_and_os_cli"
-starknet_http_server.path = "crates/starknet_http_server"
-starknet_infra_utils = { path = "crates/starknet_infra_utils", version = "0.0.0" }
-starknet_integration_tests.path = "crates/starknet_integration_tests"
-starknet_l1_gas_price.path = "crates/starknet_l1_gas_price"
-starknet_l1_gas_price_types.path = "crates/starknet_l1_gas_price_types"
-starknet_l1_provider.path = "crates/starknet_l1_provider"
-starknet_l1_provider_types.path = "crates/starknet_l1_provider_types"
-starknet_monitoring_endpoint.path = "crates/starknet_monitoring_endpoint"
 starknet_os.path = "crates/starknet_os"
 starknet_patricia.path = "crates/starknet_patricia"
 starknet_patricia_storage.path = "crates/starknet_patricia_storage"
-starknet_sequencer_dashboard.path = "crates/starknet_sequencer_dashboard"
-starknet_sequencer_deployments.path = "crates/starknet_sequencer_deployments"
-starknet_sequencer_infra = { path = "crates/starknet_sequencer_infra", version = "0.0.0" }
-starknet_sequencer_metrics = { path = "crates/starknet_sequencer_metrics", version = "0.0.0" }
-starknet_sequencer_node.path = "crates/starknet_sequencer_node"
-starknet_sierra_multicompile = { path = "crates/starknet_sierra_multicompile", version = "0.0.0" }
-starknet_sierra_multicompile_types = { path = "crates/starknet_sierra_multicompile_types", version = "0.0.0" }
-starknet_task_executor.path = "crates/starknet_task_executor"
 static_assertions = "1.1.0"
 statistical = "1.0.0"
 strum = "0.25.0"

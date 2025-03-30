@@ -1,5 +1,5 @@
-use starknet_sequencer_metrics::define_metrics;
-use starknet_sequencer_metrics::metrics::{MetricCounter, MetricGauge, MetricHistogram};
+use apollo_sequencer_metrics::define_metrics;
+use apollo_sequencer_metrics::metrics::{MetricCounter, MetricGauge, MetricHistogram};
 
 define_metrics!(
     MempoolP2p => {

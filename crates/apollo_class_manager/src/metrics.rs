@@ -1,6 +1,6 @@
-use starknet_sequencer_metrics::metrics::{LabeledMetricCounter, LabeledMetricHistogram};
-use starknet_sequencer_metrics::{define_metrics, generate_permutation_labels};
-use starknet_sierra_multicompile_types::SerializedClass;
+use apollo_sequencer_metrics::metrics::{LabeledMetricCounter, LabeledMetricHistogram};
+use apollo_sequencer_metrics::{define_metrics, generate_permutation_labels};
+use apollo_sierra_multicompile_types::SerializedClass;
 use strum::VariantNames;
 
 const CAIRO_CLASS_TYPE_LABEL: &str = "class_type";

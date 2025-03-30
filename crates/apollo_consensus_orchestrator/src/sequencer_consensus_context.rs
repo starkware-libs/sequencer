@@ -36,6 +36,8 @@ use apollo_consensus::types::{
     Round,
     ValidatorId,
 };
+use apollo_l1_gas_price_types::errors::EthToStrkOracleClientError;
+use apollo_l1_gas_price_types::{EthToStrkOracleClientTrait, L1GasPriceProviderClient};
 use apollo_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use apollo_protobuf::consensus::{
     ConsensusBlockInfo,
@@ -68,8 +70,6 @@ use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, SequencerContractAddress};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::transaction::TransactionHash;
-use starknet_l1_gas_price_types::errors::EthToStrkOracleClientError;
-use starknet_l1_gas_price_types::{EthToStrkOracleClientTrait, L1GasPriceProviderClient};
 use starknet_types_core::felt::Felt;
 use tokio::task::JoinHandle;
 use tokio::time::Instant;

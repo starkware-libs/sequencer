@@ -218,6 +218,7 @@
   "l1_scraper_config.finality": 0,
   "l1_scraper_config.polling_interval": 1,
   "l1_scraper_config.startup_rewind_time": 0,
+  "mempool_config.capacity_in_bytes": 1073741824,
   "mempool_config.committed_nonce_retention_block_count": 100,
   "mempool_config.declare_delay": 1,
   "mempool_config.enable_fee_escalation": true,

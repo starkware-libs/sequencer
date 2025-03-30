@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::vec;
 
 use apollo_class_manager_types::MockClassManagerClient;
+use apollo_infra_utils::test_utils::assert_json_eq;
 use blockifier::execution::call_info::{
     CallExecution,
     CallInfo,
@@ -103,7 +104,6 @@ use starknet_api::transaction::{
     TransactionVersion,
 };
 use starknet_api::{contract_address, felt, nonce, storage_key};
-use starknet_infra_utils::test_utils::assert_json_eq;
 use starknet_types_core::felt::Felt;
 
 use super::{

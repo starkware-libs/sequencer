@@ -7,23 +7,23 @@ license-file.workspace = true
 description = "A library for handling node configuration."
 
 [dependencies]
+apollo_infra_utils.workspace = true
 clap = { workspace = true, features = ["env", "string"] }
 itertools.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
-starknet_infra_utils.workspace = true
 strum_macros.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 validator = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
+apollo_infra_utils.workspace = true
 apollo_test_utils.workspace = true
 assert_matches.workspace = true
 itertools.workspace = true
 lazy_static.workspace = true
 starknet_api.workspace = true
-starknet_infra_utils.workspace = true
 tempfile.workspace = true
 
 [lints]

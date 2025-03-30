@@ -169,7 +169,7 @@ pub fn latency_histogram(attr: TokenStream, input: TokenStream) -> TokenStream {
 /// Given this code:
 ///
 /// ```rust,ignore
-/// use starknet_sequencer_metrics::metrics::{MetricHistogram, MetricScope};
+/// use apollo_sequencer_metrics::metrics::{MetricHistogram, MetricScope};
 ///
 /// const FOO_HISTOGRAM_METRIC: MetricHistogram = MetricHistogram::new(
 ///     MetricScope::Infra,
@@ -200,7 +200,7 @@ pub fn sequencer_latency_histogram(attr: TokenStream, input: TokenStream) -> Tok
     };
 
     let collect_metric_flag = quote! {
-        starknet_sequencer_metrics::metrics::COLLECT_SEQUENCER_PROFILING_METRICS
+        apollo_sequencer_metrics::metrics::COLLECT_SEQUENCER_PROFILING_METRICS
     };
 
     create_modified_function(
