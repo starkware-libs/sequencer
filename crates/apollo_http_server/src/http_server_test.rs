@@ -3,7 +3,12 @@ use std::panic::AssertUnwindSafe;
 
 use apollo_gateway_types::communication::{GatewayClientError, MockGatewayClient};
 use apollo_gateway_types::errors::{GatewayError, GatewaySpecError};
-use apollo_gateway_types::gateway_types::{GatewayOutput, InvokeGatewayOutput};
+use apollo_gateway_types::gateway_types::{
+    DeclareGatewayOutput,
+    DeployAccountGatewayOutput,
+    GatewayOutput,
+    InvokeGatewayOutput,
+};
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use apollo_sequencer_infra::component_client::ClientError;
 use axum::body::{Bytes, HttpBody};
@@ -14,28 +19,58 @@ use futures::FutureExt;
 use jsonrpsee::types::error::ErrorCode;
 use jsonrpsee::types::ErrorObjectOwned;
 use mempool_test_utils::starknet_api_test_utils::invoke_tx;
+use rstest::rstest;
 use serde_json::Value;
 use starknet_api::transaction::TransactionHash;
+use starknet_api::{class_hash, contract_address, tx_hash};
 use starknet_types_core::felt::Felt;
 use tracing_test::traced_test;
 
 use crate::config::HttpServerConfig;
 use crate::errors::HttpServerError;
-use crate::http_server::{add_tx_result_as_json, CLIENT_REGION_HEADER};
+use crate::http_server::{add_tx_result_as_json, GatewayResponse, CLIENT_REGION_HEADER};
 use crate::test_utils::http_client_server_setup;
 
+#[rstest]
+#[case::invoke(
+    GatewayOutput::Invoke(InvokeGatewayOutput { transaction_hash: tx_hash!(1_u64) }),
+    GatewayResponse {transaction_hash: tx_hash!(1_u64), ..Default::default()}
+)]
+#[case::declare(
+    GatewayOutput::Declare(DeclareGatewayOutput {
+        transaction_hash: tx_hash!(1_u64),
+        class_hash: class_hash!(2_u64)
+    }),
+    GatewayResponse {
+        transaction_hash: tx_hash!(1_u64),
+        class_hash: Some(class_hash!(2_u64)),
+        ..Default::default()
+    }
+)]
+#[case::deploy_account(
+    GatewayOutput::DeployAccount(DeployAccountGatewayOutput {
+        transaction_hash: tx_hash!(1_u64),
+        address: contract_address!(3_u64)
+    }),
+    GatewayResponse {
+        transaction_hash: tx_hash!(1_u64),
+        address: Some(contract_address!(3_u64)),
+        ..Default::default()
+    }
+)]
 #[tokio::test]
-async fn test_tx_hash_json_conversion() {
-    let transaction_hash = TransactionHash::default();
-    let response =
-        add_tx_result_as_json(Ok(GatewayOutput::Invoke(InvokeGatewayOutput { transaction_hash })))
-            .into_response();
+async fn test_tx_hash_json_conversion(
+    #[case] gateway_output: GatewayOutput,
+    #[case] expected_gateway_response: GatewayResponse,
+) {
+    let response = add_tx_result_as_json(Ok(gateway_output)).into_response();
 
     let status_code = response.status();
     let response_bytes = &to_bytes(response).await;
 
     assert_eq!(status_code, StatusCode::OK, "{response_bytes:?}");
-    assert_eq!(transaction_hash, serde_json::from_slice(response_bytes).unwrap());
+    let gateway_response: GatewayResponse = serde_json::from_slice(response_bytes).unwrap();
+    assert_eq!(gateway_response, expected_gateway_response);
 }
 
 async fn to_bytes(res: Response) -> Bytes {

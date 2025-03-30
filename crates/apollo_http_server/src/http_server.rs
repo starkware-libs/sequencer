@@ -10,6 +10,8 @@ use axum::extract::State;
 use axum::http::HeaderMap;
 use axum::routing::post;
 use axum::{async_trait, Json, Router};
+use serde::{Deserialize, Serialize};
+use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use tracing::{debug, info, instrument, trace};
@@ -74,7 +76,7 @@ async fn add_rpc_tx(
     State(app_state): State<AppState>,
     headers: HeaderMap,
     Json(tx): Json<RpcTransaction>,
-) -> HttpServerResult<Json<TransactionHash>> {
+) -> HttpServerResult<Json<GatewayResponse>> {
     record_added_transaction();
     add_tx_inner(app_state, headers, tx).await
 }
@@ -84,7 +86,7 @@ async fn add_tx(
     State(app_state): State<AppState>,
     headers: HeaderMap,
     tx: String,
-) -> HttpServerResult<Json<TransactionHash>> {
+) -> HttpServerResult<Json<GatewayResponse>> {
     record_added_transaction();
     // TODO(Yael): increment the failure metric for parsing error.
     let tx: DeprecatedGatewayTransactionV3 = serde_json::from_str(&tx)
@@ -100,7 +102,7 @@ async fn add_tx_inner(
     app_state: AppState,
     headers: HeaderMap,
     tx: RpcTransaction,
-) -> HttpServerResult<Json<TransactionHash>> {
+) -> HttpServerResult<Json<GatewayResponse>> {
     let gateway_input: GatewayInput = GatewayInput { rpc_tx: tx, message_metadata: None };
     let add_tx_result = app_state.gateway_client.add_tx(gateway_input).await.map_err(|e| {
         debug!("Error while adding transaction: {}", e);
@@ -124,12 +126,53 @@ fn record_added_transactions(add_tx_result: &HttpServerResult<GatewayOutput>, re
     record_added_transaction_status(add_tx_result.is_ok());
 }
 
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
+pub struct GatewayResponse {
+    code: String,
+    transaction_hash: TransactionHash,
+    // This parameter should be Some if and only if it is a positive response to a Declare
+    // transaction.
+    class_hash: Option<ClassHash>,
+    // This parameter should be Some if and only if it is a positive response to a Deploy account
+    // Transaction.
+    address: Option<ContractAddress>,
+}
+
+impl Default for GatewayResponse {
+    fn default() -> Self {
+        GatewayResponse {
+            code: Self::TRANSACTION_RECEIVED.to_string(),
+            transaction_hash: TransactionHash::default(),
+            class_hash: None,
+            address: None,
+        }
+    }
+}
+
+impl GatewayResponse {
+    pub fn transaction_hash(&self) -> TransactionHash {
+        self.transaction_hash
+    }
+
+    const TRANSACTION_RECEIVED: &'static str = "TRANSACTION_RECEIVED";
+}
+
 #[allow(clippy::result_large_err)]
 pub(crate) fn add_tx_result_as_json(
     result: HttpServerResult<GatewayOutput>,
-) -> HttpServerResult<Json<TransactionHash>> {
-    let tx_hash = result?.transaction_hash();
-    Ok(Json(tx_hash))
+) -> HttpServerResult<Json<GatewayResponse>> {
+    let gateway_output = result?;
+    let transaction_hash = gateway_output.transaction_hash();
+    let mut response = GatewayResponse { transaction_hash, ..Default::default() };
+
+    if let GatewayOutput::Declare(declare_output) = &gateway_output {
+        response.class_hash = Some(declare_output.class_hash);
+    }
+    if let GatewayOutput::DeployAccount(deploy_account_output) = &gateway_output {
+        response.address = Some(deploy_account_output.address);
+    }
+
+    Ok(Json(response))
 }
 
 pub fn create_http_server(

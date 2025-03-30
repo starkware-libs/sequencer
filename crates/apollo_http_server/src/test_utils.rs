@@ -10,7 +10,7 @@ use starknet_api::test_utils::rpc_tx_to_json;
 use starknet_api::transaction::TransactionHash;
 
 use crate::config::HttpServerConfig;
-use crate::http_server::HttpServer;
+use crate::http_server::{GatewayResponse, HttpServer};
 
 /// A test utility client for interacting with an http server.
 pub struct HttpTestClient {
@@ -28,7 +28,9 @@ impl HttpTestClient {
         let response = self.add_tx(rpc_tx).await;
         assert!(response.status().is_success());
         let text = response.text().await.unwrap();
-        serde_json::from_str(&text).unwrap_or_else(|_| panic!("Gateway responded with: {}", text))
+        let response: GatewayResponse = serde_json::from_str(&text)
+            .unwrap_or_else(|_| panic!("Gateway responded with: {}", text));
+        response.transaction_hash()
     }
 
     // TODO(Tsabary): implement when usage eventually arises.
