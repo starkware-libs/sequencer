@@ -131,10 +131,9 @@ fn validate_all_pointer_targets_set(preset: Value) -> Result<(), ValidationError
 }
 
 // TODO(Tsabary): consider adding a `new` fn, and remove field visibility.
-// TODO(Tsabary): need a new name for preset config.
-// TODO(Tsabary): consider if having the MonitoringEndpointConfig part of PresetConfig makes sense.
+// TODO(Tsabary): consider if having the MonitoringEndpointConfig part of ConfigChanges makes sense.
 #[derive(Clone)]
-pub struct PresetConfig {
+pub struct ConfigChanges {
     pub component_config: ComponentConfig,
     pub monitoring_endpoint_config: MonitoringEndpointConfig,
 }
@@ -159,10 +158,9 @@ impl DeploymentBaseAppConfig {
         self.config.clone()
     }
 
-    // TODO(Tsabary): the name "preset" is inadequate here, need to change.
-    pub fn update_config_with_preset(&mut self, preset_config: PresetConfig) {
-        self.config.components = preset_config.component_config;
-        self.config.monitoring_endpoint_config = preset_config.monitoring_endpoint_config;
+    pub fn apply_config_changes(&mut self, config_changes: ConfigChanges) {
+        self.config.components = config_changes.component_config;
+        self.config.monitoring_endpoint_config = config_changes.monitoring_endpoint_config;
     }
 
     pub fn dump_config_file(&self, config_path: &PathBuf) {
