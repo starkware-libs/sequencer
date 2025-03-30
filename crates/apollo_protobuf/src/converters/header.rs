@@ -171,10 +171,7 @@ impl TryFrom<protobuf::SignedBlockHeader> for SignedBlockHeader {
         };
 
         let l2_gas_consumed = value.l2_gas_consumed.into();
-        let next_l2_gas_price = u128::from(
-            value.next_l2_gas_price.ok_or(missing("SignedBlockHeader::next_l2_gas_price"))?,
-        )
-        .into();
+        let next_l2_gas_price = value.next_l2_gas_price;
 
         let receipt_commitment = value
             .receipts
@@ -285,7 +282,7 @@ impl From<(BlockHeader, Vec<BlockSignature>)> for protobuf::SignedBlockHeader {
                 header.block_header_without_hash.l1_da_mode,
             ),
             l2_gas_consumed: header.block_header_without_hash.l2_gas_consumed.0,
-            next_l2_gas_price: Some(header.block_header_without_hash.next_l2_gas_price.0.into()),
+            next_l2_gas_price: header.block_header_without_hash.next_l2_gas_price,
             signatures: signatures.iter().map(|signature| (*signature).into()).collect(),
         }
     }
