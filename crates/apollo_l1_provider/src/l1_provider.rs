@@ -238,56 +238,84 @@ impl L1Provider {
 
 impl ComponentStarter for L1Provider {}
 
-/// Initializes L1Provider at specified height (≤ scraper's last state update height).
-/// Bootstrap catch-up height defaults to current sync height.
-#[instrument(skip(l1_provider_client, sync_client, config))]
-pub fn create_l1_provider(
-    config: L1ProviderConfig,
-    l1_provider_client: SharedL1ProviderClient,
-    sync_client: SharedStateSyncClient,
-    startup_height: BlockNumber,
+pub struct L1ProviderBuilder {
+    pub config: L1ProviderConfig,
+    pub l1_provider_client: SharedL1ProviderClient,
+    pub state_sync_client: SharedStateSyncClient,
+    startup_height: Option<BlockNumber>,
     catchup_height: Option<BlockNumber>,
-) -> L1Provider {
-    let l1_provider_startup_height = config
-        .provider_startup_height_override
-        .inspect(|&startup_height_override| {
-            assert!(
-                startup_height_override <= startup_height,
-                "L2 Reorgs possible: during startup, the l1 provider height should not exceed the \
-                 scraper's last known LogStateUpdate (scraper_synced_startup_height) since at \
-                 startup it has no way of checking if a given l1 handler has already been \
-                 committed"
-            );
-            warn!(
-                "Initializing L1Provider with overridden startup height: {startup_height_override}"
-            );
-        })
-        .unwrap_or(startup_height);
+}
 
-    let catch_up_height = config
-        .bootstrap_catch_up_height_override
-        .inspect(|catch_up_height_override| {
-            warn!(
-                "Initializing L1Provider with OVERRIDDEN catch-up height: \
-                 {catch_up_height_override}, this MUST be greater or equal to the default \
-                 non-overridden value, which is the current sync height, or the sync will never \
-                 complete!"
+impl L1ProviderBuilder {
+    pub fn new(
+        config: L1ProviderConfig,
+        l1_provider_client: SharedL1ProviderClient,
+        state_sync_client: SharedStateSyncClient,
+    ) -> Self {
+        Self {
+            config,
+            l1_provider_client,
+            state_sync_client,
+            startup_height: None,
+            catchup_height: None,
+        }
+    }
+
+    pub fn startup_height(mut self, startup_height: BlockNumber) -> Self {
+        self.startup_height = Some(startup_height);
+        self
+    }
+
+    pub fn catchup_height(mut self, catchup_height: BlockNumber) -> Self {
+        self.catchup_height = Some(catchup_height);
+        self
+    }
+
+    pub fn build(self) -> L1Provider {
+        let l1_provider_startup_height = self
+            .config
+            .provider_startup_height_override
+            .inspect(|&startup_height_override| {
+                warn!(
+                    "OVERRIDE L1 provider startup height: {startup_height_override}. WARNING: \
+                     When the scraper is active, this value MUST be less than or equal to the \
+                     scraper's last known LogStateUpdate, otherwise L2 reorgs may be possible. \
+                     See docstring."
+                );
+            })
+            .or(self.startup_height)
+            .expect(
+                "Starting height must set either dynamically from the scraper's last known \
+                 LogStateUpdate, set as the batcher height when in dummy mode, or overridden \
+                 explicitly through the config",
             );
-        })
-        .or(catchup_height)
-        .map(|catchup_height| Arc::new(catchup_height.into()))
-        .unwrap_or_default();
 
-    let bootstrapper = Bootstrapper::new(
-        l1_provider_client,
-        sync_client,
-        config.startup_sync_sleep_retry_interval_seconds,
-        catch_up_height,
-    );
+        let catchup_height = self
+            .config
+            .bootstrap_catch_up_height_override
+            .inspect(|catch_up_height_override| {
+                warn!(
+                    "OVERRIDE L1 provider catch-up height: {catch_up_height_override}. WARNING: \
+                     this MUST be greater or equal to the default non-overridden value, which is \
+                     the (runtime fetched) sync height, or the sync will never complete!"
+                );
+            })
+            .or(self.catchup_height)
+            .map(|catchup_height| Arc::new(catchup_height.into()))
+            // When kept None, this value is fetched from the sync by the bootstrapper at runtime.
+            .unwrap_or_default();
 
-    L1Provider {
-        current_height: l1_provider_startup_height,
-        tx_manager: TransactionManager::default(),
-        state: ProviderState::Bootstrap(bootstrapper),
+        let bootstrapper = Bootstrapper::new(
+            self.l1_provider_client,
+            self.state_sync_client,
+            self.config.startup_sync_sleep_retry_interval_seconds,
+            catchup_height,
+        );
+
+        L1Provider {
+            current_height: l1_provider_startup_height,
+            tx_manager: TransactionManager::default(),
+            state: ProviderState::Bootstrap(bootstrapper),
+        }
     }
 }
