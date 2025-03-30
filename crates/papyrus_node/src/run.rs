@@ -7,6 +7,7 @@ use std::process::exit;
 use std::sync::Arc;
 use std::time::Duration;
 
+use apollo_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use apollo_central_sync::sources::base_layer::EthereumBaseLayerSource;
 use apollo_central_sync::sources::central::{CentralError, CentralSource, CentralSourceConfig};
 use apollo_central_sync::sources::pending::PendingSource;
@@ -24,7 +25,6 @@ use apollo_rpc::run_server;
 use apollo_storage::storage_metrics::update_storage_metrics;
 use apollo_storage::{open_storage, StorageReader, StorageWriter};
 use futures::StreamExt;
-use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use papyrus_common::metrics::COLLECT_PROFILING_METRICS;
 use papyrus_common::pending_classes::PendingClasses;
 use papyrus_monitoring_gateway::MonitoringServer;

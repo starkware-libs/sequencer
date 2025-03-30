@@ -13,16 +13,16 @@ pub mod test_utils;
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-use apollo_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use apollo_l1_provider_types::SessionState;
-use papyrus_base_layer::constants::{
+use apollo_base_layer::constants::{
     EventIdentifier,
     CONSUMED_MESSAGE_TO_L1_EVENT_IDENTIFIER,
     LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER,
     MESSAGE_TO_L2_CANCELED_EVENT_IDENTIFIER,
     MESSAGE_TO_L2_CANCELLATION_STARTED_EVENT_IDENTIFIER,
 };
+use apollo_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
+use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_l1_provider_types::SessionState;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use validator::Validate;

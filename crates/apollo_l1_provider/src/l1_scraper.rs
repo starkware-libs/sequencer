@@ -2,6 +2,8 @@ use std::any::type_name;
 use std::collections::BTreeMap;
 use std::time::Duration;
 
+use apollo_base_layer::constants::EventIdentifier;
+use apollo_base_layer::{BaseLayerContract, L1BlockNumber, L1BlockReference, L1Event};
 use apollo_config::converters::deserialize_float_seconds_to_duration;
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::validators::validate_ascii;
@@ -11,8 +13,6 @@ use apollo_l1_provider_types::{Event, SharedL1ProviderClient};
 use apollo_sequencer_infra::component_client::ClientError;
 use apollo_sequencer_infra::component_definitions::ComponentStarter;
 use async_trait::async_trait;
-use papyrus_base_layer::constants::EventIdentifier;
-use papyrus_base_layer::{BaseLayerContract, L1BlockNumber, L1BlockReference, L1Event};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
 use starknet_api::executable_transaction::L1HandlerTransaction as ExecutableL1HandlerTransaction;

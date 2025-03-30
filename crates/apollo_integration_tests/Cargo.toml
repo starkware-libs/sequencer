@@ -11,6 +11,7 @@ workspace = true
 [dependencies]
 alloy.workspace = true
 anyhow.workspace = true
+apollo_base_layer = { workspace = true, features = ["testing"] }
 apollo_batcher.workspace = true
 apollo_central_sync.workspace = true
 apollo_class_manager = { workspace = true, features = ["testing"] }
@@ -42,7 +43,6 @@ clap.workspace = true
 futures.workspace = true
 indexmap.workspace = true
 mempool_test_utils.workspace = true
-papyrus_base_layer = { workspace = true, features = ["testing"] }
 serde.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true

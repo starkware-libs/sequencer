@@ -3,21 +3,21 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use alloy::primitives::U256;
+use apollo_base_layer::ethereum_base_layer_contract::{
+    EthereumBaseLayerConfig,
+    EthereumBaseLayerContract,
+    Starknet,
+};
+use apollo_base_layer::test_utils::{
+    anvil_instance_from_config,
+    ethereum_base_layer_config_for_anvil,
+};
 use apollo_l1_provider_types::{Event, L1ProviderClient};
 use apollo_sequencer_infra::trace_util::configure_tracing;
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use itertools::Itertools;
 use mempool_test_utils::starknet_api_test_utils::DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;
-use papyrus_base_layer::ethereum_base_layer_contract::{
-    EthereumBaseLayerConfig,
-    EthereumBaseLayerContract,
-    Starknet,
-};
-use papyrus_base_layer::test_utils::{
-    anvil_instance_from_config,
-    ethereum_base_layer_config_for_anvil,
-};
 use starknet_api::block::BlockNumber;
 use starknet_api::contract_address;
 use starknet_api::core::{EntryPointSelector, Nonce};

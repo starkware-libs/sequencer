@@ -3,6 +3,8 @@ use std::net::SocketAddr;
 use std::time::Duration;
 
 use alloy::primitives::U256;
+use apollo_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
+use apollo_base_layer::test_utils::StarknetL1Contract;
 use apollo_batcher::block_builder::BlockBuilderConfig;
 use apollo_batcher::config::BatcherConfig;
 use apollo_class_manager::class_storage::CachedClassStorageConfig;
@@ -52,8 +54,6 @@ use mempool_test_utils::starknet_api_test_utils::{
     Contract,
     MultiAccountTransactionGenerator,
 };
-use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
-use papyrus_base_layer::test_utils::StarknetL1Contract;
 use serde::Deserialize;
 use serde_json::{json, to_value};
 use starknet_api::block::BlockNumber;

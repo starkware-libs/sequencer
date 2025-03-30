@@ -2,6 +2,7 @@ pub mod errors;
 
 use std::sync::Arc;
 
+use apollo_base_layer::L1Event;
 use apollo_proc_macros::handle_all_response_variants;
 use apollo_sequencer_infra::component_client::ClientError;
 use apollo_sequencer_infra::component_definitions::ComponentClient;
@@ -9,7 +10,6 @@ use apollo_sequencer_infra::impl_debug_for_infra_requests_and_responses;
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
-use papyrus_base_layer::L1Event;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::L1HandlerTransaction;

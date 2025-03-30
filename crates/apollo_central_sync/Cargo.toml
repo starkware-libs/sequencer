@@ -22,7 +22,7 @@ indexmap = { workspace = true, features = ["serde"] }
 itertools.workspace = true
 lru.workspace = true
 metrics.workspace = true
-papyrus_base_layer.workspace = true
+apollo_base_layer.workspace = true
 papyrus_common.workspace = true
 reqwest = { workspace = true, features = ["blocking", "json"] }
 serde = { workspace = true, features = ["derive"] }

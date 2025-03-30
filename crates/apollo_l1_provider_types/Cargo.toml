@@ -9,11 +9,11 @@ license.workspace = true
 testing = ["mockall"]
 
 [dependencies]
+apollo_base_layer.workspace = true
 apollo_proc_macros.workspace = true
 apollo_sequencer_infra.workspace = true
 async-trait.workspace = true
 mockall = { workspace = true, optional = true }
-papyrus_base_layer.workspace = true
 serde.workspace = true
 starknet_api.workspace = true
 strum_macros.workspace = true

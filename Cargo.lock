@@ -750,6 +750,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "34ac096ce696dc2fcabef30516bb13c0a68a11d30131d3df6f04711467681b04"
 
 [[package]]
+name = "apollo_base_layer"
+version = "0.0.0"
+dependencies = [
+ "alloy",
+ "apollo_config",
+ "async-trait",
+ "colored 3.0.0",
+ "ethers",
+ "ethers-core",
+ "mempool_test_utils",
+ "mockall",
+ "pretty_assertions",
+ "serde",
+ "starknet-types-core",
+ "starknet_api",
+ "tar",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "url",
+ "validator",
+]
+
+[[package]]
 name = "apollo_batcher"
 version = "0.0.0"
 dependencies = [
@@ -809,6 +833,7 @@ dependencies = [
 name = "apollo_central_sync"
 version = "0.0.0"
 dependencies = [
+ "apollo_base_layer",
  "apollo_class_manager_types",
  "apollo_config",
  "apollo_proc_macros",
@@ -827,7 +852,6 @@ dependencies = [
  "lru",
  "metrics 0.24.1",
  "mockall",
- "papyrus_base_layer",
  "papyrus_common",
  "pretty_assertions",
  "reqwest 0.11.27",
@@ -1134,6 +1158,7 @@ version = "0.0.0"
 dependencies = [
  "alloy",
  "anyhow",
+ "apollo_base_layer",
  "apollo_batcher",
  "apollo_central_sync",
  "apollo_class_manager",
@@ -1167,7 +1192,6 @@ dependencies = [
  "mempool_test_utils",
  "metrics 0.24.1",
  "metrics-exporter-prometheus",
- "papyrus_base_layer",
  "pretty_assertions",
  "rstest",
  "serde",
@@ -1186,13 +1210,13 @@ dependencies = [
 name = "apollo_l1_gas_price"
 version = "0.0.0"
 dependencies = [
+ "apollo_base_layer",
  "apollo_config",
  "apollo_l1_gas_price_types",
  "apollo_sequencer_infra",
  "async-trait",
  "mockall",
  "mockito 1.6.1",
- "papyrus_base_layer",
  "reqwest 0.11.27",
  "serde",
  "serde_json",
@@ -1208,11 +1232,11 @@ dependencies = [
 name = "apollo_l1_gas_price_types"
 version = "0.0.0"
 dependencies = [
+ "apollo_base_layer",
  "apollo_proc_macros",
  "apollo_sequencer_infra",
  "async-trait",
  "mockall",
- "papyrus_base_layer",
  "reqwest 0.11.27",
  "serde",
  "serde_json",
@@ -1227,6 +1251,7 @@ name = "apollo_l1_provider"
 version = "0.0.0"
 dependencies = [
  "alloy",
+ "apollo_base_layer",
  "apollo_config",
  "apollo_l1_provider_types",
  "apollo_sequencer_infra",
@@ -1237,7 +1262,6 @@ dependencies = [
  "indexmap 2.7.0",
  "itertools 0.12.1",
  "mempool_test_utils",
- "papyrus_base_layer",
  "pretty_assertions",
  "serde",
  "starknet-types-core",
@@ -1252,11 +1276,11 @@ dependencies = [
 name = "apollo_l1_provider_types"
 version = "0.0.0"
 dependencies = [
+ "apollo_base_layer",
  "apollo_proc_macros",
  "apollo_sequencer_infra",
  "async-trait",
  "mockall",
- "papyrus_base_layer",
  "serde",
  "starknet_api",
  "strum_macros 0.25.3",
@@ -1675,6 +1699,7 @@ name = "apollo_sequencer_node"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "apollo_base_layer",
  "apollo_batcher",
  "apollo_batcher_types",
  "apollo_class_manager",
@@ -1706,7 +1731,6 @@ dependencies = [
  "const_format",
  "futures",
  "mempool_test_utils",
- "papyrus_base_layer",
  "pretty_assertions",
  "rstest",
  "serde",
@@ -8947,30 +8971,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "papyrus_base_layer"
-version = "0.0.0"
-dependencies = [
- "alloy",
- "apollo_config",
- "async-trait",
- "colored 3.0.0",
- "ethers",
- "ethers-core",
- "mempool_test_utils",
- "mockall",
- "pretty_assertions",
- "serde",
- "starknet-types-core",
- "starknet_api",
- "tar",
- "tempfile",
- "thiserror 1.0.69",
- "tokio",
- "url",
- "validator",
-]
-
-[[package]]
 name = "papyrus_common"
 version = "0.0.0"
 dependencies = [
@@ -9032,6 +9032,7 @@ name = "papyrus_node"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "apollo_base_layer",
  "apollo_central_sync",
  "apollo_class_manager_types",
  "apollo_config",
@@ -9053,7 +9054,6 @@ dependencies = [
  "lazy_static",
  "metrics-exporter-prometheus",
  "once_cell",
- "papyrus_base_layer",
  "papyrus_common",
  "papyrus_monitoring_gateway",
  "pretty_assertions",

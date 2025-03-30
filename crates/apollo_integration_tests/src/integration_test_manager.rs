@@ -5,6 +5,11 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use alloy::node_bindings::AnvilInstance;
+use apollo_base_layer::test_utils::{
+    ethereum_base_layer_config_for_anvil,
+    spawn_anvil_and_deploy_starknet_l1_contract,
+    StarknetL1Contract,
+};
 use apollo_http_server::config::HttpServerConfig;
 use apollo_http_server::test_utils::HttpTestClient;
 use apollo_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
@@ -25,11 +30,6 @@ use blockifier::context::ChainInfo;
 use futures::future::join_all;
 use futures::TryFutureExt;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
-use papyrus_base_layer::test_utils::{
-    ethereum_base_layer_config_for_anvil,
-    spawn_anvil_and_deploy_starknet_l1_contract,
-    StarknetL1Contract,
-};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, Nonce};
 use starknet_api::execution_resources::GasAmount;

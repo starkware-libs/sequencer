@@ -1,6 +1,7 @@
 use std::future::pending;
 use std::pin::Pin;
 
+use apollo_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
 use apollo_batcher::communication::{LocalBatcherServer, RemoteBatcherServer};
 use apollo_class_manager::communication::{LocalClassManagerServer, RemoteClassManagerServer};
 use apollo_consensus_manager::communication::ConsensusManagerServer;
@@ -90,7 +91,6 @@ use apollo_state_sync::runner::StateSyncRunnerServer;
 use apollo_state_sync::{LocalStateSyncServer, RemoteStateSyncServer};
 use futures::stream::FuturesUnordered;
 use futures::{Future, FutureExt, StreamExt};
-use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
 
 use crate::clients::SequencerNodeClients;
 use crate::communication::SequencerNodeCommunication;

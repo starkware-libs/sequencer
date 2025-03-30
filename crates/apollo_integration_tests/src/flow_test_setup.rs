@@ -3,6 +3,12 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use alloy::node_bindings::AnvilInstance;
+use apollo_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
+use apollo_base_layer::test_utils::{
+    ethereum_base_layer_config_for_anvil,
+    spawn_anvil_and_deploy_starknet_l1_contract,
+    StarknetL1Contract,
+};
 use apollo_consensus_manager::config::ConsensusManagerConfig;
 use apollo_gateway_types::errors::GatewaySpecError;
 use apollo_http_server::config::HttpServerConfig;
@@ -30,12 +36,6 @@ use futures::StreamExt;
 use mempool_test_utils::starknet_api_test_utils::{
     AccountTransactionGenerator,
     MultiAccountTransactionGenerator,
-};
-use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
-use papyrus_base_layer::test_utils::{
-    ethereum_base_layer_config_for_anvil,
-    spawn_anvil_and_deploy_starknet_l1_contract,
-    StarknetL1Contract,
 };
 use starknet_api::block::BlockNumber;
 use starknet_api::consensus_transaction::ConsensusTransaction;

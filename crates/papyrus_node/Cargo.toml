@@ -17,6 +17,7 @@ required-features = ["futures-util", "tokio-stream"]
 
 [dependencies]
 anyhow.workspace = true
+apollo_base_layer.workspace = true
 apollo_central_sync.workspace = true
 apollo_class_manager_types.workspace = true
 apollo_config.workspace = true
@@ -32,7 +33,6 @@ futures.workspace = true
 itertools.workspace = true
 lazy_static.workspace = true
 once_cell.workspace = true
-papyrus_base_layer.workspace = true
 papyrus_common.workspace = true
 papyrus_monitoring_gateway.workspace = true
 reqwest = { workspace = true, features = ["blocking", "json"] }

@@ -8,6 +8,7 @@ use std::sync::LazyLock;
 use std::time::Duration;
 use std::{env, fs, io};
 
+use apollo_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use apollo_central_sync::sources::central::CentralSourceConfig;
 use apollo_central_sync::SyncConfig;
 #[cfg(not(feature = "rpc"))]
@@ -35,7 +36,6 @@ use apollo_storage::StorageConfig;
 use clap::{arg, value_parser, Arg, ArgMatches, Command};
 use itertools::{chain, Itertools};
 use lazy_static::lazy_static;
-use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use papyrus_monitoring_gateway::MonitoringGatewayConfig;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};

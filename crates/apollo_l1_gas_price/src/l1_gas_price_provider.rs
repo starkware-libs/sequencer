@@ -1,11 +1,11 @@
 use std::collections::{BTreeMap, VecDeque};
 
+use apollo_base_layer::{L1BlockNumber, PriceSample};
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_l1_gas_price_types::errors::L1GasPriceProviderError;
 use apollo_l1_gas_price_types::{L1GasPriceProviderResult, PriceInfo};
 use apollo_sequencer_infra::component_definitions::ComponentStarter;
-use papyrus_base_layer::{L1BlockNumber, PriceSample};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockTimestamp;
 use validator::Validate;

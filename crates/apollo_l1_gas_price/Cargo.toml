@@ -6,11 +6,11 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
+apollo_base_layer.workspace = true
 apollo_config.workspace = true
 apollo_l1_gas_price_types.workspace = true
 apollo_sequencer_infra.workspace = true
 async-trait.workspace = true
-papyrus_base_layer.workspace = true
 reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -22,10 +22,10 @@ url.workspace = true
 validator.workspace = true
 
 [dev-dependencies]
+apollo_base_layer = { workspace = true, features = ["testing"] }
 apollo_l1_gas_price_types = { workspace = true, features = ["testing"] }
 mockall.workspace = true
 mockito.workspace = true
-papyrus_base_layer = { workspace = true, features = ["testing"] }
 
 [lints]
 workspace = true
