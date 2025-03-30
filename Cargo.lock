@@ -11236,7 +11236,9 @@ name = "starknet_http_server"
 version = "0.0.0"
 dependencies = [
  "apollo_config",
+ "assert_matches",
  "axum",
+ "base64 0.13.1",
  "blockifier",
  "blockifier_test_utils",
  "futures",
