@@ -11784,6 +11784,7 @@ dependencies = [
  "num-integer",
  "num-traits",
  "papyrus_common",
+ "paste",
  "rand 0.8.5",
  "rstest",
  "serde",
