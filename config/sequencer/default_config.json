@@ -894,6 +894,11 @@
     "privacy": "Private",
     "value": ""
   },
+  "consensus_manager_config.eth_to_strk_oracle_config.lag_margin_seconds": {
+    "description": "The time margin (in seconds) to adjust the timestamp before querying the conversion rate. Ensures a stable timestamp from providers. Should be configured in alignment with relevant query parameters in `base_url`, if required.",
+    "privacy": "Private",
+    "value": 0
+  },
   "consensus_manager_config.immediate_active_height": {
     "description": "The height at which the node may actively participate in consensus.",
     "privacy": "Public",
