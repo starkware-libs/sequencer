@@ -58,13 +58,21 @@ pub struct OsHints {
     pub os_hints_config: OsHintsConfig,
 }
 
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
+#[cfg_attr(any(test, feature = "testing"), derive(Default))]
+#[derive(Debug)]
+pub struct StarknetOsInput {
+    pub block_inputs: Vec<OsBlockInput>,
+    pub deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
+    pub compiled_classes: HashMap<ClassHash, CasmContractClass>,
+}
 /// All input needed to initialize the execution helper.
 // TODO(Dori): Add all fields needed to compute commitments, initialize a CachedState and other data
 //   required by the execution helper.
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[cfg_attr(any(test, feature = "testing"), derive(Default))]
 #[derive(Debug)]
-pub struct StarknetOsInput {
+pub struct OsBlockInput {
     pub(crate) contract_state_commitment_info: CommitmentInfo,
     pub(crate) address_to_storage_commitment_info: HashMap<ContractAddress, CommitmentInfo>,
     pub(crate) contract_class_commitment_info: CommitmentInfo,

@@ -38,6 +38,8 @@ pub enum OsHintError {
     ExpectedBit { id: Ids, felt: Felt },
     #[error(transparent)]
     Fft(#[from] FftError),
+    #[error(transparent)]
+    HintsProcessorError(#[from] HintsProcessorError),
     #[error("Failed to convert {variant:?} felt value {felt:?} to type {ty}: {reason:?}.")]
     IdsConversion { variant: Ids, felt: Felt, ty: String, reason: String },
     #[error(
@@ -79,6 +81,12 @@ pub enum OsHintError {
     VmHint(#[from] VmHintError),
     #[error(transparent)]
     VmUtils(#[from] VmUtilsError),
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum HintsProcessorError {
+    #[error("Called a block execution-helper before it was initialized.")]
+    NoCurrentExecutionHelper,
 }
 
 /// `OsHintError` and the VM's `HintError` must have conversions in both directions, as execution
