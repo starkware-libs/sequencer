@@ -1,13 +1,21 @@
 use std::future::pending;
 use std::pin::Pin;
 
+use apollo_batcher::communication::{LocalBatcherServer, RemoteBatcherServer};
+use apollo_class_manager::communication::{LocalClassManagerServer, RemoteClassManagerServer};
+use apollo_consensus_manager::communication::ConsensusManagerServer;
+use apollo_gateway::communication::{LocalGatewayServer, RemoteGatewayServer};
+use apollo_mempool::communication::{LocalMempoolServer, RemoteMempoolServer};
+use apollo_mempool_p2p::propagator::{
+    LocalMempoolP2pPropagatorServer,
+    RemoteMempoolP2pPropagatorServer,
+};
+use apollo_mempool_p2p::runner::MempoolP2pRunnerServer;
+use apollo_state_sync::runner::StateSyncRunnerServer;
+use apollo_state_sync::{LocalStateSyncServer, RemoteStateSyncServer};
 use futures::stream::FuturesUnordered;
 use futures::{Future, FutureExt, StreamExt};
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
-use starknet_batcher::communication::{LocalBatcherServer, RemoteBatcherServer};
-use starknet_class_manager::communication::{LocalClassManagerServer, RemoteClassManagerServer};
-use starknet_consensus_manager::communication::ConsensusManagerServer;
-use starknet_gateway::communication::{LocalGatewayServer, RemoteGatewayServer};
 use starknet_http_server::communication::HttpServer;
 use starknet_l1_gas_price::communication::{
     L1GasPriceScraperServer,
@@ -19,12 +27,6 @@ use starknet_l1_provider::communication::{
     LocalL1ProviderServer,
     RemoteL1ProviderServer,
 };
-use starknet_mempool::communication::{LocalMempoolServer, RemoteMempoolServer};
-use starknet_mempool_p2p::propagator::{
-    LocalMempoolP2pPropagatorServer,
-    RemoteMempoolP2pPropagatorServer,
-};
-use starknet_mempool_p2p::runner::MempoolP2pRunnerServer;
 use starknet_monitoring_endpoint::communication::MonitoringEndpointServer;
 use starknet_sequencer_infra::component_server::{
     ComponentServerStarter,
@@ -89,8 +91,6 @@ use starknet_sequencer_infra::metrics::{
     STATE_SYNC_REMOTE_VALID_MSGS_RECEIVED,
 };
 use starknet_sierra_multicompile::communication::LocalSierraCompilerServer;
-use starknet_state_sync::runner::StateSyncRunnerServer;
-use starknet_state_sync::{LocalStateSyncServer, RemoteStateSyncServer};
 
 use crate::clients::SequencerNodeClients;
 use crate::communication::SequencerNodeCommunication;

@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 
+use apollo_class_manager_types::{ClassManagerClientError, SharedClassManagerClient};
 use apollo_network::network_manager::{ServerQueryManager, SqmrServerReceiver};
 use apollo_protobuf::converters::ProtobufConversionError;
 use apollo_protobuf::sync::{
@@ -31,7 +32,6 @@ use starknet_api::contract_class::ContractClass;
 use starknet_api::core::ClassHash;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::{Event, FullTransaction, TransactionHash};
-use starknet_class_manager_types::{ClassManagerClientError, SharedClassManagerClient};
 use tracing::{debug, error, info};
 
 #[cfg(test)]

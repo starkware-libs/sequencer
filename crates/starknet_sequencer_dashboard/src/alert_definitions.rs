@@ -1,5 +1,5 @@
+use apollo_gateway::metrics::TRANSACTIONS_RECEIVED;
 use const_format::formatcp;
-use starknet_gateway::metrics::TRANSACTIONS_RECEIVED;
 
 use crate::dashboard::{
     Alert,
