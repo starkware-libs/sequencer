@@ -77,9 +77,10 @@ impl Deployment {
         for (service, component_config) in component_configs.iter() {
             let mut service_deployment_base_app_config = deployment_base_app_config.clone();
 
+            let config_path =
+                PathBuf::from(&self.application_config_subdir).join(service.get_config_file_path());
+
             let preset_config = PresetConfig {
-                config_path: PathBuf::from(&self.application_config_subdir)
-                    .join(service.get_config_file_path()),
                 component_config: component_config.clone(),
                 monitoring_endpoint_config: MonitoringEndpointConfig {
                     ip: IpAddr::from(Ipv4Addr::UNSPECIFIED),
@@ -92,7 +93,7 @@ impl Deployment {
             };
 
             service_deployment_base_app_config.update_config_with_preset(preset_config.clone());
-            service_deployment_base_app_config.dump_config_file(preset_config);
+            service_deployment_base_app_config.dump_config_file(&config_path);
         }
     }
 
