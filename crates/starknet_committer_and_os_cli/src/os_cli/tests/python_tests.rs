@@ -1,4 +1,3 @@
-use std::any::Any;
 use std::collections::{HashMap, HashSet};
 
 // TODO(Amos): When available in the VM crate, use an existing set, instead of using each hint
@@ -198,18 +197,13 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_code::{
 };
 use starknet_os::hints::enum_definition::{AggregatorHint, HintExtension, OsHint};
 use starknet_os::hints::types::HintEnum;
-use starknet_os::test_utils::cairo_runner::{EndpointArg, ImplicitArg};
-use starknet_os::test_utils::errors::Cairo0EntryPointRunnerError;
-use starknet_os::test_utils::utils::run_cairo_function_and_check_result;
 use strum::IntoEnumIterator;
-use strum_macros::Display;
-use thiserror;
 
 use crate::os_cli::commands::{validate_input, Input};
-use crate::shared_utils::types::{PythonTestError, PythonTestResult, PythonTestRunner};
-
-pub type OsPythonTestError = PythonTestError<OsSpecificTestError>;
-type OsPythonTestResult = PythonTestResult<OsSpecificTestError>;
+use crate::os_cli::tests::aliases::aliases_test;
+use crate::os_cli::tests::types::{OsPythonTestError, OsPythonTestResult, OsSpecificTestError};
+use crate::os_cli::tests::utils::test_cairo_function;
+use crate::shared_utils::types::{PythonTestError, PythonTestRunner};
 
 // Enum representing different Python tests.
 pub enum OsPythonTestRunner {
@@ -232,11 +226,6 @@ impl TryFrom<String> for OsPythonTestRunner {
             _ => Err(PythonTestError::UnknownTestName(value)),
         }
     }
-}
-
-#[derive(Debug, thiserror::Error, Display)]
-pub enum OsSpecificTestError {
-    Cairo0EntryPointRunner(#[from] Cairo0EntryPointRunnerError),
 }
 
 impl PythonTestRunner for OsPythonTestRunner {
@@ -277,30 +266,6 @@ fn compare_os_hints(input: &str) -> OsPythonTestResult {
     Ok(serde_json::to_string(&(only_in_python, only_in_rust))?)
 }
 
-fn test_cairo_function(
-    program_str: &str,
-    function_name: &str,
-    explicit_args: &[EndpointArg],
-    implicit_args: &[ImplicitArg],
-    expected_explicit_retdata: &[EndpointArg],
-    expected_implicit_retdata: &[EndpointArg],
-    hint_locals: HashMap<String, Box<dyn Any>>,
-) -> OsPythonTestResult {
-    run_cairo_function_and_check_result(
-        program_str,
-        function_name,
-        explicit_args,
-        implicit_args,
-        expected_explicit_retdata,
-        expected_implicit_retdata,
-        hint_locals,
-    )
-    .map_err(|error| {
-        PythonTestError::SpecificError(OsSpecificTestError::Cairo0EntryPointRunner(error))
-    })?;
-    Ok("".to_string())
-}
-
 // TODO(Amos): Delete this test, as the cairo runner now has it's own separate test.
 fn run_dummy_cairo_function(input: &str) -> OsPythonTestResult {
     let param_1 = 123;
@@ -311,33 +276,6 @@ fn run_dummy_cairo_function(input: &str) -> OsPythonTestResult {
         &[param_1.into(), param_2.into()],
         &[],
         &[(789 + param_1).into(), param_1.into(), param_2.into()],
-        &[],
-        HashMap::new(),
-    )
-}
-
-// TODO(Amos): This test is incomplete. Add the rest of the test cases and remove this todo.
-fn aliases_test(input: &str) -> OsPythonTestResult {
-    test_constants(input)?;
-    Ok("".to_string())
-}
-
-fn test_constants(input: &str) -> OsPythonTestResult {
-    let max_non_compressed_contract_address = 15;
-    let alias_counter_storage_key = 0;
-    let initial_available_alias = 128;
-    let alias_contract_address = 2;
-    test_cairo_function(
-        input,
-        "test_constants",
-        &[
-            max_non_compressed_contract_address.into(),
-            alias_counter_storage_key.into(),
-            initial_available_alias.into(),
-            alias_contract_address.into(),
-        ],
-        &[],
-        &[],
         &[],
         HashMap::new(),
     )
