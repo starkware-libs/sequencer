@@ -8,9 +8,9 @@ use starknet_gateway::gateway::{create_gateway, Gateway};
 use starknet_http_server::http_server::{create_http_server, HttpServer};
 use starknet_l1_gas_price::l1_gas_price_provider::L1GasPriceProvider;
 use starknet_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraper;
-use starknet_l1_provider::l1_provider::{create_l1_provider, L1Provider};
+use starknet_l1_provider::event_identifiers_to_track;
+use starknet_l1_provider::l1_provider::{L1Provider, L1ProviderBuilder};
 use starknet_l1_provider::l1_scraper::L1Scraper;
-use starknet_l1_provider::{event_identifiers_to_track, L1ProviderConfig};
 use starknet_mempool::communication::{create_mempool, MempoolCommunicationWrapper};
 use starknet_mempool_p2p::create_p2p_propagator_and_runner;
 use starknet_mempool_p2p::propagator::MempoolP2pPropagator;
@@ -22,7 +22,7 @@ use starknet_monitoring_endpoint::monitoring_endpoint::{
 use starknet_sierra_multicompile::{create_sierra_compiler, SierraCompiler};
 use starknet_state_sync::runner::StateSyncRunner;
 use starknet_state_sync::{create_state_sync_and_runner, StateSync};
-use tracing::warn;
+use tracing::{info, warn};
 
 use crate::clients::SequencerNodeClients;
 use crate::config::component_execution_config::{
@@ -228,11 +228,15 @@ pub async fn create_node_components(
     let l1_provider = match config.components.l1_provider.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            let (provider_startup_height, catch_up_height) = match &l1_scraper {
+            let mut l1_provider_builder = L1ProviderBuilder::new(
+                config.l1_provider_config,
+                clients.get_l1_provider_shared_client().unwrap(),
+                clients.get_state_sync_shared_client().unwrap(),
+            );
+            match &l1_scraper {
                 Some(l1_scraper) => {
-                    let (base_layer, l1_scraper_start_l1_height) =
-                        (&l1_scraper.base_layer, l1_scraper.last_l1_block_processed.number);
-                    let startup_height = base_layer
+                    let l1_scraper_start_l1_height = l1_scraper.last_l1_block_processed.number;
+                    let scraper_synced_startup_height = l1_scraper.base_layer
                         .get_proved_block_at(l1_scraper_start_l1_height)
                         .await
                         .map(|block| block.number)
@@ -240,64 +244,58 @@ pub async fn create_node_components(
                         // genesis. The former should override the height, or setup Anvil accordingly, and
                         // the latter should use the correct L1 height.
                         .inspect_err(|err|{
-                            warn!("Error while attempting to get the L2 block at the L1 height the
-                            scraper was initialized on. This is either due to running a test with
-                            faulty Anvil state, or if the scraper was initialized too far back.
-                            Attempting to use provider startup height override (read its docstring
-                            before using!).\n {err}")})
-                        .ok().or(config.l1_provider_config.provider_startup_height_override);
+                            warn!("Error while attempting to get the L2 block at the L1 height \
+                            the scraper was initialized on. This is either due to running a \
+                            test with faulty Anvil state, or if the scraper was initialized too \
+                            far back.  Will attempt to use provider startup height override \
+                            instead (read its docstring before using!).\n {err}")})
+                        .ok();
 
-                    // Let catchup_height be set dynamically unless overridden later.
-                    let catch_up_height = None;
+                    if let Some(height) = scraper_synced_startup_height {
+                        l1_provider_builder = l1_provider_builder.startup_height(height);
+                    }
 
-                    (startup_height, catch_up_height)
+                    Some(l1_provider_builder.build())
                 }
                 None => {
-                    warn!(
-                        "L1 Scraper is disabled, attempting to initialize the L1Provider from \
-                         overridden config values."
+                    warn!("L1 Scraper is disabled, initialize L1 provider in dummy mode");
+                    let batcher_height = batcher
+                        .as_ref()
+                        .expect(
+                            "L1 provider's dummy mode initialization requires the batcher to be \
+                             set up in order to align to its height",
+                        )
+                        .get_height()
+                        .await
+                        .unwrap()
+                        .height;
+                    info!(
+                        "L1 provider dummy mode startup height set at batcher height: \
+                         {batcher_height}"
                     );
-                    let L1ProviderConfig {
-                        provider_startup_height_override: startup_height_override,
-                        bootstrap_catch_up_height_override: catch_up_height_override,
-                        ..
-                    } = config.l1_provider_config;
 
-                    match (startup_height_override, catch_up_height_override) {
-                        (Some(startup_height), Some(catchup_height)) => {
-                            warn!(
-                                "Set up the L1 provider with startup and catchup height from the \
-                                 provided overrides."
-                            );
-                            (Some(startup_height), Some(catchup_height))
-                        }
-                        _ => {
-                            warn!(
-                                "Explicit overrides for the startup and catchup height of the L1 \
-                                 Provider were not provided. Initializing in Dummy Mode by \
-                                 setting both of these values as the current batcher height."
-                            );
-                            let startup_height =
-                                batcher.as_ref().unwrap().get_height().await.unwrap().height;
-                            let catch_up_height = startup_height;
-                            (Some(startup_height), Some(catch_up_height))
-                        }
-                    }
+                    assert!(
+                        config
+                            .l1_provider_config
+                            .provider_startup_height_override
+                            .xor(config.l1_provider_config.bootstrap_catch_up_height_override)
+                            .is_none(),
+                        "Configuration error: overriding only one of startup_height={startup:?} \
+                         or catchup_height={catchup:?} is not supported in l1 provider's dummy \
+                         mode. Either set neither (this is the preferred way) which sets both \
+                         values to the batcher height, or set both if you have a specific startup \
+                         flow in mind.",
+                        startup = config.l1_provider_config.provider_startup_height_override,
+                        catchup = config.l1_provider_config.bootstrap_catch_up_height_override
+                    );
+                    Some(
+                        l1_provider_builder
+                            .startup_height(batcher_height)
+                            .catchup_height(batcher_height)
+                            .build(),
+                    )
                 }
-            };
-            let provider_startup_height = provider_startup_height.expect(
-                "Cannot determine L1 Provider startup height. Either enable the L1 Scraper on \
-                 height that is at least as old as L2 genesis, or override provider startup \
-                 height (read its docstring before using)",
-            );
-
-            Some(create_l1_provider(
-                config.l1_provider_config,
-                clients.get_l1_provider_shared_client().unwrap(),
-                clients.get_state_sync_shared_client().unwrap(),
-                provider_startup_height,
-                catch_up_height,
-            ))
+            }
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
