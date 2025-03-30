@@ -24,6 +24,7 @@ use libp2p::swarm::SwarmEvent;
 use libp2p::{noise, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder};
 use metrics::NetworkMetrics;
 use sqmr::Bytes;
+use starknet_infra_utils::dump_debug::DumpDebug;
 use tracing::{debug, error, trace, warn};
 
 use self::swarm_trait::SwarmTrait;
@@ -735,6 +736,21 @@ impl NetworkManager {
 
     pub fn get_local_peer_id(&self) -> String {
         self.swarm.local_peer_id().to_string()
+    }
+}
+
+impl DumpDebug for NetworkManager {
+    fn dump_debug(&self) -> String {
+        let peer_manager_dump_debug = self.swarm.behaviour().peer_manager.dump_debug();
+        let local_peer_id = self.swarm.local_peer_id();
+        let sqmr_inbound_protocols =
+            self.inbound_protocol_to_buffer_size.keys().collect::<Vec<_>>();
+        let addvertised_multiaddr = self.advertised_multiaddr.as_ref().map(|x| x.to_string());
+        format!(
+            "NetworkManager {{ peer_manager: {peer_manager_dump_debug}, local_peer_id: \
+             {local_peer_id:?}, sqmr_inbound_protocols: {sqmr_inbound_protocols:?}, \
+             addvertised_multiaddr: {addvertised_multiaddr:?} }}"
+        )
     }
 }
 
