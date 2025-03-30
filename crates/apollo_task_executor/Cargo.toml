@@ -1,0 +1,17 @@
+[package]
+name = "apollo_task_executor"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[dev-dependencies]
+futures.workspace = true
+rstest.workspace = true
+tokio-test.workspace = true
+
+[lints]
+workspace = true

@@ -1,6 +1,6 @@
 {
   "base_layer_config.node_url": "http://localhost:53260/",
-  "base_layer_config.prague_blob_gas_calc": false,
+  "base_layer_config.prague_blob_gas_calc": true,
   "base_layer_config.starknet_contract_address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.l1_gas": 2500000,
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.message_segment_length": 3700,
@@ -218,6 +218,7 @@
   "l1_scraper_config.finality": 0,
   "l1_scraper_config.polling_interval": 1,
   "l1_scraper_config.startup_rewind_time": 0,
+  "mempool_config.capacity_in_bytes": 1073741824,
   "mempool_config.committed_nonce_retention_block_count": 100,
   "mempool_config.declare_delay": 1,
   "mempool_config.enable_fee_escalation": true,

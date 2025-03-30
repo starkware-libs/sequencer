@@ -14,6 +14,7 @@ apollo_config.workspace = true
 apollo_network.workspace = true
 apollo_network_types.workspace = true
 apollo_protobuf.workspace = true
+apollo_sequencer_metrics.workspace = true
 async-trait.workspace = true
 clap = { workspace = true, features = ["derive"] }
 fs2.workspace = true
@@ -27,7 +28,6 @@ prost.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet-types-core.workspace = true
 starknet_api.workspace = true
-starknet_sequencer_metrics.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
 thiserror.workspace = true

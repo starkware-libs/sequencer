@@ -9,12 +9,12 @@ use apollo_mempool_types::communication::{
 use apollo_mempool_types::errors::MempoolError;
 use apollo_mempool_types::mempool_types::{CommitBlockArgs, MempoolResult, MempoolSnapshot};
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
+use apollo_sequencer_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
+use apollo_sequencer_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 use async_trait::async_trait;
 use starknet_api::block::NonzeroGasPrice;
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
-use starknet_sequencer_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
-use starknet_sequencer_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 
 use crate::config::MempoolConfig;
 use crate::mempool::Mempool;

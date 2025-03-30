@@ -15,8 +15,11 @@ workspace = true
 apollo_batcher_types.workspace = true
 apollo_class_manager_types.workspace = true
 apollo_config.workspace = true
+apollo_l1_provider_types.workspace = true
 apollo_mempool_types.workspace = true
 apollo_reverts.workspace = true
+apollo_sequencer_infra.workspace = true
+apollo_sequencer_metrics.workspace = true
 apollo_state_reader.workspace = true
 apollo_state_sync_types.workspace = true
 apollo_storage.workspace = true
@@ -27,9 +30,6 @@ futures.workspace = true
 indexmap.workspace = true
 serde.workspace = true
 starknet_api.workspace = true
-starknet_l1_provider_types.workspace = true
-starknet_sequencer_infra.workspace = true
-starknet_sequencer_metrics.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
@@ -37,7 +37,10 @@ validator.workspace = true
 
 [dev-dependencies]
 apollo_class_manager_types = { workspace = true, features = ["testing"] }
+apollo_infra_utils.workspace = true
+apollo_l1_provider_types = { workspace = true, features = ["testing"] }
 apollo_mempool_types = { workspace = true, features = ["testing"] }
+apollo_sequencer_metrics = { workspace = true, features = ["testing"] }
 apollo_storage = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
@@ -51,6 +54,3 @@ pretty_assertions.workspace = true
 rstest.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
-starknet_infra_utils.workspace = true
-starknet_l1_provider_types = { workspace = true, features = ["testing"] }
-starknet_sequencer_metrics = { workspace = true, features = ["testing"] }

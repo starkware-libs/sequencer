@@ -24,7 +24,7 @@ FROM ubuntu:24.04 AS final_stage
 
 ENV ID=1001
 WORKDIR /app
-COPY --from=builder /app/target/debug/starknet_sequencer_node ./target/debug/starknet_sequencer_node
+COPY --from=builder /app/target/debug/apollo_sequencer_node ./target/debug/apollo_sequencer_node
 COPY --from=builder /app/target/debug/shared_executables/starknet-sierra-compile ./target/debug/shared_executables/starknet-sierra-compile
 COPY --from=builder /usr/bin/tini /usr/bin/tini
 
@@ -45,4 +45,4 @@ EXPOSE 8080 8081 8082
 USER ${ID}
 
 # Set the entrypoint to use tini to manage the process.
-ENTRYPOINT ["tini", "--", "/app/target/debug/starknet_sequencer_node"]
+ENTRYPOINT ["tini", "--", "/app/target/debug/apollo_sequencer_node"]

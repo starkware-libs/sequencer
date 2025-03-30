@@ -7,12 +7,12 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use apollo_class_manager_types::{CachedClassStorageError, ClassId, ExecutableClassHash};
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_sierra_multicompile_types::{RawClass, RawClassError, RawExecutableClass};
 use apollo_storage::class_hash::{ClassHashStorageReader, ClassHashStorageWriter};
 use serde::{Deserialize, Serialize};
 use starknet_api::class_cache::GlobalContractCache;
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::ChainId;
-use starknet_sierra_multicompile_types::{RawClass, RawClassError, RawExecutableClass};
 use thiserror::Error;
 use tracing::instrument;
 

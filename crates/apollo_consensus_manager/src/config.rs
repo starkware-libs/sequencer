@@ -5,11 +5,11 @@ use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_consensus::config::ConsensusConfig;
 use apollo_consensus_orchestrator::cende::CendeConfig;
 use apollo_consensus_orchestrator::config::ContextConfig;
+use apollo_l1_gas_price::eth_to_strk_oracle::EthToStrkOracleConfig;
 use apollo_network::NetworkConfig;
 use apollo_reverts::RevertConfig;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
-use starknet_l1_gas_price::eth_to_strk_oracle::EthToStrkOracleConfig;
 use validator::Validate;
 
 /// The consensus manager related configuration.

@@ -2,15 +2,15 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
 use std::sync::Arc;
 
+use apollo_sierra_multicompile::command_line_compiler::CommandLineCompiler;
+use apollo_sierra_multicompile::errors::CompilationUtilError;
+use apollo_sierra_multicompile::utils::into_contract_class_for_compilation;
+use apollo_sierra_multicompile::SierraToNativeCompiler;
 #[cfg(any(feature = "testing", test))]
 use cached::Cached;
 use log;
 use starknet_api::core::ClassHash;
 use starknet_api::state::SierraContractClass;
-use starknet_sierra_multicompile::command_line_compiler::CommandLineCompiler;
-use starknet_sierra_multicompile::errors::CompilationUtilError;
-use starknet_sierra_multicompile::utils::into_contract_class_for_compilation;
-use starknet_sierra_multicompile::SierraToNativeCompiler;
 use thiserror::Error;
 
 use crate::blockifier::config::{

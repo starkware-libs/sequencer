@@ -22,8 +22,12 @@ use apollo_batcher_types::batcher_types::{
 use apollo_batcher_types::errors::BatcherError;
 use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
+use apollo_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
+use apollo_l1_provider_types::{MockL1ProviderClient, SessionState};
 use apollo_mempool_types::communication::{MempoolClientError, MockMempoolClient};
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
+use apollo_sequencer_infra::component_client::ClientError;
+use apollo_sequencer_infra::component_definitions::ComponentStarter;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use assert_matches::assert_matches;
 use blockifier::abi::constants;
@@ -39,10 +43,6 @@ use starknet_api::state::ThinStateDiff;
 use starknet_api::test_utils::CHAIN_ID_FOR_TESTS;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, nonce, tx_hash};
-use starknet_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
-use starknet_l1_provider_types::{MockL1ProviderClient, SessionState};
-use starknet_sequencer_infra::component_client::ClientError;
-use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use validator::Validate;
 
 use crate::batcher::{Batcher, MockBatcherStorageReaderTrait, MockBatcherStorageWriterTrait};

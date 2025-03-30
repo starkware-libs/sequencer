@@ -2,13 +2,13 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
+use apollo_infra_utils::compile_time_cargo_manifest_dir;
 use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;
 use itertools::Itertools;
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress};
 use starknet_api::state::SierraContractClass;
 use starknet_api::{class_hash, contract_address, felt};
-use starknet_infra_utils::compile_time_cargo_manifest_dir;
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
