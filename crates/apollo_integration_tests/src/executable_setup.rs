@@ -106,7 +106,7 @@ impl ExecutableSetup {
 
         let config_path = node_config_dir.join(NODE_CONFIG_CHANGES_FILE_PATH);
         let base_app_config_override =
-            BaseAppConfigOverride { component_config, monitoring_endpoint_config };
+            BaseAppConfigOverride::new(component_config, monitoring_endpoint_config);
 
         base_app_config.override_base_app_config(base_app_config_override);
         base_app_config.dump_config_file(&config_path);
