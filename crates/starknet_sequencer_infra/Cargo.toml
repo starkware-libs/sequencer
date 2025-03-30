@@ -23,10 +23,11 @@ starknet_api.workspace = true
 starknet_infra_utils.workspace = true
 starknet_sequencer_metrics.workspace = true
 thiserror.workspace = true
+time = { workspace = true, features = ["macros"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tower = { workspace = true, features = ["limit"] }
 tracing.workspace = true
-tracing-subscriber = { workspace = true, features = ["env-filter"] }
+tracing-subscriber = { workspace = true, features = ["env-filter", "time"] }
 validator.workspace = true
 
 [dev-dependencies]

@@ -1,5 +1,7 @@
+use time::macros::format_description;
 use tokio::sync::OnceCell;
 use tracing::metadata::LevelFilter;
+use tracing_subscriber::fmt::time::UtcTime;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::{fmt, EnvFilter};
 
@@ -12,7 +14,13 @@ pub static PID: std::sync::LazyLock<u32> = std::sync::LazyLock::new(std::process
 pub async fn configure_tracing() {
     TRACING_INITIALIZED
         .get_or_init(|| async {
-            let fmt_layer = fmt::layer().compact().with_target(true);
+            // Use default time formatting with subsecond precision limited to three digits.
+            let time_format = format_description!(
+                "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:3]Z"
+            );
+            let timer = UtcTime::new(time_format);
+
+            let fmt_layer = fmt::layer().compact().with_target(true).with_timer(timer);
             let level_filter_layer = EnvFilter::builder()
                 .with_default_directive(DEFAULT_LEVEL.into())
                 .from_env_lossy()
