@@ -56,6 +56,8 @@ use async_trait::async_trait;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use futures::channel::{mpsc, oneshot};
 use futures::{FutureExt, SinkExt, StreamExt};
+#[cfg(any(feature = "testing", test))]
+use mockall::automock;
 use starknet_api::block::{
     BlockHash,
     BlockHashAndNumber,
@@ -144,6 +146,7 @@ enum BuildProposalError {
 
 // TODO(guy.f): Times are probably used in other crates which would benefit from this. Move this to
 // a common mod that can be used across crates.
+#[cfg_attr(any(test, feature = "testing"), automock)]
 pub trait Clock: Send + Sync {
     fn now(&self) -> chrono::DateTime<chrono::Utc> {
         chrono::Utc::now()
