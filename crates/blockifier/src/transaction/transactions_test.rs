@@ -2555,8 +2555,6 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     };
 
     // Build the expected resource mapping.
-    // TODO(Nimrod, 1/5/2024): Change these hard coded values to match to the transaction resources
-    // (currently matches only starknet resources).
     let expected_gas = match use_kzg_da {
         true => GasVector {
             l1_gas: 16023_u32.into(),
