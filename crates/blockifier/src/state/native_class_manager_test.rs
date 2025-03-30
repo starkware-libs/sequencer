@@ -202,6 +202,7 @@ fn test_process_compilation_request(
     let manager = NativeClassManager::create_for_testing(CairoNativeRunConfig {
         wait_on_native_compilation: true,
         run_cairo_native: true,
+        panic_on_compilation_failure: should_pass,
         channel_size: TEST_CHANNEL_SIZE,
         ..CairoNativeRunConfig::default()
     });
@@ -209,6 +210,7 @@ fn test_process_compilation_request(
         manager.clone().cache,
         manager.clone().compiler.unwrap(),
         request.clone(),
+        manager.cairo_native_run_config.panic_on_compilation_failure,
     );
 
     if should_pass {
@@ -242,6 +244,7 @@ fn test_native_classes_whitelist(
     let native_config = CairoNativeRunConfig {
         run_cairo_native: true,
         wait_on_native_compilation: true,
+        panic_on_compilation_failure: true,
         channel_size: TEST_CHANNEL_SIZE,
         native_classes_whitelist: whitelist,
     };

@@ -93,7 +93,14 @@ impl NativeClassManager {
 
         std::thread::spawn({
             let cache = cache.clone();
-            move || run_compilation_worker(cache, receiver, compiler)
+            move || {
+                run_compilation_worker(
+                    cache,
+                    receiver,
+                    compiler,
+                    cairo_native_run_config.panic_on_compilation_failure,
+                )
+            }
         });
 
         NativeClassManager { cairo_native_run_config, cache, sender: Some(sender), compiler: None }
@@ -143,6 +150,7 @@ impl NativeClassManager {
                         self.cache.clone(),
                         compiler.clone(),
                         (class_hash, sierra_contract_class, compiled_class_v1),
+                        self.cairo_native_run_config.panic_on_compilation_failure,
                     )
                     .unwrap_or(());
                     return;
@@ -227,11 +235,17 @@ fn run_compilation_worker(
     cache: RawClassCache,
     receiver: Receiver<CompilationRequest>,
     compiler: Arc<dyn SierraToNativeCompiler>,
+    panic_on_compilation_failure: bool,
 ) {
     log::info!("Compilation worker started.");
     for compilation_request in receiver.iter() {
-        process_compilation_request(cache.clone(), compiler.clone(), compilation_request)
-            .unwrap_or(());
+        process_compilation_request(
+            cache.clone(),
+            compiler.clone(),
+            compilation_request,
+            panic_on_compilation_failure,
+        )
+        .unwrap_or(());
     }
     log::info!("Compilation worker terminated.");
 }
@@ -241,6 +255,7 @@ fn process_compilation_request(
     cache: RawClassCache,
     compiler: Arc<dyn SierraToNativeCompiler>,
     compilation_request: CompilationRequest,
+    panic_on_compilation_failure: bool,
 ) -> Result<(), CompilationUtilError> {
     let (class_hash, sierra, casm) = compilation_request;
     if let Some(CachedClass::V1Native(_)) = cache.get(&class_hash) {
@@ -262,7 +277,7 @@ fn process_compilation_request(
             cache
                 .set(class_hash, CachedClass::V1Native(CachedCairoNative::CompilationFailed(casm)));
             log::debug!("Error compiling contract class: {}", err);
-            if compiler.panic_on_compilation_failure() {
+            if panic_on_compilation_failure {
                 panic!("Compilation failed: {}", err);
             }
             Err(err)

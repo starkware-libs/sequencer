@@ -95,10 +95,6 @@ impl SierraToNativeCompiler for CommandLineCompiler {
 
         Ok(AotContractExecutor::from_path(Path::new(&output_file_path))?.unwrap())
     }
-
-    fn panic_on_compilation_failure(&self) -> bool {
-        self.config.panic_on_compilation_failure
-    }
 }
 
 fn compile_with_args(
