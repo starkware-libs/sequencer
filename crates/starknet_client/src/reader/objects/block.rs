@@ -11,7 +11,6 @@ use starknet_api::block::{
     BlockHeaderWithoutHash,
     BlockNumber,
     BlockTimestamp,
-    GasPrice,
     GasPricePerToken,
     StarknetVersion,
 };
@@ -38,8 +37,8 @@ use crate::reader::objects::transaction::{
 };
 use crate::reader::{ReaderClientError, ReaderClientResult};
 
-fn default_next_l2_gas_price() -> GasPrice {
-    GasPrice(1)
+fn default_next_l2_gas_price() -> u64 {
+    1
 }
 /// A block as returned by the starknet gateway since V0.13.1.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
@@ -86,9 +85,9 @@ pub struct BlockPostV0_13_1 {
     pub l2_gas_consumed: GasAmount,
     // New field in V0.14.0
     // TODO(Ayelet): Remove default Serde after 0.14.0, as the feeder gateway returns defaults when
-    // values are missing for older blocks.
+    // values are missing for older blocks. Change to GasPrice.
     #[serde(default = "default_next_l2_gas_price")]
-    pub next_l2_gas_price: GasPrice,
+    pub next_l2_gas_price: u64,
 }
 
 impl BlockPostV0_13_1 {
@@ -288,7 +287,7 @@ impl Block {
         }
     }
 
-    pub fn next_l2_gas_price(&self) -> GasPrice {
+    pub fn next_l2_gas_price(&self) -> u64 {
         match self {
             Block::PostV0_13_1(block) => block.next_l2_gas_price,
         }
