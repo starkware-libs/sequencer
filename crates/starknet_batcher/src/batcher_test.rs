@@ -65,6 +65,7 @@ use crate::metrics::{
     PROPOSAL_SUCCEEDED,
     REJECTED_TRANSACTIONS,
     REVERTED_BLOCKS,
+    ROUND,
     STORAGE_HEIGHT,
     SYNCED_TRANSACTIONS,
 };
@@ -425,6 +426,8 @@ async fn l1_handler_provider_not_ready(#[case] proposer: bool) {
 #[rstest]
 #[tokio::test]
 async fn consecutive_heights_success() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let mut storage_reader = MockBatcherStorageReaderTrait::new();
     storage_reader.expect_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // metrics registration
     storage_reader.expect_height().times(1).returning(|| Ok(INITIAL_HEIGHT)); // first start_height
@@ -456,7 +459,9 @@ async fn consecutive_heights_success() {
 
     // Start the first height and propose block.
     batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
+    ROUND.assert_eq(&recorder.handle().render(), 0);
     batcher.propose_block(first_propose_block_input).await.unwrap();
+    ROUND.assert_eq(&recorder.handle().render(), 1);
 
     // Start the second height, and make sure the previous height proposal is cleared, by trying to
     // create a proposal with the same ID.
@@ -464,7 +469,9 @@ async fn consecutive_heights_success() {
         .start_height(StartHeightInput { height: INITIAL_HEIGHT.unchecked_next() })
         .await
         .unwrap();
+    ROUND.assert_eq(&recorder.handle().render(), 0);
     batcher.propose_block(second_propose_block_input).await.unwrap();
+    ROUND.assert_eq(&recorder.handle().render(), 1);
 }
 
 #[rstest]
