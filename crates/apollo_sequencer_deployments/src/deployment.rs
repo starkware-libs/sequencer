@@ -92,8 +92,7 @@ impl Deployment {
                 },
             };
 
-            service_deployment_base_app_config
-                .override_base_app_config(base_app_config_override.clone());
+            service_deployment_base_app_config.override_base_app_config(base_app_config_override);
             service_deployment_base_app_config.dump_config_file(&config_path);
         }
     }
