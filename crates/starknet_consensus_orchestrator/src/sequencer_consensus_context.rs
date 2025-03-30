@@ -175,7 +175,7 @@ pub struct SequencerConsensusContext {
     // The next block's l2 gas price, calculated based on EIP-1559, used for building and
     // validating proposals.
     _l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
-    l2_gas_price: u64,
+    l2_gas_price: GasPrice,
     l1_da_mode: L1DataAvailabilityMode,
     last_block_timestamp: Option<u64>,
 }
@@ -229,7 +229,7 @@ impl SequencerConsensusContext {
     fn gas_prices(&self) -> GasPrices {
         GasPrices {
             strk_gas_prices: GasPriceVector {
-                l2_gas_price: NonzeroGasPrice::new(self.l2_gas_price.into())
+                l2_gas_price: NonzeroGasPrice::new(self.l2_gas_price)
                     .expect("Failed to convert l2_gas_price to NonzeroGasPrice, should not be 0."),
                 ..TEMPORARY_GAS_PRICES.strk_gas_prices
             },
@@ -496,7 +496,7 @@ impl ConsensusContext for SequencerConsensusContext {
 
         let next_l2_gas_price = calculate_next_base_gas_price(
             self.l2_gas_price,
-            l2_gas_used.0,
+            l2_gas_used,
             VersionedConstants::latest_constants().max_block_size / 2,
         );
 
@@ -519,13 +519,13 @@ impl ConsensusContext for SequencerConsensusContext {
             l1_gas_price,
             l1_data_gas_price,
             l2_gas_price: GasPricePerToken {
-                price_in_fri: GasPrice(__self.l2_gas_price.into()),
+                price_in_fri: self.l2_gas_price,
                 // TODO(guy.f): We shouldn't be sending price_in_wei for l2, should we remove
                 // it from the Token or not use GasPriceToken here.
                 price_in_wei: GasPrice(1),
             },
             l2_gas_consumed: GasAmount(l2_gas_used.0),
-            next_l2_gas_price: GasPrice(next_l2_gas_price.into()),
+            next_l2_gas_price,
             sequencer,
             timestamp: BlockTimestamp(block_info.timestamp),
             l1_da_mode: block_info.l1_da_mode,
@@ -558,7 +558,7 @@ impl ConsensusContext for SequencerConsensusContext {
                 execution_infos: central_objects.execution_infos,
                 bouncer_weights: central_objects.bouncer_weights,
                 fee_market_info: FeeMarketInfo {
-                    l2_gas_consumed: l2_gas_used.0,
+                    l2_gas_consumed: l2_gas_used,
                     next_l2_gas_price: self.l2_gas_price,
                 },
             })
@@ -580,13 +580,10 @@ impl ConsensusContext for SequencerConsensusContext {
             Ok(Some(block)) => block,
         };
         // May be default for blocks older than 0.14.0, ensure min gas price is met.
-        // TODO(Ayelet): Change min_gas_price to GasPrice.
         self.l2_gas_price = max(
-            sync_block.block_header_without_hash.next_l2_gas_price.0,
-            VersionedConstants::latest_constants().min_gas_price.into(),
-        )
-        .try_into()
-        .unwrap();
+            sync_block.block_header_without_hash.next_l2_gas_price,
+            VersionedConstants::latest_constants().min_gas_price,
+        );
         // TODO(Asmaa): validate starknet_version and parent_hash when they are stored.
         let block_number = sync_block.block_header_without_hash.block_number;
         let timestamp = sync_block.block_header_without_hash.timestamp;
