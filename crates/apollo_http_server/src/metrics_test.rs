@@ -26,9 +26,7 @@ async fn get_metrics_test() {
     let mut mock_gateway_client = MockGatewayClient::new();
     // Set the successful response.
     mock_gateway_client.expect_add_tx().times(1).return_once(move |_| {
-        Ok(GatewayOutput::Invoke(InvokeGatewayOutput {
-            transaction_hash: TransactionHash::default(),
-        }))
+        Ok(GatewayOutput::Invoke(InvokeGatewayOutput::new(TransactionHash::default())))
     });
     // Set the failure response.
     mock_gateway_client.expect_add_tx().times(1).return_once(move |_| {

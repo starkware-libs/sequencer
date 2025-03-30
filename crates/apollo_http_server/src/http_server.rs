@@ -11,7 +11,6 @@ use axum::http::HeaderMap;
 use axum::routing::post;
 use axum::{async_trait, Json, Router};
 use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_api::transaction::TransactionHash;
 use tracing::{debug, info, instrument, trace};
 
 use crate::config::HttpServerConfig;
@@ -74,7 +73,7 @@ async fn add_rpc_tx(
     State(app_state): State<AppState>,
     headers: HeaderMap,
     Json(tx): Json<RpcTransaction>,
-) -> HttpServerResult<Json<TransactionHash>> {
+) -> HttpServerResult<Json<GatewayOutput>> {
     record_added_transaction();
     add_tx_inner(app_state, headers, tx).await
 }
@@ -84,7 +83,7 @@ async fn add_tx(
     State(app_state): State<AppState>,
     headers: HeaderMap,
     tx: String,
-) -> HttpServerResult<Json<TransactionHash>> {
+) -> HttpServerResult<Json<GatewayOutput>> {
     record_added_transaction();
     // TODO(Yael): increment the failure metric for parsing error.
     let tx: DeprecatedGatewayTransactionV3 = serde_json::from_str(&tx)
@@ -100,7 +99,7 @@ async fn add_tx_inner(
     app_state: AppState,
     headers: HeaderMap,
     tx: RpcTransaction,
-) -> HttpServerResult<Json<TransactionHash>> {
+) -> HttpServerResult<Json<GatewayOutput>> {
     let gateway_input: GatewayInput = GatewayInput { rpc_tx: tx, message_metadata: None };
     let add_tx_result = app_state.gateway_client.add_tx(gateway_input).await.map_err(|e| {
         debug!("Error while adding transaction: {}", e);
@@ -110,7 +109,7 @@ async fn add_tx_inner(
     let region =
         headers.get(CLIENT_REGION_HEADER).and_then(|region| region.to_str().ok()).unwrap_or("N/A");
     record_added_transactions(&add_tx_result, region);
-    add_tx_result_as_json(add_tx_result)
+    Ok(Json(add_tx_result?))
 }
 
 fn record_added_transactions(add_tx_result: &HttpServerResult<GatewayOutput>, region: &str) {
@@ -122,14 +121,6 @@ fn record_added_transactions(add_tx_result: &HttpServerResult<GatewayOutput>, re
         );
     }
     record_added_transaction_status(add_tx_result.is_ok());
-}
-
-#[allow(clippy::result_large_err)]
-pub(crate) fn add_tx_result_as_json(
-    result: HttpServerResult<GatewayOutput>,
-) -> HttpServerResult<Json<TransactionHash>> {
-    let tx_hash = result?.transaction_hash();
-    Ok(Json(tx_hash))
 }
 
 pub fn create_http_server(
