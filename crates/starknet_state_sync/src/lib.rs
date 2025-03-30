@@ -171,14 +171,23 @@ impl StateSync {
         block_number: BlockNumber,
         class_hash: ClassHash,
     ) -> StateSyncResult<bool> {
-        let class_definition_block_number_opt = self
-            .storage_reader
-            .begin_ro_txn()?
-            .get_state_reader()?
-            .get_class_definition_block_number(&class_hash)?;
-        Ok(class_definition_block_number_opt.is_some_and(|class_definition_block_number| {
-            class_definition_block_number <= block_number
-        }))
+        let txn = self.storage_reader.begin_ro_txn()?;
+        let state_reader = txn.get_state_reader()?;
+        let cairo1_class_definition_block_number_opt =
+            state_reader.get_class_definition_block_number(&class_hash)?;
+
+        match cairo1_class_definition_block_number_opt {
+            Some(class_definition_block_number) => {
+                Ok(class_definition_block_number <= block_number)
+            }
+            None => Ok(state_reader
+                .get_deprecated_class_definition_at(
+                    StateNumber::right_after_block(block_number)
+                        .expect("Block number of an existing block got out of range"),
+                    &class_hash,
+                )?
+                .is_some()),
+        }
     }
 }
 
