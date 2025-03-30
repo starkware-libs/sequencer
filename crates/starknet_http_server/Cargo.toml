@@ -6,7 +6,15 @@ license.workspace = true
 repository.workspace = true
 
 [features]
-testing = ["blockifier_test_utils", "mempool_test_utils", "reqwest", "starknet_api/testing", "starknet_gateway_types/testing", "strum", "strum_macros"]
+testing = [
+  "blockifier_test_utils",
+  "mempool_test_utils",
+  "reqwest",
+  "starknet_api/testing",
+  "starknet_gateway_types/testing",
+  "strum",
+  "strum_macros",
+]
 
 [lints]
 workspace = true
@@ -34,6 +42,8 @@ tracing.workspace = true
 validator.workspace = true
 
 [dev-dependencies]
+assert_matches.workspace = true
+base64.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
 futures.workspace = true
@@ -48,4 +58,3 @@ starknet_gateway_types = { workspace = true, features = ["testing"] }
 strum.workspace = true
 strum_macros.workspace = true
 tracing-test.workspace = true
-
