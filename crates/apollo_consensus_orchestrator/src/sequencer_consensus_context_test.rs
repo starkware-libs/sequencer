@@ -56,6 +56,7 @@ use starknet_api::hash::PoseidonHash;
 use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
 use starknet_types_core::felt::Felt;
 
+use super::{DefaultClock, SequencerConsensusContextDeps};
 use crate::cende::MockCendeContext;
 use crate::config::ContextConfig;
 use crate::sequencer_consensus_context::SequencerConsensusContext;
@@ -130,14 +131,18 @@ fn setup(
             ..Default::default()
         },
         // TODO(shahak): Use MockTransactionConverter instead.
-        Arc::new(EmptyClassManagerClient),
-        Arc::new(state_sync_client),
-        Arc::new(batcher),
-        outbound_proposal_sender,
-        votes_topic_client,
-        Arc::new(cende_ambassador),
-        Arc::new(eth_to_strk_oracle_client),
-        Arc::new(MockL1GasPriceProviderClient::new()),
+        SequencerConsensusContextDeps {
+            class_manager_client: Arc::new(EmptyClassManagerClient),
+            state_sync_client: Arc::new(state_sync_client),
+            batcher: Arc::new(batcher),
+            outbound_proposal_sender,
+            vote_broadcast_client: votes_topic_client,
+            cende_ambassador: Arc::new(cende_ambassador),
+            eth_to_strk_oracle_client: Arc::new(eth_to_strk_oracle_client),
+            l1_gas_price_provider: Arc::new(MockL1GasPriceProviderClient::new()),
+            // TODO(guy.f): Set with mock.
+            clock: Arc::new(DefaultClock::default()),
+        },
     );
 
     let network_dependencies =
