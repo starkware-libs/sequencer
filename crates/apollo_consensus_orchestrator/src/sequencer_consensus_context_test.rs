@@ -4,6 +4,8 @@ use std::time::Duration;
 use std::vec;
 
 use apollo_batcher_types::batcher_types::{
+    CentralObjects,
+    DecisionReachedResponse,
     GetProposalContent,
     GetProposalContentResponse,
     ProposalCommitment,
@@ -40,6 +42,8 @@ use apollo_protobuf::consensus::{
     Vote,
 };
 use apollo_state_sync_types::communication::MockStateSyncClient;
+use blockifier::bouncer::BouncerWeights;
+use chrono::{TimeZone, Utc};
 use futures::channel::oneshot::Canceled;
 use futures::channel::{mpsc, oneshot};
 use futures::executor::block_on;
@@ -50,15 +54,17 @@ use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
 use starknet_api::core::{ChainId, Nonce, StateDiffCommitment};
 use starknet_api::data_availability::L1DataAvailabilityMode;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::felt;
 use starknet_api::hash::PoseidonHash;
+use starknet_api::state::ThinStateDiff;
 use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
 use starknet_types_core::felt::Felt;
 
 use super::{DefaultClock, SequencerConsensusContextDeps};
 use crate::cende::MockCendeContext;
 use crate::config::ContextConfig;
-use crate::sequencer_consensus_context::SequencerConsensusContext;
+use crate::sequencer_consensus_context::{MockClock, SequencerConsensusContext};
 
 const TIMEOUT: Duration = Duration::from_millis(1200);
 const CHANNEL_SIZE: usize = 5000;
@@ -112,47 +118,64 @@ struct NetworkDependencies {
     outbound_proposal_receiver: mpsc::Receiver<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
 }
 
-fn setup(
-    batcher: MockBatcherClient,
-    cende_ambassador: MockCendeContext,
-) -> (SequencerConsensusContext, NetworkDependencies) {
+fn default_context_deps() -> (SequencerConsensusContextDeps, NetworkDependencies) {
     let (outbound_proposal_sender, outbound_proposal_receiver) =
         mpsc::channel::<(HeightAndRound, mpsc::Receiver<ProposalPart>)>(CHANNEL_SIZE);
-    // TODO(Asmaa/Matan): remove this.
+
     let TestSubscriberChannels { mock_network: mock_vote_network, subscriber_channels } =
         mock_register_broadcast_topic().expect("Failed to create mock network");
     let BroadcastTopicChannels { broadcast_topic_client: votes_topic_client, .. } =
         subscriber_channels;
-    let state_sync_client = MockStateSyncClient::new();
+
     let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
     eth_to_strk_oracle_client.expect_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
 
-    let context = SequencerConsensusContext::new(
+    let sequencer_deps = SequencerConsensusContextDeps {
+        class_manager_client: Arc::new(EmptyClassManagerClient),
+        state_sync_client: Arc::new(MockStateSyncClient::new()),
+        batcher: Arc::new(MockBatcherClient::new()),
+        outbound_proposal_sender,
+        vote_broadcast_client: votes_topic_client,
+        cende_ambassador: Arc::new(success_cende_ammbassador()),
+        eth_to_strk_oracle_client: Arc::new(eth_to_strk_oracle_client),
+        l1_gas_price_provider: Arc::new(MockL1GasPriceProviderClient::new()),
+        clock: Arc::new(DefaultClock::default()),
+    };
+
+    let network_dependencies =
+        NetworkDependencies { _vote_network: mock_vote_network, outbound_proposal_receiver };
+
+    (sequencer_deps, network_dependencies)
+}
+
+fn setup_with_custom_mocks(
+    context_deps: SequencerConsensusContextDeps,
+) -> SequencerConsensusContext {
+    SequencerConsensusContext::new(
         ContextConfig {
             proposal_buffer_size: CHANNEL_SIZE,
             num_validators: NUM_VALIDATORS,
             chain_id: CHAIN_ID,
             ..Default::default()
         },
-        // TODO(shahak): Use MockTransactionConverter instead.
-        SequencerConsensusContextDeps {
-            class_manager_client: Arc::new(EmptyClassManagerClient),
-            state_sync_client: Arc::new(state_sync_client),
-            batcher: Arc::new(batcher),
-            outbound_proposal_sender,
-            vote_broadcast_client: votes_topic_client,
-            cende_ambassador: Arc::new(cende_ambassador),
-            eth_to_strk_oracle_client: Arc::new(eth_to_strk_oracle_client),
-            l1_gas_price_provider: Arc::new(MockL1GasPriceProviderClient::new()),
-            // TODO(guy.f): Set with mock.
-            clock: Arc::new(DefaultClock::default()),
-        },
-    );
+        context_deps,
+    )
+}
 
-    let network_dependencies =
-        NetworkDependencies { _vote_network: mock_vote_network, outbound_proposal_receiver };
+// TODO(guy.f): Change the method to take in all deps and not just these two specifically, replace
+// all calls and remove the second setup method.
+fn setup(
+    batcher: MockBatcherClient,
+    cende_ambassador: MockCendeContext,
+) -> (SequencerConsensusContext, NetworkDependencies) {
+    let (default_deps, network_dependencies) = default_context_deps();
+    let context_deps = SequencerConsensusContextDeps {
+        batcher: Arc::new(batcher),
+        cende_ambassador: Arc::new(cende_ambassador),
+        ..default_deps
+    };
 
-    (context, network_dependencies)
+    (setup_with_custom_mocks(context_deps), network_dependencies)
 }
 
 // Setup for test of the `build_proposal` function.
@@ -659,4 +682,106 @@ async fn eth_to_fri_rate_out_of_range() {
     let fin_receiver =
         context.validate_proposal(ProposalInit::default(), Duration::MAX, content_receiver).await;
     assert_eq!(fin_receiver.await, Err(Canceled));
+}
+
+fn dummy_decision_reached_response() -> DecisionReachedResponse {
+    DecisionReachedResponse {
+        state_diff: ThinStateDiff::default(),
+        l2_gas_used: GasAmount::default(),
+        central_objects: CentralObjects {
+            execution_infos: Vec::new(),
+            bouncer_weights: BouncerWeights::default(),
+            compressed_state_diff: None,
+        },
+    }
+}
+
+#[tokio::test]
+async fn decision_reached_sends_correct_values() {
+    // Build proposal:
+    //
+    // We need to create a valid proposal to call decision_reached on.
+    let mut batcher = MockBatcherClient::new();
+
+    let proposal_id = Arc::new(OnceLock::new());
+    let proposal_id_clone = Arc::clone(&proposal_id);
+    batcher.expect_propose_block().returning(move |input: ProposeBlockInput| {
+        proposal_id_clone.set(input.proposal_id).unwrap();
+        Ok(())
+    });
+
+    batcher
+        .expect_start_height()
+        .withf(|input| input.height == BlockNumber(0))
+        .return_once(|_| Ok(()));
+    batcher.expect_get_proposal_content().times(1).returning(move |_| {
+        Ok(GetProposalContentResponse {
+            content: GetProposalContent::Txs(INTERNAL_TX_BATCH.clone()),
+        })
+    });
+    batcher.expect_get_proposal_content().times(1).returning(move |_| {
+        Ok(GetProposalContentResponse {
+            content: GetProposalContent::Finished(ProposalCommitment {
+                state_diff_commitment: STATE_DIFF_COMMITMENT,
+            }),
+        })
+    });
+
+    const BLOCK_TIME_STAMP_SECONDS: u64 = 123456_u64;
+    let mut clock = MockClock::new();
+    clock.expect_now_as_timestamp().return_const(BLOCK_TIME_STAMP_SECONDS);
+    clock
+        .expect_now()
+        .return_const(Utc.timestamp_opt(BLOCK_TIME_STAMP_SECONDS.try_into().unwrap(), 0).unwrap());
+
+    // Decision reached:
+
+    batcher.expect_decision_reached().return_once(move |_| Ok(dummy_decision_reached_response()));
+
+    // To verify the test we check the block_info sent to the sync client's add_new_block method.
+    let mut mock_sync_client = MockStateSyncClient::new();
+
+    // This is the actual part of the test that checks the values are correct.
+
+    mock_sync_client
+        .expect_add_new_block()
+        .withf(|block_info| {
+            assert_eq!(block_info.block_header_without_hash.timestamp.0, BLOCK_TIME_STAMP_SECONDS);
+            // TODO(guy.f): Add epectations and validations for all the other values being written.
+            block_info.block_header_without_hash.timestamp.0 == BLOCK_TIME_STAMP_SECONDS
+        })
+        .return_once(|_| Ok(()));
+
+    let mut cende_ammbassador = success_cende_ammbassador();
+    cende_ammbassador
+        .expect_prepare_blob_for_next_height()
+        // TODO(guy.f): Verify the values sent here are correct.
+        .return_once(|_height| Ok(()));
+
+    // Run the code under test:
+
+    let (default_deps, _network_dependencies) = default_context_deps();
+    let context_deps = SequencerConsensusContextDeps {
+        batcher: Arc::new(batcher),
+        cende_ambassador: Arc::new(cende_ammbassador),
+        state_sync_client: Arc::new(mock_sync_client),
+        clock: Arc::new(clock),
+        ..default_deps
+    };
+
+    let mut context = setup_with_custom_mocks(context_deps);
+
+    // Call the context methods:
+
+    let _fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await.await;
+    // At this point we should have a valid proposal in the context which contains the conversion
+    // rate.
+
+    let vote = Vote {
+        // Currently this is the only field used by decisions_reached.
+        height: 0,
+        ..Vote::default()
+    };
+
+    let _ = context.decision_reached(BlockHash(STATE_DIFF_COMMITMENT.0.0), vec![vote]).await;
 }
