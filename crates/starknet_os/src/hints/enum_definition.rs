@@ -170,6 +170,7 @@ use crate::hints::hint_implementation::resources::{
 };
 use crate::hints::hint_implementation::secp::{is_on_curve, read_ec_point_from_address};
 use crate::hints::hint_implementation::state::{
+    compute_commitments_on_finalized_state_with_aliases,
     decode_node,
     load_bottom,
     load_edge,
@@ -179,7 +180,6 @@ use crate::hints::hint_implementation::state::{
 };
 use crate::hints::hint_implementation::stateful_compression::{
     assert_key_big_enough_for_alias,
-    compute_commitments_on_finalized_state_with_aliases,
     contract_address_le_max_for_compression,
     enter_scope_with_aliases,
     guess_aliases_contract_storage_ptr,

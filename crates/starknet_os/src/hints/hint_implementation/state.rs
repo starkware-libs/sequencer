@@ -65,6 +65,18 @@ fn set_preimage_for_commitments<S: StateReader>(
     Ok(())
 }
 
+pub(crate) fn compute_commitments_on_finalized_state_with_aliases<S: StateReader>(
+    HintArgs { hint_processor, exec_scopes, .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    // TODO(Nimrod): Try to avoid this clone.
+    exec_scopes.insert_value(
+        Scope::CommitmentInfoByAddress.into(),
+        hint_processor.execution_helper.os_input.address_to_storage_commitment_info.clone(),
+    );
+
+    Ok(())
+}
+
 pub(crate) fn set_preimage_for_state_commitments<S: StateReader>(
     hint_args: HintArgs<'_, S>,
 ) -> OsHintResult {
