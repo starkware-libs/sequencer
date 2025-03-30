@@ -1,5 +1,6 @@
 {
   "base_layer_config.node_url": "http://localhost:53260/",
+  "base_layer_config.prague_blob_gas_calc": false,
   "base_layer_config.starknet_contract_address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.l1_gas": 2500000,
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.message_segment_length": 3700,
@@ -185,8 +186,8 @@
   "consensus_manager_config.votes_topic": "consensus_votes",
   "eth_fee_token_address": "0x1001",
   "gateway_config.stateful_tx_validator_config.max_allowed_nonce_gap": 50,
-  "gateway_config.stateful_tx_validator_config.reject_future_declare_txs": true,
   "gateway_config.stateful_tx_validator_config.max_nonce_for_validation_skip": "0x1",
+  "gateway_config.stateful_tx_validator_config.reject_future_declare_txs": true,
   "gateway_config.stateless_tx_validator_config.max_calldata_length": 10,
   "gateway_config.stateless_tx_validator_config.max_contract_class_object_size": 4089446,
   "gateway_config.stateless_tx_validator_config.max_sierra_version.major": 1,
