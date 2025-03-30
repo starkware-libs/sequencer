@@ -245,13 +245,14 @@ pub fn create_l1_provider(
     config: L1ProviderConfig,
     l1_provider_client: SharedL1ProviderClient,
     sync_client: SharedStateSyncClient,
-    scraper_synced_startup_height: BlockNumber,
+    startup_height: BlockNumber,
+    catchup_height: Option<BlockNumber>,
 ) -> L1Provider {
     let l1_provider_startup_height = config
         .provider_startup_height_override
         .inspect(|&startup_height_override| {
             assert!(
-                startup_height_override <= scraper_synced_startup_height,
+                startup_height_override <= startup_height,
                 "L2 Reorgs possible: during startup, the l1 provider height should not exceed the \
                  scraper's last known LogStateUpdate (scraper_synced_startup_height) since at \
                  startup it has no way of checking if a given l1 handler has already been \
@@ -261,19 +262,20 @@ pub fn create_l1_provider(
                 "Initializing L1Provider with overridden startup height: {startup_height_override}"
             );
         })
-        .unwrap_or(scraper_synced_startup_height);
+        .unwrap_or(startup_height);
 
     let catch_up_height = config
         .bootstrap_catch_up_height_override
-        .map(|catch_up_height_override| {
+        .inspect(|catch_up_height_override| {
             warn!(
                 "Initializing L1Provider with OVERRIDDEN catch-up height: \
                  {catch_up_height_override}, this MUST be greater or equal to the default \
                  non-overridden value, which is the current sync height, or the sync will never \
                  complete!"
             );
-            Arc::new(catch_up_height_override.into())
         })
+        .or(catchup_height)
+        .map(|catchup_height| Arc::new(catchup_height.into()))
         .unwrap_or_default();
 
     let bootstrapper = Bootstrapper::new(
