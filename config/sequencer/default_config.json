@@ -1014,6 +1014,11 @@
     "privacy": "Public",
     "value": 50
   },
+  "gateway_config.stateful_tx_validator_config.reject_future_declare_txs": {
+    "description": "If true, rejects declare transactions with future nonces.",
+    "privacy": "Public",
+    "value": true
+  },
   "gateway_config.stateful_tx_validator_config.max_nonce_for_validation_skip": {
     "description": "Maximum nonce for which the validation is skipped.",
     "privacy": "Public",

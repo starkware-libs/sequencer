@@ -163,6 +163,7 @@ impl SerializeConfig for RpcStateReaderConfig {
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct StatefulTransactionValidatorConfig {
     pub max_allowed_nonce_gap: u32,
+    pub reject_future_declare_txs: bool,
     pub max_nonce_for_validation_skip: Nonce,
     pub versioned_constants_overrides: VersionedConstantsOverrides,
 }
@@ -171,6 +172,7 @@ impl Default for StatefulTransactionValidatorConfig {
     fn default() -> Self {
         StatefulTransactionValidatorConfig {
             max_allowed_nonce_gap: 50,
+            reject_future_declare_txs: true,
             max_nonce_for_validation_skip: Nonce(Felt::ONE),
             versioned_constants_overrides: VersionedConstantsOverrides::default(),
         }
@@ -190,6 +192,12 @@ impl SerializeConfig for StatefulTransactionValidatorConfig {
                 "max_allowed_nonce_gap",
                 &self.max_allowed_nonce_gap,
                 "The maximum allowed gap between the account nonce and the transaction nonce.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "reject_future_declare_txs",
+                &self.reject_future_declare_txs,
+                "If true, rejects declare transactions with future nonces.",
                 ParamPrivacyInput::Public,
             ),
         ]);
