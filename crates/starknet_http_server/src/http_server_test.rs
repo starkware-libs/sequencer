@@ -17,7 +17,7 @@ use starknet_types_core::felt::Felt;
 use tracing_test::traced_test;
 
 use crate::config::HttpServerConfig;
-use crate::http_server::{add_tx_result_as_json, CLIENT_REGION_HEADER};
+use crate::http_server::{add_tx_result_as_json, GatewayResponse, CLIENT_REGION_HEADER};
 use crate::test_utils::{http_client_server_setup, rest_tx, rpc_tx, HttpServerEndpoint};
 
 #[tokio::test]
@@ -29,7 +29,8 @@ async fn test_tx_hash_json_conversion() {
     let response_bytes = &to_bytes(response).await;
 
     assert_eq!(status_code, StatusCode::OK, "{response_bytes:?}");
-    assert_eq!(tx_hash, serde_json::from_slice(response_bytes).unwrap());
+    let gateway_response: GatewayResponse = serde_json::from_slice(response_bytes).unwrap();
+    assert_eq!(tx_hash, gateway_response.transaction_hash());
 }
 
 async fn to_bytes(res: Response) -> Bytes {
