@@ -72,7 +72,6 @@ use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
 use tokio::task::JoinHandle;
-use tokio::time::Instant;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
 use tracing::{debug, error, error_span, info, instrument, trace, warn, Instrument};
@@ -137,6 +136,27 @@ enum BuildProposalError {
     EthToStrkOracle(#[from] EthToStrkOracleClientError),
 }
 
+// TODO(guy.f): Times are probably used in other crates which would benefit from this. Move this to
+// a common mod that can be used across crates.
+pub trait TimeStamper: Send + Sync {
+    fn now(&self) -> chrono::DateTime<chrono::Utc> {
+        chrono::Utc::now()
+    }
+
+    fn now_as_u64(&self) -> u64 {
+        self.now().timestamp().try_into().expect("Failed to convert timestamp to u64")
+    }
+
+    fn now_at_tokio_instant(&self) -> tokio::time::Instant {
+        tokio::time::Instant::now()
+    }
+}
+
+#[derive(Default)]
+pub struct DefaultTimeStamper();
+impl TimeStamper for DefaultTimeStamper {}
+
+// TODO(guy.f): Consider storing a ContextDeps struct instead of all the dependencies directly.
 pub struct SequencerConsensusContext {
     config: ContextConfig,
     // TODO(Shahak): change this into a dynamic TransactionConverterTrait.
@@ -173,21 +193,24 @@ pub struct SequencerConsensusContext {
     l2_gas_price: u64,
     l1_da_mode: L1DataAvailabilityMode,
     last_block_timestamp: Option<u64>,
+    time_stamper: Arc<dyn TimeStamper>,
+}
+pub struct SequencerConsensusContextDeps {
+    pub class_manager_client: SharedClassManagerClient,
+    pub state_sync_client: SharedStateSyncClient,
+    pub batcher: Arc<dyn BatcherClient>,
+    pub outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
+    pub vote_broadcast_client: BroadcastTopicClient<Vote>,
+    pub cende_ambassador: Arc<dyn CendeContext>,
+    pub eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
+    pub l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
+    /// Use DefaultTimeStamper if you don't want to inject timestamps.
+    pub time_stamper: Arc<dyn TimeStamper>,
 }
 
 impl SequencerConsensusContext {
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        config: ContextConfig,
-        class_manager_client: SharedClassManagerClient,
-        state_sync_client: SharedStateSyncClient,
-        batcher: Arc<dyn BatcherClient>,
-        outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
-        vote_broadcast_client: BroadcastTopicClient<Vote>,
-        cende_ambassador: Arc<dyn CendeContext>,
-        eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
-        l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
-    ) -> Self {
+    pub fn new(config: ContextConfig, context_deps: SequencerConsensusContextDeps) -> Self {
         let chain_id = config.chain_id.clone();
         let num_validators = config.num_validators;
         let l1_da_mode = if config.l1_da_mode {
@@ -197,11 +220,14 @@ impl SequencerConsensusContext {
         };
         Self {
             config,
-            transaction_converter: TransactionConverter::new(class_manager_client, chain_id),
-            state_sync_client,
-            batcher,
-            outbound_proposal_sender,
-            vote_broadcast_client,
+            transaction_converter: TransactionConverter::new(
+                context_deps.class_manager_client,
+                chain_id,
+            ),
+            state_sync_client: context_deps.state_sync_client,
+            batcher: context_deps.batcher,
+            outbound_proposal_sender: context_deps.outbound_proposal_sender,
+            vote_broadcast_client: context_deps.vote_broadcast_client,
             // TODO(Matan): Set the actual validator IDs (contract addresses).
             validators: (0..num_validators)
                 .map(|i| ValidatorId::from(DEFAULT_VALIDATOR_ID + i))
@@ -212,12 +238,13 @@ impl SequencerConsensusContext {
             current_round: 0,
             active_proposal: None,
             queued_proposals: BTreeMap::new(),
-            cende_ambassador,
-            eth_to_strk_oracle_client,
-            _l1_gas_price_provider: l1_gas_price_provider,
+            cende_ambassador: context_deps.cende_ambassador,
+            eth_to_strk_oracle_client: context_deps.eth_to_strk_oracle_client,
+            _l1_gas_price_provider: context_deps.l1_gas_price_provider,
             l2_gas_price: VersionedConstants::latest_constants().min_gas_price,
             l1_da_mode,
             last_block_timestamp: None,
+            time_stamper: context_deps.time_stamper,
         }
     }
 
@@ -248,6 +275,7 @@ struct ProposalBuildArguments {
     transaction_converter: TransactionConverter,
     builder_address: ContractAddress,
     cancel_token: CancellationToken,
+    time_stamper: Arc<dyn TimeStamper>,
 }
 
 struct ProposalValidateArguments {
@@ -262,6 +290,7 @@ struct ProposalValidateArguments {
     fin_sender: oneshot::Sender<(ProposalCommitment, ProposalFin)>,
     cancel_token: CancellationToken,
     transaction_converter: TransactionConverter,
+    time_stamper: Arc<dyn TimeStamper>,
 }
 
 #[async_trait]
@@ -305,6 +334,7 @@ impl ConsensusContext for SequencerConsensusContext {
         let batcher_timeout = timeout - self.config.build_proposal_margin;
         let cancel_token = CancellationToken::new();
         let cancel_token_clone = cancel_token.clone();
+        let time_stamper = self.time_stamper.clone();
         let handle = tokio::spawn(
             async move {
                 build_proposal(ProposalBuildArguments {
@@ -322,6 +352,7 @@ impl ConsensusContext for SequencerConsensusContext {
                     transaction_converter,
                     builder_address,
                     cancel_token,
+                    time_stamper,
                 })
                 .await;
             }
@@ -582,8 +613,7 @@ impl ConsensusContext for SequencerConsensusContext {
         // TODO(Asmaa): validate starknet_version and parent_hash when they are stored.
         let block_number = sync_block.block_header_without_hash.block_number;
         let timestamp = sync_block.block_header_without_hash.timestamp;
-        let now: u64 =
-            chrono::Utc::now().timestamp().try_into().expect("Failed to convert timestamp to u64");
+        let now: u64 = self.time_stamper.now_as_u64();
         if !(block_number == height
             && timestamp.0 >= self.last_block_timestamp.unwrap_or(0)
             && timestamp.0 <= now + self.config.block_timestamp_window)
@@ -679,6 +709,7 @@ impl SequencerConsensusContext {
         let transaction_converter = self.transaction_converter.clone();
         let valid_proposals = Arc::clone(&self.valid_proposals);
         let proposal_id = ProposalId(self.proposal_id);
+        let time_stamper = self.time_stamper.clone();
         self.proposal_id += 1;
 
         info!(?timeout, %proposal_id, %proposer, round=self.current_round, "Validating proposal.");
@@ -696,6 +727,7 @@ impl SequencerConsensusContext {
                     fin_sender,
                     cancel_token: cancel_token_clone,
                     transaction_converter,
+                    time_stamper,
                 })
                 .await
             }
@@ -762,9 +794,7 @@ async fn build_proposal(mut args: ProposalBuildArguments) {
 async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<ConsensusBlockInfo> {
     let batcher_timeout = chrono::Duration::from_std(args.batcher_timeout)
         .expect("Can't convert timeout to chrono::Duration");
-    // TODO(guy.f): Replace this with a mockable call to be able to test the correct time is set.
-    let now = chrono::Utc::now();
-    let timestamp = now.timestamp().try_into().expect("Failed to convert timestamp");
+    let timestamp = args.time_stamper.now_as_u64();
     let eth_to_fri_rate = args.eth_to_strk_oracle_client.eth_to_fri_rate(timestamp).await?;
     // TODO(Asmaa): change this to the real values.
     let block_info = ConsensusBlockInfo {
@@ -779,7 +809,7 @@ async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<Co
     };
     let build_proposal_input = ProposeBlockInput {
         proposal_id: args.proposal_id,
-        deadline: now + batcher_timeout,
+        deadline: args.time_stamper.now() + batcher_timeout,
         // TODO(Matan): This is not part of Milestone 1.
         retrospective_block_hash: Some(BlockHashAndNumber {
             number: BlockNumber::default(),
@@ -890,7 +920,7 @@ async fn get_proposal_content(
 
 async fn validate_proposal(mut args: ProposalValidateArguments) {
     let mut content = Vec::new();
-    let deadline = tokio::time::Instant::now() + args.timeout;
+    let deadline = args.time_stamper.now_at_tokio_instant() + args.timeout;
     let Some((block_info, fin_sender)) = await_second_proposal_part(
         &args.cancel_token,
         deadline,
@@ -905,6 +935,7 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
         args.block_info_validation.clone(),
         block_info.clone(),
         args.eth_to_strk_oracle_client,
+        args.time_stamper.as_ref(),
     )
     .await
     {
@@ -919,6 +950,7 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
         block_info.clone(),
         args.proposal_id,
         args.timeout + args.batcher_timeout_margin,
+        args.time_stamper.as_ref(),
     )
     .await
     {
@@ -987,9 +1019,9 @@ async fn is_block_info_valid(
     block_info_validation: BlockInfoValidation,
     block_info: ConsensusBlockInfo,
     eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
+    time_stamper: &dyn TimeStamper,
 ) -> bool {
-    let now: u64 =
-        chrono::Utc::now().timestamp().try_into().expect("Failed to convert timestamp to u64");
+    let now: u64 = time_stamper.now_as_u64();
     // TODO(Asmaa): Validate the rest of the block info.
     if !(block_info.height == block_info_validation.height
         && block_info.timestamp >= block_info_validation.last_block_timestamp.unwrap_or(0)
@@ -1018,7 +1050,7 @@ async fn is_block_info_valid(
 // 2. BlockInfo - required to begin executing TX batches.
 async fn await_second_proposal_part(
     cancel_token: &CancellationToken,
-    deadline: Instant,
+    deadline: tokio::time::Instant,
     content_receiver: &mut mpsc::Receiver<ProposalPart>,
     fin_sender: oneshot::Sender<(ProposalCommitment, ProposalFin)>,
 ) -> Option<(ConsensusBlockInfo, oneshot::Sender<(ProposalCommitment, ProposalFin)>)> {
@@ -1061,13 +1093,13 @@ async fn initiate_validation(
     block_info: ConsensusBlockInfo,
     proposal_id: ProposalId,
     timeout_plus_margin: Duration,
+    time_stamper: &dyn TimeStamper,
 ) -> BatcherClientResult<()> {
     let chrono_timeout = chrono::Duration::from_std(timeout_plus_margin)
         .expect("Can't convert timeout to chrono::Duration");
-    let now = chrono::Utc::now();
     let input = ValidateBlockInput {
         proposal_id,
-        deadline: now + chrono_timeout,
+        deadline: time_stamper.now() + chrono_timeout,
         // TODO(Matan 3/11/2024): Add the real value of the retrospective block hash.
         retrospective_block_hash: Some(BlockHashAndNumber {
             number: BlockNumber::default(),
