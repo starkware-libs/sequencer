@@ -1,7 +1,7 @@
 use apollo_batcher_types::communication::{BatcherRequest, BatcherResponse};
+use apollo_sequencer_infra::component_definitions::ComponentRequestHandler;
+use apollo_sequencer_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 use async_trait::async_trait;
-use starknet_sequencer_infra::component_definitions::ComponentRequestHandler;
-use starknet_sequencer_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 
 use crate::batcher::Batcher;
 

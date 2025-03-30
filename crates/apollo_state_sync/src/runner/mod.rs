@@ -31,6 +31,8 @@ use apollo_p2p_sync::client::{
 use apollo_p2p_sync::server::{P2pSyncServer, P2pSyncServerChannels};
 use apollo_p2p_sync::{Protocol, BUFFER_SIZE};
 use apollo_reverts::{revert_block, revert_blocks_and_eternal_pending};
+use apollo_sequencer_infra::component_definitions::ComponentStarter;
+use apollo_sequencer_infra::component_server::WrapperServer;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::body::BodyStorageReader;
 use apollo_storage::class_manager::ClassManagerStorageReader;
@@ -49,8 +51,6 @@ use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::felt;
 use starknet_client::reader::objects::pending_data::{PendingBlock, PendingBlockOrDeprecated};
 use starknet_client::reader::PendingData;
-use starknet_sequencer_infra::component_definitions::ComponentStarter;
-use starknet_sequencer_infra::component_server::WrapperServer;
 use tokio::sync::RwLock;
 
 use crate::config::{CentralSyncClientConfig, StateSyncConfig};

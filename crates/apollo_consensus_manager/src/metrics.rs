@@ -1,5 +1,5 @@
-use starknet_sequencer_metrics::define_metrics;
-use starknet_sequencer_metrics::metrics::{MetricCounter, MetricGauge};
+use apollo_sequencer_metrics::define_metrics;
+use apollo_sequencer_metrics::metrics::{MetricCounter, MetricGauge};
 
 define_metrics!(
     Consensus => {

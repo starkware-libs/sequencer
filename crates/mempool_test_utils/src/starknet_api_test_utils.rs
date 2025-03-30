@@ -5,6 +5,7 @@ use std::path::Path;
 use std::rc::Rc;
 use std::sync::LazyLock;
 
+use apollo_infra_utils::path::resolve_project_relative_path;
 use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_trivial_calldata;
@@ -40,7 +41,6 @@ use starknet_api::{
     invoke_tx_args,
     nonce,
 };
-use starknet_infra_utils::path::resolve_project_relative_path;
 use starknet_types_core::felt::Felt;
 
 use crate::{COMPILED_CLASS_HASH_OF_CONTRACT_CLASS, CONTRACT_CLASS_FILE, TEST_FILES_FOLDER};

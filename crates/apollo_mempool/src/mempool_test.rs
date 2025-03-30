@@ -7,6 +7,7 @@ use apollo_mempool_types::communication::AddTransactionArgsWrapper;
 use apollo_mempool_types::errors::MempoolError;
 use apollo_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
+use apollo_sequencer_metrics::metrics::HistogramValue;
 use apollo_test_utils::{get_rng, GetTestInstance};
 use mempool_test_utils::starknet_api_test_utils::test_valid_resource_bounds;
 use metrics_exporter_prometheus::PrometheusBuilder;
@@ -18,7 +19,6 @@ use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::test_utils::declare::{internal_rpc_declare_tx, DeclareTxArgs};
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, declare_tx_args, nonce, tx_hash};
-use starknet_sequencer_metrics::metrics::HistogramValue;
 
 use super::AddTransactionQueue;
 use crate::communication::MempoolCommunicationWrapper;

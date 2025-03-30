@@ -16,13 +16,13 @@ use apollo_network::network_manager::test_utils::{
 use apollo_network::network_manager::{BroadcastTopicChannels, NetworkError};
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::mempool::RpcTransactionBatch;
+use apollo_sequencer_infra::component_definitions::ComponentStarter;
 use apollo_test_utils::{get_rng, GetTestInstance};
 use futures::future::{pending, ready, BoxFuture};
 use futures::stream::StreamExt;
 use futures::{FutureExt, SinkExt};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
-use starknet_sequencer_infra::component_definitions::ComponentStarter;
 
 use super::MempoolP2pRunner;
 

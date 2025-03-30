@@ -1,4 +1,5 @@
 // TODO(shahak): Test is_class_declared_at.
+use apollo_sequencer_infra::component_definitions::ComponentRequestHandler;
 use apollo_state_sync_types::communication::{StateSyncRequest, StateSyncResponse};
 use apollo_state_sync_types::errors::StateSyncError;
 use apollo_storage::body::BodyStorageWriter;
@@ -13,7 +14,6 @@ use rand_chacha::rand_core::RngCore;
 use starknet_api::block::{Block, BlockHeader, BlockNumber};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::state::{StorageKey, ThinStateDiff};
-use starknet_sequencer_infra::component_definitions::ComponentRequestHandler;
 use starknet_types_core::felt::Felt;
 
 use crate::StateSync;

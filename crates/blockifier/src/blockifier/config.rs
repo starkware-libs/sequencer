@@ -2,9 +2,9 @@ use std::collections::BTreeMap;
 
 use apollo_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_sierra_multicompile::config::SierraCompilationConfig;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ClassHash;
-use starknet_sierra_multicompile::config::SierraCompilationConfig;
 
 use crate::blockifier::transaction_executor::DEFAULT_STACK_SIZE;
 use crate::state::contract_class_manager::DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE;

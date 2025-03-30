@@ -1,21 +1,21 @@
 use std::sync::Arc;
 
 use apollo_proc_macros::handle_all_response_variants;
+use apollo_sequencer_infra::component_client::{
+    ClientError,
+    LocalComponentClient,
+    RemoteComponentClient,
+};
+use apollo_sequencer_infra::component_definitions::{
+    ComponentClient,
+    ComponentRequestAndResponseSender,
+};
+use apollo_sequencer_infra::impl_debug_for_infra_requests_and_responses;
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use serde::{Deserialize, Serialize};
 use starknet_api::transaction::TransactionHash;
-use starknet_sequencer_infra::component_client::{
-    ClientError,
-    LocalComponentClient,
-    RemoteComponentClient,
-};
-use starknet_sequencer_infra::component_definitions::{
-    ComponentClient,
-    ComponentRequestAndResponseSender,
-};
-use starknet_sequencer_infra::impl_debug_for_infra_requests_and_responses;
 use strum_macros::AsRefStr;
 use thiserror::Error;
 

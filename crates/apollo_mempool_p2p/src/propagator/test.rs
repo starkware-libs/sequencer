@@ -12,13 +12,13 @@ use apollo_network::network_manager::test_utils::{
 use apollo_network::network_manager::{BroadcastTopicChannels, BroadcastTopicClient};
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::mempool::RpcTransactionBatch;
+use apollo_sequencer_infra::component_definitions::ComponentRequestHandler;
 use apollo_test_utils::{get_rng, GetTestInstance};
 use futures::channel::mpsc::Receiver;
 use futures::stream::StreamExt;
 use futures::FutureExt;
 use mockall::predicate;
 use starknet_api::rpc_transaction::{InternalRpcTransaction, RpcTransaction};
-use starknet_sequencer_infra::component_definitions::ComponentRequestHandler;
 use tokio::time::timeout;
 
 use super::MempoolP2pPropagator;

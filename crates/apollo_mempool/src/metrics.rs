@@ -1,14 +1,14 @@
-use starknet_api::rpc_transaction::{
-    InternalRpcTransactionLabelValue,
-    InternalRpcTransactionWithoutTxHash,
-};
-use starknet_sequencer_metrics::metrics::{
+use apollo_sequencer_metrics::metrics::{
     LabeledMetricCounter,
     MetricCounter,
     MetricGauge,
     MetricHistogram,
 };
-use starknet_sequencer_metrics::{define_metrics, generate_permutation_labels};
+use apollo_sequencer_metrics::{define_metrics, generate_permutation_labels};
+use starknet_api::rpc_transaction::{
+    InternalRpcTransactionLabelValue,
+    InternalRpcTransactionWithoutTxHash,
+};
 use strum::{EnumVariantNames, VariantNames};
 use strum_macros::{EnumIter, IntoStaticStr};
 

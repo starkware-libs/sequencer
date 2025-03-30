@@ -31,7 +31,7 @@ on:
       - 'crates/blockifier/**'
       - 'crates/blockifier_test_utils/**'
       - 'crates/native_blockifier/**'
-      - 'crates/starknet_sierra_multicompile/build.rs'
+      - 'crates/apollo_sierra_multicompile/build.rs'
       - 'scripts/build_native_blockifier.sh'
       - 'scripts/dependencies.sh'
       - 'scripts/install_build_tools.sh'

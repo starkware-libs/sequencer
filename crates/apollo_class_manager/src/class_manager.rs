@@ -5,18 +5,15 @@ use apollo_class_manager_types::{
     ClassManagerResult,
     ExecutableClassHash,
 };
-use async_trait::async_trait;
-use starknet_api::state::SierraContractClass;
-use starknet_sequencer_infra::component_definitions::{
-    default_component_start_fn,
-    ComponentStarter,
-};
-use starknet_sierra_multicompile_types::{
+use apollo_sequencer_infra::component_definitions::{default_component_start_fn, ComponentStarter};
+use apollo_sierra_multicompile_types::{
     RawClass,
     RawExecutableClass,
     SharedSierraCompilerClient,
     SierraCompilerClientError,
 };
+use async_trait::async_trait;
+use starknet_api::state::SierraContractClass;
 use tracing::instrument;
 
 use crate::class_storage::{CachedClassStorage, ClassStorage, FsClassStorage};

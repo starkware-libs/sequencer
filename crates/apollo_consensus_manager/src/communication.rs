@@ -1,4 +1,4 @@
-use starknet_sequencer_infra::component_server::WrapperServer;
+use apollo_sequencer_infra::component_server::WrapperServer;
 
 use crate::consensus_manager::ConsensusManager;
 

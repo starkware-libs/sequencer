@@ -7,6 +7,8 @@ mod test;
 use std::cmp::min;
 
 use apollo_class_manager_types::SharedClassManagerClient;
+use apollo_sequencer_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
+use apollo_sequencer_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 use apollo_state_sync_types::communication::{StateSyncRequest, StateSyncResponse};
 use apollo_state_sync_types::errors::StateSyncError;
 use apollo_state_sync_types::state_sync_types::{StateSyncResult, SyncBlock};
@@ -21,8 +23,6 @@ use futures::SinkExt;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, BLOCK_HASH_TABLE_ADDRESS};
 use starknet_api::state::{StateNumber, StorageKey};
-use starknet_sequencer_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
-use starknet_sequencer_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 use starknet_types_core::felt::Felt;
 
 use crate::config::StateSyncConfig;

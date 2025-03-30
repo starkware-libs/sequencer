@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use apollo_class_manager_types::ClassHashes;
+use apollo_sierra_multicompile_types::{MockSierraCompilerClient, RawClass, RawExecutableClass};
 use mockall::predicate::eq;
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::felt;
 use starknet_api::state::SierraContractClass;
-use starknet_sierra_multicompile_types::{MockSierraCompilerClient, RawClass, RawExecutableClass};
 
 use crate::class_manager::ClassManager;
 use crate::class_storage::{create_tmp_dir, CachedClassStorageConfig, FsClassStorage};

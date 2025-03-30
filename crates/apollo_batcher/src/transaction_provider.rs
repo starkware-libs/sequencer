@@ -1,6 +1,12 @@
 use std::cmp::min;
 use std::vec;
 
+use apollo_l1_provider_types::errors::L1ProviderClientError;
+use apollo_l1_provider_types::{
+    InvalidValidationStatus as L1InvalidValidationStatus,
+    SharedL1ProviderClient,
+    ValidationStatus as L1ValidationStatus,
+};
 use apollo_mempool_types::communication::{MempoolClientError, SharedMempoolClient};
 use async_trait::async_trait;
 #[cfg(test)]
@@ -8,12 +14,6 @@ use mockall::automock;
 use starknet_api::block::BlockNumber;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::transaction::TransactionHash;
-use starknet_l1_provider_types::errors::L1ProviderClientError;
-use starknet_l1_provider_types::{
-    InvalidValidationStatus as L1InvalidValidationStatus,
-    SharedL1ProviderClient,
-    ValidationStatus as L1ValidationStatus,
-};
 use thiserror::Error;
 
 type TransactionProviderResult<T> = Result<T, TransactionProviderError>;
