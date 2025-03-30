@@ -28,15 +28,18 @@ async fn main() {
         args.n_consolidated,
         args.n_distributed,
         Some(custom_paths),
+        // TODO(Tsabary/Nadin): add a different identifier.
         TestIdentifier::PositiveFlowIntegrationTest,
     )
     .await;
 
-    let simulator_ports_path = format!("{}/simulator_ports", args.output_base_dir);
-    info!("Generate simulator ports json files under {:?}", simulator_ports_path);
-    create_dir_all(&simulator_ports_path).await.unwrap();
+    // TODO(Tsabary/Nadin): rename dir from "ports" to "config".
+    // TODO(Tsabary/Nadin): avoid the hard-coded file names, e.g., "node_"
+    let simulator_config_file = format!("{}/simulator_ports", args.output_base_dir);
+    info!("Generate simulator ports json files under {:?}", simulator_config_file);
+    create_dir_all(&simulator_config_file).await.unwrap();
     for (node_index, node_setup) in test_manager.get_idle_nodes().iter() {
-        let path = format!("{}/node_{}", simulator_ports_path, node_index);
+        let path = format!("{}/node_{}", simulator_config_file, node_index);
         node_setup.generate_simulator_ports_json(&path);
     }
 
@@ -44,7 +47,10 @@ async fn main() {
 }
 
 #[derive(Parser, Debug)]
-#[command(name = "node_setup", about = "Generate sequencer db and config files.")]
+#[command(
+    name = "node_setup",
+    about = "Generate sequencer and simulator testing db and config files."
+)]
 struct Args {
     #[arg(long)]
     n_consolidated: usize,
