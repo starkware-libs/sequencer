@@ -135,7 +135,6 @@ fn validate_all_pointer_targets_set(preset: Value) -> Result<(), ValidationError
 // TODO(Tsabary): consider if having the MonitoringEndpointConfig part of PresetConfig makes sense.
 #[derive(Clone)]
 pub struct PresetConfig {
-    pub config_path: PathBuf,
     pub component_config: ComponentConfig,
     pub monitoring_endpoint_config: MonitoringEndpointConfig,
 }
@@ -166,15 +165,12 @@ impl DeploymentBaseAppConfig {
         self.config.monitoring_endpoint_config = preset_config.monitoring_endpoint_config;
     }
 
-    // TODO(Tsabary): dump functions should not return values, need to separate this function.
-    // Suggestion: a modifying function that takes a preset config, and a dump function that takes a
-    // path.
-    pub fn dump_config_file(&self, preset_config: PresetConfig) {
+    pub fn dump_config_file(&self, config_path: &PathBuf) {
         dump_config_file(
             self.config.clone(),
             &self.config_pointers_map.clone().into(),
             &self.non_pointer_params,
-            &preset_config.config_path,
+            config_path,
         );
     }
 }
