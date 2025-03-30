@@ -8,7 +8,7 @@ use starknet_api::core::ChainId;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_sequencer_node::config::config_utils::{
     get_deployment_from_config_path,
-    PresetConfig,
+    ConfigChanges,
 };
 
 use crate::service::{DeploymentName, Service};
@@ -80,7 +80,7 @@ impl Deployment {
             let config_path =
                 PathBuf::from(&self.application_config_subdir).join(service.get_config_file_path());
 
-            let preset_config = PresetConfig {
+            let config_changes = ConfigChanges {
                 component_config: component_config.clone(),
                 monitoring_endpoint_config: MonitoringEndpointConfig {
                     ip: IpAddr::from(Ipv4Addr::UNSPECIFIED),
@@ -92,7 +92,7 @@ impl Deployment {
                 },
             };
 
-            service_deployment_base_app_config.update_config_with_preset(preset_config.clone());
+            service_deployment_base_app_config.apply_config_changes(config_changes.clone());
             service_deployment_base_app_config.dump_config_file(&config_path);
         }
     }
