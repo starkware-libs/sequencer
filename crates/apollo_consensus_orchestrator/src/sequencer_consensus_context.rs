@@ -281,6 +281,11 @@ struct ProposalValidateArguments {
     batcher: Arc<dyn BatcherClient>,
     eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
     state_sync_client: SharedStateSyncClient,
+    l1_gas_price_provider_client: Arc<dyn L1GasPriceProviderClient>,
+    min_l1_gas_price_wei: u128,
+    max_l1_gas_price_wei: u128,
+    min_l1_data_gas_price_wei: u128,
+    max_l1_data_gas_price_wei: u128,
     timeout: Duration,
     batcher_timeout_margin: Duration,
     valid_proposals: Arc<Mutex<HeightToIdToContent>>,
@@ -707,6 +712,11 @@ impl SequencerConsensusContext {
         let batcher = Arc::clone(&self.batcher);
         let eth_to_strk_oracle_client = self.eth_to_strk_oracle_client.clone();
         let state_sync_client = self.state_sync_client.clone();
+        let l1_gas_price_provider_client = self.l1_gas_price_provider.clone();
+        let min_l1_gas_price_wei = self.config.min_l1_gas_price_wei;
+        let max_l1_gas_price_wei = self.config.max_l1_gas_price_wei;
+        let min_l1_data_gas_price_wei = self.config.min_l1_data_gas_price_wei;
+        let max_l1_data_gas_price_wei = self.config.max_l1_data_gas_price_wei;
         let transaction_converter = self.transaction_converter.clone();
         let valid_proposals = Arc::clone(&self.valid_proposals);
         let proposal_id = ProposalId(self.proposal_id);
@@ -722,6 +732,11 @@ impl SequencerConsensusContext {
                     batcher,
                     eth_to_strk_oracle_client,
                     state_sync_client,
+                    l1_gas_price_provider_client,
+                    min_l1_gas_price_wei,
+                    max_l1_gas_price_wei,
+                    min_l1_data_gas_price_wei,
+                    max_l1_data_gas_price_wei,
                     timeout,
                     batcher_timeout_margin,
                     valid_proposals,
@@ -793,16 +808,6 @@ async fn build_proposal(mut args: ProposalBuildArguments) {
     }
 }
 
-fn assign_within_margins(value: u128, min: u128, max: u128) -> u128 {
-    if value < min {
-        min
-    } else if value > max {
-        max
-    } else {
-        value
-    }
-}
-
 async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<ConsensusBlockInfo> {
     let batcher_timeout = chrono::Duration::from_std(args.batcher_timeout)
         .expect("Can't convert timeout to chrono::Duration");
@@ -820,12 +825,12 @@ async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<Consens
             }
         }
     };
-    l1_prices.base_fee_per_gas = assign_within_margins(
+    l1_prices.base_fee_per_gas = u128::clamp(
         l1_prices.base_fee_per_gas,
         args.min_l1_gas_price_wei,
         args.max_l1_gas_price_wei,
     );
-    l1_prices.blob_fee = assign_within_margins(
+    l1_prices.blob_fee = u128::clamp(
         l1_prices.blob_fee,
         args.min_l1_data_gas_price_wei,
         args.max_l1_data_gas_price_wei,
@@ -964,11 +969,19 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
     else {
         return;
     };
+    let min_max_prices = GasPriceBounds {
+        min_l1_gas_price_wei: args.min_l1_gas_price_wei,
+        max_l1_gas_price_wei: args.max_l1_gas_price_wei,
+        min_l1_data_gas_price_wei: args.min_l1_data_gas_price_wei,
+        max_l1_data_gas_price_wei: args.max_l1_data_gas_price_wei,
+    };
     if !is_block_info_valid(
         args.block_info_validation.clone(),
         block_info.clone(),
         args.eth_to_strk_oracle_client,
         args.clock.as_ref(),
+        args.l1_gas_price_provider_client,
+        min_max_prices,
     )
     .await
     {
@@ -1057,11 +1070,20 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
     }
 }
 
+struct GasPriceBounds {
+    min_l1_gas_price_wei: u128,
+    max_l1_gas_price_wei: u128,
+    max_l1_data_gas_price_wei: u128,
+    min_l1_data_gas_price_wei: u128,
+}
+
 async fn is_block_info_valid(
     block_info_validation: BlockInfoValidation,
     block_info: ConsensusBlockInfo,
     eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
     clock: &dyn Clock,
+    l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
+    min_max_prices: GasPriceBounds,
 ) -> bool {
     let now: u64 = clock.now_as_timestamp();
     // TODO(Asmaa): Validate the rest of the block info.
@@ -1073,7 +1095,6 @@ async fn is_block_info_valid(
     {
         return false;
     }
-    // TODO(Asmaa, guyn): remove this once calculation l1 gas prices in fri is supported.
     let eth_to_fri_rate =
         match eth_to_strk_oracle_client.eth_to_fri_rate(block_info.timestamp).await {
             Ok(rate) => rate,
@@ -1083,9 +1104,53 @@ async fn is_block_info_valid(
             }
         };
     let l1_gas_price_margin_percent =
-        VersionedConstants::latest_constants().l1_gas_price_margin_percent;
-    let allowed_margin = (eth_to_fri_rate * u128::from(l1_gas_price_margin_percent)) / 100;
-    block_info.eth_to_fri_rate.abs_diff(eth_to_fri_rate) <= allowed_margin
+        VersionedConstants::latest_constants().l1_gas_price_margin_percent.into();
+    let gas_prices =
+        l1_gas_price_provider.get_price_info(BlockTimestamp(block_info.timestamp)).await;
+    let mut gas_prices = match gas_prices {
+        Ok(prices) => prices,
+        Err(e) => {
+            warn!("Failed to get L1 gas prices, replacing with minimum values: {e:?}");
+            PriceInfo {
+                base_fee_per_gas: min_max_prices.min_l1_gas_price_wei,
+                blob_fee: min_max_prices.min_l1_data_gas_price_wei,
+            }
+        }
+    };
+    gas_prices.base_fee_per_gas = u128::clamp(
+        gas_prices.base_fee_per_gas,
+        min_max_prices.min_l1_gas_price_wei,
+        min_max_prices.max_l1_gas_price_wei,
+    );
+    gas_prices.blob_fee = u128::clamp(
+        gas_prices.blob_fee,
+        min_max_prices.min_l1_data_gas_price_wei,
+        min_max_prices.max_l1_data_gas_price_wei,
+    );
+
+    let l1_gas_price_fri =
+        ConsensusBlockInfo::wei_to_fri(gas_prices.base_fee_per_gas, eth_to_fri_rate);
+    let l1_data_gas_price_fri =
+        ConsensusBlockInfo::wei_to_fri(gas_prices.blob_fee, eth_to_fri_rate);
+    let l1_gas_price_fri_proposed =
+        ConsensusBlockInfo::wei_to_fri(block_info.l1_gas_price_wei, eth_to_fri_rate);
+    let l1_data_gas_price_fri_proposed =
+        ConsensusBlockInfo::wei_to_fri(block_info.l1_data_gas_price_wei, eth_to_fri_rate);
+    if !(within_margin(l1_gas_price_fri_proposed, l1_gas_price_fri, l1_gas_price_margin_percent)
+        && within_margin(
+            l1_data_gas_price_fri_proposed,
+            l1_data_gas_price_fri,
+            l1_gas_price_margin_percent,
+        ))
+    {
+        return false;
+    }
+    true
+}
+
+fn within_margin(number1: u128, number2: u128, margin_percent: u128) -> bool {
+    let margin = (number1 * margin_percent) / 100;
+    number1.abs_diff(number2) <= margin
 }
 
 // The second proposal part when validating a proposal must be:
@@ -1236,18 +1301,18 @@ async fn batcher_abort_proposal(batcher: &dyn BatcherClient, proposal_id: Propos
 }
 
 fn convert_to_sn_api_block_info(block_info: &ConsensusBlockInfo) -> starknet_api::block::BlockInfo {
-    let l1_gas_price_fri = NonzeroGasPrice::new(GasPrice(ConsensusBlockInfo::fri_from_wei(
+    let l1_gas_price_fri = NonzeroGasPrice::new(GasPrice(ConsensusBlockInfo::wei_to_fri(
         block_info.l1_gas_price_wei,
         block_info.eth_to_fri_rate,
     )))
     .unwrap();
-    let l1_data_gas_price_fri = NonzeroGasPrice::new(GasPrice(ConsensusBlockInfo::fri_from_wei(
+    let l1_data_gas_price_fri = NonzeroGasPrice::new(GasPrice(ConsensusBlockInfo::wei_to_fri(
         block_info.l1_data_gas_price_wei,
         block_info.eth_to_fri_rate,
     )))
     .unwrap();
     let l2_gas_price_fri = NonzeroGasPrice::new(GasPrice(block_info.l2_gas_price_fri)).unwrap();
-    let l2_gas_price_wei = NonzeroGasPrice::new(GasPrice(ConsensusBlockInfo::wei_from_fri(
+    let l2_gas_price_wei = NonzeroGasPrice::new(GasPrice(ConsensusBlockInfo::fri_to_wei(
         block_info.l2_gas_price_fri,
         block_info.eth_to_fri_rate,
     )))
