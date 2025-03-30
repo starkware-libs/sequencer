@@ -91,7 +91,7 @@ services:
       jq '.\"http_server_config.ip\" = \"0.0.0.0\"' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
       jq '.\"http_server_config.port\" = ${SEQUENCER_HTTP_PORT}' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
       jq '.\"monitoring_endpoint_config.port\" = ${SEQUENCER_MONITORING_PORT}' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
-      jq '.\"base_layer_config.node_url\" = \"http://anvil:8545\"' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
+      jq '.\"base_layer_config.node_url\" = \"http://anvil:${SEQUENCER_BASE_LAYER_PORT}\"' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
       # These are here to avoid using an L1 base layer. The Docker test deliberately disabled Anvil.
       jq '.\"components.l1_scraper.execution_mode\" = \"Disabled\"' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
       jq '.\"l1_provider_config.provider_startup_height_override.#is_none\" = true' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
@@ -126,6 +126,7 @@ services:
     ports:
       - ${SEQUENCER_HTTP_PORT}:${SEQUENCER_HTTP_PORT}
       - ${SEQUENCER_MONITORING_PORT}:${SEQUENCER_MONITORING_PORT}
+      - ${SEQUENCER_BASE_LAYER_PORT}:${SEQUENCER_BASE_LAYER_PORT}
     command:
       - "--config_file"
       - "${SEQUENCER_CONFIG_PATH}"
@@ -151,6 +152,8 @@ services:
       --http-port ${SEQUENCER_HTTP_PORT} \
       --monitoring-url http://sequencer_node \
       --monitoring-port ${SEQUENCER_MONITORING_PORT} \
+      --base-layer-url http://anvil \
+      --base-layer-port ${SEQUENCER_BASE_LAYER_PORT} \
       $(if [ \"$SIMULATOR_RUN_FOREVER\" = \"true\" ]; then echo '--run-forever'; fi)"
     networks:
       - sequencer-network
