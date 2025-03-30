@@ -175,6 +175,7 @@ async fn bootstrap_e2e() {
         l1_provider_client.clone(),
         Arc::new(sync_client),
         STARTUP_HEIGHT,
+        None,
     );
 
     // Test.
@@ -292,6 +293,7 @@ async fn bootstrap_delayed_sync_state_with_trivial_catch_up() {
         l1_provider_client.clone(),
         Arc::new(sync_client),
         STARTUP_HEIGHT,
+        None,
     );
 
     // Test.
@@ -367,6 +369,7 @@ async fn bootstrap_delayed_sync_state_with_sync_behind_batcher() {
         l1_provider_client.clone(),
         Arc::new(sync_client),
         startup_height,
+        None,
     );
 
     // Test.
@@ -432,6 +435,7 @@ async fn test_stuck_sync() {
         l1_provider_client.clone(),
         Arc::new(sync_client),
         STARTUP_HEIGHT,
+        None,
     );
 
     // Test.
