@@ -9,6 +9,7 @@ define_metrics!(
         MetricGauge { LAST_BATCHED_BLOCK, "batcher_last_batched_block", "The last block received by batching" },
         MetricGauge { LAST_SYNCED_BLOCK, "batcher_last_synced_block", "The last block received by syncing" },
         MetricGauge { LAST_PROPOSED_BLOCK, "batcher_last_proposed_block", "The last block proposed by this sequencer" },
+        MetricGauge { ROUND, "batcher_round", "The current round" },
         MetricCounter { REVERTED_BLOCKS, "batcher_reverted_blocks", "Counter of reverted blocks", init = 0 },
         // Proposals
         MetricCounter { PROPOSAL_STARTED, "batcher_proposal_started", "Counter of proposals started", init = 0 },
@@ -31,6 +32,7 @@ pub fn register_metrics(storage_height: BlockNumber) {
     STORAGE_HEIGHT.register();
     STORAGE_HEIGHT.set_lossy(storage_height.0);
     LAST_BATCHED_BLOCK.register();
+    ROUND.register();
     LAST_SYNCED_BLOCK.register();
     LAST_PROPOSED_BLOCK.register();
     REVERTED_BLOCKS.register();
