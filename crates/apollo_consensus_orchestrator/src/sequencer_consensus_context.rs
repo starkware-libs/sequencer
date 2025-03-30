@@ -244,6 +244,9 @@ struct ProposalValidateArguments {
     batcher: Arc<dyn BatcherClient>,
     eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
     state_sync_client: SharedStateSyncClient,
+    l1_gas_price_provider_client: Arc<dyn L1GasPriceProviderClient>,
+    min_l1_gas_price_wei: u128,
+    max_l1_gas_price_wei: u128,
     timeout: Duration,
     batcher_timeout_margin: Duration,
     valid_proposals: Arc<Mutex<HeightToIdToContent>>,
@@ -664,6 +667,9 @@ impl SequencerConsensusContext {
         let batcher = Arc::clone(&self.batcher);
         let eth_to_strk_oracle_client = self.eth_to_strk_oracle_client.clone();
         let state_sync_client = self.state_sync_client.clone();
+        let l1_gas_price_provider_client = self.l1_gas_price_provider.clone();
+        let min_l1_gas_price_wei = self.config.min_l1_gas_price_wei;
+        let max_l1_gas_price_wei = self.config.max_l1_gas_price_wei;
         let transaction_converter = self.transaction_converter.clone();
         let valid_proposals = Arc::clone(&self.valid_proposals);
         let proposal_id = ProposalId(self.proposal_id);
@@ -678,6 +684,9 @@ impl SequencerConsensusContext {
                     batcher,
                     eth_to_strk_oracle_client,
                     state_sync_client,
+                    l1_gas_price_provider_client,
+                    min_l1_gas_price_wei,
+                    max_l1_gas_price_wei,
                     timeout,
                     batcher_timeout_margin,
                     valid_proposals,
@@ -933,6 +942,9 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
         args.block_info_validation.clone(),
         block_info.clone(),
         args.eth_to_strk_oracle_client,
+        args.l1_gas_price_provider_client,
+        args.min_l1_gas_price_wei,
+        args.max_l1_gas_price_wei,
     )
     .await
     {
@@ -1016,6 +1028,9 @@ async fn is_block_info_valid(
     block_info_validation: BlockInfoValidation,
     block_info: ConsensusBlockInfo,
     eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
+    l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
+    min_l1_gas_price_wei: u128,
+    max_l1_gas_price_wei: u128,
 ) -> bool {
     let now: u64 =
         chrono::Utc::now().timestamp().try_into().expect("Failed to convert timestamp to u64");
@@ -1028,7 +1043,7 @@ async fn is_block_info_valid(
     {
         return false;
     }
-    // TODO(Asmaa, guyn): remove this once calculation l1 gas prices in fri is supported.
+
     let eth_to_fri_rate =
         match eth_to_strk_oracle_client.eth_to_fri_rate(block_info.timestamp).await {
             Ok(rate) => rate,
@@ -1038,9 +1053,47 @@ async fn is_block_info_valid(
             }
         };
     let l1_gas_price_margin_percent =
-        VersionedConstants::latest_constants().l1_gas_price_margin_percent;
-    let allowed_margin = (eth_to_fri_rate * u128::from(l1_gas_price_margin_percent)) / 100;
-    block_info.eth_to_fri_rate.abs_diff(eth_to_fri_rate) <= allowed_margin
+        VersionedConstants::latest_constants().l1_gas_price_margin_percent.into();
+    let gas_prices =
+        l1_gas_price_provider.get_price_info(BlockTimestamp(block_info.timestamp)).await;
+    let mut gas_prices = match gas_prices {
+        Ok(prices) => prices,
+        Err(e) => {
+            warn!("Failed to get L1 gas prices, replacing with minimum values!: {e:?}");
+            PriceInfo { base_fee_per_gas: min_l1_gas_price_wei, blob_fee: min_l1_gas_price_wei }
+        }
+    };
+    if gas_prices.base_fee_per_gas < min_l1_gas_price_wei {
+        gas_prices.base_fee_per_gas = min_l1_gas_price_wei;
+    }
+    if gas_prices.base_fee_per_gas > max_l1_gas_price_wei {
+        gas_prices.base_fee_per_gas = max_l1_gas_price_wei;
+    }
+    let l1_gas_price_fri =
+        gas_prices.base_fee_per_gas.checked_mul(eth_to_fri_rate).expect("gas price overflow");
+    let l1_data_gas_price_fri =
+        gas_prices.blob_fee.checked_mul(eth_to_fri_rate).expect("data gas price overflow");
+    let l1_gas_price_fri_to_verify =
+        block_info.l1_gas_price_wei.checked_mul(eth_to_fri_rate).expect("gas price overflow");
+    let l1_data_gas_price_fri_to_verify = block_info
+        .l1_data_gas_price_wei
+        .checked_mul(eth_to_fri_rate)
+        .expect("data gas price overflow");
+    if !(within_margin(l1_gas_price_fri_to_verify, l1_gas_price_fri, l1_gas_price_margin_percent)
+        && within_margin(
+            l1_data_gas_price_fri_to_verify,
+            l1_data_gas_price_fri,
+            l1_gas_price_margin_percent,
+        ))
+    {
+        return false;
+    }
+    true
+}
+
+fn within_margin(number1: u128, number2: u128, margin_percent: u128) -> bool {
+    let margin = (number1 * margin_percent) / 100;
+    number1.abs_diff(number2) <= margin
 }
 
 // The second proposal part when validating a proposal must be:
