@@ -218,9 +218,7 @@ impl TryFrom<DeprecatedGatewaySierraContractClass> for SierraContractClass {
     fn try_from(
         rest_sierra_contract_class: DeprecatedGatewaySierraContractClass,
     ) -> Result<Self, Self::Error> {
-        let sierra_program = serde_json::from_value(decode_and_decompress(
-            &rest_sierra_contract_class.sierra_program,
-        )?)?;
+        let sierra_program = decode_and_decompress(&rest_sierra_contract_class.sierra_program)?;
         Ok(SierraContractClass {
             sierra_program,
             contract_class_version: rest_sierra_contract_class.contract_class_version,

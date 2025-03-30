@@ -1,5 +1,7 @@
 use std::io::Read;
 
+use serde::de::DeserializeOwned;
+
 #[cfg(test)]
 #[path = "compression_utils_test.rs"]
 mod compression_utils_test;
@@ -22,13 +24,10 @@ pub fn compress_and_encode(value: serde_json::Value) -> Result<String, std::io::
     Ok(base64::encode(compressed_data))
 }
 
-// TODO(Arni): Refactor this function so it returns a generic T where T: DeserializeOwned.
-// Decompress the value from base64 and gzip.
-pub fn decode_and_decompress(value: &str) -> Result<serde_json::Value, CompressionError> {
+pub fn decode_and_decompress<T: DeserializeOwned>(value: &str) -> Result<T, CompressionError> {
     let decoded_data = base64::decode(value)?;
     let mut decompressor = flate2::read::GzDecoder::new(&decoded_data[..]);
     let mut decompressed_data = String::new();
     decompressor.read_to_string(&mut decompressed_data)?;
-    let json_value = serde_json::from_str(&decompressed_data)?;
-    Ok(json_value)
+    Ok(serde_json::from_str(&decompressed_data)?)
 }
