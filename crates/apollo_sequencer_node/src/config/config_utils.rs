@@ -175,12 +175,23 @@ impl DeploymentBaseAppConfig {
     }
 
     pub fn dump_config_file(&self, config_path: &PathBuf) {
-        dump_config_file(
-            self.config.clone(),
+        // Create the entire mapping of the config and the pointers, without the required params.
+        let config_as_map = combine_config_map_and_pointers(
+            self.config.dump(),
+            // TODO(Tsabary): avoid the cloning here
             &self.config_pointers_map.clone().into(),
             &self.non_pointer_params,
-            config_path,
-        );
+        )
+        .unwrap();
+
+        // Extract only the required fields from the config map.
+        let preset = config_to_preset(&config_as_map);
+
+        validate_all_pointer_targets_set(preset.clone()).expect("Pointer target not set");
+
+        // Dump the preset to a file, return its path.
+        dump_json_data(preset, config_path);
+        assert!(config_path.exists(), "File does not exist: {:?}", config_path);
     }
 }
 
