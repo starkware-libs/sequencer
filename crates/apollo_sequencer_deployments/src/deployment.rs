@@ -1,4 +1,3 @@
-use std::net::{IpAddr, Ipv4Addr};
 #[cfg(test)]
 use std::path::Path;
 use std::path::PathBuf;
@@ -80,15 +79,7 @@ impl Deployment {
             let config_path =
                 PathBuf::from(&self.application_config_subdir).join(service.get_config_file_path());
 
-            let monitoring_endpoint_config = MonitoringEndpointConfig {
-                ip: IpAddr::from(Ipv4Addr::UNSPECIFIED),
-                // TODO(Tsabary): services use 8082 for their monitoring. Fix that as a const
-                // and ensure throughout the deployment code.
-                port: 8082,
-                collect_metrics: true,
-                collect_profiling_metrics: true,
-            };
-
+            let monitoring_endpoint_config = MonitoringEndpointConfig::deployment();
             let base_app_config_override =
                 BaseAppConfigOverride::new(component_config, monitoring_endpoint_config);
 

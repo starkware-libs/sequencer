@@ -18,14 +18,20 @@ pub struct MonitoringEndpointConfig {
     pub collect_profiling_metrics: bool,
 }
 
-impl Default for MonitoringEndpointConfig {
-    fn default() -> Self {
+impl MonitoringEndpointConfig {
+    pub fn deployment() -> Self {
         Self {
             ip: DEFAULT_IP,
             port: DEFAULT_PORT,
             collect_metrics: true,
             collect_profiling_metrics: true,
         }
+    }
+}
+
+impl Default for MonitoringEndpointConfig {
+    fn default() -> Self {
+        MonitoringEndpointConfig::deployment()
     }
 }
 
