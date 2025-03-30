@@ -100,16 +100,6 @@ struct BlockInfoValidation {
     l2_gas_price_fri: GasPrice,
 }
 
-// {height: {proposal_commitment: (block_info, content, [proposal_ids])}}
-// Note that multiple proposals IDs can be associated with the same content, but we only need to
-// store one of them.
-type HeightToIdToContent = BTreeMap<
-    BlockNumber,
-    HashMap<
-        ProposalCommitment,
-        (ConsensusBlockInfo, Vec<Vec<InternalConsensusTransaction>>, ProposalId),
-    >,
->;
 type ValidationParams = (BlockNumber, ValidatorId, Duration, mpsc::Receiver<ProposalPart>);
 type ProposalResult<T> = Result<T, BuildProposalError>;
 
@@ -163,6 +153,61 @@ impl Clock for DefaultClock {}
 //   clients: Clients,
 //   ...all the other fields remain flat
 // }
+type HeightToIdToContent = BTreeMap<
+    BlockNumber,
+    HashMap<
+        ProposalCommitment,
+        (ConsensusBlockInfo, Vec<Vec<InternalConsensusTransaction>>, ProposalId),
+    >,
+>;
+
+struct BuiltProposals {
+    // {height: {proposal_commitment: (block_info, content, [proposal_ids])}}
+    // Note that multiple proposals IDs can be associated with the same content, but we only need
+    // to store one of them.
+    //
+    // The tranasactions are stored as a vector of batches (as returned from the batcher) and not
+    // flattened. This is since we might need to repropose, in which case we need to send the
+    // transactions in batches.
+    data: HeightToIdToContent,
+}
+
+impl BuiltProposals {
+    fn new() -> Self {
+        Self { data: HeightToIdToContent::default() }
+    }
+
+    fn get_proposal(
+        &self,
+        height: &BlockNumber,
+        commitment: &ProposalCommitment,
+    ) -> &(ConsensusBlockInfo, Vec<Vec<InternalConsensusTransaction>>, ProposalId) {
+        self.data
+            .get(height)
+            .unwrap_or_else(|| panic!("No proposals found for height {height}"))
+            .get(commitment)
+            .unwrap_or_else(|| panic!("No proposal found for height {height} and id {commitment}"))
+    }
+
+    fn remove_proposals_below_or_at_height(&mut self, height: &BlockNumber) {
+        self.data.retain(|&h, _| h > *height);
+    }
+
+    fn insert_proposal_for_height(
+        &mut self,
+        height: &BlockNumber,
+        proposal_commitment: &ProposalCommitment,
+        block_info: ConsensusBlockInfo,
+        transactions: Vec<Vec<InternalConsensusTransaction>>,
+        proposal_id: &ProposalId,
+    ) {
+        self.data
+            .entry(*height)
+            .or_default()
+            .insert(*proposal_commitment, (block_info, transactions, *proposal_id));
+    }
+}
+
 pub struct SequencerConsensusContext {
     config: ContextConfig,
     // TODO(Shahak): change this into a dynamic TransactionConverterTrait.
@@ -173,7 +218,7 @@ pub struct SequencerConsensusContext {
     // Proposal building/validating returns immediately, leaving the actual processing to a spawned
     // task. The spawned task processes the proposal asynchronously and updates the
     // valid_proposals map upon completion, ensuring consistency across tasks.
-    valid_proposals: Arc<Mutex<HeightToIdToContent>>,
+    valid_proposals: Arc<Mutex<BuiltProposals>>,
     // Used to generate unique proposal IDs across the lifetime of the context.
     // TODO(matan): Consider robustness in case consensus can restart without the Batcher
     // restarting.
@@ -238,7 +283,7 @@ impl SequencerConsensusContext {
             validators: (0..num_validators)
                 .map(|i| ValidatorId::from(DEFAULT_VALIDATOR_ID + i))
                 .collect(),
-            valid_proposals: Arc::new(Mutex::new(HeightToIdToContent::new())),
+            valid_proposals: Arc::new(Mutex::new(BuiltProposals::new())),
             proposal_id: 0,
             current_height: None,
             current_round: 0,
@@ -269,7 +314,7 @@ struct ProposalBuildArguments {
     max_l1_gas_price_wei: u128,
     min_l1_data_gas_price_wei: u128,
     max_l1_data_gas_price_wei: u128,
-    valid_proposals: Arc<Mutex<HeightToIdToContent>>,
+    valid_proposals: Arc<Mutex<BuiltProposals>>,
     proposal_id: ProposalId,
     cende_write_success: AbortOnDropHandle<bool>,
     l2_gas_price: GasPrice,
@@ -292,7 +337,7 @@ struct ProposalValidateArguments {
     max_l1_data_gas_price_wei: u128,
     timeout: Duration,
     batcher_timeout_margin: Duration,
-    valid_proposals: Arc<Mutex<HeightToIdToContent>>,
+    valid_proposals: Arc<Mutex<BuiltProposals>>,
     content_receiver: mpsc::Receiver<ProposalPart>,
     fin_sender: oneshot::Sender<ProposalCommitment>,
     cancel_token: CancellationToken,
@@ -429,10 +474,7 @@ impl ConsensusContext for SequencerConsensusContext {
             .valid_proposals
             .lock()
             .expect("Lock on active proposals was poisoned due to a previous panic")
-            .get(&height)
-            .unwrap_or_else(|| panic!("No proposals found for height {height}"))
-            .get(&id)
-            .unwrap_or_else(|| panic!("No proposal found for height {height} and id {id}"))
+            .get_proposal(&height, &id)
             .clone();
 
         let transaction_converter = self.transaction_converter.clone();
@@ -510,14 +552,15 @@ impl ConsensusContext for SequencerConsensusContext {
         let transactions;
         let block_info;
         {
+            let height = BlockNumber(height);
             let mut proposals = self
                 .valid_proposals
                 .lock()
                 .expect("Lock on active proposals was poisoned due to a previous panic");
             (block_info, transactions, proposal_id) =
-                proposals.get(&BlockNumber(height)).unwrap().get(&block).unwrap().clone();
+                proposals.get_proposal(&height, &block).clone();
 
-            proposals.retain(|&h, _| h > BlockNumber(height));
+            proposals.remove_proposals_below_or_at_height(&height);
         }
         let transactions = transactions.concat();
         // TODO(dvir): return from the batcher's 'decision_reached' function the relevant data to
@@ -797,10 +840,13 @@ async fn build_proposal(mut args: ProposalBuildArguments) {
     // Update valid_proposals before sending fin to avoid a race condition
     // with `repropose` being called before `valid_proposals` is updated.
     let mut valid_proposals = args.valid_proposals.lock().expect("Lock was poisoned");
-    valid_proposals
-        .entry(args.proposal_init.height)
-        .or_default()
-        .insert(proposal_commitment, (block_info, content, args.proposal_id));
+    valid_proposals.insert_proposal_for_height(
+        &args.proposal_init.height,
+        &proposal_commitment,
+        block_info,
+        content,
+        &args.proposal_id,
+    );
     if args.fin_sender.send(proposal_commitment).is_err() {
         // Consensus may exit early (e.g. sync).
         warn!("Failed to send proposal content id");
@@ -1041,10 +1087,13 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
     // Update valid_proposals before sending fin to avoid a race condition
     // with `repropose` being called before `valid_proposals` is updated.
     let mut valid_proposals = args.valid_proposals.lock().unwrap();
-    valid_proposals
-        .entry(args.block_info_validation.height)
-        .or_default()
-        .insert(built_block, (block_info, content, args.proposal_id));
+    valid_proposals.insert_proposal_for_height(
+        &args.block_info_validation.height,
+        &built_block,
+        block_info,
+        content,
+        &args.proposal_id,
+    );
 
     // TODO(matan): Switch to signature validation.
     if built_block != received_fin.proposal_commitment {
