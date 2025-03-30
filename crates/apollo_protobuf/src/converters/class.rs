@@ -129,7 +129,7 @@ impl TryFrom<protobuf::Cairo0Class> for deprecated_contract_class::ContractClass
             );
         }
         let abi = serde_json::from_str(&value.abi)?;
-        let program = serde_json::from_value(decode_and_decompress(&value.program)?)?;
+        let program = decode_and_decompress(&value.program)?;
 
         Ok(Self { program, entry_points_by_type, abi })
     }
