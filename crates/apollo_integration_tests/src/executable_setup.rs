@@ -5,11 +5,7 @@ use apollo_infra_utils::test_utils::AvailablePorts;
 use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
 use apollo_sequencer_node::config::component_config::ComponentConfig;
-use apollo_sequencer_node::config::config_utils::{
-    dump_config_file,
-    BaseAppConfigOverride,
-    DeploymentBaseAppConfig,
-};
+use apollo_sequencer_node::config::config_utils::{BaseAppConfigOverride, DeploymentBaseAppConfig};
 use apollo_sequencer_node::config::definitions::ConfigPointersMap;
 use apollo_sequencer_node::config::node_config::{
     SequencerNodeConfig,
@@ -142,11 +138,13 @@ impl ExecutableSetup {
 
     /// Creates a config file for the sequencer node for an integration test.
     pub fn dump_config_file_changes(&self) {
-        dump_config_file(
+        // TODO(Tsabary): deployment_base_app_config should be part of the struct instead of the
+        // various config fields.
+        let deployment_base_app_config = DeploymentBaseAppConfig::new(
             self.config.clone(),
-            &self.config_pointers_map.clone().into(),
-            &CONFIG_NON_POINTERS_WHITELIST,
-            &self.node_config_path,
+            self.config_pointers_map.clone(),
+            CONFIG_NON_POINTERS_WHITELIST.clone(),
         );
+        deployment_base_app_config.dump_config_file(&self.node_config_path);
     }
 }
