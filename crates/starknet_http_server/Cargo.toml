@@ -12,7 +12,6 @@ testing = [
   "reqwest",
   "starknet_api/testing",
   "starknet_gateway_types/testing",
-  "strum",
   "strum_macros",
 ]
 
@@ -34,7 +33,6 @@ starknet_gateway_types.workspace = true
 starknet_infra_utils.workspace = true
 starknet_sequencer_infra.workspace = true
 starknet_sequencer_metrics.workspace = true
-strum = { workspace = true, optional = true }
 strum_macros = { workspace = true, optional = true }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt"] }
