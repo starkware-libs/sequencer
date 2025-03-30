@@ -76,7 +76,7 @@ pub struct ExecutableSetup {
 
 impl ExecutableSetup {
     pub async fn new(
-        bas_app_config: DeploymentBaseAppConfig,
+        mut base_app_config: DeploymentBaseAppConfig,
         config_pointers_map: ConfigPointersMap,
         node_execution_id: NodeExecutionId,
         mut available_ports: AvailablePorts,
@@ -111,12 +111,13 @@ impl ExecutableSetup {
             monitoring_endpoint_config,
         };
 
-        let updated_config = bas_app_config.dump_config_file(preset_config);
+        base_app_config.update_config_with_preset(preset_config.clone());
+        base_app_config.dump_config_file(preset_config);
 
         Self {
             node_execution_id,
             monitoring_client,
-            config: updated_config,
+            config: base_app_config.get_config(),
             config_pointers_map,
             node_config_dir_handle,
             node_config_path: config_path,
