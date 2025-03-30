@@ -198,55 +198,36 @@ define_string_enum! {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
-pub enum Const {
-    AliasContractAddress,
-    AliasCounterStorageKey,
-    Base,
-    BlobLength,
-    BlockHashContractAddress,
-    CompiledClassVersion,
-    DeprecatedCompiledClassVersion,
-    EntryPointInitialBudget,
-    InitialAvailableAlias,
-    MerkleHeight,
-    StoredBlockHashBuffer,
-}
-
-impl From<Const> for &'static str {
-    fn from(constant: Const) -> &'static str {
-        match constant {
-            Const::AliasContractAddress => {
-                "starkware.starknet.core.os.constants.ALIAS_CONTRACT_ADDRESS"
-            }
-            Const::AliasCounterStorageKey => {
-                "starkware.starknet.core.os.state.aliases.ALIAS_COUNTER_STORAGE_KEY"
-            }
-            Const::Base => "starkware.starknet.core.os.data_availability.bls_field.BASE",
-            Const::BlobLength => {
-                "starkware.starknet.core.os.data_availability.commitment.BLOB_LENGTH"
-            }
-            Const::BlockHashContractAddress => {
-                "starkware.starknet.core.os.constants.BLOCK_HASH_CONTRACT_ADDRESS"
-            }
-            Const::CompiledClassVersion => {
-                "starkware.starknet.core.os.contract_class.compiled_class.COMPILED_CLASS_VERSION"
-            }
-            Const::DeprecatedCompiledClassVersion => {
-                "starkware.starknet.core.os.contract_class.deprecated_compiled_class.\
-                 DEPRECATED_COMPILED_CLASS_VERSION"
-            }
-            Const::InitialAvailableAlias => {
-                "starkware.starknet.core.os.state.aliases.INITIAL_AVAILABLE_ALIAS"
-            }
-            Const::MerkleHeight => "starkware.starknet.core.os.state.commitment.MERKLE_HEIGHT",
-            Const::StoredBlockHashBuffer => {
-                "starkware.starknet.core.os.constants.STORED_BLOCK_HASH_BUFFER"
-            }
-            Const::EntryPointInitialBudget => {
-                "starkware.starknet.core.os.constants.ENTRY_POINT_INITIAL_BUDGET"
-            }
-        }
+define_string_enum! {
+    #[derive(Clone, Copy, Debug)]
+    pub enum Const {
+        (AliasContractAddress, "starkware.starknet.core.os.constants.ALIAS_CONTRACT_ADDRESS"),
+        (
+            AliasCounterStorageKey,
+            "starkware.starknet.core.os.state.aliases.ALIAS_COUNTER_STORAGE_KEY"
+        ),
+        (Base, "starkware.starknet.core.os.data_availability.bls_field.BASE"),
+        (BlobLength, "starkware.starknet.core.os.data_availability.commitment.BLOB_LENGTH"),
+        (
+            BlockHashContractAddress,
+            "starkware.starknet.core.os.constants.BLOCK_HASH_CONTRACT_ADDRESS"
+        ),
+        (
+            CompiledClassVersion,
+            "starkware.starknet.core.os.contract_class.compiled_class.COMPILED_CLASS_VERSION"
+        ),
+        (
+            DeprecatedCompiledClassVersion,
+            "starkware.starknet.core.os.contract_class.deprecated_compiled_class.\
+            DEPRECATED_COMPILED_CLASS_VERSION"
+        ),
+        (InitialAvailableAlias, "starkware.starknet.core.os.state.aliases.INITIAL_AVAILABLE_ALIAS"),
+        (MerkleHeight, "starkware.starknet.core.os.state.commitment.MERKLE_HEIGHT"),
+        (StoredBlockHashBuffer, "starkware.starknet.core.os.constants.STORED_BLOCK_HASH_BUFFER"),
+        (
+            EntryPointInitialBudget,
+            "starkware.starknet.core.os.constants.ENTRY_POINT_INITIAL_BUDGET"
+        ),
     }
 }
 
