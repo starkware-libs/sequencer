@@ -6,6 +6,8 @@ use starknet_api::transaction::TransactionHash;
 
 use crate::errors::GatewayError;
 
+const TRANSACTION_RECEIVED: &str = "TRANSACTION_RECEIVED";
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GatewayInput {
     pub rpc_tx: RpcTransaction,
@@ -13,6 +15,7 @@ pub struct GatewayInput {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum GatewayOutput {
     Declare(DeclareGatewayOutput),
     DeployAccount(DeployAccountGatewayOutput),
@@ -33,17 +36,38 @@ impl GatewayOutput {
 pub struct DeclareGatewayOutput {
     pub transaction_hash: TransactionHash,
     pub class_hash: ClassHash,
+    pub code: String,
+}
+
+impl DeclareGatewayOutput {
+    pub fn new(transaction_hash: TransactionHash, class_hash: ClassHash) -> Self {
+        Self { transaction_hash, class_hash, code: TRANSACTION_RECEIVED.to_string() }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DeployAccountGatewayOutput {
     pub transaction_hash: TransactionHash,
     pub address: ContractAddress,
+    pub code: String,
+}
+
+impl DeployAccountGatewayOutput {
+    pub fn new(transaction_hash: TransactionHash, address: ContractAddress) -> Self {
+        Self { transaction_hash, address, code: TRANSACTION_RECEIVED.to_string() }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct InvokeGatewayOutput {
     pub transaction_hash: TransactionHash,
+    pub code: String,
+}
+
+impl InvokeGatewayOutput {
+    pub fn new(transaction_hash: TransactionHash) -> Self {
+        Self { transaction_hash, code: TRANSACTION_RECEIVED.to_string() }
+    }
 }
 
 pub type GatewayResult<T> = Result<T, GatewayError>;
