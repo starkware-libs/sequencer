@@ -100,15 +100,15 @@ impl ExecutableSetup {
                 (node_config_dir_handle.path().to_path_buf(), Some(node_config_dir_handle))
             }
         };
-        // Wait for the node to start.
+
         let MonitoringEndpointConfig { ip, port, .. } = monitoring_endpoint_config;
         let monitoring_client = MonitoringClient::new(SocketAddr::from((ip, port)));
 
-        let config_path = node_config_dir.join(NODE_CONFIG_CHANGES_FILE_PATH);
         let base_app_config_override =
             BaseAppConfigOverride::new(component_config, monitoring_endpoint_config);
-
         base_app_config.override_base_app_config(base_app_config_override);
+
+        let config_path = node_config_dir.join(NODE_CONFIG_CHANGES_FILE_PATH);
         base_app_config.dump_config_file(&config_path);
 
         Self {
