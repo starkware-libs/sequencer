@@ -133,6 +133,7 @@ fn validate_all_pointer_targets_set(preset: Value) -> Result<(), ValidationError
 // TODO(Tsabary): consider adding a `new` fn, and remove field visibility.
 // TODO(Tsabary): need a new name for preset config.
 // TODO(Tsabary): consider if having the MonitoringEndpointConfig part of PresetConfig makes sense.
+#[derive(Clone)]
 pub struct PresetConfig {
     pub config_path: PathBuf,
     pub component_config: ComponentConfig,
@@ -159,20 +160,22 @@ impl DeploymentBaseAppConfig {
         self.config.clone()
     }
 
+    // TODO(Tsabary): the name "preset" is inadequate here, need to change.
+    pub fn update_config_with_preset(&mut self, preset_config: PresetConfig) {
+        self.config.components = preset_config.component_config;
+        self.config.monitoring_endpoint_config = preset_config.monitoring_endpoint_config;
+    }
+
     // TODO(Tsabary): dump functions should not return values, need to separate this function.
     // Suggestion: a modifying function that takes a preset config, and a dump function that takes a
     // path.
-    pub fn dump_config_file(&self, preset_config: PresetConfig) -> SequencerNodeConfig {
-        let mut updated_config = self.config.clone();
-        updated_config.components = preset_config.component_config;
-        updated_config.monitoring_endpoint_config = preset_config.monitoring_endpoint_config;
+    pub fn dump_config_file(&self, preset_config: PresetConfig) {
         dump_config_file(
-            updated_config.clone(),
+            self.config.clone(),
             &self.config_pointers_map.clone().into(),
             &self.non_pointer_params,
             &preset_config.config_path,
         );
-        updated_config
     }
 }
 

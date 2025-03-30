@@ -75,7 +75,7 @@ impl Deployment {
 
         // Iterate over the service component configs
         for (service, component_config) in component_configs.iter() {
-            let service_deployment_base_app_config = deployment_base_app_config.clone();
+            let mut service_deployment_base_app_config = deployment_base_app_config.clone();
 
             let preset_config = PresetConfig {
                 config_path: PathBuf::from(&self.application_config_subdir)
@@ -91,6 +91,7 @@ impl Deployment {
                 },
             };
 
+            service_deployment_base_app_config.update_config_with_preset(preset_config.clone());
             service_deployment_base_app_config.dump_config_file(preset_config);
         }
     }
