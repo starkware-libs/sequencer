@@ -236,80 +236,48 @@ impl Const {
     }
 }
 
-#[derive(Copy, Clone)]
-pub enum CairoStruct {
-    BigInt3,
-    BuiltinPointersPtr,
-    CompiledClass,
-    CompiledClassEntryPoint,
-    CompiledClassFact,
-    DeprecatedCompiledClass,
-    DeprecatedCompiledClassFact,
-    DeprecatedContractEntryPoint,
-    DictAccess,
-    ExecutionContext,
-    NodeEdge,
-    NonSelectableBuiltins,
-    OsStateUpdate,
-    ResourceBounds,
-    SelectableBuiltins,
-    StateEntry,
-    StorageReadPtr,
-    StorageReadRequestPtr,
-    StorageWritePtr,
-}
-
-impl From<CairoStruct> for &'static str {
-    fn from(struct_name: CairoStruct) -> Self {
-        match struct_name {
-            CairoStruct::BigInt3 => {
-                "starkware.starknet.core.os.data_availability.bls_field.BigInt3"
-            }
-            CairoStruct::BuiltinPointersPtr => {
-                "starkware.starknet.core.os.builtins.BuiltinPointers*"
-            }
-            CairoStruct::CompiledClass => {
-                "starkware.starknet.core.os.contract_class.compiled_class.CompiledClass"
-            }
-            CairoStruct::CompiledClassEntryPoint => {
-                "starkware.starknet.core.os.contract_class.compiled_class.CompiledClassEntryPoint"
-            }
-            CairoStruct::CompiledClassFact => {
-                "starkware.starknet.core.os.contract_class.compiled_class.CompiledClassFact"
-            }
-            CairoStruct::DeprecatedCompiledClass => {
-                "starkware.starknet.core.os.contract_class.deprecated_compiled_class.\
-                 DeprecatedCompiledClass"
-            }
-            CairoStruct::DeprecatedCompiledClassFact => {
-                "starkware.starknet.core.os.contract_class.deprecated_compiled_class.\
-                 DeprecatedCompiledClassFact"
-            }
-            CairoStruct::DeprecatedContractEntryPoint => {
-                "starkware.starknet.core.os.contract_class.deprecated_compiled_class.\
-                 DeprecatedContractEntryPoint"
-            }
-            CairoStruct::DictAccess => "starkware.cairo.common.dict_access.DictAccess",
-            CairoStruct::ExecutionContext => {
-                "starkware.starknet.core.os.execution.execute_entry_point.ExecutionContext"
-            }
-            CairoStruct::NodeEdge => "starkware.cairo.common.patricia_utils.NodeEdge",
-            CairoStruct::NonSelectableBuiltins => {
-                "starkware.starknet.core.os.builtins.NonSelectableBuiltins"
-            }
-            CairoStruct::OsStateUpdate => "starkware.starknet.core.os.state.state.OsStateUpdate",
-            CairoStruct::ResourceBounds => "starkware.starknet.common.new_syscalls.ResourceBounds",
-            CairoStruct::SelectableBuiltins => {
-                "starkware.starknet.core.os.builtins.SelectableBuiltins"
-            }
-            CairoStruct::StateEntry => "starkware.starknet.core.os.state.state.StateEntry",
-            CairoStruct::StorageReadPtr => "starkware.starknet.common.syscalls.StorageRead*",
-            CairoStruct::StorageReadRequestPtr => {
-                "starkware.starknet.core.os.storage.StorageReadRequest*"
-            }
-            CairoStruct::StorageWritePtr => {
-                "starkware.starknet.common.syscalls.StorageWriteRequest*"
-            }
-        }
+define_string_enum! {
+    #[derive(Copy, Clone)]
+    pub enum CairoStruct {
+        (BigInt3, "starkware.starknet.core.os.data_availability.bls_field.BigInt3"),
+        (BuiltinPointersPtr, "starkware.starknet.core.os.builtins.BuiltinPointers*"),
+        (CompiledClass, "starkware.starknet.core.os.contract_class.compiled_class.CompiledClass"),
+        (
+            CompiledClassEntryPoint,
+            "starkware.starknet.core.os.contract_class.compiled_class.CompiledClassEntryPoint"
+        ),
+        (
+            CompiledClassFact,
+            "starkware.starknet.core.os.contract_class.compiled_class.CompiledClassFact"
+        ),
+        (
+            DeprecatedCompiledClass,
+            "starkware.starknet.core.os.contract_class.deprecated_compiled_class.\
+            DeprecatedCompiledClass"
+        ),
+        (
+            DeprecatedCompiledClassFact,
+            "starkware.starknet.core.os.contract_class.deprecated_compiled_class.\
+            DeprecatedCompiledClassFact"
+        ),
+        (
+            DeprecatedContractEntryPoint,
+            "starkware.starknet.core.os.contract_class.deprecated_compiled_class.\
+            DeprecatedContractEntryPoint"
+        ),
+        (DictAccess, "starkware.cairo.common.dict_access.DictAccess"),
+        (
+            ExecutionContext,
+            "starkware.starknet.core.os.execution.execute_entry_point.ExecutionContext"
+        ),
+        (NodeEdge, "starkware.cairo.common.patricia_utils.NodeEdge"),
+        (NonSelectableBuiltins, "starkware.starknet.core.os.builtins.NonSelectableBuiltins"),
+        (OsStateUpdate, "starkware.starknet.core.os.state.state.OsStateUpdate"),
+        (ResourceBounds, "starkware.starknet.common.new_syscalls.ResourceBounds"),
+        (SelectableBuiltins, "starkware.starknet.core.os.builtins.SelectableBuiltins"),
+        (StateEntry, "starkware.starknet.core.os.state.state.StateEntry"),
+        (StorageReadPtr, "starkware.starknet.common.syscalls.StorageRead*"),
+        (StorageReadRequestPtr, "starkware.starknet.core.os.storage.StorageReadRequest*"),
+        (StorageWritePtr, "starkware.starknet.common.syscalls.StorageWriteRequest*"),
     }
 }
