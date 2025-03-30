@@ -130,10 +130,18 @@ fn validate_all_pointer_targets_set(preset: Value) -> Result<(), ValidationError
     }
 }
 
-// TODO(Tsabary): consider adding a `new` fn, and remove field visibility.
 pub struct BaseAppConfigOverride {
-    pub component_config: ComponentConfig,
-    pub monitoring_endpoint_config: MonitoringEndpointConfig,
+    component_config: ComponentConfig,
+    monitoring_endpoint_config: MonitoringEndpointConfig,
+}
+
+impl BaseAppConfigOverride {
+    pub fn new(
+        component_config: ComponentConfig,
+        monitoring_endpoint_config: MonitoringEndpointConfig,
+    ) -> Self {
+        Self { component_config, monitoring_endpoint_config }
+    }
 }
 
 #[derive(Debug, Clone, Default)]
