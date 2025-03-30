@@ -152,6 +152,7 @@ impl ConsensusManager {
             Arc::new(EthToStrkOracleClient::new(
                 self.config.eth_to_strk_oracle_config.base_url.clone(),
                 self.config.eth_to_strk_oracle_config.headers.clone(),
+                self.config.eth_to_strk_oracle_config.lag_margin_seconds,
             )),
             self.l1_gas_price_provider.clone(),
         );

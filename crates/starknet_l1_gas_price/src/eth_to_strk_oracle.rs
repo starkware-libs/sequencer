@@ -36,6 +36,8 @@ pub struct EthToStrkOracleConfig {
     pub base_url: Url,
     #[serde(deserialize_with = "deserialize_optional_map")]
     pub headers: Option<HashMap<String, String>>,
+    // This should align with the interval in `base_url` to ensure stable conversion rates.
+    pub lag_margin_seconds: u64,
 }
 
 impl SerializeConfig for EthToStrkOracleConfig {
@@ -45,7 +47,8 @@ impl SerializeConfig for EthToStrkOracleConfig {
                 "base_url",
                 &self.base_url,
                 "URL to query. This must end with the query parameter `timestamp=` as we append a \
-                 UNIX timestamp.",
+                 UNIX timestamp. Ensure that the interval in the URL matches `lag_margin_seconds` \
+                 to maintain a stable conversion rate.",
                 ParamPrivacyInput::Private,
             ),
             ser_param(
@@ -54,13 +57,24 @@ impl SerializeConfig for EthToStrkOracleConfig {
                 "HTTP headers for the eth to strk oracle, formatted as 'k1:v1 k2:v2 ...'.",
                 ParamPrivacyInput::Private,
             ),
+            ser_param(
+                "lag_margin_seconds",
+                &self.lag_margin_seconds,
+                "Margin in seconds to adjust the timestamp before querying. This should match the \
+                 interval in `base_url`.",
+                ParamPrivacyInput::Private,
+            ),
         ])
     }
 }
 
 impl Default for EthToStrkOracleConfig {
     fn default() -> Self {
-        Self { base_url: Url::parse("https://example.com/api?timestamp=").unwrap(), headers: None }
+        Self {
+            base_url: Url::parse("https://example.com/api?timestamp=").unwrap(),
+            headers: None,
+            lag_margin_seconds: 0,
+        }
     }
 }
 
@@ -71,13 +85,28 @@ pub struct EthToStrkOracleClient {
     base_url: Url,
     /// HTTP headers required for requests.
     headers: HeaderMap,
+    /// Margin in seconds to adjust the timestamp before querying.
+    /// Should match the interval in `base_url`.
+    lag_margin_seconds: u64,
     client: reqwest::Client,
 }
 
 impl EthToStrkOracleClient {
-    pub fn new(base_url: Url, headers: Option<HashMap<String, String>>) -> Self {
-        info!("Creating EthToStrkOracleClient with: base_url={base_url} headers={:?}", headers);
-        Self { base_url, headers: hashmap_to_headermap(headers), client: reqwest::Client::new() }
+    pub fn new(
+        base_url: Url,
+        headers: Option<HashMap<String, String>>,
+        lag_margin_seconds: u64,
+    ) -> Self {
+        info!(
+            "Creating EthToStrkOracleClient with: base_url={base_url} headers={headers:?} \
+             lag_margin_seconds={lag_margin_seconds}"
+        );
+        Self {
+            base_url,
+            headers: hashmap_to_headermap(headers),
+            lag_margin_seconds,
+            client: reqwest::Client::new(),
+        }
     }
 }
 
@@ -87,7 +116,8 @@ impl EthToStrkOracleClientTrait for EthToStrkOracleClient {
     /// - `"price"`: a hexadecimal string representing the price.
     /// - `"decimals"`: a `u64` value, must be equal to `ETH_TO_STRK_QUANTIZATION`.
     async fn eth_to_fri_rate(&self, timestamp: u64) -> Result<u128, EthToStrkOracleClientError> {
-        let url = format!("{}{}", self.base_url, timestamp);
+        let adjusted_timestamp = timestamp - self.lag_margin_seconds;
+        let url = format!("{}{}", self.base_url, adjusted_timestamp);
         let response = self.client.get(&url).headers(self.headers.clone()).send().await?;
         let body = response.text().await?;
 

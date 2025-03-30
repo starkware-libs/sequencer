@@ -880,7 +880,7 @@
     "value": 10000
   },
   "consensus_manager_config.eth_to_strk_oracle_config.base_url": {
-    "description": "URL to query. This must end with the query parameter `timestamp=` as we append a UNIX timestamp.",
+    "description": "URL to query. This must end with the query parameter `timestamp=` as we append a UNIX timestamp. Ensure that the interval in the URL matches `lag_margin_seconds` to maintain a stable conversion rate.",
     "privacy": "Private",
     "value": "https://example.com/api?timestamp="
   },
@@ -888,6 +888,11 @@
     "description": "HTTP headers for the eth to strk oracle, formatted as 'k1:v1 k2:v2 ...'.",
     "privacy": "Private",
     "value": ""
+  },
+  "consensus_manager_config.eth_to_strk_oracle_config.lag_margin_seconds": {
+    "description": "Margin in seconds to adjust the timestamp before querying. This should match the interval in `base_url`.",
+    "privacy": "Private",
+    "value": 0
   },
   "consensus_manager_config.immediate_active_height": {
     "description": "The height at which the node may actively participate in consensus.",
