@@ -27,7 +27,7 @@ use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::{L1HandlerTransaction, TransactionHasher, TransactionVersion};
 
 use crate::bootstrapper::Bootstrapper;
-use crate::l1_provider::create_l1_provider;
+use crate::l1_provider::L1ProviderBuilder;
 use crate::l1_scraper::{L1Scraper, L1ScraperConfig};
 use crate::test_utils::FakeL1ProviderClient;
 use crate::{event_identifiers_to_track, L1ProviderConfig};
@@ -170,13 +170,10 @@ async fn bootstrap_e2e() {
         startup_sync_sleep_retry_interval: Duration::from_millis(10),
         ..Default::default()
     };
-    let mut l1_provider = create_l1_provider(
-        config,
-        l1_provider_client.clone(),
-        Arc::new(sync_client),
-        STARTUP_HEIGHT,
-        None,
-    );
+    let mut l1_provider =
+        L1ProviderBuilder::new(config, l1_provider_client.clone(), Arc::new(sync_client))
+            .startup_height(STARTUP_HEIGHT)
+            .build();
 
     // Test.
 
@@ -288,13 +285,10 @@ async fn bootstrap_delayed_sync_state_with_trivial_catch_up() {
         startup_sync_sleep_retry_interval: Duration::from_millis(10),
         ..Default::default()
     };
-    let mut l1_provider = create_l1_provider(
-        config,
-        l1_provider_client.clone(),
-        Arc::new(sync_client),
-        STARTUP_HEIGHT,
-        None,
-    );
+    let mut l1_provider =
+        L1ProviderBuilder::new(config, l1_provider_client.clone(), Arc::new(sync_client))
+            .startup_height(STARTUP_HEIGHT)
+            .build();
 
     // Test.
 
@@ -364,13 +358,10 @@ async fn bootstrap_delayed_sync_state_with_sync_behind_batcher() {
         startup_sync_sleep_retry_interval: Duration::from_millis(10),
         ..Default::default()
     };
-    let mut l1_provider = create_l1_provider(
-        config,
-        l1_provider_client.clone(),
-        Arc::new(sync_client),
-        startup_height,
-        None,
-    );
+    let mut l1_provider =
+        L1ProviderBuilder::new(config, l1_provider_client.clone(), Arc::new(sync_client))
+            .startup_height(startup_height)
+            .build();
 
     // Test.
 
@@ -430,13 +421,10 @@ async fn test_stuck_sync() {
 
     let l1_provider_client = Arc::new(FakeL1ProviderClient::default());
     let config = Default::default();
-    let mut l1_provider = create_l1_provider(
-        config,
-        l1_provider_client.clone(),
-        Arc::new(sync_client),
-        STARTUP_HEIGHT,
-        None,
-    );
+    let mut l1_provider =
+        L1ProviderBuilder::new(config, l1_provider_client.clone(), Arc::new(sync_client))
+            .startup_height(STARTUP_HEIGHT)
+            .build();
 
     // Test.
 
