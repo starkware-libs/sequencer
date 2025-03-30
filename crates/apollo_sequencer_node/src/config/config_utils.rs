@@ -1,11 +1,10 @@
-use std::fs::File;
-use std::io::Write;
-use std::path::PathBuf;
+use std::path::Path;
 
 use apollo_config::dumping::{combine_config_map_and_pointers, Pointers, SerializeConfig};
+use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
 use serde_json::{to_value, Map, Value};
-use tracing::{error, info};
+use tracing::error;
 use validator::ValidationError;
 
 use crate::config::component_config::ComponentConfig;
@@ -63,23 +62,6 @@ pub fn config_to_preset(config_map: &Value) -> Value {
     } else {
         panic!("Config map is not a JSON object: {:?}", config_map);
     }
-}
-
-/// Dumps the input JSON data to a file at the specified path.
-pub fn dump_json_data(json_data: Value, file_path: &PathBuf) {
-    // Serialize the JSON data to a pretty-printed string
-    let json_string = serde_json::to_string_pretty(&json_data).unwrap();
-
-    // Write the JSON string to a file
-    let mut file = File::create(file_path).unwrap();
-    file.write_all(json_string.as_bytes()).unwrap();
-
-    // Add an extra newline after the JSON content.
-    file.write_all(b"\n").unwrap();
-
-    file.flush().unwrap();
-
-    info!("Writing required config changes to: {:?}", file_path);
 }
 
 // TODO(Nadin): Consider adding methods to ConfigPointers to encapsulate related functionality.
@@ -148,7 +130,8 @@ impl DeploymentBaseAppConfig {
             base_app_config_override.monitoring_endpoint_config;
     }
 
-    pub fn dump_config_file(&self, config_path: &PathBuf) {
+    // TODO(Tsabary): unify path types throughout.
+    pub fn dump_config_file(&self, config_path: &Path) {
         // Create the entire mapping of the config and the pointers, without the required params.
         let config_as_map = combine_config_map_and_pointers(
             self.config.dump(),
@@ -163,9 +146,10 @@ impl DeploymentBaseAppConfig {
 
         validate_all_pointer_targets_set(preset.clone()).expect("Pointer target not set");
 
-        // Dump the preset to a file, return its path.
-        dump_json_data(preset, config_path);
-        assert!(config_path.exists(), "File does not exist: {:?}", config_path);
+        serialize_to_file(
+            preset,
+            config_path.to_str().expect("Should be able to convert path to string"),
+        );
     }
 }
 
