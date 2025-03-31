@@ -148,8 +148,8 @@ async fn l2_sync_task(
     retry_interval: Duration,
 ) {
     // Currently infra doesn't support starting up the provider only after sync is ready.
+    info!("Try fetching sync height to initialize catch up point");
     while !catch_up_height.initialized() {
-        info!("Try fetching sync height to initialize catch up point");
         let Some(sync_height) = sync_client
             .get_latest_block_number()
             .await
