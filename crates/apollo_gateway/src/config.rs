@@ -18,24 +18,27 @@ pub struct GatewayConfig {
     pub stateless_tx_validator_config: StatelessTransactionValidatorConfig,
     pub stateful_tx_validator_config: StatefulTransactionValidatorConfig,
     pub chain_info: ChainInfo,
+    pub block_declare: bool,
 }
 
 impl SerializeConfig for GatewayConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        vec![
-            append_sub_config_name(
-                self.stateless_tx_validator_config.dump(),
-                "stateless_tx_validator_config",
-            ),
-            append_sub_config_name(
-                self.stateful_tx_validator_config.dump(),
-                "stateful_tx_validator_config",
-            ),
-            append_sub_config_name(self.chain_info.dump(), "chain_info"),
-        ]
-        .into_iter()
-        .flatten()
-        .collect()
+        let mut dump = BTreeMap::from_iter([ser_param(
+            "block_declare",
+            &self.block_declare,
+            "If true, the sequencer will block declare transactions.",
+            ParamPrivacyInput::Public,
+        )]);
+        dump.extend(append_sub_config_name(
+            self.stateless_tx_validator_config.dump(),
+            "stateless_tx_validator_config",
+        ));
+        dump.extend(append_sub_config_name(
+            self.stateful_tx_validator_config.dump(),
+            "stateful_tx_validator_config",
+        ));
+        dump.extend(append_sub_config_name(self.chain_info.dump(), "chain_info"));
+        dump
     }
 }
 

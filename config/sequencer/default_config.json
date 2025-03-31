@@ -999,6 +999,11 @@
     "privacy": "TemporaryValue",
     "value": "PointerTarget"
   },
+  "gateway_config.block_declare": {
+    "description": "If true, the sequencer will block declare transactions.",
+    "privacy": "Public",
+    "value": false
+  },
   "gateway_config.chain_info.chain_id": {
     "description": "The chain ID of the StarkNet chain.",
     "pointer_target": "chain_id",
@@ -1209,6 +1214,11 @@
     "privacy": "Public",
     "value": 0
   },
+  "mempool_config.capacity_in_bytes": {
+    "description": "Maximum size of the mempool, in bytes.",
+    "privacy": "Public",
+    "value": 1073741824
+  },
   "mempool_config.committed_nonce_retention_block_count": {
     "description": "Number of latest committed blocks for which committed account nonces are retained.",
     "privacy": "Public",
@@ -1233,11 +1243,6 @@
     "description": "Time-to-live for transactions in the mempool, in seconds.",
     "privacy": "Public",
     "value": 60
-  },
-  "mempool_config.capacity_in_bytes": {
-    "description": "Maximum size of the mempool, in bytes.",
-    "privacy": "Public",
-    "value": 1073741824
   },
   "mempool_p2p_config.max_transaction_batch_size": {
     "description": "Maximum number of transactions in each batch.",
