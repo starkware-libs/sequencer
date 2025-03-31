@@ -3,6 +3,7 @@ use std::panic::AssertUnwindSafe;
 
 use apollo_gateway_types::communication::{GatewayClientError, MockGatewayClient};
 use apollo_gateway_types::errors::{GatewayError, GatewaySpecError};
+use apollo_gateway_types::gateway_types::{GatewayOutput, InvokeSpecificGatewayOutput};
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use apollo_sequencer_infra::component_client::ClientError;
 use axum::body::{Bytes, HttpBody};
@@ -23,7 +24,9 @@ use crate::test_utils::http_client_server_setup;
 #[tokio::test]
 async fn test_tx_hash_json_conversion() {
     let tx_hash = TransactionHash::default();
-    let response = add_tx_result_as_json(Ok(tx_hash)).into_response();
+    let response =
+        add_tx_result_as_json(Ok(GatewayOutput::Invoke(InvokeSpecificGatewayOutput { tx_hash })))
+            .into_response();
 
     let status_code = response.status();
     let response_bytes = &to_bytes(response).await;
@@ -45,8 +48,12 @@ async fn record_region_test() {
     // Set the successful response.
     let tx_hash_1 = TransactionHash(Felt::ONE);
     let tx_hash_2 = TransactionHash(Felt::TWO);
-    mock_gateway_client.expect_add_tx().times(1).return_const(Ok(tx_hash_1));
-    mock_gateway_client.expect_add_tx().times(1).return_const(Ok(tx_hash_2));
+    mock_gateway_client.expect_add_tx().times(1).return_const(Ok(GatewayOutput::Invoke(
+        InvokeSpecificGatewayOutput { tx_hash: tx_hash_1 },
+    )));
+    mock_gateway_client.expect_add_tx().times(1).return_const(Ok(GatewayOutput::Invoke(
+        InvokeSpecificGatewayOutput { tx_hash: tx_hash_2 },
+    )));
 
     let ip = IpAddr::from(Ipv4Addr::LOCALHOST);
     let mut available_ports = AvailablePorts::new(TestIdentifier::HttpServerUnitTests.into(), 1);
@@ -102,7 +109,9 @@ async fn test_response() {
 
     // Set the successful response.
     let expected_tx_hash = TransactionHash(Felt::ONE);
-    mock_gateway_client.expect_add_tx().times(1).return_const(Ok(expected_tx_hash));
+    mock_gateway_client.expect_add_tx().times(1).return_const(Ok(GatewayOutput::Invoke(
+        InvokeSpecificGatewayOutput { tx_hash: expected_tx_hash },
+    )));
 
     // Set the failed response.
     let expected_error = GatewaySpecError::ClassAlreadyDeclared;

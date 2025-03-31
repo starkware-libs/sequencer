@@ -2,7 +2,7 @@ use std::clone::Clone;
 use std::net::SocketAddr;
 
 use apollo_gateway_types::communication::SharedGatewayClient;
-use apollo_gateway_types::gateway_types::GatewayInput;
+use apollo_gateway_types::gateway_types::{GatewayInput, GatewayOutput};
 use apollo_infra_utils::type_name::short_type_name;
 use apollo_sequencer_infra::component_definitions::ComponentStarter;
 use axum::extract::State;
@@ -79,18 +79,22 @@ async fn add_tx(
     add_tx_result_as_json(add_tx_result)
 }
 
-fn record_added_transactions(add_tx_result: &HttpServerResult<TransactionHash>, region: &str) {
-    if let Ok(tx_hash) = add_tx_result {
-        trace!("Recorded transaction with hash: {} from region: {}", tx_hash, region);
+fn record_added_transactions(add_tx_result: &HttpServerResult<GatewayOutput>, region: &str) {
+    if let Ok(gateway_output) = add_tx_result {
+        trace!(
+            "Recorded transaction with hash: {} from region: {}",
+            gateway_output.tx_hash(),
+            region
+        );
     }
     record_added_transaction_status(add_tx_result.is_ok());
 }
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn add_tx_result_as_json(
-    result: HttpServerResult<TransactionHash>,
+    result: HttpServerResult<GatewayOutput>,
 ) -> HttpServerResult<Json<TransactionHash>> {
-    let tx_hash = result?;
+    let tx_hash = result?.tx_hash();
     Ok(Json(tx_hash))
 }
 

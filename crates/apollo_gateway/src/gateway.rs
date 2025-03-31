@@ -7,6 +7,7 @@ use apollo_class_manager_types::transaction_converter::{
 };
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_gateway_types::errors::GatewaySpecError;
+use apollo_gateway_types::gateway_types::{GatewayOutput, InvokeSpecificGatewayOutput};
 use apollo_mempool_types::communication::{AddTransactionArgsWrapper, SharedMempoolClient};
 use apollo_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
@@ -17,7 +18,6 @@ use axum::async_trait;
 use blockifier::context::ChainInfo;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_api::transaction::TransactionHash;
 use tracing::{debug, error, instrument, warn, Span};
 
 use crate::config::GatewayConfig;
@@ -71,7 +71,7 @@ impl Gateway {
         &self,
         tx: RpcTransaction,
         p2p_message_metadata: Option<BroadcastedMessageMetadata>,
-    ) -> GatewayResult<TransactionHash> {
+    ) -> GatewayResult<GatewayOutput> {
         debug!("Processing tx: {:?}", tx);
         let mut metric_counters = GatewayMetricHandle::new(&tx, &p2p_message_metadata);
         metric_counters.count_transaction_received();
@@ -94,8 +94,8 @@ impl Gateway {
 
         metric_counters.transaction_sent_to_mempool();
 
-        // TODO(AlonH): Also return `ContractAddress` for deploy and `ClassHash` for Declare.
-        Ok(tx_hash)
+        // TODO(Arni): Also return `ContractAddress` for deploy and `ClassHash` for Declare.
+        Ok(GatewayOutput::Invoke(InvokeSpecificGatewayOutput { tx_hash }))
     }
 }
 

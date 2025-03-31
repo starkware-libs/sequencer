@@ -15,12 +15,11 @@ use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use serde::{Deserialize, Serialize};
-use starknet_api::transaction::TransactionHash;
 use strum_macros::AsRefStr;
 use thiserror::Error;
 
 use crate::errors::GatewayError;
-use crate::gateway_types::{GatewayInput, GatewayResult};
+use crate::gateway_types::{GatewayInput, GatewayOutput, GatewayResult};
 
 pub type LocalGatewayClient = LocalComponentClient<GatewayRequest, GatewayResponse>;
 pub type RemoteGatewayClient = RemoteComponentClient<GatewayRequest, GatewayResponse>;
@@ -35,7 +34,7 @@ use tracing::{error, instrument};
 #[cfg_attr(any(feature = "testing", test), automock)]
 #[async_trait]
 pub trait GatewayClient: Send + Sync {
-    async fn add_tx(&self, gateway_input: GatewayInput) -> GatewayClientResult<TransactionHash>;
+    async fn add_tx(&self, gateway_input: GatewayInput) -> GatewayClientResult<GatewayOutput>;
 }
 
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
@@ -47,7 +46,7 @@ impl_debug_for_infra_requests_and_responses!(GatewayRequest);
 
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum GatewayResponse {
-    AddTransaction(GatewayResult<TransactionHash>),
+    AddTransaction(GatewayResult<GatewayOutput>),
 }
 impl_debug_for_infra_requests_and_responses!(GatewayResponse);
 
@@ -65,7 +64,7 @@ where
     ComponentClientType: Send + Sync + ComponentClient<GatewayRequest, GatewayResponse>,
 {
     #[instrument(skip(self))]
-    async fn add_tx(&self, gateway_input: GatewayInput) -> GatewayClientResult<TransactionHash> {
+    async fn add_tx(&self, gateway_input: GatewayInput) -> GatewayClientResult<GatewayOutput> {
         let request = GatewayRequest::AddTransaction(gateway_input);
         handle_all_response_variants!(
             GatewayResponse,

@@ -1,6 +1,7 @@
 use std::net::{IpAddr, Ipv4Addr};
 
 use apollo_gateway_types::communication::{GatewayClientError, MockGatewayClient};
+use apollo_gateway_types::gateway_types::{GatewayOutput, InvokeSpecificGatewayOutput};
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use apollo_sequencer_infra::component_client::ClientError;
 use blockifier_test_utils::cairo_versions::CairoVersion;
@@ -24,10 +25,11 @@ async fn get_metrics_test() {
 
     let mut mock_gateway_client = MockGatewayClient::new();
     // Set the successful response.
-    mock_gateway_client
-        .expect_add_tx()
-        .times(1)
-        .return_once(move |_| Ok(TransactionHash::default()));
+    mock_gateway_client.expect_add_tx().times(1).return_once(move |_| {
+        Ok(GatewayOutput::Invoke(InvokeSpecificGatewayOutput {
+            tx_hash: TransactionHash::default(),
+        }))
+    });
     // Set the failure response.
     mock_gateway_client.expect_add_tx().times(1).return_once(move |_| {
         Err(GatewayClientError::ClientError(ClientError::UnexpectedResponse(
