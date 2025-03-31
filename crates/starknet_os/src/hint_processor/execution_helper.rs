@@ -108,6 +108,12 @@ impl<'a> TransactionExecutionInfoReference<'a> {
         Ok(())
     }
 
+    pub fn exit_call_info(&mut self) -> Result<(), ExecutionHelperError> {
+        self.get_mut_call_info_tracker()?.verify_exhausted_iterators()?;
+        self.call_info_tracker = None;
+        Ok(())
+    }
+
     pub fn get_call_info_tracker(&self) -> Result<&CallInfoTracker<'a>, ExecutionHelperError> {
         self.call_info_tracker.as_ref().ok_or(ExecutionHelperError::MissingCallInfo)
     }
@@ -187,6 +193,47 @@ impl<'a> CallInfoTracker<'a> {
             deprecated_tx_info_ptr,
         }
     }
+
+    pub fn verify_exhausted_iterators(&mut self) -> Result<(), ExecutionHelperError> {
+        let mut unexhausteds_iterators = Vec::new();
+
+        check_exhausted(
+            &mut self.deployed_contracts_iterator,
+            "deployed_contracts_iterator",
+            &mut unexhausteds_iterators,
+        );
+        check_exhausted(
+            &mut self.inner_calls_iterator,
+            "inner_calls_iterator",
+            &mut unexhausteds_iterators,
+        );
+        check_exhausted(
+            &mut self.execute_code_read_iterator,
+            "execute_code_read_iterator",
+            &mut unexhausteds_iterators,
+        );
+        check_exhausted(
+            &mut self.execute_code_class_hash_read_iterator,
+            "execute_code_class_hash_read_iterator",
+            &mut unexhausteds_iterators,
+        );
+
+        if !unexhausteds_iterators.is_empty() {
+            return Err(ExecutionHelperError::UnexhaustedCallInfoDataIterators {
+                iters: unexhausteds_iterators,
+            });
+        }
+        Ok(())
+    }
+}
+
+fn check_exhausted<I>(iterator: &mut I, name: &str, unexhausteds: &mut Vec<String>)
+where
+    I: Iterator,
+{
+    if iterator.next().is_some() {
+        unexhausteds.push(name.to_string());
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -199,4 +246,6 @@ pub enum ExecutionHelperError {
     MissingTxExecutionInfo,
     #[error("Called a block execution-helper before it was initialized.")]
     NoCurrentExecutionHelper,
+    #[error("Exit call info before exhausting data iterators {iters:?}.")]
+    UnexhaustedCallInfoDataIterators { iters: Vec<String> },
 }
