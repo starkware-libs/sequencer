@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
@@ -6,6 +7,8 @@ use cairo_vm::types::layout_name::LayoutName;
 use rand_distr::num_traits::Zero;
 use serde::Deserialize;
 use starknet_api::contract_class::ContractClass;
+use starknet_api::core::ClassHash;
+use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::executable_transaction::{AccountTransaction, Transaction};
 use starknet_os::io::os_input::{CachedStateInput, OsBlockInput, OsHints};
 use starknet_os::runner::run_os_stateless;
@@ -22,6 +25,8 @@ pub(crate) struct Input {
     pub layout: LayoutName,
     pub os_hints: OsHints,
     pub cached_state_input: CachedStateInput,
+    pub compiled_classes: HashMap<ClassHash, CasmContractClass>,
+    pub deprecated_compiled_classes: HashMap<ClassHash, DeprecatedContractClass>,
 }
 
 /// Validate the os_block_input.
@@ -53,7 +58,14 @@ pub fn validate_input(os_block_input: &OsBlockInput) {
 }
 
 pub fn parse_and_run_os(input_path: String, output_path: String) {
-    let Input { compiled_os_path, layout, os_hints, cached_state_input } = load_input(input_path);
+    let Input {
+        compiled_os_path,
+        layout,
+        os_hints,
+        cached_state_input,
+        compiled_classes,
+        deprecated_compiled_classes,
+    } = load_input(input_path);
     validate_input(&os_hints.os_block_input);
     let block_number = os_hints.os_block_input.block_info.block_number;
     info!("Parsed OS input successfully for block number: {}", block_number);
@@ -62,10 +74,17 @@ pub fn parse_and_run_os(input_path: String, output_path: String) {
     let compiled_os =
         fs::read(Path::new(&compiled_os_path)).expect("Failed to read compiled_os file");
 
-    let output = run_os_stateless(&compiled_os, layout, os_hints, cached_state_input)
-        .unwrap_or_else(|err| {
-            panic!("OS run failed on block number: {}. Error: {}", block_number, err)
-        });
+    let output = run_os_stateless(
+        &compiled_os,
+        layout,
+        os_hints,
+        cached_state_input,
+        compiled_classes,
+        deprecated_compiled_classes,
+    )
+    .unwrap_or_else(|err| {
+        panic!("OS run failed on block number: {}. Error: {}", block_number, err)
+    });
     write_to_file(&output_path, &output);
     info!("OS program ran successfully on block number: {}", block_number);
 }

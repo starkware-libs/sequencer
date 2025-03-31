@@ -1,9 +1,14 @@
+use std::collections::HashMap;
+
 use blockifier::state::state_api::StateReader;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::cairo_run::CairoRunConfig;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::program::Program;
 use cairo_vm::vm::errors::vm_exception::VmException;
 use cairo_vm::vm::runners::cairo_runner::CairoRunner;
+use starknet_api::core::ClassHash;
+use starknet_api::deprecated_contract_class::ContractClass;
 
 use crate::errors::StarknetOsError;
 use crate::hint_processor::execution_helper::OsExecutionHelper;
@@ -22,6 +27,8 @@ pub fn run_os<S: StateReader>(
     os_hints: OsHints,
     state_reader: S,
     cached_state_input: CachedStateInput,
+    compiled_classes: HashMap<ClassHash, CasmContractClass>,
+    deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
 ) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
     // Init CairoRunConfig.
     let cairo_run_config =
@@ -63,6 +70,8 @@ pub fn run_os<S: StateReader>(
         os_hints.os_hints_config,
         syscall_handler,
         deprecated_syscall_handler,
+        compiled_classes,
+        deprecated_compiled_classes,
     );
 
     // Run the Cairo VM.
@@ -106,6 +115,16 @@ pub fn run_os_stateless(
     layout: LayoutName,
     os_hints: OsHints,
     cached_state_input: CachedStateInput,
+    compiled_classes: HashMap<ClassHash, CasmContractClass>,
+    deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
 ) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
-    run_os(compiled_os, layout, os_hints, PanickingStateReader, cached_state_input)
+    run_os(
+        compiled_os,
+        layout,
+        os_hints,
+        PanickingStateReader,
+        cached_state_input,
+        compiled_classes,
+        deprecated_compiled_classes,
+    )
 }
