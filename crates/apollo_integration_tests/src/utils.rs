@@ -583,7 +583,8 @@ pub fn create_gateway_config(chain_info: ChainInfo) -> GatewayConfig {
         max_signature_length: 2,
         ..Default::default()
     };
-    let stateful_tx_validator_config = StatefulTransactionValidatorConfig::default();
+    let stateful_tx_validator_config =
+        StatefulTransactionValidatorConfig { max_allowed_nonce_gap: 1000, ..Default::default() };
 
     GatewayConfig { stateless_tx_validator_config, stateful_tx_validator_config, chain_info }
 }
