@@ -6,6 +6,7 @@ license.workspace = true
 repository.workspace = true
 
 [features]
+cairo_native = ["blockifier/cairo_native"]
 testing = []
 
 [lints]
