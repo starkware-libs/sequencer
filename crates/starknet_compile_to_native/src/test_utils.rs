@@ -1,3 +1,4 @@
+#![cfg(feature = "cairo_native")]
 use std::fs;
 use std::path::Path;
 

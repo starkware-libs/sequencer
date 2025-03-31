@@ -1,79 +1,58 @@
+#[cfg(feature = "cairo_native")]
 use std::io::Write;
+#[cfg(feature = "cairo_native")]
 use std::path::{Path, PathBuf};
+#[cfg(feature = "cairo_native")]
 use std::process::Command;
 
-use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+#[cfg(feature = "cairo_native")]
 use cairo_lang_starknet_classes::contract_class::ContractClass;
 #[cfg(feature = "cairo_native")]
 use cairo_native::executor::AotContractExecutor;
+#[cfg(feature = "cairo_native")]
 use tempfile::NamedTempFile;
 
 use crate::config::SierraCompilationConfig;
-use crate::constants::CAIRO_LANG_BINARY_NAME;
 #[cfg(feature = "cairo_native")]
 use crate::constants::CAIRO_NATIVE_BINARY_NAME;
+#[cfg(feature = "cairo_native")]
 use crate::errors::CompilationUtilError;
+#[cfg(feature = "cairo_native")]
 use crate::paths::binary_path;
+#[cfg(feature = "cairo_native")]
 use crate::resource_limits::ResourceLimits;
-use crate::SierraToCasmCompiler;
 #[cfg(feature = "cairo_native")]
 use crate::SierraToNativeCompiler;
 
 #[derive(Clone)]
 pub struct CommandLineCompiler {
     pub config: SierraCompilationConfig,
-    path_to_starknet_sierra_compile_binary: PathBuf,
     #[cfg(feature = "cairo_native")]
-    path_to_starknet_native_compile_binary: PathBuf,
+    path_to_binary: PathBuf,
 }
 
 impl CommandLineCompiler {
     pub fn new(config: SierraCompilationConfig) -> Self {
-        let path_to_starknet_sierra_compile_binary = binary_path(out_dir(), CAIRO_LANG_BINARY_NAME);
         #[cfg(feature = "cairo_native")]
-        let path_to_starknet_native_compile_binary = match &config.sierra_to_native_compiler_path {
+        let path_to_binary = match &config.compiler_binary_path {
             Some(path) => path.clone(),
             None => binary_path(out_dir(), CAIRO_NATIVE_BINARY_NAME),
         };
         Self {
             config,
-            path_to_starknet_sierra_compile_binary,
             #[cfg(feature = "cairo_native")]
-            path_to_starknet_native_compile_binary,
+            path_to_binary,
         }
-    }
-}
-
-impl SierraToCasmCompiler for CommandLineCompiler {
-    fn compile(
-        &self,
-        contract_class: ContractClass,
-    ) -> Result<CasmContractClass, CompilationUtilError> {
-        let compiler_binary_path = &self.path_to_starknet_sierra_compile_binary;
-        let additional_args = &[
-            "--add-pythonic-hints",
-            "--max-bytecode-size",
-            &self.config.max_casm_bytecode_size.to_string(),
-        ];
-        let resource_limits = ResourceLimits::new(None, None, None);
-
-        let stdout = compile_with_args(
-            compiler_binary_path,
-            contract_class,
-            additional_args,
-            resource_limits,
-        )?;
-        Ok(serde_json::from_slice::<CasmContractClass>(&stdout)?)
     }
 }
 
 #[cfg(feature = "cairo_native")]
 impl SierraToNativeCompiler for CommandLineCompiler {
-    fn compile_to_native(
+    fn compile(
         &self,
         contract_class: ContractClass,
     ) -> Result<AotContractExecutor, CompilationUtilError> {
-        let compiler_binary_path = &self.path_to_starknet_native_compile_binary;
+        let compiler_binary_path = &self.path_to_binary;
 
         let output_file = NamedTempFile::new()?;
         let output_file_path = output_file.path().to_str().ok_or(
@@ -83,7 +62,7 @@ impl SierraToNativeCompiler for CommandLineCompiler {
         let additional_args = [output_file_path, "--opt-level", &optimization_level];
         let resource_limits = ResourceLimits::new(
             Some(self.config.max_cpu_time),
-            Some(self.config.max_native_bytecode_size),
+            Some(self.config.max_file_size),
             Some(self.config.max_memory_usage),
         );
         let _stdout = compile_with_args(
@@ -101,6 +80,7 @@ impl SierraToNativeCompiler for CommandLineCompiler {
     }
 }
 
+#[cfg(feature = "cairo_native")]
 fn compile_with_args(
     compiler_binary_path: &Path,
     contract_class: ContractClass,
@@ -117,7 +97,6 @@ fn compile_with_args(
     ))?;
 
     // Set the parameters for the compile process.
-    // TODO(Arni, Avi): Setup the ulimit for the process.
     let mut command = Command::new(compiler_binary_path.as_os_str());
     command.arg(temp_file_path).args(additional_args);
 
@@ -139,6 +118,7 @@ fn compile_with_args(
     Ok(compile_output.stdout)
 }
 
+#[cfg(feature = "cairo_native")]
 // Returns the OUT_DIR. This function is only operable at run time.
 fn out_dir() -> PathBuf {
     env!("RUNTIME_ACCESSIBLE_OUT_DIR").into()
