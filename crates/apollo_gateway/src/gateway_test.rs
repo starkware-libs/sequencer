@@ -62,6 +62,7 @@ fn config() -> GatewayConfig {
         stateless_tx_validator_config: StatelessTransactionValidatorConfig::default(),
         stateful_tx_validator_config: StatefulTransactionValidatorConfig::default(),
         chain_info: ChainInfo::create_for_testing(),
+        block_declare: false,
     }
 }
 
@@ -224,6 +225,36 @@ async fn test_compiled_class_hash_mismatch(mock_dependencies: MockDependencies) 
 
     let err = gateway.add_tx(tx, None).await.unwrap_err();
     assert_matches!(err, GatewaySpecError::CompiledClassHashMismatch);
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_block_declare_config(
+    mut config: GatewayConfig,
+    state_reader_factory: TestStateReaderFactory,
+) {
+    let declare_tx =
+        assert_matches!(declare_tx(), RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => tx);
+    let tx = RpcTransaction::Declare(RpcDeclareTransaction::V3(declare_tx));
+
+    config.block_declare = true;
+    let gateway = Gateway::new(
+        config,
+        Arc::new(state_reader_factory),
+        Arc::new(MockMempoolClient::new()),
+        TransactionConverter::new(
+            Arc::new(EmptyClassManagerClient),
+            ChainInfo::create_for_testing().chain_id,
+        ),
+    );
+
+    let result = gateway.add_tx(tx, None).await;
+    assert_eq!(
+        result.unwrap_err(),
+        GatewaySpecError::UnexpectedError {
+            data: "Transaction type is temporarily blocked.".to_string()
+        }
+    );
 }
 
 #[test]

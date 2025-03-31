@@ -73,6 +73,15 @@ impl Gateway {
         p2p_message_metadata: Option<BroadcastedMessageMetadata>,
     ) -> GatewayResult<TransactionHash> {
         debug!("Processing tx: {:?}", tx);
+
+        if self.config.block_declare {
+            if let RpcTransaction::Declare(_) = &tx {
+                return Err(GatewaySpecError::UnexpectedError {
+                    data: "Transaction type is temporarily blocked.".to_owned(),
+                });
+            }
+        }
+
         let mut metric_counters = GatewayMetricHandle::new(&tx, &p2p_message_metadata);
         metric_counters.count_transaction_received();
 
