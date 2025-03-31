@@ -34,13 +34,22 @@ use apollo_network::NetworkConfig;
 use apollo_sequencer_node::config::component_config::ComponentConfig;
 use apollo_sequencer_node::config::definitions::ConfigPointersMap;
 use apollo_sequencer_node::config::node_config::{SequencerNodeConfig, CONFIG_POINTERS};
+#[cfg(feature = "cairo_native")]
+use apollo_sierra_multicompile::config::SierraCompilationConfig;
 use apollo_state_sync::config::StateSyncConfig;
 use apollo_storage::StorageConfig;
 use axum::extract::Query;
 use axum::http::StatusCode;
 use axum::routing::{get, post};
 use axum::{Json, Router};
+#[cfg(not(feature = "cairo_native"))]
 use blockifier::blockifier::config::TransactionExecutorConfig;
+#[cfg(feature = "cairo_native")]
+use blockifier::blockifier::config::{
+    CairoNativeRunConfig,
+    ContractClassManagerConfig,
+    TransactionExecutorConfig,
+};
 use blockifier::bouncer::{BouncerConfig, BouncerWeights};
 use blockifier::context::ChainInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
@@ -618,6 +627,8 @@ pub fn create_batcher_config(
             execute_config: TransactionExecutorConfig::create_for_testing(concurrency_enabled),
             ..Default::default()
         },
+        #[cfg(feature = "cairo_native")]
+        contract_class_manager_config: class_manager_for_cairo_native(),
         ..Default::default()
     }
 }
@@ -659,6 +670,22 @@ pub fn create_state_sync_configs(
             ..Default::default()
         })
         .collect()
+}
+
+#[cfg(feature = "cairo_native")]
+fn class_manager_for_cairo_native() -> ContractClassManagerConfig {
+    ContractClassManagerConfig {
+        cairo_native_run_config: CairoNativeRunConfig {
+            run_cairo_native: true,
+            wait_on_native_compilation: true,
+            ..Default::default()
+        },
+        native_compiler_config: SierraCompilationConfig {
+            panic_on_compilation_failure: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    }
 }
 
 /// Stores tx hashes streamed so far.
