@@ -24,28 +24,6 @@ fn deprecated_gateway_declare_tx() -> DeprecatedGatewayDeclareTransaction {
         .expect("Failed to deserialize json to RestDeclareTransactionV3")
 }
 
-enum CompressionErrorType {
-    Io,
-    Serde,
-    Decode,
-}
-
-impl CompressionErrorType {
-    fn assert_matches_error_type(&self, error: CompressionError) {
-        match self {
-            CompressionErrorType::Io => {
-                assert_matches!(error, CompressionError::Io(..))
-            }
-            CompressionErrorType::Serde => {
-                assert_matches!(error, CompressionError::Serde(..))
-            }
-            CompressionErrorType::Decode => {
-                assert_matches!(error, CompressionError::Decode(base64::DecodeError::InvalidLength))
-            }
-        }
-    }
-}
-
 // Tests.
 
 #[test]
@@ -83,12 +61,21 @@ fn create_malformed_sierra_program_for_serde_error() -> String {
 }
 
 #[rstest]
-#[case::io_error(base64::encode("arbitrary"), CompressionErrorType::Io)]
-#[case::serde_error(create_malformed_sierra_program_for_serde_error(), CompressionErrorType::Serde)]
-#[case::decode_error("arbitrary".to_string(), CompressionErrorType::Decode)]
+#[case::io_error(
+    base64::encode("arbitrary"),
+    |error: CompressionError| assert_matches!(error, CompressionError::Io(..))
+)]
+#[case::serde_error(
+    create_malformed_sierra_program_for_serde_error(),
+    |error: CompressionError| assert_matches!(error, CompressionError::Serde(..))
+)]
+#[case::decode_error(
+    "arbitrary".to_string(),
+    |error| assert_matches!(error, CompressionError::Decode(base64::DecodeError::InvalidLength))
+)]
 fn deprecated_gateway_declare_tx_negative_flow_conversion(
     #[case] sierra_program: String,
-    #[case] expected_error_type: CompressionErrorType,
+    #[case] assert_expected_error_fn: impl Fn(CompressionError),
 ) {
     let deprecate_tx = deprecated_gateway_declare_tx();
     let mut deprecate_declare_tx = assert_matches!(
@@ -98,7 +85,6 @@ fn deprecated_gateway_declare_tx_negative_flow_conversion(
     );
 
     deprecate_declare_tx.contract_class.sierra_program = sierra_program;
-    expected_error_type.assert_matches_error_type(
-        RpcDeclareTransactionV3::try_from(deprecate_declare_tx).unwrap_err(),
-    );
+    let error = RpcDeclareTransactionV3::try_from(deprecate_declare_tx).unwrap_err();
+    assert_expected_error_fn(error);
 }
