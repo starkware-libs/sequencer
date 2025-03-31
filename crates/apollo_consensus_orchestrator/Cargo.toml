@@ -44,7 +44,6 @@ apollo_test_utils.workspace = true
 cairo-lang-casm.workspace = true
 cairo-lang-utils.workspace = true
 cairo-vm.workspace = true
-lazy_static.workspace = true
 mockall.workspace = true
 mockito.workspace = true
 num-bigint.workspace = true

@@ -1,5 +1,5 @@
 use std::future::ready;
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, LazyLock, OnceLock};
 use std::time::Duration;
 use std::vec;
 
@@ -45,7 +45,6 @@ use futures::channel::{mpsc, oneshot};
 use futures::executor::block_on;
 use futures::future::pending;
 use futures::{FutureExt, SinkExt, StreamExt};
-use lazy_static::lazy_static;
 use rstest::rstest;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
@@ -70,17 +69,22 @@ const CHAIN_ID: ChainId = ChainId::Mainnet;
 // values here.
 const ETH_TO_FRI_RATE: u128 = u128::pow(10, 18);
 
-lazy_static! {
-    static ref TX_BATCH: Vec<ConsensusTransaction> =
-        (0..3).map(generate_invoke_tx).collect();
+static TX_BATCH: LazyLock<Vec<ConsensusTransaction>> =
+    LazyLock::new(|| (0..3).map(generate_invoke_tx).collect());
+
+static INTERNAL_TX_BATCH: LazyLock<Vec<InternalConsensusTransaction>> = LazyLock::new(|| {
     // TODO(shahak): Use MockTransactionConverter instead.
-    static ref TRANSACTION_CONVERTER: TransactionConverter =
-        TransactionConverter::new(Arc::new(EmptyClassManagerClient), CHAIN_ID);
-    static ref INTERNAL_TX_BATCH: Vec<InternalConsensusTransaction> =
-        TX_BATCH.iter().cloned().map(|tx| {
-            block_on(TRANSACTION_CONVERTER.convert_consensus_tx_to_internal_consensus_tx(tx)).unwrap()
-        }).collect();
-}
+    static TRANSACTION_CONVERTER: LazyLock<TransactionConverter> =
+        LazyLock::new(|| TransactionConverter::new(Arc::new(EmptyClassManagerClient), CHAIN_ID));
+    TX_BATCH
+        .iter()
+        .cloned()
+        .map(|tx| {
+            block_on(TRANSACTION_CONVERTER.convert_consensus_tx_to_internal_consensus_tx(tx))
+                .unwrap()
+        })
+        .collect()
+});
 
 fn generate_invoke_tx(nonce: u8) -> ConsensusTransaction {
     ConsensusTransaction::RpcTransaction(rpc_invoke_tx(InvokeTxArgs {
