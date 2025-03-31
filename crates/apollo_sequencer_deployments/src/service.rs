@@ -71,10 +71,9 @@ impl Service {
         resources: Resources,
         external_secret: Option<ExternalSecret>,
     ) -> Self {
-        let config_path = name.get_config_file_path();
         Self {
             name,
-            config_path,
+            config_path: name.get_config_file_path(),
             ingress,
             autoscale,
             replicas,
