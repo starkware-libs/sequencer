@@ -22,6 +22,7 @@ ark-ff.workspace = true
 ark-poly.workspace = true
 blockifier.workspace = true
 c-kzg.workspace = true
+cairo-lang-runner.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-vm = { workspace = true, features = ["extensive_hints"] }
 indexmap.workspace = true
