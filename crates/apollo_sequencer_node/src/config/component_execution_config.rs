@@ -30,9 +30,6 @@ pub enum ActiveComponentExecutionMode {
     Enabled,
 }
 
-// TODO(Lev/Tsabary): When apollo_config will support it, change to include communication config in
-// the enum.
-
 /// Reactive component configuration.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 #[validate(schema(function = "validate_reactive_component_execution_config"))]

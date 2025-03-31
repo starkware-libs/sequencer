@@ -4,7 +4,6 @@ use std::sync::Arc;
 
 use alloy::node_bindings::AnvilInstance;
 use apollo_consensus_manager::config::ConsensusManagerConfig;
-use apollo_gateway_types::errors::GatewaySpecError;
 use apollo_http_server::config::HttpServerConfig;
 use apollo_http_server::test_utils::HttpTestClient;
 use apollo_infra_utils::test_utils::AvailablePorts;
@@ -157,10 +156,6 @@ impl FlowTestSetup {
         .await;
 
         Self { sequencer_0, sequencer_1, l1_handle: anvil, starknet_l1_contract, accumulated_txs }
-    }
-
-    pub async fn assert_add_tx_error(&self, tx: RpcTransaction) -> GatewaySpecError {
-        self.sequencer_0.add_tx_http_client.assert_add_tx_error(tx).await
     }
 
     pub fn chain_id(&self) -> &ChainId {

@@ -21,7 +21,6 @@ pub(crate) fn init_metrics() {
     ADDED_TRANSACTIONS_FAILURE.register();
 }
 
-// TODO(Tsabary): call the inner fn directly.
 // TODO(Yael): add label for rpc/rest transaction
 pub(crate) fn record_added_transaction() {
     ADDED_TRANSACTIONS_TOTAL.increment(1);

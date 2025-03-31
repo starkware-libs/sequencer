@@ -60,8 +60,6 @@ macro_rules! impl_debug_for_infra_requests_and_responses {
     };
 }
 
-// TODO(Lev/Tsabary): Enforce metrics registration at the start of the component to avoid missing
-// metrics in the monitoring server.
 #[async_trait]
 pub trait ComponentStarter {
     async fn start(&mut self) {
