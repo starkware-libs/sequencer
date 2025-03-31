@@ -44,7 +44,7 @@ pub fn run_os<S: StateReader>(
 
     // Create execution helper.
     let execution_helper = OsExecutionHelper::new(
-        os_hints.os_input,
+        os_hints.os_block_input,
         state_reader,
         cached_state_input,
         os_hints.os_hints_config.debug_mode,

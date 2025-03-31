@@ -206,8 +206,9 @@ pub(crate) fn enter_syscall_scopes<S: StateReader>(
     // TODO(Nimrod): See if we can avoid cloning here.
     let current_execution_helper = hint_processor.get_current_execution_helper()?;
     let component_hashes =
-        current_execution_helper.os_input.declared_class_hash_to_component_hashes.clone();
-    let transactions_iter = current_execution_helper.os_input.transactions.clone().into_iter();
+        current_execution_helper.os_block_input.declared_class_hash_to_component_hashes.clone();
+    let transactions_iter =
+        current_execution_helper.os_block_input.transactions.clone().into_iter();
     let dict_manager = exec_scopes.get_dict_manager()?;
 
     let new_scope = HashMap::from([
@@ -563,7 +564,7 @@ pub(crate) fn cache_contract_storage_syscall_request_address<S: StateReader>(
 pub(crate) fn get_old_block_number_and_hash<S: StateReader>(
     HintArgs { hint_processor, vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let os_input = &hint_processor.get_current_execution_helper()?.os_input;
+    let os_input = &hint_processor.get_current_execution_helper()?.os_block_input;
     let (old_block_number, old_block_hash) =
         os_input.old_block_number_and_hash.ok_or(OsHintError::BlockNumberTooSmall {
             stored_block_hash_buffer: *get_constant_from_var_name(
