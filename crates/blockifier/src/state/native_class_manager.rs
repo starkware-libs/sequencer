@@ -54,28 +54,6 @@ pub struct NativeClassManager {
     sender: Option<SyncSender<CompilationRequest>>,
     /// The sierra-to-native compiler.
     compiler: Option<Arc<dyn SierraToNativeCompiler>>,
-    /// cache_miss_rate
-    cache_metrics: Arc<CacheMetrics>,
-}
-
-#[derive(Default)]
-pub struct CacheMetrics {
-    pub cache_misses: AtomicU64,
-    pub cache_hits: AtomicU64,
-}
-
-impl CacheMetrics {
-    pub fn new() -> Self {
-        Self { cache_misses: AtomicU64::new(0), cache_hits: AtomicU64::new(0) }
-    }
-
-    pub fn record_miss(&self) {
-        self.cache_misses.fetch_add(1, Ordering::Relaxed);
-    }
-
-    pub fn record_hit(&self) {
-        self.cache_hits.fetch_add(1, Ordering::Relaxed);
-    }
 }
 
 impl NativeClassManager {
@@ -97,7 +75,6 @@ impl NativeClassManager {
                 cache,
                 sender: None,
                 compiler: None,
-                cache_metrics: Arc::new(CacheMetrics::new()),
             };
         }
 
@@ -110,7 +87,6 @@ impl NativeClassManager {
                 cache,
                 sender: None,
                 compiler: Some(compiler),
-                cache_metrics: Arc::new(CacheMetrics::new()),
             };
         }
 
@@ -122,27 +98,12 @@ impl NativeClassManager {
         });
 
         // TODO(AVIV): Add private constructor with default values.
-        NativeClassManager {
-            cairo_native_run_config,
-            cache,
-            sender: Some(sender),
-            compiler: None,
-            cache_metrics: Arc::new(CacheMetrics::new()),
-        }
+        NativeClassManager { cairo_native_run_config, cache, sender: Some(sender), compiler: None }
     }
 
     /// Returns the runnable compiled class for the given class hash, if it exists in cache.
     pub fn get_runnable(&self, class_hash: &ClassHash) -> Option<RunnableCompiledClass> {
-        let cached_class = match self.cache.get(class_hash) {
-            Some(class) => {
-                self.cache_metrics.record_hit();
-                class
-            }
-            None => {
-                self.cache_metrics.record_miss();
-                return None;
-            }
-        };
+        let cached_class = self.cache.get(class_hash)?;
 
         let cached_class = match cached_class {
             CachedClass::V1(_, _) => {
@@ -260,14 +221,19 @@ impl NativeClassManager {
         self.cache.lock().cache_size()
     }
 
-    /// Retrieves the current cache miss counter and resets it to zero.
-    pub fn take_cache_miss_counter(&self) -> u64 {
-        self.cache_metrics.cache_misses.swap(0, Ordering::Relaxed)
+    /// Retrieves the current cache miss counter.
+    pub fn get_cache_miss_counter(&self) -> u64 {
+        self.cache.lock().cache_misses().unwrap_or(0)
     }
 
-    /// Retrieves the current cache hit counter and resets it to zero.
-    pub fn take_cache_hit_counter(&self) -> u64 {
-        self.cache_metrics.cache_hits.swap(0, Ordering::Relaxed)
+    /// Retrieves the current cache hit counter.
+    pub fn get_cache_hit_counter(&self) -> u64 {
+        self.cache.lock().cache_hits().unwrap_or(0)
+    }
+
+    /// Resets the cache metrics.
+    pub fn reset_cache_metrics(&self) {
+        self.cache.lock().cache_reset_metrics();
     }
 }
 
