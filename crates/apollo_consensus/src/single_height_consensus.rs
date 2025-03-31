@@ -14,7 +14,7 @@ use std::collections::hash_map::Entry;
 use std::collections::{HashMap, VecDeque};
 use std::time::Duration;
 
-use apollo_protobuf::consensus::{ProposalFin, ProposalInit, Vote, VoteType};
+use apollo_protobuf::consensus::{ProposalInit, Vote, VoteType};
 #[cfg(test)]
 use enum_as_inner::EnumAsInner;
 use futures::channel::{mpsc, oneshot};
@@ -62,7 +62,7 @@ pub enum ShcEvent {
     Precommit(StateMachineEvent),
     BuildProposal(StateMachineEvent),
     // TODO(Matan): Replace ProposalCommitment with the unvalidated signature from the proposer.
-    ValidateProposal(StateMachineEvent, Option<ProposalFin>),
+    ValidateProposal(StateMachineEvent),
 }
 
 /// A task which should be run without blocking calls to SHC.
@@ -89,7 +89,7 @@ pub enum ShcTask {
     ///    result without blocking consensus.
     /// 3. Once validation is complete, the manager returns the built proposal to the SHC as an
     ///    event, which can be sent to the SM.
-    ValidateProposal(ProposalInit, oneshot::Receiver<(ProposalCommitment, ProposalFin)>),
+    ValidateProposal(ProposalInit, oneshot::Receiver<Option<ProposalCommitment>>),
 }
 
 impl PartialEq for ShcTask {
@@ -143,17 +143,12 @@ impl ShcTask {
                 //   peer, or the process was interrupted), set it to (None, None).
                 // TODO(Asmaa): Consider if we want to differentiate between an interrupt and other
                 // failures.
-                let (built_content_id, received_proposal_id) = match block_receiver.await {
-                    Ok((built_content_id, received_proposal_id)) => {
-                        (Some(built_content_id), Some(received_proposal_id))
-                    }
-                    // Proposal never received from peer.
-                    Err(_) => (None, None),
-                };
-                ShcEvent::ValidateProposal(
-                    StateMachineEvent::Proposal(built_content_id, init.round, init.valid_round),
-                    received_proposal_id,
-                )
+                let proposal_id = block_receiver.await.unwrap_or_default();
+                ShcEvent::ValidateProposal(StateMachineEvent::Proposal(
+                    proposal_id,
+                    init.round,
+                    init.valid_round,
+                ))
             }
         }
     }
@@ -306,10 +301,11 @@ impl SingleHeightConsensus {
                     StateMachineEvent::Precommit(proposal_id, round),
                 )]))
             }
-            ShcEvent::ValidateProposal(
-                StateMachineEvent::Proposal(built_id, round, valid_round),
-                received_fin,
-            ) => {
+            ShcEvent::ValidateProposal(StateMachineEvent::Proposal(
+                built_id,
+                round,
+                valid_round,
+            )) => {
                 let leader_fn =
                     |round: Round| -> ValidatorId { context.proposer(self.height, round) };
                 debug!(
@@ -317,12 +313,11 @@ impl SingleHeightConsensus {
                     %round,
                     ?valid_round,
                     ?built_id,
-                    ?received_fin,
                     node_round = self.state_machine.round(),
                     "Validated proposal.",
                 );
                 // TODO(matan): Switch to signature validation.
-                if built_id != received_fin.as_ref().map(|fin| fin.proposal_commitment) {
+                if built_id.is_none() {
                     CONSENSUS_PROPOSALS_INVALID.increment(1);
                     warn!("proposal_id built from content received does not match fin.");
                     return Ok(ShcReturn::Tasks(Vec::new()));
