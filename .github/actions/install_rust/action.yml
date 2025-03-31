@@ -19,6 +19,7 @@ runs:
         channel: ${{ inputs.extra_rust_toolchains }}
       env:
         RUSTFLAGS: "-C link-arg=-fuse-ld=lld"
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     # This installation is _not_ cached, but takes a couple seconds: it's downloading prepackaged
     # binaries.
