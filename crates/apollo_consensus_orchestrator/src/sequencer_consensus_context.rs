@@ -23,7 +23,7 @@ use apollo_batcher_types::batcher_types::{
     StartHeightInput,
     ValidateBlockInput,
 };
-use apollo_batcher_types::communication::{BatcherClient, BatcherClientError, BatcherClientResult};
+use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
 use apollo_class_manager_types::transaction_converter::{
     TransactionConverter,
     TransactionConverterTrait,
@@ -49,9 +49,11 @@ use apollo_protobuf::consensus::{
     Vote,
     DEFAULT_VALIDATOR_ID,
 };
-use apollo_state_sync_types::communication::SharedStateSyncClient;
+use apollo_state_sync_types::communication::{SharedStateSyncClient, StateSyncClientError};
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use async_trait::async_trait;
+// TODO(Gilad): Define in consensus, either pass to blockifier as config or keep the dup.
+use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use futures::channel::{mpsc, oneshot};
 use futures::{FutureExt, SinkExt, StreamExt};
 use starknet_api::block::{
@@ -133,7 +135,10 @@ enum HandledProposalPart {
 enum BuildProposalError {
     #[error("Batcher error: {0}")]
     Batcher(#[from] BatcherClientError),
-
+    #[error("State sync client error: {0}")]
+    StateSyncClientError(#[from] StateSyncClientError),
+    #[error("State sync is not ready: {0}")]
+    StateSyncNotReady(String),
     #[error("EthToStrkOracle error: {0}")]
     EthToStrkOracle(#[from] EthToStrkOracleClientError),
 }
@@ -242,6 +247,7 @@ struct ProposalBuildArguments {
     fin_sender: oneshot::Sender<ProposalCommitment>,
     batcher: Arc<dyn BatcherClient>,
     eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
+    state_sync_client: SharedStateSyncClient,
     valid_proposals: Arc<Mutex<HeightToIdToContent>>,
     proposal_id: ProposalId,
     cende_write_success: AbortOnDropHandle<bool>,
@@ -256,6 +262,7 @@ struct ProposalValidateArguments {
     proposal_id: ProposalId,
     batcher: Arc<dyn BatcherClient>,
     eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
+    state_sync_client: SharedStateSyncClient,
     timeout: Duration,
     batcher_timeout_margin: Duration,
     valid_proposals: Arc<Mutex<HeightToIdToContent>>,
@@ -287,6 +294,7 @@ impl ConsensusContext for SequencerConsensusContext {
         let (fin_sender, fin_receiver) = oneshot::channel();
         let batcher = Arc::clone(&self.batcher);
         let eth_to_strk_oracle_client = self.eth_to_strk_oracle_client.clone();
+        let state_sync_client = self.state_sync_client.clone();
         let valid_proposals = Arc::clone(&self.valid_proposals);
         let proposal_id = ProposalId(self.proposal_id);
         self.proposal_id += 1;
@@ -316,6 +324,7 @@ impl ConsensusContext for SequencerConsensusContext {
                     fin_sender,
                     batcher,
                     eth_to_strk_oracle_client,
+                    state_sync_client,
                     valid_proposals,
                     proposal_id,
                     cende_write_success,
@@ -679,6 +688,7 @@ impl SequencerConsensusContext {
         let cancel_token_clone = cancel_token.clone();
         let batcher = Arc::clone(&self.batcher);
         let eth_to_strk_oracle_client = self.eth_to_strk_oracle_client.clone();
+        let state_sync_client = self.state_sync_client.clone();
         let transaction_converter = self.transaction_converter.clone();
         let valid_proposals = Arc::clone(&self.valid_proposals);
         let proposal_id = ProposalId(self.proposal_id);
@@ -692,6 +702,7 @@ impl SequencerConsensusContext {
                     proposal_id,
                     batcher,
                     eth_to_strk_oracle_client,
+                    state_sync_client,
                     timeout,
                     batcher_timeout_margin,
                     valid_proposals,
@@ -780,14 +791,33 @@ async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<Co
         l1_data_gas_price_wei: args.gas_prices.eth_gas_prices.l1_data_gas_price.get().0,
         eth_to_fri_rate,
     };
+
+    let retrospective_block_number = block_info.height.0.checked_sub(STORED_BLOCK_HASH_BUFFER);
+    let retrospective_block_hash = match retrospective_block_number {
+        Some(block_number) => {
+            let block_number = BlockNumber(block_number);
+            let block = args.state_sync_client
+                // Getting the next block hash because the Sync block only contains parent hash.
+                .get_block(block_number.unchecked_next())
+                .await?
+                .ok_or(BuildProposalError::StateSyncNotReady(format!(
+                "Failed to get retrospective block number {block_number}"
+            )))?;
+            Some(BlockHashAndNumber {
+                number: block_number,
+                hash: block.block_header_without_hash.parent_hash,
+            })
+        }
+        None => {
+            info!("Retrospective block number is less than 10, setting None as expected.");
+            None
+        }
+    };
+
     let build_proposal_input = ProposeBlockInput {
         proposal_id: args.proposal_id,
         deadline: now + batcher_timeout,
-        // TODO(Matan): This is not part of Milestone 1.
-        retrospective_block_hash: Some(BlockHashAndNumber {
-            number: BlockNumber::default(),
-            hash: BlockHash::default(),
-        }),
+        retrospective_block_hash,
         block_info: convert_to_sn_api_block_info(&block_info),
     };
     // TODO(Matan): Should we be returning an error?
@@ -919,6 +949,7 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
     }
     if let Err(e) = initiate_validation(
         args.batcher.as_ref(),
+        args.state_sync_client,
         block_info.clone(),
         args.proposal_id,
         args.timeout + args.batcher_timeout_margin,
@@ -1062,25 +1093,47 @@ async fn await_second_proposal_part(
 
 async fn initiate_validation(
     batcher: &dyn BatcherClient,
+    state_sync_client: SharedStateSyncClient,
     block_info: ConsensusBlockInfo,
     proposal_id: ProposalId,
     timeout_plus_margin: Duration,
-) -> BatcherClientResult<()> {
+) -> BuildProposalResult<()> {
     let chrono_timeout = chrono::Duration::from_std(timeout_plus_margin)
         .expect("Can't convert timeout to chrono::Duration");
     let now = chrono::Utc::now();
+
+    let retrospective_block_number = block_info.height.0.checked_sub(STORED_BLOCK_HASH_BUFFER);
+    let retrospective_block_hash = match retrospective_block_number {
+        Some(block_number) => {
+            let block_number = BlockNumber(block_number);
+            let block = state_sync_client
+                // Getting the next block hash because the Sync block only contains parent hash.
+                .get_block(block_number.unchecked_next())
+                .await?
+                .ok_or(BuildProposalError::StateSyncNotReady(format!(
+                "Failed to get retrospective block number {block_number}"
+            )))?;
+            Some(BlockHashAndNumber {
+                number: block_number,
+                hash: block.block_header_without_hash.parent_hash,
+            })
+        }
+        None => {
+            info!("Retrospective block number is less than 10, setting None as expected.");
+            None
+        }
+    };
+
     let input = ValidateBlockInput {
         proposal_id,
         deadline: now + chrono_timeout,
         // TODO(Matan 3/11/2024): Add the real value of the retrospective block hash.
-        retrospective_block_hash: Some(BlockHashAndNumber {
-            number: BlockNumber::default(),
-            hash: BlockHash::default(),
-        }),
+        retrospective_block_hash,
         block_info: convert_to_sn_api_block_info(&block_info),
     };
     debug!("Initiating validate proposal: input={input:?}");
-    batcher.validate_block(input).await
+    batcher.validate_block(input).await?;
+    Ok(())
 }
 
 // Handles receiving a proposal from another node without blocking consensus:
