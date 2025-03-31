@@ -1,6 +1,7 @@
 use blockifier::state::state_api::StateReader;
 #[cfg(any(feature = "testing", test))]
 use blockifier::test_utils::dict_state_reader::DictStateReader;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::{
     BuiltinHintProcessor,
     HintProcessorData,
@@ -15,6 +16,8 @@ use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
 use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
 use cairo_vm::vm::vm_core::VirtualMachine;
+use starknet_api::core::ClassHash;
+use starknet_api::deprecated_contract_class::ContractClass;
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::execution_helper::OsExecutionHelper;
@@ -71,6 +74,8 @@ pub struct SnosHintProcessor<S: StateReader> {
     pub(crate) os_program: Program,
     pub(crate) execution_helpers_manager: ExecutionHelpersManager<S>,
     pub(crate) os_hints_config: OsHintsConfig,
+    pub(crate) deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
+    pub(crate) compiled_classes: HashMap<ClassHash, CasmContractClass>,
     pub syscall_hint_processor: SyscallHintProcessor,
     _deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
     builtin_hint_processor: BuiltinHintProcessor,
@@ -85,6 +90,8 @@ impl<S: StateReader> SnosHintProcessor<S> {
         os_hints_config: OsHintsConfig,
         syscall_hint_processor: SyscallHintProcessor,
         deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
+        compiled_classes: HashMap<ClassHash, CasmContractClass>,
+        deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
     ) -> Self {
         Self {
             os_program,
@@ -94,6 +101,8 @@ impl<S: StateReader> SnosHintProcessor<S> {
             _deprecated_syscall_hint_processor: deprecated_syscall_hint_processor,
             da_segment: None,
             builtin_hint_processor: BuiltinHintProcessor::new_empty(),
+            compiled_classes,
+            deprecated_compiled_classes,
         }
     }
 
@@ -207,6 +216,8 @@ impl SnosHintProcessor<DictStateReader> {
             os_hints_config,
             syscall_handler,
             deprecated_syscall_handler,
+            HashMap::new(),
+            HashMap::new(),
         )
     }
 }

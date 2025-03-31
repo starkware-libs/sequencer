@@ -1,11 +1,9 @@
 use std::collections::HashMap;
 
 use blockifier::context::ChainInfo;
-use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::deprecated_contract_class::ContractClass;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::state::StorageKey;
 use starknet_patricia::hash::hash_trait::HashOutput;
@@ -71,9 +69,6 @@ pub struct OsBlockInput {
     pub(crate) address_to_storage_commitment_info: HashMap<ContractAddress, CommitmentInfo>,
     pub(crate) contract_class_commitment_info: CommitmentInfo,
     pub(crate) chain_info: ChainInfo,
-    pub(crate) deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
-    #[allow(dead_code)]
-    pub(crate) compiled_classes: HashMap<ClassHash, CasmContractClass>,
     // Note: The Declare tx in the starknet_api crate has a class_info field with a contract_class
     // field. This field is needed by the blockifier, but not used in the OS, so it is expected
     // (and verified) to be initialized with an illegal value, to avoid using it accidentally.
