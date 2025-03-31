@@ -8,6 +8,7 @@ use tracing::info;
 async fn main() {
     integration_test_setup("positive").await;
     const BLOCK_TO_WAIT_FOR: BlockNumber = BlockNumber(15);
+    const BLOCKS_TO_WAIT_FOR_DECLARES: u64 = 5;
     const N_TXS: usize = 50;
     // TODO(Yael/Arni): 0 is a temporary value till fixing the nonce issue.
     const N_L1_HANDLER_TXS: usize = 0;
@@ -34,6 +35,9 @@ async fn main() {
 
     // Run the test.
     integration_test_manager.send_txs_and_verify(N_TXS, N_L1_HANDLER_TXS, BLOCK_TO_WAIT_FOR).await;
+    let bn_to_expect_declare_included =
+        BlockNumber(BLOCK_TO_WAIT_FOR.0 + BLOCKS_TO_WAIT_FOR_DECLARES);
+    integration_test_manager.send_declare_txs_and_verify(bn_to_expect_declare_included).await;
 
     info!("Shutting down nodes.");
     integration_test_manager.shutdown_nodes(node_indices);
