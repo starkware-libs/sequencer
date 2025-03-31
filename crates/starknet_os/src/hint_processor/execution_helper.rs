@@ -7,25 +7,25 @@ use blockifier::test_utils::dict_state_reader::DictStateReader;
 
 use crate::errors::StarknetOsError;
 use crate::hint_processor::os_logger::OsLogger;
-use crate::io::os_input::{CachedStateInput, StarknetOsInput};
+use crate::io::os_input::{CachedStateInput, OsBlockInput};
 
 /// A helper struct that provides access to the OS state and commitments.
 pub struct OsExecutionHelper<S: StateReader> {
     pub(crate) cached_state: CachedState<S>,
-    pub(crate) os_input: StarknetOsInput,
+    pub(crate) os_block_input: OsBlockInput,
     pub(crate) os_logger: OsLogger,
 }
 
 impl<S: StateReader> OsExecutionHelper<S> {
     pub fn new(
-        os_input: StarknetOsInput,
+        os_block_input: OsBlockInput,
         state_reader: S,
         state_input: CachedStateInput,
         debug_mode: bool,
     ) -> Result<Self, StarknetOsError> {
         Ok(Self {
             cached_state: Self::initialize_cached_state(state_reader, state_input)?,
-            os_input,
+            os_block_input,
             os_logger: OsLogger::new(debug_mode),
         })
     }
@@ -61,10 +61,10 @@ impl<S: StateReader> OsExecutionHelper<S> {
 
 #[cfg(any(feature = "testing", test))]
 impl OsExecutionHelper<DictStateReader> {
-    pub fn new_for_testing(state_reader: DictStateReader, os_input: StarknetOsInput) -> Self {
+    pub fn new_for_testing(state_reader: DictStateReader, os_input: OsBlockInput) -> Self {
         Self {
             cached_state: CachedState::from(state_reader),
-            os_input,
+            os_block_input: os_input,
             os_logger: OsLogger::new(true),
         }
     }

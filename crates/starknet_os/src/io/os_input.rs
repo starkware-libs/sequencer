@@ -54,18 +54,19 @@ pub struct ContractClassComponentHashes {
 #[cfg_attr(any(test, feature = "testing"), derive(Default))]
 #[derive(Debug)]
 pub struct OsHints {
-    pub os_input: StarknetOsInput,
+    // TODO(Nimrod): Remove and allow direct deserialization.
+    #[cfg_attr(feature = "deserialize", serde(alias = "os_input"))]
+    pub os_block_input: OsBlockInput,
     pub os_hints_config: OsHintsConfig,
 }
 
 /// All input needed to initialize the execution helper.
 // TODO(Dori): Add all fields needed to compute commitments, initialize a CachedState and other data
 //   required by the execution helper.
-// TODO(Nimrod): Rename to `OsBlockInput`.
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[cfg_attr(any(test, feature = "testing"), derive(Default))]
 #[derive(Debug)]
-pub struct StarknetOsInput {
+pub struct OsBlockInput {
     pub(crate) contract_state_commitment_info: CommitmentInfo,
     pub(crate) address_to_storage_commitment_info: HashMap<ContractAddress, CommitmentInfo>,
     pub(crate) contract_class_commitment_info: CommitmentInfo,

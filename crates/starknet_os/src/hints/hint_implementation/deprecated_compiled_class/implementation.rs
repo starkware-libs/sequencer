@@ -25,7 +25,7 @@ pub(crate) fn load_deprecated_class_facts<S: StateReader>(
     HintArgs { hint_processor, vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
     let deprecated_compiled_classes =
-        &hint_processor.get_current_execution_helper()?.os_input.deprecated_compiled_classes;
+        &hint_processor.get_current_execution_helper()?.os_block_input.deprecated_compiled_classes;
     // TODO(Rotem): see if we can avoid cloning here.
     let deprecated_class_hashes: HashSet<ClassHash> =
         HashSet::from_iter(deprecated_compiled_classes.keys().cloned());
