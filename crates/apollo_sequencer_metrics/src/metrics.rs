@@ -83,15 +83,7 @@ impl MetricCounter {
     #[track_caller]
     pub fn assert_eq<T: Num + FromStr + Debug>(&self, metrics_as_string: &str, expected_value: T) {
         let metric_value = self.parse_numeric_metric::<T>(metrics_as_string).unwrap();
-        assert_eq!(
-            metric_value,
-            expected_value,
-            "Metric counter {} did not match the expected value. expected value: {:?}, metric \
-             value: {:?}",
-            self.get_name(),
-            expected_value,
-            metric_value
-        );
+        assert_equality(&metric_value, &expected_value, self.get_name(), None);
     }
 }
 
@@ -154,16 +146,7 @@ impl LabeledMetricCounter {
         label: &[(&'static str, &'static str)],
     ) {
         let metric_value = self.parse_numeric_metric::<T>(metrics_as_string, label).unwrap();
-        assert_eq!(
-            metric_value,
-            expected_value,
-            "Metric counter {} {:?} did not match the expected value. expected value: {:?}, metric
-             value: {:?}",
-            self.get_name(),
-            label,
-            expected_value,
-            metric_value
-        );
+        assert_equality(&metric_value, &expected_value, self.get_name(), Some(label));
     }
 }
 
@@ -219,15 +202,7 @@ impl MetricGauge {
     #[track_caller]
     pub fn assert_eq<T: Num + FromStr + Debug>(&self, metrics_as_string: &str, expected_value: T) {
         let metric_value = self.parse_numeric_metric::<T>(metrics_as_string).unwrap();
-        assert_eq!(
-            metric_value,
-            expected_value,
-            "Metric gauge {} did not match the expected value. expected value: {:?}, metric
-             value: {:?}",
-            self.get_name(),
-            expected_value,
-            metric_value
-        );
+        assert_equality(&metric_value, &expected_value, self.get_name(), None);
     }
 }
 
@@ -321,16 +296,7 @@ impl LabeledMetricGauge {
         label: &[(&'static str, &'static str)],
     ) {
         let metric_value = self.parse_numeric_metric::<T>(metrics_as_string, label).unwrap();
-        assert_eq!(
-            metric_value,
-            expected_value,
-            "Metric gauge {} {:?} did not match the expected value. expected value: {:?}, metric
-             value: {:?}",
-            self.get_name(),
-            label,
-            expected_value,
-            metric_value
-        );
+        assert_equality(&metric_value, &expected_value, self.get_name(), Some(label));
     }
 }
 
@@ -391,14 +357,7 @@ impl MetricHistogram {
     #[track_caller]
     pub fn assert_eq(&self, metrics_as_string: &str, expected_value: &HistogramValue) {
         let metric_value = self.parse_histogram_metric(metrics_as_string).unwrap();
-        assert!(
-            metric_value == *expected_value,
-            "Metric histogram {} did not match the expected value. expected value: {:?}, metric \
-             value: {:?}",
-            self.get_name(),
-            expected_value,
-            metric_value
-        );
+        assert_equality(&metric_value, expected_value, self.get_name(), None);
     }
 }
 
@@ -469,15 +428,7 @@ impl LabeledMetricHistogram {
         label: &[(&'static str, &'static str)],
     ) {
         let metric_value = self.parse_histogram_metric(metrics_as_string, label).unwrap();
-        assert!(
-            metric_value == *expected_value,
-            "Metric histogram {} {:?} did not match the expected value. expected value: {:?}, \
-             metric value: {:?}",
-            self.get_name(),
-            label,
-            expected_value,
-            metric_value
-        );
+        assert_equality(&metric_value, expected_value, self.get_name(), Some(label));
     }
 }
 
@@ -604,4 +555,27 @@ pub fn parse_histogram_metric(
         .unwrap_or(0);
 
     Some(HistogramValue { sum, count, histogram })
+}
+
+#[cfg(any(feature = "testing", test))]
+fn assert_equality<T: PartialEq + Debug>(
+    value: &T,
+    expected_value: &T,
+    metric_name: &str,
+    label: Option<&[(&str, &str)]>,
+) {
+    if let Some(label) = label {
+        assert_eq!(
+            value, expected_value,
+            "Metric {} {:?} did not match the expected value. Expected value: {:?}, metric value: \
+             {:?}",
+            metric_name, label, expected_value, value
+        );
+    } else {
+        assert_eq!(
+            value, expected_value,
+            "Metric {} did not match the expected value. Expected value: {:?}, metric value: {:?}",
+            metric_name, expected_value, value
+        );
+    }
 }
