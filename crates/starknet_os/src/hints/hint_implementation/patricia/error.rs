@@ -1,7 +1,7 @@
 use ethnum::U256;
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 
-use super::utils::{LayerIndex, Preimage};
+use crate::hints::hint_implementation::patricia::utils::{LayerIndex, Preimage};
 
 #[derive(Debug, thiserror::Error)]
 pub enum PatriciaError {
