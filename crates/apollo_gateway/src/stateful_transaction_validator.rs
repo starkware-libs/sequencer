@@ -64,6 +64,11 @@ impl StatefulTransactionValidator {
         runtime: tokio::runtime::Handle,
     ) -> StatefulTransactionValidatorResult<()> {
         if !self.is_valid_nonce(executable_tx, account_nonce) {
+            error!(
+                "Transaction nonce is invalid. Transaction nonce: {}, account_nonce: {}",
+                executable_tx.nonce(),
+                account_nonce
+            );
             return Err(GatewaySpecError::InvalidTransactionNonce);
         }
 
