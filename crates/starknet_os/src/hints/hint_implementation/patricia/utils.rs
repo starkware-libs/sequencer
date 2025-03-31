@@ -47,6 +47,7 @@ pub struct LayerIndex(U256);
 
 #[allow(clippy::as_conversions)]
 impl LayerIndex {
+    // SubTreeHeight::ACTUAL_HEIGHT is expected to be > 128 (otherwise this will fail to compile).
     pub const MAX: Self = Self(U256::from_words(
         u128::MAX >> (U256::BITS - SubTreeHeight::ACTUAL_HEIGHT.0 as u32),
         u128::MAX,
@@ -62,7 +63,7 @@ impl LayerIndex {
 
     pub fn get_children_indices(&self) -> Result<(Self, Self), PatriciaError> {
         let left_child = Self::new(self.0 << 1)?;
-        let right_child = Self::new((self.0 << 1) + U256::ONE)?;
+        let right_child = Self::new(left_child.0 + U256::ONE)?;
         Ok((left_child, right_child))
     }
 
@@ -78,8 +79,9 @@ impl From<u128> for LayerIndex {
     }
 }
 
-/// Cases: both, if both children are to be updated, and left or right, if only one child is to be
-/// updated.
+/// Variants correspond to the required updates: `both` if both children are to be updated, and
+/// `left` or `right` if only a single child is to be updated.
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum InnerNode {
     Left(Box<UpdateTree>),
@@ -87,51 +89,36 @@ pub enum InnerNode {
     Both(Box<UpdateTree>, Box<UpdateTree>),
 }
 
-impl InnerNode {
-    fn new(left: UpdateTree, right: UpdateTree) -> Result<Self, PatriciaError> {
-        match (left, right) {
-            (Some(left), Some(right)) => {
-                Ok(Self::Both(Box::new(Some(left)), Box::new(Some(right))))
-            }
-            (Some(left), None) => Ok(Self::Left(Box::new(Some(left)))),
-            (None, Some(right)) => Ok(Self::Right(Box::new(Some(right)))),
-            (None, None) => Err(PatriciaError::InvalidInnerNode),
-        }
-    }
-}
-
+// TODO(Rotem): Maybe we can avoid using None.
+// Update when implementing the other functions.
 #[derive(Clone, Debug, PartialEq)]
-pub enum UpdateTreeInner {
+pub enum UpdateTree {
     InnerNode(InnerNode),
     Leaf(HashOutput),
+    // Represents a node where none of it's descendants has been modified.
+    None,
 }
 
-pub type UpdateTree = Option<UpdateTreeInner>;
-type TreeLayer = HashMap<LayerIndex, UpdateTreeInner>;
+type TreeLayer = HashMap<LayerIndex, UpdateTree>;
 
 /// Constructs layers of a tree from leaf updates. This is not a full binary tree. It is just the
 /// subtree induced by the modification leaves. Returns a tree of updates. A tree is built from
-/// layers. Each layer represents the nodes in a specific height. The 0 layer is the root, and the
-/// last layer is the leaves.
-/// Each layer is a map from index in current merkle layer [0, 2**layer_height) to either:
-/// * a leaf (new value) - if it's the last layer and the leaf is modified.
-/// * a pair of indices, or a pair of None and an index, or a pair of an index and None - if it's an
-///   internal node that has modified leaves/leaf in its subtree.
+/// layers. Each layer represents the nodes in a specific height. The top layer is the root, and the
+/// bottom layer holds the leaves.
+/// Each layer is a map from an index in the current Merkle layer [0, 2**layer_height) to either:
+/// * a leaf (new value) - if it's the bottom layer and the leaf is modified.
 pub(crate) fn build_update_tree(
     height: SubTreeHeight,
     modifications: Vec<(LayerIndex, HashOutput)>,
 ) -> Result<UpdateTree, PatriciaError> {
-    // Bottom layer. This will prefer the last modification to an index.
     if modifications.is_empty() {
-        return Ok(None);
+        return Ok(UpdateTree::None);
     }
 
     // A layer is a map from index in current merkle layer [0, 2**layer_height) to a tree.
     // A tree is either None, a leaf, or a pair of trees.
-    let mut layer: TreeLayer = modifications
-        .into_iter()
-        .map(|(index, value)| (index, UpdateTreeInner::Leaf(value)))
-        .collect();
+    let mut layer: TreeLayer =
+        modifications.into_iter().map(|(index, value)| (index, UpdateTree::Leaf(value))).collect();
 
     for h in 0..height.into() {
         let parents: HashSet<LayerIndex> =
@@ -140,14 +127,22 @@ pub(crate) fn build_update_tree(
 
         for index in parents.into_iter() {
             let (left, right) = index.get_children_indices()?;
-            let left_update = layer.get(&left).cloned();
-            let right_update = layer.get(&right).cloned();
+            let left_update = layer.remove(&left);
+            let right_update = layer.remove(&right);
 
-            let inner_node = InnerNode::new(left_update, right_update).map_err(|_| {
-                PatriciaError::BothChildrenAreNone { index, height: SubTreeHeight(h) }
-            })?;
+            let inner_node = match (left_update, right_update) {
+                (Some(left), Some(right)) => InnerNode::Both(Box::new(left), Box::new(right)),
+                (Some(left), None) => InnerNode::Left(Box::new(left)),
+                (None, Some(right)) => InnerNode::Right(Box::new(right)),
+                (None, None) => {
+                    return Err(PatriciaError::BothChildrenAreNone {
+                        index,
+                        height: SubTreeHeight(h),
+                    });
+                }
+            };
 
-            new_layer.insert(index, UpdateTreeInner::InnerNode(inner_node));
+            new_layer.insert(index, UpdateTree::InnerNode(inner_node));
         }
 
         layer = new_layer;
@@ -157,5 +152,7 @@ pub(crate) fn build_update_tree(
     debug_assert!(layer.len() == 1);
 
     // Pop out and return the root node.
-    Ok(layer.remove(&LayerIndex::ROOT))
+    Ok(layer
+        .remove(&LayerIndex::ROOT)
+        .expect("There should be a root node since modifications are not empty."))
 }
