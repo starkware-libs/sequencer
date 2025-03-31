@@ -80,7 +80,12 @@ use tracing::{debug, error, error_span, info, instrument, trace, warn, Instrumen
 use crate::cende::{BlobParameters, CendeContext};
 use crate::config::ContextConfig;
 use crate::fee_market::{calculate_next_base_gas_price, FeeMarketInfo};
-use crate::metrics::{CONSENSUS_NUM_BATCHES_IN_PROPOSAL, CONSENSUS_NUM_TXS_IN_PROPOSAL};
+use crate::metrics::{
+    register_metrics,
+    CONSENSUS_CONVERSION_RATE_MISMATCH,
+    CONSENSUS_NUM_BATCHES_IN_PROPOSAL,
+    CONSENSUS_NUM_TXS_IN_PROPOSAL,
+};
 use crate::orchestrator_versioned_constants::VersionedConstants;
 
 // Contains parameters required for validating block info.
@@ -189,6 +194,7 @@ impl SequencerConsensusContext {
         eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
         l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     ) -> Self {
+        register_metrics();
         let chain_id = config.chain_id.clone();
         let num_validators = config.num_validators;
         let l1_da_mode = if config.l1_da_mode {
@@ -1014,7 +1020,12 @@ async fn is_block_info_valid(
     let l1_gas_price_margin_percent =
         VersionedConstants::latest_constants().l1_gas_price_margin_percent;
     let allowed_margin = (eth_to_fri_rate * u128::from(l1_gas_price_margin_percent)) / 100;
-    block_info.eth_to_fri_rate.abs_diff(eth_to_fri_rate) <= allowed_margin
+    if block_info.eth_to_fri_rate.abs_diff(eth_to_fri_rate) <= allowed_margin {
+        true
+    } else {
+        CONSENSUS_CONVERSION_RATE_MISMATCH.increment(1);
+        false
+    }
 }
 
 // The second proposal part when validating a proposal must be:
