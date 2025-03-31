@@ -151,7 +151,7 @@ pub struct PySierraCompilationConfig {
 impl From<PySierraCompilationConfig> for SierraCompilationConfig {
     fn from(py_sierra_compilation_config: PySierraCompilationConfig) -> Self {
         SierraCompilationConfig {
-            sierra_to_native_compiler_path: if py_sierra_compilation_config
+            compiler_binary_path: if py_sierra_compilation_config
                 .sierra_to_native_compiler_path
                 .is_empty()
             {
@@ -159,11 +159,10 @@ impl From<PySierraCompilationConfig> for SierraCompilationConfig {
             } else {
                 Some(PathBuf::from(py_sierra_compilation_config.sierra_to_native_compiler_path))
             },
-            max_native_bytecode_size: py_sierra_compilation_config.max_native_bytecode_size,
+            max_file_size: py_sierra_compilation_config.max_native_bytecode_size,
             max_cpu_time: py_sierra_compilation_config.max_cpu_time,
             max_memory_usage: py_sierra_compilation_config.max_memory_usage,
             optimization_level: py_sierra_compilation_config.optimization_level,
-            ..Default::default()
         }
     }
 }
