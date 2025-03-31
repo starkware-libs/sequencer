@@ -14,6 +14,7 @@ cairo_native = [
   "apollo_sierra_multicompile/cairo_native",
   "blockifier_test_utils/cairo_native",
   "dep:cairo-native",
+  "dep:apollo_sequencer_metrics"
 ]
 native_blockifier = []
 node_api = []
@@ -61,6 +62,7 @@ starknet-types-core.workspace = true
 starknet_api.workspace = true
 apollo_infra_utils.workspace = true
 apollo_sierra_multicompile.workspace = true
+apollo_sequencer_metrics = { workspace = true, optional = true }
 strum.workspace = true
 strum_macros.workspace = true
 thiserror.workspace = true

@@ -1,7 +1,5 @@
 use apollo_batcher::metrics::{
     BATCHED_TRANSACTIONS,
-    CLASS_CACHE_HITS,
-    CLASS_CACHE_MISSES,
     PROPOSAL_FAILED,
     PROPOSAL_STARTED,
     PROPOSAL_SUCCEEDED,
@@ -65,6 +63,7 @@ use apollo_state_sync::metrics::{
     STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS,
     STATE_SYNC_P2P_NUM_CONNECTED_PEERS,
 };
+use blockifier::state::native_class_manager::{CLASS_CACHE_HITS, CLASS_CACHE_MISSES};
 use const_format::formatcp;
 
 use crate::dashboard::{Dashboard, Panel, PanelType, Row};
@@ -310,8 +309,13 @@ const BATCHER_ROW: Row = Row::new(
         PANEL_PROPOSAL_SUCCEEDED,
         PANEL_PROPOSAL_FAILED,
         PANEL_BATCHED_TRANSACTIONS,
-        PANEL_CAIRO_NATIVE_CACHE_MISS_RATIO,
     ],
+);
+
+const CAIRO_NATIVE_CLASS_MANAGER_ROW: Row = Row::new(
+    "Cairo Native Class Manager",
+    "Cairo native class manager metrics",
+    &[PANEL_CAIRO_NATIVE_CACHE_MISS_RATIO],
 );
 
 const CONSENSUS_ROW: Row = Row::new(
@@ -385,5 +389,6 @@ pub const SEQUENCER_DASHBOARD: Dashboard = Dashboard::new(
         STATE_SYNC_P2P_ROW,
         GATEWAY_ROW,
         MEMPOOL_ROW,
+        CAIRO_NATIVE_CLASS_MANAGER_ROW,
     ],
 );

@@ -127,9 +127,7 @@ impl Default for MockDependencies {
             .with(eq(CommitBlockArgs::default()))
             .returning(|_| Ok(()));
         let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
-        block_builder_factory.expect_get_class_cache_miss_counter().return_const(0_u64);
-        block_builder_factory.expect_get_class_cache_hit_counter().return_const(0_u64);
-        block_builder_factory.expect_reset_class_cache_metrics().return_const(());
+        block_builder_factory.expect_update_class_cache_metrics().return_const(());
 
         Self {
             storage_reader,

@@ -25,6 +25,7 @@ apollo_mempool_p2p.workspace = true
 apollo_sequencer_infra.workspace = true
 apollo_sequencer_metrics.workspace = true
 apollo_state_sync.workspace = true
+blockifier = { workspace = true, features = ["cairo_native"] }
 const_format.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
