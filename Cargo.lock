@@ -11241,6 +11241,7 @@ dependencies = [
  "base64 0.13.1",
  "blockifier",
  "blockifier_test_utils",
+ "flate2",
  "futures",
  "hyper 0.14.32",
  "jsonrpsee",
