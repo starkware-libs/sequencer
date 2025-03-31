@@ -34,6 +34,8 @@ members = [
   "crates/starknet_class_manager_types",
   "crates/starknet_client",
   "crates/starknet_committer",
+  "crates/starknet_compile_to_casm",
+  "crates/starknet_compile_to_native",
   "crates/starknet_consensus_manager",
   "crates/starknet_gateway",
   "crates/starknet_gateway_types",
@@ -50,7 +52,6 @@ members = [
   "crates/starknet_patricia",
   "crates/starknet_sequencer_infra",
   "crates/starknet_sequencer_node",
-  "crates/starknet_sierra_multicompile",
   "crates/starknet_state_sync",
   "crates/starknet_state_sync_types",
   "crates/starknet_task_executor",
@@ -219,6 +220,8 @@ starknet_batcher_types = { path = "crates/starknet_batcher_types", version = "0.
 starknet_class_manager_types = { path = "crates/starknet_class_manager_types", version = "0.14.0-rc.3" }
 starknet_client = { path = "crates/starknet_client", version = "0.14.0-rc.3" }
 starknet_committer = { path = "crates/starknet_committer", version = "0.14.0-rc.3" }
+starknet_compile_to_casm = { path = "crates/starknet_compile_to_casm", version = "0.14.0-rc.3" }
+starknet_compile_to_native = { path = "crates/starknet_compile_to_native", version = "0.14.0-rc.3" }
 starknet_consensus_manager = { path = "crates/starknet_consensus_manager", version = "0.14.0-rc.3" }
 starknet_gateway = { path = "crates/starknet_gateway", version = "0.14.0-rc.3" }
 starknet_gateway_types = { path = "crates/starknet_gateway_types", version = "0.14.0-rc.3" }
@@ -234,7 +237,6 @@ starknet_monitoring_endpoint = { path = "crates/starknet_monitoring_endpoint", v
 starknet_patricia = { path = "crates/starknet_patricia", version = "0.14.0-rc.3" }
 starknet_sequencer_infra = { path = "crates/starknet_sequencer_infra", version = "0.14.0-rc.3" }
 starknet_sequencer_node = { path = "crates/starknet_sequencer_node", version = "0.14.0-rc.3" }
-starknet_sierra_multicompile = { path = "crates/starknet_sierra_multicompile", version = "0.14.0-rc.3" }
 starknet_state_sync = { path = "crates/starknet_state_sync", version = "0.14.0-rc.3" }
 starknet_state_sync_types = { path = "crates/starknet_state_sync_types", version = "0.14.0-rc.3" }
 starknet_task_executor = { path = "crates/starknet_task_executor", version = "0.14.0-rc.3" }

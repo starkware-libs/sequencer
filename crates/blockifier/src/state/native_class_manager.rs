@@ -7,10 +7,10 @@ use cached::Cached;
 use log;
 use starknet_api::core::ClassHash;
 use starknet_api::state::SierraContractClass;
-use starknet_sierra_multicompile::command_line_compiler::CommandLineCompiler;
-use starknet_sierra_multicompile::errors::CompilationUtilError;
-use starknet_sierra_multicompile::utils::into_contract_class_for_compilation;
-use starknet_sierra_multicompile::SierraToNativeCompiler;
+use starknet_compile_to_native::command_line_compiler::CommandLineCompiler;
+use starknet_compile_to_native::errors::CompilationUtilError;
+use starknet_compile_to_native::utils::into_contract_class_for_compilation;
+use starknet_compile_to_native::SierraToNativeCompiler;
 use thiserror::Error;
 
 use crate::blockifier::config::{
