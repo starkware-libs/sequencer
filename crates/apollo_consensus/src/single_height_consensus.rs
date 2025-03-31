@@ -14,7 +14,7 @@ use std::collections::hash_map::Entry;
 use std::collections::{HashMap, VecDeque};
 use std::time::Duration;
 
-use apollo_protobuf::consensus::{ProposalFin, ProposalInit, Vote, VoteType};
+use apollo_protobuf::consensus::{ProposalInit, Vote, VoteType};
 #[cfg(test)]
 use enum_as_inner::EnumAsInner;
 use futures::channel::{mpsc, oneshot};
@@ -63,7 +63,7 @@ pub enum ShcEvent {
     Precommit(StateMachineEvent),
     BuildProposal(StateMachineEvent),
     // TODO(Matan): Replace ProposalCommitment with the unvalidated signature from the proposer.
-    ValidateProposal(StateMachineEvent, Option<ProposalFin>),
+    ValidateProposal(StateMachineEvent),
 }
 
 /// A task which should be run without blocking calls to SHC.
@@ -90,7 +90,7 @@ pub enum ShcTask {
     ///    result without blocking consensus.
     /// 3. Once validation is complete, the manager returns the built proposal to the SHC as an
     ///    event, which can be sent to the SM.
-    ValidateProposal(ProposalInit, oneshot::Receiver<(ProposalCommitment, ProposalFin)>),
+    ValidateProposal(ProposalInit, oneshot::Receiver<ProposalCommitment>),
 }
 
 impl PartialEq for ShcTask {
@@ -137,24 +137,14 @@ impl ShcTask {
                 ShcEvent::BuildProposal(StateMachineEvent::GetProposal(proposal_id, round))
             }
             ShcTask::ValidateProposal(init, block_receiver) => {
-                // Handle the result of the block validation:
-                // The output is a tuple with the proposal id, calculated and from network.
-                // - If successful, set it as (Some, Some).
-                // - If there was an error (e.g., invalid proposal, no proposal received from the
-                //   peer, or the process was interrupted), set it to (None, None).
                 // TODO(Asmaa): Consider if we want to differentiate between an interrupt and other
                 // failures.
-                let (built_content_id, received_proposal_id) = match block_receiver.await {
-                    Ok((built_content_id, received_proposal_id)) => {
-                        (Some(built_content_id), Some(received_proposal_id))
-                    }
-                    // Proposal never received from peer.
-                    Err(_) => (None, None),
-                };
-                ShcEvent::ValidateProposal(
-                    StateMachineEvent::Proposal(built_content_id, init.round, init.valid_round),
-                    received_proposal_id,
-                )
+                let proposal_id = block_receiver.await.ok();
+                ShcEvent::ValidateProposal(StateMachineEvent::Proposal(
+                    proposal_id,
+                    init.round,
+                    init.valid_round,
+                ))
             }
         }
     }
@@ -308,25 +298,24 @@ impl SingleHeightConsensus {
                     StateMachineEvent::Precommit(proposal_id, round),
                 )]))
             }
-            ShcEvent::ValidateProposal(
-                StateMachineEvent::Proposal(built_id, round, valid_round),
-                received_fin,
-            ) => {
+            ShcEvent::ValidateProposal(StateMachineEvent::Proposal(
+                proposal_id,
+                round,
+                valid_round,
+            )) => {
                 let leader_fn =
                     |round: Round| -> ValidatorId { context.proposer(self.height, round) };
                 debug!(
                     proposer = %leader_fn(round),
                     %round,
                     ?valid_round,
-                    ?built_id,
-                    ?received_fin,
+                    proposal_commitment = ?proposal_id,
                     node_round = self.state_machine.round(),
                     "Validated proposal.",
                 );
                 // TODO(matan): Switch to signature validation.
-                if built_id != received_fin.as_ref().map(|fin| fin.proposal_commitment) {
+                if proposal_id.is_none() {
                     CONSENSUS_PROPOSALS_INVALID.increment(1);
-                    warn!("proposal_id built from content received does not match fin.");
                     return Ok(ShcReturn::Tasks(Vec::new()));
                 }
                 CONSENSUS_PROPOSALS_VALIDATED.increment(1);
@@ -334,13 +323,13 @@ impl SingleHeightConsensus {
                 // Retaining the entry for this round prevents us from receiving another proposal on
                 // this round. While this prevents spam attacks it also prevents re-receiving after
                 // a network issue.
-                let old = self.proposals.insert(round, built_id);
+                let old = self.proposals.insert(round, proposal_id);
                 let old = old.unwrap_or_else(|| {
                     panic!("Proposal entry should exist from init. round: {round}")
                 });
                 assert!(old.is_none(), "Proposal already exists for this round: {round}. {old:?}");
                 let sm_events = self.state_machine.handle_event(
-                    StateMachineEvent::Proposal(built_id, round, valid_round),
+                    StateMachineEvent::Proposal(proposal_id, round, valid_round),
                     &leader_fn,
                 );
                 self.handle_state_machine_events(context, sm_events).await
