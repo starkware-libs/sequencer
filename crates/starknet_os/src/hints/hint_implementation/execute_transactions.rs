@@ -82,7 +82,7 @@ pub(crate) fn start_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHi
 pub(crate) fn os_input_transactions<S: StateReader>(
     HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let num_txns = hint_processor.execution_helper.os_input.transactions.len();
+    let num_txns = hint_processor.get_current_execution_helper()?.os_input.transactions.len();
     insert_nondet_hint_value(vm, AllHints::OsHint(OsHint::OsInputTransactions), num_txns)
 }
 
