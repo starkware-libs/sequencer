@@ -20,7 +20,7 @@ use starknet_api::executable_transaction::{
     InvokeTransaction as ExecutableInvokeTransaction,
 };
 use starknet_types_core::felt::Felt;
-use tracing::error;
+use tracing::{debug, error};
 
 use crate::config::StatefulTransactionValidatorConfig;
 use crate::errors::StatefulTransactionValidatorResult;
@@ -64,6 +64,11 @@ impl StatefulTransactionValidator {
         runtime: tokio::runtime::Handle,
     ) -> StatefulTransactionValidatorResult<()> {
         if !self.is_valid_nonce(executable_tx, account_nonce) {
+            debug!(
+                "Transaction nonce is invalid. Transaction nonce: {}, account_nonce: {}",
+                executable_tx.nonce(),
+                account_nonce
+            );
             return Err(GatewaySpecError::InvalidTransactionNonce);
         }
 
