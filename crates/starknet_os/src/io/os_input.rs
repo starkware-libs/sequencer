@@ -4,6 +4,7 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use serde::Serialize;
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber};
+#[allow(unused_imports)]
 use starknet_api::core::{
     deserialize_chain_id_from_hex,
     ChainId,
