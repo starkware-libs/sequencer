@@ -1,5 +1,9 @@
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
 use papyrus_base_layer::BaseLayerContract;
+#[cfg(any(test, feature = "testing"))]
+use papyrus_base_layer::PriceSample;
+#[cfg(any(test, feature = "testing"))]
+use starknet_api::block::NonzeroGasPrice;
 use starknet_batcher::batcher::{create_batcher, Batcher};
 use starknet_class_manager::class_manager::create_class_manager;
 use starknet_class_manager::ClassManager;
@@ -275,7 +279,24 @@ pub async fn create_node_components(
     let l1_gas_price_provider = match config.components.l1_gas_price_provider.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            Some(L1GasPriceProvider::new(config.l1_gas_price_provider_config.clone()))
+            let mut provider = L1GasPriceProvider::new(config.l1_gas_price_provider_config.clone());
+            // This replaces the L1 scraper with some fake price data.
+            // It should be applied only to tests where the scraper is disabled and also
+            // the provider is enabled.
+            #[cfg(any(test, feature = "testing"))]
+            if config.components.l1_gas_price_scraper.execution_mode == Disabled {
+                for h in 0..config.l1_gas_price_provider_config.number_of_blocks_for_mean {
+                    provider.add_price_info(
+                        h,
+                        PriceSample {
+                            timestamp: h,
+                            base_fee_per_gas: NonzeroGasPrice::TEMP_ETH_GAS_FEE_IN_WEI,
+                            blob_fee: NonzeroGasPrice::TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
+                        },
+                    );
+                }
+            }
+            Some(provider)
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };

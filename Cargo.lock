@@ -11688,6 +11688,7 @@ dependencies = [
  "rstest",
  "serde",
  "serde_json",
+ "starknet_api",
  "starknet_batcher",
  "starknet_batcher_types",
  "starknet_class_manager",
