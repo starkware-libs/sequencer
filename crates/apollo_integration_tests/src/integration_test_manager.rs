@@ -28,6 +28,7 @@ use futures::TryFutureExt;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use papyrus_base_layer::test_utils::{
     ethereum_base_layer_config_for_anvil,
+    make_block_history_on_anvil,
     spawn_anvil_and_deploy_starknet_l1_contract,
     StarknetL1Contract,
 };
@@ -250,7 +251,7 @@ impl IntegrationTestManager {
     ) -> Self {
         let tx_generator = create_integration_test_tx_generator();
 
-        let (sequencers_setup, node_indices) = get_sequencer_setup_configs(
+        let (mut sequencers_setup, node_indices) = get_sequencer_setup_configs(
             &tx_generator,
             num_of_consolidated_nodes,
             num_of_distributed_nodes,
@@ -262,6 +263,24 @@ impl IntegrationTestManager {
         let base_layer_config = &sequencers_setup[0].executables[0].config.base_layer_config;
         let (anvil, starknet_l1_contract) =
             spawn_anvil_and_deploy_starknet_l1_contract(base_layer_config).await;
+        // Send some transactions to L1 so it has a history of blocks to scrape gas prices from.
+        let num_blocks_needed_on_l1 = sequencers_setup[0].executables[0]
+            .config
+            .l1_gas_price_scraper_config
+            .number_of_blocks_for_mean
+            .try_into()
+            .unwrap();
+        make_block_history_on_anvil(&anvil, base_layer_config.clone(), num_blocks_needed_on_l1)
+            .await;
+
+        for seq in sequencers_setup.iter_mut() {
+            for exec in seq.executables.iter_mut() {
+                let node_config = &mut exec.config;
+                // Set the L1 gas price scraper's lag time to zero, to be able to use the
+                // anvil transactions we send in make_block_history_on_anvil.
+                node_config.l1_gas_price_provider_config.lag_margin_seconds = 0;
+            }
+        }
 
         let idle_nodes = create_map(sequencers_setup, |node| node.get_node_index());
         let running_nodes = HashMap::new();

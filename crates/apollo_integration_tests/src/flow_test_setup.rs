@@ -2,11 +2,7 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use alloy::network::TransactionBuilder;
 use alloy::node_bindings::AnvilInstance;
-use alloy::primitives::U256;
-use alloy::providers::Provider;
-use alloy::rpc::types::TransactionRequest;
 use apollo_consensus_manager::config::ConsensusManagerConfig;
 use apollo_http_server::config::HttpServerConfig;
 use apollo_http_server::test_utils::HttpTestClient;
@@ -35,12 +31,10 @@ use mempool_test_utils::starknet_api_test_utils::{
     L1ToL2MessageArgs,
     MultiAccountTransactionGenerator,
 };
-use papyrus_base_layer::ethereum_base_layer_contract::{
-    EthereumBaseLayerConfig,
-    EthereumBaseLayerContract,
-};
+use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use papyrus_base_layer::test_utils::{
     ethereum_base_layer_config_for_anvil,
+    make_block_history_on_anvil,
     spawn_anvil_and_deploy_starknet_l1_contract,
     StarknetL1Contract,
 };
@@ -125,30 +119,7 @@ impl FlowTestSetup {
             spawn_anvil_and_deploy_starknet_l1_contract(&base_layer_config).await;
 
         // Send some transactions to L1 so it has a history of blocks to scrape gas prices from.
-        let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone());
-        let provider = base_layer.contract.provider();
-        // This is an arbitrary address.
-        let address_string = "d8dA6BF26964aF9D7eEd9e03E53415D37aA96045";
-        let mut address = [0u8; 20];
-        let sender_address = anvil.addresses()[3];
-        let receiver_address = anvil.addresses()[4];
-        alloy::hex::decode_to_slice(address_string, &mut address).expect("Decoding failed");
-        for i in 0..NUM_L1_TRANSACTIONS {
-            let tx = TransactionRequest::default()
-                .with_from(sender_address)
-                .with_to(receiver_address)
-                .with_value(U256::from(100));
-            let pending = provider
-                .send_transaction(tx)
-                .await
-                .expect("Could not post transaction to base layer");
-            let receipt = pending
-                .get_receipt()
-                .await
-                .expect("Could not get receipt for transaction to base layer");
-            // Make sure the transactions trigger creation of new blocks.
-            assert!(usize::try_from(receipt.block_number.unwrap()).unwrap() > i);
-        }
+        make_block_history_on_anvil(&anvil, base_layer_config.clone(), NUM_L1_TRANSACTIONS).await;
 
         // Spawn a thread that listens to proposals and collects batched transactions.
         let accumulated_txs = Arc::new(Mutex::new(AccumulatedTransactions::default()));
