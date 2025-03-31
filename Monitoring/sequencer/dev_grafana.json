@@ -359,6 +359,13 @@
         "extra_params": {}
       },
       {
+        "title": "mempool_total_size_bytes",
+        "description": "The average total transaction size in bytes over time in the mempool",
+        "type": "graph",
+        "expr": "avg_over_time(mempool_total_size_bytes[2m])",
+        "extra_params": {}
+      },
+      {
         "title": "mempool_get_txs_size",
         "description": "The average size of the get_txs",
         "type": "graph",

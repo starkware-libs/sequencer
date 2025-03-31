@@ -29,6 +29,7 @@ use crate::metrics::{
     MEMPOOL_PENDING_QUEUE_SIZE,
     MEMPOOL_POOL_SIZE,
     MEMPOOL_PRIORITY_QUEUE_SIZE,
+    MEMPOOL_TOTAL_SIZE_BYTES,
 };
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
@@ -650,6 +651,7 @@ impl Mempool {
         MEMPOOL_PRIORITY_QUEUE_SIZE.set_lossy(self.tx_queue.priority_queue_len());
         MEMPOOL_PENDING_QUEUE_SIZE.set_lossy(self.tx_queue.pending_queue_len());
         MEMPOOL_DELAYED_DECLARES_SIZE.set_lossy(self.delayed_declares.len());
+        MEMPOOL_TOTAL_SIZE_BYTES.set_lossy(self.size_in_bytes());
     }
 }
 
