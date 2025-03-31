@@ -63,9 +63,9 @@ pub fn get_test_storage() -> ((StorageReader, StorageWriter), TempDir) {
 /// Returns a [`MmapFileConfig`] for testing purposes.
 pub fn get_mmap_file_test_config() -> MmapFileConfig {
     MmapFileConfig {
-        max_size: 1 << 24,        // 16MB
-        growth_step: 1 << 20,     // 1MB
-        max_object_size: 1 << 16, // 64KB
+        max_size: 1 << 27,        // 128MB
+        growth_step: 1 << 23,     // 8MB
+        max_object_size: 1 << 17, // 128KB
     }
 }
 
