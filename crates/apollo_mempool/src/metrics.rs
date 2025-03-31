@@ -7,8 +7,6 @@ use starknet_api::rpc_transaction::{
 use strum::{EnumVariantNames, VariantNames};
 use strum_macros::{EnumIter, IntoStaticStr};
 
-use crate::mempool::Mempool;
-
 define_metrics!(
     Mempool => {
         MetricCounter { MEMPOOL_TRANSACTIONS_COMMITTED, "mempool_txs_committed", "The number of transactions that were committed to block", init = 0 },
@@ -104,15 +102,6 @@ pub(crate) fn metric_count_committed_txs(committed_txs: usize) {
 
 pub(crate) fn metric_set_get_txs_size(size: usize) {
     MEMPOOL_GET_TXS_SIZE.set_lossy(size);
-}
-
-impl Mempool {
-    pub(crate) fn update_state_metrics(&self) {
-        MEMPOOL_POOL_SIZE.set_lossy(self.tx_pool_len());
-        MEMPOOL_PRIORITY_QUEUE_SIZE.set_lossy(self.priority_queue_len());
-        MEMPOOL_PENDING_QUEUE_SIZE.set_lossy(self.pending_queue_len());
-        MEMPOOL_DELAYED_DECLARES_SIZE.set_lossy(self.delayed_declares_len());
-    }
 }
 
 pub(crate) fn register_metrics() {
