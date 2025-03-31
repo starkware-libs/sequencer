@@ -807,7 +807,6 @@ pub async fn get_sequencer_setup_configs(
             executables.push(
                 ExecutableSetup::new(
                     base_app_config.clone(),
-                    config_pointers_map.clone(),
                     node_execution_id,
                     available_ports_generator
                         .next()

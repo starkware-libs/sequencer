@@ -77,7 +77,6 @@ pub struct ExecutableSetup {
 impl ExecutableSetup {
     pub async fn new(
         mut base_app_config: DeploymentBaseAppConfig,
-        config_pointers_map: ConfigPointersMap,
         node_execution_id: NodeExecutionId,
         mut available_ports: AvailablePorts,
         config_path_dir: Option<PathBuf>,
@@ -115,8 +114,8 @@ impl ExecutableSetup {
             node_execution_id,
             monitoring_client,
             config: base_app_config.get_config(),
-            config_pointers_map,
             node_config_dir_handle,
+            config_pointers_map: base_app_config.get_config_pointers_map(),
             node_config_path: config_path,
         }
     }
