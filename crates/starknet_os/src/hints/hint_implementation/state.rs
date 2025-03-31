@@ -37,7 +37,7 @@ fn set_preimage_for_commitments<S: StateReader>(
     commitment_type: CommitmentType,
     HintArgs { hint_processor, vm, exec_scopes, ids_data, ap_tracking, constants }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let os_input = &hint_processor.execution_helper.os_input;
+    let os_input = &hint_processor.get_current_execution_helper().os_input;
     let CommitmentInfo { previous_root, updated_root, commitment_facts, tree_height } =
         match commitment_type {
             CommitmentType::Class => &os_input.contract_class_commitment_info,
@@ -71,7 +71,11 @@ pub(crate) fn compute_commitments_on_finalized_state_with_aliases<S: StateReader
     // TODO(Nimrod): Try to avoid this clone.
     exec_scopes.insert_value(
         Scope::CommitmentInfoByAddress.into(),
-        hint_processor.execution_helper.os_input.address_to_storage_commitment_info.clone(),
+        hint_processor
+            .get_current_execution_helper()
+            .os_input
+            .address_to_storage_commitment_info
+            .clone(),
     );
 
     Ok(())

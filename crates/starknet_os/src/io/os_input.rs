@@ -61,6 +61,7 @@ pub struct OsHints {
 /// All input needed to initialize the execution helper.
 // TODO(Dori): Add all fields needed to compute commitments, initialize a CachedState and other data
 //   required by the execution helper.
+// TODO(Nimrod): Rename to `OsBlockInput`.
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[cfg_attr(any(test, feature = "testing"), derive(Default))]
 #[derive(Debug)]

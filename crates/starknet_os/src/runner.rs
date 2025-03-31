@@ -54,10 +54,12 @@ pub fn run_os<S: StateReader>(
     let syscall_handler = SyscallHintProcessor::new();
     let deprecated_syscall_handler = DeprecatedSyscallHintProcessor {};
 
+    // TODO(Nimrod): Get execution_helpers as an input.
+    let execution_helpers = vec![execution_helper];
     // Create the hint processor.
     let mut snos_hint_processor = SnosHintProcessor::new(
         os_program,
-        execution_helper,
+        execution_helpers,
         os_hints.os_hints_config,
         syscall_handler,
         deprecated_syscall_handler,
