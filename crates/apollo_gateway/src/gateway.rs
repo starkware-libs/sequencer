@@ -7,7 +7,12 @@ use apollo_class_manager_types::transaction_converter::{
 };
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_gateway_types::errors::GatewaySpecError;
-use apollo_gateway_types::gateway_types::{GatewayOutput, InvokeGatewayOutput};
+use apollo_gateway_types::gateway_types::{
+    DeclareGatewayOutput,
+    DeployAccountGatewayOutput,
+    GatewayOutput,
+    InvokeGatewayOutput,
+};
 use apollo_mempool_types::communication::{AddTransactionArgsWrapper, SharedMempoolClient};
 use apollo_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
@@ -17,7 +22,11 @@ use apollo_state_sync_types::communication::SharedStateSyncClient;
 use axum::async_trait;
 use blockifier::context::ChainInfo;
 use starknet_api::executable_transaction::AccountTransaction;
-use starknet_api::rpc_transaction::RpcTransaction;
+use starknet_api::rpc_transaction::{
+    InternalRpcTransaction,
+    InternalRpcTransactionWithoutTxHash,
+    RpcTransaction,
+};
 use tracing::{debug, error, instrument, warn, Span};
 
 use crate::config::GatewayConfig;
@@ -97,15 +106,14 @@ impl Gateway {
                     GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
                 })??;
 
-        let transaction_hash = add_tx_args.tx.tx_hash();
+        let gateway_output = create_gateway_output(&add_tx_args.tx);
 
         let add_tx_args = AddTransactionArgsWrapper { args: add_tx_args, p2p_message_metadata };
         mempool_client_result_to_gw_spec_result(self.mempool_client.add_tx(add_tx_args).await)?;
 
         metric_counters.transaction_sent_to_mempool();
 
-        // TODO(Arni): Also return `ContractAddress` for deploy and `ClassHash` for Declare.
-        Ok(GatewayOutput::Invoke(InvokeGatewayOutput { transaction_hash }))
+        Ok(gateway_output)
     }
 }
 
@@ -215,5 +223,26 @@ pub fn create_gateway(
 impl ComponentStarter for Gateway {
     async fn start(&mut self) {
         register_metrics();
+    }
+}
+
+fn create_gateway_output(internal_rpc_tx: &InternalRpcTransaction) -> GatewayOutput {
+    let transaction_hash = internal_rpc_tx.tx_hash;
+    match &internal_rpc_tx.tx {
+        InternalRpcTransactionWithoutTxHash::Declare(declare_tx) => {
+            GatewayOutput::Declare(DeclareGatewayOutput {
+                transaction_hash,
+                class_hash: declare_tx.class_hash,
+            })
+        }
+        InternalRpcTransactionWithoutTxHash::DeployAccount(deploy_account_tx) => {
+            GatewayOutput::DeployAccount(DeployAccountGatewayOutput {
+                transaction_hash,
+                address: deploy_account_tx.contract_address,
+            })
+        }
+        InternalRpcTransactionWithoutTxHash::Invoke(_) => {
+            GatewayOutput::Invoke(InvokeGatewayOutput { transaction_hash })
+        }
     }
 }
