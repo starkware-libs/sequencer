@@ -35,11 +35,13 @@ assert_matches.workspace = true
 base64.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
+flate2.workspace = true
 futures.workspace = true
 mempool_test_utils.workspace = true
 metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
 reqwest.workspace = true
+rstest.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true
 tracing-test.workspace = true
