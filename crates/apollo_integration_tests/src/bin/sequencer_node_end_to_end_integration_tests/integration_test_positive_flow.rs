@@ -29,8 +29,8 @@ async fn main() {
     // Run the nodes.
     integration_test_manager.run_nodes(node_indices.clone()).await;
 
-    // Run the first block scenario to bootstrap the accounts.
-    integration_test_manager.send_bootstrap_txs_and_verify().await;
+    // Run the first block scenario to deploy the accounts.
+    integration_test_manager.send_deploy_and_invoke_txs_and_verify().await;
 
     // Run the test.
     integration_test_manager.send_txs_and_verify(N_TXS, N_L1_HANDLER_TXS, BLOCK_TO_WAIT_FOR).await;
