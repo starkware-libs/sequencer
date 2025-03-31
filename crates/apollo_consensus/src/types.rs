@@ -8,7 +8,7 @@ use apollo_network::network_manager::{
     GenericReceiver,
 };
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
-use apollo_protobuf::consensus::{ProposalFin, ProposalInit, Vote};
+use apollo_protobuf::consensus::{ProposalInit, Vote};
 use apollo_protobuf::converters::ProtobufConversionError;
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
@@ -73,13 +73,14 @@ pub trait ConsensusContext {
     ///
     /// Returns:
     /// - A receiver for the block id. If a valid block cannot be built the Sender will be dropped
-    ///   by ConsensusContext.
+    ///   by ConsensusContext. If the built block id does not match the received fin the sender will
+    ///   send None.
     async fn validate_proposal(
         &mut self,
         init: ProposalInit,
         timeout: Duration,
         content: mpsc::Receiver<Self::ProposalPart>,
-    ) -> oneshot::Receiver<(ProposalCommitment, ProposalFin)>;
+    ) -> oneshot::Receiver<Option<ProposalCommitment>>;
 
     /// This function is called by consensus to retrieve the content of a previously built or
     /// validated proposal. It broadcasts the proposal to the network.

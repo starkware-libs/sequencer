@@ -266,7 +266,7 @@ async fn validate_proposal_success() {
     let fin_receiver =
         context.validate_proposal(ProposalInit::default(), TIMEOUT, content_receiver).await;
     content_sender.close_channel();
-    assert_eq!(fin_receiver.await.unwrap().0.0, STATE_DIFF_COMMITMENT.0.0);
+    assert_eq!(fin_receiver.await.unwrap().unwrap().0, STATE_DIFF_COMMITMENT.0.0);
 }
 
 #[tokio::test]
@@ -335,7 +335,7 @@ async fn repropose() {
     let fin_receiver =
         context.validate_proposal(ProposalInit::default(), TIMEOUT, content_receiver).await;
     content_sender.close_channel();
-    assert_eq!(fin_receiver.await.unwrap().0.0, STATE_DIFF_COMMITMENT.0.0);
+    assert_eq!(fin_receiver.await.unwrap().unwrap().0, STATE_DIFF_COMMITMENT.0.0);
 
     let init = ProposalInit { round: 1, ..Default::default() };
     context.repropose(BlockHash(STATE_DIFF_COMMITMENT.0.0), init).await;
@@ -413,7 +413,7 @@ async fn proposals_from_different_rounds() {
     content_sender.send(prop_part_fin.clone()).await.unwrap();
     init.round = 1;
     let fin_receiver_curr_round = context.validate_proposal(init, TIMEOUT, content_receiver).await;
-    assert_eq!(fin_receiver_curr_round.await.unwrap().0.0, STATE_DIFF_COMMITMENT.0.0);
+    assert_eq!(fin_receiver_curr_round.await.unwrap().unwrap().0, STATE_DIFF_COMMITMENT.0.0);
 
     // The proposal from the future round should not be processed.
     let (mut content_sender, content_receiver) = mpsc::channel(context.config.proposal_buffer_size);
@@ -505,7 +505,7 @@ async fn interrupt_active_proposal() {
 
     // Interrupt active proposal.
     assert!(fin_receiver_0.await.is_err());
-    assert_eq!(fin_receiver_1.await.unwrap().0.0, STATE_DIFF_COMMITMENT.0.0);
+    assert_eq!(fin_receiver_1.await.unwrap().unwrap().0, STATE_DIFF_COMMITMENT.0.0);
 }
 
 #[tokio::test]

@@ -26,7 +26,6 @@ lazy_static! {
     static ref TIMEOUTS: TimeoutsConfig = TimeoutsConfig::default();
     static ref VALIDATE_PROPOSAL_EVENT: ShcEvent = ShcEvent::ValidateProposal(
         StateMachineEvent::Proposal(Some(BLOCK.id), PROPOSAL_INIT.round, PROPOSAL_INIT.valid_round,),
-        Some(ProposalFin { proposal_commitment: BLOCK.id }),
     );
     static ref PROPOSAL_FIN: ProposalFin = ProposalFin { proposal_commitment: BLOCK.id };
 }
@@ -163,7 +162,7 @@ async fn validator(repeat_proposal: bool) {
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
     context.expect_validate_proposal().times(1).returning(move |_, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
-        block_sender.send((BLOCK.id, PROPOSAL_FIN.clone())).unwrap();
+        block_sender.send(Some(BLOCK.id)).unwrap();
         block_receiver
     });
     context.expect_set_height_and_round().returning(move |_, _| ());
@@ -234,7 +233,7 @@ async fn vote_twice(same_vote: bool) {
     context.expect_proposer().times(1).returning(move |_, _| *PROPOSER_ID);
     context.expect_validate_proposal().times(1).returning(move |_, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
-        block_sender.send((BLOCK.id, PROPOSAL_FIN.clone())).unwrap();
+        block_sender.send(Some(BLOCK.id)).unwrap();
         block_receiver
     });
     context.expect_set_height_and_round().returning(move |_, _| ());

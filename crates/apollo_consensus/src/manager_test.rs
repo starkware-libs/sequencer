@@ -7,7 +7,7 @@ use apollo_network::network_manager::test_utils::{
     TestSubscriberChannels,
 };
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
-use apollo_protobuf::consensus::{ProposalFin, Vote, DEFAULT_VALIDATOR_ID};
+use apollo_protobuf::consensus::{Vote, DEFAULT_VALIDATOR_ID};
 use apollo_test_utils::{get_rng, GetTestInstance};
 use futures::channel::{mpsc, oneshot};
 use futures::{FutureExt, SinkExt};
@@ -57,12 +57,7 @@ fn expect_validate_proposal(context: &mut MockTestContext, block_hash: Felt, tim
         .expect_validate_proposal()
         .returning(move |_, _, _| {
             let (block_sender, block_receiver) = oneshot::channel();
-            block_sender
-                .send((
-                    BlockHash(block_hash),
-                    ProposalFin { proposal_commitment: BlockHash(block_hash) },
-                ))
-                .unwrap();
+            block_sender.send(Some(BlockHash(block_hash))).unwrap();
             block_receiver
         })
         .times(times);
