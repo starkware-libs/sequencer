@@ -1643,8 +1643,8 @@ dependencies = [
  "sha2",
  "starknet-types-core",
  "starknet_api",
+ "starknet_compile_to_native",
  "starknet_infra_utils",
- "starknet_sierra_multicompile",
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "tempfile",
@@ -7019,7 +7019,7 @@ dependencies = [
  "serde_json",
  "starknet-types-core",
  "starknet_api",
- "starknet_sierra_multicompile",
+ "starknet_compile_to_native",
  "tempfile",
  "thiserror 1.0.69",
 ]
@@ -10679,6 +10679,54 @@ dependencies = [
 ]
 
 [[package]]
+name = "starknet_compile_to_casm"
+version = "0.14.0-rc.3"
+dependencies = [
+ "assert_matches",
+ "cairo-lang-sierra",
+ "cairo-lang-starknet-classes",
+ "cairo-lang-utils",
+ "cairo-native",
+ "mempool_test_utils",
+ "papyrus_config",
+ "rlimit",
+ "rstest",
+ "serde",
+ "serde_json",
+ "starknet-types-core",
+ "starknet_api",
+ "starknet_infra_utils",
+ "tempfile",
+ "thiserror 1.0.69",
+ "toml_test_utils",
+ "validator",
+]
+
+[[package]]
+name = "starknet_compile_to_native"
+version = "0.14.0-rc.3"
+dependencies = [
+ "assert_matches",
+ "cairo-lang-sierra",
+ "cairo-lang-starknet-classes",
+ "cairo-lang-utils",
+ "cairo-native",
+ "mempool_test_utils",
+ "papyrus_config",
+ "rlimit",
+ "rstest",
+ "serde",
+ "serde_json",
+ "starknet-types-core",
+ "starknet_api",
+ "starknet_infra_utils",
+ "tempfile",
+ "thiserror 1.0.69",
+ "toml_test_utils",
+ "validator",
+]
+
+[[package]]
 name = "starknet_consensus_manager"
 version = "0.14.0-rc.3"
 dependencies = [
@@ -10726,11 +10774,11 @@ dependencies = [
  "serde_json",
  "starknet-types-core",
  "starknet_api",
+ "starknet_compile_to_casm",
  "starknet_gateway_types",
  "starknet_mempool",
  "starknet_mempool_types",
  "starknet_sequencer_infra",
- "starknet_sierra_multicompile",
  "starknet_state_sync_types",
  "thiserror 1.0.69",
  "tokio",
@@ -11026,6 +11074,7 @@ dependencies = [
  "starknet_api",
  "starknet_batcher",
  "starknet_batcher_types",
+ "starknet_compile_to_casm",
  "starknet_consensus_manager",
  "starknet_gateway",
  "starknet_gateway_types",
@@ -11040,35 +11089,10 @@ dependencies = [
  "starknet_monitoring_endpoint",
  "starknet_sequencer_infra",
  "starknet_sequencer_node",
- "starknet_sierra_multicompile",
  "starknet_state_sync",
  "starknet_state_sync_types",
  "tokio",
  "tracing",
- "validator",
-]
-
-[[package]]
-name = "starknet_sierra_multicompile"
-version = "0.14.0-rc.3"
-dependencies = [
- "assert_matches",
- "cairo-lang-sierra",
- "cairo-lang-starknet-classes",
- "cairo-lang-utils",
- "cairo-native",
- "mempool_test_utils",
- "papyrus_config",
- "rlimit",
- "rstest",
- "serde",
- "serde_json",
- "starknet-types-core",
- "starknet_api",
- "starknet_infra_utils",
- "tempfile",
- "thiserror 1.0.69",
- "toml_test_utils",
  "validator",
 ]
 

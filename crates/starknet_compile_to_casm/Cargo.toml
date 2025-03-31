@@ -1,10 +1,10 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "starknet_sierra_multicompile"
+name = "starknet_compile_to_casm"
 repository.workspace = true
 version.workspace = true
-description = "A utility crate for compiling Sierra code into CASM and / or native."
+description = "A utility crate for compiling Sierra code into CASM."
 
 [features]
 cairo_native = ["dep:cairo-native"]

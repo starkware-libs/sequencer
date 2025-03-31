@@ -5,8 +5,8 @@ use std::thread::sleep;
 use assert_matches::assert_matches;
 use rstest::rstest;
 use starknet_api::core::ClassHash;
-use starknet_sierra_multicompile::config::DEFAULT_MAX_CPU_TIME;
-use starknet_sierra_multicompile::errors::CompilationUtilError;
+use starknet_compile_to_native::config::DEFAULT_MAX_CPU_TIME;
+use starknet_compile_to_native::errors::CompilationUtilError;
 
 use crate::blockifier::config::{CairoNativeRunConfig, NativeClassesWhitelist};
 use crate::execution::contract_class::{CompiledClassV1, RunnableCompiledClass};
