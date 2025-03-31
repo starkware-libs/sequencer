@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use apollo_protobuf::consensus::{ProposalFin, ProposalInit, Vote, VoteType};
+use apollo_protobuf::consensus::{ProposalInit, Vote, VoteType};
 use apollo_protobuf::converters::ProtobufConversionError;
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
@@ -70,7 +70,7 @@ mock! {
             init: ProposalInit,
             timeout: Duration,
             content: mpsc::Receiver<TestProposalPart>
-        ) -> oneshot::Receiver<(ProposalCommitment, ProposalFin)>;
+        ) -> oneshot::Receiver<Option<ProposalCommitment>>;
 
         async fn repropose(
             &mut self,
