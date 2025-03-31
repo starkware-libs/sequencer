@@ -33,6 +33,12 @@ impl HttpTestClient {
         response.transaction_hash()
     }
 
+    pub async fn assert_add_tx_error(&self, rpc_tx: RpcTransaction) -> String {
+        let response = self.add_tx(rpc_tx).await;
+        assert!(!response.status().is_success());
+        response.text().await.unwrap()
+    }
+
     // Prefer using assert_add_tx_success or other higher level methods of this client, to ensure
     // tests are boilerplate and implementation-detail free.
     pub async fn add_tx(&self, rpc_tx: RpcTransaction) -> Response {
