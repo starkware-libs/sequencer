@@ -8,28 +8,13 @@ use rstest::rstest;
 use starknet_infra_utils::path::resolve_project_relative_path;
 
 use crate::command_line_compiler::CommandLineCompiler;
-use crate::config::{
-    SierraCompilationConfig,
-    DEFAULT_MAX_CASM_BYTECODE_SIZE,
-    DEFAULT_MAX_CPU_TIME,
-    DEFAULT_MAX_MEMORY_USAGE,
-    DEFAULT_MAX_NATIVE_BYTECODE_SIZE,
-    DEFAULT_OPTIMIZATION_LEVEL,
-};
+use crate::config::{SierraCompilationConfig, DEFAULT_MAX_BYTECODE_SIZE};
 use crate::errors::CompilationUtilError;
 use crate::test_utils::contract_class_from_file;
 use crate::SierraToCasmCompiler;
-#[cfg(feature = "cairo_native")]
-use crate::SierraToNativeCompiler;
 
-const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompilationConfig {
-    max_casm_bytecode_size: DEFAULT_MAX_CASM_BYTECODE_SIZE,
-    sierra_to_native_compiler_path: None,
-    max_native_bytecode_size: DEFAULT_MAX_NATIVE_BYTECODE_SIZE,
-    max_cpu_time: DEFAULT_MAX_CPU_TIME,
-    max_memory_usage: DEFAULT_MAX_MEMORY_USAGE,
-    optimization_level: DEFAULT_OPTIMIZATION_LEVEL,
-};
+const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig =
+    SierraCompilationConfig { max_bytecode_size: DEFAULT_MAX_BYTECODE_SIZE };
 
 fn command_line_compiler() -> CommandLineCompiler {
     CommandLineCompiler::new(SIERRA_COMPILATION_CONFIG)
@@ -68,24 +53,5 @@ fn test_negative_flow_compile_sierra_to_casm(#[case] compiler: impl SierraToCasm
     let contract_class = get_faulty_test_contract();
 
     let result = compiler.compile(contract_class);
-    assert_matches!(result, Err(CompilationUtilError::CompilationError(..)));
-}
-
-#[cfg(feature = "cairo_native")]
-#[test]
-fn test_compile_sierra_to_native() {
-    let compiler = command_line_compiler();
-    let contract_class = get_test_contract();
-
-    let _native_contract_executor = compiler.compile_to_native(contract_class).unwrap();
-}
-
-#[cfg(feature = "cairo_native")]
-#[test]
-fn test_negative_flow_compile_sierra_to_native() {
-    let compiler = command_line_compiler();
-    let contract_class = get_faulty_test_contract();
-
-    let result = compiler.compile_to_native(contract_class);
     assert_matches!(result, Err(CompilationUtilError::CompilationError(..)));
 }

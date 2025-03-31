@@ -10686,7 +10686,6 @@ dependencies = [
  "cairo-lang-sierra",
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",
- "cairo-native",
  "mempool_test_utils",
  "papyrus_config",
  "rlimit",
@@ -10698,7 +10697,6 @@ dependencies = [
  "starknet_infra_utils",
  "tempfile",
  "thiserror 1.0.69",
- "toml_test_utils",
  "validator",
 ]
 

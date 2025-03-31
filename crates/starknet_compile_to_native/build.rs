@@ -1,5 +1,7 @@
+#[cfg(feature = "cairo_native")]
 use std::process::Command;
 
+#[cfg(feature = "cairo_native")]
 use tempfile::TempDir;
 
 include!("src/constants.rs");
@@ -10,29 +12,13 @@ fn main() {
     println!("cargo:rerun-if-changed=build.rs");
 
     set_run_time_out_dir_env_var();
-    install_starknet_sierra_compile();
     #[cfg(feature = "cairo_native")]
     install_starknet_native_compile();
 }
 
-const REQUIRED_CAIRO_LANG_VERSION: &str = "2.7.1";
-
-/// Downloads the Cairo crate from StarkWare's release page and extracts its contents into the
-/// `target` directory. This crate includes the `starknet-sierra-compile` binary, which is used to
-/// compile Sierra to Casm. The binary is executed as a subprocess whenever Sierra compilation is
-/// required.
-fn install_starknet_sierra_compile() {
-    let binary_name = CAIRO_LANG_BINARY_NAME;
-    let required_version = REQUIRED_CAIRO_LANG_VERSION;
-
-    let cargo_install_args = &[binary_name, "--version", required_version];
-    install_compiler_binary(binary_name, required_version, cargo_install_args);
-}
-
-/// Install the `starknet-native-compile` crate and moves the binary to the `target` directory
-/// (under shared executables folder). This crate includes the `starknet-native-compile` binary,
-/// which is used to compile Sierra to 0x86. The binary is executed as a subprocess whenever Sierra
-/// to native compilation is required.
+/// Install the `starknet-native-compile` binary from the Cairo Native crate and moves the binary
+/// to the `target` directory. The `starknet-native-compile` binary is used to compile Sierra to
+/// Native. The binary is executed as a subprocess whenever Sierra to Cairo compilation is required.
 #[cfg(feature = "cairo_native")]
 fn install_starknet_native_compile() {
     let binary_name = CAIRO_NATIVE_BINARY_NAME;
@@ -42,6 +28,7 @@ fn install_starknet_native_compile() {
     install_compiler_binary(binary_name, required_version, cargo_install_args);
 }
 
+#[cfg(feature = "cairo_native")]
 fn install_compiler_binary(binary_name: &str, required_version: &str, cargo_install_args: &[&str]) {
     let binary_path = binary_path(out_dir(), binary_name);
     println!("cargo:rerun-if-changed={}", binary_path.to_str().unwrap());
@@ -107,6 +94,7 @@ fn set_run_time_out_dir_env_var() {
     println!("cargo:rustc-env=RUNTIME_ACCESSIBLE_OUT_DIR={}", out_dir);
 }
 
+#[cfg(feature = "cairo_native")]
 // Returns the OUT_DIR. This function is only operable at build time.
 fn out_dir() -> std::path::PathBuf {
     std::env::var("OUT_DIR")

@@ -1,9 +1,10 @@
-//! A lib for compiling Sierra into Casm.
-use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+//! A lib for compiling Sierra into Native.
+#[cfg(feature = "cairo_native")]
 use cairo_lang_starknet_classes::contract_class::ContractClass;
 #[cfg(feature = "cairo_native")]
 use cairo_native::executor::AotContractExecutor;
 
+#[cfg(feature = "cairo_native")]
 use crate::errors::CompilationUtilError;
 
 pub mod command_line_compiler;
@@ -25,16 +26,9 @@ pub mod compile_test;
 #[path = "constants_test.rs"]
 pub mod constants_test;
 
-pub trait SierraToCasmCompiler: Send + Sync {
-    fn compile(
-        &self,
-        contract_class: ContractClass,
-    ) -> Result<CasmContractClass, CompilationUtilError>;
-}
-
 #[cfg(feature = "cairo_native")]
 pub trait SierraToNativeCompiler: Send + Sync {
-    fn compile_to_native(
+    fn compile(
         &self,
         contract_class: ContractClass,
     ) -> Result<AotContractExecutor, CompilationUtilError>;
