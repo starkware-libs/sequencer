@@ -7,7 +7,7 @@ use apollo_l1_gas_price_types::{L1GasPriceProviderResult, PriceInfo};
 use apollo_sequencer_infra::component_definitions::ComponentStarter;
 use papyrus_base_layer::{L1BlockNumber, PriceSample};
 use serde::{Deserialize, Serialize};
-use starknet_api::block::BlockTimestamp;
+use starknet_api::block::{BlockTimestamp, TEMP_ETH_BLOB_GAS_FEE_IN_WEI, TEMP_ETH_GAS_FEE_IN_WEI};
 use validator::Validate;
 
 #[cfg(test)]
@@ -102,6 +102,24 @@ impl L1GasPriceProvider {
     pub fn new(config: L1GasPriceProviderConfig) -> Self {
         let storage_limit = config.storage_limit;
         Self { config, price_samples_by_block: RingBuffer::new(storage_limit) }
+    }
+
+    pub fn make_new_provider_with_fake_data(config: L1GasPriceProviderConfig) -> Self {
+        let number = config.number_of_blocks_for_mean;
+        let mut provider = Self::new(config);
+        for h in 0..number {
+            provider
+                .add_price_info(
+                    h,
+                    PriceSample {
+                        timestamp: h,
+                        base_fee_per_gas: TEMP_ETH_GAS_FEE_IN_WEI,
+                        blob_fee: TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
+                    },
+                )
+                .expect("Could not post price sample");
+        }
+        provider
     }
 
     pub fn add_price_info(

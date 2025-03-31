@@ -275,7 +275,17 @@ pub async fn create_node_components(
     let l1_gas_price_provider = match config.components.l1_gas_price_provider.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            Some(L1GasPriceProvider::new(config.l1_gas_price_provider_config.clone()))
+            match config.components.l1_gas_price_scraper.execution_mode {
+                ActiveComponentExecutionMode::Disabled => {
+                    // This replaces the L1 scraper with some fake price data.
+                    // It should be applied only to tests where the scraper is disabled and also
+                    // the provider is enabled.
+                    Some(L1GasPriceProvider::make_new_provider_with_fake_data(
+                        config.l1_gas_price_provider_config.clone(),
+                    ))
+                }
+                _ => Some(L1GasPriceProvider::new(config.l1_gas_price_provider_config.clone())),
+            }
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
