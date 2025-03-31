@@ -97,6 +97,7 @@ pub enum Ids {
     DictPtr,
     Edge,
     ElmBound,
+    EntryPointReturnValues,
     Evals,
     ExecutionContext,
     FinalRoot,
@@ -165,6 +166,7 @@ impl From<Ids> for &'static str {
             Ids::DictPtr => "dict_ptr",
             Ids::Edge => "edge",
             Ids::ElmBound => "elm_bound",
+            Ids::EntryPointReturnValues => "entry_point_return_values",
             Ids::Evals => "evals",
             Ids::ExecutionContext => "execution_context",
             Ids::FinalRoot => "final_root",
@@ -316,6 +318,7 @@ pub enum CairoStruct {
     DeprecatedCompiledClassFact,
     DeprecatedContractEntryPoint,
     DictAccess,
+    EntryPointReturnValues,
     ExecutionContext,
     NodeEdge,
     NonSelectableBuiltins,
@@ -360,6 +363,9 @@ impl From<CairoStruct> for &'static str {
                  DeprecatedContractEntryPoint"
             }
             CairoStruct::DictAccess => "starkware.cairo.common.dict_access.DictAccess",
+            CairoStruct::EntryPointReturnValues => {
+                "starkware.starknet.core.os.execution.execute_entry_point.EntryPointReturnValues*"
+            }
             CairoStruct::ExecutionContext => {
                 "starkware.starknet.core.os.execution.execute_entry_point.ExecutionContext"
             }
