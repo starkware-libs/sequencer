@@ -1161,6 +1161,7 @@ dependencies = [
  "blockifier",
  "blockifier_test_utils",
  "cairo-lang-starknet-classes",
+ "cairo-native",
  "clap",
  "futures",
  "indexmap 2.7.0",

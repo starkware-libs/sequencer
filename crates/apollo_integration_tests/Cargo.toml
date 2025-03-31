@@ -5,6 +5,9 @@ edition.workspace = true
 repository.workspace = true
 license.workspace = true
 
+[features]
+cairo_native = ["apollo_batcher/cairo_native", "dep:cairo-native"]
+
 [lints]
 workspace = true
 
@@ -38,6 +41,7 @@ axum.workspace = true
 blockifier.workspace = true
 blockifier_test_utils.workspace = true
 cairo-lang-starknet-classes.workspace = true
+cairo-native = { workspace = true, optional = true }
 clap.workspace = true
 futures.workspace = true
 indexmap.workspace = true
