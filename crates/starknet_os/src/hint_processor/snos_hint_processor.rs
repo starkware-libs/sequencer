@@ -30,7 +30,7 @@ use crate::errors::StarknetOsError;
 use crate::hint_processor::execution_helper::{ExecutionHelperError, OsExecutionHelper};
 use crate::hint_processor::state_update_pointers::StateUpdatePointers;
 use crate::hints::enum_definition::AllHints;
-use crate::hints::error::OsHintError;
+use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::state::CommitmentType;
 use crate::hints::types::{HintArgs, HintEnum, HintExtensionImplementation, HintImplementation};
 use crate::io::os_input::{CachedStateInput, OsBlockInput, OsHintsConfig, OsInputError};

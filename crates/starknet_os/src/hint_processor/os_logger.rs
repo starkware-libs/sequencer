@@ -327,7 +327,7 @@ impl ResourceCounter {
 }
 
 pub struct OsLogger {
-    debug: bool,
+    pub(crate) debug: bool,
     current_tx: Option<OsTransactionTrace>,
     tab_count: usize,
     syscall_stack: Vec<SyscallTrace>,
