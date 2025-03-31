@@ -1,4 +1,5 @@
 use blockifier::state::state_api::StateReader;
+use cairo_lang_runner::short_string::as_cairo_short_string;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
     get_ptr_from_var_name,
@@ -61,6 +62,14 @@ pub(crate) fn update_builtin_ptrs<S: StateReader>(
     let mut selected_builtin_offset: usize = 0;
 
     for (i, builtin) in all_builtins.iter().enumerate() {
+        // For debugging purposes, try to decode the builtin name - ignore failures.
+        let decoded_builtin: Option<String> = match builtin {
+            MaybeRelocatable::Int(builtin_value) => as_cairo_short_string(builtin_value),
+            MaybeRelocatable::RelocatableValue(builtin_ptr) => vm
+                .get_integer(*builtin_ptr)
+                .map(|felt| as_cairo_short_string(&*felt))
+                .unwrap_or(None),
+        };
         if selected_builtins.contains(builtin) {
             // TODO(Dori): consider computing the address of the selected builtin via the
             //   `get_address_of_nested_fields` utility. See `OsLogger::insert_builtins` for an
@@ -69,7 +78,7 @@ pub(crate) fn update_builtin_ptrs<S: StateReader>(
                 vm.get_maybe(&(selected_ptrs + selected_builtin_offset)?).ok_or_else(|| {
                     OsHintError::MissingSelectedBuiltinPtr {
                         builtin: builtin.clone(),
-                        selected_builtin_offset,
+                        decoded: decoded_builtin,
                     }
                 })?,
             );
@@ -77,7 +86,10 @@ pub(crate) fn update_builtin_ptrs<S: StateReader>(
         } else {
             // The builtin is unselected, hence its value is the same as before calling the program.
             returned_builtins.push(vm.get_maybe(&(orig_builtin_ptrs + i)?).ok_or_else(|| {
-                OsHintError::MissingUnselectedBuiltinPtr { builtin: orig_builtin_ptrs, offset: i }
+                OsHintError::MissingUnselectedBuiltinPtr {
+                    builtin: builtin.clone(),
+                    decoded: decoded_builtin,
+                }
             })?);
         }
     }
