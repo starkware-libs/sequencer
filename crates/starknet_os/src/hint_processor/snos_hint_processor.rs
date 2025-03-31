@@ -331,6 +331,22 @@ impl SyscallHintProcessor {
     pub fn set_syscall_ptr(&mut self, syscall_ptr: Relocatable) {
         self.syscall_ptr = Some(syscall_ptr);
     }
+
+    pub fn validate_and_discard_syscall_ptr(
+        &mut self,
+        syscall_ptr_end: &Relocatable,
+    ) -> OsHintResult {
+        match &self.syscall_ptr {
+            Some(syscall_ptr) if syscall_ptr == syscall_ptr_end => {
+                self.syscall_ptr = None;
+                Ok(())
+            }
+            Some(_) => {
+                Err(OsHintError::AssertionFailed { message: "Bad syscall_ptr_end.".to_string() })
+            }
+            None => Err(OsHintError::AssertionFailed { message: "Missing syscall_ptr.".into() }),
+        }
+    }
 }
 
 pub struct DeprecatedSyscallHintProcessor {
