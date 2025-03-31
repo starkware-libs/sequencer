@@ -30,7 +30,7 @@ use crate::errors::StarknetOsError;
 use crate::hint_processor::execution_helper::{ExecutionHelperError, OsExecutionHelper};
 use crate::hint_processor::state_update_pointers::StateUpdatePointers;
 use crate::hints::enum_definition::AllHints;
-use crate::hints::error::OsHintError;
+use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::state::CommitmentType;
 use crate::hints::types::{HintArgs, HintEnum, HintExtensionImplementation, HintImplementation};
 use crate::io::os_input::{CachedStateInput, OsBlockInput, OsHintsConfig, OsInputError};
@@ -330,6 +330,22 @@ impl SyscallHintProcessor {
 
     pub fn set_syscall_ptr(&mut self, syscall_ptr: Relocatable) {
         self.syscall_ptr = Some(syscall_ptr);
+    }
+
+    pub fn validate_and_discard_syscall_ptr(
+        &mut self,
+        syscall_ptr_end: &Relocatable,
+    ) -> OsHintResult {
+        match &self.syscall_ptr {
+            Some(syscall_ptr) if syscall_ptr == syscall_ptr_end => {
+                self.syscall_ptr = None;
+                Ok(())
+            }
+            Some(_) => {
+                Err(OsHintError::AssertionFailed { message: "Bad syscall_ptr_end.".to_string() })
+            }
+            None => Err(OsHintError::AssertionFailed { message: "Missing syscall_ptr.".into() }),
+        }
     }
 }
 
