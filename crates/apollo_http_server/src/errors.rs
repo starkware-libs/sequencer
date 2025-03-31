@@ -1,6 +1,7 @@
 use apollo_gateway_types::communication::GatewayClientError;
 use apollo_gateway_types::errors::GatewayError;
 use axum::response::{IntoResponse, Response};
+use hyper::StatusCode;
 use jsonrpsee::types::error::ErrorCode;
 use thiserror::Error;
 use tracing::error;
@@ -52,5 +53,10 @@ fn gw_client_err_into_response(err: GatewayClientError) -> Response {
         }
     };
 
-    serde_json::to_vec(&general_rpc_error).expect("Expecting a serializable error.").into_response()
+    let response_code = StatusCode::BAD_REQUEST;
+    let response_body = serde_json::to_vec(&general_rpc_error)
+        .expect("Expecting a serializable error.")
+        .into_response();
+
+    (response_code, response_body).into_response()
 }
