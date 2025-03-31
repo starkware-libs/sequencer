@@ -5,6 +5,9 @@ edition.workspace = true
 repository.workspace = true
 license.workspace = true
 
+[features]
+cairo_native = ["apollo_batcher/cairo_native", "dep:apollo_sierra_multicompile"]
+
 [lints]
 workspace = true
 
@@ -31,6 +34,7 @@ apollo_protobuf.workspace = true
 apollo_sequencer_deployments.workspace = true
 apollo_sequencer_infra = { workspace = true, features = ["testing"] }
 apollo_sequencer_node = { workspace = true, features = ["testing"] }
+apollo_sierra_multicompile = { workspace = true, optional = true }
 apollo_state_sync.workspace = true
 apollo_storage = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
