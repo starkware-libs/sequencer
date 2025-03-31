@@ -2,12 +2,7 @@ use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 
-use apollo_config::dumping::{
-    combine_config_map_and_pointers,
-    ConfigPointers,
-    Pointers,
-    SerializeConfig,
-};
+use apollo_config::dumping::{combine_config_map_and_pointers, Pointers, SerializeConfig};
 use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
 use serde_json::{to_value, Map, Value};
 use tracing::{error, info};
@@ -87,27 +82,6 @@ pub fn dump_json_data(json_data: Value, file_path: &PathBuf) {
     info!("Writing required config changes to: {:?}", file_path);
 }
 
-// TODO(Tsabary): unify with the function of DeploymentBaseAppConfig.
-pub fn dump_config_file(
-    config: SequencerNodeConfig,
-    pointers: &ConfigPointers,
-    non_pointer_params: &Pointers,
-    config_path: &PathBuf,
-) {
-    // Create the entire mapping of the config and the pointers, without the required params.
-    let config_as_map =
-        combine_config_map_and_pointers(config.dump(), pointers, non_pointer_params).unwrap();
-
-    // Extract only the required fields from the config map.
-    let preset = config_to_preset(&config_as_map);
-
-    validate_all_pointer_targets_set(preset.clone()).expect("Pointer target not set");
-
-    // Dump the preset to a file, return its path.
-    dump_json_data(preset, config_path);
-    assert!(config_path.exists(), "File does not exist: {:?}", config_path);
-}
-
 // TODO(Nadin): Consider adding methods to ConfigPointers to encapsulate related functionality.
 fn validate_all_pointer_targets_set(preset: Value) -> Result<(), ValidationError> {
     if let Some(preset_map) = preset.as_object() {
@@ -175,12 +149,23 @@ impl DeploymentBaseAppConfig {
     }
 
     pub fn dump_config_file(&self, config_path: &PathBuf) {
-        dump_config_file(
-            self.config.clone(),
+        // Create the entire mapping of the config and the pointers, without the required params.
+        let config_as_map = combine_config_map_and_pointers(
+            self.config.dump(),
+            // TODO(Tsabary): avoid the cloning here
             &self.config_pointers_map.clone().into(),
             &self.non_pointer_params,
-            config_path,
-        );
+        )
+        .unwrap();
+
+        // Extract only the required fields from the config map.
+        let preset = config_to_preset(&config_as_map);
+
+        validate_all_pointer_targets_set(preset.clone()).expect("Pointer target not set");
+
+        // Dump the preset to a file, return its path.
+        dump_json_data(preset, config_path);
+        assert!(config_path.exists(), "File does not exist: {:?}", config_path);
     }
 }
 
