@@ -25,6 +25,33 @@ pub enum HttpServerError {
     DecompressionError(#[from] CompressionError),
 }
 
+/// Errors that are returned from the python gateway server.
+/// TODO(noamsp/yair): Map the errors from the rust gate to the python gateway server and return
+/// python codes.
+pub enum DeprecatedStarknetErrorCodes {
+    TransactionLimitExceeded,
+    MalformedRequest,
+    ConnectionResetError,
+    DeprecatedTransaction,
+    BlockedTransactionType,
+    SenderAddressIsBlocked,
+    DeprecatedTransactionVersion,
+    InvalidTransactionVersion,
+    UnsupportedTransactionVersion,
+    InvalidResourceBounds,
+    OutOfRangeFee,
+    CalldataTooLong,
+    SignatureTooLong,
+    UnauthorizedDeclare,
+    InvalidContractClass,
+    ContractBytecodeSizeTooLarge,
+    ContractClassObjectSizeTooLarge,
+    InvalidCompiledClassHash,
+    NonPermittedContract,
+    DuplicatedTransaction,
+    ValidateFailure,
+}
+
 impl IntoResponse for HttpServerError {
     fn into_response(self) -> Response {
         match self {
