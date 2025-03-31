@@ -11,10 +11,10 @@ use rstest::{fixture, rstest};
 use starknet_api::core::{ChainId, CompiledClassHash, ContractAddress};
 use starknet_api::executable_transaction::{AccountTransaction, InvokeTransaction};
 use starknet_api::rpc_transaction::{RpcDeclareTransaction, RpcTransaction};
+use starknet_compile_to_casm::config::SierraCompilationConfig;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_mempool_types::communication::{AddTransactionArgsWrapper, MockMempoolClient};
 use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
-use starknet_sierra_multicompile::config::SierraCompilationConfig;
 
 use crate::compilation::GatewayCompiler;
 use crate::config::{

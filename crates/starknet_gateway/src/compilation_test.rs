@@ -9,9 +9,9 @@ use starknet_api::rpc_transaction::{
     RpcDeclareTransactionV3,
     RpcTransaction,
 };
+use starknet_compile_to_casm::config::SierraCompilationConfig;
+use starknet_compile_to_casm::errors::CompilationUtilError;
 use starknet_gateway_types::errors::GatewaySpecError;
-use starknet_sierra_multicompile::config::SierraCompilationConfig;
-use starknet_sierra_multicompile::errors::CompilationUtilError;
 use tracing_test::traced_test;
 
 use crate::compilation::GatewayCompiler;

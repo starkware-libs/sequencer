@@ -5,7 +5,7 @@ use cairo_lang_starknet_classes::contract_class::version_id_from_serialized_sier
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
-use starknet_sierra_multicompile::utils::sierra_program_as_felts_to_big_uint_as_hex;
+use starknet_compile_to_casm::utils::sierra_program_as_felts_to_big_uint_as_hex;
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
 
