@@ -1,6 +1,7 @@
 use apollo_gateway_types::communication::GatewayClientError;
 use apollo_gateway_types::errors::GatewayError;
 use axum::response::{IntoResponse, Response};
+use hyper::StatusCode;
 use jsonrpsee::types::error::ErrorCode;
 use starknet_api::compression_utils::CompressionError;
 use thiserror::Error;
@@ -55,13 +56,16 @@ fn serde_error_into_response(err: serde_json::Error) -> Response {
 }
 
 fn gw_client_err_into_response(err: GatewayClientError) -> Response {
-    let general_rpc_error = match err {
+    let (response_code, general_rpc_error) = match err {
         GatewayClientError::ClientError(e) => {
             error!("Encountered a ClientError: {}", e);
-            jsonrpsee::types::ErrorObject::owned(
-                ErrorCode::InternalError.code(),
-                "Internal error",
-                None::<()>,
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                jsonrpsee::types::ErrorObject::owned(
+                    ErrorCode::InternalError.code(),
+                    "Internal error",
+                    None::<()>,
+                ),
             )
         }
         GatewayClientError::GatewayError(GatewayError::GatewaySpecError {
@@ -70,14 +74,20 @@ fn gw_client_err_into_response(err: GatewayClientError) -> Response {
         }) => {
             // TODO(yair): Find out what is the p2p_message_metadata and whether it needs to be
             // added to the error response.
-            let rpc_spec_error = source.into_rpc();
-            jsonrpsee::types::ErrorObject::owned(
-                ErrorCode::ServerError(rpc_spec_error.code).code(),
-                rpc_spec_error.message,
-                rpc_spec_error.data,
-            )
+            (StatusCode::BAD_REQUEST, {
+                let rpc_spec_error = source.into_rpc();
+                jsonrpsee::types::ErrorObject::owned(
+                    ErrorCode::ServerError(rpc_spec_error.code).code(),
+                    rpc_spec_error.message,
+                    rpc_spec_error.data,
+                )
+            })
         }
     };
 
-    serde_json::to_vec(&general_rpc_error).expect("Expecting a serializable error.").into_response()
+    let response_body = serde_json::to_vec(&general_rpc_error)
+        .expect("Expecting a serializable error.")
+        .into_response();
+
+    (response_code, response_body).into_response()
 }
