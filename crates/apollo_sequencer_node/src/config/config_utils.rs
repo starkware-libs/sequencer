@@ -131,9 +131,6 @@ fn validate_all_pointer_targets_set(preset: Value) -> Result<(), ValidationError
 }
 
 // TODO(Tsabary): consider adding a `new` fn, and remove field visibility.
-// TODO(Tsabary): consider if having the MonitoringEndpointConfig part of BaseAppConfigOverride
-// makes sense.
-#[derive(Clone)]
 pub struct BaseAppConfigOverride {
     pub component_config: ComponentConfig,
     pub monitoring_endpoint_config: MonitoringEndpointConfig,
