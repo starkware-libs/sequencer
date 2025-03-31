@@ -19,7 +19,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::execution_helper::OsExecutionHelper;
 use crate::hints::enum_definition::AllHints;
-use crate::hints::error::OsHintError;
+use crate::hints::error::{HintsProcessorError, OsHintError};
 use crate::hints::types::{HintArgs, HintEnum, HintExtensionImplementation, HintImplementation};
 use crate::io::os_input::OsHintsConfig;
 #[cfg(any(feature = "testing", test))]
@@ -29,9 +29,47 @@ type VmHintResultType<T> = Result<T, VmHintError>;
 type VmHintResult = VmHintResultType<()>;
 type VmHintExtensionResult = VmHintResultType<HintExtension>;
 
+pub(crate) struct ExecutionHelpersManager<S: StateReader> {
+    execution_helpers: Vec<OsExecutionHelper<S>>,
+    current_index: Option<usize>,
+}
+
+impl<S: StateReader> ExecutionHelpersManager<S> {
+    pub fn new(execution_helpers: Vec<OsExecutionHelper<S>>) -> Self {
+        Self { execution_helpers, current_index: None }
+    }
+
+    /// Returns an execution helper reference of the currently processed block.
+    pub fn get_current_execution_helper(
+        &self,
+    ) -> Result<&OsExecutionHelper<S>, HintsProcessorError> {
+        let current_idx =
+            self.current_index.ok_or(HintsProcessorError::NoCurrentExecutionHelper)?;
+        Ok(&self.execution_helpers[current_idx])
+    }
+
+    /// Returns an execution helper mutable reference of the currently processed block.
+    pub fn get_mut_current_execution_helper(
+        &mut self,
+    ) -> Result<&mut OsExecutionHelper<S>, HintsProcessorError> {
+        let current_idx =
+            self.current_index.ok_or(HintsProcessorError::NoCurrentExecutionHelper)?;
+        Ok(&mut self.execution_helpers[current_idx])
+    }
+
+    #[allow(dead_code)]
+    /// Increments the current helper index.
+    pub fn increment_current_helper_index(&mut self) {
+        self.current_index = match self.current_index {
+            Some(prev_idx) => Some(prev_idx + 1),
+            None => Some(0),
+        };
+    }
+}
+
 pub struct SnosHintProcessor<S: StateReader> {
     pub(crate) os_program: Program,
-    pub execution_helper: OsExecutionHelper<S>,
+    pub(crate) execution_helpers_manager: ExecutionHelpersManager<S>,
     pub(crate) os_hints_config: OsHintsConfig,
     pub syscall_hint_processor: SyscallHintProcessor,
     _deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
@@ -43,14 +81,14 @@ pub struct SnosHintProcessor<S: StateReader> {
 impl<S: StateReader> SnosHintProcessor<S> {
     pub fn new(
         os_program: Program,
-        execution_helper: OsExecutionHelper<S>,
+        execution_helpers: Vec<OsExecutionHelper<S>>,
         os_hints_config: OsHintsConfig,
         syscall_hint_processor: SyscallHintProcessor,
         deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
     ) -> Self {
         Self {
             os_program,
-            execution_helper,
+            execution_helpers_manager: ExecutionHelpersManager::new(execution_helpers),
             os_hints_config,
             syscall_hint_processor,
             _deprecated_syscall_hint_processor: deprecated_syscall_hint_processor,
@@ -69,6 +107,20 @@ impl<S: StateReader> SnosHintProcessor<S> {
         }
         self.da_segment = Some(da_segment);
         Ok(())
+    }
+
+    /// Returns an execution helper reference of the currently processed block.
+    pub fn get_current_execution_helper(
+        &self,
+    ) -> Result<&OsExecutionHelper<S>, HintsProcessorError> {
+        self.execution_helpers_manager.get_current_execution_helper()
+    }
+
+    /// Returns an execution helper mutable reference of the currently processed block.
+    pub fn get_mut_current_execution_helper(
+        &mut self,
+    ) -> Result<&mut OsExecutionHelper<S>, HintsProcessorError> {
+        self.execution_helpers_manager.get_mut_current_execution_helper()
     }
 }
 
@@ -151,7 +203,7 @@ impl SnosHintProcessor<DictStateReader> {
 
         SnosHintProcessor::new(
             os_program,
-            execution_helper,
+            vec![execution_helper],
             os_hints_config,
             syscall_handler,
             deprecated_syscall_handler,
