@@ -36,6 +36,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build node
         run: |
           mkdir data
@@ -51,6 +53,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build node
         run: |
           mkdir data
@@ -68,6 +72,8 @@ jobs:
   #   steps:
   #     - uses: actions/checkout@v4
   #     - uses: ./.github/actions/bootstrap
+  #       with:
+  #         github_token: ${{ secrets.GITHUB_TOKEN }}
 
   #     - name: Build node
   #       run: cargo build -p papyrus_node
@@ -80,6 +86,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
       - run: >
           cargo test
           --test latency_histogram
@@ -93,6 +101,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
       - run: |
           cargo test -p papyrus_node --no-default-features
         env:
@@ -129,6 +139,8 @@ jobs:
             target_directory:
               - 'crates/apollo_storage/src/db/**'
       - uses: ./.github/actions/bootstrap
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
       # repeat this job 32 times. this is a random test for part of the code that may cause a corrupted database.
       - run: for run in {1..32}; do cargo test -p apollo_storage -- --include-ignored common_prefix_compare_with_simple_table_random; done
         if: steps.changes.outputs.target_directory == 'true'
