@@ -40,7 +40,14 @@ use axum::extract::Query;
 use axum::http::StatusCode;
 use axum::routing::{get, post};
 use axum::{Json, Router};
+#[cfg(not(feature = "cairo_native"))]
 use blockifier::blockifier::config::TransactionExecutorConfig;
+#[cfg(feature = "cairo_native")]
+use blockifier::blockifier::config::{
+    CairoNativeRunConfig,
+    ContractClassManagerConfig,
+    TransactionExecutorConfig,
+};
 use blockifier::bouncer::{BouncerConfig, BouncerWeights};
 use blockifier::context::ChainInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
@@ -609,6 +616,8 @@ pub fn create_batcher_config(
             execute_config: TransactionExecutorConfig::create_for_testing(concurrency_enabled),
             ..Default::default()
         },
+        #[cfg(feature = "cairo_native")]
+        contract_class_manager_config: class_manager_for_cairo_native(),
         ..Default::default()
     }
 }
@@ -650,6 +659,17 @@ pub fn create_state_sync_configs(
             ..Default::default()
         })
         .collect()
+}
+
+#[cfg(feature = "cairo_native")]
+fn class_manager_for_cairo_native() -> ContractClassManagerConfig {
+    ContractClassManagerConfig {
+        cairo_native_run_config: CairoNativeRunConfig {
+            run_cairo_native: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    }
 }
 
 /// Stores tx hashes streamed so far.
