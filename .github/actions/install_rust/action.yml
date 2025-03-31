@@ -5,6 +5,9 @@ inputs:
   extra_rust_toolchains:
     description: "Extra toolchains to install, but aren't used by default"
     required: false
+  github_token:
+    description: "Github token to use for authentication"
+    required: false
 
 runs:
   using: "composite"
@@ -19,6 +22,7 @@ runs:
         channel: ${{ inputs.extra_rust_toolchains }}
       env:
         RUSTFLAGS: "-C link-arg=-fuse-ld=lld"
+        GITHUB_TOKEN: ${{ inputs.github_token }}
 
     # This installation is _not_ cached, but takes a couple seconds: it's downloading prepackaged
     # binaries.

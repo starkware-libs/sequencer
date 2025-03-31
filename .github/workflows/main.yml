@@ -57,6 +57,7 @@ jobs:
       - uses: ./.github/actions/bootstrap
         with:
           extra_rust_toolchains: ${{ env.EXTRA_RUST_TOOLCHAINS }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Python venv
         run: |
@@ -107,6 +108,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
       - run: cargo test -p workspace_tests
 
   run-tests:
@@ -117,6 +120,8 @@ jobs:
           # Fetch the entire history.
           fetch-depth: 0
       - uses: ./.github/actions/bootstrap
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@v5
