@@ -5,6 +5,9 @@ edition.workspace = true
 repository.workspace = true
 license.workspace = true
 
+[features]
+cairo_native = ["apollo_batcher/cairo_native"]
+
 [lints]
 workspace = true
 
