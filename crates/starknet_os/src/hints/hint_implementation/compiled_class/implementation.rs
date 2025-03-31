@@ -148,7 +148,7 @@ pub(crate) fn validate_compiled_class_facts_post_execution<S: StateReader>(
 ) -> OsHintResult {
     let mut bytecode_segment_structures = HashMap::new();
     for (compiled_hash, compiled_class) in
-        hint_processor.get_current_execution_helper()?.os_input.compiled_classes.iter()
+        hint_processor.get_current_execution_helper()?.os_block_input.compiled_classes.iter()
     {
         bytecode_segment_structures.insert(
             *compiled_hash,
@@ -177,7 +177,7 @@ pub(crate) fn load_class_inner<S: StateReader>(
     let mut compiled_class_facts_ptr = vm.add_memory_segment();
     // Iterate only over cairo 1 classes.
     for (class_hash, class) in
-        hint_processor.get_current_execution_helper()?.os_input.compiled_classes.iter()
+        hint_processor.get_current_execution_helper()?.os_block_input.compiled_classes.iter()
     {
         let compiled_class_fact = CompiledClassFact { class_hash, compiled_class: class };
         compiled_class_fact.load_into(
