@@ -1,14 +1,18 @@
 use std::fs::File;
 use std::process::Command;
 
+use alloy::network::TransactionBuilder;
 use alloy::node_bindings::{Anvil, AnvilInstance, NodeError as AnvilError};
 pub(crate) use alloy::primitives::Address as EthereumContractAddress;
-use alloy::providers::RootProvider;
+use alloy::primitives::{Address, U256};
+use alloy::providers::{Provider, RootProvider};
+use alloy::rpc::types::TransactionRequest;
 use alloy::transports::http::{Client, Http};
 use colored::*;
 use ethers::utils::{Ganache, GanacheInstance};
 use tar::Archive;
 use tempfile::{tempdir, TempDir};
+use tracing::info;
 use url::Url;
 
 use crate::ethereum_base_layer_contract::{
@@ -136,4 +140,34 @@ pub async fn spawn_anvil_and_deploy_starknet_l1_contract(
 pub async fn deploy_starknet_l1_contract(config: EthereumBaseLayerConfig) -> StarknetL1Contract {
     let ethereum_base_layer_contract = EthereumBaseLayerContract::new(config);
     Starknet::deploy(ethereum_base_layer_contract.contract.provider().clone()).await.unwrap()
+}
+
+pub async fn make_block_history_on_anvil(
+    base_layer_config: EthereumBaseLayerConfig,
+    num_blocks: usize,
+) {
+    let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone());
+    let provider = base_layer.contract.provider();
+    // This is an arbitrary address.
+    let address_string = "d8dA6BF26964aF9D7eEd9e03E53415D37aA96045";
+    let mut address = [0u8; 20];
+    alloy::hex::decode_to_slice(address_string, &mut address).expect("Decoding failed");
+    let address = Address::new(address);
+    for i in 0..num_blocks {
+        let tx = TransactionRequest::default().with_to(address).with_value(U256::from(100));
+        let pending =
+            provider.send_transaction(tx).await.expect("Could not post transaction to base layer");
+        let receipt: alloy::rpc::types::TransactionReceipt = pending
+            .get_receipt()
+            .await
+            .expect("Could not get receipt for transaction to base layer");
+        info!(
+            "Added transaction to block: {} with gas price: {}, blob price: {}",
+            receipt.block_number.unwrap(),
+            receipt.effective_gas_price,
+            receipt.blob_gas_price.unwrap()
+        );
+        // Make sure the transactions trigger creation of new blocks.
+        assert!(usize::try_from(receipt.block_number.unwrap()).unwrap() > i);
+    }
 }
