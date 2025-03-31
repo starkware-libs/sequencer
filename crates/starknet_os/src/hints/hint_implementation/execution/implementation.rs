@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use blockifier::execution::contract_class::TrackedResource;
 use blockifier::state::state_api::{State, StateReader};
 use cairo_vm::any_box;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
@@ -354,12 +355,53 @@ pub(crate) fn is_reverted<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) 
 }
 
 pub(crate) fn check_execution<S: StateReader>(
-    HintArgs { vm, hint_processor, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+    HintArgs { vm, hint_processor, ids_data, ap_tracking, constants, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let current_execution_helper =
         hint_processor.execution_helpers_manager.get_mut_current_execution_helper()?;
     if current_execution_helper.os_logger.debug {
-        // TODO(yoav): Implement debug mode validations.
+        // Validate the predicted gas cost.
+        let remaining_gas =
+            get_integer_from_var_name(Ids::RemainingGas.into(), vm, ids_data, ap_tracking)?;
+        let gas_builtin = vm.get_integer(get_address_of_nested_fields(
+            ids_data,
+            Ids::EntryPointReturnValues,
+            CairoStruct::EntryPointReturnValuesPtr,
+            vm,
+            ap_tracking,
+            &["gas_builtin"],
+            hint_processor.os_program,
+        )?)?;
+        let actual_gas = remaining_gas - *gas_builtin;
+
+        let call_info = current_execution_helper
+            .tx_execution_iter
+            .get_tx_execution_info_ref()?
+            .get_call_info_tracker()?
+            .call_info;
+        let mut predicted = Felt::from(call_info.execution.gas_consumed);
+
+        match call_info.tracked_resource {
+            TrackedResource::SierraGas => {
+                let initial_budget = Const::EntryPointInitialBudget.fetch(constants)?;
+                predicted -= initial_budget;
+                if actual_gas != predicted {
+                    return Err(OsHintError::AssertionFailed {
+                        message: format!(
+                            "Predicted gas costs are inconsistent with the actual execution; \
+                             predicted={predicted}, actual={actual_gas}.",
+                        ),
+                    });
+                }
+            }
+            TrackedResource::CairoSteps => {
+                if predicted != Felt::ZERO {
+                    return Err(OsHintError::AssertionFailed {
+                        message: "Predicted gas cost must be zero in CairoSteps mode.".to_string(),
+                    });
+                }
+            }
+        };
     }
 
     let syscall_ptr_end = get_address_of_nested_fields(
