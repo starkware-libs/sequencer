@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use apollo_class_manager_types::transaction_converter::TransactionConverter;
+use apollo_class_manager_types::transaction_converter::{
+    TransactionConverter,
+    TransactionConverterTrait,
+};
 use apollo_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
 use apollo_gateway_types::errors::GatewaySpecError;
 use apollo_mempool_types::communication::{
@@ -15,26 +18,27 @@ use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_test_utils::{get_rng, GetTestInstance};
 use assert_matches::assert_matches;
 use blockifier::context::ChainInfo;
+use blockifier::test_utils::initial_test_state::fund_account;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
-use mempool_test_utils::starknet_api_test_utils::{declare_tx, invoke_tx};
+use blockifier_test_utils::contracts::FeatureContract;
+use mempool_test_utils::starknet_api_test_utils::{
+    declare_tx,
+    generate_deploy_account_with_salt,
+    invoke_tx,
+};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use rstest::{fixture, rstest};
 use starknet_api::core::{CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
-    InternalRpcTransactionWithoutTxHash,
     RpcDeclareTransaction,
     RpcTransaction,
     RpcTransactionLabelValue,
 };
-use starknet_api::test_utils::CHAIN_ID_FOR_TESTS;
-use starknet_api::transaction::{
-    InvokeTransaction,
-    TransactionHash,
-    TransactionHasher,
-    TransactionVersion,
-};
+use starknet_api::transaction::fields::{ContractAddressSalt, Fee};
+use starknet_api::transaction::TransactionHash;
+use starknet_types_core::felt::Felt;
 use strum::VariantNames;
 
 use crate::config::{
@@ -55,6 +59,7 @@ use crate::metrics::{
     TRANSACTIONS_SENT_TO_MEMPOOL,
 };
 use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReaderFactory};
+use crate::test_utils::TransactionType;
 
 #[fixture]
 fn config() -> GatewayConfig {
@@ -105,69 +110,87 @@ impl MockDependencies {
     }
 }
 
-type SenderAddress = ContractAddress;
+fn create_tx(tx_type: &TransactionType) -> RpcTransaction {
+    let cairo_version = CairoVersion::Cairo1(RunnableCairo1::Casm);
+    match tx_type {
+        TransactionType::Declare => todo!(),
+        TransactionType::DeployAccount => generate_deploy_account_with_salt(
+            &FeatureContract::AccountWithoutValidations(cairo_version),
+            ContractAddressSalt(Felt::ZERO),
+        ),
+        TransactionType::Invoke => invoke_tx(cairo_version),
+    }
+}
 
-fn create_tx() -> (RpcTransaction, SenderAddress) {
-    let tx = invoke_tx(CairoVersion::Cairo1(RunnableCairo1::Casm));
-    let sender_address = match &tx {
-        RpcTransaction::Invoke(starknet_api::rpc_transaction::RpcInvokeTransaction::V3(
-            invoke_tx,
-        )) => invoke_tx.sender_address,
-        _ => panic!("Unexpected transaction type"),
-    };
-    (tx, sender_address)
+async fn convert_rpc_tx_to_internal(
+    deps: &MockDependencies,
+    rpc_tx: RpcTransaction,
+) -> InternalRpcTransaction {
+    let cloned_deps = mock_dependencies(deps.config.clone(), state_reader_factory());
+    let gateway = cloned_deps.gateway();
+    gateway.transaction_converter.convert_rpc_tx_to_internal_rpc_tx(rpc_tx).await.unwrap()
 }
 
 // TODO(AlonH): add test with Some broadcasted message metadata
 // We use default nonce, address, and tx_hash since Gateway errors drop these details when
 // converting Mempool errors.
 #[rstest]
-#[case::successful_transaction_addition(Ok(()), None)]
-#[case::duplicate_tx_hash(
+#[case::successful_transaction_addition(
+    TransactionType::Invoke, Ok(()), None)]
+#[case::invoke_duplicate_tx_hash(
+    TransactionType::Invoke,
     Err(MempoolClientError::MempoolError(MempoolError::DuplicateTransaction { tx_hash: TransactionHash::default() })),
     Some(GatewaySpecError::DuplicateTx)
 )]
-#[case::duplicate_nonce(
+#[case::invoke_duplicate_nonce(
+    TransactionType::Invoke,
     Err(MempoolClientError::MempoolError(MempoolError::DuplicateNonce { address: ContractAddress::default(), nonce: Nonce::default() })),
     Some(GatewaySpecError::InvalidTransactionNonce)
 )]
-#[case::nonce_too_old(
+#[case::invoke_nonce_too_old(
+    TransactionType::Invoke,
     Err(MempoolClientError::MempoolError(MempoolError::NonceTooOld { address: ContractAddress::default(), nonce: Nonce::default() })),
     Some(GatewaySpecError::InvalidTransactionNonce)
 )]
-#[case::nonce_too_large(
+#[case::invoke_nonce_too_large(
+    TransactionType::Invoke,
     Err(MempoolClientError::MempoolError(MempoolError::NonceTooLarge(Nonce::default()))),
     Some(GatewaySpecError::InvalidTransactionNonce)
+)]
+#[case::successful_deploy_account(
+    TransactionType::DeployAccount,
+    Ok(()),
+    None
 )]
 #[tokio::test]
 async fn test_add_tx(
     mut mock_dependencies: MockDependencies,
+    #[case] tx_type: TransactionType,
     #[case] expected_result: Result<(), MempoolClientError>,
     #[case] expected_error: Option<GatewaySpecError>,
 ) {
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
 
-    let (rpc_tx, address) = create_tx();
-    let rpc_invoke_tx =
-        assert_matches!(rpc_tx.clone(), RpcTransaction::Invoke(rpc_invoke_tx) => rpc_invoke_tx);
+    let rpc_tx = create_tx(&tx_type);
+    let address = rpc_tx.calculate_sender_address().unwrap();
 
-    let InvokeTransaction::V3(invoke_tx): InvokeTransaction = rpc_invoke_tx.clone().into() else {
-        panic!("Unexpected transaction version")
-    };
+    if matches!(&tx_type, TransactionType::DeployAccount) {
+        fund_account(
+            &mock_dependencies.config.chain_info,
+            address,
+            Fee(100000000000000000000000),
+            &mut mock_dependencies.state_reader_factory.state_reader.blockifier_state_reader,
+        );
+    }
 
-    let tx_hash = invoke_tx
-        .calculate_transaction_hash(&CHAIN_ID_FOR_TESTS, &TransactionVersion::THREE)
-        .unwrap();
-
-    let internal_invoke_tx = InternalRpcTransaction {
-        tx: InternalRpcTransactionWithoutTxHash::Invoke(rpc_invoke_tx),
-        tx_hash,
-    };
+    let internal_tx: InternalRpcTransaction =
+        convert_rpc_tx_to_internal(&mock_dependencies, rpc_tx.clone()).await;
+    let tx_hash = internal_tx.tx_hash();
 
     let p2p_message_metadata = Some(BroadcastedMessageMetadata::get_test_instance(&mut get_rng()));
     let add_tx_args = AddTransactionArgs {
-        tx: internal_invoke_tx,
+        tx: internal_tx,
         account_state: AccountState { address, nonce: *rpc_tx.nonce() },
     };
     mock_dependencies.expect_add_tx(
