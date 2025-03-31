@@ -19,4 +19,4 @@ pub mod orchestrator_versioned_constants;
 pub mod config;
 
 #[allow(missing_docs)]
-mod metrics;
+pub mod metrics;

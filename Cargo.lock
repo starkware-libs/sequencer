@@ -1598,6 +1598,7 @@ dependencies = [
  "apollo_central_sync",
  "apollo_consensus",
  "apollo_consensus_manager",
+ "apollo_consensus_orchestrator",
  "apollo_gateway",
  "apollo_http_server",
  "apollo_infra_utils",

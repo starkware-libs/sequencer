@@ -17,6 +17,7 @@ apollo_batcher.workspace = true
 apollo_central_sync.workspace = true
 apollo_consensus.workspace = true
 apollo_consensus_manager.workspace = true
+apollo_consensus_orchestrator.workspace = true
 apollo_gateway.workspace = true
 apollo_http_server.workspace = true
 apollo_infra_utils.workspace = true
