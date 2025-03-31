@@ -80,6 +80,8 @@ impl MempoolState {
         }
     }
 
+    /// Returns the most updated Nonce (including staged) for the address. If no value is found for
+    /// address, incoming_account_nonce is returned.
     fn resolve_nonce(&self, address: ContractAddress, incoming_account_nonce: Nonce) -> Nonce {
         self.staged
             .get(&address)
@@ -105,6 +107,8 @@ impl MempoolState {
         Ok(())
     }
 
+    /// Updates the committed nonces, and returns the addresses which need to be rewinded (i.e.
+    /// addressed which were staged but did not make to the commit).
     fn commit(&mut self, address_to_nonce: AddressToNonce) -> Vec<ContractAddress> {
         let addresses_to_rewind: Vec<_> = self
             .staged
@@ -357,11 +361,16 @@ impl Mempool {
 
         let tx_reference = TransactionReference::new(&tx);
 
-        self.tx_pool.insert(tx).expect("Duplicate transactions should error in validation stage.");
+        self.tx_pool
+            .insert(tx)
+            .expect("Duplicate transactions should cause an error during the validation stage.");
 
         let AccountState { address, nonce: incoming_account_nonce } = account_state;
         let account_nonce = self.state.resolve_nonce(address, incoming_account_nonce);
         if tx_reference.nonce == account_nonce {
+            // Remove queued transactions the account might have. This includes old nonce
+            // transactions that have become obsolete; those with an equal nonce should
+            // already have been removed in `handle_fee_escalation`.
             self.tx_queue.remove(address);
             self.tx_queue.insert(tx_reference);
         }
@@ -504,6 +513,9 @@ impl Mempool {
         Ok(())
     }
 
+    /// If this transaction is already in the pool but the fees have increased beyond the thereshold
+    /// in the config, remove the existing transaction from the queue and the pool.
+    /// Note: This method will **not** add the new incoming transaction.
     #[instrument(level = "debug", skip(self, incoming_tx), err)]
     fn handle_fee_escalation(&mut self, incoming_tx: &InternalRpcTransaction) -> MempoolResult<()> {
         let incoming_tx_reference = TransactionReference::new(incoming_tx);
