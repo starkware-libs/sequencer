@@ -21,6 +21,7 @@ use crate::metrics::{
     MEMPOOL_PENDING_QUEUE_SIZE,
     MEMPOOL_POOL_SIZE,
     MEMPOOL_PRIORITY_QUEUE_SIZE,
+    MEMPOOL_TOTAL_SIZE_BYTES,
     MEMPOOL_TRANSACTIONS_COMMITTED,
     MEMPOOL_TRANSACTIONS_DROPPED,
     MEMPOOL_TRANSACTIONS_RECEIVED,
@@ -317,6 +318,7 @@ pub struct MempoolMetrics {
     pub pending_queue_size: u64,
     pub get_txs_size: u64,
     pub delayed_declares_size: u64,
+    pub total_size_in_bytes: u64,
     pub transaction_time_spent_in_mempool: HistogramValue,
 }
 
@@ -359,6 +361,7 @@ impl MempoolMetrics {
         MEMPOOL_PENDING_QUEUE_SIZE.assert_eq(metrics, self.pending_queue_size);
         MEMPOOL_GET_TXS_SIZE.assert_eq(metrics, self.get_txs_size);
         MEMPOOL_DELAYED_DECLARES_SIZE.assert_eq(metrics, self.delayed_declares_size);
+        MEMPOOL_TOTAL_SIZE_BYTES.assert_eq(metrics, self.total_size_in_bytes);
         TRANSACTION_TIME_SPENT_IN_MEMPOOL
             .assert_eq(metrics, &self.transaction_time_spent_in_mempool);
     }

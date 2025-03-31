@@ -49,6 +49,7 @@ use apollo_mempool::metrics::{
     MEMPOOL_PENDING_QUEUE_SIZE,
     MEMPOOL_POOL_SIZE,
     MEMPOOL_PRIORITY_QUEUE_SIZE,
+    MEMPOOL_TOTAL_SIZE_BYTES,
     MEMPOOL_TRANSACTIONS_COMMITTED,
     MEMPOOL_TRANSACTIONS_DROPPED,
     MEMPOOL_TRANSACTIONS_RECEIVED,
@@ -255,6 +256,13 @@ const PANEL_MEMPOOL_PENDING_QUEUE_SIZE: Panel = Panel::new(
     PanelType::Graph,
 );
 
+const PANEL_MEMPOOL_TOTAL_SIZE_IN_BYTES: Panel = Panel::new(
+    MEMPOOL_TOTAL_SIZE_BYTES.get_name(),
+    "The average size in bytes of the transactions in the mempool",
+    formatcp!("avg_over_time({}[2m])", MEMPOOL_TOTAL_SIZE_BYTES.get_name()),
+    PanelType::Graph,
+);
+
 const PANEL_MEMPOOL_GET_TXS_SIZE: Panel = Panel::new(
     MEMPOOL_GET_TXS_SIZE.get_name(),
     "The average size of the get_txs",
@@ -368,6 +376,7 @@ pub const MEMPOOL_ROW: Row = Row::new(
         PANEL_MEMPOOL_POOL_SIZE,
         PANEL_MEMPOOL_PRIORITY_QUEUE_SIZE,
         PANEL_MEMPOOL_PENDING_QUEUE_SIZE,
+        PANEL_MEMPOOL_TOTAL_SIZE_IN_BYTES,
         PANEL_MEMPOOL_GET_TXS_SIZE,
         PANEL_MEMPOOL_TRANSACTION_TIME_SPENT,
     ],
