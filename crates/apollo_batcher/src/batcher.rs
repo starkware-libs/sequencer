@@ -59,8 +59,6 @@ use crate::metrics::{
     register_metrics,
     ProposalMetricsHandle,
     BATCHED_TRANSACTIONS,
-    CLASS_CACHE_HITS,
-    CLASS_CACHE_MISSES,
     LAST_BATCHED_BLOCK,
     LAST_PROPOSED_BLOCK,
     LAST_SYNCED_BLOCK,
@@ -533,10 +531,8 @@ impl Batcher {
             .collect();
 
         LAST_BATCHED_BLOCK.set_lossy(height.0);
-        // Take and reset native class cache metrics.
-        CLASS_CACHE_MISSES.increment(self.block_builder_factory.get_class_cache_miss_counter());
-        CLASS_CACHE_HITS.increment(self.block_builder_factory.get_class_cache_hit_counter());
-        self.block_builder_factory.reset_class_cache_metrics();
+        // Update class cache metrics.
+        self.block_builder_factory.update_class_cache_metrics();
         BATCHED_TRANSACTIONS.increment(n_txs);
         REJECTED_TRANSACTIONS.increment(n_rejected_txs);
 

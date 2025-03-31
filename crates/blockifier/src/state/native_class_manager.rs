@@ -1,6 +1,8 @@
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
 use std::sync::Arc;
 
+use apollo_sequencer_metrics::define_metrics;
+use apollo_sequencer_metrics::metrics::MetricCounter;
 use apollo_sierra_multicompile::command_line_compiler::CommandLineCompiler;
 use apollo_sierra_multicompile::errors::CompilationUtilError;
 use apollo_sierra_multicompile::utils::into_contract_class_for_compilation;
@@ -20,6 +22,13 @@ use crate::blockifier::config::{
 use crate::execution::contract_class::{CompiledClassV1, RunnableCompiledClass};
 use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::state::global_cache::{CachedCairoNative, CachedClass, RawClassCache};
+
+define_metrics!(
+    CairoNativeClassManager => {
+        MetricCounter { CLASS_CACHE_MISSES, "class_cache_misses", "Counter of global class cache misses", init=0 },
+        MetricCounter { CLASS_CACHE_HITS, "class_cache_hits", "Counter of global class cache hits", init=0 }
+    }
+);
 
 #[cfg(test)]
 #[path = "native_class_manager_test.rs"]
@@ -220,19 +229,12 @@ impl NativeClassManager {
         self.cache.lock().cache_size()
     }
 
-    /// Retrieves the current cache miss counter.
-    pub fn get_cache_miss_counter(&self) -> u64 {
-        self.cache.lock().cache_misses().unwrap_or(0)
-    }
-
-    /// Retrieves the current cache hit counter.
-    pub fn get_cache_hit_counter(&self) -> u64 {
-        self.cache.lock().cache_hits().unwrap_or(0)
-    }
-
-    /// Resets the cache metrics.
-    pub fn reset_cache_metrics(&self) {
-        self.cache.lock().cache_reset_metrics();
+    /// Update native class manager`s cache metrics.
+    pub fn update_cache_metrics(&self) {
+        let mut cache = self.cache.lock();
+        CLASS_CACHE_MISSES.increment(cache.cache_misses().unwrap_or(0));
+        CLASS_CACHE_HITS.increment(cache.cache_hits().unwrap_or(0));
+        cache.cache_reset_metrics();
     }
 }
 
