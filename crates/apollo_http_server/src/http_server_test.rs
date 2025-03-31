@@ -10,13 +10,16 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use futures::FutureExt;
+use jsonrpsee::types::error::ErrorCode;
 use jsonrpsee::types::ErrorObjectOwned;
 use mempool_test_utils::starknet_api_test_utils::invoke_tx;
+use serde_json::Value;
 use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
 use tracing_test::traced_test;
 
 use crate::config::HttpServerConfig;
+use crate::errors::HttpServerError;
 use crate::http_server::{add_tx_result_as_json, CLIENT_REGION_HEADER};
 use crate::test_utils::http_client_server_setup;
 
@@ -34,6 +37,22 @@ async fn test_tx_hash_json_conversion() {
 
 async fn to_bytes(res: Response) -> Bytes {
     res.into_body().collect().await.unwrap().to_bytes()
+}
+
+#[tokio::test]
+async fn test_add_tx_result_as_json_negative() {
+    let error = HttpServerError::DeserializationError(
+        serde_json::from_str::<serde_json::Value>("invalid json").unwrap_err(),
+    );
+    let response = add_tx_result_as_json(Err(error)).unwrap_err().into_response();
+
+    let status = response.status();
+    let body = to_bytes(response).await;
+    let json: Value = serde_json::from_slice(&body).unwrap();
+
+    assert!(status.is_success());
+    assert_eq!(json.get("code").unwrap(), ErrorCode::ParseError.code());
+    assert_eq!(json.get("message").unwrap().as_str().unwrap(), "Failed to parse the request body.");
 }
 
 #[traced_test]
