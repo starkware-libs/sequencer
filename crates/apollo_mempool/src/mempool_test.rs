@@ -471,15 +471,6 @@ fn test_add_tx_rejects_duplicate_tx_hash(mut mempool: Mempool) {
     // Assert: the original transaction remains.
     let expected_mempool_content = MempoolTestContentBuilder::new().with_pool([input.tx]).build();
     expected_mempool_content.assert_eq(&mempool.content());
-
-    // Assert: metrics.
-    let expected_metrics = MempoolMetrics {
-        txs_received_invoke: 2,
-        txs_dropped_failed_add_tx_checks: 1,
-        pool_size: 1,
-        ..Default::default()
-    };
-    expected_metrics.verify_metrics(&recorder);
 }
 
 #[rstest]
@@ -855,11 +846,6 @@ fn test_update_gas_price_threshold_increases_threshold() {
         .with_priority_queue([tx_high_gas])
         .build();
     expected_mempool_content.assert_eq(&mempool.content());
-
-    // Assert: metrics.
-    let expected_metrics =
-        MempoolMetrics { priority_queue_size: 1, pending_queue_size: 1, ..Default::default() };
-    expected_metrics.verify_metrics(&recorder);
 }
 
 #[rstest]
@@ -980,18 +966,6 @@ fn test_rejected_tx_deleted_from_mempool(mut mempool: Mempool) {
         .with_priority_queue(vec![])
         .build();
     expected_mempool_content.assert_eq(&mempool.content());
-
-    // Assert: metrics.
-    let expected_metrics = MempoolMetrics {
-        txs_received_invoke: 4,
-        txs_dropped_rejected: 2,
-        txs_committed: 1,
-        pool_size: 1,
-        get_txs_size: 4,
-        transaction_time_spent_in_mempool: HistogramValue { count: 3, ..Default::default() },
-        ..Default::default()
-    };
-    expected_metrics.verify_metrics(&recorder);
 }
 
 #[rstest]
@@ -1108,21 +1082,6 @@ fn get_txs_old_transactions_cleanup() {
         .with_pending_queue([])
         .build();
     expected_mempool_content.assert_eq(&mempool.content());
-
-    // Assert: metrics.
-    let expected_metrics = MempoolMetrics {
-        txs_received_invoke: 2,
-        txs_dropped_expired: 1,
-        pool_size: 1,
-        get_txs_size: 1,
-        transaction_time_spent_in_mempool: HistogramValue {
-            sum: 65.0,
-            count: 1,
-            ..Default::default()
-        },
-        ..Default::default()
-    };
-    expected_metrics.verify_metrics(&recorder);
 }
 
 #[test]
@@ -1132,6 +1091,90 @@ fn test_register_metrics() {
     register_metrics();
 
     let expected_metrics = MempoolMetrics::default();
+    expected_metrics.verify_metrics(&recorder);
+}
+
+#[test]
+fn metrics_correctness() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    register_metrics();
+
+    // Create a mempool.
+    let fake_clock = Arc::new(FakeClock::default());
+    let mut mempool = Mempool::new(MempoolConfig::default(), fake_clock.clone());
+    mempool.update_gas_price(NonzeroGasPrice::new_unchecked(GasPrice(100)));
+
+    // Add the following transactions:
+    //
+    //      Type    | Tx Hash | Status
+    //   -----------|---------|----------
+    //    invoke_1  |    1    | Expired
+    //    invoke_2  |    2    | Committed
+    //    invoke_4  |    3    | Rejected
+    //    invoke_4  |    3    | Duplicate hash
+    //    invoke_5  |    4    | Staged
+    //    invoke_6  |    5    | Pending queue
+    //    declare_1 |    6    | Priority queue
+    //    declare_2 |    7    | Delayed declare
+
+    let invoke_1 = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0);
+    let invoke_2 = add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 0, account_nonce: 0);
+    let invoke_3 = add_tx_input!(tx_hash: 3, address: "0x2", tx_nonce: 0, account_nonce: 0);
+    let invoke_4 = add_tx_input!(tx_hash: 3, address: "0x2", tx_nonce: 0, account_nonce: 0);
+    let invoke_5 = add_tx_input!(tx_hash: 4, address: "0x3", tx_nonce: 0, account_nonce: 0);
+    let invoke_6 = add_tx_input!(tx_hash: 5, address: "0x4", tx_nonce: 0, account_nonce: 0, tip: 100, max_l2_gas_price: 99);
+    let declare_1 = declare_add_tx_input(
+        declare_tx_args!(resource_bounds: test_valid_resource_bounds(), sender_address: contract_address!("0x5"), tx_hash: tx_hash!(6)),
+    );
+    let declare_2 = declare_add_tx_input(
+        declare_tx_args!(resource_bounds: test_valid_resource_bounds(), sender_address: contract_address!("0x6"), tx_hash: tx_hash!(7)),
+    );
+
+    add_tx(&mut mempool, &invoke_1);
+    fake_clock.advance(mempool.config.transaction_ttl + Duration::from_secs(5));
+
+    add_tx(&mut mempool, &invoke_2);
+    add_tx(&mut mempool, &invoke_3);
+    add_tx_expect_error(
+        &mut mempool,
+        &invoke_4,
+        MempoolError::DuplicateTransaction { tx_hash: invoke_4.tx.tx_hash },
+    );
+    add_tx(&mut mempool, &invoke_5);
+    add_tx(&mut mempool, &invoke_6);
+    add_tx(&mut mempool, &declare_1);
+
+    commit_block(
+        &mut mempool,
+        [("0x1", 1)],          // invoke_2 was committed.
+        [invoke_3.tx.tx_hash], // invoke_3 was rejected.
+    );
+
+    fake_clock.advance(mempool.config.declare_delay + Duration::from_secs(1));
+    add_tx(&mut mempool, &declare_2);
+
+    mempool.get_txs(1).unwrap();
+
+    let expected_metrics = MempoolMetrics {
+        txs_received_invoke: 6,
+        txs_received_declare: 2,
+        txs_received_deploy_account: 0,
+        txs_committed: 1,
+        txs_dropped_expired: 1,
+        txs_dropped_failed_add_tx_checks: 1,
+        txs_dropped_rejected: 1,
+        pool_size: 3,
+        priority_queue_size: 1,
+        pending_queue_size: 1,
+        get_txs_size: 1,
+        delayed_declares_size: 1,
+        transaction_time_spent_in_mempool: HistogramValue {
+            sum: 65.0,
+            count: 3,
+            ..Default::default()
+        },
+    };
     expected_metrics.verify_metrics(&recorder);
 }
 
@@ -1189,11 +1232,6 @@ fn delay_declare_txs() {
     add_tx(&mut mempool, &second_declare);
 
     assert_eq!(mempool.get_txs(2).unwrap(), vec![]);
-
-    // Assert: metrics.
-    let expected_metrics =
-        MempoolMetrics { txs_received_declare: 2, delayed_declares_size: 2, ..Default::default() };
-    expected_metrics.verify_metrics(&recorder);
 
     // Complete the first declare's delay.
     fake_clock.advance(declare_delay - Duration::from_secs(1));
