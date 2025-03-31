@@ -7,13 +7,14 @@ use std::time::Duration;
 use alloy::node_bindings::AnvilInstance;
 use apollo_http_server::config::HttpServerConfig;
 use apollo_http_server::test_utils::HttpTestClient;
+use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
 use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
 use apollo_network::network_manager::test_utils::create_connected_network_configs;
 use apollo_sequencer_node::config::component_config::ComponentConfig;
-use apollo_sequencer_node::config::config_utils::{dump_json_data, DeploymentBaseAppConfig};
+use apollo_sequencer_node::config::config_utils::DeploymentBaseAppConfig;
 use apollo_sequencer_node::config::definitions::ConfigPointersMap;
 use apollo_sequencer_node::config::node_config::{
     SequencerNodeConfig,
@@ -165,8 +166,7 @@ impl NodeSetup {
             HTTP_PORT_ARG: self.executables[self.http_server_index].config.http_server_config.port,
             MONITORING_PORT_ARG: self.executables[self.batcher_index].config.monitoring_endpoint_config.port
         });
-
-        dump_json_data(json_data, &PathBuf::from(path));
+        serialize_to_file(json_data, path);
     }
 
     pub fn get_batcher_index(&self) -> usize {
