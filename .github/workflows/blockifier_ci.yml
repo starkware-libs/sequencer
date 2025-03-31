@@ -39,6 +39,7 @@ on:
 
 env:
   RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 # Also, create different concurrency groups for different pushed commits, on push events.

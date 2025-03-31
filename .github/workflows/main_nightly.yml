@@ -12,7 +12,9 @@ jobs:
     runs-on: starkware-ubuntu-24.04-large
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/bootstrap
+      - uses: ./.github/actions/
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
       - run: npm install -g ganache@7.4.3
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
@@ -45,6 +47,8 @@ jobs:
 
       # Install rust components.
       - uses: ./.github/actions/bootstrap
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Python venv
         run: |
