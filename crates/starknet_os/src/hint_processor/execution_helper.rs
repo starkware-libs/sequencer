@@ -95,6 +95,12 @@ impl<'a> TransactionExecutionInfoReference<'a> {
         Some(())
     }
 
+    pub fn exit_call_info(&mut self) -> Result<(), ExecutionHelperError> {
+        self.get_mut_call_info_tracker()?.assert_exhausted_iterators()?;
+        self.call_info_tracker = None;
+        Ok(())
+    }
+
     pub fn get_call_info_tracker(&self) -> Result<&CallInfoTracker<'a>, ExecutionHelperError> {
         self.call_info_tracker.as_ref().ok_or(ExecutionHelperError::MissingCallInfo)
     }
@@ -166,6 +172,32 @@ impl<'a> CallInfoTracker<'a> {
                 .iter(),
         }
     }
+
+    pub fn assert_exhausted_iterators(&mut self) -> Result<(), ExecutionHelperError> {
+        let mut iterators = Vec::new();
+
+        macro_rules! check_exhausted {
+            ($iterator:expr, $name:expr) => {
+                if $iterator.next().is_some() {
+                    iterators.push($name.to_string());
+                }
+            };
+        }
+
+        check_exhausted!(self.deployed_contracts_iterator, "deployed_contracts_iterator");
+        check_exhausted!(self.inner_calls_iterator, "inner_calls_iterator");
+        check_exhausted!(self.execute_code_read_iterator, "execute_code_read_iterator");
+        check_exhausted!(
+            self.execute_code_class_hash_read_iterator,
+            "execute_code_class_hash_read_iterator"
+        );
+        if iterators.len() > 0 {
+            return Err(ExecutionHelperError::UnexhaustedCallInfoDataIterators {
+                iters: iterators,
+            });
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -176,4 +208,6 @@ pub enum ExecutionHelperError {
     MissingTxExecutionInfo,
     #[error("Called a block execution-helper before it was initialized.")]
     NoCurrentExecutionHelper,
+    #[error("Exit call info before exhausting data iterators {iters:?}.")]
+    UnexhaustedCallInfoDataIterators { iters: Vec<String> },
 }
