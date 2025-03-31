@@ -27,6 +27,7 @@ use futures::TryFutureExt;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use papyrus_base_layer::test_utils::{
     ethereum_base_layer_config_for_anvil,
+    make_block_history_on_anvil,
     spawn_anvil_and_deploy_starknet_l1_contract,
     StarknetL1Contract,
 };
@@ -262,6 +263,16 @@ impl IntegrationTestManager {
         let base_layer_config = &sequencers_setup[0].executables[0].config.base_layer_config;
         let (anvil, starknet_l1_contract) =
             spawn_anvil_and_deploy_starknet_l1_contract(base_layer_config).await;
+        // Send some transactions to L1 so it has a history of blocks to scrape gas prices from.
+        let num_blocks_needed_on_l1 = &sequencers_setup[0].executables[0]
+            .config
+            .l1_gas_price_scraper_config
+            .number_of_blocks_for_mean;
+        make_block_history_on_anvil(
+            base_layer_config.clone(),
+            usize::try_from(*num_blocks_needed_on_l1).unwrap(),
+        )
+        .await;
 
         let idle_nodes = create_map(sequencers_setup, |node| node.get_node_index());
         let running_nodes = HashMap::new();
