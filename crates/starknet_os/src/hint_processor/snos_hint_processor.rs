@@ -182,6 +182,23 @@ impl SyscallHintProcessor {
     pub fn set_syscall_ptr(&mut self, syscall_ptr: Relocatable) {
         self.syscall_ptr = Some(syscall_ptr);
     }
+
+    pub fn validate_and_discard_syscall_ptr(
+        &mut self,
+        syscall_ptr_end: &Relocatable,
+    ) -> VmHintResult {
+        match &self.syscall_ptr {
+            Some(syscall_ptr) => {
+                if (syscall_ptr != syscall_ptr_end) {
+                    Err(VmHintError::AssertionFailed("Bad syscall_ptr_end.".into()))
+                } else {
+                    self.syscall_ptr = None;
+                    Ok(())
+                }
+            }
+            None => Err(VmHintError::AssertionFailed("Missing syscall_ptr.".into())),
+        }
+    }
 }
 
 pub struct DeprecatedSyscallHintProcessor;
