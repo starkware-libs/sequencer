@@ -4,43 +4,24 @@ use std::process::Command;
 
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::contract_class::ContractClass;
-#[cfg(feature = "cairo_native")]
-use cairo_native::executor::AotContractExecutor;
 use tempfile::NamedTempFile;
 
 use crate::config::SierraCompilationConfig;
 use crate::constants::CAIRO_LANG_BINARY_NAME;
-#[cfg(feature = "cairo_native")]
-use crate::constants::CAIRO_NATIVE_BINARY_NAME;
 use crate::errors::CompilationUtilError;
 use crate::paths::binary_path;
 use crate::resource_limits::ResourceLimits;
 use crate::SierraToCasmCompiler;
-#[cfg(feature = "cairo_native")]
-use crate::SierraToNativeCompiler;
 
 #[derive(Clone)]
 pub struct CommandLineCompiler {
     pub config: SierraCompilationConfig,
-    path_to_starknet_sierra_compile_binary: PathBuf,
-    #[cfg(feature = "cairo_native")]
-    path_to_starknet_native_compile_binary: PathBuf,
+    path_to_binary: PathBuf,
 }
 
 impl CommandLineCompiler {
     pub fn new(config: SierraCompilationConfig) -> Self {
-        let path_to_starknet_sierra_compile_binary = binary_path(out_dir(), CAIRO_LANG_BINARY_NAME);
-        #[cfg(feature = "cairo_native")]
-        let path_to_starknet_native_compile_binary = match &config.sierra_to_native_compiler_path {
-            Some(path) => path.clone(),
-            None => binary_path(out_dir(), CAIRO_NATIVE_BINARY_NAME),
-        };
-        Self {
-            config,
-            path_to_starknet_sierra_compile_binary,
-            #[cfg(feature = "cairo_native")]
-            path_to_starknet_native_compile_binary,
-        }
+        Self { config, path_to_binary: binary_path(out_dir(), CAIRO_LANG_BINARY_NAME) }
     }
 }
 
@@ -49,11 +30,11 @@ impl SierraToCasmCompiler for CommandLineCompiler {
         &self,
         contract_class: ContractClass,
     ) -> Result<CasmContractClass, CompilationUtilError> {
-        let compiler_binary_path = &self.path_to_starknet_sierra_compile_binary;
+        let compiler_binary_path = &self.path_to_binary;
         let additional_args = &[
             "--add-pythonic-hints",
             "--max-bytecode-size",
-            &self.config.max_casm_bytecode_size.to_string(),
+            &self.config.max_file_size.to_string(),
         ];
         let resource_limits = ResourceLimits::new(None, None, None);
 
@@ -64,36 +45,6 @@ impl SierraToCasmCompiler for CommandLineCompiler {
             resource_limits,
         )?;
         Ok(serde_json::from_slice::<CasmContractClass>(&stdout)?)
-    }
-}
-
-#[cfg(feature = "cairo_native")]
-impl SierraToNativeCompiler for CommandLineCompiler {
-    fn compile_to_native(
-        &self,
-        contract_class: ContractClass,
-    ) -> Result<AotContractExecutor, CompilationUtilError> {
-        let compiler_binary_path = &self.path_to_starknet_native_compile_binary;
-
-        let output_file = NamedTempFile::new()?;
-        let output_file_path = output_file.path().to_str().ok_or(
-            CompilationUtilError::UnexpectedError("Failed to get output file path".to_owned()),
-        )?;
-        let optimization_level = self.config.optimization_level.to_string();
-        let additional_args = [output_file_path, "--opt-level", &optimization_level];
-        let resource_limits = ResourceLimits::new(
-            Some(self.config.max_cpu_time),
-            Some(self.config.max_native_bytecode_size),
-            Some(self.config.max_memory_usage),
-        );
-        let _stdout = compile_with_args(
-            compiler_binary_path,
-            contract_class,
-            &additional_args,
-            resource_limits,
-        )?;
-
-        Ok(AotContractExecutor::from_path(Path::new(&output_file_path))?.unwrap())
     }
 }
 
