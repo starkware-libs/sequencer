@@ -12,6 +12,7 @@ use starknet_api::executable_transaction::Transaction;
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
 
+use crate::hint_processor::execution_helper::ExecutionHelperError;
 use crate::hint_processor::os_logger::OsLoggerError;
 use crate::hints::enum_definition::AllHints;
 use crate::hints::hint_implementation::kzg::utils::FftError;
@@ -38,6 +39,8 @@ pub enum OsHintError {
     ExpectedBit { id: Ids, felt: Felt },
     #[error(transparent)]
     Fft(#[from] FftError),
+    #[error(transparent)]
+    ExecutionHelper(#[from] ExecutionHelperError),
     #[error("Failed to convert {variant:?} felt value {felt:?} to type {ty}: {reason:?}.")]
     IdsConversion { variant: Ids, felt: Felt, ty: String, reason: String },
     #[error(

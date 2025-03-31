@@ -35,18 +35,22 @@ pub(crate) fn load_next_tx<S: StateReader>(
     // Log enter tx.
     let range_check_ptr =
         get_ptr_from_var_name(Ids::RangeCheckPtr.into(), vm, ids_data, ap_tracking)?;
-    hint_processor.execution_helper.os_logger.enter_tx(
-        tx.tx_type(),
-        tx.tx_hash(),
-        // TODO(Dori): when `vm.current_step` has a public getter, use it instead of the dummy
-        //   value ([PR](https://github.com/lambdaclass/cairo-vm/pull/2031)).
-        7,
-        range_check_ptr,
-        ids_data,
-        vm,
-        ap_tracking,
-        &hint_processor.os_program,
-    )?;
+    hint_processor
+        .execution_helpers_manager
+        .get_mut_current_execution_helper()?
+        .os_logger
+        .enter_tx(
+            tx.tx_type(),
+            tx.tx_hash(),
+            // TODO(Dori): when `vm.current_step` has a public getter, use it instead of the dummy
+            //   value ([PR](https://github.com/lambdaclass/cairo-vm/pull/2031)).
+            7,
+            range_check_ptr,
+            ids_data,
+            vm,
+            ap_tracking,
+            &hint_processor.os_program,
+        )?;
 
     exec_scopes.insert_value(Scope::Transactions.into(), txs_iter);
     exec_scopes.insert_value(Scope::Tx.into(), tx);
@@ -202,10 +206,10 @@ pub(crate) fn enter_syscall_scopes<S: StateReader>(
     let deprecated_class_hashes: HashSet<ClassHash> =
         exec_scopes.get(Scope::DeprecatedClassHashes.into())?;
     // TODO(Nimrod): See if we can avoid cloning here.
+    let current_execution_helper = hint_processor.get_current_execution_helper()?;
     let component_hashes =
-        hint_processor.execution_helper.os_input.declared_class_hash_to_component_hashes.clone();
-    let transactions_iter =
-        hint_processor.execution_helper.os_input.transactions.clone().into_iter();
+        current_execution_helper.os_input.declared_class_hash_to_component_hashes.clone();
+    let transactions_iter = current_execution_helper.os_input.transactions.clone().into_iter();
     let dict_manager = exec_scopes.get_dict_manager()?;
 
     let new_scope = HashMap::from([
@@ -422,8 +426,9 @@ fn write_syscall_result_helper<S: StateReader>(
             .try_into()?,
     );
 
-    let prev_value =
-        hint_processor.execution_helper.cached_state.get_storage_at(contract_address, key)?;
+    let current_execution_helper =
+        hint_processor.execution_helpers_manager.get_mut_current_execution_helper()?;
+    let prev_value = current_execution_helper.cached_state.get_storage_at(contract_address, key)?;
 
     insert_value_from_var_name(Ids::PrevValue.into(), prev_value, vm, ids_data, ap_tracking)?;
 
@@ -439,11 +444,7 @@ fn write_syscall_result_helper<S: StateReader>(
         )?)?
         .into_owned();
 
-    hint_processor.execution_helper.cached_state.set_storage_at(
-        contract_address,
-        key,
-        request_value,
-    )?;
+    current_execution_helper.cached_state.set_storage_at(contract_address, key, request_value)?;
 
     // Fetch a state_entry in this hint and validate it in the update that comes next.
 
@@ -483,7 +484,7 @@ pub(crate) fn declare_tx_fields<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>
 pub(crate) fn write_old_block_to_storage<S: StateReader>(
     HintArgs { hint_processor, vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let execution_helper = &mut hint_processor.execution_helper;
+    let execution_helper = &mut hint_processor.get_mut_current_execution_helper()?;
 
     let block_hash_contract_address =
         get_constant_from_var_name(Const::BlockHashContractAddress.into(), constants)?;
@@ -526,8 +527,10 @@ fn assert_value_cached_by_reading<S: StateReader>(
             .try_into()?,
     );
 
-    let value =
-        hint_processor.execution_helper.cached_state.get_storage_at(contract_address, key)?;
+    let value = hint_processor
+        .get_current_execution_helper()?
+        .cached_state
+        .get_storage_at(contract_address, key)?;
 
     let ids_value = get_integer_from_var_name(Ids::Value.into(), vm, ids_data, ap_tracking)?;
 
@@ -562,7 +565,7 @@ pub(crate) fn cache_contract_storage_syscall_request_address<S: StateReader>(
 pub(crate) fn get_old_block_number_and_hash<S: StateReader>(
     HintArgs { hint_processor, vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let os_input = &hint_processor.execution_helper.os_input;
+    let os_input = &hint_processor.get_current_execution_helper()?.os_input;
     let (old_block_number, old_block_hash) =
         os_input.old_block_number_and_hash.ok_or(OsHintError::BlockNumberTooSmall {
             stored_block_hash_buffer: *get_constant_from_var_name(
