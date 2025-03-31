@@ -33,6 +33,7 @@ pub enum MetricScope {
     Infra,
     Mempool,
     MempoolP2p,
+    CairoNativeClassManager,
     StateSync,
     ApolloCentralSync,
 }

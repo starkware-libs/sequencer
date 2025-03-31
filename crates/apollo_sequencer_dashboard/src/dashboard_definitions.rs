@@ -310,8 +310,13 @@ const BATCHER_ROW: Row = Row::new(
         PANEL_PROPOSAL_SUCCEEDED,
         PANEL_PROPOSAL_FAILED,
         PANEL_BATCHED_TRANSACTIONS,
-        PANEL_CAIRO_NATIVE_CACHE_MISS_RATIO,
     ],
+);
+
+const CAIRO_NATIVE_CLASS_MANAGER_ROW: Row = Row::new(
+    "Cairo Native Class Manager",
+    "Cairo native class manager metrics",
+    &[PANEL_CAIRO_NATIVE_CACHE_MISS_RATIO],
 );
 
 const CONSENSUS_ROW: Row = Row::new(
@@ -385,5 +390,6 @@ pub const SEQUENCER_DASHBOARD: Dashboard = Dashboard::new(
         STATE_SYNC_P2P_ROW,
         GATEWAY_ROW,
         MEMPOOL_ROW,
+        CAIRO_NATIVE_CLASS_MANAGER_ROW,
     ],
 );

@@ -46,15 +46,7 @@ pub mod trivial_class_manager {
         }
 
         // TODO(Aviv): consider support cache metrics.
-        pub fn get_cache_miss_counter(&self) -> u64 {
-            0
-        }
-
-        pub fn get_cache_hit_counter(&self) -> u64 {
-            0
-        }
-
-        pub fn reset_cache_metrics(&self) {}
+        pub fn update_cache_metrics(&self) {}
     }
 }
 

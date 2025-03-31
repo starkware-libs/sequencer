@@ -2982,6 +2982,7 @@ dependencies = [
  "anyhow",
  "apollo_config",
  "apollo_infra_utils",
+ "apollo_sequencer_metrics",
  "apollo_sierra_multicompile",
  "ark-ec 0.4.2",
  "ark-ff 0.4.2",
