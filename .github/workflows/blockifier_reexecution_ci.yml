@@ -37,6 +37,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
       # Download the blockifier re-execution test data.
       - id: auth
         uses: "google-github-actions/auth@v2"
