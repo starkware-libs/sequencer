@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use assert_matches::assert_matches;
-use rstest::rstest;
+use rstest::{fixture, rstest};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::Fee;
 use starknet_api::{class_hash, contract_address, storage_key};
@@ -12,22 +12,40 @@ use crate::bouncer::{verify_tx_weights_within_max_capacity, Bouncer, BouncerWeig
 use crate::context::BlockContext;
 use crate::execution::call_info::ExecutionSummary;
 use crate::fee::resources::{ComputationResources, TransactionResources};
-use crate::state::cached_state::{StateChangesKeys, TransactionalState};
+use crate::state::cached_state::{CachedState, StateChangesKeys, TransactionalState};
+use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::transaction::errors::TransactionExecutionError;
 
-// TODO(Einat): Add cases for different fields failing has_room and update the test name.
-#[test]
-fn test_block_weights_has_room() {
-    let max_bouncer_weights = BouncerWeights {
-        l1_gas: 10,
-        message_segment_length: 10,
-        n_events: 10,
-        state_diff_size: 10,
-        sierra_gas: GasAmount(10),
-        n_txs: 10,
-    };
+#[fixture]
+fn block_context() -> BlockContext {
+    BlockContext::create_for_account_testing()
+}
 
+#[fixture]
+fn state(block_context: BlockContext) -> CachedState<DictStateReader> {
+    test_state(&block_context.chain_info, Fee(0), &[])
+}
+
+#[fixture]
+fn block_max_capacity() -> BouncerWeights {
+    BouncerWeights {
+        l1_gas: 20,
+        message_segment_length: 20,
+        n_events: 20,
+        state_diff_size: 20,
+        sierra_gas: GasAmount(20),
+        n_txs: 20,
+    }
+}
+
+#[fixture]
+fn bouncer_config(block_max_capacity: BouncerWeights) -> BouncerConfig {
+    BouncerConfig { block_max_capacity }
+}
+
+#[rstest]
+fn test_block_weights_has_room_sierra_gas(block_max_capacity: BouncerWeights) {
     let bouncer_weights = BouncerWeights {
         l1_gas: 7,
         message_segment_length: 10,
@@ -37,18 +55,39 @@ fn test_block_weights_has_room() {
         n_txs: 7,
     };
 
-    assert!(max_bouncer_weights.has_room(bouncer_weights));
+    assert!(block_max_capacity.has_room(bouncer_weights));
 
     let bouncer_weights_exceeds_max = BouncerWeights {
         l1_gas: 5,
         message_segment_length: 5,
         n_events: 5,
         state_diff_size: 5,
-        sierra_gas: GasAmount(15),
+        sierra_gas: GasAmount(25),
         n_txs: 5,
     };
 
-    assert!(!max_bouncer_weights.has_room(bouncer_weights_exceeds_max));
+    assert!(!block_max_capacity.has_room(bouncer_weights_exceeds_max));
+}
+
+#[rstest]
+#[case::has_room(19, true)]
+#[case::at_max(20, true)]
+#[case::no_room(21, false)]
+fn test_block_weights_has_room_n_txs(
+    #[case] n_txs: usize,
+    #[case] has_room: bool,
+    block_max_capacity: BouncerWeights,
+) {
+    let bouncer_weights = BouncerWeights {
+        l1_gas: 7,
+        message_segment_length: 7,
+        n_events: 7,
+        state_diff_size: 7,
+        sierra_gas: GasAmount(7),
+        n_txs,
+    };
+
+    assert_eq!(block_max_capacity.has_room(bouncer_weights), has_room);
 }
 
 #[rstest]
@@ -118,22 +157,14 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
 #[case::positive_flow(GasAmount(1), "ok")]
 #[case::block_full(GasAmount(11), "block_full")]
 #[case::transaction_too_large(GasAmount(21), "too_large")]
-fn test_bouncer_try_update(#[case] added_gas: GasAmount, #[case] scenario: &'static str) {
-    let block_context = BlockContext::create_for_account_testing();
-    let state = &mut test_state(&block_context.chain_info, Fee(0), &[]);
-    let mut transactional_state = TransactionalState::create_transactional(state);
-
-    // Setup the bouncer.
-    let block_max_capacity = BouncerWeights {
-        l1_gas: 20,
-        message_segment_length: 20,
-        n_events: 20,
-        state_diff_size: 20,
-        sierra_gas: GasAmount(20),
-        n_txs: 20,
-    };
-    let bouncer_config = BouncerConfig { block_max_capacity };
-
+fn test_bouncer_try_update_sierra_gas(
+    #[case] added_gas: GasAmount,
+    #[case] scenario: &'static str,
+    block_context: BlockContext,
+    block_max_capacity: BouncerWeights,
+    bouncer_config: BouncerConfig,
+    mut state: CachedState<DictStateReader>,
+) {
     let accumulated_weights = BouncerWeights {
         l1_gas: 10,
         message_segment_length: 10,
@@ -146,12 +177,12 @@ fn test_bouncer_try_update(#[case] added_gas: GasAmount, #[case] scenario: &'sta
     let mut bouncer = Bouncer { accumulated_weights, bouncer_config, ..Bouncer::empty() };
 
     // Prepare the resources to be added to the bouncer.
-    let execution_summary = ExecutionSummary { ..Default::default() };
-
+    let execution_summary = ExecutionSummary::default();
     let tx_resources = TransactionResources {
         computation: ComputationResources { sierra_gas: added_gas, ..Default::default() },
         ..Default::default()
     };
+    let mut transactional_state = TransactionalState::create_transactional(&mut state);
     let tx_state_changes_keys = transactional_state.to_state_diff().unwrap().state_maps.keys();
 
     // TODO(Yoni, 1/10/2024): simplify this test and move tx-too-large cases out.
@@ -190,4 +221,53 @@ fn test_bouncer_try_update(#[case] added_gas: GasAmount, #[case] scenario: &'sta
             ) if *max_capacity == block_max_capacity && *tx_size == expected_weights),
         _ => panic!("Unexpected scenario: {}", scenario),
     }
+}
+
+#[rstest]
+fn test_bouncer_try_update_n_txs(
+    block_context: BlockContext,
+    bouncer_config: BouncerConfig,
+    mut state: CachedState<DictStateReader>,
+) {
+    let accumulated_weights = BouncerWeights {
+        l1_gas: 10,
+        message_segment_length: 10,
+        n_events: 10,
+        state_diff_size: 10,
+        sierra_gas: GasAmount(10),
+        n_txs: 19,
+    };
+
+    let mut bouncer = Bouncer { accumulated_weights, bouncer_config, ..Bouncer::empty() };
+
+    // Prepare first tx resources.
+    let mut first_transactional_state = TransactionalState::create_transactional(&mut state);
+    let first_tx_state_changes_keys =
+        first_transactional_state.to_state_diff().unwrap().state_maps.keys();
+
+    // Try to update the bouncer.
+    let mut result = bouncer.try_update(
+        &first_transactional_state,
+        &first_tx_state_changes_keys,
+        &ExecutionSummary::default(),
+        &TransactionResources::default(),
+        &block_context.versioned_constants,
+    );
+    assert_matches!(result, Ok(()));
+
+    // Prepare second tx resources.
+    let mut second_transactional_state =
+        TransactionalState::create_transactional(&mut first_transactional_state);
+    let second_tx_state_changes_keys =
+        second_transactional_state.to_state_diff().unwrap().state_maps.keys();
+
+    result = bouncer.try_update(
+        &second_transactional_state,
+        &second_tx_state_changes_keys,
+        &ExecutionSummary::default(),
+        &TransactionResources::default(),
+        &block_context.versioned_constants,
+    );
+
+    assert_matches!(result, Err(TransactionExecutorError::BlockFull));
 }
