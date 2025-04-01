@@ -60,7 +60,8 @@ fn validate_config(config: &StateSyncConfig) -> result::Result<(), ValidationErr
         || config.central_sync_client_config.is_none() && config.p2p_sync_client_config.is_none()
     {
         return Err(ValidationError::new(
-            "Exactly one of --sync.#is_none or --p2p_sync.#is_none must be turned on",
+            "Exactly one of --central_sync_client_config.#is_none or \
+             --p2p_sync_client_config.#is_none must be turned on",
         ));
     }
     Ok(())
