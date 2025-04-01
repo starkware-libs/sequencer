@@ -45,9 +45,7 @@ impl SerializeConfig for GatewayConfig {
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct StatelessTransactionValidatorConfig {
     // If true, validates that the resource bounds are not zero.
-    pub validate_non_zero_l1_gas_fee: bool,
-    pub validate_non_zero_l2_gas_fee: bool,
-    pub validate_non_zero_l1_data_gas_fee: bool,
+    pub validate_non_zero_resource_bounds: bool,
     pub max_calldata_length: usize,
     pub max_signature_length: usize,
 
@@ -60,9 +58,7 @@ pub struct StatelessTransactionValidatorConfig {
 impl Default for StatelessTransactionValidatorConfig {
     fn default() -> Self {
         StatelessTransactionValidatorConfig {
-            validate_non_zero_l1_gas_fee: true,
-            validate_non_zero_l2_gas_fee: false,
-            validate_non_zero_l1_data_gas_fee: false,
+            validate_non_zero_resource_bounds: true,
             max_calldata_length: 4000,
             max_signature_length: 4000,
             max_contract_class_object_size: 4089446,
@@ -76,22 +72,10 @@ impl SerializeConfig for StatelessTransactionValidatorConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let members = BTreeMap::from_iter([
             ser_param(
-                "validate_non_zero_l1_gas_fee",
-                &self.validate_non_zero_l1_gas_fee,
-                "If true, validates that a transaction has non-zero L1 resource bounds.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "validate_non_zero_l2_gas_fee",
-                &self.validate_non_zero_l2_gas_fee,
-                "If true, validates that a transaction has non-zero L2 resource bounds.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "validate_non_zero_l1_data_gas_fee",
-                &self.validate_non_zero_l1_data_gas_fee,
-                "If true, validates that a transaction has non-zero L1 Data (Blob) resource \
-                 bounds.",
+                "validate_non_zero_resource_bounds",
+                &self.validate_non_zero_resource_bounds,
+                "If true, validates that at least one resource bound (L1, L2, or L1 Data) has a \
+                 non-zero fee.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(

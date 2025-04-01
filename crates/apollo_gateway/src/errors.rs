@@ -5,7 +5,7 @@ use axum::http::StatusCode;
 use blockifier::state::errors::StateError;
 use serde_json::{Error as SerdeError, Value};
 use starknet_api::block::GasPrice;
-use starknet_api::transaction::fields::{Resource, ResourceBounds};
+use starknet_api::transaction::fields::AllResourceBounds;
 use starknet_api::StarknetApiError;
 use thiserror::Error;
 use tracing::{debug, error, warn};
@@ -51,8 +51,11 @@ pub enum StatelessTransactionValidatorError {
     UnsupportedSierraVersion { version: VersionId, min_version: VersionId, max_version: VersionId },
     #[error("The field {field_name} should be empty.")]
     NonEmptyField { field_name: String },
-    #[error("Expected a positive amount of {resource:?}. Got {resource_bounds:?}.")]
-    ZeroResourceBounds { resource: Resource, resource_bounds: ResourceBounds },
+    #[error(
+        "At least one resource bound (L1, L2, or L1 Data) must have a non-zero fee. Got:
+        {resource_bounds:?}."
+    )]
+    ZeroResourceBounds { resource_bounds: AllResourceBounds },
 }
 
 impl From<StatelessTransactionValidatorError> for GatewaySpecError {

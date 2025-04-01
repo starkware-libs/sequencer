@@ -1099,20 +1099,10 @@
     "privacy": "Public",
     "value": 0
   },
-  "gateway_config.stateless_tx_validator_config.validate_non_zero_l1_data_gas_fee": {
-    "description": "If true, validates that a transaction has non-zero L1 Data (Blob) resource bounds.",
-    "privacy": "Public",
-    "value": false
-  },
-  "gateway_config.stateless_tx_validator_config.validate_non_zero_l1_gas_fee": {
-    "description": "If true, validates that a transaction has non-zero L1 resource bounds.",
+  "gateway_config.stateless_tx_validator_config.validate_non_zero_resource_bounds": {
+    "description": "If true, validates that at least one resource bound (L1, L2, or L1 Data) has a non-zero fee.",
     "privacy": "Public",
     "value": true
-  },
-  "gateway_config.stateless_tx_validator_config.validate_non_zero_l2_gas_fee": {
-    "description": "If true, validates that a transaction has non-zero L2 resource bounds.",
-    "privacy": "Public",
-    "value": false
   },
   "http_server_config.ip": {
     "description": "The http server ip.",
