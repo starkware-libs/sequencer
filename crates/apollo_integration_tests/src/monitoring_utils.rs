@@ -122,7 +122,9 @@ pub async fn await_block(
         await_batcher_block(5000, condition, 50, batcher_monitoring_client, batcher_logger),
         await_sync_block(5000, condition, 50, state_sync_monitoring_client, sync_logger)
     )
-    .unwrap();
+    .unwrap_or_else(|_| {
+        panic!("Test conditions of reaching block {expected_block_number} by node {node_index}")
+    });
 }
 
 pub async fn verify_txs_accepted(
