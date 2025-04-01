@@ -21,11 +21,10 @@ pub(crate) struct Input {
     pub compiled_os_path: String,
     pub layout: LayoutName,
     pub os_hints: OsHints,
-    pub cached_state_input: CachedStateInput,
 }
 
-/// Validate the os_block_input.
-pub fn validate_input(os_block_input: &OsBlockInput) {
+/// Validate a single os_block_input.
+fn validate_single_input(os_block_input: &OsBlockInput) {
     assert!(
         os_block_input.transactions.len() == os_block_input._tx_execution_infos.len(),
         "The number of transactions and execution infos should be equal"
@@ -50,22 +49,26 @@ pub fn validate_input(os_block_input: &OsBlockInput) {
             }),
         "All declare transactions should be of V1 and should have contract class with prime=0"
     );
+    let block_number = os_block_input.block_info.block_number;
+    info!("Parsed OS input successfully for block number: {}", block_number);
+}
+/// Validate a list of os_block_input.
+pub fn validate_input(os_block_input: &[(OsBlockInput, CachedStateInput)]) {
+    for (os_block_input, _) in os_block_input {
+        validate_single_input(os_block_input);
+    }
 }
 
 pub fn parse_and_run_os(input_path: String, output_path: String) {
-    let Input { compiled_os_path, layout, os_hints, cached_state_input } = load_input(input_path);
-    validate_input(&os_hints.os_block_input);
-    let block_number = os_hints.os_block_input.block_info.block_number;
-    info!("Parsed OS input successfully for block number: {}", block_number);
+    let Input { compiled_os_path, layout, os_hints } = load_input(input_path);
+    validate_input(&os_hints.os_input.os_block_and_state_input);
 
     // Load the compiled_os from the compiled_os_path.
     let compiled_os =
         fs::read(Path::new(&compiled_os_path)).expect("Failed to read compiled_os file");
 
-    let output = run_os_stateless(&compiled_os, layout, os_hints, cached_state_input)
-        .unwrap_or_else(|err| {
-            panic!("OS run failed on block number: {}. Error: {}", block_number, err)
-        });
+    let output = run_os_stateless(&compiled_os, layout, os_hints)
+        .unwrap_or_else(|err| panic!("OS run failed. Error: {}", err));
     write_to_file(&output_path, &output);
-    info!("OS program ran successfully on block number: {}", block_number);
+    info!("OS program ran successfully.");
 }

@@ -508,13 +508,14 @@ pub fn run_cairo_0_entry_point(
 ) -> Cairo0EntryPointRunnerResult<(Vec<EndpointArg>, Vec<EndpointArg>)> {
     let ordered_builtins = get_ordered_builtins()?;
     let program = inject_builtins(program_str, &ordered_builtins, entrypoint)?;
-    let (state_reader, os_input, os_hints_config) = (None, None, None);
+    let (state_reader, os_hints_config, os_block_input) = (None, None, None);
     let mut hint_processor = SnosHintProcessor::new_for_testing(
         state_reader,
-        os_input,
         Some(program.clone()),
         os_hints_config,
-    );
+        os_block_input,
+    )
+    .unwrap();
     info!("Program and Hint processor created successfully.");
 
     // TODO(Amos): Perform complete validations.

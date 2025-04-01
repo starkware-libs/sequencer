@@ -54,8 +54,17 @@ pub struct ContractClassComponentHashes {
 #[cfg_attr(any(test, feature = "testing"), derive(Default))]
 #[derive(Debug)]
 pub struct OsHints {
-    pub os_block_input: OsBlockInput,
+    pub os_input: StarknetOsInput,
     pub os_hints_config: OsHintsConfig,
+}
+
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
+#[cfg_attr(any(test, feature = "testing"), derive(Default))]
+#[derive(Debug)]
+pub struct StarknetOsInput {
+    pub os_block_and_state_input: Vec<(OsBlockInput, CachedStateInput)>,
+    pub(crate) deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
+    pub(crate) compiled_classes: HashMap<ClassHash, CasmContractClass>,
 }
 
 /// All input needed to initialize the execution helper.
@@ -69,9 +78,6 @@ pub struct OsBlockInput {
     pub(crate) address_to_storage_commitment_info: HashMap<ContractAddress, CommitmentInfo>,
     pub(crate) contract_class_commitment_info: CommitmentInfo,
     pub(crate) chain_info: ChainInfo,
-    pub(crate) deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
-    #[allow(dead_code)]
-    pub(crate) compiled_classes: HashMap<ClassHash, CasmContractClass>,
     // Note: The Declare tx in the starknet_api crate has a class_info field with a contract_class
     // field. This field is needed by the blockifier, but not used in the OS, so it is expected
     // (and verified) to be initialized with an illegal value, to avoid using it accidentally.
@@ -104,4 +110,10 @@ pub struct CachedStateInput {
     pub(crate) address_to_class_hash: HashMap<ContractAddress, ClassHash>,
     pub(crate) address_to_nonce: HashMap<ContractAddress, Nonce>,
     pub(crate) class_hash_to_compiled_class_hash: HashMap<ClassHash, CompiledClassHash>,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum OsInputError {
+    #[error("Invalid length of state readers: {0}. Should match size of block inputs: {1}")]
+    InvalidLengthOfStateReaders(usize, usize),
 }

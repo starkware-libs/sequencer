@@ -6,6 +6,7 @@ use starknet_types_core::felt::Felt;
 
 /// State reader that always panics.
 /// Use this as the `OsExecutionHelper`'s state reader to ensure the OS execution is "stateless".
+#[derive(Clone)]
 pub struct PanickingStateReader;
 
 impl StateReader for PanickingStateReader {
