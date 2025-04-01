@@ -102,6 +102,7 @@ use crate::execution::syscalls::hint_processor::EmitEventError;
 #[cfg(feature = "cairo_native")]
 use crate::execution::syscalls::hint_processor::SyscallExecutionError;
 use crate::execution::syscalls::SyscallSelector;
+use crate::fee::fee_checks::FeeCheckError;
 use crate::fee::fee_utils::{balance_to_big_uint, get_fee_by_gas_vector, GasVectorToL1GasForFee};
 use crate::fee::gas_usage::{
     estimate_minimal_gas_vector,
@@ -2666,6 +2667,46 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
             TransactionFeeError::InsufficientFee { paid_fee, actual_fee }
         )
         if paid_fee == Fee(0) && actual_fee == expected_actual_fee
+    );
+}
+
+#[rstest]
+#[case(L1Gas, GasAmount(1))]
+// Sufficient to pass execution (enough gas to run the transaction), but fails post-execution
+// resource bounds check.
+#[case(L2Gas, GasAmount(200000))]
+#[case(L1DataGas, GasAmount(1))]
+fn test_l1_handler_resource_bounds(#[case] resource: Resource, #[case] new_bound: GasAmount) {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+
+    // Set to true to ensure L1 data gas is non-zero.
+    let use_kzg_da = true;
+
+    let mut block_context = BlockContext::create_for_account_testing_with_kzg(use_kzg_da);
+    let chain_info = block_context.chain_info.clone();
+    let mut state = test_state(&chain_info, BALANCE, &[(test_contract, 1)]);
+    let contract_address = test_contract.get_instance_address(0);
+
+    // Modify the resource bound for the tested resource.
+    let os_constants = Arc::make_mut(&mut block_context.versioned_constants.os_constants);
+    match resource {
+        L1Gas => os_constants.l1_handler_max_amount_bounds.l1_gas = new_bound,
+        L2Gas => os_constants.l1_handler_max_amount_bounds.l2_gas = new_bound,
+        L1DataGas => os_constants.l1_handler_max_amount_bounds.l1_data_gas = new_bound,
+    }
+
+    let tx = l1handler_tx(Fee(1), contract_address);
+
+    let err = tx.execute(&mut state, &block_context).unwrap_err();
+
+    assert_matches!(
+        err,
+        TransactionExecutionError::FeeCheckError(FeeCheckError::MaxGasAmountExceeded {
+            resource: r,
+            max_amount,
+            actual_amount,
+            ..
+        }) if r == resource && new_bound == max_amount && actual_amount > max_amount
     );
 }
 
