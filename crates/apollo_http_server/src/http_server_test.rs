@@ -1,5 +1,3 @@
-use std::net::{IpAddr, Ipv4Addr};
-
 use apollo_gateway_types::communication::{GatewayClientError, MockGatewayClient};
 use apollo_gateway_types::errors::{GatewayError, GatewaySpecError};
 use apollo_gateway_types::gateway_types::{
@@ -9,7 +7,6 @@ use apollo_gateway_types::gateway_types::{
     InvokeGatewayOutput,
 };
 use apollo_infra::component_client::ClientError;
-use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use axum::body::{Bytes, HttpBody};
 use axum::response::{IntoResponse, Response};
 use axum::Json;
@@ -24,15 +21,9 @@ use starknet_api::{class_hash, contract_address, tx_hash};
 use starknet_types_core::felt::Felt;
 use tracing_test::traced_test;
 
-use crate::config::HttpServerConfig;
 use crate::errors::HttpServerError;
 use crate::http_server::CLIENT_REGION_HEADER;
-use crate::test_utils::{
-    deprecated_gateway_tx,
-    http_client_server_setup,
-    rpc_tx,
-    GatewayTransaction,
-};
+use crate::test_utils::{add_tx_http_client, deprecated_gateway_tx, rpc_tx, GatewayTransaction};
 
 const DEPRECATED_GATEWAY_INVOKE_TX_RESPONSE_JSON_PATH: &str =
     "expected_gateway_response/invoke_gateway_output.json";
@@ -118,22 +109,17 @@ async fn record_region_test(#[case] index: u16, #[case] tx: impl GatewayTransact
         .times(1)
         .return_const(Ok(GatewayOutput::Invoke(InvokeGatewayOutput::new(tx_hash_2))));
 
-    let ip = IpAddr::from(Ipv4Addr::LOCALHOST);
-    let mut available_ports =
-        AvailablePorts::new(TestIdentifier::HttpServerUnitTests.into(), 1 + index);
-    let http_server_config = HttpServerConfig { ip, port: available_ports.get_next_port() };
-    let add_tx_http_client =
-        http_client_server_setup(mock_gateway_client, http_server_config).await;
+    let http_client = add_tx_http_client(mock_gateway_client, 1 + index).await;
 
     // Send a transaction to the server, without a region.
-    add_tx_http_client.add_tx(tx.clone()).await;
+    http_client.add_tx(tx.clone()).await;
     assert!(logs_contain(
         format!("Recorded transaction with hash: {} from region: {}", tx_hash_1, "N/A").as_str()
     ));
 
     // Send transaction to the server, with a region.
     let region = "test";
-    add_tx_http_client.add_tx_with_headers(tx, [(CLIENT_REGION_HEADER, region)]).await;
+    http_client.add_tx_with_headers(tx, [(CLIENT_REGION_HEADER, region)]).await;
     assert!(logs_contain(
         format!("Recorded transaction with hash: {} from region: {}", tx_hash_2, region).as_str()
     ));
@@ -155,16 +141,10 @@ async fn record_region_gateway_failing_tx(#[case] index: u16, #[case] tx: impl G
         )),
     ));
 
-    let ip = IpAddr::from(Ipv4Addr::LOCALHOST);
-    let mut available_ports =
-        AvailablePorts::new(TestIdentifier::HttpServerUnitTests.into(), 3 + index);
-    let http_server_config = HttpServerConfig { ip, port: available_ports.get_next_port() };
-    // let http_server_config = HttpServerConfig { ip, port };
-    let add_tx_http_client =
-        http_client_server_setup(mock_gateway_client, http_server_config).await;
+    let http_client = add_tx_http_client(mock_gateway_client, 3 + index).await;
 
     // Send a transaction to the server.
-    add_tx_http_client.add_tx(tx).await;
+    http_client.add_tx(tx).await;
     assert!(!logs_contain("Recorded transaction with hash: "));
 }
 
@@ -211,24 +191,19 @@ async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) 
         )),
     ));
 
-    let ip = IpAddr::from(Ipv4Addr::LOCALHOST);
-    let mut available_ports =
-        AvailablePorts::new(TestIdentifier::HttpServerUnitTests.into(), 5 + index);
-    let http_server_config = HttpServerConfig { ip, port: available_ports.get_next_port() };
-    let add_tx_http_client =
-        http_client_server_setup(mock_gateway_client, http_server_config).await;
+    let http_client = add_tx_http_client(mock_gateway_client, 5 + index).await;
 
     // Test a successful response.
-    let tx_hash = add_tx_http_client.assert_add_tx_success(tx.clone()).await;
+    let tx_hash = http_client.assert_add_tx_success(tx.clone()).await;
     assert_eq!(tx_hash, expected_tx_hash);
 
     // Test a failed bad request response.
     let error_str =
-        add_tx_http_client.assert_add_tx_error(tx.clone(), StatusCode::BAD_REQUEST).await;
+        http_client.assert_add_tx_error(tx.clone(), StatusCode::BAD_REQUEST).await;
     assert_eq!(error_str, expected_gateway_spec_err_str);
 
     // Test a failed internal server error response.
     let error_str =
-        add_tx_http_client.assert_add_tx_error(tx, StatusCode::INTERNAL_SERVER_ERROR).await;
+        http_client.assert_add_tx_error(tx, StatusCode::INTERNAL_SERVER_ERROR).await;
     assert_eq!(error_str, expected_gateway_client_err_str);
 }
