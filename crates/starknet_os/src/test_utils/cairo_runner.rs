@@ -122,6 +122,27 @@ impl ImplicitArg {
     }
 }
 
+pub struct EntryPointRunnerConfig {
+    trace_enabled: bool,
+    verify_secure: bool,
+    layout: LayoutName,
+    proof_mode: bool,
+    // If true, the entrypoint will be prefixed with __main__.
+    add_main_prefix_to_entrypoint: bool,
+}
+
+impl Default for EntryPointRunnerConfig {
+    fn default() -> Self {
+        Self {
+            trace_enabled: true,
+            verify_secure: true,
+            layout: LayoutName::plain,
+            proof_mode: false,
+            add_main_prefix_to_entrypoint: true,
+        }
+    }
+}
+
 /// Performs basic validations on the cairo arg. Assumes the arg is not a builtin.
 /// A successful result from this function does NOT guarantee that the arguments are valid.
 fn perform_basic_validations_on_endpoint_arg(
@@ -158,7 +179,7 @@ fn perform_basic_validations_on_explicit_args(
     entrypoint: &str,
 ) -> Cairo0EntryPointRunnerResult<()> {
     let mut expected_explicit_args: Vec<Member> = program
-        .get_identifier(&format!("__main__.{}.Args", entrypoint))
+        .get_identifier(&format!("{}.Args", entrypoint))
         .unwrap_or_else(|| {
             panic!("Found no explicit args identifier for entrypoint {}.", entrypoint)
         })
@@ -197,7 +218,7 @@ fn perform_basic_validations_on_implicit_args(
     ordered_builtins: &[BuiltinName],
 ) -> Cairo0EntryPointRunnerResult<()> {
     let mut expected_implicit_args: Vec<(String, Member)> = program
-        .get_identifier(&format!("__main__.{}.ImplicitArgs", entrypoint))
+        .get_identifier(&format!("{}.ImplicitArgs", entrypoint))
         .unwrap_or_else(|| {
             panic!("Found no implicit args identifier for entrypoint {}.", entrypoint)
         })
@@ -257,7 +278,6 @@ fn perform_basic_validations_on_implicit_args(
 fn inject_builtins(
     program_str: &str,
     ordered_builtins: &[BuiltinName],
-    entrypoint: &str,
 ) -> Cairo0EntryPointRunnerResult<Program> {
     let mut program_dict: HashMap<String, Value> =
         serde_json::from_str(program_str).map_err(Cairo0EntryPointRunnerError::ProgramSerde)?;
@@ -267,7 +287,7 @@ fn inject_builtins(
     );
     let program_str_with_builtins =
         serde_json::to_string(&program_dict).map_err(Cairo0EntryPointRunnerError::ProgramSerde)?;
-    Ok(Program::from_bytes(program_str_with_builtins.as_bytes(), Some(entrypoint))?)
+    Ok(Program::from_bytes(program_str_with_builtins.as_bytes(), None)?)
 }
 
 fn convert_implicit_args_to_cairo_args(
@@ -499,6 +519,7 @@ fn get_return_values(
 /// If the endpoint used builtins, the respective returned (implicit) arg is the builtin instance
 /// usage, unless the builtin is the output builtin, in which case the arg is the output.
 pub fn run_cairo_0_entry_point(
+    runner_config: &EntryPointRunnerConfig,
     program_str: &str,
     entrypoint: &str,
     explicit_args: &[EndpointArg],
@@ -506,32 +527,42 @@ pub fn run_cairo_0_entry_point(
     expected_explicit_return_values: &[EndpointArg],
     hint_locals: HashMap<String, Box<dyn Any>>,
 ) -> Cairo0EntryPointRunnerResult<(Vec<EndpointArg>, Vec<EndpointArg>)> {
+    let mut entrypoint = entrypoint.to_string();
+    if runner_config.add_main_prefix_to_entrypoint {
+        info!("Adding __main__ prefix to entrypoint.");
+        entrypoint = format!("__main__.{entrypoint}");
+    }
     let ordered_builtins = get_ordered_builtins()?;
-    let program = inject_builtins(program_str, &ordered_builtins, entrypoint)?;
-    let (state_reader, os_hints_config, os_block_input) = (None, None, None);
+    let program = inject_builtins(program_str, &ordered_builtins)?;
+    let (state_reader, os_block_input, os_hints_config) = (None, None, None);
     let mut hint_processor =
         SnosHintProcessor::new_for_testing(state_reader, &program, os_hints_config, os_block_input)
-            .unwrap();
+            .unwrap_or_else(|err| panic!("Failed to create SnosHintProcessor: {:?}", err));
     info!("Program and Hint processor created successfully.");
 
     // TODO(Amos): Perform complete validations.
-    perform_basic_validations_on_explicit_args(explicit_args, &program, entrypoint)?;
+    perform_basic_validations_on_explicit_args(explicit_args, &program, &entrypoint)?;
     perform_basic_validations_on_implicit_args(
         implicit_args,
         &program,
-        entrypoint,
+        &entrypoint,
         &ordered_builtins,
     )?;
     info!("Performed basic validations on explicit & implicit args.");
 
-    let proof_mode = false;
-    let trace_enabled = true;
-    let mut cairo_runner =
-        CairoRunner::new(&program, LayoutName::all_cairo, proof_mode, trace_enabled).unwrap();
+    let mut cairo_runner = CairoRunner::new(
+        &program,
+        runner_config.layout,
+        runner_config.proof_mode,
+        runner_config.trace_enabled,
+    )
+    .unwrap();
     for (key, value) in hint_locals.into_iter() {
         cairo_runner.exec_scopes.insert_value(&key, value);
     }
-    let allow_missing_builtins = false;
+    let allow_missing_builtins = true;
+    // TODO(Amos): Check if using `initialize_program_builtins` removes the need for injecting
+    // builtins and allowing missing builtins.
     cairo_runner.initialize_builtins(allow_missing_builtins).unwrap();
     let program_base: Option<Relocatable> = None;
     cairo_runner.initialize_segments(program_base);
@@ -545,17 +576,16 @@ pub fn run_cairo_0_entry_point(
         implicit_cairo_args.iter().chain(explicit_cairo_args.iter()).collect();
     info!("Converted explicit & implicit args to Cairo args.");
 
-    let verify_secure = true;
     let program_segment_size: Option<usize> = None;
     cairo_runner
         .run_from_entrypoint(
             program
-                .get_identifier(&format!("__main__.{}", entrypoint))
+                .get_identifier(&entrypoint)
                 .unwrap_or_else(|| panic!("entrypoint {} not found.", entrypoint))
                 .pc
                 .unwrap(),
             &entrypoint_args,
-            verify_secure,
+            runner_config.verify_secure,
             program_segment_size,
             &mut hint_processor,
         )

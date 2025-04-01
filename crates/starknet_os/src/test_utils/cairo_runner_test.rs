@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 
 use cairo_vm::types::builtin_name::BuiltinName;
+use cairo_vm::types::layout_name::LayoutName;
 
 use crate::test_utils::cairo_runner::{
     Cairo0EntryPointRunnerResult,
     EndpointArg,
+    EntryPointRunnerConfig,
     ImplicitArg,
     PointerArg,
     ValueArg,
@@ -113,8 +115,8 @@ fn test_felt_and_pointers() -> Cairo0EntryPointRunnerResult<()> {
         (compound_struct_val + 1).into(),
         res_simple_struct.clone(),
     ]));
-
     run_cairo_function_and_check_result(
+        &EntryPointRunnerConfig::default(),
         COMPILED_DUMMY_FUNCTION,
         "pass_felt_and_pointers",
         &[number.into(), array, tuple, simple_struct, compound_struct],
@@ -168,8 +170,8 @@ fn test_tuples_and_structs() -> Cairo0EntryPointRunnerResult<()> {
         (compound_struct_val + 1).into(),
         res_simple_struct_pointer,
     ]));
-
     run_cairo_function_and_check_result(
+        &EntryPointRunnerConfig::default(),
         COMPILED_DUMMY_FUNCTION,
         "pass_structs_and_tuples",
         &[tuple, named_tuple, simple_struct, compound_struct],
@@ -198,7 +200,10 @@ fn test_implicit_args() -> Cairo0EntryPointRunnerResult<()> {
         compound_struct_val.into(),
         inner_simple_struct,
     ]));
+    let entrypoint_runner_config =
+        EntryPointRunnerConfig { layout: LayoutName::all_cairo, ..Default::default() };
     run_cairo_function_and_check_result(
+        &entrypoint_runner_config,
         COMPILED_DUMMY_FUNCTION,
         "pass_implicit_args",
         &[number_1.into(), number_2.into()],
