@@ -54,27 +54,10 @@ async fn get_metrics_test() {
 
     // Obtain and parse metrics.
     let metrics = prometheus_handle.render();
-    let added_transactions_total_count =
-        ADDED_TRANSACTIONS_TOTAL.parse_numeric_metric::<usize>(&metrics);
-    let added_transactions_success_count =
-        ADDED_TRANSACTIONS_SUCCESS.parse_numeric_metric::<usize>(&metrics);
-    let added_transactions_failure_count =
-        ADDED_TRANSACTIONS_FAILURE.parse_numeric_metric::<usize>(&metrics);
 
     // Ensure the metric values are as expected.
-    assert_eq!(
-        added_transactions_total_count.unwrap(),
-        SUCCESS_TXS_TO_SEND + FAILURE_TXS_TO_SEND,
-        "Total transaction count mismatch"
-    );
-    assert_eq!(
-        added_transactions_success_count.unwrap(),
-        SUCCESS_TXS_TO_SEND,
-        "Successful transaction count mismatch"
-    );
-    assert_eq!(
-        added_transactions_failure_count.unwrap(),
-        FAILURE_TXS_TO_SEND,
-        "Failing transaction count mismatch"
-    );
+    ADDED_TRANSACTIONS_TOTAL
+        .assert_eq::<usize>(&metrics, SUCCESS_TXS_TO_SEND + FAILURE_TXS_TO_SEND);
+    ADDED_TRANSACTIONS_SUCCESS.assert_eq::<usize>(&metrics, SUCCESS_TXS_TO_SEND);
+    ADDED_TRANSACTIONS_FAILURE.assert_eq::<usize>(&metrics, FAILURE_TXS_TO_SEND);
 }
