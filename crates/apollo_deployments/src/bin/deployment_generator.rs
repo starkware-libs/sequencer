@@ -7,7 +7,7 @@ fn main() {
         let deployment_preset = deployment_fn();
         serialize_to_file(
             deployment_preset.get_deployment(),
-            deployment_preset.get_dump_file_path(),
+            deployment_preset.get_dump_file_path().to_str().unwrap(),
         );
 
         deployment_preset
