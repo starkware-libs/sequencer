@@ -76,14 +76,14 @@ pub(crate) fn configure_kzg_manager<S: StateReader>(
 pub(crate) fn set_ap_to_prev_block_hash<S: StateReader>(
     HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let os_input = &hint_processor.get_current_execution_helper()?.os_input;
+    let os_input = &hint_processor.get_current_execution_helper()?.os_block_input;
     Ok(insert_value_into_ap(vm, os_input.prev_block_hash.0)?)
 }
 
 pub(crate) fn set_ap_to_new_block_hash<S: StateReader>(
     HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let os_input = &hint_processor.get_current_execution_helper()?.os_input;
+    let os_input = &hint_processor.get_current_execution_helper()?.os_block_input;
     Ok(insert_value_into_ap(vm, os_input.new_block_hash.0)?)
 }
 

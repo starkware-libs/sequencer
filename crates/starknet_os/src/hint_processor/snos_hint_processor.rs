@@ -21,9 +21,9 @@ use crate::hint_processor::execution_helper::{ExecutionHelperError, OsExecutionH
 use crate::hints::enum_definition::AllHints;
 use crate::hints::error::OsHintError;
 use crate::hints::types::{HintArgs, HintEnum, HintExtensionImplementation, HintImplementation};
-use crate::io::os_input::OsHintsConfig;
 #[cfg(any(feature = "testing", test))]
-use crate::io::os_input::StarknetOsInput;
+use crate::io::os_input::OsBlockInput;
+use crate::io::os_input::OsHintsConfig;
 
 type VmHintResultType<T> = Result<T, VmHintError>;
 type VmHintResult = VmHintResultType<()>;
@@ -196,12 +196,12 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<S> {
 impl SnosHintProcessor<DictStateReader> {
     pub fn new_for_testing(
         state_reader: Option<DictStateReader>,
-        os_input: Option<StarknetOsInput>,
+        os_block_input: Option<OsBlockInput>,
         os_program: Option<Program>,
         os_hints_config: Option<OsHintsConfig>,
     ) -> Self {
         let state_reader = state_reader.unwrap_or_default();
-        let os_input = os_input.unwrap_or_default();
+        let os_input = os_block_input.unwrap_or_default();
         let os_program = os_program.unwrap_or_default();
         let os_hints_config = os_hints_config.unwrap_or_default();
         let execution_helper =
