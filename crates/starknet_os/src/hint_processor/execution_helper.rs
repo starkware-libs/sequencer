@@ -69,3 +69,9 @@ impl OsExecutionHelper<DictStateReader> {
         }
     }
 }
+
+#[derive(Debug, thiserror::Error)]
+pub enum ExecutionHelperError {
+    #[error("Called a block execution-helper before it was initialized.")]
+    NoCurrentExecutionHelper,
+}
