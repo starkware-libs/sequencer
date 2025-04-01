@@ -191,7 +191,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
 impl<B: BaseLayerContract + Send + Sync> ComponentStarter for L1Scraper<B> {
     async fn start(&mut self) {
         info!("Starting component {}.", type_name::<Self>());
-        self.run().await.unwrap_or_else(|e| panic!("Failed to start L1Scraper component: {}", e))
+        self.run().await.unwrap_or_else(|e| panic!("Runtime Error: {e}"))
     }
 }
 
