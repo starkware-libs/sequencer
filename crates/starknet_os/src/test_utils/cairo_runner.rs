@@ -54,7 +54,13 @@ pub enum EndpointArg {
 
 impl From<i32> for EndpointArg {
     fn from(value: i32) -> Self {
-        Self::Value(ValueArg::Single(value.into()))
+        Self::from(Felt::from(value))
+    }
+}
+
+impl From<Felt> for EndpointArg {
+    fn from(value: Felt) -> Self {
+        Self::Value(ValueArg::Single(value))
     }
 }
 
