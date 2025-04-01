@@ -1,0 +1,6 @@
+{
+    "batcher_config.storage.db_config.path_prefix": "./data/node_0/executable_0/batcher",
+    "class_manager_config.class_storage_config.class_hash_storage_config.path_prefix": "./data/node_0/executable_0/class_manager/class_hash_storage",
+    "class_manager_config.class_storage_config.persistent_root": "./data/node_0/executable_0/class_manager/classes",
+    "state_sync_config.storage_config.db_config.path_prefix": "./data/node_0/executable_0/state_sync"
+}
