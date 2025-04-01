@@ -16,7 +16,12 @@ use tracing::{debug, info, instrument, trace};
 use crate::config::HttpServerConfig;
 use crate::deprecated_gateway_transaction::DeprecatedGatewayTransactionV3;
 use crate::errors::{HttpServerError, HttpServerRunError};
-use crate::metrics::{init_metrics, record_added_transaction, record_added_transaction_status};
+use crate::metrics::{
+    init_metrics,
+    ADDED_TRANSACTIONS_FAILURE,
+    ADDED_TRANSACTIONS_SUCCESS,
+    ADDED_TRANSACTIONS_TOTAL,
+};
 
 #[cfg(test)]
 #[path = "http_server_test.rs"]
@@ -74,7 +79,7 @@ async fn add_rpc_tx(
     headers: HeaderMap,
     Json(tx): Json<RpcTransaction>,
 ) -> HttpServerResult<Json<GatewayOutput>> {
-    record_added_transaction();
+    ADDED_TRANSACTIONS_TOTAL.increment(1);
     add_tx_inner(app_state, headers, tx).await
 }
 
@@ -84,10 +89,11 @@ async fn add_tx(
     headers: HeaderMap,
     tx: String,
 ) -> HttpServerResult<Json<GatewayOutput>> {
-    record_added_transaction();
-    // TODO(Yael): increment the failure metric for parsing error.
-    let tx: DeprecatedGatewayTransactionV3 = serde_json::from_str(&tx)
-        .inspect_err(|e| debug!("Error while parsing transaction: {}", e))?;
+    ADDED_TRANSACTIONS_TOTAL.increment(1);
+    let tx: DeprecatedGatewayTransactionV3 = serde_json::from_str(&tx).inspect_err(|e| {
+        debug!("Error while parsing transaction: {}", e);
+        ADDED_TRANSACTIONS_FAILURE.increment(1);
+    })?;
     let rpc_tx = tx.try_into().inspect_err(|e| {
         debug!("Error while converting deprecated gateway transaction into RPC transaction: {}", e);
     })?;
@@ -119,8 +125,10 @@ fn record_added_transactions(add_tx_result: &HttpServerResult<GatewayOutput>, re
             gateway_output.transaction_hash(),
             region
         );
+        ADDED_TRANSACTIONS_SUCCESS.increment(1);
+    } else {
+        ADDED_TRANSACTIONS_FAILURE.increment(1);
     }
-    record_added_transaction_status(add_tx_result.is_ok());
 }
 
 pub fn create_http_server(
