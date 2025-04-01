@@ -5,6 +5,8 @@ use std::path::Path;
 use assert_matches::assert_matches;
 use cairo_lang_starknet_classes::contract_class::ContractClass;
 use mempool_test_utils::{FAULTY_ACCOUNT_CLASS_FILE, TEST_FILES_FOLDER};
+use starknet_compilation_utils::errors::CompilationUtilError;
+use starknet_compilation_utils::test_utils::contract_class_from_file;
 use starknet_infra_utils::path::resolve_project_relative_path;
 
 use crate::command_line_compiler::CommandLineCompiler;
@@ -15,8 +17,6 @@ use crate::config::{
     DEFAULT_MAX_MEMORY_USAGE,
     DEFAULT_OPTIMIZATION_LEVEL,
 };
-use crate::errors::CompilationUtilError;
-use crate::test_utils::contract_class_from_file;
 use crate::SierraToNativeCompiler;
 
 const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompilationConfig {

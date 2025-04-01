@@ -4,13 +4,13 @@ use std::process::Command;
 
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::contract_class::ContractClass;
+use starknet_compilation_utils::errors::CompilationUtilError;
+use starknet_compilation_utils::paths::binary_path;
+use starknet_compilation_utils::resource_limits::ResourceLimits;
 use tempfile::NamedTempFile;
 
 use crate::config::SierraCompilationConfig;
 use crate::constants::CAIRO_LANG_BINARY_NAME;
-use crate::errors::CompilationUtilError;
-use crate::paths::binary_path;
-use crate::resource_limits::ResourceLimits;
 use crate::SierraToCasmCompiler;
 
 #[derive(Clone)]
@@ -21,7 +21,7 @@ pub struct CommandLineCompiler {
 
 impl CommandLineCompiler {
     pub fn new(config: SierraCompilationConfig) -> Self {
-        Self { config, path_to_binary: binary_path(out_dir(), CAIRO_LANG_BINARY_NAME) }
+        Self { config, path_to_binary: binary_path(&out_dir(), CAIRO_LANG_BINARY_NAME) }
     }
 }
 

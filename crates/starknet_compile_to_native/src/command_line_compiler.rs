@@ -10,17 +10,17 @@ use cairo_lang_starknet_classes::contract_class::ContractClass;
 #[cfg(feature = "cairo_native")]
 use cairo_native::executor::AotContractExecutor;
 #[cfg(feature = "cairo_native")]
+use starknet_compilation_utils::errors::CompilationUtilError;
+#[cfg(feature = "cairo_native")]
+use starknet_compilation_utils::paths::binary_path;
+#[cfg(feature = "cairo_native")]
+use starknet_compilation_utils::resource_limits::ResourceLimits;
+#[cfg(feature = "cairo_native")]
 use tempfile::NamedTempFile;
 
 use crate::config::SierraCompilationConfig;
 #[cfg(feature = "cairo_native")]
 use crate::constants::CAIRO_NATIVE_BINARY_NAME;
-#[cfg(feature = "cairo_native")]
-use crate::errors::CompilationUtilError;
-#[cfg(feature = "cairo_native")]
-use crate::paths::binary_path;
-#[cfg(feature = "cairo_native")]
-use crate::resource_limits::ResourceLimits;
 #[cfg(feature = "cairo_native")]
 use crate::SierraToNativeCompiler;
 
@@ -36,7 +36,7 @@ impl CommandLineCompiler {
         #[cfg(feature = "cairo_native")]
         let path_to_binary = match &config.compiler_binary_path {
             Some(path) => path.clone(),
-            None => binary_path(out_dir(), CAIRO_NATIVE_BINARY_NAME),
+            None => binary_path(&out_dir(), CAIRO_NATIVE_BINARY_NAME),
         };
         Self {
             config,

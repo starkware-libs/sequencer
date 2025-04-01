@@ -54,6 +54,7 @@ const Configuration = {
             'starknet_batcher_types',
             'starknet_client',
             'starknet_committer',
+            'starknet_compilation_utils',
             'starknet_compile_to_casm',
             'starknet_compile_to_native',
             'starknet_consensus_manager',

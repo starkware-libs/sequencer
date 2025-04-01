@@ -1643,6 +1643,7 @@ dependencies = [
  "sha2",
  "starknet-types-core",
  "starknet_api",
+ "starknet_compilation_utils",
  "starknet_compile_to_native",
  "starknet_infra_utils",
  "strum 0.25.0",
@@ -10679,15 +10680,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "starknet_compile_to_casm"
+name = "starknet_compilation_utils"
 version = "0.14.0-rc.3"
 dependencies = [
  "assert_matches",
  "cairo-lang-sierra",
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",
- "mempool_test_utils",
- "papyrus_config",
+ "cairo-native",
  "rlimit",
  "rstest",
  "serde",
@@ -10697,6 +10697,22 @@ dependencies = [
  "starknet_infra_utils",
  "tempfile",
  "thiserror 1.0.69",
+]
+
+[[package]]
+name = "starknet_compile_to_casm"
+version = "0.14.0-rc.3"
+dependencies = [
+ "assert_matches",
+ "cairo-lang-starknet-classes",
+ "mempool_test_utils",
+ "papyrus_config",
+ "rstest",
+ "serde",
+ "serde_json",
+ "starknet_compilation_utils",
+ "starknet_infra_utils",
+ "tempfile",
  "validator",
 ]
 
@@ -10705,21 +10721,16 @@ name = "starknet_compile_to_native"
 version = "0.14.0-rc.3"
 dependencies = [
  "assert_matches",
- "cairo-lang-sierra",
  "cairo-lang-starknet-classes",
- "cairo-lang-utils",
  "cairo-native",
  "mempool_test_utils",
  "papyrus_config",
- "rlimit",
  "rstest",
  "serde",
  "serde_json",
- "starknet-types-core",
- "starknet_api",
+ "starknet_compilation_utils",
  "starknet_infra_utils",
  "tempfile",
- "thiserror 1.0.69",
  "toml_test_utils",
  "validator",
 ]
@@ -10772,6 +10783,7 @@ dependencies = [
  "serde_json",
  "starknet-types-core",
  "starknet_api",
+ "starknet_compilation_utils",
  "starknet_compile_to_casm",
  "starknet_gateway_types",
  "starknet_mempool",

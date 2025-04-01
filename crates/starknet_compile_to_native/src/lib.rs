@@ -3,20 +3,12 @@
 use cairo_lang_starknet_classes::contract_class::ContractClass;
 #[cfg(feature = "cairo_native")]
 use cairo_native::executor::AotContractExecutor;
-
 #[cfg(feature = "cairo_native")]
-use crate::errors::CompilationUtilError;
+use starknet_compilation_utils::errors::CompilationUtilError;
 
 pub mod command_line_compiler;
 pub mod config;
 pub mod constants;
-pub mod errors;
-pub mod paths;
-pub mod resource_limits;
-pub mod utils;
-
-#[cfg(test)]
-pub mod test_utils;
 
 #[cfg(test)]
 #[path = "compile_test.rs"]

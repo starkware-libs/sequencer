@@ -34,6 +34,7 @@ members = [
   "crates/starknet_class_manager_types",
   "crates/starknet_client",
   "crates/starknet_committer",
+  "crates/starknet_compilation_utils",
   "crates/starknet_compile_to_casm",
   "crates/starknet_compile_to_native",
   "crates/starknet_consensus_manager",
@@ -220,6 +221,7 @@ starknet_batcher_types = { path = "crates/starknet_batcher_types", version = "0.
 starknet_class_manager_types = { path = "crates/starknet_class_manager_types", version = "0.14.0-rc.3" }
 starknet_client = { path = "crates/starknet_client", version = "0.14.0-rc.3" }
 starknet_committer = { path = "crates/starknet_committer", version = "0.14.0-rc.3" }
+starknet_compilation_utils = { path = "crates/starknet_compilation_utils", version = "0.14.0-rc.3" }
 starknet_compile_to_casm = { path = "crates/starknet_compile_to_casm", version = "0.14.0-rc.3" }
 starknet_compile_to_native = { path = "crates/starknet_compile_to_native", version = "0.14.0-rc.3" }
 starknet_consensus_manager = { path = "crates/starknet_consensus_manager", version = "0.14.0-rc.3" }
