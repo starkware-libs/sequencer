@@ -7,9 +7,9 @@ use cached::Cached;
 use log;
 use starknet_api::core::ClassHash;
 use starknet_api::state::SierraContractClass;
+use starknet_compilation_utils::class_utils::into_contract_class_for_compilation;
+use starknet_compilation_utils::errors::CompilationUtilError;
 use starknet_compile_to_native::command_line_compiler::CommandLineCompiler;
-use starknet_compile_to_native::errors::CompilationUtilError;
-use starknet_compile_to_native::utils::into_contract_class_for_compilation;
 use starknet_compile_to_native::SierraToNativeCompiler;
 use thiserror::Error;
 
