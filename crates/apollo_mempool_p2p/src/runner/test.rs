@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use apollo_gateway_types::communication::{GatewayClient, GatewayClientError, MockGatewayClient};
 use apollo_gateway_types::errors::{GatewayError, GatewaySpecError};
-use apollo_gateway_types::gateway_types::GatewayInput;
+use apollo_gateway_types::gateway_types::{GatewayInput, GatewayOutput, InvokeGatewayOutput};
 use apollo_mempool_p2p_types::communication::{
     MempoolP2pPropagatorClient,
     MockMempoolP2pPropagatorClient,
@@ -98,7 +98,9 @@ async fn incoming_p2p_tx_reaches_gateway_client() {
     mock_gateway_client.expect_add_tx().with(mockall::predicate::eq(gateway_input)).return_once(
         move |_| {
             add_tx_indicator_sender.send(()).unwrap();
-            Ok(TransactionHash::default())
+            Ok(GatewayOutput::Invoke(InvokeGatewayOutput {
+                transaction_hash: TransactionHash::default(),
+            }))
         },
     );
     let (mut mempool_p2p_runner, mock_network) = setup(

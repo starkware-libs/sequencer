@@ -3,6 +3,7 @@ use std::sync::Arc;
 use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
 use apollo_gateway_types::errors::GatewaySpecError;
+use apollo_gateway_types::gateway_types::{GatewayOutput, InvokeGatewayOutput};
 use apollo_mempool_types::communication::{
     AddTransactionArgsWrapper,
     MempoolClientError,
@@ -200,7 +201,10 @@ async fn test_add_tx(
                     .get_metric_value(TRANSACTIONS_SENT_TO_MEMPOOL, &metrics),
                 1
             );
-            assert_eq!(result.unwrap(), tx_hash);
+            assert_eq!(
+                result.unwrap(),
+                GatewayOutput::Invoke(InvokeGatewayOutput { transaction_hash: tx_hash })
+            );
         }
     }
 }
