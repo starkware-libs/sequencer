@@ -157,37 +157,58 @@ pub fn generate_deploy_account_with_salt(
 }
 
 // TODO(Gilad): when moving this to Starknet API crate, move this const into a module alongside
-// MultiAcconutTransactionGenerator.
+// MultiAccountTransactionGenerator.
 pub type AccountId = usize;
 
 type SharedNonceManager = Rc<RefCell<NonceManager>>;
 
-#[derive(Default)]
+pub struct L1ToL2MessageArgs {
+    pub tx: L1HandlerTransaction,
+    pub l1_tx_nonce: u64,
+}
+
 struct L1HandlerTransactionGenerator {
-    tx_number: usize,
+    // The L1 nonce for the next created L1 handler transaction.
+    l1_tx_nonce: u64,
+}
+
+impl Default for L1HandlerTransactionGenerator {
+    /// The Anvil instance is spawned with a nonce of 1 for the account [Self::L1_ACCOUNT_ADDRESS].
+    fn default() -> Self {
+        Self { l1_tx_nonce: 1 }
+    }
 }
 
 impl L1HandlerTransactionGenerator {
+    const L1_ACCOUNT_ADDRESS: StarkHash = DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;
+
     /// Creates an L1 handler transaction calling the "l1_handler_set_value" entry point in
     /// [TestContract](FeatureContract::TestContract).
-    fn create_l1_handler_tx(&mut self) -> L1HandlerTransaction {
-        self.tx_number += 1;
+    fn create_l1_to_l2_message_args(&mut self) -> L1ToL2MessageArgs {
+        let l1_tx_nonce = self.l1_tx_nonce;
+        self.l1_tx_nonce += 1;
         // TODO(Arni): Get test contract from test setup.
         let test_contract =
             FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
 
-        L1HandlerTransaction {
+        let l1_handler_tx = L1HandlerTransaction {
             contract_address: test_contract.get_instance_address(0),
             // TODO(Arni): Consider saving this value as a lazy constant.
             entry_point_selector: selector_from_name("l1_handler_set_value"),
             calldata: calldata![
-                DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS,
+                Self::L1_ACCOUNT_ADDRESS,
                 // Arbitrary key and value.
                 felt!("0x876"), // key
                 felt!("0x44")   // value
             ],
             ..Default::default()
-        }
+        };
+
+        L1ToL2MessageArgs { tx: l1_handler_tx, l1_tx_nonce }
+    }
+
+    fn n_generated_txs(&self) -> u64 {
+        self.l1_tx_nonce - 1
     }
 }
 
@@ -263,7 +284,7 @@ impl MultiAccountTransactionGenerator {
             })
             .collect();
         let l1_handler_tx_generator =
-            L1HandlerTransactionGenerator { tx_number: self.l1_handler_tx_generator.tx_number };
+            L1HandlerTransactionGenerator { l1_tx_nonce: self.l1_handler_tx_generator.l1_tx_nonce };
 
         Self { account_tx_generators, nonce_manager, l1_handler_tx_generator }
     }
@@ -345,12 +366,15 @@ impl MultiAccountTransactionGenerator {
             .collect()
     }
 
-    pub fn create_l1_handler_tx(&mut self) -> L1HandlerTransaction {
-        self.l1_handler_tx_generator.create_l1_handler_tx()
+    pub fn create_l1_to_l2_message_args(&mut self) -> L1ToL2MessageArgs {
+        self.l1_handler_tx_generator.create_l1_to_l2_message_args()
     }
 
     pub fn n_l1_txs(&self) -> usize {
-        self.l1_handler_tx_generator.tx_number
+        self.l1_handler_tx_generator
+            .n_generated_txs()
+            .try_into()
+            .expect("Failed to convert nonce to usize")
     }
 }
 
