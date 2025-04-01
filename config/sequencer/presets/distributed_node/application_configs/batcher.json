@@ -71,7 +71,7 @@
   "components.class_manager.remote_client_config.idle_timeout": 90,
   "components.class_manager.remote_client_config.retries": 3,
   "components.class_manager.remote_client_config.retry_interval": 3,
-  "components.class_manager.url": "sequencer-class-manager-service",
+  "components.class_manager.url": "sequencer-classmanager-service",
   "components.consensus_manager.execution_mode": "Disabled",
   "components.gateway.execution_mode": "Disabled",
   "components.gateway.ip": "0.0.0.0",
