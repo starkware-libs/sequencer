@@ -1611,6 +1611,7 @@ dependencies = [
  "apollo_mempool_p2p",
  "apollo_sequencer_infra",
  "apollo_sequencer_metrics",
+ "apollo_state_reader",
  "apollo_state_sync",
  "const_format",
  "indexmap 2.7.0",
@@ -1771,6 +1772,7 @@ name = "apollo_state_reader"
 version = "0.0.0"
 dependencies = [
  "apollo_class_manager_types",
+ "apollo_sequencer_metrics",
  "apollo_storage",
  "assert_matches",
  "blockifier",
