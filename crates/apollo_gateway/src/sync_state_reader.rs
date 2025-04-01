@@ -22,6 +22,7 @@ pub(crate) struct SyncStateReader {
     block_number: BlockNumber,
     state_sync_client: SharedStateSyncClient,
     class_manager_client: SharedClassManagerClient,
+    runtime: tokio::runtime::Handle,
 }
 
 impl SyncStateReader {
@@ -29,8 +30,9 @@ impl SyncStateReader {
         state_sync_client: SharedStateSyncClient,
         class_manager_client: SharedClassManagerClient,
         block_number: BlockNumber,
+        runtime: tokio::runtime::Handle,
     ) -> Self {
-        Self { block_number, state_sync_client, class_manager_client }
+        Self { block_number, state_sync_client, class_manager_client, runtime }
     }
 }
 
@@ -73,7 +75,7 @@ impl BlockifierStateReader for SyncStateReader {
         contract_address: ContractAddress,
         key: StorageKey,
     ) -> StateResult<Felt> {
-        let res = block_on(self.state_sync_client.get_storage_at(
+        let res = self.runtime.block_on(self.state_sync_client.get_storage_at(
             self.block_number,
             contract_address,
             key,
@@ -89,8 +91,9 @@ impl BlockifierStateReader for SyncStateReader {
     }
 
     fn get_nonce_at(&self, contract_address: ContractAddress) -> StateResult<Nonce> {
-        let res =
-            block_on(self.state_sync_client.get_nonce_at(self.block_number, contract_address));
+        let res = self
+            .runtime
+            .block_on(self.state_sync_client.get_nonce_at(self.block_number, contract_address));
 
         match res {
             Ok(value) => Ok(value),
@@ -102,7 +105,9 @@ impl BlockifierStateReader for SyncStateReader {
     }
 
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
-        let contract_class = block_on(self.class_manager_client.get_executable(class_hash))
+        let contract_class = self
+            .runtime
+            .block_on(self.class_manager_client.get_executable(class_hash))
             .map_err(|e| StateError::StateReadError(e.to_string()))?
             .expect(
                 "Class with hash {class_hash:?} doesn't appear in class manager even though it \
@@ -111,10 +116,12 @@ impl BlockifierStateReader for SyncStateReader {
 
         match contract_class {
             ContractClass::V1(casm_contract_class) => {
-                let is_class_declared = block_on(
-                    self.state_sync_client.is_class_declared_at(self.block_number, class_hash),
-                )
-                .map_err(|e| StateError::StateReadError(e.to_string()))?;
+                let is_class_declared = self
+                    .runtime
+                    .block_on(
+                        self.state_sync_client.is_class_declared_at(self.block_number, class_hash),
+                    )
+                    .map_err(|e| StateError::StateReadError(e.to_string()))?;
 
                 // TODO(shahak): Verify cairo0 as well and change the order to first check if class
                 // is declared once sync's is_class_declared_at supports cairo0
@@ -131,8 +138,9 @@ impl BlockifierStateReader for SyncStateReader {
     }
 
     fn get_class_hash_at(&self, contract_address: ContractAddress) -> StateResult<ClassHash> {
-        let res =
-            block_on(self.state_sync_client.get_class_hash_at(self.block_number, contract_address));
+        let res = self.runtime.block_on(
+            self.state_sync_client.get_class_hash_at(self.block_number, contract_address),
+        );
 
         match res {
             Ok(value) => Ok(value),
@@ -151,20 +159,23 @@ impl BlockifierStateReader for SyncStateReader {
 pub struct SyncStateReaderFactory {
     pub shared_state_sync_client: SharedStateSyncClient,
     pub class_manager_client: SharedClassManagerClient,
+    pub runtime: tokio::runtime::Handle,
 }
 
 impl StateReaderFactory for SyncStateReaderFactory {
     fn get_state_reader_from_latest_block(
         &self,
     ) -> StateSyncClientResult<Box<dyn MempoolStateReader>> {
-        let latest_block_number =
-            block_on(self.shared_state_sync_client.get_latest_block_number())?
-                .ok_or(StateSyncClientError::StateSyncError(StateSyncError::EmptyState))?;
+        let latest_block_number = self
+            .runtime
+            .block_on(self.shared_state_sync_client.get_latest_block_number())?
+            .ok_or(StateSyncClientError::StateSyncError(StateSyncError::EmptyState))?;
 
         Ok(Box::new(SyncStateReader::from_number(
             self.shared_state_sync_client.clone(),
             self.class_manager_client.clone(),
             latest_block_number,
+            self.runtime.clone(),
         )))
     }
 
@@ -173,6 +184,7 @@ impl StateReaderFactory for SyncStateReaderFactory {
             self.shared_state_sync_client.clone(),
             self.class_manager_client.clone(),
             block_number,
+            self.runtime.clone(),
         ))
     }
 }

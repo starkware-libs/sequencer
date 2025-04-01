@@ -61,6 +61,7 @@ async fn test_get_block_info() {
         Arc::new(mock_state_sync_client),
         Arc::new(mock_class_manager_client),
         block_number,
+        tokio::runtime::Handle::current(),
     );
     let result = state_sync_reader.get_block_info().unwrap();
 
@@ -116,9 +117,15 @@ async fn test_get_storage_at() {
         Arc::new(mock_state_sync_client),
         Arc::new(mock_class_manager_client),
         block_number,
+        tokio::runtime::Handle::current(),
     );
 
-    let result = state_sync_reader.get_storage_at(contract_address, storage_key).unwrap();
+    let result = tokio::task::spawn_blocking(move || {
+        state_sync_reader.get_storage_at(contract_address, storage_key)
+    })
+    .await
+    .unwrap()
+    .unwrap();
     assert_eq!(result, value);
 }
 
@@ -140,9 +147,14 @@ async fn test_get_nonce_at() {
         Arc::new(mock_state_sync_client),
         Arc::new(mock_class_manager_client),
         block_number,
+        tokio::runtime::Handle::current(),
     );
 
-    let result = state_sync_reader.get_nonce_at(contract_address).unwrap();
+    let result =
+        tokio::task::spawn_blocking(move || state_sync_reader.get_nonce_at(contract_address))
+            .await
+            .unwrap()
+            .unwrap();
     assert_eq!(result, expected_result);
 }
 
@@ -164,9 +176,14 @@ async fn test_get_class_hash_at() {
         Arc::new(mock_state_sync_client),
         Arc::new(mock_class_manager_client),
         block_number,
+        tokio::runtime::Handle::current(),
     );
 
-    let result = state_sync_reader.get_class_hash_at(contract_address).unwrap();
+    let result =
+        tokio::task::spawn_blocking(move || state_sync_reader.get_class_hash_at(contract_address))
+            .await
+            .unwrap()
+            .unwrap();
     assert_eq!(result, expected_result);
 }
 
@@ -207,9 +224,14 @@ async fn test_get_compiled_class() {
         Arc::new(mock_state_sync_client),
         Arc::new(mock_class_manager_client),
         block_number,
+        tokio::runtime::Handle::current(),
     );
 
-    let result = state_sync_reader.get_compiled_class(class_hash).unwrap();
+    let result =
+        tokio::task::spawn_blocking(move || state_sync_reader.get_compiled_class(class_hash))
+            .await
+            .unwrap()
+            .unwrap();
     assert_eq!(
         result,
         RunnableCompiledClass::V1((expected_result, SierraVersion::default()).try_into().unwrap())
