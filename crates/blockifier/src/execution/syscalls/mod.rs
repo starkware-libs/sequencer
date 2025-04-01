@@ -52,7 +52,7 @@ use crate::transaction::objects::{
 };
 
 pub mod hint_processor;
-mod secp;
+pub mod secp;
 pub mod syscall_base;
 
 #[cfg(test)]
