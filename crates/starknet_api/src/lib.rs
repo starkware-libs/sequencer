@@ -20,6 +20,7 @@ pub mod hash;
 pub mod rpc_transaction;
 pub mod serde_utils;
 pub mod state;
+pub mod stateless_transaction_validations;
 #[cfg(any(feature = "testing", test))]
 pub mod test_utils;
 pub mod transaction;
