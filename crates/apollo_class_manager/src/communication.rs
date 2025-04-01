@@ -1,13 +1,16 @@
 use apollo_class_manager_types::{ClassManagerRequest, ClassManagerResponse};
 use apollo_sequencer_infra::component_definitions::ComponentRequestHandler;
-use apollo_sequencer_infra::component_server::{LocalComponentServer, RemoteComponentServer};
+use apollo_sequencer_infra::component_server::{
+    ConcurrentLocalComponentServer,
+    RemoteComponentServer,
+};
 use async_trait::async_trait;
 use starknet_api::contract_class::ContractClass;
 
 use crate::ClassManager;
 
 pub type LocalClassManagerServer =
-    LocalComponentServer<ClassManager, ClassManagerRequest, ClassManagerResponse>;
+    ConcurrentLocalComponentServer<ClassManager, ClassManagerRequest, ClassManagerResponse>;
 pub type RemoteClassManagerServer =
     RemoteComponentServer<ClassManagerRequest, ClassManagerResponse>;
 

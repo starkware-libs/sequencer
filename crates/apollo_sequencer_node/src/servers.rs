@@ -341,11 +341,12 @@ fn create_local_servers(
         &CLASS_MANAGER_LOCAL_QUEUE_DEPTH,
     );
     let class_manager_server = create_local_server!(
-        REGULAR_LOCAL_SERVER,
+        CONCURRENT_LOCAL_SERVER,
         &config.components.class_manager.execution_mode,
         &mut components.class_manager,
         communication.take_class_manager_rx(),
-        class_manager_metrics
+        class_manager_metrics,
+        config.components.class_manager.max_concurrency
     );
 
     let gateway_metrics = LocalServerMetrics::new(
