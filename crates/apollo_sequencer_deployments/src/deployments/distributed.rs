@@ -390,6 +390,7 @@ fn get_l1_component_config(
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
     config.l1_gas_price_provider = l1_gas_price_provider_local_config;
+    config.l1_gas_price_scraper = ActiveComponentExecutionConfig::enabled();
     config.l1_provider = l1_provider_local_config;
     config.l1_scraper = ActiveComponentExecutionConfig::enabled();
     config.state_sync = state_sync_remote_config;
