@@ -119,8 +119,16 @@ fn hash_map_into_bouncer_weights(
             .try_into()
             .unwrap_or_else(|err| panic!("Failed to convert 'sierra_gas' into GasAmount: {err}.")),
     );
+    let n_txs = data.remove(constants::N_TXS).expect("n_txs must be present");
 
-    Ok(BouncerWeights { l1_gas, message_segment_length, state_diff_size, n_events, sierra_gas })
+    Ok(BouncerWeights {
+        l1_gas,
+        message_segment_length,
+        state_diff_size,
+        n_events,
+        sierra_gas,
+        n_txs,
+    })
 }
 
 #[derive(Debug, Default, FromPyObject)]

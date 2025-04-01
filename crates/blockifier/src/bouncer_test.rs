@@ -24,6 +24,7 @@ fn test_block_weights_has_room() {
         n_events: 10,
         state_diff_size: 10,
         sierra_gas: GasAmount(10),
+        n_txs: 10,
     };
 
     let bouncer_weights = BouncerWeights {
@@ -32,6 +33,7 @@ fn test_block_weights_has_room() {
         n_events: 2,
         state_diff_size: 7,
         sierra_gas: GasAmount(7),
+        n_txs: 7,
     };
 
     assert!(max_bouncer_weights.has_room(bouncer_weights));
@@ -42,6 +44,7 @@ fn test_block_weights_has_room() {
         n_events: 5,
         state_diff_size: 5,
         sierra_gas: GasAmount(15),
+        n_txs: 5,
     };
 
     assert!(!max_bouncer_weights.has_room(bouncer_weights_exceeds_max));
@@ -65,6 +68,7 @@ fn test_block_weights_has_room() {
         n_events: 10,
         state_diff_size: 10,
         sierra_gas: GasAmount(10),
+        n_txs: 10,
     },
 })]
 fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
@@ -83,6 +87,7 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
         n_events: 1,
         state_diff_size: 2,
         sierra_gas: GasAmount(9),
+        n_txs: 1,
     };
 
     let state_changes_keys_to_update =
@@ -124,6 +129,7 @@ fn test_bouncer_try_update(#[case] added_gas: GasAmount, #[case] scenario: &'sta
         n_events: 20,
         state_diff_size: 20,
         sierra_gas: GasAmount(20),
+        n_txs: 20,
     };
     let bouncer_config = BouncerConfig { block_max_capacity };
 
@@ -133,6 +139,7 @@ fn test_bouncer_try_update(#[case] added_gas: GasAmount, #[case] scenario: &'sta
         n_events: 10,
         state_diff_size: 10,
         sierra_gas: GasAmount(10),
+        n_txs: 10,
     };
 
     let mut bouncer = Bouncer { accumulated_weights, bouncer_config, ..Bouncer::empty() };
@@ -159,7 +166,8 @@ fn test_bouncer_try_update(#[case] added_gas: GasAmount, #[case] scenario: &'sta
         &block_context.versioned_constants,
     )
     .map_err(TransactionExecutorError::TransactionExecutionError);
-    let expected_weights = BouncerWeights { sierra_gas: added_gas, ..BouncerWeights::empty() };
+    let expected_weights =
+        BouncerWeights { sierra_gas: added_gas, n_txs: 1, ..BouncerWeights::empty() };
 
     if result.is_ok() {
         // Try to update the bouncer.
