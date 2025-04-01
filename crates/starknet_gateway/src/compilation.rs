@@ -1,13 +1,10 @@
-use std::sync::Arc;
-
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;
 use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
 use starknet_api::rpc_transaction::RpcDeclareTransaction;
 use starknet_compilation_utils::class_utils::into_contract_class_for_compilation;
-use starknet_compile_to_casm::command_line_compiler::CommandLineCompiler;
+use starknet_compile_to_casm::compiler::CommandLineCompiler;
 use starknet_compile_to_casm::config::SierraCompilationConfig;
-use starknet_compile_to_casm::SierraToCasmCompiler;
 use starknet_gateway_types::errors::GatewaySpecError;
 use tracing::{debug, error};
 
@@ -20,12 +17,12 @@ mod compilation_test;
 // TODO(Arni): Pass the compiler with dependancy injection.
 #[derive(Clone)]
 pub struct GatewayCompiler {
-    pub sierra_to_casm_compiler: Arc<dyn SierraToCasmCompiler>,
+    pub sierra_to_casm_compiler: CommandLineCompiler,
 }
 
 impl GatewayCompiler {
     pub fn new_command_line_compiler(config: SierraCompilationConfig) -> Self {
-        Self { sierra_to_casm_compiler: Arc::new(CommandLineCompiler::new(config)) }
+        Self { sierra_to_casm_compiler: CommandLineCompiler::new(config) }
     }
 
     /// Formats the contract class for compilation, compiles it, and returns the compiled contract

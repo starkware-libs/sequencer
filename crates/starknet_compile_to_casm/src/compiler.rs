@@ -9,7 +9,6 @@ use starknet_compilation_utils::resource_limits::ResourceLimits;
 
 use crate::config::SierraCompilationConfig;
 use crate::constants::CAIRO_LANG_BINARY_NAME;
-use crate::SierraToCasmCompiler;
 
 #[derive(Clone)]
 pub struct CommandLineCompiler {
@@ -21,10 +20,8 @@ impl CommandLineCompiler {
     pub fn new(config: SierraCompilationConfig) -> Self {
         Self { config, path_to_binary: binary_path(&out_dir(), CAIRO_LANG_BINARY_NAME) }
     }
-}
 
-impl SierraToCasmCompiler for CommandLineCompiler {
-    fn compile(
+    pub fn compile(
         &self,
         contract_class: ContractClass,
     ) -> Result<CasmContractClass, CompilationUtilError> {

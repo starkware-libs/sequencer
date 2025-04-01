@@ -9,8 +9,7 @@ use starknet_api::core::ClassHash;
 use starknet_api::state::SierraContractClass;
 use starknet_compilation_utils::class_utils::into_contract_class_for_compilation;
 use starknet_compilation_utils::errors::CompilationUtilError;
-use starknet_compile_to_native::command_line_compiler::CommandLineCompiler;
-use starknet_compile_to_native::SierraToNativeCompiler;
+use starknet_compile_to_native::compiler::CommandLineCompiler;
 use thiserror::Error;
 
 use crate::blockifier::config::{
@@ -53,7 +52,7 @@ pub struct NativeClassManager {
     /// disabled.
     sender: Option<SyncSender<CompilationRequest>>,
     /// The sierra-to-native compiler.
-    compiler: Option<Arc<dyn SierraToNativeCompiler>>,
+    compiler: Option<Arc<CommandLineCompiler>>,
 }
 
 impl NativeClassManager {
@@ -235,7 +234,7 @@ impl NativeClassManager {
 fn run_compilation_worker(
     cache: RawClassCache,
     receiver: Receiver<CompilationRequest>,
-    compiler: Arc<dyn SierraToNativeCompiler>,
+    compiler: Arc<CommandLineCompiler>,
     panic_on_compilation_failure: bool,
 ) {
     log::info!("Compilation worker started.");
@@ -254,7 +253,7 @@ fn run_compilation_worker(
 /// Processes a compilation request and caches the result.
 fn process_compilation_request(
     cache: RawClassCache,
-    compiler: Arc<dyn SierraToNativeCompiler>,
+    compiler: Arc<CommandLineCompiler>,
     compilation_request: CompilationRequest,
     panic_on_compilation_failure: bool,
 ) -> Result<(), CompilationUtilError> {

@@ -4,14 +4,12 @@ use std::path::Path;
 use assert_matches::assert_matches;
 use cairo_lang_starknet_classes::contract_class::ContractClass;
 use mempool_test_utils::{FAULTY_ACCOUNT_CLASS_FILE, TEST_FILES_FOLDER};
-use rstest::rstest;
 use starknet_compilation_utils::errors::CompilationUtilError;
 use starknet_compilation_utils::test_utils::contract_class_from_file;
 use starknet_infra_utils::path::resolve_project_relative_path;
 
-use crate::command_line_compiler::CommandLineCompiler;
+use crate::compiler::CommandLineCompiler;
 use crate::config::{SierraCompilationConfig, DEFAULT_MAX_BYTECODE_SIZE};
-use crate::SierraToCasmCompiler;
 
 const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig =
     SierraCompilationConfig { max_bytecode_size: DEFAULT_MAX_BYTECODE_SIZE };
@@ -34,9 +32,9 @@ fn get_faulty_test_contract() -> ContractClass {
     contract_class
 }
 
-#[rstest]
-#[case::command_line_compiler(command_line_compiler())]
-fn test_compile_sierra_to_casm(#[case] compiler: impl SierraToCasmCompiler) {
+#[test]
+fn test_compile_sierra_to_casm() {
+    let compiler = command_line_compiler();
     let expected_casm_contract_length = 72304;
 
     let contract_class = get_test_contract();
@@ -47,9 +45,9 @@ fn test_compile_sierra_to_casm(#[case] compiler: impl SierraToCasmCompiler) {
 }
 
 // TODO(Arni, 1/5/2024): Add a test for panic result test.
-#[rstest]
-#[case::command_line_compiler(command_line_compiler())]
-fn test_negative_flow_compile_sierra_to_casm(#[case] compiler: impl SierraToCasmCompiler) {
+#[test]
+fn test_negative_flow_compile_sierra_to_casm() {
+    let compiler = command_line_compiler();
     let contract_class = get_faulty_test_contract();
 
     let result = compiler.compile(contract_class);

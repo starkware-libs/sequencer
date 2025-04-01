@@ -8,7 +8,7 @@ use starknet_compilation_utils::errors::CompilationUtilError;
 use starknet_compilation_utils::test_utils::contract_class_from_file;
 use starknet_infra_utils::path::resolve_project_relative_path;
 
-use crate::command_line_compiler::CommandLineCompiler;
+use crate::compiler::CommandLineCompiler;
 use crate::config::{
     SierraCompilationConfig,
     DEFAULT_MAX_CPU_TIME,
@@ -16,7 +16,6 @@ use crate::config::{
     DEFAULT_MAX_MEMORY_USAGE,
     DEFAULT_OPTIMIZATION_LEVEL,
 };
-use crate::SierraToNativeCompiler;
 
 const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompilationConfig {
     compiler_binary_path: None,

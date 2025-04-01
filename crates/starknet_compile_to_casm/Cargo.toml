@@ -20,7 +20,6 @@ validator.workspace = true
 [dev-dependencies]
 assert_matches.workspace = true
 mempool_test_utils.path = "../mempool_test_utils"
-rstest.workspace = true
 starknet_compilation_utils = { path = "../starknet_compilation_utils", features = ["testing"] }
 starknet_infra_utils.path = "../starknet_infra_utils"
 
