@@ -193,16 +193,20 @@ fn test_send_compilation_request_channel_full() {
 }
 
 #[rstest]
-#[case::success(create_test_request(), true)]
-#[case::failure(create_faulty_request(), false)]
+#[case::success(create_test_request(), true, false)]
+#[case::failure(create_faulty_request(), false, false)]
+#[should_panic(expected = "Compilation failed")]
+#[case::panics_on_failure(create_faulty_request(), false, true)]
 fn test_process_compilation_request(
     #[case] request: CompilationRequest,
     #[case] should_pass: bool,
+    #[case] panic_on_compilation_failure: bool,
 ) {
     let manager = NativeClassManager::create_for_testing(CairoNativeRunConfig {
         wait_on_native_compilation: true,
         run_cairo_native: true,
         channel_size: TEST_CHANNEL_SIZE,
+        panic_on_compilation_failure,
         ..CairoNativeRunConfig::default()
     });
     let res = process_compilation_request(
@@ -243,7 +247,7 @@ fn test_native_classes_whitelist(
     let native_config = CairoNativeRunConfig {
         run_cairo_native: true,
         wait_on_native_compilation: true,
-        panic_on_compilation_failure: true,
+        panic_on_compilation_failure: false,
         channel_size: TEST_CHANNEL_SIZE,
         native_classes_whitelist: whitelist,
     };
