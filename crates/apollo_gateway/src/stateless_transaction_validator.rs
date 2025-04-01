@@ -1,13 +1,10 @@
+use std::fmt::Debug;
+
 use starknet_api::block::GasPrice;
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::rpc_transaction::{
-    RpcDeclareTransaction,
-    RpcDeployAccountTransaction,
-    RpcInvokeTransaction,
-    RpcTransaction,
-};
 use starknet_api::state::EntryPoint;
+use starknet_api::stateless_transaction_validations::StatelessValidateTransactionFields as ValidateTransaction;
 use starknet_api::transaction::fields::{AllResourceBounds, Resource};
 use starknet_types_core::felt::Felt;
 use tracing::{instrument, Level};
@@ -27,27 +24,59 @@ pub struct StatelessTransactionValidator {
 
 impl StatelessTransactionValidator {
     #[instrument(skip(self), level = Level::INFO, err)]
-    pub fn validate(&self, tx: &RpcTransaction) -> StatelessTransactionValidatorResult<()> {
+    pub fn validate<T: ValidateTransaction + Debug>(
+        &self,
+        tx: &T,
+    ) -> StatelessTransactionValidatorResult<()> {
         // TODO(Arni, 1/5/2024): Add a mechanism that validate the sender address is not blocked.
         // TODO(Arni, 1/5/2024): Validate transaction version.
 
-        Self::validate_contract_address(tx)?;
-        Self::validate_empty_account_deployment_data(tx)?;
-        Self::validate_empty_paymaster_data(tx)?;
+        tx.validate_contract_address()?;
+        self.validate_empty_account_deployment_data(tx)?;
+        self.validate_empty_paymaster_data(tx)?;
         self.validate_resource_bounds(tx)?;
         self.validate_tx_size(tx)?;
         self.validate_nonce_data_availability_mode(tx)?;
         self.validate_fee_data_availability_mode(tx)?;
 
-        if let RpcTransaction::Declare(declare_tx) = tx {
-            self.validate_declare_tx(declare_tx)?;
-        }
+        self.validate_declare_tx(tx)?;
+
         Ok(())
     }
 
-    fn validate_resource_bounds(
+    /// The Starknet OS enforces that the deployer data is empty. We add this validation here in the
+    /// gateway to prevent transactions from failing the OS.
+    fn validate_empty_account_deployment_data<T: ValidateTransaction>(
         &self,
-        tx: &RpcTransaction,
+        tx: &T,
+    ) -> StatelessTransactionValidatorResult<()> {
+        if tx.account_deployment_data_is_empty() {
+            Ok(())
+        } else {
+            Err(StatelessTransactionValidatorError::NonEmptyField {
+                field_name: "account_deployment_data".to_string(),
+            })
+        }
+    }
+
+    /// The Starknet OS enforces that the paymaster data is empty. We add this validation here in
+    /// the gateway to prevent transactions from failing the OS.
+    fn validate_empty_paymaster_data<T: ValidateTransaction>(
+        &self,
+        tx: &T,
+    ) -> StatelessTransactionValidatorResult<()> {
+        if tx.paymaster_data_is_empty() {
+            Ok(())
+        } else {
+            Err(StatelessTransactionValidatorError::NonEmptyField {
+                field_name: "paymaster_data".to_string(),
+            })
+        }
+    }
+
+    fn validate_resource_bounds<T: ValidateTransaction>(
+        &self,
+        tx: &T,
     ) -> StatelessTransactionValidatorResult<()> {
         let resource_bounds_mapping = tx.resource_bounds();
 
@@ -64,81 +93,24 @@ impl StatelessTransactionValidator {
         Ok(())
     }
 
-    fn validate_contract_address(tx: &RpcTransaction) -> StatelessTransactionValidatorResult<()> {
-        let sender_address = match tx {
-            RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => tx.sender_address,
-            RpcTransaction::DeployAccount(_) => return Ok(()),
-            RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => tx.sender_address,
-        };
-
-        Ok(sender_address.validate()?)
-    }
-
-    /// The Starknet OS enforces that the deployer data is empty. We add this validation here in the
-    /// gateway to prevent transactions from failing the OS.
-    fn validate_empty_account_deployment_data(
-        tx: &RpcTransaction,
+    fn validate_tx_size<T: ValidateTransaction>(
+        &self,
+        tx: &T,
     ) -> StatelessTransactionValidatorResult<()> {
-        let account_deployment_data = match tx {
-            RpcTransaction::DeployAccount(_) => return Ok(()),
-            RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => &tx.account_deployment_data,
-            RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => &tx.account_deployment_data,
-        };
-
-        if account_deployment_data.is_empty() {
-            Ok(())
-        } else {
-            Err(StatelessTransactionValidatorError::NonEmptyField {
-                field_name: "account_deployment_data".to_string(),
-            })
-        }
-    }
-
-    /// The Starknet OS enforces that the paymaster data is empty. We add this validation here in
-    /// the gateway to prevent transactions from failing the OS.
-    fn validate_empty_paymaster_data(
-        tx: &RpcTransaction,
-    ) -> StatelessTransactionValidatorResult<()> {
-        let paymaster_data = match tx {
-            RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(tx)) => {
-                &tx.paymaster_data
-            }
-            RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => &tx.paymaster_data,
-            RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => &tx.paymaster_data,
-        };
-
-        if paymaster_data.is_empty() {
-            Ok(())
-        } else {
-            Err(StatelessTransactionValidatorError::NonEmptyField {
-                field_name: "paymaster_data".to_string(),
-            })
-        }
-    }
-
-    fn validate_tx_size(&self, tx: &RpcTransaction) -> StatelessTransactionValidatorResult<()> {
         self.validate_tx_calldata_size(tx)?;
         self.validate_tx_signature_size(tx)?;
 
         Ok(())
     }
 
-    fn validate_tx_calldata_size(
+    fn validate_tx_calldata_size<T: ValidateTransaction>(
         &self,
-        tx: &RpcTransaction,
+        tx: &T,
     ) -> StatelessTransactionValidatorResult<()> {
-        let calldata = match tx {
-            RpcTransaction::Declare(_) => {
-                // Declare transaction has no calldata.
-                return Ok(());
-            }
-            RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(tx)) => {
-                &tx.constructor_calldata
-            }
-            RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => &tx.calldata,
+        let Some(calldata_length) = tx.calldata_length() else {
+            return Ok(());
         };
 
-        let calldata_length = calldata.0.len();
         if calldata_length > self.config.max_calldata_length {
             return Err(StatelessTransactionValidatorError::CalldataTooLong {
                 calldata_length,
@@ -149,13 +121,12 @@ impl StatelessTransactionValidator {
         Ok(())
     }
 
-    fn validate_tx_signature_size(
+    fn validate_tx_signature_size<T: ValidateTransaction>(
         &self,
-        tx: &RpcTransaction,
+        tx: &T,
     ) -> StatelessTransactionValidatorResult<()> {
-        let signature = tx.signature();
+        let signature_length = tx.signature_length();
 
-        let signature_length = signature.0.len();
         if signature_length > self.config.max_signature_length {
             return Err(StatelessTransactionValidatorError::SignatureTooLong {
                 signature_length,
@@ -168,9 +139,9 @@ impl StatelessTransactionValidator {
 
     /// The Starknet OS enforces that the nonce data availability mode is L1. We add this validation
     /// here in the gateway to prevent transactions from failing the OS.
-    fn validate_nonce_data_availability_mode(
+    fn validate_nonce_data_availability_mode<T: ValidateTransaction>(
         &self,
-        tx: &RpcTransaction,
+        tx: &T,
     ) -> StatelessTransactionValidatorResult<()> {
         let expected_da_mode = DataAvailabilityMode::L1;
         let da_mode = *tx.nonce_data_availability_mode();
@@ -185,9 +156,9 @@ impl StatelessTransactionValidator {
 
     /// The Starknet OS enforces that the fee data availability mode is L1. We add this validation
     /// here in the gateway to prevent transactions from failing the OS.
-    fn validate_fee_data_availability_mode(
+    fn validate_fee_data_availability_mode<T: ValidateTransaction>(
         &self,
-        tx: &RpcTransaction,
+        tx: &T,
     ) -> StatelessTransactionValidatorResult<()> {
         let expected_fee_mode = DataAvailabilityMode::L1;
         let fee_mode = *tx.fee_data_availability_mode();
@@ -200,17 +171,23 @@ impl StatelessTransactionValidator {
         Ok(())
     }
 
-    fn validate_declare_tx(
+    fn validate_declare_tx<T: ValidateTransaction>(
         &self,
-        declare_tx: &RpcDeclareTransaction,
+        tx: &T,
     ) -> StatelessTransactionValidatorResult<()> {
-        let contract_class = match declare_tx {
-            RpcDeclareTransaction::V3(tx) => &tx.contract_class,
-        };
-        self.validate_sierra_version(&contract_class.sierra_program)?;
-        self.validate_class_length(contract_class)?;
-        self.validate_entry_points_sorted_and_unique(contract_class)?;
-        Ok(())
+        if !tx.is_declare() {
+            return Ok(());
+        }
+        if let Some(contract_class) = tx.contract_class() {
+            self.validate_sierra_version(&contract_class.sierra_program)?;
+            self.validate_class_length(&contract_class)?;
+            self.validate_entry_points_sorted_and_unique(&contract_class)?;
+            Ok(())
+        } else {
+            Err(StatelessTransactionValidatorError::NonEmptyField {
+                field_name: "contract_class".to_string(),
+            })
+        }
     }
 
     fn validate_sierra_version(
