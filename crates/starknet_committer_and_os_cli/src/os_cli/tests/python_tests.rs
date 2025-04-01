@@ -205,7 +205,7 @@ use strum::IntoEnumIterator;
 use strum_macros::Display;
 use thiserror;
 
-use crate::os_cli::commands::{validate_input, Input};
+use crate::os_cli::commands::{validate_block_inputs, Input};
 use crate::shared_utils::types::{PythonTestError, PythonTestResult, PythonTestRunner};
 
 pub type OsPythonTestError = PythonTestError<OsSpecificTestError>;
@@ -346,7 +346,7 @@ fn test_constants(input: &str) -> OsPythonTestResult {
 /// Deserialize the input string into an `Input` struct.
 fn input_deserialization(input_str: &str) -> OsPythonTestResult {
     let input = serde_json::from_str::<Input>(input_str)?;
-    validate_input(&input.os_hints.os_input);
+    validate_block_inputs(&input.os_hints.os_input.block_inputs);
     Ok("Deserialization successful".to_string())
 }
 

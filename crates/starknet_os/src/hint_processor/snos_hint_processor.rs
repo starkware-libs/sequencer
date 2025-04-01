@@ -19,11 +19,11 @@ use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::execution_helper::OsExecutionHelper;
 use crate::hints::enum_definition::AllHints;
-use crate::hints::error::OsHintError;
+use crate::hints::error::{HintsProcessorError, OsHintError};
 use crate::hints::types::{HintArgs, HintEnum, HintExtensionImplementation, HintImplementation};
-use crate::io::os_input::OsHintsConfig;
 #[cfg(any(feature = "testing", test))]
-use crate::io::os_input::StarknetOsInput;
+use crate::io::os_input::OsBlockInput;
+use crate::io::os_input::OsHintsConfig;
 
 type VmHintResultType<T> = Result<T, VmHintError>;
 type VmHintResult = VmHintResultType<()>;
@@ -31,7 +31,8 @@ type VmHintExtensionResult = VmHintResultType<HintExtension>;
 
 pub struct SnosHintProcessor<S: StateReader> {
     pub(crate) os_program: Program,
-    pub execution_helper: OsExecutionHelper<S>,
+    pub execution_helpers: Vec<OsExecutionHelper<S>>,
+    current_helper_index: Option<usize>,
     pub(crate) os_hints_config: OsHintsConfig,
     pub syscall_hint_processor: SyscallHintProcessor,
     _deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
@@ -43,14 +44,15 @@ pub struct SnosHintProcessor<S: StateReader> {
 impl<S: StateReader> SnosHintProcessor<S> {
     pub fn new(
         os_program: Program,
-        execution_helper: OsExecutionHelper<S>,
+        execution_helpers: Vec<OsExecutionHelper<S>>,
         os_hints_config: OsHintsConfig,
         syscall_hint_processor: SyscallHintProcessor,
         deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
     ) -> Self {
         Self {
             os_program,
-            execution_helper,
+            execution_helpers,
+            current_helper_index: None,
             os_hints_config,
             syscall_hint_processor,
             _deprecated_syscall_hint_processor: deprecated_syscall_hint_processor,
@@ -59,7 +61,31 @@ impl<S: StateReader> SnosHintProcessor<S> {
         }
     }
 
-    /// Stores the data-availabilty segment, to be used for computing the KZG commitment in blob
+    /// Returns the Execution Helper for the currently processed block.
+    pub fn get_current_execution_helper(
+        &self,
+    ) -> Result<&OsExecutionHelper<S>, HintsProcessorError> {
+        let current_helper_index =
+            self.current_helper_index.ok_or(HintsProcessorError::NoCurrentExecutionHelper)?;
+        Ok(self
+            .execution_helpers
+            .get(current_helper_index)
+            .expect("Current execution helper index is out of bounds."))
+    }
+
+    /// Returns the Execution Helper for the currently processed block.
+    pub fn get_mut_current_execution_helper(
+        &mut self,
+    ) -> Result<&mut OsExecutionHelper<S>, HintsProcessorError> {
+        let current_helper_index =
+            self.current_helper_index.ok_or(HintsProcessorError::NoCurrentExecutionHelper)?;
+        Ok(self
+            .execution_helpers
+            .get_mut(current_helper_index)
+            .expect("Current execution helper index is out of bounds."))
+    }
+
+    /// Stores the data-availability segment, to be used for computing the KZG commitment in blob
     /// mode.
     pub(crate) fn set_da_segment(&mut self, da_segment: Vec<Felt>) -> Result<(), OsHintError> {
         if self.da_segment.is_some() {
@@ -135,7 +161,7 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<S> {
 impl SnosHintProcessor<DictStateReader> {
     pub fn new_for_testing(
         state_reader: Option<DictStateReader>,
-        os_input: Option<StarknetOsInput>,
+        os_input: Option<OsBlockInput>,
         os_program: Option<Program>,
         os_hints_config: Option<OsHintsConfig>,
     ) -> Self {
@@ -143,15 +169,15 @@ impl SnosHintProcessor<DictStateReader> {
         let os_input = os_input.unwrap_or_default();
         let os_program = os_program.unwrap_or_default();
         let os_hints_config = os_hints_config.unwrap_or_default();
-        let execution_helper =
-            OsExecutionHelper::<DictStateReader>::new_for_testing(state_reader, os_input);
+        let execution_helpers =
+            vec![OsExecutionHelper::<DictStateReader>::new_for_testing(state_reader, os_input)];
 
         let syscall_handler = SyscallHintProcessor::new();
         let deprecated_syscall_handler = DeprecatedSyscallHintProcessor {};
 
         SnosHintProcessor::new(
             os_program,
-            execution_helper,
+            execution_helpers,
             os_hints_config,
             syscall_handler,
             deprecated_syscall_handler,

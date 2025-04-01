@@ -18,21 +18,23 @@ use crate::hints::vars::{Const, Ids};
 pub(crate) fn block_number<S: StateReader>(
     HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let block_number = hint_processor.execution_helper.os_input.block_info.block_number;
+    let block_number =
+        hint_processor.get_current_execution_helper()?.block_input.block_info.block_number;
     Ok(insert_value_into_ap(vm, Felt::from(block_number.0))?)
 }
 
 pub(crate) fn block_timestamp<S: StateReader>(
     HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let block_timestamp = hint_processor.execution_helper.os_input.block_info.block_timestamp;
+    let block_timestamp =
+        hint_processor.get_current_execution_helper()?.block_input.block_info.block_timestamp;
     Ok(insert_value_into_ap(vm, Felt::from(block_timestamp.0))?)
 }
 
 pub(crate) fn chain_id<S: StateReader>(
     HintArgs { vm, hint_processor, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let chain_id = &hint_processor.execution_helper.os_input.chain_info.chain_id;
+    let chain_id = &hint_processor.get_current_execution_helper()?.block_input.chain_info.chain_id;
     let chain_id_as_felt = ascii_as_felt(&chain_id.to_string())?;
     Ok(insert_value_into_ap(vm, chain_id_as_felt)?)
 }
@@ -41,8 +43,8 @@ pub(crate) fn fee_token_address<S: StateReader>(
     HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
     let strk_fee_token_address = hint_processor
-        .execution_helper
-        .os_input
+        .get_current_execution_helper()?
+        .block_input
         .chain_info
         .fee_token_addresses
         .strk_fee_token_address;
@@ -52,7 +54,8 @@ pub(crate) fn fee_token_address<S: StateReader>(
 pub(crate) fn sequencer_address<S: StateReader>(
     HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let address = hint_processor.execution_helper.os_input.block_info.sequencer_address;
+    let address =
+        hint_processor.get_current_execution_helper()?.block_input.block_info.sequencer_address;
     Ok(insert_value_into_ap(vm, address.0.key())?)
 }
 
@@ -80,8 +83,9 @@ pub(crate) fn get_block_mapping<S: StateReader>(
 pub(crate) fn write_use_kzg_da_to_memory<S: StateReader>(
     HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let use_kzg_da = hint_processor.execution_helper.os_input.block_info.use_kzg_da
-        && !hint_processor.os_hints_config.full_output;
+    let use_kzg_da =
+        hint_processor.get_current_execution_helper()?.block_input.block_info.use_kzg_da
+            && !hint_processor.os_hints_config.full_output;
 
     insert_nondet_hint_value(
         vm,
