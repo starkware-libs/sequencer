@@ -792,28 +792,8 @@ async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<Consens
         eth_to_fri_rate,
     };
 
-    let retrospective_block_number = block_info.height.0.checked_sub(STORED_BLOCK_HASH_BUFFER);
-    let retrospective_block_hash = match retrospective_block_number {
-        Some(block_number) => {
-            let block_number = BlockNumber(block_number);
-            let block = args.state_sync_client
-                // Getting the next block hash because the Sync block only contains parent hash.
-                .get_block(block_number.unchecked_next())
-                .await?
-                .ok_or(BuildProposalError::StateSyncNotReady(format!(
-                "Failed to get retrospective block number {block_number}"
-            )))?;
-            Some(BlockHashAndNumber {
-                number: block_number,
-                hash: block.block_header_without_hash.parent_hash,
-            })
-        }
-        None => {
-            info!("Retrospective block number is less than 10, setting None as expected.");
-            None
-        }
-    };
-
+    let retrospective_block_hash =
+        retrospective_block_hash(args.state_sync_client.clone(), &block_info).await?;
     let build_proposal_input = ProposeBlockInput {
         proposal_id: args.proposal_id,
         deadline: now + batcher_timeout,
@@ -1102,33 +1082,11 @@ async fn initiate_validation(
         .expect("Can't convert timeout to chrono::Duration");
     let now = chrono::Utc::now();
 
-    let retrospective_block_number = block_info.height.0.checked_sub(STORED_BLOCK_HASH_BUFFER);
-    let retrospective_block_hash = match retrospective_block_number {
-        Some(block_number) => {
-            let block_number = BlockNumber(block_number);
-            let block = state_sync_client
-                // Getting the next block hash because the Sync block only contains parent hash.
-                .get_block(block_number.unchecked_next())
-                .await?
-                .ok_or(BuildProposalError::StateSyncNotReady(format!(
-                "Failed to get retrospective block number {block_number}"
-            )))?;
-            Some(BlockHashAndNumber {
-                number: block_number,
-                hash: block.block_header_without_hash.parent_hash,
-            })
-        }
-        None => {
-            info!("Retrospective block number is less than 10, setting None as expected.");
-            None
-        }
-    };
-
     let input = ValidateBlockInput {
         proposal_id,
         deadline: now + chrono_timeout,
         // TODO(Matan 3/11/2024): Add the real value of the retrospective block hash.
-        retrospective_block_hash,
+        retrospective_block_hash: retrospective_block_hash(state_sync_client, &block_info).await?,
         block_info: convert_to_sn_api_block_info(&block_info),
     };
     debug!("Initiating validate proposal: input={input:?}");
@@ -1252,4 +1210,32 @@ fn convert_to_sn_api_block_info(block_info: &ConsensusBlockInfo) -> starknet_api
         },
         use_kzg_da: block_info.l1_da_mode == L1DataAvailabilityMode::Blob,
     }
+}
+
+async fn retrospective_block_hash(
+    state_sync_client: SharedStateSyncClient,
+    block_info: &ConsensusBlockInfo,
+) -> ProposalResult<Option<BlockHashAndNumber>> {
+    let retrospective_block_number = block_info.height.0.checked_sub(STORED_BLOCK_HASH_BUFFER);
+    let retrospective_block_hash = match retrospective_block_number {
+        Some(block_number) => {
+            let block_number = BlockNumber(block_number);
+            let block = state_sync_client
+                // Getting the next block hash because the Sync block only contains parent hash.
+                .get_block(block_number.unchecked_next())
+                .await?
+                .ok_or(BuildProposalError::StateSyncNotReady(format!(
+                "Failed to get retrospective block number {block_number}"
+            )))?;
+            Some(BlockHashAndNumber {
+                number: block_number,
+                hash: block.block_header_without_hash.parent_hash,
+            })
+        }
+        None => {
+            info!("Retrospective block number is less than 10, setting None as expected.");
+            None
+        }
+    };
+    Ok(retrospective_block_hash)
 }
