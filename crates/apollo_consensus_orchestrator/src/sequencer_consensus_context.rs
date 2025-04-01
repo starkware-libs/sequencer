@@ -122,7 +122,7 @@ type HeightToIdToContent = BTreeMap<
     >,
 >;
 type ValidationParams = (BlockNumber, ValidatorId, Duration, mpsc::Receiver<ProposalPart>);
-type BuildProposalResult<T> = Result<T, BuildProposalError>;
+type ProposalResult<T> = Result<T, BuildProposalError>;
 
 enum HandledProposalPart {
     Continue,
@@ -773,7 +773,7 @@ async fn build_proposal(mut args: ProposalBuildArguments) {
     }
 }
 
-async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<ConsensusBlockInfo> {
+async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<ConsensusBlockInfo> {
     let batcher_timeout = chrono::Duration::from_std(args.batcher_timeout)
         .expect("Can't convert timeout to chrono::Duration");
     // TODO(guy.f): Replace this with a mockable call to be able to test the correct time is set.
@@ -1097,7 +1097,7 @@ async fn initiate_validation(
     block_info: ConsensusBlockInfo,
     proposal_id: ProposalId,
     timeout_plus_margin: Duration,
-) -> BuildProposalResult<()> {
+) -> ProposalResult<()> {
     let chrono_timeout = chrono::Duration::from_std(timeout_plus_margin)
         .expect("Can't convert timeout to chrono::Duration");
     let now = chrono::Utc::now();
