@@ -116,12 +116,26 @@ impl DeploymentBaseAppConfig {
         Self { config, config_pointers_map, non_pointer_params }
     }
 
-    pub fn get_config(&self) -> SequencerNodeConfig {
-        self.config.clone()
+    pub fn get_config(&self) -> &SequencerNodeConfig {
+        &self.config
     }
 
-    pub fn get_config_pointers_map(&self) -> ConfigPointersMap {
-        self.config_pointers_map.clone()
+    pub fn get_config_pointers_map(&self) -> &ConfigPointersMap {
+        &self.config_pointers_map
+    }
+
+    pub fn modify_config<F>(&mut self, modify_config_fn: F)
+    where
+        F: Fn(&mut SequencerNodeConfig),
+    {
+        modify_config_fn(&mut self.config);
+    }
+
+    pub fn modify_config_pointers<F>(&mut self, modify_config_pointers_fn: F)
+    where
+        F: Fn(&mut ConfigPointersMap),
+    {
+        modify_config_pointers_fn(&mut self.config_pointers_map);
     }
 
     pub fn override_base_app_config(&mut self, base_app_config_override: BaseAppConfigOverride) {

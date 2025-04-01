@@ -7,10 +7,7 @@ use apollo_monitoring_endpoint::test_utils::MonitoringClient;
 use apollo_sequencer_node::config::component_config::ComponentConfig;
 use apollo_sequencer_node::config::config_utils::{BaseAppConfigOverride, DeploymentBaseAppConfig};
 use apollo_sequencer_node::config::definitions::ConfigPointersMap;
-use apollo_sequencer_node::config::node_config::{
-    SequencerNodeConfig,
-    CONFIG_NON_POINTERS_WHITELIST,
-};
+use apollo_sequencer_node::config::node_config::SequencerNodeConfig;
 use apollo_sequencer_node::test_utils::node_runner::NodeRunner;
 use tempfile::{tempdir, TempDir};
 use tokio::fs::create_dir_all;
@@ -59,10 +56,8 @@ pub struct ExecutableSetup {
     pub monitoring_client: MonitoringClient,
     // Path to the node configuration file.
     pub node_config_path: PathBuf,
-    // Config values.
-    pub config: SequencerNodeConfig,
-    // Configuration parameters that share the same value across multiple components.
-    pub config_pointers_map: ConfigPointersMap,
+    // Config.
+    pub base_app_config: DeploymentBaseAppConfig,
     // Handles for the config files, maintained so the files are not deleted. Since
     // these are only maintained to avoid dropping the handles, private visibility suffices, and
     // as such, the '#[allow(dead_code)]' attributes are used to suppress the warning.
@@ -109,9 +104,8 @@ impl ExecutableSetup {
         Self {
             node_execution_id,
             monitoring_client,
-            config: base_app_config.get_config(),
+            base_app_config,
             node_config_dir_handle,
-            config_pointers_map: base_app_config.get_config_pointers_map(),
             node_config_path: config_path,
         }
     }
@@ -120,7 +114,7 @@ impl ExecutableSetup {
     where
         F: Fn(&mut SequencerNodeConfig),
     {
-        modify_config_fn(&mut self.config);
+        self.base_app_config.modify_config(modify_config_fn);
         self.dump_config_file_changes();
     }
 
@@ -128,23 +122,16 @@ impl ExecutableSetup {
     where
         F: Fn(&mut ConfigPointersMap),
     {
-        modify_config_pointers_fn(&mut self.config_pointers_map);
+        self.base_app_config.modify_config_pointers(modify_config_pointers_fn);
         self.dump_config_file_changes();
     }
 
-    pub fn config(&self) -> &SequencerNodeConfig {
-        &self.config
+    pub fn get_config(&self) -> &SequencerNodeConfig {
+        self.base_app_config.get_config()
     }
 
     /// Creates a config file for the sequencer node for an integration test.
     pub fn dump_config_file_changes(&self) {
-        // TODO(Tsabary): deployment_base_app_config should be part of the struct instead of the
-        // various config fields.
-        let deployment_base_app_config = DeploymentBaseAppConfig::new(
-            self.config.clone(),
-            self.config_pointers_map.clone(),
-            CONFIG_NON_POINTERS_WHITELIST.clone(),
-        );
-        deployment_base_app_config.dump_config_file(&self.node_config_path);
+        self.base_app_config.dump_config_file(&self.node_config_path);
     }
 }
