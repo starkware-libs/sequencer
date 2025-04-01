@@ -344,10 +344,6 @@ pub trait BlockBuilderFactoryTrait: Send + Sync {
         >,
         runtime: tokio::runtime::Handle,
     ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, AbortSignalSender)>;
-
-    fn take_class_cache_miss_counter(&self) -> u64;
-
-    fn take_class_cache_hit_counter(&self) -> u64;
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -464,14 +460,6 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
             execution_params,
         ));
         Ok((block_builder, abort_signal_sender))
-    }
-
-    fn take_class_cache_hit_counter(&self) -> u64 {
-        self.contract_class_manager.take_cache_hit_counter()
-    }
-
-    fn take_class_cache_miss_counter(&self) -> u64 {
-        self.contract_class_manager.take_cache_miss_counter()
     }
 }
 

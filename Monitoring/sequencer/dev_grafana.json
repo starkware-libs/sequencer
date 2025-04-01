@@ -28,13 +28,6 @@
         "type": "stat",
         "expr": "batcher_batched_transactions",
         "extra_params": {}
-      },
-      {
-        "title": "cairo_native_cache_miss_ratio",
-        "description": "The ratio of cache misses in the Cairo native cache",
-        "type": "graph",
-        "expr": "100 * (class_cache_misses / clamp_min((class_cache_misses + class_cache_hits), 1))",
-        "extra_params": {}
       }
     ],
     "Consensus": [
@@ -363,6 +356,15 @@
         "description": "The time (secs) that a transaction spent in the mempool",
         "type": "graph",
         "expr": "avg_over_time(mempool_transaction_time_spent[2m])",
+        "extra_params": {}
+      }
+    ],
+    "Apollo State Reader": [
+      {
+        "title": "class_cache_miss_ratio",
+        "description": "The ratio of cache misses when requesting compiled classes from the apollo state reader",
+        "type": "graph",
+        "expr": "100 * (class_cache_misses / clamp_min((class_cache_misses + class_cache_hits), 1))",
         "extra_params": {}
       }
     ]
