@@ -15,7 +15,7 @@ mod command_test;
 /// * `command_name` - The shell command name.
 ///
 /// # Returns
-/// * A [`std::process::Command`] object with the current directory set to the project root, and
+/// * A [`tokio::process::Command`] object with the current directory set to the project root, and
 ///   cleared out cargo related environment variables.
 pub fn create_shell_command(command_name: &str) -> Command {
     let project_path = project_path().expect("Failed to get project path");
