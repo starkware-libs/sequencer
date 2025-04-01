@@ -4,13 +4,10 @@ use apollo_class_manager_types::transaction_converter::{
     TransactionConverter,
     TransactionConverterTrait,
 };
-use apollo_class_manager_types::{
-    EmptyClassManagerClient,
-    MockClassManagerClient,
-    SharedClassManagerClient,
-};
+use apollo_class_manager_types::{ClassHashes, EmptyClassManagerClient, MockClassManagerClient};
 use apollo_gateway_types::errors::GatewaySpecError;
 use apollo_gateway_types::gateway_types::{
+    DeclareGatewayOutput,
     DeployAccountGatewayOutput,
     GatewayOutput,
     InvokeGatewayOutput,
@@ -30,7 +27,9 @@ use blockifier::context::ChainInfo;
 use blockifier::test_utils::initial_test_state::fund_account;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use mempool_test_utils::starknet_api_test_utils::{
+    contract_class,
     declare_tx,
     generate_deploy_account_with_salt,
     invoke_tx,
@@ -39,6 +38,7 @@ use mempool_test_utils::starknet_api_test_utils::{
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use rstest::{fixture, rstest};
+use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::{CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
@@ -47,7 +47,7 @@ use starknet_api::rpc_transaction::{
     RpcTransactionLabelValue,
 };
 use starknet_api::transaction::fields::ContractAddressSalt;
-use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::{DeclareTransactionV3, TransactionHash};
 use starknet_types_core::felt::Felt;
 use strum::VariantNames;
 
@@ -92,15 +92,20 @@ fn mock_dependencies(
 ) -> MockDependencies {
     let mock_mempool_client = MockMempoolClient::new();
     // TODO(noamsp): use MockTransactionConverter
-    let class_manager_client = Arc::new(EmptyClassManagerClient);
-    MockDependencies { config, state_reader_factory, mock_mempool_client, class_manager_client }
+    let mock_class_manager_client = MockClassManagerClient::new();
+    MockDependencies {
+        config,
+        state_reader_factory,
+        mock_mempool_client,
+        mock_class_manager_client,
+    }
 }
 
 struct MockDependencies {
     config: GatewayConfig,
     state_reader_factory: TestStateReaderFactory,
     mock_mempool_client: MockMempoolClient,
-    class_manager_client: SharedClassManagerClient,
+    mock_class_manager_client: MockClassManagerClient,
 }
 
 impl MockDependencies {
@@ -111,7 +116,7 @@ impl MockDependencies {
             self.config,
             Arc::new(self.state_reader_factory),
             Arc::new(self.mock_mempool_client),
-            TransactionConverter::new(self.class_manager_client, chain_id),
+            TransactionConverter::new(Arc::new(self.mock_class_manager_client), chain_id),
         )
     }
 
@@ -132,6 +137,60 @@ fn deploy_account() -> RpcTransaction {
     )
 }
 
+fn declare() -> RpcTransaction {
+    let mut tx = declare_tx();
+    let declare_tx_v3 =
+        assert_matches!(&mut tx, RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => tx);
+    declare_tx_v3.compiled_class_hash = get_contract_class_of_declare().compiled_class_hash();
+    tx
+}
+
+fn get_contract_class_of_declare() -> ContractClass {
+    let casm = CasmContractClass {
+        prime: Default::default(),
+        compiler_version: Default::default(),
+        bytecode: Default::default(),
+        bytecode_segment_lengths: Default::default(),
+        hints: Default::default(),
+        pythonic_hints: Default::default(),
+        entry_points_by_type: Default::default(),
+    };
+    let sierra_version = SierraVersion::default();
+
+    let executable: ContractClass = ContractClass::V1((casm, sierra_version));
+    executable
+}
+
+/// Setup MockClassManagerClient to expect the addition and retrieval of the test contract
+/// class. Returns the compiled class hash of the contract class that the mock will return.
+fn setup_class_manager_client_mock(mock_class_manager_client: &mut MockClassManagerClient) {
+    let contract_class = contract_class();
+    let class_hash = contract_class.calculate_class_hash();
+    let class_hash_for_closure = class_hash;
+    let executable = get_contract_class_of_declare();
+
+    mock_class_manager_client
+        .expect_add_class()
+        .times(0..=1)
+        .with(eq(contract_class.clone()))
+        .return_once(move |_| {
+            Ok(ClassHashes {
+                class_hash: class_hash_for_closure,
+                executable_class_hash: Default::default(),
+            })
+        });
+    mock_class_manager_client
+        .expect_get_sierra()
+        .times(0..=1)
+        .with(eq(class_hash))
+        .return_once(move |_| Ok(Some(contract_class)));
+    mock_class_manager_client
+        .expect_get_executable()
+        .times(0..=1)
+        .with(eq(class_hash))
+        .return_once(move |_| Ok(Some(executable)));
+}
+
 fn check_positive_add_tx_result(
     rpc_tx: RpcTransaction,
     tx_hash: TransactionHash,
@@ -141,7 +200,11 @@ fn check_positive_add_tx_result(
     assert_eq!(
         result,
         match rpc_tx {
-            RpcTransaction::Declare(_) => todo!(),
+            RpcTransaction::Declare(tx) => {
+                let tx = assert_matches!(tx, RpcDeclareTransaction::V3(tx) => tx);
+                let tx = DeclareTransactionV3::from(tx);
+                GatewayOutput::Declare(DeclareGatewayOutput::new(tx_hash, tx.class_hash))
+            }
             RpcTransaction::DeployAccount(_) =>
                 GatewayOutput::DeployAccount(DeployAccountGatewayOutput::new(tx_hash, address)),
             RpcTransaction::Invoke(_) => GatewayOutput::Invoke(InvokeGatewayOutput::new(tx_hash)),
@@ -154,7 +217,10 @@ async fn convert_rpc_tx_to_internal(
     rpc_tx: RpcTransaction,
 ) -> InternalRpcTransaction {
     let chain_id = mock_dependencies_object.config.chain_info.chain_id.clone();
-    let class_manager_client = MockClassManagerClient::new();
+    let mut class_manager_client = MockClassManagerClient::new();
+    if matches!(&rpc_tx, RpcTransaction::Declare(_)) {
+        setup_class_manager_client_mock(&mut class_manager_client);
+    }
     let tx_converter = TransactionConverter::new(Arc::new(class_manager_client), chain_id);
     tx_converter.convert_rpc_tx_to_internal_rpc_tx(rpc_tx).await.unwrap()
 }
@@ -184,7 +250,7 @@ async fn convert_rpc_tx_to_internal(
 #[tokio::test]
 async fn test_add_tx(
     mut mock_dependencies: MockDependencies,
-    #[values(invoke(), deploy_account())] tx: RpcTransaction,
+    #[values(invoke(), deploy_account(), declare())] tx: RpcTransaction,
     #[case] expected_mempool_result: Result<(), MempoolClientError>,
     #[case] expected_error: Option<GatewaySpecError>,
 ) {
@@ -192,6 +258,8 @@ async fn test_add_tx(
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
 
     let address = tx.calculate_sender_address().unwrap();
+
+    setup_class_manager_client_mock(&mut mock_dependencies.mock_class_manager_client);
 
     fund_account(
         &mock_dependencies.config.chain_info,
