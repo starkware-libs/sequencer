@@ -415,5 +415,6 @@ impl FeatureContract {
 
 pub fn get_raw_contract_class(contract_path: &str) -> String {
     let path: PathBuf = [compile_time_cargo_manifest_dir!(), contract_path].iter().collect();
-    fs::read_to_string(path).unwrap()
+    fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("Failed to read contract from {:?}: {}", path, e))
 }
