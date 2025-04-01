@@ -14,14 +14,14 @@ const DEPLOYMENT_IMAGE: &str = "ghcr.io/starkware-libs/sequencer/sequencer:dev";
 pub struct DeploymentAndPreset {
     deployment: Deployment,
     // TODO(Tsabary): consider using PathBuf instead.
-    dump_file_path: &'static str,
+    dump_file_path: PathBuf,
     base_app_config_file_path: &'static str,
 }
 
 impl DeploymentAndPreset {
     pub fn new(
         deployment: Deployment,
-        dump_file_path: &'static str,
+        dump_file_path: PathBuf,
         base_app_config_file_path: &'static str,
     ) -> Self {
         Self { deployment, dump_file_path, base_app_config_file_path }
@@ -31,8 +31,8 @@ impl DeploymentAndPreset {
         &self.deployment
     }
 
-    pub fn get_dump_file_path(&self) -> &'static str {
-        self.dump_file_path
+    pub fn get_dump_file_path(&self) -> PathBuf {
+        self.dump_file_path.clone()
     }
 
     pub fn get_base_app_config_file_path(&self) -> &'static str {
