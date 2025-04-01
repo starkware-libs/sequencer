@@ -1791,6 +1791,7 @@ dependencies = [
  "apollo_network",
  "apollo_p2p_sync",
  "apollo_reverts",
+ "apollo_rpc",
  "apollo_sequencer_infra",
  "apollo_sequencer_metrics",
  "apollo_state_sync_types",
