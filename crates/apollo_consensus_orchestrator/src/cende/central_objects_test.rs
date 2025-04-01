@@ -350,6 +350,7 @@ fn central_bouncer_weights() -> CentralBouncerWeights {
         n_events: 2,
         state_diff_size: 45,
         sierra_gas: GasAmount(10),
+        n_txs: 2,
     }
 }
 
