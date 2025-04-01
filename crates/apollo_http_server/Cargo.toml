@@ -43,6 +43,7 @@ validator.workspace = true
 
 [dev-dependencies]
 apollo_gateway_types = { workspace = true, features = ["testing"] }
+apollo_sequencer_metrics = { workspace = true, features = ["testing"] }
 blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
 futures.workspace = true
