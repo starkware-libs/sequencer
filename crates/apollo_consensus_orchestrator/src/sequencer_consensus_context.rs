@@ -809,7 +809,10 @@ async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<Co
             })
         }
         None => {
-            info!("Retrospective block number is less than 10, setting None as expected.");
+            info!(
+                "Retrospective block number is less than {STORED_BLOCK_HASH_BUFFER}, setting None \
+                 as expected."
+            );
             None
         }
     };
