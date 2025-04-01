@@ -12,8 +12,7 @@ testing = [
   "mempool_test_utils",
   "reqwest",
   "starknet_api/testing",
-  "strum",
-  "strum_macros"
+  "strum_macros",
 ]
 
 [lints]
@@ -34,7 +33,6 @@ reqwest = { workspace = true, optional = true }
 serde.workspace = true
 serde_json.workspace = true
 starknet_api.workspace = true
-strum = { workspace = true, optional = true }
 strum_macros = { workspace = true, optional = true }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt"] }
@@ -43,6 +41,7 @@ validator.workspace = true
 
 [dev-dependencies]
 apollo_gateway_types = { workspace = true, features = ["testing"] }
+apollo_sequencer_metrics = { workspace = true, features = ["testing"] }
 blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
 futures.workspace = true
@@ -53,6 +52,5 @@ reqwest.workspace = true
 rstest.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true
-strum.workspace = true
 strum_macros.workspace = true
 tracing-test.workspace = true

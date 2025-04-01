@@ -86,9 +86,10 @@ async fn add_tx(
     tx: String,
 ) -> HttpServerResult<Json<TransactionHash>> {
     record_added_transaction();
-    // TODO(Yael): increment the failure metric for parsing error.
-    let tx: DeprecatedGatewayTransactionV3 = serde_json::from_str(&tx)
-        .inspect_err(|e| debug!("Error while parsing transaction: {}", e))?;
+    let tx: DeprecatedGatewayTransactionV3 = serde_json::from_str(&tx).inspect_err(|e| {
+        debug!("Error while parsing transaction: {}", e);
+        record_added_transaction_status(false)
+    })?;
     add_tx_inner(app_state, headers, tx.into()).await
 }
 
