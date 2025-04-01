@@ -59,10 +59,10 @@ impl HttpServer {
     pub fn app(&self) -> Router {
         Router::new()
             // Json Rpc endpoint
-            .route("/add_rpc_transaction", post(add_rpc_tx))
+            .route("/gateway/add_rpc_transaction", post(add_rpc_tx))
             .with_state(self.app_state.clone())
             // Rest api endpoint
-            .route("/add_transaction", post(add_tx))
+            .route("/gateway/add_transaction", post(add_tx))
             .with_state(self.app_state.clone())
     }
 }
