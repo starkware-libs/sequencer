@@ -18,7 +18,6 @@ apollo_consensus.workspace = true
 apollo_consensus_manager.workspace = true
 apollo_consensus_orchestrator.workspace = true
 apollo_gateway = { workspace = true, features = ["testing"] }
-apollo_gateway_types.workspace = true
 apollo_http_server = { workspace = true, features = ["testing"] }
 apollo_infra_utils = { workspace = true, features = ["testing"] }
 apollo_l1_gas_price.workspace = true

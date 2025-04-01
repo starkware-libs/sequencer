@@ -2,7 +2,6 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use apollo_gateway_types::communication::MockGatewayClient;
-use apollo_gateway_types::errors::GatewaySpecError;
 use axum::body::Body;
 use reqwest::{Client, Response};
 use starknet_api::rpc_transaction::RpcTransaction;
@@ -29,11 +28,6 @@ impl HttpTestClient {
         assert!(response.status().is_success());
         let text = response.text().await.unwrap();
         serde_json::from_str(&text).unwrap_or_else(|_| panic!("Gateway responded with: {}", text))
-    }
-
-    // TODO(Tsabary): implement when usage eventually arises.
-    pub async fn assert_add_tx_error(&self, _tx: RpcTransaction) -> GatewaySpecError {
-        todo!()
     }
 
     // Prefer using assert_add_tx_success or other higher level methods of this client, to ensure
