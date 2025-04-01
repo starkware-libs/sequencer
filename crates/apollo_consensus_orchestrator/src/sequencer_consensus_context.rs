@@ -325,6 +325,11 @@ impl ConsensusContext for SequencerConsensusContext {
         );
         // Handles interrupting an active proposal from a previous height/round
         self.set_height_and_round(proposal_init.height, proposal_init.round).await;
+        assert!(
+            self.active_proposal.is_none(),
+            "We should not have an existing active proposal for the (height, round) when \
+             build_proposal is called."
+        );
 
         let (fin_sender, fin_receiver) = oneshot::channel();
         let batcher = Arc::clone(&self.batcher);
@@ -382,8 +387,6 @@ impl ConsensusContext for SequencerConsensusContext {
         fin_receiver
     }
 
-    // Note: this function does not receive ProposalInit.
-    // That part is consumed by the caller, so it can know the height/round.
     #[instrument(skip_all)]
     async fn validate_proposal(
         &mut self,
@@ -867,9 +870,9 @@ async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<Consens
     Ok(block_info)
 }
 
-// 1. Receive chunks of content from the batcher.
-// 2. Forward these to the stream handler to be streamed out to the network.
-// 3. Once finished, receive the commitment from the batcher.
+/// 1. Receive chunks of content from the batcher.
+/// 2. Forward these to the stream handler to be streamed out to the network.
+/// 3. Once finished, receive the commitment from the batcher.
 async fn get_proposal_content(
     proposal_id: ProposalId,
     batcher: &dyn BatcherClient,
@@ -1045,7 +1048,8 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
     CONSENSUS_NUM_TXS_IN_PROPOSAL.set_lossy(num_txs);
 
     // Update valid_proposals before sending fin to avoid a race condition
-    // with `get_proposal` being called before `valid_proposals` is updated.
+    // with `repropose` being called before `valid_proposals` is updated.
+    //
     // TODO(Matan): Consider validating the ProposalFin signature here.
     let mut valid_proposals = args.valid_proposals.lock().unwrap();
     valid_proposals
@@ -1177,10 +1181,10 @@ async fn initiate_validation(
     Ok(())
 }
 
-// Handles receiving a proposal from another node without blocking consensus:
-// 1. Receives the proposal part from the network.
-// 2. Pass this to the batcher.
-// 3. Once finished, receive the commitment from the batcher.
+/// Handles receiving a proposal from another node without blocking consensus:
+/// 1. Receives the proposal part from the network.
+/// 2. Pass this to the batcher.
+/// 3. Once finished, receive the commitment from the batcher.
 async fn handle_proposal_part(
     proposal_id: ProposalId,
     batcher: &dyn BatcherClient,
