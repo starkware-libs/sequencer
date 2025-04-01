@@ -1291,7 +1291,7 @@ fn test_get_mempool_snapshot() {
     }
 
     // Test.
-    let mempool_snapshot = mempool.get_mempool_snapshot().unwrap();
+    let mempool_snapshot = mempool.mempool_snapshot().unwrap();
 
     // Check that the returned hashes are sorted by submission time.
     let expected_chronological_hashes = (1..10).rev().map(|i| tx_hash!(i)).collect::<Vec<_>>();

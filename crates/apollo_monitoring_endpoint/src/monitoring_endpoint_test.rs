@@ -1,8 +1,8 @@
 use std::net::IpAddr;
 use std::sync::Arc;
 
-use apollo_mempool_types::communication::{MempoolClientResult, MockMempoolClient};
-use apollo_mempool_types::mempool_types::MempoolSnapshot;
+use apollo_mempool_types::communication::MockMempoolClient;
+use apollo_mempool_types::mempool_types::{MempoolSnapshot, TransactionQueueSnapshot};
 use axum::http::StatusCode;
 use axum::response::Response;
 use axum::Router;
@@ -10,6 +10,8 @@ use hyper::body::to_bytes;
 use hyper::Client;
 use metrics::{counter, describe_counter};
 use pretty_assertions::assert_eq;
+use serde_json::{from_slice, to_value, Value};
+use starknet_api::block::NonzeroGasPrice;
 use starknet_api::tx_hash;
 use tokio::spawn;
 use tokio::task::yield_now;
@@ -116,7 +118,7 @@ async fn endpoint_as_server() {
 
 fn setup_monitoring_endpoint_with_mempool_client() -> MonitoringEndpoint {
     let mut mock_mempool_client = MockMempoolClient::new();
-    mock_mempool_client.expect_get_mempool_snapshot().returning(return_mempool_snapshot);
+    mock_mempool_client.expect_get_mempool_snapshot().returning(|| Ok(expected_mempool_snapshot()));
     let shared_mock_mempool_client = Arc::new(mock_mempool_client);
 
     create_monitoring_endpoint(
@@ -126,9 +128,17 @@ fn setup_monitoring_endpoint_with_mempool_client() -> MonitoringEndpoint {
     )
 }
 
-fn return_mempool_snapshot() -> MempoolClientResult<MempoolSnapshot> {
+fn expected_mempool_snapshot() -> MempoolSnapshot {
     let expected_chronological_hashes = (1..10).map(|i| tx_hash!(i)).collect::<Vec<_>>();
-    Ok(MempoolSnapshot { transactions: expected_chronological_hashes })
+    let expected_transaction_queue = TransactionQueueSnapshot {
+        gas_price_threshold: NonzeroGasPrice::MIN,
+        priority_queue: (1..5).map(|i| tx_hash!(i)).collect::<Vec<_>>(),
+        pending_queue: (5..10).map(|i| tx_hash!(i)).collect::<Vec<_>>(),
+    };
+    MempoolSnapshot {
+        transactions: expected_chronological_hashes,
+        transaction_queue: expected_transaction_queue,
+    }
 }
 
 #[tokio::test]
@@ -138,11 +148,12 @@ async fn mempool_snapshot() {
     let response = request_app(app, MEMPOOL_SNAPSHOT).await;
     assert_eq!(response.status(), StatusCode::OK);
     let body_bytes = hyper::body::to_bytes(response.into_body()).await.unwrap();
-    let body_string = String::from_utf8(body_bytes.to_vec()).unwrap();
-    let expected_prefix =
-        String::from(r#"{"transactions":["0x1","0x2","0x3","0x4","0x5","0x6","0x7","0x8","0x9"]}"#);
 
-    assert!(body_string.starts_with(&expected_prefix));
+    let expected_json =
+        to_value(expected_mempool_snapshot()).expect("Failed to serialize MempoolSnapshot");
+    let received_json: Value = from_slice(&body_bytes).expect("Failed to parse JSON string");
+
+    assert_eq!(expected_json, received_json);
 }
 
 #[tokio::test]
