@@ -24,6 +24,7 @@ apollo_infra_utils.workspace = true
 apollo_mempool.workspace = true
 apollo_mempool_p2p.workspace = true
 apollo_metrics.workspace = true
+apollo_state_reader.workspace = true
 apollo_state_sync.workspace = true
 const_format.workspace = true
 indexmap = { workspace = true, features = ["serde"] }

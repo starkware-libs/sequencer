@@ -23,6 +23,8 @@ use starknet_api::deprecated_contract_class::ContractClass as DeprecatedClass;
 use starknet_api::state::{SierraContractClass, StateNumber, StorageKey};
 use starknet_types_core::felt::Felt;
 
+use crate::metrics::{CLASS_CACHE_HITS, CLASS_CACHE_MISSES};
+
 #[cfg(test)]
 #[path = "papyrus_state_test.rs"]
 mod test;
@@ -223,8 +225,10 @@ impl StateReader for PapyrusReader {
 
         // TODO(Yoni): move this logic to a separate reader. Move tests from papyrus_state.
         if let Some(runnable_class) = self.contract_class_manager.get_runnable(&class_hash) {
+            CLASS_CACHE_HITS.increment(1);
             return Ok(runnable_class);
         }
+        CLASS_CACHE_MISSES.increment(1);
 
         let cached_class = self.get_compiled_class_from_db(class_hash)?;
         self.contract_class_manager.set_and_compile(class_hash, cached_class.clone());

@@ -1026,6 +1026,7 @@ dependencies = [
  "apollo_mempool",
  "apollo_mempool_p2p",
  "apollo_metrics",
+ "apollo_state_reader",
  "apollo_state_sync",
  "const_format",
  "indexmap 2.7.0",
@@ -1807,6 +1808,7 @@ name = "apollo_state_reader"
 version = "0.0.0"
 dependencies = [
  "apollo_class_manager_types",
+ "apollo_metrics",
  "apollo_storage",
  "assert_matches",
  "blockifier",
