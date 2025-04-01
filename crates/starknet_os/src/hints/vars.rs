@@ -224,6 +224,7 @@ pub enum Const {
     DeprecatedCompiledClassVersion,
     EntryPointInitialBudget,
     InitialAvailableAlias,
+    MaxNonCompressedContractAddress,
     MerkleHeight,
     StoredBlockHashBuffer,
 }
@@ -253,6 +254,9 @@ impl From<Const> for &'static str {
             }
             Const::InitialAvailableAlias => {
                 "starkware.starknet.core.os.state.aliases.INITIAL_AVAILABLE_ALIAS"
+            }
+            Const::MaxNonCompressedContractAddress => {
+                "starkware.starknet.core.os.state.aliases.MAX_NON_COMPRESSED_CONTRACT_ADDRESS"
             }
             Const::MerkleHeight => "starkware.starknet.core.os.state.commitment.MERKLE_HEIGHT",
             Const::StoredBlockHashBuffer => {

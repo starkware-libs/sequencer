@@ -6,6 +6,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
     insert_value_into_ap,
 };
+use starknet_types_core::felt::Felt;
 
 use crate::hints::error::OsHintResult;
 use crate::hints::hint_implementation::state::StateUpdatePointers;
@@ -92,9 +93,12 @@ pub(crate) fn update_alias_counter<S: StateReader>(
 }
 
 pub(crate) fn contract_address_le_max_for_compression<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { constants, vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    let contract_address =
+        get_integer_from_var_name(Ids::ContractAddress.into(), vm, ids_data, ap_tracking)?;
+    let max_contract_address = *Const::MaxNonCompressedContractAddress.fetch(constants)?;
+    Ok(insert_value_into_ap(vm, Felt::from(contract_address <= max_contract_address))?)
 }
 
 pub(crate) fn guess_contract_addr_storage_ptr<S: StateReader>(
