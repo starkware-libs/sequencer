@@ -94,6 +94,11 @@
     "privacy": "Public",
     "value": "All"
   },
+  "batcher_config.contract_class_manager_config.cairo_native_run_config.panic_on_compilation_failure": {
+    "description": "Whether to panic on compilation failure.",
+    "privacy": "Public",
+    "value": false
+  },
   "batcher_config.contract_class_manager_config.cairo_native_run_config.run_cairo_native": {
     "description": "Enables Cairo native execution.",
     "privacy": "Public",
@@ -133,11 +138,6 @@
     "description": "The level of optimization to apply during compilation.",
     "privacy": "Public",
     "value": 2
-  },
-  "batcher_config.contract_class_manager_config.native_compiler_config.panic_on_compilation_failure": {
-    "description": "Whether to panic on compilation failure.",
-    "privacy": "Public",
-    "value": false
   },
   "batcher_config.contract_class_manager_config.native_compiler_config.sierra_to_native_compiler_path": {
     "description": "The path to the Sierra-to-Native compiler binary.",
@@ -243,11 +243,6 @@
     "description": "The level of optimization to apply during compilation.",
     "privacy": "Public",
     "value": 2
-  },
-  "compiler_config.panic_on_compilation_failure": {
-    "description": "Whether to panic on compilation failure.",
-    "privacy": "Public",
-    "value": false
   },
   "compiler_config.sierra_to_native_compiler_path": {
     "description": "The path to the Sierra-to-Native compiler binary.",
