@@ -7,6 +7,7 @@ use apollo_class_manager_types::transaction_converter::{
 };
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_gateway_types::errors::GatewaySpecError;
+use apollo_gateway_types::gateway_types::{GatewayOutput, InvokeGatewayOutput};
 use apollo_mempool_types::communication::{AddTransactionArgsWrapper, SharedMempoolClient};
 use apollo_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
@@ -17,7 +18,6 @@ use axum::async_trait;
 use blockifier::context::ChainInfo;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_api::transaction::TransactionHash;
 use tracing::{debug, error, instrument, warn, Span};
 
 use crate::config::GatewayConfig;
@@ -71,7 +71,7 @@ impl Gateway {
         &self,
         tx: RpcTransaction,
         p2p_message_metadata: Option<BroadcastedMessageMetadata>,
-    ) -> GatewayResult<TransactionHash> {
+    ) -> GatewayResult<GatewayOutput> {
         debug!("Processing tx: {:?}", tx);
         let mut metric_counters = GatewayMetricHandle::new(&tx, &p2p_message_metadata);
         metric_counters.count_transaction_received();
@@ -87,15 +87,15 @@ impl Gateway {
                     GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
                 })??;
 
-        let tx_hash = add_tx_args.tx.tx_hash();
+        let transaction_hash = add_tx_args.tx.tx_hash();
 
         let add_tx_args = AddTransactionArgsWrapper { args: add_tx_args, p2p_message_metadata };
         mempool_client_result_to_gw_spec_result(self.mempool_client.add_tx(add_tx_args).await)?;
 
         metric_counters.transaction_sent_to_mempool();
 
-        // TODO(AlonH): Also return `ContractAddress` for deploy and `ClassHash` for Declare.
-        Ok(tx_hash)
+        // TODO(Arni): Also return `ContractAddress` for deploy and `ClassHash` for Declare.
+        Ok(GatewayOutput::Invoke(InvokeGatewayOutput { transaction_hash }))
     }
 }
 
