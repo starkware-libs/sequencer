@@ -4,9 +4,9 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;
 use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
 use starknet_api::rpc_transaction::RpcDeclareTransaction;
+use starknet_compilation_utils::class_utils::into_contract_class_for_compilation;
 use starknet_compile_to_casm::command_line_compiler::CommandLineCompiler;
 use starknet_compile_to_casm::config::SierraCompilationConfig;
-use starknet_compile_to_casm::utils::into_contract_class_for_compilation;
 use starknet_compile_to_casm::SierraToCasmCompiler;
 use starknet_gateway_types::errors::GatewaySpecError;
 use tracing::{debug, error};
@@ -60,7 +60,9 @@ impl GatewayCompiler {
     ) -> GatewayResult<CasmContractClass> {
         match self.sierra_to_casm_compiler.compile(cairo_lang_contract_class) {
             Ok(casm_contract_class) => Ok(casm_contract_class),
-            Err(starknet_compile_to_casm::errors::CompilationUtilError::UnexpectedError(error)) => {
+            Err(starknet_compilation_utils::errors::CompilationUtilError::UnexpectedError(
+                error,
+            )) => {
                 error!("Compilation panicked. Error: {:?}", error);
                 Err(GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() })
             }
