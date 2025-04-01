@@ -1,4 +1,3 @@
-#![cfg(feature = "cairo_native")]
 use toml_test_utils::{DependencyValue, ROOT_TOML};
 
 use crate::constants::REQUIRED_CAIRO_NATIVE_VERSION;
