@@ -239,7 +239,8 @@ impl DistributedNodeServiceName {
 
     /// Url for the service.
     fn url(&self) -> String {
-        let formatted_service_name = self.as_ref().replace('_', "-");
+        // This must match the Kubernetes service name as defined by CDK8s.
+        let formatted_service_name = self.as_ref().replace('_', "");
         format!("sequencer-{}-service", formatted_service_name)
     }
 
