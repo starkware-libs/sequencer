@@ -85,9 +85,10 @@ async fn add_tx(
     tx: String,
 ) -> HttpServerResult<Json<GatewayOutput>> {
     record_added_transaction();
-    // TODO(Yael): increment the failure metric for parsing error.
-    let tx: DeprecatedGatewayTransactionV3 = serde_json::from_str(&tx)
-        .inspect_err(|e| debug!("Error while parsing transaction: {}", e))?;
+    let tx: DeprecatedGatewayTransactionV3 = serde_json::from_str(&tx).inspect_err(|e| {
+        debug!("Error while parsing transaction: {}", e);
+        record_added_transaction_status(false)
+    })?;
     let rpc_tx = tx.try_into().inspect_err(|e| {
         debug!("Error while converting deprecated gateway transaction into RPC transaction: {}", e);
     })?;
