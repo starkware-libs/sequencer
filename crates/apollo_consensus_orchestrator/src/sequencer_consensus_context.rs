@@ -779,7 +779,7 @@ async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<Consens
     // TODO(guy.f): Replace this with a mockable call to be able to test the correct time is set.
     let now = chrono::Utc::now();
     let timestamp = now.timestamp().try_into().expect("Failed to convert timestamp");
-    let eth_to_fri_rate = args.eth_to_strk_oracle_client.eth_to_fri_rate(timestamp).await?;
+    let eth_to_fri_rate = 1u128 << 63;
     // TODO(Asmaa): change this to the real values.
     let block_info = ConsensusBlockInfo {
         height: args.proposal_init.height,
