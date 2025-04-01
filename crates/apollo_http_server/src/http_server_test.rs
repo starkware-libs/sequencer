@@ -1,9 +1,7 @@
-use std::net::{IpAddr, Ipv4Addr};
 use std::panic::AssertUnwindSafe;
 
 use apollo_gateway_types::communication::{GatewayClientError, MockGatewayClient};
 use apollo_gateway_types::errors::{GatewayError, GatewaySpecError};
-use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use apollo_sequencer_infra::component_client::ClientError;
 use axum::body::{Bytes, HttpBody};
 use axum::http::StatusCode;
@@ -18,10 +16,9 @@ use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
 use tracing_test::traced_test;
 
-use crate::config::HttpServerConfig;
 use crate::errors::HttpServerError;
 use crate::http_server::{add_tx_result_as_json, CLIENT_REGION_HEADER};
-use crate::test_utils::{http_client_server_setup, rest_tx, rpc_tx, HttpServerEndpoint};
+use crate::test_utils::{add_tx_http_client, rest_tx, rpc_tx, HttpServerEndpoint};
 
 #[tokio::test]
 async fn test_tx_hash_json_conversion() {
@@ -74,12 +71,7 @@ async fn record_region_test(
     mock_gateway_client.expect_add_tx().times(1).return_const(Ok(tx_hash_1));
     mock_gateway_client.expect_add_tx().times(1).return_const(Ok(tx_hash_2));
 
-    let ip = IpAddr::from(Ipv4Addr::LOCALHOST);
-    let mut available_ports =
-        AvailablePorts::new(TestIdentifier::HttpServerUnitTests.into(), 1 + index);
-    let http_server_config = HttpServerConfig { ip, port: available_ports.get_next_port() };
-    let add_tx_http_client =
-        http_client_server_setup(mock_gateway_client, http_server_config).await;
+    let add_tx_http_client = add_tx_http_client(mock_gateway_client, 1 + index).await;
 
     // Send a transaction to the server, without a region.
     add_tx_http_client.add_tx(tx.clone(), endpoint).await;
@@ -115,13 +107,7 @@ async fn record_region_gateway_failing_tx(
         )),
     ));
 
-    let ip = IpAddr::from(Ipv4Addr::LOCALHOST);
-    let mut available_ports =
-        AvailablePorts::new(TestIdentifier::HttpServerUnitTests.into(), 3 + index);
-    let http_server_config = HttpServerConfig { ip, port: available_ports.get_next_port() };
-    // let http_server_config = HttpServerConfig { ip, port };
-    let add_tx_http_client =
-        http_client_server_setup(mock_gateway_client, http_server_config).await;
+    let add_tx_http_client = add_tx_http_client(mock_gateway_client, 3 + index).await;
 
     // Send a transaction to the server.
     add_tx_http_client.add_tx(tx, endpoint).await;
@@ -157,12 +143,7 @@ async fn test_response(
         }),
     ));
 
-    let ip = IpAddr::from(Ipv4Addr::LOCALHOST);
-    let mut available_ports =
-        AvailablePorts::new(TestIdentifier::HttpServerUnitTests.into(), 5 + index);
-    let http_server_config = HttpServerConfig { ip, port: available_ports.get_next_port() };
-    let add_tx_http_client =
-        http_client_server_setup(mock_gateway_client, http_server_config).await;
+    let add_tx_http_client = add_tx_http_client(mock_gateway_client, 5 + index).await;
 
     // Test a successful response.
     let tx_hash = add_tx_http_client.assert_add_tx_success(tx.clone(), endpoint).await;

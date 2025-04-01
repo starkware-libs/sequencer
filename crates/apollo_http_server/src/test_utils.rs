@@ -1,8 +1,9 @@
-use std::net::SocketAddr;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 
 use apollo_gateway_types::communication::MockGatewayClient;
 use apollo_gateway_types::errors::GatewaySpecError;
+use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use axum::body::Body;
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use mempool_test_utils::starknet_api_test_utils::invoke_tx;
@@ -109,6 +110,17 @@ pub async fn http_client_server_setup(
     tokio::task::yield_now().await;
 
     add_tx_http_client
+}
+
+pub async fn add_tx_http_client(
+    mock_gateway_client: MockGatewayClient,
+    port_index: u16,
+) -> HttpTestClient {
+    let ip = IpAddr::from(Ipv4Addr::LOCALHOST);
+    let mut available_ports =
+        AvailablePorts::new(TestIdentifier::HttpServerUnitTests.into(), port_index);
+    let http_server_config = HttpServerConfig { ip, port: available_ports.get_next_port() };
+    http_client_server_setup(mock_gateway_client, http_server_config).await
 }
 
 pub fn rpc_tx() -> RpcTransaction {

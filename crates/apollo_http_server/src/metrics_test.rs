@@ -1,20 +1,16 @@
-use std::net::{IpAddr, Ipv4Addr};
-
 use apollo_gateway_types::communication::{GatewayClientError, MockGatewayClient};
-use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use apollo_sequencer_infra::component_client::ClientError;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use rstest::rstest;
 use serde::Serialize;
 use starknet_api::transaction::TransactionHash;
 
-use crate::config::HttpServerConfig;
 use crate::metrics::{
     ADDED_TRANSACTIONS_FAILURE,
     ADDED_TRANSACTIONS_SUCCESS,
     ADDED_TRANSACTIONS_TOTAL,
 };
-use crate::test_utils::{http_client_server_setup, rest_tx, rpc_tx, HttpServerEndpoint};
+use crate::test_utils::{add_tx_http_client, rest_tx, rpc_tx, HttpServerEndpoint};
 
 #[rstest]
 #[case::add_rest_tx(0, HttpServerEndpoint::AddTx, rest_tx())]
@@ -47,11 +43,7 @@ async fn add_tx_metrics_test(
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let prometheus_handle = recorder.handle();
 
-    let ip = IpAddr::from(Ipv4Addr::LOCALHOST);
-    let mut available_ports = AvailablePorts::new(TestIdentifier::HttpServerUnitTests.into(), 0);
-    let http_server_config = HttpServerConfig { ip, port: available_ports.get_next_port() + index };
-    let add_tx_http_client =
-        http_client_server_setup(mock_gateway_client, http_server_config).await;
+    let add_tx_http_client = add_tx_http_client(mock_gateway_client, index).await;
 
     // Send transactions to the server.
     for _ in std::iter::repeat(()).take(SUCCESS_TXS_TO_SEND + FAILURE_TXS_TO_SEND) {
@@ -82,12 +74,7 @@ async fn add_tx_serde_failure_metrics_test() {
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let prometheus_handle = recorder.handle();
 
-    // TODO(Yael): share the creation of add_tx_http_client code for all tests in test_utils.
-    let ip = IpAddr::from(Ipv4Addr::LOCALHOST);
-    let mut available_ports = AvailablePorts::new(TestIdentifier::HttpServerUnitTests.into(), 0);
-    let http_server_config = HttpServerConfig { ip, port: available_ports.get_next_port() + 2 };
-    let add_tx_http_client =
-        http_client_server_setup(mock_gateway_client, http_server_config).await;
+    let add_tx_http_client = add_tx_http_client(mock_gateway_client, 2).await;
 
     // Send a transaction that fails deserialization.
     let tx = "invalid_tx";
