@@ -167,7 +167,7 @@ async fn bootstrap_e2e() {
         .returning(move |input| Ok(sync_response_clone.lock().unwrap().remove(&input)));
     sync_client.expect_get_latest_block_number().returning(move || Ok(Some(CATCH_UP_HEIGHT)));
     let config = L1ProviderConfig {
-        startup_sync_sleep_retry_interval: Duration::from_millis(10),
+        startup_sync_sleep_retry_interval_seconds: Duration::from_millis(10),
         ..Default::default()
     };
     let mut l1_provider = create_l1_provider(
@@ -190,7 +190,7 @@ async fn bootstrap_e2e() {
     // Load first **Sync** response: the initializer task will pick it up within the specified
     // interval.
     sync_response.lock().unwrap().insert(STARTUP_HEIGHT, SyncBlock::default());
-    tokio::time::sleep(config.startup_sync_sleep_retry_interval).await;
+    tokio::time::sleep(config.startup_sync_sleep_retry_interval_seconds).await;
 
     // **Commit** 2 blocks past catchup height, should be received after the previous sync.
     let no_txs_committed = vec![]; // Not testing txs in this test.
@@ -198,17 +198,17 @@ async fn bootstrap_e2e() {
         .commit_block(no_txs_committed.clone(), height_add(CATCH_UP_HEIGHT, 1))
         .await
         .unwrap();
-    tokio::time::sleep(config.startup_sync_sleep_retry_interval).await;
+    tokio::time::sleep(config.startup_sync_sleep_retry_interval_seconds).await;
     l1_provider_client
         .commit_block(no_txs_committed, height_add(CATCH_UP_HEIGHT, 2))
         .await
         .unwrap();
-    tokio::time::sleep(config.startup_sync_sleep_retry_interval).await;
+    tokio::time::sleep(config.startup_sync_sleep_retry_interval_seconds).await;
 
     // Feed sync task the remaining blocks, will be received after the commits above.
     sync_response.lock().unwrap().insert(height_add(STARTUP_HEIGHT, 1), SyncBlock::default());
     sync_response.lock().unwrap().insert(height_add(STARTUP_HEIGHT, 2), SyncBlock::default());
-    tokio::time::sleep(2 * config.startup_sync_sleep_retry_interval).await;
+    tokio::time::sleep(2 * config.startup_sync_sleep_retry_interval_seconds).await;
 
     // Assert that initializer task has received the stubbed responses from the sync client and sent
     // the corresponding commit blocks to the provider, in the order implied to by the test
@@ -284,7 +284,7 @@ async fn bootstrap_delayed_sync_state_with_trivial_catch_up() {
         .returning(move || Ok(*sync_response_clone.lock().unwrap()));
 
     let config = L1ProviderConfig {
-        startup_sync_sleep_retry_interval: Duration::from_millis(10),
+        startup_sync_sleep_retry_interval_seconds: Duration::from_millis(10),
         ..Default::default()
     };
     let mut l1_provider = create_l1_provider(
@@ -324,7 +324,7 @@ async fn bootstrap_delayed_sync_state_with_trivial_catch_up() {
     *sync_height_response.lock().unwrap() = Some(BlockNumber(2));
 
     // Let the sync task continue, it should short circuit.
-    tokio::time::sleep(config.startup_sync_sleep_retry_interval).await;
+    tokio::time::sleep(config.startup_sync_sleep_retry_interval_seconds).await;
     // Assert height is unchanged from last time, no commit block was called from the sync task.
     assert_eq!(l1_provider.current_height, start_height_plus_2);
     // Finally, commit a new block to trigger the bootstrapping check, should switch to steady
@@ -359,7 +359,7 @@ async fn bootstrap_delayed_sync_state_with_sync_behind_batcher() {
     sync_client.expect_get_block().returning(|_| Ok(Some(SyncBlock::default())));
 
     let config = L1ProviderConfig {
-        startup_sync_sleep_retry_interval: Duration::from_millis(10),
+        startup_sync_sleep_retry_interval_seconds: Duration::from_millis(10),
         ..Default::default()
     };
     let mut l1_provider = create_l1_provider(
@@ -383,7 +383,7 @@ async fn bootstrap_delayed_sync_state_with_sync_behind_batcher() {
         .commit_block(no_txs_committed.to_vec(), sync_height.unchecked_next())
         .await
         .unwrap();
-    tokio::time::sleep(config.startup_sync_sleep_retry_interval).await;
+    tokio::time::sleep(config.startup_sync_sleep_retry_interval_seconds).await;
     l1_provider_client
         .commit_block(no_txs_committed.to_vec(), sync_height.unchecked_next().unchecked_next())
         .await
@@ -391,7 +391,7 @@ async fn bootstrap_delayed_sync_state_with_sync_behind_batcher() {
 
     // Forward all messages buffered in the client to the provider.
     l1_provider_client.flush_messages(&mut l1_provider).await;
-    tokio::time::sleep(config.startup_sync_sleep_retry_interval).await;
+    tokio::time::sleep(config.startup_sync_sleep_retry_interval_seconds).await;
 
     // Assert commit blocks are backlogged (didn't affect start height).
     assert_eq!(l1_provider.current_height, startup_height);
@@ -401,7 +401,7 @@ async fn bootstrap_delayed_sync_state_with_sync_behind_batcher() {
     // Simulate the state sync service finally being ready, and give the async task enough time to
     // pick this up and sync up the provider.
     *sync_height_response.lock().unwrap() = Some(sync_height);
-    tokio::time::sleep(config.startup_sync_sleep_retry_interval).await;
+    tokio::time::sleep(config.startup_sync_sleep_retry_interval_seconds).await;
     // Forward all messages buffered in the client to the provider.
     l1_provider_client.flush_messages(&mut l1_provider).await;
 
@@ -441,7 +441,7 @@ async fn test_stuck_sync() {
 
     for i in 0..=(Bootstrapper::MAX_HEALTH_CHECK_FAILURES + 1) {
         l1_provider.commit_block(&[], height_add(STARTUP_HEIGHT, i.into())).unwrap();
-        tokio::time::sleep(config.startup_sync_sleep_retry_interval).await;
+        tokio::time::sleep(config.startup_sync_sleep_retry_interval_seconds).await;
     }
 }
 
