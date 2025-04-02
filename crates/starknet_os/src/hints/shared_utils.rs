@@ -6,7 +6,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::hints::error::OsHintError;
 
-static BASE: LazyLock<BigInt> = LazyLock::new(|| BigInt::from(1u128 << 86));
+pub static BASE: LazyLock<BigInt> = LazyLock::new(|| BigInt::from(1u128 << 86));
 
 /// Takes an integer and returns its canonical representation as:
 ///    d0 + d1 * BASE + d2 * BASE**2.

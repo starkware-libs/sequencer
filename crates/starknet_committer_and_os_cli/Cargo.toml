@@ -20,6 +20,7 @@ tempfile.workspace = true
 [dependencies]
 cairo-lang-starknet-classes.workspace = true
 cairo-vm.workspace = true                                   # Should be moved under `testing` feature, when it exists.
+num-bigint.workspace = true                                 # Should be moved under `testing` feature, when it exists.
 clap = { workspace = true, features = ["cargo", "derive"] }
 derive_more.workspace = true
 ethnum.workspace = true

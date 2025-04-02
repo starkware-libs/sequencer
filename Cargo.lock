@@ -11737,6 +11737,7 @@ dependencies = [
  "ethnum",
  "futures",
  "indexmap 2.7.0",
+ "num-bigint 0.4.6",
  "pretty_assertions",
  "rand 0.8.5",
  "rand_distr",
