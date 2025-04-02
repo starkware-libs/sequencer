@@ -46,7 +46,7 @@ fn test_inner_node() {
     // Left node.
     let inner_node = InnerNode::Left(Box::new(UpdateTree::Leaf(leaf_left)));
     let (left_child, right_child) = inner_node.get_children();
-    let case = DecodeNodeCase::from(&inner_node);
+    let case = inner_node.case();
     assert_matches!(left_child, UpdateTree::Leaf(value) if value.0 == leaf_left.0);
     assert_eq!(right_child, &UpdateTree::None);
     assert_matches!(case, DecodeNodeCase::Left);
@@ -54,7 +54,7 @@ fn test_inner_node() {
     // Right node.
     let inner_node = InnerNode::Right(Box::new(UpdateTree::Leaf(leaf_right)));
     let (left_child, right_child) = inner_node.get_children();
-    let case = DecodeNodeCase::from(&inner_node);
+    let case = inner_node.case();
     assert_eq!(left_child, &UpdateTree::None);
     assert_matches!(right_child, UpdateTree::Leaf(value) if value.0 == leaf_right.0);
     assert_matches!(case, DecodeNodeCase::Right);
@@ -65,7 +65,7 @@ fn test_inner_node() {
         Box::new(UpdateTree::Leaf(leaf_right)),
     );
     let (left_child, right_child) = inner_node.get_children();
-    let case = DecodeNodeCase::from(&inner_node);
+    let case = inner_node.case();
     assert_matches!(left_child, UpdateTree::Leaf(value) if value.0 == leaf_left.0);
     assert_matches!(right_child, UpdateTree::Leaf(value) if value.0 == leaf_right.0);
     assert_matches!(case, DecodeNodeCase::Both);
