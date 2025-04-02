@@ -297,3 +297,29 @@ fn calldata_length(cairo_version: CairoVersion) {
     );
     assert!(deploy_empty_call_pedersen == deploy_syscall_base_pedersen_cost);
 }
+
+#[test_case(RunnableCairo1::Casm;"VM")]
+#[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native;"Native"))]
+fn reject_deploy_in_validate_mode(runnable_version: RunnableCairo1) {
+    // TODO(Yoni): share the init code of the tests in this file.
+    let deployer_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
+    let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1(runnable_version));
+    let class_hash = empty_contract.get_class_hash();
+
+    let mut state = test_state(
+        &ChainInfo::create_for_testing(),
+        Fee(0),
+        &[(deployer_contract, 1), (empty_contract, 0)],
+    );
+
+    let calldata = calldata_for_deploy_test(class_hash, &[], true);
+    let entry_point_call = CallEntryPoint {
+        entry_point_selector: selector_from_name("test_deploy"),
+        calldata,
+        ..trivial_external_entry_point_new(deployer_contract)
+    };
+
+    // Reject the deploy syscall in validate mode.
+    let error = entry_point_call.clone().execute_directly_in_validate_mode(&mut state).unwrap_err();
+    assert!(error.to_string().contains("Unauthorized syscall deploy in execution mode Validate."));
+}
