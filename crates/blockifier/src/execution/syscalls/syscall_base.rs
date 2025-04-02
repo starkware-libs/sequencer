@@ -171,12 +171,8 @@ impl<'state> SyscallHandlerBase<'state> {
         &mut self,
         contract_address: ContractAddress,
     ) -> SyscallResult<ClassHash> {
-        if self.context.execution_mode == ExecutionMode::Validate {
-            return Err(SyscallExecutionError::InvalidSyscallInExecutionMode {
-                syscall_name: "get_class_hash_at".to_string(),
-                execution_mode: ExecutionMode::Validate,
-            });
-        }
+        self.reject_selector_in_validate_mode("get_class_hash_at")?;
+
         self.storage_access_tracker.accessed_contract_addresses.insert(contract_address);
         let class_hash = self.state.get_class_hash_at(contract_address)?;
         self.storage_access_tracker.read_class_hash_values.push(class_hash);
@@ -252,6 +248,8 @@ impl<'state> SyscallHandlerBase<'state> {
         deploy_from_zero: bool,
         remaining_gas: &mut u64,
     ) -> SyscallResult<(ContractAddress, CallInfo)> {
+        self.reject_deploy_in_validate_mode()?;
+
         self.reject_deploy_in_validate_mode()?;
 
         let deployer_address = self.call.storage_address;
@@ -382,16 +380,21 @@ impl<'state> SyscallHandlerBase<'state> {
             .original_values = std::mem::take(&mut self.original_values);
     }
 
+    fn reject_selector_in_validate_mode(&self, syscall_name: &str) -> SyscallResult<()> {
+        if self.context.execution_mode == ExecutionMode::Validate {
+            return Err(SyscallExecutionError::InvalidSyscallInExecutionMode {
+                syscall_name: syscall_name.to_string(),
+                execution_mode: ExecutionMode::Validate,
+            });
+        }
+        Ok(())
+    }
+
     fn reject_deploy_in_validate_mode(&self) -> SyscallResult<()> {
         let versioned_constants = &self.context.tx_context.block_context.versioned_constants;
         let allow_deploy_in_validation_mode = versioned_constants.allow_deploy_in_validation_mode;
-        if !allow_deploy_in_validation_mode
-            && self.context.execution_mode == ExecutionMode::Validate
-        {
-            return Err(SyscallExecutionError::InvalidSyscallInExecutionMode {
-                syscall_name: "deploy".to_string(),
-                execution_mode: ExecutionMode::Validate,
-            });
+        if !allow_deploy_in_validation_mode {
+            self.reject_selector_in_validate_mode("deploy")?;
         }
         Ok(())
     }
