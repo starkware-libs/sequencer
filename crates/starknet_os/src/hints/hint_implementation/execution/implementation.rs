@@ -29,6 +29,7 @@ pub(crate) fn load_next_tx<S: StateReader>(
     let mut txs_iter: IntoIter<Transaction> = exec_scopes.get(Scope::Transactions.into())?;
     let tx = txs_iter.next().ok_or(OsHintError::EndOfIterator { item_type: "txs".to_string() })?;
     let tx_type = tx.tx_type().tx_type_as_felt();
+    exec_scopes.insert_value(Scope::TxType.into(), tx_type);
     insert_value_from_var_name(Ids::TxType.into(), tx_type, vm, ids_data, ap_tracking)?;
 
     // Log enter tx.

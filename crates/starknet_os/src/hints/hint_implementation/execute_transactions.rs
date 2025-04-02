@@ -97,10 +97,21 @@ pub(crate) fn skip_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> O
     todo!()
 }
 
-pub(crate) fn start_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> OsHintResult {
-    // TODO(lior): No longer equivalent to moonsong impl; PTAL at the new implementation of
-    //   start_tx().
-    todo!()
+pub(crate) fn start_tx<S: StateReader>(
+    HintArgs { hint_processor, exec_scopes, .. }: HintArgs<'_, '_, S>,
+) -> OsHintResult {
+    let tx_execution_iter =
+        &mut hint_processor.get_mut_current_execution_helper()?.tx_execution_iter;
+    if tx_execution_iter.tx_execution_info_ref.is_some() {
+        return Err(OsHintError::AssertionFailed {
+            message: "start_tx() called twice in a row".to_string(),
+        });
+    }
+
+    let tx_type = exec_scopes.get(Scope::TxType.into())?;
+    tx_execution_iter
+        .next_tx(tx_type)
+        .ok_or_else(|| OsHintError::EndOfIterator { item_type: "tx_execution_info".into() })
 }
 
 pub(crate) fn os_input_transactions<S: StateReader>(
