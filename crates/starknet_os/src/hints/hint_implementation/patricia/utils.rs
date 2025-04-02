@@ -27,7 +27,7 @@ impl Preimage {
         }
     }
 
-    fn get_binary(&self) -> Result<&BinaryData, PatriciaError> {
+    pub(crate) fn get_binary(&self) -> Result<&BinaryData, PatriciaError> {
         match self {
             Preimage::Binary(binary) => Ok(binary),
             Preimage::Edge(_) => Err(PatriciaError::ExpectedBinary(self.clone())),
@@ -92,7 +92,7 @@ pub enum InnerNode {
 }
 
 impl InnerNode {
-    fn get_children(&self) -> (&UpdateTree, &UpdateTree) {
+    pub(crate) fn get_children(&self) -> (&UpdateTree, &UpdateTree) {
         match self {
             InnerNode::Left(left) => (left, &UpdateTree::None),
             InnerNode::Right(right) => (&UpdateTree::None, right),
