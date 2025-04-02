@@ -3,6 +3,10 @@ use std::path::PathBuf;
 
 use apollo_infra_utils::dumping::serialize_to_file_test;
 use apollo_infra_utils::path::resolve_project_relative_path;
+use apollo_node::config::component_execution_config::{
+    ActiveComponentExecutionMode,
+    ReactiveComponentExecutionMode,
+};
 
 use crate::deployment_definitions::{deployment_file_path, Environment, DEPLOYMENTS};
 
@@ -37,6 +41,42 @@ fn application_config_files_exist() {
         deployment_preset
             .get_deployment()
             .dump_application_config_files(deployment_preset.get_base_app_config_file_path());
+    }
+}
+
+// TODO(Tsabary): add a sanity test that the chain id matches the value in the config.
+
+#[test]
+fn l1_components_state_consistency() {
+    for deployment_fn in DEPLOYMENTS {
+        let deployment_preset = deployment_fn();
+        let deployment_name = deployment_preset.get_deployment().get_deployment_name();
+        let component_configs = deployment_name.get_component_configs(None);
+
+        let l1_gas_price_provider_indicator = component_configs.values().any(|component_config| {
+            component_config.l1_gas_price_provider.execution_mode
+                != ReactiveComponentExecutionMode::Disabled
+        });
+        let l1_provider_indicator = component_configs.values().any(|component_config| {
+            component_config.l1_provider.execution_mode != ReactiveComponentExecutionMode::Disabled
+        });
+
+        let l1_gas_price_scraper_indicator = component_configs.values().any(|component_config| {
+            component_config.l1_gas_price_scraper.execution_mode
+                != ActiveComponentExecutionMode::Disabled
+        });
+        let l1_scraper_indicator = component_configs.values().any(|component_config| {
+            component_config.l1_scraper.execution_mode != ActiveComponentExecutionMode::Disabled
+        });
+
+        assert!(
+            l1_gas_price_provider_indicator == l1_gas_price_scraper_indicator,
+            "L1 gas price provider and scraper should either be both enabled or both disabled."
+        );
+        assert!(
+            l1_provider_indicator == l1_scraper_indicator,
+            "L1 provider and scraper should either be both enabled or both disabled."
+        );
     }
 }
 
