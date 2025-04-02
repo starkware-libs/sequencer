@@ -34,6 +34,10 @@ pub struct ContextConfig {
     /// Safety margin in milliseconds to allow the batcher to successfully validate a proposal.
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     pub validate_proposal_margin: Duration,
+    /// The minimum L1 gas price in wei.
+    pub min_l1_gas_price_wei: u128,
+    /// The maximum L1 gas price in wei.
+    pub max_l1_gas_price_wei: u128,
 }
 
 impl SerializeConfig for ContextConfig {
@@ -90,6 +94,18 @@ impl SerializeConfig for ContextConfig {
                  validating a proposal.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "min_l1_gas_price_wei",
+                &self.min_l1_gas_price_wei,
+                "The minimum L1 gas price in wei.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_l1_gas_price_wei",
+                &self.max_l1_gas_price_wei,
+                "The maximum L1 gas price in wei.",
+                ParamPrivacyInput::Public,
+            ),
         ])
     }
 }
@@ -105,6 +121,9 @@ impl Default for ContextConfig {
             builder_address: ContractAddress::default(),
             build_proposal_margin: Duration::from_millis(1000),
             validate_proposal_margin: Duration::from_millis(10_000),
+            // TODO(guyn): what are the appropriate values for min/max l1 gas prices?
+            min_l1_gas_price_wei: 1,
+            max_l1_gas_price_wei: 1_000_000,
         }
     }
 }
