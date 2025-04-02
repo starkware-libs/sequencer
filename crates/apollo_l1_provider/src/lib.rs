@@ -99,14 +99,14 @@ pub struct L1ProviderConfig {
     /// startup.
     pub bootstrap_catch_up_height_override: Option<BlockNumber>,
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
-    pub startup_sync_sleep_retry_interval: Duration,
+    pub startup_sync_sleep_retry_interval_seconds: Duration,
 }
 
 impl SerializeConfig for L1ProviderConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let mut dump = BTreeMap::from([ser_param(
-            "startup_sync_sleep_retry_interval",
-            &self.startup_sync_sleep_retry_interval.as_secs_f64(),
+            "startup_sync_sleep_retry_interval_seconds",
+            &self.startup_sync_sleep_retry_interval_seconds.as_secs_f64(),
             "Interval in seconds between each retry of syncing with L2 during startup.",
             ParamPrivacyInput::Public,
         )]);

@@ -279,7 +279,7 @@ pub fn create_l1_provider(
     let bootstrapper = Bootstrapper::new(
         l1_provider_client,
         sync_client,
-        config.startup_sync_sleep_retry_interval,
+        config.startup_sync_sleep_retry_interval_seconds,
         catch_up_height,
     );
 

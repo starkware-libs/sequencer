@@ -48,7 +48,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
     ) -> L1ScraperResult<Self, B> {
         let latest_l1_block = get_latest_l1_block_number(config.finality, &base_layer).await?;
         // Estimate the number of blocks in the interval, to rewind from the latest block.
-        let blocks_in_interval = config.startup_rewind_time.as_secs() / L1_BLOCK_TIME;
+        let blocks_in_interval = config.startup_rewind_time_seconds.as_secs() / L1_BLOCK_TIME;
         // Add 50% safety margin.
         let safe_blocks_in_interval = blocks_in_interval + blocks_in_interval / 2;
 
@@ -133,7 +133,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
     async fn run(&mut self) -> L1ScraperResult<(), B> {
         self.initialize().await?;
         loop {
-            sleep(self.config.polling_interval).await;
+            sleep(self.config.polling_interval_seconds).await;
 
             self.send_events_to_l1_provider().await?;
         }
@@ -198,21 +198,21 @@ impl<B: BaseLayerContract + Send + Sync> ComponentStarter for L1Scraper<B> {
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct L1ScraperConfig {
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
-    pub startup_rewind_time: Duration,
+    pub startup_rewind_time_seconds: Duration,
     #[validate(custom = "validate_ascii")]
     pub chain_id: ChainId,
     pub finality: u64,
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
-    pub polling_interval: Duration,
+    pub polling_interval_seconds: Duration,
 }
 
 impl Default for L1ScraperConfig {
     fn default() -> Self {
         Self {
-            startup_rewind_time: Duration::from_secs(0),
+            startup_rewind_time_seconds: Duration::from_secs(0),
             chain_id: ChainId::Mainnet,
             finality: 0,
-            polling_interval: Duration::from_secs(1),
+            polling_interval_seconds: Duration::from_secs(1),
         }
     }
 }
@@ -221,8 +221,8 @@ impl SerializeConfig for L1ScraperConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from([
             ser_param(
-                "startup_rewind_time",
-                &self.startup_rewind_time.as_secs(),
+                "startup_rewind_time_seconds",
+                &self.startup_rewind_time_seconds.as_secs(),
                 "Duration to rewind from latest L1 block when starting scraping.",
                 ParamPrivacyInput::Public,
             ),
@@ -233,8 +233,8 @@ impl SerializeConfig for L1ScraperConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "polling_interval",
-                &self.polling_interval.as_secs(),
+                "polling_interval_seconds",
+                &self.polling_interval_seconds.as_secs(),
                 "Interval in Seconds between each scraping attempt of L1.",
                 ParamPrivacyInput::Public,
             ),
