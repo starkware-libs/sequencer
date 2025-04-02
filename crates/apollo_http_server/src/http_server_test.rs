@@ -197,6 +197,20 @@ async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) 
         }),
     ));
 
+    // Set the failed Gateway ClientError response.
+    let expected_gateway_client_err_str = serde_json::to_string(&ErrorObjectOwned::owned(
+        ErrorCode::InternalError.code(),
+        "Internal error",
+        None::<()>,
+    ))
+    .unwrap();
+
+    mock_gateway_client.expect_add_tx().times(1).return_const(Err(
+        GatewayClientError::ClientError(ClientError::UnexpectedResponse(
+            "mock response".to_string(),
+        )),
+    ));
+
     let ip = IpAddr::from(Ipv4Addr::LOCALHOST);
     let mut available_ports =
         AvailablePorts::new(TestIdentifier::HttpServerUnitTests.into(), 5 + index);
@@ -209,7 +223,12 @@ async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) 
     assert_eq!(tx_hash, expected_tx_hash);
 
     // Test a failed bad request response.
-    let error_str = add_tx_http_client.assert_add_tx_error(tx, StatusCode::BAD_REQUEST).await;
+    let error_str =
+        add_tx_http_client.assert_add_tx_error(tx.clone(), StatusCode::BAD_REQUEST).await;
     assert_eq!(error_str, expected_gateway_spec_err_str);
-    // TODO(noamsp): mock that gateway client returned client error and check the error.
+
+    // Test a failed internal server error response.
+    let error_str =
+        add_tx_http_client.assert_add_tx_error(tx, StatusCode::INTERNAL_SERVER_ERROR).await;
+    assert_eq!(error_str, expected_gateway_client_err_str);
 }
