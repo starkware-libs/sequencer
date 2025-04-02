@@ -26,6 +26,7 @@ nix.workspace = true
 papyrus_common.workspace = true
 prost.workspace = true
 serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 strum.workspace = true
