@@ -10,7 +10,11 @@ use apollo_class_manager_types::{
     SharedClassManagerClient,
 };
 use apollo_gateway_types::errors::GatewaySpecError;
-use apollo_gateway_types::gateway_types::{GatewayOutput, InvokeGatewayOutput};
+use apollo_gateway_types::gateway_types::{
+    DeployAccountGatewayOutput,
+    GatewayOutput,
+    InvokeGatewayOutput,
+};
 use apollo_mempool_types::communication::{
     AddTransactionArgsWrapper,
     MempoolClientError,
@@ -25,7 +29,13 @@ use assert_matches::assert_matches;
 use blockifier::context::ChainInfo;
 use blockifier::test_utils::initial_test_state::fund_account;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
-use mempool_test_utils::starknet_api_test_utils::{declare_tx, invoke_tx, VALID_ACCOUNT_BALANCE};
+use blockifier_test_utils::contracts::FeatureContract;
+use mempool_test_utils::starknet_api_test_utils::{
+    declare_tx,
+    generate_deploy_account_with_salt,
+    invoke_tx,
+    VALID_ACCOUNT_BALANCE,
+};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use rstest::{fixture, rstest};
@@ -36,7 +46,9 @@ use starknet_api::rpc_transaction::{
     RpcTransaction,
     RpcTransactionLabelValue,
 };
+use starknet_api::transaction::fields::ContractAddressSalt;
 use starknet_api::transaction::TransactionHash;
+use starknet_types_core::felt::Felt;
 use strum::VariantNames;
 
 use crate::config::{
@@ -109,17 +121,33 @@ impl MockDependencies {
     }
 }
 
-type SenderAddress = ContractAddress;
+fn create_tx(tx_type: &TransactionType) -> RpcTransaction {
+    let cairo_version = CairoVersion::Cairo1(RunnableCairo1::Casm);
+    match tx_type {
+        TransactionType::Declare => todo!(),
+        TransactionType::DeployAccount => generate_deploy_account_with_salt(
+            &FeatureContract::AccountWithoutValidations(cairo_version),
+            ContractAddressSalt(Felt::ZERO),
+        ),
+        TransactionType::Invoke => invoke_tx(cairo_version),
+    }
+}
 
-fn create_tx() -> (RpcTransaction, SenderAddress) {
-    let tx = invoke_tx(CairoVersion::Cairo1(RunnableCairo1::Casm));
-    let sender_address = match &tx {
-        RpcTransaction::Invoke(starknet_api::rpc_transaction::RpcInvokeTransaction::V3(
-            invoke_tx,
-        )) => invoke_tx.sender_address,
-        _ => panic!("Unexpected transaction type"),
-    };
-    (tx, sender_address)
+fn check_positive_add_tx_result(
+    rpc_tx: RpcTransaction,
+    tx_hash: TransactionHash,
+    address: ContractAddress,
+    result: GatewayOutput,
+) {
+    assert_eq!(
+        result,
+        match rpc_tx {
+            RpcTransaction::Declare(_) => todo!(),
+            RpcTransaction::DeployAccount(_) =>
+                GatewayOutput::DeployAccount(DeployAccountGatewayOutput::new(tx_hash, address)),
+            RpcTransaction::Invoke(_) => GatewayOutput::Invoke(InvokeGatewayOutput::new(tx_hash)),
+        }
+    );
 }
 
 async fn convert_rpc_tx_to_internal(
@@ -158,17 +186,23 @@ async fn convert_rpc_tx_to_internal(
     Err(MempoolClientError::MempoolError(MempoolError::NonceTooLarge(Nonce::default()))),
     Some(GatewaySpecError::InvalidTransactionNonce)
 )]
+#[case::successful_deploy_account(
+    TransactionType::DeployAccount,
+    Ok(()),
+    None
+)]
 #[tokio::test]
 async fn test_add_tx(
     mut mock_dependencies: MockDependencies,
-    #[case] _tx_type: TransactionType,
+    #[case] tx_type: TransactionType,
     #[case] expected_result: Result<(), MempoolClientError>,
     #[case] expected_error: Option<GatewaySpecError>,
 ) {
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
 
-    let (rpc_tx, address) = create_tx();
+    let rpc_tx = create_tx(&tx_type);
+    let address = rpc_tx.calculate_sender_address().unwrap();
 
     fund_account(
         &mock_dependencies.config.chain_info,
@@ -215,7 +249,8 @@ async fn test_add_tx(
                     .get_metric_value(TRANSACTIONS_SENT_TO_MEMPOOL, &metrics),
                 1
             );
-            assert_eq!(result.unwrap(), GatewayOutput::Invoke(InvokeGatewayOutput::new(tx_hash)));
+
+            check_positive_add_tx_result(rpc_tx, tx_hash, address, result.unwrap());
         }
     }
 }
