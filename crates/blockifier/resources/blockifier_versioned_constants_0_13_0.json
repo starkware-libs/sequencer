@@ -22,6 +22,7 @@
         }
     },
     "ignore_inner_event_resources": false,
+    "allow_deploy_in_validation_mode": true,
     "enable_reverts": false,
     "tx_event_limits": {
         "max_data_length": 1000000000,

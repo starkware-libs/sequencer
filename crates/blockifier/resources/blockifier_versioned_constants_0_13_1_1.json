@@ -55,6 +55,7 @@
         }
     },
     "ignore_inner_event_resources": false,
+    "allow_deploy_in_validation_mode": true,
     "enable_reverts": false,
     "os_constants": {
         "nop_entry_point_offset": -1,
