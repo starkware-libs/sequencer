@@ -10,10 +10,8 @@ use cairo_vm::types::relocatable::MaybeRelocatable;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintResult};
-use crate::hints::hint_implementation::kzg::utils::{
-    polynomial_coefficients_to_kzg_commitment,
-    split_bigint3,
-};
+use crate::hints::hint_implementation::kzg::utils::polynomial_coefficients_to_kzg_commitment;
+use crate::hints::shared_utils::split_bigint3;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{Const, Ids};
 
