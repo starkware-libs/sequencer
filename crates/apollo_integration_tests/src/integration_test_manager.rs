@@ -163,8 +163,8 @@ impl NodeSetup {
 
     pub fn generate_simulator_ports_json(&self, path: &str) {
         let json_data = serde_json::json!({
-            HTTP_PORT_ARG: self.executables[self.http_server_index].config.http_server_config.port,
-            MONITORING_PORT_ARG: self.executables[self.batcher_index].config.monitoring_endpoint_config.port
+            HTTP_PORT_ARG: self.executables[self.http_server_index].get_config().http_server_config.port,
+            MONITORING_PORT_ARG: self.executables[self.batcher_index].get_config().monitoring_endpoint_config.port
         });
         serialize_to_file(json_data, path);
     }
@@ -259,7 +259,8 @@ impl IntegrationTestManager {
         )
         .await;
 
-        let base_layer_config = &sequencers_setup[0].executables[0].config.base_layer_config;
+        let base_layer_config =
+            &sequencers_setup[0].executables[0].base_app_config.get_config().base_layer_config;
         let (anvil, starknet_l1_contract) =
             spawn_anvil_and_deploy_starknet_l1_contract(base_layer_config).await;
 
@@ -474,7 +475,7 @@ impl IntegrationTestManager {
             .executables
             .get(node_0_setup.http_server_index)
             .expect("http_server_index points to a non existing executable index")
-            .config();
+            .get_config();
 
         let localhost_url = format!("http://{}", Ipv4Addr::LOCALHOST);
         SequencerSimulator::new(
@@ -640,7 +641,7 @@ impl IntegrationTestManager {
             .expect("There should be at least one running or idle node");
 
         node_setup.executables[0]
-            .config
+            .get_config()
             .batcher_config
             .block_builder_config
             .chain_info
