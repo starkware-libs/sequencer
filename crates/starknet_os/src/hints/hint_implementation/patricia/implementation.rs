@@ -109,9 +109,46 @@ pub(crate) fn height_is_zero_or_len_node_preimage_is_two<S: StateReader>(
 }
 
 pub(crate) fn prepare_preimage_validation_non_deterministic_hashes<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    let (x_offset, y_offset, result_offset) = get_hash_builtin_fields(exec_scopes)?;
+
+    let node: UpdateTree<StorageLeaf> = exec_scopes.get(vars::scopes::NODE)?;
+    let node = node.ok_or(HintError::AssertionFailed("'node' should not be None".to_string().into_boxed_str()))?;
+
+    let preimage: Preimage = exec_scopes.get(vars::scopes::PREIMAGE)?;
+
+    let ids_node = get_integer_from_var_name(vars::ids::NODE, vm, ids_data, ap_tracking)?;
+
+    let DecodedNode { left_child, right_child, case } = decode_node(&node)?;
+
+    exec_scopes.insert_value(vars::scopes::LEFT_CHILD, left_child.clone());
+    exec_scopes.insert_value(vars::scopes::RIGHT_CHILD, right_child.clone());
+    exec_scopes.insert_value(vars::scopes::CASE, case.clone());
+
+    let node_preimage =
+        preimage.get(&ids_node).ok_or(HintError::CustomHint("Node preimage not found".to_string().into_boxed_str()))?;
+    let left_hash = node_preimage[0];
+    let right_hash = node_preimage[1];
+
+    // Fill non deterministic hashes.
+    let hash_ptr = get_ptr_from_var_name(vars::ids::CURRENT_HASH, vm, ids_data, ap_tracking)?;
+    // memory[hash_ptr + ids.HashBuiltin.x] = left_hash
+    vm.insert_value((hash_ptr + x_offset)?, left_hash)?;
+    // memory[hash_ptr + ids.HashBuiltin.y] = right_hash
+    vm.insert_value((hash_ptr + y_offset)?, right_hash)?;
+
+    let hash_result_address = (hash_ptr + result_offset)?;
+    skip_verification_if_configured(exec_scopes, hash_result_address)?;
+
+    // memory[ap] = int(case != 'both')"#
+    let ap = match case {
+        DecodeNodeCase::Both => Felt252::ZERO,
+        _ => Felt252::ONE,
+    };
+    insert_value_into_ap(vm, ap)?;
+
+    Ok(())
 }
 
 pub(crate) fn build_descent_map<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
