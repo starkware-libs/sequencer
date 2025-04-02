@@ -291,22 +291,22 @@ async fn test_add_tx(
 
     let metric_counters_for_queries = GatewayMetricHandle::new(&tx, &p2p_message_metadata);
     let metrics = recorder.handle().render();
-    assert_eq!(metric_counters_for_queries.get_metric_value(TRANSACTIONS_RECEIVED, &metrics), 1);
+
+    let total_count = metric_counters_for_queries.get_metric_value(TRANSACTIONS_RECEIVED, &metrics);
+    let negative_count =
+        metric_counters_for_queries.get_metric_value(TRANSACTIONS_FAILED, &metrics);
+    let positive_count =
+        metric_counters_for_queries.get_metric_value(TRANSACTIONS_SENT_TO_MEMPOOL, &metrics);
+
+    assert_eq!(total_count, 1);
     match expected_error {
         Some(expected_err) => {
-            assert_eq!(
-                metric_counters_for_queries.get_metric_value(TRANSACTIONS_FAILED, &metrics),
-                1
-            );
             assert_eq!(result.unwrap_err(), expected_err);
+            assert_eq!(negative_count, 1);
         }
         None => {
-            assert_eq!(
-                metric_counters_for_queries
-                    .get_metric_value(TRANSACTIONS_SENT_TO_MEMPOOL, &metrics),
-                1
-            );
             check_positive_add_tx_result(tx, tx_hash, address, result.unwrap());
+            assert_eq!(positive_count, 1);
         }
     }
 }
