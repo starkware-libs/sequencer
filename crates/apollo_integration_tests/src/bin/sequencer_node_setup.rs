@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
+use apollo_infra::trace_util::configure_tracing;
 use apollo_infra_utils::test_utils::TestIdentifier;
 use apollo_integration_tests::integration_test_manager::IntegrationTestManager;
 use apollo_integration_tests::storage::CustomPaths;
-use apollo_sequencer_infra::trace_util::configure_tracing;
 use clap::Parser;
 use tokio::fs::create_dir_all;
 use tracing::info;

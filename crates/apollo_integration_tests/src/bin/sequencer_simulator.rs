@@ -1,5 +1,6 @@
 use std::fs::read_to_string;
 
+use apollo_infra::trace_util::configure_tracing;
 use apollo_integration_tests::integration_test_manager::{HTTP_PORT_ARG, MONITORING_PORT_ARG};
 use apollo_integration_tests::sequencer_simulator_utils::SequencerSimulator;
 use apollo_integration_tests::utils::{
@@ -9,7 +10,6 @@ use apollo_integration_tests::utils::{
     ACCOUNT_ID_0,
     N_TXS_IN_FIRST_BLOCK,
 };
-use apollo_sequencer_infra::trace_util::configure_tracing;
 use clap::Parser;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use serde_json::Value;

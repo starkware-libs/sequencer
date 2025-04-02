@@ -5,7 +5,7 @@ use apollo_class_manager_types::{
     ClassManagerResult,
     ExecutableClassHash,
 };
-use apollo_sequencer_infra::component_definitions::{default_component_start_fn, ComponentStarter};
+use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
 use apollo_sierra_multicompile_types::{
     RawClass,
     RawExecutableClass,

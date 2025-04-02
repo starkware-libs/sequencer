@@ -9,8 +9,8 @@ use apollo_gateway_types::gateway_types::{
     GatewayOutput,
     InvokeGatewayOutput,
 };
+use apollo_infra::component_client::ClientError;
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
-use apollo_sequencer_infra::component_client::ClientError;
 use axum::body::{Bytes, HttpBody};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};

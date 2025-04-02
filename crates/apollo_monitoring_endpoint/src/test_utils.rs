@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use apollo_infra_utils::run_until::run_until;
 use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
-use apollo_sequencer_metrics::metrics::parse_numeric_metric;
+use apollo_metrics::metrics::parse_numeric_metric;
 use axum::body::Body;
 use axum::http::Request;
 use hyper::body::to_bytes;

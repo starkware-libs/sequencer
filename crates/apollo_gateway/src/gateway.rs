@@ -13,11 +13,11 @@ use apollo_gateway_types::gateway_types::{
     GatewayOutput,
     InvokeGatewayOutput,
 };
+use apollo_infra::component_definitions::ComponentStarter;
 use apollo_mempool_types::communication::{AddTransactionArgsWrapper, SharedMempoolClient};
 use apollo_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_proc_macros::sequencer_latency_histogram;
-use apollo_sequencer_infra::component_definitions::ComponentStarter;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use axum::async_trait;
 use blockifier::context::ChainInfo;

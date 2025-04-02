@@ -13,14 +13,11 @@ use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
 use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
 use apollo_network::network_manager::test_utils::create_connected_network_configs;
-use apollo_sequencer_node::config::component_config::ComponentConfig;
-use apollo_sequencer_node::config::config_utils::DeploymentBaseAppConfig;
-use apollo_sequencer_node::config::definitions::ConfigPointersMap;
-use apollo_sequencer_node::config::node_config::{
-    SequencerNodeConfig,
-    CONFIG_NON_POINTERS_WHITELIST,
-};
-use apollo_sequencer_node::test_utils::node_runner::{get_node_executable_path, spawn_run_node};
+use apollo_node::config::component_config::ComponentConfig;
+use apollo_node::config::config_utils::DeploymentBaseAppConfig;
+use apollo_node::config::definitions::ConfigPointersMap;
+use apollo_node::config::node_config::{SequencerNodeConfig, CONFIG_NON_POINTERS_WHITELIST};
+use apollo_node::test_utils::node_runner::{get_node_executable_path, spawn_run_node};
 use apollo_storage::StorageConfig;
 use blockifier::context::ChainInfo;
 use futures::future::join_all;

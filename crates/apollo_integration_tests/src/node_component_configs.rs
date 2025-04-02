@@ -1,7 +1,7 @@
+use apollo_deployments::deployments::distributed::DistributedNodeServiceName;
+use apollo_deployments::service::{DeploymentName, ServiceName};
 use apollo_infra_utils::test_utils::AvailablePortsGenerator;
-use apollo_sequencer_deployments::deployments::distributed::DistributedNodeServiceName;
-use apollo_sequencer_deployments::service::{DeploymentName, ServiceName};
-use apollo_sequencer_node::config::component_config::{set_urls_to_localhost, ComponentConfig};
+use apollo_node::config::component_config::{set_urls_to_localhost, ComponentConfig};
 
 /// Holds the component configs for a set of sequencers, composing a single sequencer node.
 pub struct NodeComponentConfigs {

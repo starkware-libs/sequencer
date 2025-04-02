@@ -10,8 +10,8 @@ testing = []
 
 [dependencies]
 apollo_config.workspace = true
+apollo_metrics.workspace = true
 apollo_network_types.workspace = true
-apollo_sequencer_metrics.workspace = true
 async-stream.workspace = true
 async-trait.workspace = true
 bytes.workspace = true

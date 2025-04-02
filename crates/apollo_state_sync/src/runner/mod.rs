@@ -20,6 +20,8 @@ use apollo_central_sync::{
     GENESIS_HASH,
 };
 use apollo_class_manager_types::SharedClassManagerClient;
+use apollo_infra::component_definitions::ComponentStarter;
+use apollo_infra::component_server::WrapperServer;
 use apollo_network::network_manager::metrics::{NetworkMetrics, SqmrNetworkMetrics};
 use apollo_network::network_manager::{self, NetworkError, NetworkManager};
 use apollo_p2p_sync::client::{
@@ -31,8 +33,6 @@ use apollo_p2p_sync::client::{
 use apollo_p2p_sync::server::{P2pSyncServer, P2pSyncServerChannels};
 use apollo_p2p_sync::{Protocol, BUFFER_SIZE};
 use apollo_reverts::{revert_block, revert_blocks_and_eternal_pending};
-use apollo_sequencer_infra::component_definitions::ComponentStarter;
-use apollo_sequencer_infra::component_server::WrapperServer;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::body::BodyStorageReader;
 use apollo_storage::class_manager::ClassManagerStorageReader;

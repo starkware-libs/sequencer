@@ -1,14 +1,10 @@
-use apollo_l1_provider_types::{L1ProviderRequest, L1ProviderResponse};
-use apollo_sequencer_infra::component_client::{LocalComponentClient, RemoteComponentClient};
-use apollo_sequencer_infra::component_definitions::{
+use apollo_infra::component_client::{LocalComponentClient, RemoteComponentClient};
+use apollo_infra::component_definitions::{
     ComponentRequestAndResponseSender,
     ComponentRequestHandler,
 };
-use apollo_sequencer_infra::component_server::{
-    LocalComponentServer,
-    RemoteComponentServer,
-    WrapperServer,
-};
+use apollo_infra::component_server::{LocalComponentServer, RemoteComponentServer, WrapperServer};
+use apollo_l1_provider_types::{L1ProviderRequest, L1ProviderResponse};
 use async_trait::async_trait;
 use tracing::instrument;
 

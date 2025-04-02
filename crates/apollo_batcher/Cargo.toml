@@ -16,11 +16,11 @@ workspace = true
 apollo_batcher_types.workspace = true
 apollo_class_manager_types.workspace = true
 apollo_config.workspace = true
+apollo_infra.workspace = true
 apollo_l1_provider_types.workspace = true
 apollo_mempool_types.workspace = true
+apollo_metrics.workspace = true
 apollo_reverts.workspace = true
-apollo_sequencer_infra.workspace = true
-apollo_sequencer_metrics.workspace = true
 apollo_state_reader.workspace = true
 apollo_state_sync_types.workspace = true
 apollo_storage.workspace = true
@@ -41,7 +41,7 @@ apollo_class_manager_types = { workspace = true, features = ["testing"] }
 apollo_infra_utils.workspace = true
 apollo_l1_provider_types = { workspace = true, features = ["testing"] }
 apollo_mempool_types = { workspace = true, features = ["testing"] }
-apollo_sequencer_metrics = { workspace = true, features = ["testing"] }
+apollo_metrics = { workspace = true, features = ["testing"] }
 apollo_storage = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
 blockifier = { workspace = true, features = ["testing"] }

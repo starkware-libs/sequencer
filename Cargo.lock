@@ -756,12 +756,12 @@ dependencies = [
  "apollo_batcher_types",
  "apollo_class_manager_types",
  "apollo_config",
+ "apollo_infra",
  "apollo_infra_utils",
  "apollo_l1_provider_types",
  "apollo_mempool_types",
+ "apollo_metrics",
  "apollo_reverts",
- "apollo_sequencer_infra",
- "apollo_sequencer_metrics",
  "apollo_state_reader",
  "apollo_state_sync_types",
  "apollo_storage",
@@ -791,8 +791,8 @@ dependencies = [
 name = "apollo_batcher_types"
 version = "0.0.0"
 dependencies = [
+ "apollo_infra",
  "apollo_proc_macros",
- "apollo_sequencer_infra",
  "apollo_state_sync_types",
  "async-trait",
  "blockifier",
@@ -811,8 +811,8 @@ version = "0.0.0"
 dependencies = [
  "apollo_class_manager_types",
  "apollo_config",
+ "apollo_metrics",
  "apollo_proc_macros",
- "apollo_sequencer_metrics",
  "apollo_storage",
  "apollo_test_utils",
  "assert_matches",
@@ -848,8 +848,8 @@ version = "0.0.0"
 dependencies = [
  "apollo_class_manager_types",
  "apollo_config",
- "apollo_sequencer_infra",
- "apollo_sequencer_metrics",
+ "apollo_infra",
+ "apollo_metrics",
  "apollo_sierra_multicompile_types",
  "apollo_storage",
  "async-trait",
@@ -870,8 +870,8 @@ dependencies = [
 name = "apollo_class_manager_types"
 version = "0.0.0"
 dependencies = [
+ "apollo_infra",
  "apollo_proc_macros",
- "apollo_sequencer_infra",
  "apollo_sierra_multicompile_types",
  "async-trait",
  "mockall",
@@ -907,10 +907,10 @@ name = "apollo_consensus"
 version = "0.0.0"
 dependencies = [
  "apollo_config",
+ "apollo_metrics",
  "apollo_network",
  "apollo_network_types",
  "apollo_protobuf",
- "apollo_sequencer_metrics",
  "apollo_storage",
  "apollo_test_utils",
  "async-trait",
@@ -946,14 +946,14 @@ dependencies = [
  "apollo_config",
  "apollo_consensus",
  "apollo_consensus_orchestrator",
+ "apollo_infra",
  "apollo_infra_utils",
  "apollo_l1_gas_price",
  "apollo_l1_gas_price_types",
+ "apollo_metrics",
  "apollo_network",
  "apollo_protobuf",
  "apollo_reverts",
- "apollo_sequencer_infra",
- "apollo_sequencer_metrics",
  "apollo_state_sync_types",
  "async-trait",
  "futures",
@@ -977,9 +977,9 @@ dependencies = [
  "apollo_consensus",
  "apollo_infra_utils",
  "apollo_l1_gas_price_types",
+ "apollo_metrics",
  "apollo_network",
  "apollo_protobuf",
- "apollo_sequencer_metrics",
  "apollo_state_sync_types",
  "apollo_storage",
  "apollo_test_utils",
@@ -1012,19 +1012,56 @@ dependencies = [
 ]
 
 [[package]]
+name = "apollo_dashboard"
+version = "0.0.0"
+dependencies = [
+ "apollo_batcher",
+ "apollo_central_sync",
+ "apollo_consensus",
+ "apollo_consensus_manager",
+ "apollo_gateway",
+ "apollo_http_server",
+ "apollo_infra",
+ "apollo_infra_utils",
+ "apollo_mempool",
+ "apollo_mempool_p2p",
+ "apollo_metrics",
+ "apollo_state_sync",
+ "const_format",
+ "indexmap 2.7.0",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "apollo_deployments"
+version = "0.0.0"
+dependencies = [
+ "apollo_infra_utils",
+ "apollo_monitoring_endpoint",
+ "apollo_node",
+ "indexmap 2.7.0",
+ "serde",
+ "serde_json",
+ "starknet_api",
+ "strum 0.25.0",
+ "strum_macros 0.25.3",
+]
+
+[[package]]
 name = "apollo_gateway"
 version = "0.0.0"
 dependencies = [
  "apollo_class_manager_types",
  "apollo_config",
  "apollo_gateway_types",
+ "apollo_infra",
  "apollo_mempool",
  "apollo_mempool_types",
+ "apollo_metrics",
  "apollo_network_types",
  "apollo_proc_macros",
  "apollo_rpc",
- "apollo_sequencer_infra",
- "apollo_sequencer_metrics",
  "apollo_sierra_multicompile",
  "apollo_state_sync_types",
  "apollo_test_utils",
@@ -1063,10 +1100,10 @@ dependencies = [
 name = "apollo_gateway_types"
 version = "0.0.0"
 dependencies = [
+ "apollo_infra",
  "apollo_network_types",
  "apollo_proc_macros",
  "apollo_rpc",
- "apollo_sequencer_infra",
  "async-trait",
  "enum-assoc",
  "mockall",
@@ -1084,9 +1121,9 @@ version = "0.0.0"
 dependencies = [
  "apollo_config",
  "apollo_gateway_types",
+ "apollo_infra",
  "apollo_infra_utils",
- "apollo_sequencer_infra",
- "apollo_sequencer_metrics",
+ "apollo_metrics",
  "assert_matches",
  "axum",
  "base64 0.13.1",
@@ -1109,6 +1146,34 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-test",
+ "validator",
+]
+
+[[package]]
+name = "apollo_infra"
+version = "0.0.0"
+dependencies = [
+ "apollo_config",
+ "apollo_infra_utils",
+ "apollo_metrics",
+ "assert_matches",
+ "async-trait",
+ "hyper 0.14.32",
+ "metrics 0.24.1",
+ "metrics-exporter-prometheus",
+ "once_cell",
+ "pretty_assertions",
+ "rstest",
+ "serde",
+ "serde_json",
+ "starknet-types-core",
+ "starknet_api",
+ "thiserror 1.0.69",
+ "time",
+ "tokio",
+ "tower 0.4.13",
+ "tracing",
+ "tracing-subscriber",
  "validator",
 ]
 
@@ -1143,8 +1208,10 @@ dependencies = [
  "apollo_consensus",
  "apollo_consensus_manager",
  "apollo_consensus_orchestrator",
+ "apollo_deployments",
  "apollo_gateway",
  "apollo_http_server",
+ "apollo_infra",
  "apollo_infra_utils",
  "apollo_l1_gas_price",
  "apollo_l1_provider",
@@ -1152,10 +1219,8 @@ dependencies = [
  "apollo_mempool_p2p",
  "apollo_monitoring_endpoint",
  "apollo_network",
+ "apollo_node",
  "apollo_protobuf",
- "apollo_sequencer_deployments",
- "apollo_sequencer_infra",
- "apollo_sequencer_node",
  "apollo_sierra_multicompile",
  "apollo_state_sync",
  "apollo_storage",
@@ -1190,8 +1255,8 @@ name = "apollo_l1_gas_price"
 version = "0.0.0"
 dependencies = [
  "apollo_config",
+ "apollo_infra",
  "apollo_l1_gas_price_types",
- "apollo_sequencer_infra",
  "async-trait",
  "mockall",
  "mockito 1.6.1",
@@ -1211,8 +1276,8 @@ dependencies = [
 name = "apollo_l1_gas_price_types"
 version = "0.0.0"
 dependencies = [
+ "apollo_infra",
  "apollo_proc_macros",
- "apollo_sequencer_infra",
  "async-trait",
  "mockall",
  "papyrus_base_layer",
@@ -1231,8 +1296,8 @@ version = "0.0.0"
 dependencies = [
  "alloy",
  "apollo_config",
+ "apollo_infra",
  "apollo_l1_provider_types",
- "apollo_sequencer_infra",
  "apollo_state_sync_types",
  "assert_matches",
  "async-trait",
@@ -1255,8 +1320,8 @@ dependencies = [
 name = "apollo_l1_provider_types"
 version = "0.0.0"
 dependencies = [
+ "apollo_infra",
  "apollo_proc_macros",
- "apollo_sequencer_infra",
  "async-trait",
  "mockall",
  "papyrus_base_layer",
@@ -1272,12 +1337,12 @@ name = "apollo_mempool"
 version = "0.0.0"
 dependencies = [
  "apollo_config",
+ "apollo_infra",
  "apollo_mempool_p2p_types",
  "apollo_mempool_types",
+ "apollo_metrics",
  "apollo_network",
  "apollo_network_types",
- "apollo_sequencer_infra",
- "apollo_sequencer_metrics",
  "apollo_test_utils",
  "assert_matches",
  "async-trait",
@@ -1306,12 +1371,12 @@ dependencies = [
  "apollo_class_manager_types",
  "apollo_config",
  "apollo_gateway_types",
+ "apollo_infra",
  "apollo_mempool_p2p_types",
+ "apollo_metrics",
  "apollo_network",
  "apollo_network_types",
  "apollo_protobuf",
- "apollo_sequencer_infra",
- "apollo_sequencer_metrics",
  "apollo_test_utils",
  "async-trait",
  "futures",
@@ -1329,9 +1394,9 @@ dependencies = [
 name = "apollo_mempool_p2p_types"
 version = "0.0.0"
 dependencies = [
+ "apollo_infra",
  "apollo_network_types",
  "apollo_proc_macros",
- "apollo_sequencer_infra",
  "async-trait",
  "mockall",
  "serde",
@@ -1344,9 +1409,9 @@ dependencies = [
 name = "apollo_mempool_types"
 version = "0.0.0"
 dependencies = [
+ "apollo_infra",
  "apollo_network_types",
  "apollo_proc_macros",
- "apollo_sequencer_infra",
  "async-trait",
  "mockall",
  "serde",
@@ -1356,14 +1421,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "apollo_metrics"
+version = "0.0.0"
+dependencies = [
+ "indexmap 2.7.0",
+ "metrics 0.24.1",
+ "metrics-exporter-prometheus",
+ "num-traits",
+ "paste",
+ "regex",
+ "rstest",
+ "strum 0.25.0",
+ "strum_macros 0.25.3",
+]
+
+[[package]]
 name = "apollo_monitoring_endpoint"
 version = "0.0.0"
 dependencies = [
  "apollo_config",
+ "apollo_infra",
  "apollo_infra_utils",
  "apollo_mempool_types",
- "apollo_sequencer_infra",
- "apollo_sequencer_metrics",
+ "apollo_metrics",
  "axum",
  "hyper 0.14.32",
  "metrics 0.24.1",
@@ -1386,8 +1466,8 @@ name = "apollo_network"
 version = "0.0.0"
 dependencies = [
  "apollo_config",
+ "apollo_metrics",
  "apollo_network_types",
- "apollo_sequencer_metrics",
  "assert_matches",
  "async-stream",
  "async-trait",
@@ -1423,6 +1503,54 @@ dependencies = [
  "libp2p",
  "rand_chacha 0.3.1",
  "serde",
+]
+
+[[package]]
+name = "apollo_node"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "apollo_batcher",
+ "apollo_batcher_types",
+ "apollo_class_manager",
+ "apollo_class_manager_types",
+ "apollo_config",
+ "apollo_consensus_manager",
+ "apollo_gateway",
+ "apollo_gateway_types",
+ "apollo_http_server",
+ "apollo_infra",
+ "apollo_infra_utils",
+ "apollo_l1_gas_price",
+ "apollo_l1_gas_price_types",
+ "apollo_l1_provider",
+ "apollo_l1_provider_types",
+ "apollo_mempool",
+ "apollo_mempool_p2p",
+ "apollo_mempool_p2p_types",
+ "apollo_mempool_types",
+ "apollo_monitoring_endpoint",
+ "apollo_reverts",
+ "apollo_sierra_multicompile",
+ "apollo_sierra_multicompile_types",
+ "apollo_state_sync",
+ "apollo_state_sync_types",
+ "assert_matches",
+ "clap",
+ "colored 3.0.0",
+ "const_format",
+ "futures",
+ "mempool_test_utils",
+ "papyrus_base_layer",
+ "pretty_assertions",
+ "rstest",
+ "serde",
+ "serde_json",
+ "tikv-jemallocator",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "validator",
 ]
 
 [[package]]
@@ -1466,7 +1594,7 @@ dependencies = [
 name = "apollo_proc_macros"
 version = "0.0.0"
 dependencies = [
- "apollo_sequencer_metrics",
+ "apollo_metrics",
  "apollo_test_utils",
  "metrics 0.24.1",
  "metrics-exporter-prometheus",
@@ -1598,140 +1726,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "apollo_sequencer_dashboard"
-version = "0.0.0"
-dependencies = [
- "apollo_batcher",
- "apollo_central_sync",
- "apollo_consensus",
- "apollo_consensus_manager",
- "apollo_gateway",
- "apollo_http_server",
- "apollo_infra_utils",
- "apollo_mempool",
- "apollo_mempool_p2p",
- "apollo_sequencer_infra",
- "apollo_sequencer_metrics",
- "apollo_state_sync",
- "const_format",
- "indexmap 2.7.0",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "apollo_sequencer_deployments"
-version = "0.0.0"
-dependencies = [
- "apollo_infra_utils",
- "apollo_monitoring_endpoint",
- "apollo_sequencer_node",
- "indexmap 2.7.0",
- "serde",
- "serde_json",
- "starknet_api",
- "strum 0.25.0",
- "strum_macros 0.25.3",
-]
-
-[[package]]
-name = "apollo_sequencer_infra"
-version = "0.0.0"
-dependencies = [
- "apollo_config",
- "apollo_infra_utils",
- "apollo_sequencer_metrics",
- "assert_matches",
- "async-trait",
- "hyper 0.14.32",
- "metrics 0.24.1",
- "metrics-exporter-prometheus",
- "once_cell",
- "pretty_assertions",
- "rstest",
- "serde",
- "serde_json",
- "starknet-types-core",
- "starknet_api",
- "thiserror 1.0.69",
- "time",
- "tokio",
- "tower 0.4.13",
- "tracing",
- "tracing-subscriber",
- "validator",
-]
-
-[[package]]
-name = "apollo_sequencer_metrics"
-version = "0.0.0"
-dependencies = [
- "indexmap 2.7.0",
- "metrics 0.24.1",
- "metrics-exporter-prometheus",
- "num-traits",
- "paste",
- "regex",
- "rstest",
- "strum 0.25.0",
- "strum_macros 0.25.3",
-]
-
-[[package]]
-name = "apollo_sequencer_node"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "apollo_batcher",
- "apollo_batcher_types",
- "apollo_class_manager",
- "apollo_class_manager_types",
- "apollo_config",
- "apollo_consensus_manager",
- "apollo_gateway",
- "apollo_gateway_types",
- "apollo_http_server",
- "apollo_infra_utils",
- "apollo_l1_gas_price",
- "apollo_l1_gas_price_types",
- "apollo_l1_provider",
- "apollo_l1_provider_types",
- "apollo_mempool",
- "apollo_mempool_p2p",
- "apollo_mempool_p2p_types",
- "apollo_mempool_types",
- "apollo_monitoring_endpoint",
- "apollo_reverts",
- "apollo_sequencer_infra",
- "apollo_sierra_multicompile",
- "apollo_sierra_multicompile_types",
- "apollo_state_sync",
- "apollo_state_sync_types",
- "assert_matches",
- "clap",
- "colored 3.0.0",
- "const_format",
- "futures",
- "mempool_test_utils",
- "papyrus_base_layer",
- "pretty_assertions",
- "rstest",
- "serde",
- "serde_json",
- "tikv-jemallocator",
- "tokio",
- "tokio-util",
- "tracing",
- "validator",
-]
-
-[[package]]
 name = "apollo_sierra_multicompile"
 version = "0.0.0"
 dependencies = [
  "apollo_config",
+ "apollo_infra",
  "apollo_infra_utils",
- "apollo_sequencer_infra",
  "apollo_sierra_multicompile_types",
  "assert_matches",
  "async-trait",
@@ -1757,8 +1757,8 @@ dependencies = [
 name = "apollo_sierra_multicompile_types"
 version = "0.0.0"
 dependencies = [
+ "apollo_infra",
  "apollo_proc_macros",
- "apollo_sequencer_infra",
  "async-trait",
  "mockall",
  "serde",
@@ -1792,12 +1792,12 @@ dependencies = [
  "apollo_central_sync",
  "apollo_class_manager_types",
  "apollo_config",
+ "apollo_infra",
+ "apollo_metrics",
  "apollo_network",
  "apollo_p2p_sync",
  "apollo_reverts",
  "apollo_rpc",
- "apollo_sequencer_infra",
- "apollo_sequencer_metrics",
  "apollo_state_sync_types",
  "apollo_storage",
  "apollo_test_utils",
@@ -1819,8 +1819,8 @@ dependencies = [
 name = "apollo_state_sync_types"
 version = "0.0.0"
 dependencies = [
+ "apollo_infra",
  "apollo_proc_macros",
- "apollo_sequencer_infra",
  "apollo_storage",
  "async-trait",
  "futures",

@@ -1,6 +1,6 @@
+use apollo_infra::component_definitions::ComponentStarter;
 use apollo_network::network_manager::NetworkError;
 use apollo_p2p_sync::client::P2pSyncClientError;
-use apollo_sequencer_infra::component_definitions::ComponentStarter;
 use futures::future::{pending, ready};
 use futures::FutureExt;
 

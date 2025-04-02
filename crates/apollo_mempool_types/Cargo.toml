@@ -12,9 +12,9 @@ workspace = true
 testing = ["mockall"]
 
 [dependencies]
+apollo_infra.workspace = true
 apollo_network_types.workspace = true
 apollo_proc_macros.workspace = true
-apollo_sequencer_infra.workspace = true
 async-trait.workspace = true
 mockall = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }

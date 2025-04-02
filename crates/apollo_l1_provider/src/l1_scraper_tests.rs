@@ -3,8 +3,8 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use alloy::primitives::U256;
+use apollo_infra::trace_util::configure_tracing;
 use apollo_l1_provider_types::{Event, L1ProviderClient};
-use apollo_sequencer_infra::trace_util::configure_tracing;
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use itertools::Itertools;

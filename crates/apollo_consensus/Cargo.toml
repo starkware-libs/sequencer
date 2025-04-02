@@ -11,10 +11,10 @@ testing = []
 
 [dependencies]
 apollo_config.workspace = true
+apollo_metrics.workspace = true
 apollo_network.workspace = true
 apollo_network_types.workspace = true
 apollo_protobuf.workspace = true
-apollo_sequencer_metrics.workspace = true
 async-trait.workspace = true
 clap = { workspace = true, features = ["derive"] }
 fs2.workspace = true

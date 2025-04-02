@@ -1,10 +1,10 @@
 use std::net::SocketAddr;
 
+use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::type_name::short_type_name;
 use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_mempool_types::mempool_types::MempoolSnapshot;
-use apollo_sequencer_infra::component_definitions::ComponentStarter;
-use apollo_sequencer_metrics::metrics::COLLECT_SEQUENCER_PROFILING_METRICS;
+use apollo_metrics::metrics::COLLECT_SEQUENCER_PROFILING_METRICS;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
