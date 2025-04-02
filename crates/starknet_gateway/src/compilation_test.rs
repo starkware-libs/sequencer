@@ -18,7 +18,7 @@ use crate::compilation::GatewayCompiler;
 
 #[fixture]
 fn gateway_compiler() -> GatewayCompiler {
-    GatewayCompiler::new_command_line_compiler(SierraCompilationConfig::default())
+    GatewayCompiler::new(SierraCompilationConfig::default())
 }
 
 #[fixture]
@@ -33,9 +33,7 @@ fn declare_tx_v3() -> RpcDeclareTransactionV3 {
 #[traced_test]
 #[rstest]
 fn test_compile_contract_class_bytecode_size_validation(declare_tx_v3: RpcDeclareTransactionV3) {
-    let gateway_compiler = GatewayCompiler::new_command_line_compiler(SierraCompilationConfig {
-        max_bytecode_size: 1,
-    });
+    let gateway_compiler = GatewayCompiler::new(SierraCompilationConfig { max_bytecode_size: 1 });
 
     let result = gateway_compiler.process_declare_tx(&RpcDeclareTransaction::V3(declare_tx_v3));
     assert_matches!(result.unwrap_err(), GatewaySpecError::CompilationFailed);

@@ -12,12 +12,12 @@ use crate::config::SierraCompilationConfig;
 use crate::constants::CAIRO_NATIVE_BINARY_NAME;
 
 #[derive(Clone)]
-pub struct CommandLineCompiler {
+pub struct SierraToNativeCompiler {
     pub config: SierraCompilationConfig,
     path_to_binary: PathBuf,
 }
 
-impl CommandLineCompiler {
+impl SierraToNativeCompiler {
     pub fn new(config: SierraCompilationConfig) -> Self {
         let path_to_binary = match &config.compiler_binary_path {
             Some(path) => path.clone(),

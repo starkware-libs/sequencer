@@ -9,7 +9,7 @@ use starknet_api::core::ClassHash;
 use starknet_api::state::SierraContractClass;
 use starknet_compilation_utils::class_utils::into_contract_class_for_compilation;
 use starknet_compilation_utils::errors::CompilationUtilError;
-use starknet_compile_to_native::compiler::CommandLineCompiler;
+use starknet_compile_to_native::compiler::SierraToNativeCompiler;
 use thiserror::Error;
 
 use crate::blockifier::config::{
@@ -52,7 +52,7 @@ pub struct NativeClassManager {
     /// disabled.
     sender: Option<SyncSender<CompilationRequest>>,
     /// The sierra-to-native compiler.
-    compiler: Option<Arc<CommandLineCompiler>>,
+    compiler: Option<Arc<SierraToNativeCompiler>>,
 }
 
 impl NativeClassManager {
@@ -78,7 +78,7 @@ impl NativeClassManager {
         }
 
         let compiler_config = config.native_compiler_config.clone();
-        let compiler = Arc::new(CommandLineCompiler::new(compiler_config));
+        let compiler = Arc::new(SierraToNativeCompiler::new(compiler_config));
         if cairo_native_run_config.wait_on_native_compilation {
             // Compilation requests are processed synchronously. No need to start the worker.
             return NativeClassManager {
@@ -234,7 +234,7 @@ impl NativeClassManager {
 fn run_compilation_worker(
     cache: RawClassCache,
     receiver: Receiver<CompilationRequest>,
-    compiler: Arc<CommandLineCompiler>,
+    compiler: Arc<SierraToNativeCompiler>,
     panic_on_compilation_failure: bool,
 ) {
     log::info!("Compilation worker started.");
@@ -253,7 +253,7 @@ fn run_compilation_worker(
 /// Processes a compilation request and caches the result.
 fn process_compilation_request(
     cache: RawClassCache,
-    compiler: Arc<CommandLineCompiler>,
+    compiler: Arc<SierraToNativeCompiler>,
     compilation_request: CompilationRequest,
     panic_on_compilation_failure: bool,
 ) -> Result<(), CompilationUtilError> {

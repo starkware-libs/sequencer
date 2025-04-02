@@ -11,12 +11,12 @@ use crate::config::SierraCompilationConfig;
 use crate::constants::CAIRO_LANG_BINARY_NAME;
 
 #[derive(Clone)]
-pub struct CommandLineCompiler {
+pub struct SierraToCasmCompiler {
     pub config: SierraCompilationConfig,
     path_to_binary: PathBuf,
 }
 
-impl CommandLineCompiler {
+impl SierraToCasmCompiler {
     pub fn new(config: SierraCompilationConfig) -> Self {
         Self { config, path_to_binary: binary_path(&out_dir(), CAIRO_LANG_BINARY_NAME) }
     }
