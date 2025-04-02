@@ -109,7 +109,7 @@ async fn add_tx_inner(
     let region =
         headers.get(CLIENT_REGION_HEADER).and_then(|region| region.to_str().ok()).unwrap_or("N/A");
     record_added_transactions(&add_tx_result, region);
-    add_tx_result_as_json(add_tx_result)
+    Ok(Json(add_tx_result?))
 }
 
 fn record_added_transactions(add_tx_result: &HttpServerResult<GatewayOutput>, region: &str) {
@@ -121,13 +121,6 @@ fn record_added_transactions(add_tx_result: &HttpServerResult<GatewayOutput>, re
         );
     }
     record_added_transaction_status(add_tx_result.is_ok());
-}
-
-#[allow(clippy::result_large_err)]
-pub(crate) fn add_tx_result_as_json(
-    result: HttpServerResult<GatewayOutput>,
-) -> HttpServerResult<Json<GatewayOutput>> {
-    Ok(Json(result?))
 }
 
 pub fn create_http_server(

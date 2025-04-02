@@ -14,6 +14,7 @@ use apollo_sequencer_infra::component_client::ClientError;
 use axum::body::{Bytes, HttpBody};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
+use axum::Json;
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use futures::FutureExt;
 use jsonrpsee::types::error::ErrorCode;
@@ -29,7 +30,7 @@ use tracing_test::traced_test;
 
 use crate::config::HttpServerConfig;
 use crate::errors::HttpServerError;
-use crate::http_server::{add_tx_result_as_json, CLIENT_REGION_HEADER};
+use crate::http_server::CLIENT_REGION_HEADER;
 use crate::test_utils::http_client_server_setup;
 
 const DEPRECATED_GATEWAY_INVOKE_TX_RESPONSE_JSON_PATH: &str =
@@ -57,11 +58,11 @@ const DEPRECATED_GATEWAY_DEPLOY_ACCOUNT_TX_RESPONSE_JSON_PATH: &str =
     DEPRECATED_GATEWAY_DEPLOY_ACCOUNT_TX_RESPONSE_JSON_PATH,
 )]
 #[tokio::test]
-async fn test_gateway_output_json_conversion(
+async fn gateway_output_json_conversion(
     #[case] gateway_output: GatewayOutput,
     #[case] expected_serialized_response_path: &str,
 ) {
-    let response = add_tx_result_as_json(Ok(gateway_output)).into_response();
+    let response = Json(gateway_output).into_response();
 
     let status_code = response.status();
     let response_bytes = &to_bytes(response).await;
@@ -80,11 +81,11 @@ async fn to_bytes(res: Response) -> Bytes {
 }
 
 #[tokio::test]
-async fn test_add_tx_result_as_json_negative() {
+async fn error_into_response() {
     let error = HttpServerError::DeserializationError(
         serde_json::from_str::<serde_json::Value>("invalid json").unwrap_err(),
     );
-    let response = add_tx_result_as_json(Err(error)).unwrap_err().into_response();
+    let response = error.into_response();
 
     let status = response.status();
     let body = to_bytes(response).await;
