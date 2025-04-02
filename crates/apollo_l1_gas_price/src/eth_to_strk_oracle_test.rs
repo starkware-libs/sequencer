@@ -29,7 +29,7 @@ async fn eth_to_fri_rate() {
     // Construct the base URL from the mock server
     let base_url = Url::parse(&server.url()).unwrap();
 
-    let client = EthToStrkOracleClient::new(base_url, None);
+    let client = EthToStrkOracleClient::new(base_url, None, 0);
     let rate = client.eth_to_fri_rate(timestamp).await.unwrap();
 
     assert_eq!(rate, expected_rate);
