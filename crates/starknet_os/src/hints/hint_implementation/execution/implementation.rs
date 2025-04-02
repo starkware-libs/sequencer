@@ -247,10 +247,27 @@ pub(crate) fn end_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> Os
     todo!()
 }
 
-pub(crate) fn enter_call<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> OsHintResult {
-    // TODO(lior): No longer equivalent to moonsong impl; PTAL the new implementation of
-    //   enter_call().
-    todo!()
+pub(crate) fn enter_call<S: StateReader>(
+    HintArgs { hint_processor, .. }: HintArgs<'_, '_, S>,
+) -> OsHintResult {
+    if hint_processor
+        .get_mut_current_execution_helper()?
+        .tx_execution_iter
+        .get_tx_execution_info_ref()?
+        .call_info_tracker
+        .is_some() {
+            return Err(OsHintError::AssertionFailed {
+                message: "Cannot enter a call when already in a call.".to_string(),
+            });
+    }
+
+    hint_processor
+        .get_mut_current_execution_helper()?
+        .tx_execution_iter
+        .get_mut_tx_execution_info_ref()?
+        .next_call_info()
+        .ok_or(OsHintError::EndOfIterator { item_type: "call_info".to_string() })?;
+    Ok(())
 }
 
 pub(crate) fn exit_call<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> OsHintResult {

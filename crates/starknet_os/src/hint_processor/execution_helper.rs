@@ -7,7 +7,10 @@ use blockifier::state::state_api::StateReader;
 #[cfg(any(feature = "testing", test))]
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
+use starknet_api::contract_class::EntryPointType;
+use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::executable_transaction::TransactionType;
+use starknet_types_core::felt::Felt;
 
 use crate::errors::StarknetOsError;
 use crate::hint_processor::os_logger::OsLogger;
@@ -138,12 +141,30 @@ impl<'a> TransactionExecutionIter<'a> {
 
 pub struct CallInfoTracker<'a> {
     pub call_info: &'a CallInfo,
+    pub deployed_contracts_iterator: Box<dyn Iterator<Item = ContractAddress> + 'a>,
+    pub inner_calls_iterator: Iter<'a, CallInfo>,
+    pub execute_code_read_iterator: Iter<'a, Felt>,
+    pub execute_code_class_hash_read_iterator: Iter<'a, ClassHash>,
 }
 
 impl<'a> CallInfoTracker<'a> {
     pub fn new(call_info: &'a CallInfo) -> Self {
-        // TODO(yoav): initial the call info data iterators.
-        Self { call_info }
+        Self {
+            call_info,
+            deployed_contracts_iterator: Box::new(
+                call_info
+                    .inner_calls
+                    .iter()
+                    .filter(|inner| inner.call.entry_point_type == EntryPointType::Constructor)
+                    .map(|inner| inner.call.caller_address),
+            ),
+            inner_calls_iterator: call_info.inner_calls.iter(),
+            execute_code_read_iterator: call_info.storage_access_tracker.storage_read_values.iter(),
+            execute_code_class_hash_read_iterator: call_info
+                .storage_access_tracker
+                .read_class_hash_values
+                .iter(),
+        }
     }
 }
 
