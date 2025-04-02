@@ -204,6 +204,7 @@ use strum::IntoEnumIterator;
 
 use crate::os_cli::commands::{validate_input, Input};
 use crate::os_cli::tests::aliases::aliases_test;
+use crate::os_cli::tests::bls_field::test_bls_field;
 use crate::os_cli::tests::types::{OsPythonTestError, OsPythonTestResult, OsSpecificTestError};
 use crate::os_cli::tests::utils::test_cairo_function;
 use crate::shared_utils::types::{PythonTestError, PythonTestRunner};
@@ -211,6 +212,7 @@ use crate::shared_utils::types::{PythonTestError, PythonTestRunner};
 // Enum representing different Python tests.
 pub enum OsPythonTestRunner {
     AliasesTest,
+    BlsFieldTest,
     CompareOsHints,
     InputDeserialization,
     RunDummyFunction,
@@ -224,6 +226,7 @@ impl TryFrom<String> for OsPythonTestRunner {
     fn try_from(value: String) -> Result<Self, Self::Error> {
         match value.as_str() {
             "aliases_test" => Ok(Self::AliasesTest),
+            "bls_field_test" => Ok(Self::BlsFieldTest),
             "compare_os_hints" => Ok(Self::CompareOsHints),
             "input_deserialization" => Ok(Self::InputDeserialization),
             "run_dummy_function" => Ok(Self::RunDummyFunction),
@@ -238,6 +241,7 @@ impl PythonTestRunner for OsPythonTestRunner {
     async fn run(&self, input: Option<&str>) -> OsPythonTestResult {
         match self {
             Self::AliasesTest => aliases_test(Self::non_optional_input(input)?),
+            Self::BlsFieldTest => test_bls_field(Self::non_optional_input(input)?),
             Self::CompareOsHints => compare_os_hints(Self::non_optional_input(input)?),
             Self::InputDeserialization => input_deserialization(Self::non_optional_input(input)?),
             Self::RunDummyFunction => run_dummy_cairo_function(Self::non_optional_input(input)?),
