@@ -16,8 +16,9 @@ use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_test_utils::{get_rng, GetTestInstance};
 use assert_matches::assert_matches;
 use blockifier::context::ChainInfo;
+use blockifier::test_utils::initial_test_state::fund_account;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
-use mempool_test_utils::starknet_api_test_utils::{declare_tx, invoke_tx};
+use mempool_test_utils::starknet_api_test_utils::{declare_tx, invoke_tx, VALID_ACCOUNT_BALANCE};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use rstest::{fixture, rstest};
@@ -70,7 +71,7 @@ fn config() -> GatewayConfig {
 
 #[fixture]
 fn state_reader_factory() -> TestStateReaderFactory {
-    local_test_state_reader_factory(CairoVersion::Cairo1(RunnableCairo1::Casm), false)
+    local_test_state_reader_factory(CairoVersion::Cairo1(RunnableCairo1::Casm), true)
 }
 
 #[fixture]
@@ -121,6 +122,15 @@ fn create_tx() -> (RpcTransaction, SenderAddress) {
     (tx, sender_address)
 }
 
+fn fund_account_with_address(mock_dependencies: &mut MockDependencies, address: ContractAddress) {
+    fund_account(
+        &mock_dependencies.config.chain_info,
+        address,
+        VALID_ACCOUNT_BALANCE,
+        &mut mock_dependencies.state_reader_factory.state_reader.blockifier_state_reader,
+    );
+}
+
 // TODO(AlonH): add test with Some broadcasted message metadata
 // We use default nonce, address, and tx_hash since Gateway errors drop these details when
 // converting Mempool errors.
@@ -164,6 +174,8 @@ async fn test_add_tx(
     let InvokeTransaction::V3(invoke_tx): InvokeTransaction = rpc_invoke_tx.clone().into() else {
         panic!("Unexpected transaction version")
     };
+
+    fund_account_with_address(&mut mock_dependencies, address);
 
     let tx_hash = invoke_tx
         .calculate_transaction_hash(&CHAIN_ID_FOR_TESTS, &TransactionVersion::THREE)
