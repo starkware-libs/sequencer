@@ -7,11 +7,12 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
 use cairo_vm::types::relocatable::Relocatable;
 use starknet_types_core::felt::Felt;
 
+use crate::hint_processor::execution_helper::TransactionExecutionInfoForExecutionHelper;
 use crate::hints::enum_definition::{AllHints, OsHint};
-use crate::hints::error::OsHintResult;
+use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;
-use crate::hints::vars::Ids;
+use crate::hints::vars::{Ids, Scope};
 
 pub(crate) fn set_sha256_segment_in_syscall_handler<S: StateReader>(
     HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
@@ -73,10 +74,28 @@ pub(crate) fn skip_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHin
     todo!()
 }
 
-pub(crate) fn start_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    // TODO(lior): No longer equivalent to moonsong impl; PTAL at the new implementation of
-    //   start_tx().
-    todo!()
+pub(crate) fn start_tx<S: StateReader>(
+    HintArgs { hint_processor, exec_scopes, .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    if exec_scopes
+        .get::<TransactionExecutionInfoForExecutionHelper>(Scope::TxExecutionInfo.into())
+        .is_ok()
+    {
+        return Err(OsHintError::AssertionFailed {
+            message: "start_tx() called twice in a row".to_string(),
+        });
+    }
+
+    let tx_type = exec_scopes.get(Scope::TxType.into())?;
+    match hint_processor.execution_helper.next_tx_execution_infos(tx_type) {
+        Some((tx_execution_helper_info, call_info_iter)) => {
+            exec_scopes.insert_value(Scope::TxExecutionInfo.into(), tx_execution_helper_info);
+            exec_scopes.insert_value(Scope::CallIterator.into(), call_info_iter);
+
+            Ok(())
+        }
+        None => Err(OsHintError::EndOfIterator { item_type: "tx_execution_info".into() }),
+    }
 }
 
 pub(crate) fn os_input_transactions<S: StateReader>(
