@@ -14,4 +14,5 @@ pub mod secp;
 #[cfg(feature = "cairo_native")]
 pub mod native;
 pub mod stack_trace;
+pub mod syscall_macro_utils;
 pub mod syscalls;

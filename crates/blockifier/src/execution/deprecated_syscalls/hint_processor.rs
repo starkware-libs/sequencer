@@ -70,6 +70,7 @@ use crate::execution::execution_utils::{
 };
 use crate::execution::hint_code;
 use crate::execution::syscalls::hint_processor::{EmitEventError, SyscallUsageMap};
+use crate::match_selector_to_execute_syscall;
 use crate::state::errors::StateError;
 use crate::state::state_api::State;
 use crate::transaction::objects::TransactionInfo;
@@ -265,43 +266,42 @@ impl<'a> DeprecatedSyscallHintProcessor<'a> {
         let selector = DeprecatedSyscallSelector::try_from(self.read_next_syscall_selector(vm)?)?;
         self.increment_syscall_count(&selector);
 
-        match selector {
-            DeprecatedSyscallSelector::CallContract => self.execute_syscall(vm, call_contract),
-            DeprecatedSyscallSelector::DelegateCall => self.execute_syscall(vm, delegate_call),
-            DeprecatedSyscallSelector::DelegateL1Handler => {
-                self.execute_syscall(vm, delegate_l1_handler)
-            }
-            DeprecatedSyscallSelector::Deploy => self.execute_syscall(vm, deploy),
-            DeprecatedSyscallSelector::EmitEvent => self.execute_syscall(vm, emit_event),
-            DeprecatedSyscallSelector::GetBlockNumber => self.execute_syscall(vm, get_block_number),
-            DeprecatedSyscallSelector::GetBlockTimestamp => {
-                self.execute_syscall(vm, get_block_timestamp)
-            }
-            DeprecatedSyscallSelector::GetCallerAddress => {
-                self.execute_syscall(vm, get_caller_address)
-            }
-            DeprecatedSyscallSelector::GetContractAddress => {
-                self.execute_syscall(vm, get_contract_address)
-            }
-            DeprecatedSyscallSelector::GetSequencerAddress => {
-                self.execute_syscall(vm, get_sequencer_address)
-            }
-            DeprecatedSyscallSelector::GetTxInfo => self.execute_syscall(vm, get_tx_info),
-            DeprecatedSyscallSelector::GetTxSignature => self.execute_syscall(vm, get_tx_signature),
-            DeprecatedSyscallSelector::LibraryCall => self.execute_syscall(vm, library_call),
-            DeprecatedSyscallSelector::LibraryCallL1Handler => {
-                self.execute_syscall(vm, library_call_l1_handler)
-            }
-            DeprecatedSyscallSelector::ReplaceClass => self.execute_syscall(vm, replace_class),
-            DeprecatedSyscallSelector::SendMessageToL1 => {
-                self.execute_syscall(vm, send_message_to_l1)
-            }
-            DeprecatedSyscallSelector::StorageRead => self.execute_syscall(vm, storage_read),
-            DeprecatedSyscallSelector::StorageWrite => self.execute_syscall(vm, storage_write),
-            _ => Err(HintError::UnknownHint(
-                format!("Unsupported syscall selector {selector:?}.").into(),
-            )),
-        }
+        // Use macro to generate the following code:
+        // match selector {
+        //     SyscallSelector::CallContract => {
+        //         self.execute_syscall(vm, call_contract)
+        //     }
+        //     SyscallSelector::DelegateCall => {
+        //         self.execute_syscall(vm, delegate_call)
+        //     }
+        //     ...
+        // }
+        // TODO(Aner): enforce macro expansion correctness.
+        match_selector_to_execute_syscall!(
+            self,
+            vm,
+            DeprecatedSyscallHintProcessor,
+            selector,
+            DeprecatedSyscallSelector,
+            (CallContract, call_contract),
+            (DelegateCall, delegate_call),
+            (DelegateL1Handler, delegate_l1_handler),
+            (Deploy, deploy),
+            (EmitEvent, emit_event),
+            (GetBlockNumber, get_block_number),
+            (GetBlockTimestamp, get_block_timestamp),
+            (GetCallerAddress, get_caller_address),
+            (GetContractAddress, get_contract_address),
+            (GetSequencerAddress, get_sequencer_address),
+            (GetTxInfo, get_tx_info),
+            (GetTxSignature, get_tx_signature),
+            (LibraryCall, library_call),
+            (LibraryCallL1Handler, library_call_l1_handler),
+            (ReplaceClass, replace_class),
+            (SendMessageToL1, send_message_to_l1),
+            (StorageRead, storage_read),
+            (StorageWrite, storage_write)
+        )
     }
 
     pub fn get_or_allocate_tx_signature_segment(
