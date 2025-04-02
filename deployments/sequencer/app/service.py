@@ -162,7 +162,16 @@ class ServiceApp(Construct):
         )
 
     def _get_ingress(self) -> k8s.KubeIngress:
-        self.host = f"{self.node.id}.{self.namespace}.sw-dev.io"
+        domain = self.service_topology.domain
+        self.host = f"{self.node.id}-{self.namespace}.{domain}"
+        dns_names = self.host
+        
+        if self.service_topology.ingress.get("alternative_names") is not None:
+            alternative_names = self.service_topology.ingress["alternative_names"]
+            for alt_name in alternative_names:
+                if alt_name != self.host:
+                    dns_names += f",{alt_name}"
+        
         return k8s.KubeIngress(
             self,
             "ingress",
@@ -171,7 +180,11 @@ class ServiceApp(Construct):
                 labels=self.labels,
                 annotations={
                     "kubernetes.io/tls-acme": "true",
+                    "external-dns.alpha.kubernetes.io/hostname": self.host,
+                    "external-dns.alpha.kubernetes.io/ingress-hostname-source": "annotation-only",
                     "cert-manager.io/common-name": self.host,
+                    # TODO(Idan Shamam): Static dns records need to change
+                    "cert-manager.io/dns-names": dns_names,
                     "cert-manager.io/issue-temporary-certificate": "true",
                     "cert-manager.io/issuer": "letsencrypt-prod",
                     "acme.cert-manager.io/http01-edit-in-place": "true",
@@ -345,11 +358,37 @@ class ServiceApp(Construct):
                         )
                     ]
                 ),
+            ),
+            k8s.IngressRule(
+                host="gw-idan-test.integration.starknet.io",
+                http=k8s.HttpIngressRuleValue(
+                    paths=[
+                        k8s.HttpIngressPath(
+                            path="/monitoring",
+                            path_type="Prefix",
+                            backend=k8s.IngressBackend(
+                                service=k8s.IngressServiceBackend(
+                                    name=f"{self.node.id}-service",
+                                    port=k8s.ServiceBackendPort(
+                                        number=self._get_config_attr(
+                                            "monitoring_endpoint_config.port"
+                                        )
+                                    ),
+                                )
+                            ),
+                        )
+                    ]
+                ),
             )
         ]
 
     def _get_ingress_tls(self) -> typing.List[k8s.IngressTls]:
-        return [k8s.IngressTls(hosts=[self.host], secret_name=f"{self.node.id}-tls")]
+        return [
+            k8s.IngressTls(
+                hosts=[self.host, "gw-idan-test.integration.starknet.io"], 
+                secret_name=f"{self.node.id}-tls"
+            )
+        ]
 
     def _get_container_resources(self) -> k8s.ResourceRequirements:
         requests_cpu = str(self.service_topology.resources["requests"]["cpu"])
@@ -393,4 +432,4 @@ class ServiceApp(Construct):
     def _get_tolerations() -> typing.Sequence[k8s.Toleration]:
         return [
             k8s.Toleration(key="role", operator="Equal", value="sequencer", effect="NoSchedule"),
-        ]
+        ]#

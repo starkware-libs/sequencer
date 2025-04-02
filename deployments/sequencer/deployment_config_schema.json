@@ -11,7 +11,20 @@
         "properties": {
           "name": { "type": "string" },
           "config_path": { "type": "string" },
-          "ingress": { "type": "boolean" },
+          "ingress": {
+            "anyOf": [
+              {"type":"null"},
+              {
+                "type": "object",
+                "properties": {
+                  "alternative_names": {
+                    "type": "array",
+                    "items": { "type": "string" }
+                  }
+                }
+              }
+            ]
+          },
           "replicas": { "type": "integer", "minimum": 1 },
           "autoscale": { "type": "boolean" },
           "storage": {
@@ -39,6 +52,15 @@
             },
             "required": ["requests", "limits"]
           },
+          "tolerations": {
+            "anyOf": [
+              { "type": "null" },
+              {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            ]
+          },
           "external_secret": {
             "anyOf": [
               { "type": "null" },
@@ -60,10 +82,11 @@
           "autoscale",
           "storage",
           "resources",
+          "tolerations",
           "external_secret"
         ]
       }
     }
   },
-  "required": ["chain_id", "services", "image", "application_config_subdir"]
+  "required": ["chain_id", "services", "image", "application_config_subdir", "domain"]
 }

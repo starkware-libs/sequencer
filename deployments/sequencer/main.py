@@ -43,7 +43,8 @@ def main():
 
     preset = config.DeploymentConfig(args.deployment_config_file)
     services = preset.get_services()
-    image = preset.get_image()
+    image = preset["image"]
+    domain = preset["domain"]
     application_config_subdir = preset.get_application_config_subdir()
 
     for svc in services:
@@ -56,11 +57,13 @@ def main():
                     config_subdir=application_config_subdir, config_path=svc["config_path"]
                 ),
                 image=image,
+                domain=domain,
                 replicas=svc["replicas"],
                 autoscale=svc["autoscale"],
                 ingress=svc["ingress"],
                 storage=svc["storage"],
                 resources=svc["resources"],
+                tolerations=svc["tolerations"],
                 external_secret=svc["external_secret"],
             ),
         )

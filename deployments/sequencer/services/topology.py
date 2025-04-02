@@ -9,9 +9,11 @@ from services.config import SequencerConfig
 class ServiceTopology:
     config: SequencerConfig
     image: str
-    ingress: bool
+    domain: str
     replicas: int
     autoscale: bool
+    ingress: typing.Optional[dict[any, any]]
+    tolerations: typing.Optional[list[str]]
     storage: typing.Optional[int]
     resources: typing.Optional[dict[str, dict[str, int]]]
     external_secret: typing.Optional[dict[str, str]]
