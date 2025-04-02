@@ -77,7 +77,7 @@ pub(crate) fn load_deprecated_class<S: StateReader>(
     let computed_hash_addr = get_address_of_nested_fields(
         ids_data,
         Ids::CompiledClassFact,
-        CairoStruct::DeprecatedCompiledClassFact,
+        CairoStruct::DeprecatedCompiledClassFactPtr,
         vm,
         ap_tracking,
         &["hash"],
@@ -119,7 +119,7 @@ pub(crate) fn load_deprecated_class<S: StateReader>(
     let byte_code_ptr_addr = get_address_of_nested_fields(
         ids_data,
         Ids::CompiledClass,
-        CairoStruct::DeprecatedCompiledClass,
+        CairoStruct::DeprecatedCompiledClassPtr,
         vm,
         ap_tracking,
         &["bytecode_ptr"],

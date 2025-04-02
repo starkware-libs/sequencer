@@ -313,7 +313,8 @@ pub enum CairoStruct {
     CompiledClassEntryPoint,
     CompiledClassFact,
     DeprecatedCompiledClass,
-    DeprecatedCompiledClassFact,
+    DeprecatedCompiledClassFactPtr,
+    DeprecatedCompiledClassPtr,
     DeprecatedContractEntryPoint,
     DictAccess,
     ExecutionContext,
@@ -351,9 +352,13 @@ impl From<CairoStruct> for &'static str {
                 "starkware.starknet.core.os.contract_class.deprecated_compiled_class.\
                  DeprecatedCompiledClass"
             }
-            CairoStruct::DeprecatedCompiledClassFact => {
+            CairoStruct::DeprecatedCompiledClassFactPtr => {
                 "starkware.starknet.core.os.contract_class.deprecated_compiled_class.\
-                 DeprecatedCompiledClassFact"
+                 DeprecatedCompiledClassFact*"
+            }
+            CairoStruct::DeprecatedCompiledClassPtr => {
+                "starkware.starknet.core.os.contract_class.deprecated_compiled_class.\
+                 DeprecatedCompiledClass*"
             }
             CairoStruct::DeprecatedContractEntryPoint => {
                 "starkware.starknet.core.os.contract_class.deprecated_compiled_class.\
