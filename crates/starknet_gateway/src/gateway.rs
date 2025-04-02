@@ -153,7 +153,7 @@ pub fn create_gateway(
     mempool_client: SharedMempoolClient,
 ) -> Gateway {
     let state_reader_factory = Arc::new(RpcStateReaderFactory { config: rpc_state_reader_config });
-    let gateway_compiler = GatewayCompiler::new_command_line_compiler(compiler_config);
+    let gateway_compiler = GatewayCompiler::new_compiler(compiler_config);
 
     Gateway::new(config, state_reader_factory, gateway_compiler, mempool_client)
 }
