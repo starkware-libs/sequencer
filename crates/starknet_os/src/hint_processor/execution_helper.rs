@@ -83,13 +83,23 @@ impl<'a> OsExecutionHelper<'a, DictStateReader> {
 pub struct TransactionExecutionInfoReference<'a> {
     pub tx_execution_info: &'a CentralTransactionExecutionInfo,
     call_info_iter: CallInfoIter<'a>,
-    pub call_info: Option<&'a CallInfo>,
+    pub call_info_tracker: Option<CallInfoTracker<'a>>,
 }
 
-impl TransactionExecutionInfoReference<'_> {
+impl<'a> TransactionExecutionInfoReference<'a> {
     pub fn next_call_info(&mut self) -> Option<()> {
-        self.call_info = self.call_info_iter.next();
-        self.call_info.map(|_| ())
+        self.call_info_tracker = Some(CallInfoTracker::new(self.call_info_iter.next()?));
+        Some(())
+    }
+
+    pub fn get_call_info_tracker(&self) -> Result<&CallInfoTracker<'a>, ExecutionHelperError> {
+        self.call_info_tracker.as_ref().ok_or(ExecutionHelperError::MissingCallInfo)
+    }
+
+    pub fn get_mut_call_info_tracker(
+        &mut self,
+    ) -> Result<&mut CallInfoTracker<'a>, ExecutionHelperError> {
+        self.call_info_tracker.as_mut().ok_or(ExecutionHelperError::MissingCallInfo)
     }
 }
 
@@ -108,18 +118,41 @@ impl<'a> TransactionExecutionIter<'a> {
             self.tx_execution_info_ref = Some(TransactionExecutionInfoReference {
                 tx_execution_info,
                 call_info_iter: tx_execution_info.call_info_iter(tx_type),
-                call_info: None,
+                call_info_tracker: None,
             });
         })
     }
 
-    pub fn next_call_info(&mut self) -> Option<()> {
-        self.tx_execution_info_ref.as_mut().and_then(|v| v.next_call_info())
+    pub fn get_tx_execution_info_ref(
+        &self,
+    ) -> Result<&TransactionExecutionInfoReference<'a>, ExecutionHelperError> {
+        self.tx_execution_info_ref.as_ref().ok_or(ExecutionHelperError::MissingTxExecutionInfo)
+    }
+
+    pub fn get_mut_tx_execution_info_ref(
+        &mut self,
+    ) -> Result<&mut TransactionExecutionInfoReference<'a>, ExecutionHelperError> {
+        self.tx_execution_info_ref.as_mut().ok_or(ExecutionHelperError::MissingTxExecutionInfo)
+    }
+}
+
+pub struct CallInfoTracker<'a> {
+    pub call_info: &'a CallInfo,
+}
+
+impl<'a> CallInfoTracker<'a> {
+    pub fn new(call_info: &'a CallInfo) -> Self {
+        // TODO(yoav): initial the call info data iterators.
+        Self { call_info }
     }
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum ExecutionHelperError {
+    #[error("No call info found.")]
+    MissingCallInfo,
+    #[error("No transaction execution info found.")]
+    MissingTxExecutionInfo,
     #[error("Called a block execution-helper before it was initialized.")]
     NoCurrentExecutionHelper,
 }
