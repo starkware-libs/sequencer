@@ -265,7 +265,7 @@ fn process_compilation_request(
     }
     let sierra_for_compilation = into_contract_class_for_compilation(sierra.as_ref());
     let start = Instant::now();
-    let compilation_result = compiler.compile_to_native(sierra_for_compilation);
+    let compilation_result = compiler.compile(sierra_for_compilation);
     let duration = start.elapsed();
     log::debug!(
         "Compiling to native contract with class hash: {}. Duration: {:.3} seconds",
