@@ -42,7 +42,7 @@ fn compression_error_into_response(err: CompressionError) -> Response {
         "Failed to decompress the provided Sierra program.",
         None::<()>,
     );
-    serde_json::to_vec(&parse_error).expect("Expecting a serializable error.").into_response()
+    serialize_error(parse_error)
 }
 
 fn serde_error_into_response(err: serde_json::Error) -> Response {
@@ -52,7 +52,7 @@ fn serde_error_into_response(err: serde_json::Error) -> Response {
         "Failed to parse the request body.",
         None::<()>,
     );
-    serde_json::to_vec(&parse_error).expect("Expecting a serializable error.").into_response()
+    serialize_error(parse_error)
 }
 
 fn gw_client_err_into_response(err: GatewayClientError) -> Response {
@@ -85,9 +85,11 @@ fn gw_client_err_into_response(err: GatewayClientError) -> Response {
         }
     };
 
-    let response_body = serde_json::to_vec(&general_rpc_error)
-        .expect("Expecting a serializable error.")
-        .into_response();
+    let response_body = serialize_error(general_rpc_error);
 
     (response_code, response_body).into_response()
+}
+
+fn serialize_error<T: serde::Serialize>(body: T) -> Response {
+    serde_json::to_vec(&body).expect("Expecting a serializable error.").into_response()
 }
