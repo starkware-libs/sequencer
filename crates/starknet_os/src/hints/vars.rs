@@ -12,6 +12,7 @@ pub(crate) enum Scope {
     BytecodeSegments,
     BytecodeSegmentStructure,
     BytecodeSegmentStructures,
+    CallIterator,
     Case,
     CommitmentInfoByAddress,
     CompiledClass,
@@ -29,6 +30,8 @@ pub(crate) enum Scope {
     SyscallHandlerType,
     Transactions,
     Tx,
+    TxExecutionInfo,
+    TxType,
     UseKzgDa,
 }
 
@@ -38,6 +41,7 @@ impl From<Scope> for &'static str {
             Scope::BytecodeSegments => "bytecode_segments",
             Scope::BytecodeSegmentStructure => "bytecode_segment_structure",
             Scope::BytecodeSegmentStructures => "bytecode_segment_structures",
+            Scope::CallIterator => "call_iterator",
             Scope::Case => "case",
             Scope::CommitmentInfoByAddress => "commitment_info_by_address",
             Scope::CompiledClass => "compiled_class",
@@ -57,6 +61,8 @@ impl From<Scope> for &'static str {
             Scope::SyscallHandlerType => "syscall_handler_type",
             Scope::Transactions => "transactions",
             Scope::Tx => "tx",
+            Scope::TxType => "tx_type",
+            Scope::TxExecutionInfo => "tx_execution_info",
             Scope::UseKzgDa => "use_kzg_da",
         }
     }
