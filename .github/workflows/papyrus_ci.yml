@@ -15,7 +15,7 @@ on:
       - "Cargo.toml"
       - "Cargo.lock"
       - "crates/papyrus**/**"
-      - "crates/starknet_client/**"
+      - "crates/apollo_starknet_client/**"
       - "scripts/dependencies.sh"
 
 env:

@@ -4,8 +4,8 @@ use std::string::String;
 
 use apollo_gateway_types::communication::SharedGatewayClient;
 use apollo_gateway_types::gateway_types::{GatewayInput, GatewayOutput};
+use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::type_name::short_type_name;
-use apollo_sequencer_infra::component_definitions::ComponentStarter;
 use axum::extract::State;
 use axum::http::HeaderMap;
 use axum::routing::post;

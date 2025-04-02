@@ -4,7 +4,7 @@ use std::time::Instant;
 
 use apollo_mempool_types::errors::MempoolError;
 use apollo_mempool_types::mempool_types::{AddTransactionArgs, CommitBlockArgs};
-use apollo_sequencer_metrics::metrics::HistogramValue;
+use apollo_metrics::metrics::HistogramValue;
 use metrics_exporter_prometheus::PrometheusRecorder;
 use pretty_assertions::assert_eq;
 use starknet_api::rpc_transaction::{InternalRpcTransaction, RpcTransactionLabelValue};

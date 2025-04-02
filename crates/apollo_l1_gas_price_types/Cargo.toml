@@ -6,8 +6,8 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
+apollo_infra.workspace = true
 apollo_proc_macros.workspace = true
-apollo_sequencer_infra.workspace = true
 async-trait.workspace = true
 mockall.workspace = true
 papyrus_base_layer.workspace = true

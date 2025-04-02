@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
+use apollo_infra::trace_util::configure_tracing;
 use apollo_integration_tests::utils::spawn_success_recorder;
-use apollo_sequencer_infra::trace_util::configure_tracing;
 use tracing::info;
 
 const RECORDER_PORT: u16 = 8080;

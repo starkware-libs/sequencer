@@ -3,16 +3,9 @@ use std::io::{BufReader, BufWriter};
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
+use apollo_infra::component_definitions::{ComponentClient, ComponentRequestAndResponseSender};
 use apollo_proc_macros::handle_all_response_variants;
-use apollo_sequencer_infra::component_client::{
-    ClientError,
-    LocalComponentClient,
-    RemoteComponentClient,
-};
-use apollo_sequencer_infra::component_definitions::{
-    ComponentClient,
-    ComponentRequestAndResponseSender,
-};
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;

@@ -13,10 +13,10 @@ workspace = true
 
 [dependencies]
 apollo_config.workspace = true
+apollo_infra.workspace = true
 apollo_infra_utils.workspace = true
 apollo_mempool_types.workspace = true
-apollo_sequencer_infra.workspace = true
-apollo_sequencer_metrics.workspace = true
+apollo_metrics.workspace = true
 axum.workspace = true
 hyper = { workspace = true }
 metrics-exporter-prometheus.workspace = true

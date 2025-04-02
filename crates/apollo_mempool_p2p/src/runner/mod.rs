@@ -6,6 +6,8 @@ use std::time::Duration;
 use apollo_gateway_types::communication::{GatewayClientError, SharedGatewayClient};
 use apollo_gateway_types::errors::GatewayError;
 use apollo_gateway_types::gateway_types::GatewayInput;
+use apollo_infra::component_definitions::ComponentStarter;
+use apollo_infra::component_server::WrapperServer;
 use apollo_mempool_p2p_types::communication::SharedMempoolP2pPropagatorClient;
 use apollo_network::network_manager::{
     BroadcastTopicClient,
@@ -14,8 +16,6 @@ use apollo_network::network_manager::{
     NetworkError,
 };
 use apollo_protobuf::mempool::RpcTransactionBatch;
-use apollo_sequencer_infra::component_definitions::ComponentStarter;
-use apollo_sequencer_infra::component_server::WrapperServer;
 use async_trait::async_trait;
 use futures::future::BoxFuture;
 use futures::stream::FuturesUnordered;

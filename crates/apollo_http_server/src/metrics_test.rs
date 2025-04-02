@@ -2,8 +2,8 @@ use std::net::{IpAddr, Ipv4Addr};
 
 use apollo_gateway_types::communication::{GatewayClientError, MockGatewayClient};
 use apollo_gateway_types::gateway_types::{GatewayOutput, InvokeGatewayOutput};
+use apollo_infra::component_client::ClientError;
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
-use apollo_sequencer_infra::component_client::ClientError;
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use mempool_test_utils::starknet_api_test_utils::invoke_tx;
 use metrics_exporter_prometheus::PrometheusBuilder;

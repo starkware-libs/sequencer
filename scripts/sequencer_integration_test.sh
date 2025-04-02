@@ -39,7 +39,7 @@ TEST="${1:-positive}"
 
 echo "Running integration test alias: $TEST"
 
-SEQUENCER_BINARY="apollo_sequencer_node"
+SEQUENCER_BINARY="apollo_node"
 ANVIL_PROCESS_NAME="anvil"
 
 # Stop any running instances of SEQUENCER_BINARY (ignore error if not found)

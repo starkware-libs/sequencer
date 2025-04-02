@@ -2,10 +2,10 @@ pub mod errors;
 
 use std::sync::Arc;
 
+use apollo_infra::component_client::ClientError;
+use apollo_infra::component_definitions::ComponentClient;
+use apollo_infra::impl_debug_for_infra_requests_and_responses;
 use apollo_proc_macros::handle_all_response_variants;
-use apollo_sequencer_infra::component_client::ClientError;
-use apollo_sequencer_infra::component_definitions::ComponentClient;
-use apollo_sequencer_infra::impl_debug_for_infra_requests_and_responses;
 use async_trait::async_trait;
 use errors::{EthToStrkOracleClientError, L1GasPriceClientError, L1GasPriceProviderError};
 #[cfg(any(feature = "testing", test))]

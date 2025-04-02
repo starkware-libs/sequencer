@@ -4,22 +4,22 @@ mod pending_test;
 
 use std::sync::Arc;
 
-use async_trait::async_trait;
-#[cfg(test)]
-use mockall::automock;
-use starknet_client::reader::{
+use apollo_starknet_client::reader::{
     PendingData,
     ReaderClientError,
     StarknetFeederGatewayClient,
     StarknetReader,
 };
-use starknet_client::ClientCreationError;
+use apollo_starknet_client::ClientCreationError;
+use async_trait::async_trait;
+#[cfg(test)]
+use mockall::automock;
 
 // TODO(dvir): add pending config.
 use super::central::CentralSourceConfig;
 
 pub struct GenericPendingSource<TStarknetClient: StarknetReader + Send + Sync> {
-    pub starknet_client: Arc<TStarknetClient>,
+    pub apollo_starknet_client: Arc<TStarknetClient>,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -42,7 +42,7 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> PendingSourceTrait
     for GenericPendingSource<TStarknetClient>
 {
     async fn get_pending_data(&self) -> Result<PendingData, PendingError> {
-        match self.starknet_client.pending_data().await {
+        match self.apollo_starknet_client.pending_data().await {
             Ok(Some(pending_data)) => Ok(pending_data),
             Ok(None) => Err(PendingError::PendingBlockNotFound),
             Err(err) => Err(PendingError::ClientError(Arc::new(err))),
@@ -57,13 +57,13 @@ impl PendingSource {
         config: CentralSourceConfig,
         node_version: &'static str,
     ) -> Result<PendingSource, ClientCreationError> {
-        let starknet_client = StarknetFeederGatewayClient::new(
+        let apollo_starknet_client = StarknetFeederGatewayClient::new(
             &config.starknet_url,
             config.http_headers,
             node_version,
             config.retry_config,
         )?;
 
-        Ok(PendingSource { starknet_client: Arc::new(starknet_client) })
+        Ok(PendingSource { apollo_starknet_client: Arc::new(apollo_starknet_client) })
     }
 }

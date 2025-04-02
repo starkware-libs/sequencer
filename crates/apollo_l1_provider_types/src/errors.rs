@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use apollo_sequencer_infra::component_client::ClientError;
+use apollo_infra::component_client::ClientError;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use thiserror::Error;

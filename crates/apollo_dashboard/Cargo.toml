@@ -1,0 +1,44 @@
+[package]
+name = "apollo_dashboard"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+
+[features]
+testing = []
+
+[lints]
+workspace = true
+
+[dependencies]
+apollo_batcher.workspace = true
+apollo_central_sync.workspace = true
+apollo_consensus.workspace = true
+apollo_consensus_manager.workspace = true
+apollo_gateway.workspace = true
+apollo_http_server.workspace = true
+apollo_infra.workspace = true
+apollo_infra_utils.workspace = true
+apollo_mempool.workspace = true
+apollo_mempool_p2p.workspace = true
+apollo_metrics.workspace = true
+apollo_state_sync.workspace = true
+const_format.workspace = true
+indexmap = { workspace = true, features = ["serde"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, features = ["arbitrary_precision"] }
+
+[dev-dependencies]
+apollo_batcher = { workspace = true, features = ["testing"] }
+apollo_central_sync = { workspace = true, features = ["testing"] }
+apollo_consensus = { workspace = true, features = ["testing"] }
+apollo_consensus_manager = { workspace = true, features = ["testing"] }
+apollo_gateway = { workspace = true, features = ["testing"] }
+apollo_http_server = { workspace = true, features = ["testing"] }
+apollo_infra = { workspace = true, features = ["testing"] }
+apollo_infra_utils = { workspace = true, features = ["testing"] }
+apollo_mempool = { workspace = true, features = ["testing"] }
+apollo_mempool_p2p = { workspace = true, features = ["testing"] }
+apollo_state_sync = { workspace = true, features = ["testing"] }

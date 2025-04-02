@@ -1,5 +1,5 @@
 // TODO(shahak): Test is_class_declared_at.
-use apollo_sequencer_infra::component_definitions::ComponentRequestHandler;
+use apollo_infra::component_definitions::ComponentRequestHandler;
 use apollo_state_sync_types::communication::{StateSyncRequest, StateSyncResponse};
 use apollo_state_sync_types::errors::StateSyncError;
 use apollo_storage::body::BodyStorageWriter;

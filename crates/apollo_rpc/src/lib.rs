@@ -22,6 +22,9 @@ use apollo_config::dumping::{append_sub_config_name, ser_param, SerializeConfig}
 use apollo_config::validators::validate_ascii;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_rpc_execution::ExecutionConfig;
+use apollo_starknet_client::reader::PendingData;
+use apollo_starknet_client::writer::StarknetGatewayClient;
+use apollo_starknet_client::RetryConfig;
 use apollo_storage::base_layer::BaseLayerStorageReader;
 use apollo_storage::body::events::EventIndex;
 use apollo_storage::db::TransactionKind;
@@ -38,9 +41,6 @@ use rpc_metrics::MetricLogger;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHashAndNumber, BlockNumber, BlockStatus};
 use starknet_api::core::ChainId;
-use starknet_client::reader::PendingData;
-use starknet_client::writer::StarknetGatewayClient;
-use starknet_client::RetryConfig;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, instrument};
 // Aliasing the latest version of the RPC.

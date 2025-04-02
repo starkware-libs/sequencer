@@ -1,8 +1,5 @@
-use apollo_sequencer_infra::component_definitions::ComponentRequestHandler;
-use apollo_sequencer_infra::component_server::{
-    ConcurrentLocalComponentServer,
-    RemoteComponentServer,
-};
+use apollo_infra::component_definitions::ComponentRequestHandler;
+use apollo_infra::component_server::{ConcurrentLocalComponentServer, RemoteComponentServer};
 use apollo_sierra_multicompile_types::{
     SierraCompilerError,
     SierraCompilerRequest,

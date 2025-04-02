@@ -1,6 +1,15 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use apollo_starknet_client::reader::objects::pending_data::{
+    AcceptedOnL2ExtraData,
+    DeprecatedPendingBlock,
+    PendingBlockOrDeprecated,
+    PendingStateUpdate,
+};
+use apollo_starknet_client::reader::objects::state::StateDiff as ClientStateDiff;
+use apollo_starknet_client::reader::objects::transaction::Transaction as ClientTransaction;
+use apollo_starknet_client::reader::{DeclaredClassHashEntry, PendingData};
 use apollo_storage::base_layer::BaseLayerStorageReader;
 use apollo_storage::header::HeaderStorageWriter;
 use apollo_storage::test_utils::get_test_storage;
@@ -18,15 +27,6 @@ use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContract
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{SierraContractClass, StateDiff};
 use starknet_api::{contract_address, felt, storage_key};
-use starknet_client::reader::objects::pending_data::{
-    AcceptedOnL2ExtraData,
-    DeprecatedPendingBlock,
-    PendingBlockOrDeprecated,
-    PendingStateUpdate,
-};
-use starknet_client::reader::objects::state::StateDiff as ClientStateDiff;
-use starknet_client::reader::objects::transaction::Transaction as ClientTransaction;
-use starknet_client::reader::{DeclaredClassHashEntry, PendingData};
 use tokio::sync::{Mutex, RwLock};
 
 use crate::sources::base_layer::MockBaseLayerSourceTrait;

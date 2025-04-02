@@ -4,6 +4,39 @@ use std::iter;
 use std::net::SocketAddr;
 use std::ops::Index;
 
+use apollo_starknet_client::reader::objects::pending_data::{
+    DeprecatedPendingBlock,
+    PendingBlockOrDeprecated,
+    PendingStateUpdate as ClientPendingStateUpdate,
+};
+use apollo_starknet_client::reader::objects::state::{
+    DeclaredClassHashEntry as ClientDeclaredClassHashEntry,
+    DeployedContract as ClientDeployedContract,
+    ReplacedClass as ClientReplacedClass,
+    StateDiff as ClientStateDiff,
+    StorageEntry as ClientStorageEntry,
+};
+use apollo_starknet_client::reader::objects::transaction::{
+    Transaction as ClientTransaction,
+    TransactionReceipt as ClientTransactionReceipt,
+};
+use apollo_starknet_client::starknet_error::{
+    KnownStarknetErrorCode,
+    StarknetError,
+    StarknetErrorCode,
+};
+use apollo_starknet_client::writer::objects::response::{
+    DeclareResponse,
+    DeployAccountResponse,
+    InvokeResponse,
+};
+use apollo_starknet_client::writer::objects::transaction::{
+    DeclareTransaction as ClientDeclareTransaction,
+    DeployAccountTransaction as ClientDeployAccountTransaction,
+    InvokeTransaction as ClientInvokeTransaction,
+};
+use apollo_starknet_client::writer::{MockStarknetWriter, WriterClientError, WriterClientResult};
+use apollo_starknet_client::ClientError;
 use apollo_storage::base_layer::BaseLayerStorageWriter;
 use apollo_storage::body::events::EventIndex;
 use apollo_storage::body::{BodyStorageWriter, TransactionIndex};
@@ -81,35 +114,6 @@ use starknet_api::transaction::{
     TransactionOutput as StarknetApiTransactionOutput,
 };
 use starknet_api::{class_hash, contract_address, felt, storage_key, tx_hash};
-use starknet_client::reader::objects::pending_data::{
-    DeprecatedPendingBlock,
-    PendingBlockOrDeprecated,
-    PendingStateUpdate as ClientPendingStateUpdate,
-};
-use starknet_client::reader::objects::state::{
-    DeclaredClassHashEntry as ClientDeclaredClassHashEntry,
-    DeployedContract as ClientDeployedContract,
-    ReplacedClass as ClientReplacedClass,
-    StateDiff as ClientStateDiff,
-    StorageEntry as ClientStorageEntry,
-};
-use starknet_client::reader::objects::transaction::{
-    Transaction as ClientTransaction,
-    TransactionReceipt as ClientTransactionReceipt,
-};
-use starknet_client::starknet_error::{KnownStarknetErrorCode, StarknetError, StarknetErrorCode};
-use starknet_client::writer::objects::response::{
-    DeclareResponse,
-    DeployAccountResponse,
-    InvokeResponse,
-};
-use starknet_client::writer::objects::transaction::{
-    DeclareTransaction as ClientDeclareTransaction,
-    DeployAccountTransaction as ClientDeployAccountTransaction,
-    InvokeTransaction as ClientInvokeTransaction,
-};
-use starknet_client::writer::{MockStarknetWriter, WriterClientError, WriterClientResult};
-use starknet_client::ClientError;
 use starknet_types_core::felt::Felt;
 
 use super::super::api::EventsChunk;
@@ -2216,7 +2220,7 @@ fn generate_client_transaction_client_receipt_rpc_transaction_and_rpc_receipt(
             .clone()
             .into_starknet_api_transaction_output(&client_transaction);
         let msg_hash = match &client_transaction {
-            starknet_client::reader::objects::transaction::Transaction::L1Handler(tx) => {
+            apollo_starknet_client::reader::objects::transaction::Transaction::L1Handler(tx) => {
                 Some(tx.calc_msg_hash())
             }
             _ => None,

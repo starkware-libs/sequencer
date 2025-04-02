@@ -1,10 +1,5 @@
-use apollo_sequencer_metrics::metrics::{
-    LabeledMetricCounter,
-    MetricCounter,
-    MetricGauge,
-    MetricHistogram,
-};
-use apollo_sequencer_metrics::{define_metrics, generate_permutation_labels};
+use apollo_metrics::metrics::{LabeledMetricCounter, MetricCounter, MetricGauge, MetricHistogram};
+use apollo_metrics::{define_metrics, generate_permutation_labels};
 use starknet_api::rpc_transaction::{
     InternalRpcTransactionLabelValue,
     InternalRpcTransactionWithoutTxHash,

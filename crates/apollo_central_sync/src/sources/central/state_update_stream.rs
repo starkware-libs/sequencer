@@ -3,6 +3,7 @@ use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 use std::task::Poll;
 
+use apollo_starknet_client::reader::{ReaderClientResult, StarknetReader, StateUpdate};
 use apollo_storage::state::StateStorageReader;
 use apollo_storage::StorageReader;
 use futures_util::stream::FuturesOrdered;
@@ -12,7 +13,6 @@ use lru::LruCache;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
 use starknet_api::state::{StateDiff, StateNumber};
-use starknet_client::reader::{ReaderClientResult, StarknetReader, StateUpdate};
 use tracing::log::trace;
 use tracing::{debug, instrument};
 
@@ -32,7 +32,7 @@ pub struct StateUpdateStreamConfig {
 pub(crate) struct StateUpdateStream<TStarknetClient: StarknetReader + Send + 'static> {
     initial_block_number: BlockNumber,
     up_to_block_number: BlockNumber,
-    starknet_client: Arc<TStarknetClient>,
+    apollo_starknet_client: Arc<TStarknetClient>,
     storage_reader: StorageReader,
     download_state_update_tasks: TasksQueue<(BlockNumber, ReaderClientResult<Option<StateUpdate>>)>,
     // Contains NumberOfClasses so we don't need to calculate it from the StateUpdate.
@@ -88,7 +88,7 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> StateUpdateStream<
     pub fn new(
         initial_block_number: BlockNumber,
         up_to_block_number: BlockNumber,
-        starknet_client: Arc<TStarknetClient>,
+        apollo_starknet_client: Arc<TStarknetClient>,
         storage_reader: StorageReader,
         config: StateUpdateStreamConfig,
         class_cache: Arc<Mutex<LruCache<ClassHash, ApiContractClass>>>,
@@ -96,7 +96,7 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> StateUpdateStream<
         StateUpdateStream {
             initial_block_number,
             up_to_block_number,
-            starknet_client,
+            apollo_starknet_client,
             storage_reader,
             download_state_update_tasks: futures::stream::FuturesOrdered::new(),
             downloaded_state_updates: VecDeque::with_capacity(
@@ -153,13 +153,13 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> StateUpdateStream<
             let Some(class_hash) = self.classes_to_download.pop_front() else {
                 break;
             };
-            let starknet_client = self.starknet_client.clone();
+            let apollo_starknet_client = self.apollo_starknet_client.clone();
             let storage_reader = self.storage_reader.clone();
             let cache = self.class_cache.clone();
             self.download_class_tasks.push_back(Box::pin(download_class_if_necessary(
                 cache,
                 class_hash,
-                starknet_client,
+                apollo_starknet_client,
                 storage_reader,
             )));
             *should_poll_again = true;
@@ -199,10 +199,13 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> StateUpdateStream<
             && self.download_state_update_tasks.len() < self.config.max_state_updates_to_download
         {
             let current_block_number = self.initial_block_number;
-            let starknet_client = self.starknet_client.clone();
+            let apollo_starknet_client = self.apollo_starknet_client.clone();
             *should_poll_again = true;
             self.download_state_update_tasks.push_back(Box::pin(async move {
-                (current_block_number, starknet_client.state_update(current_block_number).await)
+                (
+                    current_block_number,
+                    apollo_starknet_client.state_update(current_block_number).await,
+                )
             }));
             self.initial_block_number = self.initial_block_number.unchecked_next();
         }
@@ -251,7 +254,7 @@ fn client_to_central_state_update(
     match maybe_client_state_update {
         Ok((state_update, mut declared_classes)) => {
             // Destruct the state diff to avoid partial move.
-            let starknet_client::reader::StateDiff {
+            let apollo_starknet_client::reader::StateDiff {
                 storage_diffs,
                 deployed_contracts,
                 declared_classes: declared_class_hashes,
@@ -334,11 +337,11 @@ fn client_to_central_state_update(
 // Given a class hash, returns the corresponding class definition.
 // First tries to retrieve the class from the storage.
 // If not found in the storage, the class is downloaded.
-#[instrument(skip(starknet_client, storage_reader), level = "debug", err)]
+#[instrument(skip(apollo_starknet_client, storage_reader), level = "debug", err)]
 async fn download_class_if_necessary<TStarknetClient: StarknetReader>(
     cache: Arc<Mutex<LruCache<ClassHash, ApiContractClass>>>,
     class_hash: ClassHash,
-    starknet_client: Arc<TStarknetClient>,
+    apollo_starknet_client: Arc<TStarknetClient>,
     storage_reader: StorageReader,
 ) -> CentralResult<Option<ApiContractClass>> {
     {
@@ -377,7 +380,7 @@ async fn download_class_if_necessary<TStarknetClient: StarknetReader>(
 
     // Class not found in storage - download.
     trace!("Downloading class {:?}.", class_hash);
-    let client_class = starknet_client.class_by_hash(class_hash).await.map_err(Arc::new)?;
+    let client_class = apollo_starknet_client.class_by_hash(class_hash).await.map_err(Arc::new)?;
     match client_class {
         None => Ok(None),
         Some(class) => {

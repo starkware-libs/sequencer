@@ -1,8 +1,8 @@
 // Can't call this module metrics.rs because it will conflict with `latency_histogram` macro in
 // libs.rs
 
-use apollo_sequencer_metrics::define_metrics;
-use apollo_sequencer_metrics::metrics::{MetricCounter, MetricGauge};
+use apollo_metrics::define_metrics;
+use apollo_metrics::metrics::{MetricCounter, MetricGauge};
 
 define_metrics!(
     ApolloCentralSync => {
