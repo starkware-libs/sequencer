@@ -208,10 +208,12 @@ pub fn create_gateway(
     shared_state_sync_client: SharedStateSyncClient,
     mempool_client: SharedMempoolClient,
     class_manager_client: SharedClassManagerClient,
+    runtime: tokio::runtime::Handle,
 ) -> Gateway {
     let state_reader_factory = Arc::new(SyncStateReaderFactory {
         shared_state_sync_client,
         class_manager_client: class_manager_client.clone(),
+        runtime,
     });
     let transaction_converter =
         TransactionConverter::new(class_manager_client, config.chain_info.chain_id.clone());

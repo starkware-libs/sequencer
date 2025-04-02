@@ -126,6 +126,7 @@ pub async fn create_node_components(
                 state_sync_client,
                 mempool_client,
                 class_manager_client,
+                tokio::runtime::Handle::current(),
             ))
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
