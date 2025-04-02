@@ -1,6 +1,4 @@
-use starknet_api::block::GasPrice;
 use starknet_api::data_availability::DataAvailabilityMode;
-use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::{
     RpcDeclareTransaction,
     RpcDeployAccountTransaction,
@@ -8,7 +6,7 @@ use starknet_api::rpc_transaction::{
     RpcTransaction,
 };
 use starknet_api::state::EntryPoint;
-use starknet_api::transaction::fields::{AllResourceBounds, Resource};
+use starknet_api::transaction::fields::{Fee, ValidResourceBounds};
 use starknet_types_core::felt::Felt;
 use tracing::{instrument, Level};
 
@@ -49,16 +47,13 @@ impl StatelessTransactionValidator {
         &self,
         tx: &RpcTransaction,
     ) -> StatelessTransactionValidatorResult<()> {
-        let resource_bounds_mapping = tx.resource_bounds();
+        if !self.config.validate_non_zero_resource_bounds {
+            return Ok(());
+        }
 
-        if self.config.validate_non_zero_l1_gas_fee {
-            validate_resource_is_non_zero(resource_bounds_mapping, Resource::L1Gas)?;
-        }
-        if self.config.validate_non_zero_l2_gas_fee {
-            validate_resource_is_non_zero(resource_bounds_mapping, Resource::L2Gas)?;
-        }
-        if self.config.validate_non_zero_l1_data_gas_fee {
-            validate_resource_is_non_zero(resource_bounds_mapping, Resource::L1DataGas)?;
+        let resource_bounds = *tx.resource_bounds();
+        if ValidResourceBounds::AllResources(resource_bounds).max_possible_fee() == Fee(0) {
+            return Err(StatelessTransactionValidatorError::ZeroResourceBounds { resource_bounds });
         }
 
         Ok(())
@@ -269,21 +264,4 @@ impl StatelessTransactionValidator {
 
         Err(StatelessTransactionValidatorError::EntryPointsNotUniquelySorted)
     }
-}
-
-fn validate_resource_is_non_zero(
-    all_resource_bounds: &AllResourceBounds,
-    resource: Resource,
-) -> StatelessTransactionValidatorResult<()> {
-    let resource_bounds = all_resource_bounds.get_bound(resource);
-    if resource_bounds.max_amount == GasAmount(0)
-        || resource_bounds.max_price_per_unit == GasPrice(0)
-    {
-        return Err(StatelessTransactionValidatorError::ZeroResourceBounds {
-            resource,
-            resource_bounds,
-        });
-    }
-
-    Ok(())
 }
