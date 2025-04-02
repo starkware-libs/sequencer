@@ -31,9 +31,9 @@ use apollo_mempool_p2p::config::MempoolP2pConfig;
 use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
 use apollo_network::network_manager::test_utils::create_connected_network_configs;
 use apollo_network::NetworkConfig;
-use apollo_sequencer_node::config::component_config::ComponentConfig;
-use apollo_sequencer_node::config::definitions::ConfigPointersMap;
-use apollo_sequencer_node::config::node_config::{SequencerNodeConfig, CONFIG_POINTERS};
+use apollo_node::config::component_config::ComponentConfig;
+use apollo_node::config::definitions::ConfigPointersMap;
+use apollo_node::config::node_config::{SequencerNodeConfig, CONFIG_POINTERS};
 #[cfg(feature = "cairo_native")]
 use apollo_sierra_multicompile::config::SierraCompilationConfig;
 use apollo_state_sync::config::StateSyncConfig;

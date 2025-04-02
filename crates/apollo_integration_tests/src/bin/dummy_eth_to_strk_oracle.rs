@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
+use apollo_infra::trace_util::configure_tracing;
 use apollo_integration_tests::utils::spawn_eth_to_strk_oracle_server;
-use apollo_sequencer_infra::trace_util::configure_tracing;
 use tracing::info;
 
 const ETH_TO_STRK_ORACLE_PORT: u16 = 9000;

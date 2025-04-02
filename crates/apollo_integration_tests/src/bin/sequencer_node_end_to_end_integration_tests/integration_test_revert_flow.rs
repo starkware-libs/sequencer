@@ -7,8 +7,8 @@ use apollo_integration_tests::integration_test_manager::{
     BLOCK_TO_WAIT_FOR_DEPLOY_AND_INVOKE,
 };
 use apollo_integration_tests::integration_test_utils::integration_test_setup;
-use apollo_sequencer_node::config::definitions::ConfigPointersMap;
-use apollo_sequencer_node::config::node_config::SequencerNodeConfig;
+use apollo_node::config::definitions::ConfigPointersMap;
+use apollo_node::config::node_config::SequencerNodeConfig;
 use serde_json::Value;
 use starknet_api::block::BlockNumber;
 use tracing::info;

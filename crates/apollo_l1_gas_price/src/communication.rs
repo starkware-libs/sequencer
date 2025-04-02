@@ -1,14 +1,10 @@
-use apollo_l1_gas_price_types::{L1GasPriceRequest, L1GasPriceResponse};
-use apollo_sequencer_infra::component_client::{LocalComponentClient, RemoteComponentClient};
-use apollo_sequencer_infra::component_definitions::{
+use apollo_infra::component_client::{LocalComponentClient, RemoteComponentClient};
+use apollo_infra::component_definitions::{
     ComponentRequestAndResponseSender,
     ComponentRequestHandler,
 };
-use apollo_sequencer_infra::component_server::{
-    LocalComponentServer,
-    RemoteComponentServer,
-    WrapperServer,
-};
+use apollo_infra::component_server::{LocalComponentServer, RemoteComponentServer, WrapperServer};
+use apollo_l1_gas_price_types::{L1GasPriceRequest, L1GasPriceResponse};
 use async_trait::async_trait;
 use tracing::instrument;
 

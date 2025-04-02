@@ -1,6 +1,6 @@
 use apollo_rpc_execution::objects::PendingData as ExecutionPendingData;
+use apollo_starknet_client::reader::objects::pending_data::PendingData as ClientPendingData;
 use papyrus_common::pending_classes::PendingClasses;
-use starknet_client::reader::objects::pending_data::PendingData as ClientPendingData;
 
 pub(crate) fn client_pending_data_to_execution_pending_data(
     client_pending_data: ClientPendingData,

@@ -1,8 +1,12 @@
 use std::collections::BTreeMap;
 
+use apollo_starknet_client::starknet_error::{
+    KnownStarknetErrorCode,
+    StarknetError,
+    StarknetErrorCode,
+};
 use enum_iterator::all;
 use jsonrpsee::types::ErrorObjectOwned;
-use starknet_client::starknet_error::{KnownStarknetErrorCode, StarknetError, StarknetErrorCode};
 
 use super::super::error::JsonRpcError;
 use super::{

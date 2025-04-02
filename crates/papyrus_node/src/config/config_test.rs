@@ -144,7 +144,7 @@ fn test_update_dumped_config_by_command() {
 }
 
 // TODO(Arni): share code with
-// `apollo_sequencer_node::config::config_test::test_default_config_file_is_up_to_date`.
+// `apollo_node::config::config_test::test_default_config_file_is_up_to_date`.
 #[cfg(feature = "rpc")]
 #[test]
 fn default_config_file_is_up_to_date() {

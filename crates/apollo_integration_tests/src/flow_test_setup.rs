@@ -16,12 +16,12 @@ use apollo_network::network_manager::test_utils::{
     network_config_into_broadcast_channels,
 };
 use apollo_network::network_manager::BroadcastTopicChannels;
+use apollo_node::clients::SequencerNodeClients;
+use apollo_node::config::component_config::ComponentConfig;
+use apollo_node::config::node_config::SequencerNodeConfig;
+use apollo_node::servers::run_component_servers;
+use apollo_node::utils::create_node_modules;
 use apollo_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, StreamMessageBody};
-use apollo_sequencer_node::clients::SequencerNodeClients;
-use apollo_sequencer_node::config::component_config::ComponentConfig;
-use apollo_sequencer_node::config::node_config::SequencerNodeConfig;
-use apollo_sequencer_node::servers::run_component_servers;
-use apollo_sequencer_node::utils::create_node_modules;
 use apollo_state_sync::config::StateSyncConfig;
 use apollo_storage::StorageConfig;
 use blockifier::context::ChainInfo;

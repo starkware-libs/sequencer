@@ -2,6 +2,7 @@ use std::cmp::Ordering::{Equal, Greater, Less};
 use std::collections::HashSet;
 use std::sync::Arc;
 
+use apollo_infra::component_definitions::ComponentStarter;
 use apollo_l1_provider_types::errors::L1ProviderError;
 use apollo_l1_provider_types::{
     Event,
@@ -10,7 +11,6 @@ use apollo_l1_provider_types::{
     SharedL1ProviderClient,
     ValidationStatus,
 };
-use apollo_sequencer_infra::component_definitions::ComponentStarter;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::L1HandlerTransaction;

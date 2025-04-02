@@ -4,6 +4,7 @@ use std::time::Duration;
 use apollo_gateway_types::communication::{GatewayClient, GatewayClientError, MockGatewayClient};
 use apollo_gateway_types::errors::{GatewayError, GatewaySpecError};
 use apollo_gateway_types::gateway_types::{GatewayInput, GatewayOutput, InvokeGatewayOutput};
+use apollo_infra::component_definitions::ComponentStarter;
 use apollo_mempool_p2p_types::communication::{
     MempoolP2pPropagatorClient,
     MockMempoolP2pPropagatorClient,
@@ -16,7 +17,6 @@ use apollo_network::network_manager::test_utils::{
 use apollo_network::network_manager::{BroadcastTopicChannels, NetworkError};
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::mempool::RpcTransactionBatch;
-use apollo_sequencer_infra::component_definitions::ComponentStarter;
 use apollo_test_utils::{get_rng, GetTestInstance};
 use futures::future::{pending, ready, BoxFuture};
 use futures::stream::StreamExt;

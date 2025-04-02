@@ -1,5 +1,5 @@
 //! A lib for compiling Sierra into Casm.
-use apollo_sequencer_infra::component_definitions::ComponentStarter;
+use apollo_infra::component_definitions::ComponentStarter;
 use apollo_sierra_multicompile_types::{RawClass, RawExecutableClass, RawExecutableHashedClass};
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;

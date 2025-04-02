@@ -1,4 +1,4 @@
-use apollo_sequencer_infra::component_client::ClientError;
+use apollo_infra::component_client::ClientError;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 

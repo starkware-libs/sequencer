@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use apollo_starknet_client::writer::objects::transaction::DeprecatedContractClass;
 use apollo_test_utils::{
     auto_impl_get_test_instance,
     get_number_of_variants,
@@ -27,7 +28,6 @@ use starknet_api::transaction::fields::{
     Tip,
     TransactionSignature,
 };
-use starknet_client::writer::objects::transaction::DeprecatedContractClass;
 use starknet_types_core::felt::Felt;
 
 use super::super::state::{ContractClass, EntryPointByType};

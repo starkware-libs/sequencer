@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use apollo_class_manager_types::ClassManagerClient;
+use apollo_starknet_client::reader::PendingData;
 use apollo_storage::base_layer::BaseLayerStorageReader;
 use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::state::StateStorageReader;
@@ -29,7 +30,6 @@ use starknet_api::core::{ClassHash, SequencerPublicKey};
 use starknet_api::crypto::utils::PublicKey;
 use starknet_api::felt;
 use starknet_api::state::StateDiff;
-use starknet_client::reader::PendingData;
 use tokio::sync::{Mutex, RwLock};
 use tokio::time::sleep;
 use tracing::{debug, error};

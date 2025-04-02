@@ -7,8 +7,8 @@ mod test;
 use std::cmp::min;
 
 use apollo_class_manager_types::SharedClassManagerClient;
-use apollo_sequencer_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
-use apollo_sequencer_infra::component_server::{LocalComponentServer, RemoteComponentServer};
+use apollo_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
+use apollo_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 use apollo_state_sync_types::communication::{StateSyncRequest, StateSyncResponse};
 use apollo_state_sync_types::errors::StateSyncError;
 use apollo_state_sync_types::state_sync_types::{StateSyncResult, SyncBlock};

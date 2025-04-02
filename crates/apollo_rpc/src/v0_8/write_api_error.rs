@@ -1,4 +1,8 @@
-use starknet_client::starknet_error::{KnownStarknetErrorCode, StarknetError, StarknetErrorCode};
+use apollo_starknet_client::starknet_error::{
+    KnownStarknetErrorCode,
+    StarknetError,
+    StarknetErrorCode,
+};
 
 use super::error::{
     unexpected_error,

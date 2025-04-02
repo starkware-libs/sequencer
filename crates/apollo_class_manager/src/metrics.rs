@@ -1,5 +1,5 @@
-use apollo_sequencer_metrics::metrics::{LabeledMetricCounter, LabeledMetricHistogram};
-use apollo_sequencer_metrics::{define_metrics, generate_permutation_labels};
+use apollo_metrics::metrics::{LabeledMetricCounter, LabeledMetricHistogram};
+use apollo_metrics::{define_metrics, generate_permutation_labels};
 use apollo_sierra_multicompile_types::SerializedClass;
 use strum::VariantNames;
 

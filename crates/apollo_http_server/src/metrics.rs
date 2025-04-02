@@ -1,5 +1,5 @@
-use apollo_sequencer_metrics::define_metrics;
-use apollo_sequencer_metrics::metrics::MetricCounter;
+use apollo_metrics::define_metrics;
+use apollo_metrics::metrics::MetricCounter;
 use tracing::info;
 
 #[cfg(test)]

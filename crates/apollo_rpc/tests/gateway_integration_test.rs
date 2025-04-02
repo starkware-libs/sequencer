@@ -6,6 +6,7 @@ use apollo_rpc::{
     InvokeTransactionV1RPC0_8,
     TransactionVersion1RPC0_8,
 };
+use apollo_starknet_client::writer::objects::transaction::InvokeTransaction as SNClientInvokeTransaction;
 use jsonrpsee::core::client::ClientT;
 use jsonrpsee::http_client::{HttpClient, HttpClientBuilder};
 use jsonrpsee::rpc_params;
@@ -14,7 +15,6 @@ use starknet_api::transaction::fields::{Fee, TransactionSignature};
 use starknet_api::transaction::{Transaction, TransactionOptions};
 use starknet_api::transaction_hash::get_transaction_hash;
 use starknet_api::{calldata, contract_address, felt};
-use starknet_client::writer::objects::transaction::InvokeTransaction as SNClientInvokeTransaction;
 use starknet_core::crypto::ecdsa_sign;
 use starknet_types_core::felt::Felt;
 

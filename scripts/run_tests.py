@@ -18,7 +18,7 @@ ALL_TEST_TRIGGERS: Set[str] = {"Cargo.toml", "Cargo.lock", "rust-toolchain.toml"
 INTEGRATION_TEST_CRATE_TRIGGERS: Set[str] = {"apollo_integration_tests"}
 
 # Sequencer node binary name.
-SEQUENCER_BINARY_NAME: str = "apollo_sequencer_node"
+SEQUENCER_BINARY_NAME: str = "apollo_node"
 
 # List of sequencer node integration test binary names. Stored as a list to maintain order.
 SEQUENCER_INTEGRATION_TEST_NAMES: List[str] = [

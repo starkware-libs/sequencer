@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use apollo_infra::trace_util::configure_tracing;
 use apollo_infra_utils::test_utils::TestIdentifier;
 use apollo_integration_tests::flow_test_setup::{FlowSequencerSetup, FlowTestSetup};
 use apollo_integration_tests::utils::{
@@ -18,7 +19,6 @@ use apollo_integration_tests::utils::{
     ACCOUNT_ID_0,
     UNDEPLOYED_ACCOUNT_ID,
 };
-use apollo_sequencer_infra::trace_util::configure_tracing;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusRecorder};
 use pretty_assertions::assert_eq;

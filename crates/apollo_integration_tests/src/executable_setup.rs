@@ -4,11 +4,11 @@ use std::path::{Path, PathBuf};
 use apollo_infra_utils::test_utils::AvailablePorts;
 use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
-use apollo_sequencer_node::config::component_config::ComponentConfig;
-use apollo_sequencer_node::config::config_utils::{BaseAppConfigOverride, DeploymentBaseAppConfig};
-use apollo_sequencer_node::config::definitions::ConfigPointersMap;
-use apollo_sequencer_node::config::node_config::SequencerNodeConfig;
-use apollo_sequencer_node::test_utils::node_runner::NodeRunner;
+use apollo_node::config::component_config::ComponentConfig;
+use apollo_node::config::config_utils::{BaseAppConfigOverride, DeploymentBaseAppConfig};
+use apollo_node::config::definitions::ConfigPointersMap;
+use apollo_node::config::node_config::SequencerNodeConfig;
+use apollo_node::test_utils::node_runner::NodeRunner;
 use tempfile::{tempdir, TempDir};
 use tokio::fs::create_dir_all;
 

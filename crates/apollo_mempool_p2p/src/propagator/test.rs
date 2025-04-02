@@ -2,6 +2,7 @@ use apollo_class_manager_types::transaction_converter::{
     MockTransactionConverterTrait,
     TransactionConverterTrait,
 };
+use apollo_infra::component_definitions::ComponentRequestHandler;
 use apollo_mempool_p2p_types::communication::MempoolP2pPropagatorRequest;
 use apollo_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
@@ -12,7 +13,6 @@ use apollo_network::network_manager::test_utils::{
 use apollo_network::network_manager::{BroadcastTopicChannels, BroadcastTopicClient};
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::mempool::RpcTransactionBatch;
-use apollo_sequencer_infra::component_definitions::ComponentRequestHandler;
 use apollo_test_utils::{get_rng, GetTestInstance};
 use futures::channel::mpsc::Receiver;
 use futures::stream::StreamExt;

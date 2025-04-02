@@ -29,6 +29,7 @@ use apollo_network::NetworkConfig;
 use apollo_p2p_sync::client::{P2pSyncClient, P2pSyncClientConfig};
 #[cfg(feature = "rpc")]
 use apollo_rpc::RpcConfig;
+use apollo_starknet_client::RetryConfig;
 use apollo_storage::db::DbConfig;
 use apollo_storage::StorageConfig;
 use clap::{arg, value_parser, Arg, ArgMatches, Command};
@@ -39,7 +40,6 @@ use papyrus_monitoring_gateway::MonitoringGatewayConfig;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use starknet_api::core::ChainId;
-use starknet_client::RetryConfig;
 use validator::Validate;
 
 use crate::version::VERSION_FULL;

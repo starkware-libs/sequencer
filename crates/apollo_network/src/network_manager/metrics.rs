@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use apollo_sequencer_metrics::metrics::{MetricCounter, MetricGauge};
+use apollo_metrics::metrics::{MetricCounter, MetricGauge};
 use libp2p::gossipsub::TopicHash;
 
 pub struct BroadcastNetworkMetrics {

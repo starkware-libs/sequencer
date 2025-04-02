@@ -20,8 +20,10 @@ apollo_class_manager = { workspace = true, features = ["testing"] }
 apollo_consensus.workspace = true
 apollo_consensus_manager.workspace = true
 apollo_consensus_orchestrator.workspace = true
+apollo_deployments.workspace = true
 apollo_gateway = { workspace = true, features = ["testing"] }
 apollo_http_server = { workspace = true, features = ["testing"] }
+apollo_infra = { workspace = true, features = ["testing"] }
 apollo_infra_utils = { workspace = true, features = ["testing"] }
 apollo_l1_gas_price.workspace = true
 apollo_l1_provider.workspace = true
@@ -29,10 +31,8 @@ apollo_mempool.workspace = true
 apollo_mempool_p2p.workspace = true
 apollo_monitoring_endpoint = { workspace = true, features = ["testing"] }
 apollo_network = { workspace = true, features = ["testing"] }
+apollo_node = { workspace = true, features = ["testing"] }
 apollo_protobuf.workspace = true
-apollo_sequencer_deployments.workspace = true
-apollo_sequencer_infra = { workspace = true, features = ["testing"] }
-apollo_sequencer_node = { workspace = true, features = ["testing"] }
 apollo_sierra_multicompile = { workspace = true, optional = true }
 apollo_state_sync.workspace = true
 apollo_storage = { workspace = true, features = ["testing"] }
@@ -58,7 +58,7 @@ tracing.workspace = true
 url.workspace = true
 
 [dev-dependencies]
-apollo_sequencer_infra.workspace = true
+apollo_infra.workspace = true
 futures.workspace = true
 metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
