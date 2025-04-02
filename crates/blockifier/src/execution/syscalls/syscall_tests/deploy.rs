@@ -6,9 +6,10 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use pretty_assertions::assert_eq;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::contract_class::SierraVersion;
-use starknet_api::core::calculate_contract_address;
+use starknet_api::core::{calculate_contract_address, ContractAddress};
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, Fee};
-use starknet_api::{calldata, felt};
+use starknet_api::felt;
+use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
 use crate::context::{BlockContext, ChainInfo};
@@ -17,44 +18,57 @@ use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::syscalls::hint_processor::SyscallUsage;
 use crate::execution::syscalls::SyscallSelector;
 use crate::retdata;
+use crate::state::cached_state::CachedState;
 use crate::state::state_api::StateReader;
+use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{calldata_for_deploy_test, trivial_external_entry_point_new};
 
-#[test_case(RunnableCairo1::Casm;"VM")]
-#[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native;"Native"))]
-fn no_constructor(runnable_version: RunnableCairo1) {
-    // TODO(Yoni): share the init code of the tests in this file.
-    let deployer_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
-    let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1(runnable_version));
-    let class_hash = empty_contract.get_class_hash();
+fn setup_deploy_call(
+    contract_instances: &[(FeatureContract, u16)],
+    constructor_calldata: Vec<Felt>,
+    deploy_from_zero: bool,
+) -> (CallEntryPoint, ContractAddress, CachedState<DictStateReader>) {
+    let class_hash = contract_instances.last().unwrap().0.get_class_hash();
+    let calldata = calldata_for_deploy_test(class_hash, &constructor_calldata, deploy_from_zero);
 
-    let mut state = test_state(
-        &ChainInfo::create_for_testing(),
-        Fee(0),
-        &[(deployer_contract, 1), (empty_contract, 0)],
-    );
+    let state = test_state(&ChainInfo::create_for_testing(), Fee(0), contract_instances);
+    let deployer_contract = contract_instances[0].0;
 
-    let calldata = calldata_for_deploy_test(class_hash, &[], true);
+    let contract_address = calculate_contract_address(
+        ContractAddressSalt::default(),
+        class_hash,
+        &Calldata(constructor_calldata.clone().into()),
+        deployer_contract.get_instance_address(0),
+    )
+    .unwrap();
+
     let entry_point_call = CallEntryPoint {
         entry_point_selector: selector_from_name("test_deploy"),
         calldata,
         ..trivial_external_entry_point_new(deployer_contract)
     };
 
-    let deploy_call = &entry_point_call.execute_directly(&mut state).unwrap();
+    (entry_point_call, contract_address, state)
+}
+
+#[test_case(RunnableCairo1::Casm;"VM")]
+#[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native;"Native"))]
+fn no_constructor(runnable_version: RunnableCairo1) {
+    let deployer_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
+    let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1(runnable_version));
+
+    let (entry_point, deployed_contract_address, mut state) =
+        setup_deploy_call(&[(deployer_contract, 1), (empty_contract, 0)], vec![], true);
+
+    let deploy_call = &entry_point.execute_directly(&mut state).unwrap();
+
+    let class_hash = empty_contract.get_class_hash();
+
     assert_eq!(
         deploy_call.execution,
         CallExecution { retdata: retdata![], gas_consumed: 158600, ..CallExecution::default() }
     );
-
-    let deployed_contract_address = calculate_contract_address(
-        ContractAddressSalt::default(),
-        class_hash,
-        &calldata![],
-        deployer_contract.get_instance_address(0),
-    )
-    .unwrap();
 
     let constructor_call = &deploy_call.inner_calls[0];
 
@@ -71,23 +85,14 @@ fn no_constructor(runnable_version: RunnableCairo1) {
 fn no_constructor_nonempty_calldata(runnable_version: RunnableCairo1) {
     let deployer_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
     let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1(runnable_version));
-    let class_hash = empty_contract.get_class_hash();
 
-    let mut state = test_state(
-        &ChainInfo::create_for_testing(),
-        Fee(0),
+    let (entry_point, _deployed_addr, mut state) = setup_deploy_call(
         &[(deployer_contract, 1), (empty_contract, 0)],
+        vec![felt!(1_u8), felt!(1_u8)],
+        true,
     );
 
-    let calldata = calldata_for_deploy_test(class_hash, &[felt!(1_u8), felt!(1_u8)], true);
-
-    let entry_point_call = CallEntryPoint {
-        entry_point_selector: selector_from_name("test_deploy"),
-        calldata,
-        ..trivial_external_entry_point_new(deployer_contract)
-    };
-
-    let error = entry_point_call.execute_directly(&mut state).unwrap_err().to_string();
+    let error = entry_point.execute_directly(&mut state).unwrap_err().to_string();
     assert!(error.contains(
         "Invalid input: constructor_calldata; Cannot pass calldata to a contract with no \
          constructor."
@@ -98,21 +103,13 @@ fn no_constructor_nonempty_calldata(runnable_version: RunnableCairo1) {
 #[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native;"Native"))]
 fn with_constructor(runnable_version: RunnableCairo1) {
     let deployer_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
-    let mut state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[(deployer_contract, 1)]);
-
-    let class_hash = deployer_contract.get_class_hash();
     let constructor_calldata = vec![
         felt!(1_u8), // Calldata: address.
         felt!(1_u8), // Calldata: value.
     ];
-
-    let calldata = calldata_for_deploy_test(class_hash, &constructor_calldata, true);
-
-    let entry_point_call = CallEntryPoint {
-        entry_point_selector: selector_from_name("test_deploy"),
-        calldata,
-        ..trivial_external_entry_point_new(deployer_contract)
-    };
+    let (entry_point_call, _deployed_addr, mut state) =
+        setup_deploy_call(&[(deployer_contract, 1)], constructor_calldata.clone(), true);
+    let class_hash = deployer_contract.get_class_hash();
 
     // No errors expected.
     let contract_address = calculate_contract_address(
@@ -150,21 +147,12 @@ fn with_constructor(runnable_version: RunnableCairo1) {
 #[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native;"Native"))]
 fn to_unavailable_address(runnable_version: RunnableCairo1) {
     let deployer_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
-    let mut state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[(deployer_contract, 1)]);
-
-    let class_hash = deployer_contract.get_class_hash();
     let constructor_calldata = vec![
         felt!(1_u8), // Calldata: address.
         felt!(1_u8), // Calldata: value.
     ];
-
-    let calldata = calldata_for_deploy_test(class_hash, &constructor_calldata, true);
-
-    let entry_point_call = CallEntryPoint {
-        entry_point_selector: selector_from_name("test_deploy"),
-        calldata,
-        ..trivial_external_entry_point_new(deployer_contract)
-    };
+    let (entry_point_call, _deployed_addr, mut state) =
+        setup_deploy_call(&[(deployer_contract, 1)], constructor_calldata.clone(), true);
 
     entry_point_call.clone().execute_directly(&mut state).unwrap();
     let error = entry_point_call.execute_directly(&mut state).unwrap_err().to_string();
@@ -301,23 +289,11 @@ fn calldata_length(cairo_version: CairoVersion) {
 #[test_case(RunnableCairo1::Casm;"VM")]
 #[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native;"Native"))]
 fn reject_deploy_in_validate_mode(runnable_version: RunnableCairo1) {
-    // TODO(Yoni): share the init code of the tests in this file.
     let deployer_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
     let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1(runnable_version));
-    let class_hash = empty_contract.get_class_hash();
 
-    let mut state = test_state(
-        &ChainInfo::create_for_testing(),
-        Fee(0),
-        &[(deployer_contract, 1), (empty_contract, 0)],
-    );
-
-    let calldata = calldata_for_deploy_test(class_hash, &[], true);
-    let entry_point_call = CallEntryPoint {
-        entry_point_selector: selector_from_name("test_deploy"),
-        calldata,
-        ..trivial_external_entry_point_new(deployer_contract)
-    };
+    let (entry_point_call, _deployed_addr, mut state) =
+        setup_deploy_call(&[(deployer_contract, 1), (empty_contract, 0)], vec![], true);
 
     // Reject the deploy syscall in validate mode.
     let error = entry_point_call.clone().execute_directly_in_validate_mode(&mut state).unwrap_err();
