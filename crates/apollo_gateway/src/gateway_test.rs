@@ -56,6 +56,7 @@ use crate::metrics::{
     TRANSACTIONS_SENT_TO_MEMPOOL,
 };
 use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReaderFactory};
+use crate::test_utils::TransactionType;
 
 #[fixture]
 fn config() -> GatewayConfig {
@@ -124,26 +125,32 @@ fn create_tx() -> (RpcTransaction, SenderAddress) {
 // We use default nonce, address, and tx_hash since Gateway errors drop these details when
 // converting Mempool errors.
 #[rstest]
-#[case::successful_transaction_addition(Ok(()), None)]
-#[case::duplicate_tx_hash(
+#[case::successful_transaction_addition(
+    TransactionType::Invoke, Ok(()), None)]
+#[case::invoke_duplicate_tx_hash(
+    TransactionType::Invoke,
     Err(MempoolClientError::MempoolError(MempoolError::DuplicateTransaction { tx_hash: TransactionHash::default() })),
     Some(GatewaySpecError::DuplicateTx)
 )]
-#[case::duplicate_nonce(
+#[case::invoke_duplicate_nonce(
+    TransactionType::Invoke,
     Err(MempoolClientError::MempoolError(MempoolError::DuplicateNonce { address: ContractAddress::default(), nonce: Nonce::default() })),
     Some(GatewaySpecError::InvalidTransactionNonce)
 )]
-#[case::nonce_too_old(
+#[case::invoke_nonce_too_old(
+    TransactionType::Invoke,
     Err(MempoolClientError::MempoolError(MempoolError::NonceTooOld { address: ContractAddress::default(), nonce: Nonce::default() })),
     Some(GatewaySpecError::InvalidTransactionNonce)
 )]
-#[case::nonce_too_large(
+#[case::invoke_nonce_too_large(
+    TransactionType::Invoke,
     Err(MempoolClientError::MempoolError(MempoolError::NonceTooLarge(Nonce::default()))),
     Some(GatewaySpecError::InvalidTransactionNonce)
 )]
 #[tokio::test]
 async fn test_add_tx(
     mut mock_dependencies: MockDependencies,
+    #[case] _tx_type: TransactionType,
     #[case] expected_result: Result<(), MempoolClientError>,
     #[case] expected_error: Option<GatewaySpecError>,
 ) {
