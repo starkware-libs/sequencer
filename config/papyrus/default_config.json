@@ -159,6 +159,26 @@
     "privacy": "Public",
     "value": true
   },
+  "context.max_l1_data_gas_price_wei": {
+    "description": "The maximum L1 data gas price in wei.",
+    "privacy": "Public",
+    "value": 150000000000
+  },
+  "context.max_l1_gas_price_wei": {
+    "description": "The maximum L1 gas price in wei.",
+    "privacy": "Public",
+    "value": 200000000000
+  },
+  "context.min_l1_data_gas_price_wei": {
+    "description": "The minimum L1 data gas price in wei.",
+    "privacy": "Public",
+    "value": 1000000000
+  },
+  "context.min_l1_gas_price_wei": {
+    "description": "The minimum L1 gas price in wei.",
+    "privacy": "Public",
+    "value": 1000000000
+  },
   "context.num_validators": {
     "description": "The number of validators.",
     "privacy": "Public",
