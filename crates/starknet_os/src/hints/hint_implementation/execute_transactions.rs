@@ -12,6 +12,7 @@ use starknet_api::core::ClassHash;
 use starknet_api::executable_transaction::{AccountTransaction, Transaction};
 use starknet_types_core::felt::Felt;
 
+use crate::hint_processor::execution_helper::TransactionExecutionInfoForExecutionHelper;
 use crate::hints::enum_definition::{AllHints, OsHint};
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::nondet_offsets::insert_nondet_hint_value;
@@ -101,10 +102,26 @@ pub(crate) fn skip_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> O
     todo!()
 }
 
-pub(crate) fn start_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> OsHintResult {
-    // TODO(lior): No longer equivalent to moonsong impl; PTAL at the new implementation of
-    //   start_tx().
-    todo!()
+pub(crate) fn start_tx<S: StateReader>(
+    HintArgs { hint_processor, exec_scopes, .. }: HintArgs<'_, '_, S>,
+) -> OsHintResult {
+    if exec_scopes
+        .get::<TransactionExecutionInfoForExecutionHelper>(Scope::TxExecutionInfo.into())
+        .is_ok()
+    {
+        return Err(OsHintError::AssertionFailed {
+            message: "start_tx() called twice in a row".to_string(),
+        });
+    }
+
+    let tx_type = exec_scopes.get(Scope::TxType.into())?;
+    match hint_processor.get_mut_current_execution_helper()?.next_tx_execution_infos(tx_type) {
+        Some(tx_execution_helper_info) => {
+            exec_scopes.insert_value(Scope::TxExecutionInfo.into(), tx_execution_helper_info);
+            Ok(())
+        }
+        None => Err(OsHintError::EndOfIterator { item_type: "tx_execution_info".into() }),
+    }
 }
 
 pub(crate) fn os_input_transactions<S: StateReader>(

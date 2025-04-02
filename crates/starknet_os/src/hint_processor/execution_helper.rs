@@ -4,6 +4,9 @@ use blockifier::state::cached_state::{CachedState, StateMaps};
 use blockifier::state::state_api::StateReader;
 #[cfg(any(feature = "testing", test))]
 use blockifier::test_utils::dict_state_reader::DictStateReader;
+use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
+use starknet_api::executable_transaction::TransactionType;
+use starknet_api::transaction::fields::Fee;
 
 use crate::errors::StarknetOsError;
 use crate::hint_processor::os_logger::OsLogger;
@@ -14,6 +17,7 @@ pub struct OsExecutionHelper<S: StateReader> {
     pub(crate) cached_state: CachedState<S>,
     pub(crate) os_block_input: OsBlockInput,
     pub(crate) os_logger: OsLogger,
+    tx_execution_info_iter: TxExecutionInfoIter,
 }
 
 impl<S: StateReader> OsExecutionHelper<S> {
@@ -27,7 +31,17 @@ impl<S: StateReader> OsExecutionHelper<S> {
             cached_state: Self::initialize_cached_state(state_reader, state_input)?,
             os_block_input,
             os_logger: OsLogger::new(debug_mode),
+            tx_execution_info_iter: TxExecutionInfoIter::new(),
         })
+    }
+
+    pub(crate) fn next_tx_execution_infos(
+        &mut self,
+        _tx_type: TransactionType,
+    ) -> Option<TransactionExecutionInfoForExecutionHelper> {
+        self.tx_execution_info_iter.increment();
+        Some(self.tx_execution_info_iter.get(&self.os_block_input.tx_execution_infos)?.into())
+        // TODO(yoav): load the call infos.
     }
 
     fn initialize_cached_state(
@@ -66,6 +80,45 @@ impl OsExecutionHelper<DictStateReader> {
             cached_state: CachedState::from(state_reader),
             os_block_input,
             os_logger: OsLogger::new(true),
+            tx_execution_info_iter: TxExecutionInfoIter::new(),
+        }
+    }
+}
+
+struct TxExecutionInfoIter {
+    next_tx_execution_infos_index: usize,
+}
+
+impl TxExecutionInfoIter {
+    pub fn new() -> Self {
+        Self { next_tx_execution_infos_index: 0 }
+    }
+
+    pub fn get<'a>(
+        &self,
+        tx_execution_infos: &'a [CentralTransactionExecutionInfo],
+    ) -> Option<&'a CentralTransactionExecutionInfo> {
+        tx_execution_infos.get(self.next_tx_execution_infos_index)
+    }
+
+    pub fn increment(&mut self) {
+        self.next_tx_execution_infos_index += 1;
+    }
+}
+
+#[derive(Clone)]
+pub struct TransactionExecutionInfoForExecutionHelper {
+    pub actual_fee: Fee,
+    pub is_reverted: bool,
+}
+
+impl From<&CentralTransactionExecutionInfo> for TransactionExecutionInfoForExecutionHelper {
+    fn from(
+        tx_execution_info: &CentralTransactionExecutionInfo,
+    ) -> TransactionExecutionInfoForExecutionHelper {
+        TransactionExecutionInfoForExecutionHelper {
+            actual_fee: tx_execution_info.actual_fee,
+            is_reverted: tx_execution_info.revert_error.is_some(),
         }
     }
 }
