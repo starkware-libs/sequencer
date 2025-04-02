@@ -869,6 +869,16 @@
     "privacy": "Public",
     "value": true
   },
+  "consensus_manager_config.context_config.max_l1_gas_price_wei": {
+    "description": "The maximum L1 gas price in wei.",
+    "privacy": "Public",
+    "value": 200000000000
+  },
+  "consensus_manager_config.context_config.min_l1_gas_price_wei": {
+    "description": "The minimum L1 gas price in wei.",
+    "privacy": "Public",
+    "value": 1
+  },
   "consensus_manager_config.context_config.num_validators": {
     "description": "The number of validators.",
     "privacy": "Public",
