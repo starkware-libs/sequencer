@@ -5,6 +5,7 @@ use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     BinaryData,
     EdgeData,
+    EdgePath,
     EdgePathLength,
     PathToBottom,
 };
@@ -118,7 +119,6 @@ impl InnerNode {
     }
 }
 
-// TODO(Rotem): Maybe we can avoid using None.
 #[derive(Clone, Debug, PartialEq)]
 pub enum UpdateTree {
     InnerNode(InnerNode),
@@ -145,6 +145,30 @@ impl CanonicNode {
             return Self::Edge(*edge);
         }
         Self::BinaryOrLeaf(*node_hash)
+    }
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct Path(pub(crate) PathToBottom);
+
+impl Path {
+    fn turn(&self, right: bool) -> Result<Self, PatriciaError> {
+        Ok(Self(PathToBottom::new(
+            EdgePath((self.0.path.0 << 1) + u128::from(right)),
+            EdgePathLength::new(u8::from(self.0.length) + 1u8)?,
+        )?))
+    }
+    fn turn_left(&self) -> Result<Self, PatriciaError> {
+        self.turn(false)
+    }
+
+    fn turn_right(&self) -> Result<Self, PatriciaError> {
+        self.turn(true)
+    }
+
+    /// Remove n_edges from the beginning of the path and return the new path.
+    fn remove_first_edges(&self, n_edges: EdgePathLength) -> Result<Self, PatriciaError> {
+        Ok(Self(self.0.remove_first_edges(n_edges)?))
     }
 }
 
