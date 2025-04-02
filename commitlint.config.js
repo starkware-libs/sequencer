@@ -22,6 +22,7 @@ const Configuration = {
         'scope-enum': [2, 'always', [
             'apollo_batcher',
             'apollo_batcher_types',
+            'apollo_base_layer',
             'apollo_central_sync',
             'apollo_class_manager',
             'apollo_class_manager_types',
@@ -74,7 +75,6 @@ const Configuration = {
             'infra',
             'mempool_test_utils',
             'native_blockifier',
-            'papyrus_base_layer',
             'papyrus_common',
             'papyrus_load_test',
             'papyrus_monitoring_gateway',

@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
 
+use apollo_base_layer::{BaseLayerContract, L1BlockNumber};
 use apollo_config::converters::deserialize_float_seconds_to_duration;
 use apollo_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use apollo_config::validators::validate_ascii;
@@ -12,7 +13,6 @@ use apollo_l1_gas_price_types::L1GasPriceProviderClient;
 use apollo_sequencer_infra::component_client::ClientError;
 use apollo_sequencer_infra::component_definitions::ComponentStarter;
 use async_trait::async_trait;
-use papyrus_base_layer::{BaseLayerContract, L1BlockNumber};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
 use thiserror::Error;

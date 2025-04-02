@@ -1,5 +1,5 @@
+use apollo_base_layer::PriceSample;
 use apollo_l1_gas_price_types::PriceInfo;
-use papyrus_base_layer::PriceSample;
 use starknet_api::block::BlockTimestamp;
 
 use crate::l1_gas_price_provider::{

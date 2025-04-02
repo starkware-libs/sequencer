@@ -4,6 +4,7 @@
 resolver = "2"
 
 members = [
+  "crates/apollo_base_layer",
   "crates/apollo_batcher",
   "crates/apollo_batcher_types",
   "crates/apollo_central_sync",
@@ -53,7 +54,6 @@ members = [
   "crates/blockifier_test_utils",
   "crates/mempool_test_utils",
   "crates/native_blockifier",
-  "crates/papyrus_base_layer",
   "crates/papyrus_common",
   "crates/papyrus_load_test",
   "crates/papyrus_monitoring_gateway",
@@ -80,6 +80,7 @@ license-file = "LICENSE"
 [workspace.dependencies]
 alloy = "0.9"
 anyhow = "1.0.44"
+apollo_base_layer.path = "crates/apollo_base_layer"
 apollo_batcher.path = "crates/apollo_batcher"
 apollo_batcher_types.path = "crates/apollo_batcher_types"
 apollo_central_sync.path = "crates/apollo_central_sync"
@@ -215,7 +216,6 @@ num-traits = "0.2.15"
 once_cell = "1.19.0"
 os_info = "3.6.0"
 page_size = "0.6.0"
-papyrus_base_layer.path = "crates/papyrus_base_layer"
 papyrus_common.path = "crates/papyrus_common"
 papyrus_load_test.path = "crates/papyrus_load_test"
 papyrus_monitoring_gateway.path = "crates/papyrus_monitoring_gateway"

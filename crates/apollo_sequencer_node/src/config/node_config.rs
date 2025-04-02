@@ -3,6 +3,7 @@ use std::fs::File;
 use std::sync::LazyLock;
 use std::vec::Vec;
 
+use apollo_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use apollo_batcher::config::BatcherConfig;
 use apollo_batcher::VersionedConstantsOverrides;
 use apollo_class_manager::config::FsClassManagerConfig;
@@ -32,7 +33,6 @@ use apollo_reverts::RevertConfig;
 use apollo_sierra_multicompile::config::SierraCompilationConfig;
 use apollo_state_sync::config::StateSyncConfig;
 use clap::Command;
-use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
