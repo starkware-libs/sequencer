@@ -31,11 +31,13 @@ use mempool_test_utils::starknet_api_test_utils::{
     L1ToL2MessageArgs,
     MultiAccountTransactionGenerator,
 };
-use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
+use papyrus_base_layer::ethereum_base_layer_contract::{
+    EthereumBaseLayerConfig,
+    StarknetL1Contract,
+};
 use papyrus_base_layer::test_utils::{
     ethereum_base_layer_config_for_anvil,
     spawn_anvil_and_deploy_starknet_l1_contract,
-    StarknetL1Contract,
 };
 use starknet_api::block::BlockNumber;
 use starknet_api::consensus_transaction::ConsensusTransaction;
