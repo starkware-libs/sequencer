@@ -189,6 +189,20 @@ expression: dumped_default_config
     "value": true,
     "privacy": "Public"
   },
+  "context.max_l1_gas_price_wei": {
+    "description": "The maximum L1 gas price in wei.",
+    "value": {
+      "$serde_json::private::Number": "200000000000"
+    },
+    "privacy": "Public"
+  },
+  "context.min_l1_gas_price_wei": {
+    "description": "The minimum L1 gas price in wei.",
+    "value": {
+      "$serde_json::private::Number": "1"
+    },
+    "privacy": "Public"
+  },
   "context.num_validators": {
     "description": "The number of validators.",
     "value": {

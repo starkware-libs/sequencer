@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize};
 use starknet_api::core::{ChainId, ContractAddress};
 use validator::Validate;
 
+const GWEI_FACTOR: u128 = 1_000_000_000;
+
 /// Configuration for the Context struct.
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct ContextConfig {
@@ -34,6 +36,14 @@ pub struct ContextConfig {
     /// Safety margin in milliseconds to allow the batcher to successfully validate a proposal.
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     pub validate_proposal_margin: Duration,
+    /// The minimum L1 gas price in wei.
+    pub min_l1_gas_price_wei: u128,
+    /// The maximum L1 gas price in wei.
+    pub max_l1_gas_price_wei: u128,
+    /// The minimum L1 data gas price in wei.
+    pub min_l1_data_gas_price_wei: u128,
+    /// The maximum L1 data gas price in wei.
+    pub max_l1_data_gas_price_wei: u128,
 }
 
 impl SerializeConfig for ContextConfig {
@@ -90,6 +100,30 @@ impl SerializeConfig for ContextConfig {
                  validating a proposal.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "min_l1_gas_price_wei",
+                &self.min_l1_gas_price_wei,
+                "The minimum L1 gas price in wei.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_l1_gas_price_wei",
+                &self.max_l1_gas_price_wei,
+                "The maximum L1 gas price in wei.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "min_l1_data_gas_price_wei",
+                &self.min_l1_data_gas_price_wei,
+                "The minimum L1 data gas price in wei.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_l1_data_gas_price_wei",
+                &self.max_l1_data_gas_price_wei,
+                "The maximum L1 data gas price in wei.",
+                ParamPrivacyInput::Public,
+            ),
         ])
     }
 }
@@ -105,6 +139,10 @@ impl Default for ContextConfig {
             builder_address: ContractAddress::default(),
             build_proposal_margin: Duration::from_millis(1000),
             validate_proposal_margin: Duration::from_millis(10_000),
+            min_l1_gas_price_wei: 1 * GWEI_FACTOR,
+            max_l1_gas_price_wei: 200 * GWEI_FACTOR,
+            min_l1_data_gas_price_wei: 1 * GWEI_FACTOR,
+            max_l1_data_gas_price_wei: 150 * GWEI_FACTOR,
         }
     }
 }
