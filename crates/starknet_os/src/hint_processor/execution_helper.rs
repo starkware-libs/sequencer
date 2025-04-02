@@ -1,9 +1,13 @@
 use std::collections::HashMap;
+use std::slice::Iter;
 
+use blockifier::execution::call_info::{CallInfo, CallInfoIter};
 use blockifier::state::cached_state::{CachedState, StateMaps};
 use blockifier::state::state_api::StateReader;
 #[cfg(any(feature = "testing", test))]
 use blockifier::test_utils::dict_state_reader::DictStateReader;
+use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
+use starknet_api::executable_transaction::TransactionType;
 
 use crate::errors::StarknetOsError;
 use crate::hint_processor::os_logger::OsLogger;
@@ -14,6 +18,7 @@ pub struct OsExecutionHelper<'a, S: StateReader> {
     pub(crate) cached_state: CachedState<S>,
     pub(crate) os_block_input: &'a OsBlockInput,
     pub(crate) os_logger: OsLogger,
+    pub(crate) tx_execution_iter: TransactionExecutionIter<'a>,
 }
 
 impl<'a, S: StateReader> OsExecutionHelper<'a, S> {
@@ -27,6 +32,7 @@ impl<'a, S: StateReader> OsExecutionHelper<'a, S> {
             cached_state: Self::initialize_cached_state(state_reader, state_input)?,
             os_block_input,
             os_logger: OsLogger::new(debug_mode),
+            tx_execution_iter: TransactionExecutionIter::new(&os_block_input.tx_execution_infos),
         })
     }
 
@@ -69,7 +75,46 @@ impl<'a> OsExecutionHelper<'a, DictStateReader> {
             cached_state: CachedState::from(state_reader),
             os_block_input,
             os_logger: OsLogger::new(true),
+            tx_execution_iter: TransactionExecutionIter::new(&os_block_input.tx_execution_infos),
         }
+    }
+}
+
+pub struct TransactionExecutionInfoReference<'a> {
+    pub tx_execution_info: &'a CentralTransactionExecutionInfo,
+    call_info_iter: CallInfoIter<'a>,
+    pub call_info: Option<&'a CallInfo>,
+}
+
+impl TransactionExecutionInfoReference<'_> {
+    pub fn next_call_info(&mut self) -> Option<()> {
+        self.call_info = self.call_info_iter.next();
+        self.call_info.map(|_| ())
+    }
+}
+
+pub struct TransactionExecutionIter<'a> {
+    tx_execution_info_iter: Iter<'a, CentralTransactionExecutionInfo>,
+    pub tx_execution_info_ref: Option<TransactionExecutionInfoReference<'a>>,
+}
+
+impl<'a> TransactionExecutionIter<'a> {
+    pub fn new(tx_execution_infos: &'a [CentralTransactionExecutionInfo]) -> Self {
+        Self { tx_execution_info_iter: tx_execution_infos.iter(), tx_execution_info_ref: None }
+    }
+
+    pub fn next_tx(&mut self, tx_type: TransactionType) -> Option<()> {
+        self.tx_execution_info_iter.next().map(|tx_execution_info| {
+            self.tx_execution_info_ref = Some(TransactionExecutionInfoReference {
+                tx_execution_info,
+                call_info_iter: tx_execution_info.call_info_iter(tx_type),
+                call_info: None,
+            });
+        })
+    }
+
+    pub fn next_call_info(&mut self) -> Option<()> {
+        self.tx_execution_info_ref.as_mut().and_then(|v| v.next_call_info())
     }
 }
 
