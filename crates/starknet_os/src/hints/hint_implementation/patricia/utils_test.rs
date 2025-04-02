@@ -20,6 +20,7 @@ use super::{
     DecodeNodeCase,
     InnerNode,
     LayerIndex,
+    Path,
     PatriciaError,
     Preimage,
     PreimageMap,
@@ -285,4 +286,63 @@ fn test_preimage_tree_get_children() {
         Err(PatriciaError::ExpectedBranch(s)) if s == "Leaf" => (),
         _ => panic!("Expected ExpectedBranch error with 'Leaf' message"),
     }
+}
+
+#[test]
+fn test_node_path_turns() {
+    // path = 01
+    let path =
+        Path(PathToBottom::new(EdgePath(U256::new(1)), EdgePathLength::new(2).unwrap()).unwrap());
+
+    // Turn left -> path = 010
+    let path = path.turn_left().unwrap();
+    assert_eq!(
+        path,
+        Path(PathToBottom::new(EdgePath(U256::new(2)), EdgePathLength::new(3).unwrap()).unwrap())
+    );
+
+    // Turn right -> path = 0101
+    let path = path.turn_right().unwrap();
+    assert_eq!(
+        path,
+        Path(PathToBottom::new(EdgePath(U256::new(5)), EdgePathLength::new(4).unwrap()).unwrap())
+    );
+
+    let path =
+        Path(PathToBottom::new(EdgePath(U256::new(0)), EdgePathLength::new(251).unwrap()).unwrap());
+    let result = path.turn_left();
+    assert_matches!(result, Err(PatriciaError::EdgePath(_)));
+    let result = path.turn_right();
+    assert_matches!(result, Err(PatriciaError::EdgePath(_)));
+}
+
+#[test]
+fn test_node_path_remove_first_edges() {
+    // path = 0101
+    let path =
+        Path(PathToBottom::new(EdgePath(U256::new(5)), EdgePathLength::new(4).unwrap()).unwrap());
+
+    let new_path = path.remove_first_edges(EdgePathLength::new(0).unwrap()).unwrap();
+    assert_eq!(new_path, path);
+
+    let new_path = path.remove_first_edges(EdgePathLength::new(1).unwrap()).unwrap();
+    assert_eq!(
+        new_path,
+        Path(PathToBottom::new(EdgePath(U256::new(5)), EdgePathLength::new(3).unwrap()).unwrap())
+    );
+
+    let new_path = path.remove_first_edges(EdgePathLength::new(2).unwrap()).unwrap();
+    assert_eq!(
+        new_path,
+        Path(PathToBottom::new(EdgePath(U256::new(1)), EdgePathLength::new(2).unwrap()).unwrap())
+    );
+
+    let new_path = path.remove_first_edges(EdgePathLength::new(3).unwrap()).unwrap();
+    assert_eq!(
+        new_path,
+        Path(PathToBottom::new(EdgePath(U256::new(1)), EdgePathLength::new(1).unwrap()).unwrap())
+    );
+
+    let result = path.remove_first_edges(EdgePathLength::new(5).unwrap());
+    assert_matches!(result, Err(PatriciaError::PathToBottom(_)));
 }

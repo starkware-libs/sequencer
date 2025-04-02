@@ -5,7 +5,9 @@ use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     BinaryData,
     EdgeData,
+    EdgePath,
     EdgePathLength,
+    PathToBottom,
 };
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_types_core::felt::Felt;
@@ -116,7 +118,6 @@ impl From<&InnerNode> for DecodeNodeCase {
     }
 }
 
-// TODO(Rotem): Maybe we can avoid using None.
 #[derive(Clone, Debug, PartialEq)]
 pub enum UpdateTree {
     InnerNode(InnerNode),
@@ -165,6 +166,35 @@ impl CanonicNode {
 pub struct CanonicChildren {
     left: Option<CanonicNode>,
     right: Option<CanonicNode>,
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct Path(pub(crate) PathToBottom);
+
+impl Path {
+    fn turn_left(&self) -> Result<Self, PatriciaError> {
+        let path_to_bottom = PathToBottom::new(
+            EdgePath(self.0.path.0 << 1),
+            EdgePathLength::new(u8::from(self.0.length) + 1u8)?,
+        )?;
+
+        Ok(Self(path_to_bottom))
+    }
+
+    fn turn_right(&self) -> Result<Self, PatriciaError> {
+        let path_to_bottom = PathToBottom::new(
+            EdgePath((self.0.path.0 << 1) + 1u128),
+            EdgePathLength::new(u8::from(self.0.length) + 1u8)?,
+        )?;
+
+        Ok(Self(path_to_bottom))
+    }
+
+    /// Remove n_edges from the beginning of the path and return the new path.
+    fn remove_first_edges(&self, n_edges: EdgePathLength) -> Result<Self, PatriciaError> {
+        let new_path_to_bottom = self.0.remove_first_edges(n_edges)?;
+        Ok(Self(new_path_to_bottom))
+    }
 }
 
 /// Constructs layers of a tree from leaf updates. This is not a full state tree, it is just the
