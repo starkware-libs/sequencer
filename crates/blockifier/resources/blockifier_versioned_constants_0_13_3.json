@@ -105,6 +105,7 @@
             "l1_data_gas": 10000000000,
             "l2_gas": 10000000000
         },
+        "allow_deploy_in_validation_mode": true,
         "sierra_array_len_bound": 4294967296,
         "step_gas_cost": 100,
         "stored_block_hash_buffer": 10,

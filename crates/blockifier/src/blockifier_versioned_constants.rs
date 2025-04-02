@@ -802,6 +802,7 @@ pub struct OsConstants {
     pub v1_bound_accounts_max_tip: Tip,
     pub l1_handler_max_amount_bounds: GasVector,
     pub data_gas_accounts: Vec<ClassHash>,
+    pub allow_deploy_in_validation_mode: bool,
 }
 
 impl OsConstants {
@@ -891,6 +892,7 @@ impl TryFrom<OsConstantsRawJson> for OsConstants {
         let v1_bound_accounts_max_tip = raw_json_data.v1_bound_accounts_max_tip;
         let data_gas_accounts = raw_json_data.data_gas_accounts;
         let l1_handler_max_amount_bounds = raw_json_data.l1_handler_max_amount_bounds;
+        let allow_deploy_in_validation_mode = raw_json_data.allow_deploy_in_validation_mode;
         let os_constants = OsConstants {
             gas_costs,
             validate_rounding_consts,
@@ -902,6 +904,7 @@ impl TryFrom<OsConstantsRawJson> for OsConstants {
             v1_bound_accounts_max_tip,
             data_gas_accounts,
             l1_handler_max_amount_bounds,
+            allow_deploy_in_validation_mode,
         };
         Ok(os_constants)
     }
@@ -947,6 +950,7 @@ struct OsConstantsRawJson {
     v1_bound_accounts_max_tip: Tip,
     data_gas_accounts: Vec<ClassHash>,
     l1_handler_max_amount_bounds: GasVector,
+    allow_deploy_in_validation_mode: bool,
 }
 
 impl OsConstantsRawJson {
