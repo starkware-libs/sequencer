@@ -14,7 +14,7 @@ struct DeserializedContractClass {
     pub entry_points_by_type: ContractEntryPoints,
 }
 
-pub(crate) fn contract_class_from_file<P: AsRef<Path>>(path: P) -> ContractClass {
+pub fn contract_class_from_file<P: AsRef<Path>>(path: P) -> ContractClass {
     let DeserializedContractClass {
         sierra_program,
         sierra_program_debug_info,

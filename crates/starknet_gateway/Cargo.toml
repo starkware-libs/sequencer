@@ -26,6 +26,7 @@ serde.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
+starknet_compilation_utils.workspace = true
 starknet_compile_to_casm.workspace = true
 starknet_gateway_types.workspace = true
 starknet_mempool_types.workspace = true
