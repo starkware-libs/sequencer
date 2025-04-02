@@ -64,6 +64,10 @@ impl Deployment {
         }
     }
 
+    pub fn get_deployment_name(&self) -> &DeploymentName {
+        &self.deployment_name
+    }
+
     pub fn dump_application_config_files(&self, base_app_config_file_path: &str) {
         let deployment_base_app_config = get_deployment_from_config_path(base_app_config_file_path);
 
