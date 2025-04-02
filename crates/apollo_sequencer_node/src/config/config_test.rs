@@ -1,12 +1,7 @@
-use std::env;
-use std::fs::File;
 use std::net::{IpAddr, Ipv4Addr};
 
-use apollo_config::dumping::SerializeConfig;
-use apollo_infra_utils::path::resolve_project_relative_path;
-use apollo_infra_utils::test_utils::assert_json_eq;
+use apollo_config::test_utils::assert_default_config_file_is_up_to_date;
 use apollo_sequencer_infra::component_definitions::{LocalServerConfig, RemoteClientConfig};
-use colored::Colorize;
 use rstest::rstest;
 use validator::Validate;
 
@@ -91,35 +86,12 @@ fn valid_component_execution_config(
 /// cargo run --bin sequencer_dump_config -q
 #[test]
 fn default_config_file_is_up_to_date() {
-    env::set_current_dir(resolve_project_relative_path("").unwrap())
-        .expect("Couldn't set working dir.");
-    let from_default_config_file: serde_json::Value =
-        serde_json::from_reader(File::open(DEFAULT_CONFIG_PATH).unwrap()).unwrap();
-
-    // Create a temporary file and dump the default config to it.
-    let mut tmp_file_path = env::temp_dir();
-    tmp_file_path.push("cfg.json");
-    SequencerNodeConfig::default()
-        .dump_to_file(
-            &CONFIG_POINTERS,
-            &CONFIG_NON_POINTERS_WHITELIST,
-            tmp_file_path.to_str().unwrap(),
-        )
-        .unwrap();
-
-    // Read the dumped config from the file.
-    let from_code: serde_json::Value =
-        serde_json::from_reader(File::open(tmp_file_path).unwrap()).unwrap();
-
-    let error_message = format!(
-        "{}\n{}",
-        "Default config file doesn't match the default SequencerNodeConfig implementation. Please \
-         update it using the sequencer_dump_config binary."
-            .purple()
-            .bold(),
-        "Diffs shown below (default config file <<>> dump of SequencerNodeConfig::default())."
+    assert_default_config_file_is_up_to_date::<SequencerNodeConfig>(
+        "sequencer_dump_config",
+        DEFAULT_CONFIG_PATH,
+        &CONFIG_POINTERS,
+        &CONFIG_NON_POINTERS_WHITELIST,
     );
-    assert_json_eq(&from_default_config_file, &from_code, error_message);
 }
 
 #[test]
