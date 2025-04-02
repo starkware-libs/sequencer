@@ -1,9 +1,12 @@
 use std::collections::HashMap;
+use std::slice::Iter;
 
 use blockifier::state::cached_state::{CachedState, StateMaps};
 use blockifier::state::state_api::StateReader;
 #[cfg(any(feature = "testing", test))]
 use blockifier::test_utils::dict_state_reader::DictStateReader;
+use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
+use starknet_api::executable_transaction::TransactionType;
 
 use crate::errors::StarknetOsError;
 use crate::hint_processor::os_logger::OsLogger;
@@ -14,6 +17,7 @@ pub struct OsExecutionHelper<'a, S: StateReader> {
     pub(crate) cached_state: CachedState<S>,
     pub(crate) os_block_input: &'a OsBlockInput,
     pub(crate) os_logger: OsLogger,
+    pub(crate) tx_execution_iter: TransactionExecutionIter<'a>,
 }
 
 impl<'a, S: StateReader> OsExecutionHelper<'a, S> {
@@ -27,6 +31,7 @@ impl<'a, S: StateReader> OsExecutionHelper<'a, S> {
             cached_state: Self::initialize_cached_state(state_reader, state_input)?,
             os_block_input,
             os_logger: OsLogger::new(debug_mode),
+            tx_execution_iter: TransactionExecutionIter::new(&os_block_input.tx_execution_infos),
         })
     }
 
@@ -69,6 +74,35 @@ impl<'a> OsExecutionHelper<'a, DictStateReader> {
             cached_state: CachedState::from(state_reader),
             os_block_input,
             os_logger: OsLogger::new(true),
+            tx_execution_iter: TransactionExecutionIter::new(&os_block_input.tx_execution_infos),
+        }
+    }
+}
+
+pub struct TypedTransactionExecutionInfo<'a> {
+    pub tx_execution_info: &'a CentralTransactionExecutionInfo,
+    pub tx_type: TransactionType,
+    // TODO(yoav): Add call info iterator.
+}
+
+pub struct TransactionExecutionIter<'a> {
+    tx_execution_info_iter: Iter<'a, CentralTransactionExecutionInfo>,
+    pub typed_tx_execution_info: Option<TypedTransactionExecutionInfo<'a>>,
+}
+
+impl<'a> TransactionExecutionIter<'a> {
+    pub fn new(tx_execution_infos: &'a Vec<CentralTransactionExecutionInfo>) -> Self {
+        Self { tx_execution_info_iter: tx_execution_infos.iter(), typed_tx_execution_info: None }
+    }
+
+    pub fn next_tx(&mut self, tx_type: TransactionType) -> Option<()> {
+        match self.tx_execution_info_iter.next() {
+            Some(tx_execution_info) => {
+                self.typed_tx_execution_info =
+                    Some(TypedTransactionExecutionInfo { tx_execution_info, tx_type });
+                Some(())
+            }
+            None => None,
         }
     }
 }

@@ -96,6 +96,7 @@ define_string_enum! {
         (SyscallHandlerType),
         (Transactions),
         (Tx),
+        (TxType),
         (UseKzgDa),
     }
 }
