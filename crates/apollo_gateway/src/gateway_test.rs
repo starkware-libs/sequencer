@@ -201,10 +201,7 @@ async fn test_add_tx(
                     .get_metric_value(TRANSACTIONS_SENT_TO_MEMPOOL, &metrics),
                 1
             );
-            assert_eq!(
-                result.unwrap(),
-                GatewayOutput::Invoke(InvokeGatewayOutput { transaction_hash: tx_hash })
-            );
+            assert_eq!(result.unwrap(), GatewayOutput::Invoke(InvokeGatewayOutput::new(tx_hash)));
         }
     }
 }

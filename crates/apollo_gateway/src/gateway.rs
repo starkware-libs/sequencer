@@ -229,20 +229,17 @@ impl ComponentStarter for Gateway {
 fn create_gateway_output(internal_rpc_tx: &InternalRpcTransaction) -> GatewayOutput {
     let transaction_hash = internal_rpc_tx.tx_hash;
     match &internal_rpc_tx.tx {
-        InternalRpcTransactionWithoutTxHash::Declare(declare_tx) => {
-            GatewayOutput::Declare(DeclareGatewayOutput {
-                transaction_hash,
-                class_hash: declare_tx.class_hash,
-            })
-        }
+        InternalRpcTransactionWithoutTxHash::Declare(declare_tx) => GatewayOutput::Declare(
+            DeclareGatewayOutput::new(transaction_hash, declare_tx.class_hash),
+        ),
         InternalRpcTransactionWithoutTxHash::DeployAccount(deploy_account_tx) => {
-            GatewayOutput::DeployAccount(DeployAccountGatewayOutput {
+            GatewayOutput::DeployAccount(DeployAccountGatewayOutput::new(
                 transaction_hash,
-                address: deploy_account_tx.contract_address,
-            })
+                deploy_account_tx.contract_address,
+            ))
         }
         InternalRpcTransactionWithoutTxHash::Invoke(_) => {
-            GatewayOutput::Invoke(InvokeGatewayOutput { transaction_hash })
+            GatewayOutput::Invoke(InvokeGatewayOutput::new(transaction_hash))
         }
     }
 }

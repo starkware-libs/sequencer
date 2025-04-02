@@ -98,9 +98,7 @@ async fn incoming_p2p_tx_reaches_gateway_client() {
     mock_gateway_client.expect_add_tx().with(mockall::predicate::eq(gateway_input)).return_once(
         move |_| {
             add_tx_indicator_sender.send(()).unwrap();
-            Ok(GatewayOutput::Invoke(InvokeGatewayOutput {
-                transaction_hash: TransactionHash::default(),
-            }))
+            Ok(GatewayOutput::Invoke(InvokeGatewayOutput::new(TransactionHash::default())))
         },
     );
     let (mut mempool_p2p_runner, mock_network) = setup(

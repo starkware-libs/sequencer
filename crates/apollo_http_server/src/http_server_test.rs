@@ -3,39 +3,77 @@ use std::panic::AssertUnwindSafe;
 
 use apollo_gateway_types::communication::{GatewayClientError, MockGatewayClient};
 use apollo_gateway_types::errors::{GatewayError, GatewaySpecError};
-use apollo_gateway_types::gateway_types::{GatewayOutput, InvokeGatewayOutput};
+use apollo_gateway_types::gateway_types::{
+    DeclareGatewayOutput,
+    DeployAccountGatewayOutput,
+    GatewayOutput,
+    InvokeGatewayOutput,
+};
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use apollo_sequencer_infra::component_client::ClientError;
 use axum::body::{Bytes, HttpBody};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
+use axum::Json;
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use futures::FutureExt;
 use jsonrpsee::types::error::ErrorCode;
 use jsonrpsee::types::ErrorObjectOwned;
 use mempool_test_utils::starknet_api_test_utils::invoke_tx;
+use rstest::rstest;
 use serde_json::Value;
+use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::TransactionHash;
+use starknet_api::{class_hash, contract_address, tx_hash};
 use starknet_types_core::felt::Felt;
 use tracing_test::traced_test;
 
 use crate::config::HttpServerConfig;
 use crate::errors::HttpServerError;
-use crate::http_server::{add_tx_result_as_json, CLIENT_REGION_HEADER};
+use crate::http_server::CLIENT_REGION_HEADER;
 use crate::test_utils::http_client_server_setup;
 
+const DEPRECATED_GATEWAY_INVOKE_TX_RESPONSE_JSON_PATH: &str =
+    "expected_gateway_response/invoke_gateway_output.json";
+const DEPRECATED_GATEWAY_DECLARE_TX_RESPONSE_JSON_PATH: &str =
+    "expected_gateway_response/declare_gateway_output.json";
+const DEPRECATED_GATEWAY_DEPLOY_ACCOUNT_TX_RESPONSE_JSON_PATH: &str =
+    "expected_gateway_response/deploy_account_gateway_output.json";
+
+#[rstest]
+#[case::invoke(
+    GatewayOutput::Invoke(InvokeGatewayOutput::new(tx_hash!(1_u64))),
+    DEPRECATED_GATEWAY_INVOKE_TX_RESPONSE_JSON_PATH,
+)]
+#[case::declare(
+    GatewayOutput::Declare(DeclareGatewayOutput::new(tx_hash!(1_u64), class_hash!(2_u64))),
+    DEPRECATED_GATEWAY_DECLARE_TX_RESPONSE_JSON_PATH,
+
+)]
+#[case::deploy_account(
+    GatewayOutput::DeployAccount(DeployAccountGatewayOutput::new(
+        tx_hash!(1_u64),
+        contract_address!(3_u64)
+    )),
+    DEPRECATED_GATEWAY_DEPLOY_ACCOUNT_TX_RESPONSE_JSON_PATH,
+)]
 #[tokio::test]
-async fn test_tx_hash_json_conversion() {
-    let transaction_hash = TransactionHash::default();
-    let response =
-        add_tx_result_as_json(Ok(GatewayOutput::Invoke(InvokeGatewayOutput { transaction_hash })))
-            .into_response();
+async fn gateway_output_json_conversion(
+    #[case] gateway_output: GatewayOutput,
+    #[case] expected_serialized_response_path: &str,
+) {
+    let response = Json(gateway_output).into_response();
 
     let status_code = response.status();
     let response_bytes = &to_bytes(response).await;
 
     assert_eq!(status_code, StatusCode::OK, "{response_bytes:?}");
-    assert_eq!(transaction_hash, serde_json::from_slice(response_bytes).unwrap());
+    let gateway_response: GatewayOutput = serde_json::from_slice(response_bytes).unwrap();
+
+    let expected_gateway_response =
+        serde_json::from_value(read_json_file(expected_serialized_response_path))
+            .expect("Failed to deserialize json to GatewayOutput");
+    assert_eq!(gateway_response, expected_gateway_response);
 }
 
 async fn to_bytes(res: Response) -> Bytes {
@@ -43,11 +81,11 @@ async fn to_bytes(res: Response) -> Bytes {
 }
 
 #[tokio::test]
-async fn test_add_tx_result_as_json_negative() {
+async fn error_into_response() {
     let error = HttpServerError::DeserializationError(
         serde_json::from_str::<serde_json::Value>("invalid json").unwrap_err(),
     );
-    let response = add_tx_result_as_json(Err(error)).unwrap_err().into_response();
+    let response = error.into_response();
 
     let status = response.status();
     let body = to_bytes(response).await;
@@ -67,12 +105,14 @@ async fn record_region_test() {
     // Set the successful response.
     let tx_hash_1 = TransactionHash(Felt::ONE);
     let tx_hash_2 = TransactionHash(Felt::TWO);
-    mock_gateway_client.expect_add_tx().times(1).return_const(Ok(GatewayOutput::Invoke(
-        InvokeGatewayOutput { transaction_hash: tx_hash_1 },
-    )));
-    mock_gateway_client.expect_add_tx().times(1).return_const(Ok(GatewayOutput::Invoke(
-        InvokeGatewayOutput { transaction_hash: tx_hash_2 },
-    )));
+    mock_gateway_client
+        .expect_add_tx()
+        .times(1)
+        .return_const(Ok(GatewayOutput::Invoke(InvokeGatewayOutput::new(tx_hash_1))));
+    mock_gateway_client
+        .expect_add_tx()
+        .times(1)
+        .return_const(Ok(GatewayOutput::Invoke(InvokeGatewayOutput::new(tx_hash_2))));
 
     let ip = IpAddr::from(Ipv4Addr::LOCALHOST);
     let mut available_ports = AvailablePorts::new(TestIdentifier::HttpServerUnitTests.into(), 1);
@@ -128,9 +168,10 @@ async fn test_response() {
 
     // Set the successful response.
     let expected_tx_hash = TransactionHash(Felt::ONE);
-    mock_gateway_client.expect_add_tx().times(1).return_const(Ok(GatewayOutput::Invoke(
-        InvokeGatewayOutput { transaction_hash: expected_tx_hash },
-    )));
+    mock_gateway_client
+        .expect_add_tx()
+        .times(1)
+        .return_const(Ok(GatewayOutput::Invoke(InvokeGatewayOutput::new(expected_tx_hash))));
 
     // Set the failed response.
     let expected_error = GatewaySpecError::ClassAlreadyDeclared;
