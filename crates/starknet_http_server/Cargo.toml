@@ -15,6 +15,7 @@ workspace = true
 axum.workspace = true
 hyper.workspace = true
 jsonrpsee = { workspace = true, features = ["full"] }
+papyrus_common.workspace = true
 papyrus_config.workspace = true
 reqwest = { workspace = true, optional = true }
 serde.workspace = true

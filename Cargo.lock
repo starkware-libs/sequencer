@@ -11232,6 +11232,7 @@ dependencies = [
  "mempool_test_utils",
  "metrics 0.24.1",
  "metrics-exporter-prometheus",
+ "papyrus_common",
  "papyrus_config",
  "reqwest 0.11.27",
  "serde",

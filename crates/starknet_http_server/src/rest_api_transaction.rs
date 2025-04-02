@@ -1,3 +1,4 @@
+use papyrus_common::compression_utils::{decode_and_decompress, CompressionError};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
@@ -165,8 +166,18 @@ pub struct RestSierraContractClass {
 }
 
 impl From<RestSierraContractClass> for SierraContractClass {
-    fn from(_rest_sierra_contract_class: RestSierraContractClass) -> Self {
-        unimplemented!()
+    fn from(rest_sierra_contract_class: RestSierraContractClass) -> Self {
+        let sierra_program = serde_json::from_value(
+            decode_and_decompress(&rest_sierra_contract_class.sierra_program)
+                .expect("FAILED DECOMPRESS!!!!"),
+        )
+        .expect("FAILED JSON SERDE");
+        SierraContractClass {
+            sierra_program,
+            contract_class_version: rest_sierra_contract_class.contract_class_version,
+            entry_points_by_type: rest_sierra_contract_class.entry_points_by_type,
+            abi: rest_sierra_contract_class.abi,
+        }
     }
 }
 
