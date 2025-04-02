@@ -26,7 +26,7 @@ pub(crate) struct Input {
 /// Validate a single os_block_input.
 fn validate_single_input(os_block_input: &OsBlockInput) {
     assert!(
-        os_block_input.transactions.len() == os_block_input._tx_execution_infos.len(),
+        os_block_input.transactions.len() == os_block_input.tx_execution_infos.len(),
         "The number of transactions and execution infos should be equal"
     );
 
