@@ -61,8 +61,10 @@ use mempool_test_utils::starknet_api_test_utils::{
     L1ToL2MessageArgs,
     MultiAccountTransactionGenerator,
 };
-use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
-use papyrus_base_layer::test_utils::StarknetL1Contract;
+use papyrus_base_layer::ethereum_base_layer_contract::{
+    EthereumBaseLayerConfig,
+    StarknetL1Contract,
+};
 use serde::Deserialize;
 use serde_json::{json, to_value};
 use starknet_api::block::BlockNumber;

@@ -3,8 +3,6 @@ use std::process::Command;
 
 use alloy::node_bindings::{Anvil, AnvilInstance, NodeError as AnvilError};
 pub(crate) use alloy::primitives::Address as EthereumContractAddress;
-use alloy::providers::RootProvider;
-use alloy::transports::http::{Client, Http};
 use colored::*;
 use ethers::utils::{Ganache, GanacheInstance};
 use tar::Archive;
@@ -15,6 +13,7 @@ use crate::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
     EthereumBaseLayerContract,
     Starknet,
+    StarknetL1Contract,
 };
 
 type TestEthereumNodeHandle = (GanacheInstance, TempDir);
@@ -26,10 +25,6 @@ const MINIMAL_GANACHE_VERSION: u8 = 7;
 const DEFAULT_ANVIL_PORT: u16 = 8545;
 // This address is commonly used as the L1 address of the Starknet core contract.
 pub const DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS: &str = "0x5fbdb2315678afecb367f032d93f642f64180aa3";
-
-/// An interface that plays the role of the starknet L1 contract. It is able to create messages to
-/// L2 from this contract, which appear on the corresponding base layer.
-pub type StarknetL1Contract = Starknet::StarknetInstance<Http<Client>, RootProvider<Http<Client>>>;
 
 // Returns a Ganache instance, preset with a Starknet core contract and some state updates:
 // Starknet contract address: 0xe2aF2c1AE11fE13aFDb7598D0836398108a4db0A

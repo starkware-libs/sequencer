@@ -40,10 +40,15 @@ sol!(
     "resources/Starknet-0.10.3.4.json"
 );
 
+/// An interface that plays the role of the starknet L1 contract. It is able to create messages to
+/// L2 from this contract, which appear on the corresponding base layer.
+pub type StarknetL1Contract =
+    Starknet::StarknetInstance<Http<Client>, RootProvider<Http<Client>>, Ethereum>;
+
 #[derive(Clone, Debug)]
 pub struct EthereumBaseLayerContract {
     pub config: EthereumBaseLayerConfig,
-    pub contract: Starknet::StarknetInstance<Http<Client>, RootProvider<Http<Client>>, Ethereum>,
+    pub contract: StarknetL1Contract,
 }
 
 impl EthereumBaseLayerContract {
