@@ -103,6 +103,24 @@ impl From<DeprecatedGatewayInvokeTransactionV3> for RpcInvokeTransactionV3 {
     }
 }
 
+#[cfg(any(feature = "testing", test))]
+impl From<RpcInvokeTransactionV3> for DeprecatedGatewayInvokeTransactionV3 {
+    fn from(value: RpcInvokeTransactionV3) -> Self {
+        Self {
+            calldata: value.calldata,
+            tip: value.tip,
+            resource_bounds: DeprecatedGatewayAllResourceBounds::from(value.resource_bounds),
+            paymaster_data: value.paymaster_data,
+            sender_address: value.sender_address,
+            signature: value.signature,
+            nonce: value.nonce,
+            account_deployment_data: value.account_deployment_data,
+            nonce_data_availability_mode: value.nonce_data_availability_mode,
+            fee_data_availability_mode: value.fee_data_availability_mode,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
 #[serde(tag = "version")]
 pub enum DeprecatedGatewayDeployAccountTransaction {
@@ -226,6 +244,17 @@ impl From<DeprecatedGatewayAllResourceBounds> for AllResourceBounds {
             l1_gas: deprecated_all_resource_bounds.l1_gas,
             l2_gas: deprecated_all_resource_bounds.l2_gas,
             l1_data_gas: deprecated_all_resource_bounds.l1_data_gas,
+        }
+    }
+}
+
+#[cfg(any(feature = "testing", test))]
+impl From<AllResourceBounds> for DeprecatedGatewayAllResourceBounds {
+    fn from(all_resource_bounds: AllResourceBounds) -> Self {
+        DeprecatedGatewayAllResourceBounds {
+            l1_gas: all_resource_bounds.l1_gas,
+            l2_gas: all_resource_bounds.l2_gas,
+            l1_data_gas: all_resource_bounds.l1_data_gas,
         }
     }
 }
