@@ -100,6 +100,10 @@ fn check_constants_serde_error(json_data: &str, expected_error_message: &str) {
         serde_json::to_value(GasVector::default()).unwrap(),
     );
     json_data_raw.insert("data_gas_accounts".into(), serde_json::Value::Array(vec![]));
+    json_data_raw.insert(
+        "allow_deploy_in_validation_mode".into(),
+        serde_json::to_value(bool::default()).unwrap(),
+    );
 
     let json_data = &serde_json::to_string(&json_data_raw).unwrap();
 

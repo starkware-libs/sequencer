@@ -91,6 +91,7 @@
             "l1_data_gas": 10000000000,
             "l2_gas": 10000000000
         },
+        "allow_deploy_in_validation_mode": true,
         "os_contract_addresses": {
             "block_hash_contract_address": 1,
             "alias_contract_address": 2,
