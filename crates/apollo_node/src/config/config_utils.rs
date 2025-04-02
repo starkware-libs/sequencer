@@ -144,8 +144,7 @@ impl DeploymentBaseAppConfig {
             base_app_config_override.monitoring_endpoint_config;
     }
 
-    // TODO(Tsabary): unify path types throughout.
-    pub fn dump_config_file(&self, config_path: &Path) {
+    pub fn as_value(&self) -> Value {
         // Create the entire mapping of the config and the pointers, without the required params.
         let config_as_map = combine_config_map_and_pointers(
             self.config.dump(),
@@ -157,11 +156,15 @@ impl DeploymentBaseAppConfig {
 
         // Extract only the required fields from the config map.
         let preset = config_to_preset(&config_as_map);
-
         validate_all_pointer_targets_set(preset.clone()).expect("Pointer target not set");
+        preset
+    }
 
+    // TODO(Tsabary): unify path types throughout.
+    pub fn dump_config_file(&self, config_path: &Path) {
+        let value = self.as_value();
         serialize_to_file(
-            preset,
+            value,
             config_path.to_str().expect("Should be able to convert path to string"),
         );
     }
