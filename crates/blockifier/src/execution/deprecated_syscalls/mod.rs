@@ -346,6 +346,18 @@ pub fn deploy(
     _vm: &mut VirtualMachine,
     syscall_handler: &mut DeprecatedSyscallHintProcessor<'_>,
 ) -> DeprecatedSyscallResult<DeployResponse> {
+    let versioned_constants = &syscall_handler.context.tx_context.block_context.versioned_constants;
+    let allow_deploy_in_validation_mode =
+        versioned_constants.allow_deploy_in_validation_mode;
+    if !allow_deploy_in_validation_mode
+        && syscall_handler.context.execution_mode == ExecutionMode::Validate
+    {
+        return Err(DeprecatedSyscallExecutionError::InvalidSyscallInExecutionMode {
+            syscall_name: "deploy".to_string(),
+            execution_mode: ExecutionMode::Validate,
+        });
+    }
+
     let deployer_address = syscall_handler.storage_address;
     let deployer_address_for_calculation = match request.deploy_from_zero {
         true => ContractAddress::default(),
