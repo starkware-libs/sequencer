@@ -2,7 +2,7 @@
   "base_layer_config.node_url": {
     "description": "Ethereum node URL. A schema to match to Infura node: https://mainnet.infura.io/v3/<your_api_key>, but any other node can be used.",
     "privacy": "Private",
-    "value": "https://mainnet.infura.io/v3/%3Cyour_api_key%3E"
+    "value": "SECRET_NODE_URL"
   },
   "base_layer_config.prague_blob_gas_calc": {
     "description": "If true use the blob gas calculcation from the Pectra upgrade. If false use the EIP 4844 calculation.",
@@ -12,12 +12,12 @@
   "base_layer_config.starknet_contract_address": {
     "description": "Starknet contract address in ethereum.",
     "privacy": "Public",
-    "value": "0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4"
+    "value": "TODO"
   },
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.l1_gas": {
     "description": "An upper bound on the total l1_gas used in a block.",
     "privacy": "Public",
-    "value": 2500000
+    "value": 4950000
   },
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.message_segment_length": {
     "description": "An upper bound on the message segment length in a block.",
@@ -32,7 +32,7 @@
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.sierra_gas": {
     "description": "An upper bound on the total sierra_gas used in a block.",
     "privacy": "Public",
-    "value": 400000000
+    "value": 5000000000
   },
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.state_diff_size": {
     "description": "An upper bound on the total state diff size in a block.",
@@ -57,17 +57,17 @@
   "batcher_config.block_builder_config.execute_config.concurrency_config.chunk_size": {
     "description": "The size of the transaction chunk executed in parallel.",
     "privacy": "Public",
-    "value": 0
+    "value": 64
   },
   "batcher_config.block_builder_config.execute_config.concurrency_config.enabled": {
     "description": "Enables concurrency of transaction execution.",
     "privacy": "Public",
-    "value": false
+    "value": true
   },
   "batcher_config.block_builder_config.execute_config.concurrency_config.n_workers": {
     "description": "Number of parallel transaction execution workers.",
     "privacy": "Public",
-    "value": 0
+    "value": 4
   },
   "batcher_config.block_builder_config.execute_config.stack_size": {
     "description": "The thread stack size (proportional to the maximal gas of a transaction).",
@@ -77,7 +77,7 @@
   "batcher_config.block_builder_config.tx_chunk_size": {
     "description": "Number of transactions in each request from the tx_provider.",
     "privacy": "Public",
-    "value": 100
+    "value": 64
   },
   "batcher_config.block_builder_config.versioned_constants_overrides.invoke_tx_max_n_steps": {
     "description": "Maximum number of steps the invoke function is allowed to run.",
@@ -122,7 +122,7 @@
   "batcher_config.contract_class_manager_config.contract_cache_size": {
     "description": "The size of the global contract cache.",
     "privacy": "Public",
-    "value": 600
+    "value": BLOCK_TIME * TPS
   },
   "batcher_config.contract_class_manager_config.native_compiler_config.max_casm_bytecode_size": {
     "description": "Limitation of compiled casm bytecode size.",
@@ -167,17 +167,17 @@
   "batcher_config.input_stream_content_buffer_size": {
     "description": "Sets the buffer size for the input transaction channel. Adding more transactions beyond this limit will block until space is available.",
     "privacy": "Public",
-    "value": 400
+    "value": BLOCK_TIME * TPS * 2
   },
   "batcher_config.max_l1_handler_txs_per_block_proposal": {
     "description": "The maximum number of L1 handler transactions to include in a block proposal.",
     "privacy": "Public",
-    "value": 3
+    "value": BLOCK_TIME * TPS / 10
   },
   "batcher_config.outstream_content_buffer_size": {
     "description": "The maximum number of items to include in a single get_proposal_content response.",
     "privacy": "Public",
-    "value": 100
+    "value": 25000 / AVG_TX_PROTO_SIZE
   },
   "batcher_config.storage.db_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
@@ -192,12 +192,12 @@
   "batcher_config.storage.db_config.growth_step": {
     "description": "The growth step in bytes, must be greater than zero to allow the database to grow.",
     "privacy": "Public",
-    "value": 4294967296
+    "value": 67108864
   },
   "batcher_config.storage.db_config.max_size": {
     "description": "The maximum size of the node's storage in bytes.",
     "privacy": "Public",
-    "value": 1099511627776
+    "value": 34359738368
   },
   "batcher_config.storage.db_config.min_size": {
     "description": "The minimum size of the node's storage in bytes.",
@@ -207,22 +207,22 @@
   "batcher_config.storage.db_config.path_prefix": {
     "description": "Prefix of the path of the node's storage directory, the storage file path will be <path_prefix>/<chain_id>. The path is not created automatically.",
     "privacy": "Public",
-    "value": "/data/batcher"
+    "value": "/data/node_0/executable_0/batcher"
   },
   "batcher_config.storage.mmap_file_config.growth_step": {
     "description": "The growth step in bytes, must be greater than max_object_size.",
     "privacy": "Public",
-    "value": 1073741824
+    "value": 1048576
   },
   "batcher_config.storage.mmap_file_config.max_object_size": {
     "description": "The maximum size of a single object in the file in bytes",
     "privacy": "Public",
-    "value": 268435456
+    "value": 65536
   },
   "batcher_config.storage.mmap_file_config.max_size": {
     "description": "The maximum size of a memory mapped file in bytes. Must be greater than growth_step.",
     "privacy": "Public",
-    "value": 1099511627776
+    "value": 16777216
   },
   "batcher_config.storage.scope": {
     "description": "The categories of data saved in storage.",
@@ -232,17 +232,17 @@
   "chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
     "privacy": "TemporaryValue",
-    "value": "PointerTarget"
+    "value": "SN_INTEGRATION_SEPOLIA"
   },
   "class_manager_config.class_manager_config.cached_class_storage_config.class_cache_size": {
     "description": "Contract classes cache size.",
     "privacy": "Public",
-    "value": 10
+    "value": 128
   },
   "class_manager_config.class_manager_config.cached_class_storage_config.deprecated_class_cache_size": {
     "description": "Deprecated contract classes cache size.",
     "privacy": "Public",
-    "value": 10
+    "value": 128
   },
   "class_manager_config.class_storage_config.class_hash_storage_config.enforce_file_exists": {
     "description": "Whether to enforce that the above path exists.",
@@ -257,12 +257,12 @@
   "class_manager_config.class_storage_config.class_hash_storage_config.path_prefix": {
     "description": "Prefix of the path of class hash storage directory.",
     "privacy": "Public",
-    "value": "/data/class_hash_storage"
+    "value": "/data/node_0/executable_0/class_manager/class_hash_storage"
   },
   "class_manager_config.class_storage_config.persistent_root": {
     "description": "Path to the node's class storage directory.",
     "privacy": "Public",
-    "value": "/data/classes"
+    "value": "/data/node_0/executable_0/class_manager/classes"
   },
   "compiler_config.max_casm_bytecode_size": {
     "description": "Limitation of compiled casm bytecode size.",
@@ -792,17 +792,17 @@
   "consensus_manager_config.cende_config.skip_write_height": {
     "description": "A height that the consensus can skip writing to Aerospike. Needed for booting up (no previous height blob to write) or to handle extreme cases (all the nodes failed).",
     "privacy": "Private",
-    "value": 0
+    "value": CURRENT_CHAIN_HEIGHT
   },
   "consensus_manager_config.cende_config.skip_write_height.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
-    "value": true
+    "value": false
   },
   "consensus_manager_config.consensus_config.future_height_limit": {
     "description": "How many heights in the future should we cache.",
     "privacy": "Public",
-    "value": 10
+    "value": 2 * TIME_FROM_BLOCK_CREATION_TO_FGW / BLOCK_TIME
   },
   "consensus_manager_config.consensus_config.future_height_round_limit": {
     "description": "How many rounds should we cache for future heights.",
@@ -817,7 +817,7 @@
   "consensus_manager_config.consensus_config.startup_delay": {
     "description": "Delay (seconds) before starting consensus to give time for network peering.",
     "privacy": "Public",
-    "value": 5
+    "value": 15
   },
   "consensus_manager_config.consensus_config.sync_retry_interval": {
     "description": "The duration (seconds) between sync attempts.",
@@ -827,17 +827,17 @@
   "consensus_manager_config.consensus_config.timeouts.precommit_timeout": {
     "description": "The timeout (seconds) for a precommit.",
     "privacy": "Public",
-    "value": 1.0
+    "value": 0.3
   },
   "consensus_manager_config.consensus_config.timeouts.prevote_timeout": {
     "description": "The timeout (seconds) for a prevote.",
     "privacy": "Public",
-    "value": 1.0
+    "value": 0.3
   },
   "consensus_manager_config.consensus_config.timeouts.proposal_timeout": {
     "description": "The timeout (seconds) for a proposal.",
     "privacy": "Public",
-    "value": 3.0
+    "value": 1.4
   },
   "consensus_manager_config.consensus_config.validator_id": {
     "description": "The validator id of the node.",
@@ -847,17 +847,17 @@
   "consensus_manager_config.context_config.block_timestamp_window": {
     "description": "Maximum allowed deviation (seconds) of a proposed block's timestamp from the current time.",
     "privacy": "Public",
-    "value": 1
+    "value": 2
   },
   "consensus_manager_config.context_config.build_proposal_margin": {
     "description": "Safety margin (in ms) to make sure that the batcher completes building the proposal with enough time for the Fin to be checked by validators.",
     "privacy": "Public",
-    "value": 1000
+    "value": 100
   },
   "consensus_manager_config.context_config.builder_address": {
     "description": "The address of the contract that builds the block.",
     "privacy": "Public",
-    "value": "0x0"
+    "value": FEE_COLLECTION_ADDRESS
   },
   "consensus_manager_config.context_config.chain_id": {
     "description": "The chain id of the Starknet chain.",
@@ -872,22 +872,22 @@
   "consensus_manager_config.context_config.num_validators": {
     "description": "The number of validators.",
     "privacy": "Public",
-    "value": 1
+    "value": 4
   },
   "consensus_manager_config.context_config.proposal_buffer_size": {
     "description": "The buffer size for streaming outbound proposals.",
     "privacy": "Public",
-    "value": 100
+    "value": 10000
   },
   "consensus_manager_config.context_config.validate_proposal_margin": {
     "description": "Safety margin (in ms) to make sure that consensus determines when to timeout validating a proposal.",
     "privacy": "Public",
-    "value": 10000
+    "value": 1500
   },
   "consensus_manager_config.eth_to_strk_oracle_config.base_url": {
     "description": "URL to query. This must end with the query parameter `timestamp=` as we append a UNIX timestamp.",
     "privacy": "Private",
-    "value": "https://example.com/api?timestamp="
+    "value": SECRET_ORACLE_URL
   },
   "consensus_manager_config.eth_to_strk_oracle_config.headers": {
     "description": "HTTP headers for the eth to strk oracle, formatted as 'k1:v1 k2:v2 ...'.",
@@ -902,7 +902,7 @@
   "consensus_manager_config.immediate_active_height": {
     "description": "The height at which the node may actively participate in consensus.",
     "privacy": "Public",
-    "value": 0
+    "value": 1
   },
   "consensus_manager_config.network_config.advertised_multiaddr": {
     "description": "The external address other peers see this node. If this is set, the node will not try to find out which addresses it has and will write this address as external instead",
@@ -947,7 +947,7 @@
   "consensus_manager_config.network_config.discovery_config.heartbeat_interval": {
     "description": "The interval between each discovery (Kademlia) query in milliseconds.",
     "privacy": "Public",
-    "value": 100
+    "value": 1000
   },
   "consensus_manager_config.network_config.idle_connection_timeout": {
     "description": "Amount of time in seconds that a connection with no active sessions will stay alive.",
@@ -957,22 +957,22 @@
   "consensus_manager_config.network_config.peer_manager_config.malicious_timeout_seconds": {
     "description": "The duration in seconds a peer is blacklisted after being marked as malicious.",
     "privacy": "Public",
-    "value": 1
+    "value": 0
   },
   "consensus_manager_config.network_config.peer_manager_config.unstable_timeout_millis": {
     "description": "The duration in milliseconds a peer blacklisted after being reported as unstable.",
     "privacy": "Public",
-    "value": 1000
+    "value": 0
   },
   "consensus_manager_config.network_config.port": {
     "description": "The port that the node listens on for incoming tcp connections.",
     "privacy": "Public",
-    "value": 10000
+    "value": 52720
   },
   "consensus_manager_config.network_config.secret_key": {
     "description": "The secret key used for building the peer id. If it's an empty string a random one will be used.",
     "privacy": "Private",
-    "value": ""
+    "value": "0x0101010101010101010101010101010101010101010101010101010101010101"
   },
   "consensus_manager_config.network_config.session_timeout": {
     "description": "Maximal time in seconds that each session can take before failing on timeout.",
@@ -1002,7 +1002,7 @@
   "eth_fee_token_address": {
     "description": "Address of the ETH fee token.",
     "privacy": "TemporaryValue",
-    "value": "PointerTarget"
+    "value": ETH_FEE_TOKEN_ADDRESS
   },
   "gateway_config.block_declare": {
     "description": "If true, the gateway will block declare transactions.",
