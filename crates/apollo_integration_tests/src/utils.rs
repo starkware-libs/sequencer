@@ -587,7 +587,7 @@ where
 
 pub fn create_gateway_config(chain_info: ChainInfo) -> GatewayConfig {
     let stateless_tx_validator_config = StatelessTransactionValidatorConfig {
-        validate_non_zero_l1_gas_fee: true,
+        validate_non_zero_resource_bounds: true,
         max_calldata_length: 10,
         max_signature_length: 2,
         ..Default::default()
