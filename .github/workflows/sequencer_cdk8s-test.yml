@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       namespace: test
-      deployment_config_path: ${{ github.workspace }}/config/sequencer/deployment_configs/testing/nightly_test_all_in_one.json
+      deployment_config_path: ${{ github.workspace }}/config/sequencer/testing/deployment_configs/deployment_test_consolidated.json
     steps:
       - name: Checkout sequencer
         uses: actions/checkout@v4
