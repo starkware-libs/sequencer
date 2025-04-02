@@ -247,10 +247,34 @@ pub(crate) fn end_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> Os
     todo!()
 }
 
-pub(crate) fn enter_call<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> OsHintResult {
-    // TODO(lior): No longer equivalent to moonsong impl; PTAL the new implementation of
-    //   enter_call().
-    todo!()
+pub(crate) fn enter_call<S: StateReader>(
+    HintArgs { hint_processor, ids_data, vm, ap_tracking, .. }: HintArgs<'_, '_, S>,
+) -> OsHintResult {
+    let execution_info_ptr = get_address_of_nested_fields(
+        ids_data,
+        Ids::ExecutionContext,
+        CairoStruct::ExecutionContext,
+        vm,
+        ap_tracking,
+        &["execution_info"],
+        hint_processor.os_program,
+    )?;
+    let deprecated_tx_info_ptr = get_address_of_nested_fields(
+        ids_data,
+        Ids::ExecutionContext,
+        CairoStruct::ExecutionContext,
+        vm,
+        ap_tracking,
+        &["deprecated_tx_info"],
+        hint_processor.os_program,
+    )?;
+
+    hint_processor
+        .get_mut_current_execution_helper()?
+        .tx_execution_iter
+        .get_mut_tx_execution_info_ref()?
+        .enter_call(execution_info_ptr, deprecated_tx_info_ptr)?;
+    Ok(())
 }
 
 pub(crate) fn exit_call<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> OsHintResult {
