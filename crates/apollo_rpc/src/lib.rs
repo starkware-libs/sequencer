@@ -18,6 +18,7 @@ use std::collections::BTreeMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::validators::validate_ascii;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -201,7 +202,7 @@ fn get_block_status<Mode: TransactionKind>(
 #[derive(Clone, Debug, PartialEq)]
 struct ContinuationTokenAsStruct(EventIndex);
 
-#[instrument(skip(storage_reader), level = "debug", err)]
+#[instrument(skip(storage_reader, class_manager_client), level = "debug", err)]
 pub async fn run_server(
     config: &RpcConfig,
     shared_highest_block: Arc<RwLock<Option<BlockHashAndNumber>>>,
@@ -209,6 +210,7 @@ pub async fn run_server(
     pending_classes: Arc<RwLock<PendingClasses>>,
     storage_reader: StorageReader,
     node_version: &'static str,
+    class_manager_client: Option<SharedClassManagerClient>,
 ) -> anyhow::Result<(SocketAddr, ServerHandle)> {
     let starting_block = get_last_synced_block(storage_reader.clone())?;
     debug!("Starting JSON-RPC.");
@@ -227,6 +229,7 @@ pub async fn run_server(
             node_version,
             config.apollo_gateway_retry_config,
         )?),
+        class_manager_client,
     );
     let addr;
     let handle;
