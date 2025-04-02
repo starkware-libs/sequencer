@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 use apollo_infra_utils::dumping::serialize_to_file_test;
 use apollo_infra_utils::path::resolve_project_relative_path;
+use apollo_node::config::node_config::SequencerNodeConfig;
 
 use crate::deployment_definitions::{deployment_file_path, Environment, DEPLOYMENTS};
 
@@ -20,6 +21,25 @@ fn deployment_files_are_up_to_date() {
         // TODO(Tsabary): test that the dumped app-config files are up to date, i.e., their current
         // content matches the dumped on. This test will replace the application_config_files_exist
         // test below.
+    }
+}
+
+// Test the base application config files are successfully loaded and processed.
+// TODO(Tsabary): consider having a similar test for the dumped (non-base) application config files.
+#[test]
+fn load_and_process_base_application_config_files_schema() {
+    env::set_current_dir(resolve_project_relative_path("").unwrap())
+        .expect("Couldn't set working dir.");
+    for deployment_fn in DEPLOYMENTS {
+        let deployment_preset = deployment_fn();
+        // TODO(Tsabary): "--config_file" should be a constant.
+        let load_result = SequencerNodeConfig::load_and_process(vec![
+            "command_name_placeholder".to_string(),
+            "--config_file".to_string(),
+            deployment_preset.get_base_app_config_file_path().to_string(),
+        ]);
+        println!("{:?}", load_result);
+        assert!(load_result.is_ok());
     }
 }
 
