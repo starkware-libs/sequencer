@@ -18,6 +18,7 @@ use crate::transaction::errors::TransactionExecutionError;
 
 #[test]
 fn test_block_weights_has_room() {
+    // first pr comment
     let max_bouncer_weights = BouncerWeights {
         l1_gas: 10,
         message_segment_length: 10,
