@@ -169,10 +169,10 @@ pub fn secp256r1_add(
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct SecpGetPointFromXRequest {
-    x: BigUint,
+    pub x: BigUint,
     // The parity of the y coordinate, assuming a point with the given x coordinate exists.
     // True means the y coordinate is odd.
-    y_parity: bool,
+    pub y_parity: bool,
 }
 
 impl SyscallRequest for SecpGetPointFromXRequest {
