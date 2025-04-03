@@ -160,14 +160,14 @@ expression: dumped_default_config
     "value": true,
     "privacy": "TemporaryValue"
   },
-  "context.block_timestamp_window": {
+  "context.block_timestamp_window_seconds": {
     "description": "Maximum allowed deviation (seconds) of a proposed block's timestamp from the current time.",
     "value": {
       "$serde_json::private::Number": "1"
     },
     "privacy": "Public"
   },
-  "context.build_proposal_margin": {
+  "context.build_proposal_margin_millis": {
     "description": "Safety margin (in ms) to make sure that the batcher completes building the proposal with enough time for the Fin to be checked by validators.",
     "value": {
       "$serde_json::private::Number": "1000"
@@ -203,7 +203,7 @@ expression: dumped_default_config
     },
     "privacy": "Public"
   },
-  "context.validate_proposal_margin": {
+  "context.validate_proposal_margin_millis": {
     "description": "Safety margin (in ms) to make sure that consensus determines when to timeout validating a proposal.",
     "value": {
       "$serde_json::private::Number": "10000"

@@ -844,12 +844,12 @@
     "pointer_target": "validator_id",
     "privacy": "Public"
   },
-  "consensus_manager_config.context_config.block_timestamp_window": {
+  "consensus_manager_config.context_config.block_timestamp_window_seconds": {
     "description": "Maximum allowed deviation (seconds) of a proposed block's timestamp from the current time.",
     "privacy": "Public",
     "value": 1
   },
-  "consensus_manager_config.context_config.build_proposal_margin": {
+  "consensus_manager_config.context_config.build_proposal_margin_millis": {
     "description": "Safety margin (in ms) to make sure that the batcher completes building the proposal with enough time for the Fin to be checked by validators.",
     "privacy": "Public",
     "value": 1000
@@ -879,7 +879,7 @@
     "privacy": "Public",
     "value": 100
   },
-  "consensus_manager_config.context_config.validate_proposal_margin": {
+  "consensus_manager_config.context_config.validate_proposal_margin_millis": {
     "description": "Safety margin (in ms) to make sure that consensus determines when to timeout validating a proposal.",
     "privacy": "Public",
     "value": 10000
