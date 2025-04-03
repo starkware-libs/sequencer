@@ -23,7 +23,14 @@ use tracing_test::traced_test;
 
 use crate::errors::HttpServerError;
 use crate::http_server::CLIENT_REGION_HEADER;
-use crate::test_utils::{add_tx_http_client, deprecated_gateway_tx, rpc_tx, GatewayTransaction};
+use crate::test_utils::{
+    add_tx_http_client,
+    deprecated_gateway_declare_tx,
+    deprecated_gateway_deploy_account_tx,
+    deprecated_gateway_invoke_tx,
+    rpc_invoke_tx,
+    GatewayTransaction,
+};
 
 const DEPRECATED_GATEWAY_INVOKE_TX_RESPONSE_JSON_PATH: &str =
     "expected_gateway_response/invoke_gateway_output.json";
@@ -90,8 +97,8 @@ async fn error_into_response() {
 
 #[traced_test]
 #[rstest]
-#[case::add_rest_tx(0, deprecated_gateway_tx())]
-#[case::add_rpc_tx(1, rpc_tx())]
+#[case::add_deprecated_gateway_tx(0, deprecated_gateway_invoke_tx())]
+#[case::add_rpc_tx(1, rpc_invoke_tx())]
 #[tokio::test]
 /// Test that when an add transaction HTTP request is sent to the server, the region of the http
 /// request is recorded to the info log.
@@ -128,8 +135,8 @@ async fn record_region_test(#[case] index: u16, #[case] tx: impl GatewayTransact
 
 #[traced_test]
 #[rstest]
-#[case::add_rest_tx(0, deprecated_gateway_tx())]
-#[case::add_rpc_tx(1, rpc_tx())]
+#[case::add_deprecated_gateway_tx(0, deprecated_gateway_invoke_tx())]
+#[case::add_rpc_tx(1, rpc_invoke_tx())]
 #[tokio::test]
 /// Test that when an "add_tx" HTTP request is sent to the server, and it fails in the Gateway, no
 /// record of the region is logged.
@@ -149,10 +156,11 @@ async fn record_region_gateway_failing_tx(#[case] index: u16, #[case] tx: impl G
     assert!(!logs_contain("Recorded transaction with hash: "));
 }
 
-// TODO(Yael): add rest_api tests for deploy_account and declare
 #[rstest]
-#[case::add_rest_tx(0, deprecated_gateway_tx())]
-#[case::add_rpc_tx(1, rpc_tx())]
+#[case::add_deprecated_gateway_invoke_tx(0, deprecated_gateway_invoke_tx())]
+#[case::add_deprecated_gateway_deploy_account_tx(1, deprecated_gateway_deploy_account_tx())]
+#[case::add_deprecated_gateway_declare_tx(2, deprecated_gateway_declare_tx())]
+#[case::add_rpc_invoke_tx(3, rpc_invoke_tx())]
 #[tokio::test]
 async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) {
     let mut mock_gateway_client = MockGatewayClient::new();
