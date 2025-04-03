@@ -20,7 +20,8 @@ async fn eth_to_fri_rate_uses_cache_on_quantized_hit() {
 
     // Define a mock response for a GET request with a specific adjusted_timestamp in the path
     let _m = server
-        .mock("GET", format!("/{}", adjusted_timestamp).as_str())
+        .mock("GET", "/") // Match the base path only.
+        .match_query(mockito::Matcher::UrlEncoded("timestamp".into(), adjusted_timestamp.to_string()))
         .with_header("Content-Type", "application/json")
         .with_body(
             json!({

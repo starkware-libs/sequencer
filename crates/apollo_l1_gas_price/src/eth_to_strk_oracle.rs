@@ -57,8 +57,9 @@ impl SerializeConfig for EthToStrkOracleConfig {
             ser_param(
                 "base_url",
                 &self.base_url,
-                "URL to query. This must end with the query parameter `timestamp=` as we append a \
-                 UNIX timestamp.",
+                "URL to query. The `timestamp` parameter is appended dynamically when making \
+                 requests, in order to have a stable mapping from block timestamp to conversion \
+                 rate.",
                 ParamPrivacyInput::Private,
             ),
             ser_param(
@@ -83,7 +84,7 @@ impl SerializeConfig for EthToStrkOracleConfig {
 impl Default for EthToStrkOracleConfig {
     fn default() -> Self {
         Self {
-            base_url: Url::parse("https://example.com/api?timestamp=").unwrap(),
+            base_url: Url::parse("https://example.com/api").unwrap(),
             headers: None,
             lag_interval_seconds: 600,
         }
@@ -93,7 +94,8 @@ impl Default for EthToStrkOracleConfig {
 /// Client for interacting with the eth to strk Oracle API.
 pub struct EthToStrkOracleClient {
     /// The base URL of the eth to strk Oracle API.
-    /// This must end with the query parameter `timestamp=` as we append a UNIX timestamp.
+    /// The `timestamp` parameter is appended dynamically when making requests,
+    /// in order to have a stable mapping from block timestamp to conversion rate.
     base_url: Url,
     /// HTTP headers required for requests.
     headers: HeaderMap,
@@ -126,8 +128,9 @@ impl EthToStrkOracleClient {
         quantized_timestamp: u64,
     ) -> AbortOnDropHandle<Result<Response, reqwest::Error>> {
         let adjusted_timestamp = quantized_timestamp * self.lag_interval_seconds;
-        let url = format!("{}{}", self.base_url, adjusted_timestamp);
-        let request = self.client.get(&url).headers(self.headers.clone()).send();
+        let mut url = self.base_url.clone();
+        url.query_pairs_mut().append_pair("timestamp", &adjusted_timestamp.to_string());
+        let request = self.client.get(url).headers(self.headers.clone()).send();
         AbortOnDropHandle::new(tokio::spawn(request))
     }
 
