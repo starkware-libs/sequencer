@@ -18,7 +18,7 @@ impl ComponentRequestHandler<GatewayRequest, GatewayResponse> for Gateway {
                 GatewayResponse::AddTransaction(
                     self.add_tx(gateway_input.rpc_tx, gateway_input.message_metadata)
                         .await
-                        .map_err(|source| GatewayError::GatewaySpecError {
+                        .map_err(|source| GatewayError::DeprecatedError {
                             source,
                             p2p_message_metadata,
                         }),

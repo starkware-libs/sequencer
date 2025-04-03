@@ -9,7 +9,7 @@ use apollo_class_manager_types::{
     MockClassManagerClient,
     SharedClassManagerClient,
 };
-use apollo_gateway_types::errors::GatewaySpecError;
+use apollo_gateway_types::deprecated_gw_error::{KnownStarknetErrorCode, StarknetErrorCode};
 use apollo_gateway_types::gateway_types::{GatewayOutput, InvokeGatewayOutput};
 use apollo_mempool_types::communication::{
     AddTransactionArgsWrapper,
@@ -134,37 +134,35 @@ async fn convert_rpc_tx_to_internal(
 }
 
 // TODO(AlonH): add test with Some broadcasted message metadata
-// We use default nonce, address, and tx_hash since Gateway errors drop these details when
-// converting Mempool errors.
 #[rstest]
 #[case::successful_invoke_transaction_addition(
     TransactionType::Invoke, Ok(()), None)]
 #[case::invoke_tx_with_duplicate_tx_hash(
     TransactionType::Invoke,
     Err(MempoolClientError::MempoolError(MempoolError::DuplicateTransaction { tx_hash: TransactionHash::default() })),
-    Some(GatewaySpecError::DuplicateTx)
+    Some( StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::DuplicatedTransaction))
 )]
 #[case::invoke_tx_with_duplicate_nonce(
     TransactionType::Invoke,
     Err(MempoolClientError::MempoolError(MempoolError::DuplicateNonce { address: ContractAddress::default(), nonce: Nonce::default() })),
-    Some(GatewaySpecError::InvalidTransactionNonce)
+    Some( StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::InvalidTransactionNonce))
 )]
 #[case::invoke_tx_with_nonce_too_old(
     TransactionType::Invoke,
     Err(MempoolClientError::MempoolError(MempoolError::NonceTooOld { address: ContractAddress::default(), tx_nonce: Nonce::default(), account_nonce: nonce!(1) })),
-    Some(GatewaySpecError::InvalidTransactionNonce)
+    Some( StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::InvalidTransactionNonce))
 )]
 #[case::invoke_tx_with_nonce_too_large(
     TransactionType::Invoke,
     Err(MempoolClientError::MempoolError(MempoolError::NonceTooLarge(Nonce::default()))),
-    Some(GatewaySpecError::InvalidTransactionNonce)
+    Some(StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.NONCE_TOO_LARGE".to_string()))
 )]
 #[tokio::test]
 async fn test_add_tx(
     mut mock_dependencies: MockDependencies,
     #[case] _tx_type: TransactionType,
     #[case] expected_result: Result<(), MempoolClientError>,
-    #[case] expected_error: Option<GatewaySpecError>,
+    #[case] expected_error_code: Option<StarknetErrorCode>,
 ) {
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
@@ -202,13 +200,13 @@ async fn test_add_tx(
     let metric_counters_for_queries = GatewayMetricHandle::new(&rpc_tx, &p2p_message_metadata);
     let metrics = recorder.handle().render();
     assert_eq!(metric_counters_for_queries.get_metric_value(TRANSACTIONS_RECEIVED, &metrics), 1);
-    match expected_error {
+    match expected_error_code {
         Some(expected_err) => {
             assert_eq!(
                 metric_counters_for_queries.get_metric_value(TRANSACTIONS_FAILED, &metrics),
                 1
             );
-            assert_eq!(result.unwrap_err(), expected_err);
+            assert_eq!(result.unwrap_err().code, expected_err);
         }
         None => {
             assert_eq!(
@@ -240,7 +238,10 @@ async fn test_compiled_class_hash_mismatch(mock_dependencies: MockDependencies) 
     let gateway = mock_dependencies.gateway();
 
     let err = gateway.add_tx(tx, None).await.unwrap_err();
-    assert_matches!(err, GatewaySpecError::CompiledClassHashMismatch);
+    let expected_code = StarknetErrorCode::UnknownErrorCode(
+        "StarknetErrorCode.INVALID_COMPILED_CLASS_HASH".to_string(),
+    );
+    assert_eq!(err.code, expected_code);
 }
 
 #[rstest]
@@ -261,12 +262,10 @@ async fn test_block_declare_config(
     );
 
     let result = gateway.add_tx(declare_tx(), None).await;
-    assert_eq!(
-        result.unwrap_err(),
-        GatewaySpecError::UnexpectedError {
-            data: "Transaction type is temporarily blocked.".to_string()
-        }
+    let expected_code = StarknetErrorCode::UnknownErrorCode(
+        "StarknetErrorCode.BLOCKED_TRANSACTION_TYPE".to_string(),
     );
+    assert_eq!(result.unwrap_err().code, expected_code);
 }
 
 #[test]
