@@ -46,8 +46,12 @@ class ServiceApp(Construct):
         self.service = k8s.KubeService(
             self,
             "service",
+            metadata=k8s.ObjectMeta(
+                labels=self.labels,
+                annotations={},
+            ),
             spec=k8s.ServiceSpec(
-                type=const.ServiceType.CLUSTER_IP,
+                type=const.K8SServiceType.CLUSTER_IP,
                 ports=self._get_service_ports(),
                 selector=self.labels,
             ),
@@ -90,6 +94,9 @@ class ServiceApp(Construct):
         )
 
         if self.service_topology.ingress:
+            self.service.metadata.add_annotation(
+                key="cloud.google.com/neg", value='{"ingress": true}'
+            )
             self.ingress = self._get_ingress()
 
         if self.service_topology.storage is not None:
@@ -136,7 +143,9 @@ class ServiceApp(Construct):
                 min_replicas=self.service_topology.replicas,
                 max_replicas=const.HPA_MAX_REPLICAS,
                 scale_target_ref=k8s.CrossVersionObjectReferenceV2(
-                    api_version="v1", kind="Deployment", name=self.deployment.name
+                    api_version=self.deployment.api_version,
+                    kind=self.deployment.kind,
+                    name=self.deployment.metadata.name,
                 ),
                 metrics=[
                     k8s.MetricSpecV2(
@@ -159,27 +168,19 @@ class ServiceApp(Construct):
                             )
                         ],
                     ),
+                    scale_down=k8s.HpaScalingRulesV2(
+                        select_policy="Max",
+                        stabilization_window_seconds=300,
+                        policies=[
+                            k8s.HpaScalingPolicyV2(
+                                type="Pods",
+                                value=2,  # Remove 2 pods per scaling action
+                                period_seconds=60,  # Scaling happens at most once per minute
+                            )
+                        ],
+                    ),
                 ),
             ),
-        )
-
-    def _get_ingress(self) -> k8s.KubeIngress:
-        self.host = f"{self.node.id}.{self.namespace}.sw-dev.io"
-        return k8s.KubeIngress(
-            self,
-            "ingress",
-            metadata=k8s.ObjectMeta(
-                name=f"{self.node.id}-ingress",
-                labels=self.labels,
-                annotations={
-                    "kubernetes.io/tls-acme": "true",
-                    "cert-manager.io/common-name": self.host,
-                    "cert-manager.io/issue-temporary-certificate": "true",
-                    "cert-manager.io/issuer": "letsencrypt-prod",
-                    "acme.cert-manager.io/http01-edit-in-place": "true",
-                },
-            ),
-            spec=k8s.IngressSpec(tls=self._get_ingress_tls(), rules=self._get_ingress_rules()),
         )
 
     def _get_persistent_volume_claim(self) -> k8s.KubePersistentVolumeClaim:
@@ -325,33 +326,88 @@ class ServiceApp(Construct):
 
         return [v for v in volumes if v is not None]
 
-    def _get_ingress_rules(self) -> typing.List[k8s.IngressRule]:
+    def _get_ingress(self) -> k8s.KubeIngress:
+        domain = self.service_topology.ingress["domain"]
+        self.host = f"{self.node.id}.{self.namespace}.{domain}"
+        ingress_class_name = None
+        annotations = {
+            "kubernetes.io/tls-acme": "true",
+            "cert-manager.io/common-name": self.host,
+            "cert-manager.io/issue-temporary-certificate": "true",
+            "cert-manager.io/issuer": "letsencrypt-prod",
+            "acme.cert-manager.io/http01-edit-in-place": "true",
+        }
+        tls = self._get_ingress_tls()
+
+        if self.service_topology.ingress["internal"] == True:
+            annotations.clear()
+            annotations.update({"kubernetes.io/ingress.class": "gce-internal"})
+            tls = None
+
+        return k8s.KubeIngress(
+            self,
+            "ingress",
+            metadata=k8s.ObjectMeta(
+                name=f"{self.node.id}-ingress",
+                labels=self.labels,
+                annotations=annotations,
+            ),
+            spec=k8s.IngressSpec(
+                tls=tls,
+                rules=self._get_ingress_rules(component=self.service_topology.component),
+                ingress_class_name=ingress_class_name,
+            ),
+        )
+
+    def _get_ingress_rules(self, component: str) -> typing.List[k8s.IngressRule]:
+        paths = []
+        if component == "http_server" or "consolidated":
+            paths.append(self._get_ingress_path("/gateway"))
+            if self.service_topology.ingress.get("fgw-nginx-redirect") is not None:
+                paths.append(self._get_ingress_path("/feeder-gateway"))
+        elif component == "state_sync":
+            paths.append(self._get_ingress_path("/state-sync"))
+        elif component == "mempool":
+            paths.append(self._get_ingress_path("/mempool"))
+        elif component == "consensus_manager":
+            paths.append(self._get_ingress_path("/consensus-manager"))
         return [
             k8s.IngressRule(
                 host=self.host,
                 http=k8s.HttpIngressRuleValue(
-                    paths=[
-                        k8s.HttpIngressPath(
-                            path="/monitoring",
-                            path_type="Prefix",
-                            backend=k8s.IngressBackend(
-                                service=k8s.IngressServiceBackend(
-                                    name=f"{self.node.id}-service",
-                                    port=k8s.ServiceBackendPort(
-                                        number=self._get_config_attr(
-                                            "monitoring_endpoint_config.port"
-                                        )
-                                    ),
-                                )
-                            ),
-                        )
-                    ]
+                    paths=paths,
                 ),
             )
         ]
 
     def _get_ingress_tls(self) -> typing.List[k8s.IngressTls]:
         return [k8s.IngressTls(hosts=[self.host], secret_name=f"{self.node.id}-tls")]
+
+    def _get_ingress_path(self, path: str) -> k8s.HttpIngressPath:
+        backend_name = f"{self.node.id}-service"
+        if path == "/gateway":
+            port = self._get_config_attr("http_server_config.port")
+        elif path == "/feeder-gateway":
+            # TODO(Idan): Create Nginx service to redirect feeder-gateway, provide its port.
+            port = 8080
+            backend_name = "nginx-service"
+        elif path == "/mempool":
+            port = self._get_config_attr("mempool_p2p_config.network_config.port")
+        elif path == "/consensus-manager":
+            port = self._get_config_attr("consensus_manager_config.network_config.port")
+        else:
+            raise ValueError(f"Unknown path: {path}")
+
+        return k8s.HttpIngressPath(
+            path=path,
+            path_type="Prefix",
+            backend=k8s.IngressBackend(
+                service=k8s.IngressServiceBackend(
+                    name=backend_name,
+                    port=k8s.ServiceBackendPort(number=port),
+                )
+            ),
+        )
 
     def _get_container_resources(self) -> k8s.ResourceRequirements:
         requests_cpu = str(self.service_topology.resources["requests"]["cpu"])
@@ -380,7 +436,7 @@ class ServiceApp(Construct):
         ]
 
     def _get_container_args(self) -> typing.List[str]:
-        args = const.CONTAINER_ARGS
+        args = ["--config_file", "/config/sequencer/presets/config"]
         if self.service_topology.external_secret is not None:
             args.append("--config_file")
             args.append("/etc/secrets/secrets.json")
@@ -396,7 +452,7 @@ class ServiceApp(Construct):
         if self.service_topology.toleration is not None:
             return [
                 k8s.Toleration(
-                    key="role",
+                    key="key",
                     operator="Equal",
                     value=self.service_topology.toleration,
                     effect="NoSchedule",

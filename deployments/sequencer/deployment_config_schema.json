@@ -10,8 +10,25 @@
         "type": "object",
         "properties": {
           "name": { "type": "string" },
+          "component": { 
+            "type": "string",
+            "enum": ["consolidated", "http_server", "mempool", "state_sync", "batcher", "class_manager", "consensus_manager", "gateway", "l1", "sierra_compiler"]
+          },
           "config_path": { "type": "string" },
-          "ingress": { "type": "boolean" },
+          "ingress": {
+            "anyOf": [
+              {"type": "null"},
+              {
+                "type": "object",
+                "properties": {
+                  "domain": { "type": "string" },
+                  "internal": { "type": "boolean" },
+                  "fgw-nginx-redirect": { "type": "boolean"}
+                },
+                "required": ["domain", "internal"]
+              }
+            ]
+          },
           "replicas": { "type": "integer", "minimum": 1 },
           "autoscale": { "type": "boolean" },
           "toleration": {
