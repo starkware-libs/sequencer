@@ -65,6 +65,8 @@ class ServiceApp(Construct):
                     spec=k8s.PodSpec(
                         security_context=k8s.PodSecurityContext(fs_group=1000),
                         volumes=self._get_volumes(),
+                        tolerations=self._get_tolerations(),
+                        node_selector=self._get_node_selector(),
                         containers=[
                             k8s.Container(
                                 name=self.node.id,
@@ -385,12 +387,19 @@ class ServiceApp(Construct):
 
         return args
 
-    @staticmethod
-    def _get_node_selector() -> typing.Dict[str, str]:
-        return {"role": "sequencer"}
+    def _get_node_selector(self) -> typing.Dict[str, str]:
+        if self.service_topology.toleration is not None:
+            return {"role": self.service_topology.toleration}
+        return None
 
-    @staticmethod
-    def _get_tolerations() -> typing.Sequence[k8s.Toleration]:
-        return [
-            k8s.Toleration(key="role", operator="Equal", value="sequencer", effect="NoSchedule"),
-        ]
+    def _get_tolerations(self) -> typing.Sequence[k8s.Toleration]:
+        if self.service_topology.toleration is not None:
+            return [
+                k8s.Toleration(
+                    key="role",
+                    operator="Equal",
+                    value=self.service_topology.toleration,
+                    effect="NoSchedule",
+                ),
+            ]
+        return None
