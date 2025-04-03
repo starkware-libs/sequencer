@@ -1,0 +1,335 @@
+{
+  "Sequencer Node Dashboard": {
+    "Batcher": [
+      {
+        "title": "batcher_proposal_started",
+        "description": "Counter of proposals started",
+        "type": "stat",
+        "expr": "batcher_proposal_started",
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_proposal_succeeded",
+        "description": "Counter of successful proposals",
+        "type": "stat",
+        "expr": "batcher_proposal_succeeded",
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_proposal_failed",
+        "description": "Counter of failed proposals",
+        "type": "stat",
+        "expr": "batcher_proposal_failed",
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_batched_transactions",
+        "description": "Counter of batched transactions across all forks",
+        "type": "stat",
+        "expr": "batcher_batched_transactions",
+        "extra_params": {}
+      },
+      {
+        "title": "cairo_native_cache_miss_ratio",
+        "description": "The ratio of cache misses in the Cairo native cache",
+        "type": "graph",
+        "expr": "100 * (class_cache_misses / clamp_min((class_cache_misses + class_cache_hits), 1))",
+        "extra_params": {}
+      }
+    ],
+    "Consensus": [
+      {
+        "title": "consensus_block_number",
+        "description": "The block number consensus is working to decide",
+        "type": "stat",
+        "expr": "consensus_block_number",
+        "extra_params": {}
+      },
+      {
+        "title": "consensus_round",
+        "description": "The round of the state machine",
+        "type": "stat",
+        "expr": "consensus_round",
+        "extra_params": {}
+      },
+      {
+        "title": "consensus_max_cached_block_number",
+        "description": "How many blocks after current are cached",
+        "type": "stat",
+        "expr": "consensus_max_cached_block_number",
+        "extra_params": {}
+      },
+      {
+        "title": "consensus_cached_votes",
+        "description": "How many votes are cached when starting to work on a new block number",
+        "type": "stat",
+        "expr": "consensus_cached_votes",
+        "extra_params": {}
+      },
+      {
+        "title": "consensus_decisions_reached_by_consensus",
+        "description": "The total number of decisions reached by way of consensus",
+        "type": "stat",
+        "expr": "consensus_decisions_reached_by_consensus",
+        "extra_params": {}
+      },
+      {
+        "title": "consensus_decisions_reached_by_sync",
+        "description": "The total number of decisions reached by way of sync",
+        "type": "stat",
+        "expr": "consensus_decisions_reached_by_sync",
+        "extra_params": {}
+      },
+      {
+        "title": "consensus_proposals_received",
+        "description": "The total number of proposals received",
+        "type": "stat",
+        "expr": "consensus_proposals_received",
+        "extra_params": {}
+      },
+      {
+        "title": "consensus_proposals_valid_init",
+        "description": "The total number of proposals received with a valid init",
+        "type": "stat",
+        "expr": "consensus_proposals_valid_init",
+        "extra_params": {}
+      },
+      {
+        "title": "consensus_proposals_validated",
+        "description": "The total number of complete, valid proposals received",
+        "type": "stat",
+        "expr": "consensus_proposals_validated",
+        "extra_params": {}
+      },
+      {
+        "title": "consensus_proposals_invalid",
+        "description": "The total number of proposals that failed validation",
+        "type": "stat",
+        "expr": "consensus_proposals_invalid",
+        "extra_params": {}
+      },
+      {
+        "title": "consensus_build_proposal_total",
+        "description": "The total number of proposals built",
+        "type": "stat",
+        "expr": "consensus_build_proposal_total",
+        "extra_params": {}
+      },
+      {
+        "title": "consensus_build_proposal_failed",
+        "description": "The number of proposals that failed to be built",
+        "type": "stat",
+        "expr": "consensus_build_proposal_failed",
+        "extra_params": {}
+      },
+      {
+        "title": "consensus_reproposals",
+        "description": "The number of reproposals sent",
+        "type": "stat",
+        "expr": "consensus_reproposals",
+        "extra_params": {}
+      }
+    ],
+    "Http Server": [
+      {
+        "title": "http_server_added_transactions_total",
+        "description": "Total number of transactions added",
+        "type": "stat",
+        "expr": "http_server_added_transactions_total",
+        "extra_params": {}
+      }
+    ],
+    "MempoolP2p": [
+      {
+        "title": "apollo_mempool_p2p_num_connected_peers",
+        "description": "The number of connected peers to the mempool p2p component",
+        "type": "stat",
+        "expr": "apollo_mempool_p2p_num_connected_peers",
+        "extra_params": {}
+      },
+      {
+        "title": "apollo_mempool_p2p_num_sent_messages",
+        "description": "The number of messages sent by the mempool p2p component",
+        "type": "stat",
+        "expr": "apollo_mempool_p2p_num_sent_messages",
+        "extra_params": {}
+      },
+      {
+        "title": "apollo_mempool_p2p_num_received_messages",
+        "description": "The number of messages received by the mempool p2p component",
+        "type": "stat",
+        "expr": "apollo_mempool_p2p_num_received_messages",
+        "extra_params": {}
+      }
+    ],
+    "ConsensusP2p": [
+      {
+        "title": "apollo_consensus_num_connected_peers",
+        "description": "The number of connected peers to the consensus p2p component",
+        "type": "stat",
+        "expr": "apollo_consensus_num_connected_peers",
+        "extra_params": {}
+      },
+      {
+        "title": "apollo_consensus_votes_num_sent_messages",
+        "description": "The number of messages sent by the consensus p2p component over the Votes topic",
+        "type": "stat",
+        "expr": "apollo_consensus_votes_num_sent_messages",
+        "extra_params": {}
+      },
+      {
+        "title": "apollo_consensus_votes_num_received_messages",
+        "description": "The number of messages received by the consensus p2p component over the Votes topic",
+        "type": "stat",
+        "expr": "apollo_consensus_votes_num_received_messages",
+        "extra_params": {}
+      },
+      {
+        "title": "apollo_consensus_proposals_num_sent_messages",
+        "description": "The number of messages sent by the consensus p2p component over the Proposals topic",
+        "type": "stat",
+        "expr": "apollo_consensus_proposals_num_sent_messages",
+        "extra_params": {}
+      },
+      {
+        "title": "apollo_consensus_proposals_num_received_messages",
+        "description": "The number of messages received by the consensus p2p component over the Proposals topic",
+        "type": "stat",
+        "expr": "apollo_consensus_proposals_num_received_messages",
+        "extra_params": {}
+      }
+    ],
+    "StateSyncP2p": [
+      {
+        "title": "apollo_sync_num_connected_peers",
+        "description": "The number of connected peers to the state sync p2p component",
+        "type": "stat",
+        "expr": "apollo_sync_num_connected_peers",
+        "extra_params": {}
+      },
+      {
+        "title": "apollo_sync_num_active_inbound_sessions",
+        "description": "The number of inbound sessions to the state sync p2p component",
+        "type": "stat",
+        "expr": "apollo_sync_num_active_inbound_sessions",
+        "extra_params": {}
+      },
+      {
+        "title": "apollo_sync_num_active_outbound_sessions",
+        "description": "The number of outbound sessions to the state sync p2p component",
+        "type": "stat",
+        "expr": "apollo_sync_num_active_outbound_sessions",
+        "extra_params": {}
+      }
+    ],
+    "Gateway": [
+      {
+        "title": "gateway_transactions_received",
+        "description": "Counter of transactions received",
+        "type": "stat",
+        "expr": "sum  by (tx_type) (gateway_transactions_received) ",
+        "extra_params": {}
+      },
+      {
+        "title": "gateway_transactions_received",
+        "description": "Counter of transactions received",
+        "type": "stat",
+        "expr": "sum  by (source) (gateway_transactions_received) ",
+        "extra_params": {}
+      },
+      {
+        "title": "gateway_transactions_received_rate (TPS)",
+        "description": "The rate of transactions received by the gateway during the last 20 minutes",
+        "type": "graph",
+        "expr": "sum(rate(gateway_transactions_received[20m]))",
+        "extra_params": {}
+      },
+      {
+        "title": "gateway_add_tx_latency",
+        "description": "Latency of gateway add_tx function in secs",
+        "type": "graph",
+        "expr": "avg_over_time(gateway_add_tx_latency[2m])",
+        "extra_params": {}
+      },
+      {
+        "title": "gateway_transactions_failed",
+        "description": "Counter of failed transactions",
+        "type": "stat",
+        "expr": "sum  by (tx_type) (gateway_transactions_failed)",
+        "extra_params": {}
+      },
+      {
+        "title": "gateway_transactions_sent_to_mempool",
+        "description": "Counter of transactions sent to the mempool",
+        "type": "stat",
+        "expr": "sum  by (tx_type) (gateway_transactions_sent_to_mempool)",
+        "extra_params": {}
+      }
+    ],
+    "Mempool": [
+      {
+        "title": "mempool_transactions_received",
+        "description": "Counter of transactions received by the mempool",
+        "type": "stat",
+        "expr": "sum  by (tx_type) (mempool_transactions_received)",
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_transactions_received_rate (TPS)",
+        "description": "The rate of transactions received by the mempool during the last 20 minutes",
+        "type": "graph",
+        "expr": "sum(rate(mempool_transactions_received[20m]))",
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_transactions_dropped",
+        "description": "Counter of transactions dropped from the mempool",
+        "type": "stat",
+        "expr": "sum  by (drop_reason) (mempool_transactions_dropped)",
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_txs_committed",
+        "description": "The number of transactions that were committed to block",
+        "type": "stat",
+        "expr": "mempool_txs_committed",
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_pool_size",
+        "description": "The average size of the pool",
+        "type": "graph",
+        "expr": "avg_over_time(mempool_pool_size[2m])",
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_priority_queue_size",
+        "description": "The average size of the priority queue",
+        "type": "graph",
+        "expr": "avg_over_time(mempool_priority_queue_size[2m])",
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_pending_queue_size",
+        "description": "The average size of the pending queue",
+        "type": "graph",
+        "expr": "avg_over_time(mempool_pending_queue_size[2m])",
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_get_txs_size",
+        "description": "The average size of the get_txs",
+        "type": "graph",
+        "expr": "avg_over_time(mempool_get_txs_size[2m])",
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_transaction_time_spent",
+        "description": "The time (secs) that a transaction spent in the mempool",
+        "type": "graph",
+        "expr": "avg_over_time(mempool_transaction_time_spent[2m])",
+        "extra_params": {}
+      }
+    ]
+  }
+}
