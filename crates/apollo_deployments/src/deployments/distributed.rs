@@ -19,7 +19,7 @@ use crate::service::{
     ServiceNameInner,
 };
 
-const BASE_PORT: u16 = 55000; // TODO(Tsabary): arbitrary port, need to resolve.
+const BASE_PORT: u16 = 15000; // TODO(Tsabary): arbitrary port, need to resolve.
 
 #[repr(u16)]
 #[derive(Clone, Copy, Debug, Display, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter)]
