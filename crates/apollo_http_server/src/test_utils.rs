@@ -89,6 +89,19 @@ impl HttpTestClient {
             .await
             .unwrap()
     }
+
+    pub async fn send_raw_request_to_deprecated_gw(
+        &self,
+        body: String,
+    ) -> Response {
+        let request = self.client.post(format!("http://{}/gateway/add_tx", self.socket));
+        request
+            .header("content-type", "application/json")
+            .body(Body::from(body))
+            .send()
+            .await
+            .unwrap()
+    }
 }
 
 pub fn create_http_server_config(socket: SocketAddr) -> HttpServerConfig {

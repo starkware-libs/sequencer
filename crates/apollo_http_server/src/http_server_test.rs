@@ -210,6 +210,8 @@ async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) 
 const VERSION_1_DEPLOY_ACCOUNT_JSON: &str = r#"{"version": "0x1", "signature": [], "nonce": "0x0", "max_fee": "0x10000000000000000000000000", "class_hash": "0x1", "contract_address_salt": "0x2", "constructor_calldata": [], "type": "DEPRECATED_DEPLOY_ACCOUNT"}"#;
 const VERSION_3_INVOKE_JSON: &str = r#"{"version": "0x3", "signature": ["0x1132577", "0x17df53c", "0x0"], "nonce": "0x0", "nonce_data_availability_mode": 0, "fee_data_availability_mode": 0, "resource_bounds": {"L1_GAS": {"max_amount": "0x4000000000000", "max_price_per_unit": "0x4000000000000"}, "L2_GAS": {"max_amount": "0x0", "max_price_per_unit": "0x0"}}, "tip": "0x0", "paymaster_data": [], "sender_address": "0x64", "calldata": ["0x0", "0x1", "0x2", "0x3", "0x4", "0x5", "0x6", "0x7", "0x8", "0x9"], "account_deployment_data": [], "type": "INVOKE_FUNCTION"}"#;
 const MODIFIED_VERSION_3_INVOKE_JSON: &str = r#"{"version": "0x3", "signature": ["0x1132577", "0x17df53c", "0x0"], "nonce": "0x0", "nonce_data_availability_mode": 0, "fee_data_availability_mode": 0, "resource_bounds": {"l1_gas": {"max_amount": "0x4000000000000", "max_price_per_unit": "0x4000000000000"}, "l2_gas": {"max_amount": "0x0", "max_price_per_unit": "0x0"}}, "tip": "0x0", "paymaster_data": [], "sender_address": "0x64", "calldata": ["0x0", "0x1", "0x2", "0x3", "0x4", "0x5", "0x6", "0x7", "0x8", "0x9"], "account_deployment_data": [], "type": "INVOKE"}"#;
+// Note: this is a version 3 invoke, but the version was changed to 0x1.
+const DEPRECATED_INVOKE_JSON: &str = r#"{"version": "0x1", "signature": ["0x1132577", "0x17df53c", "0x0"], "nonce": "0x0", "nonce_data_availability_mode": 0, "fee_data_availability_mode": 0, "resource_bounds": {"L1_GAS": {"max_amount": "0x4000000000000", "max_price_per_unit": "0x4000000000000"}, "L2_GAS": {"max_amount": "0x0", "max_price_per_unit": "0x0"}}, "tip": "0x0", "paymaster_data": [], "sender_address": "0x64", "calldata": ["0x0", "0x1", "0x2", "0x3", "0x4", "0x5", "0x6", "0x7", "0x8", "0x9"], "account_deployment_data": [], "type": "INVOKE_FUNCTION"}"#;
 
 #[rstest]
 #[case::not_a_json(
@@ -241,6 +243,11 @@ const MODIFIED_VERSION_3_INVOKE_JSON: &str = r#"{"version": "0x3", "signature": 
     "Failed to deserialize the JSON body into the target type: missing field `l1_data_gas`",
     8
 )]
+#[case::deprecated_invoke(
+    DEPRECATED_INVOKE_JSON.to_string(),
+    "Transaction version is not supported. Supported versions: [3].",
+    9
+)]
 #[tokio::test]
 async fn malformed_request_body(
     #[case] body: String,
@@ -266,3 +273,9 @@ async fn malformed_request_body(
         "Unexpected response; the response is: \n{response}"
     );
 }
+
+#[tokio::test]
+async fn deprecated_tx(
+    let body = DEPRECATED_INVOKE_JSON.to_string();
+    let expected_response = "Transaction version is not supported. Supported versions: [3].";
+)
