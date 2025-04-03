@@ -1106,6 +1106,7 @@ dependencies = [
  "apollo_rpc",
  "async-trait",
  "enum-assoc",
+ "enum-iterator",
  "mockall",
  "serde",
  "serde_json",
