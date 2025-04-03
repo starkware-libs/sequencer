@@ -40,12 +40,6 @@ TEST="${1:-positive}"
 echo "Running integration test alias: $TEST"
 
 SEQUENCER_BINARY="apollo_node"
-ANVIL_PROCESS_NAME="anvil"
-
-# Stop any running instances of SEQUENCER_BINARY (ignore error if not found)
-killall "$SEQUENCER_BINARY" 2>/dev/null
-# Stop any running instances of Anvil (ignore error if not found)
-killall "$ANVIL_PROCESS_NAME" 2>/dev/null
 
 # Build the main node binary (if required)
 cargo build --bin "$SEQUENCER_BINARY"
