@@ -27,6 +27,7 @@ use self::hint_processor::{
     DeprecatedSyscallHintProcessor,
 };
 use super::syscalls::exceeds_event_size_limit;
+use super::syscalls::syscall_base::should_reject_deploy;
 use crate::execution::call_info::{MessageToL1, OrderedEvent, OrderedL2ToL1Message};
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::{CallEntryPoint, CallType, ConstructorContext};
@@ -346,6 +347,14 @@ pub fn deploy(
     _vm: &mut VirtualMachine,
     syscall_handler: &mut DeprecatedSyscallHintProcessor<'_>,
 ) -> DeprecatedSyscallResult<DeployResponse> {
+    let versioned_constants = &syscall_handler.context.tx_context.block_context.versioned_constants;
+    if should_reject_deploy(versioned_constants, syscall_handler.context.execution_mode) {
+        return Err(DeprecatedSyscallExecutionError::InvalidSyscallInExecutionMode {
+            syscall_name: "deploy".to_string(),
+            execution_mode: ExecutionMode::Validate,
+        });
+    }
+
     let deployer_address = syscall_handler.storage_address;
     let deployer_address_for_calculation = match request.deploy_from_zero {
         true => ContractAddress::default(),
