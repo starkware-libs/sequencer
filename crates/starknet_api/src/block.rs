@@ -376,6 +376,10 @@ impl GasPrice {
         Fee(self.0.saturating_mul(rhs.0 as u128))
     }
 
+    pub fn saturating_add(self, rhs: Tip) -> Self {
+        Self(self.0.saturating_add(rhs.0.into()))
+    }
+
     pub fn checked_mul(self, rhs: GasAmount) -> Option<Fee> {
         self.0.checked_mul(u128::from(rhs.0)).map(Fee)
     }
