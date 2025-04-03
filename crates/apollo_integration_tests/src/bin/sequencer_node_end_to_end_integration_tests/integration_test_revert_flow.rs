@@ -26,8 +26,7 @@ async fn main() {
     // TODO(Arni): handle L1 handlers in this scenario.
     const N_L1_HANDLER_TXS: usize = 0;
     /// The number of consolidated local sequencers that participate in the test.
-    // TODO(noamsp): increase N_CONSOLIDATED_SEQUENCERS to 5 once restart flow test passes.
-    const N_CONSOLIDATED_SEQUENCERS: usize = 1;
+    const N_CONSOLIDATED_SEQUENCERS: usize = 5;
     /// The number of distributed remote sequencers that participate in the test.
     const N_DISTRIBUTED_SEQUENCERS: usize = 0;
 
