@@ -62,7 +62,7 @@ use apollo_mempool_p2p::metrics::{
     MEMPOOL_P2P_NUM_RECEIVED_MESSAGES,
     MEMPOOL_P2P_NUM_SENT_MESSAGES,
 };
-use apollo_state_reader::metrics::{CLASS_CACHE_HITS, CLASS_CACHE_MISSES};
+use apollo_state_reader::metrics::{CLASS_CACHE_HITS, CLASS_CACHE_MISSES, NATIVE_CLASS_RETURNED};
 use apollo_state_sync::metrics::{
     STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS,
     STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS,
@@ -85,17 +85,6 @@ const PANEL_PROPOSAL_SUCCEEDED: Panel = Panel::from_counter(PROPOSAL_SUCCEEDED, 
 const PANEL_PROPOSAL_FAILED: Panel = Panel::from_counter(PROPOSAL_FAILED, PanelType::Stat);
 const PANEL_BATCHED_TRANSACTIONS: Panel =
     Panel::from_counter(BATCHED_TRANSACTIONS, PanelType::Stat);
-const PANEL_APOLLO_STATE_READER_CLASS_CACHE_MISS_RATIO: Panel = Panel::new(
-    "class_cache_miss_ratio",
-    "The ratio of cache misses when requesting compiled classes from the apollo state reader",
-    formatcp!(
-        "100 * ({} / max(({} + {}), 1))",
-        CLASS_CACHE_MISSES.get_name(),
-        CLASS_CACHE_MISSES.get_name(),
-        CLASS_CACHE_HITS.get_name()
-    ),
-    PanelType::Graph,
-);
 
 const PANEL_CONSENSUS_BLOCK_NUMBER: Panel =
     Panel::from_gauge(CONSENSUS_BLOCK_NUMBER, PanelType::Stat);
@@ -276,6 +265,29 @@ const PANEL_MEMPOOL_TRANSACTION_TIME_SPENT: Panel = Panel::new(
     PanelType::Graph,
 );
 
+const PANEL_APOLLO_STATE_READER_CLASS_CACHE_MISS_RATIO: Panel = Panel::new(
+    "class_cache_miss_ratio",
+    "The ratio of cache misses when requesting compiled classes from the apollo state reader",
+    formatcp!(
+        "100 * ({} / max(({} + {}), 1))",
+        CLASS_CACHE_MISSES.get_name(),
+        CLASS_CACHE_MISSES.get_name(),
+        CLASS_CACHE_HITS.get_name()
+    ),
+    PanelType::Graph,
+);
+const PANEL_APOLLO_STATE_READER_NATIVE_CLASS_RETURNED_RATIO: Panel = Panel::new(
+    "native_class_returned_ratio",
+    "The ratio of Native classes returned by the apollo state reader",
+    formatcp!(
+        "100 * ({} / max(({} + {}), 1))",
+        NATIVE_CLASS_RETURNED.get_name(),
+        CLASS_CACHE_HITS.get_name(),
+        CLASS_CACHE_MISSES.get_name()
+    ),
+    PanelType::Graph,
+);
+
 const MEMPOOL_P2P_ROW: Row = Row::new(
     "MempoolP2p",
     "Mempool peer to peer metrics",
@@ -323,7 +335,10 @@ const BATCHER_ROW: Row = Row::new(
 const APOLLO_STATE_READER_ROW: Row = Row::new(
     "Apollo State Reader",
     "Apollo state reader metrics",
-    &[PANEL_APOLLO_STATE_READER_CLASS_CACHE_MISS_RATIO],
+    &[
+        PANEL_APOLLO_STATE_READER_CLASS_CACHE_MISS_RATIO,
+        PANEL_APOLLO_STATE_READER_NATIVE_CLASS_RETURNED_RATIO,
+    ],
 );
 
 const CONSENSUS_ROW: Row = Row::new(
