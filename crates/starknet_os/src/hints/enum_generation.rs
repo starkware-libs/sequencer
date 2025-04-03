@@ -1,3 +1,4 @@
+/// Common code generation for `define_hint_enum` and `define_hint_extension_enum`.
 #[macro_export]
 macro_rules! define_hint_enum_base {
     ($enum_name:ident, $(($hint_name:ident, $hint_str:expr)),+ $(,)?) => {
@@ -16,10 +17,10 @@ macro_rules! define_hint_enum_base {
         }
 
         impl HintEnum for $enum_name {
-            fn from_str(hint_str: &str) -> Result<Self, OsHintError> {
+            fn from_str(hint_str: &str) -> Result<Self, HintImplementationError> {
                 match hint_str {
                     $($hint_str => Ok(Self::$hint_name),)+
-                    _ => Err(OsHintError::UnknownHint(hint_str.to_string())),
+                    _ => Err(HintImplementationError::UnknownHint(hint_str.to_string())),
                 }
             }
 
@@ -32,37 +33,65 @@ macro_rules! define_hint_enum_base {
     }
 }
 
+/// Generates the implementation of the `HintImplementation` trait or the
+/// `HintExtensionImplementation` trait for the given enum.
+#[macro_export]
+macro_rules! generate_hint_implementation_block {
+    (
+        $enum_name:ident,
+        $trait:ty,
+        $method_name:ident,
+        $return_type:ty,
+        $(($hint_name:ident, $implementation:ident)),+ $(,)?
+    ) => {
+        impl $trait for $enum_name {
+            fn $method_name<S: StateReader>(
+                &self, hint_args: HintArgs<'_, S>
+            ) -> $return_type {
+                match self {
+                    $(
+                        Self::$hint_name => $implementation::<S>(hint_args)
+                            .map_err(|error| HintImplementationError::OsHint {
+                                hint: AllHints::$enum_name(*self),
+                                error
+                            }),
+                    )+
+                }
+            }
+        }
+    }
+}
+
+/// Defines the different hints that can be used in the OS program, and generates the implementation
+/// of the `HintImplementation` trait. Expects a tuple of the hint name, the implementation
+/// function, and the hint string.
 #[macro_export]
 macro_rules! define_hint_enum {
     ($enum_name:ident, $(($hint_name:ident, $implementation:ident, $hint_str:expr)),+ $(,)?) => {
-
         $crate::define_hint_enum_base!($enum_name, $(($hint_name, $hint_str)),+);
-
-        impl HintImplementation for $enum_name {
-            fn execute_hint<S: StateReader>(&self, hint_args: HintArgs<'_, S>) -> OsHintResult {
-                match self {
-                    $(Self::$hint_name => $implementation::<S>(hint_args),)+
-                }
-            }
-        }
+        $crate::generate_hint_implementation_block!(
+            $enum_name,
+            HintImplementation,
+            execute_hint,
+            HintImplementationResult,
+            $(($hint_name, $implementation)),+
+        );
     };
 }
 
+/// Defines the different hints that can be used in the OS program, and generates the implementation
+/// of the `HintExtensionImplementation` trait. Expects a tuple of the hint name, the implementation
+/// function, and the hint string.
 #[macro_export]
 macro_rules! define_hint_extension_enum {
     ($enum_name:ident, $(($hint_name:ident, $implementation:ident, $hint_str:expr)),+ $(,)?) => {
-
         $crate::define_hint_enum_base!($enum_name, $(($hint_name, $hint_str)),+);
-
-        impl HintExtensionImplementation for $enum_name {
-            fn execute_hint_extensive<S: StateReader>(
-                &self,
-                hint_extension_args: HintArgs<'_, S>,
-            ) -> OsHintExtensionResult {
-                match self {
-                    $(Self::$hint_name => $implementation::<S>(hint_extension_args),)+
-                }
-            }
-        }
+        $crate::generate_hint_implementation_block!(
+            $enum_name,
+            HintExtensionImplementation,
+            execute_hint_extensive,
+            HintExtensionImplementationResult,
+            $(($hint_name, $implementation)),+
+        );
     };
 }
