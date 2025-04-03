@@ -16,7 +16,7 @@ alloy = { workspace = true, features = ["contract", "json-rpc", "rpc-types"] }
 apollo_config.workspace = true
 async-trait.workspace = true
 colored = { workspace = true, optional = true }
-ethers.workspace = true
+ethers = { workspace = true, features = ["abigen"] }
 mockall.workspace = true
 serde.workspace = true
 starknet-types-core.workspace = true
@@ -39,3 +39,8 @@ starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 tar.workspace = true
 tempfile.workspace = true
+
+
+[[bin]]
+name = "send_message_to_l2"
+path = "src/bin/send_messages_to_l2/send_message_to_l2.rs"
