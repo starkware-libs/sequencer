@@ -225,42 +225,28 @@ async fn convert_rpc_tx_to_internal(
 // We use default nonce, address, and tx_hash since Gateway errors drop these details when
 // converting Mempool errors.
 #[rstest]
-#[case::successful_invoke_transaction_addition(
-    TransactionType::Invoke, Ok(()), None)]
-#[case::invoke_tx_with_duplicate_tx_hash(
-    TransactionType::Invoke,
+#[case::successful_transaction_addition(Ok(()), None)]
+#[case::duplicate_tx_hash(
     Err(MempoolClientError::MempoolError(MempoolError::DuplicateTransaction { tx_hash: TransactionHash::default() })),
     Some(GatewaySpecError::DuplicateTx)
 )]
-#[case::invoke_tx_with_duplicate_nonce(
-    TransactionType::Invoke,
+#[case::duplicate_nonce(
     Err(MempoolClientError::MempoolError(MempoolError::DuplicateNonce { address: ContractAddress::default(), nonce: Nonce::default() })),
     Some(GatewaySpecError::InvalidTransactionNonce)
 )]
-#[case::invoke_tx_with_nonce_too_old(
-    TransactionType::Invoke,
+#[case::nonce_too_old(
     Err(MempoolClientError::MempoolError(MempoolError::NonceTooOld { address: ContractAddress::default(), nonce: Nonce::default() })),
     Some(GatewaySpecError::InvalidTransactionNonce)
 )]
-#[case::invoke_tx_with_nonce_too_large(
-    TransactionType::Invoke,
+#[case::nonce_too_large(
     Err(MempoolClientError::MempoolError(MempoolError::NonceTooLarge(Nonce::default()))),
     Some(GatewaySpecError::InvalidTransactionNonce)
-)]
-#[case::successful_deploy_account(
-    TransactionType::DeployAccount,
-    Ok(()),
-    None
-)]
-#[case::successful_deploy_account(
-    TransactionType::Declare,
-    Ok(()),
-    None
 )]
 #[tokio::test]
 async fn test_add_tx(
     mut mock_dependencies: MockDependencies,
-    #[case] tx_type: TransactionType,
+    #[values(TransactionType::Invoke, TransactionType::DeployAccount, TransactionType::Declare)]
+    tx_type: TransactionType,
     #[case] expected_result: Result<(), MempoolClientError>,
     #[case] expected_error: Option<GatewaySpecError>,
 ) {
