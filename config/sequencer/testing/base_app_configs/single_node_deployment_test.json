@@ -169,7 +169,7 @@
   "consensus_manager_config.context_config.max_l1_gas_price_wei": 200000000000,
   "consensus_manager_config.context_config.min_l1_data_gas_price_wei": 1000000000,
   "consensus_manager_config.context_config.max_l1_data_gas_price_wei": 200000000000,
-  "consensus_manager_config.eth_to_strk_oracle_config.base_url": "http://127.0.0.1:53262/eth_to_strk_oracle?timestamp=",
+  "consensus_manager_config.eth_to_strk_oracle_config.base_url": "http://127.0.0.1:53262/eth_to_strk_oracle",
   "consensus_manager_config.eth_to_strk_oracle_config.headers": "",
   "consensus_manager_config.eth_to_strk_oracle_config.lag_interval_seconds": 0,
   "consensus_manager_config.immediate_active_height": 1,

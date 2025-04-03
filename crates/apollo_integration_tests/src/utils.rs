@@ -356,9 +356,7 @@ pub fn spawn_eth_to_strk_oracle_server(socket_address: SocketAddr) -> JoinHandle
 /// Starts the fake eth to fri oracle server and returns its URL and handle.
 pub fn spawn_local_eth_to_strk_oracle(port: u16) -> (Url, JoinHandle<()>) {
     let socket_address = SocketAddr::from(([127, 0, 0, 1], port));
-    let url =
-        Url::parse(&format!("http://{}{}?timestamp=", socket_address, ETH_TO_STRK_ORACLE_PATH))
-            .unwrap();
+    let url = Url::parse(&format!("http://{}{}", socket_address, ETH_TO_STRK_ORACLE_PATH)).unwrap();
     let join_handle = spawn_eth_to_strk_oracle_server(socket_address);
     (url, join_handle)
 }
