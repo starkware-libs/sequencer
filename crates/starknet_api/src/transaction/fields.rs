@@ -347,6 +347,12 @@ impl ValidResourceBounds {
     }
 }
 
+impl Default for ValidResourceBounds {
+    fn default() -> Self {
+        Self::AllResources(AllResourceBounds::default())
+    }
+}
+
 #[derive(
     Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize,
 )]
