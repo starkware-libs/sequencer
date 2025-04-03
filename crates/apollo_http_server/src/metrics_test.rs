@@ -1,25 +1,16 @@
-use std::net::{IpAddr, Ipv4Addr};
-
 use apollo_gateway_types::communication::{GatewayClientError, MockGatewayClient};
 use apollo_gateway_types::gateway_types::{GatewayOutput, InvokeGatewayOutput};
 use apollo_infra::component_client::ClientError;
-use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use rstest::rstest;
 use starknet_api::transaction::TransactionHash;
 
-use crate::config::HttpServerConfig;
 use crate::metrics::{
     ADDED_TRANSACTIONS_FAILURE,
     ADDED_TRANSACTIONS_SUCCESS,
     ADDED_TRANSACTIONS_TOTAL,
 };
-use crate::test_utils::{
-    deprecated_gateway_tx,
-    http_client_server_setup,
-    rpc_tx,
-    GatewayTransaction,
-};
+use crate::test_utils::{add_tx_http_client, deprecated_gateway_tx, rpc_tx, GatewayTransaction};
 
 type InvalidTransaction = &'static str;
 
@@ -63,15 +54,11 @@ async fn add_tx_metrics_test(#[case] index: u16, #[case] tx: impl GatewayTransac
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let prometheus_handle = recorder.handle();
 
-    let ip = IpAddr::from(Ipv4Addr::LOCALHOST);
-    let mut available_ports = AvailablePorts::new(TestIdentifier::HttpServerUnitTests.into(), 0);
-    let http_server_config = HttpServerConfig { ip, port: available_ports.get_next_port() + index };
-    let add_tx_http_client =
-        http_client_server_setup(mock_gateway_client, http_server_config).await;
+    let http_client = add_tx_http_client(mock_gateway_client, 7 + index).await;
 
     // Send transactions to the server.
     for _ in std::iter::repeat(()).take(SUCCESS_TXS_TO_SEND + FAILURE_TXS_TO_SEND) {
-        add_tx_http_client.add_tx(tx.clone()).await;
+        http_client.add_tx(tx.clone()).await;
     }
 
     // Obtain and parse metrics.
@@ -98,16 +85,11 @@ async fn add_tx_serde_failure_metrics_test() {
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let prometheus_handle = recorder.handle();
 
-    // TODO(Yael): share the creation of add_tx_http_client code for all tests in test_utils.
-    let ip = IpAddr::from(Ipv4Addr::LOCALHOST);
-    let mut available_ports = AvailablePorts::new(TestIdentifier::HttpServerUnitTests.into(), 0);
-    let http_server_config = HttpServerConfig { ip, port: available_ports.get_next_port() + 2 };
-    let add_tx_http_client =
-        http_client_server_setup(mock_gateway_client, http_server_config).await;
+    let http_client = add_tx_http_client(mock_gateway_client, 9).await;
 
     // Send a transaction that fails deserialization.
     let tx: InvalidTransaction = "invalid transaction";
-    add_tx_http_client.add_tx(tx).await;
+    http_client.add_tx(tx).await;
 
     // Obtain and parse metrics.
     let metrics = prometheus_handle.render();
