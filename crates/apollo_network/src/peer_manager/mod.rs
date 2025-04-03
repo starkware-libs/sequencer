@@ -148,15 +148,17 @@ impl PeerManager {
             .peers
             .iter()
             .skip(self.last_peer_index)
-            .find(|(_, peer)| !peer.is_blocked())
+            .find(|(_, peer)| peer.is_available())
             .or_else(|| {
-                self.peers.iter().take(self.last_peer_index).find(|(_, peer)| !peer.is_blocked())
+                self.peers.iter().take(self.last_peer_index).find(|(_, peer)| peer.is_available())
             });
+        // TODO(shahak): advance to selected peer's index plus one.
         self.last_peer_index = (self.last_peer_index + 1) % self.peers.len();
         if peer.is_none() {
             info!(
-                "No unblocked peers. Waiting for a new peer to be connected or for a peer to \
-                 become unblocked for {outbound_session_id:?}"
+                "No unblocked peers with active connection. Waiting for a new peer to be \
+                 connected or for a peer to become unblocked and re-discovered for \
+                 {outbound_session_id:?}"
             );
             self.sessions_received_when_no_peers.push(outbound_session_id);
             // Find the peer closest to becoming unblocked.
@@ -183,6 +185,7 @@ impl PeerManager {
                         connection_id,
                     },
                 ));
+            // TODO(shahak): remove this code block, since we check that peer has connection id
             } else {
                 // In case we have a race condition where the connection is closed after we added to
                 // the pending list, the reciever will get an error and will need to ask for

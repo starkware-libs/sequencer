@@ -35,6 +35,25 @@ impl Stream for PeerManager {
     }
 }
 
+fn simulate_connection_established(
+    peer_manager: &mut PeerManager,
+    peer_id: PeerId,
+    connection_id: ConnectionId,
+) {
+    peer_manager.on_swarm_event(libp2p::swarm::FromSwarm::ConnectionEstablished(
+        ConnectionEstablished {
+            peer_id,
+            connection_id,
+            endpoint: &libp2p::core::ConnectedPoint::Dialer {
+                address: Multiaddr::empty(),
+                role_override: libp2p::core::Endpoint::Dialer,
+            },
+            failed_addresses: &[],
+            other_established: 0,
+        },
+    ));
+}
+
 #[test]
 fn peer_assignment_round_robin() {
     // Create a new peer manager
@@ -43,8 +62,14 @@ fn peer_assignment_round_robin() {
     // Add two peers to the peer manager
     let peer1 = Peer::new(PeerId::random(), Multiaddr::empty());
     let peer2 = Peer::new(PeerId::random(), Multiaddr::empty());
+    let connection_id1 = ConnectionId::new_unchecked(1);
+    let connection_id2 = ConnectionId::new_unchecked(2);
     peer_manager.add_peer(peer1.clone());
     peer_manager.add_peer(peer2.clone());
+
+    // Add connections to those peers.
+    simulate_connection_established(&mut peer_manager, peer1.peer_id(), connection_id1);
+    simulate_connection_established(&mut peer_manager, peer2.peer_id(), connection_id2);
 
     // Create three queries
     let session1 = OutboundSessionId { value: 1 };
@@ -86,15 +111,15 @@ fn peer_assignment_round_robin() {
             match outbound_session_id {
                 OutboundSessionId { value: 1 } => {
                     assert_eq!(peer_id, peer1.peer_id());
-                    assert_eq!(connection_id, *peer1.connection_ids().first().unwrap())
+                    assert_eq!(connection_id, connection_id1)
                 }
                 OutboundSessionId { value: 2 } => {
                     assert_eq!(peer_id, peer2.peer_id());
-                    assert_eq!(connection_id, *peer2.connection_ids().first().unwrap());
+                    assert_eq!(connection_id, connection_id2);
                 }
                 OutboundSessionId { value: 3 } => {
                     assert_eq!(peer_id, peer1.peer_id());
-                    assert_eq!(connection_id, *peer1.connection_ids().first().unwrap());
+                    assert_eq!(connection_id, connection_id1);
                 }
                 _ => panic!("Unexpected outbound_session_id: {:?}", outbound_session_id),
             }
@@ -102,15 +127,15 @@ fn peer_assignment_round_robin() {
             match outbound_session_id {
                 OutboundSessionId { value: 1 } => {
                     assert_eq!(peer_id, peer2.peer_id());
-                    assert_eq!(connection_id, *peer2.connection_ids().first().unwrap());
+                    assert_eq!(connection_id, connection_id2);
                 }
                 OutboundSessionId { value: 2 } => {
                     assert_eq!(peer_id, peer1.peer_id());
-                    assert_eq!(connection_id, *peer1.connection_ids().first().unwrap());
+                    assert_eq!(connection_id, connection_id1);
                 }
                 OutboundSessionId { value: 3 } => {
                     assert_eq!(peer_id, peer2.peer_id());
-                    assert_eq!(connection_id, *peer2.connection_ids().first().unwrap());
+                    assert_eq!(connection_id, connection_id2);
                 }
                 _ => panic!("Unexpected outbound_session_id: {:?}", outbound_session_id),
             }
@@ -397,33 +422,8 @@ fn block_and_allow_inbound_connection() {
     assert!(res.is_ok());
 }
 
-#[test]
-fn assign_non_connected_peer_raises_dial_event() {
-    // Create a new peer manager
-    let config = PeerManagerConfig::default();
-    let mut peer_manager: PeerManager = PeerManager::new(config.clone());
-
-    // Create a peer
-    let peer_id = PeerId::random();
-    let peer = Peer::new(peer_id, Multiaddr::empty());
-
-    // Add the peer to the peer manager
-    peer_manager.add_peer(peer);
-
-    // Create a session
-    let outbound_session_id = OutboundSessionId { value: 1 };
-
-    // Assign peer to the session
-    let res_peer_id = peer_manager.assign_peer_to_session(outbound_session_id).unwrap();
-
-    // check events
-    for event in peer_manager.pending_events {
-        assert_matches!(event, ToSwarm::Dial {opts} if opts.get_peer_id() == Some(res_peer_id));
-    }
-}
-
 #[tokio::test]
-async fn flow_test_assign_non_connected_peer() {
+async fn if_all_peers_have_no_connection_assign_only_once_a_peer_connects() {
     // Create a new peer manager
     let config = PeerManagerConfig::default();
     let mut peer_manager: PeerManager = PeerManager::new(config.clone());
@@ -438,31 +438,18 @@ async fn flow_test_assign_non_connected_peer() {
     // Create a session
     let outbound_session_id = OutboundSessionId { value: 1 };
 
-    // Assign peer to the session
-    let res_peer_id = peer_manager.assign_peer_to_session(outbound_session_id).unwrap();
-    assert_eq!(res_peer_id, peer_id);
+    // Assign peer to the session and make sure assignment didn't return a peer.
+    assert!(peer_manager.assign_peer_to_session(outbound_session_id).is_none());
 
-    // Expect dial event
-    assert_matches!(poll_fn(|cx| peer_manager.poll(cx)).await, ToSwarm::Dial{opts} if opts.get_peer_id() == Some(peer_id));
-
-    // Send ConnectionEstablished event from swarm
-    peer_manager.on_swarm_event(libp2p::swarm::FromSwarm::ConnectionEstablished(
-        ConnectionEstablished {
-            peer_id,
-            connection_id: ConnectionId::new_unchecked(0),
-            endpoint: &libp2p::core::ConnectedPoint::Dialer {
-                address: Multiaddr::empty(),
-                role_override: libp2p::core::Endpoint::Dialer,
-            },
-            failed_addresses: &[],
-            other_established: 0,
-        },
-    ));
+    // Add a connection to the peer
+    simulate_connection_established(&mut peer_manager, peer_id, ConnectionId::new_unchecked(0));
 
     // Expect SessionAssigned event
     assert_matches!(
         poll_fn(|cx| peer_manager.poll(cx)).await,
-        ToSwarm::GenerateEvent(ToOtherBehaviourEvent::SessionAssigned { .. })
+        ToSwarm::GenerateEvent(ToOtherBehaviourEvent::SessionAssigned {
+            peer_id: actual_peer_id, ..
+        }) if peer_id == actual_peer_id
     );
 }
 
