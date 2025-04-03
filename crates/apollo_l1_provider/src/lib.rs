@@ -48,6 +48,13 @@ impl ProviderState {
         }
     }
 
+    /// Checks if the provider is in its uninitialized (pre-initialization) state.
+    /// In this state, the provider has started, but its startup sequence—triggered via the
+    /// initialization API has not yet begun.
+    pub fn uninitialized(&mut self) -> bool {
+        self.get_bootstrapper().is_some_and(|bootstrapper| !bootstrapper.sync_started())
+    }
+
     pub fn is_bootstrapping(&self) -> bool {
         if let ProviderState::Bootstrap { .. } = self {
             return true;

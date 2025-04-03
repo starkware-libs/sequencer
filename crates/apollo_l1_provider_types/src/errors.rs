@@ -15,6 +15,11 @@ pub enum L1ProviderError {
     // This is likely due to a crash, restart block proposal.
     #[error("`validate` called when provider is not in proposer state")]
     OutOfSessionValidate,
+    // This error indicates that the provider is uninitialized.
+    // It likely occurs if the provider restarted while the scraper remained active.
+    // In that case, the scraper's restart logic will automatically reinitialize the provider.
+    #[error("The provider hasn't been initialized yet, call its initialization API.")]
+    Uninitialized,
     #[error("Unexpected height: expected {expected_height}, got {got}")]
     UnexpectedHeight { expected_height: BlockNumber, got: BlockNumber },
     #[error("Cannot transition from {from} to {to}")]

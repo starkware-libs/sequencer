@@ -51,11 +51,14 @@ impl L1Provider {
     }
 
     pub async fn initialize(&mut self, events: Vec<Event>) -> L1ProviderResult<()> {
-        self.process_l1_events(events)?;
-        let ProviderState::Bootstrap(bootstrapper) = &mut self.state else {
-            panic!("Unexpected state {} while attempting to bootstrap", self.state)
+        let Some(bootstrapper) = self.state.get_bootstrapper() else {
+            // FIXME: This should be return FatalError or similar, which should trigger a planned
+            // restart from the infra, since this CAN happen if the scraper recovered from a crash.
+            // Right now this is effectively a KILL message when called in steady state.
+            panic!("Called initialize while not in bootstrap state. Restart service.");
         };
         bootstrapper.start_l2_sync(self.current_height).await;
+        self.process_l1_events(events)?;
 
         Ok(())
     }
@@ -206,6 +209,10 @@ impl L1Provider {
 
     #[instrument(skip_all, err)]
     pub fn process_l1_events(&mut self, events: Vec<Event>) -> L1ProviderResult<()> {
+        if self.state.uninitialized() {
+            return Err(L1ProviderError::Uninitialized);
+        }
+
         trace!(?events);
 
         for event in events {

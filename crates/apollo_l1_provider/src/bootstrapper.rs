@@ -100,6 +100,14 @@ impl Bootstrapper {
         self.catch_up_height.get().copied()
     }
 
+    pub fn sync_started(&self) -> bool {
+        if let SyncTaskHandle::NotStartedYet = self.sync_task_handle {
+            return false;
+        }
+
+        true
+    }
+
     fn sync_task_health_check(&self, is_caught_up: bool) {
         let SyncTaskHandle::Started(sync_task) = &self.sync_task_handle else {
             return;
