@@ -76,7 +76,7 @@ impl ComponentStarter for MempoolP2pRunner {
                             // TODO(shahak): Analyze the error to see if it's the tx's fault or an
                             // internal error. Widen GatewayError's variants if necessary.
                             if let GatewayClientError::GatewayError(
-                                GatewayError::GatewaySpecError{p2p_message_metadata: Some(p2p_message_metadata), ..}
+                                GatewayError::DeprecatedGatewayError{p2p_message_metadata: Some(p2p_message_metadata), ..}
                             ) = gateway_client_error {
                                 warn!(
                                     "Gateway rejected transaction we received from another peer. Reporting peer."
