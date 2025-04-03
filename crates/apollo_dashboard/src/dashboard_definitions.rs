@@ -89,7 +89,7 @@ const PANEL_APOLLO_STATE_READER_CLASS_CACHE_MISS_RATIO: Panel = Panel::new(
     "class_cache_miss_ratio",
     "The ratio of cache misses when requesting compiled classes from the apollo state reader",
     formatcp!(
-        "100 * ({} / clamp_min(({} + {}), 1))",
+        "100 * ({} / max(({} + {}), 1))",
         CLASS_CACHE_MISSES.get_name(),
         CLASS_CACHE_MISSES.get_name(),
         CLASS_CACHE_HITS.get_name()
