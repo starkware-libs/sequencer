@@ -27,7 +27,6 @@ axum.workspace = true
 blockifier_test_utils = { workspace = true, optional = true }
 futures.workspace = true
 hyper.workspace = true
-jsonrpsee = { workspace = true, features = ["full"] }
 mempool_test_utils = { workspace = true, optional = true }
 reqwest = { workspace = true, optional = true }
 serde.workspace = true
