@@ -58,7 +58,8 @@ impl SierraToCasmCompiler for CommandLineCompiler {
             "--max-bytecode-size",
             &self.config.max_casm_bytecode_size.to_string(),
         ];
-        let resource_limits = ResourceLimits::new(None, None, Some(self.config.max_memory_usage));
+        let resource_limits = ResourceLimits::new(None, None, None);
+
         let stdout = compile_with_args(
             compiler_binary_path,
             contract_class,
