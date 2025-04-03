@@ -144,7 +144,7 @@ pub struct PySierraCompilationConfig {
     pub sierra_to_native_compiler_path: String,
     pub max_native_bytecode_size: u64,
     pub max_cpu_time: u64,
-    pub max_memory_usage: u64,
+    pub max_memory_usage: Option<u64>,
     pub optimization_level: u8,
 }
 
