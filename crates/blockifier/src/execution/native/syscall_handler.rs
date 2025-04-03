@@ -498,6 +498,17 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         }
     }
 
+    fn meta_tx_v0(
+        &mut self,
+        _address: Felt,
+        _entry_point_selector: Felt,
+        _calldata: &[Felt],
+        _signature: &[Felt],
+        _remaining_gas: &mut u64,
+    ) -> SyscallResult<Vec<Felt>> {
+        unimplemented!()
+    }
+
     fn secp256k1_new(
         &mut self,
         x: U256,
