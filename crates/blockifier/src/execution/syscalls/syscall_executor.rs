@@ -17,11 +17,7 @@ use super::secp::{
 };
 use crate::blockifier_versioned_constants::SyscallGasCost;
 use crate::execution::common_hints::HintExecutionResult;
-use crate::execution::syscalls::hint_processor::{
-    SyscallExecutionError,
-    SyscallHintProcessor,
-    OUT_OF_GAS_ERROR,
-};
+use crate::execution::syscalls::hint_processor::{SyscallExecutionError, OUT_OF_GAS_ERROR};
 use crate::execution::syscalls::syscall_base::SyscallResult;
 use crate::execution::syscalls::{
     CallContractRequest,
@@ -154,7 +150,7 @@ pub trait SyscallExecutor {
         ExecuteCallback: FnOnce(
             Request,
             &mut VirtualMachine,
-            &mut SyscallHintProcessor<'_>,
+            &mut Self,
             &mut u64, // Remaining gas.
         ) -> SyscallResult<Response>,
     {
@@ -223,160 +219,160 @@ pub trait SyscallExecutor {
     fn call_contract(
         request: CallContractRequest,
         vm: &mut VirtualMachine,
-        syscall_handler: &mut SyscallHintProcessor<'_>,
+        syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<CallContractResponse>;
 
     fn deploy(
         request: DeployRequest,
         vm: &mut VirtualMachine,
-        syscall_handler: &mut SyscallHintProcessor<'_>,
+        syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<DeployResponse>;
 
     fn emit_event(
         request: EmitEventRequest,
         vm: &mut VirtualMachine,
-        syscall_handler: &mut SyscallHintProcessor<'_>,
+        syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<EmitEventResponse>;
 
     fn get_block_hash(
         request: GetBlockHashRequest,
         vm: &mut VirtualMachine,
-        syscall_handler: &mut SyscallHintProcessor<'_>,
+        syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<GetBlockHashResponse>;
 
     fn get_class_hash_at(
         request: GetClassHashAtRequest,
         vm: &mut VirtualMachine,
-        syscall_handler: &mut SyscallHintProcessor<'_>,
+        syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<GetClassHashAtResponse>;
 
     fn get_execution_info(
         request: GetExecutionInfoRequest,
         vm: &mut VirtualMachine,
-        syscall_handler: &mut SyscallHintProcessor<'_>,
+        syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<GetExecutionInfoResponse>;
 
     fn keccak(
         request: KeccakRequest,
         vm: &mut VirtualMachine,
-        syscall_handler: &mut SyscallHintProcessor<'_>,
+        syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<KeccakResponse>;
 
     fn library_call(
         request: LibraryCallRequest,
         vm: &mut VirtualMachine,
-        syscall_handler: &mut SyscallHintProcessor<'_>,
+        syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<LibraryCallResponse>;
 
     fn meta_tx_v0(
         request: MetaTxV0Request,
         vm: &mut VirtualMachine,
-        syscall_handler: &mut SyscallHintProcessor<'_>,
+        syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<MetaTxV0Response>;
 
     fn sha256_process_block(
         request: Sha256ProcessBlockRequest,
         vm: &mut VirtualMachine,
-        syscall_handler: &mut SyscallHintProcessor<'_>,
+        syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<Sha256ProcessBlockResponse>;
 
     fn replace_class(
         request: ReplaceClassRequest,
         vm: &mut VirtualMachine,
-        syscall_handler: &mut SyscallHintProcessor<'_>,
+        syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<ReplaceClassResponse>;
 
     fn secp256k1_add(
         request: SecpAddRequest,
         vm: &mut VirtualMachine,
-        syscall_handler: &mut SyscallHintProcessor<'_>,
+        syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<SecpAddResponse>;
 
     fn secp256k1_get_point_from_x(
         request: SecpGetPointFromXRequest,
         vm: &mut VirtualMachine,
-        syscall_handler: &mut SyscallHintProcessor<'_>,
+        syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<SecpGetPointFromXResponse>;
     fn secp256k1_get_xy(
         request: SecpGetXyRequest,
         vm: &mut VirtualMachine,
-        syscall_handler: &mut SyscallHintProcessor<'_>,
+        syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<SecpGetXyResponse>;
     fn secp256k1_mul(
         request: SecpMulRequest,
         vm: &mut VirtualMachine,
-        syscall_handler: &mut SyscallHintProcessor<'_>,
+        syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<SecpMulResponse>;
     fn secp256k1_new(
         request: SecpNewRequest,
         vm: &mut VirtualMachine,
-        syscall_handler: &mut SyscallHintProcessor<'_>,
+        syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<SecpNewResponse>;
     fn secp256r1_add(
         request: SecpAddRequest,
         vm: &mut VirtualMachine,
-        syscall_handler: &mut SyscallHintProcessor<'_>,
+        syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<SecpAddResponse>;
     fn secp256r1_get_point_from_x(
         request: SecpGetPointFromXRequest,
         vm: &mut VirtualMachine,
-        syscall_handler: &mut SyscallHintProcessor<'_>,
+        syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<SecpGetPointFromXResponse>;
     fn secp256r1_get_xy(
         request: SecpGetXyRequest,
         vm: &mut VirtualMachine,
-        syscall_handler: &mut SyscallHintProcessor<'_>,
+        syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<SecpGetXyResponse>;
     fn secp256r1_mul(
         request: SecpMulRequest,
         vm: &mut VirtualMachine,
-        syscall_handler: &mut SyscallHintProcessor<'_>,
+        syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<SecpMulResponse>;
     fn secp256r1_new(
         request: SecpNewRequest,
         vm: &mut VirtualMachine,
-        syscall_handler: &mut SyscallHintProcessor<'_>,
+        syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<SecpNewResponse>;
 
     fn send_message_to_l1(
         request: SendMessageToL1Request,
         vm: &mut VirtualMachine,
-        syscall_handler: &mut SyscallHintProcessor<'_>,
+        syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<SendMessageToL1Response>;
 
     fn storage_read(
         request: StorageReadRequest,
         vm: &mut VirtualMachine,
-        syscall_handler: &mut SyscallHintProcessor<'_>,
+        syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<StorageReadResponse>;
 
     fn storage_write(
         request: StorageWriteRequest,
         vm: &mut VirtualMachine,
-        syscall_handler: &mut SyscallHintProcessor<'_>,
+        syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<StorageWriteResponse>;
 }
