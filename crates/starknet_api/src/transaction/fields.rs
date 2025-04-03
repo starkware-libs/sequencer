@@ -215,14 +215,14 @@ impl ResourceBounds {
     }
 }
 
-fn gas_amount_to_hex<S>(value: &GasAmount, serializer: S) -> Result<S::Ok, S::Error>
+pub fn gas_amount_to_hex<S>(value: &GasAmount, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
     serializer.serialize_str(&format!("0x{:x}", value.0))
 }
 
-fn hex_to_gas_amount<'de, D>(deserializer: D) -> Result<GasAmount, D::Error>
+pub fn hex_to_gas_amount<'de, D>(deserializer: D) -> Result<GasAmount, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -232,14 +232,14 @@ where
     ))
 }
 
-fn gas_price_to_hex<S>(value: &GasPrice, serializer: S) -> Result<S::Ok, S::Error>
+pub fn gas_price_to_hex<S>(value: &GasPrice, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
     serializer.serialize_str(&format!("0x{:x}", value.0))
 }
 
-fn hex_to_gas_price<'de, D>(deserializer: D) -> Result<GasPrice, D::Error>
+pub fn hex_to_gas_price<'de, D>(deserializer: D) -> Result<GasPrice, D::Error>
 where
     D: Deserializer<'de>,
 {
