@@ -149,6 +149,20 @@
         "type": "stat",
         "expr": "sum  by (timeout_reason) (consensus_timeouts)",
         "extra_params": {}
+      },
+      {
+        "title": "consensus_num_batches_in_proposal",
+        "description": "The number of transaction batches in a valid proposal received",
+        "type": "stat",
+        "expr": "consensus_num_batches_in_proposal",
+        "extra_params": {}
+      },
+      {
+        "title": "consensus_num_txs_in_proposal",
+        "description": "The total number of individual transactions in a valid proposal received",
+        "type": "stat",
+        "expr": "consensus_num_txs_in_proposal",
+        "extra_params": {}
       }
     ],
     "Http Server": [

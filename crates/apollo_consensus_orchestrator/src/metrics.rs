@@ -7,3 +7,8 @@ define_metrics!(
         MetricGauge { CONSENSUS_NUM_TXS_IN_PROPOSAL, "consensus_num_txs_in_proposal", "The total number of individual transactions in a valid proposal received" },
     }
 );
+
+pub(crate) fn register_metrics() {
+    CONSENSUS_NUM_BATCHES_IN_PROPOSAL.register();
+    CONSENSUS_NUM_TXS_IN_PROPOSAL.register();
+}
