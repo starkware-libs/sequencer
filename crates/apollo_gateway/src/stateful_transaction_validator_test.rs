@@ -1,6 +1,10 @@
 use std::sync::Arc;
 
-use apollo_gateway_types::errors::GatewaySpecError;
+use apollo_gateway_types::deprecated_gateway_error::{
+    KnownStarknetErrorCode,
+    StarknetError,
+    StarknetErrorCode,
+};
 use apollo_mempool_types::communication::MockMempoolClient;
 use blockifier::blockifier::stateful_validator::{
     StatefulValidatorError as BlockifierStatefulValidatorError,
@@ -32,7 +36,6 @@ use starknet_api::transaction::fields::Resource;
 use starknet_api::{declare_tx_args, deploy_account_tx_args, invoke_tx_args, nonce};
 
 use crate::config::StatefulTransactionValidatorConfig;
-use crate::errors::StatefulTransactionValidatorResult;
 use crate::state_reader::{MockStateReaderFactory, StateReaderFactory};
 use crate::state_reader_test_utils::local_test_state_reader_factory;
 use crate::stateful_transaction_validator::{
@@ -76,8 +79,9 @@ async fn test_stateful_tx_validator(
     let expected_result_as_stateful_transaction_result = expected_result
         .as_ref()
         .map(|validate_result| *validate_result)
-        .map_err(|blockifier_error| GatewaySpecError::ValidationFailure {
-            data: blockifier_error.to_string(),
+        .map_err(|blockifier_error| StarknetError {
+            code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::ValidateFailure),
+            message: format!("{}", blockifier_error),
         });
 
     let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
@@ -209,14 +213,24 @@ async fn test_skip_stateful_validation(
 #[rstest]
 #[case::nonce_equal_to_account_nonce(0, 1, 1, Ok(()))]
 #[case::nonce_in_allowed_range(10, 1, 11, Ok(()))]
-#[case::nonce_beyond_allowed_gap(10, 1, 12, Err(GatewaySpecError::InvalidTransactionNonce))]
-#[case::nonce_less_then_account_nonce(0, 1, 0, Err(GatewaySpecError::InvalidTransactionNonce))]
+#[case::nonce_beyond_allowed_gap(
+    10,
+    1,
+    12,
+    Err(StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::InvalidTransactionNonce))
+)]
+#[case::nonce_less_then_account_nonce(
+    0,
+    1,
+    0,
+    Err(StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::InvalidTransactionNonce))
+)]
 #[tokio::test]
 async fn test_is_valid_nonce(
     #[case] max_allowed_nonce_gap: u32,
     #[case] account_nonce: u32,
     #[case] tx_nonce: u32,
-    #[case] expected_result: StatefulTransactionValidatorResult<()>,
+    #[case] expected_result_code: Result<(), StarknetErrorCode>,
 ) {
     let stateful_validator = StatefulTransactionValidator {
         config: StatefulTransactionValidatorConfig { max_allowed_nonce_gap, ..Default::default() },
@@ -236,19 +250,23 @@ async fn test_is_valid_nonce(
         )
     })
     .await
-    .unwrap();
-    assert_eq!(result, expected_result);
+    .unwrap()
+    .map_err(|err| err.code);
+    assert_eq!(result, expected_result_code);
 }
 
 #[rstest]
 #[case::nonce_equal_to_account_nonce(0, Ok(()))]
-#[case::nonce_greater_then_account_nonce(1, Err(GatewaySpecError::InvalidTransactionNonce))]
-#[case::nonce_less_then_account_nonce(-1, Err(GatewaySpecError::InvalidTransactionNonce))]
+#[case::nonce_greater_then_account_nonce(
+    1,
+    Err(StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::InvalidTransactionNonce))
+)]
+#[case::nonce_less_then_account_nonce(-1, Err(StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::InvalidTransactionNonce)))]
 #[tokio::test]
 async fn test_reject_future_declares(
     stateful_validator: StatefulTransactionValidator,
     #[case] account_nonce_diff: i32,
-    #[case] expected_result: StatefulTransactionValidatorResult<()>,
+    #[case] expected_result_code: Result<(), StarknetErrorCode>,
 ) {
     let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
     mock_validator.expect_validate().return_once(|_| Ok(()));
@@ -271,6 +289,7 @@ async fn test_reject_future_declares(
         )
     })
     .await
-    .unwrap();
-    assert_eq!(result, expected_result);
+    .unwrap()
+    .map_err(|err| err.code);
+    assert_eq!(result, expected_result_code);
 }
