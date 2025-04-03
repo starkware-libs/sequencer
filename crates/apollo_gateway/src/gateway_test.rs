@@ -22,6 +22,7 @@ use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use rstest::{fixture, rstest};
 use starknet_api::core::{CompiledClassHash, ContractAddress, Nonce};
+use starknet_api::nonce;
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
@@ -134,7 +135,7 @@ fn create_tx() -> (RpcTransaction, SenderAddress) {
     Some(GatewaySpecError::InvalidTransactionNonce)
 )]
 #[case::nonce_too_old(
-    Err(MempoolClientError::MempoolError(MempoolError::NonceTooOld { address: ContractAddress::default(), nonce: Nonce::default() })),
+    Err(MempoolClientError::MempoolError(MempoolError::NonceTooOld { address: ContractAddress::default(), tx_nonce: Nonce::default(), account_nonce: nonce!(1) })),
     Some(GatewaySpecError::InvalidTransactionNonce)
 )]
 #[case::nonce_too_large(
