@@ -399,48 +399,7 @@ impl<'a> SyscallHintProcessor<'a> {
             self.increment_syscall_count(&selector);
         }
 
-        // TODO(Aner): replace this with `execute_syscall_from_selector` in `syscall_executor.rs`.
-        match selector {
-            SyscallSelector::CallContract => self.execute_syscall(vm, selector, call_contract),
-            SyscallSelector::Deploy => self.execute_syscall(vm, selector, deploy),
-            SyscallSelector::EmitEvent => self.execute_syscall(vm, selector, emit_event),
-            SyscallSelector::GetBlockHash => self.execute_syscall(vm, selector, get_block_hash),
-            SyscallSelector::GetClassHashAt => {
-                self.execute_syscall(vm, selector, get_class_hash_at)
-            }
-            SyscallSelector::GetExecutionInfo => {
-                self.execute_syscall(vm, selector, get_execution_info)
-            }
-            SyscallSelector::Keccak => self.execute_syscall(vm, selector, keccak),
-            SyscallSelector::Sha256ProcessBlock => {
-                self.execute_syscall(vm, selector, sha256_process_block)
-            }
-            SyscallSelector::LibraryCall => self.execute_syscall(vm, selector, library_call),
-            SyscallSelector::MetaTxV0 => self.execute_syscall(vm, selector, meta_tx_v0),
-            SyscallSelector::ReplaceClass => self.execute_syscall(vm, selector, replace_class),
-            SyscallSelector::Secp256k1Add => self.execute_syscall(vm, selector, secp256k1_add),
-            SyscallSelector::Secp256k1GetPointFromX => {
-                self.execute_syscall(vm, selector, secp256k1_get_point_from_x)
-            }
-            SyscallSelector::Secp256k1GetXy => self.execute_syscall(vm, selector, secp256k1_get_xy),
-            SyscallSelector::Secp256k1Mul => self.execute_syscall(vm, selector, secp256k1_mul),
-            SyscallSelector::Secp256k1New => self.execute_syscall(vm, selector, secp256k1_new),
-            SyscallSelector::Secp256r1Add => self.execute_syscall(vm, selector, secp256r1_add),
-            SyscallSelector::Secp256r1GetPointFromX => {
-                self.execute_syscall(vm, selector, secp256r1_get_point_from_x)
-            }
-            SyscallSelector::Secp256r1GetXy => self.execute_syscall(vm, selector, secp256r1_get_xy),
-            SyscallSelector::Secp256r1Mul => self.execute_syscall(vm, selector, secp256r1_mul),
-            SyscallSelector::Secp256r1New => self.execute_syscall(vm, selector, secp256r1_new),
-            SyscallSelector::SendMessageToL1 => {
-                self.execute_syscall(vm, selector, send_message_to_l1)
-            }
-            SyscallSelector::StorageRead => self.execute_syscall(vm, selector, storage_read),
-            SyscallSelector::StorageWrite => self.execute_syscall(vm, selector, storage_write),
-            _ => Err(HintError::UnknownHint(
-                format!("Unsupported syscall selector {selector:?}.").into(),
-            )),
-        }
+        self.execute_syscall_from_selector(vm, selector)
     }
 
     pub fn get_or_allocate_execution_info_segment(
@@ -619,7 +578,6 @@ impl<'a> SyscallHintProcessor<'a> {
     }
 }
 
-#[allow(unused_variables)]
 impl SyscallExecutor for SyscallHintProcessor<'_> {
     fn get_gas_cost_from_selector(&self, selector: &SyscallSelector) -> SyscallGasCost {
         self.gas_costs().syscalls.get_syscall_gas_cost(selector).unwrap()
@@ -643,7 +601,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<CallContractResponse> {
-        todo!()
+        call_contract(request, vm, syscall_handler, remaining_gas)
     }
 
     fn deploy(
@@ -652,7 +610,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<DeployResponse> {
-        todo!()
+        deploy(request, vm, syscall_handler, remaining_gas)
     }
 
     fn emit_event(
@@ -661,7 +619,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<EmitEventResponse> {
-        todo!()
+        emit_event(request, vm, syscall_handler, remaining_gas)
     }
 
     fn get_block_hash(
@@ -670,7 +628,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<GetBlockHashResponse> {
-        todo!()
+        get_block_hash(request, vm, syscall_handler, remaining_gas)
     }
 
     fn get_class_hash_at(
@@ -679,7 +637,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<GetClassHashAtResponse> {
-        todo!()
+        get_class_hash_at(request, vm, syscall_handler, remaining_gas)
     }
 
     fn get_execution_info(
@@ -688,7 +646,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<GetExecutionInfoResponse> {
-        todo!()
+        get_execution_info(request, vm, syscall_handler, remaining_gas)
     }
 
     fn keccak(
@@ -697,7 +655,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<KeccakResponse> {
-        todo!()
+        keccak(request, vm, syscall_handler, remaining_gas)
     }
 
     fn library_call(
@@ -706,7 +664,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<LibraryCallResponse> {
-        todo!()
+        library_call(request, vm, syscall_handler, remaining_gas)
     }
 
     fn meta_tx_v0(
@@ -715,7 +673,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<MetaTxV0Response> {
-        todo!()
+        meta_tx_v0(request, vm, syscall_handler, remaining_gas)
     }
 
     fn sha256_process_block(
@@ -724,7 +682,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<Sha256ProcessBlockResponse> {
-        todo!()
+        sha256_process_block(request, vm, syscall_handler, remaining_gas)
     }
 
     fn replace_class(
@@ -733,7 +691,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<ReplaceClassResponse> {
-        todo!()
+        replace_class(request, vm, syscall_handler, remaining_gas)
     }
 
     fn secp256k1_add(
@@ -742,7 +700,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<SecpAddResponse> {
-        todo!()
+        secp256k1_add(request, vm, syscall_handler, remaining_gas)
     }
 
     fn secp256k1_get_point_from_x(
@@ -751,7 +709,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<SecpGetPointFromXResponse> {
-        todo!()
+        secp256k1_get_point_from_x(request, vm, syscall_handler, remaining_gas)
     }
 
     fn secp256k1_get_xy(
@@ -760,7 +718,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<SecpGetXyResponse> {
-        todo!()
+        secp256k1_get_xy(request, vm, syscall_handler, remaining_gas)
     }
 
     fn secp256k1_mul(
@@ -769,7 +727,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<SecpMulResponse> {
-        todo!()
+        secp256k1_mul(request, vm, syscall_handler, remaining_gas)
     }
 
     fn secp256k1_new(
@@ -778,7 +736,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<SecpNewResponse> {
-        todo!()
+        secp256k1_new(request, vm, syscall_handler, remaining_gas)
     }
 
     fn secp256r1_add(
@@ -787,7 +745,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<SecpAddResponse> {
-        todo!()
+        secp256r1_add(request, vm, syscall_handler, remaining_gas)
     }
 
     fn secp256r1_get_point_from_x(
@@ -796,7 +754,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<SecpGetPointFromXResponse> {
-        todo!()
+        secp256r1_get_point_from_x(request, vm, syscall_handler, remaining_gas)
     }
 
     fn secp256r1_get_xy(
@@ -805,7 +763,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<SecpGetXyResponse> {
-        todo!()
+        secp256r1_get_xy(request, vm, syscall_handler, remaining_gas)
     }
 
     fn secp256r1_mul(
@@ -814,7 +772,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<SecpMulResponse> {
-        todo!()
+        secp256r1_mul(request, vm, syscall_handler, remaining_gas)
     }
 
     fn secp256r1_new(
@@ -823,7 +781,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<Secp256r1NewResponse> {
-        todo!()
+        secp256r1_new(request, vm, syscall_handler, remaining_gas)
     }
 
     fn send_message_to_l1(
@@ -832,7 +790,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<SendMessageToL1Response> {
-        todo!()
+        send_message_to_l1(request, vm, syscall_handler, remaining_gas)
     }
 
     fn storage_read(
@@ -841,7 +799,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<StorageReadResponse> {
-        todo!()
+        storage_read(request, vm, syscall_handler, remaining_gas)
     }
 
     fn storage_write(
@@ -850,7 +808,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<StorageWriteResponse> {
-        todo!()
+        storage_write(request, vm, syscall_handler, remaining_gas)
     }
 }
 
