@@ -1,4 +1,5 @@
 use std::io::Write;
+use std::os::unix::process::ExitStatusExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -131,14 +132,30 @@ fn compile_with_args(
     let compile_output = command.output()?;
 
     if !compile_output.status.success() {
+        let signal_info = match compile_output.status.signal() {
+            Some(9) => "SIGKILL (9): Exceeded CPU or memory limit — process was forcefully killed.",
+            Some(25) => "SIGXFSZ (25): File size limit exceeded.",
+            None => {
+                "Process exited with non-zero status but no signal (likely a handled error, e.g., \
+                 memory allocation failure)."
+            }
+            Some(sig) => {
+                return Err(CompilationUtilError::CompilationError(format!(
+                    "Process terminated by unexpected signal: {}",
+                    sig
+                )));
+            }
+        };
+
         let stderr_output = String::from_utf8(compile_output.stderr)
-            .unwrap_or("Failed to get stderr output".into());
+            .unwrap_or_else(|_| "Failed to decode stderr output".to_string());
+
         // TODO(Avi, 28/2/2025): Make the error messages more readable.
         return Err(CompilationUtilError::CompilationError(format!(
-            "Exit status: {}\n Stderr: {}",
-            compile_output.status, stderr_output
+            "Exit status: {}\nStderr: {}\nSignal info: {}",
+            compile_output.status, stderr_output, signal_info
         )));
-    };
+    }
     Ok(compile_output.stdout)
 }
 
