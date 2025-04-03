@@ -83,7 +83,8 @@ impl TransactionInfo {
     pub fn enforce_fee(&self) -> bool {
         match self {
             TransactionInfo::Current(context) => {
-                context.resource_bounds.max_possible_fee() > Fee(0)
+                // Assumes that the tip is enabled, as it is in the OS.
+                context.resource_bounds.max_possible_fee(context.tip) > Fee(0)
             }
             TransactionInfo::Deprecated(context) => context.max_fee != Fee(0),
         }
