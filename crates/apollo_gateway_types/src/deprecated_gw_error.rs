@@ -64,6 +64,17 @@ pub struct StarknetError {
     pub message: String,
 }
 
+impl StarknetError {
+    pub fn internal(message: &str) -> Self {
+        Self {
+            code: StarknetErrorCode::UnknownErrorCode(
+                "StarknetErrorCode.InternalError".to_string(),
+            ),
+            message: message.to_string(),
+        }
+    }
+}
+
 impl std::fmt::Display for StarknetError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{self:?}")
