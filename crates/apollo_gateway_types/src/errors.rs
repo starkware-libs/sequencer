@@ -20,6 +20,8 @@ use enum_assoc::Assoc;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use crate::deprecated_gw_error::StarknetError;
+
 /// Error returned by the gateway, adhering to the Starknet RPC error format.
 // To get JsonRpcError from GatewaySpecError, use `into_rpc` method.
 // TODO(yair): apollo_rpc has a test that the add_tx functions return the correct error. Make sure
@@ -72,9 +74,10 @@ impl std::fmt::Display for GatewaySpecError {
 
 #[derive(Clone, Debug, Error, PartialEq, Eq, Serialize, Deserialize)]
 pub enum GatewayError {
+    // Corresponds to the deprecated gateway errors.
     #[error("{source:?}")]
-    GatewaySpecError {
-        source: GatewaySpecError,
+    DeprecatedGatewayError {
+        source: StarknetError,
         p2p_message_metadata: Option<BroadcastedMessageMetadata>,
     },
 }

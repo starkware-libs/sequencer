@@ -1135,7 +1135,6 @@ dependencies = [
  "flate2",
  "futures",
  "hyper 0.14.32",
- "jsonrpsee",
  "mempool_test_utils",
  "metrics 0.24.1",
  "metrics-exporter-prometheus",
