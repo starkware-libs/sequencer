@@ -218,6 +218,7 @@ impl<'state> SyscallHandlerBase<'state> {
         let class_hash = self.call.class_hash;
         let versioned_constants = &self.context.tx_context.block_context.versioned_constants;
         versioned_constants.os_constants.data_gas_accounts.contains(&class_hash)
+            && self.context.tx_context.tx_info.version() == TransactionVersion::THREE
     }
 
     pub fn emit_event(&mut self, event: EventContent) -> SyscallResult<()> {
