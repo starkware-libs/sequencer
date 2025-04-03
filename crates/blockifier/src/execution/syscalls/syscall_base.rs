@@ -16,6 +16,7 @@ use starknet_types_core::felt::Felt;
 
 use super::exceeds_event_size_limit;
 use crate::abi::constants;
+use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::execution::call_info::{
     CallInfo,
     MessageToL1,
@@ -252,6 +253,8 @@ impl<'state> SyscallHandlerBase<'state> {
         deploy_from_zero: bool,
         remaining_gas: &mut u64,
     ) -> SyscallResult<(ContractAddress, CallInfo)> {
+        self.reject_deploy_in_validate_mode()?;
+
         let deployer_address = self.call.storage_address;
         let deployer_address_for_calculation = match deploy_from_zero {
             true => ContractAddress::default(),
@@ -379,4 +382,24 @@ impl<'state> SyscallHandlerBase<'state> {
             .expect("Missing contract revert info.")
             .original_values = std::mem::take(&mut self.original_values);
     }
+
+    fn reject_deploy_in_validate_mode(&self) -> SyscallResult<()> {
+        let versioned_constants = &self.context.tx_context.block_context.versioned_constants;
+        if should_reject_deploy(versioned_constants, self.context.execution_mode) {
+            return Err(SyscallExecutionError::InvalidSyscallInExecutionMode {
+                syscall_name: "deploy".to_string(),
+                execution_mode: ExecutionMode::Validate,
+            });
+        }
+
+        Ok(())
+    }
+}
+
+pub(crate) fn should_reject_deploy(
+    versioned_constants: &VersionedConstants,
+    execution_mode: ExecutionMode,
+) -> bool {
+    versioned_constants.disable_deploy_in_validation_mode
+        && execution_mode == ExecutionMode::Validate
 }
