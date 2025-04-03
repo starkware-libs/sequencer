@@ -38,7 +38,7 @@ pub fn create_sierra_program(version_id: &VersionId) -> Vec<Felt> {
     ]
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum TransactionType {
     Declare,
     DeployAccount,
