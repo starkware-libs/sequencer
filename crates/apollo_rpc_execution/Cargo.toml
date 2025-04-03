@@ -11,6 +11,7 @@ testing = ["apollo_test_utils", "rand", "rand_chacha"]
 
 [dependencies]
 anyhow.workspace = true
+apollo_class_manager_types.workspace = true
 apollo_config.workspace = true
 apollo_storage.workspace = true
 apollo_test_utils = { workspace = true, optional = true }
@@ -25,18 +26,21 @@ rand = { workspace = true, optional = true }
 rand_chacha = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
-starknet-types-core.workspace = true
 starknet_api.workspace = true
+starknet-types-core.workspace = true
 thiserror.workspace = true
+tokio = { workspace = true, features = ["full", "sync"] }
 tracing.workspace = true
 
 [dev-dependencies]
+apollo_class_manager_types = { workspace = true, features = ["testing"] }
 apollo_storage = { workspace = true, features = ["testing"] }
 apollo_test_utils.workspace = true
 assert_matches.workspace = true
 cairo-lang-casm.workspace = true
 cairo-lang-utils.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
+mockall.workspace = true
 pretty_assertions.workspace = true
 rand.workspace = true
 rand_chacha.workspace = true

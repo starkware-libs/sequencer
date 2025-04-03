@@ -76,6 +76,7 @@ fn execute_call_cairo0() {
         Calldata::default(),
         &get_test_execution_config(),
         true,
+        None,
     )
     .unwrap()
     .retdata;
@@ -93,6 +94,7 @@ fn execute_call_cairo0() {
         Calldata(Arc::new(vec![Felt::from(25u128)])),
         &get_test_execution_config(),
         true,
+        None,
     )
     .unwrap()
     .retdata;
@@ -110,6 +112,7 @@ fn execute_call_cairo0() {
         Calldata(Arc::new(vec![Felt::from(123u128)])),
         &get_test_execution_config(),
         true,
+        None,
     )
     .unwrap()
     .retdata;
@@ -127,6 +130,7 @@ fn execute_call_cairo0() {
         Calldata(Arc::new(vec![Felt::from(123u128), Felt::from(456u128)])),
         &get_test_execution_config(),
         true,
+        None,
     )
     .unwrap()
     .retdata;
@@ -155,6 +159,7 @@ fn execute_call_cairo1() {
         calldata,
         &get_test_execution_config(),
         true,
+        None,
     )
     .unwrap()
     .retdata;
@@ -252,6 +257,7 @@ fn estimate_fees(txs: Vec<ExecutableTransactionInput>) -> FeeEstimationResult {
         false,
         // TODO(yair): Add test for blob fee estimation.
         true,
+        None,
     )
     .unwrap()
 }
