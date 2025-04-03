@@ -36,8 +36,8 @@ use crate::transaction::TransactionVersion;
 /// The error type returned by StarknetApi.
 // Note: if you need `Eq` see InnerDeserializationError's docstring.
 #[derive(thiserror::Error, Clone, Debug, PartialEq)]
+/// An error when a starknet version is out of range.
 pub enum StarknetApiError {
-    /// An error when a starknet version is out of range.
     #[error("Starknet version {version} is out of range for block hash calculation")]
     BlockHashVersion { version: String },
     /// Error in the inner deserialization of the node.
