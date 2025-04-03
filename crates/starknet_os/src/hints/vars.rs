@@ -7,58 +7,117 @@ use starknet_types_core::felt::Felt;
 
 use crate::hints::error::OsHintError;
 
-#[derive(Copy, Clone)]
-pub(crate) enum Scope {
-    BytecodeSegments,
-    BytecodeSegmentStructure,
-    BytecodeSegmentStructures,
-    Case,
-    CommitmentInfoByAddress,
-    CompiledClass,
-    CompiledClassFacts,
-    CompiledClassHash,
-    ComponentHashes,
-    DeprecatedClassHashes,
-    DictManager,
-    DictTracker,
-    InitialDict,
-    IsDeprecated,
-    Preimage,
-    SerializeDataAvailabilityCreatePages,
-    StateUpdatePointers,
-    SyscallHandlerType,
-    Transactions,
-    Tx,
-    UseKzgDa,
+/// Defines an enum with a conversion to a `&'static str`. If no explicit string is provided for a
+/// variant, the variant is converted to snake case.
+///
+/// Example:
+///
+/// Input:
+/// ```
+/// # #[macro_use] extern crate starknet_os; fn main() {
+/// define_string_enum! {
+///     #[derive(Copy, Clone)]
+///     pub enum X {
+///         (HelloWorld),
+///         (GoodbyeWorld, "GB"),
+///     }
+/// }
+/// # }
+/// ```
+///
+/// Output:
+/// ```
+/// #[derive(Copy, Clone)]
+/// pub enum X {
+///     HelloWorld,
+///     GoodbyeWorld,
+/// }
+///
+/// impl From<X> for &'static str {
+///     fn from(value: X) -> Self {
+///         match value {
+///             X::HelloWorld => "hello_world",
+///             X::GoodbyeWorld => "GB",
+///         }
+///     }
+/// }
+/// ```
+#[macro_export]
+macro_rules! define_string_enum {
+    (
+        $(#[$cfgs:meta])*
+        $visibility:vis enum $enum_name:ident {
+            $(($variant:ident $(, $variant_str:expr)?)),+ $(,)?
+        }
+    ) => {
+        $(#[$cfgs])*
+        $visibility enum $enum_name {
+            $($variant),+
+        }
+
+        impl From<$enum_name> for &'static str {
+            fn from(value: $enum_name) -> Self {
+                match value {
+                    $($enum_name::$variant => string_or_snake_case!($variant $(, $variant_str)?),)+
+                }
+            }
+        }
+    };
 }
 
-impl From<Scope> for &'static str {
-    fn from(scope: Scope) -> &'static str {
-        match scope {
-            Scope::BytecodeSegments => "bytecode_segments",
-            Scope::BytecodeSegmentStructure => "bytecode_segment_structure",
-            Scope::BytecodeSegmentStructures => "bytecode_segment_structures",
-            Scope::Case => "case",
-            Scope::CommitmentInfoByAddress => "commitment_info_by_address",
-            Scope::CompiledClass => "compiled_class",
-            Scope::CompiledClassFacts => "compiled_class_facts",
-            Scope::CompiledClassHash => "compiled_class_hash",
-            Scope::ComponentHashes => "component_hashes",
-            Scope::DeprecatedClassHashes => "__deprecated_class_hashes",
-            Scope::DictManager => "dict_manager",
-            Scope::DictTracker => "dict_tracker",
-            Scope::InitialDict => "initial_dict",
-            Scope::IsDeprecated => "is_deprecated",
-            Scope::Preimage => "preimage",
-            Scope::SerializeDataAvailabilityCreatePages => {
-                "__serialize_data_availability_create_pages__"
-            }
-            Scope::StateUpdatePointers => "state_update_pointers",
-            Scope::SyscallHandlerType => "syscall_handler_type",
-            Scope::Transactions => "transactions",
-            Scope::Tx => "tx",
-            Scope::UseKzgDa => "use_kzg_da",
-        }
+/// Expands to the snake case representation of the given ident, or simply the explicit string (if
+/// provided).
+///
+/// Example:
+///
+/// Input:
+/// ```
+/// # #[macro_use] extern crate starknet_os; fn main() {
+/// let strs: [&str; 2] =
+///     [string_or_snake_case!(HelloWorld), string_or_snake_case!(GoodbyeWorld, "GB")];
+/// # }
+/// ```
+///
+/// Output:
+/// ```
+/// let strs: [&str; 2] = ["hello_world", "GB"];
+/// ```
+#[macro_export]
+macro_rules! string_or_snake_case {
+    // Explicit string provided.
+    ($variant:ident, $variant_str:expr) => {
+        $variant_str
+    };
+    // No explicit string provided: snake case.
+    ($variant:ident) => {
+        paste::paste! { stringify!( [< $variant:snake >] ) }
+    };
+}
+
+define_string_enum! {
+    #[derive(Copy, Clone)]
+    pub(crate) enum Scope {
+        (BytecodeSegments),
+        (BytecodeSegmentStructure),
+        (BytecodeSegmentStructures),
+        (Case),
+        (CommitmentInfoByAddress),
+        (CompiledClass),
+        (CompiledClassFacts),
+        (CompiledClassHash),
+        (ComponentHashes),
+        (DeprecatedClassHashes, "__deprecated_class_hashes"),
+        (DictManager),
+        (DictTracker),
+        (InitialDict),
+        (IsDeprecated),
+        (Preimage),
+        (SerializeDataAvailabilityCreatePages, "__serialize_data_availability_create_pages__"),
+        (StateUpdatePointers),
+        (SyscallHandlerType),
+        (Transactions),
+        (Tx),
+        (UseKzgDa),
     }
 }
 
