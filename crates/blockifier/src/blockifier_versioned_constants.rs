@@ -125,6 +125,7 @@ pub struct VersionedConstants {
     pub enable_stateful_compression: bool,
     pub comprehensive_state_diff: bool,
     pub ignore_inner_event_resources: bool,
+    pub disable_deploy_in_validation_mode: bool,
 
     // Compiler settings.
     pub enable_reverts: bool,
