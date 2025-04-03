@@ -56,6 +56,7 @@ def main():
                     config_subdir=application_config_subdir, config_path=svc["config_path"]
                 ),
                 image=image,
+                controller=svc["controller"].lower(),
                 replicas=svc["replicas"],
                 autoscale=svc["autoscale"],
                 ingress=svc["ingress"],
@@ -70,7 +71,7 @@ def main():
         scope=app,
         name="sequencer-monitoring",
         namespace=helpers.sanitize_name(args.namespace),
-        grafana_dashboard=monitoring.GrafanaDashboard("dev_grafana.json"),
+        grafana_dashboard=monitoring.GrafanaDashboard("sequencer_node_dashboard.json"),
     )
 
     app.synth()
