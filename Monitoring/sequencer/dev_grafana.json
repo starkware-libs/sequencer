@@ -378,7 +378,7 @@
         "title": "class_cache_miss_ratio",
         "description": "The ratio of cache misses when requesting compiled classes from the apollo state reader",
         "type": "graph",
-        "expr": "100 * (class_cache_misses / clamp_min((class_cache_misses + class_cache_hits), 1))",
+        "expr": "100 * (class_cache_misses / max((class_cache_misses + class_cache_hits), 1))",
         "extra_params": {}
       }
     ]
