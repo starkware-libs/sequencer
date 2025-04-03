@@ -1011,6 +1011,7 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
         .or_default()
         .insert(built_block, (block_info, content, args.proposal_id));
 
+    // TODO(matan): Switch to signature validation.
     if built_block != received_fin.proposal_commitment {
         warn!("proposal_id built from content received does not match fin.");
         return;

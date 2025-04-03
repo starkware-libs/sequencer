@@ -313,12 +313,11 @@ impl SingleHeightConsensus {
                     node_round = self.state_machine.round(),
                     "Validated proposal.",
                 );
-                // TODO(matan): Switch to signature validation.
-                if proposal_id.is_none() {
+                if proposal_id.is_some() {
+                    CONSENSUS_PROPOSALS_VALIDATED.increment(1);
+                } else {
                     CONSENSUS_PROPOSALS_INVALID.increment(1);
-                    return Ok(ShcReturn::Tasks(Vec::new()));
                 }
-                CONSENSUS_PROPOSALS_VALIDATED.increment(1);
 
                 // Retaining the entry for this round prevents us from receiving another proposal on
                 // this round. While this prevents spam attacks it also prevents re-receiving after
