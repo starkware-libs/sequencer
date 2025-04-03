@@ -253,6 +253,8 @@ impl<'state> SyscallHandlerBase<'state> {
         deploy_from_zero: bool,
         remaining_gas: &mut u64,
     ) -> SyscallResult<(ContractAddress, CallInfo)> {
+        self.verify_deploy_call_is_allowed()?;
+
         let deployer_address = self.call.storage_address;
         let deployer_address_for_calculation = match deploy_from_zero {
             true => ContractAddress::default(),
@@ -380,4 +382,26 @@ impl<'state> SyscallHandlerBase<'state> {
             .expect("Missing contract revert info.")
             .original_values = std::mem::take(&mut self.original_values);
     }
+
+    fn verify_deploy_call_is_allowed(&self) -> SyscallResult<()> {
+        let versioned_constants = &self.context.tx_context.block_context.versioned_constants;
+        if should_reject_deploy(
+            versioned_constants.disable_deploy_in_validation_mode,
+            self.context.execution_mode,
+        ) {
+            return Err(SyscallExecutionError::InvalidSyscallInExecutionMode {
+                syscall_name: "deploy".to_string(),
+                execution_mode: self.context.execution_mode,
+            });
+        }
+
+        Ok(())
+    }
+}
+
+pub(crate) fn should_reject_deploy(
+    disable_deploy_in_validation_mode: bool,
+    execution_mode: ExecutionMode,
+) -> bool {
+    disable_deploy_in_validation_mode && execution_mode == ExecutionMode::Validate
 }
