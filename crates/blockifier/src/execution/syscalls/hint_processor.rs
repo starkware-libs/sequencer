@@ -27,7 +27,7 @@ use starknet_types_core::felt::{Felt, FromStrError};
 use thiserror::Error;
 
 use crate::abi::sierra_types::SierraTypeError;
-use crate::blockifier_versioned_constants::GasCosts;
+use crate::blockifier_versioned_constants::{GasCosts, SyscallGasCost};
 use crate::execution::common_hints::{ExecutionMode, HintExecutionResult};
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::{
@@ -54,9 +54,22 @@ use crate::execution::syscalls::secp::{
     secp256r1_get_xy,
     secp256r1_mul,
     secp256r1_new,
+    Secp256r1NewRequest,
+    Secp256r1NewResponse,
+    SecpAddRequest,
+    SecpAddResponse,
+    SecpGetPointFromXRequest,
+    SecpGetPointFromXResponse,
+    SecpGetXyRequest,
+    SecpGetXyResponse,
     SecpHintProcessor,
+    SecpMulRequest,
+    SecpMulResponse,
+    SecpNewRequest,
+    SecpNewResponse,
 };
 use crate::execution::syscalls::syscall_base::SyscallHandlerBase;
+use crate::execution::syscalls::syscall_executor::SyscallExecutor;
 use crate::execution::syscalls::{
     call_contract,
     deploy,
@@ -72,6 +85,33 @@ use crate::execution::syscalls::{
     sha256_process_block,
     storage_read,
     storage_write,
+    CallContractRequest,
+    DeployRequest,
+    DeployResponse,
+    EmitEventRequest,
+    EmitEventResponse,
+    GetBlockHashRequest,
+    GetBlockHashResponse,
+    GetClassHashAtRequest,
+    GetClassHashAtResponse,
+    GetExecutionInfoRequest,
+    GetExecutionInfoResponse,
+    KeccakRequest,
+    KeccakResponse,
+    LibraryCallRequest,
+    LibraryCallResponse,
+    MetaTxV0Request,
+    MetaTxV0Response,
+    ReplaceClassRequest,
+    ReplaceClassResponse,
+    SendMessageToL1Request,
+    SendMessageToL1Response,
+    Sha256ProcessBlockRequest,
+    Sha256ProcessBlockResponse,
+    StorageReadRequest,
+    StorageReadResponse,
+    StorageWriteRequest,
+    StorageWriteResponse,
     SyscallRequest,
     SyscallRequestWrapper,
     SyscallResponse,
@@ -363,6 +403,7 @@ impl<'a> SyscallHintProcessor<'a> {
             self.increment_syscall_count(&selector);
         }
 
+        // TODO(Aner): replace this with `execute_syscall_from_selector` in `syscall_executor.rs`.
         match selector {
             SyscallSelector::CallContract => self.execute_syscall(vm, selector, call_contract),
             SyscallSelector::Deploy => self.execute_syscall(vm, selector, deploy),
@@ -440,6 +481,7 @@ impl<'a> SyscallHintProcessor<'a> {
         self.allocate_data_segment(vm, &flat_resource_bounds)
     }
 
+    // TODO(Aner): remove this function and use the one in `syscall_executor.rs` instead.
     fn execute_syscall<Request, Response, ExecuteCallback>(
         &mut self,
         vm: &mut VirtualMachine,
@@ -657,6 +699,241 @@ impl<'a> SyscallHintProcessor<'a> {
 
     pub fn finalize(&mut self) {
         self.base.finalize();
+    }
+}
+
+#[allow(unused_variables)]
+impl SyscallExecutor for SyscallHintProcessor<'_> {
+    fn get_gas_cost_from_selector(&self, selector: &SyscallSelector) -> SyscallGasCost {
+        self.gas_costs().syscalls.get_syscall_gas_cost(selector).unwrap()
+    }
+
+    fn get_mut_syscall_ptr(&mut self) -> &mut Relocatable {
+        &mut self.syscall_ptr
+    }
+
+    fn get_syscall_base_gas_cost(&self) -> u64 {
+        self.base.context.gas_costs().base.syscall_base_gas_cost
+    }
+
+    fn update_revert_gas_with_next_remaining_gas(&mut self, remaining_gas: u64) {
+        self.base.context.update_revert_gas_with_next_remaining_gas(GasAmount(remaining_gas));
+    }
+
+    fn call_contract(
+        request: CallContractRequest,
+        vm: &mut VirtualMachine,
+        syscall_handler: &mut Self,
+        remaining_gas: &mut u64,
+    ) -> SyscallResult<super::CallContractResponse> {
+        todo!()
+    }
+
+    fn deploy(
+        request: DeployRequest,
+        vm: &mut VirtualMachine,
+        syscall_handler: &mut Self,
+        remaining_gas: &mut u64,
+    ) -> SyscallResult<DeployResponse> {
+        todo!()
+    }
+
+    fn emit_event(
+        request: EmitEventRequest,
+        vm: &mut VirtualMachine,
+        syscall_handler: &mut Self,
+        remaining_gas: &mut u64,
+    ) -> SyscallResult<EmitEventResponse> {
+        todo!()
+    }
+
+    fn get_block_hash(
+        request: GetBlockHashRequest,
+        vm: &mut VirtualMachine,
+        syscall_handler: &mut Self,
+        remaining_gas: &mut u64,
+    ) -> SyscallResult<GetBlockHashResponse> {
+        todo!()
+    }
+
+    fn get_class_hash_at(
+        request: GetClassHashAtRequest,
+        vm: &mut VirtualMachine,
+        syscall_handler: &mut Self,
+        remaining_gas: &mut u64,
+    ) -> SyscallResult<GetClassHashAtResponse> {
+        todo!()
+    }
+
+    fn get_execution_info(
+        request: GetExecutionInfoRequest,
+        vm: &mut VirtualMachine,
+        syscall_handler: &mut Self,
+        remaining_gas: &mut u64,
+    ) -> SyscallResult<GetExecutionInfoResponse> {
+        todo!()
+    }
+
+    fn keccak(
+        request: KeccakRequest,
+        vm: &mut VirtualMachine,
+        syscall_handler: &mut Self,
+        remaining_gas: &mut u64,
+    ) -> SyscallResult<KeccakResponse> {
+        todo!()
+    }
+
+    fn library_call(
+        request: LibraryCallRequest,
+        vm: &mut VirtualMachine,
+        syscall_handler: &mut Self,
+        remaining_gas: &mut u64,
+    ) -> SyscallResult<LibraryCallResponse> {
+        todo!()
+    }
+
+    fn meta_tx_v0(
+        request: MetaTxV0Request,
+        vm: &mut VirtualMachine,
+        syscall_handler: &mut Self,
+        remaining_gas: &mut u64,
+    ) -> SyscallResult<MetaTxV0Response> {
+        todo!()
+    }
+
+    fn sha256_process_block(
+        request: Sha256ProcessBlockRequest,
+        vm: &mut VirtualMachine,
+        syscall_handler: &mut Self,
+        remaining_gas: &mut u64,
+    ) -> SyscallResult<Sha256ProcessBlockResponse> {
+        todo!()
+    }
+
+    fn replace_class(
+        request: ReplaceClassRequest,
+        vm: &mut VirtualMachine,
+        syscall_handler: &mut Self,
+        remaining_gas: &mut u64,
+    ) -> SyscallResult<ReplaceClassResponse> {
+        todo!()
+    }
+
+    fn secp256k1_add(
+        request: SecpAddRequest,
+        vm: &mut VirtualMachine,
+        syscall_handler: &mut Self,
+        remaining_gas: &mut u64,
+    ) -> SyscallResult<SecpAddResponse> {
+        todo!()
+    }
+
+    fn secp256k1_get_point_from_x(
+        request: SecpGetPointFromXRequest,
+        vm: &mut VirtualMachine,
+        syscall_handler: &mut Self,
+        remaining_gas: &mut u64,
+    ) -> SyscallResult<SecpGetPointFromXResponse> {
+        todo!()
+    }
+
+    fn secp256k1_get_xy(
+        request: SecpGetXyRequest,
+        vm: &mut VirtualMachine,
+        syscall_handler: &mut Self,
+        remaining_gas: &mut u64,
+    ) -> SyscallResult<SecpGetXyResponse> {
+        todo!()
+    }
+
+    fn secp256k1_mul(
+        request: SecpMulRequest,
+        vm: &mut VirtualMachine,
+        syscall_handler: &mut Self,
+        remaining_gas: &mut u64,
+    ) -> SyscallResult<SecpMulResponse> {
+        todo!()
+    }
+
+    fn secp256k1_new(
+        request: SecpNewRequest,
+        vm: &mut VirtualMachine,
+        syscall_handler: &mut Self,
+        remaining_gas: &mut u64,
+    ) -> SyscallResult<SecpNewResponse> {
+        todo!()
+    }
+
+    fn secp256r1_add(
+        request: SecpAddRequest,
+        vm: &mut VirtualMachine,
+        syscall_handler: &mut Self,
+        remaining_gas: &mut u64,
+    ) -> SyscallResult<SecpAddResponse> {
+        todo!()
+    }
+
+    fn secp256r1_get_point_from_x(
+        request: SecpGetPointFromXRequest,
+        vm: &mut VirtualMachine,
+        syscall_handler: &mut Self,
+        remaining_gas: &mut u64,
+    ) -> SyscallResult<SecpGetPointFromXResponse> {
+        todo!()
+    }
+
+    fn secp256r1_get_xy(
+        request: SecpGetXyRequest,
+        vm: &mut VirtualMachine,
+        syscall_handler: &mut Self,
+        remaining_gas: &mut u64,
+    ) -> SyscallResult<SecpGetXyResponse> {
+        todo!()
+    }
+
+    fn secp256r1_mul(
+        request: SecpMulRequest,
+        vm: &mut VirtualMachine,
+        syscall_handler: &mut Self,
+        remaining_gas: &mut u64,
+    ) -> SyscallResult<SecpMulResponse> {
+        todo!()
+    }
+
+    fn secp256r1_new(
+        request: Secp256r1NewRequest,
+        vm: &mut VirtualMachine,
+        syscall_handler: &mut Self,
+        remaining_gas: &mut u64,
+    ) -> SyscallResult<Secp256r1NewResponse> {
+        todo!()
+    }
+
+    fn send_message_to_l1(
+        request: SendMessageToL1Request,
+        vm: &mut VirtualMachine,
+        syscall_handler: &mut Self,
+        remaining_gas: &mut u64,
+    ) -> SyscallResult<SendMessageToL1Response> {
+        todo!()
+    }
+
+    fn storage_read(
+        request: StorageReadRequest,
+        vm: &mut VirtualMachine,
+        syscall_handler: &mut Self,
+        remaining_gas: &mut u64,
+    ) -> SyscallResult<StorageReadResponse> {
+        todo!()
+    }
+
+    fn storage_write(
+        request: StorageWriteRequest,
+        vm: &mut VirtualMachine,
+        syscall_handler: &mut Self,
+        remaining_gas: &mut u64,
+    ) -> SyscallResult<StorageWriteResponse> {
+        todo!()
     }
 }
 
