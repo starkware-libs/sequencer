@@ -18,3 +18,7 @@ mod sync_state_reader;
 mod sync_state_reader_test;
 #[cfg(test)]
 mod test_utils;
+
+pub mod deprecated_gw_error;
+#[cfg(test)]
+mod deprecated_gw_error_test;

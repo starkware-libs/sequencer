@@ -28,6 +28,7 @@ axum.workspace = true
 blockifier.workspace = true
 blockifier_test_utils = { workspace = true, optional = true }
 cairo-lang-starknet-classes.workspace = true
+enum-iterator = { workspace = true }
 futures.workspace = true
 mempool_test_utils.workspace = true
 reqwest.workspace = true

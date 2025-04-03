@@ -1073,6 +1073,7 @@ dependencies = [
  "cairo-lang-sierra-to-casm",
  "cairo-lang-starknet-classes",
  "criterion",
+ "enum-iterator",
  "futures",
  "mempool_test_utils",
  "metrics 0.24.1",
