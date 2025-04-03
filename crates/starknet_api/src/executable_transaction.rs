@@ -215,6 +215,17 @@ impl DeclareTransaction {
         };
         &versioned_casm.0
     }
+
+    // Returns whether the declare transaction is for bootstrapping.
+    // In this case, no account-related actions should be made besides the declaration.
+    pub fn is_bootstrap_declare(&self, charge_fee: bool) -> bool {
+        if let crate::transaction::DeclareTransaction::V3(tx) = &self.tx {
+            return tx.sender_address == ContractAddress::default()
+                && tx.nonce == Nonce::default()
+                && !charge_fee;
+        }
+        false
+    }
 }
 
 /// Validates that the Declare transaction version is compatible with the Cairo contract version.
