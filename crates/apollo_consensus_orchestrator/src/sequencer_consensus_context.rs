@@ -81,7 +81,11 @@ use tracing::{debug, error, error_span, info, instrument, trace, warn, Instrumen
 use crate::cende::{BlobParameters, CendeContext};
 use crate::config::ContextConfig;
 use crate::fee_market::{calculate_next_base_gas_price, FeeMarketInfo};
-use crate::metrics::{CONSENSUS_NUM_BATCHES_IN_PROPOSAL, CONSENSUS_NUM_TXS_IN_PROPOSAL};
+use crate::metrics::{
+    register_metrics,
+    CONSENSUS_NUM_BATCHES_IN_PROPOSAL,
+    CONSENSUS_NUM_TXS_IN_PROPOSAL,
+};
 use crate::orchestrator_versioned_constants::VersionedConstants;
 
 // Contains parameters required for validating block info.
@@ -223,6 +227,7 @@ pub struct SequencerConsensusContextDeps {
 impl SequencerConsensusContext {
     #[allow(clippy::too_many_arguments)]
     pub fn new(config: ContextConfig, context_deps: SequencerConsensusContextDeps) -> Self {
+        register_metrics();
         let chain_id = config.chain_id.clone();
         let num_validators = config.num_validators;
         let l1_da_mode = if config.l1_da_mode {
