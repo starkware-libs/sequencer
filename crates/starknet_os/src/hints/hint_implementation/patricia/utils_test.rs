@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use assert_matches::assert_matches;
+use num_bigint::BigUint;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
     BinaryData,
@@ -16,6 +17,7 @@ use super::{
     build_update_tree,
     get_children,
     get_descents,
+    patricia_guess_descents,
     CanonicNode,
     DecodeNodeCase,
     DescentMap,
@@ -92,6 +94,19 @@ fn build_preimage_map_with_edge_node(height: SubTreeHeight, root: HashOutput) ->
     );
 
     preimage_map
+}
+
+/// Builds a full update_tree of the given height.
+/// All the leaves are set to 42.
+fn build_full_tree(height: SubTreeHeight, path: Path) -> UpdateTree {
+    if height.0 == 0 {
+        return UpdateTree::Leaf(HashOutput(Felt::from(42)));
+    }
+
+    UpdateTree::InnerNode(InnerNode::Both(
+        Box::new(build_full_tree(SubTreeHeight(height.0 - 1), path.turn_left().unwrap())),
+        Box::new(build_full_tree(SubTreeHeight(height.0 - 1), path.turn_right().unwrap())),
+    ))
 }
 
 #[test]
@@ -297,4 +312,388 @@ fn test_get_descents_empty() {
     )
     .unwrap();
     assert!(descent_map.is_empty());
+}
+
+/// The descent map for a full tree should be empty.
+#[test]
+fn test_guess_descents_full_tree() {
+    // Create a full tree of height 3
+    let height = SubTreeHeight(3);
+    let update_tree = build_full_tree(height, Path(PathToBottom::new_zero()));
+
+    let prev_root = HashOutput(Felt::ONE);
+    let new_root = HashOutput(Felt::from(16));
+    let mut preimage_map = build_full_preimage_map(height, HashOutput(Felt::ONE));
+    preimage_map.extend(build_full_preimage_map(height, HashOutput(Felt::from(16))));
+
+    let descent_map =
+        patricia_guess_descents(height, update_tree, &preimage_map, prev_root, new_root).unwrap();
+    assert!(descent_map.is_empty());
+}
+
+#[test]
+fn test_guess_descents_update_one_leaf() {
+    // previous tree:
+    //        1
+    //    x       x
+    //  x   x   x   x
+    // x 9 x x x x x x
+    // new tree:
+    //         16
+    //     x        x
+    //  x     x   x   x
+    // x 129 x x x x x x
+
+    let height = SubTreeHeight(3);
+    let update_tree = build_update_tree(
+        height,
+        vec![(LayerIndex(BigUint::from(1u128)), (HashOutput(Felt::from(129))))],
+    )
+    .unwrap();
+
+    let prev_root = HashOutput(Felt::ONE);
+    let new_root = HashOutput(Felt::from(16));
+
+    let prev_leaf = HashOutput(Felt::from(9));
+    let new_leaf = HashOutput(Felt::from(129));
+
+    let path_to_bottom =
+        PathToBottom::new(EdgePath::new_u128(1), EdgePathLength::new(3).unwrap()).unwrap();
+
+    let mut preimage_map = PreimageMap::new();
+    preimage_map
+        .insert(prev_root, Preimage::Edge(EdgeData { bottom_hash: prev_leaf, path_to_bottom }));
+    preimage_map
+        .insert(new_root, Preimage::Edge(EdgeData { bottom_hash: new_leaf, path_to_bottom }));
+
+    let descent_map =
+        patricia_guess_descents(height, update_tree, &preimage_map, prev_root, new_root).unwrap();
+    assert_eq!(
+        descent_map,
+        DescentMap::from([(
+            DescentStart {
+                height: SubTreeHeight(3),
+                path_to_upper_node: Path(PathToBottom::new_zero())
+            },
+            Path(
+                PathToBottom::new(EdgePath::new_u128(1), EdgePathLength::new(3).unwrap()).unwrap(),
+            ),
+        )]),
+    );
+}
+
+#[test]
+fn test_guess_descents_update_two_adjacent_leaves() {
+    // previous tree:
+    //        1
+    //    x       x
+    //  4   x   x   x
+    // 8 9 x x x x x x
+    // new tree:
+    //           16
+    //       x        x
+    //    64    x   x   x
+    // 128 129 x x x x x x
+
+    let height = SubTreeHeight(3);
+    let update_tree = build_update_tree(
+        height,
+        vec![
+            (LayerIndex(BigUint::from(0u128)), (HashOutput(Felt::from(128)))),
+            (LayerIndex(BigUint::from(1u128)), (HashOutput(Felt::from(129)))),
+        ],
+    )
+    .unwrap();
+
+    let prev_root = HashOutput(Felt::ONE);
+    let new_root = HashOutput(Felt::from(16));
+
+    let prev_inner_node = HashOutput(Felt::from(4));
+    let new_inner_node = HashOutput(Felt::from(64));
+
+    let path_to_bottom =
+        PathToBottom::new(EdgePath::new_u128(0), EdgePathLength::new(2).unwrap()).unwrap();
+
+    let mut preimage_map = PreimageMap::new();
+    preimage_map.insert(
+        prev_root,
+        Preimage::Edge(EdgeData { bottom_hash: prev_inner_node, path_to_bottom }),
+    );
+    preimage_map
+        .insert(new_root, Preimage::Edge(EdgeData { bottom_hash: new_inner_node, path_to_bottom }));
+    preimage_map.insert(
+        prev_inner_node,
+        Preimage::Binary(BinaryData {
+            left_hash: HashOutput(Felt::from(8)),
+            right_hash: HashOutput(Felt::from(9)),
+        }),
+    );
+    preimage_map.insert(
+        new_inner_node,
+        Preimage::Binary(BinaryData {
+            left_hash: HashOutput(Felt::from(128)),
+            right_hash: HashOutput(Felt::from(129)),
+        }),
+    );
+
+    let descent_map =
+        patricia_guess_descents(height, update_tree, &preimage_map, prev_root, new_root).unwrap();
+    assert_eq!(
+        descent_map,
+        DescentMap::from([(
+            DescentStart {
+                height: SubTreeHeight(3),
+                path_to_upper_node: Path(PathToBottom::new_zero())
+            },
+            Path(
+                PathToBottom::new(EdgePath::new_u128(0), EdgePathLength::new(2).unwrap()).unwrap(),
+            ),
+        )]),
+    );
+}
+
+#[test]
+fn test_guess_descents_update_two_leaves() {
+    // previous tree:
+    //        1
+    //    2        3
+    //  x   x    x   x
+    // x 9 x x 12 x x x
+    // new tree:
+    //          16
+    //      32        33
+    //  x     x     x    x
+    // x 129 x x 132  x x x
+
+    let height = SubTreeHeight(3);
+    let update_tree = build_update_tree(
+        height,
+        vec![
+            (LayerIndex(BigUint::from(1u128)), (HashOutput(Felt::from(129)))),
+            (LayerIndex(BigUint::from(4u128)), (HashOutput(Felt::from(132)))),
+        ],
+    )
+    .unwrap();
+
+    let prev_root = HashOutput(Felt::ONE);
+    let new_root = HashOutput(Felt::from(16));
+
+    let prev_left_inner_node = HashOutput(Felt::from(2));
+    let new_left_inner_node = HashOutput(Felt::from(32));
+
+    let prev_right_inner_node = HashOutput(Felt::from(3));
+    let new_right_inner_node = HashOutput(Felt::from(33));
+
+    let prev_left_leaf = HashOutput(Felt::from(9));
+    let new_left_leaf = HashOutput(Felt::from(129));
+
+    let prev_right_leaf = HashOutput(Felt::from(12));
+    let new_right_leaf = HashOutput(Felt::from(132));
+
+    let left_path_to_bottom =
+        PathToBottom::new(EdgePath::new_u128(1), EdgePathLength::new(2).unwrap()).unwrap();
+    let right_path_to_bottom =
+        PathToBottom::new(EdgePath::new_u128(0), EdgePathLength::new(2).unwrap()).unwrap();
+
+    let mut preimage_map = PreimageMap::new();
+    preimage_map.insert(
+        prev_root,
+        Preimage::Binary(BinaryData {
+            left_hash: prev_left_inner_node,
+            right_hash: prev_right_inner_node,
+        }),
+    );
+    preimage_map.insert(
+        new_root,
+        Preimage::Binary(BinaryData {
+            left_hash: new_left_inner_node,
+            right_hash: new_right_inner_node,
+        }),
+    );
+    preimage_map.insert(
+        prev_left_inner_node,
+        Preimage::Edge(EdgeData {
+            bottom_hash: prev_left_leaf,
+            path_to_bottom: left_path_to_bottom,
+        }),
+    );
+    preimage_map.insert(
+        new_left_inner_node,
+        Preimage::Edge(EdgeData {
+            bottom_hash: new_left_leaf,
+            path_to_bottom: left_path_to_bottom,
+        }),
+    );
+    preimage_map.insert(
+        prev_right_inner_node,
+        Preimage::Edge(EdgeData {
+            bottom_hash: prev_right_leaf,
+            path_to_bottom: right_path_to_bottom,
+        }),
+    );
+    preimage_map.insert(
+        new_right_inner_node,
+        Preimage::Edge(EdgeData {
+            bottom_hash: new_right_leaf,
+            path_to_bottom: right_path_to_bottom,
+        }),
+    );
+
+    let descent_map =
+        patricia_guess_descents(height, update_tree, &preimage_map, prev_root, new_root).unwrap();
+    assert_eq!(
+        descent_map,
+        DescentMap::from([
+            (
+                DescentStart {
+                    height: SubTreeHeight(2),
+                    path_to_upper_node: Path(
+                        PathToBottom::new(EdgePath::new_u128(0), EdgePathLength::new(1).unwrap())
+                            .unwrap(),
+                    ),
+                },
+                Path(left_path_to_bottom),
+            ),
+            (
+                DescentStart {
+                    height: SubTreeHeight(2),
+                    path_to_upper_node: Path(
+                        PathToBottom::new(EdgePath::new_u128(1), EdgePathLength::new(1).unwrap())
+                            .unwrap(),
+                    ),
+                },
+                Path(right_path_to_bottom),
+            )
+        ]),
+    );
+}
+
+/// Tests the case where prev tree and new tree both have an edge node, but it's not the same
+/// edge node. In this case, the descent path is the common subpath of the two edge nodes.
+/// Note that it's the common subpath of the edge nodes of the three trees - update_tree has an
+/// edge node from the root to the parent of the swapped leaves.
+#[test]
+fn test_guess_descents_change_leaf() {
+    // previous tree:
+    //        1
+    //    x       x
+    //  x   x   x   x
+    // 8 x x x x x x x
+    // new tree:
+    //         16
+    //     x         x
+    //  x    x     x   x
+    // x 129 x x  x x x x
+
+    let height = SubTreeHeight(3);
+    let update_tree = build_update_tree(
+        height,
+        vec![
+            (LayerIndex(BigUint::from(0u128)), (HashOutput(Felt::from(0)))),
+            (LayerIndex(BigUint::from(1u128)), (HashOutput(Felt::from(129)))),
+        ],
+    )
+    .unwrap();
+
+    let prev_root = HashOutput(Felt::ONE);
+    let new_root = HashOutput(Felt::from(16));
+
+    let prev_leaf = HashOutput(Felt::from(8));
+    let new_leaf = HashOutput(Felt::from(129));
+
+    let prev_path =
+        PathToBottom::new(EdgePath::new_u128(0), EdgePathLength::new(3).unwrap()).unwrap();
+    let new_path =
+        PathToBottom::new(EdgePath::new_u128(1), EdgePathLength::new(3).unwrap()).unwrap();
+
+    let mut preimage_map = PreimageMap::new();
+    preimage_map.insert(
+        prev_root,
+        Preimage::Edge(EdgeData { bottom_hash: prev_leaf, path_to_bottom: prev_path }),
+    );
+    preimage_map.insert(
+        new_root,
+        Preimage::Edge(EdgeData { bottom_hash: new_leaf, path_to_bottom: new_path }),
+    );
+
+    let descent_map =
+        patricia_guess_descents(height, update_tree, &preimage_map, prev_root, new_root).unwrap();
+    assert_eq!(
+        descent_map,
+        DescentMap::from([(
+            DescentStart {
+                height: SubTreeHeight(3),
+                path_to_upper_node: Path(PathToBottom::new_zero()),
+            },
+            Path(
+                PathToBottom::new(EdgePath::new_u128(0), EdgePathLength::new(2).unwrap()).unwrap(),
+            ),
+        ),]),
+    );
+}
+
+/// It also tests the case of a new edge node in the new tree (switching the trees), since the
+/// preimage map is the same and there's no difference in handling previous or new tree.
+/// Note that the values of the modifications aren't important.
+#[test]
+fn test_guess_descents_split_edge_node() {
+    // previous tree:
+    //        1
+    //    x       x
+    //  x   x   x   x
+    // 8 x x x x x x x
+    // new tree:
+    //            16
+    //       x         x
+    //   64    x     x   x
+    // 8  129 x x   x x x x
+
+    let height = SubTreeHeight(3);
+    let update_tree = build_update_tree(
+        height,
+        vec![(LayerIndex(BigUint::from(1u128)), (HashOutput(Felt::from(129))))],
+    )
+    .unwrap();
+
+    let prev_root = HashOutput(Felt::ONE);
+    let new_root = HashOutput(Felt::from(16));
+
+    let new_inner_node = HashOutput(Felt::from(64));
+
+    let left_leaf = HashOutput(Felt::from(8));
+    let right_leaf = HashOutput(Felt::from(129));
+
+    let prev_path =
+        PathToBottom::new(EdgePath::new_u128(0), EdgePathLength::new(3).unwrap()).unwrap();
+    let new_path =
+        PathToBottom::new(EdgePath::new_u128(0), EdgePathLength::new(2).unwrap()).unwrap();
+
+    let mut preimage_map = PreimageMap::new();
+    preimage_map.insert(
+        prev_root,
+        Preimage::Edge(EdgeData { bottom_hash: left_leaf, path_to_bottom: prev_path }),
+    );
+    preimage_map.insert(
+        new_root,
+        Preimage::Edge(EdgeData { bottom_hash: new_inner_node, path_to_bottom: new_path }),
+    );
+    preimage_map.insert(
+        new_inner_node,
+        Preimage::Binary(BinaryData { left_hash: left_leaf, right_hash: right_leaf }),
+    );
+
+    let descent_map =
+        patricia_guess_descents(height, update_tree, &preimage_map, prev_root, new_root).unwrap();
+    assert_eq!(
+        descent_map,
+        DescentMap::from([(
+            DescentStart {
+                height: SubTreeHeight(3),
+                path_to_upper_node: Path(PathToBottom::new_zero()),
+            },
+            Path(
+                PathToBottom::new(EdgePath::new_u128(0), EdgePathLength::new(2).unwrap()).unwrap(),
+            ),
+        ),]),
+    );
 }
