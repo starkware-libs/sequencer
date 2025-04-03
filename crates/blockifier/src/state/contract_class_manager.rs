@@ -44,15 +44,6 @@ pub mod trivial_class_manager {
         pub fn get_cache_size(&self) -> usize {
             self.cache.lock().cache_size()
         }
-
-        // TODO(Aviv): consider support cache miss metrics.
-        pub fn take_cache_miss_counter(&self) -> u64 {
-            0
-        }
-
-        pub fn take_cache_hit_counter(&self) -> u64 {
-            0
-        }
     }
 }
 

@@ -21,9 +21,6 @@ define_metrics!(
         MetricCounter { SYNCED_TRANSACTIONS, "batcher_synced_transactions", "Counter of synced transactions", init = 0 },
 
         MetricCounter { FULL_BLOCKS, "batcher_full_blocks", "Counter of blocks closed on full capacity", init = 0 },
-        // TODO(yair): move this
-        MetricCounter { CLASS_CACHE_MISSES, "class_cache_misses", "Counter of global class cache misses", init=0 },
-        MetricCounter { CLASS_CACHE_HITS, "class_cache_hits", "Counter of global class cache hits", init=0 }
     },
 );
 
@@ -45,9 +42,6 @@ pub fn register_metrics(storage_height: BlockNumber) {
     SYNCED_TRANSACTIONS.register();
 
     FULL_BLOCKS.register();
-
-    CLASS_CACHE_MISSES.register();
-    CLASS_CACHE_HITS.register();
 }
 
 /// A handle to update the proposal metrics when the proposal is created and dropped.

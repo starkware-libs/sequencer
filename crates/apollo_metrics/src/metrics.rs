@@ -25,6 +25,7 @@ pub static COLLECT_SEQUENCER_PROFILING_METRICS: OnceLock<bool> = OnceLock::new()
 /// Relevant components for which metrics can be defined.
 #[derive(Clone, Copy, Debug)]
 pub enum MetricScope {
+    ApolloStateReader,
     Batcher,
     ClassManager,
     Consensus,

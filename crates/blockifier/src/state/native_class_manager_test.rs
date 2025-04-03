@@ -20,7 +20,6 @@ use crate::state::global_cache::{
 };
 use crate::state::native_class_manager::{
     process_compilation_request,
-    CacheMetrics,
     CompilationRequest,
     ContractClassManagerError,
     NativeClassManager,
@@ -164,7 +163,6 @@ fn test_send_compilation_request_channel_disconnected() {
         cache: RawClassCache::new(GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST),
         sender: Some(sender),
         compiler: None,
-        cache_metrics: Arc::new(CacheMetrics::new()),
     };
     // Disconnect the channel by dropping the receiver.
     drop(receiver);

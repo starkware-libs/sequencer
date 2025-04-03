@@ -1,7 +1,5 @@
 use apollo_batcher::metrics::{
     BATCHED_TRANSACTIONS,
-    CLASS_CACHE_HITS,
-    CLASS_CACHE_MISSES,
     PROPOSAL_FAILED,
     PROPOSAL_STARTED,
     PROPOSAL_SUCCEEDED,
@@ -64,6 +62,7 @@ use apollo_mempool_p2p::metrics::{
     MEMPOOL_P2P_NUM_RECEIVED_MESSAGES,
     MEMPOOL_P2P_NUM_SENT_MESSAGES,
 };
+use apollo_state_reader::metrics::{CLASS_CACHE_HITS, CLASS_CACHE_MISSES};
 use apollo_state_sync::metrics::{
     STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS,
     STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS,
@@ -86,9 +85,9 @@ const PANEL_PROPOSAL_SUCCEEDED: Panel = Panel::from_counter(PROPOSAL_SUCCEEDED, 
 const PANEL_PROPOSAL_FAILED: Panel = Panel::from_counter(PROPOSAL_FAILED, PanelType::Stat);
 const PANEL_BATCHED_TRANSACTIONS: Panel =
     Panel::from_counter(BATCHED_TRANSACTIONS, PanelType::Stat);
-const PANEL_CAIRO_NATIVE_CACHE_MISS_RATIO: Panel = Panel::new(
-    "cairo_native_cache_miss_ratio",
-    "The ratio of cache misses in the Cairo native cache",
+const PANEL_APOLLO_STATE_READER_CLASS_CACHE_MISS_RATIO: Panel = Panel::new(
+    "class_cache_miss_ratio",
+    "The ratio of cache misses when requesting compiled classes from the apollo state reader",
     formatcp!(
         "100 * ({} / clamp_min(({} + {}), 1))",
         CLASS_CACHE_MISSES.get_name(),
@@ -318,8 +317,13 @@ const BATCHER_ROW: Row = Row::new(
         PANEL_PROPOSAL_SUCCEEDED,
         PANEL_PROPOSAL_FAILED,
         PANEL_BATCHED_TRANSACTIONS,
-        PANEL_CAIRO_NATIVE_CACHE_MISS_RATIO,
     ],
+);
+
+const APOLLO_STATE_READER_ROW: Row = Row::new(
+    "Apollo State Reader",
+    "Apollo state reader metrics",
+    &[PANEL_APOLLO_STATE_READER_CLASS_CACHE_MISS_RATIO],
 );
 
 const CONSENSUS_ROW: Row = Row::new(
@@ -395,5 +399,6 @@ pub const SEQUENCER_DASHBOARD: Dashboard = Dashboard::new(
         STATE_SYNC_P2P_ROW,
         GATEWAY_ROW,
         MEMPOOL_ROW,
+        APOLLO_STATE_READER_ROW,
     ],
 );
