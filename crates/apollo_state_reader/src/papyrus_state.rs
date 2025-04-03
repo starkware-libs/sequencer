@@ -178,6 +178,15 @@ impl PapyrusReader {
 
         class_reader.read_optional_deprecated_casm(class_hash)
     }
+
+    fn update_native_metrics(&self, _runnable_class: &RunnableCompiledClass) {
+        #[cfg(feature = "cairo_native")]
+        {
+            if matches!(_runnable_class, RunnableCompiledClass::V1Native(_)) {
+                crate::metrics::NATIVE_CLASS_RETURNED.increment(1);
+            }
+        }
+    }
 }
 
 // Currently unused - will soon replace the same `impl` for `PapyrusStateReader`.
@@ -226,6 +235,7 @@ impl StateReader for PapyrusReader {
         // TODO(Yoni): move this logic to a separate reader. Move tests from papyrus_state.
         if let Some(runnable_class) = self.contract_class_manager.get_runnable(&class_hash) {
             CLASS_CACHE_HITS.increment(1);
+            self.update_native_metrics(&runnable_class);
             return Ok(runnable_class);
         }
         CLASS_CACHE_MISSES.increment(1);
@@ -233,12 +243,15 @@ impl StateReader for PapyrusReader {
         let cached_class = self.get_compiled_class_from_db(class_hash)?;
         self.contract_class_manager.set_and_compile(class_hash, cached_class.clone());
         // Access the cache again in case the class was compiled.
-        Ok(self.contract_class_manager.get_runnable(&class_hash).unwrap_or_else(|| {
-            // Edge case that should not be happen if the cache size is big enough.
-            // TODO(Yoni): consider having an atomic set-and-get.
-            log::error!("Class is missing immediately after being cached.");
-            cached_class.to_runnable()
-        }))
+        let runnable_class =
+            self.contract_class_manager.get_runnable(&class_hash).unwrap_or_else(|| {
+                // Edge case that should not be happen if the cache size is big enough.
+                // TODO(Yoni): consider having an atomic set-and-get.
+                log::error!("Class is missing immediately after being cached.");
+                cached_class.to_runnable()
+            });
+        self.update_native_metrics(&runnable_class);
+        Ok(runnable_class)
     }
 
     fn get_compiled_class_hash(&self, _class_hash: ClassHash) -> StateResult<CompiledClassHash> {

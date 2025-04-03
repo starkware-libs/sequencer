@@ -387,6 +387,13 @@
         "type": "graph",
         "expr": "100 * (class_cache_misses / max((class_cache_misses + class_cache_hits), 1))",
         "extra_params": {}
+      },
+      {
+        "title": "native_class_returned_ratio",
+        "description": "The ratio of Native classes returned by the apollo state reader",
+        "type": "graph",
+        "expr": "100 * (native_class_returned / max((class_cache_hits + class_cache_misses), 1))",
+        "extra_params": {}
       }
     ]
   }
