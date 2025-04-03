@@ -6,6 +6,7 @@ use cairo_lang_starknet_classes::contract_class::ContractClass;
 use mempool_test_utils::{FAULTY_ACCOUNT_CLASS_FILE, TEST_FILES_FOLDER};
 use rstest::rstest;
 use starknet_compilation_utils::errors::CompilationUtilError;
+use starknet_compilation_utils::resource_limits::ResourceLimits;
 use starknet_compilation_utils::test_utils::contract_class_from_file;
 use starknet_infra_utils::path::resolve_project_relative_path;
 
@@ -54,4 +55,28 @@ fn test_negative_flow_compile_sierra_to_casm(#[case] compiler: impl SierraToCasm
 
     let result = compiler.compile(contract_class);
     assert_matches!(result, Err(CompilationUtilError::CompilationError(..)));
+}
+
+#[rstest]
+#[case::sufficient_resources(None, true)]
+#[case::low_memory(Some(1000000), false)]
+// CONSIDER(AvivG): Add cases for different resource limits.
+fn test_memory_resource_limit(#[case] memory_limit: Option<u64>, #[case] should_succeed: bool) {
+    use starknet_compilation_utils::compiler_utils::compile_with_args;
+
+    let contract_class = get_test_contract();
+    // TO Fix(AvivG): How to get the compiler binary path?
+    // let compiler_binary_path = command_line_compiler().path_to_binary;
+    let compiler_binary_path = None;
+    let additional_args = vec![];
+    let resource_limits = ResourceLimits::new(None, None, memory_limit);
+
+    let result =
+        compile_with_args(compiler_binary_path, contract_class, &additional_args, resource_limits);
+
+    if should_succeed {
+        assert!(result.is_ok());
+    } else {
+        assert!(result.is_err());
+    }
 }
