@@ -19,9 +19,9 @@ use crate::config::{
 
 const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompilationConfig {
     compiler_binary_path: None,
-    max_file_size: DEFAULT_MAX_FILE_SIZE,
-    max_cpu_time: DEFAULT_MAX_CPU_TIME,
-    max_memory_usage: DEFAULT_MAX_MEMORY_USAGE,
+    max_file_size: Some(DEFAULT_MAX_FILE_SIZE),
+    max_cpu_time: Some(DEFAULT_MAX_CPU_TIME),
+    max_memory_usage: Some(DEFAULT_MAX_MEMORY_USAGE),
     optimization_level: DEFAULT_OPTIMIZATION_LEVEL,
 };
 
