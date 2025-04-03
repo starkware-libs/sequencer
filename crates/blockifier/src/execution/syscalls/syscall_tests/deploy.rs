@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
@@ -13,6 +14,7 @@ use test_case::test_case;
 
 use crate::context::{BlockContext, ChainInfo};
 use crate::execution::call_info::CallExecution;
+use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::syscalls::hint_processor::SyscallUsage;
 use crate::execution::syscalls::SyscallSelector;
@@ -20,6 +22,7 @@ use crate::retdata;
 use crate::state::state_api::StateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{calldata_for_deploy_test, trivial_external_entry_point_new};
+use crate::transaction::objects::{DeprecatedTransactionInfo, TransactionInfo};
 
 #[test_case(RunnableCairo1::Casm;"VM")]
 #[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native;"Native"))]
@@ -296,4 +299,53 @@ fn calldata_length(cairo_version: CairoVersion) {
             == deploy_account_pedersen
     );
     assert!(deploy_empty_call_pedersen == deploy_syscall_base_pedersen_cost);
+}
+
+#[test_case(CairoVersion::Cairo0, false; "cairo_0")]
+#[test_case(CairoVersion::Cairo1(RunnableCairo1::Casm), false; "cairo_1_vm")]
+#[test_case(CairoVersion::Cairo1(RunnableCairo1::Casm), false; "ALLOW_cairo_1_vm")]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(CairoVersion::Cairo1(RunnableCairo1::Native), false; "cairo_1_native")
+)]
+fn reject_deploy_in_validate_mode(cairo_version: CairoVersion, allow_deploy: bool) {
+    // TODO(Yoni): share the init code of the tests in this file.
+    let deployer_contract = FeatureContract::TestContract(cairo_version);
+    let empty_contract = FeatureContract::Empty(cairo_version);
+    let class_hash = empty_contract.get_class_hash();
+    let mut block_context = BlockContext::create_for_testing();
+    if allow_deploy {
+        block_context.versioned_constants.disable_deploy_in_validation_mode = false;
+    }
+    let mut state = test_state(
+        &ChainInfo::create_for_testing(),
+        Fee(0),
+        &[(deployer_contract, 1), (empty_contract, 0)],
+    );
+
+    let calldata = calldata_for_deploy_test(class_hash, &[], true);
+    let entry_point_call = CallEntryPoint {
+        entry_point_selector: selector_from_name("test_deploy"),
+        calldata,
+        ..trivial_external_entry_point_new(deployer_contract)
+    };
+
+    let limit_steps_by_resources = false;
+    let res = entry_point_call.clone().execute_directly_given_tx_info(
+        &mut state,
+        TransactionInfo::Deprecated(DeprecatedTransactionInfo::default()),
+        Some(Arc::new(block_context)),
+        limit_steps_by_resources,
+        ExecutionMode::Validate, // Reject the deploy syscall in validate mode.
+    );
+    if allow_deploy {
+        assert!(res.is_ok());
+    } else {
+        assert!(res.is_err());
+        assert!(
+            res.unwrap_err()
+                .to_string()
+                .contains("Unauthorized syscall deploy in execution mode Validate."),
+        );
+    }
 }
