@@ -72,7 +72,6 @@ use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, SequencerContractAddress};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::transaction::TransactionHash;
-use starknet_types_core::felt::Felt;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
@@ -93,8 +92,6 @@ struct BlockInfoValidation {
     l1_da_mode: L1DataAvailabilityMode,
     l2_gas_price_fri: u64,
 }
-
-const EMPTY_BLOCK_COMMITMENT: BlockHash = BlockHash(Felt::ONE);
 
 // TODO(Dan, Matan): Remove this once and replace with real gas prices.
 const TEMPORARY_GAS_PRICES: GasPrices = GasPrices {
@@ -192,8 +189,7 @@ pub struct SequencerConsensusContext {
     // current round.
     active_proposal: Option<(CancellationToken, JoinHandle<()>)>,
     // Stores proposals for future rounds until the round is reached.
-    queued_proposals:
-        BTreeMap<Round, (ValidationParams, oneshot::Sender<(ProposalCommitment, ProposalFin)>)>,
+    queued_proposals: BTreeMap<Round, (ValidationParams, oneshot::Sender<ProposalCommitment>)>,
     outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
     // Used to broadcast votes to other consensus nodes.
     vote_broadcast_client: BroadcastTopicClient<Vote>,
@@ -301,7 +297,7 @@ struct ProposalValidateArguments {
     batcher_timeout_margin: Duration,
     valid_proposals: Arc<Mutex<HeightToIdToContent>>,
     content_receiver: mpsc::Receiver<ProposalPart>,
-    fin_sender: oneshot::Sender<(ProposalCommitment, ProposalFin)>,
+    fin_sender: oneshot::Sender<ProposalCommitment>,
     cancel_token: CancellationToken,
     transaction_converter: TransactionConverter,
     clock: Arc<dyn Clock>,
@@ -390,7 +386,7 @@ impl ConsensusContext for SequencerConsensusContext {
         proposal_init: ProposalInit,
         timeout: Duration,
         content_receiver: mpsc::Receiver<Self::ProposalPart>,
-    ) -> oneshot::Receiver<(ProposalCommitment, ProposalFin)> {
+    ) -> oneshot::Receiver<ProposalCommitment> {
         assert_eq!(Some(proposal_init.height), self.current_height);
         let (fin_sender, fin_receiver) = oneshot::channel();
         match proposal_init.round.cmp(&self.current_round) {
@@ -718,7 +714,7 @@ impl SequencerConsensusContext {
         timeout: Duration,
         batcher_timeout_margin: Duration,
         content_receiver: mpsc::Receiver<ProposalPart>,
-        fin_sender: oneshot::Sender<(ProposalCommitment, ProposalFin)>,
+        fin_sender: oneshot::Sender<ProposalCommitment>,
     ) {
         let cancel_token = CancellationToken::new();
         let cancel_token_clone = cancel_token.clone();
@@ -1029,7 +1025,13 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
         .entry(args.block_info_validation.height)
         .or_default()
         .insert(built_block, (block_info, content, args.proposal_id));
-    if fin_sender.send((built_block, received_fin)).is_err() {
+
+    if built_block != received_fin.proposal_commitment {
+        warn!("proposal_id built from content received does not match fin.");
+        return;
+    }
+
+    if fin_sender.send(built_block).is_err() {
         // Consensus may exit early (e.g. sync).
         warn!("Failed to send proposal content ids");
     }
@@ -1073,8 +1075,8 @@ async fn await_second_proposal_part(
     cancel_token: &CancellationToken,
     deadline: tokio::time::Instant,
     content_receiver: &mut mpsc::Receiver<ProposalPart>,
-    fin_sender: oneshot::Sender<(ProposalCommitment, ProposalFin)>,
-) -> Option<(ConsensusBlockInfo, oneshot::Sender<(ProposalCommitment, ProposalFin)>)> {
+    fin_sender: oneshot::Sender<ProposalCommitment>,
+) -> Option<(ConsensusBlockInfo, oneshot::Sender<ProposalCommitment>)> {
     tokio::select! {
         _ = cancel_token.cancelled() => {
             warn!("Proposal interrupted");
@@ -1092,7 +1094,7 @@ async fn await_second_proposal_part(
                 Some(ProposalPart::Fin(ProposalFin { proposal_commitment })) => {
                     warn!("Received an empty proposal.");
                     if fin_sender
-                        .send((EMPTY_BLOCK_COMMITMENT, ProposalFin { proposal_commitment }))
+                        .send(proposal_commitment)
                         .is_err()
                     {
                         // Consensus may exit early (e.g. sync).
