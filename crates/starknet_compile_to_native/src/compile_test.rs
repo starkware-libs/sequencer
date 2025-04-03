@@ -8,7 +8,7 @@ use starknet_compilation_utils::errors::CompilationUtilError;
 use starknet_compilation_utils::test_utils::contract_class_from_file;
 use starknet_infra_utils::path::resolve_project_relative_path;
 
-use crate::compiler::CommandLineCompiler;
+use crate::compiler::SierraToNativeCompiler;
 use crate::config::{
     SierraCompilationConfig,
     DEFAULT_MAX_CPU_TIME,
@@ -25,8 +25,8 @@ const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompilationConf
     optimization_level: DEFAULT_OPTIMIZATION_LEVEL,
 };
 
-fn command_line_compiler() -> CommandLineCompiler {
-    CommandLineCompiler::new(SIERRA_COMPILATION_CONFIG)
+fn compiler() -> SierraToNativeCompiler {
+    SierraToNativeCompiler::new(SIERRA_COMPILATION_CONFIG)
 }
 
 fn get_test_contract() -> ContractClass {
@@ -45,7 +45,7 @@ fn get_faulty_test_contract() -> ContractClass {
 
 #[test]
 fn test_compile_sierra_to_native() {
-    let compiler = command_line_compiler();
+    let compiler = compiler();
     let contract_class = get_test_contract();
 
     let _native_contract_executor = compiler.compile(contract_class).unwrap();
@@ -53,7 +53,7 @@ fn test_compile_sierra_to_native() {
 
 #[test]
 fn test_negative_flow_compile_sierra_to_native() {
-    let compiler = command_line_compiler();
+    let compiler = compiler();
     let contract_class = get_faulty_test_contract();
 
     let result = compiler.compile(contract_class);

@@ -36,7 +36,7 @@ fn config() -> GatewayConfig {
 
 #[fixture]
 fn compiler() -> GatewayCompiler {
-    GatewayCompiler::new_command_line_compiler(SierraCompilationConfig::default())
+    GatewayCompiler::new(SierraCompilationConfig::default())
 }
 
 #[fixture]
