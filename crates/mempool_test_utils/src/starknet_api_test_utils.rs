@@ -87,10 +87,14 @@ pub fn test_valid_resource_bounds() -> ValidResourceBounds {
 
 /// Get the contract class used for testing.
 pub fn contract_class() -> SierraContractClass {
+    let current_dir = env::current_dir().unwrap();
     env::set_current_dir(resolve_project_relative_path(TEST_FILES_FOLDER).unwrap())
         .expect("Couldn't set working dir.");
     let json_file_path = Path::new(CONTRACT_CLASS_FILE);
-    serde_json::from_reader(File::open(json_file_path).unwrap()).unwrap()
+    let sierra_contract_class =
+        serde_json::from_reader(File::open(json_file_path).unwrap()).unwrap();
+    env::set_current_dir(current_dir).expect("Couldn't set working dir.");
+    sierra_contract_class
 }
 
 pub static COMPILED_CLASS_HASH: LazyLock<CompiledClassHash> =
