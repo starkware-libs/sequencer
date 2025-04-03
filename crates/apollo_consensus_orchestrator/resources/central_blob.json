@@ -88,8 +88,8 @@
     "sierra_gas": 10
   },
   "fee_market_info": {
-    "l2_gas_consumed": 150000,
-    "next_l2_gas_price": 100000
+    "l2_gas_consumed": 100,
+    "next_l2_gas_price": "0x1e"
   },
   "transactions": [
     {
