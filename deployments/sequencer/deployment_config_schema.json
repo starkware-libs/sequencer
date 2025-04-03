@@ -14,6 +14,12 @@
           "ingress": { "type": "boolean" },
           "replicas": { "type": "integer", "minimum": 1 },
           "autoscale": { "type": "boolean" },
+          "toleration": {
+            "anyOf": [
+              { "type": "string" },
+              { "type": "null" }
+            ]
+          },
           "storage": {
             "anyOf": [{ "type": "integer", "minimum": 1 }, { "type": "null" }]
           },
@@ -58,6 +64,7 @@
           "ingress",
           "replicas",
           "autoscale",
+          "toleration",
           "storage",
           "resources",
           "external_secret"
