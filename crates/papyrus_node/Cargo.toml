@@ -28,6 +28,9 @@ futures.workspace = true
 itertools.workspace = true
 lazy_static.workspace = true
 once_cell.workspace = true
+# Explicit dependency on openssl to resolve linking issue (likely coming from reqwest package...?)
+# on ubuntu24, [link](https://github.com/sfackler/rust-openssl/issues/2217#issuecomment-2288234679).
+openssl = { workspace = true, features = ["vendored"] }
 papyrus_base_layer.workspace = true
 papyrus_common.workspace = true
 papyrus_config.workspace = true
@@ -68,3 +71,7 @@ tempfile.workspace = true
 
 [lints]
 workspace = true
+
+# See above for why the `openssl` dependency is required.
+[package.metadata.cargo-machete]
+ignored = ["openssl"]
