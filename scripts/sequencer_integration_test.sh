@@ -16,16 +16,6 @@
 #   crates/apollo_integration_tests/src/bin/sequencer_node_integration_tests/
 # with names such as positive_flow.rs, revert_flow.rs, restart_flow.rs, sync_flow.rs
 
-# The test requires sudo privileges for running certain commands.
-# Ensure sudo privileges are available before proceeding.
-sudo -v || { echo "Sudo authentication failed. Exiting."; exit 1; }
-# Setting the ephemeral port range to be a distinct range that should be available. This is to
-# resolve issues arising due to the way libp2p chooses its used ports, resulting in sporadic
-# conflicts with the node configuration, and port binding errors. Disabling this could result in the
-# aforementioned sporadic error.
-sudo sysctl -w "net.ipv4.ip_local_port_range=40000 40200"
-
-
 # TODO(noamsp): find a way to get this mapping automatically instead of hardcoding
 declare -A TEST_ALIASES=(
   [positive]="integration_test_positive_flow"
