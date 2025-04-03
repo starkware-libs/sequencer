@@ -88,7 +88,7 @@ use crate::orchestrator_versioned_constants::VersionedConstants;
 #[derive(Clone, Debug)]
 struct BlockInfoValidation {
     height: BlockNumber,
-    block_timestamp_window: u64,
+    block_timestamp_window_seconds: u64,
     last_block_timestamp: Option<u64>,
     l1_da_mode: L1DataAvailabilityMode,
     l2_gas_price_fri: u64,
@@ -333,7 +333,7 @@ impl ConsensusContext for SequencerConsensusContext {
         let valid_proposals = Arc::clone(&self.valid_proposals);
         let proposal_id = ProposalId(self.proposal_id);
         self.proposal_id += 1;
-        assert!(timeout > self.config.build_proposal_margin);
+        assert!(timeout > self.config.build_proposal_margin_millis);
         let (proposal_sender, proposal_receiver) = mpsc::channel(self.config.proposal_buffer_size);
         let l1_da_mode = self.l1_da_mode;
         let stream_id = HeightAndRound(proposal_init.height.0, proposal_init.round);
@@ -346,7 +346,7 @@ impl ConsensusContext for SequencerConsensusContext {
         let builder_address = self.config.builder_address;
 
         info!(?proposal_init, ?timeout, %proposal_id, "Building proposal");
-        let batcher_timeout = timeout - self.config.build_proposal_margin;
+        let batcher_timeout = timeout - self.config.build_proposal_margin_millis;
         let cancel_token = CancellationToken::new();
         let cancel_token_clone = cancel_token.clone();
         let clock = self.clock.clone();
@@ -412,7 +412,7 @@ impl ConsensusContext for SequencerConsensusContext {
             std::cmp::Ordering::Equal => {
                 let block_info_validation = BlockInfoValidation {
                     height: proposal_init.height,
-                    block_timestamp_window: self.config.block_timestamp_window,
+                    block_timestamp_window_seconds: self.config.block_timestamp_window_seconds,
                     last_block_timestamp: self.last_block_timestamp,
                     l1_da_mode: self.l1_da_mode,
                     l2_gas_price_fri: self.l2_gas_price,
@@ -421,7 +421,7 @@ impl ConsensusContext for SequencerConsensusContext {
                     block_info_validation,
                     proposal_init.proposer,
                     timeout,
-                    self.config.validate_proposal_margin,
+                    self.config.validate_proposal_margin_millis,
                     content_receiver,
                     fin_sender,
                 )
@@ -633,7 +633,7 @@ impl ConsensusContext for SequencerConsensusContext {
         let now: u64 = self.clock.now_as_timestamp();
         if !(block_number == height
             && timestamp.0 >= self.last_block_timestamp.unwrap_or(0)
-            && timestamp.0 <= now + self.config.block_timestamp_window)
+            && timestamp.0 <= now + self.config.block_timestamp_window_seconds)
         {
             warn!(
                 "Invalid block info: expected block number {}, got {}, expected timestamp range \
@@ -641,7 +641,7 @@ impl ConsensusContext for SequencerConsensusContext {
                 height,
                 block_number,
                 self.last_block_timestamp.unwrap_or(0),
-                now + self.config.block_timestamp_window,
+                now + self.config.block_timestamp_window_seconds,
                 timestamp.0,
             );
             return false;
@@ -693,7 +693,7 @@ impl ConsensusContext for SequencerConsensusContext {
         };
         let block_info_validation = BlockInfoValidation {
             height,
-            block_timestamp_window: self.config.block_timestamp_window,
+            block_timestamp_window_seconds: self.config.block_timestamp_window_seconds,
             last_block_timestamp: self.last_block_timestamp,
             l1_da_mode: self.l1_da_mode,
             l2_gas_price_fri: self.l2_gas_price,
@@ -702,7 +702,7 @@ impl ConsensusContext for SequencerConsensusContext {
             block_info_validation,
             validator,
             timeout,
-            self.config.validate_proposal_margin,
+            self.config.validate_proposal_margin_millis,
             content,
             fin_sender,
         )
@@ -1068,7 +1068,7 @@ async fn is_block_info_valid(
     // TODO(Asmaa): Validate the rest of the block info.
     if !(block_info.height == block_info_validation.height
         && block_info.timestamp >= block_info_validation.last_block_timestamp.unwrap_or(0)
-        && block_info.timestamp <= now + block_info_validation.block_timestamp_window
+        && block_info.timestamp <= now + block_info_validation.block_timestamp_window_seconds
         && block_info.l1_da_mode == block_info_validation.l1_da_mode
         && block_info.l2_gas_price_fri == u128::from(block_info_validation.l2_gas_price_fri))
     {

@@ -19,7 +19,7 @@ pub struct ContextConfig {
     /// The chain id of the Starknet chain.
     pub chain_id: ChainId,
     /// Maximum allowed deviation (seconds) of a proposed block's timestamp from the current time.
-    pub block_timestamp_window: u64,
+    pub block_timestamp_window_seconds: u64,
     /// The data availability mode, true: Blob, false: Calldata.
     pub l1_da_mode: bool,
     /// The address of the contract that builds the block.
@@ -27,13 +27,13 @@ pub struct ContextConfig {
     /// Safety margin in milliseconds to make sure that the batcher completes building the proposal
     /// with enough time for the Fin to be checked by validators.
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
-    pub build_proposal_margin: Duration,
+    pub build_proposal_margin_millis: Duration,
     // When validating a proposal the Context is responsible for timeout handling. The Batcher
     // though has a timeout as a defensive measure to make sure the proposal doesn't live
     // forever if the Context crashes or has a bug.
     /// Safety margin in milliseconds to allow the batcher to successfully validate a proposal.
     #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
-    pub validate_proposal_margin: Duration,
+    pub validate_proposal_margin_millis: Duration,
 }
 
 impl SerializeConfig for ContextConfig {
@@ -58,8 +58,8 @@ impl SerializeConfig for ContextConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "block_timestamp_window",
-                &self.block_timestamp_window,
+                "block_timestamp_window_seconds",
+                &self.block_timestamp_window_seconds,
                 "Maximum allowed deviation (seconds) of a proposed block's timestamp from the \
                  current time.",
                 ParamPrivacyInput::Public,
@@ -77,15 +77,15 @@ impl SerializeConfig for ContextConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "build_proposal_margin",
-                &self.build_proposal_margin.as_millis(),
+                "build_proposal_margin_millis",
+                &self.build_proposal_margin_millis.as_millis(),
                 "Safety margin (in ms) to make sure that the batcher completes building the \
                  proposal with enough time for the Fin to be checked by validators.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "validate_proposal_margin",
-                &self.validate_proposal_margin.as_millis(),
+                "validate_proposal_margin_millis",
+                &self.validate_proposal_margin_millis.as_millis(),
                 "Safety margin (in ms) to make sure that consensus determines when to timeout \
                  validating a proposal.",
                 ParamPrivacyInput::Public,
@@ -100,11 +100,11 @@ impl Default for ContextConfig {
             proposal_buffer_size: 100,
             num_validators: 1,
             chain_id: ChainId::Mainnet,
-            block_timestamp_window: 1,
+            block_timestamp_window_seconds: 1,
             l1_da_mode: true,
             builder_address: ContractAddress::default(),
-            build_proposal_margin: Duration::from_millis(1000),
-            validate_proposal_margin: Duration::from_millis(10_000),
+            build_proposal_margin_millis: Duration::from_millis(1000),
+            validate_proposal_margin_millis: Duration::from_millis(10_000),
         }
     }
 }
