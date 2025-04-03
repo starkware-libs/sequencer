@@ -64,18 +64,14 @@ fn gw_client_err_into_response(err: GatewayClientError) -> Response {
                 None::<()>,
             )
         }
-        GatewayClientError::GatewayError(GatewayError::GatewaySpecError {
+        GatewayClientError::GatewayError(GatewayError::DeprecatedGWError {
             source,
             p2p_message_metadata: _,
         }) => {
             // TODO(yair): Find out what is the p2p_message_metadata and whether it needs to be
             // added to the error response.
-            let rpc_spec_error = source.into_rpc();
-            jsonrpsee::types::ErrorObject::owned(
-                ErrorCode::ServerError(rpc_spec_error.code).code(),
-                rpc_spec_error.message,
-                rpc_spec_error.data,
-            )
+            // TODO(yair,noamsp): Find out what to return here.
+            jsonrpsee::types::ErrorObject::owned(400, source.message, None::<()>)
         }
     };
 

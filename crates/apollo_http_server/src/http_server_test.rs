@@ -2,7 +2,12 @@ use std::net::{IpAddr, Ipv4Addr};
 use std::panic::AssertUnwindSafe;
 
 use apollo_gateway_types::communication::{GatewayClientError, MockGatewayClient};
-use apollo_gateway_types::errors::{GatewayError, GatewaySpecError};
+use apollo_gateway_types::deprecated_gw_error::{
+    KnownStarknetErrorCode,
+    StarknetError,
+    StarknetErrorCode,
+};
+use apollo_gateway_types::errors::GatewayError;
 use apollo_gateway_types::gateway_types::{
     DeclareGatewayOutput,
     DeployAccountGatewayOutput,
@@ -18,7 +23,7 @@ use axum::Json;
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use futures::FutureExt;
 use jsonrpsee::types::error::ErrorCode;
-use jsonrpsee::types::ErrorObjectOwned;
+use jsonrpsee::types::ErrorObject;
 use mempool_test_utils::starknet_api_test_utils::invoke_tx;
 use rstest::rstest;
 use serde_json::Value;
@@ -174,13 +179,17 @@ async fn test_response() {
         .return_const(Ok(GatewayOutput::Invoke(InvokeGatewayOutput::new(expected_tx_hash))));
 
     // Set the failed response.
-    let expected_error = GatewaySpecError::ClassAlreadyDeclared;
+    let expected_error = StarknetError {
+        code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::ClassAlreadyDeclared),
+        message: "bla".to_string(),
+    };
     let expected_err_str = format!(
         "Gateway responded with: {}",
-        serde_json::to_string(&ErrorObjectOwned::from(expected_error.clone().into_rpc())).unwrap()
+        serde_json::to_string(&ErrorObject::owned(400, &expected_error.message, None::<()>))
+            .unwrap()
     );
     mock_gateway_client.expect_add_tx().times(1).return_const(Err(
-        GatewayClientError::GatewayError(GatewayError::GatewaySpecError {
+        GatewayClientError::GatewayError(GatewayError::DeprecatedGWError {
             source: expected_error,
             p2p_message_metadata: None,
         }),
