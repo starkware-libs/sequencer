@@ -10,7 +10,6 @@ use tempfile::NamedTempFile;
 
 use crate::config::SierraCompilationConfig;
 use crate::constants::CAIRO_NATIVE_BINARY_NAME;
-use crate::SierraToNativeCompiler;
 
 #[derive(Clone)]
 pub struct CommandLineCompiler {
@@ -26,10 +25,8 @@ impl CommandLineCompiler {
         };
         Self { config, path_to_binary }
     }
-}
 
-impl SierraToNativeCompiler for CommandLineCompiler {
-    fn compile(
+    pub fn compile(
         &self,
         contract_class: ContractClass,
     ) -> Result<AotContractExecutor, CompilationUtilError> {

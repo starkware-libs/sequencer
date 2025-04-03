@@ -10707,7 +10707,6 @@ dependencies = [
  "cairo-lang-starknet-classes",
  "mempool_test_utils",
  "papyrus_config",
- "rstest",
  "serde",
  "serde_json",
  "starknet_compilation_utils",
