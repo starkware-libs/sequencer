@@ -284,7 +284,7 @@ impl ValidResourceBounds {
     /// Returns the maximum possible fee that can be charged for the transaction.
     /// The computation is saturating, meaning that if the result is larger than the maximum
     /// possible fee, the maximum possible fee is returned.
-    pub fn max_possible_fee(&self) -> Fee {
+    pub fn max_possible_fee(&self, tip: Tip) -> Fee {
         match self {
             ValidResourceBounds::L1Gas(l1_bounds) => {
                 l1_bounds.max_amount.saturating_mul(l1_bounds.max_price_per_unit)
@@ -296,7 +296,9 @@ impl ValidResourceBounds {
             }) => l1_gas
                 .max_amount
                 .saturating_mul(l1_gas.max_price_per_unit)
-                .saturating_add(l2_gas.max_amount.saturating_mul(l2_gas.max_price_per_unit))
+                .saturating_add(
+                    l2_gas.max_amount.saturating_mul(l2_gas.max_price_per_unit.saturating_add(tip)),
+                )
                 .saturating_add(
                     l1_data_gas.max_amount.saturating_mul(l1_data_gas.max_price_per_unit),
                 ),

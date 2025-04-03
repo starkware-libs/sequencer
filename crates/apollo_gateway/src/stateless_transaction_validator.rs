@@ -6,7 +6,7 @@ use starknet_api::rpc_transaction::{
     RpcTransaction,
 };
 use starknet_api::state::EntryPoint;
-use starknet_api::transaction::fields::{Fee, ValidResourceBounds};
+use starknet_api::transaction::fields::{Fee, Tip, ValidResourceBounds};
 use starknet_types_core::felt::Felt;
 use tracing::{instrument, Level};
 
@@ -52,7 +52,8 @@ impl StatelessTransactionValidator {
         }
 
         let resource_bounds = *tx.resource_bounds();
-        if ValidResourceBounds::AllResources(resource_bounds).max_possible_fee() == Fee(0) {
+        if ValidResourceBounds::AllResources(resource_bounds).max_possible_fee(Tip::ZERO) == Fee(0)
+        {
             return Err(StatelessTransactionValidatorError::ZeroResourceBounds { resource_bounds });
         }
 

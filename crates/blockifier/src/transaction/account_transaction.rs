@@ -419,12 +419,12 @@ impl AccountTransaction {
     fn assert_actual_fee_in_bounds(tx_context: &Arc<TransactionContext>, actual_fee: Fee) {
         match &tx_context.tx_info {
             TransactionInfo::Current(context) => {
-                let max_fee = context.resource_bounds.max_possible_fee();
+                let max_fee = context.max_possible_fee();
                 if actual_fee > max_fee {
                     panic!(
                         "Actual fee {:#?} exceeded bounds; max possible fee is {:#?} (computed \
-                         from {:#?}).",
-                        actual_fee, max_fee, context.resource_bounds
+                         from {:#?} with tip {:#?}).",
+                        actual_fee, max_fee, context.resource_bounds, context.tip
                     );
                 }
             }
