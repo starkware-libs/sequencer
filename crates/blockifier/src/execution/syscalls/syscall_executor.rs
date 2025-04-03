@@ -1,5 +1,7 @@
+use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::hint_errors::HintError;
 use cairo_vm::vm::vm_core::VirtualMachine;
+use starknet_types_core::felt::Felt;
 
 use super::secp::{
     SecpAddRequest,
@@ -13,8 +15,13 @@ use super::secp::{
     SecpNewRequest,
     SecpNewResponse,
 };
+use crate::blockifier_versioned_constants::SyscallGasCost;
 use crate::execution::common_hints::HintExecutionResult;
-use crate::execution::syscalls::hint_processor::SyscallHintProcessor;
+use crate::execution::syscalls::hint_processor::{
+    SyscallExecutionError,
+    SyscallHintProcessor,
+    OUT_OF_GAS_ERROR,
+};
 use crate::execution::syscalls::syscall_base::SyscallResult;
 use crate::execution::syscalls::{
     CallContractRequest,
@@ -46,9 +53,12 @@ use crate::execution::syscalls::{
     StorageWriteRequest,
     StorageWriteResponse,
     SyscallRequest,
+    SyscallRequestWrapper,
     SyscallResponse,
+    SyscallResponseWrapper,
     SyscallSelector,
 };
+use crate::utils::u64_from_usize;
 
 #[allow(dead_code)]
 pub trait SyscallExecutor {
@@ -124,6 +134,14 @@ pub trait SyscallExecutor {
         }
     }
 
+    fn get_gas_cost_from_selector(&self, selector: &SyscallSelector) -> SyscallGasCost;
+
+    fn get_mut_syscall_ptr(&mut self) -> &mut Relocatable;
+
+    fn get_syscall_base_gas_cost(&self) -> u64;
+
+    fn update_revert_gas_with_next_remaining_gas(&mut self, next_remaining_gas: u64);
+
     fn execute_syscall<Request, Response, ExecuteCallback>(
         &mut self,
         vm: &mut VirtualMachine,
@@ -138,7 +156,69 @@ pub trait SyscallExecutor {
             &mut VirtualMachine,
             &mut SyscallHintProcessor<'_>,
             &mut u64, // Remaining gas.
-        ) -> SyscallResult<Response>;
+        ) -> SyscallResult<Response>,
+    {
+        let syscall_gas_cost = self.get_gas_cost_from_selector(&selector);
+
+        let SyscallRequestWrapper { gas_counter, request } =
+            SyscallRequestWrapper::<Request>::read(vm, self.get_mut_syscall_ptr())?;
+
+        let syscall_gas_cost =
+            syscall_gas_cost.get_syscall_cost(u64_from_usize(request.get_linear_factor_length()));
+        let syscall_base_cost = self.get_syscall_base_gas_cost();
+
+        // Sanity check for preventing underflow.
+        assert!(
+            syscall_gas_cost >= syscall_base_cost,
+            "Syscall gas cost must be greater than base syscall gas cost"
+        );
+
+        // Refund `SYSCALL_BASE_GAS_COST` as it was pre-charged.
+        let required_gas = syscall_gas_cost - syscall_base_cost;
+
+        if gas_counter < required_gas {
+            //  Out of gas failure.
+            let out_of_gas_error =
+                Felt::from_hex(OUT_OF_GAS_ERROR).map_err(SyscallExecutionError::from)?;
+            let response: SyscallResponseWrapper<Response> =
+                SyscallResponseWrapper::Failure { gas_counter, error_data: vec![out_of_gas_error] };
+            response.write(vm, self.get_mut_syscall_ptr())?;
+
+            return Ok(());
+        }
+
+        // Execute.
+        let mut remaining_gas = gas_counter - required_gas;
+
+        // To support sierra gas charge for blockifier revert flow, we track the remaining gas left
+        // before executing a syscall if the current tracked resource is gas.
+        // 1. If the syscall does not run Cairo code (i.e. not library call, not call contract, and
+        //    not a deploy), any failure will not run in the OS, so no need to charge - the value
+        //    before entering the callback is good enough to charge.
+        // 2. If the syscall runs Cairo code, but the tracked resource is steps (and not gas), the
+        //    additional charge of reverted cairo steps will cover the inner cost, and the outer
+        //    cost we track here will be the additional reverted gas.
+        // 3. If the syscall runs Cairo code and the tracked resource is gas, either the inner
+        //    failure will be a Cairo1 revert (and the gas consumed on the call info will override
+        //    the current tracked value), or we will pass through another syscall before failing -
+        //    and by induction (we will reach this point again), the gas will be charged correctly.
+        self.update_revert_gas_with_next_remaining_gas(remaining_gas);
+
+        let original_response = execute_callback(request, vm, self, &mut remaining_gas);
+        let response = match original_response {
+            Ok(response) => {
+                SyscallResponseWrapper::Success { gas_counter: remaining_gas, response }
+            }
+            Err(SyscallExecutionError::Revert { error_data: data }) => {
+                SyscallResponseWrapper::Failure { gas_counter: remaining_gas, error_data: data }
+            }
+            Err(error) => return Err(error.into()),
+        };
+
+        response.write(vm, self.get_mut_syscall_ptr())?;
+
+        Ok(())
+    }
 
     fn call_contract(
         request: CallContractRequest,
