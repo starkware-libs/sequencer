@@ -112,17 +112,12 @@ use crate::execution::syscalls::{
     StorageReadResponse,
     StorageWriteRequest,
     StorageWriteResponse,
-    SyscallRequest,
-    SyscallRequestWrapper,
-    SyscallResponse,
-    SyscallResponseWrapper,
     SyscallResult,
     SyscallSelector,
 };
 use crate::state::errors::StateError;
 use crate::state::state_api::State;
 use crate::transaction::objects::{CurrentTransactionInfo, TransactionInfo};
-use crate::utils::u64_from_usize;
 
 #[derive(Clone, Debug, Default)]
 pub struct SyscallUsage {
@@ -479,85 +474,6 @@ impl<'a> SyscallHintProcessor<'a> {
                 .collect();
 
         self.allocate_data_segment(vm, &flat_resource_bounds)
-    }
-
-    // TODO(Aner): remove this function and use the one in `syscall_executor.rs` instead.
-    fn execute_syscall<Request, Response, ExecuteCallback>(
-        &mut self,
-        vm: &mut VirtualMachine,
-        selector: SyscallSelector,
-        execute_callback: ExecuteCallback,
-    ) -> HintExecutionResult
-    where
-        Request: SyscallRequest + std::fmt::Debug,
-        Response: SyscallResponse + std::fmt::Debug,
-        ExecuteCallback: FnOnce(
-            Request,
-            &mut VirtualMachine,
-            &mut SyscallHintProcessor<'_>,
-            &mut u64, // Remaining gas.
-        ) -> SyscallResult<Response>,
-    {
-        let syscall_gas_cost = self.gas_costs().syscalls.get_syscall_gas_cost(&selector).unwrap();
-
-        let SyscallRequestWrapper { gas_counter, request } =
-            SyscallRequestWrapper::<Request>::read(vm, &mut self.syscall_ptr)?;
-
-        let syscall_gas_cost =
-            syscall_gas_cost.get_syscall_cost(u64_from_usize(request.get_linear_factor_length()));
-        let syscall_base_cost = self.base.context.gas_costs().base.syscall_base_gas_cost;
-
-        // Sanity check for preventing underflow.
-        assert!(
-            syscall_gas_cost >= syscall_base_cost,
-            "Syscall gas cost must be greater than base syscall gas cost"
-        );
-
-        // Refund `SYSCALL_BASE_GAS_COST` as it was pre-charged.
-        let required_gas = syscall_gas_cost - syscall_base_cost;
-
-        if gas_counter < required_gas {
-            //  Out of gas failure.
-            let out_of_gas_error =
-                Felt::from_hex(OUT_OF_GAS_ERROR).map_err(SyscallExecutionError::from)?;
-            let response: SyscallResponseWrapper<Response> =
-                SyscallResponseWrapper::Failure { gas_counter, error_data: vec![out_of_gas_error] };
-            response.write(vm, &mut self.syscall_ptr)?;
-
-            return Ok(());
-        }
-
-        // Execute.
-        let mut remaining_gas = gas_counter - required_gas;
-
-        // To support sierra gas charge for blockifier revert flow, we track the remaining gas left
-        // before executing a syscall if the current tracked resource is gas.
-        // 1. If the syscall does not run Cairo code (i.e. not library call, not call contract, and
-        //    not a deploy), any failure will not run in the OS, so no need to charge - the value
-        //    before entering the callback is good enough to charge.
-        // 2. If the syscall runs Cairo code, but the tracked resource is steps (and not gas), the
-        //    additional charge of reverted cairo steps will cover the inner cost, and the outer
-        //    cost we track here will be the additional reverted gas.
-        // 3. If the syscall runs Cairo code and the tracked resource is gas, either the inner
-        //    failure will be a Cairo1 revert (and the gas consumed on the call info will override
-        //    the current tracked value), or we will pass through another syscall before failing -
-        //    and by induction (we will reach this point again), the gas will be charged correctly.
-        self.base.context.update_revert_gas_with_next_remaining_gas(GasAmount(remaining_gas));
-
-        let original_response = execute_callback(request, vm, self, &mut remaining_gas);
-        let response = match original_response {
-            Ok(response) => {
-                SyscallResponseWrapper::Success { gas_counter: remaining_gas, response }
-            }
-            Err(SyscallExecutionError::Revert { error_data: data }) => {
-                SyscallResponseWrapper::Failure { gas_counter: remaining_gas, error_data: data }
-            }
-            Err(error) => return Err(error.into()),
-        };
-
-        response.write(vm, &mut self.syscall_ptr)?;
-
-        Ok(())
     }
 
     fn read_next_syscall_selector(&mut self, vm: &mut VirtualMachine) -> SyscallResult<Felt> {
