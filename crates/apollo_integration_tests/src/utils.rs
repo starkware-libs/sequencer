@@ -321,6 +321,7 @@ async fn get_price(Query(query): Query<EthToStrkOracleQuery>) -> Json<serde_json
     //
     // TODO(Asmaa): Retrun timestamp as price once we start mocking out time in the
     // tests.
+    info!("Received request to get price.");
     let price = format!("0x{:x}", u128::pow(10, 19));
     let response = json!({ "timestamp": query.timestamp ,"price": price, "decimals": ETH_TO_STRK_QUANTIZATION });
     Json(response)
