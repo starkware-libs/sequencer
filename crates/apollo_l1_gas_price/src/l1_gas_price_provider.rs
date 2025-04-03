@@ -7,7 +7,7 @@ use apollo_l1_gas_price_types::errors::L1GasPriceProviderError;
 use apollo_l1_gas_price_types::{L1GasPriceProviderResult, PriceInfo};
 use papyrus_base_layer::{L1BlockNumber, PriceSample};
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockTimestamp, NonzeroGasPrice};
+use starknet_api::block::{BlockTimestamp, TEMP_ETH_BLOB_GAS_FEE_IN_WEI, TEMP_ETH_GAS_FEE_IN_WEI};
 use validator::Validate;
 
 #[cfg(test)]
@@ -113,8 +113,8 @@ impl L1GasPriceProvider {
                     h,
                     PriceSample {
                         timestamp: h,
-                        base_fee_per_gas: NonzeroGasPrice::TEMP_ETH_GAS_FEE_IN_WEI.get().0,
-                        blob_fee: NonzeroGasPrice::TEMP_ETH_BLOB_GAS_FEE_IN_WEI.get().0,
+                        base_fee_per_gas: TEMP_ETH_GAS_FEE_IN_WEI,
+                        blob_fee: TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
                     },
                 )
                 .expect("Could not post price sample");
