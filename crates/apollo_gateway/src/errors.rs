@@ -1,3 +1,8 @@
+use apollo_gateway_types::deprecated_gw_error::{
+    KnownStarknetErrorCode,
+    StarknetError,
+    StarknetErrorCode,
+};
 use apollo_gateway_types::errors::GatewaySpecError;
 use apollo_mempool_types::communication::{MempoolClientError, MempoolClientResult};
 use apollo_mempool_types::errors::MempoolError;
@@ -13,7 +18,7 @@ use tracing::{debug, error, warn};
 use crate::compiler_version::{VersionId, VersionIdError};
 use crate::rpc_objects::{RpcErrorCode, RpcErrorResponse};
 
-pub type GatewayResult<T> = Result<T, GatewaySpecError>;
+pub type GatewayResult<T> = Result<T, StarknetError>;
 
 #[derive(Debug, Error)]
 #[cfg_attr(test, derive(PartialEq))]
@@ -81,11 +86,79 @@ impl From<StatelessTransactionValidatorError> for GatewaySpecError {
     }
 }
 
+impl From<StatelessTransactionValidatorError> for StarknetError {
+    fn from(e: StatelessTransactionValidatorError) -> Self {
+        let message = format!("{}", e);
+        let code = match e {
+            StatelessTransactionValidatorError::ContractClassObjectSizeTooLarge { .. } => {
+                StarknetErrorCode::KnownErrorCode(
+                    KnownStarknetErrorCode::ContractClassObjectSizeTooLarge,
+                )
+            }
+            StatelessTransactionValidatorError::UnsupportedSierraVersion { .. } => {
+                StarknetErrorCode::UnknownErrorCode(
+                    "StarknetErrorCode.INVALID_CONTRACT_CLASS".to_string(),
+                )
+            }
+            StatelessTransactionValidatorError::CalldataTooLong { .. } => {
+                StarknetErrorCode::UnknownErrorCode(
+                    "StarknetErrorCode.CALLDATA_TOO_LONG".to_string(),
+                )
+            }
+            StatelessTransactionValidatorError::EntryPointsNotUniquelySorted =>
+            // Error does not exist in deprecated GW.
+            {
+                StarknetErrorCode::UnknownErrorCode(
+                    "StarknetErrorCode.ENTRY_POINTS_NOT_UNIQUELY_SORTED".to_string(),
+                )
+            }
+
+            StatelessTransactionValidatorError::InvalidDataAvailabilityMode { .. } =>
+            // Error does not exist in deprecated GW.
+            {
+                StarknetErrorCode::UnknownErrorCode(
+                    "StarknetErrorCode.INVALID_DATA_AVAILABILITY_MODE".to_string(),
+                )
+            }
+
+            StatelessTransactionValidatorError::InvalidSierraVersion(..) =>
+            // Error does not exist in deprecated GW.
+            {
+                StarknetErrorCode::UnknownErrorCode(
+                    "StarknetErrorCode.INVALID_SIERRA_VERSION".to_string(),
+                )
+            }
+            StatelessTransactionValidatorError::NonEmptyField { .. } =>
+            // Error does not exist in deprecated GW.
+            {
+                StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.NON_EMPTY_FIELD".to_string())
+            }
+
+            StatelessTransactionValidatorError::SignatureTooLong { .. } => {
+                StarknetErrorCode::UnknownErrorCode(
+                    "StarknetErrorCode.SIGNATURE_TOO_LONG".to_string(),
+                )
+            }
+            StatelessTransactionValidatorError::StarknetApiError(..) =>
+            // Don't know what to do with this error.
+            {
+                StarknetErrorCode::UnknownErrorCode(
+                    "StarknetErrorCode.STARKNET_API_ERROR".to_string(),
+                )
+            }
+            StatelessTransactionValidatorError::ZeroResourceBounds { .. } => {
+                StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::InsufficientMaxFee)
+            }
+        };
+        StarknetError { code, message }
+    }
+}
+
 /// Converts a mempool client result to a gateway result. Some errors variants are unreachable in
 /// Gateway context, and some are not considered errors from the gateway's perspective.
 pub fn mempool_client_result_to_gw_spec_result(
     value: MempoolClientResult<()>,
-) -> GatewayResult<()> {
+) -> Result<(), GatewaySpecError> {
     let err = match value {
         Ok(()) => return Ok(()),
         Err(err) => err,
@@ -123,9 +196,64 @@ pub fn mempool_client_result_to_gw_spec_result(
     }
 }
 
+pub fn mempool_client_err_to_deprecated_gw_err(err: MempoolClientError) -> StarknetError {
+    let message = format!("{}", err);
+    let code = match err {
+        MempoolClientError::ClientError(client_error) => {
+            error!("Mempool client error: {}", client_error);
+            StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.InternalError".to_string())
+        }
+        MempoolClientError::MempoolError(mempool_error) => {
+            debug!("Mempool error: {}", mempool_error);
+            match mempool_error {
+                MempoolError::DuplicateNonce { .. } => StarknetErrorCode::KnownErrorCode(
+                    KnownStarknetErrorCode::InvalidTransactionNonce,
+                ),
+                MempoolError::NonceTooLarge(..) =>
+                // We didn't have this kind of an error.
+                {
+                    StarknetErrorCode::UnknownErrorCode(
+                        "StarknetErrorCode.NONCE_TOO_LARGE".to_string(),
+                    )
+                }
+                MempoolError::NonceTooOld { .. } => StarknetErrorCode::KnownErrorCode(
+                    KnownStarknetErrorCode::InvalidTransactionNonce,
+                ),
+                MempoolError::DuplicateTransaction { .. } => {
+                    StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::DuplicatedTransaction)
+                }
+                // TODO(Dafna): change to a more appropriate error, once we have it.
+                MempoolError::MempoolFull => StarknetErrorCode::KnownErrorCode(
+                    KnownStarknetErrorCode::TransactionLimitExceeded,
+                ),
+                MempoolError::P2pPropagatorClientError { .. } => {
+                    // Not an error from the gateway's perspective.
+                    StarknetErrorCode::UnknownErrorCode(
+                        "StarknetErrorCode.INTERNAL_ERROR".to_string(),
+                    )
+                }
+                MempoolError::TransactionNotFound { .. } => {
+                    // This error is not expected to happen within the gateway, only from other
+                    // mempool clients.
+                    unreachable!("Unexpected mempool error in gateway context: {}", mempool_error);
+                }
+            }
+        }
+    };
+    StarknetError { code, message }
+}
+
+/// Converts a mempool client result to a gateway result. Some errors variants are unreachable in
+/// Gateway context, and some are not considered errors from the gateway's perspective.
+pub fn mempool_client_result_to_deprecated_gw_result(
+    value: MempoolClientResult<()>,
+) -> GatewayResult<()> {
+    value.map_err(mempool_client_err_to_deprecated_gw_err)
+}
+
 pub type StatelessTransactionValidatorResult<T> = Result<T, StatelessTransactionValidatorError>;
 
-pub type StatefulTransactionValidatorResult<T> = Result<T, GatewaySpecError>;
+pub type StatefulTransactionValidatorResult<T> = Result<T, StarknetError>;
 
 #[derive(Debug, Error)]
 pub enum RPCStateReaderError {
