@@ -47,6 +47,7 @@ const BLOCK_GENERATION_DEADLINE_SECS: u64 = 1;
 const BLOCK_GENERATION_LONG_DEADLINE_SECS: u64 = 5;
 const TX_CHANNEL_SIZE: usize = 50;
 const TX_CHUNK_SIZE: usize = 3;
+const TX_POLLING_INTERVAL: u64 = 100;
 
 struct TestExpectations {
     mock_transaction_executor: MockTransactionExecutorTrait,
@@ -467,6 +468,7 @@ async fn run_build_block(
         abort_receiver,
         transaction_converter,
         TX_CHUNK_SIZE,
+        TX_POLLING_INTERVAL,
         BlockBuilderExecutionParams { deadline, fail_on_err },
     );
 
