@@ -483,7 +483,7 @@ fn test_add_tx_rejects_duplicate_tx_hash(mut mempool: Mempool) {
 }
 
 #[rstest]
-#[case::lower_nonce(0, MempoolError::NonceTooOld { address: contract_address!("0x0"), nonce: nonce!(0) })]
+#[case::lower_nonce(0, MempoolError::NonceTooOld { address: contract_address!("0x0"), tx_nonce: nonce!(0), account_nonce: nonce!(1) })]
 #[case::equal_nonce(1, MempoolError::DuplicateNonce { address: contract_address!("0x0"), nonce: nonce!(1) })]
 fn test_add_tx_rejects_tx_of_queued_nonce(
     #[case] tx_nonce: u64,
@@ -536,7 +536,11 @@ fn add_tx_with_committed_account_nonce(mut mempool: Mempool) {
     add_tx_expect_error(
         &mut mempool,
         &input,
-        MempoolError::NonceTooOld { address: contract_address!("0x0"), nonce: nonce!(0) },
+        MempoolError::NonceTooOld {
+            address: contract_address!("0x0"),
+            tx_nonce: nonce!(0),
+            account_nonce: nonce!(1),
+        },
     );
 
     // Add a transaction with nonce 1. Should be accepted.
@@ -1259,7 +1263,11 @@ fn committed_account_nonce_cleanup() {
     add_tx_expect_error(
         &mut mempool,
         &input_tx,
-        MempoolError::NonceTooOld { address: contract_address!("0x0"), nonce: nonce!(0) },
+        MempoolError::NonceTooOld {
+            address: contract_address!("0x0"),
+            tx_nonce: nonce!(0),
+            account_nonce: nonce!(1),
+        },
     );
 
     // Commit an empty block, and check the transaction is still rejected.
@@ -1267,7 +1275,11 @@ fn committed_account_nonce_cleanup() {
     add_tx_expect_error(
         &mut mempool,
         &input_tx,
-        MempoolError::NonceTooOld { address: contract_address!("0x0"), nonce: nonce!(0) },
+        MempoolError::NonceTooOld {
+            address: contract_address!("0x0"),
+            tx_nonce: nonce!(0),
+            account_nonce: nonce!(1),
+        },
     );
 
     // Commit another empty block. This should remove the previously committed nonce, and
