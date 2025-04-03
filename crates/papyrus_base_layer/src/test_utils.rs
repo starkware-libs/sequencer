@@ -1,12 +1,17 @@
 use std::fs::File;
 use std::process::Command;
 
+use alloy::network::TransactionBuilder;
 use alloy::node_bindings::{Anvil, AnvilInstance, NodeError as AnvilError};
 pub(crate) use alloy::primitives::Address as EthereumContractAddress;
+use alloy::primitives::U256;
+use alloy::providers::Provider;
+use alloy::rpc::types::TransactionRequest;
 use colored::*;
 use ethers::utils::{Ganache, GanacheInstance};
 use tar::Archive;
 use tempfile::{tempdir, TempDir};
+use tracing::info;
 use url::Url;
 
 use crate::ethereum_base_layer_contract::{
@@ -25,6 +30,7 @@ const MINIMAL_GANACHE_VERSION: u8 = 7;
 const DEFAULT_ANVIL_PORT: u16 = 8545;
 // This address is commonly used as the L1 address of the Starknet core contract.
 pub const DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS: &str = "0x5fbdb2315678afecb367f032d93f642f64180aa3";
+pub const DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX: usize = 3;
 
 // Returns a Ganache instance, preset with a Starknet core contract and some state updates:
 // Starknet contract address: 0xe2aF2c1AE11fE13aFDb7598D0836398108a4db0A
@@ -131,4 +137,39 @@ pub async fn spawn_anvil_and_deploy_starknet_l1_contract(
 pub async fn deploy_starknet_l1_contract(config: EthereumBaseLayerConfig) -> StarknetL1Contract {
     let ethereum_base_layer_contract = EthereumBaseLayerContract::new(config);
     Starknet::deploy(ethereum_base_layer_contract.contract.provider().clone()).await.unwrap()
+}
+
+pub async fn make_block_history_on_anvil(
+    anvil: &AnvilInstance,
+    base_layer_config: EthereumBaseLayerConfig,
+    num_blocks: usize,
+) {
+    let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone());
+    let provider = base_layer.contract.provider();
+    let sender_address = anvil.addresses()[DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX];
+    let receiver_address = anvil.addresses()[DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX + 1];
+    let mut prev_block_number =
+        usize::try_from(provider.get_block_number().await.unwrap()).unwrap();
+    for _ in 0..num_blocks {
+        let tx = TransactionRequest::default()
+            .with_from(sender_address)
+            .with_to(receiver_address)
+            .with_value(U256::from(100));
+        let pending =
+            provider.send_transaction(tx).await.expect("Could not post transaction to base layer");
+        let receipt: alloy::rpc::types::TransactionReceipt = pending
+            .get_receipt()
+            .await
+            .expect("Could not get receipt for transaction to base layer");
+        info!(
+            "Added transaction to block: {} with gas price: {}, blob price: {}",
+            receipt.block_number.unwrap(),
+            receipt.effective_gas_price,
+            receipt.blob_gas_price.unwrap()
+        );
+        // Make sure the transactions trigger creation of new blocks.
+        let new_block_number = usize::try_from(receipt.block_number.unwrap()).unwrap();
+        assert!(new_block_number > prev_block_number);
+        prev_block_number = new_block_number;
+    }
 }
