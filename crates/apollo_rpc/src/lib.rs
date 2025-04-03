@@ -105,7 +105,7 @@ impl SerializeConfig for RpcConfig {
             ser_param(
                 "chain_id",
                 &self.chain_id,
-                "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+                "The chain to follow. For more details see https://docs.starknet.io/architecture-and-concepts/network-architecture/transactions/#chain-id.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
