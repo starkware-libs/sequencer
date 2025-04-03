@@ -8,7 +8,7 @@ use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::type_name::short_type_name;
 use axum::extract::State;
 use axum::http::HeaderMap;
-use axum::routing::post;
+use axum::routing::{get, post};
 use axum::{async_trait, Json, Router};
 use starknet_api::rpc_transaction::RpcTransaction;
 use tracing::{debug, info, instrument, trace};
@@ -63,6 +63,16 @@ impl HttpServer {
             // Rest api endpoint
             .route("/gateway/add_transaction", post(add_tx))
             .with_state(self.app_state.clone())
+            // TODO(shahak): Remove this once we fix the centralized simulator to not use is_alive
+            // and is_ready.
+            .route(
+                "/gateway/is_alive",
+                get(|| futures::future::ready("Gateway is alive!".to_owned()))
+            )
+            .route(
+                "/gateway/is_ready",
+                get(|| futures::future::ready("Gateway is ready!".to_owned()))
+            )
     }
 }
 
