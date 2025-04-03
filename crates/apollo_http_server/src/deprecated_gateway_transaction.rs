@@ -1,4 +1,6 @@
 use serde::{Deserialize, Serialize};
+#[cfg(any(feature = "testing", test))]
+use starknet_api::compression_utils::compress_and_encode;
 use starknet_api::compression_utils::{decode_and_decompress, CompressionError};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
@@ -65,6 +67,29 @@ impl TryFrom<DeprecatedGatewayTransactionV3> for RpcTransaction {
     }
 }
 
+#[cfg(any(feature = "testing", test))]
+impl From<RpcTransaction> for DeprecatedGatewayTransactionV3 {
+    fn from(value: RpcTransaction) -> Self {
+        match value {
+            RpcTransaction::Declare(RpcDeclareTransaction::V3(declare_tx)) => {
+                DeprecatedGatewayTransactionV3::Declare(DeprecatedGatewayDeclareTransaction::V3(
+                    declare_tx.into(),
+                ))
+            }
+            RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(deploy_account_tx)) => {
+                DeprecatedGatewayTransactionV3::DeployAccount(
+                    DeprecatedGatewayDeployAccountTransaction::V3(deploy_account_tx.into()),
+                )
+            }
+            RpcTransaction::Invoke(RpcInvokeTransaction::V3(invoke_tx)) => {
+                DeprecatedGatewayTransactionV3::Invoke(DeprecatedGatewayInvokeTransaction::V3(
+                    invoke_tx.into(),
+                ))
+            }
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
 #[serde(tag = "version")]
 pub enum DeprecatedGatewayInvokeTransaction {
@@ -109,7 +134,7 @@ impl From<RpcInvokeTransactionV3> for DeprecatedGatewayInvokeTransactionV3 {
         Self {
             calldata: value.calldata,
             tip: value.tip,
-            resource_bounds: DeprecatedGatewayAllResourceBounds::from(value.resource_bounds),
+            resource_bounds: value.resource_bounds.into(),
             paymaster_data: value.paymaster_data,
             sender_address: value.sender_address,
             signature: value.signature,
@@ -159,6 +184,24 @@ impl From<DeprecatedGatewayDeployAccountTransactionV3> for RpcDeployAccountTrans
     }
 }
 
+#[cfg(any(feature = "testing", test))]
+impl From<RpcDeployAccountTransactionV3> for DeprecatedGatewayDeployAccountTransactionV3 {
+    fn from(value: RpcDeployAccountTransactionV3) -> Self {
+        Self {
+            signature: value.signature,
+            nonce: value.nonce,
+            class_hash: value.class_hash,
+            contract_address_salt: value.contract_address_salt,
+            constructor_calldata: value.constructor_calldata,
+            resource_bounds: value.resource_bounds.into(),
+            tip: value.tip,
+            paymaster_data: value.paymaster_data,
+            nonce_data_availability_mode: value.nonce_data_availability_mode,
+            fee_data_availability_mode: value.fee_data_availability_mode,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
 #[serde(tag = "version")]
 pub enum DeprecatedGatewayDeclareTransaction {
@@ -203,6 +246,27 @@ impl TryFrom<DeprecatedGatewayDeclareTransactionV3> for RpcDeclareTransactionV3 
     }
 }
 
+#[cfg(any(feature = "testing", test))]
+impl From<RpcDeclareTransactionV3> for DeprecatedGatewayDeclareTransactionV3 {
+    fn from(value: RpcDeclareTransactionV3) -> Self {
+        Self {
+            sender_address: value.sender_address,
+            compiled_class_hash: value.compiled_class_hash,
+            signature: value.signature,
+            nonce: value.nonce,
+            contract_class: value.contract_class.try_into().expect(
+                "Failed to convert SierraContractClass to DeprecatedGatewaySierraContractClass",
+            ),
+            resource_bounds: value.resource_bounds.into(),
+            tip: value.tip,
+            paymaster_data: value.paymaster_data,
+            account_deployment_data: value.account_deployment_data,
+            nonce_data_availability_mode: value.nonce_data_availability_mode,
+            fee_data_availability_mode: value.fee_data_availability_mode,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, Deserialize, Serialize, Hash)]
 pub struct DeprecatedGatewaySierraContractClass {
     // The sierra program is compressed and encoded in base64.
@@ -224,6 +288,22 @@ impl TryFrom<DeprecatedGatewaySierraContractClass> for SierraContractClass {
             contract_class_version: rest_sierra_contract_class.contract_class_version,
             entry_points_by_type: rest_sierra_contract_class.entry_points_by_type,
             abi: rest_sierra_contract_class.abi,
+        })
+    }
+}
+
+#[cfg(any(feature = "testing", test))]
+impl TryFrom<SierraContractClass> for DeprecatedGatewaySierraContractClass {
+    type Error = CompressionError;
+
+    fn try_from(sierra_contract_class: SierraContractClass) -> Result<Self, Self::Error> {
+        let sierra_program =
+            compress_and_encode(serde_json::to_value(sierra_contract_class.sierra_program)?)?;
+        Ok(DeprecatedGatewaySierraContractClass {
+            sierra_program,
+            contract_class_version: sierra_contract_class.contract_class_version,
+            entry_points_by_type: sierra_contract_class.entry_points_by_type,
+            abi: sierra_contract_class.abi,
         })
     }
 }

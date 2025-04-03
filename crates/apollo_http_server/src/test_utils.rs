@@ -7,17 +7,14 @@ use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use axum::body::Body;
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use hyper::StatusCode;
-use mempool_test_utils::starknet_api_test_utils::invoke_tx;
+use mempool_test_utils::starknet_api_test_utils::{declare_tx, deploy_account_tx, invoke_tx};
 use reqwest::{Client, Response};
 use serde::Serialize;
-use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcTransaction};
+use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 
 use crate::config::HttpServerConfig;
-use crate::deprecated_gateway_transaction::{
-    DeprecatedGatewayInvokeTransaction,
-    DeprecatedGatewayTransactionV3,
-};
+use crate::deprecated_gateway_transaction::DeprecatedGatewayTransactionV3;
 use crate::http_server::HttpServer;
 
 /// A test utility client for interacting with an http server.
@@ -138,17 +135,18 @@ pub async fn add_tx_http_client(
     http_client_server_setup(mock_gateway_client, http_server_config).await
 }
 
-pub fn rpc_tx() -> RpcTransaction {
+pub fn rpc_invoke_tx() -> RpcTransaction {
     invoke_tx(CairoVersion::default())
 }
 
-pub fn deprecated_gateway_tx() -> DeprecatedGatewayTransactionV3 {
-    let tx = invoke_tx(CairoVersion::default());
-    if let RpcTransaction::Invoke(RpcInvokeTransaction::V3(invoke_tx)) = tx {
-        DeprecatedGatewayTransactionV3::Invoke(DeprecatedGatewayInvokeTransaction::V3(
-            invoke_tx.into(),
-        ))
-    } else {
-        panic!("Expected invoke transaction")
-    }
+pub fn deprecated_gateway_invoke_tx() -> DeprecatedGatewayTransactionV3 {
+    DeprecatedGatewayTransactionV3::from(rpc_invoke_tx())
+}
+
+pub fn deprecated_gateway_deploy_account_tx() -> DeprecatedGatewayTransactionV3 {
+    DeprecatedGatewayTransactionV3::from(deploy_account_tx())
+}
+
+pub fn deprecated_gateway_declare_tx() -> DeprecatedGatewayTransactionV3 {
+    DeprecatedGatewayTransactionV3::from(declare_tx())
 }

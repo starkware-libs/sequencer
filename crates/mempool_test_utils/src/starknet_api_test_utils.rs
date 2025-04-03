@@ -140,6 +140,13 @@ pub fn executable_invoke_tx(cairo_version: CairoVersion) -> AccountTransaction {
     tx_generator.account_with_id_mut(0).generate_executable_invoke()
 }
 
+pub fn deploy_account_tx() -> RpcTransaction {
+    generate_deploy_account_with_salt(
+        &FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+        ContractAddressSalt(0_u64.into()),
+    )
+}
+
 pub fn generate_deploy_account_with_salt(
     account: &FeatureContract,
     contract_address_salt: ContractAddressSalt,

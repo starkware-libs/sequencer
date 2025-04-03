@@ -10,7 +10,12 @@ use crate::metrics::{
     ADDED_TRANSACTIONS_SUCCESS,
     ADDED_TRANSACTIONS_TOTAL,
 };
-use crate::test_utils::{add_tx_http_client, deprecated_gateway_tx, rpc_tx, GatewayTransaction};
+use crate::test_utils::{
+    add_tx_http_client,
+    deprecated_gateway_invoke_tx,
+    rpc_invoke_tx,
+    GatewayTransaction,
+};
 
 type InvalidTransaction = &'static str;
 
@@ -28,8 +33,8 @@ fn success_gateway_client_output() -> GatewayOutput {
 }
 
 #[rstest]
-#[case::add_deprecated_gateway_tx(0, deprecated_gateway_tx())]
-#[case::add_rpc_tx(1, rpc_tx())]
+#[case::add_deprecated_gateway_tx(0, deprecated_gateway_invoke_tx())]
+#[case::add_rpc_tx(1, rpc_invoke_tx())]
 #[tokio::test]
 async fn add_tx_metrics_test(#[case] index: u16, #[case] tx: impl GatewayTransaction) {
     // Create a mock gateway client that returns a successful response and a failure response.
@@ -54,7 +59,7 @@ async fn add_tx_metrics_test(#[case] index: u16, #[case] tx: impl GatewayTransac
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let prometheus_handle = recorder.handle();
 
-    let http_client = add_tx_http_client(mock_gateway_client, 7 + index).await;
+    let http_client = add_tx_http_client(mock_gateway_client, 9 + index).await;
 
     // Send transactions to the server.
     for _ in std::iter::repeat(()).take(SUCCESS_TXS_TO_SEND + FAILURE_TXS_TO_SEND) {
@@ -85,7 +90,7 @@ async fn add_tx_serde_failure_metrics_test() {
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let prometheus_handle = recorder.handle();
 
-    let http_client = add_tx_http_client(mock_gateway_client, 9).await;
+    let http_client = add_tx_http_client(mock_gateway_client, 11).await;
 
     // Send a transaction that fails deserialization.
     let tx: InvalidTransaction = "invalid transaction";
