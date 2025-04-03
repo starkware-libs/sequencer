@@ -183,14 +183,16 @@ async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) 
         .times(1)
         .return_const(Ok(GatewayOutput::Invoke(InvokeGatewayOutput::new(expected_tx_hash))));
 
-    // Set the failed response.
-    let expected_error = GatewaySpecError::ClassAlreadyDeclared;
-    let expected_err_str =
-        serde_json::to_string(&ErrorObjectOwned::from(expected_error.clone().into_rpc())).unwrap();
+    // Set the failed GatewaySpecError response.
+    let expected_gateway_spec_error = GatewaySpecError::ClassAlreadyDeclared;
+    let expected_gateway_spec_err_str = serde_json::to_string(&ErrorObjectOwned::from(
+        expected_gateway_spec_error.clone().into_rpc(),
+    ))
+    .unwrap();
 
     mock_gateway_client.expect_add_tx().times(1).return_const(Err(
         GatewayClientError::GatewayError(GatewayError::GatewaySpecError {
-            source: expected_error,
+            source: expected_gateway_spec_error,
             p2p_message_metadata: None,
         }),
     ));
@@ -206,8 +208,8 @@ async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) 
     let tx_hash = add_tx_http_client.assert_add_tx_success(tx.clone()).await;
     assert_eq!(tx_hash, expected_tx_hash);
 
-    // Test a failed response.
+    // Test a failed bad request response.
     let error_str = add_tx_http_client.assert_add_tx_error(tx, StatusCode::BAD_REQUEST).await;
-    assert_eq!(error_str, expected_err_str);
+    assert_eq!(error_str, expected_gateway_spec_err_str);
     // TODO(noamsp): mock that gateway client returned client error and check the error.
 }
