@@ -2,7 +2,12 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use apollo_gateway_types::communication::{GatewayClient, GatewayClientError, MockGatewayClient};
-use apollo_gateway_types::errors::{GatewayError, GatewaySpecError};
+use apollo_gateway_types::deprecated_gw_error::{
+    KnownStarknetErrorCode,
+    StarknetError,
+    StarknetErrorCode,
+};
+use apollo_gateway_types::errors::GatewayError;
 use apollo_gateway_types::gateway_types::{GatewayInput, GatewayOutput, InvokeGatewayOutput};
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_mempool_p2p_types::communication::{
@@ -21,6 +26,7 @@ use apollo_test_utils::{get_rng, GetTestInstance};
 use futures::future::{pending, ready, BoxFuture};
 use futures::stream::StreamExt;
 use futures::{FutureExt, SinkExt};
+use starknet_api::core::Nonce;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 
@@ -146,8 +152,13 @@ async fn incoming_p2p_tx_fails_on_gateway_client() {
     let mut mock_gateway_client = MockGatewayClient::new();
     mock_gateway_client.expect_add_tx().return_once(move |_| {
         add_tx_indicator_sender.send(()).unwrap();
-        Err(GatewayClientError::GatewayError(GatewayError::GatewaySpecError {
-            source: GatewaySpecError::DuplicateTx,
+        Err(GatewayClientError::GatewayError(GatewayError::DeprecatedGatewayError {
+            source: StarknetError {
+                code: StarknetErrorCode::KnownErrorCode(
+                    KnownStarknetErrorCode::DuplicatedTransaction,
+                ),
+                message: format!("Transaction with hash {} already exists.", Nonce::default()),
+            },
             p2p_message_metadata: Some(message_metadata_clone),
         }))
     });
