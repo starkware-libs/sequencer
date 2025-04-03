@@ -1,5 +1,6 @@
 use std::any::Any;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use cairo_lang_casm::hints::{Hint, StarknetHint};
 use cairo_lang_runner::casm_run::execute_core_hint_base;
@@ -13,25 +14,39 @@ use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::runners::cairo_runner::{ResourceTracker, RunResources};
 use cairo_vm::vm::vm_core::VirtualMachine;
-use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
+use num_traits::ToPrimitive;
+use starknet_api::block::BlockHash;
+use starknet_api::contract_class::EntryPointType;
+use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::{
     AllResourceBounds,
     Calldata,
+    Fee,
     Resource,
     ResourceBounds,
     ValidResourceBounds,
+};
+use starknet_api::transaction::{
+    signed_tx_version,
+    InvokeTransactionV0,
+    TransactionHasher,
+    TransactionOptions,
+    TransactionVersion,
 };
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::{Felt, FromStrError};
 use thiserror::Error;
 
+use super::{CallContractResponse, SyscallRequest};
 use crate::abi::sierra_types::SierraTypeError;
 use crate::blockifier_versioned_constants::{GasCosts, SyscallGasCost};
+use crate::context::TransactionContext;
 use crate::execution::common_hints::{ExecutionMode, HintExecutionResult};
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::{
     CallEntryPoint,
+    CallType,
     EntryPointExecutionContext,
     ExecutableCallEntryPoint,
 };
@@ -71,20 +86,6 @@ use crate::execution::syscalls::secp::{
 use crate::execution::syscalls::syscall_base::SyscallHandlerBase;
 use crate::execution::syscalls::syscall_executor::SyscallExecutor;
 use crate::execution::syscalls::{
-    call_contract,
-    deploy,
-    emit_event,
-    get_block_hash,
-    get_class_hash_at,
-    get_execution_info,
-    keccak,
-    library_call,
-    meta_tx_v0,
-    replace_class,
-    send_message_to_l1,
-    sha256_process_block,
-    storage_read,
-    storage_write,
     CallContractRequest,
     DeployRequest,
     DeployResponse,
@@ -117,7 +118,12 @@ use crate::execution::syscalls::{
 };
 use crate::state::errors::StateError;
 use crate::state::state_api::State;
-use crate::transaction::objects::{CurrentTransactionInfo, TransactionInfo};
+use crate::transaction::objects::{
+    CommonAccountFields,
+    CurrentTransactionInfo,
+    DeprecatedTransactionInfo,
+    TransactionInfo,
+};
 
 #[derive(Clone, Debug, Default)]
 pub struct SyscallUsage {
@@ -600,7 +606,37 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<super::CallContractResponse> {
-        call_contract(request, vm, syscall_handler, remaining_gas)
+        let storage_address = request.contract_address;
+        let class_hash = syscall_handler.base.state.get_class_hash_at(storage_address)?;
+        let selector = request.function_selector;
+        if syscall_handler.is_validate_mode()
+            && syscall_handler.storage_address() != storage_address
+        {
+            return Err(SyscallExecutionError::InvalidSyscallInExecutionMode {
+                syscall_name: "call_contract".to_string(),
+                execution_mode: syscall_handler.execution_mode(),
+            });
+        }
+        let entry_point = CallEntryPoint {
+            class_hash: None,
+            code_address: Some(storage_address),
+            entry_point_type: EntryPointType::External,
+            entry_point_selector: selector,
+            calldata: request.calldata,
+            storage_address,
+            caller_address: syscall_handler.storage_address(),
+            call_type: CallType::Call,
+            // NOTE: this value might be overridden later on.
+            initial_gas: *remaining_gas,
+        };
+
+        let retdata_segment = execute_inner_call(entry_point, vm, syscall_handler, remaining_gas)
+            .map_err(|error| match error {
+            SyscallExecutionError::Revert { .. } => error,
+            _ => error.as_call_contract_execution_error(class_hash, storage_address, selector),
+        })?;
+
+        Ok(CallContractResponse { segment: retdata_segment })
     }
 
     fn deploy(
@@ -609,43 +645,70 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<DeployResponse> {
-        deploy(request, vm, syscall_handler, remaining_gas)
+        // Increment the Deploy syscall's linear cost counter by the number of elements in the
+        // constructor calldata.
+        syscall_handler.increment_linear_factor_by(
+            &SyscallSelector::Deploy,
+            request.constructor_calldata.0.len(),
+        );
+
+        let (deployed_contract_address, call_info) = syscall_handler.base.deploy(
+            request.class_hash,
+            request.contract_address_salt,
+            request.constructor_calldata,
+            request.deploy_from_zero,
+            remaining_gas,
+        )?;
+        let constructor_retdata =
+            create_retdata_segment(vm, syscall_handler, &call_info.execution.retdata.0)?;
+        syscall_handler.base.inner_calls.push(call_info);
+
+        Ok(DeployResponse { contract_address: deployed_contract_address, constructor_retdata })
     }
 
     fn emit_event(
         request: EmitEventRequest,
-        vm: &mut VirtualMachine,
+        _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
-        remaining_gas: &mut u64,
+        _remaining_gas: &mut u64,
     ) -> SyscallResult<EmitEventResponse> {
-        emit_event(request, vm, syscall_handler, remaining_gas)
+        syscall_handler.base.emit_event(request.content)?;
+        Ok(EmitEventResponse {})
     }
 
+    // TODO(Aner): should this be here or in the trait?
+    /// Returns the block hash of a given block_number.
+    /// Returns the expected block hash if the given block was created at least
+    /// [crate::abi::constants::STORED_BLOCK_HASH_BUFFER] blocks before the current block.
+    /// Otherwise, returns an error.
     fn get_block_hash(
         request: GetBlockHashRequest,
-        vm: &mut VirtualMachine,
+        _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
-        remaining_gas: &mut u64,
+        _remaining_gas: &mut u64,
     ) -> SyscallResult<GetBlockHashResponse> {
-        get_block_hash(request, vm, syscall_handler, remaining_gas)
+        let block_hash = BlockHash(syscall_handler.base.get_block_hash(request.block_number.0)?);
+        Ok(GetBlockHashResponse { block_hash })
     }
 
     fn get_class_hash_at(
         request: GetClassHashAtRequest,
-        vm: &mut VirtualMachine,
+        _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
-        remaining_gas: &mut u64,
+        _remaining_gas: &mut u64,
     ) -> SyscallResult<GetClassHashAtResponse> {
-        get_class_hash_at(request, vm, syscall_handler, remaining_gas)
+        syscall_handler.base.get_class_hash_at(request)
     }
 
     fn get_execution_info(
-        request: GetExecutionInfoRequest,
+        _request: GetExecutionInfoRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
-        remaining_gas: &mut u64,
+        _remaining_gas: &mut u64,
     ) -> SyscallResult<GetExecutionInfoResponse> {
-        get_execution_info(request, vm, syscall_handler, remaining_gas)
+        let execution_info_ptr = syscall_handler.get_or_allocate_execution_info_segment(vm)?;
+
+        Ok(GetExecutionInfoResponse { execution_info_ptr })
     }
 
     fn keccak(
@@ -654,7 +717,29 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<KeccakResponse> {
-        keccak(request, vm, syscall_handler, remaining_gas)
+        let input_length = (request.input_end - request.input_start)?;
+
+        let data = vm.get_integer_range(request.input_start, input_length)?;
+        let data_u64: &[u64] = &data
+            .iter()
+            .map(|felt| {
+                felt.to_u64().ok_or_else(|| SyscallExecutionError::InvalidSyscallInput {
+                    input: **felt,
+                    info: "Invalid input for the keccak syscall.".to_string(),
+                })
+            })
+            .collect::<Result<Vec<u64>, _>>()?;
+
+        let (state, n_rounds) = syscall_handler.base.keccak(data_u64, remaining_gas)?;
+
+        // For the keccak system call we want to count the number of rounds rather than the number
+        // of syscall invocations.
+        syscall_handler.increment_syscall_count_by(&SyscallSelector::Keccak, n_rounds);
+
+        Ok(KeccakResponse {
+            result_low: (Felt::from(state[1]) * Felt::TWO.pow(64_u128)) + Felt::from(state[0]),
+            result_high: (Felt::from(state[3]) * Felt::TWO.pow(64_u128)) + Felt::from(state[2]),
+        })
     }
 
     fn library_call(
@@ -663,7 +748,31 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<LibraryCallResponse> {
-        library_call(request, vm, syscall_handler, remaining_gas)
+        let entry_point = CallEntryPoint {
+            class_hash: Some(request.class_hash),
+            code_address: None,
+            entry_point_type: EntryPointType::External,
+            entry_point_selector: request.function_selector,
+            calldata: request.calldata,
+            // The call context remains the same in a library call.
+            storage_address: syscall_handler.storage_address(),
+            caller_address: syscall_handler.caller_address(),
+            call_type: CallType::Delegate,
+            // NOTE: this value might be overridden later on.
+            initial_gas: *remaining_gas,
+        };
+
+        let retdata_segment = execute_inner_call(entry_point, vm, syscall_handler, remaining_gas)
+            .map_err(|error| match error {
+            SyscallExecutionError::Revert { .. } => error,
+            _ => error.as_lib_call_execution_error(
+                request.class_hash,
+                syscall_handler.storage_address(),
+                request.function_selector,
+            ),
+        })?;
+
+        Ok(LibraryCallResponse { segment: retdata_segment })
     }
 
     fn meta_tx_v0(
@@ -672,25 +781,136 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<MetaTxV0Response> {
-        meta_tx_v0(request, vm, syscall_handler, remaining_gas)
+        if syscall_handler.is_validate_mode() {
+            return Err(SyscallExecutionError::InvalidSyscallInExecutionMode {
+                syscall_name: "meta_tx_v0".to_string(),
+                execution_mode: syscall_handler.execution_mode(),
+            });
+        }
+
+        // Increment the MetaTxV0 syscall's linear cost counter by the number of elements in the
+        // calldata.
+        syscall_handler.increment_linear_factor_by(
+            &SyscallSelector::MetaTxV0,
+            request.get_linear_factor_length(),
+        );
+
+        let storage_address = request.contract_address;
+        let selector = request.entry_point_selector;
+        let class_hash = syscall_handler.base.state.get_class_hash_at(storage_address)?;
+        let entry_point = CallEntryPoint {
+            class_hash: None,
+            code_address: Some(storage_address),
+            entry_point_type: EntryPointType::External,
+            entry_point_selector: selector,
+            calldata: request.calldata.clone(),
+            storage_address,
+            caller_address: ContractAddress::default(),
+            call_type: CallType::Call,
+            // NOTE: this value might be overridden later on.
+            initial_gas: *remaining_gas,
+        };
+
+        let old_tx_context = syscall_handler.base.context.tx_context.clone();
+        let only_query = old_tx_context.tx_info.only_query();
+
+        // Compute meta-transaction hash.
+        let transaction_hash = InvokeTransactionV0 {
+            max_fee: Fee(0),
+            signature: request.signature.clone(),
+            contract_address: storage_address,
+            entry_point_selector: selector,
+            calldata: request.calldata,
+        }
+        .calculate_transaction_hash(
+            &syscall_handler.base.context.tx_context.block_context.chain_info.chain_id,
+            &signed_tx_version(&TransactionVersion::ZERO, &TransactionOptions { only_query }),
+        )?;
+
+        // Replace `tx_context`.
+        let new_tx_info = TransactionInfo::Deprecated(DeprecatedTransactionInfo {
+            common_fields: CommonAccountFields {
+                transaction_hash,
+                version: TransactionVersion::ZERO,
+                signature: request.signature,
+                nonce: Nonce(0.into()),
+                sender_address: storage_address,
+                only_query,
+            },
+            max_fee: Fee(0),
+        });
+        syscall_handler.base.context.tx_context = Arc::new(TransactionContext {
+            block_context: old_tx_context.block_context.clone(),
+            tx_info: new_tx_info,
+        });
+
+        let retdata_segment = execute_inner_call(entry_point, vm, syscall_handler, remaining_gas)
+            .map_err(|error| match error {
+            SyscallExecutionError::Revert { .. } => error,
+            _ => {
+                // TODO(lior): Change to meta-tx specific error.
+                error.as_call_contract_execution_error(class_hash, storage_address, selector)
+            }
+        })?;
+
+        // Restore the old `tx_context`.
+        syscall_handler.base.context.tx_context = old_tx_context;
+
+        Ok(MetaTxV0Response { segment: retdata_segment })
     }
 
     fn sha256_process_block(
         request: Sha256ProcessBlockRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
-        remaining_gas: &mut u64,
+        _remaining_gas: &mut u64,
     ) -> SyscallResult<Sha256ProcessBlockResponse> {
-        sha256_process_block(request, vm, syscall_handler, remaining_gas)
+        const SHA256_BLOCK_SIZE: usize = 16;
+
+        let data = vm.get_integer_range(request.input_start, SHA256_BLOCK_SIZE)?;
+        const SHA256_STATE_SIZE: usize = 8;
+        let prev_state = vm.get_integer_range(request.state_ptr, SHA256_STATE_SIZE)?;
+
+        let data_as_bytes = sha2::digest::generic_array::GenericArray::from_exact_iter(
+            data.iter().flat_map(|felt| {
+                felt.to_bigint()
+                    .to_u32()
+                    .expect("libfunc should ensure the input is an [u32; 16].")
+                    .to_be_bytes()
+            }),
+        )
+        .expect(
+            "u32.to_be_bytes() returns 4 bytes, and data.len() == 16. So data contains 64 bytes.",
+        );
+
+        let mut state_as_words: [u32; SHA256_STATE_SIZE] = core::array::from_fn(|i| {
+            prev_state[i].to_bigint().to_u32().expect(
+                "libfunc only accepts SHA256StateHandle which can only be created from an \
+                 Array<u32>.",
+            )
+        });
+
+        sha2::compress256(&mut state_as_words, &[data_as_bytes]);
+
+        let segment = syscall_handler.sha256_segment_end_ptr.unwrap_or(vm.add_memory_segment());
+
+        let response = segment;
+        let data: Vec<MaybeRelocatable> =
+            state_as_words.iter().map(|&arg| MaybeRelocatable::from(Felt::from(arg))).collect();
+
+        syscall_handler.sha256_segment_end_ptr = Some(vm.load_data(segment, &data)?);
+
+        Ok(Sha256ProcessBlockResponse { state_ptr: response })
     }
 
     fn replace_class(
         request: ReplaceClassRequest,
-        vm: &mut VirtualMachine,
+        _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
-        remaining_gas: &mut u64,
+        _remaining_gas: &mut u64,
     ) -> SyscallResult<ReplaceClassResponse> {
-        replace_class(request, vm, syscall_handler, remaining_gas)
+        syscall_handler.base.replace_class(request.class_hash)?;
+        Ok(ReplaceClassResponse {})
     }
 
     fn secp256k1_add(
@@ -785,29 +1005,32 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
 
     fn send_message_to_l1(
         request: SendMessageToL1Request,
-        vm: &mut VirtualMachine,
+        _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
-        remaining_gas: &mut u64,
+        _remaining_gas: &mut u64,
     ) -> SyscallResult<SendMessageToL1Response> {
-        send_message_to_l1(request, vm, syscall_handler, remaining_gas)
+        syscall_handler.base.send_message_to_l1(request.message)?;
+        Ok(SendMessageToL1Response {})
     }
 
     fn storage_read(
         request: StorageReadRequest,
-        vm: &mut VirtualMachine,
+        _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
-        remaining_gas: &mut u64,
+        _remaining_gas: &mut u64,
     ) -> SyscallResult<StorageReadResponse> {
-        storage_read(request, vm, syscall_handler, remaining_gas)
+        let value = syscall_handler.base.storage_read(request.address)?;
+        Ok(StorageReadResponse { value })
     }
 
     fn storage_write(
         request: StorageWriteRequest,
-        vm: &mut VirtualMachine,
+        _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
-        remaining_gas: &mut u64,
+        _remaining_gas: &mut u64,
     ) -> SyscallResult<StorageWriteResponse> {
-        storage_write(request, vm, syscall_handler, remaining_gas)
+        syscall_handler.base.storage_write(request.address, request.value)?;
+        Ok(StorageWriteResponse {})
     }
 }
 
