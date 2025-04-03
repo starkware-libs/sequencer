@@ -25,6 +25,8 @@ c-kzg.workspace = true
 cairo-lang-runner.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-vm = { workspace = true, features = ["extensive_hints"] }
+derive_more.workspace = true
+ethnum.workspace = true
 indexmap.workspace = true
 indoc.workspace = true
 log.workspace = true
