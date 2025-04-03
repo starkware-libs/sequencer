@@ -673,7 +673,7 @@ pub fn create_state_sync_configs(
         .into_iter()
         .map(|network_config| StateSyncConfig {
             storage_config: state_sync_storage_config.clone(),
-            network_config,
+            network_config: Some(network_config),
             ..Default::default()
         })
         .collect()
