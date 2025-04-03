@@ -1,4 +1,5 @@
 use apollo_gateway_types::communication::GatewayClientError;
+use apollo_gateway_types::deprecated_gw_error::{StarknetError, StarknetErrorCode};
 use apollo_gateway_types::errors::GatewayError;
 use axum::response::{IntoResponse, Response};
 use hyper::StatusCode;
@@ -56,36 +57,30 @@ fn serde_error_into_response(err: serde_json::Error) -> Response {
 }
 
 fn gw_client_err_into_response(err: GatewayClientError) -> Response {
-    let (response_code, general_rpc_error) = match err {
+    let (response_code, deprecated_gw_error) = match err {
         GatewayClientError::ClientError(e) => {
             error!("Encountered a ClientError: {}", e);
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                jsonrpsee::types::ErrorObject::owned(
-                    ErrorCode::InternalError.code(),
-                    "Internal error",
-                    None::<()>,
-                ),
+                StarknetError {
+                    code: StarknetErrorCode::UnknownErrorCode(
+                        "StarknetErrorCode.UNEXPECTED_FAILURE".to_string(),
+                    ),
+                    message: "Internal error".to_string(),
+                },
             )
         }
-        GatewayClientError::GatewayError(GatewayError::GatewaySpecError {
+        GatewayClientError::GatewayError(GatewayError::DeprecatedGWError {
             source,
             p2p_message_metadata: _,
         }) => {
             // TODO(yair): Find out what is the p2p_message_metadata and whether it needs to be
             // added to the error response.
-            (StatusCode::BAD_REQUEST, {
-                let rpc_spec_error = source.into_rpc();
-                jsonrpsee::types::ErrorObject::owned(
-                    ErrorCode::ServerError(rpc_spec_error.code).code(),
-                    rpc_spec_error.message,
-                    rpc_spec_error.data,
-                )
-            })
+            (StatusCode::BAD_REQUEST, source)
         }
     };
 
-    let response_body = serialize_error(&general_rpc_error);
+    let response_body = serialize_error(&deprecated_gw_error);
 
     (response_code, response_body).into_response()
 }

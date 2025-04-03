@@ -6,7 +6,11 @@ use apollo_class_manager_types::transaction_converter::{
     TransactionConverterTrait,
 };
 use apollo_class_manager_types::SharedClassManagerClient;
-use apollo_gateway_types::errors::GatewaySpecError;
+use apollo_gateway_types::deprecated_gw_error::{
+    KnownStarknetErrorCode,
+    StarknetError,
+    StarknetErrorCode,
+};
 use apollo_gateway_types::gateway_types::{
     DeclareGatewayOutput,
     DeployAccountGatewayOutput,
@@ -21,7 +25,7 @@ use apollo_proc_macros::sequencer_latency_histogram;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use axum::async_trait;
 use blockifier::context::ChainInfo;
-use starknet_api::executable_transaction::AccountTransaction;
+use starknet_api::executable_transaction::{AccountTransaction, ValidateCompiledClassHashError};
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
@@ -30,7 +34,7 @@ use starknet_api::rpc_transaction::{
 use tracing::{debug, error, instrument, warn, Span};
 
 use crate::config::GatewayConfig;
-use crate::errors::{mempool_client_result_to_gw_spec_result, GatewayResult};
+use crate::errors::{mempool_client_result_to_deprecated_gw_result, GatewayResult};
 use crate::metrics::{register_metrics, GatewayMetricHandle, GATEWAY_ADD_TX_LATENCY};
 use crate::state_reader::StateReaderFactory;
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
@@ -86,8 +90,11 @@ impl Gateway {
         // TODO(noamsp): Return same error as in Python gateway.
         if self.config.block_declare {
             if let RpcTransaction::Declare(_) = &tx {
-                return Err(GatewaySpecError::UnexpectedError {
-                    data: "Transaction type is temporarily blocked.".to_owned(),
+                return Err(StarknetError {
+                    code: StarknetErrorCode::UnknownErrorCode(
+                        "StarknetErrorCode.BLOCKED_TRANSACTION_TYPE".to_string(),
+                    ),
+                    message: "Transaction type is temporarily blocked.".to_string(),
                 });
             }
         }
@@ -103,13 +110,20 @@ impl Gateway {
                 .await
                 .map_err(|join_err| {
                     error!("Failed to process tx: {}", join_err);
-                    GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
+                    StarknetError {
+                        code: StarknetErrorCode::UnknownErrorCode(
+                            "StarknetErrorCode.INTERNAL_ERROR".to_string(),
+                        ),
+                        message: join_err.to_string(),
+                    }
                 })??;
 
         let gateway_output = create_gateway_output(&add_tx_args.tx);
 
         let add_tx_args = AddTransactionArgsWrapper { args: add_tx_args, p2p_message_metadata };
-        mempool_client_result_to_gw_spec_result(self.mempool_client.add_tx(add_tx_args).await)?;
+        mempool_client_result_to_deprecated_gw_result(
+            self.mempool_client.add_tx(add_tx_args).await,
+        )?;
 
         metric_counters.transaction_sent_to_mempool();
 
@@ -155,9 +169,15 @@ impl ProcessTxBlockingTask {
         let internal_tx = self
             .runtime
             .block_on(self.transaction_converter.convert_rpc_tx_to_internal_rpc_tx(self.tx))
-            .map_err(|err| {
-                warn!("Failed to convert RPC transaction to internal RPC transaction: {}", err);
-                GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
+            .map_err(|e| {
+                warn!("Failed to convert RPC transaction to internal RPC transaction: {}", e);
+                // TODO(yair): Fix this.
+                StarknetError {
+                    code: StarknetErrorCode::UnknownErrorCode(
+                        "StarknetErrorCode.INTERNAL_ERROR".to_string(),
+                    ),
+                    message: e.to_string(),
+                }
             })?;
 
         let executable_tx = self
@@ -166,18 +186,36 @@ impl ProcessTxBlockingTask {
                 self.transaction_converter
                     .convert_internal_rpc_tx_to_executable_tx(internal_tx.clone()),
             )
-            .map_err(|err| {
+            .map_err(|e| {
                 warn!(
                     "Failed to convert internal RPC transaction to executable transaction: {}",
-                    err
+                    e
                 );
-                GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
+                // TODO(yair): Fix this.
+                StarknetError {
+                    code: StarknetErrorCode::UnknownErrorCode(
+                        "StarknetErrorCode.INTERNAL_ERROR".to_string(),
+                    ),
+                    message: e.to_string(),
+                }
             })?;
 
         // Perform post compilation validations.
         if let AccountTransaction::Declare(executable_declare_tx) = &executable_tx {
-            if executable_declare_tx.validate_compiled_class_hash().is_err() {
-                return Err(GatewaySpecError::CompiledClassHashMismatch);
+            if let Err(ValidateCompiledClassHashError::CompiledClassHashMismatch {
+                computed_class_hash,
+                supplied_class_hash,
+            }) = executable_declare_tx.validate_compiled_class_hash()
+            {
+                return Err(StarknetError {
+                    code: StarknetErrorCode::UnknownErrorCode(
+                        "StarknetErrorCode.INVALID_COMPILED_CLASS_HASH".to_string(),
+                    ),
+                    message: format!(
+                        "Computed compiled class hash: {computed_class_hash} does not match the \
+                         given value: {supplied_class_hash}.",
+                    ),
+                });
             }
         }
 
@@ -187,16 +225,21 @@ impl ProcessTxBlockingTask {
         let address = executable_tx.contract_address();
         let nonce = validator.get_nonce(address).map_err(|e| {
             error!("Failed to get nonce for sender address {}: {}", address, e);
-            GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
+            // TODO(yair): Fix this.
+            StarknetError {
+                code: StarknetErrorCode::UnknownErrorCode(
+                    "StarknetErrorCode.INTERNAL_ERROR".to_string(),
+                ),
+                message: e.to_string(),
+            }
         })?;
 
-        self.stateful_tx_validator.run_validate(
-            &executable_tx,
-            nonce,
-            self.mempool_client,
-            validator,
-            self.runtime,
-        )?;
+        self.stateful_tx_validator
+            .run_validate(&executable_tx, nonce, self.mempool_client, validator, self.runtime)
+            .map_err(|e| StarknetError {
+                code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::ValidateFailure),
+                message: e.to_string(),
+            })?;
 
         // TODO(Arni): Add the Sierra and the Casm to the mempool input.
         Ok(AddTransactionArgs { tx: internal_tx, account_state: AccountState { address, nonce } })

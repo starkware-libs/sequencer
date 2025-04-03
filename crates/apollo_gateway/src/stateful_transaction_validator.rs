@@ -1,3 +1,8 @@
+use apollo_gateway_types::deprecated_gw_error::{
+    KnownStarknetErrorCode,
+    StarknetError,
+    StarknetErrorCode,
+};
 use apollo_gateway_types::errors::GatewaySpecError;
 use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_proc_macros::sequencer_latency_histogram;
@@ -23,7 +28,7 @@ use starknet_types_core::felt::Felt;
 use tracing::{debug, error};
 
 use crate::config::StatefulTransactionValidatorConfig;
-use crate::errors::StatefulTransactionValidatorResult;
+use crate::errors::{mempool_client_err_to_deprecated_gw_err, StatefulTransactionValidatorResult};
 use crate::metrics::GATEWAY_VALIDATE_TX_LATENCY;
 use crate::state_reader::{MempoolStateReader, StateReaderFactory};
 
@@ -69,7 +74,16 @@ impl StatefulTransactionValidator {
                 executable_tx.nonce(),
                 account_nonce
             );
-            return Err(GatewaySpecError::InvalidTransactionNonce);
+            return Err(StarknetError {
+                code: StarknetErrorCode::KnownErrorCode(
+                    KnownStarknetErrorCode::InvalidTransactionNonce,
+                ),
+                message: format!(
+                    "Invalid transaction nonce. Expected: {}, got: {}.",
+                    account_nonce,
+                    executable_tx.nonce(),
+                ),
+            });
         }
 
         let skip_validate =
@@ -81,9 +95,10 @@ impl StatefulTransactionValidator {
             ExecutionFlags { only_query, charge_fee, validate: !skip_validate, strict_nonce_check };
 
         let account_tx = AccountTransaction { tx: executable_tx.clone(), execution_flags };
-        validator
-            .validate(account_tx)
-            .map_err(|err| GatewaySpecError::ValidationFailure { data: err.to_string() })?;
+        validator.validate(account_tx).map_err(|e| StarknetError {
+            code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::ValidateFailure),
+            message: e.to_string(),
+        })?;
         Ok(())
     }
 
@@ -147,9 +162,9 @@ fn skip_stateful_validations(
             // to check if the account exists in the mempool since it means that either it has a
             // deploy_account transaction or transactions with future nonces that passed
             // validations.
-            return runtime.block_on(mempool_client.account_tx_in_pool_or_recent_block(tx.sender_address()))
-                // TODO(Arni): consider using mempool_client_result_to_gw_spec_result for error handling.
-                .map_err(|err| GatewaySpecError::UnexpectedError { data: err.to_string() });
+            return runtime
+                .block_on(mempool_client.account_tx_in_pool_or_recent_block(tx.sender_address()))
+                .map_err(mempool_client_err_to_deprecated_gw_err);
         }
     }
 
@@ -159,12 +174,25 @@ fn skip_stateful_validations(
 pub fn get_latest_block_info(
     state_reader_factory: &dyn StateReaderFactory,
 ) -> StatefulTransactionValidatorResult<BlockInfo> {
-    let state_reader = state_reader_factory.get_state_reader_from_latest_block().map_err(|e| {
-        error!("Failed to get state reader from latest block: {}", e);
-        GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
-    })?;
+    let state_reader = state_reader_factory
+        .get_state_reader_from_latest_block()
+        .map_err(|e| {
+            error!("Failed to get state reader from latest block: {}", e);
+            GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
+        })
+        .map_err(|e| StarknetError {
+            code: StarknetErrorCode::UnknownErrorCode(
+                "StarknetErrorCode.INTERNAL_ERROR".to_string(),
+            ),
+            message: e.to_string(),
+        })?;
     state_reader.get_block_info().map_err(|e| {
         error!("Failed to get latest block info: {}", e);
-        GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
+        StarknetError {
+            code: StarknetErrorCode::UnknownErrorCode(
+                "StarknetErrorCode.INTERNAL_ERROR".to_string(),
+            ),
+            message: e.to_string(),
+        }
     })
 }
