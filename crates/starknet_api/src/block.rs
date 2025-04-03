@@ -24,7 +24,7 @@ use crate::data_availability::L1DataAvailabilityMode;
 use crate::execution_resources::GasAmount;
 use crate::hash::StarkHash;
 use crate::serde_utils::{BytesAsHex, PrefixedBytesAsHex};
-use crate::transaction::fields::{Fee, Tip};
+use crate::transaction::fields::{gas_amount_to_hex, hex_to_gas_amount, Fee, Tip};
 use crate::transaction::{Transaction, TransactionHash, TransactionOutput};
 use crate::StarknetApiError;
 
@@ -209,10 +209,9 @@ pub struct BlockHeaderWithoutHash {
     pub l1_gas_price: GasPricePerToken,
     pub l1_data_gas_price: GasPricePerToken,
     pub l2_gas_price: GasPricePerToken,
-    // TODO(Ayelet): Change to GasAmount.
-    pub l2_gas_consumed: u64,
-    // TODO(Ayelet): Change to GasPrice.
-    pub next_l2_gas_price: u64,
+    #[serde(default, serialize_with = "gas_amount_to_hex", deserialize_with = "hex_to_gas_amount")]
+    pub l2_gas_consumed: GasAmount,
+    pub next_l2_gas_price: GasPrice,
     pub state_root: GlobalRoot,
     pub sequencer: SequencerContractAddress,
     pub timestamp: BlockTimestamp,

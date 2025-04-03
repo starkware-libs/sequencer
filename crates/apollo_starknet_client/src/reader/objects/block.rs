@@ -11,6 +11,7 @@ use starknet_api::block::{
     BlockHeaderWithoutHash,
     BlockNumber,
     BlockTimestamp,
+    GasPrice,
     GasPricePerToken,
     StarknetVersion,
 };
@@ -23,6 +24,13 @@ use starknet_api::core::{
     TransactionCommitment,
 };
 use starknet_api::data_availability::L1DataAvailabilityMode;
+use starknet_api::execution_resources::GasAmount;
+use starknet_api::transaction::fields::{
+    gas_amount_to_hex,
+    gas_price_to_hex,
+    hex_to_gas_amount,
+    hex_to_gas_price,
+};
 #[cfg(doc)]
 use starknet_api::transaction::TransactionOutput as starknet_api_transaction_output;
 use starknet_api::transaction::{TransactionHash, TransactionOffsetInBlock};
@@ -36,8 +44,8 @@ use crate::reader::objects::transaction::{
 };
 use crate::reader::{ReaderClientError, ReaderClientResult};
 
-fn default_next_l2_gas_price() -> u64 {
-    1
+fn default_next_l2_gas_price() -> GasPrice {
+    GasPrice(1)
 }
 /// A block as returned by the starknet gateway since V0.13.1.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
@@ -79,14 +87,18 @@ pub struct BlockPostV0_13_1 {
     pub state_diff_length: Option<usize>,
     // New field in V0.14.0
     // TODO(Ayelet): Remove default Serde after 0.14.0, as the feeder gateway returns defaults when
-    // values are missing for older blocks. Change to GasAmount.
-    #[serde(default)]
-    pub l2_gas_consumed: u64,
+    // values are missing for older blocks.
+    #[serde(default, serialize_with = "gas_amount_to_hex", deserialize_with = "hex_to_gas_amount")]
+    pub l2_gas_consumed: GasAmount,
     // New field in V0.14.0
     // TODO(Ayelet): Remove default Serde after 0.14.0, as the feeder gateway returns defaults when
-    // values are missing for older blocks. Change to GasPrice.
-    #[serde(default = "default_next_l2_gas_price")]
-    pub next_l2_gas_price: u64,
+    // values are missing for older blocks.
+    #[serde(
+        default = "default_next_l2_gas_price",
+        serialize_with = "gas_price_to_hex",
+        deserialize_with = "hex_to_gas_price"
+    )]
+    pub next_l2_gas_price: GasPrice,
 }
 
 impl BlockPostV0_13_1 {
@@ -280,13 +292,13 @@ impl Block {
         }
     }
 
-    pub fn l2_gas_consumed(&self) -> u64 {
+    pub fn l2_gas_consumed(&self) -> GasAmount {
         match self {
             Block::PostV0_13_1(block) => block.l2_gas_consumed,
         }
     }
 
-    pub fn next_l2_gas_price(&self) -> u64 {
+    pub fn next_l2_gas_price(&self) -> GasPrice {
         match self {
             Block::PostV0_13_1(block) => block.next_l2_gas_price,
         }
