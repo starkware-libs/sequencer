@@ -156,6 +156,9 @@ pub struct DeclareTransaction {
     pub class_info: ClassInfo,
 }
 
+pub type ExpectedCompiledClassHash = CompiledClassHash;
+pub type SuppliedCompliedClassHash = CompiledClassHash;
+
 impl DeclareTransaction {
     implement_inner_tx_getter_calls!(
         (class_hash, ClassHash),
@@ -190,18 +193,24 @@ impl DeclareTransaction {
     /// Validates that the compiled class hash of the compiled class matches the supplied
     /// compiled class hash.
     /// Relevant only for version 3 transactions.
-    pub fn validate_compiled_class_hash(&self) -> bool {
+    pub fn validate_compiled_class_hash(
+        &self,
+    ) -> Result<(), (ExpectedCompiledClassHash, SuppliedCompliedClassHash)> {
         let supplied_compiled_class_hash = match &self.tx {
             crate::transaction::DeclareTransaction::V3(tx) => tx.compiled_class_hash,
             crate::transaction::DeclareTransaction::V2(tx) => tx.compiled_class_hash,
             crate::transaction::DeclareTransaction::V1(_)
-            | crate::transaction::DeclareTransaction::V0(_) => return true,
+            | crate::transaction::DeclareTransaction::V0(_) => return Ok(()),
         };
 
         let contract_class = &self.class_info.contract_class;
         let compiled_class_hash = contract_class.compiled_class_hash();
 
-        compiled_class_hash == supplied_compiled_class_hash
+        if compiled_class_hash == supplied_compiled_class_hash {
+            Ok(())
+        } else {
+            Err((compiled_class_hash, supplied_compiled_class_hash))
+        }
     }
 
     pub fn contract_class(&self) -> ContractClass {

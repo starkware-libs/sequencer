@@ -176,7 +176,7 @@ impl ProcessTxBlockingTask {
 
         // Perform post compilation validations.
         if let AccountTransaction::Declare(executable_declare_tx) = &executable_tx {
-            if !executable_declare_tx.validate_compiled_class_hash() {
+            if executable_declare_tx.validate_compiled_class_hash().is_err() {
                 return Err(GatewaySpecError::CompiledClassHashMismatch);
             }
         }
