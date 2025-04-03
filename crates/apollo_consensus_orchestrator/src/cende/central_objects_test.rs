@@ -354,7 +354,7 @@ fn central_bouncer_weights() -> CentralBouncerWeights {
 }
 
 fn central_fee_market_info() -> CentralFeeMarketInfo {
-    CentralFeeMarketInfo { l2_gas_consumed: 150000, next_l2_gas_price: 100000 }
+    CentralFeeMarketInfo { l2_gas_consumed: GasAmount(100), next_l2_gas_price: GasPrice(30) }
 }
 
 fn entry_point(idx: usize, selector: u8) -> EntryPoint {
