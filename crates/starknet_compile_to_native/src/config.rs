@@ -19,7 +19,7 @@ pub struct SierraCompilationConfig {
     /// Compilation CPU time limit (in seconds).
     pub max_cpu_time: u64,
     /// Compilation process’s virtual memory (address space) byte limit.
-    pub max_memory_usage: u64,
+    pub max_memory_usage: Option<u64>,
     /// The level of optimization to apply during compilation.
     pub optimization_level: u8,
     /// Compiler binary path.
@@ -32,7 +32,7 @@ impl Default for SierraCompilationConfig {
             compiler_binary_path: None,
             max_file_size: DEFAULT_MAX_FILE_SIZE,
             max_cpu_time: DEFAULT_MAX_CPU_TIME,
-            max_memory_usage: DEFAULT_MAX_MEMORY_USAGE,
+            max_memory_usage: Some(DEFAULT_MAX_MEMORY_USAGE),
             optimization_level: DEFAULT_OPTIMIZATION_LEVEL,
         }
     }
