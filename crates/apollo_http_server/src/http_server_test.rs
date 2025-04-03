@@ -1,5 +1,10 @@
 use apollo_gateway_types::communication::{GatewayClientError, MockGatewayClient};
-use apollo_gateway_types::errors::{GatewayError, GatewaySpecError};
+use apollo_gateway_types::deprecated_gateway_error::{
+    KnownStarknetErrorCode,
+    StarknetError,
+    StarknetErrorCode,
+};
+use apollo_gateway_types::errors::GatewayError;
 use apollo_gateway_types::gateway_types::{
     DeclareGatewayOutput,
     DeployAccountGatewayOutput,
@@ -11,8 +16,6 @@ use axum::body::{Bytes, HttpBody};
 use axum::response::{IntoResponse, Response};
 use axum::Json;
 use hyper::StatusCode;
-use jsonrpsee::types::error::ErrorCode;
-use jsonrpsee::types::ErrorObjectOwned;
 use rstest::rstest;
 use serde_json::Value;
 use starknet_api::test_utils::read_json_file;
@@ -97,9 +100,11 @@ async fn error_into_response() {
     let body = to_bytes(response).await;
     let json: Value = serde_json::from_slice(&body).unwrap();
 
-    assert!(status.is_success());
-    assert_eq!(json.get("code").unwrap(), ErrorCode::ParseError.code());
-    assert_eq!(json.get("message").unwrap().as_str().unwrap(), "Failed to parse the request body.");
+    assert!(!status.is_success(), "{:?}", status);
+    assert_eq!(
+        json.get("code").unwrap(),
+        &serde_json::to_value(&KnownStarknetErrorCode::MalformedRequest).unwrap()
+    );
 }
 
 #[traced_test]
@@ -175,29 +180,26 @@ async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) 
     // Set the successful response.
     mock_gateway_client.expect_add_tx().times(1).return_const(Ok(default_gateway_output()));
 
-    // Set the failed GatewaySpecError response.
-    let expected_gateway_spec_error = GatewaySpecError::ClassAlreadyDeclared;
-    let expected_gateway_spec_err_str = serde_json::to_string(&ErrorObjectOwned::from(
-        expected_gateway_spec_error.clone().into_rpc(),
-    ))
-    .unwrap();
-
+    // Set the failed response.
+    let expected_error = StarknetError {
+        // The error code needs to be mapped to a BAD_REQUEST response (status code 400).
+        code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::ClassAlreadyDeclared),
+        message: "Arbitrary".to_string(),
+    };
+    let expected_err_str = serde_json::to_string(&expected_error).unwrap();
     mock_gateway_client.expect_add_tx().times(1).return_const(Err(
-        GatewayClientError::GatewayError(GatewayError::GatewaySpecError {
-            source: expected_gateway_spec_error,
+        GatewayClientError::GatewayError(GatewayError::DeprecatedGatewayError {
+            source: expected_error,
             p2p_message_metadata: None,
         }),
     ));
 
     // Set the failed Gateway ClientError response.
-    let expected_gateway_client_err_str = serde_json::to_string(&ErrorObjectOwned::owned(
-        ErrorCode::InternalError.code(),
-        "Internal error",
-        None::<()>,
-    ))
-    .unwrap();
+    let expected_gateway_client_err_str =
+        serde_json::to_string(&StarknetError::internal("Internal error")).unwrap();
 
     mock_gateway_client.expect_add_tx().times(1).return_const(Err(
+        // The error code needs to be mapped to a INTERNAL_SERVER_ERROR response (status code 500).
         GatewayClientError::ClientError(ClientError::UnexpectedResponse(
             "mock response".to_string(),
         )),
@@ -211,7 +213,7 @@ async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) 
 
     // Test a failed bad request response.
     let error_str = http_client.assert_add_tx_error(tx.clone(), StatusCode::BAD_REQUEST).await;
-    assert_eq!(error_str, expected_gateway_spec_err_str);
+    assert_eq!(error_str, expected_err_str);
 
     // Test a failed internal server error response.
     let error_str = http_client.assert_add_tx_error(tx, StatusCode::INTERNAL_SERVER_ERROR).await;
