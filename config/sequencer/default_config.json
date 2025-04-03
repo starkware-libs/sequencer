@@ -1205,7 +1205,7 @@
     "value": 1
   },
   "l1_scraper_config.startup_rewind_time_seconds": {
-    "description": "Duration to rewind from latest L1 block when starting scraping.",
+    "description": "Duration in seconds to rewind from latest L1 block when starting scraping.",
     "privacy": "Public",
     "value": 0
   },

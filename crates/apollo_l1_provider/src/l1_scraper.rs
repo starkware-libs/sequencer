@@ -223,7 +223,7 @@ impl SerializeConfig for L1ScraperConfig {
             ser_param(
                 "startup_rewind_time_seconds",
                 &self.startup_rewind_time_seconds.as_secs(),
-                "Duration to rewind from latest L1 block when starting scraping.",
+                "Duration in seconds to rewind from latest L1 block when starting scraping.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
