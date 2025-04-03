@@ -226,11 +226,18 @@ impl StateReader for PapyrusReader {
         // TODO(Yoni): move this logic to a separate reader. Move tests from papyrus_state.
         if let Some(runnable_class) = self.contract_class_manager.get_runnable(&class_hash) {
             CLASS_CACHE_HITS.increment(1);
+            #[cfg(feature = "cairo_native")]
+            {
+                if matches!(runnable_class, RunnableCompiledClass::V1Native(_)) {
+                    crate::metrics::NATIVE_CLASS_RETURNED.increment(1);
+                }
+            }
             return Ok(runnable_class);
         }
         CLASS_CACHE_MISSES.increment(1);
 
         let cached_class = self.get_compiled_class_from_db(class_hash)?;
+        // Native is not saved on the db, so we do not need to increment the Native counter.
         self.contract_class_manager.set_and_compile(class_hash, cached_class.clone());
         // Access the cache again in case the class was compiled.
         Ok(self.contract_class_manager.get_runnable(&class_hash).unwrap_or_else(|| {
