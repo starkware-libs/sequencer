@@ -238,7 +238,7 @@ impl CallEntryPoint {
         execution_result
     }
 
-    fn into_executable(self, class_hash: ClassHash) -> ExecutableCallEntryPoint {
+    pub fn into_executable(self, class_hash: ClassHash) -> ExecutableCallEntryPoint {
         ExecutableCallEntryPoint {
             class_hash,
             code_address: self.code_address,
