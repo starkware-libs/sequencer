@@ -791,7 +791,7 @@ else:
     (
         OsInputTransactions,
         os_input_transactions,
-        indoc! {r#"memory[fp + 12] = to_felt_or_relocatable(len(block_input.transactions))"#
+        indoc! {r#"memory[fp + 0] = to_felt_or_relocatable(len(block_input.transactions))"#
         }
     ),
     (
@@ -813,10 +813,11 @@ else:
         indoc! {r#"execution_helper.skip_tx()"#
         }
     ),
+    // TODO(Meshi): Fix this hint according to the new use.
     (
         SetSha256SegmentInSyscallHandler,
         set_sha256_segment_in_syscall_handler,
-        indoc! {r#"syscall_handler.sha256_segment = ids.sha256_ptr"#}
+        indoc! {r#"syscall_handler.sha256_segment = ids.builtin_ptrs.non_selectable.sha256"#}
     ),
     (
         LogRemainingTxs,
