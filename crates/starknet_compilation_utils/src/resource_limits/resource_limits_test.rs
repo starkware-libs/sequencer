@@ -6,6 +6,8 @@ use tempfile::NamedTempFile;
 
 use crate::resource_limits::ResourceLimits;
 
+const FIVE_MB: u64 = 5 * 1024 * 1024;
+
 #[rstest]
 fn test_cpu_time_limit() {
     let cpu_limit = 1; // 1 second
@@ -60,12 +62,15 @@ fn test_file_size_limit() {
 }
 
 #[rstest]
-fn test_successful_resource_limited_command() {
+#[case::sufficient_resources(Some(FIVE_MB), true)]
+#[case::low_memory(Some(1000000), false)]
+// CONSIDER(AvivG): Add cases for different resource limits.
+fn test_resource_limited_command(#[case] memory_limit: Option<u64>, #[case] should_succeed: bool) {
     let print_message = "Hello World!";
 
     let cpu_limit = Some(1); // 1 second
     let file_limit = Some(u64::try_from(print_message.len()).unwrap() + 1);
-    let memory_limit = Some(5 * 1024 * 1024); // 5 MB
+
     let resource_limits = ResourceLimits::new(cpu_limit, file_limit, memory_limit);
 
     let temp_file = NamedTempFile::new().expect("Failed to create temporary file");
@@ -74,8 +79,13 @@ fn test_successful_resource_limited_command() {
     let mut command = Command::new("bash");
     command.args(["-c", format!("echo '{print_message}' > {temp_file_path}").as_str()]);
     resource_limits.apply(&mut command);
-    let exit_status = command.spawn().expect("Failed to start process").wait().unwrap();
+    let result = command.spawn().expect("Failed to start process").wait();
 
-    assert!(exit_status.success());
-    assert_eq!(std::fs::read_to_string(temp_file_path).unwrap(), format!("{print_message}\n"));
+    if should_succeed {
+        assert!(result.unwrap().success());
+        let contents = std::fs::read_to_string(temp_file_path).unwrap();
+        assert_eq!(contents, format!("{print_message}\n"));
+    } else {
+        assert!(result.is_err() || !result.unwrap().success(),);
+    }
 }
