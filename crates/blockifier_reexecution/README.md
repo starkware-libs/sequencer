@@ -2,10 +2,10 @@
 
 ## Description
 
-The blockier reexecution crate is intended to verify blockifier changes do not break backwards compatibility when executing old blocks. Reexecution of old blocks with the blockifier should output the same expected state-diff as when originally run.
+The blockifier reexecution crate is intended to verify blockifier changes do not break backwards compatibility when executing old blocks. Reexecution of old blocks with the blockifier should output the same expected state-diff as when originally run.
 
 ## CLI Commands
-Using the different CLI commands, it is possible to run reexecution tests in different modes, to download (permisionless) files for offline reexecution from the GC bucket, and to upload (permissioned) files for offline reexecution to the GC bucket.
+Using the different CLI commands, it is possible to run reexecution tests in different modes, to download (permissionless) files for offline reexecution from the GC bucket, and to upload (permissioned) files for offline reexecution to the GC bucket.
 
 ### Reexecution Modes
 
@@ -111,7 +111,7 @@ Therefore, when changing the files format, do these 4 steps in order:
 ```
 cargo run --bin blockifier_reexecution write-to-file -n <node_url>
 ```
-Make sure reexecution of all the blocks succeeded; if neccessary, rerun the command with the block numbers that failed.
+Make sure reexecution of all the blocks succeeded; if necessary, rerun the command with the block numbers that failed.
 
 - 3. Verify that offline reexecution succeeds by running
 ```
