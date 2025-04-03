@@ -17,6 +17,8 @@ pub mod ethereum_base_layer_contract;
 
 pub(crate) mod eth_events;
 
+pub mod send_l1_tx_utils;
+
 #[cfg(any(feature = "testing", test))]
 pub mod test_utils;
 
