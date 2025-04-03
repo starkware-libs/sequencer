@@ -25,6 +25,10 @@ use crate::metrics::{
     metric_count_rejected_txs,
     metric_set_get_txs_size,
     MempoolMetricHandle,
+    MEMPOOL_DELAYED_DECLARES_SIZE,
+    MEMPOOL_PENDING_QUEUE_SIZE,
+    MEMPOOL_POOL_SIZE,
+    MEMPOOL_PRIORITY_QUEUE_SIZE,
 };
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
@@ -246,22 +250,6 @@ impl Mempool {
             state: MempoolState::new(config.committed_nonce_retention_block_count),
             clock,
         }
-    }
-
-    pub fn priority_queue_len(&self) -> usize {
-        self.tx_queue.priority_queue_len()
-    }
-
-    pub fn pending_queue_len(&self) -> usize {
-        self.tx_queue.pending_queue_len()
-    }
-
-    pub fn tx_pool_len(&self) -> usize {
-        self.tx_pool.len()
-    }
-
-    pub fn delayed_declares_len(&self) -> usize {
-        self.delayed_declares.len()
     }
 
     /// Returns an iterator of the current eligible transactions for sequencing, ordered by their
@@ -655,6 +643,13 @@ impl Mempool {
             priority_txs: self.tx_queue.iter_over_ready_txs().cloned().collect(),
             pending_txs: self.tx_queue.pending_txs(),
         }
+    }
+
+    fn update_state_metrics(&self) {
+        MEMPOOL_POOL_SIZE.set_lossy(self.tx_pool.len());
+        MEMPOOL_PRIORITY_QUEUE_SIZE.set_lossy(self.tx_queue.priority_queue_len());
+        MEMPOOL_PENDING_QUEUE_SIZE.set_lossy(self.tx_queue.pending_queue_len());
+        MEMPOOL_DELAYED_DECLARES_SIZE.set_lossy(self.delayed_declares.len());
     }
 }
 
