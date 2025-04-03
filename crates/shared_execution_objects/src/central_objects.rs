@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 
 use blockifier::abi::constants as abi_constants;
-use blockifier::execution::call_info::CallInfo;
+use blockifier::execution::call_info::{CallInfo, CallInfoIter};
 use blockifier::fee::receipt::TransactionReceipt;
 use blockifier::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionInfo};
 use serde::Serialize;
+use starknet_api::executable_transaction::TransactionType;
 use starknet_api::execution_resources::GasVector;
 use starknet_api::transaction::fields::Fee;
 
@@ -57,5 +58,17 @@ impl From<TransactionExecutionInfo> for CentralTransactionExecutionInfo {
             total_gas: tx_execution_info.receipt.gas,
             actual_resources: tx_execution_info.receipt.into(),
         }
+    }
+}
+
+impl CentralTransactionExecutionInfo {
+    pub fn call_info_iter(&self, tx_type: TransactionType) -> CallInfoIter<'_> {
+        let ordered_call_infos = match tx_type {
+            TransactionType::DeployAccount => {
+                [&self.execute_call_info, &self.validate_call_info, &self.fee_transfer_call_info]
+            }
+            _ => [&self.validate_call_info, &self.execute_call_info, &self.fee_transfer_call_info],
+        };
+        CallInfoIter::new(ordered_call_infos.into_iter().filter_map(|call| call.as_ref()).collect())
     }
 }
