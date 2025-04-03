@@ -65,7 +65,11 @@ fn test_add_tx_rejection_for_txs_passed_to_batcher(mut mempool: Mempool) {
     add_tx_expect_error(
         &mut mempool,
         &input_tx_duplicate_nonce,
-        MempoolError::NonceTooOld { address: contract_address!("0x0"), nonce: nonce!(0) },
+        MempoolError::NonceTooOld {
+            address: contract_address!("0x0"),
+            tx_nonce: nonce!(0),
+            account_nonce: nonce!(1),
+        },
     );
 }
 
@@ -215,7 +219,11 @@ fn test_commit_block_fills_nonce_gap(mut mempool: Mempool) {
     add_tx_expect_error(
         &mut mempool,
         &tx_nonce_4_account_nonce_4,
-        MempoolError::NonceTooOld { address: contract_address!("0x0"), nonce: nonce!(4) },
+        MempoolError::NonceTooOld {
+            address: contract_address!("0x0"),
+            tx_nonce: nonce!(4),
+            account_nonce: nonce!(5),
+        },
     );
 
     get_txs_and_assert_expected(&mut mempool, 2, &[tx_nonce_5_account_nonce_3.tx]);
