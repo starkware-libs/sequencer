@@ -44,7 +44,7 @@ impl SierraToNativeCompiler for CommandLineCompiler {
         let resource_limits = ResourceLimits::new(
             Some(self.config.max_cpu_time),
             Some(self.config.max_file_size),
-            Some(self.config.max_memory_usage),
+            self.config.max_memory_usage,
         );
         let _stdout = compile_with_args(
             compiler_binary_path,
