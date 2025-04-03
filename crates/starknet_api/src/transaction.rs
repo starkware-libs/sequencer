@@ -312,6 +312,7 @@ impl TransactionHasher for DeclareTransactionV2 {
 }
 
 /// A declare V3 transaction.
+#[cfg_attr(any(test, feature = "testing"), derive(Default))]
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct DeclareTransactionV3 {
     pub resource_bounds: ValidResourceBounds,

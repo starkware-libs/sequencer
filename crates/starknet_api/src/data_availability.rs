@@ -10,6 +10,12 @@ pub enum DataAvailabilityMode {
     L2 = 1,
 }
 
+impl Default for DataAvailabilityMode {
+    fn default() -> Self {
+        Self::L1
+    }
+}
+
 /// Deserialize a `DataAvailabilityMode` from a given `Deserializer`.
 ///
 /// This implementation supports deserializing the `DataAvailabilityMode` enum from both numerical
