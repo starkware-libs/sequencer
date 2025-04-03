@@ -150,7 +150,7 @@ impl MempoolState {
         let TransactionReference { address, nonce: tx_nonce, .. } = tx_reference;
         let account_nonce = self.resolve_nonce(address, incoming_account_nonce);
         if tx_nonce < account_nonce {
-            return Err(MempoolError::NonceTooOld { address, nonce: tx_nonce });
+            return Err(MempoolError::NonceTooOld { address, tx_nonce, account_nonce });
         }
 
         Ok(())
