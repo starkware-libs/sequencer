@@ -6,22 +6,20 @@ use cairo_vm::vm::errors::vm_exception::VmException;
 use cairo_vm::vm::runners::cairo_runner::CairoRunner;
 
 use crate::errors::StarknetOsError;
-use crate::hint_processor::execution_helper::OsExecutionHelper;
 use crate::hint_processor::panicking_state_reader::PanickingStateReader;
 use crate::hint_processor::snos_hint_processor::{
     DeprecatedSyscallHintProcessor,
     SnosHintProcessor,
     SyscallHintProcessor,
 };
-use crate::io::os_input::{CachedStateInput, OsHints};
+use crate::io::os_input::OsHints;
 use crate::io::os_output::{get_run_output, StarknetOsRunnerOutput};
 
 pub fn run_os<S: StateReader>(
     compiled_os: &[u8],
     layout: LayoutName,
     os_hints: OsHints,
-    state_reader: S,
-    cached_state_input: CachedStateInput,
+    state_readers: Vec<S>,
 ) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
     // Init CairoRunConfig.
     let cairo_run_config =
@@ -42,28 +40,18 @@ pub fn run_os<S: StateReader>(
     // Init the Cairo VM.
     let end = cairo_runner.initialize(allow_missing_builtins)?;
 
-    // Create execution helper.
-    let execution_helper = OsExecutionHelper::new(
-        os_hints.os_block_input,
-        state_reader,
-        cached_state_input,
-        os_hints.os_hints_config.debug_mode,
-    )?;
-
     // Create syscall handlers.
     let syscall_handler = SyscallHintProcessor::new();
     let deprecated_syscall_handler = DeprecatedSyscallHintProcessor {};
 
-    // TODO(Nimrod): Construct execution helpers from block inputs.
-    let execution_helpers = vec![execution_helper];
     // Create the hint processor.
     let mut snos_hint_processor = SnosHintProcessor::new(
         os_program,
-        execution_helpers,
-        os_hints.os_hints_config,
+        os_hints,
+        state_readers,
         syscall_handler,
         deprecated_syscall_handler,
-    );
+    )?;
 
     // Run the Cairo VM.
     cairo_runner
@@ -105,7 +93,7 @@ pub fn run_os_stateless(
     compiled_os: &[u8],
     layout: LayoutName,
     os_hints: OsHints,
-    cached_state_input: CachedStateInput,
 ) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
-    run_os(compiled_os, layout, os_hints, PanickingStateReader, cached_state_input)
+    let n_blocks = os_hints.os_input.os_block_and_state_input.len();
+    run_os(compiled_os, layout, os_hints, vec![PanickingStateReader; n_blocks])
 }
