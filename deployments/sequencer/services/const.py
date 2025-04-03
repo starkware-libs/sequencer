@@ -2,13 +2,11 @@ from enum import Enum
 
 
 # k8s service types
-class ServiceType(str, Enum):
+class K8SServiceType(str, Enum):
     CLUSTER_IP = "ClusterIP"
     LOAD_BALANCER = "LoadBalancer"
     NODE_PORT = "NodePort"
 
-
-CONTAINER_ARGS = ["--config_file", "/config/sequencer/presets/config"]
 
 # k8s container ports
 HTTP_CONTAINER_PORT = 8080
@@ -27,3 +25,6 @@ PVC_ACCESS_MODE = ["ReadWriteOnce"]
 
 HPA_MIN_REPLICAS = 1
 HPA_MAX_REPLICAS = 100
+
+SECRETS_FILE_NAME = "secrets.json"
+SECRETS_MOUNT_PATH = "/etc/secrets"

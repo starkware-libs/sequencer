@@ -46,14 +46,41 @@ class ServiceApp(Construct):
         self.service = k8s.KubeService(
             self,
             "service",
+            metadata=k8s.ObjectMeta(
+                labels=self.labels,
+                annotations={},
+            ),
             spec=k8s.ServiceSpec(
-                type=const.ServiceType.CLUSTER_IP,
+                type=const.K8SServiceType.CLUSTER_IP,
                 ports=self._get_service_ports(),
                 selector=self.labels,
             ),
         )
 
-        self.deployment = k8s.KubeDeployment(
+        if self.service_topology.controller == "deployment":
+            self.controller = self._get_deployment()
+        elif self.service_topology.controller == "statefulset":
+            self.controller = self._get_statefulset()
+        else:
+            raise ValueError(f"Unknown controller type: {self.service_topology.controller}")
+
+        if self.service_topology.ingress is not None:
+            self.service.metadata.add_annotation(
+                key="cloud.google.com/neg", value='{"ingress": true}'
+            )
+            self.ingress = self._get_ingress()
+
+        if self.service_topology.storage is not None:
+            self.pvc = self._get_persistent_volume_claim()
+
+        if self.service_topology.autoscale:
+            self.hpa = self._get_hpa()
+
+        if self.service_topology.external_secret is not None:
+            self.external_secret = self._get_external_secret()
+
+    def _get_deployment(self) -> k8s.KubeDeployment:
+        return k8s.KubeDeployment(
             self,
             "deployment",
             metadata=k8s.ObjectMeta(labels=self.labels),
@@ -89,17 +116,43 @@ class ServiceApp(Construct):
             ),
         )
 
-        if self.service_topology.ingress:
-            self.ingress = self._get_ingress()
-
-        if self.service_topology.storage is not None:
-            self.pvc = self._get_persistent_volume_claim()
-
-        if self.service_topology.autoscale:
-            self.hpa = self._get_hpa()
-
-        if self.service_topology.external_secret is not None:
-            self.external_secret = self._get_external_secret()
+    def _get_statefulset(self) -> k8s.KubeStatefulSet:
+        return k8s.KubeStatefulSet(
+            self,
+            "statefulset",
+            metadata=k8s.ObjectMeta(labels=self.labels),
+            spec=k8s.StatefulSetSpec(
+                service_name=f"{self.node.id}-service",
+                replicas=self.service_topology.replicas,
+                selector=k8s.LabelSelector(match_labels=self.labels),
+                template=k8s.PodTemplateSpec(
+                    metadata=k8s.ObjectMeta(labels=self.labels),
+                    spec=k8s.PodSpec(
+                        security_context=k8s.PodSecurityContext(fs_group=1000),
+                        volumes=self._get_volumes(),
+                        tolerations=self._get_tolerations(),
+                        node_selector=self._get_node_selector(),
+                        containers=[
+                            k8s.Container(
+                                name=self.node.id,
+                                image=self.service_topology.image,
+                                image_pull_policy="Always",
+                                env=self._get_container_env(),
+                                args=self._get_container_args(),
+                                ports=self._get_container_ports(),
+                                startup_probe=self._get_http_probe(),
+                                readiness_probe=self._get_http_probe(
+                                    path=const.PROBE_MONITORING_READY_PATH
+                                ),
+                                liveness_probe=self._get_http_probe(),
+                                volume_mounts=self._get_volume_mounts(),
+                                resources=self._get_container_resources(),
+                            )
+                        ],
+                    ),
+                ),
+            ),
+        )
 
     def _get_external_secret(self) -> ExternalSecret:
         return ExternalSecret(
@@ -117,7 +170,7 @@ class ServiceApp(Construct):
                 ),
                 data=[
                     ExternalSecretSpecData(
-                        secret_key="secrets.json",
+                        secret_key=const.SECRETS_FILE_NAME,
                         remote_ref=ExternalSecretSpecDataRemoteRef(
                             key=self.service_topology.external_secret["gcsm_key"],
                             conversion_strategy=ExternalSecretSpecDataRemoteRefConversionStrategy.DEFAULT,
@@ -136,7 +189,9 @@ class ServiceApp(Construct):
                 min_replicas=self.service_topology.replicas,
                 max_replicas=const.HPA_MAX_REPLICAS,
                 scale_target_ref=k8s.CrossVersionObjectReferenceV2(
-                    api_version="v1", kind="Deployment", name=self.deployment.name
+                    api_version=self.controller.api_version,
+                    kind=self.controller.kind,
+                    name=self.controller.metadata.name,
                 ),
                 metrics=[
                     k8s.MetricSpecV2(
@@ -159,27 +214,19 @@ class ServiceApp(Construct):
                             )
                         ],
                     ),
+                    scale_down=k8s.HpaScalingRulesV2(
+                        select_policy="Max",
+                        stabilization_window_seconds=300,
+                        policies=[
+                            k8s.HpaScalingPolicyV2(
+                                type="Pods",
+                                value=2,  # Remove 2 pods per scaling action
+                                period_seconds=60,  # Scaling happens at most once per minute
+                            )
+                        ],
+                    ),
                 ),
             ),
-        )
-
-    def _get_ingress(self) -> k8s.KubeIngress:
-        self.host = f"{self.node.id}.{self.namespace}.sw-dev.io"
-        return k8s.KubeIngress(
-            self,
-            "ingress",
-            metadata=k8s.ObjectMeta(
-                name=f"{self.node.id}-ingress",
-                labels=self.labels,
-                annotations={
-                    "kubernetes.io/tls-acme": "true",
-                    "cert-manager.io/common-name": self.host,
-                    "cert-manager.io/issue-temporary-certificate": "true",
-                    "cert-manager.io/issuer": "letsencrypt-prod",
-                    "acme.cert-manager.io/http01-edit-in-place": "true",
-                },
-            ),
-            spec=k8s.IngressSpec(tls=self._get_ingress_tls(), rules=self._get_ingress_rules()),
         )
 
     def _get_persistent_volume_claim(self) -> k8s.KubePersistentVolumeClaim:
@@ -267,7 +314,7 @@ class ServiceApp(Construct):
             (
                 k8s.VolumeMount(
                     name=f"{self.node.id}-secret",
-                    mount_path="/etc/secrets",
+                    mount_path=const.SECRETS_MOUNT_PATH,
                     read_only=True,
                 )
                 if self.service_topology.external_secret is not None
@@ -302,8 +349,8 @@ class ServiceApp(Construct):
                         default_mode=400,
                         items=[
                             k8s.KeyToPath(
-                                key="secrets.json",
-                                path="secrets.json",
+                                key=const.SECRETS_FILE_NAME,
+                                path=const.SECRETS_FILE_NAME,
                             )
                         ],
                     ),
@@ -325,33 +372,89 @@ class ServiceApp(Construct):
 
         return [v for v in volumes if v is not None]
 
-    def _get_ingress_rules(self) -> typing.List[k8s.IngressRule]:
-        return [
-            k8s.IngressRule(
-                host=self.host,
-                http=k8s.HttpIngressRuleValue(
-                    paths=[
-                        k8s.HttpIngressPath(
-                            path="/monitoring",
-                            path_type="Prefix",
-                            backend=k8s.IngressBackend(
-                                service=k8s.IngressServiceBackend(
-                                    name=f"{self.node.id}-service",
-                                    port=k8s.ServiceBackendPort(
-                                        number=self._get_config_attr(
-                                            "monitoring_endpoint_config.port"
-                                        )
-                                    ),
-                                )
-                            ),
-                        )
-                    ]
-                ),
-            )
-        ]
+    def _get_ingress(self) -> k8s.KubeIngress:
+        domain = self.service_topology.ingress["domain"]
+        self.host = f"{self.node.id}.{self.namespace}.{domain}"
+        dns_names = self.host
+        rules = [self._get_ingress_rule(self.host)]
+        tls = self._get_ingress_tls()
+
+        annotations = {
+            "kubernetes.io/tls-acme": "true",
+            "external-dns.alpha.kubernetes.io/hostname": self.host,
+            "external-dns.alpha.kubernetes.io/ingress-hostname-source": "annotation-only",
+            "cert-manager.io/common-name": self.host,
+            "cert-manager.io/issue-temporary-certificate": "true",
+            "cert-manager.io/issuer": "letsencrypt-prod",
+            "acme.cert-manager.io/http01-edit-in-place": "true",
+        }
+
+        if self.service_topology.ingress["internal"] == True:
+            annotations.clear()
+            annotations.update({"kubernetes.io/ingress.class": "gce-internal"})
+            tls = None
+
+        elif self.service_topology.ingress.get("alternative_names", []):
+            alternative_names = self.service_topology.ingress["alternative_names"]
+            for alt_name in alternative_names:
+                if alt_name != self.host:
+                    dns_names += f",{alt_name}"
+                    rules.append(self._get_ingress_rule(alt_name))
+            annotations.update({"cert-manager.io/dns-names": dns_names})
+
+        return k8s.KubeIngress(
+            self,
+            "ingress",
+            metadata=k8s.ObjectMeta(
+                name=f"{self.node.id}-ingress",
+                labels=self.labels,
+                annotations=annotations,
+            ),
+            spec=k8s.IngressSpec(
+                tls=tls,
+                rules=rules,
+            ),
+        )
+
+    def _get_ingress_rule(self, host: str) -> k8s.IngressRule:
+        paths = []
+
+        for rule in self.service_topology.ingress["rules"]:
+            path = rule["path"]
+            port = rule["port"]
+            backend = rule.get("backend")
+            paths.append(self._get_ingress_path(path=path, port=port, backend=backend))
+
+        return k8s.IngressRule(
+            host=host,
+            http=k8s.HttpIngressRuleValue(
+                paths=paths,
+            ),
+        )
 
     def _get_ingress_tls(self) -> typing.List[k8s.IngressTls]:
-        return [k8s.IngressTls(hosts=[self.host], secret_name=f"{self.node.id}-tls")]
+        hosts = [self.host]
+        if self.service_topology.ingress.get("alternative_names", []):
+            alternative_names = self.service_topology.ingress["alternative_names"]
+            for alt_name in alternative_names:
+                if alt_name != self.host:
+                    hosts.append(alt_name)
+        return [k8s.IngressTls(hosts=hosts, secret_name=f"{self.node.id}-tls")]
+
+    def _get_ingress_path(self, path: str, port: int, backend: str = None) -> k8s.HttpIngressPath:
+        if backend is None:
+            backend = f"{self.node.id}-service"
+
+        return k8s.HttpIngressPath(
+            path=path,
+            path_type="Prefix",
+            backend=k8s.IngressBackend(
+                service=k8s.IngressServiceBackend(
+                    name=backend,
+                    port=k8s.ServiceBackendPort(number=port),
+                )
+            ),
+        )
 
     def _get_container_resources(self) -> k8s.ResourceRequirements:
         requests_cpu = str(self.service_topology.resources["requests"]["cpu"])
@@ -380,10 +483,10 @@ class ServiceApp(Construct):
         ]
 
     def _get_container_args(self) -> typing.List[str]:
-        args = const.CONTAINER_ARGS
+        args = ["--config_file", "/config/sequencer/presets/config"]
         if self.service_topology.external_secret is not None:
             args.append("--config_file")
-            args.append("/etc/secrets/secrets.json")
+            args.append(f"{const.SECRETS_MOUNT_PATH}/{const.SECRETS_FILE_NAME}")
 
         return args
 
@@ -396,7 +499,7 @@ class ServiceApp(Construct):
         if self.service_topology.toleration is not None:
             return [
                 k8s.Toleration(
-                    key="role",
+                    key="key",
                     operator="Equal",
                     value=self.service_topology.toleration,
                     effect="NoSchedule",
