@@ -11,7 +11,11 @@ use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_consensus::stream_handler::{StreamHandler, CHANNEL_BUFFER_LENGTH};
 use apollo_consensus::types::ConsensusError;
 use apollo_consensus_orchestrator::cende::CendeAmbassador;
-use apollo_consensus_orchestrator::sequencer_consensus_context::SequencerConsensusContext;
+use apollo_consensus_orchestrator::sequencer_consensus_context::{
+    DefaultClock,
+    SequencerConsensusContext,
+    SequencerConsensusContextDeps,
+};
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::type_name::short_type_name;
 use apollo_l1_gas_price::eth_to_strk_oracle::EthToStrkOracleClient;
@@ -140,21 +144,24 @@ impl ConsensusManager {
 
         let context = SequencerConsensusContext::new(
             self.config.context_config.clone(),
-            Arc::clone(&self.class_manager_client),
-            Arc::clone(&self.state_sync_client),
-            Arc::clone(&self.batcher_client),
-            outbound_internal_sender,
-            votes_broadcast_channels.broadcast_topic_client.clone(),
-            Arc::new(CendeAmbassador::new(
-                self.config.cende_config.clone(),
-                Arc::clone(&self.class_manager_client),
-            )),
-            Arc::new(EthToStrkOracleClient::new(
-                self.config.eth_to_strk_oracle_config.base_url.clone(),
-                self.config.eth_to_strk_oracle_config.headers.clone(),
-                self.config.eth_to_strk_oracle_config.lag_margin_seconds,
-            )),
-            self.l1_gas_price_provider.clone(),
+            SequencerConsensusContextDeps {
+                class_manager_client: Arc::clone(&self.class_manager_client),
+                state_sync_client: Arc::clone(&self.state_sync_client),
+                batcher: Arc::clone(&self.batcher_client),
+                outbound_proposal_sender: outbound_internal_sender,
+                vote_broadcast_client: votes_broadcast_channels.broadcast_topic_client.clone(),
+                cende_ambassador: Arc::new(CendeAmbassador::new(
+                    self.config.cende_config.clone(),
+                    Arc::clone(&self.class_manager_client),
+                )),
+                eth_to_strk_oracle_client: Arc::new(EthToStrkOracleClient::new(
+                    self.config.eth_to_strk_oracle_config.base_url.clone(),
+                    self.config.eth_to_strk_oracle_config.headers.clone(),
+                    self.config.eth_to_strk_oracle_config.lag_margin_seconds,
+                )),
+                l1_gas_price_provider: self.l1_gas_price_provider.clone(),
+                clock: Arc::new(DefaultClock::default()),
+            },
         );
 
         let network_task = tokio::spawn(network_manager.run());
