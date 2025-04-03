@@ -71,7 +71,7 @@ class ServiceApp(Construct):
                                 image=self.service_topology.image,
                                 image_pull_policy="Always",
                                 env=self._get_container_env(),
-                                args=const.CONTAINER_ARGS,
+                                args=self._get_container_args(),
                                 ports=self._get_container_ports(),
                                 startup_probe=self._get_http_probe(),
                                 readiness_probe=self._get_http_probe(
@@ -376,6 +376,14 @@ class ServiceApp(Construct):
             # TODO(Elin): consider a better way to uncolor app logs, maybe up the stack towards GCP.
             k8s.EnvVar(name="NO_COLOR", value="1"),
         ]
+
+    def _get_container_args(self) -> typing.List[str]:
+        args = const.CONTAINER_ARGS
+        if self.service_topology.external_secret is not None:
+            args.append("--config_file")
+            args.append("/etc/secrets/secrets.json")
+
+        return args
 
     @staticmethod
     def _get_node_selector() -> typing.Dict[str, str]:
