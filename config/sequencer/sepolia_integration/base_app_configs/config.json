@@ -269,6 +269,7 @@
   "state_sync_config.central_sync_client_config.sync_config.state_updates_max_stream_size": 1000,
   "state_sync_config.central_sync_client_config.sync_config.store_sierras_and_casms": false,
   "state_sync_config.central_sync_client_config.sync_config.verify_blocks": true,
+  "state_sync_config.network_config.#is_none": false,
   "state_sync_config.network_config.advertised_multiaddr": "",
   "state_sync_config.network_config.advertised_multiaddr.#is_none": true,
   "state_sync_config.network_config.bootstrap_peer_multiaddr": "",
