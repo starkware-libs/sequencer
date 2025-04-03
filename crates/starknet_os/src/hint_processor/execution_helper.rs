@@ -1,10 +1,13 @@
 use std::collections::HashMap;
 
+use blockifier::execution::call_info::CallInfo;
 use blockifier::state::cached_state::{CachedState, StateMaps};
 use blockifier::state::state_api::StateReader;
 #[cfg(any(feature = "testing", test))]
 use blockifier::test_utils::dict_state_reader::DictStateReader;
-use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
+use shared_execution_objects::central_objects::{
+    CallInfoIndex, CentralTransactionExecutionInfo
+};
 use starknet_api::executable_transaction::TransactionType;
 use starknet_api::transaction::fields::Fee;
 
@@ -18,6 +21,7 @@ pub struct OsExecutionHelper<S: StateReader> {
     pub(crate) os_block_input: OsBlockInput,
     pub(crate) os_logger: OsLogger,
     tx_execution_info_iter: TxExecutionInfoIter,
+    call_info_index: CallInfoIndex,
 }
 
 impl<S: StateReader> OsExecutionHelper<S> {
@@ -32,16 +36,37 @@ impl<S: StateReader> OsExecutionHelper<S> {
             os_block_input,
             os_logger: OsLogger::new(debug_mode),
             tx_execution_info_iter: TxExecutionInfoIter::new(),
+            call_info_index: CallInfoIndex::empty(),
         })
+    }
+
+    fn get_tx_execution_info(&self) -> Option<&CentralTransactionExecutionInfo> {
+        self.tx_execution_info_iter.get(&self.os_block_input.tx_execution_infos)
     }
 
     pub(crate) fn next_tx_execution_infos(
         &mut self,
-        _tx_type: TransactionType,
+        tx_type: TransactionType,
     ) -> Option<TransactionExecutionInfoForExecutionHelper> {
         self.tx_execution_info_iter.increment();
-        Some(self.tx_execution_info_iter.get(&self.os_block_input.tx_execution_infos)?.into())
-        // TODO(yoav): load the call infos.
+        let tx_execution_info = self.get_tx_execution_info()?;
+        let result = Some(tx_execution_info.into());
+        self.call_info_index = CallInfoIndex::new(tx_execution_info, tx_type);
+        result
+    }
+
+    #[allow(dead_code)]
+    fn current_call_info(&self) -> Option<&CallInfo> {
+        self.call_info_index.current_call_info(self.get_tx_execution_info()?)
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn increment_call_info(&mut self) -> Option<()> {
+        let tx_execution_info = self.get_tx_execution_info()?;
+        let next_level_length =
+            self.call_info_index.current_call_info(tx_execution_info)?.inner_calls.len();
+        self.call_info_index.increment_call_info(next_level_length);
+        Some(())
     }
 
     fn initialize_cached_state(
@@ -81,6 +106,7 @@ impl OsExecutionHelper<DictStateReader> {
             os_block_input,
             os_logger: OsLogger::new(true),
             tx_execution_info_iter: TxExecutionInfoIter::new(),
+            call_info_index: CallInfoIndex::empty(),
         }
     }
 }
