@@ -28,7 +28,7 @@ pub struct StateSyncConfig {
     #[validate]
     pub central_sync_client_config: Option<CentralSyncClientConfig>,
     #[validate]
-    pub network_config: NetworkConfig,
+    pub network_config: Option<NetworkConfig>,
     #[validate]
     pub revert_config: RevertConfig,
     #[validate]
@@ -40,7 +40,7 @@ impl SerializeConfig for StateSyncConfig {
         let mut config = BTreeMap::new();
 
         config.extend(append_sub_config_name(self.storage_config.dump(), "storage_config"));
-        config.extend(append_sub_config_name(self.network_config.dump(), "network_config"));
+        config.extend(ser_optional_sub_config(&self.network_config, "network_config"));
         config.extend(append_sub_config_name(self.revert_config.dump(), "revert_config"));
         config.extend(append_sub_config_name(self.rpc_config.dump(), "rpc_config"));
         config.extend(ser_optional_sub_config(
@@ -79,7 +79,7 @@ impl Default for StateSyncConfig {
             },
             p2p_sync_client_config: Some(P2pSyncClientConfig::default()),
             central_sync_client_config: None,
-            network_config: NetworkConfig { port: STATE_SYNC_TCP_PORT, ..Default::default() },
+            network_config: Some(NetworkConfig { port: STATE_SYNC_TCP_PORT, ..Default::default() }),
             revert_config: RevertConfig::default(),
             rpc_config: RpcConfig::default(),
         }
