@@ -87,9 +87,21 @@ pub(crate) fn load_resource_bounds<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn exit_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    // TODO(Aner): implement OsLogger
-    Ok(())
+pub(crate) fn exit_tx<S: StateReader>(
+    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    let range_check_ptr =
+        get_ptr_from_var_name(Ids::RangeCheckPtr.into(), vm, ids_data, ap_tracking)?;
+    Ok(hint_processor.execution_helper.os_logger.exit_tx(
+        // TODO(Dori): when `vm.current_step` has a public getter, use it instead of the dummy
+        //   value ([PR](https://github.com/lambdaclass/cairo-vm/pull/2031)).
+        7,
+        range_check_ptr,
+        ids_data,
+        vm,
+        ap_tracking,
+        &hint_processor.os_program,
+    )?)
 }
 
 pub(crate) fn prepare_constructor_execution<S: StateReader>(
