@@ -251,7 +251,7 @@ fn process_compilation_request(
     let compilation_result = compiler.compile_to_native(sierra_for_compilation);
     match compilation_result {
         Ok(executor) => {
-            let native_compiled_class = NativeCompiledClassV1::new(executor, casm);
+            let native_compiled_class = NativeCompiledClassV1::new(executor.into(), casm);
             cache.set(
                 class_hash,
                 CachedClass::V1Native(CachedCairoNative::Compiled(native_compiled_class)),

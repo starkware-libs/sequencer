@@ -115,7 +115,8 @@ pub fn execute_entry_point_call(
     state: &mut dyn State,
     context: &mut EntryPointExecutionContext,
 ) -> EntryPointExecutionResult<CallInfo> {
-    match compiled_class {
+    let pre_time = std::time::Instant::now();
+    let mut result = match compiled_class {
         RunnableCompiledClass::V0(compiled_class) => {
             deprecated_entry_point_execution::execute_entry_point_call(
                 call,
@@ -129,7 +130,9 @@ pub fn execute_entry_point_call(
         }
         #[cfg(feature = "cairo_native")]
         RunnableCompiledClass::V1Native(compiled_class) => {
-            if context.tracked_resource_stack.last() == Some(&TrackedResource::CairoSteps) {
+            if context.tracked_resource_stack.last() == Some(&TrackedResource::CairoSteps)
+                && !cfg!(feature = "only-native")
+            {
                 // We cannot run native with cairo steps as the tracked resources (it's a vm
                 // resouorce).
                 entry_point_execution::execute_entry_point_call(
@@ -147,7 +150,9 @@ pub fn execute_entry_point_call(
                 )
             }
         }
-    }
+    }?;
+    result.time = pre_time.elapsed();
+    Ok(result)
 }
 
 pub fn update_remaining_gas(remaining_gas: &mut u64, call_info: &CallInfo) {

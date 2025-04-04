@@ -711,6 +711,20 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
 
         Ok(())
     }
+
+    fn meta_tx_v0(
+        &mut self,
+        address: Felt,
+        entry_point_selector: Felt,
+        calldata: &[Felt],
+        signature: &[Felt],
+        remaining_gas: &mut u64,
+    ) -> SyscallResult<Vec<Felt>> {
+        todo!(
+            "implement meta_tx_v0 {:?}",
+            (address, entry_point_selector, calldata, signature, remaining_gas)
+        );
+    }
 }
 
 /// A wrapper around an elliptic curve point in affine coordinates (x,y) on a

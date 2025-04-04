@@ -269,7 +269,7 @@ impl NativeCompiledClassV1 {
         let casm = CompiledClassV1::try_from((casm_contract_class, sierra_version))
             .expect("Cannot get CompiledClassV1 from CasmContractClass");
 
-        NativeCompiledClassV1::new(executor, casm)
+        NativeCompiledClassV1::new(executor.into(), casm)
     }
 
     pub fn from_file(contract_path: &str) -> Self {

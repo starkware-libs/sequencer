@@ -102,5 +102,6 @@ fn create_callinfo(
         accessed_contract_addresses: syscall_handler.base.accessed_contract_addresses,
         read_class_hash_values: syscall_handler.base.read_class_hash_values,
         tracked_resource: TrackedResource::SierraGas,
+        time: std::time::Duration::default(),
     })
 }
