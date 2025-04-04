@@ -1,8 +1,8 @@
 use rstest::rstest;
 use rstest_reuse::{apply, template};
 
-#[cfg(test)]
 use crate::test_utils::{CairoVersion, RunnableCairo1};
+
 #[cfg(not(feature = "cairo_native"))]
 #[template]
 #[rstest]
@@ -22,6 +22,19 @@ fn cairo_version(
         CairoVersion::Cairo1(RunnableCairo1::Native)
     )]
     cairo_version: CairoVersion,
+) {
+}
+
+#[cfg(not(feature = "cairo_native"))]
+#[template]
+#[rstest]
+fn runnable_version(#[values(RunnableCairo1::Casm)] runnable_version: RunnableCairo1) {}
+
+#[cfg(feature = "cairo_native")]
+#[template]
+#[rstest]
+fn runnable_version(
+    #[values(RunnableCairo1::Casm, RunnableCairo1::Native)] runnable_version: RunnableCairo1,
 ) {
 }
 
@@ -68,4 +81,9 @@ fn test_cairo_version(cairo_version: CairoVersion) {
 #[apply(two_cairo_versions)]
 fn test_two_cairo_version(cairo_version1: CairoVersion, cairo_version2: CairoVersion) {
     println!("test {:?} {:?}", cairo_version1, cairo_version2);
+}
+
+#[apply(runnable_version)]
+fn test_runnable_version(runnable_version: RunnableCairo1) {
+    println!("test {:?}", runnable_version);
 }

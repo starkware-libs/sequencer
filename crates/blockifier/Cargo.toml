@@ -10,13 +10,13 @@ description = "The transaction-executing component in the Starknet sequencer."
 workspace = true
 
 [features]
-cairo_native = ["dep:cairo-native", "starknet_sierra_multicompile/cairo_native", "dep:sierra-emu"]
+cairo_native = ["dep:cairo-native", "starknet_sierra_multicompile/cairo_native"]
 jemalloc = ["dep:tikv-jemallocator"]
 native_blockifier = []
+node_api = []
 reexecution = ["transaction_serde"]
 testing = ["rand", "rstest", "rstest_reuse", "starknet_api/testing"]
 transaction_serde = []
-only-native = []
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -30,9 +30,7 @@ cached.workspace = true
 cairo-lang-casm = { workspace = true, features = ["parity-scale-codec"] }
 cairo-lang-runner.workspace = true
 cairo-lang-starknet-classes.workspace = true
-cairo-lang-sierra.workspace = true
 cairo-native = { workspace = true, optional = true }
-sierra-emu = { workspace = true, optional = true }
 cairo-vm.workspace = true
 derive_more.workspace = true
 indexmap.workspace = true

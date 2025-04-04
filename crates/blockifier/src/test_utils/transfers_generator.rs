@@ -17,13 +17,13 @@ use crate::context::{BlockContext, ChainInfo};
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{CairoVersion, BALANCE, MAX_FEE};
+use crate::test_utils::{CairoVersion, RunnableCairo1, BALANCE, MAX_FEE};
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::transaction_execution::Transaction;
 const N_ACCOUNTS: u16 = 10000;
 const N_TXS: usize = 1000;
 const RANDOMIZATION_SEED: u64 = 0;
-const CAIRO_VERSION: CairoVersion = CairoVersion::Cairo0;
+const CAIRO_VERSION: CairoVersion = CairoVersion::Cairo1(RunnableCairo1::Casm);
 const TRANSACTION_VERSION: TransactionVersion = TransactionVersion(Felt::THREE);
 const RECIPIENT_GENERATOR_TYPE: RecipientGeneratorType = RecipientGeneratorType::RoundRobin;
 
@@ -154,7 +154,7 @@ impl TransfersGenerator {
         let results = self.executor.execute_txs(&txs);
         assert_eq!(results.len(), self.config.n_txs);
         for result in results {
-            assert!(!result.unwrap().is_reverted());
+            assert!(!result.unwrap().0.is_reverted());
         }
         // TODO(Avi, 01/06/2024): Run the same transactions concurrently on a new state and compare
         // the state diffs.

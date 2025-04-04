@@ -22,6 +22,7 @@ use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::Calldata;
+use starknet_api::transaction::{signed_tx_version, TransactionOptions, TransactionVersion};
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::{Felt, FromStrError};
 use thiserror::Error;
@@ -68,11 +69,10 @@ use crate::execution::execution_utils::{
     ReadOnlySegments,
 };
 use crate::execution::hint_code;
-use crate::execution::syscalls::hint_processor::EmitEventError;
+use crate::execution::syscalls::hint_processor::{EmitEventError, SyscallUsageMap};
 use crate::state::errors::StateError;
 use crate::state::state_api::State;
-
-pub type SyscallCounter = HashMap<DeprecatedSyscallSelector, usize>;
+use crate::transaction::objects::TransactionInfo;
 
 #[derive(Debug, Error)]
 pub enum DeprecatedSyscallExecutionError {
@@ -166,13 +166,14 @@ pub struct DeprecatedSyscallHintProcessor<'a> {
     pub context: &'a mut EntryPointExecutionContext,
     pub storage_address: ContractAddress,
     pub caller_address: ContractAddress,
+    pub class_hash: ClassHash,
 
     // Execution results.
     /// Inner calls invoked by the current execution.
     pub inner_calls: Vec<CallInfo>,
     pub events: Vec<OrderedEvent>,
     pub l2_to_l1_messages: Vec<OrderedL2ToL1Message>,
-    pub syscall_counter: SyscallCounter,
+    pub syscalls_usage: SyscallUsageMap,
 
     // Fields needed for execution and validation.
     pub read_only_segments: ReadOnlySegments,
@@ -197,16 +198,18 @@ impl<'a> DeprecatedSyscallHintProcessor<'a> {
         initial_syscall_ptr: Relocatable,
         storage_address: ContractAddress,
         caller_address: ContractAddress,
+        class_hash: ClassHash,
     ) -> Self {
         DeprecatedSyscallHintProcessor {
             state,
             context,
             storage_address,
             caller_address,
+            class_hash,
             inner_calls: vec![],
             events: vec![],
             l2_to_l1_messages: vec![],
-            syscall_counter: SyscallCounter::default(),
+            syscalls_usage: SyscallUsageMap::default(),
             read_only_segments: ReadOnlySegments::default(),
             syscall_ptr: initial_syscall_ptr,
             read_values: vec![],
@@ -319,10 +322,36 @@ impl<'a> DeprecatedSyscallHintProcessor<'a> {
         &mut self,
         vm: &mut VirtualMachine,
     ) -> DeprecatedSyscallResult<Relocatable> {
+        let tx_context = &self.context.tx_context;
+        // The transaction version, ignoring the only_query bit.
+        let version = tx_context.tx_info.version();
+        let versioned_constants = &tx_context.block_context.versioned_constants;
+        // The set of v1-bound-accounts.
+        let v1_bound_accounts = &versioned_constants.os_constants.v1_bound_accounts_cairo0;
+
+        // If the transaction version is 3 and the account is in the v1-bound-accounts set,
+        // the syscall should return transaction version 1 instead.
+        // In such a case, `self.tx_info_start_ptr` is not used.
+        if version == TransactionVersion::THREE && v1_bound_accounts.contains(&self.class_hash) {
+            let tip = match &tx_context.tx_info {
+                TransactionInfo::Current(transaction_info) => transaction_info.tip,
+                TransactionInfo::Deprecated(_) => {
+                    panic!("Transaction info variant doesn't match transaction version")
+                }
+            };
+            if tip <= versioned_constants.os_constants.v1_bound_accounts_max_tip {
+                let modified_version = signed_tx_version(
+                    &TransactionVersion::ONE,
+                    &TransactionOptions { only_query: tx_context.tx_info.only_query() },
+                );
+                return self.allocate_tx_info_segment(vm, Some(modified_version));
+            }
+        }
+
         match self.tx_info_start_ptr {
             Some(tx_info_start_ptr) => Ok(tx_info_start_ptr),
             None => {
-                let tx_info_start_ptr = self.allocate_tx_info_segment(vm)?;
+                let tx_info_start_ptr = self.allocate_tx_info_segment(vm, None)?;
                 self.tx_info_start_ptr = Some(tx_info_start_ptr);
                 Ok(tx_info_start_ptr)
             }
@@ -359,8 +388,7 @@ impl<'a> DeprecatedSyscallHintProcessor<'a> {
     }
 
     fn increment_syscall_count(&mut self, selector: &DeprecatedSyscallSelector) {
-        let syscall_count = self.syscall_counter.entry(*selector).or_default();
-        *syscall_count += 1;
+        self.syscalls_usage.entry(*selector).or_default().increment_call_count();
     }
 
     fn allocate_tx_signature_segment(
@@ -375,15 +403,20 @@ impl<'a> DeprecatedSyscallHintProcessor<'a> {
         Ok(signature_segment_start_ptr)
     }
 
+    /// Allocates and populates a segment with the transaction info.
+    ///
+    /// If `tx_version_override` is given, it will be used instead of the real value.
     fn allocate_tx_info_segment(
         &mut self,
         vm: &mut VirtualMachine,
+        tx_version_override: Option<TransactionVersion>,
     ) -> DeprecatedSyscallResult<Relocatable> {
         let tx_signature_start_ptr = self.get_or_allocate_tx_signature_segment(vm)?;
         let TransactionContext { block_context, tx_info } = self.context.tx_context.as_ref();
         let tx_signature_length = tx_info.signature().0.len();
+        let tx_version = tx_version_override.unwrap_or(tx_info.signed_version());
         let tx_info: Vec<MaybeRelocatable> = vec![
-            tx_info.signed_version().0.into(),
+            tx_version.0.into(),
             (*tx_info.sender_address().0.key()).into(),
             Felt::from(tx_info.max_fee_for_execution_info_syscall().0).into(),
             tx_signature_length.into(),

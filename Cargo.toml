@@ -57,10 +57,8 @@ members = [
   "workspace_tests",
 ]
 
-exclude = ["crates/bin/starknet-native-compile"]
-
 [workspace.package]
-version = "0.14.0-rc.0"
+version = "0.14.0-rc.3"
 edition = "2021"
 repository = "https://github.com/starkware-libs/sequencer/"
 license = "Apache-2.0"
@@ -91,23 +89,22 @@ base64 = "0.13.0"
 bincode = "1.3.3"
 bisection = "0.1.0"
 bitvec = "1.0.1"
-blockifier = { path = "crates/blockifier", version = "0.14.0-rc.0" }
+blockifier = { path = "crates/blockifier", version = "0.14.0-rc.3" }
 byteorder = "1.4.3"
 bytes = "1"
 cached = "0.44.0"
 cairo-felt = "0.9.1"
-cairo-lang-casm = "2.12.0-dev.0"
-cairo-lang-runner = "2.12.0-dev.0"
-cairo-lang-sierra = "=2.12.0-dev.0"
-cairo-lang-sierra-to-casm = "2.12.0-dev.0"
-cairo-lang-starknet-classes = "2.12.0-dev.0"
-cairo-lang-utils = "2.12.0-dev.0"
-cairo-native = { git = "https://github.com/lambdaclass/cairo_native", rev = "fe539d2f3f09bdac99f89db3e3e44549ef5d01ad" }
-sierra-emu = { git = "https://github.com/lambdaclass/sierra-emu", rev = "a13128c78d0e681f3d2bd021cabd3a2a4406efb0" }
-cairo-vm = "2.0.1"
+cairo-lang-casm = "2.10.0"
+cairo-lang-runner = "2.10.0"
+cairo-lang-sierra = "=2.10.0"
+cairo-lang-sierra-to-casm = "2.10.0"
+cairo-lang-starknet-classes = "2.10.0"
+cairo-lang-utils = "2.10.0"
+cairo-native = "0.3.1"
+cairo-vm = "=1.0.2"
 camelpaste = "0.1.0"
 chrono = "0.4.26"
-clap = "4.5.26"
+clap = "4.5.4"
 colored = "2.1.0"
 const_format = "0.2.30"
 criterion = "0.5.1"
@@ -147,7 +144,7 @@ libp2p-swarm-test = "0.3.0"
 log = "0.4"
 lru = "0.12.0"
 memmap2 = "0.8.0"
-mempool_test_utils = { path = "crates/mempool_test_utils", version = "0.14.0-rc.0" }
+mempool_test_utils = { path = "crates/mempool_test_utils", version = "0.14.0-rc.3" }
 metrics = "0.21.0"
 metrics-exporter-prometheus = "0.12.1"
 metrics-process = "1.0.11"
@@ -161,23 +158,23 @@ num-traits = "0.2.15"
 once_cell = "1.19.0"
 os_info = "3.6.0"
 page_size = "0.6.0"
-papyrus_base_layer = { path = "crates/papyrus_base_layer", version = "0.14.0-rc.0" }
-papyrus_common = { path = "crates/papyrus_common", version = "0.14.0-rc.0" }
-papyrus_config = { path = "crates/papyrus_config", version = "0.14.0-rc.0" }
-papyrus_consensus = { path = "crates/sequencing/papyrus_consensus", version = "0.14.0-rc.0" }
-papyrus_consensus_orchestrator = { path = "crates/sequencing/papyrus_consensus_orchestrator", version = "0.14.0-rc.0" }
-papyrus_execution = { path = "crates/papyrus_execution", version = "0.14.0-rc.0" }
-papyrus_monitoring_gateway = { path = "crates/papyrus_monitoring_gateway", version = "0.14.0-rc.0" }
-papyrus_network = { path = "crates/papyrus_network", version = "0.14.0-rc.0" }
-papyrus_network_types = { path = "crates/papyrus_network_types", version = "0.14.0-rc.0" }
-papyrus_p2p_sync = { path = "crates/papyrus_p2p_sync", version = "0.14.0-rc.0" }
-papyrus_proc_macros = { path = "crates/papyrus_proc_macros", version = "0.14.0-rc.0" }
-papyrus_protobuf = { path = "crates/papyrus_protobuf", version = "0.14.0-rc.0" }
-papyrus_rpc = { path = "crates/papyrus_rpc", version = "0.14.0-rc.0" }
-papyrus_state_reader = { path = "crates/papyrus_state_reader", version = "0.14.0-rc.0" }
-papyrus_storage = { path = "crates/papyrus_storage", version = "0.14.0-rc.0" }
-papyrus_sync = { path = "crates/papyrus_sync", version = "0.14.0-rc.0" }
-papyrus_test_utils = { path = "crates/papyrus_test_utils", version = "0.14.0-rc.0" }
+papyrus_base_layer = { path = "crates/papyrus_base_layer", version = "0.14.0-rc.3" }
+papyrus_common = { path = "crates/papyrus_common", version = "0.14.0-rc.3" }
+papyrus_config = { path = "crates/papyrus_config", version = "0.14.0-rc.3" }
+papyrus_consensus = { path = "crates/sequencing/papyrus_consensus", version = "0.14.0-rc.3" }
+papyrus_consensus_orchestrator = { path = "crates/sequencing/papyrus_consensus_orchestrator", version = "0.14.0-rc.3" }
+papyrus_execution = { path = "crates/papyrus_execution", version = "0.14.0-rc.3" }
+papyrus_monitoring_gateway = { path = "crates/papyrus_monitoring_gateway", version = "0.14.0-rc.3" }
+papyrus_network = { path = "crates/papyrus_network", version = "0.14.0-rc.3" }
+papyrus_network_types = { path = "crates/papyrus_network_types", version = "0.14.0-rc.3" }
+papyrus_p2p_sync = { path = "crates/papyrus_p2p_sync", version = "0.14.0-rc.3" }
+papyrus_proc_macros = { path = "crates/papyrus_proc_macros", version = "0.14.0-rc.3" }
+papyrus_protobuf = { path = "crates/papyrus_protobuf", version = "0.14.0-rc.3" }
+papyrus_rpc = { path = "crates/papyrus_rpc", version = "0.14.0-rc.3" }
+papyrus_state_reader = { path = "crates/papyrus_state_reader", version = "0.14.0-rc.3" }
+papyrus_storage = { path = "crates/papyrus_storage", version = "0.14.0-rc.3" }
+papyrus_sync = { path = "crates/papyrus_sync", version = "0.14.0-rc.3" }
+papyrus_test_utils = { path = "crates/papyrus_test_utils", version = "0.14.0-rc.3" }
 parity-scale-codec = "3.6"
 parity-scale-codec-derive = "3.6"
 paste = "1.0.15"
@@ -215,31 +212,31 @@ simple_logger = "4.0.0"
 starknet-core = "0.6.0"
 starknet-crypto = "0.7.1"
 starknet-types-core = "0.1.6"
-starknet_api = { path = "crates/starknet_api", version = "0.14.0-rc.0" }
-starknet_batcher = { path = "crates/starknet_batcher", version = "0.14.0-rc.0" }
-starknet_batcher_types = { path = "crates/starknet_batcher_types", version = "0.14.0-rc.0" }
-starknet_class_manager_types = { path = "crates/starknet_class_manager_types", version = "0.14.0-rc.0" }
-starknet_client = { path = "crates/starknet_client", version = "0.14.0-rc.0" }
-starknet_committer = { path = "crates/starknet_committer", version = "0.14.0-rc.0" }
-starknet_consensus_manager = { path = "crates/starknet_consensus_manager", version = "0.14.0-rc.0" }
-starknet_gateway = { path = "crates/starknet_gateway", version = "0.14.0-rc.0" }
-starknet_gateway_types = { path = "crates/starknet_gateway_types", version = "0.14.0-rc.0" }
-starknet_http_server = { path = "crates/starknet_http_server", version = "0.14.0-rc.0" }
-starknet_infra_utils = { path = "crates/starknet_infra_utils", version = "0.14.0-rc.0" }
-starknet_l1_provider = { path = "crates/starknet_l1_provider", version = "0.14.0-rc.0" }
-starknet_l1_provider_types = { path = "crates/starknet_l1_provider_types", version = "0.14.0-rc.0" }
-starknet_mempool = { path = "crates/starknet_mempool", version = "0.14.0-rc.0" }
-starknet_mempool_p2p = { path = "crates/starknet_mempool_p2p", version = "0.14.0-rc.0" }
-starknet_mempool_p2p_types = { path = "crates/starknet_mempool_p2p_types", version = "0.14.0-rc.0" }
-starknet_mempool_types = { path = "crates/starknet_mempool_types", version = "0.14.0-rc.0" }
-starknet_monitoring_endpoint = { path = "crates/starknet_monitoring_endpoint", version = "0.14.0-rc.0" }
-starknet_patricia = { path = "crates/starknet_patricia", version = "0.14.0-rc.0" }
-starknet_sequencer_infra = { path = "crates/starknet_sequencer_infra", version = "0.14.0-rc.0" }
-starknet_sequencer_node = { path = "crates/starknet_sequencer_node", version = "0.14.0-rc.0" }
-starknet_sierra_multicompile = { path = "crates/starknet_sierra_multicompile", version = "0.14.0-rc.0" }
-starknet_state_sync = { path = "crates/starknet_state_sync", version = "0.14.0-rc.0" }
-starknet_state_sync_types = { path = "crates/starknet_state_sync_types", version = "0.14.0-rc.0" }
-starknet_task_executor = { path = "crates/starknet_task_executor", version = "0.14.0-rc.0" }
+starknet_api = { path = "crates/starknet_api", version = "0.14.0-rc.3" }
+starknet_batcher = { path = "crates/starknet_batcher", version = "0.14.0-rc.3" }
+starknet_batcher_types = { path = "crates/starknet_batcher_types", version = "0.14.0-rc.3" }
+starknet_class_manager_types = { path = "crates/starknet_class_manager_types", version = "0.14.0-rc.3" }
+starknet_client = { path = "crates/starknet_client", version = "0.14.0-rc.3" }
+starknet_committer = { path = "crates/starknet_committer", version = "0.14.0-rc.3" }
+starknet_consensus_manager = { path = "crates/starknet_consensus_manager", version = "0.14.0-rc.3" }
+starknet_gateway = { path = "crates/starknet_gateway", version = "0.14.0-rc.3" }
+starknet_gateway_types = { path = "crates/starknet_gateway_types", version = "0.14.0-rc.3" }
+starknet_http_server = { path = "crates/starknet_http_server", version = "0.14.0-rc.3" }
+starknet_infra_utils = { path = "crates/starknet_infra_utils", version = "0.14.0-rc.3" }
+starknet_l1_provider = { path = "crates/starknet_l1_provider", version = "0.14.0-rc.3" }
+starknet_l1_provider_types = { path = "crates/starknet_l1_provider_types", version = "0.14.0-rc.3" }
+starknet_mempool = { path = "crates/starknet_mempool", version = "0.14.0-rc.3" }
+starknet_mempool_p2p = { path = "crates/starknet_mempool_p2p", version = "0.14.0-rc.3" }
+starknet_mempool_p2p_types = { path = "crates/starknet_mempool_p2p_types", version = "0.14.0-rc.3" }
+starknet_mempool_types = { path = "crates/starknet_mempool_types", version = "0.14.0-rc.3" }
+starknet_monitoring_endpoint = { path = "crates/starknet_monitoring_endpoint", version = "0.14.0-rc.3" }
+starknet_patricia = { path = "crates/starknet_patricia", version = "0.14.0-rc.3" }
+starknet_sequencer_infra = { path = "crates/starknet_sequencer_infra", version = "0.14.0-rc.3" }
+starknet_sequencer_node = { path = "crates/starknet_sequencer_node", version = "0.14.0-rc.3" }
+starknet_sierra_multicompile = { path = "crates/starknet_sierra_multicompile", version = "0.14.0-rc.3" }
+starknet_state_sync = { path = "crates/starknet_state_sync", version = "0.14.0-rc.3" }
+starknet_state_sync_types = { path = "crates/starknet_state_sync_types", version = "0.14.0-rc.3" }
+starknet_task_executor = { path = "crates/starknet_task_executor", version = "0.14.0-rc.3" }
 static_assertions = "1.1.0"
 statistical = "1.0.0"
 strum = "0.25.0"
@@ -275,9 +272,14 @@ zstd = "0.13.1"
 future-incompatible = "warn"
 nonstandard-style = "warn"
 rust-2018-idioms = "warn"
-# See [here](https://github.com/taiki-e/cargo-llvm-cov/issues/370) for a discussion on why this is
-# needed (from rust 1.80).
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }
+unexpected_cfgs = { level = "warn", check-cfg = [
+  # See [here](https://github.com/taiki-e/cargo-llvm-cov/issues/370) for a discussion on why this is
+  # needed (from rust 1.80).
+  'cfg(coverage_nightly)',
+  # From rust 1.84, seems like the pyo3 crate version we are using breaks. Remove this once pyo3 is
+  # removed from the workspace.
+  'cfg(addr_of)',
+] }
 
 [workspace.lints.clippy]
 as_conversions = "warn"

@@ -12,10 +12,7 @@ fn get_valid_preinstalled_protoc_version() -> Option<(u32, u32)> {
 
     let parts: Vec<&str> = protoc_version_output.split_whitespace().collect();
     // The returned string is in the format "libprotoc 25.1". We need to extract the version
-    let protoc_version_str = match parts.get(1) {
-        Some(version) => version,
-        None => return None,
-    };
+    let protoc_version_str = parts.get(1)?;
     let (major, minor) = parse_protoc_version(protoc_version_str)?;
     // Protoc versions before 3.15 are not supported.
     if (major < 3) || (major == 3 && minor < 15) { None } else { Some((major, minor)) }

@@ -28,8 +28,8 @@ use test_case::test_case;
 use crate::context::ChainInfo;
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::CallEntryPoint;
-use crate::test_utils::contracts::FeatureContract;
-use crate::test_utils::initial_test_state::test_state;
+use crate::test_utils::contracts::{FeatureContract, FeatureContractData};
+use crate::test_utils::initial_test_state::test_state_ex;
 use crate::test_utils::{
     trivial_external_entry_point_with_address,
     CairoVersion,
@@ -42,6 +42,7 @@ use crate::transaction::objects::{
     DeprecatedTransactionInfo,
     TransactionInfo,
 };
+use crate::versioned_constants::VersionedConstants;
 
 #[cfg_attr(
     feature = "cairo_native",
@@ -49,8 +50,10 @@ use crate::transaction::objects::{
         FeatureContract::SierraExecutionInfoV1Contract(RunnableCairo1::Native),
         ExecutionMode::Validate,
         TransactionVersion::ONE,
+        false,
+        false,
         false;
-        "Native [V1]: Validate execution mode: block info fields should be zeroed. Transaction V1."
+        "Native: Validate execution mode: block info fields should be zeroed. Transaction V1."
     )
 )]
 #[cfg_attr(
@@ -59,26 +62,8 @@ use crate::transaction::objects::{
         FeatureContract::SierraExecutionInfoV1Contract(RunnableCairo1::Native),
         ExecutionMode::Execute,
         TransactionVersion::ONE,
-        false;
-        "Native [V1]: Execute execution mode: block info should be as usual. Transaction V1."
-    )
-)]
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(
-        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
-        ExecutionMode::Validate,
-        TransactionVersion::ONE,
-        false;
-        "Native: Validate execution mode: block info fields should be zeroed. Transaction V1."
-    )
-)]
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(
-        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
-        ExecutionMode::Execute,
-        TransactionVersion::ONE,
+        false,
+        false,
         false;
         "Native: Execute execution mode: block info should be as usual. Transaction V1."
     )
@@ -89,6 +74,8 @@ use crate::transaction::objects::{
         FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
         ExecutionMode::Validate,
         TransactionVersion::THREE,
+        false,
+        false,
         false;
         "Native: Validate execution mode: block info fields should be zeroed. Transaction V3."
     )
@@ -99,59 +86,172 @@ use crate::transaction::objects::{
         FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
         ExecutionMode::Execute,
         TransactionVersion::THREE,
+        false,
+        false,
         false;
         "Native: Execute execution mode: block info should be as usual. Transaction V3."
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+    FeatureContract::LegacyTestContract,
+    ExecutionMode::Execute,
+    TransactionVersion::ONE,
+    false,
+    false,
+    false;
+    "Native: Legacy contract. Execute execution mode: block info should be as usual. Transaction
+    V1."
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+    FeatureContract::LegacyTestContract,
+    ExecutionMode::Execute,
+    TransactionVersion::THREE,
+    false,
+    false,
+    false;
+    "Native: Legacy contract. Execute execution mode: block info should be as usual. Transaction
+    V3."
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
+        ExecutionMode::Execute,
+        TransactionVersion::THREE,
+        true,
+        false,
+        false;
+        "Native: Execute execution mode: block info should be as usual. Transaction V3. Query"
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
+        ExecutionMode::Execute,
+        TransactionVersion::THREE,
+        false,
+        true,
+        false;
+        "Native: V1 bound account: execute"
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
+        ExecutionMode::Execute,
+        TransactionVersion::THREE,
+        true,
+        true,
+        false;
+        "Native: V1 bound account: query"
     )
 )]
 #[test_case(
     FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
     ExecutionMode::Validate,
     TransactionVersion::ONE,
+    false,
+    false,
     false;
     "Validate execution mode: block info fields should be zeroed. Transaction V1.")]
 #[test_case(
     FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
     ExecutionMode::Execute,
     TransactionVersion::ONE,
+    false,
+    false,
     false;
     "Execute execution mode: block info should be as usual. Transaction V1.")]
 #[test_case(
     FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
     ExecutionMode::Validate,
     TransactionVersion::THREE,
+    false,
+    false,
     false;
     "Validate execution mode: block info fields should be zeroed. Transaction V3.")]
 #[test_case(
     FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
     ExecutionMode::Execute,
     TransactionVersion::THREE,
+    false,
+    false,
     false;
     "Execute execution mode: block info should be as usual. Transaction V3.")]
 #[test_case(
     FeatureContract::LegacyTestContract,
     ExecutionMode::Execute,
     TransactionVersion::ONE,
+    false,
+    false,
     false;
     "Legacy contract. Execute execution mode: block info should be as usual. Transaction V1.")]
 #[test_case(
     FeatureContract::LegacyTestContract,
     ExecutionMode::Execute,
     TransactionVersion::THREE,
+    false,
+    false,
     false;
     "Legacy contract. Execute execution mode: block info should be as usual. Transaction V3.")]
 #[test_case(
     FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
     ExecutionMode::Execute,
     TransactionVersion::THREE,
-    true;
+    true,
+    false,
+    false;
     "Execute execution mode: block info should be as usual. Transaction V3. Query.")]
+#[test_case(
+    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+    ExecutionMode::Execute,
+    TransactionVersion::THREE,
+    false,
+    true,
+    false;
+    "V1 bound account: execute")]
+#[test_case(
+    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+    ExecutionMode::Execute,
+    TransactionVersion::THREE,
+    false,
+    true,
+    true;
+    "V1 bound account: execute, high tip")]
+#[test_case(
+    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+    ExecutionMode::Execute,
+    TransactionVersion::THREE,
+    true,
+    true,
+    false;
+    "V1 bound account: query")]
 fn test_get_execution_info(
     test_contract: FeatureContract,
     execution_mode: ExecutionMode,
     mut version: TransactionVersion,
     only_query: bool,
+    v1_bound_account: bool,
+    // Whether the tip is larger than `v1_bound_accounts_max_tip`.
+    high_tip: bool,
 ) {
-    let state = &mut test_state(&ChainInfo::create_for_testing(), BALANCE, &[(test_contract, 1)]);
+    let mut test_contract_data: FeatureContractData = test_contract.into();
+    if v1_bound_account {
+        let optional_class_hash =
+            VersionedConstants::latest_constants().os_constants.v1_bound_accounts_cairo1.first();
+        test_contract_data.class_hash =
+            *optional_class_hash.expect("No v1 bound accounts found in versioned constants.");
+    }
+    let state =
+        &mut test_state_ex(&ChainInfo::create_for_testing(), BALANCE, &[(test_contract_data, 1)]);
     let expected_block_info = match execution_mode {
         ExecutionMode::Validate => [
             // Rounded block number.
@@ -168,6 +268,11 @@ fn test_get_execution_info(
     };
 
     let test_contract_address = test_contract.get_instance_address(0);
+
+    // Transaction tip.
+    let tip = Tip(VersionedConstants::latest_constants().os_constants.v1_bound_accounts_max_tip.0
+        + if high_tip { 1 } else { 0 });
+    let expected_tip = if version == TransactionVersion::THREE { tip } else { Tip(0) };
 
     let expected_unsupported_fields = match test_contract {
         FeatureContract::LegacyTestContract => {
@@ -188,19 +293,21 @@ fn test_get_execution_info(
         }
         _ => {
             vec![
-                Felt::ZERO, // Tip.
-                Felt::ZERO, // Paymaster data.
-                Felt::ZERO, // Nonce DA.
-                Felt::ZERO, // Fee DA.
-                Felt::ZERO, // Account data.
+                expected_tip.into(), // Tip.
+                Felt::ZERO,          // Paymaster data.
+                Felt::ZERO,          // Nonce DA.
+                Felt::ZERO,          // Fee DA.
+                Felt::ZERO,          // Account data.
             ]
         }
     };
 
+    let mut expected_version = if v1_bound_account && !high_tip { 1.into() } else { version.0 };
     if only_query {
         let simulate_version_base = *QUERY_VERSION_BASE;
         let query_version = simulate_version_base + version.0;
         version = TransactionVersion(query_version);
+        expected_version += simulate_version_base;
     }
 
     let tx_hash = tx_hash!(1991);
@@ -233,7 +340,7 @@ fn test_get_execution_info(
     let tx_info: TransactionInfo;
     if version == TransactionVersion::ONE {
         expected_tx_info = vec![
-            version.0,                                       /* Transaction
+            expected_version,                                /* Transaction
                                                               * version. */
             *sender_address.0.key(), // Account address.
             felt!(max_fee.0),        // Max fee.
@@ -256,7 +363,7 @@ fn test_get_execution_info(
         });
     } else {
         expected_tx_info = vec![
-            version.0,                                       /* Transaction
+            expected_version,                                /* Transaction
                                                               * version. */
             *sender_address.0.key(), // Account address.
             Felt::ZERO,              // Max fee.
@@ -279,7 +386,7 @@ fn test_get_execution_info(
                 max_amount,
                 max_price_per_unit,
             }),
-            tip: Tip::default(),
+            tip,
             nonce_data_availability_mode: DataAvailabilityMode::L1,
             fee_data_availability_mode: DataAvailabilityMode::L1,
             paymaster_data: PaymasterData::default(),

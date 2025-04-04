@@ -1,3 +1,4 @@
+mod builtins_test;
 mod call_contract;
 mod constants;
 mod deploy;

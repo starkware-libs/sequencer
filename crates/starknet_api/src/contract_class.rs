@@ -2,6 +2,7 @@ use std::fmt::Display;
 use std::str::FromStr;
 
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use cairo_lang_starknet_classes::compiler_version::VersionId;
 use derive_more::Deref;
 use semver::Version;
 use serde::{Deserialize, Serialize};
@@ -30,6 +31,10 @@ pub enum EntryPointType {
     L1Handler,
 }
 
+fn u64_to_usize(val: u64) -> usize {
+    val.try_into().expect("Failed to convert u64 version tag to usize.")
+}
+
 pub type VersionedCasm = (CasmContractClass, SierraVersion);
 
 /// Represents a raw Starknet contract class.
@@ -52,6 +57,16 @@ impl ContractClass {
 
 #[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq, PartialOrd)]
 pub struct SierraVersion(Version);
+
+impl From<SierraVersion> for VersionId {
+    fn from(val: SierraVersion) -> Self {
+        VersionId {
+            major: u64_to_usize(val.0.major),
+            minor: u64_to_usize(val.0.minor),
+            patch: u64_to_usize(val.0.patch),
+        }
+    }
+}
 
 impl SierraVersion {
     /// Version of deprecated contract class (Cairo 0).

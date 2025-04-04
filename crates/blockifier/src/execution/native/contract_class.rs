@@ -1,11 +1,11 @@
 use std::ops::Deref;
 use std::sync::Arc;
 
+use cairo_native::executor::AotContractExecutor;
 use starknet_api::core::EntryPointSelector;
 
-use super::executor::ContractExecutor;
 use crate::execution::contract_class::{CompiledClassV1, EntryPointV1};
-use crate::execution::entry_point::CallEntryPoint;
+use crate::execution::entry_point::EntryPointTypeAndSelector;
 use crate::execution::errors::PreExecutionError;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NativeCompiledClassV1(pub Arc<NativeCompiledClassV1Inner>);
@@ -26,7 +26,7 @@ impl NativeCompiledClassV1 {
     ///
     /// executor must be derived from sierra_program which in turn must be derived from
     /// sierra_contract_class.
-    pub fn new(executor: ContractExecutor, casm: CompiledClassV1) -> NativeCompiledClassV1 {
+    pub fn new(executor: AotContractExecutor, casm: CompiledClassV1) -> NativeCompiledClassV1 {
         let contract = NativeCompiledClassV1Inner::new(executor, casm);
 
         Self(Arc::new(contract))
@@ -34,9 +34,9 @@ impl NativeCompiledClassV1 {
 
     pub fn get_entry_point(
         &self,
-        call: &CallEntryPoint,
+        entry_point: &EntryPointTypeAndSelector,
     ) -> Result<EntryPointV1, PreExecutionError> {
-        self.casm.get_entry_point(call)
+        self.casm.get_entry_point(entry_point)
     }
 
     pub fn casm(&self) -> CompiledClassV1 {
@@ -46,12 +46,12 @@ impl NativeCompiledClassV1 {
 
 #[derive(Debug)]
 pub struct NativeCompiledClassV1Inner {
-    pub executor: ContractExecutor,
+    pub executor: AotContractExecutor,
     casm: CompiledClassV1,
 }
 
 impl NativeCompiledClassV1Inner {
-    fn new(executor: ContractExecutor, casm: CompiledClassV1) -> Self {
+    fn new(executor: AotContractExecutor, casm: CompiledClassV1) -> Self {
         NativeCompiledClassV1Inner { executor, casm }
     }
 }

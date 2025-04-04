@@ -31,7 +31,7 @@ use starknet_api::deprecated_contract_class::{
 use starknet_types_core::felt::Felt;
 
 use crate::abi::constants::{self};
-use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionContext};
+use crate::execution::entry_point::{EntryPointExecutionContext, EntryPointTypeAndSelector};
 use crate::execution::errors::PreExecutionError;
 use crate::execution::execution_utils::{poseidon_hash_many_cost, sn_api_to_cairo_vm_program};
 #[cfg(feature = "cairo_native")]
@@ -119,10 +119,13 @@ impl RunnableCompiledClass {
         min_sierra_version: &SierraVersion,
         last_tracked_resource: Option<&TrackedResource>,
     ) -> TrackedResource {
-        let _ = min_sierra_version;
         let contract_tracked_resource = match self {
             Self::V0(_) => TrackedResource::CairoSteps,
-            _ => TrackedResource::SierraGas,
+            Self::V1(contract_class) => contract_class.tracked_resource(min_sierra_version),
+            #[cfg(feature = "cairo_native")]
+            Self::V1Native(contract_class) => {
+                contract_class.casm().tracked_resource(min_sierra_version)
+            }
         };
         match last_tracked_resource {
             // Once we ran with CairoSteps, we will continue to run using it for all nested calls.
@@ -250,9 +253,9 @@ impl CompiledClassV1 {
 
     pub fn get_entry_point(
         &self,
-        call: &CallEntryPoint,
+        entry_point: &EntryPointTypeAndSelector,
     ) -> Result<EntryPointV1, PreExecutionError> {
-        self.entry_points_by_type.get_entry_point(call)
+        self.entry_points_by_type.get_entry_point(entry_point)
     }
 
     /// Returns whether this contract should run using Cairo steps or Sierra gas.
@@ -519,21 +522,24 @@ pub struct EntryPointsByType<EP: HasSelector> {
 }
 
 impl<EP: Clone + HasSelector> EntryPointsByType<EP> {
-    pub fn get_entry_point(&self, call: &CallEntryPoint) -> Result<EP, PreExecutionError> {
-        call.verify_constructor()?;
+    pub fn get_entry_point(
+        &self,
+        entry_point: &EntryPointTypeAndSelector,
+    ) -> Result<EP, PreExecutionError> {
+        entry_point.verify_constructor()?;
 
-        let entry_points_of_same_type = &self[call.entry_point_type];
+        let entry_points_of_same_type = &self[entry_point.entry_point_type];
         let filtered_entry_points: Vec<_> = entry_points_of_same_type
             .iter()
-            .filter(|ep| *ep.selector() == call.entry_point_selector)
+            .filter(|ep| *ep.selector() == entry_point.entry_point_selector)
             .collect();
 
         match filtered_entry_points[..] {
-            [] => Err(PreExecutionError::EntryPointNotFound(call.entry_point_selector)),
+            [] => Err(PreExecutionError::EntryPointNotFound(entry_point.entry_point_selector)),
             [entry_point] => Ok(entry_point.clone()),
             _ => Err(PreExecutionError::DuplicatedEntryPointSelector {
-                selector: call.entry_point_selector,
-                typ: call.entry_point_type,
+                selector: entry_point.entry_point_selector,
+                typ: entry_point.entry_point_type,
             }),
         }
     }

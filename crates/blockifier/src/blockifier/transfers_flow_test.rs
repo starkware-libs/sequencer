@@ -6,14 +6,23 @@ use crate::test_utils::transfers_generator::{
     TransfersGenerator,
     TransfersGeneratorConfig,
 };
+use crate::test_utils::{CairoVersion, RunnableCairo1};
 
 #[rstest]
-#[case::concurrency_enabled(ConcurrencyConfig{enabled: true, n_workers: 4, chunk_size: 100})]
-#[case::concurrency_disabled(ConcurrencyConfig{enabled: false, n_workers: 0, chunk_size: 0})]
-pub fn transfers_flow_test(#[case] concurrency_config: ConcurrencyConfig) {
+#[case::cairo1(CairoVersion::Cairo1(RunnableCairo1::Casm))]
+#[cfg_attr(
+    feature = "cairo_native",
+    case::cairo1_native(CairoVersion::Cairo1(RunnableCairo1::Native))
+)]
+pub fn transfers_flow_test(
+    #[values(true, false)] concurrency_enabled: bool,
+    #[case] cairo_version: CairoVersion,
+) {
+    let concurrency_config = ConcurrencyConfig::create_for_testing(concurrency_enabled);
     let transfers_generator_config = TransfersGeneratorConfig {
         recipient_generator_type: RecipientGeneratorType::DisjointFromSenders,
         concurrency_config,
+        cairo_version,
         ..Default::default()
     };
     assert!(

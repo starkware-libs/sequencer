@@ -383,7 +383,7 @@ fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
         ..Default::default()
     };
 
-    assert_eq!(execution_output.writes, writes.diff(&reads));
+    assert_eq!(execution_output.state_diff, writes.diff(&reads));
     assert_eq!(execution_output.reads, reads);
 
     // Failed execution.
@@ -402,7 +402,7 @@ fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
         ..Default::default()
     };
     assert_eq!(execution_output.reads, reads);
-    assert_eq!(execution_output.writes, StateMaps::default());
+    assert_eq!(execution_output.state_diff, StateMaps::default());
 
     // Reverted execution.
     let tx_index = 2;
@@ -415,7 +415,7 @@ fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
     let execution_output = worker_executor.execution_outputs[tx_index].lock().unwrap();
     let execution_output = execution_output.as_ref().unwrap();
     assert!(execution_output.result.as_ref().unwrap().is_reverted());
-    assert_ne!(execution_output.writes, StateMaps::default());
+    assert_ne!(execution_output.state_diff, StateMaps::default());
 
     // Validate status change.
     for tx_index in 0..3 {

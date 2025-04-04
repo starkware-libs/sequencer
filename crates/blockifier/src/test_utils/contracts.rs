@@ -18,7 +18,7 @@ use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 use crate::execution::contract_class::RunnableCompiledClass;
-use crate::execution::entry_point::CallEntryPoint;
+use crate::execution::entry_point::EntryPointTypeAndSelector;
 #[cfg(feature = "cairo_native")]
 use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::test_utils::cairo_compile::{cairo0_compile, cairo1_compile, CompilationArtifacts};
@@ -159,9 +159,13 @@ impl FeatureContract {
     }
 
     /// Returns the address of the instance with the given instance ID.
+    pub fn instance_address(integer_base: u32, instance_id: u32) -> ContractAddress {
+        contract_address!(integer_base + instance_id + ADDRESS_BIT)
+    }
+
+    /// Returns the address of the instance with the given instance ID.
     pub fn get_instance_address(&self, instance_id: u16) -> ContractAddress {
-        let instance_id_as_u32: u32 = instance_id.into();
-        contract_address!(self.get_integer_base() + instance_id_as_u32 + ADDRESS_BIT)
+        Self::instance_address(self.get_integer_base(), instance_id.into())
     }
 
     pub fn get_class(&self) -> ContractClass {
@@ -393,10 +397,9 @@ impl FeatureContract {
             RunnableCompiledClass::V1(class) => {
                 class
                     .entry_points_by_type
-                    .get_entry_point(&CallEntryPoint {
+                    .get_entry_point(&EntryPointTypeAndSelector {
                         entry_point_type,
                         entry_point_selector,
-                        ..Default::default()
                     })
                     .unwrap()
                     .offset
@@ -489,5 +492,39 @@ impl FeatureContract {
             .filter(|contract| contract.cairo_version() != CairoVersion::Cairo0)
             .map(|contract| (contract.fixed_tag_and_rust_toolchain(), contract))
             .into_group_map()
+    }
+}
+
+/// The information needed to test a [FeatureContract].
+pub struct FeatureContractData {
+    pub class_hash: ClassHash,
+    pub runnable_class: RunnableCompiledClass,
+    pub require_funding: bool,
+    integer_base: u32,
+}
+impl FeatureContractData {
+    pub fn get_instance_address(&self, instance: u16) -> ContractAddress {
+        // If a test requires overriding the contract address, replace storing `integer_base` in the
+        // struct with storing a callback function that computes the address.
+        // A test will then be able to override the callback function to return the desired address.
+        FeatureContract::instance_address(self.integer_base, instance.into())
+    }
+}
+
+impl From<FeatureContract> for FeatureContractData {
+    fn from(contract: FeatureContract) -> Self {
+        let require_funding = matches!(
+            contract,
+            FeatureContract::AccountWithLongValidate(_)
+                | FeatureContract::AccountWithoutValidations(_)
+                | FeatureContract::FaultyAccount(_)
+        );
+
+        Self {
+            class_hash: contract.get_class_hash(),
+            runnable_class: contract.get_runnable_class(),
+            require_funding,
+            integer_base: contract.get_integer_base(),
+        }
     }
 }

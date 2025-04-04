@@ -1,54 +1,4 @@
 {
-  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.add_mod": {
-    "description": "Max number of add mod builtin usage in a block.",
-    "privacy": "Public",
-    "value": 156250
-  },
-  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.bitwise": {
-    "description": "Max number of bitwise builtin usage in a block.",
-    "privacy": "Public",
-    "value": 39062
-  },
-  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.ec_op": {
-    "description": "Max number of EC operation builtin usage in a block.",
-    "privacy": "Public",
-    "value": 2441
-  },
-  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.ecdsa": {
-    "description": "Max number of ECDSA builtin usage in a block.",
-    "privacy": "Public",
-    "value": 1220
-  },
-  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.keccak": {
-    "description": "Max number of keccak builtin usage in a block.",
-    "privacy": "Public",
-    "value": 1220
-  },
-  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.mul_mod": {
-    "description": "Max number of mul mod builtin usage in a block.",
-    "privacy": "Public",
-    "value": 156250
-  },
-  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.pedersen": {
-    "description": "Max number of pedersen builtin usage in a block.",
-    "privacy": "Public",
-    "value": 78125
-  },
-  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.poseidon": {
-    "description": "Max number of poseidon builtin usage in a block.",
-    "privacy": "Public",
-    "value": 78125
-  },
-  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.range_check": {
-    "description": "Max number of range check builtin usage in a block.",
-    "privacy": "Public",
-    "value": 156250
-  },
-  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.range_check96": {
-    "description": "Max number of range check 96 builtin usage in a block.",
-    "privacy": "Public",
-    "value": 156250
-  },
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.l1_gas": {
     "description": "An upper bound on the total l1_gas used in a block.",
     "privacy": "Public",
@@ -64,15 +14,10 @@
     "privacy": "Public",
     "value": 5000
   },
-  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.n_steps": {
-    "description": "An upper bound on the total number of steps in a block.",
-    "privacy": "Public",
-    "value": 2500000
-  },
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.sierra_gas": {
     "description": "An upper bound on the total sierra_gas used in a block.",
     "privacy": "Public",
-    "value": 250000000
+    "value": 400000000
   },
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.state_diff_size": {
     "description": "An upper bound on the total state diff size in a block.",
@@ -112,7 +57,7 @@
   "batcher_config.block_builder_config.execute_config.stack_size": {
     "description": "The thread stack size (proportional to the maximal gas of a transaction).",
     "privacy": "Public",
-    "value": 0
+    "value": 62914560
   },
   "batcher_config.block_builder_config.tx_chunk_size": {
     "description": "The size of the transaction chunk.",
@@ -122,6 +67,11 @@
   "batcher_config.block_builder_config.versioned_constants_overrides.invoke_tx_max_n_steps": {
     "description": "Maximum number of steps the invoke function is allowed to run.",
     "pointer_target": "versioned_constants_overrides.invoke_tx_max_n_steps",
+    "privacy": "Public"
+  },
+  "batcher_config.block_builder_config.versioned_constants_overrides.max_n_events": {
+    "description": "Maximum number of events that can be emitted from the transation.",
+    "pointer_target": "versioned_constants_overrides.max_n_events",
     "privacy": "Public"
   },
   "batcher_config.block_builder_config.versioned_constants_overrides.max_recursion_depth": {
@@ -137,7 +87,12 @@
   "batcher_config.contract_class_manager_config.cairo_native_run_config.channel_size": {
     "description": "The size of the compilation request channel.",
     "privacy": "Public",
-    "value": 1000
+    "value": 2000
+  },
+  "batcher_config.contract_class_manager_config.cairo_native_run_config.native_classes_whitelist": {
+    "description": "Contracts for Cairo Specifies whether to execute all class hashes or only a limited selection using Cairo native contracts. If limited, a specific list of class hashes is provided. compilation.",
+    "privacy": "Public",
+    "value": "All"
   },
   "batcher_config.contract_class_manager_config.cairo_native_run_config.run_cairo_native": {
     "description": "Enables Cairo native execution.",
@@ -152,17 +107,7 @@
   "batcher_config.contract_class_manager_config.contract_cache_size": {
     "description": "The size of the global contract cache.",
     "privacy": "Public",
-    "value": 400
-  },
-  "batcher_config.contract_class_manager_config.native_compiler_config.libcairo_native_runtime_path": {
-    "description": "The path to the Cairo native runtime library file.",
-    "privacy": "Public",
-    "value": ""
-  },
-  "batcher_config.contract_class_manager_config.native_compiler_config.libcairo_native_runtime_path.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
+    "value": 600
   },
   "batcher_config.contract_class_manager_config.native_compiler_config.max_casm_bytecode_size": {
     "description": "Limitation of compiled casm bytecode size.",
@@ -172,7 +117,7 @@
   "batcher_config.contract_class_manager_config.native_compiler_config.max_cpu_time": {
     "description": "Limitation of compilation cpu time (seconds).",
     "privacy": "Public",
-    "value": 15
+    "value": 20
   },
   "batcher_config.contract_class_manager_config.native_compiler_config.max_memory_usage": {
     "description": "Limitation of compilation process's virtual memory (bytes).",
@@ -183,6 +128,16 @@
     "description": "Limitation of compiled native bytecode size.",
     "privacy": "Public",
     "value": 15728640
+  },
+  "batcher_config.contract_class_manager_config.native_compiler_config.optimization_level": {
+    "description": "The level of optimization to apply during compilation.",
+    "privacy": "Public",
+    "value": 2
+  },
+  "batcher_config.contract_class_manager_config.native_compiler_config.panic_on_compilation_failure": {
+    "description": "Whether to panic on compilation failure.",
+    "privacy": "Public",
+    "value": false
   },
   "batcher_config.contract_class_manager_config.native_compiler_config.sierra_to_native_compiler_path": {
     "description": "The path to the Sierra-to-Native compiler binary.",
@@ -264,16 +219,6 @@
     "param_type": "String",
     "privacy": "TemporaryValue"
   },
-  "compiler_config.libcairo_native_runtime_path": {
-    "description": "The path to the Cairo native runtime library file.",
-    "privacy": "Public",
-    "value": ""
-  },
-  "compiler_config.libcairo_native_runtime_path.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
   "compiler_config.max_casm_bytecode_size": {
     "description": "Limitation of compiled casm bytecode size.",
     "privacy": "Public",
@@ -282,7 +227,7 @@
   "compiler_config.max_cpu_time": {
     "description": "Limitation of compilation cpu time (seconds).",
     "privacy": "Public",
-    "value": 15
+    "value": 20
   },
   "compiler_config.max_memory_usage": {
     "description": "Limitation of compilation process's virtual memory (bytes).",
@@ -293,6 +238,16 @@
     "description": "Limitation of compiled native bytecode size.",
     "privacy": "Public",
     "value": 15728640
+  },
+  "compiler_config.optimization_level": {
+    "description": "The level of optimization to apply during compilation.",
+    "privacy": "Public",
+    "value": 2
+  },
+  "compiler_config.panic_on_compilation_failure": {
+    "description": "Whether to panic on compilation failure.",
+    "privacy": "Public",
+    "value": false
   },
   "compiler_config.sierra_to_native_compiler_path": {
     "description": "The path to the Sierra-to-Native compiler binary.",
@@ -849,6 +804,11 @@
     "pointer_target": "versioned_constants_overrides.invoke_tx_max_n_steps",
     "privacy": "Public"
   },
+  "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.max_n_events": {
+    "description": "Maximum number of events that can be emitted from the transation.",
+    "pointer_target": "versioned_constants_overrides.max_n_events",
+    "privacy": "Public"
+  },
   "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.max_recursion_depth": {
     "description": "Maximum recursion depth for nested calls during blockifier validation.",
     "pointer_target": "versioned_constants_overrides.max_recursion_depth",
@@ -1218,6 +1178,11 @@
     "description": "Maximum number of steps the invoke function is allowed to run.",
     "privacy": "TemporaryValue",
     "value": 10000000
+  },
+  "versioned_constants_overrides.max_n_events": {
+    "description": "Maximum number of events that can be emitted from the transation.",
+    "privacy": "TemporaryValue",
+    "value": 1000
   },
   "versioned_constants_overrides.max_recursion_depth": {
     "description": "Maximum recursion depth for nested calls during blockifier validation.",

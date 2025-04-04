@@ -25,11 +25,11 @@ use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::{RunnableCompiledClass, TrackedResource};
 use crate::execution::entry_point::{
     execute_constructor_entry_point,
-    CallEntryPoint,
     ConstructorContext,
     ConstructorEntryPointExecutionResult,
     EntryPointExecutionContext,
     EntryPointExecutionResult,
+    ExecutableCallEntryPoint,
 };
 use crate::execution::errors::{
     ConstructorEntryPointExecutionError,
@@ -51,7 +51,7 @@ pub const SEGMENT_ARENA_BUILTIN_SIZE: usize = 3;
 
 /// A wrapper for execute_entry_point_call that performs pre and post-processing.
 pub fn execute_entry_point_call_wrapper(
-    mut call: CallEntryPoint,
+    mut call: ExecutableCallEntryPoint,
     compiled_class: RunnableCompiledClass,
     state: &mut dyn State,
     context: &mut EntryPointExecutionContext,
@@ -93,7 +93,7 @@ pub fn execute_entry_point_call_wrapper(
                 _ => return Err(err.into()),
             };
             Ok(CallInfo {
-                call: orig_call,
+                call: orig_call.into(),
                 execution: CallExecution {
                     retdata: Retdata(vec![Felt::from_hex(error_code).unwrap()]),
                     failed: true,
@@ -110,13 +110,12 @@ pub fn execute_entry_point_call_wrapper(
 
 /// Executes a specific call to a contract entry point and returns its output.
 pub fn execute_entry_point_call(
-    call: CallEntryPoint,
+    call: ExecutableCallEntryPoint,
     compiled_class: RunnableCompiledClass,
     state: &mut dyn State,
     context: &mut EntryPointExecutionContext,
 ) -> EntryPointExecutionResult<CallInfo> {
-    let pre_time = std::time::Instant::now();
-    let mut result = match compiled_class {
+    match compiled_class {
         RunnableCompiledClass::V0(compiled_class) => {
             deprecated_entry_point_execution::execute_entry_point_call(
                 call,
@@ -130,9 +129,9 @@ pub fn execute_entry_point_call(
         }
         #[cfg(feature = "cairo_native")]
         RunnableCompiledClass::V1Native(compiled_class) => {
-            if context.tracked_resource_stack.last() == Some(&TrackedResource::CairoSteps)
-                && !cfg!(feature = "only-native")
-            {
+            if context.tracked_resource_stack.last() == Some(&TrackedResource::CairoSteps) {
+                // We cannot run native with cairo steps as the tracked resources (it's a vm
+                // resouorce).
                 entry_point_execution::execute_entry_point_call(
                     call,
                     compiled_class.casm(),
@@ -148,9 +147,7 @@ pub fn execute_entry_point_call(
                 )
             }
         }
-    }?;
-    result.time = pre_time.elapsed();
-    Ok(result)
+    }
 }
 
 pub fn update_remaining_gas(remaining_gas: &mut u64, call_info: &CallInfo) {

@@ -16,7 +16,7 @@ use crate::state_reader::compile::{
     legacy_to_contract_class_v0,
     sierra_to_versioned_contract_class_v1,
 };
-use crate::state_reader::errors::{ReexecutionError, ReexecutionResult};
+use crate::state_reader::errors::ReexecutionResult;
 
 pub trait ReexecutionStateReader {
     fn get_contract_class(&self, class_hash: &ClassHash) -> StateResult<StarknetContractClass>;
@@ -65,9 +65,7 @@ pub trait ReexecutionStateReader {
                     )?)
                 }
                 Transaction::Declare(ref declare_tx) => {
-                    let class_info = self
-                        .get_class_info(declare_tx.class_hash())
-                        .map_err(ReexecutionError::from)?;
+                    let class_info = self.get_class_info(declare_tx.class_hash())?;
                     Ok(BlockifierTransaction::from_api(
                         tx,
                         tx_hash,

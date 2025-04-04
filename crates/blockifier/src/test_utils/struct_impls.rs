@@ -6,8 +6,6 @@ use std::sync::{LazyLock, RwLock};
 
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 #[cfg(feature = "cairo_native")]
-use cairo_lang_starknet_classes::contract_class::version_id_from_serialized_sierra_program;
-#[cfg(feature = "cairo_native")]
 use cairo_lang_starknet_classes::contract_class::ContractClass as SierraContractClass;
 #[cfg(feature = "cairo_native")]
 use cairo_native::executor::AotContractExecutor;
@@ -21,7 +19,8 @@ use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContract
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::{TEST_ERC20_CONTRACT_ADDRESS, TEST_ERC20_CONTRACT_ADDRESS2};
 
-use crate::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount};
+use crate::blockifier::config::{CairoNativeRunConfig, ContractClassManagerConfig};
+use crate::bouncer::{BouncerConfig, BouncerWeights};
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::common_hints::ExecutionMode;
@@ -35,6 +34,7 @@ use crate::execution::entry_point::{
 };
 #[cfg(feature = "cairo_native")]
 use crate::execution::native::contract_class::NativeCompiledClassV1;
+use crate::state::contract_class_manager::ContractClassManager;
 use crate::state::state_api::State;
 use crate::test_utils::{get_raw_contract_class, update_json_value};
 use crate::transaction::objects::{
@@ -61,6 +61,28 @@ impl CallEntryPoint {
             limit_steps_by_resources,
             ExecutionMode::Execute,
         )
+    }
+
+    pub fn execute_directly_given_block_context(
+        self,
+        state: &mut dyn State,
+        block_context: BlockContext,
+    ) -> EntryPointExecutionResult<CallInfo> {
+        // Do not limit steps by resources as we use default resources.
+        let limit_steps_by_resources = false;
+        let tx_context = TransactionContext {
+            block_context,
+            tx_info: TransactionInfo::Current(CurrentTransactionInfo::create_for_testing()),
+        };
+
+        let mut context = EntryPointExecutionContext::new(
+            Arc::new(tx_context),
+            ExecutionMode::Execute,
+            limit_steps_by_resources,
+            SierraGasRevertTracker::new(GasAmount(self.initial_gas)),
+        );
+        let mut remaining_gas = self.initial_gas;
+        self.execute(state, &mut context, &mut remaining_gas)
     }
 
     pub fn execute_directly_given_tx_info(
@@ -184,6 +206,15 @@ impl CallExecution {
     }
 }
 
+impl ContractClassManager {
+    pub fn create_for_testing(native_config: CairoNativeRunConfig) -> Self {
+        let config = ContractClassManagerConfig {
+            cairo_native_run_config: native_config,
+            ..Default::default()
+        };
+        ContractClassManager::start(config)
+    }
+}
 // Contract loaders.
 
 // TODO(Noa): Consider using PathBuf.
@@ -196,12 +227,6 @@ pub trait LoadContractFromFile: serde::de::DeserializeOwned {
 
 impl LoadContractFromFile for CasmContractClass {}
 impl LoadContractFromFile for DeprecatedContractClass {}
-
-impl BouncerWeights {
-    pub fn create_for_testing(builtin_count: BuiltinCount) -> Self {
-        Self { builtin_count, ..Self::empty() }
-    }
-}
 
 #[cfg(feature = "cairo_native")]
 static COMPILED_NATIVE_CONTRACT_CACHE: LazyLock<RwLock<HashMap<String, NativeCompiledClassV1>>> =
@@ -228,13 +253,11 @@ impl NativeCompiledClassV1 {
 
         let sierra_version = SierraVersion::extract_from_program(&sierra_version_values)
             .expect("Cannot extract sierra version from sierra program");
-        let (sierra_version_id, _) =
-            version_id_from_serialized_sierra_program(&sierra_contract_class.sierra_program)
-                .unwrap();
+
         let executor = AotContractExecutor::new(
             &sierra_program,
             &sierra_contract_class.entry_points_by_type,
-            sierra_version_id,
+            sierra_version.clone().into(),
             cairo_native::OptLevel::Default,
         )
         .expect("Cannot compile sierra into native");
@@ -246,7 +269,7 @@ impl NativeCompiledClassV1 {
         let casm = CompiledClassV1::try_from((casm_contract_class, sierra_version))
             .expect("Cannot get CompiledClassV1 from CasmContractClass");
 
-        NativeCompiledClassV1::new(executor.into(), casm)
+        NativeCompiledClassV1::new(executor, casm)
     }
 
     pub fn from_file(contract_path: &str) -> Self {

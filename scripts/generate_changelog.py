@@ -5,15 +5,19 @@ from utils import run_command
 
 # Usage:
 # scripts/generate_changelog.py --start <FROM_TAG> --end <TO_TAG> --project <PROJECT_NAME>
-GIT_CLIFF_VERSION = "2.4.0"
+GIT_CLIFF_VERSION = "2.7.0"
 PROJECT_TO_PATHS = {"blockifier": ["crates/blockifier/"], "all": []}
+
 
 def prepare_git_cliff(version: str):
     """
     Install git-cliff if missing.
     """
     run_command(
-        command=f'cargo install --list | grep -q "git-cliff v{version}" || cargo install git-cliff@{version}'
+        command=(
+            f'cargo install --list | grep -q "git-cliff v{version}" || '
+            f"cargo install git-cliff@{version}"
+        )
     )
 
 
@@ -21,7 +25,8 @@ def build_command(project_name: str, start_tag: str, end_tag: str) -> str:
     paths = PROJECT_TO_PATHS[project_name]
     include_paths = " ".join((f"--include-path {path}" for path in paths))
     return (
-        f'git-cliff {start_tag}..{end_tag} -o changelog_{start_tag}_{end_tag}.md --ignore-tags ".*-dev.[0-9]+" {include_paths}'
+        f"git-cliff {start_tag}..{end_tag} -o changelog_{start_tag}_{end_tag}.md "
+        f'--ignore-tags ".*-dev.[0-9]+" --tag {end_tag} {include_paths}'
     )
 
 
@@ -32,7 +37,9 @@ if __name__ == "__main__":
     )
     parser.add_argument("--end", type=str, help="The commit/tag that changelog's history ends at.")
     parser.add_argument(
-        "--project", choices=PROJECT_TO_PATHS.keys(), help="The project that the changelog is generated for."
+        "--project",
+        choices=PROJECT_TO_PATHS.keys(),
+        help="The project that the changelog is generated for.",
     )
     args = parser.parse_args()
     prepare_git_cliff(version=GIT_CLIFF_VERSION)

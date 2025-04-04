@@ -46,6 +46,12 @@ pub type SyscallSelector = DeprecatedSyscallSelector;
 
 pub trait SyscallRequest: Sized {
     fn read(_vm: &VirtualMachine, _ptr: &mut Relocatable) -> SyscallResult<Self>;
+
+    /// Returns the linear factor's length for the syscall.
+    /// If no factor exists, it returns 0.
+    fn get_linear_factor_length(&self) -> usize {
+        0
+    }
 }
 
 pub trait SyscallResponse {
@@ -218,6 +224,10 @@ impl SyscallRequest for DeployRequest {
             )?,
         })
     }
+
+    fn get_linear_factor_length(&self) -> usize {
+        self.constructor_calldata.0.len()
+    }
 }
 
 #[derive(Debug)]
@@ -239,6 +249,11 @@ pub fn deploy(
     syscall_handler: &mut SyscallHintProcessor<'_>,
     remaining_gas: &mut u64,
 ) -> SyscallResult<DeployResponse> {
+    // Increment the Deploy syscall's linear cost counter by the number of elements in the
+    // constructor calldata.
+    syscall_handler
+        .increment_linear_factor_by(&SyscallSelector::Deploy, request.constructor_calldata.0.len());
+
     let (deployed_contract_address, call_info) = syscall_handler.base.deploy(
         request.class_hash,
         request.contract_address_salt,

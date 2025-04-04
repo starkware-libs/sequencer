@@ -5,7 +5,12 @@ use std::convert::From;
 use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt};
-use starknet_api::transaction::EventContent;
+use starknet_api::transaction::{
+    signed_tx_version,
+    EventContent,
+    TransactionOptions,
+    TransactionVersion,
+};
 use starknet_types_core::felt::Felt;
 
 use super::exceeds_event_size_limit;
@@ -16,6 +21,7 @@ use crate::execution::entry_point::{
     CallEntryPoint,
     ConstructorContext,
     EntryPointExecutionContext,
+    ExecutableCallEntryPoint,
 };
 use crate::execution::execution_utils::execute_deployment;
 use crate::execution::syscalls::hint_processor::{
@@ -27,6 +33,7 @@ use crate::execution::syscalls::hint_processor::{
 };
 use crate::state::state_api::State;
 use crate::transaction::account_transaction::is_cairo1;
+use crate::transaction::objects::TransactionInfo;
 
 pub type SyscallResult<T> = Result<T, SyscallExecutionError>;
 pub const KECCAK_FULL_RATE_IN_WORDS: usize = 17;
@@ -35,7 +42,7 @@ pub struct SyscallHandlerBase<'state> {
     // Input for execution.
     pub state: &'state mut dyn State,
     pub context: &'state mut EntryPointExecutionContext,
-    pub call: CallEntryPoint,
+    pub call: ExecutableCallEntryPoint,
 
     // Execution results.
     pub events: Vec<OrderedEvent>,
@@ -58,7 +65,7 @@ pub struct SyscallHandlerBase<'state> {
 
 impl<'state> SyscallHandlerBase<'state> {
     pub fn new(
-        call: CallEntryPoint,
+        call: ExecutableCallEntryPoint,
         state: &'state mut dyn State,
         context: &'state mut EntryPointExecutionContext,
     ) -> SyscallHandlerBase<'state> {
@@ -171,6 +178,36 @@ impl<'state> SyscallHandlerBase<'state> {
         let class_hash = self.state.get_class_hash_at(contract_address)?;
         self.read_class_hash_values.push(class_hash);
         Ok(class_hash)
+    }
+
+    /// Returns the transaction version for the `get_execution_info` syscall.
+    pub fn tx_version_for_get_execution_info(&self) -> TransactionVersion {
+        let tx_context = &self.context.tx_context;
+        // The transaction version, ignoring the only_query bit.
+        let version = tx_context.tx_info.version();
+        let versioned_constants = &tx_context.block_context.versioned_constants;
+        // The set of v1-bound-accounts.
+        let v1_bound_accounts = &versioned_constants.os_constants.v1_bound_accounts_cairo1;
+        let class_hash = &self.call.class_hash;
+
+        // If the transaction version is 3 and the account is in the v1-bound-accounts set,
+        // the syscall should return transaction version 1 instead.
+        if version == TransactionVersion::THREE && v1_bound_accounts.contains(class_hash) {
+            let tip = match &tx_context.tx_info {
+                TransactionInfo::Current(transaction_info) => transaction_info.tip,
+                TransactionInfo::Deprecated(_) => {
+                    panic!("Transaction info variant doesn't match transaction version")
+                }
+            };
+            if tip <= versioned_constants.os_constants.v1_bound_accounts_max_tip {
+                return signed_tx_version(
+                    &TransactionVersion::ONE,
+                    &TransactionOptions { only_query: tx_context.tx_info.only_query() },
+                );
+            }
+        }
+
+        tx_context.tx_info.signed_version()
     }
 
     pub fn emit_event(&mut self, event: EventContent) -> SyscallResult<()> {
@@ -302,7 +339,8 @@ impl<'state> SyscallHandlerBase<'state> {
         // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion
         // works.
         let n_rounds_as_u64 = u64::try_from(n_rounds).expect("Failed to convert usize to u64.");
-        let gas_cost = n_rounds_as_u64 * self.context.gas_costs().syscalls.keccak_round_cost;
+        let gas_cost = n_rounds_as_u64
+            * self.context.gas_costs().syscalls.keccak_round_cost.base_syscall_cost();
 
         if gas_cost > *remaining_gas {
             let out_of_gas_error = Felt::from_hex(OUT_OF_GAS_ERROR)

@@ -1,6 +1,5 @@
 pub mod contract_class;
 pub mod entry_point_execution;
-pub mod executor;
 pub mod syscall_handler;
 pub mod utils;
 

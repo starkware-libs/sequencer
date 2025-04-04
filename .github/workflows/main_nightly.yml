@@ -9,7 +9,7 @@ env:
 
 jobs:
   codecov:
-    runs-on: starkware-ubuntu-latest-large
+    runs-on: starkware-ubuntu-24.04-large
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap

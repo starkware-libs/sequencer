@@ -21,6 +21,7 @@ use starknet_api::transaction::fields::{
     Resource,
     ValidResourceBounds,
 };
+use starknet_api::transaction::TransactionVersion;
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::{Felt, FromStrError};
 use thiserror::Error;
@@ -28,7 +29,11 @@ use thiserror::Error;
 use crate::abi::sierra_types::SierraTypeError;
 use crate::execution::common_hints::{ExecutionMode, HintExecutionResult};
 use crate::execution::contract_class::TrackedResource;
-use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionContext};
+use crate::execution::entry_point::{
+    CallEntryPoint,
+    EntryPointExecutionContext,
+    ExecutableCallEntryPoint,
+};
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
 use crate::execution::execution_utils::{
     felt_from_ptr,
@@ -75,9 +80,26 @@ use crate::execution::syscalls::{
 use crate::state::errors::StateError;
 use crate::state::state_api::State;
 use crate::transaction::objects::{CurrentTransactionInfo, TransactionInfo};
-use crate::versioned_constants::GasCosts;
+use crate::utils::u64_from_usize;
+use crate::versioned_constants::{GasCosts, SyscallGasCost};
 
-pub type SyscallCounter = HashMap<SyscallSelector, usize>;
+#[derive(Clone, Debug, Default)]
+pub struct SyscallUsage {
+    pub call_count: usize,
+    pub linear_factor: usize,
+}
+
+impl SyscallUsage {
+    pub fn new(call_count: usize, linear_factor: usize) -> Self {
+        SyscallUsage { call_count, linear_factor }
+    }
+
+    pub fn increment_call_count(&mut self) {
+        self.call_count += 1;
+    }
+}
+
+pub type SyscallUsageMap = HashMap<SyscallSelector, SyscallUsage>;
 
 #[derive(Debug, Error)]
 pub enum SyscallExecutionError {
@@ -214,7 +236,7 @@ pub struct SyscallHintProcessor<'a> {
     pub base: Box<SyscallHandlerBase<'a>>,
 
     // VM-specific fields.
-    pub syscall_counter: SyscallCounter,
+    pub syscalls_usage: SyscallUsageMap,
 
     // Fields needed for execution and validation.
     pub read_only_segments: ReadOnlySegments,
@@ -238,13 +260,13 @@ impl<'a> SyscallHintProcessor<'a> {
         state: &'a mut dyn State,
         context: &'a mut EntryPointExecutionContext,
         initial_syscall_ptr: Relocatable,
-        call: CallEntryPoint,
+        call: ExecutableCallEntryPoint,
         hints: &'a HashMap<String, Hint>,
         read_only_segments: ReadOnlySegments,
     ) -> Self {
         SyscallHintProcessor {
             base: Box::new(SyscallHandlerBase::new(call, state, context)),
-            syscall_counter: SyscallCounter::default(),
+            syscalls_usage: SyscallUsageMap::default(),
             read_only_segments,
             syscall_ptr: initial_syscall_ptr,
             hints,
@@ -396,10 +418,19 @@ impl<'a> SyscallHintProcessor<'a> {
         &mut self,
         vm: &mut VirtualMachine,
     ) -> SyscallResult<Relocatable> {
+        let returned_version = self.base.tx_version_for_get_execution_info();
+        let original_version = self.base.context.tx_context.tx_info.signed_version();
+
+        // If the transaction version was overridden, `self.execution_info_ptr` cannot be used.
+        if returned_version != original_version {
+            return self.allocate_execution_info_segment(vm, returned_version);
+        }
+
         match self.execution_info_ptr {
             Some(execution_info_ptr) => Ok(execution_info_ptr),
             None => {
-                let execution_info_ptr = self.allocate_execution_info_segment(vm)?;
+                let execution_info_ptr =
+                    self.allocate_execution_info_segment(vm, original_version)?;
                 self.execution_info_ptr = Some(execution_info_ptr);
                 Ok(execution_info_ptr)
             }
@@ -445,7 +476,7 @@ impl<'a> SyscallHintProcessor<'a> {
         &mut self,
         vm: &mut VirtualMachine,
         execute_callback: ExecuteCallback,
-        syscall_gas_cost: u64,
+        syscall_gas_cost: SyscallGasCost,
     ) -> HintExecutionResult
     where
         Request: SyscallRequest + std::fmt::Debug,
@@ -457,12 +488,21 @@ impl<'a> SyscallHintProcessor<'a> {
             &mut u64, // Remaining gas.
         ) -> SyscallResult<Response>,
     {
-        // Refund `SYSCALL_BASE_GAS_COST` as it was pre-charged.
-        let required_gas =
-            syscall_gas_cost - self.base.context.gas_costs().base.syscall_base_gas_cost;
-
         let SyscallRequestWrapper { gas_counter, request } =
             SyscallRequestWrapper::<Request>::read(vm, &mut self.syscall_ptr)?;
+
+        let syscall_gas_cost =
+            syscall_gas_cost.get_syscall_cost(u64_from_usize(request.get_linear_factor_length()));
+        let syscall_base_cost = self.base.context.gas_costs().base.syscall_base_gas_cost;
+
+        // Sanity check for preventing underflow.
+        assert!(
+            syscall_gas_cost >= syscall_base_cost,
+            "Syscall gas cost must be greater than base syscall gas cost"
+        );
+
+        // Refund `SYSCALL_BASE_GAS_COST` as it was pre-charged.
+        let required_gas = syscall_gas_cost - syscall_base_cost;
 
         if gas_counter < required_gas {
             //  Out of gas failure.
@@ -513,20 +553,29 @@ impl<'a> SyscallHintProcessor<'a> {
     }
 
     pub fn increment_syscall_count_by(&mut self, selector: &SyscallSelector, n: usize) {
-        let syscall_count = self.syscall_counter.entry(*selector).or_default();
-        *syscall_count += n;
+        let syscall_usage = self.syscalls_usage.entry(*selector).or_default();
+        syscall_usage.call_count += n;
     }
 
     fn increment_syscall_count(&mut self, selector: &SyscallSelector) {
         self.increment_syscall_count_by(selector, 1);
     }
 
+    pub fn increment_linear_factor_by(&mut self, selector: &SyscallSelector, n: usize) {
+        let syscall_usage = self
+            .syscalls_usage
+            .get_mut(selector)
+            .expect("syscalls_usage entry must be initialized before incrementing linear factor");
+        syscall_usage.linear_factor += n;
+    }
+
     fn allocate_execution_info_segment(
         &mut self,
         vm: &mut VirtualMachine,
+        tx_version_override: TransactionVersion,
     ) -> SyscallResult<Relocatable> {
         let block_info_ptr = self.allocate_block_info_segment(vm)?;
-        let tx_info_ptr = self.allocate_tx_info_segment(vm)?;
+        let tx_info_ptr = self.allocate_tx_info_segment(vm, tx_version_override)?;
 
         let additional_info: Vec<MaybeRelocatable> = vec![
             block_info_ptr.into(),
@@ -572,13 +621,17 @@ impl<'a> SyscallHintProcessor<'a> {
         Ok((data_segment_start_ptr, data_segment_end_ptr))
     }
 
-    fn allocate_tx_info_segment(&mut self, vm: &mut VirtualMachine) -> SyscallResult<Relocatable> {
+    fn allocate_tx_info_segment(
+        &mut self,
+        vm: &mut VirtualMachine,
+        tx_version_override: TransactionVersion,
+    ) -> SyscallResult<Relocatable> {
         let tx_info = &self.base.context.tx_context.clone().tx_info;
         let (tx_signature_start_ptr, tx_signature_end_ptr) =
             &self.allocate_data_segment(vm, &tx_info.signature().0)?;
 
         let mut tx_data: Vec<MaybeRelocatable> = vec![
-            tx_info.signed_version().0.into(),
+            tx_version_override.0.into(),
             tx_info.sender_address().0.key().into(),
             Felt::from(tx_info.max_fee_for_execution_info_syscall().0).into(),
             tx_signature_start_ptr.into(),

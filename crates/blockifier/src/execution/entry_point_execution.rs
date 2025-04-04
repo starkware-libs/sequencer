@@ -13,9 +13,9 @@ use starknet_types_core::felt::Felt;
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::{CompiledClassV1, EntryPointV1, TrackedResource};
 use crate::execution::entry_point::{
-    CallEntryPoint,
     EntryPointExecutionContext,
     EntryPointExecutionResult,
+    ExecutableCallEntryPoint,
 };
 use crate::execution::errors::{EntryPointExecutionError, PostExecutionError, PreExecutionError};
 use crate::execution::execution_utils::{
@@ -53,7 +53,7 @@ pub struct CallResult {
 
 /// Executes a specific call to a contract entry point and returns its output.
 pub fn execute_entry_point_call(
-    call: CallEntryPoint,
+    call: ExecutableCallEntryPoint,
     compiled_class: CompiledClassV1,
     state: &mut dyn State,
     context: &mut EntryPointExecutionContext,
@@ -96,12 +96,12 @@ pub fn execute_entry_point_call(
 }
 
 pub fn initialize_execution_context<'a>(
-    call: CallEntryPoint,
+    call: ExecutableCallEntryPoint,
     compiled_class: &'a CompiledClassV1,
     state: &'a mut dyn State,
     context: &'a mut EntryPointExecutionContext,
 ) -> Result<VmExecutionContext<'a>, PreExecutionError> {
-    let entry_point = compiled_class.get_entry_point(&call)?;
+    let entry_point = compiled_class.get_entry_point(&call.type_and_selector())?;
 
     // Instantiate Cairo runner.
     let proof_mode = false;
@@ -109,10 +109,8 @@ pub fn initialize_execution_context<'a>(
     let mut runner = CairoRunner::new(
         &compiled_class.0.program,
         LayoutName::starknet,
-        None,
         proof_mode,
         trace_enabled,
-        false,
     )?;
 
     runner.initialize_function_runner_cairo_1(&entry_point.builtins)?;
@@ -180,7 +178,7 @@ fn prepare_program_extra_data(
 }
 
 pub fn prepare_call_arguments(
-    call: &CallEntryPoint,
+    call: &ExecutableCallEntryPoint,
     runner: &mut CairoRunner,
     initial_syscall_ptr: Relocatable,
     read_only_segments: &mut ReadOnlySegments,
@@ -366,7 +364,7 @@ pub fn finalize_execution(
             }
             // Take into account the syscall resources of the current call.
             vm_resources_without_inner_calls += &versioned_constants
-                .get_additional_os_syscall_resources(&syscall_handler.syscall_counter);
+                .get_additional_os_syscall_resources(&syscall_handler.syscalls_usage);
             vm_resources_without_inner_calls
         }
         TrackedResource::SierraGas => ExecutionResources::default(),
@@ -378,7 +376,7 @@ pub fn finalize_execution(
         + &CallInfo::summarize_vm_resources(syscall_handler.base.inner_calls.iter());
     let syscall_handler_base = syscall_handler.base;
     Ok(CallInfo {
-        call: syscall_handler_base.call,
+        call: syscall_handler_base.call.into(),
         execution: CallExecution {
             retdata: call_result.retdata,
             events: syscall_handler_base.events,
@@ -393,7 +391,6 @@ pub fn finalize_execution(
         accessed_storage_keys: syscall_handler_base.accessed_keys,
         read_class_hash_values: syscall_handler_base.read_class_hash_values,
         accessed_contract_addresses: syscall_handler_base.accessed_contract_addresses,
-        time: std::time::Duration::default(),
     })
 }
 
