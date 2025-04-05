@@ -13,6 +13,9 @@ use std::sync::Arc;
 use apollo_config::converters::{deserialize_optional_map, serialize_optional_map};
 use apollo_config::dumping::{ser_generated_param, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializationType, SerializedParam};
+use apollo_starknet_client::reader::{StarknetFeederGatewayClient, StarknetReader};
+use apollo_starknet_client::writer::{StarknetGatewayClient, StarknetWriter};
+use apollo_starknet_client::RetryConfig;
 use apollo_storage::mmap_file::MMapFileStats;
 use apollo_storage::{DbStats, StorageError, StorageReader};
 use axum::extract::Path;
@@ -25,9 +28,6 @@ use metrics_process::Collector;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
-use starknet_client::reader::{StarknetFeederGatewayClient, StarknetReader};
-use starknet_client::writer::{StarknetGatewayClient, StarknetWriter};
-use starknet_client::RetryConfig;
 use tracing::{debug, info, instrument};
 use validator::Validate;
 
@@ -201,7 +201,7 @@ fn app(
         )
         .expect("Failed creating Starknet feeder client."),
     );
-    let starknet_client = Arc::new(
+    let apollo_starknet_client = Arc::new(
         StarknetGatewayClient::new(starknet_url.as_str(), version, is_ready_retry_config)
             .expect("Failed creating Starknet client."),
     );
@@ -247,19 +247,19 @@ fn app(
         )
         .route(
             format!("/{MONITORING_PREFIX}/ready").as_str(),
-            get(move || is_ready(starknet_client, starknet_feeder_client)),
+            get(move || is_ready(apollo_starknet_client, starknet_feeder_client)),
         )
         .route(format!("/{MONITORING_PREFIX}/peer_id").as_str(), get(move || async { own_peer_id }))
 }
 
 async fn is_ready<TStarknetWriter: StarknetWriter, TStarknetReader: StarknetReader>(
-    starknet_client: Arc<TStarknetWriter>,
+    apollo_starknet_client: Arc<TStarknetWriter>,
     starknet_feeder_client: Arc<TStarknetReader>,
 ) -> String {
     let response = starknet_feeder_client.is_alive().await;
     assert!(response);
 
-    let response = starknet_client.is_alive().await;
+    let response = apollo_starknet_client.is_alive().await;
     assert!(response);
 
     StatusCode::OK.to_string()

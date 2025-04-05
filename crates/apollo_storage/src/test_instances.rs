@@ -1,5 +1,5 @@
 use apollo_test_utils::{auto_impl_get_test_instance, get_number_of_variants, GetTestInstance};
-use starknet_api::block::{BlockHash, BlockNumber, BlockTimestamp, GasPrice, GasPricePerToken};
+use starknet_api::block::{BlockHash, BlockNumber, BlockTimestamp, GasPricePerToken};
 use starknet_api::core::{
     EventCommitment,
     GlobalRoot,
@@ -32,7 +32,7 @@ auto_impl_get_test_instance! {
         pub l1_data_gas_price: GasPricePerToken,
         pub l2_gas_price: GasPricePerToken,
         pub l2_gas_consumed: u64,
-        pub next_l2_gas_price: GasPrice,
+        pub next_l2_gas_price: u64,
         pub state_root: GlobalRoot,
         pub sequencer: SequencerContractAddress,
         pub timestamp: BlockTimestamp,

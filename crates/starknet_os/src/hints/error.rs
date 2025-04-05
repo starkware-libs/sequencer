@@ -1,6 +1,7 @@
 use blockifier::state::errors::StateError;
 use cairo_vm::hint_processor::hint_processor_definition::HintExtension;
 use cairo_vm::types::errors::math_errors::MathError;
+use cairo_vm::types::relocatable::MaybeRelocatable;
 use cairo_vm::vm::errors::exec_scope_errors::ExecScopeError;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
@@ -12,6 +13,7 @@ use starknet_api::executable_transaction::Transaction;
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
 
+use crate::hint_processor::execution_helper::ExecutionHelperError;
 use crate::hint_processor::os_logger::OsLoggerError;
 use crate::hints::enum_definition::AllHints;
 use crate::hints::hint_implementation::kzg::utils::FftError;
@@ -38,6 +40,8 @@ pub enum OsHintError {
     ExpectedBit { id: Ids, felt: Felt },
     #[error(transparent)]
     Fft(#[from] FftError),
+    #[error(transparent)]
+    ExecutionHelper(#[from] ExecutionHelperError),
     #[error("Failed to convert {variant:?} felt value {felt:?} to type {ty}: {reason:?}.")]
     IdsConversion { variant: Ids, felt: Felt, ty: String, reason: String },
     #[error(
@@ -51,12 +55,18 @@ pub enum OsHintError {
     Math(#[from] MathError),
     #[error(transparent)]
     Memory(#[from] MemoryError),
-    #[error("Hint {hint:?} has no nondet offset.")]
-    MissingOffsetForHint { hint: AllHints },
     #[error("No bytecode segment structure for class hash: {0:?}.")]
     MissingBytecodeSegmentStructure(ClassHash),
+    #[error("Hint {hint:?} has no nondet offset.")]
+    MissingOffsetForHint { hint: AllHints },
     #[error("No preimage found for value {0:?}.")]
     MissingPreimage(Felt),
+    #[error("No (selected) builtin found at address {builtin} (attempted decoding: {decoded:?}).")]
+    MissingSelectedBuiltinPtr { builtin: MaybeRelocatable, decoded: Option<String> },
+    #[error(
+        "No (unselected) builtin found at address {builtin} (attempted decoding: {decoded:?})."
+    )]
+    MissingUnselectedBuiltinPtr { builtin: MaybeRelocatable, decoded: Option<String> },
     #[error(transparent)]
     OsLogger(#[from] OsLoggerError),
     #[error("{error:?} for json value {value}.")]

@@ -10,6 +10,13 @@ use std::sync::{Arc, Mutex};
 use apollo_config::converters::{deserialize_optional_map, serialize_optional_map};
 use apollo_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_starknet_client::reader::{
+    BlockSignatureData,
+    ReaderClientError,
+    StarknetFeederGatewayClient,
+    StarknetReader,
+};
+use apollo_starknet_client::{ClientCreationError, RetryConfig};
 use apollo_storage::state::StateStorageReader;
 use apollo_storage::{StorageError, StorageReader};
 use async_stream::stream;
@@ -30,13 +37,6 @@ use starknet_api::crypto::utils::Signature;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::StateDiff;
 use starknet_api::StarknetApiError;
-use starknet_client::reader::{
-    BlockSignatureData,
-    ReaderClientError,
-    StarknetFeederGatewayClient,
-    StarknetReader,
-};
-use starknet_client::{ClientCreationError, RetryConfig};
 use tracing::{debug, trace};
 
 use self::state_update_stream::{StateUpdateStream, StateUpdateStreamConfig};
@@ -129,7 +129,7 @@ impl SerializeConfig for CentralSourceConfig {
 
 pub struct GenericCentralSource<TStarknetClient: StarknetReader + Send + Sync> {
     pub concurrent_requests: usize,
-    pub starknet_client: Arc<TStarknetClient>,
+    pub apollo_starknet_client: Arc<TStarknetClient>,
     pub storage_reader: StorageReader,
     pub state_update_stream_config: StateUpdateStreamConfig,
     pub(crate) class_cache: Arc<Mutex<LruCache<ClassHash, ApiContractClass>>>,
@@ -214,9 +214,15 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> CentralSourceTrait
 {
     // Returns the block hash and the block number of the latest block from the central source.
     async fn get_latest_block(&self) -> Result<Option<BlockHashAndNumber>, CentralError> {
-        self.starknet_client.latest_block().await.map_err(Arc::new)?.map_or(Ok(None), |block| {
-            Ok(Some(BlockHashAndNumber { hash: block.block_hash(), number: block.block_number() }))
-        })
+        self.apollo_starknet_client.latest_block().await.map_err(Arc::new)?.map_or(
+            Ok(None),
+            |block| {
+                Ok(Some(BlockHashAndNumber {
+                    hash: block.block_hash(),
+                    number: block.block_number(),
+                }))
+            },
+        )
     }
 
     // Returns the current block hash of the given block number from the central source.
@@ -224,7 +230,7 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> CentralSourceTrait
         &self,
         block_number: BlockNumber,
     ) -> Result<Option<BlockHash>, CentralError> {
-        self.starknet_client
+        self.apollo_starknet_client
             .block(block_number)
             .await
             .map_err(Arc::new)?
@@ -240,7 +246,7 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> CentralSourceTrait
         StateUpdateStream::new(
             initial_block_number,
             up_to_block_number,
-            self.starknet_client.clone(),
+            self.apollo_starknet_client.clone(),
             self.storage_reader.clone(),
             self.state_update_stream_config.clone(),
             self.class_cache.clone(),
@@ -261,8 +267,8 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> CentralSourceTrait
                 futures_util::stream::iter(initial_block_number.iter_up_to(up_to_block_number))
                     .map(|bn| async move {
                         let block_and_signature = futures_util::try_join!(
-                            self.starknet_client.block(bn),
-                            self.starknet_client.block_signature(bn)
+                            self.apollo_starknet_client.block(bn),
+                            self.apollo_starknet_client.block_signature(bn)
                         );
                         (bn, block_and_signature)
                     })
@@ -352,7 +358,7 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> CentralSourceTrait
             }
         }
         let client_class =
-            self.starknet_client.class_by_hash(class_hash).await.map_err(Arc::new)?;
+            self.apollo_starknet_client.class_by_hash(class_hash).await.map_err(Arc::new)?;
         match client_class {
             None => Err(CentralError::ClassNotFound),
             Some(class) => {
@@ -377,7 +383,7 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> CentralSourceTrait
                 return Ok(class.clone());
             }
         }
-        match self.starknet_client.compiled_class_by_hash(class_hash).await {
+        match self.apollo_starknet_client.compiled_class_by_hash(class_hash).await {
             Ok(Some(compiled_class)) => {
                 let mut compiled_class_cache =
                     self.compiled_class_cache.lock().expect("Failed to lock class cache.");
@@ -390,7 +396,7 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> CentralSourceTrait
     }
 
     async fn get_sequencer_pub_key(&self) -> Result<SequencerPublicKey, CentralError> {
-        Ok(self.starknet_client.sequencer_pub_key().await.map_err(Arc::new)?)
+        Ok(self.apollo_starknet_client.sequencer_pub_key().await.map_err(Arc::new)?)
     }
 }
 
@@ -398,8 +404,8 @@ fn client_to_central_block(
     current_block_number: BlockNumber,
     maybe_client_block: Result<
         (
-            Option<starknet_client::reader::Block>,
-            Option<starknet_client::reader::BlockSignatureData>,
+            Option<apollo_starknet_client::reader::Block>,
+            Option<apollo_starknet_client::reader::BlockSignatureData>,
         ),
         ReaderClientError,
     >,
@@ -444,7 +450,7 @@ impl CentralSource {
         node_version: &'static str,
         storage_reader: StorageReader,
     ) -> Result<CentralSource, ClientCreationError> {
-        let starknet_client = StarknetFeederGatewayClient::new(
+        let apollo_starknet_client = StarknetFeederGatewayClient::new(
             &config.starknet_url,
             config.http_headers,
             node_version,
@@ -453,7 +459,7 @@ impl CentralSource {
 
         Ok(CentralSource {
             concurrent_requests: config.concurrent_requests,
-            starknet_client: Arc::new(starknet_client),
+            apollo_starknet_client: Arc::new(apollo_starknet_client),
             storage_reader,
             state_update_stream_config: StateUpdateStreamConfig {
                 max_state_updates_to_download: config.max_state_updates_to_download,

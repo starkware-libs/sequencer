@@ -1,3 +1,4 @@
+use apollo_starknet_client::writer::objects::transaction as client_transaction;
 use apollo_test_utils::{
     auto_impl_get_test_instance,
     get_number_of_variants,
@@ -18,7 +19,6 @@ use starknet_api::transaction::fields::{
 };
 use starknet_api::transaction::{L1HandlerTransaction, Transaction};
 use starknet_api::{calldata, contract_address, felt, nonce};
-use starknet_client::writer::objects::transaction as client_transaction;
 
 use super::super::transaction::{L1HandlerMsgHash, L1L2MsgHash};
 use super::{

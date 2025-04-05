@@ -7,6 +7,7 @@ license-file.workspace = true
 
 [dependencies]
 apollo_config.workspace = true
+apollo_starknet_client.workspace = true
 apollo_storage.workspace = true
 axum.workspace = true
 hyper = { workspace = true, features = ["full"] }
@@ -15,17 +16,16 @@ metrics-process.workspace = true
 rand.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
-starknet_client.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full", "sync"] }
 tracing.workspace = true
 validator = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
+apollo_starknet_client = { workspace = true, features = ["testing"] }
 apollo_storage = { workspace = true, features = ["testing"] }
 metrics.workspace = true
 pretty_assertions.workspace = true
-starknet_client = { workspace = true, features = ["testing"] }
 tower = { workspace = true, features = ["util"] }
 
 [lints]

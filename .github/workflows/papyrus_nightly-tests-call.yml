@@ -25,6 +25,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
       - run: sudo apt update; sudo apt -y install libclang-dev
         # Install libclang-dev that is not a part of the ubuntu vm in github actions.
         if: runner.os == 'Linux'

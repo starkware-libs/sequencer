@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 use std::{env, fs};
 
-use starknet_infra_utils::cairo_compiler_version::cairo1_compiler_version;
-use starknet_infra_utils::compile_time_cargo_manifest_dir;
+use apollo_infra_utils::cairo_compiler_version::cairo1_compiler_version;
+use apollo_infra_utils::compile_time_cargo_manifest_dir;
 use tempfile::NamedTempFile;
 
 use crate::contracts::TagAndToolchain;

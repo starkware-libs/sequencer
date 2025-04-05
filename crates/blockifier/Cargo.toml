@@ -11,9 +11,9 @@ workspace = true
 
 [features]
 cairo_native = [
+  "apollo_sierra_multicompile/cairo_native",
   "blockifier_test_utils/cairo_native",
   "dep:cairo-native",
-  "starknet_sierra_multicompile/cairo_native",
 ]
 native_blockifier = []
 node_api = []
@@ -59,8 +59,8 @@ serde_json = { workspace = true, features = ["arbitrary_precision"] }
 sha2.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
-starknet_infra_utils.workspace = true
-starknet_sierra_multicompile.workspace = true
+apollo_infra_utils.workspace = true
+apollo_sierra_multicompile.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
 thiserror.workspace = true
@@ -81,7 +81,7 @@ test-case.workspace = true
 tikv-jemallocator.workspace = true
 
 [build-dependencies]
-starknet_infra_utils.workspace = true
+apollo_infra_utils.workspace = true
 
 [[bench]]
 harness = false

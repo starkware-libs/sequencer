@@ -14,6 +14,18 @@ use apollo_rpc_execution::objects::{
 };
 use apollo_rpc_execution::testing_instances::get_storage_var_address;
 use apollo_rpc_execution::ExecutableTransactionInput;
+use apollo_starknet_client::reader::objects::pending_data::{
+    PendingBlock,
+    PendingBlockOrDeprecated,
+    PendingStateUpdate,
+};
+use apollo_starknet_client::reader::objects::state::StateDiff as ClientStateDiff;
+use apollo_starknet_client::reader::objects::transaction::{
+    IntermediateInvokeTransaction as ClientInvokeTransaction,
+    Transaction as ClientTransaction,
+    TransactionReceipt as ClientTransactionReceipt,
+};
+use apollo_starknet_client::reader::PendingData;
 use apollo_storage::body::BodyStorageWriter;
 use apollo_storage::class::ClassStorageWriter;
 use apollo_storage::compiled_class::CasmStorageWriter;
@@ -72,18 +84,6 @@ use starknet_api::transaction::{
     TransactionVersion,
 };
 use starknet_api::{calldata, class_hash, contract_address, felt, nonce, tx_hash};
-use starknet_client::reader::objects::pending_data::{
-    PendingBlock,
-    PendingBlockOrDeprecated,
-    PendingStateUpdate,
-};
-use starknet_client::reader::objects::state::StateDiff as ClientStateDiff;
-use starknet_client::reader::objects::transaction::{
-    IntermediateInvokeTransaction as ClientInvokeTransaction,
-    Transaction as ClientTransaction,
-    TransactionReceipt as ClientTransactionReceipt,
-};
-use starknet_client::reader::PendingData;
 use starknet_types_core::felt::Felt;
 use tokio::sync::RwLock;
 

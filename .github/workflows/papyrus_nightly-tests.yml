@@ -38,6 +38,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - run: mkdir data
 
@@ -55,6 +57,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
       - run: npm install -g ganache@7.4.3
 
       - run: |
@@ -68,6 +72,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
       - run: cargo build -p papyrus_load_test
 
   integration-test:
@@ -76,6 +82,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
       - run: >
           cargo test
           --test latency_histogram
@@ -91,4 +99,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
       - run: for run in {1..100}; do cargo test -p apollo_storage -- --include-ignored common_prefix_compare_with_simple_table_random; done

@@ -1,9 +1,9 @@
+use apollo_gateway::errors::RPCStateReaderError;
 use blockifier::blockifier_versioned_constants::VersionedConstantsError;
 use blockifier::state::errors::StateError;
 use blockifier::transaction::errors::TransactionExecutionError;
 use serde_json::Error as SerdeError;
 use starknet_api::StarknetApiError;
-use starknet_gateway::errors::RPCStateReaderError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]

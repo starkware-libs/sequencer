@@ -6,6 +6,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
     insert_value_into_ap,
 };
+use starknet_types_core::felt::Felt;
 
 use crate::hints::error::OsHintResult;
 use crate::hints::hint_implementation::state::StateUpdatePointers;
@@ -58,7 +59,7 @@ pub(crate) fn read_alias_counter<S: StateReader>(
     let aliases_contract_address = Const::get_alias_contract_address(constants)?;
     let alias_counter_storage_key = Const::get_alias_counter_storage_key(constants)?;
     let alias_counter = hint_processor
-        .execution_helper
+        .get_current_execution_helper()?
         .cached_state
         .get_storage_at(aliases_contract_address, alias_counter_storage_key)?;
     Ok(insert_value_into_ap(vm, alias_counter)?)
@@ -70,7 +71,7 @@ pub(crate) fn initialize_alias_counter<S: StateReader>(
     let aliases_contract_address = Const::get_alias_contract_address(constants)?;
     let alias_counter_storage_key = Const::get_alias_counter_storage_key(constants)?;
     let initial_available_alias = *Const::InitialAvailableAlias.fetch(constants)?;
-    Ok(hint_processor.execution_helper.cached_state.set_storage_at(
+    Ok(hint_processor.get_mut_current_execution_helper()?.cached_state.set_storage_at(
         aliases_contract_address,
         alias_counter_storage_key,
         initial_available_alias,
@@ -84,7 +85,7 @@ pub(crate) fn update_alias_counter<S: StateReader>(
     let alias_counter_storage_key = Const::get_alias_counter_storage_key(constants)?;
     let next_available_alias =
         get_integer_from_var_name(Ids::NextAvailableAlias.into(), vm, ids_data, ap_tracking)?;
-    Ok(hint_processor.execution_helper.cached_state.set_storage_at(
+    Ok(hint_processor.get_mut_current_execution_helper()?.cached_state.set_storage_at(
         aliases_contract_address,
         alias_counter_storage_key,
         next_available_alias,
@@ -92,22 +93,12 @@ pub(crate) fn update_alias_counter<S: StateReader>(
 }
 
 pub(crate) fn contract_address_le_max_for_compression<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { constants, vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
-}
-
-pub(crate) fn compute_commitments_on_finalized_state_with_aliases<S: StateReader>(
-    HintArgs { hint_processor, exec_scopes, .. }: HintArgs<'_, S>,
-) -> OsHintResult {
-    // TODO(Nimrod): Consider moving this hint to `state.rs`.
-    // TODO(Nimrod): Try to avoid this clone.
-    exec_scopes.insert_value(
-        Scope::CommitmentInfoByAddress.into(),
-        hint_processor.execution_helper.os_input.address_to_storage_commitment_info.clone(),
-    );
-
-    Ok(())
+    let contract_address =
+        get_integer_from_var_name(Ids::ContractAddress.into(), vm, ids_data, ap_tracking)?;
+    let max_contract_address = *Const::MaxNonCompressedContractAddress.fetch(constants)?;
+    Ok(insert_value_into_ap(vm, Felt::from(contract_address <= max_contract_address))?)
 }
 
 pub(crate) fn guess_contract_addr_storage_ptr<S: StateReader>(

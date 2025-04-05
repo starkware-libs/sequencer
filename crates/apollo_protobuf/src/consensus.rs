@@ -6,6 +6,7 @@ use std::fmt::Display;
 
 use bytes::{Buf, BufMut};
 use prost::DecodeError;
+use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::core::ContractAddress;
@@ -13,20 +14,22 @@ use starknet_api::data_availability::L1DataAvailabilityMode;
 
 use crate::converters::ProtobufConversionError;
 
+const ETH_TO_WEI: u128 = u128::pow(10, 18);
+
 pub trait IntoFromProto: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError> {}
 impl<T> IntoFromProto for T where
     T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>
 {
 }
 
-#[derive(Debug, Default, Hash, Clone, Eq, PartialEq)]
+#[derive(Debug, Default, Hash, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub enum VoteType {
     Prevote,
     #[default]
     Precommit,
 }
 
-#[derive(Debug, Default, Hash, Clone, Eq, PartialEq)]
+#[derive(Debug, Default, Hash, Clone, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Vote {
     pub vote_type: VoteType,
     pub height: u64,
@@ -79,12 +82,13 @@ pub struct ConsensusBlockInfo {
 }
 
 impl ConsensusBlockInfo {
-    pub fn fri_from_wei(wei: u128, eth_to_fri_rate: u128) -> u128 {
-        const ETH_TO_WEI: u128 = u128::pow(10, 18);
-
+    pub fn wei_to_fri(wei: u128, eth_to_fri_rate: u128) -> u128 {
         // We use integer division since wei * eth_to_fri_rate is expected to be high enough to not
         // cause too much precision loss.
         wei.checked_mul(eth_to_fri_rate).expect("Gas price is too high.") / ETH_TO_WEI
+    }
+    pub fn fri_to_wei(fri: u128, eth_to_fri_rate: u128) -> u128 {
+        fri.checked_mul(ETH_TO_WEI).expect("Gas price is too high") / eth_to_fri_rate
     }
 }
 

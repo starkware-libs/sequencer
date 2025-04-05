@@ -17,7 +17,7 @@ pub(crate) fn initialize_class_hashes<S: StateReader>(
 ) -> OsHintResult {
     let class_hash_to_compiled_class_hash: HashMap<MaybeRelocatable, MaybeRelocatable> =
         hint_processor
-            .execution_helper
+            .get_current_execution_helper()?
             .cached_state
             .writes_compiled_class_hashes()
             .into_iter()
@@ -32,7 +32,7 @@ pub(crate) fn initialize_class_hashes<S: StateReader>(
 pub(crate) fn initialize_state_changes<S: StateReader>(
     HintArgs { hint_processor, exec_scopes, vm, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let cached_state = &hint_processor.execution_helper.cached_state;
+    let cached_state = &hint_processor.get_current_execution_helper()?.cached_state;
     let writes_accessed_addresses = cached_state.writes_contract_addresses();
     let mut initial_dict: HashMap<MaybeRelocatable, MaybeRelocatable> = HashMap::new();
 
@@ -61,8 +61,7 @@ pub(crate) fn initialize_state_changes<S: StateReader>(
 pub(crate) fn write_full_output_to_memory<S: StateReader>(
     HintArgs { vm, hint_processor, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let os_input = &hint_processor.execution_helper.os_input;
-    let full_output = Felt::from(os_input.full_output);
+    let full_output = Felt::from(hint_processor.os_hints_config.full_output);
     insert_nondet_hint_value(vm, AllHints::OsHint(OsHint::WriteFullOutputToMemory), full_output)
 }
 
@@ -77,14 +76,14 @@ pub(crate) fn configure_kzg_manager<S: StateReader>(
 pub(crate) fn set_ap_to_prev_block_hash<S: StateReader>(
     HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let os_input = &hint_processor.execution_helper.os_input;
+    let os_input = &hint_processor.get_current_execution_helper()?.os_block_input;
     Ok(insert_value_into_ap(vm, os_input.prev_block_hash.0)?)
 }
 
 pub(crate) fn set_ap_to_new_block_hash<S: StateReader>(
     HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let os_input = &hint_processor.execution_helper.os_input;
+    let os_input = &hint_processor.get_current_execution_helper()?.os_block_input;
     Ok(insert_value_into_ap(vm, os_input.new_block_hash.0)?)
 }
 

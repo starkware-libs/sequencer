@@ -1,8 +1,10 @@
 use std::collections::HashSet;
 
 use apollo_central_sync::metrics::SYNC_CLASS_MANAGER_MARKER;
+use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_network::network_manager::ClientResponsesManager;
 use apollo_protobuf::sync::DataOrFin;
+use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::class_manager::{ClassManagerStorageReader, ClassManagerStorageWriter};
 use apollo_storage::state::StateStorageReader;
 use apollo_storage::{StorageError, StorageReader, StorageWriter};
@@ -12,8 +14,6 @@ use papyrus_common::pending_classes::ApiContractClass;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
 use starknet_api::state::{DeclaredClasses, DeprecatedDeclaredClasses};
-use starknet_class_manager_types::SharedClassManagerClient;
-use starknet_state_sync_types::state_sync_types::SyncBlock;
 use tracing::{trace, warn};
 
 use super::block_data_stream_builder::{

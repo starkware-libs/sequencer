@@ -125,6 +125,7 @@ pub struct VersionedConstants {
     pub enable_stateful_compression: bool,
     pub comprehensive_state_diff: bool,
     pub ignore_inner_event_resources: bool,
+    pub disable_deploy_in_validation_mode: bool,
 
     // Compiler settings.
     pub enable_reverts: bool,
@@ -310,7 +311,7 @@ impl VersionedConstants {
     }
 
     /// Calculates the syscall gas cost from the OS resources.
-    pub fn get_syscall_gas_cost(&self, syscall_selector: &SyscallSelector) -> SyscallGasCost {
+    fn get_syscall_gas_cost(&self, syscall_selector: &SyscallSelector) -> SyscallGasCost {
         let gas_costs = &self.os_constants.gas_costs;
         let vm_resources = &self
             .os_resources
@@ -641,7 +642,7 @@ impl SyscallGasCost {
     }
 }
 
-#[cfg_attr(any(test, feature = "testing"), derive(Clone, Copy))]
+#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[derive(Debug, Default, Deserialize, PartialEq)]
 pub struct SyscallGasCosts {
     pub call_contract: SyscallGasCost,
@@ -775,7 +776,7 @@ impl BuiltinGasCosts {
 }
 
 /// Gas cost constants. For more documentation see in core/os/constants.cairo.
-#[cfg_attr(any(test, feature = "testing"), derive(Clone, Copy))]
+#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[derive(Debug, Default, Deserialize)]
 pub struct GasCosts {
     pub base: BaseGasCosts,

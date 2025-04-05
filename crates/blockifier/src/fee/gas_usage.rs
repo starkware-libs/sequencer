@@ -19,8 +19,6 @@ pub mod test;
 /// a transaction to a batch. Note that constant cells - such as the one that holds the number of
 /// modified contracts - are not counted.
 pub fn get_onchain_data_segment_length(state_changes_count: &StateChangesCount) -> usize {
-    // TODO(Nimrod, 1/5/2024): Remove this function.
-
     // For each newly modified contract:
     // contract address (1 word).
     // + 1 word with the following info: A flag indicating whether the class hash was updated, the

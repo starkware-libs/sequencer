@@ -22,6 +22,9 @@ use apollo_config::dumping::{append_sub_config_name, ser_param, SerializeConfig}
 use apollo_config::validators::validate_ascii;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_rpc_execution::ExecutionConfig;
+use apollo_starknet_client::reader::PendingData;
+use apollo_starknet_client::writer::StarknetGatewayClient;
+use apollo_starknet_client::RetryConfig;
 use apollo_storage::base_layer::BaseLayerStorageReader;
 use apollo_storage::body::events::EventIndex;
 use apollo_storage::db::TransactionKind;
@@ -38,9 +41,6 @@ use rpc_metrics::MetricLogger;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHashAndNumber, BlockNumber, BlockStatus};
 use starknet_api::core::ChainId;
-use starknet_client::reader::PendingData;
-use starknet_client::writer::StarknetGatewayClient;
-use starknet_client::RetryConfig;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, instrument};
 // Aliasing the latest version of the RPC.
@@ -73,9 +73,10 @@ pub struct RpcConfig {
     pub server_address: String,
     pub max_events_chunk_size: usize,
     pub max_events_keys: usize,
+    // TODO(lev,shahak): remove once we remove papyrus.
     pub collect_metrics: bool,
     pub starknet_url: String,
-    pub starknet_gateway_retry_config: RetryConfig,
+    pub apollo_gateway_retry_config: RetryConfig,
     pub execution_config: ExecutionConfig,
 }
 
@@ -88,7 +89,7 @@ impl Default for RpcConfig {
             max_events_keys: 100,
             collect_metrics: false,
             starknet_url: String::from("https://alpha-mainnet.starknet.io/"),
-            starknet_gateway_retry_config: RetryConfig {
+            apollo_gateway_retry_config: RetryConfig {
                 retry_base_millis: 50,
                 retry_max_delay_millis: 1000,
                 max_retries: 5,
@@ -142,8 +143,8 @@ impl SerializeConfig for RpcConfig {
         self_params_dump
             .append(&mut append_sub_config_name(self.execution_config.dump(), "execution_config"));
         let mut retry_config_dump = append_sub_config_name(
-            self.starknet_gateway_retry_config.dump(),
-            "starknet_gateway_retry_config",
+            self.apollo_gateway_retry_config.dump(),
+            "apollo_gateway_retry_config",
         );
         for param in retry_config_dump.values_mut() {
             param.description = format!(
@@ -224,7 +225,7 @@ pub async fn run_server(
         Arc::new(StarknetGatewayClient::new(
             &config.starknet_url,
             node_version,
-            config.starknet_gateway_retry_config,
+            config.apollo_gateway_retry_config,
         )?),
     );
     let addr;

@@ -2,6 +2,8 @@ use std::path::Path;
 use std::sync::Arc;
 
 use apollo_rpc_execution::ExecutionConfig;
+use apollo_starknet_client::reader::PendingData;
+use apollo_starknet_client::writer::MockStarknetWriter;
 use apollo_storage::test_utils::get_test_storage_by_scope;
 use apollo_storage::{StorageScope, StorageWriter};
 use jsonrpsee::core::RpcResult;
@@ -16,8 +18,6 @@ use serde_json::{Map, Value};
 use starknet_api::block::BlockHashAndNumber;
 use starknet_api::contract_address;
 use starknet_api::core::ChainId;
-use starknet_client::reader::PendingData;
-use starknet_client::writer::MockStarknetWriter;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 use tokio::sync::RwLock;

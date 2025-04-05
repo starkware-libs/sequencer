@@ -23,10 +23,13 @@ use apollo_config::dumping::{
 };
 use apollo_config::loading::load_and_process_config;
 use apollo_config::{ConfigError, ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_consensus::config::ConsensusConfig;
+use apollo_consensus_orchestrator::config::ContextConfig;
 use apollo_network::NetworkConfig;
 use apollo_p2p_sync::client::{P2pSyncClient, P2pSyncClientConfig};
 #[cfg(feature = "rpc")]
 use apollo_rpc::RpcConfig;
+use apollo_starknet_client::RetryConfig;
 use apollo_storage::db::DbConfig;
 use apollo_storage::StorageConfig;
 use clap::{arg, value_parser, Arg, ArgMatches, Command};
@@ -37,9 +40,6 @@ use papyrus_monitoring_gateway::MonitoringGatewayConfig;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use starknet_api::core::ChainId;
-use starknet_client::RetryConfig;
-use starknet_consensus::config::ConsensusConfig;
-use starknet_consensus_orchestrator::config::ContextConfig;
 use validator::Validate;
 
 use crate::version::VERSION_FULL;

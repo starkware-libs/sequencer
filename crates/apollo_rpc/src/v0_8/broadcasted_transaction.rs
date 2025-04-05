@@ -10,6 +10,8 @@
 #[path = "broadcasted_transaction_test.rs"]
 mod broadcasted_transaction_test;
 
+use apollo_starknet_client::writer::objects::transaction as client_transaction;
+use apollo_starknet_client::writer::objects::transaction::DeprecatedContractClass;
 use apollo_storage::db::serialization::StorageSerdeError;
 use serde::{Deserialize, Serialize};
 use starknet_api::compression_utils::compress_and_encode;
@@ -23,8 +25,6 @@ use starknet_api::transaction::fields::{
     TransactionSignature,
 };
 use starknet_api::transaction::TransactionVersion;
-use starknet_client::writer::objects::transaction as client_transaction;
-use starknet_client::writer::objects::transaction::DeprecatedContractClass;
 
 use super::state::ContractClass;
 use super::transaction::{DeployAccountTransaction, InvokeTransaction, ResourceBoundsMapping};

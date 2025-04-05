@@ -9,9 +9,9 @@ license.workspace = true
 workspace = true
 
 [dependencies]
+apollo_infra_utils.workspace = true
 assert_matches.workspace = true
 blockifier_test_utils.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
-starknet_infra_utils.workspace = true

@@ -1,6 +1,21 @@
 use std::num::NonZeroUsize;
 use std::sync::{Arc, Mutex};
 
+use apollo_starknet_client::reader::objects::block::BlockPostV0_13_1;
+use apollo_starknet_client::reader::{
+    Block,
+    BlockSignatureData,
+    ContractClass,
+    DeclaredClassHashEntry,
+    DeployedContract,
+    GenericContractClass,
+    MockStarknetReader,
+    ReaderClientError,
+    ReplacedClass,
+    StateUpdate,
+    StorageEntry,
+};
+use apollo_starknet_client::ClientError;
 use apollo_storage::class::ClassStorageWriter;
 use apollo_storage::state::StateStorageWriter;
 use apollo_storage::test_utils::get_test_storage;
@@ -19,21 +34,6 @@ use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContract
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{SierraContractClass as sn_api_ContractClass, ThinStateDiff};
 use starknet_api::{class_hash, contract_address, felt, storage_key};
-use starknet_client::reader::objects::block::BlockPostV0_13_1;
-use starknet_client::reader::{
-    Block,
-    BlockSignatureData,
-    ContractClass,
-    DeclaredClassHashEntry,
-    DeployedContract,
-    GenericContractClass,
-    MockStarknetReader,
-    ReaderClientError,
-    ReplacedClass,
-    StateUpdate,
-    StorageEntry,
-};
-use starknet_client::ClientError;
 use tokio_stream::StreamExt;
 
 use super::state_update_stream::StateUpdateStreamConfig;
@@ -57,7 +57,7 @@ async fn last_block_number() {
 
     let ((reader, _), _temp_dir) = get_test_storage();
     let central_source = GenericCentralSource {
-        starknet_client: Arc::new(mock),
+        apollo_starknet_client: Arc::new(mock),
         concurrent_requests: TEST_CONCURRENT_REQUESTS,
         storage_reader: reader,
         state_update_stream_config: state_update_stream_config_for_test(),
@@ -97,7 +97,7 @@ async fn stream_block_headers() {
     let ((reader, _), _temp_dir) = get_test_storage();
     let central_source = GenericCentralSource {
         concurrent_requests: TEST_CONCURRENT_REQUESTS,
-        starknet_client: Arc::new(mock),
+        apollo_starknet_client: Arc::new(mock),
         storage_reader: reader,
         state_update_stream_config: state_update_stream_config_for_test(),
         class_cache: get_test_class_cache(),
@@ -177,7 +177,7 @@ async fn stream_block_headers_some_are_missing() {
         let ((reader, _), _temp_dir) = get_test_storage();
         let central_source = GenericCentralSource {
             concurrent_requests: TEST_CONCURRENT_REQUESTS,
-            starknet_client: Arc::new(mock),
+            apollo_starknet_client: Arc::new(mock),
             storage_reader: reader,
             state_update_stream_config: state_update_stream_config_for_test(),
             class_cache: get_test_class_cache(),
@@ -241,7 +241,7 @@ async fn stream_block_headers_error() {
     let ((reader, _), _temp_dir) = get_test_storage();
     let central_source = GenericCentralSource {
         concurrent_requests: TEST_CONCURRENT_REQUESTS,
-        starknet_client: Arc::new(mock),
+        apollo_starknet_client: Arc::new(mock),
         storage_reader: reader,
         state_update_stream_config: state_update_stream_config_for_test(),
         class_cache: get_test_class_cache(),
@@ -312,7 +312,7 @@ async fn stream_state_updates() {
         compiled_class_hash: compiled_class_hash2,
     };
 
-    let client_state_diff1 = starknet_client::reader::StateDiff {
+    let client_state_diff1 = apollo_starknet_client::reader::StateDiff {
         storage_diffs: IndexMap::from([(contract_address1, vec![StorageEntry { key, value }])]),
         deployed_contracts: vec![
             DeployedContract { address: contract_address1, class_hash: class_hash2 },
@@ -326,7 +326,7 @@ async fn stream_state_updates() {
             class_hash: class_hash4,
         }],
     };
-    let client_state_diff2 = starknet_client::reader::StateDiff::default();
+    let client_state_diff2 = apollo_starknet_client::reader::StateDiff::default();
 
     let block_state_update1 = StateUpdate {
         block_hash: block_hash1,
@@ -379,7 +379,7 @@ async fn stream_state_updates() {
     let ((reader, _), _temp_dir) = get_test_storage();
     let central_source = GenericCentralSource {
         concurrent_requests: TEST_CONCURRENT_REQUESTS,
-        starknet_client: Arc::new(mock),
+        apollo_starknet_client: Arc::new(mock),
         storage_reader: reader,
         state_update_stream_config: state_update_stream_config_for_test(),
         // TODO(shahak): Check that downloaded classes appear in the cache.
@@ -533,7 +533,7 @@ async fn stream_compiled_classes() {
 
     let central_source = GenericCentralSource {
         concurrent_requests: TEST_CONCURRENT_REQUESTS,
-        starknet_client: Arc::new(mock),
+        apollo_starknet_client: Arc::new(mock),
         storage_reader: reader,
         state_update_stream_config: state_update_stream_config_for_test(),
         class_cache: get_test_class_cache(),
@@ -587,7 +587,7 @@ async fn get_class() {
     let ((reader, _), _temp_dir) = get_test_storage();
     let central_source = GenericCentralSource {
         concurrent_requests: TEST_CONCURRENT_REQUESTS,
-        starknet_client: Arc::new(mock),
+        apollo_starknet_client: Arc::new(mock),
         storage_reader: reader,
         state_update_stream_config: state_update_stream_config_for_test(),
         class_cache: get_test_class_cache(),
@@ -632,7 +632,7 @@ async fn get_compiled_class() {
     let ((reader, _), _temp_dir) = get_test_storage();
     let central_source = GenericCentralSource {
         concurrent_requests: TEST_CONCURRENT_REQUESTS,
-        starknet_client: Arc::new(mock),
+        apollo_starknet_client: Arc::new(mock),
         storage_reader: reader,
         state_update_stream_config: state_update_stream_config_for_test(),
         class_cache: get_test_class_cache(),
@@ -656,7 +656,7 @@ async fn get_sequencer_pub_key() {
     let ((reader, _), _temp_dir) = get_test_storage();
     let central_source = GenericCentralSource {
         concurrent_requests: TEST_CONCURRENT_REQUESTS,
-        starknet_client: Arc::new(mock),
+        apollo_starknet_client: Arc::new(mock),
         storage_reader: reader,
         state_update_stream_config: state_update_stream_config_for_test(),
         class_cache: get_test_class_cache(),

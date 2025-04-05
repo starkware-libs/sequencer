@@ -2,13 +2,13 @@ use std::num::ParseIntError;
 use std::path::Path;
 use std::sync::LazyLock;
 
+use apollo_infra_utils::compile_time_cargo_manifest_dir;
 use ark_bls12_381::Fr;
 use ark_ff::{BigInteger, PrimeField};
 use ark_poly::{EvaluationDomain, Radix2EvaluationDomain};
 use c_kzg::{Blob, KzgCommitment, KzgSettings, BYTES_PER_FIELD_ELEMENT};
 use num_bigint::{BigInt, ParseBigIntError};
 use num_traits::{Signed, Zero};
-use starknet_infra_utils::compile_time_cargo_manifest_dir;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::OsHintError;

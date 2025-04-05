@@ -9,6 +9,7 @@ license.workspace = true
 blockifier_regression_https_testing = []
 
 [dependencies]
+apollo_gateway.workspace = true
 apollo_rpc_execution.workspace = true
 assert_matches.workspace = true
 blockifier = { workspace = true, features = ["reexecution"] }
@@ -25,7 +26,6 @@ serde_json.workspace = true
 starknet-core.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
-starknet_gateway.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 

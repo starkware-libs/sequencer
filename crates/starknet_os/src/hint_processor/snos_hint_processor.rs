@@ -17,20 +17,69 @@ use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_types_core::felt::Felt;
 
-use crate::hint_processor::execution_helper::OsExecutionHelper;
+use crate::hint_processor::execution_helper::{ExecutionHelperError, OsExecutionHelper};
 use crate::hints::enum_definition::AllHints;
 use crate::hints::error::OsHintError;
 use crate::hints::types::{HintArgs, HintEnum, HintExtensionImplementation, HintImplementation};
 #[cfg(any(feature = "testing", test))]
-use crate::io::os_input::StarknetOsInput;
+use crate::io::os_input::OsBlockInput;
+use crate::io::os_input::OsHintsConfig;
 
 type VmHintResultType<T> = Result<T, VmHintError>;
 type VmHintResult = VmHintResultType<()>;
 type VmHintExtensionResult = VmHintResultType<HintExtension>;
 
+pub(crate) struct ExecutionHelpersManager<S: StateReader> {
+    execution_helpers: Vec<OsExecutionHelper<S>>,
+    current_index: Option<usize>,
+}
+
+impl<S: StateReader> ExecutionHelpersManager<S> {
+    pub fn new(execution_helpers: Vec<OsExecutionHelper<S>>) -> Self {
+        Self { execution_helpers, current_index: None }
+    }
+
+    /// Returns an execution helper reference of the currently processed block.
+    pub fn get_current_execution_helper(
+        &self,
+    ) -> Result<&OsExecutionHelper<S>, ExecutionHelperError> {
+        let current_idx = self.get_current_index()?;
+        Ok(self
+            .execution_helpers
+            .get(current_idx)
+            .expect("Current execution helper index is out of bounds."))
+    }
+
+    /// Returns an execution helper mutable reference of the currently processed block.
+    pub fn get_mut_current_execution_helper(
+        &mut self,
+    ) -> Result<&mut OsExecutionHelper<S>, ExecutionHelperError> {
+        let current_idx = self.get_current_index()?;
+        Ok(self
+            .execution_helpers
+            .get_mut(current_idx)
+            .expect("Current execution helper index is out of bounds."))
+    }
+
+    #[allow(dead_code)]
+    /// Increments the current helper index.
+    pub fn increment_current_helper_index(&mut self) {
+        self.current_index = match self.current_index {
+            Some(prev_idx) => Some(prev_idx + 1),
+            None => Some(0),
+        };
+    }
+
+    /// Returns the current helper index.
+    fn get_current_index(&self) -> Result<usize, ExecutionHelperError> {
+        self.current_index.ok_or(ExecutionHelperError::NoCurrentExecutionHelper)
+    }
+}
+
 pub struct SnosHintProcessor<S: StateReader> {
     pub(crate) os_program: Program,
-    pub execution_helper: OsExecutionHelper<S>,
+    pub(crate) execution_helpers_manager: ExecutionHelpersManager<S>,
+    pub(crate) os_hints_config: OsHintsConfig,
     pub syscall_hint_processor: SyscallHintProcessor,
     _deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
     builtin_hint_processor: BuiltinHintProcessor,
@@ -41,13 +90,15 @@ pub struct SnosHintProcessor<S: StateReader> {
 impl<S: StateReader> SnosHintProcessor<S> {
     pub fn new(
         os_program: Program,
-        execution_helper: OsExecutionHelper<S>,
+        execution_helpers: Vec<OsExecutionHelper<S>>,
+        os_hints_config: OsHintsConfig,
         syscall_hint_processor: SyscallHintProcessor,
         deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
     ) -> Self {
         Self {
             os_program,
-            execution_helper,
+            execution_helpers_manager: ExecutionHelpersManager::new(execution_helpers),
+            os_hints_config,
             syscall_hint_processor,
             _deprecated_syscall_hint_processor: deprecated_syscall_hint_processor,
             da_segment: None,
@@ -65,6 +116,20 @@ impl<S: StateReader> SnosHintProcessor<S> {
         }
         self.da_segment = Some(da_segment);
         Ok(())
+    }
+
+    /// Returns an execution helper reference of the currently processed block.
+    pub fn get_current_execution_helper(
+        &self,
+    ) -> Result<&OsExecutionHelper<S>, ExecutionHelperError> {
+        self.execution_helpers_manager.get_current_execution_helper()
+    }
+
+    /// Returns an execution helper mutable reference of the currently processed block.
+    pub fn get_mut_current_execution_helper(
+        &mut self,
+    ) -> Result<&mut OsExecutionHelper<S>, ExecutionHelperError> {
+        self.execution_helpers_manager.get_mut_current_execution_helper()
     }
 }
 
@@ -131,12 +196,14 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<S> {
 impl SnosHintProcessor<DictStateReader> {
     pub fn new_for_testing(
         state_reader: Option<DictStateReader>,
-        os_input: Option<StarknetOsInput>,
+        os_block_input: Option<OsBlockInput>,
         os_program: Option<Program>,
+        os_hints_config: Option<OsHintsConfig>,
     ) -> Self {
         let state_reader = state_reader.unwrap_or_default();
-        let os_input = os_input.unwrap_or_default();
+        let os_input = os_block_input.unwrap_or_default();
         let os_program = os_program.unwrap_or_default();
+        let os_hints_config = os_hints_config.unwrap_or_default();
         let execution_helper =
             OsExecutionHelper::<DictStateReader>::new_for_testing(state_reader, os_input);
 
@@ -145,7 +212,9 @@ impl SnosHintProcessor<DictStateReader> {
 
         SnosHintProcessor::new(
             os_program,
-            execution_helper,
+            // TODO(Nimrod): Construct vector of helpers from block inputs.
+            vec![execution_helper],
+            os_hints_config,
             syscall_handler,
             deprecated_syscall_handler,
         )

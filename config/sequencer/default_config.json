@@ -4,6 +4,11 @@
     "privacy": "Private",
     "value": "https://mainnet.infura.io/v3/%3Cyour_api_key%3E"
   },
+  "base_layer_config.prague_blob_gas_calc": {
+    "description": "If true use the blob gas calculcation from the Pectra upgrade. If false use the EIP 4844 calculation.",
+    "privacy": "Public",
+    "value": true
+  },
   "base_layer_config.starknet_contract_address": {
     "description": "Starknet contract address in ethereum.",
     "privacy": "Public",
@@ -839,12 +844,12 @@
     "pointer_target": "validator_id",
     "privacy": "Public"
   },
-  "consensus_manager_config.context_config.block_timestamp_window": {
+  "consensus_manager_config.context_config.block_timestamp_window_seconds": {
     "description": "Maximum allowed deviation (seconds) of a proposed block's timestamp from the current time.",
     "privacy": "Public",
     "value": 1
   },
-  "consensus_manager_config.context_config.build_proposal_margin": {
+  "consensus_manager_config.context_config.build_proposal_margin_millis": {
     "description": "Safety margin (in ms) to make sure that the batcher completes building the proposal with enough time for the Fin to be checked by validators.",
     "privacy": "Public",
     "value": 1000
@@ -864,6 +869,26 @@
     "privacy": "Public",
     "value": true
   },
+  "consensus_manager_config.context_config.max_l1_data_gas_price_wei": {
+    "description": "The maximum L1 data gas price in wei.",
+    "privacy": "Public",
+    "value": 150000000000
+  },
+  "consensus_manager_config.context_config.max_l1_gas_price_wei": {
+    "description": "The maximum L1 gas price in wei.",
+    "privacy": "Public",
+    "value": 200000000000
+  },
+  "consensus_manager_config.context_config.min_l1_data_gas_price_wei": {
+    "description": "The minimum L1 data gas price in wei.",
+    "privacy": "Public",
+    "value": 1000000000
+  },
+  "consensus_manager_config.context_config.min_l1_gas_price_wei": {
+    "description": "The minimum L1 gas price in wei.",
+    "privacy": "Public",
+    "value": 1000000000
+  },
   "consensus_manager_config.context_config.num_validators": {
     "description": "The number of validators.",
     "privacy": "Public",
@@ -874,7 +899,7 @@
     "privacy": "Public",
     "value": 100
   },
-  "consensus_manager_config.context_config.validate_proposal_margin": {
+  "consensus_manager_config.context_config.validate_proposal_margin_millis": {
     "description": "Safety margin (in ms) to make sure that consensus determines when to timeout validating a proposal.",
     "privacy": "Public",
     "value": 10000
@@ -888,6 +913,11 @@
     "description": "HTTP headers for the eth to strk oracle, formatted as 'k1:v1 k2:v2 ...'.",
     "privacy": "Private",
     "value": ""
+  },
+  "consensus_manager_config.eth_to_strk_oracle_config.lag_margin_seconds": {
+    "description": "The time margin (in seconds) to adjust the timestamp before querying the conversion rate. Ensures a stable timestamp from providers. Should be configured in alignment with relevant query parameters in `base_url`, if required.",
+    "privacy": "Private",
+    "value": 0
   },
   "consensus_manager_config.immediate_active_height": {
     "description": "The height at which the node may actively participate in consensus.",
@@ -994,6 +1024,11 @@
     "privacy": "TemporaryValue",
     "value": "PointerTarget"
   },
+  "gateway_config.block_declare": {
+    "description": "If true, the gateway will block declare transactions.",
+    "privacy": "Public",
+    "value": false
+  },
   "gateway_config.chain_info.chain_id": {
     "description": "The chain ID of the StarkNet chain.",
     "pointer_target": "chain_id",
@@ -1018,6 +1053,11 @@
     "description": "Maximum nonce for which the validation is skipped.",
     "privacy": "Public",
     "value": "0x1"
+  },
+  "gateway_config.stateful_tx_validator_config.reject_future_declare_txs": {
+    "description": "If true, rejects declare transactions with future nonces.",
+    "privacy": "Public",
+    "value": true
   },
   "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.invoke_tx_max_n_steps": {
     "description": "Maximum number of steps the invoke function is allowed to run.",
@@ -1084,20 +1124,10 @@
     "privacy": "Public",
     "value": 0
   },
-  "gateway_config.stateless_tx_validator_config.validate_non_zero_l1_data_gas_fee": {
-    "description": "If true, validates that a transaction has non-zero L1 Data (Blob) resource bounds.",
-    "privacy": "Public",
-    "value": false
-  },
-  "gateway_config.stateless_tx_validator_config.validate_non_zero_l1_gas_fee": {
-    "description": "If true, validates that a transaction has non-zero L1 resource bounds.",
+  "gateway_config.stateless_tx_validator_config.validate_non_zero_resource_bounds": {
+    "description": "If true, validates that at least one resource bound (L1, L2, or L1 Data) is non-zero.",
     "privacy": "Public",
     "value": true
-  },
-  "gateway_config.stateless_tx_validator_config.validate_non_zero_l2_gas_fee": {
-    "description": "If true, validates that a transaction has non-zero L2 resource bounds.",
-    "privacy": "Public",
-    "value": false
   },
   "http_server_config.ip": {
     "description": "The http server ip.",
@@ -1174,7 +1204,7 @@
     "privacy": "TemporaryValue",
     "value": true
   },
-  "l1_provider_config.startup_sync_sleep_retry_interval": {
+  "l1_provider_config.startup_sync_sleep_retry_interval_seconds": {
     "description": "Interval in seconds between each retry of syncing with L2 during startup.",
     "privacy": "Public",
     "value": 0.0
@@ -1189,15 +1219,20 @@
     "privacy": "Public",
     "value": 0
   },
-  "l1_scraper_config.polling_interval": {
+  "l1_scraper_config.polling_interval_seconds": {
     "description": "Interval in Seconds between each scraping attempt of L1.",
     "privacy": "Public",
     "value": 1
   },
-  "l1_scraper_config.startup_rewind_time": {
-    "description": "Duration to rewind from latest L1 block when starting scraping.",
+  "l1_scraper_config.startup_rewind_time_seconds": {
+    "description": "Duration in seconds to rewind from latest L1 block when starting scraping.",
     "privacy": "Public",
     "value": 0
+  },
+  "mempool_config.capacity_in_bytes": {
+    "description": "Maximum size of the mempool, in bytes.",
+    "privacy": "Public",
+    "value": 1073741824
   },
   "mempool_config.committed_nonce_retention_block_count": {
     "description": "Number of latest committed blocks for which committed account nonces are retained.",
@@ -1578,6 +1613,66 @@
     "description": "If set true, the component would revert blocks and do nothing else.",
     "pointer_target": "revert_config.should_revert",
     "privacy": "Public"
+  },
+  "state_sync_config.rpc_config.apollo_gateway_retry_config.max_retries": {
+    "description": "For communicating with Starknet gateway, maximum number of retries before the node stops retrying.",
+    "privacy": "Public",
+    "value": 5
+  },
+  "state_sync_config.rpc_config.apollo_gateway_retry_config.retry_base_millis": {
+    "description": "For communicating with Starknet gateway, base waiting time after a failed request. After that, the time increases exponentially.",
+    "privacy": "Public",
+    "value": 50
+  },
+  "state_sync_config.rpc_config.apollo_gateway_retry_config.retry_max_delay_millis": {
+    "description": "For communicating with Starknet gateway, max waiting time after a failed request.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "state_sync_config.rpc_config.chain_id": {
+    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "pointer_target": "chain_id",
+    "privacy": "Public"
+  },
+  "state_sync_config.rpc_config.collect_metrics": {
+    "description": "If true, collect metrics for the rpc.",
+    "privacy": "Public",
+    "value": false
+  },
+  "state_sync_config.rpc_config.execution_config.default_initial_gas_cost": {
+    "description": "The initial gas cost for a transaction",
+    "privacy": "Public",
+    "value": 10000000000
+  },
+  "state_sync_config.rpc_config.execution_config.eth_fee_contract_address": {
+    "description": "The eth fee token address to receive fees",
+    "privacy": "Public",
+    "value": "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7"
+  },
+  "state_sync_config.rpc_config.execution_config.strk_fee_contract_address": {
+    "description": "The strk fee token address to receive fees",
+    "privacy": "Public",
+    "value": "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d"
+  },
+  "state_sync_config.rpc_config.max_events_chunk_size": {
+    "description": "Maximum chunk size supported by the node in get_events requests.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "state_sync_config.rpc_config.max_events_keys": {
+    "description": "Maximum number of keys supported by the node in get_events requests.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "state_sync_config.rpc_config.server_address": {
+    "description": "IP:PORT of the node`s JSON-RPC server.",
+    "privacy": "Public",
+    "value": "0.0.0.0:8080"
+  },
+  "state_sync_config.rpc_config.starknet_url": {
+    "description": "URL for communicating with Starknet in write_api methods.",
+    "privacy": "Public",
+    "value": "https://alpha-mainnet.starknet.io/"
   },
   "state_sync_config.storage_config.db_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",

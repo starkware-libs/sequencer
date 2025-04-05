@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 
+use apollo_starknet_client::reader::{DeclaredClassHashEntry, PendingData};
 use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::StorageReader;
 use futures::stream::FuturesUnordered;
@@ -9,7 +10,6 @@ use futures_util::{FutureExt, StreamExt};
 use papyrus_common::pending_classes::{PendingClasses, PendingClassesTrait};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ClassHash;
-use starknet_client::reader::{DeclaredClassHashEntry, PendingData};
 use starknet_types_core::felt::Felt;
 use tokio::sync::RwLock;
 use tracing::{debug, trace};

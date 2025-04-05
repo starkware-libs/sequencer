@@ -10,6 +10,7 @@ anyhow.workspace = true
 apollo_config.workspace = true
 apollo_proc_macros.workspace = true
 apollo_rpc_execution.workspace = true
+apollo_starknet_client.workspace = true
 apollo_storage.workspace = true
 async-trait.workspace = true
 base64.workspace = true
@@ -28,7 +29,6 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
 starknet-types-core.workspace = true
 starknet_api.workspace = true
-starknet_client.workspace = true
 tokio = { workspace = true, features = ["full", "sync"] }
 tower = { workspace = true, features = ["full"] }
 tracing.workspace = true
@@ -36,6 +36,7 @@ validator = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
 apollo_rpc_execution = { workspace = true, features = ["testing"] }
+apollo_starknet_client = { workspace = true, features = ["testing"] }
 apollo_storage = { workspace = true, features = ["testing"] }
 apollo_test_utils.workspace = true
 assert_matches.workspace = true
@@ -58,7 +59,6 @@ rand_chacha.workspace = true
 reqwest.workspace = true
 starknet-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
-starknet_client = { workspace = true, features = ["testing"] }
 strum.workspace = true
 strum_macros.workspace = true
 

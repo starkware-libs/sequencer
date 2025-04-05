@@ -1,5 +1,6 @@
 use std::sync::OnceLock;
 
+use apollo_metrics::metrics::{MetricHistogram, MetricScope, COLLECT_SEQUENCER_PROFILING_METRICS};
 use apollo_proc_macros::{latency_histogram, sequencer_latency_histogram};
 use apollo_test_utils::prometheus_is_contained;
 use metrics::set_default_local_recorder;
@@ -7,11 +8,6 @@ use metrics_exporter_prometheus::PrometheusBuilder;
 use papyrus_common::metrics::COLLECT_PROFILING_METRICS;
 use prometheus_parse::Value::Untyped;
 use rstest::rstest;
-use starknet_sequencer_metrics::metrics::{
-    MetricHistogram,
-    MetricScope,
-    COLLECT_SEQUENCER_PROFILING_METRICS,
-};
 
 const FOO_HISTOGRAM_TEST_METRIC: MetricHistogram = MetricHistogram::new(
     MetricScope::Infra,

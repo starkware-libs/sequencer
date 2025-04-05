@@ -9,6 +9,18 @@ use apollo_rpc_execution::{
     ExecutableTransactionInput,
     ExecutionConfig,
 };
+use apollo_starknet_client::reader::objects::pending_data::{
+    DeprecatedPendingBlock,
+    PendingBlockOrDeprecated,
+    PendingStateUpdate as ClientPendingStateUpdate,
+};
+use apollo_starknet_client::reader::objects::transaction::{
+    Transaction as ClientTransaction,
+    TransactionReceipt as ClientTransactionReceipt,
+};
+use apollo_starknet_client::reader::PendingData;
+use apollo_starknet_client::writer::{StarknetWriter, WriterClientError};
+use apollo_starknet_client::ClientError;
 use apollo_storage::body::events::{EventIndex, EventsReader};
 use apollo_storage::body::{BodyStorageReader, TransactionIndex};
 use apollo_storage::compiled_class::CasmStorageReader;
@@ -48,18 +60,6 @@ use starknet_api::transaction::{
     TransactionOffsetInBlock,
     TransactionVersion,
 };
-use starknet_client::reader::objects::pending_data::{
-    DeprecatedPendingBlock,
-    PendingBlockOrDeprecated,
-    PendingStateUpdate as ClientPendingStateUpdate,
-};
-use starknet_client::reader::objects::transaction::{
-    Transaction as ClientTransaction,
-    TransactionReceipt as ClientTransactionReceipt,
-};
-use starknet_client::reader::PendingData;
-use starknet_client::writer::{StarknetWriter, WriterClientError};
-use starknet_client::ClientError;
 use starknet_types_core::felt::Felt;
 use tokio::sync::RwLock;
 use tracing::{instrument, trace, warn};

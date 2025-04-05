@@ -11,6 +11,7 @@ use apollo_central_sync::sources::base_layer::EthereumBaseLayerSource;
 use apollo_central_sync::sources::central::{CentralError, CentralSource, CentralSourceConfig};
 use apollo_central_sync::sources::pending::PendingSource;
 use apollo_central_sync::{StateSync as CentralStateSync, SyncConfig as CentralSyncConfig};
+use apollo_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
 use apollo_config::presentation::get_config_presentation;
 use apollo_config::validators::config_validate;
 use apollo_network::network_manager::NetworkManager;
@@ -20,6 +21,11 @@ use apollo_p2p_sync::server::{P2pSyncServer, P2pSyncServerChannels};
 use apollo_p2p_sync::{Protocol, BUFFER_SIZE};
 #[cfg(feature = "rpc")]
 use apollo_rpc::run_server;
+use apollo_starknet_client::reader::objects::pending_data::{
+    PendingBlock,
+    PendingBlockOrDeprecated,
+};
+use apollo_starknet_client::reader::PendingData;
 use apollo_storage::storage_metrics::update_storage_metrics;
 use apollo_storage::{open_storage, StorageReader, StorageWriter};
 use futures::StreamExt;
@@ -29,9 +35,6 @@ use papyrus_common::pending_classes::PendingClasses;
 use papyrus_monitoring_gateway::MonitoringServer;
 use starknet_api::block::{BlockHash, BlockHashAndNumber};
 use starknet_api::felt;
-use starknet_class_manager_types::{EmptyClassManagerClient, SharedClassManagerClient};
-use starknet_client::reader::objects::pending_data::{PendingBlock, PendingBlockOrDeprecated};
-use starknet_client::reader::PendingData;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
 use tracing::metadata::LevelFilter;

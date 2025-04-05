@@ -1,11 +1,11 @@
-use serde::{Deserialize, Serialize};
-use starknet_api::core::{ClassHash, ContractAddress};
-use starknet_api::transaction::TransactionHash;
-use starknet_client::writer::objects::response::{
+use apollo_starknet_client::writer::objects::response::{
     DeclareResponse,
     DeployAccountResponse,
     InvokeResponse,
 };
+use serde::{Deserialize, Serialize};
+use starknet_api::core::{ClassHash, ContractAddress};
+use starknet_api::transaction::TransactionHash;
 
 #[cfg(test)]
 #[path = "write_api_result_test.rs"]

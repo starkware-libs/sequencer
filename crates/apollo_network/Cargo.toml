@@ -10,6 +10,7 @@ testing = []
 
 [dependencies]
 apollo_config.workspace = true
+apollo_metrics.workspace = true
 apollo_network_types.workspace = true
 async-stream.workspace = true
 async-trait.workspace = true
@@ -34,7 +35,6 @@ metrics.workspace = true
 replace_with.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet_api.workspace = true
-starknet_sequencer_metrics.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full", "sync"] }
 tokio-retry.workspace = true

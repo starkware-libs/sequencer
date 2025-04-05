@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
 use apollo_rpc_execution::ExecutionConfig;
+use apollo_starknet_client::reader::PendingData;
+use apollo_starknet_client::writer::StarknetWriter;
 use apollo_storage::StorageReader;
 use jsonrpsee::{Methods, RpcModule};
 use papyrus_common::pending_classes::PendingClasses;
@@ -8,8 +10,6 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::core::{ChainId, ContractAddress, EntryPointSelector};
 use starknet_api::transaction::fields::Calldata;
-use starknet_client::reader::PendingData;
-use starknet_client::writer::StarknetWriter;
 use tokio::sync::RwLock;
 
 use crate::v0_8::api::api_impl::JsonRpcServerImpl as JsonRpcServerV0_8Impl;

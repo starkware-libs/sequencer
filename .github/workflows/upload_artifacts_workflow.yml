@@ -32,7 +32,7 @@ on:
       - 'crates/apollo_state_reader/**'
       - 'crates/apollo_storage/**'
       - 'crates/starknet_api/**'
-      - 'crates/starknet_sierra_multicompile/**'
+      - 'crates/apollo_sierra_multicompile/**'
       - 'rust-toolchain.toml'
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.

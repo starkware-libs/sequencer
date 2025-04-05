@@ -8,6 +8,7 @@ use std::ops::Add;
 use std::sync::Arc;
 
 use apollo_rpc_execution::objects::PriceUnit;
+use apollo_starknet_client::writer::objects::transaction as client_transaction;
 use apollo_storage::body::BodyStorageReader;
 use apollo_storage::db::TransactionKind;
 use apollo_storage::StorageTxn;
@@ -48,7 +49,6 @@ use starknet_api::transaction::{
     TransactionHash,
     TransactionVersion,
 };
-use starknet_client::writer::objects::transaction as client_transaction;
 use starknet_types_core::felt::Felt;
 
 use super::error::BLOCK_NOT_FOUND;
@@ -1239,7 +1239,9 @@ impl L1HandlerMsgHash for L1HandlerTransaction {
     }
 }
 
-impl L1HandlerMsgHash for starknet_client::reader::objects::transaction::L1HandlerTransaction {
+impl L1HandlerMsgHash
+    for apollo_starknet_client::reader::objects::transaction::L1HandlerTransaction
+{
     fn calc_msg_hash(&self) -> L1L2MsgHash {
         l1_handler_message_hash(
             &self.contract_address,

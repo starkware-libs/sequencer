@@ -43,7 +43,6 @@ pub enum VmUtilsError {
 
 pub type VmUtilsResult<T> = Result<T, VmUtilsError>;
 
-#[allow(dead_code)]
 pub(crate) trait LoadCairoObject<IG: IdentifierGetter> {
     /// Inserts the cairo 0 representation of `self` into the VM at the given address.
     fn load_into(
@@ -55,7 +54,6 @@ pub(crate) trait LoadCairoObject<IG: IdentifierGetter> {
     ) -> VmUtilsResult<()>;
 }
 
-#[allow(dead_code)]
 pub(crate) trait CairoSized<IG: IdentifierGetter>: LoadCairoObject<IG> {
     /// Returns the size of the cairo object.
     // TODO(Nimrod): Figure out how to compare the size to the actual size on cairo.
@@ -74,7 +72,6 @@ impl IdentifierGetter for Program {
     }
 }
 
-#[allow(dead_code)]
 /// Fetches the address of nested fields of a cairo variable.
 /// Example: Consider this hint: `ids.x.y.z`. This function fetches the address of `x`,
 /// recursively fetches the offsets of `y` and `z`, and sums them up to get the address of `z`.
