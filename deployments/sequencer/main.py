@@ -57,6 +57,7 @@ def main():
                 ),
                 image=image,
                 component=svc["component"],
+                controller_type=svc["controller_type"],
                 replicas=svc["replicas"],
                 autoscale=svc["autoscale"],
                 ingress=svc["ingress"],
