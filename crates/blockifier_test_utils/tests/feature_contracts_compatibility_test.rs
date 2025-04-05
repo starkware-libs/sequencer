@@ -1,6 +1,10 @@
 use std::fs;
 
-use blockifier_test_utils::cairo_compile::{prepare_group_tag_compiler_deps, CompilationArtifacts};
+use blockifier_test_utils::cairo_compile::{
+    cairo1_compiler_tag,
+    verify_cairo1_package,
+    CompilationArtifacts,
+};
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::{
     FeatureContract,
@@ -85,7 +89,13 @@ async fn verify_feature_contracts_compatibility(fix: bool, cairo_version: CairoV
             for (tag_and_tool_chain, feature_contracts) in
                 FeatureContract::cairo1_feature_contracts_by_tag()
             {
-                prepare_group_tag_compiler_deps(&tag_and_tool_chain);
+                let version = tag_and_tool_chain
+                    .0
+                    .unwrap_or(cairo1_compiler_tag())
+                    .strip_prefix("v")
+                    .unwrap()
+                    .to_string();
+                verify_cairo1_package(&version).await;
 
                 let mut task_set = tokio::task::JoinSet::new();
 
@@ -97,9 +107,9 @@ async fn verify_feature_contracts_compatibility(fix: bool, cairo_version: CairoV
                     task_set
                         .spawn(verify_feature_contracts_compatibility_logic_async(contract, fix));
                 }
-                info!("Done spawning tasks for {tag_and_tool_chain:?}. Awaiting them...");
+                info!("Done spawning tasks for {version:?}. Awaiting them...");
                 task_set.join_all().await;
-                info!("Done awaiting tasks for {tag_and_tool_chain:?}.");
+                info!("Done awaiting tasks for {version:?}.");
             }
         }
         #[cfg(feature = "cairo_native")]
