@@ -73,16 +73,20 @@ async fn download_cairo_package(version: &String) {
     info!("Done.");
 }
 
-/// Verifies that the Cairo1 package (of the given version) is available.
-#[allow(dead_code)]
-async fn verify_cairo1_package(version: &String, download_if_missing: bool) {
+fn cairo1_package_exists(version: &String) -> bool {
     let cairo_compiler_path = starknet_compile_binary_path(version);
     let sierra_compiler_path = starknet_sierra_compile_binary_path(version);
-    if download_if_missing && (!cairo_compiler_path.exists() || !sierra_compiler_path.exists()) {
+    cairo_compiler_path.exists() && sierra_compiler_path.exists()
+}
+
+/// Verifies that the Cairo1 package (of the given version) is available.
+/// Attempts to download it if not.
+#[allow(dead_code)]
+async fn verify_cairo1_package(version: &String) {
+    if !cairo1_package_exists(version) {
         download_cairo_package(version).await;
     }
-    assert!(cairo_compiler_path.exists(), "Cairo compiler not found at {cairo_compiler_path:?}");
-    assert!(sierra_compiler_path.exists(), "Sierra compiler not found at {sierra_compiler_path:?}");
+    assert!(cairo1_package_exists(version));
 }
 
 /// Runs a command. If it has succeeded, it returns the command's output; otherwise, it panics with
