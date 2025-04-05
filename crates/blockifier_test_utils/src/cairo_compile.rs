@@ -52,9 +52,18 @@ fn cairo1_package_dir(version: &String) -> PathBuf {
     project_path().unwrap().join(format!("target/bin/cairo_package__{version}"))
 }
 
+/// Path to starknet-compile binary, of the specified version.
+fn starknet_compile_binary_path(version: &String) -> PathBuf {
+    cairo1_package_dir(version).join("cairo/bin/starknet-compile")
+}
+
+/// Path to starknet-sierra-compile binary, of the specified version.
+fn starknet_sierra_compile_binary_path(version: &String) -> PathBuf {
+    cairo1_package_dir(version).join("cairo/bin/starknet-sierra-compile")
+}
+
 /// Downloads the cairo package to the local directory.
 /// Creates the directory if it does not exist.
-#[allow(dead_code)]
 async fn download_cairo_package(version: &String) {
     let directory = cairo1_package_dir(version);
     info!("Downloading Cairo package to {directory:?}.");
@@ -71,6 +80,18 @@ async fn download_cairo_package(version: &String) {
     info!("Extracting and writing package.");
     tar::Archive::new(flate2::read::GzDecoder::new(tar_package_bytes)).unpack(&directory).unwrap();
     info!("Done.");
+}
+
+/// Verifies that the Cairo1 package (of the given version) is available.
+#[allow(dead_code)]
+async fn verify_cairo1_package(version: &String, download_if_missing: bool) {
+    let cairo_compiler_path = starknet_compile_binary_path(version);
+    let sierra_compiler_path = starknet_sierra_compile_binary_path(version);
+    if download_if_missing && (!cairo_compiler_path.exists() || !sierra_compiler_path.exists()) {
+        download_cairo_package(version).await;
+    }
+    assert!(cairo_compiler_path.exists(), "Cairo compiler not found at {cairo_compiler_path:?}");
+    assert!(sierra_compiler_path.exists(), "Sierra compiler not found at {sierra_compiler_path:?}");
 }
 
 /// Runs a command. If it has succeeded, it returns the command's output; otherwise, it panics with
