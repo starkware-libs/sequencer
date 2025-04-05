@@ -5,7 +5,9 @@ use std::{env, fs};
 
 use apollo_infra_utils::cairo_compiler_version::cairo1_compiler_version;
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
+use apollo_infra_utils::path::project_path;
 use tempfile::NamedTempFile;
+use tracing::info;
 
 use crate::contracts::TagAndToolchain;
 
@@ -43,6 +45,42 @@ fn local_cairo1_compiler_repo_path() -> PathBuf {
         env::var(CAIRO1_REPO_RELATIVE_PATH_OVERRIDE_ENV_VAR)
             .unwrap_or_else(|_| DEFAULT_CAIRO1_REPO_RELATIVE_PATH.into()),
     )
+}
+
+/// Path to local compiler package directory, of the specified version.
+fn cairo1_package_dir(version: &String) -> PathBuf {
+    project_path().unwrap().join(format!("target/bin/cairo_package__{version}"))
+}
+
+/// Downloads the cairo package to the local directory.
+/// Creates the directory if it does not exist.
+#[allow(dead_code)]
+fn download_cairo_package(version: &String) {
+    let directory = cairo1_package_dir(version);
+    info!("Downloading Cairo package to {directory:?}.");
+    std::fs::create_dir_all(&directory).unwrap();
+
+    // Download the artifact.
+    let client = reqwest::blocking::Client::new();
+    let filename = "release-x86_64-unknown-linux-musl.tar.gz";
+    let package_url =
+        format!("https://github.com/starkware-libs/cairo/releases/download/v{version}/{filename}");
+    let response = client.get(package_url).send().unwrap();
+    assert!(response.status().is_success(), "Failed to download the package: {response:?}.");
+
+    // Write the response to a file.
+    info!("Writing and extracting package.");
+    let tar_gz_path = Path::new(&directory).join(filename);
+    let mut file = std::fs::File::create(&tar_gz_path).unwrap();
+    file.write_all(&response.bytes().unwrap()).unwrap();
+
+    // Extract the tar.gz file.
+    let tar_gz = std::fs::File::open(&tar_gz_path).unwrap();
+    tar::Archive::new(flate2::read::GzDecoder::new(tar_gz)).unpack(&directory).unwrap();
+
+    // Delete the tar.gz file.
+    std::fs::remove_file(tar_gz_path).unwrap();
+    info!("Done.");
 }
 
 /// Runs a command. If it has succeeded, it returns the command's output; otherwise, it panics with
