@@ -72,8 +72,8 @@ pub struct Cairo1FeatureContractMetadata {
 // 2. for each `X.cairo` file in `TEST_CONTRACTS` there exists an `X_compiled.json` file in
 // `COMPILED_CONTRACTS_SUBDIR` which equals `starknet-compile-deprecated X.cairo --no_debug_info`.
 async fn verify_feature_contracts_compatibility(fix: bool, cairo_version: CairoVersion) {
-    // TODO(Dori, 1/10/2024): Parallelize this test.
     match cairo_version {
+        // TODO(Dori, 1/10/2024): Parallelize Cairo0 recompilation.
         CairoVersion::Cairo0 => {
             for contract in FeatureContract::all_feature_contracts()
                 .filter(|contract| contract.cairo_version() == cairo_version)
@@ -84,30 +84,20 @@ async fn verify_feature_contracts_compatibility(fix: bool, cairo_version: CairoV
         CairoVersion::Cairo1(RunnableCairo1::Casm) => {
             // Prepare cairo packages.
             let mut download_task_set = tokio::task::JoinSet::new();
-            for (version, _feature_contracts) in
-                FeatureContract::cairo1_feature_contracts_by_version()
-            {
+            for version in FeatureContract::all_cairo1_compiler_versions() {
                 download_task_set.spawn(async move { verify_cairo1_package(&version).await });
             }
             info!(
                 "Verifying Cairo1 packages for versions {:?}.",
-                FeatureContract::cairo1_feature_contracts_by_version().keys()
+                FeatureContract::all_cairo1_compiler_versions()
             );
             download_task_set.join_all().await;
             info!("Cairo1 packages verified.");
             // Verify feature contracts.
             let mut task_set = tokio::task::JoinSet::new();
-            for (_version, feature_contracts) in
-                FeatureContract::cairo1_feature_contracts_by_version()
-            {
-                for contract in feature_contracts
-                    .into_iter()
-                    .filter(|contract| contract.cairo_version() == cairo_version)
-                {
-                    info!("Spawning task for {contract:?}.");
-                    task_set
-                        .spawn(verify_feature_contracts_compatibility_logic_async(contract, fix));
-                }
+            for contract in FeatureContract::all_cairo1_casm_feature_contracts() {
+                info!("Spawning task for {contract:?}.");
+                task_set.spawn(verify_feature_contracts_compatibility_logic_async(contract, fix));
             }
             info!("Done spawning tasks for contract compilation. Awaiting them...");
             task_set.join_all().await;
