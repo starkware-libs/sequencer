@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
+use apollo_infra_utils::cairo_compiler_version::cairo1_compiler_version;
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
 use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;
 use itertools::Itertools;
@@ -77,16 +78,12 @@ const ERC20_CAIRO1_CONTRACT_SOURCE_PATH: &str = "./resources/ERC20/ERC20_Cairo1/
 const ERC20_SIERRA_CONTRACT_PATH: &str = "./resources/ERC20/ERC20_Cairo1/erc20.sierra.json";
 const ERC20_CAIRO1_CONTRACT_PATH: &str = "./resources/ERC20/ERC20_Cairo1/erc20.casm.json";
 
-// The following contracts are compiled with a fixed version of the compiler. This compiler version
-// no longer compiles with stable rust, so the toolchain is also fixed.
-const LEGACY_CONTRACT_COMPILER_TAG: &str = "v2.1.0";
-const LEGACY_CONTRACT_RUST_TOOLCHAIN: &str = "2023-07-05";
+// The following contracts are compiled with a fixed version of the compiler.
+const LEGACY_CONTRACT_COMPILER_VERSION: &str = "2.1.0";
+const CAIRO_STEPS_TEST_CONTRACT_COMPILER_VERSION: &str = "2.7.0";
 
-const CAIRO_STEPS_TEST_CONTRACT_COMPILER_TAG: &str = "v2.7.0";
-const CAIRO_STEPS_TEST_CONTRACT_RUST_TOOLCHAIN: &str = "2024-04-29";
-
-pub type TagAndToolchain = (Option<String>, Option<String>);
-pub type TagToContractsMapping = HashMap<TagAndToolchain, Vec<FeatureContract>>;
+pub type CairoVersionString = String;
+pub type VersionToContractsMapping = HashMap<CairoVersionString, Vec<FeatureContract>>;
 
 /// Enum representing all feature contracts.
 /// The contracts that are implemented in both Cairo versions include a version field.
@@ -198,19 +195,18 @@ impl FeatureContract {
     }
 
     /// Some contracts are designed to test behavior of code compiled with a
-    /// specific (old) compiler tag. To run the (old) compiler, older rust
-    /// version is required.
-    pub fn fixed_tag_and_rust_toolchain(&self) -> TagAndToolchain {
+    /// specific (old) compiler version.
+    pub fn fixed_version(&self) -> CairoVersionString {
         match self {
-            Self::LegacyTestContract => (
-                Some(LEGACY_CONTRACT_COMPILER_TAG.into()),
-                Some(LEGACY_CONTRACT_RUST_TOOLCHAIN.into()),
-            ),
-            Self::CairoStepsTestContract => (
-                Some(CAIRO_STEPS_TEST_CONTRACT_COMPILER_TAG.into()),
-                Some(CAIRO_STEPS_TEST_CONTRACT_RUST_TOOLCHAIN.into()),
-            ),
-            _ => (None, None),
+            Self::LegacyTestContract => LEGACY_CONTRACT_COMPILER_VERSION.into(),
+            Self::CairoStepsTestContract => CAIRO_STEPS_TEST_CONTRACT_COMPILER_VERSION.into(),
+            contract => {
+                assert!(
+                    !contract.cairo_version().is_cairo0(),
+                    "fixed_version() should only be called for Cairo1 contracts."
+                );
+                cairo1_compiler_version()
+            }
         }
     }
 
@@ -343,10 +339,7 @@ impl FeatureContract {
                 };
                 cairo0_compile(self.get_source_path(), extra_arg, false)
             }
-            CairoVersion::Cairo1(_) => {
-                let (tag_override, cargo_nightly_arg) = self.fixed_tag_and_rust_toolchain();
-                cairo1_compile(self.get_source_path(), tag_override, cargo_nightly_arg)
-            }
+            CairoVersion::Cairo1(_) => cairo1_compile(self.get_source_path(), self.fixed_version()),
         }
     }
 
@@ -410,10 +403,10 @@ impl FeatureContract {
         Self::all_contracts().filter(|contract| !matches!(contract, Self::ERC20(_)))
     }
 
-    pub fn cairo1_feature_contracts_by_tag() -> TagToContractsMapping {
+    pub fn cairo1_feature_contracts_by_version() -> VersionToContractsMapping {
         Self::all_feature_contracts()
             .filter(|contract| contract.cairo_version() != CairoVersion::Cairo0)
-            .map(|contract| (contract.fixed_tag_and_rust_toolchain(), contract))
+            .map(|contract| (contract.fixed_version(), contract))
             .into_group_map()
     }
 }
