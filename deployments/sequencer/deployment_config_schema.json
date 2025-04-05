@@ -14,6 +14,10 @@
             "type": "string",
             "enum": ["consolidated", "http_server", "mempool", "state_sync", "batcher", "class_manager", "consensus_manager", "gateway", "l1", "sierra_compiler"]
           },
+          "controller_type": {
+            "type": "string",
+            "enum": ["deployment", "statefulset"]
+          },
           "config_path": { "type": "string" },
           "ingress": {
             "anyOf": [
@@ -77,6 +81,8 @@
         },
         "required": [
           "name",
+          "component",
+          "controller_type",
           "config_path",
           "ingress",
           "replicas",

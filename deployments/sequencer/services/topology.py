@@ -10,6 +10,7 @@ class ServiceTopology:
     config: SequencerConfig
     image: str
     component: str
+    controller_type: str
     replicas: int
     autoscale: bool
     ingress: typing.Optional[dict[str, any]]

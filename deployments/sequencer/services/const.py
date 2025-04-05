@@ -7,6 +7,7 @@ class K8SServiceType(str, Enum):
     LOAD_BALANCER = "LoadBalancer"
     NODE_PORT = "NodePort"
 
+
 # k8s container ports
 HTTP_CONTAINER_PORT = 8080
 RPC_CONTAINER_PORT = 8081
