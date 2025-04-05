@@ -1,19 +1,16 @@
+use std::fs;
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::{Command, Output, Stdio};
 use std::sync::LazyLock;
-use std::{env, fs};
 
 use apollo_infra_utils::cairo_compiler_version::cairo1_compiler_version;
-use apollo_infra_utils::compile_time_cargo_manifest_dir;
 use apollo_infra_utils::path::{project_path, resolve_project_relative_path};
 use tempfile::NamedTempFile;
 use tracing::info;
 
 static CAIRO0_PIP_REQUIREMENTS_FILE: LazyLock<PathBuf> =
     LazyLock::new(|| resolve_project_relative_path("scripts/requirements.txt").unwrap());
-const CAIRO1_REPO_RELATIVE_PATH_OVERRIDE_ENV_VAR: &str = "CAIRO1_REPO_RELATIVE_PATH";
-const DEFAULT_CAIRO1_REPO_RELATIVE_PATH: &str = "../../../cairo";
 
 pub enum CompilationArtifacts {
     Cairo0 { casm: Vec<u8> },
@@ -22,19 +19,6 @@ pub enum CompilationArtifacts {
 
 pub fn cairo1_compiler_tag() -> String {
     format!("v{}", cairo1_compiler_version())
-}
-
-/// Returns the path to the local Cairo1 compiler repository.
-/// Returns <sequencer_repo_root>/<RELATIVE_PATH_TO_CAIRO_REPO>, where the relative path can be
-/// overridden by the environment variable (otherwise, the default is used).
-fn local_cairo1_compiler_repo_path() -> PathBuf {
-    // Location of blockifier's Cargo.toml.
-    let manifest_dir = compile_time_cargo_manifest_dir!();
-
-    Path::new(&manifest_dir).join(
-        env::var(CAIRO1_REPO_RELATIVE_PATH_OVERRIDE_ENV_VAR)
-            .unwrap_or_else(|_| DEFAULT_CAIRO1_REPO_RELATIVE_PATH.into()),
-    )
 }
 
 /// Path to local compiler package directory, of the specified version.
@@ -127,13 +111,7 @@ pub fn cairo0_compile(
 }
 
 /// Compiles a Cairo1 program using the compiler version set in the Cargo.toml.
-pub fn cairo1_compile(
-    path: String,
-    git_tag_override: Option<String>,
-    _cargo_nightly_arg: Option<String>,
-) -> CompilationArtifacts {
-    let (tag, _cairo_repo_path) = get_tag_and_repo_file_path(git_tag_override);
-    let version = tag.strip_prefix("v").unwrap().to_string();
+pub fn cairo1_compile(path: String, version: String) -> CompilationArtifacts {
     assert!(cairo1_package_exists(&version));
 
     let sierra_output = starknet_compile(path, &version);
@@ -201,18 +179,4 @@ fn verify_cairo0_compiler_deps() {
          {cairo_lang_version}). Please run:\npip3.9 install -r {:?}\nthen rerun the test.",
         *CAIRO0_PIP_REQUIREMENTS_FILE
     );
-}
-
-fn get_tag_and_repo_file_path(git_tag_override: Option<String>) -> (String, PathBuf) {
-    let tag = git_tag_override.unwrap_or(cairo1_compiler_tag());
-    let cairo_repo_path = local_cairo1_compiler_repo_path();
-    // Check if the path is a directory.
-    assert!(
-        cairo_repo_path.is_dir(),
-        "Cannot verify Cairo1 contracts, Cairo repo not found at {0}.\nPlease run:\n\
-        git clone https://github.com/starkware-libs/cairo {0}\nThen rerun the test.",
-        cairo_repo_path.to_string_lossy(),
-    );
-
-    (tag, cairo_repo_path)
 }
