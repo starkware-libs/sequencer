@@ -9,9 +9,7 @@ on:
     paths:
       - '.github/workflows/blockifier_compiled_cairo.yml'
       - 'crates/apollo_sierra_multicompile/src/constants.rs' # Contains the compiler version.
-      - 'crates/blockifier_test_utils/cairo_compile.rs'
-      - 'crates/blockifier_test_utils/resources/feature_contracts/**'
-      - 'crates/blockifier_test_utils/tests/feature_contracts_compatibility_test.rs'
+      - 'crates/blockifier_test_utils/**'
       - 'scripts/dependencies.sh'
       - 'scripts/requirements.txt'
 
@@ -46,33 +44,7 @@ jobs:
           LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
 
-      # Checkout sequencer into a dedicated directory - technical requirement in order to be able to checkout `cairo` in a sibling directory.
-      - name: checkout sequencer into `sequencer` directory.
-        uses: actions/checkout@v4
-        with:
-          repository: 'starkware-libs/sequencer'
-          path: 'sequencer'
-
-      - name: checkout cairo1 repo in order to compile cairo1 contracts.
-        uses: actions/checkout@v4
-        with:
-          repository: 'starkware-libs/cairo'
-          fetch-depth: 0
-          fetch-tags: true
-          path: 'cairo'
-
-      - name: install toolchain for legacy contract compilation (old compiler tag)
-        uses: actions-rs/toolchain@master
-        with:
-          toolchain: nightly-2023-07-05
-
-      - name: install toolchain for cairo steps test contract compilation (old compiler tag)
-        uses: actions-rs/toolchain@master
-        with:
-          toolchain: nightly-2024-04-29
-
       - name: Verify cairo contract recompilation (both cairo versions).
         run:
-          cd sequencer &&
           pip install -r scripts/requirements.txt &&
           cargo test -p blockifier_test_utils --test feature_contracts_compatibility_test -- --include-ignored --nocapture
