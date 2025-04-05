@@ -1,10 +1,6 @@
 use std::fs;
 
-use blockifier_test_utils::cairo_compile::{
-    cairo1_compiler_tag,
-    verify_cairo1_package,
-    CompilationArtifacts,
-};
+use blockifier_test_utils::cairo_compile::{verify_cairo1_package, CompilationArtifacts};
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::{
     FeatureContract,
@@ -86,15 +82,9 @@ async fn verify_feature_contracts_compatibility(fix: bool, cairo_version: CairoV
             }
         }
         CairoVersion::Cairo1(RunnableCairo1::Casm) => {
-            for (tag_and_tool_chain, feature_contracts) in
-                FeatureContract::cairo1_feature_contracts_by_tag()
+            for (version, feature_contracts) in
+                FeatureContract::cairo1_feature_contracts_by_version()
             {
-                let version = tag_and_tool_chain
-                    .0
-                    .unwrap_or(cairo1_compiler_tag())
-                    .strip_prefix("v")
-                    .unwrap()
-                    .to_string();
                 verify_cairo1_package(&version).await;
 
                 let mut task_set = tokio::task::JoinSet::new();
