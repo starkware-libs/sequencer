@@ -161,7 +161,7 @@ impl From<PySierraCompilationConfig> for SierraCompilationConfig {
             },
             max_file_size: py_sierra_compilation_config.max_native_bytecode_size,
             max_cpu_time: py_sierra_compilation_config.max_cpu_time,
-            max_memory_usage: py_sierra_compilation_config.max_memory_usage,
+            max_memory_usage: Some(py_sierra_compilation_config.max_memory_usage),
             optimization_level: py_sierra_compilation_config.optimization_level,
         }
     }
