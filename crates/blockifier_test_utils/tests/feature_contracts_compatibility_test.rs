@@ -85,8 +85,7 @@ async fn verify_feature_contracts_compatibility(fix: bool, cairo_version: CairoV
             for (version, feature_contracts) in
                 FeatureContract::cairo1_feature_contracts_by_version()
             {
-                let download_if_missing = true;
-                verify_cairo1_package(&version, download_if_missing);
+                verify_cairo1_package(&version).await;
 
                 let mut task_set = tokio::task::JoinSet::new();
 
