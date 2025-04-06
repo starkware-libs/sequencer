@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
+use size_of::SizeOf;
 use starknet_types_core::felt::Felt;
 use strum_macros::EnumIter;
 
@@ -31,6 +32,7 @@ use crate::transaction::fields::{Fee, Resource, Tip};
     Serialize,
     Deserialize,
     Hash,
+    SizeOf,
 )]
 pub struct GasAmount(pub u64);
 

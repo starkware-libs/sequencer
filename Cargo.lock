@@ -11385,6 +11385,20 @@ name = "size-of"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c4e36eca171fddeda53901b0a436573b3f2391eaa9189d439b2bd8ea8cebd7e3"
+dependencies = [
+ "size-of-derive",
+]
+
+[[package]]
+name = "size-of-derive"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eefff4890f5308d477f3da563af8bdb8fbb6fabaec4c974bd211896fa7945e68"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
 
 [[package]]
 name = "sketches-ddsketch"
@@ -11713,6 +11727,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha3",
+ "size-of",
  "starknet-crypto 0.7.4",
  "starknet-types-core",
  "strum 0.25.0",
