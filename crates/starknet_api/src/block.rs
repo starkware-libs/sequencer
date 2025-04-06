@@ -381,16 +381,16 @@ impl GasPrice {
         Fee(self.0.saturating_mul(rhs.0 as u128))
     }
 
-    pub fn saturating_add(self, rhs: Tip) -> Self {
-        Self(self.0.saturating_add(rhs.0.into()))
+    pub fn saturating_add(self, rhs: Self) -> Self {
+        Self(self.0.saturating_add(rhs.0))
     }
 
     pub fn checked_mul(self, rhs: GasAmount) -> Option<Fee> {
         self.0.checked_mul(u128::from(rhs.0)).map(Fee)
     }
 
-    pub fn checked_add(self, rhs: Tip) -> Option<Self> {
-        self.0.checked_add(rhs.0.into()).map(Self)
+    pub fn checked_add(self, rhs: Self) -> Option<Self> {
+        self.0.checked_add(rhs.0).map(Self)
     }
 }
 
@@ -419,10 +419,10 @@ impl NonzeroGasPrice {
         self.get().saturating_mul(rhs)
     }
 
-    pub fn checked_add(self, rhs: Tip) -> Option<Self> {
+    pub fn checked_add(self, rhs: GasPrice) -> Option<Self> {
         self.get()
             .checked_add(rhs)
-            .map(|x| Self::new(x).expect("Add tip should not result in zero"))
+            .map(|x| Self::new(x).expect("Add GasPrice should not result in zero"))
     }
 
     #[cfg(any(test, feature = "testing"))]
