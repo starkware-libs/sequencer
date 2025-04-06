@@ -20,6 +20,7 @@ const INTEGRATION_BASE_APP_CONFIG_PATH: &str =
 
 const CONFIG_BASE_DIR: &str = "config/sequencer/";
 const DEPLOYMENT_CONFIG_DIR_NAME: &str = "deployment_configs/";
+const APP_CONFIGS_DIR_NAME: &str = "app_configs/";
 
 type DeploymentFn = fn() -> DeploymentAndPreset;
 
@@ -35,7 +36,7 @@ fn integration_consolidated_deployment() -> DeploymentAndPreset {
         Deployment::new(
             ChainId::IntegrationSepolia,
             DeploymentName::ConsolidatedNode,
-            String::from("config/sequencer/sepolia_integration/app_configs/consolidated"),
+            application_config_dir_path(Environment::SepoliaIntegration),
         ),
         deployment_file_path(Environment::SepoliaIntegration, "integration_consolidated"),
         INTEGRATION_BASE_APP_CONFIG_PATH,
@@ -48,7 +49,7 @@ fn system_test_distributed_deployment() -> DeploymentAndPreset {
         Deployment::new(
             ChainId::IntegrationSepolia,
             DeploymentName::DistributedNode,
-            String::from("config/sequencer/testing/app_configs/distributed"),
+            application_config_dir_path(Environment::Testing),
         ),
         deployment_file_path(Environment::Testing, "deployment_test_distributed"),
         SYSTEM_TEST_BASE_APP_CONFIG_PATH,
@@ -60,7 +61,7 @@ fn system_test_consolidated_deployment() -> DeploymentAndPreset {
         Deployment::new(
             ChainId::IntegrationSepolia,
             DeploymentName::ConsolidatedNode,
-            String::from("config/sequencer/testing/app_configs/consolidated"),
+            application_config_dir_path(Environment::Testing),
         ),
         deployment_file_path(Environment::Testing, "deployment_test_consolidated"),
         SYSTEM_TEST_BASE_APP_CONFIG_PATH,
@@ -81,4 +82,8 @@ pub(crate) fn deployment_file_path(environment: Environment, deployment_name: &s
         .join(environment.to_string())
         .join(DEPLOYMENT_CONFIG_DIR_NAME)
         .join(format!("{deployment_name}.json"))
+}
+
+pub(crate) fn application_config_dir_path(environment: Environment) -> PathBuf {
+    PathBuf::from(CONFIG_BASE_DIR).join(environment.to_string()).join(APP_CONFIGS_DIR_NAME)
 }
