@@ -25,6 +25,7 @@ pub mod test_utils;
 pub mod transaction;
 pub mod transaction_hash;
 pub mod type_utils;
+pub mod utils;
 pub mod versioned_constants_logic;
 
 use std::num::ParseIntError;

@@ -72,6 +72,7 @@ use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, SequencerContractAddress};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::transaction::TransactionHash;
+use starknet_api::utils::functional_mul;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
@@ -824,8 +825,11 @@ async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<Consens
     };
     l1_prices.base_fee_per_gas =
         l1_prices.base_fee_per_gas.clamp(args.min_l1_gas_price_wei, args.max_l1_gas_price_wei);
-    l1_prices.blob_fee =
-        l1_prices.blob_fee.clamp(args.min_l1_data_gas_price_wei, args.max_l1_data_gas_price_wei);
+
+    // TODO(Arni): This value should be an input of this function.
+    let data_gas_price_multiplier: f64 = 1.0;
+    l1_prices.blob_fee = functional_mul(l1_prices.blob_fee, data_gas_price_multiplier)
+        .clamp(args.min_l1_data_gas_price_wei, args.max_l1_data_gas_price_wei);
 
     let block_info = ConsensusBlockInfo {
         height: args.proposal_init.height,
@@ -1111,8 +1115,10 @@ async fn is_block_info_valid(
     gas_prices.base_fee_per_gas = gas_prices
         .base_fee_per_gas
         .clamp(min_max_prices.min_l1_gas_price_wei, min_max_prices.max_l1_gas_price_wei);
-    gas_prices.blob_fee = gas_prices
-        .blob_fee
+
+    // TODO(Arni): This value should be an input of this function.
+    let data_gas_price_multiplier: f64 = 1.0;
+    gas_prices.blob_fee = functional_mul(gas_prices.blob_fee, data_gas_price_multiplier)
         .clamp(min_max_prices.min_l1_data_gas_price_wei, min_max_prices.max_l1_data_gas_price_wei);
 
     let l1_gas_price_fri =
