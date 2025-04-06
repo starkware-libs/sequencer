@@ -12,6 +12,7 @@ deserialize = ["blockifier/transaction_serde"]
 blockifier.workspace = true
 serde.workspace = true
 starknet_api.workspace = true
+serde_json.workspace = true
 
 [lints]
 workspace = true

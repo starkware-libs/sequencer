@@ -35,6 +35,7 @@ thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 validator.workspace = true
+shared_execution_objects.workspace = true
 
 [dev-dependencies]
 apollo_class_manager_types = { workspace = true, features = ["testing"] }

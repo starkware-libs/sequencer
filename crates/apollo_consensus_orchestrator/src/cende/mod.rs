@@ -65,7 +65,7 @@ pub(crate) struct AerospikeBlob {
     bouncer_weights: CentralBouncerWeights,
     fee_market_info: CentralFeeMarketInfo,
     transactions: Vec<CentralTransactionWritten>,
-    execution_infos: Vec<CentralTransactionExecutionInfo>,
+    execution_infos: Vec<serde_json::Value>,
     contract_classes: Vec<CentralSierraContractClassEntry>,
     compiled_classes: Vec<CentralCasmContractClassEntry>,
 }
@@ -276,7 +276,7 @@ pub struct BlobParameters {
     pub(crate) transactions: Vec<InternalConsensusTransaction>,
     // TODO(dvir): consider passing the execution_infos from the batcher as a string that
     // serialized in the correct format from the batcher.
-    pub(crate) execution_infos: Vec<TransactionExecutionInfo>,
+    pub(crate) execution_infos: Vec<serde_json::Value>,
 }
 
 impl AerospikeBlob {
@@ -299,11 +299,11 @@ impl AerospikeBlob {
             process_transactions(class_manager, blob_parameters.transactions, block_timestamp)
                 .await?;
 
-        let execution_infos = blob_parameters
-            .execution_infos
-            .into_iter()
-            .map(CentralTransactionExecutionInfo::from)
-            .collect();
+        // let execution_infos = blob_parameters
+        //     .execution_infos
+        //     .into_iter()
+        //     .map(CentralTransactionExecutionInfo::from)
+        //     .collect();
 
         Ok(AerospikeBlob {
             block_number,
@@ -312,7 +312,7 @@ impl AerospikeBlob {
             bouncer_weights: blob_parameters.bouncer_weights,
             fee_market_info: blob_parameters.fee_market_info,
             transactions: central_transactions,
-            execution_infos,
+            execution_infos: blob_parameters.execution_infos,
             contract_classes,
             compiled_classes,
         })

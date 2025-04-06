@@ -12,9 +12,10 @@ use std::time::Duration;
 
 use apollo_batcher_types::batcher_types::{
     DecisionReachedInput,
-    DecisionReachedResponse,
     GetProposalContent,
     GetProposalContentInput,
+    GetProposalExecutionObjectsInput,
+    GetProposalExecutionObjectsResponse,
     ProposalId,
     ProposalStatus,
     ProposeBlockInput,
@@ -469,6 +470,7 @@ impl ConsensusContext for SequencerConsensusContext {
         Ok(())
     }
 
+    // TODO(everyone): add test for this function.
     async fn decision_reached(
         &mut self,
         block: ProposalCommitment,
@@ -492,10 +494,50 @@ impl ConsensusContext for SequencerConsensusContext {
             proposals.retain(|&h, _| h > BlockNumber(height));
         }
         let transactions = transactions.concat();
-        // TODO(dvir): return from the batcher's 'decision_reached' function the relevant data to
-        // build a blob.
-        let DecisionReachedResponse { state_diff, l2_gas_used, central_objects } = self
+        let transaction_hashes =
+            transactions.iter().map(|tx| tx.tx_hash()).collect::<Vec<TransactionHash>>();
+
+        let GetProposalExecutionObjectsResponse {
+            execution_infos,
+            bouncer_weights,
+            compressed_state_diff,
+            state_diff,
+            l2_gas_used,
+        } = self
             .batcher
+            .get_proposal_execution_objects(GetProposalExecutionObjectsInput { proposal_id })
+            .await
+            .expect("Failed to get state diff.");
+
+        let cende_block_info = convert_to_sn_api_block_info(&block_info);
+
+        // TODO(dvir): pass here real `BlobParameters` info.
+        // TODO(dvir): when passing here the correct `BlobParameters`, also test that
+        // `prepare_blob_for_next_height` is called with the correct parameters.
+        self.last_block_timestamp = Some(block_info.timestamp);
+        let _ = self
+            .cende_ambassador
+            .prepare_blob_for_next_height(BlobParameters {
+                block_info: cende_block_info.clone(),
+                state_diff: state_diff.clone(),
+                compressed_state_diff,
+                transactions,
+                execution_infos,
+                bouncer_weights,
+                fee_market_info: FeeMarketInfo {
+                    l2_gas_consumed: l2_gas_used.0,
+                    next_l2_gas_price: self.l2_gas_price,
+                },
+            })
+            .await
+            .inspect_err(|e| {
+                error!("Failed to prepare blob for next height: {e:?}");
+            });
+
+        self.cende_ambassador
+            .write_prev_height_blob(self.current_height.expect("current height is some"));
+
+        self.batcher
             .decision_reached(DecisionReachedInput { proposal_id })
             .await
             .expect("Failed to get state diff.");
@@ -506,10 +548,6 @@ impl ConsensusContext for SequencerConsensusContext {
             VersionedConstants::latest_constants().max_block_size / 2,
         );
 
-        let transaction_hashes =
-            transactions.iter().map(|tx| tx.tx_hash()).collect::<Vec<TransactionHash>>();
-
-        let cende_block_info = convert_to_sn_api_block_info(&block_info);
         let l1_gas_price = GasPricePerToken {
             price_in_fri: cende_block_info.gas_prices.strk_gas_prices.l1_gas_price.get(),
             price_in_wei: GasPrice(block_info.l1_gas_price_wei),
@@ -549,29 +587,6 @@ impl ConsensusContext for SequencerConsensusContext {
         state_sync_client.add_new_block(sync_block).await.expect("Failed to add new block.");
 
         self.l2_gas_price = next_l2_gas_price;
-
-        // TODO(dvir): pass here real `BlobParameters` info.
-        // TODO(dvir): when passing here the correct `BlobParameters`, also test that
-        // `prepare_blob_for_next_height` is called with the correct parameters.
-        self.last_block_timestamp = Some(block_info.timestamp);
-        let _ = self
-            .cende_ambassador
-            .prepare_blob_for_next_height(BlobParameters {
-                block_info: cende_block_info,
-                state_diff,
-                compressed_state_diff: central_objects.compressed_state_diff,
-                transactions,
-                execution_infos: central_objects.execution_infos,
-                bouncer_weights: central_objects.bouncer_weights,
-                fee_market_info: FeeMarketInfo {
-                    l2_gas_consumed: l2_gas_used.0,
-                    next_l2_gas_price: self.l2_gas_price,
-                },
-            })
-            .await
-            .inspect_err(|e| {
-                error!("Failed to prepare blob for next height: {e:?}");
-            });
 
         Ok(())
     }

@@ -47,7 +47,10 @@ use mockall::predicate::eq;
 use num_bigint::BigUint;
 use rstest::rstest;
 use serde::Serialize;
-use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
+use shared_execution_objects::central_objects::{
+    serialize_tx_execution_info,
+    CentralTransactionExecutionInfo,
+};
 use starknet_api::block::{
     BlockHash,
     BlockInfo,
@@ -608,7 +611,7 @@ fn central_blob() -> AerospikeBlob {
         transactions: input_txs,
         bouncer_weights: central_bouncer_weights(),
         fee_market_info: central_fee_market_info(),
-        execution_infos: vec![transaction_execution_info()],
+        execution_infos: vec![serialize_tx_execution_info(&transaction_execution_info())],
     };
 
     // This is to make the function sync (not async) so that it can be used as a case in the
@@ -654,4 +657,22 @@ fn serialize_central_objects(#[case] rust_obj: impl Serialize, #[case] python_js
     let rust_json = serde_json::to_value(rust_obj).unwrap();
 
     assert_json_eq(&rust_json, &python_json, "Json Comparison failed".to_string());
+}
+
+#[test]
+fn xxx() {
+    // let file_path=
+    // let json=read_json_file(python_json_path);
+    let exec_info = transaction_execution_info();
+
+    let ser = serialize_tx_execution_info(&exec_info);
+
+    let central_exec_info: CentralTransactionExecutionInfo = transaction_execution_info().into();
+    let ser_old = serde_json::to_value(&central_exec_info).unwrap();
+
+    assert_eq!(ser, ser_old);
+
+    // let des: CentralTransactionExecutionInfo = serde_json::from_str(&ser).unwrap();
+
+    // assert_eq!(central_exec_info, des);
 }

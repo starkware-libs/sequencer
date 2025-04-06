@@ -3,13 +3,13 @@ use std::sync::Arc;
 
 use apollo_batcher_types::batcher_types::{
     BatcherResult,
-    CentralObjects,
     DecisionReachedInput,
-    DecisionReachedResponse,
     GetHeightResponse,
     GetProposalContent,
     GetProposalContentInput,
     GetProposalContentResponse,
+    GetProposalExecutionObjectsInput,
+    GetProposalExecutionObjectsResponse,
     ProposalCommitment,
     ProposalId,
     ProposalStatus,
@@ -37,6 +37,7 @@ use blockifier::state::contract_class_manager::ContractClassManager;
 use indexmap::IndexSet;
 #[cfg(test)]
 use mockall::automock;
+use shared_execution_objects::central_objects::serialize_tx_execution_info;
 use starknet_api::block::{BlockHeaderWithoutHash, BlockNumber};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
@@ -496,11 +497,39 @@ impl Batcher {
         Ok(())
     }
 
+    pub async fn get_proposal_execution_objects(
+        &self,
+        input: GetProposalExecutionObjectsInput,
+    ) -> BatcherResult<GetProposalExecutionObjectsResponse> {
+        let proposal_id = input.proposal_id;
+
+        let lock = self.executed_proposals.lock().await;
+        let block_execution_artifacts = lock
+            .get(&proposal_id)
+            .ok_or(BatcherError::ExecutedProposalNotFound { proposal_id })?
+            .as_ref()
+            .map_err(|err| {
+                error!("Failed to get block execution artifacts: {}", err);
+                BatcherError::InternalError
+            })?;
+
+        let execution_infos = block_execution_artifacts
+            .execution_data
+            .execution_infos
+            .values()
+            .map(serialize_tx_execution_info)
+            .collect();
+        Ok(GetProposalExecutionObjectsResponse {
+            state_diff: block_execution_artifacts.thin_state_diff(),
+            execution_infos,
+            bouncer_weights: block_execution_artifacts.bouncer_weights,
+            compressed_state_diff: block_execution_artifacts.compressed_state_diff.clone(),
+            l2_gas_used: block_execution_artifacts.l2_gas_used,
+        })
+    }
+
     #[instrument(skip(self), err)]
-    pub async fn decision_reached(
-        &mut self,
-        input: DecisionReachedInput,
-    ) -> BatcherResult<DecisionReachedResponse> {
+    pub async fn decision_reached(&mut self, input: DecisionReachedInput) -> BatcherResult<()> {
         let height = self.active_height.ok_or(BatcherError::NoActiveHeight)?;
 
         let proposal_id = input.proposal_id;
@@ -511,6 +540,7 @@ impl Batcher {
                 error!("Failed to get block execution artifacts: {}", err);
                 BatcherError::InternalError
             })?;
+
         let state_diff = block_execution_artifacts.thin_state_diff();
         let n_txs = u64::try_from(block_execution_artifacts.tx_hashes().len())
             .expect("Number of transactions should fit in u64");
@@ -525,12 +555,6 @@ impl Batcher {
             block_execution_artifacts.execution_data.rejected_tx_hashes,
         )
         .await?;
-        let execution_infos: Vec<_> = block_execution_artifacts
-            .execution_data
-            .execution_infos
-            .into_iter()
-            .map(|(_, info)| info)
-            .collect();
 
         LAST_BATCHED_BLOCK.set_lossy(height.0);
         CLASS_CACHE_MISSES.increment(self.block_builder_factory.take_class_cache_miss_counter());
@@ -538,15 +562,7 @@ impl Batcher {
         BATCHED_TRANSACTIONS.increment(n_txs);
         REJECTED_TRANSACTIONS.increment(n_rejected_txs);
 
-        Ok(DecisionReachedResponse {
-            state_diff,
-            l2_gas_used: block_execution_artifacts.l2_gas_used,
-            central_objects: CentralObjects {
-                execution_infos,
-                bouncer_weights: block_execution_artifacts.bouncer_weights,
-                compressed_state_diff: block_execution_artifacts.compressed_state_diff,
-            },
-        })
+        Ok(())
     }
 
     async fn commit_proposal_and_block(

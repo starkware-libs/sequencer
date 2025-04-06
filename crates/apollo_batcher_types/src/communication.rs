@@ -15,10 +15,11 @@ use thiserror::Error;
 use crate::batcher_types::{
     BatcherResult,
     DecisionReachedInput,
-    DecisionReachedResponse,
     GetHeightResponse,
     GetProposalContentInput,
     GetProposalContentResponse,
+    GetProposalExecutionObjectsInput,
+    GetProposalExecutionObjectsResponse,
     ProposeBlockInput,
     RevertBlockInput,
     SendProposalContentInput,
@@ -69,12 +70,16 @@ pub trait BatcherClient: Send + Sync {
     /// Adds a block from the state sync. Updates the batcher's state and commits the
     /// transactions to the mempool.
     async fn add_sync_block(&self, sync_block: SyncBlock) -> BatcherClientResult<()>;
+
+    /// Gets the objects associated with a proposal.
+    async fn get_proposal_execution_objects(
+        &self,
+        input: GetProposalExecutionObjectsInput,
+    ) -> BatcherClientResult<GetProposalExecutionObjectsResponse>;
+
     /// Notifies the batcher that a decision has been reached.
     /// This closes the process of the given height, and the accepted proposal is committed.
-    async fn decision_reached(
-        &self,
-        input: DecisionReachedInput,
-    ) -> BatcherClientResult<DecisionReachedResponse>;
+    async fn decision_reached(&self, input: DecisionReachedInput) -> BatcherClientResult<()>;
     /// Reverts the block with the given block number, only if it is the last in the storage.
     async fn revert_block(&self, input: RevertBlockInput) -> BatcherClientResult<()>;
 }
@@ -87,6 +92,7 @@ pub enum BatcherRequest {
     SendProposalContent(SendProposalContentInput),
     StartHeight(StartHeightInput),
     GetCurrentHeight,
+    GetProposalExecutionObjects(GetProposalExecutionObjectsInput),
     DecisionReached(DecisionReachedInput),
     AddSyncBlock(SyncBlock),
     RevertBlock(RevertBlockInput),
@@ -101,7 +107,8 @@ pub enum BatcherResponse {
     ValidateBlock(BatcherResult<()>),
     SendProposalContent(BatcherResult<SendProposalContentResponse>),
     StartHeight(BatcherResult<()>),
-    DecisionReached(BatcherResult<Box<DecisionReachedResponse>>),
+    GetProposalExecutionObjects(BatcherResult<GetProposalExecutionObjectsResponse>),
+    DecisionReached(BatcherResult<()>),
     AddSyncBlock(BatcherResult<()>),
     RevertBlock(BatcherResult<()>),
 }
@@ -192,17 +199,28 @@ where
         )
     }
 
-    async fn decision_reached(
+    async fn get_proposal_execution_objects(
         &self,
-        input: DecisionReachedInput,
-    ) -> BatcherClientResult<DecisionReachedResponse> {
+        input: GetProposalExecutionObjectsInput,
+    ) -> BatcherClientResult<GetProposalExecutionObjectsResponse> {
+        let request = BatcherRequest::GetProposalExecutionObjects(input);
+        handle_all_response_variants!(
+            BatcherResponse,
+            GetProposalExecutionObjects,
+            BatcherClientError,
+            BatcherError,
+            Direct
+        )
+    }
+
+    async fn decision_reached(&self, input: DecisionReachedInput) -> BatcherClientResult<()> {
         let request = BatcherRequest::DecisionReached(input);
         handle_all_response_variants!(
             BatcherResponse,
             DecisionReached,
             BatcherClientError,
             BatcherError,
-            Boxed
+            Direct
         )
     }
 
