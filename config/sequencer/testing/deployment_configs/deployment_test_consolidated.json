@@ -1,7 +1,7 @@
 {
   "chain_id": "SN_INTEGRATION_SEPOLIA",
   "image": "ghcr.io/starkware-libs/sequencer/sequencer:dev",
-  "application_config_subdir": "config/sequencer/presets/consolidated_node/application_configs/",
+  "application_config_subdir": "config/sequencer/testing/app_configs/consolidated",
   "services": [
     {
       "name": "Node",
