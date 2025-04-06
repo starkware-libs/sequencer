@@ -5,9 +5,11 @@ use std::time::Duration;
 use apollo_config::converters::deserialize_milliseconds_to_duration;
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use num_rational::Ratio;
+use num_traits::ToPrimitive;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ChainId, ContractAddress};
-use validator::Validate;
+use validator::{Validate, ValidationError};
 
 const GWEI_FACTOR: u128 = 1_000_000_000;
 
@@ -44,6 +46,12 @@ pub struct ContextConfig {
     pub min_l1_data_gas_price_wei: u128,
     /// The maximum L1 data gas price in wei.
     pub max_l1_data_gas_price_wei: u128,
+    // TODO(Arni): Store this value as a Ratio<u128>.
+    /// Multiplicative factor to apply to the data gas price, to enable fine-tuning of the price
+    /// charged to end users. Commonly used to apply a discount due to the blob's data being
+    /// compressed. Can be used to raise the prices in case of blob under-utilization.
+    #[validate(custom = "validate_multiplier_in_range")]
+    pub data_gas_price_multiplier: f64,
 }
 
 impl SerializeConfig for ContextConfig {
@@ -124,6 +132,13 @@ impl SerializeConfig for ContextConfig {
                 "The maximum L1 data gas price in wei.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "data_gas_price_multiplier",
+                &self.data_gas_price_multiplier,
+                "Multiplicative factor to apply to the sampled data gas price, to enable \
+                 fine-tuning of the actual price.",
+                ParamPrivacyInput::Public,
+            ),
         ])
     }
 }
@@ -143,6 +158,37 @@ impl Default for ContextConfig {
             max_l1_gas_price_wei: 200 * GWEI_FACTOR,
             min_l1_data_gas_price_wei: GWEI_FACTOR,
             max_l1_data_gas_price_wei: 150 * GWEI_FACTOR,
+            data_gas_price_multiplier: 0.135,
         }
     }
+}
+
+impl ContextConfig {
+    // TODO(Arni): Remove conversion once the configuration is stored as a Ratio.
+    /// Converts the `data_gas_price_multiplier` field into a `Ratio<u128>` for precise
+    /// calculations.
+    pub fn data_gas_price_multiplier(&self) -> Ratio<u128> {
+        const DENOMINATOR: u32 = 1000;
+        Ratio::new(
+            (self.data_gas_price_multiplier * f64::from(DENOMINATOR))
+                .to_u128()
+                .expect("data_gas_price_multiplier is not valid"),
+            DENOMINATOR.into(),
+        )
+    }
+}
+
+// TODO(Arni): Add tests.
+fn validate_multiplier_in_range(multiplier: f64) -> Result<(), ValidationError> {
+    const MAX_MULTIPLIER: f64 = 1000.0;
+    const DENOMINATOR: u32 = 1000;
+
+    if !(0.0..=MAX_MULTIPLIER).contains(&multiplier) {
+        return Err(ValidationError::new("Multiplier must be between 0.0 and 1000.0"));
+    }
+    if (multiplier * f64::from(DENOMINATOR)).fract() != 0.0 {
+        return Err(ValidationError::new("Multiplier must have at most 3 decimal places"));
+    }
+
+    Ok(())
 }
