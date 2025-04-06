@@ -311,8 +311,22 @@ pub(crate) fn is_reverted<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> O
     todo!()
 }
 
-pub(crate) fn check_execution<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    todo!()
+pub(crate) fn check_execution<S: StateReader>(
+    HintArgs { vm, hint_processor, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    // TODO(Yoav): implement debug mode assertions.
+    let syscall_ptr_end = get_address_of_nested_fields(
+        ids_data,
+        Ids::EntryPointReturnValues,
+        CairoStruct::EntryPointReturnValuesPtr,
+        vm,
+        ap_tracking,
+        &["syscall_ptr"],
+        &hint_processor.os_program,
+    )?;
+    hint_processor.syscall_hint_processor.validate_and_discard_syscall_ptr(&syscall_ptr_end)?;
+    // TODO(Yoav): implement check_execution exit_call.
+    Ok(())
 }
 
 pub(crate) fn is_remaining_gas_lt_initial_budget<S: StateReader>(
