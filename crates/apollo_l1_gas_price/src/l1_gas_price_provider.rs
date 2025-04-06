@@ -5,11 +5,14 @@ use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_l1_gas_price_types::errors::L1GasPriceProviderError;
 use apollo_l1_gas_price_types::{L1GasPriceProviderResult, PriceInfo};
+use async_trait::async_trait;
 use papyrus_base_layer::{L1BlockNumber, PriceSample};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockTimestamp, TEMP_ETH_BLOB_GAS_FEE_IN_WEI, TEMP_ETH_GAS_FEE_IN_WEI};
 use tracing::warn;
 use validator::Validate;
+
+use crate::metrics::{register_provider_metrics, L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY};
 
 #[cfg(test)]
 #[path = "l1_gas_price_provider_test.rs"]
@@ -171,6 +174,7 @@ impl L1GasPriceProvider {
                  of {}.",
                 last_index, num_blocks
             );
+            L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY.increment(1);
             0
         };
         debug_assert!(first_index < last_index, "error calculating indices");
@@ -194,4 +198,10 @@ impl L1GasPriceProvider {
     }
 }
 
-impl ComponentStarter for L1GasPriceProvider {}
+#[async_trait]
+impl ComponentStarter for L1GasPriceProvider {
+    async fn start(&mut self) {
+        info!("Starting component {}.", type_name::<Self>());
+        register_provider_metrics();
+    }
+}
