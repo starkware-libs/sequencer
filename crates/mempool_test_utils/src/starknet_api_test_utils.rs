@@ -1,7 +1,5 @@
 use std::cell::RefCell;
-use std::env;
 use std::fs::File;
-use std::path::Path;
 use std::rc::Rc;
 use std::sync::LazyLock;
 
@@ -87,14 +85,9 @@ pub fn test_valid_resource_bounds() -> ValidResourceBounds {
 
 /// Get the contract class used for testing.
 pub fn contract_class() -> SierraContractClass {
-    let current_dir = env::current_dir().unwrap();
-    env::set_current_dir(resolve_project_relative_path(TEST_FILES_FOLDER).unwrap())
-        .expect("Couldn't set working dir.");
-    let json_file_path = Path::new(CONTRACT_CLASS_FILE);
-    let sierra_contract_class =
-        serde_json::from_reader(File::open(json_file_path).unwrap()).unwrap();
-    env::set_current_dir(current_dir).expect("Couldn't set working dir.");
-    sierra_contract_class
+    let test_files_folder_path = resolve_project_relative_path(TEST_FILES_FOLDER).unwrap();
+    let json_file_path = test_files_folder_path.join(CONTRACT_CLASS_FILE);
+    serde_json::from_reader(File::open(json_file_path).unwrap()).unwrap()
 }
 
 pub static COMPILED_CLASS_HASH: LazyLock<CompiledClassHash> =
