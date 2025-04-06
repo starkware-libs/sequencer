@@ -659,20 +659,31 @@ fn serialize_central_objects(#[case] rust_obj: impl Serialize, #[case] python_js
     assert_json_eq(&rust_json, &python_json, "Json Comparison failed".to_string());
 }
 
-#[test]
-fn xxx() {
-    // let file_path=
-    // let json=read_json_file(python_json_path);
-    let exec_info = transaction_execution_info();
+// #[test]
+// fn yyy() {
+//     let person = central_blob();
 
-    let ser = serialize_tx_execution_info(&exec_info);
+//     // let file = std::fs::File::create("person.json").unwrap();
+//     let as_string = serde_json::to_string_pretty(&person).unwrap();
+//     std::fs::write("person.json", as_string).unwrap();
 
-    let central_exec_info: CentralTransactionExecutionInfo = transaction_execution_info().into();
-    let ser_old = serde_json::to_value(&central_exec_info).unwrap();
+//     // serde_json::to_writer_pretty(file, &person).unwrap();
+// }
 
-    assert_eq!(ser, ser_old);
+// #[test]
+// fn xxx() {
+//     // let file_path=
+//     // let json=read_json_file(python_json_path);
+//     let exec_info = transaction_execution_info();
 
-    // let des: CentralTransactionExecutionInfo = serde_json::from_str(&ser).unwrap();
+//     let ser = serialize_tx_execution_info(&exec_info);
 
-    // assert_eq!(central_exec_info, des);
-}
+//     let central_exec_info: CentralTransactionExecutionInfo = transaction_execution_info().into();
+//     let ser_old = serde_json::to_value(&central_exec_info).unwrap();
+
+//     assert_eq!(ser, ser_old);
+
+//     // let des: CentralTransactionExecutionInfo = serde_json::from_str(&ser).unwrap();
+
+//     // assert_eq!(central_exec_info, des);
+// }

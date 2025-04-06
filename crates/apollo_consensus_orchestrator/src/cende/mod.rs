@@ -65,7 +65,7 @@ pub(crate) struct AerospikeBlob {
     bouncer_weights: CentralBouncerWeights,
     fee_market_info: CentralFeeMarketInfo,
     transactions: Vec<CentralTransactionWritten>,
-    execution_infos: Vec<serde_json::Value>,
+    execution_infos: Vec<String>,
     contract_classes: Vec<CentralSierraContractClassEntry>,
     compiled_classes: Vec<CentralCasmContractClassEntry>,
 }
@@ -276,7 +276,7 @@ pub struct BlobParameters {
     pub(crate) transactions: Vec<InternalConsensusTransaction>,
     // TODO(dvir): consider passing the execution_infos from the batcher as a string that
     // serialized in the correct format from the batcher.
-    pub(crate) execution_infos: Vec<serde_json::Value>,
+    pub(crate) execution_infos: Vec<String>,
 }
 
 impl AerospikeBlob {

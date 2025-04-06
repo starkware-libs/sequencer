@@ -62,9 +62,7 @@ impl From<TransactionExecutionInfo> for CentralTransactionExecutionInfo {
     }
 }
 
-pub fn serialize_tx_execution_info(
-    tx_execution_info: &TransactionExecutionInfo,
-) -> serde_json::Value {
+pub fn serialize_tx_execution_info(tx_execution_info: &TransactionExecutionInfo) -> String {
     let receipt = &tx_execution_info.receipt;
     let vm_resources = &receipt.resources.computation.vm_resources;
 
@@ -89,5 +87,5 @@ pub fn serialize_tx_execution_info(
         "total_gas": receipt.gas,
     });
 
-    central_json
+    serde_json::to_string(&central_json).expect("Failed to serialize TransactionExecutionInfo")
 }

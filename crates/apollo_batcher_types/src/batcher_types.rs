@@ -95,7 +95,7 @@ pub struct SendProposalContentResponse {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct GetProposalExecutionObjectsResponse {
-    pub execution_infos: Vec<serde_json::Value>,
+    pub execution_infos: Vec<String>,
     pub bouncer_weights: BouncerWeights,
     pub compressed_state_diff: Option<CommitmentStateDiff>,
     // TODO(Yael): Consider passing the state_diff as CommitmentStateDiff inside CentralObjects.
