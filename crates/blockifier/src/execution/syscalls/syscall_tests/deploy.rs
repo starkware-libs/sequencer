@@ -15,7 +15,7 @@ use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
 use crate::context::{BlockContext, ChainInfo};
-use crate::execution::call_info::CallExecution;
+use crate::execution::call_info::{CallExecution, Retdata};
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::{CallEntryPoint, CallEntryPointVariant};
 use crate::execution::syscalls::hint_processor::SyscallUsage;
@@ -71,31 +71,47 @@ fn setup_deploy_call(
     (entry_point_call, contract_address, state, class_hash)
 }
 
-#[test_case(RunnableCairo1::Casm;"VM")]
-#[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native;"Native"))]
-fn no_constructor(runnable_version: RunnableCairo1) {
-    let single_contract = false;
-    let empty_constructor_calldata = vec![];
-    let (entry_point_call, deployed_contract_address, mut state, class_hash) = setup_deploy_call(
+fn expected_call_execution(gas: u64, retdata: Retdata) -> CallExecution {
+    CallExecution { retdata, gas_consumed: gas, ..CallExecution::default() }
+}
+
+#[rstest]
+#[case::vm_no_constructor(RunnableCairo1::Casm, vec![], 0, 158600, retdata![])]
+#[case::vm_with_constructor(RunnableCairo1::Casm, vec![felt!(1_u8), felt!(1_u8)], 15140, 188780, retdata![felt!(1_u8)])]
+#[cfg_attr(
+    feature = "cairo_native",
+    case::native_no_constructor(RunnableCairo1::Native, vec![], 0, 158600, retdata![])
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    case::native_with_constructor(RunnableCairo1::Native, vec![felt!(1_u8), felt!(1_u8)], 15140, 188780, retdata![felt!(1_u8)])
+)]
+fn test_deploy_with_and_without_constructor(
+    #[case] runnable_version: RunnableCairo1,
+    #[case] constructor_calldata: Vec<Felt>,
+    #[case] expected_ctor_gas: u64,
+    #[case] expected_deploy_gas: u64,
+    #[case] expected_ctor_retdata: Retdata,
+) {
+    let single_contract = !constructor_calldata.is_empty();
+
+    let (entry_point_call, contract_address, mut state, class_hash) = setup_deploy_call(
         single_contract,
-        empty_constructor_calldata,
+        constructor_calldata.clone(),
         CairoVersion::Cairo1(runnable_version),
     );
+
     let deploy_call = entry_point_call.execute_directly(&mut state).unwrap();
-
-    assert_eq!(
-        deploy_call.execution,
-        CallExecution { retdata: retdata![], gas_consumed: 158600, ..CallExecution::default() }
-    );
-
     let constructor_call = &deploy_call.inner_calls[0];
 
-    assert_eq!(constructor_call.call.storage_address, deployed_contract_address);
-    assert_eq!(
-        constructor_call.execution,
-        CallExecution { retdata: retdata![], gas_consumed: 0, ..CallExecution::default() }
-    );
-    assert_eq!(state.get_class_hash_at(deployed_contract_address).unwrap(), class_hash);
+    assert_eq!(constructor_call.call.storage_address, contract_address);
+    assert_eq!(state.get_class_hash_at(contract_address).unwrap(), class_hash);
+
+    let expected_ctor = expected_call_execution(expected_ctor_gas, expected_ctor_retdata);
+    let expected_deploy = expected_call_execution(expected_deploy_gas, retdata![]);
+
+    assert_eq!(constructor_call.execution, expected_ctor);
+    assert_eq!(deploy_call.execution, expected_deploy);
 }
 
 #[test_case(RunnableCairo1::Casm;"VM")]
@@ -117,43 +133,6 @@ fn no_constructor_nonempty_calldata(runnable_version: RunnableCairo1) {
         "Invalid input: constructor_calldata; Cannot pass calldata to a contract with no \
          constructor."
     ));
-}
-
-#[test_case(RunnableCairo1::Casm;"VM")]
-#[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native;"Native"))]
-fn with_constructor(runnable_version: RunnableCairo1) {
-    let single_contract = true;
-    let constructor_calldata = vec![
-        felt!(1_u8), // Calldata: address.
-        felt!(1_u8), // Calldata: value.
-    ];
-    let (entry_point_call, contract_address, mut state, class_hash) = setup_deploy_call(
-        single_contract,
-        constructor_calldata.clone(),
-        CairoVersion::Cairo1(runnable_version),
-    );
-
-    let deploy_call = entry_point_call.execute_directly(&mut state).unwrap();
-
-    assert_eq!(
-        deploy_call.execution,
-        CallExecution { retdata: retdata![], gas_consumed: 188780, ..CallExecution::default() }
-    );
-
-    let constructor_call = &deploy_call.inner_calls[0];
-
-    assert_eq!(constructor_call.call.storage_address, contract_address);
-    assert_eq!(
-        constructor_call.execution,
-        CallExecution {
-            // The test contract constructor returns its first argument.
-            retdata: retdata![constructor_calldata[0]],
-            // This reflects the gas cost of storage write syscall.
-            gas_consumed: 15140,
-            ..CallExecution::default()
-        }
-    );
-    assert_eq!(state.get_class_hash_at(contract_address).unwrap(), class_hash);
 }
 
 #[test_case(RunnableCairo1::Casm;"VM")]
