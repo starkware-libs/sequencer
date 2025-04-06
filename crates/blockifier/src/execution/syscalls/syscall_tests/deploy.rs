@@ -32,14 +32,13 @@ fn no_constructor(runnable_version: RunnableCairo1) {
     let deployer_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
     let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1(runnable_version));
     let class_hash = empty_contract.get_class_hash();
+    let contract_instances = [(deployer_contract, 1), (empty_contract, 0)];
+    let constructor_calldata = vec![];
 
-    let mut state = test_state(
-        &ChainInfo::create_for_testing(),
-        Fee(0),
-        &[(deployer_contract, 1), (empty_contract, 0)],
-    );
+    let mut state = test_state(&ChainInfo::create_for_testing(), Fee(0), &contract_instances);
 
-    let calldata = calldata_for_deploy_test(class_hash, &[], true);
+    let calldata = calldata_for_deploy_test(class_hash, &constructor_calldata, true);
+
     let entry_point_call = CallEntryPoint {
         entry_point_selector: selector_from_name("test_deploy"),
         calldata,
@@ -47,6 +46,7 @@ fn no_constructor(runnable_version: RunnableCairo1) {
     };
 
     let deploy_call = &entry_point_call.execute_directly(&mut state).unwrap();
+
     assert_eq!(
         deploy_call.execution,
         CallExecution { retdata: retdata![], gas_consumed: 158600, ..CallExecution::default() }
@@ -76,14 +76,14 @@ fn no_constructor_nonempty_calldata(runnable_version: RunnableCairo1) {
     let deployer_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
     let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1(runnable_version));
     let class_hash = empty_contract.get_class_hash();
+    let contract_instances = [(deployer_contract, 1), (empty_contract, 0)];
+    let constructor_calldata = vec![
+        felt!(1_u8), // Calldata: address.
+        felt!(1_u8), // Calldata: value.
+    ];
+    let mut state = test_state(&ChainInfo::create_for_testing(), Fee(0), &contract_instances);
 
-    let mut state = test_state(
-        &ChainInfo::create_for_testing(),
-        Fee(0),
-        &[(deployer_contract, 1), (empty_contract, 0)],
-    );
-
-    let calldata = calldata_for_deploy_test(class_hash, &[felt!(1_u8), felt!(1_u8)], true);
+    let calldata = calldata_for_deploy_test(class_hash, &constructor_calldata, true);
 
     let entry_point_call = CallEntryPoint {
         entry_point_selector: selector_from_name("test_deploy"),
@@ -102,13 +102,14 @@ fn no_constructor_nonempty_calldata(runnable_version: RunnableCairo1) {
 #[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native;"Native"))]
 fn with_constructor(runnable_version: RunnableCairo1) {
     let deployer_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
-    let mut state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[(deployer_contract, 1)]);
-
     let class_hash = deployer_contract.get_class_hash();
+    let single_contract_instance = [(deployer_contract, 1)];
     let constructor_calldata = vec![
         felt!(1_u8), // Calldata: address.
         felt!(1_u8), // Calldata: value.
     ];
+
+    let mut state = test_state(&ChainInfo::create_for_testing(), Fee(0), &single_contract_instance);
 
     let calldata = calldata_for_deploy_test(class_hash, &constructor_calldata, true);
 
@@ -154,13 +155,14 @@ fn with_constructor(runnable_version: RunnableCairo1) {
 #[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native;"Native"))]
 fn to_unavailable_address(runnable_version: RunnableCairo1) {
     let deployer_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
-    let mut state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[(deployer_contract, 1)]);
-
     let class_hash = deployer_contract.get_class_hash();
+    let single_contract_instance = [(deployer_contract, 1)];
     let constructor_calldata = vec![
         felt!(1_u8), // Calldata: address.
         felt!(1_u8), // Calldata: value.
     ];
+
+    let mut state = test_state(&ChainInfo::create_for_testing(), Fee(0), &single_contract_instance);
 
     let calldata = calldata_for_deploy_test(class_hash, &constructor_calldata, true);
 
