@@ -9018,6 +9018,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "papyrus_base_layer_client"
+version = "0.0.0"
+dependencies = [
+ "ethers",
+ "starknet-types-core",
+ "starknet_api",
+ "tokio",
+]
+
+[[package]]
 name = "papyrus_common"
 version = "0.0.0"
 dependencies = [

@@ -1,0 +1,24 @@
+[package]
+name = "papyrus_base_layer_client"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+
+[dependencies]
+ethers = { workspace = true, features = ["abigen"] }
+starknet-types-core.workspace = true
+starknet_api.workspace = true
+tokio = { workspace = true, features = ["full", "sync"] }
+
+[dev-dependencies]
+
+
+[[bin]]
+name = "send_message_to_l2"
+path = "src/bin/send_message_to_l2.rs"
