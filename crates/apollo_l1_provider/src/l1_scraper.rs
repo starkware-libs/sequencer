@@ -19,7 +19,7 @@ use starknet_api::executable_transaction::L1HandlerTransaction as ExecutableL1Ha
 use starknet_api::StarknetApiError;
 use thiserror::Error;
 use tokio::time::sleep;
-use tracing::{error, info, instrument};
+use tracing::{error, info, instrument, warn};
 use validator::Validate;
 
 #[cfg(test)]
@@ -73,7 +73,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
     }
 
     #[instrument(skip(self), err)]
-    pub async fn initialize(&mut self) -> L1ScraperResult<(), B> {
+    async fn initialize(&mut self) -> L1ScraperResult<(), B> {
         let (latest_l1_block, events) = self.fetch_events().await?;
 
         // If this gets too high, send in batches.
@@ -85,7 +85,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         Ok(())
     }
 
-    pub async fn send_events_to_l1_provider(&mut self) -> L1ScraperResult<(), B> {
+    async fn send_events_to_l1_provider(&mut self) -> L1ScraperResult<(), B> {
         self.assert_no_l1_reorgs().await?;
 
         let (latest_l1_block, events) = self.fetch_events().await?;
@@ -130,12 +130,30 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
     }
 
     #[instrument(skip(self), err)]
-    async fn run(&mut self) -> L1ScraperResult<(), B> {
-        self.initialize().await?;
+    pub async fn run(&mut self) -> L1ScraperResult<(), B> {
+        loop {
+            match self.initialize().await {
+                Err(L1ScraperError::BaseLayerError(e)) => {
+                    warn!("BaseLayerError during initialization: {e:?}");
+                }
+                Ok(_) => break,
+                Err(e) => return Err(e),
+            };
+
+            // Outside of the match branch due to lifetime issues.
+            sleep(self.config.polling_interval_seconds).await;
+        }
+
         loop {
             sleep(self.config.polling_interval_seconds).await;
 
-            self.send_events_to_l1_provider().await?;
+            match self.send_events_to_l1_provider().await {
+                Err(L1ScraperError::BaseLayerError(e)) => {
+                    warn!("BaseLayerError during scraping: {e:?}");
+                }
+                Ok(_) => {}
+                Err(e) => return Err(e),
+            }
         }
     }
 
