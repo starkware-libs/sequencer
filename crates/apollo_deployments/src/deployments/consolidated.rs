@@ -5,7 +5,10 @@ use strum::Display;
 use strum_macros::{AsRefStr, EnumIter};
 
 use crate::service::{
+    Controller,
     GetComponentConfigs,
+    Ingress,
+    IngressRule,
     Resource,
     Resources,
     Service,
@@ -41,10 +44,20 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
         match self {
             ConsolidatedNodeServiceName::Node => Service::new(
                 Into::<ServiceName>::into(*self),
-                false,
+                Controller::StatefulSet,
+                Ingress::new(
+                    String::from("sw-dev.io"),
+                    true,
+                    true,
+                    vec![
+                        IngressRule::new(String::from("/batcher"), 8080),
+                        IngressRule::new(String::from("/state_sync"), 8081),
+                    ],
+                ),
                 false,
                 1,
                 Some(32),
+                Some(String::from("NoSchedule")),
                 Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                 None,
             ),

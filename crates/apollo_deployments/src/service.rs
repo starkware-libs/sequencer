@@ -17,13 +17,52 @@ const APPLICATION_CONFIG_DIR_NAME: &str = "application_configs";
 pub struct Service {
     name: ServiceName,
     // TODO(Tsabary): change config path to PathBuf type.
+    controller: Controller,
     config_path: String,
-    ingress: bool,
+    ingress: Ingress,
     autoscale: bool,
     replicas: usize,
     storage: Option<usize>,
+    toleration: Option<String>,
     resources: Resources,
     external_secret: Option<ExternalSecret>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
+pub enum Controller {
+    Deployment,
+    StatefulSet,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct Ingress {
+    domain: String,
+    internal: bool,
+    fgw_nginx_redirect: bool,
+    rules: Vec<IngressRule>,
+}
+
+impl Ingress {
+    pub fn new(
+        domain: String,
+        internal: bool,
+        fgw_nginx_redirect: bool,
+        rules: Vec<IngressRule>,
+    ) -> Self {
+        Self { domain, internal, fgw_nginx_redirect, rules }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct IngressRule {
+    path: String,
+    port: u16,
+}
+
+impl IngressRule {
+    pub fn new(path: String, port: u16) -> Self {
+        Self { path, port }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -62,22 +101,27 @@ impl Resources {
 }
 
 impl Service {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         name: ServiceName,
-        ingress: bool,
+        controller: Controller,
+        ingress: Ingress,
         autoscale: bool,
         replicas: usize,
         storage: Option<usize>,
+        toleration: Option<String>,
         resources: Resources,
         external_secret: Option<ExternalSecret>,
     ) -> Self {
         Self {
             name,
             config_path: name.get_config_file_path(),
+            controller,
             ingress,
             autoscale,
             replicas,
             storage,
+            toleration,
             resources,
             external_secret,
         }

@@ -5,11 +5,27 @@
   "services": [
     {
       "name": "Batcher",
+      "controller": "StatefulSet",
       "config_path": "batcher.json",
-      "ingress": false,
+      "ingress": {
+        "domain": "sw-dev.io",
+        "internal": true,
+        "fgw_nginx_redirect": true,
+        "rules": [
+          {
+            "path": "/batcher",
+            "port": 8080
+          },
+          {
+            "path": "/state_sync",
+            "port": 8081
+          }
+        ]
+      },
       "autoscale": false,
       "replicas": 1,
       "storage": 32,
+      "toleration": "NoSchedule",
       "resources": {
         "requests": {
           "cpu": 1,
@@ -24,11 +40,27 @@
     },
     {
       "name": "ClassManager",
+      "controller": "StatefulSet",
       "config_path": "class_manager.json",
-      "ingress": false,
+      "ingress": {
+        "domain": "sw-dev.io",
+        "internal": true,
+        "fgw_nginx_redirect": true,
+        "rules": [
+          {
+            "path": "/batcher",
+            "port": 8080
+          },
+          {
+            "path": "/state_sync",
+            "port": 8081
+          }
+        ]
+      },
       "autoscale": false,
       "replicas": 1,
       "storage": 32,
+      "toleration": "NoSchedule",
       "resources": {
         "requests": {
           "cpu": 1,
@@ -43,11 +75,27 @@
     },
     {
       "name": "ConsensusManager",
+      "controller": "StatefulSet",
       "config_path": "consensus_manager.json",
-      "ingress": false,
+      "ingress": {
+        "domain": "sw-dev.io",
+        "internal": true,
+        "fgw_nginx_redirect": true,
+        "rules": [
+          {
+            "path": "/batcher",
+            "port": 8080
+          },
+          {
+            "path": "/state_sync",
+            "port": 8081
+          }
+        ]
+      },
       "autoscale": false,
       "replicas": 1,
       "storage": null,
+      "toleration": "NoSchedule",
       "resources": {
         "requests": {
           "cpu": 1,
@@ -62,11 +110,27 @@
     },
     {
       "name": "HttpServer",
+      "controller": "StatefulSet",
       "config_path": "http_server.json",
-      "ingress": false,
+      "ingress": {
+        "domain": "sw-dev.io",
+        "internal": true,
+        "fgw_nginx_redirect": true,
+        "rules": [
+          {
+            "path": "/batcher",
+            "port": 8080
+          },
+          {
+            "path": "/state_sync",
+            "port": 8081
+          }
+        ]
+      },
       "autoscale": false,
       "replicas": 1,
       "storage": null,
+      "toleration": "NoSchedule",
       "resources": {
         "requests": {
           "cpu": 1,
@@ -81,11 +145,27 @@
     },
     {
       "name": "Gateway",
+      "controller": "StatefulSet",
       "config_path": "gateway.json",
-      "ingress": false,
+      "ingress": {
+        "domain": "sw-dev.io",
+        "internal": true,
+        "fgw_nginx_redirect": true,
+        "rules": [
+          {
+            "path": "/batcher",
+            "port": 8080
+          },
+          {
+            "path": "/state_sync",
+            "port": 8081
+          }
+        ]
+      },
       "autoscale": false,
       "replicas": 1,
       "storage": null,
+      "toleration": "NoSchedule",
       "resources": {
         "requests": {
           "cpu": 1,
@@ -100,11 +180,27 @@
     },
     {
       "name": "L1",
+      "controller": "StatefulSet",
       "config_path": "l1.json",
-      "ingress": false,
+      "ingress": {
+        "domain": "sw-dev.io",
+        "internal": true,
+        "fgw_nginx_redirect": true,
+        "rules": [
+          {
+            "path": "/batcher",
+            "port": 8080
+          },
+          {
+            "path": "/state_sync",
+            "port": 8081
+          }
+        ]
+      },
       "autoscale": false,
       "replicas": 1,
       "storage": null,
+      "toleration": "NoSchedule",
       "resources": {
         "requests": {
           "cpu": 1,
@@ -119,11 +215,27 @@
     },
     {
       "name": "Mempool",
+      "controller": "StatefulSet",
       "config_path": "mempool.json",
-      "ingress": false,
+      "ingress": {
+        "domain": "sw-dev.io",
+        "internal": true,
+        "fgw_nginx_redirect": true,
+        "rules": [
+          {
+            "path": "/batcher",
+            "port": 8080
+          },
+          {
+            "path": "/state_sync",
+            "port": 8081
+          }
+        ]
+      },
       "autoscale": false,
       "replicas": 1,
       "storage": null,
+      "toleration": "NoSchedule",
       "resources": {
         "requests": {
           "cpu": 1,
@@ -138,11 +250,27 @@
     },
     {
       "name": "SierraCompiler",
+      "controller": "StatefulSet",
       "config_path": "sierra_compiler.json",
-      "ingress": false,
+      "ingress": {
+        "domain": "sw-dev.io",
+        "internal": true,
+        "fgw_nginx_redirect": true,
+        "rules": [
+          {
+            "path": "/batcher",
+            "port": 8080
+          },
+          {
+            "path": "/state_sync",
+            "port": 8081
+          }
+        ]
+      },
       "autoscale": false,
       "replicas": 1,
       "storage": null,
+      "toleration": "NoSchedule",
       "resources": {
         "requests": {
           "cpu": 1,
@@ -157,11 +285,27 @@
     },
     {
       "name": "StateSync",
+      "controller": "StatefulSet",
       "config_path": "state_sync.json",
-      "ingress": false,
+      "ingress": {
+        "domain": "sw-dev.io",
+        "internal": true,
+        "fgw_nginx_redirect": true,
+        "rules": [
+          {
+            "path": "/batcher",
+            "port": 8080
+          },
+          {
+            "path": "/state_sync",
+            "port": 8081
+          }
+        ]
+      },
       "autoscale": false,
       "replicas": 1,
       "storage": 32,
+      "toleration": "NoSchedule",
       "resources": {
         "requests": {
           "cpu": 1,
