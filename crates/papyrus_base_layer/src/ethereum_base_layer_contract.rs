@@ -108,6 +108,8 @@ impl BaseLayerContract for EthereumBaseLayerContract {
     ) -> EthereumBaseLayerResult<Vec<L1Event>> {
         let filter = EthEventFilter::new().select(block_range).events(events);
 
+        // Note: this query will be hit "query timeout exceeded" if it takes longer than 10 seconds
+        // to process. This shouldn't happen unless the interval is way too large.
         let matching_logs = self.contract.provider().get_logs(&filter).await?;
         let received_tx_hashes: Vec<_> =
             matching_logs.iter().map(|log| log.transaction_hash).collect();
