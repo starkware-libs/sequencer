@@ -156,6 +156,20 @@
         "type": "stat",
         "expr": "consensus_num_txs_in_proposal",
         "extra_params": {}
+      },
+      {
+        "title": "consensus_l1_data_gas_mismatch",
+        "description": "The number of times the L1 data gas in a proposal does not match the L1 data gas as queried by the validator",
+        "type": "stat",
+        "expr": "consensus_l1_data_gas_mismatch",
+        "extra_params": {}
+      },
+      {
+        "title": "consensus_l1_gas_mismatch",
+        "description": "The number of times the L1 gas in a proposal does not match the L1 gas as queried by the validator",
+        "type": "stat",
+        "expr": "consensus_l1_gas_mismatch",
+        "extra_params": {}
       }
     ],
     "Http Server": [

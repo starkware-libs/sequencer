@@ -31,6 +31,8 @@ use apollo_consensus_manager::metrics::{
     CONSENSUS_VOTES_NUM_SENT_MESSAGES,
 };
 use apollo_consensus_orchestrator::metrics::{
+    CONSENSUS_L1_DATA_GAS_MISMATCH,
+    CONSENSUS_L1_GAS_MISMATCH,
     CONSENSUS_NUM_BATCHES_IN_PROPOSAL,
     CONSENSUS_NUM_TXS_IN_PROPOSAL,
 };
@@ -132,6 +134,10 @@ const PANEL_CONSENSUS_TIMEOUTS_BY_TYPE: Panel = Panel::new(
     formatcp!("sum  by ({}) ({})", LABEL_NAME_TIMEOUT_REASON, CONSENSUS_TIMEOUTS.get_name()),
     PanelType::Stat,
 );
+const PANEL_CONSENSUS_L1_DATA_GAS_MISMATCH: Panel =
+    Panel::from_counter(CONSENSUS_L1_DATA_GAS_MISMATCH, PanelType::Stat);
+const PANEL_CONSENSUS_L1_GAS_MISMATCH: Panel =
+    Panel::from_counter(CONSENSUS_L1_GAS_MISMATCH, PanelType::Stat);
 const PANEL_CONSENSUS_NUM_BATCHES_IN_PROPOSAL: Panel =
     Panel::from_gauge(CONSENSUS_NUM_BATCHES_IN_PROPOSAL, PanelType::Stat);
 const PANEL_CONSENSUS_NUM_TXS_IN_PROPOSAL: Panel =
@@ -348,6 +354,8 @@ const CONSENSUS_ROW: Row = Row::new(
         PANEL_CONSENSUS_TIMEOUTS_BY_TYPE,
         PANEL_CONSENSUS_NUM_BATCHES_IN_PROPOSAL,
         PANEL_CONSENSUS_NUM_TXS_IN_PROPOSAL,
+        PANEL_CONSENSUS_L1_DATA_GAS_MISMATCH,
+        PANEL_CONSENSUS_L1_GAS_MISMATCH,
     ],
 );
 
