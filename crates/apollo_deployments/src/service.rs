@@ -9,6 +9,7 @@ use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 
 use crate::deployments::consolidated::ConsolidatedNodeServiceName;
 use crate::deployments::distributed::DistributedNodeServiceName;
+use crate::deployments::hybrid::HybridNodeServiceName;
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Service {
@@ -93,6 +94,7 @@ impl Service {
 )]
 pub enum ServiceName {
     ConsolidatedNode(ConsolidatedNodeServiceName),
+    HybridNode(HybridNodeServiceName),
     DistributedNode(DistributedNodeServiceName),
 }
 
@@ -110,6 +112,7 @@ impl ServiceName {
     fn as_inner(&self) -> &dyn ServiceNameInner {
         match self {
             ServiceName::ConsolidatedNode(inner) => inner,
+            ServiceName::HybridNode(inner) => inner,
             ServiceName::DistributedNode(inner) => inner,
         }
     }
@@ -124,6 +127,7 @@ impl DeploymentName {
         match self {
             // TODO(Tsabary): find a way to avoid this code duplication.
             Self::ConsolidatedNode => path.join("consolidated"),
+            Self::HybridNode => path.join("hybrid"),
             Self::DistributedNode => path.join("distributed"),
         }
     }
@@ -133,6 +137,9 @@ impl DeploymentName {
             // TODO(Tsabary): find a way to avoid this code duplication.
             Self::ConsolidatedNode => {
                 ConsolidatedNodeServiceName::iter().map(ServiceName::ConsolidatedNode).collect()
+            }
+            Self::HybridNode => {
+                HybridNodeServiceName::iter().map(ServiceName::HybridNode).collect()
             }
             Self::DistributedNode => {
                 DistributedNodeServiceName::iter().map(ServiceName::DistributedNode).collect()
@@ -147,6 +154,7 @@ impl DeploymentName {
         match self {
             // TODO(Tsabary): avoid this code duplication.
             Self::ConsolidatedNode => ConsolidatedNodeServiceName::get_component_configs(base_port),
+            Self::HybridNode => ConsolidatedNodeServiceName::get_component_configs(base_port),
             Self::DistributedNode => DistributedNodeServiceName::get_component_configs(base_port),
         }
     }
@@ -166,6 +174,7 @@ impl Serialize for ServiceName {
         // Serialize only the inner value.
         match self {
             ServiceName::ConsolidatedNode(inner) => inner.serialize(serializer),
+            ServiceName::HybridNode(inner) => inner.serialize(serializer),
             ServiceName::DistributedNode(inner) => inner.serialize(serializer),
         }
     }
