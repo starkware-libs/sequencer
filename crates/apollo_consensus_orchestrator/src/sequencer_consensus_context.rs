@@ -849,7 +849,7 @@ async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<Consens
         retrospective_block_hash,
         block_info: convert_to_sn_api_block_info(&block_info),
     };
-    // TODO(Matan): Should we be returning an error?
+    // TODO: starkware-industries/starkware#37512 - Should we be returning an error?
     // I think this implies defining an error type in this crate and moving the trait definition
     // here also.
     debug!("Initiating build proposal: {build_proposal_input:?}");
@@ -889,7 +889,8 @@ async fn get_proposal_content(
         match response.content {
             GetProposalContent::Txs(txs) => {
                 content.push(txs.clone());
-                // TODO(matan): Make sure this isn't too large for a single proto message.
+                // TODO: starkware-industries/starkware#37512 - Make sure this isn't too large for a
+                // single proto message.
                 debug!(
                     hashes = ?txs.iter().map(|tx| tx.tx_hash()).collect::<Vec<TransactionHash>>(),
                     "Sending transaction batch with {} txs.",
@@ -1045,7 +1046,7 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
     // Update valid_proposals before sending fin to avoid a race condition
     // with `repropose` being called before `valid_proposals` is updated.
     //
-    // TODO(Matan): Consider validating the ProposalFin signature here.
+    // TODO #5610 - Consider validating the ProposalFin signature here.
     let mut valid_proposals = args.valid_proposals.lock().unwrap();
     valid_proposals
         .entry(args.block_info_validation.height)
