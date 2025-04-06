@@ -141,12 +141,14 @@ impl GasVector {
 
     /// Computes the cost (in fee token units) of the gas vector (panicking on overflow).
     pub fn cost(&self, gas_prices: &GasPriceVector, tip: Tip) -> Fee {
-        let tipped_l2_gas_price = gas_prices.l2_gas_price.checked_add(tip).unwrap_or_else(|| {
-            panic!(
-                "Tip overflowed: addition of L2 gas price ({}) and tip ({}) resulted in overflow.",
-                gas_prices.l2_gas_price, tip
-            )
-        });
+        let tipped_l2_gas_price =
+            gas_prices.l2_gas_price.checked_add(tip.into()).unwrap_or_else(|| {
+                panic!(
+                    "Tip overflowed: addition of L2 gas price ({}) and tip ({}) resulted in \
+                     overflow.",
+                    gas_prices.l2_gas_price, tip
+                )
+            });
 
         let mut sum = Fee(0);
         for (gas, price, resource) in [
