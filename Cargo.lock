@@ -3066,6 +3066,15 @@ dependencies = [
  "sha2",
  "starknet-types-core",
  "starknet_api",
+<<<<<<< HEAD
+||||||| 05c74b1e9
+ "starknet_infra_utils",
+ "starknet_sierra_multicompile",
+=======
+ "starknet_compilation_utils",
+ "starknet_compile_to_native",
+ "starknet_infra_utils",
+>>>>>>> origin/main-v0.13.5
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "test-case",
@@ -8475,6 +8484,12 @@ dependencies = [
  "shared_execution_objects",
  "starknet-types-core",
  "starknet_api",
+<<<<<<< HEAD
+||||||| 05c74b1e9
+ "starknet_sierra_multicompile",
+=======
+ "starknet_compile_to_native",
+>>>>>>> origin/main-v0.13.5
  "tempfile",
  "thiserror 1.0.69",
 ]
@@ -11730,8 +11745,113 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
 name = "starknet_committer_and_os_cli"
 version = "0.0.0"
+||||||| 05c74b1e9
+name = "starknet_consensus_manager"
+version = "0.14.0-rc.3"
+dependencies = [
+ "async-trait",
+ "futures",
+ "papyrus_config",
+ "papyrus_consensus",
+ "papyrus_consensus_orchestrator",
+ "papyrus_network",
+ "papyrus_protobuf",
+ "serde",
+ "starknet_api",
+ "starknet_batcher_types",
+ "starknet_infra_utils",
+ "starknet_sequencer_infra",
+ "starknet_state_sync_types",
+ "tokio",
+ "tracing",
+ "validator",
+]
+
+[[package]]
+name = "starknet_gateway"
+version = "0.14.0-rc.3"
+=======
+name = "starknet_compilation_utils"
+version = "0.14.0-rc.3"
+dependencies = [
+ "assert_matches",
+ "cairo-lang-sierra",
+ "cairo-lang-starknet-classes",
+ "cairo-lang-utils",
+ "cairo-native",
+ "rlimit",
+ "rstest",
+ "serde",
+ "serde_json",
+ "starknet-types-core",
+ "starknet_api",
+ "starknet_infra_utils",
+ "tempfile",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "starknet_compile_to_casm"
+version = "0.14.0-rc.3"
+dependencies = [
+ "assert_matches",
+ "cairo-lang-starknet-classes",
+ "mempool_test_utils",
+ "papyrus_config",
+ "serde",
+ "serde_json",
+ "starknet_compilation_utils",
+ "starknet_infra_utils",
+ "validator",
+]
+
+[[package]]
+name = "starknet_compile_to_native"
+version = "0.14.0-rc.3"
+dependencies = [
+ "assert_matches",
+ "cairo-lang-starknet-classes",
+ "cairo-native",
+ "mempool_test_utils",
+ "papyrus_config",
+ "rstest",
+ "serde",
+ "starknet_compilation_utils",
+ "starknet_infra_utils",
+ "tempfile",
+ "toml_test_utils",
+ "validator",
+]
+
+[[package]]
+name = "starknet_consensus_manager"
+version = "0.14.0-rc.3"
+dependencies = [
+ "async-trait",
+ "futures",
+ "papyrus_config",
+ "papyrus_consensus",
+ "papyrus_consensus_orchestrator",
+ "papyrus_network",
+ "papyrus_protobuf",
+ "serde",
+ "starknet_api",
+ "starknet_batcher_types",
+ "starknet_infra_utils",
+ "starknet_sequencer_infra",
+ "starknet_state_sync_types",
+ "tokio",
+ "tracing",
+ "validator",
+]
+
+[[package]]
+name = "starknet_gateway"
+version = "0.14.0-rc.3"
+>>>>>>> origin/main-v0.13.5
 dependencies = [
  "assert_matches",
  "cairo-lang-starknet-classes",
@@ -11750,6 +11870,7 @@ dependencies = [
  "serde_repr",
  "starknet-types-core",
  "starknet_api",
+<<<<<<< HEAD
  "starknet_committer",
  "starknet_os",
  "starknet_patricia",
@@ -11757,6 +11878,22 @@ dependencies = [
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "tempfile",
+||||||| 05c74b1e9
+ "starknet_gateway_types",
+ "starknet_mempool",
+ "starknet_mempool_types",
+ "starknet_sequencer_infra",
+ "starknet_sierra_multicompile",
+ "starknet_state_sync_types",
+=======
+ "starknet_compilation_utils",
+ "starknet_compile_to_casm",
+ "starknet_gateway_types",
+ "starknet_mempool",
+ "starknet_mempool_types",
+ "starknet_sequencer_infra",
+ "starknet_state_sync_types",
+>>>>>>> origin/main-v0.13.5
  "thiserror 1.0.69",
  "tokio",
  "tracing",
@@ -11829,6 +11966,218 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "thiserror 1.0.69",
+<<<<<<< HEAD
+||||||| 05c74b1e9
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "validator",
+]
+
+[[package]]
+name = "starknet_sequencer_node"
+version = "0.14.0-rc.3"
+dependencies = [
+ "anyhow",
+ "assert-json-diff",
+ "assert_matches",
+ "clap",
+ "colored",
+ "const_format",
+ "futures",
+ "mempool_test_utils",
+ "papyrus_config",
+ "papyrus_proc_macros",
+ "papyrus_protobuf",
+ "pretty_assertions",
+ "rstest",
+ "serde",
+ "serde_json",
+ "starknet_api",
+ "starknet_batcher",
+ "starknet_batcher_types",
+ "starknet_consensus_manager",
+ "starknet_gateway",
+ "starknet_gateway_types",
+ "starknet_http_server",
+ "starknet_infra_utils",
+ "starknet_l1_provider",
+ "starknet_l1_provider_types",
+ "starknet_mempool",
+ "starknet_mempool_p2p",
+ "starknet_mempool_p2p_types",
+ "starknet_mempool_types",
+ "starknet_monitoring_endpoint",
+ "starknet_sequencer_infra",
+ "starknet_sequencer_node",
+ "starknet_sierra_multicompile",
+ "starknet_state_sync",
+ "starknet_state_sync_types",
+ "tokio",
+ "tracing",
+ "validator",
+]
+
+[[package]]
+name = "starknet_sierra_multicompile"
+version = "0.14.0-rc.3"
+dependencies = [
+ "assert_matches",
+ "cairo-lang-sierra",
+ "cairo-lang-starknet-classes",
+ "cairo-lang-utils",
+ "cairo-native",
+ "mempool_test_utils",
+ "papyrus_config",
+ "rlimit",
+ "rstest",
+ "serde",
+ "serde_json",
+ "starknet-types-core",
+ "starknet_api",
+ "starknet_infra_utils",
+ "tempfile",
+ "thiserror 1.0.69",
+ "toml_test_utils",
+ "validator",
+]
+
+[[package]]
+name = "starknet_state_sync"
+version = "0.14.0-rc.3"
+dependencies = [
+ "async-trait",
+ "futures",
+ "papyrus_config",
+ "papyrus_network",
+ "papyrus_p2p_sync",
+ "papyrus_storage",
+ "serde",
+ "starknet-types-core",
+ "starknet_api",
+ "starknet_sequencer_infra",
+ "starknet_state_sync_types",
+ "tokio",
+ "validator",
+]
+
+[[package]]
+name = "starknet_state_sync_types"
+version = "0.14.0-rc.3"
+dependencies = [
+ "async-trait",
+ "futures",
+ "papyrus_proc_macros",
+ "papyrus_storage",
+ "serde",
+ "starknet-types-core",
+ "starknet_api",
+ "starknet_sequencer_infra",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "starknet_task_executor"
+version = "0.14.0-rc.3"
+dependencies = [
+ "futures",
+ "rstest",
+ "tokio",
+ "tokio-test",
+=======
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "validator",
+]
+
+[[package]]
+name = "starknet_sequencer_node"
+version = "0.14.0-rc.3"
+dependencies = [
+ "anyhow",
+ "assert-json-diff",
+ "assert_matches",
+ "clap",
+ "colored",
+ "const_format",
+ "futures",
+ "mempool_test_utils",
+ "papyrus_config",
+ "papyrus_proc_macros",
+ "papyrus_protobuf",
+ "pretty_assertions",
+ "rstest",
+ "serde",
+ "serde_json",
+ "starknet_api",
+ "starknet_batcher",
+ "starknet_batcher_types",
+ "starknet_compile_to_casm",
+ "starknet_consensus_manager",
+ "starknet_gateway",
+ "starknet_gateway_types",
+ "starknet_http_server",
+ "starknet_infra_utils",
+ "starknet_l1_provider",
+ "starknet_l1_provider_types",
+ "starknet_mempool",
+ "starknet_mempool_p2p",
+ "starknet_mempool_p2p_types",
+ "starknet_mempool_types",
+ "starknet_monitoring_endpoint",
+ "starknet_sequencer_infra",
+ "starknet_sequencer_node",
+ "starknet_state_sync",
+ "starknet_state_sync_types",
+ "tokio",
+ "tracing",
+ "validator",
+]
+
+[[package]]
+name = "starknet_state_sync"
+version = "0.14.0-rc.3"
+dependencies = [
+ "async-trait",
+ "futures",
+ "papyrus_config",
+ "papyrus_network",
+ "papyrus_p2p_sync",
+ "papyrus_storage",
+ "serde",
+ "starknet-types-core",
+ "starknet_api",
+ "starknet_sequencer_infra",
+ "starknet_state_sync_types",
+ "tokio",
+ "validator",
+]
+
+[[package]]
+name = "starknet_state_sync_types"
+version = "0.14.0-rc.3"
+dependencies = [
+ "async-trait",
+ "futures",
+ "papyrus_proc_macros",
+ "papyrus_storage",
+ "serde",
+ "starknet-types-core",
+ "starknet_api",
+ "starknet_sequencer_infra",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "starknet_task_executor"
+version = "0.14.0-rc.3"
+dependencies = [
+ "futures",
+ "rstest",
+ "tokio",
+ "tokio-test",
+>>>>>>> origin/main-v0.13.5
 ]
 
 [[package]]

@@ -1,0 +1,41 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "starknet_compile_to_native"
+repository.workspace = true
+version.workspace = true
+description = "A utility crate for compiling Sierra code into Cairo native."
+
+[features]
+cairo_native = [
+  "dep:cairo-lang-starknet-classes",
+  "dep:cairo-native",
+  "dep:starknet_compilation_utils",
+  "dep:starknet_infra_utils",
+  "dep:tempfile",
+  "starknet_compilation_utils/cairo_native",
+]
+
+[lints]
+workspace = true
+
+[dependencies]
+cairo-lang-starknet-classes = { workspace = true, optional = true }
+cairo-native = { workspace = true, optional = true }
+papyrus_config.workspace = true
+serde.workspace = true
+starknet_compilation_utils = { workspace = true, optional = true }
+tempfile = { workspace = true, optional = true }
+validator.workspace = true
+
+[dev-dependencies]
+assert_matches.workspace = true
+mempool_test_utils.path = "../mempool_test_utils"
+rstest.workspace = true
+starknet_compilation_utils = { path = "../starknet_compilation_utils", features = ["testing"] }
+starknet_infra_utils.path = "../starknet_infra_utils"
+toml_test_utils.path = "../../toml_test_utils"
+
+[build-dependencies]
+starknet_compilation_utils = { workspace = true, optional = true }
+starknet_infra_utils = { workspace = true, optional = true }

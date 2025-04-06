@@ -5,6 +5,12 @@ use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_sierra_multicompile::config::SierraCompilationConfig;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ClassHash;
+<<<<<<< HEAD
+||||||| 05c74b1e9
+use starknet_sierra_multicompile::config::SierraCompilationConfig;
+=======
+use starknet_compile_to_native::config::SierraCompilationConfig;
+>>>>>>> origin/main-v0.13.5
 
 use crate::blockifier::transaction_executor::DEFAULT_STACK_SIZE;
 use crate::state::contract_class_manager::DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE;
@@ -145,8 +151,8 @@ pub struct CairoNativeRunConfig {
     pub run_cairo_native: bool,
     pub wait_on_native_compilation: bool,
     pub channel_size: usize,
-    // TODO(AvivG): implement `native_classes_whitelist` logic.
     pub native_classes_whitelist: NativeClassesWhitelist,
+    pub panic_on_compilation_failure: bool,
 }
 
 impl Default for CairoNativeRunConfig {
@@ -156,6 +162,7 @@ impl Default for CairoNativeRunConfig {
             wait_on_native_compilation: false,
             channel_size: DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE,
             native_classes_whitelist: NativeClassesWhitelist::All,
+            panic_on_compilation_failure: false,
         }
     }
 }
@@ -187,6 +194,12 @@ impl SerializeConfig for CairoNativeRunConfig {
                 "Contracts for Cairo Specifies whether to execute all class hashes or only a \
                  limited selection using Cairo native contracts. If limited, a specific list of \
                  class hashes is provided. compilation.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "panic_on_compilation_failure",
+                &self.panic_on_compilation_failure,
+                "Whether to panic on compilation failure.",
                 ParamPrivacyInput::Public,
             ),
         ])

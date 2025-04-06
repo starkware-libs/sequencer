@@ -1,0 +1,28 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "starknet_compile_to_casm"
+repository.workspace = true
+version.workspace = true
+description = "A utility crate for compiling Sierra code into CASM."
+
+[lints]
+workspace = true
+
+[dependencies]
+cairo-lang-starknet-classes.workspace = true
+papyrus_config.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+starknet_compilation_utils.workspace = true
+validator.workspace = true
+
+[dev-dependencies]
+assert_matches.workspace = true
+mempool_test_utils.path = "../mempool_test_utils"
+starknet_compilation_utils = { path = "../starknet_compilation_utils", features = ["testing"] }
+starknet_infra_utils.path = "../starknet_infra_utils"
+
+[build-dependencies]
+starknet_compilation_utils.workspace = true
+starknet_infra_utils.workspace = true

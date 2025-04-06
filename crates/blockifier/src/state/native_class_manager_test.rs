@@ -9,6 +9,14 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use rstest::rstest;
 use starknet_api::core::ClassHash;
+<<<<<<< HEAD
+||||||| 05c74b1e9
+use starknet_sierra_multicompile::config::DEFAULT_MAX_CPU_TIME;
+use starknet_sierra_multicompile::errors::CompilationUtilError;
+=======
+use starknet_compilation_utils::errors::CompilationUtilError;
+use starknet_compile_to_native::config::DEFAULT_MAX_CPU_TIME;
+>>>>>>> origin/main-v0.13.5
 
 use crate::blockifier::config::{CairoNativeRunConfig, NativeClassesWhitelist};
 use crate::execution::contract_class::{CompiledClassV1, RunnableCompiledClass};
@@ -194,22 +202,27 @@ fn test_send_compilation_request_channel_full() {
 }
 
 #[rstest]
-#[case::success(create_test_request(), true)]
-#[case::failure(create_faulty_request(), false)]
+#[case::success(create_test_request(), true, false)]
+#[case::failure(create_faulty_request(), false, false)]
+#[should_panic(expected = "Compilation failed")]
+#[case::panics_on_failure(create_faulty_request(), false, true)]
 fn test_process_compilation_request(
     #[case] request: CompilationRequest,
     #[case] should_pass: bool,
+    #[case] panic_on_compilation_failure: bool,
 ) {
     let manager = NativeClassManager::create_for_testing(CairoNativeRunConfig {
         wait_on_native_compilation: true,
         run_cairo_native: true,
         channel_size: TEST_CHANNEL_SIZE,
+        panic_on_compilation_failure,
         ..CairoNativeRunConfig::default()
     });
     let res = process_compilation_request(
         manager.clone().cache,
         manager.clone().compiler.unwrap(),
         request.clone(),
+        manager.cairo_native_run_config.panic_on_compilation_failure,
     );
 
     if should_pass {
@@ -243,6 +256,7 @@ fn test_native_classes_whitelist(
     let native_config = CairoNativeRunConfig {
         run_cairo_native: true,
         wait_on_native_compilation: true,
+        panic_on_compilation_failure: true,
         channel_size: TEST_CHANNEL_SIZE,
         native_classes_whitelist: whitelist,
     };
