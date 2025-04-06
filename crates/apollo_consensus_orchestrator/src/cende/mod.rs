@@ -12,7 +12,6 @@ use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
 use blockifier::bouncer::BouncerWeights;
 use blockifier::state::cached_state::CommitmentStateDiff;
-use blockifier::transaction::objects::TransactionExecutionInfo;
 use central_objects::{
     process_transactions,
     CentralBlockInfo,
@@ -28,7 +27,6 @@ use central_objects::{
 use mockall::automock;
 use reqwest::{Client, RequestBuilder, Response};
 use serde::{Deserialize, Serialize};
-use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{BlockInfo, BlockNumber, StarknetVersion};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::ClassHash;
@@ -65,7 +63,7 @@ pub(crate) struct AerospikeBlob {
     bouncer_weights: CentralBouncerWeights,
     fee_market_info: CentralFeeMarketInfo,
     transactions: Vec<CentralTransactionWritten>,
-    execution_infos: Vec<CentralTransactionExecutionInfo>,
+    execution_infos: Vec<String>,
     contract_classes: Vec<CentralSierraContractClassEntry>,
     compiled_classes: Vec<CentralCasmContractClassEntry>,
 }
@@ -276,7 +274,7 @@ pub struct BlobParameters {
     pub(crate) transactions: Vec<InternalConsensusTransaction>,
     // TODO(dvir): consider passing the execution_infos from the batcher as a string that
     // serialized in the correct format from the batcher.
-    pub(crate) execution_infos: Vec<TransactionExecutionInfo>,
+    pub(crate) execution_infos: Vec<String>,
 }
 
 impl AerospikeBlob {
@@ -299,12 +297,6 @@ impl AerospikeBlob {
             process_transactions(class_manager, blob_parameters.transactions, block_timestamp)
                 .await?;
 
-        let execution_infos = blob_parameters
-            .execution_infos
-            .into_iter()
-            .map(CentralTransactionExecutionInfo::from)
-            .collect();
-
         Ok(AerospikeBlob {
             block_number,
             state_diff,
@@ -312,7 +304,7 @@ impl AerospikeBlob {
             bouncer_weights: blob_parameters.bouncer_weights,
             fee_market_info: blob_parameters.fee_market_info,
             transactions: central_transactions,
-            execution_infos,
+            execution_infos: blob_parameters.execution_infos,
             contract_classes,
             compiled_classes,
         })

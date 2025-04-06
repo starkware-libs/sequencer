@@ -3,11 +3,12 @@ use std::sync::Arc;
 
 use apollo_batcher_types::batcher_types::{
     DecisionReachedInput,
-    DecisionReachedResponse,
     GetHeightResponse,
     GetProposalContent,
     GetProposalContentInput,
     GetProposalContentResponse,
+    GetProposalExecutionObjectsInput,
+    GetProposalExecutionObjectsResponse,
     ProposalCommitment,
     ProposalId,
     ProposalStatus,
@@ -31,11 +32,11 @@ use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use assert_matches::assert_matches;
 use blockifier::abi::constants;
-use blockifier::transaction::objects::TransactionExecutionInfo;
 use indexmap::indexmap;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use rstest::rstest;
+use shared_execution_objects::central_objects::execution_info_to_serialized_central_execution_info;
 use starknet_api::block::{BlockHeaderWithoutHash, BlockInfo, BlockNumber};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
@@ -164,14 +165,21 @@ fn abort_signal_sender() -> AbortSignalSender {
     tokio::sync::oneshot::channel().0
 }
 
-async fn batcher_propose_and_commit_block(
+async fn batcher_propose_get_execution_objects_and_decision_reached(
     mock_dependencies: MockDependencies,
-) -> DecisionReachedResponse {
+) -> GetProposalExecutionObjectsResponse {
     let mut batcher = create_batcher(mock_dependencies).await;
     batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
     batcher.propose_block(propose_block_input(PROPOSAL_ID)).await.unwrap();
     batcher.await_active_proposal().await;
-    batcher.decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID }).await.unwrap()
+    let execution_objects = batcher
+        .get_proposal_execution_objects(GetProposalExecutionObjectsInput {
+            proposal_id: PROPOSAL_ID,
+        })
+        .await
+        .unwrap();
+    batcher.decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID }).await.unwrap();
+    execution_objects
 }
 
 fn mock_create_builder_for_validate_block(
@@ -258,8 +266,8 @@ pub fn test_state_diff() -> ThinStateDiff {
     }
 }
 
-fn verify_decision_reached_response(
-    response: &DecisionReachedResponse,
+fn verify_get_execution_objects_response(
+    response: &GetProposalExecutionObjectsResponse,
     expected_artifacts: &BlockExecutionArtifacts,
 ) {
     assert_eq!(
@@ -279,10 +287,15 @@ fn verify_decision_reached_response(
         expected_artifacts.commitment_state_diff.address_to_class_hash
     );
     assert_eq!(response.l2_gas_used, expected_artifacts.l2_gas_used);
-    assert_eq!(response.central_objects.bouncer_weights, expected_artifacts.bouncer_weights);
+    assert_eq!(response.bouncer_weights, expected_artifacts.bouncer_weights);
     assert_eq!(
-        response.central_objects.execution_infos,
-        expected_artifacts.execution_data.execution_infos.values().cloned().collect::<Vec<_>>()
+        response.execution_infos,
+        expected_artifacts
+            .execution_data
+            .execution_infos
+            .values()
+            .map(execution_info_to_serialized_central_execution_info)
+            .collect::<Vec<_>>()
     );
 }
 
@@ -954,7 +967,7 @@ async fn revert_block_empty_storage() {
 
 #[rstest]
 #[tokio::test]
-async fn decision_reached() {
+async fn decision_reached_flow() {
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let mut mock_dependencies = MockDependencies::default();
@@ -997,9 +1010,10 @@ async fn decision_reached() {
         Ok(BlockExecutionArtifacts::create_for_testing()),
     );
 
-    let decision_reached_response = batcher_propose_and_commit_block(mock_dependencies).await;
+    let decision_reached_response =
+        batcher_propose_get_execution_objects_and_decision_reached(mock_dependencies).await;
 
-    verify_decision_reached_response(&decision_reached_response, &expected_artifacts);
+    verify_get_execution_objects_response(&decision_reached_response, &expected_artifacts);
 
     let metrics = recorder.handle().render();
     assert_eq!(
@@ -1051,12 +1065,17 @@ async fn test_execution_info_order_is_kept() {
         Ok(block_builder_result.clone()),
     );
 
-    let decision_reached_response = batcher_propose_and_commit_block(mock_dependencies).await;
+    let response =
+        batcher_propose_get_execution_objects_and_decision_reached(mock_dependencies).await;
 
     // Verify that the execution_infos are in the same order as returned from the block_builder.
-    let expected_execution_infos: Vec<TransactionExecutionInfo> =
-        block_builder_result.execution_data.execution_infos.into_values().collect();
-    assert_eq!(decision_reached_response.central_objects.execution_infos, expected_execution_infos);
+    let expected_execution_infos: Vec<_> = block_builder_result
+        .execution_data
+        .execution_infos
+        .values()
+        .map(execution_info_to_serialized_central_execution_info)
+        .collect();
+    assert_eq!(response.execution_infos, expected_execution_infos);
 }
 
 #[tokio::test]
