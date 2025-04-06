@@ -158,6 +158,12 @@ impl From<Tip> for Felt {
     }
 }
 
+impl From<Tip> for GasPrice {
+    fn from(tip: Tip) -> Self {
+        Self(tip.0.into())
+    }
+}
+
 impl Tip {
     pub const ZERO: Self = Self(0);
 }
@@ -325,7 +331,9 @@ impl ValidResourceBounds {
                 .max_amount
                 .saturating_mul(l1_gas.max_price_per_unit)
                 .saturating_add(
-                    l2_gas.max_amount.saturating_mul(l2_gas.max_price_per_unit.saturating_add(tip)),
+                    l2_gas
+                        .max_amount
+                        .saturating_mul(l2_gas.max_price_per_unit.saturating_add(tip.into())),
                 )
                 .saturating_add(
                     l1_data_gas.max_amount.saturating_mul(l1_data_gas.max_price_per_unit),
