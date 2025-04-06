@@ -37,7 +37,11 @@ use apollo_consensus::types::{
     ValidatorId,
 };
 use apollo_l1_gas_price_types::errors::{EthToStrkOracleClientError, L1GasPriceClientError};
-use apollo_l1_gas_price_types::{EthToStrkOracleClientTrait, L1GasPriceProviderClient, PriceInfo};
+use apollo_l1_gas_price_types::{
+    EthToStrkOracleClientTrait,
+    L1GasPriceProviderClient,
+    DEFAULT_ETH_IN_FRI,
+};
 use apollo_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use apollo_protobuf::consensus::{
     ConsensusBlockInfo,
@@ -91,6 +95,7 @@ use crate::metrics::{
     CONSENSUS_NUM_TXS_IN_PROPOSAL,
 };
 use crate::orchestrator_versioned_constants::VersionedConstants;
+use crate::utils::get_oracle_rate_and_prices;
 
 // Contains parameters required for validating block info.
 #[derive(Clone, Debug)]
@@ -282,6 +287,7 @@ struct ProposalBuildArguments {
     builder_address: ContractAddress,
     cancel_token: CancellationToken,
     clock: Arc<dyn Clock>,
+    previous_block_info: Option<ConsensusBlockInfo>,
 }
 
 struct ProposalValidateArguments {
@@ -304,6 +310,7 @@ struct ProposalValidateArguments {
     cancel_token: CancellationToken,
     transaction_converter: TransactionConverter,
     clock: Arc<dyn Clock>,
+    previous_block_info: Option<ConsensusBlockInfo>,
 }
 
 #[async_trait]
@@ -370,6 +377,7 @@ impl ConsensusContext for SequencerConsensusContext {
             builder_address: self.config.builder_address,
             cancel_token,
             clock: self.clock.clone(),
+            previous_block_info: self.previous_block_info.clone(),
         };
         let handle = tokio::spawn(
             async move {
@@ -652,13 +660,12 @@ impl ConsensusContext for SequencerConsensusContext {
             timestamp: timestamp.0,
             builder: sync_block.block_header_without_hash.sequencer.0,
             l1_da_mode: sync_block.block_header_without_hash.l1_da_mode,
-            l2_gas_price_fri: sync_block.block_header_without_hash.l2_gas_price.price_in_fri.0,
-            l1_gas_price_wei: sync_block.block_header_without_hash.l1_gas_price.price_in_wei.0,
+            l2_gas_price_fri: sync_block.block_header_without_hash.l2_gas_price.price_in_fri,
+            l1_gas_price_wei: sync_block.block_header_without_hash.l1_gas_price.price_in_wei,
             l1_data_gas_price_wei: sync_block
                 .block_header_without_hash
                 .l1_data_gas_price
-                .price_in_wei
-                .0,
+                .price_in_wei,
             eth_to_fri_rate,
         });
         self.interrupt_active_proposal().await;
@@ -751,6 +758,7 @@ impl SequencerConsensusContext {
         let valid_proposals = Arc::clone(&self.valid_proposals);
         let proposal_id = ProposalId(self.proposal_id);
         let clock = self.clock.clone();
+        let previous_block_info = self.previous_block_info.clone();
         self.proposal_id += 1;
 
         info!(?timeout, %proposal_id, %proposer, round=self.current_round, "Validating proposal.");
@@ -776,6 +784,7 @@ impl SequencerConsensusContext {
                     cancel_token: cancel_token_clone,
                     transaction_converter,
                     clock,
+                    previous_block_info,
                 })
                 .await
             }
@@ -843,19 +852,16 @@ async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<Consens
     let batcher_timeout = chrono::Duration::from_std(args.batcher_timeout)
         .expect("Can't convert timeout to chrono::Duration");
     let timestamp = args.clock.now_as_timestamp();
-    let eth_to_fri_rate = args.eth_to_strk_oracle_client.eth_to_fri_rate(timestamp).await?;
-    let l1_prices =
-        args.l1_gas_price_provider_client.get_price_info(BlockTimestamp(timestamp)).await;
-    let mut l1_prices = match l1_prices {
-        Ok(prices) => prices,
-        Err(e) => {
-            warn!("Failed to get L1 gas prices, replacing with minimum values: {e:?}");
-            PriceInfo {
-                base_fee_per_gas: args.min_l1_gas_price_wei,
-                blob_fee: args.min_l1_data_gas_price_wei,
-            }
-        }
-    };
+    let (eth_to_fri_rate, mut l1_prices) = get_oracle_rate_and_prices(
+        args.eth_to_strk_oracle_client.clone(),
+        args.l1_gas_price_provider_client.clone(),
+        timestamp,
+        args.previous_block_info.as_ref(),
+        DEFAULT_ETH_IN_FRI,
+        args.min_l1_gas_price_wei,
+        args.min_l1_data_gas_price_wei,
+    )
+    .await;
     l1_prices.base_fee_per_gas =
         l1_prices.base_fee_per_gas.clamp(args.min_l1_gas_price_wei, args.max_l1_gas_price_wei);
 
@@ -1007,6 +1013,7 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
         args.clock.as_ref(),
         args.l1_gas_price_provider_client,
         min_max_prices,
+        args.previous_block_info.clone(),
     )
     .await
     {
@@ -1108,6 +1115,7 @@ async fn is_block_info_valid(
     clock: &dyn Clock,
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     gas_price_params: GasPriceParams,
+    previous_block_info: Option<ConsensusBlockInfo>,
 ) -> bool {
     let now: u64 = clock.now_as_timestamp();
     if !(block_info.height == block_info_validation.height
@@ -1118,28 +1126,18 @@ async fn is_block_info_valid(
     {
         return false;
     }
-    let eth_to_fri_rate =
-        match eth_to_strk_oracle_client.eth_to_fri_rate(block_info.timestamp).await {
-            Ok(rate) => rate,
-            Err(err) => {
-                warn!("Failed to get eth to fri rate: {err:?}");
-                return false;
-            }
-        };
     let l1_gas_price_margin_percent =
         VersionedConstants::latest_constants().l1_gas_price_margin_percent.into();
-    let gas_prices =
-        l1_gas_price_provider.get_price_info(BlockTimestamp(block_info.timestamp)).await;
-    let mut gas_prices = match gas_prices {
-        Ok(prices) => prices,
-        Err(e) => {
-            warn!("Failed to get L1 gas prices, replacing with minimum values: {e:?}");
-            PriceInfo {
-                base_fee_per_gas: gas_price_params.min_l1_gas_price_wei,
-                blob_fee: gas_price_params.min_l1_data_gas_price_wei,
-            }
-        }
-    };
+    let (eth_to_fri_rate, mut gas_prices) = get_oracle_rate_and_prices(
+        eth_to_strk_oracle_client,
+        l1_gas_price_provider,
+        block_info.timestamp,
+        previous_block_info.as_ref(),
+        DEFAULT_ETH_IN_FRI,
+        gas_price_params.min_l1_gas_price_wei,
+        gas_price_params.min_l1_data_gas_price_wei,
+    )
+    .await;
     gas_prices.base_fee_per_gas = gas_prices
         .base_fee_per_gas
         .clamp(gas_price_params.min_l1_gas_price_wei, gas_price_params.max_l1_gas_price_wei);
