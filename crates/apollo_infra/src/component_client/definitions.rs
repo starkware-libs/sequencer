@@ -6,7 +6,7 @@ use thiserror::Error;
 use super::{LocalComponentClient, RemoteComponentClient};
 use crate::component_definitions::ServerError;
 
-#[derive(Clone, Debug, Error)]
+#[derive(Clone, Debug, Error, PartialEq, Eq)]
 pub enum ClientError {
     #[error("Communication error: {0}")]
     CommunicationFailure(String),
