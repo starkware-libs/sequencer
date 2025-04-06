@@ -536,11 +536,15 @@ impl ConsensusContext for SequencerConsensusContext {
         let cende_block_info = convert_to_sn_api_block_info(&block_info);
         let l1_gas_price = GasPricePerToken {
             price_in_fri: cende_block_info.gas_prices.strk_gas_prices.l1_gas_price.get(),
-            price_in_wei: GasPrice(block_info.l1_gas_price_wei),
+            price_in_wei: cende_block_info.gas_prices.eth_gas_prices.l1_gas_price.get(),
         };
         let l1_data_gas_price = GasPricePerToken {
             price_in_fri: cende_block_info.gas_prices.strk_gas_prices.l1_data_gas_price.get(),
-            price_in_wei: GasPrice(block_info.l1_data_gas_price_wei),
+            price_in_wei: cende_block_info.gas_prices.eth_gas_prices.l1_data_gas_price.get(),
+        };
+        let l2_gas_price = GasPricePerToken {
+            price_in_fri: cende_block_info.gas_prices.strk_gas_prices.l2_gas_price.get(),
+            price_in_wei: cende_block_info.gas_prices.eth_gas_prices.l2_gas_price.get(),
         };
         let sequencer = SequencerContractAddress(block_info.builder);
 
@@ -548,12 +552,7 @@ impl ConsensusContext for SequencerConsensusContext {
             block_number: BlockNumber(height),
             l1_gas_price,
             l1_data_gas_price,
-            l2_gas_price: GasPricePerToken {
-                price_in_fri: GasPrice(__self.l2_gas_price.into()),
-                // TODO(guy.f): We shouldn't be sending price_in_wei for l2, should we remove
-                // it from the Token or not use GasPriceToken here.
-                price_in_wei: GasPrice(1),
-            },
+            l2_gas_price,
             l2_gas_consumed: l2_gas_used.0,
             next_l2_gas_price,
             sequencer,
