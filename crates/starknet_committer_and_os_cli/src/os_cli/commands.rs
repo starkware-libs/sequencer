@@ -96,7 +96,8 @@ pub(crate) fn serialize_os_runner_output(
     cairo_pie_zip_path: String,
 ) {
     write_to_file(&output_path, output);
+    let merge_extra_segments = true;
     cairo_pie
-        .write_zip_file(Path::new(&cairo_pie_zip_path))
+        .write_zip_file(Path::new(&cairo_pie_zip_path), merge_extra_segments)
         .unwrap_or_else(|err| panic!("Failed to write cairo pie. Error: {}", err));
 }
