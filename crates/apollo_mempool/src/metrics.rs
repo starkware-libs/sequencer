@@ -12,11 +12,12 @@ define_metrics!(
         MetricCounter { MEMPOOL_TRANSACTIONS_COMMITTED, "mempool_txs_committed", "The number of transactions that were committed to block", init = 0 },
         LabeledMetricCounter { MEMPOOL_TRANSACTIONS_RECEIVED, "mempool_transactions_received", "Counter of transactions received by the mempool", init = 0, labels = INTERNAL_RPC_TRANSACTION_LABELS },
         LabeledMetricCounter { MEMPOOL_TRANSACTIONS_DROPPED, "mempool_transactions_dropped", "Counter of transactions dropped from the mempool", init = 0, labels = DROP_REASON_LABELS },
-        MetricGauge { MEMPOOL_POOL_SIZE, "mempool_pool_size", "The size of the mempool's transaction pool" },
+        MetricGauge { MEMPOOL_POOL_SIZE, "mempool_pool_size", "The number of the transactions in the mempool's transaction pool" },
         MetricGauge { MEMPOOL_PRIORITY_QUEUE_SIZE, "mempool_priority_queue_size", "The size of the mempool's priority queue" },
         MetricGauge { MEMPOOL_PENDING_QUEUE_SIZE, "mempool_pending_queue_size", "The size of the mempool's pending queue" },
         MetricGauge { MEMPOOL_GET_TXS_SIZE, "mempool_get_txs_size", "The number of transactions returned in the last get_txs() api call" },
         MetricGauge { MEMPOOL_DELAYED_DECLARES_SIZE, "mempool_delayed_declare_size", "The number of declare transactions that are being delayed" },
+        MetricGauge { MEMPOOL_TOTAL_SIZE_BYTES, "mempool_total_size_bytes", "The total size in bytes of the transactions in the mempool"},
         MetricHistogram { TRANSACTION_TIME_SPENT_IN_MEMPOOL, "mempool_transaction_time_spent", "The time (secs) that a transaction spent in the mempool" },
     },
 );
@@ -115,6 +116,7 @@ pub(crate) fn register_metrics() {
     MEMPOOL_PENDING_QUEUE_SIZE.register();
     MEMPOOL_GET_TXS_SIZE.register();
     MEMPOOL_DELAYED_DECLARES_SIZE.register();
+    MEMPOOL_TOTAL_SIZE_BYTES.register();
     // Register Histograms.
     TRANSACTION_TIME_SPENT_IN_MEMPOOL.register();
 }
