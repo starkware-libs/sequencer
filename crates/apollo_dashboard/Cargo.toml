@@ -22,6 +22,7 @@ apollo_gateway.workspace = true
 apollo_http_server.workspace = true
 apollo_infra.workspace = true
 apollo_infra_utils.workspace = true
+apollo_l1_gas_price.workspace = true
 apollo_mempool.workspace = true
 apollo_mempool_p2p.workspace = true
 apollo_metrics.workspace = true
