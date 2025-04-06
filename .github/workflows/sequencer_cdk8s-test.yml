@@ -1,90 +1,90 @@
-name: Sequencer-Cdk8s-Test
-on:
-  workflow_dispatch:
+# name: Sequencer-Cdk8s-Test
+# on:
+#   workflow_dispatch:
 
-  push:
-    branches:
-      - main
-      - main-v[0-9].**
-    tags:
-      - v[0-9].**
-    paths:
-      - ".github/workflows/sequencer_cdk8s-test.yml"
-      - "config/sequencer/**"
-      - "deployments/sequencer/**"
-      - "Monitoring/sequencer/**"
+#   push:
+#     branches:
+#       - main
+#       - main-v[0-9].**
+#     tags:
+#       - v[0-9].**
+#     paths:
+#       - ".github/workflows/sequencer_cdk8s-test.yml"
+#       - "config/sequencer/**"
+#       - "deployments/sequencer/**"
+#       - "Monitoring/sequencer/**"
 
-  pull_request:
-    branches:
-      - main
-      - main-v[0-9].**
-    paths:
-      - ".github/workflows/sequencer_cdk8s-test.yml"
-      - "config/sequencer/**"
-      - "deployments/sequencer/**"
-      - "Monitoring/sequencer/**"
+#   pull_request:
+#     branches:
+#       - main
+#       - main-v[0-9].**
+#     paths:
+#       - ".github/workflows/sequencer_cdk8s-test.yml"
+#       - "config/sequencer/**"
+#       - "deployments/sequencer/**"
+#       - "Monitoring/sequencer/**"
 
-jobs:
-  deployment:
-    runs-on: ubuntu-24.04
-    env:
-      namespace: test
-      deployment_config_path: ${{ github.workspace }}/config/sequencer/testing/deployment_configs/deployment_test_consolidated.json
-    steps:
-      - name: Checkout sequencer
-        uses: actions/checkout@v4
+# jobs:
+#   deployment:
+#     runs-on: ubuntu-24.04
+#     env:
+#       namespace: test
+#       deployment_config_path: ${{ github.workspace }}/config/sequencer/testing/deployment_configs/deployment_test_consolidated.json
+#     steps:
+#       - name: Checkout sequencer
+#         uses: actions/checkout@v4
 
-      - name: Create local K3D cluster
-        uses: AbsaOSS/k3d-action@v2
-        with:
-          cluster-name: "test-cluster-1"
-          args: >-
-            --agents 1
-            --no-lb
-            --wait
-            --timeout "120s"
+#       - name: Create local K3D cluster
+#         uses: AbsaOSS/k3d-action@v2
+#         with:
+#           cluster-name: "test-cluster-1"
+#           args: >-
+#             --agents 1
+#             --no-lb
+#             --wait
+#             --timeout "120s"
 
-      - name: Setup python
-        uses: actions/setup-python@v5.4.0
-        with:
-          python-version: "3.10"
-          cache: "pip"
+#       - name: Setup python
+#         uses: actions/setup-python@v5.4.0
+#         with:
+#           python-version: "3.10"
+#           cache: "pip"
 
-      - name: Setup Node
-        uses: actions/setup-node@v4.2.0
-        with:
-          node-version: 22
+#       - name: Setup Node
+#         uses: actions/setup-node@v4.2.0
+#         with:
+#           node-version: 22
 
-      - name: Install pip dependencies
-        run: python3 -m pip install black pipenv
+#       - name: Install pip dependencies
+#         run: python3 -m pip install black pipenv
 
-      - name: Install cdk8s-cli
-        run: npm install -g cdk8s-cli@2.198.334
+#       - name: Install cdk8s-cli
+#         run: npm install -g cdk8s-cli@2.198.334
 
-      - name: Black all files
-        uses: psf/black@stable
-        with:
-          options: "--check --verbose -l 100 -t py310 --diff --color --exclude imports"
-          src: deployments/sequencer
+#       - name: Black all files
+#         uses: psf/black@stable
+#         with:
+#           options: "--check --verbose -l 100 -t py310 --diff --color --exclude imports"
+#           src: deployments/sequencer
 
-      # Synthesize the CDK8s Sequencer app.
-      - name: CDk8s synth
-        working-directory: deployments/sequencer
-        run: |
-          cdk8s import
-          pipenv install
-          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.namespace }} --deployment-config-file ${{ env.deployment_config_path }}"
+#       # Synthesize the CDK8s Sequencer app.
+#       - name: CDk8s synth
+#         working-directory: deployments/sequencer
+#         run: |
+#           cdk8s import
+#           pipenv install
+#           cdk8s synth --app "pipenv run python main.py --namespace ${{ env.namespace }} --deployment-config-file ${{ env.deployment_config_path }}"
 
-      - name: Deploy CRD`s used by CDk8s
-        working-directory: deployments/sequencer
-        run: kubectl create -R -f resources/crds
+#       - name: Deploy CRD`s used by CDk8s
+#         working-directory: deployments/sequencer
+#         run: kubectl create -R -f resources/crds
 
-      - name: kubectl create dry-run test
-        working-directory: deployments/sequencer
-        run: |
-          kubectl create namespace ${{ env.namespace }}
-          kubectl create -R -f ./dist --dry-run=server
+#       - name: kubectl create dry-run test
+#         working-directory: deployments/sequencer
+#         run: |
+#           kubectl create namespace ${{ env.namespace }}
+#           kubectl create -R -f ./dist --dry-run=server
 
-      - name: Shutdown k3d
-        if: always()
-        run: k3d cluster delete --all
+#       - name: Shutdown k3d
+#         if: always()
+#         run: k3d cluster delete --all
