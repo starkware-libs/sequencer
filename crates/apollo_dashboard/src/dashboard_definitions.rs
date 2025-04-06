@@ -89,6 +89,7 @@ use crate::panels::gateway::{
     PANEL_GATEWAY_VALIDATE_TX_LATENCY,
 };
 use crate::panels::l1_gas_price::{
+    PANEL_L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY,
     PANEL_L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_PROCESSED,
     PANEL_L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_RECEIVED,
     PANEL_L1_GAS_PRICE_PROVIDER_LOCAL_QUEUE_DEPTH,
@@ -423,6 +424,12 @@ pub const GATEWAY_INFRA_ROW: Row = Row::new(
         PANEL_GATEWAY_REMOTE_VALID_MSGS_RECEIVED,
         PANEL_GATEWAY_REMOTE_MSGS_PROCESSED,
     ],
+);
+
+pub const L1_GAS_PRICE_ROW: Row = Row::new(
+    "L1 Gas Price",
+    "L1 gas price provider and scraper metrics",
+    &[PANEL_L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY],
 );
 
 pub const MEMPOOL_ROW: Row = Row::new(
