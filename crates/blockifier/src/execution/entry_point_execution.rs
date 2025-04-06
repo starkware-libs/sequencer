@@ -1,4 +1,5 @@
 use cairo_vm::types::builtin_name::BuiltinName;
+use cairo_vm::types::layout::CairoLayoutParams;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::errors::cairo_run_errors::CairoRunError;
@@ -73,6 +74,22 @@ impl ExecutionRunnerMode {
             ExecutionRunnerMode::Tracing => true,
         }
     }
+
+    pub fn dynamic_layout_params(&self) -> Option<CairoLayoutParams> {
+        match self {
+            ExecutionRunnerMode::Starknet => None,
+            #[cfg(feature = "tracing")]
+            ExecutionRunnerMode::Tracing => None,
+        }
+    }
+
+    pub fn disable_trace_padding(&self) -> bool {
+        match self {
+            ExecutionRunnerMode::Starknet => false,
+            #[cfg(feature = "tracing")]
+            ExecutionRunnerMode::Tracing => false,
+        }
+    }
 }
 
 /// Executes a specific call to a contract entry point and returns its output.
@@ -129,13 +146,13 @@ pub fn initialize_execution_context_with_runner_mode<'a>(
     let entry_point = compiled_class.get_entry_point(&call.type_and_selector())?;
 
     // Instantiate Cairo runner.
-    let proof_mode = execution_runner_mode.proof_mode();
-    let trace_enabled = execution_runner_mode.trace_enabled();
     let mut runner = CairoRunner::new(
         &compiled_class.0.program,
         LayoutName::starknet,
-        proof_mode,
-        trace_enabled,
+        execution_runner_mode.dynamic_layout_params(),
+        execution_runner_mode.proof_mode(),
+        execution_runner_mode.trace_enabled(),
+        execution_runner_mode.disable_trace_padding(),
     )?;
 
     runner.initialize_function_runner_cairo_1(&entry_point.builtins)?;

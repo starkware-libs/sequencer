@@ -556,11 +556,15 @@ pub fn run_cairo_0_entry_point(
     )?;
     info!("Performed basic validations on explicit & implicit args.");
 
+    let dynamic_layout_params = None;
+    let disable_trace_padding = false;
     let mut cairo_runner = CairoRunner::new(
         &program,
         runner_config.layout,
+        dynamic_layout_params,
         runner_config.proof_mode,
         runner_config.trace_enabled,
+        disable_trace_padding,
     )
     .unwrap();
     for (key, value) in hint_locals.into_iter() {

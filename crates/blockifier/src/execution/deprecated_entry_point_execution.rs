@@ -87,10 +87,18 @@ pub fn initialize_execution_context<'a>(
     // Instantiate Cairo runner.
     let proof_mode = false;
     let trace_enabled = false;
+    let dynamic_layout_params = None;
     let allow_missing_builtins = false;
+    let disable_trace_padding = false;
     let program_base = None;
-    let mut runner =
-        CairoRunner::new(&compiled_class.program, LayoutName::starknet, proof_mode, trace_enabled)?;
+    let mut runner = CairoRunner::new(
+        &compiled_class.program,
+        LayoutName::starknet,
+        dynamic_layout_params,
+        proof_mode,
+        trace_enabled,
+        disable_trace_padding,
+    )?;
 
     runner.initialize_builtins(allow_missing_builtins)?;
     runner.initialize_segments(program_base);
