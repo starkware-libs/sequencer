@@ -85,7 +85,9 @@ fn get_address_of_nested_fields_without_ptrs(
     }"#;
 
     let identifiers: HashMap<String, Identifier> = serde_json::from_str(identifiers_json).unwrap();
-    let vm = VirtualMachine::new(false); // Dummy VM.
+    let trace_enabled = false;
+    let disable_trace_padding = false;
+    let vm = VirtualMachine::new(trace_enabled, disable_trace_padding); // Dummy VM.
     let dummy_base_address = Relocatable::from((11, 48)); // This is fetchable from 'wrapper'.
     let base_struct = identifiers.get("DoubleDoublePointWrapper").unwrap();
     let actual_base_address = fetch_nested_fields_address(
