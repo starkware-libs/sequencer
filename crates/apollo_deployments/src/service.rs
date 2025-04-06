@@ -1,4 +1,5 @@
 use std::fmt::Display;
+use std::path::PathBuf;
 
 use apollo_node::config::component_config::ComponentConfig;
 use indexmap::IndexMap;
@@ -8,10 +9,6 @@ use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 
 use crate::deployments::consolidated::ConsolidatedNodeServiceName;
 use crate::deployments::distributed::DistributedNodeServiceName;
-
-const DEPLOYMENT_CONFIG_BASE_DIR_PATH: &str = "config/sequencer/presets";
-// TODO(Tsabary): need to distinguish between test and production configs in dir structure.
-const APPLICATION_CONFIG_DIR_NAME: &str = "application_configs";
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Service {
@@ -123,6 +120,14 @@ pub(crate) trait ServiceNameInner: Display {
 }
 
 impl DeploymentName {
+    pub fn add_path_suffix(&self, path: PathBuf) -> PathBuf {
+        match self {
+            // TODO(Tsabary): find a way to avoid this code duplication.
+            Self::ConsolidatedNode => path.join("consolidated"),
+            Self::DistributedNode => path.join("distributed"),
+        }
+    }
+
     pub fn all_service_names(&self) -> Vec<ServiceName> {
         match self {
             // TODO(Tsabary): find a way to avoid this code duplication.
@@ -133,10 +138,6 @@ impl DeploymentName {
                 DistributedNodeServiceName::iter().map(ServiceName::DistributedNode).collect()
             }
         }
-    }
-
-    pub fn get_path(&self) -> String {
-        format!("{}/{}/{}/", DEPLOYMENT_CONFIG_BASE_DIR_PATH, self, APPLICATION_CONFIG_DIR_NAME)
     }
 
     pub fn get_component_configs(
