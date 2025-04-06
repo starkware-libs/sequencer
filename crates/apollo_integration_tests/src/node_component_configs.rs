@@ -1,4 +1,5 @@
 use apollo_deployments::deployments::distributed::DistributedNodeServiceName;
+use apollo_deployments::deployments::hybrid::HybridNodeServiceName;
 use apollo_deployments::service::{DeploymentName, ServiceName};
 use apollo_infra_utils::test_utils::AvailablePortsGenerator;
 use apollo_node::config::component_config::{set_urls_to_localhost, ComponentConfig};
@@ -63,7 +64,7 @@ impl IntoIterator for NodeComponentConfigs {
     }
 }
 
-pub fn create_consolidated_sequencer_configs() -> NodeComponentConfigs {
+pub fn create_consolidated_component_configs() -> NodeComponentConfigs {
     // All components are in executable index 0.
     NodeComponentConfigs::new(
         DeploymentName::ConsolidatedNode.get_component_configs(None).into_values().collect(),
@@ -74,7 +75,7 @@ pub fn create_consolidated_sequencer_configs() -> NodeComponentConfigs {
     )
 }
 
-pub fn create_nodes_deployment_units_configs(
+pub fn create_distributed_component_configs(
     available_ports_generator: &mut AvailablePortsGenerator,
 ) -> NodeComponentConfigs {
     let mut available_ports = available_ports_generator
@@ -110,6 +111,46 @@ pub fn create_nodes_deployment_units_configs(
             .unwrap(),
         services_component_config
             .get_index_of::<ServiceName>(&DistributedNodeServiceName::ClassManager.into())
+            .unwrap(),
+    )
+}
+
+pub fn create_hybrid_component_configs(
+    available_ports_generator: &mut AvailablePortsGenerator,
+) -> NodeComponentConfigs {
+    let mut available_ports = available_ports_generator
+        .next()
+        .expect("Failed to get an AvailablePorts instance for distributed node configs");
+
+    // TODO(Tsabary): the following implicitly assumes there are sufficiently many ports
+    // available in the [`available_ports`] instance to support the deployment configuration. If
+    // the test breaks due to port binding conflicts then it might be required to revisit this
+    // assumption.
+
+    let base_port = available_ports.get_next_port();
+
+    let services_component_config =
+        DeploymentName::HybridNode.get_component_configs(Some(base_port));
+
+    let mut component_configs: Vec<ComponentConfig> =
+        services_component_config.values().cloned().collect();
+    set_urls_to_localhost(&mut component_configs);
+
+    // TODO(Tsabary): transition to using the map instead of a vector and indices.
+
+    NodeComponentConfigs::new(
+        component_configs,
+        services_component_config
+            .get_index_of::<ServiceName>(&HybridNodeServiceName::Core.into())
+            .unwrap(),
+        services_component_config
+            .get_index_of::<ServiceName>(&HybridNodeServiceName::HttpServer.into())
+            .unwrap(),
+        services_component_config
+            .get_index_of::<ServiceName>(&HybridNodeServiceName::Core.into())
+            .unwrap(),
+        services_component_config
+            .get_index_of::<ServiceName>(&HybridNodeServiceName::Core.into())
             .unwrap(),
     )
 }
