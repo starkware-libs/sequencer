@@ -5,12 +5,7 @@ use strum::Display;
 use strum_macros::{AsRefStr, EnumIter};
 
 use crate::service::{
-    GetComponentConfigs,
-    Resource,
-    Resources,
-    Service,
-    ServiceName,
-    ServiceNameInner,
+    Controller, ExternalSecret, GetComponentConfigs, Ingress, IngressRule, Resource, Resources, Service, ServiceName, ServiceNameInner
 };
 
 #[derive(Clone, Copy, Debug, Display, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter)]
@@ -41,12 +36,21 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
         match self {
             ConsolidatedNodeServiceName::Node => Service::new(
                 Into::<ServiceName>::into(*self),
-                false,
+                Controller::StatefulSet,
+                Ingress::new(
+                    String::from("sw-dev.io"),
+                    true,
+                    vec![
+                        IngressRule::new(String::from("/gateway"), 8080),
+                        IngressRule::new(String::from("/feeder_gateway"), 8080),
+                    ],
+                ),
                 false,
                 1,
                 Some(32),
-                Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                 None,
+                Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
+                Some(ExternalSecret::new("sequencer-dev-secrets")),
             ),
         }
     }

@@ -5,11 +5,26 @@
   "services": [
     {
       "name": "Node",
+      "controller": "StatefulSet",
       "config_path": "node.json",
-      "ingress": false,
+      "ingress": {
+        "domain": "sw-dev.io",
+        "internal": true,
+        "rules": [
+          {
+            "path": "/gateway",
+            "port": 8080
+          },
+          {
+            "path": "/feeder_gateway",
+            "port": 8080
+          }
+        ]
+      },
       "autoscale": false,
       "replicas": 1,
       "storage": 32,
+      "toleration": null,
       "resources": {
         "requests": {
           "cpu": 1,
@@ -20,7 +35,9 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": {
+        "gcsm_key": "sequencer-dev-secrets"
+      }
     }
   ]
 }
