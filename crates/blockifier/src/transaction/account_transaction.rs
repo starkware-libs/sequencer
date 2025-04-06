@@ -802,6 +802,24 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
         let tx_context = Arc::new(block_context.to_tx_context(self));
         self.verify_tx_version(tx_context.tx_info.version())?;
 
+        // Do not run validate or perform any account-related actions for declare transactions that
+        // meet the following conditions.
+        // This flow is used for the sequencer to bootstrap a new system.
+        if let Transaction::Declare(tx) = &self.tx {
+            if tx.is_bootstrap_declare(self.execution_flags.charge_fee) {
+                let mut context = EntryPointExecutionContext::new_invoke(
+                    tx_context.clone(),
+                    self.execution_flags.charge_fee,
+                    SierraGasRevertTracker::new(GasAmount::default()),
+                );
+                let mut remaining_gas = 0;
+                let res = tx.run_execute(state, &mut context, &mut remaining_gas)?;
+                assert!(res.is_none(), "Declare execute should not result in a CallInfo.");
+
+                return Ok(TransactionExecutionInfo::default());
+            }
+        }
+
         // Nonce and fee check should be done before running user code.
         self.perform_pre_validation_stage(state, &tx_context)?;
 
