@@ -4,6 +4,7 @@ mod block_test;
 
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
+use size_of::SizeOf;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Poseidon, StarkHash as CoreStarkHash};
 use strum_macros::EnumIter;
@@ -339,6 +340,7 @@ pub struct GasPricePerToken {
     Serialize,
     PartialOrd,
     Ord,
+    SizeOf,
 )]
 #[serde(from = "PrefixedBytesAsHex<16_usize>", into = "PrefixedBytesAsHex<16_usize>")]
 pub struct GasPrice(pub u128);
