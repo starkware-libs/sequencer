@@ -101,7 +101,7 @@ impl<S: StateReader> StatefulValidator<S> {
         let tx_receipt = TransactionReceipt::from_account_tx(
             tx,
             &tx_context,
-            &self.state().get_actual_state_changes()?,
+            &self.state().to_state_diff()?,
             CallInfo::summarize_many(
                 validate_call_info.iter(),
                 &tx_context.block_context.versioned_constants,

@@ -602,7 +602,7 @@ impl AccountTransaction {
         let tx_receipt = TransactionReceipt::from_account_tx(
             self,
             &tx_context,
-            &state.get_actual_state_changes()?,
+            &state.to_state_diff()?,
             CallInfo::summarize_many(
                 validate_call_info.iter().chain(execute_call_info.iter()),
                 &tx_context.block_context.versioned_constants,

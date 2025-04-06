@@ -1534,7 +1534,7 @@ fn test_count_actual_storage_changes(
         account_tx.execute_raw(&mut state, &block_context, concurrency_mode).unwrap();
 
     let fee_1 = execution_info.receipt.fee;
-    let state_changes_1 = state.get_actual_state_changes().unwrap();
+    let state_changes_1 = state.to_state_diff().unwrap();
 
     let cell_write_storage_change = ((contract_address, storage_key!(15_u8)), felt!(1_u8));
     let mut expected_sequencer_total_fee = initial_sequencer_balance + Felt::from(fee_1.0);
@@ -1582,7 +1582,7 @@ fn test_count_actual_storage_changes(
         account_tx.execute_raw(&mut state, &block_context, concurrency_mode).unwrap();
 
     let fee_2 = execution_info.receipt.fee;
-    let state_changes_2 = state.get_actual_state_changes().unwrap();
+    let state_changes_2 = state.to_state_diff().unwrap();
 
     expected_sequencer_total_fee += Felt::from(fee_2.0);
     expected_sequencer_fee_update.1 = expected_sequencer_total_fee;
@@ -1623,7 +1623,7 @@ fn test_count_actual_storage_changes(
         account_tx.execute_raw(&mut state, &block_context, concurrency_mode).unwrap();
 
     let fee_transfer = execution_info.receipt.fee;
-    let state_changes_transfer = state.get_actual_state_changes().unwrap();
+    let state_changes_transfer = state.to_state_diff().unwrap();
     let transfer_receipient_storage_change = (
         (fee_token_address, get_fee_token_var_address(contract_address!(recipient))),
         transfer_amount,
