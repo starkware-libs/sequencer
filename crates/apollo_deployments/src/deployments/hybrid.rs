@@ -25,15 +25,12 @@ const BASE_PORT: u16 = 55000; // TODO(Tsabary): arbitrary port, need to resolve.
 #[derive(Clone, Copy, Debug, Display, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter)]
 #[strum(serialize_all = "snake_case")]
 pub enum HybridNodeServiceName {
-    Batcher,
-    ClassManager,
-    ConsensusManager,
+    Core, /* Comprises the batcher, class manager, consensus manager, l1 components, and state
+           * sync. */
     HttpServer,
     Gateway,
-    L1,
     Mempool,
     SierraCompiler,
-    StateSync,
 }
 
 // Implement conversion from `HybridNodeServiceName` to `ServiceName`
@@ -52,36 +49,35 @@ impl GetComponentConfigs for HybridNodeServiceName {
         // The offset value has to exceed 3, to avoid conflicting with the remaining services:
         // mempool, sierra compiler, and state sync. The value of 5 was chosen arbitrarily
         // to satisfy the above.
-        let base_port_with_offset = Some(base_port.unwrap_or(BASE_PORT) + 5);
+        let base_port_with_offset = base_port.unwrap_or(BASE_PORT);
 
-        let batcher = HybridNodeServiceName::Batcher.component_config_pair(base_port);
-        let class_manager = HybridNodeServiceName::ClassManager.component_config_pair(base_port);
-        let gateway = HybridNodeServiceName::Gateway.component_config_pair(base_port);
+        let batcher =
+            HybridNodeServiceName::Core.component_config_pair(Some(base_port_with_offset));
+        let class_manager =
+            HybridNodeServiceName::Core.component_config_pair(Some(base_port_with_offset + 1));
+        let gateway =
+            HybridNodeServiceName::Gateway.component_config_pair(Some(base_port_with_offset + 2));
         let l1_gas_price_provider =
-            HybridNodeServiceName::L1.component_config_pair(base_port_with_offset);
-        let l1_provider = HybridNodeServiceName::L1.component_config_pair(base_port);
-        let mempool = HybridNodeServiceName::Mempool.component_config_pair(base_port);
-        let sierra_compiler =
-            HybridNodeServiceName::SierraCompiler.component_config_pair(base_port);
-        let state_sync = HybridNodeServiceName::StateSync.component_config_pair(base_port);
+            HybridNodeServiceName::Core.component_config_pair(Some(base_port_with_offset + 3));
+        let l1_provider =
+            HybridNodeServiceName::Core.component_config_pair(Some(base_port_with_offset + 4));
+        let mempool =
+            HybridNodeServiceName::Mempool.component_config_pair(Some(base_port_with_offset + 5));
+        let sierra_compiler = HybridNodeServiceName::SierraCompiler
+            .component_config_pair(Some(base_port_with_offset + 6));
+        let state_sync =
+            HybridNodeServiceName::Core.component_config_pair(Some(base_port_with_offset + 7));
 
         for inner_service_name in HybridNodeServiceName::iter() {
             let component_config = match inner_service_name {
-                HybridNodeServiceName::Batcher => get_batcher_component_config(
+                HybridNodeServiceName::Core => get_core_component_config(
                     batcher.local(),
-                    class_manager.remote(),
-                    l1_provider.remote(),
-                    mempool.remote(),
-                ),
-                HybridNodeServiceName::ClassManager => get_class_manager_component_config(
                     class_manager.local(),
+                    l1_gas_price_provider.local(),
+                    l1_provider.local(),
+                    state_sync.local(),
+                    mempool.remote(),
                     sierra_compiler.remote(),
-                ),
-                HybridNodeServiceName::ConsensusManager => get_consensus_manager_component_config(
-                    batcher.remote(),
-                    class_manager.remote(),
-                    l1_gas_price_provider.remote(),
-                    state_sync.remote(),
                 ),
                 HybridNodeServiceName::HttpServer => {
                     get_http_server_component_config(gateway.remote())
@@ -92,11 +88,6 @@ impl GetComponentConfigs for HybridNodeServiceName {
                     mempool.remote(),
                     state_sync.remote(),
                 ),
-                HybridNodeServiceName::L1 => get_l1_component_config(
-                    l1_gas_price_provider.local(),
-                    l1_provider.local(),
-                    state_sync.remote(),
-                ),
                 HybridNodeServiceName::Mempool => get_mempool_component_config(
                     mempool.local(),
                     class_manager.remote(),
@@ -104,9 +95,6 @@ impl GetComponentConfigs for HybridNodeServiceName {
                 ),
                 HybridNodeServiceName::SierraCompiler => {
                     get_sierra_compiler_component_config(sierra_compiler.local())
-                }
-                HybridNodeServiceName::StateSync => {
-                    get_state_sync_component_config(state_sync.local(), class_manager.remote())
                 }
             };
             let service_name = inner_service_name.into();
@@ -120,30 +108,12 @@ impl GetComponentConfigs for HybridNodeServiceName {
 impl ServiceNameInner for HybridNodeServiceName {
     fn create_service(&self) -> Service {
         match self {
-            HybridNodeServiceName::Batcher => Service::new(
+            HybridNodeServiceName::Core => Service::new(
                 Into::<ServiceName>::into(*self),
                 false,
                 false,
                 1,
                 Some(32),
-                Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                None,
-            ),
-            HybridNodeServiceName::ClassManager => Service::new(
-                Into::<ServiceName>::into(*self),
-                false,
-                false,
-                1,
-                Some(32),
-                Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                None,
-            ),
-            HybridNodeServiceName::ConsensusManager => Service::new(
-                Into::<ServiceName>::into(*self),
-                false,
-                false,
-                1,
-                None,
                 Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                 None,
             ),
@@ -157,15 +127,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                 None,
             ),
             HybridNodeServiceName::Gateway => Service::new(
-                Into::<ServiceName>::into(*self),
-                false,
-                false,
-                1,
-                None,
-                Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                None,
-            ),
-            HybridNodeServiceName::L1 => Service::new(
                 Into::<ServiceName>::into(*self),
                 false,
                 false,
@@ -189,15 +150,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                 false,
                 1,
                 None,
-                Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                None,
-            ),
-            HybridNodeServiceName::StateSync => Service::new(
-                Into::<ServiceName>::into(*self),
-                false,
-                false,
-                1,
-                Some(32),
                 Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                 None,
             ),
@@ -279,28 +231,25 @@ impl HybridNodeServiceConfigPair {
     }
 }
 
-fn get_batcher_component_config(
+fn get_core_component_config(
     batcher_local_config: ReactiveComponentExecutionConfig,
-    class_manager_remote_config: ReactiveComponentExecutionConfig,
-    l1_provider_remote_config: ReactiveComponentExecutionConfig,
-    mempool_remote_config: ReactiveComponentExecutionConfig,
-) -> ComponentConfig {
-    let mut config = ComponentConfig::disabled();
-    config.batcher = batcher_local_config;
-    config.class_manager = class_manager_remote_config;
-    config.l1_provider = l1_provider_remote_config;
-    config.mempool = mempool_remote_config;
-    config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
-    config
-}
-
-fn get_class_manager_component_config(
     class_manager_local_config: ReactiveComponentExecutionConfig,
+    l1_gas_price_provider_local_config: ReactiveComponentExecutionConfig,
+    l1_provider_local_config: ReactiveComponentExecutionConfig,
+    state_sync_local_config: ReactiveComponentExecutionConfig,
+    mempool_remote_config: ReactiveComponentExecutionConfig,
     sierra_compiler_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
+    config.batcher = batcher_local_config;
     config.class_manager = class_manager_local_config;
+    config.l1_gas_price_provider = l1_gas_price_provider_local_config;
+    config.l1_gas_price_scraper = ActiveComponentExecutionConfig::enabled();
+    config.l1_provider = l1_provider_local_config;
+    config.l1_scraper = ActiveComponentExecutionConfig::enabled();
     config.sierra_compiler = sierra_compiler_remote_config;
+    config.state_sync = state_sync_local_config;
+    config.mempool = mempool_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
 }
@@ -343,54 +292,12 @@ fn get_sierra_compiler_component_config(
     config
 }
 
-fn get_state_sync_component_config(
-    state_sync_local_config: ReactiveComponentExecutionConfig,
-    class_manager_remote_config: ReactiveComponentExecutionConfig,
-) -> ComponentConfig {
-    let mut config = ComponentConfig::disabled();
-    config.state_sync = state_sync_local_config;
-    config.class_manager = class_manager_remote_config;
-    config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
-    config
-}
-
-fn get_consensus_manager_component_config(
-    batcher_remote_config: ReactiveComponentExecutionConfig,
-    class_manager_remote_config: ReactiveComponentExecutionConfig,
-    l1_gas_price_provider_remote_config: ReactiveComponentExecutionConfig,
-    state_sync_remote_config: ReactiveComponentExecutionConfig,
-) -> ComponentConfig {
-    let mut config = ComponentConfig::disabled();
-    config.consensus_manager = ActiveComponentExecutionConfig::enabled();
-    config.batcher = batcher_remote_config;
-    config.class_manager = class_manager_remote_config;
-    config.l1_gas_price_provider = l1_gas_price_provider_remote_config;
-    config.state_sync = state_sync_remote_config;
-    config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
-    config
-}
-
 fn get_http_server_component_config(
     gateway_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
     config.http_server = ActiveComponentExecutionConfig::enabled();
     config.gateway = gateway_remote_config;
-    config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
-    config
-}
-
-fn get_l1_component_config(
-    l1_gas_price_provider_local_config: ReactiveComponentExecutionConfig,
-    l1_provider_local_config: ReactiveComponentExecutionConfig,
-    state_sync_remote_config: ReactiveComponentExecutionConfig,
-) -> ComponentConfig {
-    let mut config = ComponentConfig::disabled();
-    config.l1_gas_price_provider = l1_gas_price_provider_local_config;
-    config.l1_gas_price_scraper = ActiveComponentExecutionConfig::enabled();
-    config.l1_provider = l1_provider_local_config;
-    config.l1_scraper = ActiveComponentExecutionConfig::enabled();
-    config.state_sync = state_sync_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
 }
