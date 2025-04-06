@@ -22,6 +22,9 @@ RUN cargo build
 
 FROM ubuntu:24.04 AS final_stage
 
+# Reuired for https requests
+RUN apt-get update && apt-get install -y ca-certificates
+
 ENV ID=1001
 WORKDIR /app
 COPY --from=builder /app/target/debug/apollo_node ./target/debug/apollo_node
