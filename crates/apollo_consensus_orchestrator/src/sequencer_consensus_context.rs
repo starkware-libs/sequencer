@@ -188,6 +188,7 @@ pub struct SequencerConsensusContext {
     vote_broadcast_client: BroadcastTopicClient<Vote>,
     cende_ambassador: Arc<dyn CendeContext>,
     eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
+    previous_block_eth_to_strk_rate: u128,
     // The next block's l2 gas price, calculated based on EIP-1559, used for building and
     // validating proposals.
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
@@ -220,6 +221,7 @@ impl SequencerConsensusContext {
         } else {
             L1DataAvailabilityMode::Calldata
         };
+        let previous_block_eth_to_strk_rate = config.default_eth_to_strk_conversion_rate;
         Self {
             config,
             transaction_converter: TransactionConverter::new(
@@ -242,6 +244,7 @@ impl SequencerConsensusContext {
             queued_proposals: BTreeMap::new(),
             cende_ambassador: context_deps.cende_ambassador,
             eth_to_strk_oracle_client: context_deps.eth_to_strk_oracle_client,
+            previous_block_eth_to_strk_rate,
             l1_gas_price_provider: context_deps.l1_gas_price_provider,
             l2_gas_price: VersionedConstants::latest_constants().min_gas_price,
             l1_da_mode,
@@ -578,6 +581,7 @@ impl ConsensusContext for SequencerConsensusContext {
         // TODO(dvir): when passing here the correct `BlobParameters`, also test that
         // `prepare_blob_for_next_height` is called with the correct parameters.
         self.last_block_timestamp = Some(block_info.timestamp);
+        self.previous_block_eth_to_strk_rate = block_info.eth_to_fri_rate;
         let _ = self
             .cende_ambassador
             .prepare_blob_for_next_height(BlobParameters {
