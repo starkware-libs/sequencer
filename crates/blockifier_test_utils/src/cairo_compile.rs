@@ -19,13 +19,7 @@ pub enum CompilationArtifacts {
 }
 
 pub fn cairo1_compiler_tag() -> String {
-    // TODO(lior): Uncomment the following line it and remove the rest of the code, once the
-    //   Cairo compiler version is updated to 2.11.0 in the toml file.
-    //   If the compiler version is updated in the toml to a version < 2.11.0,
-    //   only update the version in the assert below.
-    // format!("v{}", cairo1_compiler_version())
-    assert_eq!(cairo1_compiler_version(), "=2.10.0", "Unsupported compiler version.");
-    "v2.11.0-dev.2".into()
+    format!("v{}", cairo1_compiler_version())
 }
 
 /// Returns the path to the local Cairo1 compiler repository.
