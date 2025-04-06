@@ -344,6 +344,17 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         Ok(())
     }
 
+    fn meta_tx_v0(
+        &mut self,
+        _address: Felt,
+        _entry_point_selector: Felt,
+        _calldata: &[Felt],
+        _signature: &[Felt],
+        _remaining_gas: &mut u64,
+    ) -> SyscallResult<Vec<Felt>> {
+        todo!("Meta tx v0 syscall not implemented");
+    }
+
     fn library_call(
         &mut self,
         class_hash: Felt,
