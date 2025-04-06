@@ -14,7 +14,7 @@ use starknet_api::data_availability::L1DataAvailabilityMode;
 
 use crate::converters::ProtobufConversionError;
 
-const ETH_TO_WEI: u128 = u128::pow(10, 18);
+pub const ETH_TO_WEI: u128 = u128::pow(10, 18);
 
 pub trait IntoFromProto: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError> {}
 impl<T> IntoFromProto for T where
