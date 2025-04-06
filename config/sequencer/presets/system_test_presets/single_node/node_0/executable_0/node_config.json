@@ -161,6 +161,7 @@
   "consensus_manager_config.context_config.block_timestamp_window_seconds": 1,
   "consensus_manager_config.context_config.build_proposal_margin_millis": 1000,
   "consensus_manager_config.context_config.builder_address": "0x4",
+  "consensus_manager_config.context_config.default_eth_to_strk_conversion_rate": 1000000000000000000000,
   "consensus_manager_config.context_config.l1_da_mode": true,
   "consensus_manager_config.context_config.max_l1_data_gas_price_wei": 150000000000,
   "consensus_manager_config.context_config.max_l1_gas_price_wei": 200000000000,

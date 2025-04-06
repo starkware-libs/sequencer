@@ -44,6 +44,8 @@ pub struct ContextConfig {
     pub min_l1_data_gas_price_wei: u128,
     /// The maximum L1 data gas price in wei.
     pub max_l1_data_gas_price_wei: u128,
+    /// The default eth to strk conversion rate.
+    pub default_eth_to_strk_conversion_rate: u128,
 }
 
 impl SerializeConfig for ContextConfig {
@@ -124,6 +126,12 @@ impl SerializeConfig for ContextConfig {
                 "The maximum L1 data gas price in wei.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "default_eth_to_strk_conversion_rate",
+                &self.default_eth_to_strk_conversion_rate,
+                "The eth to strk conversion rate used in case the oracle fails",
+                ParamPrivacyInput::Public,
+            ),
         ])
     }
 }
@@ -143,6 +151,7 @@ impl Default for ContextConfig {
             max_l1_gas_price_wei: 200 * GWEI_FACTOR,
             min_l1_data_gas_price_wei: GWEI_FACTOR,
             max_l1_data_gas_price_wei: 150 * GWEI_FACTOR,
+            default_eth_to_strk_conversion_rate: 10_u128.pow(21),
         }
     }
 }
