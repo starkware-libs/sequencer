@@ -211,9 +211,8 @@ pub struct StorageAccessTracker {
 }
 
 /// Represents the full effects of executing an entry point, including the inner calls it invoked.
-#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
-#[derive(Debug, Default, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
 pub struct CallInfo {
     pub call: CallEntryPoint,
     pub execution: CallExecution,
