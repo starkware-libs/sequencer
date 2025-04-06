@@ -1,12 +1,12 @@
 //! A lib for compiling Sierra into Casm.
 use apollo_infra::component_definitions::ComponentStarter;
-use apollo_sierra_multicompile_types::{RawClass, RawExecutableClass, RawExecutableHashedClass};
+use apollo_compile_to_casm_types::{RawClass, RawExecutableClass, RawExecutableHashedClass};
 use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::CompiledClassHash;
 use starknet_api::state::SierraContractClass;
 use starknet_api::StarknetApiError;
-use starknet_compilation_utils::class_utils::into_contract_class_for_compilation;
-use starknet_compilation_utils::errors::CompilationUtilError;
+use apollo_compilation_utils::class_utils::into_contract_class_for_compilation;
+use apollo_compilation_utils::errors::CompilationUtilError;
 use thiserror::Error;
 use tracing::instrument;
 
@@ -38,9 +38,9 @@ pub enum SierraCompilerError {
     SierraVersionFormat(StarknetApiError),
 }
 
-impl From<SierraCompilerError> for apollo_sierra_multicompile_types::SierraCompilerError {
+impl From<SierraCompilerError> for apollo_compile_to_casm_types::SierraCompilerError {
     fn from(error: SierraCompilerError) -> Self {
-        apollo_sierra_multicompile_types::SierraCompilerError::CompilationFailed(error.to_string())
+        apollo_compile_to_casm_types::SierraCompilerError::CompilationFailed(error.to_string())
     }
 }
 

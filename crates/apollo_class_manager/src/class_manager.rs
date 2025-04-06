@@ -6,7 +6,7 @@ use apollo_class_manager_types::{
     ExecutableClassHash,
 };
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
-use apollo_sierra_multicompile_types::{
+use apollo_compile_to_casm_types::{
     RawClass,
     RawExecutableClass,
     SharedSierraCompilerClient,

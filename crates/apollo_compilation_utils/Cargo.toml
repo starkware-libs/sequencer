@@ -1,7 +1,7 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "starknet_compilation_utils"
+name = "apollo_compilation_utils"
 repository.workspace = true
 version.workspace = true
 description = "A utility crate for Sierra compilation related code."
@@ -16,7 +16,7 @@ workspace = true
 [dependencies]
 apollo_config.workspace = true
 apollo_infra.workspace = true
-apollo_sierra_multicompile_types.workspace = true
+apollo_compile_to_casm_types.workspace = true
 async-trait.workspace = true
 cairo-lang-sierra.workspace = true
 cairo-lang-starknet-classes.workspace = true

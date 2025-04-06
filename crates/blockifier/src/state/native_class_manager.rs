@@ -7,9 +7,9 @@ use cached::Cached;
 use log;
 use starknet_api::core::ClassHash;
 use starknet_api::state::SierraContractClass;
-use starknet_compilation_utils::class_utils::into_contract_class_for_compilation;
-use starknet_compilation_utils::errors::CompilationUtilError;
-use starknet_compile_to_native::compiler::SierraToNativeCompiler;
+use apollo_compilation_utils::class_utils::into_contract_class_for_compilation;
+use apollo_compilation_utils::errors::CompilationUtilError;
+use apollo_compile_to_native::compiler::SierraToNativeCompiler;
 use thiserror::Error;
 
 use crate::blockifier::config::{

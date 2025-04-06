@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use apollo_class_manager_types::ClassHashes;
-use apollo_sierra_multicompile_types::{MockSierraCompilerClient, RawClass, RawExecutableClass};
+use apollo_compile_to_casm_types::{MockSierraCompilerClient, RawClass, RawExecutableClass};
 use mockall::predicate::eq;
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::felt;

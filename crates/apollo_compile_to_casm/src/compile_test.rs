@@ -7,8 +7,8 @@ use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContr
 use mempool_test_utils::{FAULTY_ACCOUNT_CLASS_FILE, TEST_FILES_FOLDER};
 use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::state::SierraContractClass;
-use starknet_compilation_utils::errors::CompilationUtilError;
-use starknet_compilation_utils::test_utils::contract_class_from_file;
+use apollo_compilation_utils::errors::CompilationUtilError;
+use apollo_compilation_utils::test_utils::contract_class_from_file;
 
 use crate::compiler::SierraToCasmCompiler;
 use crate::config::{SierraCompilationConfig, DEFAULT_MAX_BYTECODE_SIZE};

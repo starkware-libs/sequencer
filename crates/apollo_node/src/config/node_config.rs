@@ -33,7 +33,7 @@ use apollo_state_sync::config::StateSyncConfig;
 use clap::Command;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use serde::{Deserialize, Serialize};
-use starknet_compile_to_casm::config::SierraCompilationConfig;
+use apollo_compile_to_casm::config::SierraCompilationConfig;
 use validator::Validate;
 
 use crate::config::component_config::ComponentConfig;

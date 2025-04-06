@@ -1,6 +1,6 @@
 use apollo_metrics::metrics::{LabeledMetricCounter, LabeledMetricHistogram};
 use apollo_metrics::{define_metrics, generate_permutation_labels};
-use apollo_sierra_multicompile_types::SerializedClass;
+use apollo_compile_to_casm_types::SerializedClass;
 use strum::VariantNames;
 
 const CAIRO_CLASS_TYPE_LABEL: &str = "class_type";

@@ -6,7 +6,7 @@ repository.workspace = true
 license.workspace = true
 
 [features]
-cairo_native = ["apollo_batcher/cairo_native", "dep:starknet_compile_to_native"]
+cairo_native = ["apollo_batcher/cairo_native"]
 
 [lints]
 workspace = true
@@ -49,7 +49,6 @@ serde.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
-starknet_compile_to_native = { workspace = true, optional = true }
 strum.workspace = true
 tempfile.workspace = true
 tokio.workspace = true

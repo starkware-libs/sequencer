@@ -18,7 +18,7 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pyo3::prelude::*;
 use starknet_api::core::ClassHash;
 use starknet_api::execution_resources::GasAmount;
-use starknet_compile_to_native::config::SierraCompilationConfig;
+use apollo_compile_to_native::config::SierraCompilationConfig;
 
 use crate::errors::{NativeBlockifierError, NativeBlockifierResult};
 use crate::py_utils::PyFelt;

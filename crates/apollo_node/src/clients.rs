@@ -40,7 +40,7 @@ use apollo_mempool_types::communication::{
     RemoteMempoolClient,
     SharedMempoolClient,
 };
-use apollo_sierra_multicompile_types::{
+use apollo_compile_to_casm_types::{
     LocalSierraCompilerClient,
     RemoteSierraCompilerClient,
     SharedSierraCompilerClient,

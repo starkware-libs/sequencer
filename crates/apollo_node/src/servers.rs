@@ -90,7 +90,7 @@ use apollo_state_sync::{LocalStateSyncServer, RemoteStateSyncServer};
 use futures::stream::FuturesUnordered;
 use futures::{Future, FutureExt, StreamExt};
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
-use starknet_compile_to_casm::communication::LocalSierraCompilerServer;
+use apollo_compile_to_casm::communication::LocalSierraCompilerServer;
 
 use crate::clients::SequencerNodeClients;
 use crate::communication::SequencerNodeCommunication;

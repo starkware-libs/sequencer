@@ -1,4 +1,4 @@
-use apollo_sierra_multicompile_types::{RawClass, RawExecutableClass};
+use apollo_compile_to_casm_types::{RawClass, RawExecutableClass};
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::felt;
 use starknet_api::state::SierraContractClass;

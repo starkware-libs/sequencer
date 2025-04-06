@@ -6,7 +6,7 @@ use apollo_l1_gas_price::communication::L1GasPriceRequestAndResponseSender;
 use apollo_l1_provider::communication::L1ProviderRequestAndResponseSender;
 use apollo_mempool_p2p_types::communication::MempoolP2pPropagatorRequestAndResponseSender;
 use apollo_mempool_types::communication::MempoolRequestAndResponseSender;
-use apollo_sierra_multicompile_types::SierraCompilerRequestAndResponseSender;
+use apollo_compile_to_casm_types::SierraCompilerRequestAndResponseSender;
 use apollo_state_sync_types::communication::StateSyncRequestAndResponseSender;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 

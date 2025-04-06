@@ -71,8 +71,6 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::fields::ContractAddressSalt;
 use starknet_api::transaction::{TransactionHash, TransactionHasher};
-#[cfg(feature = "cairo_native")]
-use starknet_compile_to_native::config::SierraCompilationConfig;
 use starknet_types_core::felt::Felt;
 use tokio::task::JoinHandle;
 use tracing::{debug, info, Instrument};
@@ -685,9 +683,6 @@ fn cairo_native_class_manager_config() -> ContractClassManagerConfig {
         cairo_native_run_config: CairoNativeRunConfig {
             run_cairo_native: true,
             wait_on_native_compilation: true,
-            ..Default::default()
-        },
-        native_compiler_config: SierraCompilationConfig {
             panic_on_compilation_failure: true,
             ..Default::default()
         },

@@ -21,7 +21,7 @@ use apollo_state_sync::runner::StateSyncRunner;
 use apollo_state_sync::{create_state_sync_and_runner, StateSync};
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
 use papyrus_base_layer::BaseLayerContract;
-use starknet_compile_to_casm::{create_sierra_compiler, SierraCompiler};
+use apollo_compile_to_casm::{create_sierra_compiler, SierraCompiler};
 use tracing::{info, warn};
 
 use crate::clients::SequencerNodeClients;

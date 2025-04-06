@@ -40,7 +40,7 @@ members = [
   "crates/apollo_reverts",
   "crates/apollo_rpc",
   "crates/apollo_rpc_execution",
-  "crates/apollo_sierra_multicompile_types",
+  "crates/apollo_compile_to_casm_types",
   "crates/apollo_starknet_client",
   "crates/apollo_state_reader",
   "crates/apollo_state_sync",
@@ -62,9 +62,9 @@ members = [
   "crates/starknet_api",
   "crates/starknet_committer",
   "crates/starknet_committer_and_os_cli",
-  "crates/starknet_compilation_utils",
-  "crates/starknet_compile_to_casm",
-  "crates/starknet_compile_to_native",
+  "crates/apollo_compilation_utils",
+  "crates/apollo_compile_to_casm",
+  "crates/apollo_compile_to_native",
   "crates/starknet_os",
   "crates/starknet_patricia",
   "crates/starknet_patricia_storage",
@@ -118,7 +118,7 @@ apollo_protobuf.path = "crates/apollo_protobuf"
 apollo_reverts.path = "crates/apollo_reverts"
 apollo_rpc.path = "crates/apollo_rpc"
 apollo_rpc_execution.path = "crates/apollo_rpc_execution"
-apollo_sierra_multicompile_types = { path = "crates/apollo_sierra_multicompile_types", version = "0.0.0" }
+apollo_compile_to_casm_types = { path = "crates/apollo_compile_to_casm_types", version = "0.0.0" }
 apollo_starknet_client.path = "crates/apollo_starknet_client"
 apollo_state_reader.path = "crates/apollo_state_reader"
 apollo_state_sync.path = "crates/apollo_state_sync"
@@ -264,9 +264,9 @@ starknet-types-core = "0.1.6"
 starknet_api = { path = "crates/starknet_api", version = "0.0.0" }
 starknet_committer.path = "crates/starknet_committer"
 starknet_committer_and_os_cli.path = "crates/starknet_committer_and_os_cli"
-starknet_compilation_utils = { path = "crates/starknet_compilation_utils", version = "0.0.0" }
-starknet_compile_to_casm = { path = "crates/starknet_compile_to_casm", version = "0.0.0" }
-starknet_compile_to_native = { path = "crates/starknet_compile_to_native", version = "0.0.0" }
+apollo_compilation_utils = { path = "crates/apollo_compilation_utils", version = "0.0.0" }
+apollo_compile_to_casm = { path = "crates/apollo_compile_to_casm", version = "0.0.0" }
+apollo_compile_to_native = { path = "crates/apollo_compile_to_native", version = "0.0.0" }
 starknet_os.path = "crates/starknet_os"
 starknet_patricia.path = "crates/starknet_patricia"
 starknet_patricia_storage.path = "crates/starknet_patricia_storage"

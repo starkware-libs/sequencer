@@ -7,7 +7,7 @@ use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteCo
 use apollo_infra::component_definitions::{ComponentClient, ComponentRequestAndResponseSender};
 use apollo_infra::impl_debug_for_infra_requests_and_responses;
 use apollo_proc_macros::handle_all_response_variants;
-use apollo_sierra_multicompile_types::SierraCompilerError;
+use apollo_compile_to_casm_types::SierraCompilerError;
 use async_trait::async_trait;
 #[cfg(feature = "testing")]
 use mockall::automock;

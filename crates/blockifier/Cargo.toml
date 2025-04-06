@@ -13,8 +13,8 @@ workspace = true
 cairo_native = [
   "blockifier_test_utils/cairo_native",
   "dep:cairo-native",
-  "starknet_compilation_utils/cairo_native",
-  "starknet_compile_to_native/cairo_native",
+  "apollo_compilation_utils/cairo_native",
+  "apollo_compile_to_native/cairo_native",
 ]
 native_blockifier = []
 node_api = []
@@ -61,8 +61,8 @@ sha2.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 apollo_infra_utils.workspace = true
-starknet_compilation_utils = { workspace = true, optional = true }
-starknet_compile_to_native.workspace = true
+apollo_compilation_utils = { workspace = true, optional = true }
+apollo_compile_to_native.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
 thiserror.workspace = true

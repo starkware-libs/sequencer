@@ -1,4 +1,4 @@
-use starknet_compilation_utils::build_utils::install_compiler_binary;
+use apollo_compilation_utils::build_utils::install_compiler_binary;
 
 include!("src/constants.rs");
 
@@ -7,17 +7,17 @@ fn main() {
     println!("cargo:rerun-if-changed=build.rs");
 
     set_run_time_out_dir_env_var();
-    install_starknet_native_compile();
+    install_starknet_sierra_compile();
 }
 
-/// Install the `starknet-native-compile` binary from the Cairo Native crate and moves the binary
-/// to the `target` directory. The `starknet-native-compile` binary is used to compile Sierra to
-/// Native. The binary is executed as a subprocess whenever Sierra to Cairo compilation is required.
-fn install_starknet_native_compile() {
-    let binary_name = CAIRO_NATIVE_BINARY_NAME;
-    let required_version = REQUIRED_CAIRO_NATIVE_VERSION;
+/// Installs the `starknet-sierra-compile` binary from the Cairo crate on StarkWare's release page
+/// and moves it into `target` directory. The `starknet-sierra-compile` binary is used to compile
+/// Sierra to Casm. The binary is executed as a subprocess whenever Sierra compilation is required.
+fn install_starknet_sierra_compile() {
+    let binary_name = CAIRO_LANG_BINARY_NAME;
+    let required_version = REQUIRED_CAIRO_LANG_VERSION;
 
-    let cargo_install_args = &["cairo-native", "--version", required_version, "--bin", binary_name];
+    let cargo_install_args = &[binary_name, "--version", required_version];
     install_compiler_binary(binary_name, required_version, cargo_install_args, &out_dir());
 }
 
