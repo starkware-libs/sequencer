@@ -48,6 +48,7 @@ use apollo_protobuf::consensus::{
     TransactionBatch,
     Vote,
     DEFAULT_VALIDATOR_ID,
+    ETH_TO_WEI,
 };
 use apollo_state_sync_types::communication::{SharedStateSyncClient, StateSyncClientError};
 use apollo_state_sync_types::state_sync_types::SyncBlock;
@@ -200,8 +201,10 @@ pub struct SequencerConsensusContext {
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     l2_gas_price: GasPrice,
     l1_da_mode: L1DataAvailabilityMode,
+    // TODO(alonl): remove this field and use the one in the previous block info.
     last_block_timestamp: Option<u64>,
     clock: Arc<dyn Clock>,
+    previous_block_info: Option<ConsensusBlockInfo>,
 }
 pub struct SequencerConsensusContextDeps {
     pub class_manager_client: SharedClassManagerClient,
@@ -254,6 +257,7 @@ impl SequencerConsensusContext {
             l1_da_mode,
             last_block_timestamp: None,
             clock: context_deps.clock,
+            previous_block_info: None,
         }
     }
 }
@@ -607,7 +611,7 @@ impl ConsensusContext for SequencerConsensusContext {
             .inspect_err(|e| {
                 error!("Failed to prepare blob for next height: {e:?}");
             });
-
+        self.previous_block_info = Some(block_info);
         Ok(())
     }
 
@@ -644,6 +648,28 @@ impl ConsensusContext for SequencerConsensusContext {
             );
             return false;
         }
+        let eth_to_fri_rate = sync_block
+            .block_header_without_hash
+            .l1_gas_price
+            .price_in_fri
+            .checked_div(sync_block.block_header_without_hash.l1_gas_price.price_in_wei.0)
+            .expect("Price in wei is zero")
+            .checked_mul_u128(ETH_TO_WEI)
+            .expect("Gas price overflow")
+            .0;
+        self.previous_block_info = Some(ConsensusBlockInfo {
+            height,
+            timestamp: timestamp.0,
+            builder: sync_block.block_header_without_hash.sequencer.0,
+            l1_da_mode: sync_block.block_header_without_hash.l1_da_mode,
+            l2_gas_price_fri: sync_block.block_header_without_hash.l2_gas_price.price_in_fri,
+            l1_gas_price_wei: sync_block.block_header_without_hash.l1_gas_price.price_in_wei,
+            l1_data_gas_price_wei: sync_block
+                .block_header_without_hash
+                .l1_data_gas_price
+                .price_in_wei,
+            eth_to_fri_rate,
+        });
         self.interrupt_active_proposal().await;
         self.batcher.add_sync_block(sync_block).await.unwrap();
         true
