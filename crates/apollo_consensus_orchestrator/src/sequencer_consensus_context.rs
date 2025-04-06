@@ -58,6 +58,7 @@ use futures::channel::{mpsc, oneshot};
 use futures::{FutureExt, SinkExt, StreamExt};
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
+use num_rational::Ratio;
 use starknet_api::block::{
     BlockHash,
     BlockHashAndNumber,
@@ -827,8 +828,12 @@ async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<Consens
     };
     l1_prices.base_fee_per_gas =
         l1_prices.base_fee_per_gas.clamp(args.min_l1_gas_price_wei, args.max_l1_gas_price_wei);
-    l1_prices.blob_fee =
-        l1_prices.blob_fee.clamp(args.min_l1_data_gas_price_wei, args.max_l1_data_gas_price_wei);
+
+    // TODO(Arni): This value should be an input of this function.
+    let data_gas_price_multiplier: Ratio<u128> = Ratio::from_integer(1);
+    l1_prices.blob_fee = (Ratio::from_integer(l1_prices.blob_fee) * data_gas_price_multiplier)
+        .to_integer()
+        .clamp(args.min_l1_data_gas_price_wei, args.max_l1_data_gas_price_wei);
 
     let block_info = ConsensusBlockInfo {
         height: args.proposal_init.height,
@@ -1108,8 +1113,11 @@ async fn is_block_info_valid(
     gas_prices.base_fee_per_gas = gas_prices
         .base_fee_per_gas
         .clamp(min_max_prices.min_l1_gas_price_wei, min_max_prices.max_l1_gas_price_wei);
-    gas_prices.blob_fee = gas_prices
-        .blob_fee
+
+    // TODO(Arni): This value should be an input of this function.
+    let data_gas_price_multiplier: Ratio<u128> = Ratio::from_integer(1);
+    gas_prices.blob_fee = (Ratio::from_integer(gas_prices.blob_fee) * data_gas_price_multiplier)
+        .to_integer()
         .clamp(min_max_prices.min_l1_data_gas_price_wei, min_max_prices.max_l1_data_gas_price_wei);
 
     let l1_gas_price_fri =
