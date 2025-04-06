@@ -200,6 +200,21 @@ pub enum EthereumBaseLayerError {
     UnhandledL1Event(alloy::primitives::Log),
 }
 
+impl PartialEq for EthereumBaseLayerError {
+    fn eq(&self, other: &Self) -> bool {
+        use EthereumBaseLayerError::*;
+        match (self, other) {
+            (Contract(this), Contract(other)) => this.to_string() == other.to_string(),
+            (FeeOutOfRange(this), FeeOutOfRange(other)) => this == other,
+            (RpcError(this), RpcError(other)) => this.to_string() == other.to_string(),
+            (StarknetApiParsingError(this), StarknetApiParsingError(other)) => this == other,
+            (TypeError(this), TypeError(other)) => this == other,
+            (UnhandledL1Event(this), UnhandledL1Event(other)) => this == other,
+            _ => false,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Validate)]
 pub struct EthereumBaseLayerConfig {
     pub node_url: Url,
