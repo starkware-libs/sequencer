@@ -864,6 +864,11 @@
     "pointer_target": "chain_id",
     "privacy": "Public"
   },
+  "consensus_manager_config.context_config.default_eth_to_strk_conversion_rate": {
+    "description": "The eth to strk conversion rate used in case the oracle fails",
+    "privacy": "Public",
+    "value": 1000000000000000000000
+  },
   "consensus_manager_config.context_config.l1_da_mode": {
     "description": "The data availability mode, true: Blob, false: Calldata.",
     "privacy": "Public",
