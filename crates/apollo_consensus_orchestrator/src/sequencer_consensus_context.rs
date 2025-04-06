@@ -262,6 +262,7 @@ struct ProposalBuildArguments {
     fin_sender: oneshot::Sender<ProposalCommitment>,
     batcher: Arc<dyn BatcherClient>,
     eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
+    previous_eth_to_strk_rate: u128,
     state_sync_client: SharedStateSyncClient,
     l1_gas_price_provider_client: Arc<dyn L1GasPriceProviderClient>,
     min_l1_gas_price_wei: u128,
@@ -283,6 +284,7 @@ struct ProposalValidateArguments {
     proposal_id: ProposalId,
     batcher: Arc<dyn BatcherClient>,
     eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
+    previous_eth_to_strk_rate: u128,
     state_sync_client: SharedStateSyncClient,
     l1_gas_price_provider_client: Arc<dyn L1GasPriceProviderClient>,
     min_l1_gas_price_wei: u128,
@@ -345,6 +347,7 @@ impl ConsensusContext for SequencerConsensusContext {
             fin_sender,
             batcher: Arc::clone(&self.batcher),
             eth_to_strk_oracle_client: Arc::clone(&self.eth_to_strk_oracle_client),
+            previous_eth_to_strk_rate: self.previous_block_eth_to_strk_rate,
             state_sync_client: self.state_sync_client.clone(),
             l1_gas_price_provider_client: Arc::clone(&self.l1_gas_price_provider),
             min_l1_gas_price_wei: self.config.min_l1_gas_price_wei,
@@ -715,6 +718,7 @@ impl SequencerConsensusContext {
         let cancel_token_clone = cancel_token.clone();
         let batcher = Arc::clone(&self.batcher);
         let eth_to_strk_oracle_client = self.eth_to_strk_oracle_client.clone();
+        let previous_eth_to_strk_rate = self.previous_block_eth_to_strk_rate;
         let state_sync_client = self.state_sync_client.clone();
         let l1_gas_price_provider_client = self.l1_gas_price_provider.clone();
         let min_l1_gas_price_wei = self.config.min_l1_gas_price_wei;
@@ -735,6 +739,7 @@ impl SequencerConsensusContext {
                     proposal_id,
                     batcher,
                     eth_to_strk_oracle_client,
+                    previous_eth_to_strk_rate,
                     state_sync_client,
                     l1_gas_price_provider_client,
                     min_l1_gas_price_wei,
@@ -816,7 +821,16 @@ async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<Consens
     let batcher_timeout = chrono::Duration::from_std(args.batcher_timeout)
         .expect("Can't convert timeout to chrono::Duration");
     let timestamp = args.clock.now_as_timestamp();
-    let eth_to_fri_rate = args.eth_to_strk_oracle_client.eth_to_fri_rate(timestamp).await?;
+    let eth_to_fri_rate = match args.eth_to_strk_oracle_client.eth_to_fri_rate(timestamp).await {
+        Ok(rate) => rate,
+        Err(e) => {
+            warn!(
+                "Failed to get eth to fri conversion rate, replacing with rate from previous \
+                 block: {e:?}"
+            );
+            args.previous_eth_to_strk_rate
+        }
+    };
     let l1_prices =
         args.l1_gas_price_provider_client.get_price_info(BlockTimestamp(timestamp)).await;
     let mut l1_prices = match l1_prices {
@@ -977,6 +991,7 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
         args.block_info_validation.clone(),
         block_info.clone(),
         args.eth_to_strk_oracle_client,
+        args.previous_eth_to_strk_rate,
         args.clock.as_ref(),
         args.l1_gas_price_provider_client,
         min_max_prices,
@@ -1079,6 +1094,7 @@ async fn is_block_info_valid(
     block_info_validation: BlockInfoValidation,
     block_info: ConsensusBlockInfo,
     eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
+    previous_eth_to_strk_rate: u128,
     clock: &dyn Clock,
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     min_max_prices: GasPriceBounds,
@@ -1097,8 +1113,11 @@ async fn is_block_info_valid(
         match eth_to_strk_oracle_client.eth_to_fri_rate(block_info.timestamp).await {
             Ok(rate) => rate,
             Err(err) => {
-                warn!("Failed to get eth to fri rate: {err:?}");
-                return false;
+                warn!(
+                    "Failed to get eth to fri conversion rate, replacing with rate from previous \
+                     block: {err:?}"
+                );
+                previous_eth_to_strk_rate
             }
         };
     let l1_gas_price_margin_percent =
