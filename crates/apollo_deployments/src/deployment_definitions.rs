@@ -32,7 +32,11 @@ pub const DEPLOYMENTS: &[DeploymentFn] = &[
 // Integration deployments
 fn integration_consolidated_deployment() -> DeploymentAndPreset {
     DeploymentAndPreset::new(
-        Deployment::new(ChainId::IntegrationSepolia, DeploymentName::ConsolidatedNode),
+        Deployment::new(
+            ChainId::IntegrationSepolia,
+            DeploymentName::ConsolidatedNode,
+            String::from("config/sequencer/sepolia_integration/app_configs/consolidated"),
+        ),
         deployment_file_path(Environment::SepoliaIntegration, "integration_consolidated"),
         INTEGRATION_BASE_APP_CONFIG_PATH,
     )
@@ -41,7 +45,11 @@ fn integration_consolidated_deployment() -> DeploymentAndPreset {
 // System test deployments
 fn system_test_distributed_deployment() -> DeploymentAndPreset {
     DeploymentAndPreset::new(
-        Deployment::new(ChainId::IntegrationSepolia, DeploymentName::DistributedNode),
+        Deployment::new(
+            ChainId::IntegrationSepolia,
+            DeploymentName::DistributedNode,
+            String::from("config/sequencer/testing/app_configs/distributed"),
+        ),
         deployment_file_path(Environment::Testing, "deployment_test_distributed"),
         SYSTEM_TEST_BASE_APP_CONFIG_PATH,
     )
@@ -49,7 +57,11 @@ fn system_test_distributed_deployment() -> DeploymentAndPreset {
 
 fn system_test_consolidated_deployment() -> DeploymentAndPreset {
     DeploymentAndPreset::new(
-        Deployment::new(ChainId::IntegrationSepolia, DeploymentName::ConsolidatedNode),
+        Deployment::new(
+            ChainId::IntegrationSepolia,
+            DeploymentName::ConsolidatedNode,
+            String::from("config/sequencer/testing/app_configs/consolidated"),
+        ),
         deployment_file_path(Environment::Testing, "deployment_test_consolidated"),
         SYSTEM_TEST_BASE_APP_CONFIG_PATH,
     )

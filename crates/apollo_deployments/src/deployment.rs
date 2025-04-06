@@ -56,14 +56,18 @@ pub struct Deployment {
 }
 
 impl Deployment {
-    pub fn new(chain_id: ChainId, deployment_name: DeploymentName) -> Self {
+    pub fn new(
+        chain_id: ChainId,
+        deployment_name: DeploymentName,
+        application_config_subdir: String,
+    ) -> Self {
         let service_names = deployment_name.all_service_names();
         let services =
             service_names.iter().map(|service_name| service_name.create_service()).collect();
         Self {
             chain_id,
             image: DEPLOYMENT_IMAGE,
-            application_config_subdir: deployment_name.get_path(),
+            application_config_subdir,
             deployment_name,
             services,
         }
