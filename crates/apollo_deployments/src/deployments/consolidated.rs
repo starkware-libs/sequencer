@@ -5,7 +5,11 @@ use strum::Display;
 use strum_macros::{AsRefStr, EnumIter};
 
 use crate::service::{
+    Controller,
+    ExternalSecret,
     GetComponentConfigs,
+    Ingress,
+    IngressRule,
     Resource,
     Resources,
     Service,
@@ -41,12 +45,22 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
         match self {
             ConsolidatedNodeServiceName::Node => Service::new(
                 Into::<ServiceName>::into(*self),
-                false,
+                Controller::StatefulSet,
+                Ingress::new(
+                    String::from("sw-dev.io"),
+                    true,
+                    vec![
+                        IngressRule::new(String::from("/gateway"), 8080),
+                        IngressRule::new(String::from("/feeder-gateway"), 8080),
+                    ],
+                    vec![],
+                ),
                 false,
                 1,
                 Some(32),
-                Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                 None,
+                Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
+                Some(ExternalSecret::new("sequencer-dev-secrets")),
             ),
         }
     }
