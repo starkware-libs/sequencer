@@ -198,6 +198,20 @@
         "type": "stat",
         "expr": "sum  by (cende_write_failure_reason) (cende_write_blob_failure)",
         "extra_params": {}
+      },
+      {
+        "title": "consensus_l1_data_gas_mismatch",
+        "description": "The number of times the L1 data gas in a proposal does not match the value expected by this validator",
+        "type": "stat",
+        "expr": "consensus_l1_data_gas_mismatch",
+        "extra_params": {}
+      },
+      {
+        "title": "consensus_l1_gas_mismatch",
+        "description": "The number of times the L1 gas in a proposal does not match the value expected by this validator",
+        "type": "stat",
+        "expr": "consensus_l1_gas_mismatch",
+        "extra_params": {}
       }
     ],
     "Http Server": [
