@@ -19,7 +19,7 @@ pub enum CompilationArtifacts {
 }
 
 pub fn cairo1_compiler_tag() -> String {
-    format!("v{}", cairo1_compiler_version())
+    format!("v{}", cairo1_compiler_version().replace('=', ""))
 }
 
 /// Returns the path to the local Cairo1 compiler repository.
