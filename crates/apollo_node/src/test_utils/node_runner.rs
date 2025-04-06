@@ -3,7 +3,6 @@ use std::path::PathBuf;
 use std::process::Stdio;
 
 use apollo_infra_utils::command::create_shell_command;
-use apollo_infra_utils::path::resolve_project_relative_path;
 use tokio::fs::File;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::Child;
@@ -11,7 +10,6 @@ use tokio::task;
 use tokio_util::task::AbortOnDropHandle;
 use tracing::{error, info, instrument};
 
-pub const NODE_EXECUTABLE_PATH: &str = "target/debug/apollo_node";
 const TEMP_LOGS_DIR: &str = "integration_test_temporary_logs";
 
 #[derive(Debug, Clone)]
@@ -58,7 +56,7 @@ async fn spawn_node_child_process(
     node_runner: NodeRunner,
 ) -> (Child, Child, AbortOnDropHandle<()>) {
     info!("Getting the node executable.");
-    let node_executable = get_node_executable_path();
+    let node_executable = std::env::var("CARGO_BIN_EXE_apollo_node").unwrap();
 
     let config_file_args: Vec<String> = node_config_paths
         .into_iter()
@@ -134,17 +132,4 @@ async fn spawn_node_child_process(
     }));
 
     (node_process, annotator_process, pipe_task)
-}
-
-pub fn get_node_executable_path() -> String {
-    resolve_project_relative_path(NODE_EXECUTABLE_PATH).map_or_else(
-        |_| {
-            error!(
-                "Sequencer node binary is not present. Please compile it using 'cargo build --bin \
-                 apollo_node' command."
-            );
-            panic!("Node executable should be available");
-        },
-        |path| path.to_string_lossy().to_string(),
-    )
 }

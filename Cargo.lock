@@ -1659,6 +1659,7 @@ dependencies = [
 name = "apollo_node"
 version = "0.0.0"
 dependencies = [
+ "alloy",
  "anyhow",
  "apollo_batcher",
  "apollo_batcher_types",
@@ -1682,9 +1683,11 @@ dependencies = [
  "apollo_mempool_p2p_types",
  "apollo_mempool_types",
  "apollo_monitoring_endpoint",
+ "apollo_network",
  "apollo_reverts",
  "apollo_state_sync",
  "apollo_state_sync_types",
+ "apollo_storage",
  "assert_matches",
  "clap",
  "colored 3.0.0",
@@ -1696,6 +1699,7 @@ dependencies = [
  "rstest",
  "serde",
  "serde_json",
+ "starknet_api",
  "tikv-jemallocator",
  "tokio",
  "tokio-util",

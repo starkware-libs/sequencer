@@ -53,11 +53,18 @@ tracing.workspace = true
 validator.workspace = true
 
 [dev-dependencies]
+alloy = { workspace = true, features = ["node-bindings"] }
+apollo_http_server = { workspace = true, features = ["testing"] }
 apollo_infra_utils = { workspace = true, features = ["testing"] }
+apollo_monitoring_endpoint = { workspace = true, features = ["testing"] }
+apollo_network = { workspace = true, features = ["testing"] }
+papyrus_base_layer = { workspace = true, features = ["testing"] }
+apollo_storage = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
 colored.workspace = true
 mempool_test_utils.workspace = true
 pretty_assertions.workspace = true
+starknet_api.workspace = true
 tokio-util = { workspace = true, features = ["rt"] }
 
 [package.metadata.cargo-machete]
