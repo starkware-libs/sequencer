@@ -184,6 +184,13 @@ expression: dumped_default_config
     "value": "SN_MAIN",
     "privacy": "Public"
   },
+  "context.data_gas_price_multiplier": {
+    "description": "Multiplicative factor to apply to the sampled data gas price, to enable fine-tuning of the actual price to use in case of blob under-utilization.",
+    "value": {
+      "$serde_json::private::Number": "1.0"
+    },
+    "privacy": "Public"
+  },
   "context.l1_da_mode": {
     "description": "The data availability mode, true: Blob, false: Calldata.",
     "value": true,
