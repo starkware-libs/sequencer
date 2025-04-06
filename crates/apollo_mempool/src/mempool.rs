@@ -192,7 +192,7 @@ impl AddTransactionQueue {
     fn push_back(&mut self, submission_time: Instant, args: AddTransactionArgs) {
         self.size_in_bytes = self
             .size_in_bytes
-            .checked_add(args.tx.size_of())
+            .checked_add(args.tx.total_bytes())
             .expect("Overflow when adding a transaction to AddTransactionQueue.");
         self.elements.push_back((submission_time, args));
     }
@@ -202,7 +202,7 @@ impl AddTransactionQueue {
         if let Some((_, args)) = &removed_element {
             self.size_in_bytes = self
                 .size_in_bytes
-                .checked_sub(args.tx.size_of())
+                .checked_sub(args.tx.total_bytes())
                 .expect("Underflow when removing a transaction from AddTransactionQueue.");
         }
         removed_element
@@ -634,7 +634,7 @@ impl Mempool {
 
     // Returns true if the mempool will exceeds its capacity by adding the given transaction.
     fn exceeds_capacity(&self, tx: &InternalRpcTransaction) -> bool {
-        self.size_in_bytes() + tx.size_of() > self.config.capacity_in_bytes
+        self.size_in_bytes() + tx.total_bytes() > self.config.capacity_in_bytes
     }
 
     #[cfg(test)]
