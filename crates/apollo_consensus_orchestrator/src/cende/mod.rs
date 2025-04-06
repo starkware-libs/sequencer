@@ -232,8 +232,10 @@ async fn send_write_blob(request_builder: RequestBuilder, blob: &AerospikeBlob) 
         Ok(response) => {
             if response.status().is_success() {
                 info!(
-                    "Blob with block number {} was written to Aerospike successfully.",
-                    blob.block_number
+                    "Blob with block number {} and {} transactions was written to Aerospike \
+                     successfully.",
+                    blob.block_number,
+                    blob.transactions.len(),
                 );
                 print_write_blob_response(response).await;
 
