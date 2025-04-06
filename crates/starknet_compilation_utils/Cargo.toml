@@ -1,13 +1,7 @@
 [package]
 edition.workspace = true
 license.workspace = true
-<<<<<<<< HEAD:crates/apollo_sierra_multicompile/Cargo.toml
-name = "apollo_sierra_multicompile"
-|||||||| 05c74b1e9:crates/starknet_sierra_multicompile/Cargo.toml
-name = "starknet_sierra_multicompile"
-========
 name = "starknet_compilation_utils"
->>>>>>>> origin/main-v0.13.5:crates/starknet_compilation_utils/Cargo.toml
 repository.workspace = true
 version.workspace = true
 description = "A utility crate for Sierra compilation related code."
@@ -35,32 +29,11 @@ starknet-types-core.workspace = true
 starknet_api.workspace = true
 tempfile.workspace = true
 thiserror.workspace = true
-<<<<<<<< HEAD:crates/apollo_sierra_multicompile/Cargo.toml
-tracing.workspace = true
-validator.workspace = true
-|||||||| 05c74b1e9:crates/starknet_sierra_multicompile/Cargo.toml
-validator.workspace = true
-========
->>>>>>>> origin/main-v0.13.5:crates/starknet_compilation_utils/Cargo.toml
 
 [dev-dependencies]
 apollo_infra_utils.workspace = true
 assert_matches.workspace = true
-<<<<<<<< HEAD:crates/apollo_sierra_multicompile/Cargo.toml
-mempool_test_utils.workspace = true
-|||||||| 05c74b1e9:crates/starknet_sierra_multicompile/Cargo.toml
-mempool_test_utils.path = "../mempool_test_utils"
-========
->>>>>>>> origin/main-v0.13.5:crates/starknet_compilation_utils/Cargo.toml
 rstest.workspace = true
-<<<<<<<< HEAD:crates/apollo_sierra_multicompile/Cargo.toml
-starknet_api.workspace = true
-toml_test_utils.workspace = true
-|||||||| 05c74b1e9:crates/starknet_sierra_multicompile/Cargo.toml
-starknet_infra_utils.path = "../starknet_infra_utils"
-toml_test_utils.path = "../../toml_test_utils"
-========
->>>>>>>> origin/main-v0.13.5:crates/starknet_compilation_utils/Cargo.toml
 
 [build-dependencies]
 apollo_infra_utils.workspace = true

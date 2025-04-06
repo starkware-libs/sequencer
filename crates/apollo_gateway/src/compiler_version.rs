@@ -2,16 +2,10 @@ use std::collections::BTreeMap;
 
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use apollo_sierra_multicompile::utils::sierra_program_as_felts_to_big_uint_as_hex;
 use cairo_lang_starknet_classes::compiler_version::VersionId as CairoLangVersionId;
 use cairo_lang_starknet_classes::contract_class::version_id_from_serialized_sierra_program;
 use serde::{Deserialize, Serialize};
-<<<<<<< HEAD:crates/apollo_gateway/src/compiler_version.rs
-||||||| 05c74b1e9:crates/starknet_gateway/src/compiler_version.rs
-use starknet_sierra_multicompile::utils::sierra_program_as_felts_to_big_uint_as_hex;
-=======
 use starknet_compilation_utils::class_utils::sierra_program_as_felts_to_big_uint_as_hex;
->>>>>>> origin/main-v0.13.5:crates/starknet_gateway/src/compiler_version.rs
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
 

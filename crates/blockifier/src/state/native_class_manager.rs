@@ -2,26 +2,14 @@ use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
 use std::sync::Arc;
 use std::time::Instant;
 
-use apollo_sierra_multicompile::command_line_compiler::CommandLineCompiler;
-use apollo_sierra_multicompile::errors::CompilationUtilError;
-use apollo_sierra_multicompile::utils::into_contract_class_for_compilation;
-use apollo_sierra_multicompile::SierraToNativeCompiler;
 #[cfg(any(feature = "testing", test))]
 use cached::Cached;
 use log;
 use starknet_api::core::ClassHash;
 use starknet_api::state::SierraContractClass;
-<<<<<<< HEAD
-||||||| 05c74b1e9
-use starknet_sierra_multicompile::command_line_compiler::CommandLineCompiler;
-use starknet_sierra_multicompile::errors::CompilationUtilError;
-use starknet_sierra_multicompile::utils::into_contract_class_for_compilation;
-use starknet_sierra_multicompile::SierraToNativeCompiler;
-=======
 use starknet_compilation_utils::class_utils::into_contract_class_for_compilation;
 use starknet_compilation_utils::errors::CompilationUtilError;
 use starknet_compile_to_native::compiler::SierraToNativeCompiler;
->>>>>>> origin/main-v0.13.5
 use thiserror::Error;
 
 use crate::blockifier::config::{

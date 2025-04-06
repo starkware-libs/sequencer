@@ -3,7 +3,6 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use apollo_sierra_multicompile::config::SierraCompilationConfig;
 use blockifier::abi::constants;
 use blockifier::blockifier::config::{
     CairoNativeRunConfig,
@@ -19,12 +18,7 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pyo3::prelude::*;
 use starknet_api::core::ClassHash;
 use starknet_api::execution_resources::GasAmount;
-<<<<<<< HEAD
-||||||| 05c74b1e9
-use starknet_sierra_multicompile::config::SierraCompilationConfig;
-=======
 use starknet_compile_to_native::config::SierraCompilationConfig;
->>>>>>> origin/main-v0.13.5
 
 use crate::errors::{NativeBlockifierError, NativeBlockifierResult};
 use crate::py_utils::PyFelt;

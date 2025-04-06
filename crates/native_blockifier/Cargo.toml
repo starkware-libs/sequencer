@@ -8,17 +8,9 @@ description = "A Bridge between the Rust blockifier crate and Python."
 
 [features]
 cairo_native = [
-  "apollo_sierra_multicompile/cairo_native",
   "apollo_state_reader/cairo_native",
   "blockifier/cairo_native",
-<<<<<<< HEAD
-||||||| 05c74b1e9
-  "papyrus_state_reader/cairo_native",
-  "starknet_sierra_multicompile/cairo_native",
-=======
-  "papyrus_state_reader/cairo_native",
   "starknet_compile_to_native/cairo_native",
->>>>>>> origin/main-v0.13.5
 ]
 # Required for `cargo test` to work with Pyo3.
 # On Python, make sure to compile this with the extension-module feature enabled.
@@ -39,7 +31,6 @@ name = "native_blockifier"
 crate-type = ["cdylib"]
 
 [dependencies]
-apollo_sierra_multicompile.workspace = true
 apollo_state_reader.workspace = true
 apollo_storage.workspace = true
 blockifier = { workspace = true, features = ["native_blockifier"] }
@@ -54,12 +45,7 @@ serde_json = { workspace = true, features = ["arbitrary_precision"] }
 shared_execution_objects.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
-<<<<<<< HEAD
-||||||| 05c74b1e9
-starknet_sierra_multicompile.workspace = true
-=======
 starknet_compile_to_native.workspace = true
->>>>>>> origin/main-v0.13.5
 thiserror.workspace = true
 
 [dev-dependencies]

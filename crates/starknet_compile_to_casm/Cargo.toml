@@ -10,19 +10,25 @@ description = "A utility crate for compiling Sierra code into CASM."
 workspace = true
 
 [dependencies]
+apollo_config.workspace = true
+apollo_infra.workspace = true
+apollo_sierra_multicompile_types.workspace = true
+async-trait.workspace = true
 cairo-lang-starknet-classes.workspace = true
-papyrus_config.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+starknet_api.workspace = true
 starknet_compilation_utils.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
 validator.workspace = true
 
 [dev-dependencies]
+apollo_infra_utils.workspace = true
 assert_matches.workspace = true
-mempool_test_utils.path = "../mempool_test_utils"
-starknet_compilation_utils = { path = "../starknet_compilation_utils", features = ["testing"] }
-starknet_infra_utils.path = "../starknet_infra_utils"
+mempool_test_utils.workspace = true
+starknet_compilation_utils = { workspace = true, features = ["testing"] }
 
 [build-dependencies]
+apollo_infra_utils.workspace = true
 starknet_compilation_utils.workspace = true
-starknet_infra_utils.workspace = true

@@ -10,8 +10,6 @@ fn main() {
     install_starknet_sierra_compile();
 }
 
-const REQUIRED_CAIRO_LANG_VERSION: &str = "2.7.1";
-
 /// Installs the `starknet-sierra-compile` binary from the Cairo crate on StarkWare's release page
 /// and moves it into `target` directory. The `starknet-sierra-compile` binary is used to compile
 /// Sierra to Casm. The binary is executed as a subprocess whenever Sierra compilation is required.

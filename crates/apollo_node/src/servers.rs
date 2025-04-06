@@ -85,12 +85,12 @@ use apollo_mempool_p2p::propagator::{
 };
 use apollo_mempool_p2p::runner::MempoolP2pRunnerServer;
 use apollo_monitoring_endpoint::communication::MonitoringEndpointServer;
-use apollo_sierra_multicompile::communication::LocalSierraCompilerServer;
 use apollo_state_sync::runner::StateSyncRunnerServer;
 use apollo_state_sync::{LocalStateSyncServer, RemoteStateSyncServer};
 use futures::stream::FuturesUnordered;
 use futures::{Future, FutureExt, StreamExt};
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
+use starknet_compile_to_casm::communication::LocalSierraCompilerServer;
 
 use crate::clients::SequencerNodeClients;
 use crate::communication::SequencerNodeCommunication;

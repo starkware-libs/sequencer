@@ -41,10 +41,10 @@ apollo_mempool_p2p_types.workspace = true
 apollo_mempool_types.workspace = true
 apollo_monitoring_endpoint.workspace = true
 apollo_infra.workspace = true
-apollo_sierra_multicompile.workspace = true
 apollo_sierra_multicompile_types.workspace = true
 apollo_state_sync.workspace = true
 apollo_state_sync_types.workspace = true
+starknet_compile_to_casm.workspace = true
 tikv-jemallocator.workspace = true
 tokio-util = { workspace = true, optional = true, features = ["rt"] }
 tokio.workspace = true

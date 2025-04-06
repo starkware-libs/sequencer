@@ -6,7 +6,7 @@ repository.workspace = true
 license.workspace = true
 
 [features]
-cairo_native = ["apollo_batcher/cairo_native", "dep:apollo_sierra_multicompile"]
+cairo_native = ["apollo_batcher/cairo_native", "dep:starknet_compile_to_native"]
 
 [lints]
 workspace = true
@@ -33,7 +33,6 @@ apollo_monitoring_endpoint = { workspace = true, features = ["testing"] }
 apollo_network = { workspace = true, features = ["testing"] }
 apollo_node = { workspace = true, features = ["testing"] }
 apollo_protobuf.workspace = true
-apollo_sierra_multicompile = { workspace = true, optional = true }
 apollo_state_sync.workspace = true
 apollo_storage = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
@@ -50,6 +49,7 @@ serde.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
+starknet_compile_to_native = { workspace = true, optional = true }
 strum.workspace = true
 tempfile.workspace = true
 tokio.workspace = true

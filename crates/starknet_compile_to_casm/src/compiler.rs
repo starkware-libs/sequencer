@@ -6,6 +6,7 @@ use starknet_compilation_utils::compiler_utils::compile_with_args;
 use starknet_compilation_utils::errors::CompilationUtilError;
 use starknet_compilation_utils::paths::binary_path;
 use starknet_compilation_utils::resource_limits::ResourceLimits;
+use tracing::info;
 
 use crate::config::SierraCompilationConfig;
 use crate::constants::CAIRO_LANG_BINARY_NAME;
@@ -18,7 +19,9 @@ pub struct SierraToCasmCompiler {
 
 impl SierraToCasmCompiler {
     pub fn new(config: SierraCompilationConfig) -> Self {
-        Self { config, path_to_binary: binary_path(&out_dir(), CAIRO_LANG_BINARY_NAME) }
+        let path_to_binary = binary_path(&out_dir(), CAIRO_LANG_BINARY_NAME);
+        info!("Using Sierra compiler binary at: {:?}", path_to_binary);
+        Self { config, path_to_binary }
     }
 
     pub fn compile(

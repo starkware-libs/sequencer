@@ -34,8 +34,6 @@ use apollo_network::NetworkConfig;
 use apollo_node::config::component_config::ComponentConfig;
 use apollo_node::config::definitions::ConfigPointersMap;
 use apollo_node::config::node_config::{SequencerNodeConfig, CONFIG_POINTERS};
-#[cfg(feature = "cairo_native")]
-use apollo_sierra_multicompile::config::SierraCompilationConfig;
 use apollo_state_sync::config::StateSyncConfig;
 use apollo_storage::StorageConfig;
 use axum::extract::Query;
@@ -73,6 +71,8 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::fields::ContractAddressSalt;
 use starknet_api::transaction::{TransactionHash, TransactionHasher};
+#[cfg(feature = "cairo_native")]
+use starknet_compile_to_native::config::SierraCompilationConfig;
 use starknet_types_core::felt::Felt;
 use tokio::task::JoinHandle;
 use tracing::{debug, info, Instrument};

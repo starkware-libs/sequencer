@@ -10,23 +10,12 @@ description = "The transaction-executing component in the Starknet sequencer."
 workspace = true
 
 [features]
-<<<<<<< HEAD
 cairo_native = [
-  "apollo_sierra_multicompile/cairo_native",
   "blockifier_test_utils/cairo_native",
-  "dep:cairo-native",
-]
-||||||| 05c74b1e9
-cairo_native = ["dep:cairo-native", "starknet_sierra_multicompile/cairo_native"]
-jemalloc = ["dep:tikv-jemallocator"]
-=======
-cairo_native = [
   "dep:cairo-native",
   "starknet_compilation_utils/cairo_native",
   "starknet_compile_to_native/cairo_native",
 ]
-jemalloc = ["dep:tikv-jemallocator"]
->>>>>>> origin/main-v0.13.5
 native_blockifier = []
 node_api = []
 reexecution = ["transaction_serde"]
@@ -71,17 +60,9 @@ serde_json = { workspace = true, features = ["arbitrary_precision"] }
 sha2.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
-<<<<<<< HEAD
 apollo_infra_utils.workspace = true
-apollo_sierra_multicompile.workspace = true
-||||||| 05c74b1e9
-starknet_infra_utils.workspace = true
-starknet_sierra_multicompile.workspace = true
-=======
 starknet_compilation_utils = { workspace = true, optional = true }
 starknet_compile_to_native.workspace = true
-starknet_infra_utils.workspace = true
->>>>>>> origin/main-v0.13.5
 strum.workspace = true
 strum_macros.workspace = true
 thiserror.workspace = true
