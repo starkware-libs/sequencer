@@ -195,6 +195,7 @@ pub struct SequencerConsensusContext {
     l1_da_mode: L1DataAvailabilityMode,
     last_block_timestamp: Option<u64>,
     clock: Arc<dyn Clock>,
+    previous_block_info: Option<ConsensusBlockInfo>,
 }
 pub struct SequencerConsensusContextDeps {
     pub class_manager_client: SharedClassManagerClient,
@@ -247,6 +248,7 @@ impl SequencerConsensusContext {
             l1_da_mode,
             last_block_timestamp: None,
             clock: context_deps.clock,
+            previous_block_info: None,
         }
     }
 }
@@ -596,7 +598,7 @@ impl ConsensusContext for SequencerConsensusContext {
             .inspect_err(|e| {
                 error!("Failed to prepare blob for next height: {e:?}");
             });
-
+        self.previous_block_info = Some(block_info);
         Ok(())
     }
 
