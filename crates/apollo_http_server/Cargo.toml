@@ -25,6 +25,7 @@ apollo_infra_utils.workspace = true
 apollo_metrics.workspace = true
 axum.workspace = true
 blockifier_test_utils = { workspace = true, optional = true }
+futures.workspace = true
 hyper.workspace = true
 jsonrpsee = { workspace = true, features = ["full"] }
 mempool_test_utils = { workspace = true, optional = true }
@@ -45,7 +46,6 @@ base64.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
 flate2.workspace = true
-futures.workspace = true
 mempool_test_utils.workspace = true
 metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
