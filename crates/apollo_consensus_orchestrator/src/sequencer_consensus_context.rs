@@ -56,6 +56,7 @@ use async_trait::async_trait;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use futures::channel::{mpsc, oneshot};
 use futures::{FutureExt, SinkExt, StreamExt};
+use num_traits::ToPrimitive;
 use starknet_api::block::{
     BlockHash,
     BlockHashAndNumber,
@@ -808,6 +809,28 @@ async fn build_proposal(mut args: ProposalBuildArguments) {
     }
 }
 
+/// Multiplies `multiplicand` by a fractional `factor` with fixed-point precision.
+///
+/// Assumes that `factor` is a non-negative decimal less than 1.0,
+/// with up to three digits of precision (i.e., at most 3 digits after the decimal point).
+///
+/// Rounds the result down to the nearest integer.
+/// Uses a scale factor of 1,000 to simulate fixed-point arithmetic.
+fn functional_mul(multiplicand: u128, factor: f64) -> u128 {
+    const SCALE: u128 = 1_000;
+    let scaled_multiplier = (factor * SCALE.to_f64().expect("Failed to convert scale to f64."))
+        .floor()
+        .to_u128()
+        .expect("Failed to convert gas price multiplier");
+    multiplicand.saturating_mul(scaled_multiplier) / SCALE
+}
+
+// fn conversion_mul(multiplicand: u128, factor: f64) -> u128 {
+//     // Convert a to f64. This may lose precision for very large u128 values.
+//     let a_f64 = multiplicand.to_f64().expect("Failed to convert multiplicand to f64.");
+//     (a_f64 * factor).to_u128().expect("Failed to convert product to u128.")
+// }
+
 async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<ConsensusBlockInfo> {
     let batcher_timeout = chrono::Duration::from_std(args.batcher_timeout)
         .expect("Can't convert timeout to chrono::Duration");
@@ -827,8 +850,11 @@ async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<Consens
     };
     l1_prices.base_fee_per_gas =
         l1_prices.base_fee_per_gas.clamp(args.min_l1_gas_price_wei, args.max_l1_gas_price_wei);
-    l1_prices.blob_fee =
-        l1_prices.blob_fee.clamp(args.min_l1_data_gas_price_wei, args.max_l1_data_gas_price_wei);
+
+    // TODO(Arni): This value should be an input of this function.
+    let data_gas_price_multiplier: f64 = 1.0;
+    l1_prices.blob_fee = functional_mul(l1_prices.blob_fee, data_gas_price_multiplier)
+        .clamp(args.min_l1_data_gas_price_wei, args.max_l1_data_gas_price_wei);
 
     let block_info = ConsensusBlockInfo {
         height: args.proposal_init.height,

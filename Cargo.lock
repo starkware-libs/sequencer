@@ -995,6 +995,7 @@ dependencies = [
  "mockall",
  "mockito 1.6.1",
  "num-bigint 0.4.6",
+ "num-traits",
  "paste",
  "reqwest 0.11.27",
  "rstest",
