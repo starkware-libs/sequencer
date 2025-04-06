@@ -37,7 +37,12 @@ use apollo_consensus::types::{
     ValidatorId,
 };
 use apollo_l1_gas_price_types::errors::{EthToStrkOracleClientError, L1GasPriceClientError};
-use apollo_l1_gas_price_types::{EthToStrkOracleClientTrait, L1GasPriceProviderClient, PriceInfo};
+use apollo_l1_gas_price_types::{
+    EthToStrkOracleClientTrait,
+    L1GasPriceProviderClient,
+    PriceInfo,
+    DEFAULT_ETH_IN_FRI,
+};
 use apollo_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use apollo_protobuf::consensus::{
     ConsensusBlockInfo,
@@ -275,6 +280,7 @@ struct ProposalBuildArguments {
     builder_address: ContractAddress,
     cancel_token: CancellationToken,
     clock: Arc<dyn Clock>,
+    previous_block_info: Option<ConsensusBlockInfo>,
 }
 
 struct ProposalValidateArguments {
@@ -296,6 +302,7 @@ struct ProposalValidateArguments {
     cancel_token: CancellationToken,
     transaction_converter: TransactionConverter,
     clock: Arc<dyn Clock>,
+    previous_block_info: Option<ConsensusBlockInfo>,
 }
 
 #[async_trait]
@@ -358,6 +365,7 @@ impl ConsensusContext for SequencerConsensusContext {
             builder_address: self.config.builder_address,
             cancel_token,
             clock: self.clock.clone(),
+            previous_block_info: self.previous_block_info.clone(),
         };
         let handle = tokio::spawn(
             async move {
@@ -739,6 +747,7 @@ impl SequencerConsensusContext {
         let valid_proposals = Arc::clone(&self.valid_proposals);
         let proposal_id = ProposalId(self.proposal_id);
         let clock = self.clock.clone();
+        let previous_block_info = self.previous_block_info.clone();
         self.proposal_id += 1;
 
         info!(?timeout, %proposal_id, %proposer, round=self.current_round, "Validating proposal.");
@@ -763,6 +772,7 @@ impl SequencerConsensusContext {
                     cancel_token: cancel_token_clone,
                     transaction_converter,
                     clock,
+                    previous_block_info,
                 })
                 .await
             }
@@ -830,7 +840,18 @@ async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<Consens
     let batcher_timeout = chrono::Duration::from_std(args.batcher_timeout)
         .expect("Can't convert timeout to chrono::Duration");
     let timestamp = args.clock.now_as_timestamp();
-    let eth_to_fri_rate = args.eth_to_strk_oracle_client.eth_to_fri_rate(timestamp).await?;
+    let eth_to_fri_rate = match args.eth_to_strk_oracle_client.eth_to_fri_rate(timestamp).await {
+        Ok(rate) => rate,
+        Err(e) => {
+            warn!("Failed to get eth to fri rate, replacing with value from previous block: {e:?}");
+            if let Some(previous_block_info) = args.previous_block_info.as_ref() {
+                previous_block_info.eth_to_fri_rate
+            } else {
+                warn!("No previous block info available, using default value.");
+                DEFAULT_ETH_IN_FRI
+            }
+        }
+    };
     let l1_prices =
         args.l1_gas_price_provider_client.get_price_info(BlockTimestamp(timestamp)).await;
     let mut l1_prices = match l1_prices {
@@ -994,6 +1015,7 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
         args.clock.as_ref(),
         args.l1_gas_price_provider_client,
         min_max_prices,
+        args.previous_block_info.clone(),
     )
     .await
     {
@@ -1096,6 +1118,7 @@ async fn is_block_info_valid(
     clock: &dyn Clock,
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     min_max_prices: GasPriceBounds,
+    previous_block_info: Option<ConsensusBlockInfo>,
 ) -> bool {
     let now: u64 = clock.now_as_timestamp();
     // TODO(Asmaa): Validate the rest of the block info.
@@ -1107,14 +1130,21 @@ async fn is_block_info_valid(
     {
         return false;
     }
-    let eth_to_fri_rate =
-        match eth_to_strk_oracle_client.eth_to_fri_rate(block_info.timestamp).await {
-            Ok(rate) => rate,
-            Err(err) => {
-                warn!("Failed to get eth to fri rate: {err:?}");
-                return false;
+    let eth_to_fri_rate = match eth_to_strk_oracle_client
+        .eth_to_fri_rate(block_info.timestamp)
+        .await
+    {
+        Ok(rate) => rate,
+        Err(e) => {
+            warn!("Failed to get eth to fri rate, replacing with value from previous block: {e:?}");
+            if let Some(previous_block_info) = previous_block_info.as_ref() {
+                previous_block_info.eth_to_fri_rate
+            } else {
+                warn!("No previous block info available, using default value.");
+                DEFAULT_ETH_IN_FRI
             }
-        };
+        }
+    };
     let l1_gas_price_margin_percent =
         VersionedConstants::latest_constants().l1_gas_price_margin_percent.into();
     let gas_prices =
