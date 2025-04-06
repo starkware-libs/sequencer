@@ -162,6 +162,7 @@
   "consensus_manager_config.context_config.block_timestamp_window_seconds": 1,
   "consensus_manager_config.context_config.build_proposal_margin_millis": 1000,
   "consensus_manager_config.context_config.builder_address": "0x4",
+  "consensus_manager_config.context_config.data_gas_price_multiplier": 1.0,
   "consensus_manager_config.context_config.l1_da_mode": true,
   "consensus_manager_config.context_config.num_validators": 1,
   "consensus_manager_config.context_config.proposal_buffer_size": 100,

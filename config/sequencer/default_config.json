@@ -869,6 +869,11 @@
     "pointer_target": "chain_id",
     "privacy": "Public"
   },
+  "consensus_manager_config.context_config.data_gas_price_multiplier": {
+    "description": "Multiplicative factor to apply to the sampled data gas price, to enable fine-tuning of the actual price.",
+    "privacy": "Public",
+    "value": 1.0
+  },
   "consensus_manager_config.context_config.l1_da_mode": {
     "description": "The data availability mode, true: Blob, false: Calldata.",
     "privacy": "Public",
