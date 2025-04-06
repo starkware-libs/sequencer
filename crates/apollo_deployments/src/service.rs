@@ -9,10 +9,6 @@ use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 use crate::deployments::consolidated::ConsolidatedNodeServiceName;
 use crate::deployments::distributed::DistributedNodeServiceName;
 
-const DEPLOYMENT_CONFIG_BASE_DIR_PATH: &str = "config/sequencer/presets";
-// TODO(Tsabary): need to distinguish between test and production configs in dir structure.
-const APPLICATION_CONFIG_DIR_NAME: &str = "application_configs";
-
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Service {
     name: ServiceName,
@@ -133,10 +129,6 @@ impl DeploymentName {
                 DistributedNodeServiceName::iter().map(ServiceName::DistributedNode).collect()
             }
         }
-    }
-
-    pub fn get_path(&self) -> String {
-        format!("{}/{}/{}/", DEPLOYMENT_CONFIG_BASE_DIR_PATH, self, APPLICATION_CONFIG_DIR_NAME)
     }
 
     pub fn get_component_configs(

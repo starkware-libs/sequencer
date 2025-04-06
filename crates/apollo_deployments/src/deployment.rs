@@ -1,5 +1,3 @@
-#[cfg(test)]
-use std::path::Path;
 use std::path::PathBuf;
 
 use apollo_infra_utils::dumping::serialize_to_file;
@@ -49,7 +47,7 @@ impl DeploymentAndPreset {
 pub struct Deployment {
     chain_id: ChainId,
     image: &'static str,
-    application_config_subdir: String,
+    application_config_subdir: PathBuf,
     #[serde(skip_serializing)]
     deployment_name: DeploymentName,
     services: Vec<Service>,
@@ -59,7 +57,7 @@ impl Deployment {
     pub fn new(
         chain_id: ChainId,
         deployment_name: DeploymentName,
-        application_config_subdir: String,
+        application_config_subdir: PathBuf,
     ) -> Self {
         let service_names = deployment_name.all_service_names();
         let services =
@@ -104,8 +102,7 @@ impl Deployment {
     pub fn dump_application_config_files(&self, base_app_config_file_path: &str) {
         let app_configs = self.application_config_values(base_app_config_file_path);
         for (service, value) in app_configs.into_iter() {
-            let config_path =
-                PathBuf::from(&self.application_config_subdir).join(service.get_config_file_path());
+            let config_path = &self.application_config_subdir.join(service.get_config_file_path());
             serialize_to_file(
                 value,
                 config_path.to_str().expect("Should be able to convert path to string"),
@@ -117,8 +114,7 @@ impl Deployment {
     pub(crate) fn assert_application_configs_exist(&self) {
         for service in &self.services {
             // Concatenate paths.
-            let subdir_path = Path::new(&self.application_config_subdir);
-            let full_path = subdir_path.join(service.get_config_path());
+            let full_path = &self.application_config_subdir.join(service.get_config_path());
             // Assert existence.
             assert!(full_path.exists(), "File does not exist: {:?}", full_path);
         }
@@ -128,8 +124,7 @@ impl Deployment {
     pub fn test_dump_application_config_files(&self, base_app_config_file_path: &str) {
         let app_configs = self.application_config_values(base_app_config_file_path);
         for (service, value) in app_configs.into_iter() {
-            let config_path =
-                PathBuf::from(&self.application_config_subdir).join(service.get_config_file_path());
+            let config_path = &self.application_config_subdir.join(service.get_config_file_path());
             serialize_to_file_test(
                 value,
                 config_path.to_str().expect("Should be able to convert path to string"),
