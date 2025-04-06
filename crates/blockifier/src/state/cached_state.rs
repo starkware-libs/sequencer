@@ -50,12 +50,6 @@ impl<S: StateReader> CachedState<S> {
         Ok(self.cache.borrow().to_state_diff())
     }
 
-    // TODO(Yoni, 1/8/2024): remove this function.
-    /// Returns the state changes made on this state.
-    pub fn get_actual_state_changes(&mut self) -> StateResult<StateChanges> {
-        self.to_state_diff()
-    }
-
     pub fn borrow_updated_state_cache(&mut self) -> StateResult<Ref<'_, StateCache>> {
         self.update_initial_values_of_write_only_access()?;
         Ok(self.cache.borrow())
