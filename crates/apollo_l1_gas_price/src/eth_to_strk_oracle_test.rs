@@ -13,9 +13,10 @@ async fn eth_to_fri_rate() {
     // Create a mock HTTP server.
     let mut server = mockito::Server::new_async().await;
 
-    // Define a mock response for a GET request with a specific timestamp in the path
+    // Define a mock response for a GET request with the timestamp as a query parameter.
     let _m = server
-        .mock("GET", format!("/{}", timestamp).as_str())
+        .mock("GET", "/") // Match the base path only.
+        .match_query(mockito::Matcher::UrlEncoded("timestamp".into(), timestamp.to_string()))
         .with_header("Content-Type", "application/json")
         .with_body(
             json!({
