@@ -11,6 +11,8 @@ use starknet_api::block::{BlockTimestamp, TEMP_ETH_BLOB_GAS_FEE_IN_WEI, TEMP_ETH
 use tracing::warn;
 use validator::Validate;
 
+use crate::metrics::{register_provider_metrics, L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY};
+
 #[cfg(test)]
 #[path = "l1_gas_price_provider_test.rs"]
 pub mod l1_gas_price_provider_test;
@@ -101,6 +103,7 @@ pub struct L1GasPriceProvider {
 
 impl L1GasPriceProvider {
     pub fn new(config: L1GasPriceProviderConfig) -> Self {
+        register_provider_metrics();
         let storage_limit = config.storage_limit;
         Self { config, price_samples_by_block: RingBuffer::new(storage_limit) }
     }
@@ -170,6 +173,7 @@ impl L1GasPriceProvider {
                  of {}.",
                 last_index, num_blocks
             );
+            L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY.increment(1);
             0
         };
         // Go over all elements between `first_index` and `last_index` (non-inclusive).
