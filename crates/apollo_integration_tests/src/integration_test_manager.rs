@@ -48,8 +48,8 @@ use crate::monitoring_utils::{
     verify_txs_accepted,
 };
 use crate::node_component_configs::{
-    create_consolidated_sequencer_configs,
-    create_nodes_deployment_units_configs,
+    create_consolidated_component_configs,
+    create_distributed_component_configs,
 };
 use crate::sequencer_simulator_utils::SequencerSimulator;
 use crate::state_reader::StorageTestHandles;
@@ -700,11 +700,11 @@ pub async fn get_sequencer_setup_configs(
     let mut node_component_configs =
         Vec::with_capacity(num_of_consolidated_nodes + num_of_distributed_nodes);
     for _ in 0..num_of_consolidated_nodes {
-        node_component_configs.push(create_consolidated_sequencer_configs());
+        node_component_configs.push(create_consolidated_component_configs());
     }
     for _ in 0..num_of_distributed_nodes {
         node_component_configs
-            .push(create_nodes_deployment_units_configs(&mut available_ports_generator));
+            .push(create_distributed_component_configs(&mut available_ports_generator));
     }
 
     info!("Creating node configurations.");
