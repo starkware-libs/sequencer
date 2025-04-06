@@ -25,7 +25,7 @@ mod base_layer_test;
 
 pub type L1BlockNumber = u64;
 
-#[derive(Debug, Error, PartialEq)]
+#[derive(Debug, Error, PartialEq, Eq)]
 pub enum MockError {}
 
 /// Interface for getting data from the Starknet base contract.
