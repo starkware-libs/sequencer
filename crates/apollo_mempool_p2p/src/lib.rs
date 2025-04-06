@@ -14,6 +14,7 @@ use apollo_network::network_manager::metrics::{BroadcastNetworkMetrics, NetworkM
 use apollo_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use futures::FutureExt;
 use metrics::MEMPOOL_P2P_NUM_BLACKLISTED_PEERS;
+use tracing::{info_span, Instrument};
 
 use crate::config::MempoolP2pConfig;
 use crate::metrics::{
@@ -63,7 +64,7 @@ pub fn create_p2p_propagator_and_runner(
                 mempool_p2p_config.network_buffer_size,
             )
             .expect("Failed to register broadcast topic");
-    let network_future = network_manager.run();
+    let network_future = network_manager.run().instrument(info_span!("[Mempool network]"));
     let mempool_p2p_propagator = MempoolP2pPropagator::new(
         broadcast_topic_client.clone(),
         Box::new(transaction_converter),
