@@ -34,7 +34,7 @@ impl HttpTestClient {
 
     pub async fn assert_add_tx_success(&self, tx: impl GatewayTransaction) -> TransactionHash {
         let response = self.add_tx(tx).await;
-        assert!(response.status().is_success());
+        assert!(response.status().is_success(), "{:?}", response.status());
         let text = response.text().await.unwrap();
         let response: GatewayOutput = serde_json::from_str(&text)
             .unwrap_or_else(|_| panic!("Gateway responded with: {}", text));
@@ -47,7 +47,13 @@ impl HttpTestClient {
         expected_error_status: StatusCode,
     ) -> String {
         let response = self.add_tx(rpc_tx).await;
-        assert_eq!(response.status(), expected_error_status);
+        assert_eq!(
+            response.status(),
+            expected_error_status,
+            "Unexpected status code. Expected: {}, got: {}",
+            expected_error_status,
+            response.status()
+        );
         response.text().await.unwrap()
     }
 

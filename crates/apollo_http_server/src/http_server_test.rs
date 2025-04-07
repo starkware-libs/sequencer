@@ -211,3 +211,87 @@ async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) 
     let error_str = http_client.assert_add_tx_error(tx, StatusCode::INTERNAL_SERVER_ERROR).await;
     assert_eq!(error_str, expected_gateway_client_err_str);
 }
+
+#[rstest]
+#[case::missing_version(
+    0,
+    None,
+    Err(StarknetError {
+        code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::MalformedRequest),
+        message: "Missing version field".to_string(),
+    })
+)]
+#[case::bad_version(
+    1,
+    Some("bad version"),
+    Err(StarknetError {
+        code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::MalformedRequest),
+        message: "Version field is not a valid hex string: bad version".to_string(),
+    })
+)]
+#[case::old_version(2, Some("0x1"), Err(StarknetError {
+            code: StarknetErrorCode::KnownErrorCode(
+                KnownStarknetErrorCode::InvalidTransactionVersion,
+            ),
+            message: "Transaction version 1 is not supported. Supported versions: [3]."
+                .to_string(),
+        }),
+)]
+#[case::current_version(3, Some("0x3"), Ok(TransactionHash(Felt::ONE)))]
+#[case::newer_version(4, Some("0x4"), Err(StarknetError {
+                code: StarknetErrorCode::KnownErrorCode(
+                    KnownStarknetErrorCode::InvalidTransactionVersion,
+                ),
+                message: "Transaction version 4 is not supported. Supported versions: [3]."
+                    .to_string(),
+            }
+))]
+#[tokio::test]
+async fn test_tx_version(
+    #[case] index: u16,
+    #[case] version: Option<&str>,
+    #[case] expected: Result<TransactionHash, StarknetError>,
+) {
+    // Set the tx version to the given version.
+    let mut tx_json = serde_json::to_value(deprecated_gateway_tx()).unwrap();
+    let as_object = tx_json.as_object_mut().unwrap();
+    if let Some(version) = version {
+        as_object.insert("version".to_string(), Value::String(version.to_string())).unwrap();
+    } else {
+        as_object.remove("version").unwrap();
+    }
+
+    let mut mock_gateway_client = MockGatewayClient::new();
+    if let Ok(expected_tx_hash) = expected {
+        mock_gateway_client
+            .expect_add_tx()
+            .times(1)
+            .return_const(Ok(GatewayOutput::Invoke(InvokeGatewayOutput::new(expected_tx_hash))));
+    }
+
+    let http_client = add_tx_http_client(mock_gateway_client, 6 + index).await;
+    match expected {
+        Ok(expected_tx_hash) => {
+            let tx_hash = http_client.assert_add_tx_success(tx_json.clone()).await;
+            assert_eq!(expected_tx_hash, tx_hash);
+        }
+        Err(expected_err) => {
+            let serialized_err =
+                http_client.assert_add_tx_error(tx_json.clone(), StatusCode::BAD_REQUEST).await;
+            let starknet_error = serde_json::from_str::<StarknetError>(&serialized_err).unwrap();
+            assert_eq!(starknet_error, expected_err);
+        }
+    }
+}
+
+// Impl the trait for tx json that doesn't serialize into a valid tx to test the error handling of
+// unsupported tx versions.
+impl GatewayTransaction for serde_json::Value {
+    fn endpoint(&self) -> &str {
+        "add_transaction"
+    }
+
+    fn content_type(&self) -> &str {
+        "application/text"
+    }
+}
