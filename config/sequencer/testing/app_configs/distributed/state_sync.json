@@ -68,7 +68,7 @@
   "components.class_manager.local_server_config.channel_buffer_size": 32,
   "components.class_manager.max_concurrency": 10,
   "components.class_manager.port": 55001,
-  "components.class_manager.remote_client_config.idle_connections": 18446744073709551615,
+  "components.class_manager.remote_client_config.idle_connections": 5,
   "components.class_manager.remote_client_config.idle_timeout": 90,
   "components.class_manager.remote_client_config.retries": 3,
   "components.class_manager.remote_client_config.retry_interval": 3,
