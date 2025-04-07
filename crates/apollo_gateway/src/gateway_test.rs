@@ -56,6 +56,7 @@ use crate::config::{
     StatefulTransactionValidatorConfig,
     StatelessTransactionValidatorConfig,
 };
+use crate::errors::GatewayResult;
 use crate::gateway::Gateway;
 use crate::metrics::{
     register_metrics,
@@ -189,27 +190,6 @@ fn setup_class_manager_client_mock(mock_class_manager_client: &mut MockClassMana
         .return_once(move |_| Ok(Some(executable)));
 }
 
-fn check_positive_add_tx_result(
-    rpc_tx: RpcTransaction,
-    tx_hash: TransactionHash,
-    address: ContractAddress,
-    result: GatewayOutput,
-) {
-    assert_eq!(
-        result,
-        match rpc_tx {
-            RpcTransaction::Declare(tx) => {
-                let tx = assert_matches!(tx, RpcDeclareTransaction::V3(tx) => tx);
-                let tx = DeclareTransactionV3::from(tx);
-                GatewayOutput::Declare(DeclareGatewayOutput::new(tx_hash, tx.class_hash))
-            }
-            RpcTransaction::DeployAccount(_) =>
-                GatewayOutput::DeployAccount(DeployAccountGatewayOutput::new(tx_hash, address)),
-            RpcTransaction::Invoke(_) => GatewayOutput::Invoke(InvokeGatewayOutput::new(tx_hash)),
-        }
-    );
-}
-
 async fn convert_rpc_tx_to_internal(
     mock_dependencies_object: &MockDependencies,
     rpc_tx: RpcTransaction,
@@ -223,40 +203,12 @@ async fn convert_rpc_tx_to_internal(
     tx_converter.convert_rpc_tx_to_internal_rpc_tx(rpc_tx).await.unwrap()
 }
 
-// TODO(AlonH): add test with Some broadcasted message metadata
-// We use default nonce, address, and tx_hash since Gateway errors drop these details when
-// converting Mempool errors.
-// TODO(AndrewL): split into negative and positive tests
-#[rstest]
-#[case::successful_transaction(Ok(()), None)]
-#[case::tx_with_duplicate_tx_hash(
-    Err(MempoolClientError::MempoolError(MempoolError::DuplicateTransaction { tx_hash: TransactionHash::default() })),
-    Some(GatewaySpecError::DuplicateTx)
-)]
-#[case::tx_with_duplicate_nonce(
-    Err(MempoolClientError::MempoolError(MempoolError::DuplicateNonce { address: ContractAddress::default(), nonce: Nonce::default() })),
-    Some(GatewaySpecError::InvalidTransactionNonce)
-)]
-#[case::tx_with_nonce_too_old(
-    Err(MempoolClientError::MempoolError(MempoolError::NonceTooOld { address: ContractAddress::default(), nonce: Nonce::default() })),
-    Some(GatewaySpecError::InvalidTransactionNonce)
-)]
-#[case::tx_with_nonce_too_large(
-    Err(MempoolClientError::MempoolError(MempoolError::NonceTooLarge(Nonce::default()))),
-    Some(GatewaySpecError::InvalidTransactionNonce)
-)]
-#[tokio::test]
-async fn test_add_tx(
-    mut mock_dependencies: MockDependencies,
-    #[values(invoke(), deploy_account(), declare())] tx: RpcTransaction,
-    #[case] expected_mempool_result: Result<(), MempoolClientError>,
-    #[case] expected_error: Option<GatewaySpecError>,
-) {
-    let recorder = PrometheusBuilder::new().build_recorder();
-    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
-
+async fn setup_mock_results(
+    mock_dependencies: &mut MockDependencies,
+    tx: &RpcTransaction,
+    expected_mempool_result: MempoolClientResult<()>,
+) -> (TransactionHash, Option<BroadcastedMessageMetadata>) {
     let address = tx.calculate_sender_address().unwrap();
-
     setup_class_manager_client_mock(&mut mock_dependencies.mock_class_manager_client);
 
     fund_account(
@@ -267,7 +219,7 @@ async fn test_add_tx(
     );
 
     let internal_tx: InternalRpcTransaction =
-        convert_rpc_tx_to_internal(&mock_dependencies, tx.clone()).await;
+        convert_rpc_tx_to_internal(mock_dependencies, tx.clone()).await;
     let tx_hash = internal_tx.tx_hash();
 
     let p2p_message_metadata = Some(BroadcastedMessageMetadata::get_test_instance(&mut get_rng()));
@@ -283,11 +235,29 @@ async fn test_add_tx(
         expected_mempool_result,
     );
 
+    (tx_hash, p2p_message_metadata)
+}
+
+struct UnitTestResults {
+    result: GatewayResult<GatewayOutput>,
+    total_count: u64,
+    negative_count: u64,
+    positive_count: u64,
+}
+
+async fn perform_add_tx_unit_test(
+    mock_dependencies: MockDependencies,
+    tx: &RpcTransaction,
+    p2p_message_metadata: Option<BroadcastedMessageMetadata>,
+) -> UnitTestResults {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+
     let gateway = mock_dependencies.gateway();
+    let result: Result<GatewayOutput, GatewaySpecError> =
+        gateway.add_tx(tx.clone(), p2p_message_metadata.clone()).await;
 
-    let result = gateway.add_tx(tx.clone(), p2p_message_metadata.clone()).await;
-
-    let metric_counters_for_queries = GatewayMetricHandle::new(&tx, &p2p_message_metadata);
+    let metric_counters_for_queries = GatewayMetricHandle::new(tx, &p2p_message_metadata);
     let metrics = recorder.handle().render();
 
     let total_count = metric_counters_for_queries.get_metric_value(TRANSACTIONS_RECEIVED, &metrics);
@@ -296,19 +266,74 @@ async fn test_add_tx(
     let positive_count =
         metric_counters_for_queries.get_metric_value(TRANSACTIONS_SENT_TO_MEMPOOL, &metrics);
 
+    UnitTestResults { result, total_count, negative_count, positive_count }
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_add_tx_positive(
+    mut mock_dependencies: MockDependencies,
+    #[values(invoke(), deploy_account(), declare())] tx: RpcTransaction,
+) {
+    let (tx_hash, p2p_message_metadata) =
+        setup_mock_results(&mut mock_dependencies, &tx, Ok(())).await;
+
+    let address = tx.calculate_sender_address().unwrap();
+    let UnitTestResults { result, total_count, negative_count, positive_count } =
+        perform_add_tx_unit_test(mock_dependencies, &tx, p2p_message_metadata).await;
+
     assert_eq!(total_count, 1);
-    match expected_error {
-        Some(expected_err) => {
-            assert_eq!(result.unwrap_err(), expected_err);
-            assert_eq!(negative_count, 1);
-            assert_eq!(positive_count, 0);
+    assert_eq!(
+        result.unwrap(),
+        match tx {
+            RpcTransaction::Declare(tx) => {
+                let tx = assert_matches!(tx, RpcDeclareTransaction::V3(tx) => tx);
+                let tx = DeclareTransactionV3::from(tx);
+                GatewayOutput::Declare(DeclareGatewayOutput::new(tx_hash, tx.class_hash))
+            }
+            RpcTransaction::DeployAccount(_) =>
+                GatewayOutput::DeployAccount(DeployAccountGatewayOutput::new(tx_hash, address)),
+            RpcTransaction::Invoke(_) => GatewayOutput::Invoke(InvokeGatewayOutput::new(tx_hash)),
         }
-        None => {
-            check_positive_add_tx_result(tx, tx_hash, address, result.unwrap());
-            assert_eq!(positive_count, 1);
-            assert_eq!(negative_count, 0);
-        }
-    }
+    );
+    assert_eq!(positive_count, 1);
+    assert_eq!(negative_count, 0);
+}
+
+#[rstest]
+#[case::tx_with_duplicate_tx_hash(
+    Err(MempoolClientError::MempoolError(MempoolError::DuplicateTransaction { tx_hash: TransactionHash::default() })),
+    GatewaySpecError::DuplicateTx
+)]
+#[case::tx_with_duplicate_nonce(
+    Err(MempoolClientError::MempoolError(MempoolError::DuplicateNonce { address: ContractAddress::default(), nonce: Nonce::default() })),
+    GatewaySpecError::InvalidTransactionNonce
+)]
+#[case::tx_with_nonce_too_old(
+    Err(MempoolClientError::MempoolError(MempoolError::NonceTooOld { address: ContractAddress::default(), nonce: Nonce::default() })),
+    GatewaySpecError::InvalidTransactionNonce
+)]
+#[case::tx_with_nonce_too_large(
+    Err(MempoolClientError::MempoolError(MempoolError::NonceTooLarge(Nonce::default()))),
+    GatewaySpecError::InvalidTransactionNonce
+)]
+#[tokio::test]
+async fn test_add_tx_negative(
+    mut mock_dependencies: MockDependencies,
+    #[values(invoke(), deploy_account(), declare())] tx: RpcTransaction,
+    #[case] expected_mempool_result: Result<(), MempoolClientError>,
+    #[case] expected_error: GatewaySpecError,
+) {
+    let (_, p2p_message_metadata) =
+        setup_mock_results(&mut mock_dependencies, &tx, expected_mempool_result).await;
+
+    let UnitTestResults { result, total_count, negative_count, positive_count } =
+        perform_add_tx_unit_test(mock_dependencies, &tx, p2p_message_metadata).await;
+
+    assert_eq!(total_count, 1);
+    assert_eq!(result.unwrap_err(), expected_error);
+    assert_eq!(negative_count, 1);
+    assert_eq!(positive_count, 0);
 }
 
 // Gateway spec errors tests.
