@@ -16,7 +16,7 @@ use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
 use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
 use cairo_vm::vm::vm_core::VirtualMachine;
-use starknet_api::core::ClassHash;
+use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::deprecated_contract_class::ContractClass;
 use starknet_types_core::felt::Felt;
 
@@ -80,6 +80,69 @@ impl<S: StateReader> ExecutionHelpersManager<S> {
     }
 }
 
+#[allow(dead_code)]
+struct StateUpdatePointers {
+    state_entries_ptr: Relocatable,
+    classes_ptr: Relocatable,
+    contract_address_to_state_entry_and_storage_ptr:
+        HashMap<ContractAddress, (Relocatable, Relocatable)>,
+}
+
+/// An equivalent to the `StateUpdatePointers` class in Python.
+impl StateUpdatePointers {
+    #[allow(dead_code)]
+    pub fn new(vm: &mut VirtualMachine) -> Self {
+        Self {
+            state_entries_ptr: vm.add_memory_segment(),
+            classes_ptr: vm.add_memory_segment(),
+            contract_address_to_state_entry_and_storage_ptr: HashMap::new(),
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn get_contract_state_entry_and_storage_ptr(
+        &mut self,
+        contract_address: ContractAddress,
+        vm: &mut VirtualMachine,
+    ) -> (Relocatable, Relocatable) {
+        *self
+            .contract_address_to_state_entry_and_storage_ptr
+            .entry(contract_address)
+            .or_insert((vm.add_memory_segment(), vm.add_memory_segment()))
+    }
+
+    #[allow(dead_code)]
+    pub fn set_contract_state_entry_and_storage_ptr(
+        &mut self,
+        contract_address: ContractAddress,
+        state_entry_ptr: Relocatable,
+        storage_ptr: Relocatable,
+    ) {
+        self.contract_address_to_state_entry_and_storage_ptr
+            .insert(contract_address, (state_entry_ptr, storage_ptr));
+    }
+
+    #[allow(dead_code)]
+    pub fn get_classes_ptr(&self) -> Relocatable {
+        self.classes_ptr
+    }
+
+    #[allow(dead_code)]
+    pub fn set_classes_ptr(&mut self, ptr: Relocatable) {
+        self.classes_ptr = ptr;
+    }
+
+    #[allow(dead_code)]
+    pub fn get_state_entries_ptr(&self) -> Relocatable {
+        self.state_entries_ptr
+    }
+
+    #[allow(dead_code)]
+    pub fn set_state_entries_ptr(&mut self, ptr: Relocatable) {
+        self.state_entries_ptr = ptr;
+    }
+}
+
 pub struct SnosHintProcessor<S: StateReader> {
     pub(crate) os_program: Program,
     pub(crate) execution_helpers_manager: ExecutionHelpersManager<S>,
@@ -87,6 +150,7 @@ pub struct SnosHintProcessor<S: StateReader> {
     pub syscall_hint_processor: SyscallHintProcessor,
     pub(crate) deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
     pub(crate) compiled_classes: HashMap<ClassHash, CasmContractClass>,
+    _state_update_pointers: Option<StateUpdatePointers>,
     _deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
     builtin_hint_processor: BuiltinHintProcessor,
     // KZG fields.
@@ -132,6 +196,7 @@ impl<S: StateReader> SnosHintProcessor<S> {
             builtin_hint_processor: BuiltinHintProcessor::new_empty(),
             deprecated_compiled_classes: os_hints.os_input.deprecated_compiled_classes,
             compiled_classes: os_hints.os_input.compiled_classes,
+            _state_update_pointers: None,
         })
     }
 
