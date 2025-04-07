@@ -47,7 +47,10 @@ use mockall::predicate::eq;
 use num_bigint::BigUint;
 use rstest::rstest;
 use serde::Serialize;
-use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
+use shared_execution_objects::central_objects::{
+    execution_info_to_serialized_central_execution_info,
+    CentralTransactionExecutionInfo,
+};
 use starknet_api::block::{
     BlockHash,
     BlockInfo,
@@ -608,7 +611,9 @@ fn central_blob() -> AerospikeBlob {
         transactions: input_txs,
         bouncer_weights: central_bouncer_weights(),
         fee_market_info: central_fee_market_info(),
-        execution_infos: vec![transaction_execution_info()],
+        execution_infos: vec![execution_info_to_serialized_central_execution_info(
+            &transaction_execution_info(),
+        )],
     };
 
     // This is to make the function sync (not async) so that it can be used as a case in the

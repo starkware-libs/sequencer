@@ -21,6 +21,7 @@ chrono = { workspace = true, features = ["serde"] }
 derive_more.workspace = true
 mockall = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
 starknet_api.workspace = true
 strum_macros.workspace = true
 thiserror.workspace = true
