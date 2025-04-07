@@ -170,9 +170,10 @@ impl DeploymentName {
     pub fn add_path_suffix(&self, path: PathBuf) -> PathBuf {
         match self {
             // TODO(Tsabary): find a way to avoid this code duplication.
-            Self::ConsolidatedNode => path.join("consolidated"),
-            Self::HybridNode => path.join("hybrid"),
-            Self::DistributedNode => path.join("distributed"),
+            // Trailing backslash needed to mitigate deployment test issues.
+            Self::ConsolidatedNode => path.join("consolidated/"),
+            Self::HybridNode => path.join("hybrid/"),
+            Self::DistributedNode => path.join("distributed/"),
         }
     }
 
