@@ -59,7 +59,7 @@ async fn add_tx_metrics_test(#[case] index: u16, #[case] tx: impl GatewayTransac
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let prometheus_handle = recorder.handle();
 
-    let http_client = add_tx_http_client(mock_gateway_client, 9 + index).await;
+    let http_client = add_tx_http_client(mock_gateway_client, 14 + index).await;
 
     // Send transactions to the server.
     for _ in std::iter::repeat(()).take(SUCCESS_TXS_TO_SEND + FAILURE_TXS_TO_SEND) {
@@ -90,7 +90,7 @@ async fn add_tx_serde_failure_metrics_test() {
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     let prometheus_handle = recorder.handle();
 
-    let http_client = add_tx_http_client(mock_gateway_client, 11).await;
+    let http_client = add_tx_http_client(mock_gateway_client, 16).await;
 
     // Send a transaction that fails deserialization.
     let tx: InvalidTransaction = "invalid transaction";
