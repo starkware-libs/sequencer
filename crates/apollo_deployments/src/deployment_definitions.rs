@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use apollo_infra::component_definitions::{LocalServerConfig, RemoteClientConfig};
 use starknet_api::core::ChainId;
 use strum_macros::{Display, EnumString};
 
@@ -80,6 +81,51 @@ pub enum Environment {
 impl Environment {
     pub fn application_config_dir_path(&self) -> PathBuf {
         PathBuf::from(CONFIG_BASE_DIR).join(self.to_string()).join(APP_CONFIGS_DIR_NAME)
+    }
+
+    pub fn get_component_config_modifications(&self) -> EnvironmentComponentConfigModifications {
+        match self {
+            Environment::Testing => EnvironmentComponentConfigModifications::testing(),
+            Environment::SepoliaIntegration => {
+                EnvironmentComponentConfigModifications::sepolia_integration()
+            }
+            Environment::SepoliaTestnet => unimplemented!("SepoliaTestnet is not implemented yet"),
+            Environment::Mainnet => unimplemented!("Mainnet is not implemented yet"),
+        }
+    }
+}
+
+pub struct EnvironmentComponentConfigModifications {
+    pub local_server_config: LocalServerConfig,
+    pub max_concurrency: usize,
+    pub remote_client_config: RemoteClientConfig,
+}
+
+impl EnvironmentComponentConfigModifications {
+    pub fn testing() -> Self {
+        Self {
+            local_server_config: LocalServerConfig { channel_buffer_size: 32 },
+            max_concurrency: 10,
+            remote_client_config: RemoteClientConfig {
+                retries: 3,
+                idle_connections: 5,
+                idle_timeout: 90,
+                retry_interval: 3,
+            },
+        }
+    }
+
+    pub fn sepolia_integration() -> Self {
+        Self {
+            local_server_config: LocalServerConfig { channel_buffer_size: 128 },
+            max_concurrency: 100,
+            remote_client_config: RemoteClientConfig {
+                retries: 3,
+                idle_connections: usize::MAX,
+                idle_timeout: 1,
+                retry_interval: 1,
+            },
+        }
     }
 }
 

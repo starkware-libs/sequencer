@@ -10,7 +10,7 @@ use serde::Serialize;
 use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
 
-use crate::deployment_definitions::Environment;
+use crate::deployment_definitions::{Environment, EnvironmentComponentConfigModifications};
 use crate::service::{
     Controller,
     GetComponentConfigs,
@@ -46,7 +46,7 @@ impl From<HybridNodeServiceName> for ServiceName {
 impl GetComponentConfigs for HybridNodeServiceName {
     fn get_component_configs(
         base_port: Option<u16>,
-        _environment: &Environment,
+        environment: &Environment,
     ) -> IndexMap<ServiceName, ComponentConfig> {
         // TODO(Tsabary): change this function to take a slice of port numbers at the exact expected
         // length.
@@ -54,22 +54,22 @@ impl GetComponentConfigs for HybridNodeServiceName {
 
         let base_port_with_offset = base_port.unwrap_or(BASE_PORT);
 
-        let batcher =
-            HybridNodeServiceName::Core.component_config_pair(Some(base_port_with_offset));
-        let class_manager =
-            HybridNodeServiceName::Core.component_config_pair(Some(base_port_with_offset + 1));
-        let gateway =
-            HybridNodeServiceName::Gateway.component_config_pair(Some(base_port_with_offset + 2));
-        let l1_gas_price_provider =
-            HybridNodeServiceName::Core.component_config_pair(Some(base_port_with_offset + 3));
-        let l1_provider =
-            HybridNodeServiceName::Core.component_config_pair(Some(base_port_with_offset + 4));
-        let mempool =
-            HybridNodeServiceName::Mempool.component_config_pair(Some(base_port_with_offset + 5));
+        let batcher = HybridNodeServiceName::Core
+            .component_config_pair(Some(base_port_with_offset), environment);
+        let class_manager = HybridNodeServiceName::Core
+            .component_config_pair(Some(base_port_with_offset + 1), environment);
+        let gateway = HybridNodeServiceName::Gateway
+            .component_config_pair(Some(base_port_with_offset + 2), environment);
+        let l1_gas_price_provider = HybridNodeServiceName::Core
+            .component_config_pair(Some(base_port_with_offset + 3), environment);
+        let l1_provider = HybridNodeServiceName::Core
+            .component_config_pair(Some(base_port_with_offset + 4), environment);
+        let mempool = HybridNodeServiceName::Mempool
+            .component_config_pair(Some(base_port_with_offset + 5), environment);
         let sierra_compiler = HybridNodeServiceName::SierraCompiler
-            .component_config_pair(Some(base_port_with_offset + 6));
-        let state_sync =
-            HybridNodeServiceName::Core.component_config_pair(Some(base_port_with_offset + 7));
+            .component_config_pair(Some(base_port_with_offset + 6), environment);
+        let state_sync = HybridNodeServiceName::Core
+            .component_config_pair(Some(base_port_with_offset + 7), environment);
 
         for inner_service_name in HybridNodeServiceName::iter() {
             let component_config = match inner_service_name {
@@ -176,26 +176,49 @@ impl HybridNodeServiceName {
     pub fn component_config_for_local_service(
         &self,
         base_port: Option<u16>,
+        environment: &Environment,
     ) -> ReactiveComponentExecutionConfig {
-        ReactiveComponentExecutionConfig::local_with_remote_enabled(
+        let mut base = ReactiveComponentExecutionConfig::local_with_remote_enabled(
             self.url(),
             self.ip(),
             self.port(base_port),
-        )
+        );
+        let EnvironmentComponentConfigModifications {
+            local_server_config,
+            max_concurrency,
+            remote_client_config: _,
+        } = environment.get_component_config_modifications();
+        base.local_server_config = local_server_config;
+        base.max_concurrency = max_concurrency;
+        base
     }
 
     /// Returns a component execution config for a component that is accessed remotely.
     pub fn component_config_for_remote_service(
         &self,
         base_port: Option<u16>,
+        environment: &Environment,
     ) -> ReactiveComponentExecutionConfig {
-        ReactiveComponentExecutionConfig::remote(self.url(), self.ip(), self.port(base_port))
+        let mut base =
+            ReactiveComponentExecutionConfig::remote(self.url(), self.ip(), self.port(base_port));
+        let EnvironmentComponentConfigModifications {
+            local_server_config: _,
+            max_concurrency,
+            remote_client_config,
+        } = environment.get_component_config_modifications();
+        base.remote_client_config = remote_client_config;
+        base.max_concurrency = max_concurrency;
+        base
     }
 
-    fn component_config_pair(&self, base_port: Option<u16>) -> HybridNodeServiceConfigPair {
+    fn component_config_pair(
+        &self,
+        base_port: Option<u16>,
+        environment: &Environment,
+    ) -> HybridNodeServiceConfigPair {
         HybridNodeServiceConfigPair {
-            local: self.component_config_for_local_service(base_port),
-            remote: self.component_config_for_remote_service(base_port),
+            local: self.component_config_for_local_service(base_port, environment),
+            remote: self.component_config_for_remote_service(base_port, environment),
         }
     }
 
