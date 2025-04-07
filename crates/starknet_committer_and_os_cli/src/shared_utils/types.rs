@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
 use clap::Args;
+use starknet_os::errors::StarknetOsError;
 
 use crate::shared_utils::read::{read_input, write_to_file};
 
@@ -39,6 +40,8 @@ pub enum PythonTestError<E> {
     NoneInputError,
     #[error(transparent)]
     SpecificError(E),
+    #[error(transparent)]
+    StarknetOs(#[from] StarknetOsError),
 }
 
 pub(crate) trait PythonTestRunner: TryFrom<String> {
