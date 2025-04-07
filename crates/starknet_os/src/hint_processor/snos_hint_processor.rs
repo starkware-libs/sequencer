@@ -78,6 +78,11 @@ impl<S: StateReader> ExecutionHelpersManager<S> {
     fn get_current_index(&self) -> Result<usize, ExecutionHelperError> {
         self.current_index.ok_or(ExecutionHelperError::NoCurrentExecutionHelper)
     }
+
+    /// Returns the number of execution helpers.
+    pub fn n_helpers(&self) -> usize {
+        self.execution_helpers.len()
+    }
 }
 
 pub struct SnosHintProcessor<S: StateReader> {

@@ -98,8 +98,12 @@ pub(crate) fn init_state_update_pointer<S: StateReader>(
     todo!()
 }
 
-pub(crate) fn get_n_blocks<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    todo!()
+pub(crate) fn get_n_blocks<S: StateReader>(
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    // Each execution helper corresponds to a block.
+    let n_blocks = hint_processor.execution_helpers_manager.n_helpers();
+    Ok(insert_value_into_ap(vm, n_blocks)?)
 }
 
 pub(crate) fn create_block_additional_hints<S: StateReader>(
