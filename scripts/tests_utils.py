@@ -7,7 +7,7 @@ import os
 from typing import Dict, List, Set, Optional
 from git import Repo
 
-PATTERN = r"(\w+)\s*v([\d.]*.*)\((.*?)\)"
+PATTERN = r"([a-zA-Z0-9_-]+)\s*v([\d.]*.*)\((.*?)\)"
 
 # Pattern to match the dependency tree output (`cargo tree -i` output).
 # First match group is the dependent crate name; second match group is the local path to the
