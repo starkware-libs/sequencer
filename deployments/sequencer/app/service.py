@@ -88,7 +88,16 @@ class ServiceApp(Construct):
                 replicas=self.service_topology.replicas,
                 selector=k8s.LabelSelector(match_labels=self.labels),
                 template=k8s.PodTemplateSpec(
-                    metadata=k8s.ObjectMeta(labels=self.labels),
+                    metadata=k8s.ObjectMeta(
+                        labels=self.labels,
+                        annotations={
+                            "prometheus.io/path": "/monitoring/metrics",
+                            "prometheus.io/port": str(
+                                self._get_config_attr("monitoring_endpoint_config.port")
+                            ),
+                            "prometheus.io/scrape": "true",
+                        },
+                    ),
                     spec=k8s.PodSpec(
                         security_context=k8s.PodSecurityContext(fs_group=1000),
                         volumes=self._get_volumes(),
@@ -126,7 +135,16 @@ class ServiceApp(Construct):
                 replicas=self.service_topology.replicas,
                 selector=k8s.LabelSelector(match_labels=self.labels),
                 template=k8s.PodTemplateSpec(
-                    metadata=k8s.ObjectMeta(labels=self.labels),
+                    metadata=k8s.ObjectMeta(
+                        labels=self.labels,
+                        annotations={
+                            "prometheus.io/path": "/monitoring/metrics",
+                            "prometheus.io/port": str(
+                                self._get_config_attr("monitoring_endpoint_config.port")
+                            ),
+                            "prometheus.io/scrape": "true",
+                        },
+                    ),
                     spec=k8s.PodSpec(
                         security_context=k8s.PodSecurityContext(fs_group=1000),
                         volumes=self._get_volumes(),
