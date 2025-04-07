@@ -10,6 +10,7 @@ use serde::Serialize;
 use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
 
+use crate::deployment_definitions::Environment;
 use crate::service::{
     GetComponentConfigs,
     Resource,
@@ -44,7 +45,10 @@ impl From<DistributedNodeServiceName> for ServiceName {
 }
 
 impl GetComponentConfigs for DistributedNodeServiceName {
-    fn get_component_configs(base_port: Option<u16>) -> IndexMap<ServiceName, ComponentConfig> {
+    fn get_component_configs(
+        base_port: Option<u16>,
+        _environment: &Environment,
+    ) -> IndexMap<ServiceName, ComponentConfig> {
         let mut component_config_map = IndexMap::<ServiceName, ComponentConfig>::new();
 
         // TODO(Tsabary): the following is a temporary solution to differentiate the l1 provider

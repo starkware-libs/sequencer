@@ -4,6 +4,7 @@ use serde::Serialize;
 use strum::Display;
 use strum_macros::{AsRefStr, EnumIter};
 
+use crate::deployment_definitions::Environment;
 use crate::service::{
     GetComponentConfigs,
     Resource,
@@ -26,7 +27,10 @@ impl From<ConsolidatedNodeServiceName> for ServiceName {
 }
 
 impl GetComponentConfigs for ConsolidatedNodeServiceName {
-    fn get_component_configs(_base_port: Option<u16>) -> IndexMap<ServiceName, ComponentConfig> {
+    fn get_component_configs(
+        _base_port: Option<u16>,
+        _environment: &Environment,
+    ) -> IndexMap<ServiceName, ComponentConfig> {
         let mut component_config_map = IndexMap::new();
         component_config_map.insert(
             ServiceName::ConsolidatedNode(ConsolidatedNodeServiceName::Node),

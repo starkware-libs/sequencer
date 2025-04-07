@@ -85,7 +85,7 @@ impl Deployment {
         base_app_config_file_path: &str,
     ) -> IndexMap<ServiceName, Value> {
         let deployment_base_app_config = get_deployment_from_config_path(base_app_config_file_path);
-        let component_configs = self.deployment_name.get_component_configs(None);
+        let component_configs = self.deployment_name.get_component_configs(None, &self.environment);
 
         let mut result = IndexMap::new();
 
