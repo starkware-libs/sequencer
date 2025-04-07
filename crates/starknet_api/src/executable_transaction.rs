@@ -220,11 +220,17 @@ impl DeclareTransaction {
     // In this case, no account-related actions should be made besides the declaration.
     pub fn is_bootstrap_declare(&self, charge_fee: bool) -> bool {
         if let crate::transaction::DeclareTransaction::V3(tx) = &self.tx {
-            return tx.sender_address == ContractAddress::default()
+            return tx.sender_address == Self::bootstrap_address()
                 && tx.nonce == Nonce::default()
                 && !charge_fee;
         }
         false
+    }
+
+    /// Returns the address of the bootstrap contract.
+    pub fn bootstrap_address() -> ContractAddress {
+        // A felt representation of the string 'BOOTSTRAP'.
+        ContractAddress::from(0x424f4f545354524150_u128)
     }
 }
 

@@ -868,16 +868,19 @@ fn test_fail_declare(block_context: BlockContext, max_fee: Fee) {
 
 #[rstest]
 #[case::valid(DeclareTransaction::V3(DeclareTransactionV3 {
+    sender_address: ApiExecutableDeclareTransaction::bootstrap_address(),
     class_hash: class_hash!(7_u64),
     compiled_class_hash: CompiledClassHash(8_u64.into()),
     ..Default::default()
 }))]
 #[should_panic(expected = "UninitializedStorageAddress")]
 #[case::wrong_tx_version(DeclareTransaction::V2(DeclareTransactionV2 {
+    sender_address: ApiExecutableDeclareTransaction::bootstrap_address(),
     ..Default::default()
 }))]
 #[should_panic(expected = "InvalidNonce")]
 #[case::wrong_nonce(DeclareTransaction::V3(DeclareTransactionV3 {
+    sender_address: ApiExecutableDeclareTransaction::bootstrap_address(),
     nonce: Nonce(felt!(1_u64)),
     ..Default::default()
 }))]
@@ -888,6 +891,7 @@ fn test_fail_declare(block_context: BlockContext, max_fee: Fee) {
 }))]
 #[should_panic(expected = "InsufficientResourceBounds")]
 #[case::non_trivial_resource_bounds(DeclareTransaction::V3(DeclareTransactionV3 {
+    sender_address: ApiExecutableDeclareTransaction::bootstrap_address(),
     resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds {
         l1_gas: ResourceBounds::default(),
         l2_gas: ResourceBounds{max_amount: GasAmount(1), max_price_per_unit: GasPrice(1)},
