@@ -196,8 +196,11 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_code::{
     VM_EXIT_SCOPE,
     XS_SAFE_DIV,
 };
+use cairo_vm::types::layout_name::LayoutName;
 use starknet_os::hints::enum_definition::{AggregatorHint, HintExtension, OsHint};
 use starknet_os::hints::types::HintEnum;
+use starknet_os::io::os_input::OsHints;
+use starknet_os::runner::run_os_stateless;
 use starknet_os::test_utils::cairo_runner::{EndpointArg, ImplicitArg};
 use starknet_os::test_utils::errors::Cairo0EntryPointRunnerError;
 use starknet_os::test_utils::utils::run_cairo_function_and_check_result;
@@ -217,6 +220,7 @@ pub enum OsPythonTestRunner {
     CompareOsHints,
     InputDeserialization,
     RunDummyFunction,
+    RunOsFlowTest,
 }
 
 // Implements conversion from a string to the test runner.
@@ -229,6 +233,7 @@ impl TryFrom<String> for OsPythonTestRunner {
             "compare_os_hints" => Ok(Self::CompareOsHints),
             "input_deserialization" => Ok(Self::InputDeserialization),
             "run_dummy_function" => Ok(Self::RunDummyFunction),
+            "run_os_flow_test" => Ok(Self::RunOsFlowTest),
             _ => Err(PythonTestError::UnknownTestName(value)),
         }
     }
@@ -247,6 +252,7 @@ impl PythonTestRunner for OsPythonTestRunner {
             Self::CompareOsHints => compare_os_hints(Self::non_optional_input(input)?),
             Self::InputDeserialization => input_deserialization(Self::non_optional_input(input)?),
             Self::RunDummyFunction => run_dummy_cairo_function(Self::non_optional_input(input)?),
+            Self::RunOsFlowTest => run_os_flow_test(Self::non_optional_input(input)?),
         }
     }
 }
@@ -644,18 +650,36 @@ y_square_int = y_squared_from_x(
     alpha=SECP256R1.alpha,
     beta=SECP256R1.beta,
     field_prime=SECP256R1.prime,
-)
-
-# Note that (y_square_int ** ((SECP256R1.prime + 1) / 4)) ** 2 =
-#   = y_square_int ** ((SECP256R1.prime + 1) / 2) =
-#   = y_square_int ** ((SECP256R1.prime - 1) / 2 + 1) =
-#   = y_square_int * y_square_int ** ((SECP256R1.prime - 1) / 2) = y_square_int * {+/-}1.
-y = pow(y_square_int, (SECP256R1.prime + 1) // 4, SECP256R1.prime)
-
-# We need to decide whether to take y or prime - y.
-if ids.v % 2 == y % 2:
+    )
+    
+    # Note that (y_square_int ** ((SECP256R1.prime + 1) / 4)) ** 2 =
+    #   = y_square_int ** ((SECP256R1.prime + 1) / 2) =
+    #   = y_square_int ** ((SECP256R1.prime - 1) / 2 + 1) =
+    #   = y_square_int * y_square_int ** ((SECP256R1.prime - 1) / 2) = y_square_int * {+/-}1.
+    y = pow(y_square_int, (SECP256R1.prime + 1) // 4, SECP256R1.prime)
+    
+    # We need to decide whether to take y or prime - y.
+    if ids.v % 2 == y % 2:
     value = y
-else:
+    else:
     value = (-y) % SECP256R1.prime"#,
     ])
+}
+
+#[derive(serde::Deserialize)]
+struct OsFlowTestInput {
+    compiled_os_str: String,
+    os_hints: OsHints,
+}
+
+/// Runs the OS with the given input and returns the deserialized output.
+fn run_os_flow_test(input: &str) -> OsPythonTestResult {
+    let flow_test_input: OsFlowTestInput = serde_json::from_str(input)?;
+    let layout = LayoutName::all_cairo;
+    let os_output = run_os_stateless(
+        flow_test_input.compiled_os_str.as_bytes(),
+        layout,
+        flow_test_input.os_hints,
+    )?;
+    Ok(serde_json::to_string(&os_output)?)
 }
