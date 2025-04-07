@@ -91,6 +91,7 @@ use apollo_state_sync::{LocalStateSyncServer, RemoteStateSyncServer};
 use futures::stream::FuturesUnordered;
 use futures::{Future, FutureExt, StreamExt};
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
+use tracing::info;
 
 use crate::clients::SequencerNodeClients;
 use crate::communication::SequencerNodeCommunication;
@@ -691,6 +692,7 @@ pub fn create_node_servers(
     components: SequencerNodeComponents,
     clients: &SequencerNodeClients,
 ) -> SequencerNodeServers {
+    info!("Creating node servers.");
     let mut components = components;
     let local_servers = create_local_servers(config, communication, &mut components);
     let remote_servers = create_remote_servers(config, clients);
