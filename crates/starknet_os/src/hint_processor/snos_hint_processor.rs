@@ -83,7 +83,7 @@ impl<S: StateReader> ExecutionHelpersManager<S> {
 /// An equivalent to the `StateUpdatePointers` class in Python.
 // TODO(Nimrod): Remove all `#[allow(dead_code)]` attributes after the code is fully implemented.
 #[allow(dead_code)]
-struct StateUpdatePointers {
+pub(crate) struct StateUpdatePointers {
     state_entries_ptr: Relocatable,
     classes_ptr: Relocatable,
     contract_address_to_state_entry_and_storage_ptr:
@@ -151,6 +151,7 @@ pub struct SnosHintProcessor<S: StateReader> {
     pub syscall_hint_processor: SyscallHintProcessor,
     pub(crate) deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
     pub(crate) compiled_classes: HashMap<ClassHash, CasmContractClass>,
+    pub(crate) state_update_pointers: Option<StateUpdatePointers>,
     _deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
     builtin_hint_processor: BuiltinHintProcessor,
     // KZG fields.
@@ -196,6 +197,7 @@ impl<S: StateReader> SnosHintProcessor<S> {
             builtin_hint_processor: BuiltinHintProcessor::new_empty(),
             deprecated_compiled_classes: os_hints.os_input.deprecated_compiled_classes,
             compiled_classes: os_hints.os_input.compiled_classes,
+            state_update_pointers: None,
         })
     }
 

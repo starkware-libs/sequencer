@@ -5,6 +5,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_i
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use starknet_types_core::felt::Felt;
 
+use crate::hint_processor::snos_hint_processor::StateUpdatePointers;
 use crate::hints::enum_definition::{AllHints, OsHint};
 use crate::hints::error::OsHintResult;
 use crate::hints::nondet_offsets::insert_nondet_hint_value;
@@ -93,9 +94,10 @@ pub(crate) fn starknet_os_input<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>
 }
 
 pub(crate) fn init_state_update_pointer<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    hint_processor.state_update_pointers = Some(StateUpdatePointers::new(vm));
+    Ok(())
 }
 
 pub(crate) fn get_n_blocks<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
