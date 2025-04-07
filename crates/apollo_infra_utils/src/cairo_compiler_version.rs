@@ -47,7 +47,7 @@ pub fn cairo1_compiler_version() -> String {
     let cargo_toml: CargoToml = toml::from_str(include_str!("../../../Cargo.toml")).unwrap();
     match cargo_toml.workspace.dependencies.cairo_lang_casm {
         DependencyValue::String(version) | DependencyValue::Object { version } => {
-            version.clone().trim_start_matches("=").to_string()
+            version.trim_start_matches("=").to_string()
         }
     }
 }
