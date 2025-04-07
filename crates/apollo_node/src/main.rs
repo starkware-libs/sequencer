@@ -25,6 +25,7 @@ async fn main() -> anyhow::Result<()> {
 
     let config =
         load_and_validate_config(args().collect()).expect("Failed to load and validate config");
+    
 
     // Clients are currently unused, but should not be dropped.
     let (_clients, servers) = create_node_modules(&config).await;

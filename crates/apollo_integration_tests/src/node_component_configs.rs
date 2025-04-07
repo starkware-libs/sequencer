@@ -3,6 +3,7 @@ use apollo_deployments::deployments::hybrid::HybridNodeServiceName;
 use apollo_deployments::service::{DeploymentName, ServiceName};
 use apollo_infra_utils::test_utils::AvailablePortsGenerator;
 use apollo_node::config::component_config::{set_urls_to_localhost, ComponentConfig};
+use tracing::info;
 
 /// Holds the component configs for a set of sequencers, composing a single sequencer node.
 pub struct NodeComponentConfigs {
@@ -137,6 +138,12 @@ pub fn create_hybrid_component_configs(
     set_urls_to_localhost(&mut component_configs);
 
     // TODO(Tsabary): transition to using the map instead of a vector and indices.
+
+    info!("services_component_configs: {:?}", services_component_config);
+
+    for component_config in services_component_config.iter() {
+        info!("services_component_config: {:?}", component_config);
+    }
 
     NodeComponentConfigs::new(
         component_configs,

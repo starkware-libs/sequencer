@@ -243,6 +243,7 @@ fn get_core_component_config(
     let mut config = ComponentConfig::disabled();
     config.batcher = batcher_local_config;
     config.class_manager = class_manager_local_config;
+    config.consensus_manager = ActiveComponentExecutionConfig::enabled();
     config.l1_gas_price_provider = l1_gas_price_provider_local_config;
     config.l1_gas_price_scraper = ActiveComponentExecutionConfig::enabled();
     config.l1_provider = l1_provider_local_config;

@@ -9,6 +9,7 @@ use apollo_mempool_types::communication::MempoolRequestAndResponseSender;
 use apollo_sierra_multicompile_types::SierraCompilerRequestAndResponseSender;
 use apollo_state_sync_types::communication::StateSyncRequestAndResponseSender;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
+use tracing::info;
 
 pub struct SequencerNodeCommunication {
     batcher_channel: ComponentCommunication<BatcherRequestAndResponseSender>,
@@ -100,6 +101,7 @@ impl SequencerNodeCommunication {
 }
 
 pub fn create_node_channels() -> SequencerNodeCommunication {
+    info!("Creating node channels.");
     const DEFAULT_INVOCATIONS_QUEUE_SIZE: usize = 32;
     let (tx_batcher, rx_batcher) =
         channel::<BatcherRequestAndResponseSender>(DEFAULT_INVOCATIONS_QUEUE_SIZE);
