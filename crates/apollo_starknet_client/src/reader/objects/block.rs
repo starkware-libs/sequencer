@@ -25,12 +25,6 @@ use starknet_api::core::{
 };
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::transaction::fields::{
-    gas_amount_to_hex,
-    gas_price_to_hex,
-    hex_to_gas_amount,
-    hex_to_gas_price,
-};
 #[cfg(doc)]
 use starknet_api::transaction::TransactionOutput as starknet_api_transaction_output;
 use starknet_api::transaction::{TransactionHash, TransactionOffsetInBlock};
@@ -88,16 +82,12 @@ pub struct BlockPostV0_13_1 {
     // New field in V0.14.0
     // TODO(Ayelet): Remove default Serde after 0.14.0, as the feeder gateway returns defaults when
     // values are missing for older blocks.
-    #[serde(default, serialize_with = "gas_amount_to_hex", deserialize_with = "hex_to_gas_amount")]
+    #[serde(default)]
     pub l2_gas_consumed: GasAmount,
     // New field in V0.14.0
     // TODO(Ayelet): Remove default Serde after 0.14.0, as the feeder gateway returns defaults when
     // values are missing for older blocks.
-    #[serde(
-        default = "default_next_l2_gas_price",
-        serialize_with = "gas_price_to_hex",
-        deserialize_with = "hex_to_gas_price"
-    )]
+    #[serde(default = "default_next_l2_gas_price")]
     pub next_l2_gas_price: GasPrice,
 }
 

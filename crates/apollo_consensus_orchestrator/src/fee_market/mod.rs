@@ -3,7 +3,6 @@ use std::cmp::max;
 use serde::Serialize;
 use starknet_api::block::GasPrice;
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::transaction::fields::{gas_amount_to_hex, gas_price_to_hex};
 
 use crate::orchestrator_versioned_constants;
 
@@ -14,10 +13,8 @@ mod test;
 #[derive(Debug, Default, Serialize)]
 pub struct FeeMarketInfo {
     /// Total gas consumed in the current block.
-    #[serde(serialize_with = "gas_amount_to_hex", deserialize_with = "hex_to_gas_amount")]
     pub l2_gas_consumed: GasAmount,
     /// Gas price for the next block.
-    #[serde(serialize_with = "gas_price_to_hex", deserialize_with = "hex_to_gas_price")]
     pub next_l2_gas_price: GasPrice,
 }
 

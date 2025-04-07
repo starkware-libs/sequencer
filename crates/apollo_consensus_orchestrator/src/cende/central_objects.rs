@@ -7,11 +7,7 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::{indexmap, IndexMap};
 use serde::Serialize;
 use starknet_api::block::{
-    BlockInfo,
-    BlockNumber,
-    BlockTimestamp,
-    NonzeroGasPrice,
-    StarknetVersion,
+    BlockInfo, BlockNumber, BlockTimestamp, GasPrice, NonzeroGasPrice, StarknetVersion
 };
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::contract_class::{ContractClass, SierraVersion};
@@ -58,7 +54,6 @@ use crate::fee_market::FeeMarketInfo;
 mod central_objects_test;
 
 pub(crate) type CentralBouncerWeights = BouncerWeights;
-pub(crate) type CentralFeeMarketInfo = FeeMarketInfo;
 pub(crate) type CentralCompressedStateDiff = CentralStateDiff;
 pub(crate) type CentralSierraContractClassEntry = (ClassHash, CentralSierraContractClass);
 pub(crate) type CentralCasmContractClassEntry = (CompiledClassHash, CentralCasmContractClass);
@@ -101,6 +96,21 @@ impl From<(BlockInfo, StarknetVersion)> for CentralBlockInfo {
             },
             use_kzg_da: block_info.use_kzg_da,
             starknet_version: Some(starknet_version),
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub(crate) struct CentralFeeMarketInfo{
+    pub l2_gas_consumed: u64,
+    pub next_l2_gas_price: GasPrice
+}
+
+impl From<FeeMarketInfo> for CentralFeeMarketInfo {
+    fn from(fee_market_info: FeeMarketInfo) -> CentralFeeMarketInfo {
+        CentralFeeMarketInfo {
+            l2_gas_consumed: fee_market_info.l2_gas_consumed.0,
+            next_l2_gas_price: fee_market_info.next_l2_gas_price,
         }
     }
 }
