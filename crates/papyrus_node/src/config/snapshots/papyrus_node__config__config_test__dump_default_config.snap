@@ -187,7 +187,7 @@ expression: dumped_default_config
   "context.data_gas_price_multiplier": {
     "description": "Multiplicative factor to apply to the sampled data gas price, to enable fine-tuning of the actual price.",
     "value": {
-      "$serde_json::private::Number": "1.0"
+      "$serde_json::private::Number": "0.135"
     },
     "privacy": "Public"
   },

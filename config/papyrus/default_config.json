@@ -157,7 +157,7 @@
   "context.data_gas_price_multiplier": {
     "description": "Multiplicative factor to apply to the sampled data gas price, to enable fine-tuning of the actual price.",
     "privacy": "Public",
-    "value": 1.0
+    "value": 0.135
   },
   "context.l1_da_mode": {
     "description": "The data availability mode, true: Blob, false: Calldata.",

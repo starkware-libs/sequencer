@@ -154,7 +154,7 @@ impl Default for ContextConfig {
             max_l1_gas_price_wei: 200 * GWEI_FACTOR,
             min_l1_data_gas_price_wei: GWEI_FACTOR,
             max_l1_data_gas_price_wei: 150 * GWEI_FACTOR,
-            data_gas_price_multiplier: 1.0,
+            data_gas_price_multiplier: 0.135,
         }
     }
 }
