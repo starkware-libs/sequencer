@@ -24,6 +24,8 @@ use apollo_class_manager_types::transaction_converter::{
 use apollo_class_manager_types::EmptyClassManagerClient;
 use apollo_consensus::types::{ConsensusContext, Round};
 use apollo_l1_gas_price_types::{
+    EthToStrkOracleClientTrait,
+    L1GasPriceProviderClient,
     MockEthToStrkOracleClientTrait,
     MockL1GasPriceProviderClient,
     PriceInfo,
@@ -127,6 +129,8 @@ struct NetworkDependencies {
 fn setup(
     batcher: MockBatcherClient,
     cende_ambassador: MockCendeContext,
+    eth_to_strk_oracle_client: impl EthToStrkOracleClientTrait + 'static,
+    l1_gas_price_provider: impl L1GasPriceProviderClient + 'static,
 ) -> (SequencerConsensusContext, NetworkDependencies) {
     let (outbound_proposal_sender, outbound_proposal_receiver) =
         mpsc::channel::<(HeightAndRound, mpsc::Receiver<ProposalPart>)>(CHANNEL_SIZE);
@@ -136,15 +140,6 @@ fn setup(
     let BroadcastTopicChannels { broadcast_topic_client: votes_topic_client, .. } =
         subscriber_channels;
     let state_sync_client = MockStateSyncClient::new();
-    let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
-    eth_to_strk_oracle_client.expect_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
-    let mut l1_gas_price_provider = MockL1GasPriceProviderClient::new();
-    l1_gas_price_provider.expect_get_price_info().returning(|_| {
-        Ok(PriceInfo {
-            base_fee_per_gas: TEMP_ETH_GAS_FEE_IN_WEI,
-            blob_fee: TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
-        })
-    });
     let context = SequencerConsensusContext::new(
         ContextConfig {
             proposal_buffer_size: CHANNEL_SIZE,
@@ -206,7 +201,18 @@ async fn build_proposal_setup(
         })
     });
 
-    let (mut context, _network) = setup(batcher, mock_cende_context);
+    let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
+    eth_to_strk_oracle_client.expect_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
+    let mut l1_gas_price_provider = MockL1GasPriceProviderClient::new();
+    l1_gas_price_provider.expect_get_price_info().returning(|_| {
+        Ok(PriceInfo {
+            base_fee_per_gas: TEMP_ETH_GAS_FEE_IN_WEI,
+            blob_fee: TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
+        })
+    });
+
+    let (mut context, _network) =
+        setup(batcher, mock_cende_context, eth_to_strk_oracle_client, l1_gas_price_provider);
     let init = ProposalInit::default();
 
     (context.build_proposal(init, TIMEOUT).await, context, _network)
@@ -226,7 +232,22 @@ async fn cancelled_proposal_aborts() {
 
     batcher.expect_start_height().times(1).return_once(|_| Ok(()));
 
-    let (mut context, _network) = setup(batcher, success_cende_ammbassador());
+    let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
+    eth_to_strk_oracle_client.expect_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
+    let mut l1_gas_price_provider = MockL1GasPriceProviderClient::new();
+    l1_gas_price_provider.expect_get_price_info().returning(|_| {
+        Ok(PriceInfo {
+            base_fee_per_gas: TEMP_ETH_GAS_FEE_IN_WEI,
+            blob_fee: TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
+        })
+    });
+
+    let (mut context, _network) = setup(
+        batcher,
+        success_cende_ammbassador(),
+        eth_to_strk_oracle_client,
+        l1_gas_price_provider,
+    );
 
     let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await;
 
@@ -273,7 +294,23 @@ async fn validate_proposal_success() {
             })
         },
     );
-    let (mut context, _network) = setup(batcher, success_cende_ammbassador());
+
+    let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
+    eth_to_strk_oracle_client.expect_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
+    let mut l1_gas_price_provider = MockL1GasPriceProviderClient::new();
+    l1_gas_price_provider.expect_get_price_info().returning(|_| {
+        Ok(PriceInfo {
+            base_fee_per_gas: TEMP_ETH_GAS_FEE_IN_WEI,
+            blob_fee: TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
+        })
+    });
+
+    let (mut context, _network) = setup(
+        batcher,
+        success_cende_ammbassador(),
+        eth_to_strk_oracle_client,
+        l1_gas_price_provider,
+    );
 
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
@@ -304,7 +341,23 @@ async fn dont_send_block_info() {
         .times(1)
         .withf(|input| input.height == BlockNumber(0))
         .return_once(|_| Ok(()));
-    let (mut context, _network) = setup(batcher, success_cende_ammbassador());
+
+    let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
+    eth_to_strk_oracle_client.expect_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
+    let mut l1_gas_price_provider = MockL1GasPriceProviderClient::new();
+    l1_gas_price_provider.expect_get_price_info().returning(|_| {
+        Ok(PriceInfo {
+            base_fee_per_gas: TEMP_ETH_GAS_FEE_IN_WEI,
+            blob_fee: TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
+        })
+    });
+
+    let (mut context, _network) = setup(
+        batcher,
+        success_cende_ammbassador(),
+        eth_to_strk_oracle_client,
+        l1_gas_price_provider,
+    );
 
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
@@ -343,7 +396,23 @@ async fn repropose() {
             })
         },
     );
-    let (mut context, mut network) = setup(batcher, success_cende_ammbassador());
+
+    let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
+    eth_to_strk_oracle_client.expect_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
+    let mut l1_gas_price_provider = MockL1GasPriceProviderClient::new();
+    l1_gas_price_provider.expect_get_price_info().returning(|_| {
+        Ok(PriceInfo {
+            base_fee_per_gas: TEMP_ETH_GAS_FEE_IN_WEI,
+            blob_fee: TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
+        })
+    });
+
+    let (mut context, mut network) = setup(
+        batcher,
+        success_cende_ammbassador(),
+        eth_to_strk_oracle_client,
+        l1_gas_price_provider,
+    );
 
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
@@ -411,7 +480,23 @@ async fn proposals_from_different_rounds() {
             })
         },
     );
-    let (mut context, _network) = setup(batcher, success_cende_ammbassador());
+
+    let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
+    eth_to_strk_oracle_client.expect_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
+    let mut l1_gas_price_provider = MockL1GasPriceProviderClient::new();
+    l1_gas_price_provider.expect_get_price_info().returning(|_| {
+        Ok(PriceInfo {
+            base_fee_per_gas: TEMP_ETH_GAS_FEE_IN_WEI,
+            blob_fee: TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
+        })
+    });
+
+    let (mut context, _network) = setup(
+        batcher,
+        success_cende_ammbassador(),
+        eth_to_strk_oracle_client,
+        l1_gas_price_provider,
+    );
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
     context.set_height_and_round(BlockNumber(0), 1).await;
@@ -496,7 +581,23 @@ async fn interrupt_active_proposal() {
                 }),
             })
         });
-    let (mut context, _network) = setup(batcher, success_cende_ammbassador());
+
+    let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
+    eth_to_strk_oracle_client.expect_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
+    let mut l1_gas_price_provider = MockL1GasPriceProviderClient::new();
+    l1_gas_price_provider.expect_get_price_info().returning(|_| {
+        Ok(PriceInfo {
+            base_fee_per_gas: TEMP_ETH_GAS_FEE_IN_WEI,
+            blob_fee: TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
+        })
+    });
+
+    let (mut context, _network) = setup(
+        batcher,
+        success_cende_ammbassador(),
+        eth_to_strk_oracle_client,
+        l1_gas_price_provider,
+    );
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
 
@@ -609,7 +710,23 @@ async fn batcher_not_ready(#[case] proposer: bool) {
             .times(1)
             .returning(move |_| Err(BatcherClientError::BatcherError(BatcherError::NotReady)));
     }
-    let (mut context, _network) = setup(batcher, success_cende_ammbassador());
+
+    let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
+    eth_to_strk_oracle_client.expect_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
+    let mut l1_gas_price_provider = MockL1GasPriceProviderClient::new();
+    l1_gas_price_provider.expect_get_price_info().returning(|_| {
+        Ok(PriceInfo {
+            base_fee_per_gas: TEMP_ETH_GAS_FEE_IN_WEI,
+            blob_fee: TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
+        })
+    });
+
+    let (mut context, _network) = setup(
+        batcher,
+        success_cende_ammbassador(),
+        eth_to_strk_oracle_client,
+        l1_gas_price_provider,
+    );
     context.set_height_and_round(BlockNumber::default(), Round::default()).await;
 
     if proposer {
@@ -665,7 +782,22 @@ async fn eth_to_fri_rate_out_of_range() {
         .withf(|input| input.height == BlockNumber(0))
         .return_once(|_| Ok(()));
 
-    let (mut context, _network) = setup(batcher, success_cende_ammbassador());
+    let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
+    eth_to_strk_oracle_client.expect_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
+    let mut l1_gas_price_provider = MockL1GasPriceProviderClient::new();
+    l1_gas_price_provider.expect_get_price_info().returning(|_| {
+        Ok(PriceInfo {
+            base_fee_per_gas: TEMP_ETH_GAS_FEE_IN_WEI,
+            blob_fee: TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
+        })
+    });
+
+    let (mut context, _network) = setup(
+        batcher,
+        success_cende_ammbassador(),
+        eth_to_strk_oracle_client,
+        l1_gas_price_provider,
+    );
     context.set_height_and_round(BlockNumber(0), 0).await;
     let (mut content_sender, content_receiver) = mpsc::channel(context.config.proposal_buffer_size);
     // Send a block info with an eth_to_fri_rate that is outside the margin of error.
