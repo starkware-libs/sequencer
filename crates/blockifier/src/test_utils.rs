@@ -15,7 +15,7 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-use starknet_api::abi::abi_utils::get_fee_token_var_address;
+use starknet_api::abi::abi_utils::{get_fee_token_var_address, selector_from_name};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::executable_transaction::TransactionType;
@@ -344,6 +344,21 @@ pub fn calldata_for_deploy_test(
         .concat()
         .into(),
     )
+}
+
+pub fn create_deploy_entry_point(
+    class_hash: ClassHash,
+    constructor_calldata: &[Felt],
+    valid_deploy_from_zero: bool,
+    deployer_contract: FeatureContract,
+) -> CallEntryPoint {
+    let calldata =
+        calldata_for_deploy_test(class_hash, constructor_calldata, valid_deploy_from_zero);
+    CallEntryPoint {
+        entry_point_selector: selector_from_name("test_deploy"),
+        calldata,
+        ..trivial_external_entry_point_new(deployer_contract)
+    }
 }
 
 pub fn update_json_value(base: &mut serde_json::Value, update: serde_json::Value) {
