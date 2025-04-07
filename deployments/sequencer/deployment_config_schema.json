@@ -24,8 +24,12 @@
                 "properties": {
                   "domain": { "type": "string" },
                   "internal": { "type": "boolean" },
-                  "rules": { 
-                    "type": "array" 
+                  "rules": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "string"
+                    }
                   },
                   "alternative_names": {
                     "type": "array",
