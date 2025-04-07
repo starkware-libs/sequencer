@@ -22,6 +22,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::errors::StarknetOsError;
 use crate::hint_processor::execution_helper::{ExecutionHelperError, OsExecutionHelper};
+use crate::hint_processor::state_update_pointers::StateUpdatePointers;
 use crate::hints::enum_definition::AllHints;
 use crate::hints::error::OsHintError;
 use crate::hints::types::{HintArgs, HintEnum, HintExtensionImplementation, HintImplementation};
@@ -92,6 +93,7 @@ pub struct SnosHintProcessor<S: StateReader> {
     pub syscall_hint_processor: SyscallHintProcessor,
     pub(crate) deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
     pub(crate) compiled_classes: HashMap<ClassHash, CasmContractClass>,
+    pub(crate) state_update_pointers: Option<StateUpdatePointers>,
     _deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
     builtin_hint_processor: BuiltinHintProcessor,
     // KZG fields.
@@ -137,6 +139,7 @@ impl<S: StateReader> SnosHintProcessor<S> {
             builtin_hint_processor: BuiltinHintProcessor::new_empty(),
             deprecated_compiled_classes: os_hints.os_input.deprecated_compiled_classes,
             compiled_classes: os_hints.os_input.compiled_classes,
+            state_update_pointers: None,
         })
     }
 
