@@ -64,6 +64,7 @@ apollo_sierra_multicompile.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
 thiserror.workspace = true
+tikv-jemallocator.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
@@ -78,7 +79,6 @@ rstest.workspace = true
 rstest_reuse.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 test-case.workspace = true
-tikv-jemallocator.workspace = true
 
 [build-dependencies]
 apollo_infra_utils.workspace = true

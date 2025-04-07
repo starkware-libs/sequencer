@@ -4,6 +4,10 @@
 // when converting usize to u128.
 #![cfg(any(target_pointer_width = "16", target_pointer_width = "32", target_pointer_width = "64",))]
 
+use apollo_infra_utils::set_global_allocator;
+
+set_global_allocator!();
+
 pub mod abi;
 pub mod blockifier;
 pub mod blockifier_versioned_constants;
