@@ -36,6 +36,7 @@ validator.workspace = true
 
 [dev-dependencies]
 apollo_batcher_types = { workspace = true, features = ["testing"] }
+apollo_l1_gas_price_types = { workspace = true, features = ["testing"] }
 apollo_state_sync_types = { workspace = true, features = ["testing"] }
 mockall.workspace = true
 rstest.workspace = true
