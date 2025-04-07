@@ -56,19 +56,31 @@ class BaseCommand(Enum):
                 return []
 
             print(f"Composing sequencer integration test commands.")
-            # Commands to build the node and all the test binaries.
-            build_cmds = [
-                ["cargo", "build", "--bin", binary_name]
-                for binary_name in [SEQUENCER_BINARY_NAME] + SEQUENCER_INTEGRATION_TEST_NAMES
-            ]
-            # Port setup command, used to prevent port binding issues.
-            port_cmds = [["sysctl", "-w", "net.ipv4.ip_local_port_range='40000 40200'"]]
+
+            def build_cmds(with_feature: bool) -> List[List[str]]:
+                feature_flag = ["--features", "cairo_native"] if with_feature else []
+                # Commands to build the node and all the test binaries.
+                build_cmds = [
+                    ["cargo", "build", "--bin", binary_name] + feature_flag
+                    for binary_name in [SEQUENCER_BINARY_NAME] + SEQUENCER_INTEGRATION_TEST_NAMES
+                ]
+                return build_cmds
+
             # Commands to run the test binaries.
             run_cmds = [
                 [f"./target/debug/{test_binary_name}"]
                 for test_binary_name in SEQUENCER_INTEGRATION_TEST_NAMES
             ]
-            return build_cmds + port_cmds + run_cmds
+            # Port setup command, used to prevent port binding issues.
+            port_cmds = [["sysctl", "-w", "net.ipv4.ip_local_port_range='40000 40200'"]]
+
+            return (
+                build_cmds(with_feature=False)
+                + port_cmds
+                + run_cmds
+                + build_cmds(with_feature=True)
+                + run_cmds
+            )
 
         raise NotImplementedError(f"Command {self} not implemented.")
 
