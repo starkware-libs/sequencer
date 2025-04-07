@@ -8,7 +8,7 @@ use apollo_config::validators::validate_ascii;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentStarter;
-use apollo_l1_provider_types::errors::L1ProviderClientError;
+use apollo_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
 use apollo_l1_provider_types::{Event, SharedL1ProviderClient};
 use async_trait::async_trait;
 use papyrus_base_layer::constants::EventIdentifier;
@@ -191,7 +191,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
 impl<B: BaseLayerContract + Send + Sync> ComponentStarter for L1Scraper<B> {
     async fn start(&mut self) {
         info!("Starting component {}.", type_name::<Self>());
-        self.run().await.unwrap_or_else(|e| panic!("Failed to start L1Scraper component: {}", e))
+        self.run().await.unwrap_or_else(|e| panic!("Runtime Error: {e}"))
     }
 }
 
@@ -261,11 +261,16 @@ pub enum L1ScraperError<T: BaseLayerContract + Send + Sync> {
     NetworkError(ClientError),
     #[error("L1 reorg detected: {reason}. Restart both the L1 provider and the scraper.")]
     L1ReorgDetected { reason: String },
+    // This is likely due to a provider crash, which is now waiting for the restart sequence from
+    // the scraper.
+    #[error("The scraper requires a restart.")]
+    NeedsRestart,
 }
 
 impl<B: BaseLayerContract + Send + Sync> L1ScraperError<B> {
     pub async fn finality_too_high(finality: u64, base_layer: &B) -> L1ScraperError<B> {
         let latest_l1_block_number_no_finality = base_layer.latest_l1_block_number(0).await;
+
         let latest_l1_block_no_finality = match latest_l1_block_number_no_finality {
             Ok(block_number) => block_number
                 .expect("Latest *L1* block without finality is assumed to always exist."),
@@ -279,10 +284,18 @@ impl<B: BaseLayerContract + Send + Sync> L1ScraperError<B> {
 fn handle_client_error<B: BaseLayerContract + Send + Sync>(
     client_result: Result<(), L1ProviderClientError>,
 ) -> Result<(), L1ScraperError<B>> {
-    if let Err(L1ProviderClientError::ClientError(client_error)) = client_result {
-        return Err(L1ScraperError::NetworkError(client_error));
+    let Err(error) = client_result else {
+        return Ok(());
+    };
+    match error {
+        L1ProviderClientError::ClientError(client_error) => {
+            Err(L1ScraperError::NetworkError(client_error))
+        }
+        L1ProviderClientError::L1ProviderError(L1ProviderError::Uninitialized) => {
+            Err(L1ScraperError::NeedsRestart)
+        }
+        error => panic!("Unexpected error: {error}"),
     }
-    Ok(())
 }
 
 async fn get_latest_l1_block_number<B: BaseLayerContract + Send + Sync>(
