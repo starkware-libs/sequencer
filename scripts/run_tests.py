@@ -17,6 +17,9 @@ ALL_TEST_TRIGGERS: Set[str] = {"Cargo.toml", "Cargo.lock", "rust-toolchain.toml"
 # Set of crates which - if changed - should trigger the integration tests.
 INTEGRATION_TEST_CRATE_TRIGGERS: Set[str] = {"apollo_integration_tests"}
 
+# Set of crates which - if changed - should trigger re-running the integration tests with `cairo_native` feature.
+CAIRO_NATIVE_CRATE_TRIGGERS: Set[str] = {"blockifier"}
+
 # Sequencer node binary name.
 SEQUENCER_BINARY_NAME: str = "apollo_node"
 
@@ -57,19 +60,31 @@ class BaseCommand(Enum):
                 return []
 
             print(f"Composing sequencer integration test commands.")
-            # Commands to build the node and all the test binaries.
-            build_cmds = [
-                ["cargo", "build", "--bin", binary_name]
-                for binary_name in [SEQUENCER_BINARY_NAME] + SEQUENCER_INTEGRATION_TEST_NAMES
-            ]
-            # Port setup command, used to prevent port binding issues.
-            port_cmds = [["sysctl", "-w", "net.ipv4.ip_local_port_range='40000 40200'"]]
+
+            def build_cmds(with_feature: bool) -> List[List[str]]:
+                feature_flag = ["--features", "cairo_native"] if with_feature else []
+                # Commands to build the node and all the test binaries.
+                build_cmds = [
+                    ["cargo", "build", "--bin", binary_name] + feature_flag
+                    for binary_name in [SEQUENCER_BINARY_NAME] + SEQUENCER_INTEGRATION_TEST_NAMES
+                ]
+                return build_cmds
+
             # Commands to run the test binaries.
             run_cmds = [
                 [f"./target/debug/{test_binary_name}"]
                 for test_binary_name in SEQUENCER_INTEGRATION_TEST_NAMES
             ]
-            return build_cmds + port_cmds + run_cmds
+
+            cmds_no_feat = build_cmds(with_feature=False) + run_cmds
+
+            # Only run cairo_native feature if the blockifier crate is modified.
+            if CAIRO_NATIVE_CRATE_TRIGGERS.isdisjoint(crates):
+                return (cmds_no_feat)
+
+            print(f"Composing sequencer integration test commands with cairo_native feature.")
+            cmds_with_feat = build_cmds(with_feature=True) + run_cmds
+            return (cmds_no_feat + cmds_with_feat)
 
         raise NotImplementedError(f"Command {self} not implemented.")
 
