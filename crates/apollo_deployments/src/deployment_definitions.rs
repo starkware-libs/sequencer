@@ -36,7 +36,7 @@ fn integration_consolidated_deployment() -> DeploymentAndPreset {
         Deployment::new(
             ChainId::IntegrationSepolia,
             DeploymentName::ConsolidatedNode,
-            application_config_dir_path(Environment::SepoliaIntegration),
+            Environment::SepoliaIntegration,
         ),
         deployment_file_path(Environment::SepoliaIntegration, "integration_consolidated"),
         INTEGRATION_BASE_APP_CONFIG_PATH,
@@ -49,7 +49,7 @@ fn system_test_distributed_deployment() -> DeploymentAndPreset {
         Deployment::new(
             ChainId::IntegrationSepolia,
             DeploymentName::DistributedNode,
-            application_config_dir_path(Environment::Testing),
+            Environment::Testing,
         ),
         deployment_file_path(Environment::Testing, "deployment_test_distributed"),
         SYSTEM_TEST_BASE_APP_CONFIG_PATH,
@@ -61,29 +61,31 @@ fn system_test_consolidated_deployment() -> DeploymentAndPreset {
         Deployment::new(
             ChainId::IntegrationSepolia,
             DeploymentName::ConsolidatedNode,
-            application_config_dir_path(Environment::Testing),
+            Environment::Testing,
         ),
         deployment_file_path(Environment::Testing, "deployment_test_consolidated"),
         SYSTEM_TEST_BASE_APP_CONFIG_PATH,
     )
 }
 
-#[derive(EnumString, Display, Debug)]
+#[derive(EnumString, Clone, Display, PartialEq, Debug)]
 #[strum(serialize_all = "snake_case")]
-pub(crate) enum Environment {
+pub enum Environment {
     Testing,
     SepoliaIntegration,
     SepoliaTestnet,
     Mainnet,
 }
 
-pub(crate) fn deployment_file_path(environment: Environment, deployment_name: &str) -> PathBuf {
+impl Environment {
+    pub fn application_config_dir_path(&self) -> PathBuf {
+        PathBuf::from(CONFIG_BASE_DIR).join(self.to_string()).join(APP_CONFIGS_DIR_NAME)
+    }
+}
+
+pub fn deployment_file_path(environment: Environment, deployment_name: &str) -> PathBuf {
     PathBuf::from(CONFIG_BASE_DIR)
         .join(environment.to_string())
         .join(DEPLOYMENT_CONFIG_DIR_NAME)
         .join(format!("{deployment_name}.json"))
-}
-
-pub(crate) fn application_config_dir_path(environment: Environment) -> PathBuf {
-    PathBuf::from(CONFIG_BASE_DIR).join(environment.to_string()).join(APP_CONFIGS_DIR_NAME)
 }

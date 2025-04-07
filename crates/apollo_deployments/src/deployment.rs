@@ -10,6 +10,7 @@ use serde::Serialize;
 use serde_json::Value;
 use starknet_api::core::ChainId;
 
+use crate::deployment_definitions::Environment;
 use crate::service::{DeploymentName, Service, ServiceName};
 
 const DEPLOYMENT_IMAGE: &str = "ghcr.io/starkware-libs/sequencer/sequencer:dev";
@@ -50,6 +51,8 @@ pub struct Deployment {
     application_config_subdir: PathBuf,
     #[serde(skip_serializing)]
     deployment_name: DeploymentName,
+    #[serde(skip_serializing)]
+    environment: Environment,
     services: Vec<Service>,
 }
 
@@ -57,7 +60,7 @@ impl Deployment {
     pub fn new(
         chain_id: ChainId,
         deployment_name: DeploymentName,
-        application_config_subdir: PathBuf,
+        environment: Environment,
     ) -> Self {
         let service_names = deployment_name.all_service_names();
         let services =
@@ -65,8 +68,10 @@ impl Deployment {
         Self {
             chain_id,
             image: DEPLOYMENT_IMAGE,
-            application_config_subdir: deployment_name.add_path_suffix(application_config_subdir),
+            application_config_subdir: deployment_name
+                .add_path_suffix(environment.application_config_dir_path()),
             deployment_name,
+            environment,
             services,
         }
     }
