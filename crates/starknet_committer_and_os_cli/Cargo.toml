@@ -52,3 +52,6 @@ path = "benches/main.rs"
 # See [here](https://github.com/bnjbvr/cargo-machete/issues/128).
 [package.metadata.cargo-machete]
 ignored = ["hex", "strum_macros"]
+
+[features]
+deserialize = []
