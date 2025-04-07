@@ -196,8 +196,12 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_code::{
     VM_EXIT_SCOPE,
     XS_SAFE_DIV,
 };
+use cairo_vm::types::layout_name::LayoutName;
+use starknet_os::hint_processor::panicking_state_reader::PanickingStateReader;
 use starknet_os::hints::enum_definition::{AggregatorHint, HintExtension, OsHint};
 use starknet_os::hints::types::HintEnum;
+use starknet_os::io::os_input::OsHints;
+use starknet_os::runner::run_os;
 use starknet_os::test_utils::cairo_runner::{EndpointArg, ImplicitArg};
 use starknet_os::test_utils::errors::Cairo0EntryPointRunnerError;
 use starknet_os::test_utils::utils::run_cairo_function_and_check_result;
@@ -217,6 +221,7 @@ pub enum OsPythonTestRunner {
     CompareOsHints,
     InputDeserialization,
     RunDummyFunction,
+    RunEmptyMultiBlock,
 }
 
 // Implements conversion from a string to the test runner.
@@ -229,6 +234,7 @@ impl TryFrom<String> for OsPythonTestRunner {
             "compare_os_hints" => Ok(Self::CompareOsHints),
             "input_deserialization" => Ok(Self::InputDeserialization),
             "run_dummy_function" => Ok(Self::RunDummyFunction),
+            "run_empty_multi_block" => Ok(Self::RunEmptyMultiBlock),
             _ => Err(PythonTestError::UnknownTestName(value)),
         }
     }
@@ -247,6 +253,9 @@ impl PythonTestRunner for OsPythonTestRunner {
             Self::CompareOsHints => compare_os_hints(Self::non_optional_input(input)?),
             Self::InputDeserialization => input_deserialization(Self::non_optional_input(input)?),
             Self::RunDummyFunction => run_dummy_cairo_function(Self::non_optional_input(input)?),
+            Self::RunEmptyMultiBlock => {
+                run_empty_multi_block_test(Self::non_optional_input(input)?)
+            }
         }
     }
 }
@@ -348,6 +357,14 @@ fn input_deserialization(input_str: &str) -> OsPythonTestResult {
     let input = serde_json::from_str::<Input>(input_str)?;
     validate_input(&input.os_hints.os_input.os_block_and_state_input);
     Ok("Deserialization successful".to_string())
+}
+
+fn run_empty_multi_block_test(compiled_os_str: &str) -> OsPythonTestResult {
+    let os_hints = OsHints::default();
+    let layout = LayoutName::all_cairo;
+    let os_output =
+        run_os::<PanickingStateReader>(compiled_os_str.as_bytes(), layout, os_hints, vec![])?;
+    Ok(serde_json::to_string(&os_output)?)
 }
 
 fn vm_hints() -> HashSet<&'static str> {
