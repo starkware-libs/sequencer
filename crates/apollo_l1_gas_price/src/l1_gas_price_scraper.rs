@@ -19,6 +19,8 @@ use thiserror::Error;
 use tracing::{error, info};
 use validator::Validate;
 
+use crate::metrics::L1_GAS_PRICE_SCRAPER_STARTUP_NO_HISTORY;
+
 #[cfg(test)]
 #[path = "l1_gas_price_scraper_test.rs"]
 pub mod l1_gas_price_scraper_test;
@@ -160,19 +162,29 @@ where
     async fn start(&mut self) {
         info!("Starting component {}.", type_name::<Self>());
         let start_from = match self.config.starting_block {
+            // If a starting block is provided, use it.
             Some(block) => block,
+            // Need to figure out which block to start from.
             None => {
                 let latest = self
                     .base_layer
                     .latest_l1_block_number(self.config.finality)
                     .await
-                    .expect("Failed to get the latest L1 block number")
                     .expect("Failed to get the latest L1 block number");
-                // If no starting block is provided, the default is to start from
-                // 2 * number_of_blocks_for_mean before the tip of L1.
-                // Note that for new chains this subtraction may be negative,
-                // hence the use of saturating_sub.
-                latest.saturating_sub(self.config.number_of_blocks_for_mean * 2)
+                match latest {
+                    Some(latest) => {
+                        // If no starting block is provided, the default is to start from
+                        // 2 * number_of_blocks_for_mean before the tip of L1.
+                        // Note that for new chains this subtraction may be negative,
+                        // hence the use of saturating_sub.
+                        latest.saturating_sub(self.config.number_of_blocks_for_mean * 2)
+                    }
+                    None => {
+                        error!("Failed to get the latest L1 block number");
+                        L1_GAS_PRICE_SCRAPER_STARTUP_NO_HISTORY.increment(1);
+                        0
+                    }
+                }
             }
         };
         self.run(start_from)
