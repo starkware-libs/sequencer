@@ -154,7 +154,7 @@ impl DeploymentName {
         match self {
             // TODO(Tsabary): avoid this code duplication.
             Self::ConsolidatedNode => ConsolidatedNodeServiceName::get_component_configs(base_port),
-            Self::HybridNode => ConsolidatedNodeServiceName::get_component_configs(base_port),
+            Self::HybridNode => HybridNodeServiceName::get_component_configs(base_port),
             Self::DistributedNode => DistributedNodeServiceName::get_component_configs(base_port),
         }
     }

@@ -50,6 +50,7 @@ use crate::monitoring_utils::{
 use crate::node_component_configs::{
     create_consolidated_component_configs,
     create_distributed_component_configs,
+    create_hybrid_component_configs,
 };
 use crate::sequencer_simulator_utils::SequencerSimulator;
 use crate::state_reader::StorageTestHandles;
@@ -702,7 +703,13 @@ pub async fn get_sequencer_setup_configs(
     for _ in 0..num_of_consolidated_nodes {
         node_component_configs.push(create_consolidated_component_configs());
     }
-    for _ in 0..num_of_distributed_nodes {
+    // Testing the two various node configurations: distributed and hybrid.
+    // TODO(Tsabary): better handling of the number of each type.
+    for _ in 0..num_of_distributed_nodes / 2 {
+        node_component_configs
+            .push(create_hybrid_component_configs(&mut available_ports_generator));
+    }
+    for _ in num_of_distributed_nodes / 2..num_of_distributed_nodes {
         node_component_configs
             .push(create_distributed_component_configs(&mut available_ports_generator));
     }
