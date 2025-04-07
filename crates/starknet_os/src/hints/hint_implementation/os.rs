@@ -98,8 +98,11 @@ pub(crate) fn init_state_update_pointer<S: StateReader>(
     todo!()
 }
 
-pub(crate) fn get_n_blocks<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    todo!()
+pub(crate) fn get_n_blocks<S: StateReader>(
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    let n_blocks = hint_processor.n_blocks();
+    insert_nondet_hint_value(vm, AllHints::OsHint(OsHint::GetBlocksNumber), n_blocks)
 }
 
 pub(crate) fn create_block_additional_hints<S: StateReader>(
