@@ -10,6 +10,7 @@ use serde::Serialize;
 use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
 
+use crate::deployment_definitions::Environment;
 use crate::service::{
     Controller,
     GetComponentConfigs,
@@ -43,7 +44,10 @@ impl From<HybridNodeServiceName> for ServiceName {
 }
 
 impl GetComponentConfigs for HybridNodeServiceName {
-    fn get_component_configs(base_port: Option<u16>) -> IndexMap<ServiceName, ComponentConfig> {
+    fn get_component_configs(
+        base_port: Option<u16>,
+        _environment: &Environment,
+    ) -> IndexMap<ServiceName, ComponentConfig> {
         // TODO(Tsabary): change this function to take a slice of port numbers at the exact expected
         // length.
         let mut component_config_map = IndexMap::<ServiceName, ComponentConfig>::new();
