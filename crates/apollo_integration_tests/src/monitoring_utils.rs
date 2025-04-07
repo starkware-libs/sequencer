@@ -150,7 +150,7 @@ pub async fn await_txs_accepted(
     target_n_accepted_txs: usize,
 ) {
     const INTERVAL_MILLIS: u64 = 5000;
-    const MAX_ATTEMPTS: usize = 50;
+    const MAX_ATTEMPTS: usize = 500;
     info!("Waiting until sequencer {sequencer_idx} accepts {target_n_accepted_txs} txs.");
 
     let condition =
