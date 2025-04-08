@@ -88,8 +88,14 @@ pub fn initialize_execution_context<'a>(
     let trace_enabled = false;
     let allow_missing_builtins = false;
     let program_base = None;
-    let mut runner =
-        CairoRunner::new(&compiled_class.program, LayoutName::starknet, proof_mode, trace_enabled)?;
+    let mut runner = CairoRunner::new(
+        &compiled_class.program,
+        LayoutName::starknet,
+        None,
+        proof_mode,
+        trace_enabled,
+        false,
+    )?;
 
     runner.initialize_builtins(allow_missing_builtins)?;
     runner.initialize_segments(program_base);
