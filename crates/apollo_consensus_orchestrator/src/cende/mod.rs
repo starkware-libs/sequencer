@@ -42,6 +42,7 @@ use crate::fee_market::FeeMarketInfo;
 
 // TODO(dvir): add metrics when the infra side will be completed.
 
+#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[derive(thiserror::Error, Debug)]
 pub enum CendeAmbassadorError {
     #[error(transparent)]

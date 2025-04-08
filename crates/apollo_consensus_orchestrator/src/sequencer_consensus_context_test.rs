@@ -182,7 +182,7 @@ async fn setup_batcher_for_build(block_number: BlockNumber) -> MockBatcherClient
         .expect_start_height()
         .times(1)
         .withf(move |input| input.height == block_number)
-        .return_once(|_| Ok(()));
+        .return_const(Ok(()));
     let proposal_id_clone = Arc::clone(&proposal_id);
     batcher.expect_get_proposal_content().times(1).returning(move |input| {
         assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
@@ -215,7 +215,7 @@ async fn setup_batcher_for_validate(block_number: BlockNumber) -> MockBatcherCli
         .expect_start_height()
         .times(1)
         .withf(move |input| input.height == block_number)
-        .return_once(|_| Ok(()));
+        .return_const(Ok(()));
     let proposal_id_clone = Arc::clone(&proposal_id);
     batcher.expect_send_proposal_content().times(1).returning(
         move |input: SendProposalContentInput| {
@@ -251,12 +251,10 @@ fn success_cende_ammbassador() -> MockCendeContext {
 
 fn dummy_gas_price_provider() -> MockL1GasPriceProviderClient {
     let mut l1_gas_price_provider = MockL1GasPriceProviderClient::new();
-    l1_gas_price_provider.expect_get_price_info().returning(|_| {
-        Ok(PriceInfo {
-            base_fee_per_gas: TEMP_ETH_GAS_FEE_IN_WEI,
-            blob_fee: TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
-        })
-    });
+    l1_gas_price_provider.expect_get_price_info().return_const(Ok(PriceInfo {
+        base_fee_per_gas: TEMP_ETH_GAS_FEE_IN_WEI,
+        blob_fee: TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
+    }));
 
     l1_gas_price_provider
 }
@@ -264,9 +262,9 @@ fn dummy_gas_price_provider() -> MockL1GasPriceProviderClient {
 #[tokio::test]
 async fn cancelled_proposal_aborts() {
     let mut batcher = MockBatcherClient::new();
-    batcher.expect_propose_block().times(1).return_once(|_| Ok(()));
+    batcher.expect_propose_block().times(1).return_const(Ok(()));
 
-    batcher.expect_start_height().times(1).return_once(|_| Ok(()));
+    batcher.expect_start_height().times(1).return_const(Ok(()));
     let (default_deps, _network) = default_context_dependencies();
     let context_deps = SequencerConsensusContextDeps { batcher: Arc::new(batcher), ..default_deps };
     let mut context = setup_with_custom_mocks(context_deps);
@@ -314,7 +312,7 @@ async fn dont_send_block_info() {
         .expect_start_height()
         .times(1)
         .withf(|input| input.height == BlockNumber(0))
-        .return_once(|_| Ok(()));
+        .return_const(Ok(()));
     let (default_deps, _network) = default_context_dependencies();
     let context_deps = SequencerConsensusContextDeps { batcher: Arc::new(batcher), ..default_deps };
     let mut context = setup_with_custom_mocks(context_deps);
@@ -545,17 +543,17 @@ async fn build_proposal_cende_incomplete() {
 #[tokio::test]
 async fn batcher_not_ready(#[case] proposer: bool) {
     let mut batcher = MockBatcherClient::new();
-    batcher.expect_start_height().times(1).return_once(|_| Ok(()));
+    batcher.expect_start_height().times(1).return_const(Ok(()));
     if proposer {
         batcher
             .expect_propose_block()
             .times(1)
-            .returning(|_| Err(BatcherClientError::BatcherError(BatcherError::NotReady)));
+            .return_const(Err(BatcherClientError::BatcherError(BatcherError::NotReady)));
     } else {
         batcher
             .expect_validate_block()
             .times(1)
-            .returning(move |_| Err(BatcherClientError::BatcherError(BatcherError::NotReady)));
+            .return_const(Err(BatcherClientError::BatcherError(BatcherError::NotReady)));
     }
     let (default_deps, _network) = default_context_dependencies();
     let context_deps = SequencerConsensusContextDeps { batcher: Arc::new(batcher), ..default_deps };
@@ -616,7 +614,7 @@ async fn eth_to_fri_rate_out_of_range() {
         .expect_start_height()
         .times(1)
         .withf(|input| input.height == BlockNumber(0))
-        .return_once(|_| Ok(()));
+        .return_const(Ok(()));
     let (default_deps, _network) = default_context_dependencies();
     let context_deps = SequencerConsensusContextDeps { batcher: Arc::new(batcher), ..default_deps };
     let mut context = setup_with_custom_mocks(context_deps);
@@ -651,23 +649,27 @@ async fn decision_reached_sends_correct_values() {
     batcher
         .expect_decision_reached()
         .times(1)
-        .return_once(move |_| Ok(DecisionReachedResponse::default()));
+        .return_once(|_| Ok(DecisionReachedResponse::default()));
 
     // Mock the sync client and validate that add_new_block receives the expected block_info.
     let mut mock_sync_client = MockStateSyncClient::new();
 
     // This is the actual part of the test that checks the values are correct.
     // TODO(guy.f): Add expectations and validations for all the other values being written.
-    mock_sync_client.expect_add_new_block().times(1).return_once(|block_info| {
-        assert_eq!(block_info.block_header_without_hash.timestamp.0, BLOCK_TIME_STAMP_SECONDS);
-        Ok(())
-    });
+    mock_sync_client
+        .expect_add_new_block()
+        .times(1)
+        .withf(|block_info| {
+            assert_eq!(block_info.block_header_without_hash.timestamp.0, BLOCK_TIME_STAMP_SECONDS);
+            true
+        })
+        .return_const(Ok(()));
 
     let mut cende_ammbassador = success_cende_ammbassador();
     cende_ammbassador
         .expect_prepare_blob_for_next_height()
         // TODO(guy.f): Verify the values sent here are correct.
-        .return_once(|_height| Ok(()));
+        .return_const(Ok(()));
 
     let (default_deps, _network_dependencies) = default_context_dependencies();
     let context_deps = SequencerConsensusContextDeps {
