@@ -402,14 +402,7 @@ impl AccountTransaction {
         remaining_gas: &mut GasCounter,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
         if self.execution_flags.validate {
-            let remaining_validation_gas = &mut remaining_gas.limit_usage(
-                tx_context.block_context.versioned_constants.os_constants.validate_max_sierra_gas,
-            );
-            Ok(self.validate_tx(state, tx_context, remaining_validation_gas)?.inspect(
-                |call_info| {
-                    remaining_gas.subtract_used_gas(call_info);
-                },
-            ))
+            self.validate_tx(state, tx_context, remaining_gas)
         } else {
             Ok(None)
         }
@@ -903,13 +896,16 @@ impl ValidatableTransaction for AccountTransaction {
         &self,
         state: &mut dyn State,
         tx_context: Arc<TransactionContext>,
-        remaining_gas: &mut u64,
+        remaining_gas: &mut GasCounter,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
+        let remaining_validation_gas = &mut remaining_gas.limit_usage(
+            tx_context.block_context.versioned_constants.os_constants.validate_max_sierra_gas,
+        );
         let limit_steps_by_resources = self.execution_flags.charge_fee;
         let mut context = EntryPointExecutionContext::new_validate(
             tx_context,
             limit_steps_by_resources,
-            SierraGasRevertTracker::new(GasAmount(*remaining_gas)),
+            SierraGasRevertTracker::new(GasAmount(*remaining_validation_gas)),
         );
         let tx_info = &context.tx_context.tx_info;
         if tx_info.is_v0() {
@@ -928,12 +924,12 @@ impl ValidatableTransaction for AccountTransaction {
             storage_address,
             caller_address: ContractAddress::default(),
             call_type: CallType::Call,
-            initial_gas: *remaining_gas,
+            initial_gas: *remaining_validation_gas,
         };
 
         // Note that we allow a revert here and we handle it bellow to get a better error message.
         let validate_call_info = validate_call
-            .execute(state, &mut context, remaining_gas)
+            .execute(state, &mut context, remaining_validation_gas)
             .map_err(|error| TransactionExecutionError::ValidateTransactionError {
                 error,
                 class_hash,
@@ -963,6 +959,7 @@ impl ValidatableTransaction for AccountTransaction {
                 });
             }
         }
+        remaining_gas.subtract_used_gas(&validate_call_info);
         Ok(Some(validate_call_info))
     }
 }
