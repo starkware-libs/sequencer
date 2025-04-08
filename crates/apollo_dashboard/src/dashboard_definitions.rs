@@ -44,7 +44,10 @@ use apollo_gateway::metrics::{
     TRANSACTIONS_SENT_TO_MEMPOOL,
 };
 use apollo_http_server::metrics::ADDED_TRANSACTIONS_TOTAL;
-use apollo_l1_gas_price::metrics::L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY;
+use apollo_l1_gas_price::metrics::{
+    L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY,
+    L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT,
+};
 use apollo_mempool::metrics::{
     LABEL_NAME_DROP_REASON,
     LABEL_NAME_TX_TYPE as MEMPOOL_LABEL_NAME_TX_TYPE,
@@ -207,6 +210,9 @@ const PANEL_GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL: Panel = Panel::new(
 
 const PANEL_L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY: Panel =
     Panel::from_counter(L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY, PanelType::Stat);
+
+const PANEL_L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT: Panel =
+    Panel::from_counter(L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT, PanelType::Stat);
 
 const PANEL_MEMPOOL_TRANSACTIONS_RECEIVED: Panel = Panel::new(
     MEMPOOL_TRANSACTIONS_RECEIVED.get_name(),
@@ -409,7 +415,10 @@ pub const GATEWAY_ROW: Row = Row::new(
 pub const L1_GAS_PRICE_ROW: Row = Row::new(
     "L1 Gas Price",
     "L1 gas price provider and scraper metrics",
-    &[PANEL_L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY],
+    &[
+        PANEL_L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY,
+        PANEL_L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT,
+    ],
 );
 
 pub const MEMPOOL_ROW: Row = Row::new(
