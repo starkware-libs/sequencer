@@ -51,6 +51,7 @@ impl L1Provider {
     }
 
     pub async fn initialize(&mut self, events: Vec<Event>) -> L1ProviderResult<()> {
+        info!("Initializing l1 provider");
         let Some(bootstrapper) = self.state.get_bootstrapper() else {
             // FIXME: This should be return FatalError or similar, which should trigger a planned
             // restart from the infra, since this CAN happen if the scraper recovered from a crash.
@@ -213,7 +214,8 @@ impl L1Provider {
             return Err(L1ProviderError::Uninitialized);
         }
 
-        trace!(?events);
+        info!("Adding {} l1 events", events.len());
+        trace!("Adding events: {events:?}");
 
         for event in events {
             match event {
