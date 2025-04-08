@@ -14,6 +14,13 @@ from imports.io.external_secrets import (
     ExternalSecretV1Beta1SpecSecretStoreRefKind as ExternalSecretSpecSecretStoreRefKind,
     ExternalSecretV1Beta1SpecDataRemoteRefConversionStrategy as ExternalSecretSpecDataRemoteRefConversionStrategy,
 )
+from imports.com.googleapis.monitoring import (
+    PodMonitoring,
+    PodMonitoringSpec,
+    PodMonitoringSpecSelector,
+    PodMonitoringSpecEndpoints,
+    PodMonitoringSpecEndpointsPort,
+)
 from services import topology, const
 
 
@@ -25,10 +32,12 @@ class ServiceApp(Construct):
         *,
         namespace: str,
         service_topology: topology.ServiceTopology,
+        monitoring: bool,
     ):
         super().__init__(scope, id)
 
         self.namespace = namespace
+        self.monitoring = monitoring
         self.labels = {
             "app": "sequencer",
             "service": Names.to_label_value(self, include_hash=False),
@@ -78,7 +87,29 @@ class ServiceApp(Construct):
 
         if self.service_topology.external_secret is not None:
             self.external_secret = self._get_external_secret()
-
+        
+        if self.monitoring:
+            self.podmonitoring = self._get_podmonitoring()
+    
+    def _get_podmonitoring(self) -> PodMonitoring:
+        return PodMonitoring(
+            self,
+            "pod-monitoring",
+            metadata=ApiObjectMetadata(
+                labels=self.labels,
+            ),
+            spec=PodMonitoringSpec(
+                selector=PodMonitoringSpecSelector(match_labels=self.labels),
+                endpoints=[
+                    PodMonitoringSpecEndpoints(
+                        port=PodMonitoringSpecEndpointsPort.from_number(8082),
+                        interval="30s",
+                        path=const.MONITORING_METRICS_ENDPOINT,
+                    )
+                ],
+            ),
+        )
+        
     def _get_deployment(self) -> k8s.KubeDeployment:
         return k8s.KubeDeployment(
             self,
@@ -91,7 +122,7 @@ class ServiceApp(Construct):
                     metadata=k8s.ObjectMeta(
                         labels=self.labels,
                         annotations={
-                            "prometheus.io/path": "/monitoring/metrics",
+                            "prometheus.io/path": const.MONITORING_METRICS_ENDPOINT,
                             "prometheus.io/port": str(
                                 self._get_config_attr("monitoring_endpoint_config.port")
                             ),
@@ -138,7 +169,7 @@ class ServiceApp(Construct):
                     metadata=k8s.ObjectMeta(
                         labels=self.labels,
                         annotations={
-                            "prometheus.io/path": "/monitoring/metrics",
+                            "prometheus.io/path": const.MONITORING_METRICS_ENDPOINT,
                             "prometheus.io/port": str(
                                 self._get_config_attr("monitoring_endpoint_config.port")
                             ),
