@@ -963,10 +963,12 @@ impl<T: TryFrom<Bytes>> BroadcastTopicClient<T> {
 
 #[async_trait]
 impl<T: TryFrom<Bytes> + Send> BroadcastTopicClientTrait<T> for BroadcastTopicClient<T> {
+    /// Returns immediately if the underlying channel is not full.
     async fn broadcast_message(&mut self, message: T) -> Result<(), SendError> {
         self.messages_to_broadcast_sender.send(message).await
     }
 
+    /// Returns immediately if the underlying channel is not full.
     async fn report_peer(
         &mut self,
         broadcasted_message_metadata: BroadcastedMessageMetadata,
@@ -974,6 +976,7 @@ impl<T: TryFrom<Bytes> + Send> BroadcastTopicClientTrait<T> for BroadcastTopicCl
         self.reported_messages_sender.send(broadcasted_message_metadata).await
     }
 
+    /// Returns immediately if the underlying channel is not full.
     async fn continue_propagation(
         &mut self,
         broadcasted_message_metadata: &BroadcastedMessageMetadata,
