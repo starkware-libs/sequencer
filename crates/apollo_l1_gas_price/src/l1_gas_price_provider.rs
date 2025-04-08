@@ -158,8 +158,9 @@ impl L1GasPriceProvider {
             });
         };
         // We need to convert the index to the forward direction.
-        // The `last_index` is the index of the last block that satisfies the timestamp-lag
-        // condition.
+        // The `last_index` is one plus the index of the last block that satisfies the
+        // timestamp-lag condition. If any block satisfies the condition, then
+        // `last_index` will be >= 1.
         let last_index = self.price_samples_by_block.len() - last_index_rev;
 
         let num_blocks = usize::try_from(self.config.number_of_blocks_for_mean)
@@ -176,16 +177,21 @@ impl L1GasPriceProvider {
             );
             L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY.increment(1);
         }
+        // `last_index` >= 1 and `first_index` > `last_index`, so this is >0.
+        let actual_number_of_blocks = last_index - first_index;
+
         // Go over all elements between `first_index` to `last_index` (non-inclusive).
-        let (gas_price, data_gas_price) =
-            self.price_samples_by_block.iter().skip(first_index).take(num_blocks).fold(
-                (0, 0),
-                |(sum_base, sum_blob), data| {
-                    (sum_base + data.sample.base_fee_per_gas, sum_blob + data.sample.blob_fee)
-                },
-            );
+        let (gas_price, data_gas_price) = self
+            .price_samples_by_block
+            .iter()
+            .skip(first_index)
+            .take(actual_number_of_blocks)
+            .fold((0, 0), |(sum_base, sum_blob), data| {
+                (sum_base + data.sample.base_fee_per_gas, sum_blob + data.sample.blob_fee)
+            });
+
         let actual_number_of_blocks =
-            u128::try_from(last_index - first_index).expect("Cannot convert to u128");
+            u128::try_from(actual_number_of_blocks).expect("Cannot convert to u128");
         Ok(PriceInfo {
             base_fee_per_gas: gas_price / actual_number_of_blocks,
             blob_fee: data_gas_price / actual_number_of_blocks,
