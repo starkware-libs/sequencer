@@ -179,8 +179,12 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         String::from("sw-dev.io"),
                         true,
                         vec![
-                            IngressRule::new(String::from("/gateway"), 8080),
-                            IngressRule::new(String::from("/feeder_gateway"), 8085),
+                            IngressRule::new(String::from("/gateway"), 8080, None),
+                            IngressRule::new(
+                                String::from("/feeder_gateway"),
+                                8085,
+                                Some("nginx-service".into()),
+                            ),
                         ],
                         vec![],
                     )),
@@ -288,8 +292,12 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         String::from("sw-dev.io"),
                         true,
                         vec![
-                            IngressRule::new(String::from("/gateway"), 8080),
-                            IngressRule::new(String::from("/feeder_gateway"), 8085),
+                            IngressRule::new(String::from("/gateway"), 8080, None),
+                            IngressRule::new(
+                                String::from("/feeder_gateway"),
+                                8085,
+                                Some("nginx-service".into()),
+                            ),
                         ],
                         vec![],
                     )),

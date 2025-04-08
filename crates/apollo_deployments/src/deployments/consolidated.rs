@@ -72,8 +72,12 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
                         String::from("sw-dev.io"),
                         false,
                         vec![
-                            IngressRule::new(String::from("/gateway"), 8080),
-                            IngressRule::new(String::from("/feeder_gateway"), 8085),
+                            IngressRule::new(String::from("/gateway"), 8080, None),
+                            IngressRule::new(
+                                String::from("/feeder_gateway"),
+                                8085,
+                                Some("nginx-service".into()),
+                            ),
                         ],
                         vec!["starknet-upgrade-testing-sepolia.gateway-proxy.sw-dev.io".into()],
                     )),
