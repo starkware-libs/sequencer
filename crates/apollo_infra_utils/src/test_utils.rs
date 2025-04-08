@@ -19,35 +19,80 @@ const _: () = {
     );
 };
 
-#[derive(Debug, Copy, Clone)]
-// TODO(Nadin): Come up with a better name for this enum.
-pub enum TestIdentifier {
-    EndToEndFlowTest,
-    EndToEndFlowTestBootstrapDeclare,
-    EndToEndFlowTestManyTxs,
-    InfraUnitTests,
-    PositiveFlowIntegrationTest,
-    RestartFlowIntegrationTest,
-    RevertFlowIntegrationTest,
-    SystemTestDumpSingleNodeConfig,
-    HttpServerUnitTests,
-    SyncFlowIntegrationTest,
+/// Generate the `TestIdentifier` enum variants for the tests, with unique u16 identifiers.
+///
+/// Example:
+/// ```
+/// # #[macro_use] extern crate apollo_infra_utils;
+/// generate_test_identifiers! {
+///     #[derive(Debug, Copy, Clone)]
+///     pub enum TestIdentifier {
+///         EndToEndFlowTest,
+///         EndToEndFlowTestBootstrapDeclare,
+///     }
+/// }
+///
+/// assert_eq!(u16::from(TestIdentifier::EndToEndFlowTest), 0);
+/// assert_eq!(u16::from(TestIdentifier::EndToEndFlowTestBootstrapDeclare), 1);
+/// assert_eq!(TestIdentifier::identifier_of_end_to_end_flow_test(), 0);
+/// assert_eq!(TestIdentifier::identifier_of_end_to_end_flow_test_bootstrap_declare(), 1);
+/// ```
+#[macro_export]
+macro_rules! generate_test_identifiers {
+    (
+        $(#[$cfgs:meta])*
+        $visibility:vis enum $enum_name:ident {
+            $($variant:ident),+ $(,)?
+        }
+    ) => {
+        $(#[$cfgs])*
+        $visibility enum $enum_name {
+            $($variant),+
+        }
+
+        impl $enum_name {
+            generate_test_identifiers! { 0, $($variant),+ }
+        }
+
+        impl From<$enum_name> for u16 {
+            fn from(value: $enum_name) -> Self {
+                match value {
+                    $(
+                        $enum_name::$variant => paste::paste! {
+                            $enum_name::[<identifier_of_ $variant:snake>]()
+                        }
+                    ),+
+                }
+            }
+        }
+    };
+
+    ($index:expr, $variant:ident $(, $rest_of_variants:ident)* $(,)?) => {
+        paste::paste! {
+            fn [<identifier_of_ $variant:snake>]() -> u16 {
+                $index
+            }
+        }
+        generate_test_identifiers!($index + 1, $($rest_of_variants),*);
+    };
+
+    ($final_index:expr $(,)?) => {}
 }
 
-impl From<TestIdentifier> for u16 {
-    fn from(variant: TestIdentifier) -> Self {
-        match variant {
-            TestIdentifier::EndToEndFlowTest => 0,
-            TestIdentifier::EndToEndFlowTestBootstrapDeclare => 1,
-            TestIdentifier::EndToEndFlowTestManyTxs => 2,
-            TestIdentifier::InfraUnitTests => 3,
-            TestIdentifier::PositiveFlowIntegrationTest => 4,
-            TestIdentifier::RestartFlowIntegrationTest => 5,
-            TestIdentifier::RevertFlowIntegrationTest => 6,
-            TestIdentifier::SystemTestDumpSingleNodeConfig => 7,
-            TestIdentifier::HttpServerUnitTests => 8,
-            TestIdentifier::SyncFlowIntegrationTest => 9,
-        }
+generate_test_identifiers! {
+    #[derive(Debug, Copy, Clone)]
+    // TODO(Nadin): Come up with a better name for this enum.
+    pub enum TestIdentifier {
+        EndToEndFlowTest,
+        EndToEndFlowTestBootstrapDeclare,
+        EndToEndFlowTestManyTxs,
+        InfraUnitTests,
+        PositiveFlowIntegrationTest,
+        RestartFlowIntegrationTest,
+        RevertFlowIntegrationTest,
+        SystemTestDumpSingleNodeConfig,
+        HttpServerUnitTests,
+        SyncFlowIntegrationTest,
     }
 }
 
