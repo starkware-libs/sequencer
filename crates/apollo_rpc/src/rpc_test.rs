@@ -191,9 +191,9 @@ async fn test_version_middleware() {
     let mut rng = get_rng();
     let version_id = VERSION_CONFIG.choose(&mut rng).unwrap().0;
     let newer_version_then_we_have = format!("{}_{}", version_id.name, version_id.patch + 1);
-    let bad_uri = format!("{base_uri}{newer_version_then_we_have}");
-    if let Ok(res) = call_proxy_request_get_method_in_out(bad_uri, false).await {
-        panic!("expected failure got: {res:?}");
+    let newer_version_uri = format!("{base_uri}{newer_version_then_we_have}");
+    if let Err(err) = call_proxy_request_get_method_in_out(newer_version_uri, false).await {
+        panic!("Verison should no matter anymore: {err:?}");
     };
 }
 
