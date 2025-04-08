@@ -1039,6 +1039,7 @@ dependencies = [
 name = "apollo_deployments"
 version = "0.0.0"
 dependencies = [
+ "apollo_infra",
  "apollo_infra_utils",
  "apollo_monitoring_endpoint",
  "apollo_node",
