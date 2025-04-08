@@ -6,6 +6,7 @@ use apollo_integration_tests::utils::{
     ACCOUNT_ID_1,
     UNDEPLOYED_ACCOUNT_ID,
 };
+use common::test_single_tx;
 use mempool_test_utils::starknet_api_test_utils::{
     L1ToL2MessageArgs,
     MultiAccountTransactionGenerator,
@@ -25,6 +26,7 @@ async fn test_end_to_end_flow() {
         create_test_scenarios(),
         GasAmount(29000000),
         false,
+        true,
     )
     .await
 }
@@ -81,11 +83,6 @@ fn create_multiple_account_txs(
         tx_generator.account_with_id_mut(ACCOUNT_ID_1).generate_invoke_with_tip(4);
 
     vec![account0_invoke_nonce1, account0_invoke_nonce2, account1_invoke_nonce1]
-}
-
-fn test_single_tx(tx_hashes: &[TransactionHash]) -> Vec<TransactionHash> {
-    assert_eq!(tx_hashes.len(), 1, "Expected a single transaction");
-    tx_hashes.to_vec()
 }
 
 fn test_multiple_account_txs(tx_hashes: &[TransactionHash]) -> Vec<TransactionHash> {
