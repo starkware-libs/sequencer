@@ -81,6 +81,8 @@ impl ClassReader {
 pub struct PapyrusReader {
     storage_reader: StorageReader,
     latest_block: BlockNumber,
+    // TODO(AvivG): remove class_manager once cairo_native logic moves to
+    // StateReaderAndContractManger.
     contract_class_manager: ContractClassManager,
     // Reader is `None` for reader invoked through `native_blockifier`.
     class_reader: Option<ClassReader>,

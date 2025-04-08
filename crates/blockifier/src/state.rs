@@ -7,4 +7,6 @@ pub mod global_cache;
 #[cfg(feature = "cairo_native")]
 pub mod native_class_manager;
 pub mod state_api;
+// TODO(AvivG): consider renaming to 'state_reader_and_contract_manager'
+pub mod state_reader_w_compile;
 pub mod stateful_compression;
