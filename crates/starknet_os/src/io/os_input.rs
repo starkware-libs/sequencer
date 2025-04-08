@@ -101,6 +101,7 @@ pub struct OsBlockInput {
 pub struct OsHintsConfig {
     pub debug_mode: bool,
     pub full_output: bool,
+    pub use_kzg_da: bool,
 }
 
 #[derive(Default, Debug)]
