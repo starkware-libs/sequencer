@@ -31,7 +31,13 @@
                       "type": "object",
                       "properties": {
                         "path": { "type": "string" },
-                        "port": { "type": "integer" }
+                        "port": { "type": "integer" },
+                        "backend": {
+                          "anyOf": [
+                            { "type": "null" },
+                            { "type": "string" }
+                          ]
+                        }
                       },
                       "required": ["path", "port"]
                     }
