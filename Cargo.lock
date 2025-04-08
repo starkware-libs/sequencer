@@ -970,6 +970,7 @@ dependencies = [
 name = "apollo_consensus_orchestrator"
 version = "0.0.0"
 dependencies = [
+ "alloy",
  "apollo_batcher",
  "apollo_batcher_types",
  "apollo_class_manager_types",
