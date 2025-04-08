@@ -135,12 +135,16 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
         &mut self,
         mut block_num: L1BlockNumber,
     ) -> L1GasPriceScraperResult<L1BlockNumber, B> {
-        while let Some(sample) = self
-            .base_layer
-            .get_price_sample(block_num)
-            .await
-            .map_err(L1GasPriceScraperError::BaseLayerError)?
-        {
+        loop {
+            let sample = match self.base_layer.get_price_sample(block_num).await {
+                Ok(Some(sample)) => sample,
+                Ok(None) => return Ok(block_num),
+                Err(e) => {
+                    warn!("BaseLayerError during scraping: {e:?}");
+                    return Ok(block_num);
+                }
+            };
+
             self.l1_gas_price_provider
                 .add_price_info(block_num, sample)
                 .await
@@ -148,7 +152,6 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
 
             block_num += 1;
         }
-        Ok(block_num)
     }
 }
 
