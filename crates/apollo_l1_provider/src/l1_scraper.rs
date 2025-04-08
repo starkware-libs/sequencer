@@ -22,6 +22,8 @@ use tokio::time::sleep;
 use tracing::{error, info, instrument, warn};
 use validator::Validate;
 
+use crate::metrics::{register_scraper_metrics, L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT};
+
 #[cfg(test)]
 #[path = "l1_scraper_tests.rs"]
 pub mod l1_scraper_tests;
@@ -135,6 +137,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
             match self.initialize().await {
                 Err(L1ScraperError::BaseLayerError(e)) => {
                     warn!("BaseLayerError during initialization: {e:?}");
+                    L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT.increment(1);
                 }
                 Ok(_) => break,
                 Err(e) => return Err(e),
@@ -209,6 +212,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
 impl<B: BaseLayerContract + Send + Sync> ComponentStarter for L1Scraper<B> {
     async fn start(&mut self) {
         info!("Starting component {}.", type_name::<Self>());
+        register_scraper_metrics();
         self.run().await.unwrap_or_else(|e| panic!("Runtime Error: {e}"))
     }
 }
