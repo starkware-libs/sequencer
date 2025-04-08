@@ -16,11 +16,12 @@ class SequencerNode(Chart):
         scope: Construct,
         name: str,
         namespace: str,
+        monitoring: bool,
         service_topology: topology.ServiceTopology,
     ):
         super().__init__(scope, name, disable_resource_name_hashes=True, namespace=namespace)
         self.service = ServiceApp(
-            self, name, namespace=namespace, service_topology=service_topology
+            self, name, namespace=namespace, service_topology=service_topology, monitoring=monitoring
         )
 
 
@@ -58,6 +59,7 @@ def main():
             scope=app,
             name=helpers.sanitize_name(f'sequencer-{svc["name"]}'),
             namespace=helpers.sanitize_name(args.namespace),
+            monitoring=args.create_monitoring,
             service_topology=topology.ServiceTopology(
                 config=config.SequencerConfig(
                     config_subdir=application_config_subdir, config_path=svc["config_path"]
