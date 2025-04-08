@@ -91,7 +91,6 @@ define_string_enum! {
         (IsDeprecated),
         (Preimage),
         (SerializeDataAvailabilityCreatePages, "__serialize_data_availability_create_pages__"),
-        (StateUpdatePointers),
         (SyscallHandlerType),
         (Transactions),
         (Tx),
