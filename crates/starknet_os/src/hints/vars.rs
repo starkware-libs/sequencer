@@ -124,6 +124,7 @@ define_string_enum! {
         (BuiltinPtrs),
         (CompiledClass),
         (CompiledClassFact),
+        (CompiledClassFacts),
         (CompressedDst),
         (CompressedStart),
         (ContractAddress),
