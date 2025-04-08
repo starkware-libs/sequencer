@@ -19,6 +19,7 @@ const _: () = {
     );
 };
 
+#[repr(u16)]
 #[derive(Debug, Copy, Clone)]
 // TODO(Nadin): Come up with a better name for this enum.
 pub enum TestIdentifier {
@@ -35,19 +36,8 @@ pub enum TestIdentifier {
 }
 
 impl From<TestIdentifier> for u16 {
-    fn from(variant: TestIdentifier) -> Self {
-        match variant {
-            TestIdentifier::EndToEndFlowTest => 0,
-            TestIdentifier::EndToEndFlowTestBootstrapDeclare => 1,
-            TestIdentifier::EndToEndFlowTestManyTxs => 2,
-            TestIdentifier::InfraUnitTests => 3,
-            TestIdentifier::PositiveFlowIntegrationTest => 4,
-            TestIdentifier::RestartFlowIntegrationTest => 5,
-            TestIdentifier::RevertFlowIntegrationTest => 6,
-            TestIdentifier::SystemTestDumpSingleNodeConfig => 7,
-            TestIdentifier::HttpServerUnitTests => 8,
-            TestIdentifier::SyncFlowIntegrationTest => 9,
-        }
+    fn from(value: TestIdentifier) -> Self {
+        value as u16
     }
 }
 
