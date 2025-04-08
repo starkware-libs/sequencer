@@ -63,8 +63,10 @@ impl Deployment {
         environment: Environment,
     ) -> Self {
         let service_names = deployment_name.all_service_names();
-        let services =
-            service_names.iter().map(|service_name| service_name.create_service()).collect();
+        let services = service_names
+            .iter()
+            .map(|service_name| service_name.create_service(&environment))
+            .collect();
         Self {
             chain_id,
             image: DEPLOYMENT_IMAGE,

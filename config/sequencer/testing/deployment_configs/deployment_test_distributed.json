@@ -7,12 +7,7 @@
       "name": "Batcher",
       "controller": "StatefulSet",
       "config_path": "batcher.json",
-      "ingress": {
-        "domain": "sw-dev.io",
-        "internal": true,
-        "rules": [],
-        "alternative_names": []
-      },
+      "ingress": null,
       "autoscale": false,
       "replicas": 1,
       "storage": 32,
@@ -33,12 +28,7 @@
       "name": "ClassManager",
       "controller": "StatefulSet",
       "config_path": "class_manager.json",
-      "ingress": {
-        "domain": "sw-dev.io",
-        "internal": true,
-        "rules": [],
-        "alternative_names": []
-      },
+      "ingress": null,
       "autoscale": false,
       "replicas": 1,
       "storage": 32,
@@ -59,12 +49,7 @@
       "name": "ConsensusManager",
       "controller": "StatefulSet",
       "config_path": "consensus_manager.json",
-      "ingress": {
-        "domain": "sw-dev.io",
-        "internal": true,
-        "rules": [],
-        "alternative_names": []
-      },
+      "ingress": null,
       "autoscale": false,
       "replicas": 1,
       "storage": null,
@@ -95,7 +80,7 @@
           },
           {
             "path": "/feeder-gateway",
-            "port": 8080
+            "port": 8085
           }
         ],
         "alternative_names": []
@@ -120,12 +105,7 @@
       "name": "Gateway",
       "controller": "StatefulSet",
       "config_path": "gateway.json",
-      "ingress": {
-        "domain": "sw-dev.io",
-        "internal": true,
-        "rules": [],
-        "alternative_names": []
-      },
+      "ingress": null,
       "autoscale": false,
       "replicas": 1,
       "storage": null,
@@ -146,12 +126,7 @@
       "name": "L1",
       "controller": "StatefulSet",
       "config_path": "l1.json",
-      "ingress": {
-        "domain": "sw-dev.io",
-        "internal": true,
-        "rules": [],
-        "alternative_names": []
-      },
+      "ingress": null,
       "autoscale": false,
       "replicas": 1,
       "storage": null,
@@ -172,12 +147,7 @@
       "name": "Mempool",
       "controller": "StatefulSet",
       "config_path": "mempool.json",
-      "ingress": {
-        "domain": "sw-dev.io",
-        "internal": true,
-        "rules": [],
-        "alternative_names": []
-      },
+      "ingress": null,
       "autoscale": false,
       "replicas": 1,
       "storage": null,
@@ -198,12 +168,7 @@
       "name": "SierraCompiler",
       "controller": "StatefulSet",
       "config_path": "sierra_compiler.json",
-      "ingress": {
-        "domain": "sw-dev.io",
-        "internal": true,
-        "rules": [],
-        "alternative_names": []
-      },
+      "ingress": null,
       "autoscale": false,
       "replicas": 1,
       "storage": null,
@@ -224,12 +189,7 @@
       "name": "StateSync",
       "controller": "StatefulSet",
       "config_path": "state_sync.json",
-      "ingress": {
-        "domain": "sw-dev.io",
-        "internal": true,
-        "rules": [],
-        "alternative_names": []
-      },
+      "ingress": null,
       "autoscale": false,
       "replicas": 1,
       "storage": 32,

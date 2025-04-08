@@ -49,27 +49,43 @@ impl GetComponentConfigs for ConsolidatedNodeServiceName {
 }
 
 impl ServiceNameInner for ConsolidatedNodeServiceName {
-    fn create_service(&self) -> Service {
-        match self {
-            ConsolidatedNodeServiceName::Node => Service::new(
-                Into::<ServiceName>::into(*self),
-                Controller::StatefulSet,
-                Ingress::new(
-                    String::from("sw-dev.io"),
-                    true,
-                    vec![
-                        IngressRule::new(String::from("/gateway"), 8080),
-                        IngressRule::new(String::from("/feeder-gateway"), 8080),
-                    ],
-                    vec![],
+    fn create_service(&self, environment: &Environment) -> Service {
+        match environment {
+            Environment::Testing => match self {
+                ConsolidatedNodeServiceName::Node => Service::new(
+                    Into::<ServiceName>::into(*self),
+                    Controller::StatefulSet,
+                    None,
+                    false,
+                    1,
+                    Some(32),
+                    None,
+                    Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
+                    Some(ExternalSecret::new("sequencer-dev-secrets")),
                 ),
-                false,
-                1,
-                Some(32),
-                None,
-                Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                Some(ExternalSecret::new("sequencer-dev-secrets")),
-            ),
+            },
+            Environment::SepoliaIntegration => match self {
+                ConsolidatedNodeServiceName::Node => Service::new(
+                    Into::<ServiceName>::into(*self),
+                    Controller::StatefulSet,
+                    Some(Ingress::new(
+                        String::from("sw-dev.io"),
+                        true,
+                        vec![
+                            IngressRule::new(String::from("/gateway"), 8080),
+                            IngressRule::new(String::from("/feeder-gateway"), 8085),
+                        ],
+                        vec![],
+                    )),
+                    false,
+                    1,
+                    Some(32),
+                    None,
+                    Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
+                    Some(ExternalSecret::new("sequencer-integration-secrets")),
+                ),
+            },
+            _ => unimplemented!(),
         }
     }
 }
