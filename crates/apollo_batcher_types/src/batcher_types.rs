@@ -94,6 +94,7 @@ pub struct SendProposalContentResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(any(test, feature = "testing"), derive(Default))]
 pub struct CentralObjects {
     pub execution_infos: Vec<TransactionExecutionInfo>,
     pub bouncer_weights: BouncerWeights,
@@ -101,6 +102,7 @@ pub struct CentralObjects {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(any(test, feature = "testing"), derive(Default))]
 pub struct DecisionReachedResponse {
     // TODO(Yael): Consider passing the state_diff as CommitmentStateDiff inside CentralObjects.
     // Today the ThinStateDiff is used for the state sync but it may not be needed in the future.
