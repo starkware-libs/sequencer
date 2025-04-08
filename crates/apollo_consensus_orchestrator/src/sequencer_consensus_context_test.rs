@@ -45,7 +45,7 @@ use apollo_protobuf::consensus::{
     TransactionBatch,
     Vote,
 };
-use apollo_state_sync_types::communication::MockStateSyncClient;
+use apollo_state_sync_types::communication::{MockStateSyncClient, StateSyncClient};
 use futures::channel::oneshot::Canceled;
 use futures::channel::{mpsc, oneshot};
 use futures::executor::block_on;
@@ -129,6 +129,7 @@ struct NetworkDependencies {
 fn setup(
     batcher: MockBatcherClient,
     cende_ambassador: MockCendeContext,
+    state_sync_client: impl StateSyncClient + 'static,
     eth_to_strk_oracle_client: impl EthToStrkOracleClientTrait + 'static,
     l1_gas_price_provider: impl L1GasPriceProviderClient + 'static,
 ) -> (SequencerConsensusContext, NetworkDependencies) {
@@ -139,7 +140,6 @@ fn setup(
         mock_register_broadcast_topic().expect("Failed to create mock network");
     let BroadcastTopicChannels { broadcast_topic_client: votes_topic_client, .. } =
         subscriber_channels;
-    let state_sync_client = MockStateSyncClient::new();
     let context = SequencerConsensusContext::new(
         ContextConfig {
             proposal_buffer_size: CHANNEL_SIZE,
@@ -210,9 +210,15 @@ async fn build_proposal_setup(
             blob_fee: TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
         })
     });
+    let state_sync_client = MockStateSyncClient::new();
 
-    let (mut context, _network) =
-        setup(batcher, mock_cende_context, eth_to_strk_oracle_client, l1_gas_price_provider);
+    let (mut context, _network) = setup(
+        batcher,
+        mock_cende_context,
+        state_sync_client,
+        eth_to_strk_oracle_client,
+        l1_gas_price_provider,
+    );
     let init = ProposalInit::default();
 
     (context.build_proposal(init, TIMEOUT).await, context, _network)
@@ -241,10 +247,12 @@ async fn cancelled_proposal_aborts() {
             blob_fee: TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
         })
     });
+    let state_sync_client = MockStateSyncClient::new();
 
     let (mut context, _network) = setup(
         batcher,
         success_cende_ammbassador(),
+        state_sync_client,
         eth_to_strk_oracle_client,
         l1_gas_price_provider,
     );
@@ -304,10 +312,12 @@ async fn validate_proposal_success() {
             blob_fee: TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
         })
     });
+    let state_sync_client = MockStateSyncClient::new();
 
     let (mut context, _network) = setup(
         batcher,
         success_cende_ammbassador(),
+        state_sync_client,
         eth_to_strk_oracle_client,
         l1_gas_price_provider,
     );
@@ -351,10 +361,12 @@ async fn dont_send_block_info() {
             blob_fee: TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
         })
     });
+    let state_sync_client = MockStateSyncClient::new();
 
     let (mut context, _network) = setup(
         batcher,
         success_cende_ammbassador(),
+        state_sync_client,
         eth_to_strk_oracle_client,
         l1_gas_price_provider,
     );
@@ -406,10 +418,12 @@ async fn repropose() {
             blob_fee: TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
         })
     });
+    let state_sync_client = MockStateSyncClient::new();
 
     let (mut context, mut network) = setup(
         batcher,
         success_cende_ammbassador(),
+        state_sync_client,
         eth_to_strk_oracle_client,
         l1_gas_price_provider,
     );
@@ -490,10 +504,12 @@ async fn proposals_from_different_rounds() {
             blob_fee: TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
         })
     });
+    let state_sync_client = MockStateSyncClient::new();
 
     let (mut context, _network) = setup(
         batcher,
         success_cende_ammbassador(),
+        state_sync_client,
         eth_to_strk_oracle_client,
         l1_gas_price_provider,
     );
@@ -591,10 +607,12 @@ async fn interrupt_active_proposal() {
             blob_fee: TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
         })
     });
+    let state_sync_client = MockStateSyncClient::new();
 
     let (mut context, _network) = setup(
         batcher,
         success_cende_ammbassador(),
+        state_sync_client,
         eth_to_strk_oracle_client,
         l1_gas_price_provider,
     );
@@ -720,10 +738,12 @@ async fn batcher_not_ready(#[case] proposer: bool) {
             blob_fee: TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
         })
     });
+    let state_sync_client = MockStateSyncClient::new();
 
     let (mut context, _network) = setup(
         batcher,
         success_cende_ammbassador(),
+        state_sync_client,
         eth_to_strk_oracle_client,
         l1_gas_price_provider,
     );
@@ -791,10 +811,12 @@ async fn eth_to_fri_rate_out_of_range() {
             blob_fee: TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
         })
     });
+    let state_sync_client = MockStateSyncClient::new();
 
     let (mut context, _network) = setup(
         batcher,
         success_cende_ammbassador(),
+        state_sync_client,
         eth_to_strk_oracle_client,
         l1_gas_price_provider,
     );
