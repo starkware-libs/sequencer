@@ -35,6 +35,7 @@ pub enum MetricScope {
     Gateway,
     HttpServer,
     Infra,
+    L1Message,
     Mempool,
     MempoolP2p,
     StateSync,

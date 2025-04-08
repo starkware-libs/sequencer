@@ -4,6 +4,7 @@ use apollo_config::converters::deserialize_float_seconds_to_duration;
 pub mod communication;
 pub mod l1_provider;
 pub mod l1_scraper;
+pub mod metrics;
 pub mod soft_delete_index_map;
 pub mod transaction_manager;
 
