@@ -26,7 +26,7 @@ fn test_secp256k1(runnable_version: RunnableCairo1) {
 
     pretty_assertions::assert_eq!(
         entry_point_call.execute_directly(&mut state).unwrap().execution,
-        CallExecution { gas_consumed: 17010779, ..Default::default() }
+        CallExecution { gas_consumed: 17010359, ..Default::default() }
     );
 }
 
@@ -46,6 +46,6 @@ fn test_secp256r1(runnable_version: RunnableCairo1) {
 
     pretty_assertions::assert_eq!(
         entry_point_call.execute_directly(&mut state).unwrap().execution,
-        CallExecution { gas_consumed: 27573210, ..Default::default() }
+        CallExecution { gas_consumed: 27572590, ..Default::default() }
     );
 }
