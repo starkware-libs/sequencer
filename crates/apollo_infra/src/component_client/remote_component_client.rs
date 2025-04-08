@@ -114,7 +114,7 @@ where
     }
 
     fn construct_http_request(&self, serialized_request: Vec<u8>) -> HyperRequest<Body> {
-        debug!("Sending request: {:?}", serialized_request);
+        debug!("Constructing remote request");
         HyperRequest::post(self.uri.clone())
             .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
             .body(Body::from(serialized_request))
@@ -122,7 +122,7 @@ where
     }
 
     async fn try_send(&self, http_request: HyperRequest<Body>) -> ClientResult<Response> {
-        debug!("Sending HTTP request: {:?}", http_request);
+        debug!("Sending HTTP request");
         let http_response = self.client.request(http_request).await.map_err(|err| {
             error!("HTTP request failed with error: {:?}", err);
             ClientError::CommunicationFailure(err.to_string())
