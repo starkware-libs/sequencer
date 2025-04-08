@@ -56,11 +56,12 @@ impl Ingress {
 pub struct IngressRule {
     path: String,
     port: u16,
+    backend: Option<String>,
 }
 
 impl IngressRule {
-    pub fn new(path: String, port: u16) -> Self {
-        Self { path, port }
+    pub fn new(path: String, port: u16, backend: Option<String>) -> Self {
+        Self { path, port, backend }
     }
 }
 

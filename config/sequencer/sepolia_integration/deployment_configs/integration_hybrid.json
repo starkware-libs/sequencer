@@ -36,11 +36,13 @@
         "rules": [
           {
             "path": "/gateway",
-            "port": 8080
+            "port": 8080,
+            "backend": null
           },
           {
             "path": "/feeder_gateway",
-            "port": 8085
+            "port": 8085,
+            "backend": "nginx-service"
           }
         ],
         "alternative_names": [
