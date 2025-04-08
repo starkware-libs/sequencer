@@ -50,7 +50,7 @@ pub use v0_8::api::CompiledContractClass;
 use validator::Validate;
 
 use crate::api::get_methods_from_supported_apis;
-use crate::middleware::{deny_requests_with_unsupported_path, proxy_rpc_request};
+use crate::middleware::proxy_rpc_request;
 use crate::syncing_state::get_last_synced_block;
 pub use crate::v0_8::transaction::{
     InvokeTransaction as InvokeTransactionRPC0_8,
@@ -233,12 +233,9 @@ pub async fn run_server(
     );
     let addr;
     let handle;
-    let server_builder =
-        ServerBuilder::default().max_request_body_size(SERVER_MAX_BODY_SIZE).set_middleware(
-            tower::ServiceBuilder::new()
-                .filter_async(deny_requests_with_unsupported_path)
-                .filter_async(proxy_rpc_request),
-        );
+    let server_builder = ServerBuilder::default()
+        .max_request_body_size(SERVER_MAX_BODY_SIZE)
+        .set_middleware(tower::ServiceBuilder::new().filter_async(proxy_rpc_request));
 
     if config.collect_metrics {
         let server = server_builder
