@@ -78,6 +78,7 @@ impl ClassReader {
     }
 }
 
+// TODO(AvivG): impl SupportsClassCaching for PapyrusReader.
 pub struct PapyrusReader {
     storage_reader: StorageReader,
     latest_block: BlockNumber,

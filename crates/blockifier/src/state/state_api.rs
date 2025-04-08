@@ -39,6 +39,7 @@ pub trait StateReader {
     fn get_class_hash_at(&self, contract_address: ContractAddress) -> StateResult<ClassHash>;
 
     /// Returns the compiled class of the given class hash.
+    /// TODO(AvivG): rename to `get_runnable_class` or `get_runnable_compiled_class`.
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass>;
 
     /// Returns the compiled class hash of the given class hash.

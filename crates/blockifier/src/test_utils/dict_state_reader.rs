@@ -10,6 +10,7 @@ use crate::state::errors::StateError;
 use crate::state::state_api::{StateReader, StateResult};
 
 /// A simple implementation of `StateReader` using `HashMap`s as storage.
+// TODO(AvivG): impl SupportsClassCaching for DictStateReader.
 #[derive(Clone, Debug, Default)]
 pub struct DictStateReader {
     pub storage_view: HashMap<StorageEntry, Felt>,
