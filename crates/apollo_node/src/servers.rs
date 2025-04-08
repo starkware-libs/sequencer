@@ -61,6 +61,9 @@ use apollo_infra::metrics::{
     SIERRA_COMPILER_LOCAL_MSGS_PROCESSED,
     SIERRA_COMPILER_LOCAL_MSGS_RECEIVED,
     SIERRA_COMPILER_LOCAL_QUEUE_DEPTH,
+    SIERRA_COMPILER_REMOTE_MSGS_PROCESSED,
+    SIERRA_COMPILER_REMOTE_MSGS_RECEIVED,
+    SIERRA_COMPILER_REMOTE_VALID_MSGS_RECEIVED,
     STATE_SYNC_LOCAL_MSGS_PROCESSED,
     STATE_SYNC_LOCAL_MSGS_RECEIVED,
     STATE_SYNC_LOCAL_QUEUE_DEPTH,
@@ -85,7 +88,10 @@ use apollo_mempool_p2p::propagator::{
 };
 use apollo_mempool_p2p::runner::MempoolP2pRunnerServer;
 use apollo_monitoring_endpoint::communication::MonitoringEndpointServer;
-use apollo_sierra_multicompile::communication::LocalSierraCompilerServer;
+use apollo_sierra_multicompile::communication::{
+    LocalSierraCompilerServer,
+    RemoteSierraCompilerServer,
+};
 use apollo_state_sync::runner::StateSyncRunnerServer;
 use apollo_state_sync::{LocalStateSyncServer, RemoteStateSyncServer};
 use futures::stream::FuturesUnordered;
@@ -137,6 +143,7 @@ pub struct RemoteServers {
     pub l1_gas_price_provider: Option<Box<RemoteL1GasPriceServer>>,
     pub mempool: Option<Box<RemoteMempoolServer>>,
     pub mempool_p2p_propagator: Option<Box<RemoteMempoolP2pPropagatorServer>>,
+    pub sierra_compiler: Option<Box<RemoteSierraCompilerServer>>,
     pub state_sync: Option<Box<RemoteStateSyncServer>>,
 }
 
@@ -582,6 +589,20 @@ pub fn create_remote_servers(
         mempool_p2p_metrics
     );
 
+    let sierra_compiler_metrics = RemoteServerMetrics::new(
+        &SIERRA_COMPILER_REMOTE_MSGS_RECEIVED,
+        &SIERRA_COMPILER_REMOTE_VALID_MSGS_RECEIVED,
+        &SIERRA_COMPILER_REMOTE_MSGS_PROCESSED,
+    );
+    let sierra_compiler_server = create_remote_server!(
+        &config.components.sierra_compiler.execution_mode,
+        || { clients.get_sierra_compiler_local_client() },
+        config.components.sierra_compiler.ip,
+        config.components.sierra_compiler.port,
+        config.components.sierra_compiler.max_concurrency,
+        sierra_compiler_metrics
+    );
+
     let state_sync_metrics = RemoteServerMetrics::new(
         &STATE_SYNC_REMOTE_MSGS_RECEIVED,
         &STATE_SYNC_REMOTE_VALID_MSGS_RECEIVED,
@@ -604,6 +625,7 @@ pub fn create_remote_servers(
         l1_gas_price_provider: l1_gas_price_provider_server,
         mempool: mempool_server,
         mempool_p2p_propagator: mempool_p2p_propagator_server,
+        sierra_compiler: sierra_compiler_server,
         state_sync: state_sync_server,
     }
 }
