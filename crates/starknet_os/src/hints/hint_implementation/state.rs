@@ -8,6 +8,7 @@ use crate::hints::types::HintArgs;
 use crate::hints::vars::{Const, Ids, Scope};
 use crate::io::os_input::CommitmentInfo;
 
+// TODO(Nimrod): Remove this definition.
 #[derive(Clone)]
 pub(crate) struct StateUpdatePointers {
     pub(crate) _contract_address_to_storage_ptr: Relocatable,

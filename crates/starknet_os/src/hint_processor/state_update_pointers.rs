@@ -7,7 +7,7 @@ use starknet_api::core::ContractAddress;
 /// An equivalent to the `StateUpdatePointers` class in Python.
 // TODO(Nimrod): Remove all `#[allow(dead_code)]` attributes after the code is fully implemented.
 #[allow(dead_code)]
-struct StateUpdatePointers {
+pub(crate) struct StateUpdatePointers {
     state_entries_ptr: Relocatable,
     classes_ptr: Relocatable,
     contract_address_to_state_entry_and_storage_ptr:
