@@ -79,7 +79,7 @@
             "port": 8080
           },
           {
-            "path": "/feeder-gateway",
+            "path": "/feeder_gateway",
             "port": 8085
           }
         ],

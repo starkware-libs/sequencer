@@ -10,12 +10,12 @@
       "ingress": null,
       "autoscale": false,
       "replicas": 1,
-      "storage": null,
-      "toleration": null,
+      "storage": 500,
+      "toleration": "sequencer",
       "resources": {
         "requests": {
-          "cpu": 1,
-          "memory": 2
+          "cpu": 2,
+          "memory": 4
         },
         "limits": {
           "cpu": 4,
@@ -28,13 +28,24 @@
     },
     {
       "name": "HttpServer",
-      "controller": "StatefulSet",
+      "controller": "Deployment",
       "config_path": "http_server.json",
       "ingress": {
         "domain": "sw-dev.io",
-        "internal": true,
-        "rules": [],
-        "alternative_names": []
+        "internal": false,
+        "rules": [
+          {
+            "path": "/gateway",
+            "port": 8080
+          },
+          {
+            "path": "/feeder_gateway",
+            "port": 8085
+          }
+        ],
+        "alternative_names": [
+          "starknet-upgrade-testing-sepolia.gateway-proxy.sw-dev.io"
+        ]
       },
       "autoscale": false,
       "replicas": 1,
@@ -56,11 +67,11 @@
     },
     {
       "name": "Gateway",
-      "controller": "StatefulSet",
+      "controller": "Deployment",
       "config_path": "gateway.json",
       "ingress": null,
-      "autoscale": false,
-      "replicas": 1,
+      "autoscale": true,
+      "replicas": 2,
       "storage": null,
       "toleration": null,
       "resources": {
@@ -69,8 +80,8 @@
           "memory": 2
         },
         "limits": {
-          "cpu": 4,
-          "memory": 8
+          "cpu": 2,
+          "memory": 4
         }
       },
       "external_secret": {
@@ -79,7 +90,7 @@
     },
     {
       "name": "Mempool",
-      "controller": "StatefulSet",
+      "controller": "Deployment",
       "config_path": "mempool.json",
       "ingress": null,
       "autoscale": false,
@@ -92,8 +103,8 @@
           "memory": 2
         },
         "limits": {
-          "cpu": 4,
-          "memory": 8
+          "cpu": 2,
+          "memory": 4
         }
       },
       "external_secret": {
@@ -102,11 +113,11 @@
     },
     {
       "name": "SierraCompiler",
-      "controller": "StatefulSet",
+      "controller": "Deployment",
       "config_path": "sierra_compiler.json",
       "ingress": null,
-      "autoscale": false,
-      "replicas": 1,
+      "autoscale": true,
+      "replicas": 2,
       "storage": null,
       "toleration": null,
       "resources": {
@@ -115,8 +126,8 @@
           "memory": 2
         },
         "limits": {
-          "cpu": 4,
-          "memory": 8
+          "cpu": 2,
+          "memory": 4
         }
       },
       "external_secret": {
