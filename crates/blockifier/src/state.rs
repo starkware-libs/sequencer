@@ -8,3 +8,4 @@ pub mod global_cache;
 pub mod native_class_manager;
 pub mod state_api;
 pub mod stateful_compression;
+pub mod state_reader_w_compile;
