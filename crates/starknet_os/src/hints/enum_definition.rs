@@ -438,11 +438,10 @@ define_hint_enum!(
     )
     ids.is_leaf = 1 if isinstance(bytecode_segment_structure, BytecodeLeaf) else 0"#}
     ),
-    // TODO(Meshi): Fix hint implantation.
     (
         WriteUseKzgDaToMemory,
         write_use_kzg_da_to_memory,
-        indoc! {r#"memory[fp + 19] = to_felt_or_relocatable(syscall_handler.block_info.use_kzg_da and (
+        indoc! {r#"memory[fp + 19] = to_felt_or_relocatable(os_hints_config.use_kzg_da and (
     not os_hints_config.full_output
 ))"#}
     ),
