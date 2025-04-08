@@ -12,6 +12,7 @@ pub const VERSION_PATTERN: &str = "[Vv][0-9]+_[0-9]+(_[0-9]+)?";
 #[derive(Clone, Copy, Debug)]
 pub enum VersionState {
     Supported,
+    #[allow(dead_code)]
     Deprecated,
 }
 
