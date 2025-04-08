@@ -23,12 +23,14 @@ use apollo_class_manager_types::transaction_converter::{
 };
 use apollo_class_manager_types::EmptyClassManagerClient;
 use apollo_consensus::types::{ConsensusContext, Round};
+use apollo_l1_gas_price_types::errors::EthToStrkOracleClientError;
 use apollo_l1_gas_price_types::{
     EthToStrkOracleClientTrait,
     L1GasPriceProviderClient,
     MockEthToStrkOracleClientTrait,
     MockL1GasPriceProviderClient,
     PriceInfo,
+    DEFAULT_ETH_IN_FRI,
 };
 use apollo_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
@@ -809,4 +811,91 @@ async fn eth_to_fri_rate_out_of_range() {
     let fin_receiver =
         context.validate_proposal(ProposalInit::default(), Duration::MAX, content_receiver).await;
     assert_eq!(fin_receiver.await, Err(Canceled));
+}
+
+#[tokio::test]
+async fn oracle_fails_on_startup() {
+    let mut batcher = MockBatcherClient::new();
+    let proposal_id = Arc::new(OnceLock::new());
+    let proposal_id_clone = Arc::clone(&proposal_id);
+    batcher.expect_propose_block().times(1).returning(move |input: ProposeBlockInput| {
+        proposal_id_clone.set(input.proposal_id).unwrap();
+        Ok(())
+    });
+    batcher
+        .expect_start_height()
+        .times(1)
+        .withf(|input| input.height == BlockNumber(0))
+        .return_once(|_| Ok(()));
+    let proposal_id_clone = Arc::clone(&proposal_id);
+    batcher.expect_get_proposal_content().times(1).returning(move |input| {
+        assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
+        Ok(GetProposalContentResponse {
+            content: GetProposalContent::Txs(INTERNAL_TX_BATCH.clone()),
+        })
+    });
+    let proposal_id_clone = Arc::clone(&proposal_id);
+    batcher.expect_get_proposal_content().times(1).returning(move |input| {
+        assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
+        Ok(GetProposalContentResponse {
+            content: GetProposalContent::Finished(ProposalCommitment {
+                state_diff_commitment: STATE_DIFF_COMMITMENT,
+            }),
+        })
+    });
+
+    let mut eth_to_strk_oracle_client: MockEthToStrkOracleClientTrait =
+        MockEthToStrkOracleClientTrait::new();
+    eth_to_strk_oracle_client
+        .expect_eth_to_fri_rate()
+        .return_once(|_| Err(EthToStrkOracleClientError::MissingFieldError("")));
+    let mut l1_gas_price_provider = MockL1GasPriceProviderClient::new();
+    l1_gas_price_provider.expect_get_price_info().returning(|_| {
+        Ok(PriceInfo {
+            base_fee_per_gas: TEMP_ETH_GAS_FEE_IN_WEI,
+            blob_fee: TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
+        })
+    });
+
+    let (mut context, mut network) = setup(
+        batcher,
+        success_cende_ammbassador(),
+        eth_to_strk_oracle_client,
+        l1_gas_price_provider,
+    );
+
+    let init = ProposalInit::default();
+
+    let fin_receiver = context.build_proposal(init, TIMEOUT).await;
+
+    // finisehd build_proposal_setup-like segment
+
+    let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
+
+    assert_eq!(receiver.next().await.unwrap(), ProposalPart::Init(ProposalInit::default()));
+    let block_info = receiver.next().await.unwrap();
+    let ProposalPart::BlockInfo(info) = block_info else {
+        panic!("Expected ProposalPart::BlockInfo");
+    };
+
+    let default_context_config = ContextConfig::default();
+    assert_eq!(info.eth_to_fri_rate, DEFAULT_ETH_IN_FRI);
+    // Despite the l1_gas_price_provider being set up not to fail, we still expect the default
+    // values because eth_to_strk_rate_oracle_client failed.
+    assert_eq!(info.l1_gas_price_wei, default_context_config.min_l1_gas_price_wei);
+    assert_eq!(info.l1_data_gas_price_wei, default_context_config.min_l1_data_gas_price_wei);
+
+    // consider removing this part
+    assert_eq!(
+        receiver.next().await.unwrap(),
+        ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() })
+    );
+    assert_eq!(
+        receiver.next().await.unwrap(),
+        ProposalPart::Fin(ProposalFin {
+            proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+        })
+    );
+    assert!(receiver.next().await.is_none());
+    assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
 }
