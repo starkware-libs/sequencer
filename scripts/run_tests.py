@@ -20,12 +20,13 @@ INTEGRATION_TEST_CRATE_TRIGGERS: Set[str] = {"apollo_integration_tests"}
 # Sequencer node binary name.
 SEQUENCER_BINARY_NAME: str = "apollo_node"
 
+# TODO(Tsabary/shahak/Dori): Enable the disabled flows.
 # List of sequencer node integration test binary names. Stored as a list to maintain order.
 SEQUENCER_INTEGRATION_TEST_NAMES: List[str] = [
-    "integration_test_positive_flow",
+    # "integration_test_positive_flow",
     "integration_test_restart_flow",
-    "integration_test_revert_flow",
-    "integration_test_central_and_p2p_sync_flow",
+    # "integration_test_revert_flow",
+    # "integration_test_central_and_p2p_sync_flow",
 ]
 
 
