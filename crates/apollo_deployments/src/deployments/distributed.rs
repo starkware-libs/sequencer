@@ -180,7 +180,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         true,
                         vec![
                             IngressRule::new(String::from("/gateway"), 8080),
-                            IngressRule::new(String::from("/feeder-gateway"), 8085),
+                            IngressRule::new(String::from("/feeder_gateway"), 8085),
                         ],
                         vec![],
                     )),
@@ -289,7 +289,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         true,
                         vec![
                             IngressRule::new(String::from("/gateway"), 8080),
-                            IngressRule::new(String::from("/feeder-gateway"), 8080),
+                            IngressRule::new(String::from("/feeder_gateway"), 8085),
                         ],
                         vec![],
                     )),

@@ -9,27 +9,29 @@
       "config_path": "node.json",
       "ingress": {
         "domain": "sw-dev.io",
-        "internal": true,
+        "internal": false,
         "rules": [
           {
             "path": "/gateway",
             "port": 8080
           },
           {
-            "path": "/feeder-gateway",
+            "path": "/feeder_gateway",
             "port": 8085
           }
         ],
-        "alternative_names": []
+        "alternative_names": [
+          "starknet-upgrade-testing-sepolia.gateway-proxy.sw-dev.io"
+        ]
       },
       "autoscale": false,
       "replicas": 1,
-      "storage": 32,
-      "toleration": null,
+      "storage": 500,
+      "toleration": "sequencer",
       "resources": {
         "requests": {
-          "cpu": 1,
-          "memory": 2
+          "cpu": 2,
+          "memory": 4
         },
         "limits": {
           "cpu": 4,
