@@ -395,19 +395,6 @@ impl AccountTransaction {
         })
     }
 
-    fn handle_validate_tx(
-        &self,
-        state: &mut dyn State,
-        tx_context: Arc<TransactionContext>,
-        remaining_gas: &mut GasCounter,
-    ) -> TransactionExecutionResult<Option<CallInfo>> {
-        if self.execution_flags.validate {
-            self.validate_tx(state, tx_context, remaining_gas)
-        } else {
-            Ok(None)
-        }
-    }
-
     fn assert_actual_fee_in_bounds(tx_context: &Arc<TransactionContext>, actual_fee: Fee) {
         let max_fee = tx_context.max_possible_fee();
         if actual_fee > max_fee {
@@ -574,11 +561,9 @@ impl AccountTransaction {
                 )),
             );
             execute_call_info = self.run_execute(state, &mut execution_context, remaining_gas)?;
-            validate_call_info =
-                self.handle_validate_tx(state, tx_context.clone(), remaining_gas)?;
+            validate_call_info = self.validate_tx(state, tx_context.clone(), remaining_gas)?;
         } else {
-            validate_call_info =
-                self.handle_validate_tx(state, tx_context.clone(), remaining_gas)?;
+            validate_call_info = self.validate_tx(state, tx_context.clone(), remaining_gas)?;
             let mut execution_context = EntryPointExecutionContext::new_invoke(
                 tx_context.clone(),
                 self.execution_flags.charge_fee,
@@ -627,8 +612,7 @@ impl AccountTransaction {
         remaining_gas: &mut GasCounter,
     ) -> TransactionExecutionResult<ValidateExecuteCallInfo> {
         // Run the validation, and if execution later fails, only keep the validation diff.
-        let validate_call_info =
-            self.handle_validate_tx(state, tx_context.clone(), remaining_gas)?;
+        let validate_call_info = self.validate_tx(state, tx_context.clone(), remaining_gas)?;
 
         let mut execution_context = EntryPointExecutionContext::new_invoke(
             tx_context.clone(),
@@ -898,6 +882,9 @@ impl ValidatableTransaction for AccountTransaction {
         tx_context: Arc<TransactionContext>,
         remaining_gas: &mut GasCounter,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
+        if !self.execution_flags.validate {
+            return Ok(None);
+        }
         let remaining_validation_gas = &mut remaining_gas.limit_usage(
             tx_context.block_context.versioned_constants.os_constants.validate_max_sierra_gas,
         );
