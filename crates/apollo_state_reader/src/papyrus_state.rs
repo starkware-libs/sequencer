@@ -81,6 +81,8 @@ impl ClassReader {
 pub struct PapyrusReader {
     storage_reader: StorageReader,
     latest_block: BlockNumber,
+    // TODO(AvivG): remove class_manager once cairo_native logic moves to
+    // StateReaderAndContractManger.
     contract_class_manager: ContractClassManager,
     // Reader is `None` for reader invoked through `native_blockifier`.
     class_reader: Option<ClassReader>,
@@ -233,6 +235,7 @@ impl StateReader for PapyrusReader {
         // Assumption: the global cache is cleared upon reverted blocks.
 
         // TODO(Yoni): move this logic to a separate reader. Move tests from papyrus_state.
+        // TODO(AvivG): follow Yoni's todo once fully moved to StateReaderAndContractManger.
         if let Some(runnable_class) = self.contract_class_manager.get_runnable(&class_hash) {
             CLASS_CACHE_HITS.increment(1);
             self.update_native_metrics(&runnable_class);
