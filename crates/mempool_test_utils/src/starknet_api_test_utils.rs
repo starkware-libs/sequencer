@@ -11,7 +11,7 @@ use blockifier_test_utils::contracts::FeatureContract;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::executable_transaction::AccountTransaction;
+use starknet_api::executable_transaction::{AccountTransaction, DeclareTransaction};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::hash::StarkHash;
 use starknet_api::rpc_transaction::RpcTransaction;
@@ -490,13 +490,21 @@ impl AccountTransactionGenerator {
         rpc_deploy_account_tx(deploy_account_args)
     }
 
-    pub fn generate_declare(&mut self) -> RpcTransaction {
+    pub fn generate_declare(&mut self, bootstrap_declare: bool) -> RpcTransaction {
         let nonce = self.next_nonce();
         let declare_args = declare_tx_args!(
             signature: TransactionSignature(vec![Felt::ZERO]),
-            sender_address: self.sender_address(),
-            resource_bounds: test_valid_resource_bounds(),
-            nonce,
+            sender_address: if bootstrap_declare {
+                DeclareTransaction::bootstrap_address()
+            } else {
+                self.sender_address()
+            },
+            resource_bounds: if bootstrap_declare {
+                ValidResourceBounds::create_for_testing_no_fee_enforcement()
+            } else {
+                test_valid_resource_bounds()
+            },
+            nonce: if bootstrap_declare { Nonce(Felt::ZERO) } else { nonce },
             compiled_class_hash: *COMPILED_CLASS_HASH,
         );
         let contract_class = contract_class();
