@@ -846,9 +846,6 @@ async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<Consens
         retrospective_block_hash,
         block_info: convert_to_sn_api_block_info(&block_info),
     };
-    // TODO(Matan): Should we be returning an error?
-    // I think this implies defining an error type in this crate and moving the trait definition
-    // here also.
     debug!("Initiating build proposal: {build_proposal_input:?}");
     args.batcher.propose_block(build_proposal_input).await?;
     Ok(block_info)
@@ -1041,8 +1038,6 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
 
     // Update valid_proposals before sending fin to avoid a race condition
     // with `repropose` being called before `valid_proposals` is updated.
-    //
-    // TODO(Matan): Consider validating the ProposalFin signature here.
     let mut valid_proposals = args.valid_proposals.lock().unwrap();
     valid_proposals
         .entry(args.block_info_validation.height)
@@ -1077,7 +1072,6 @@ async fn is_block_info_valid(
     min_max_prices: GasPriceBounds,
 ) -> bool {
     let now: u64 = clock.now_as_timestamp();
-    // TODO(Asmaa): Validate the rest of the block info.
     if !(block_info.height == block_info_validation.height
         && block_info.timestamp >= block_info_validation.last_block_timestamp.unwrap_or(0)
         && block_info.timestamp <= now + block_info_validation.block_timestamp_window_seconds
@@ -1197,7 +1191,6 @@ async fn initiate_validation(
     let input = ValidateBlockInput {
         proposal_id,
         deadline: clock.now() + chrono_timeout,
-        // TODO(Matan 3/11/2024): Add the real value of the retrospective block hash.
         retrospective_block_hash: retrospective_block_hash(state_sync_client, &block_info).await?,
         block_info: convert_to_sn_api_block_info(&block_info),
     };
