@@ -1,6 +1,7 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use assert_json_diff::{assert_json_matches_no_panic, CompareMode, Config};
+use num_enum::IntoPrimitive;
 use serde::Serialize;
 use socket2::{Domain, Socket, Type};
 use tracing::{info, instrument};
@@ -19,7 +20,8 @@ const _: () = {
     );
 };
 
-#[derive(Debug, Copy, Clone)]
+#[repr(u16)]
+#[derive(Debug, Copy, Clone, IntoPrimitive)]
 // TODO(Nadin): Come up with a better name for this enum.
 pub enum TestIdentifier {
     EndToEndFlowTest,
@@ -31,22 +33,6 @@ pub enum TestIdentifier {
     SystemTestDumpSingleNodeConfig,
     HttpServerUnitTests,
     SyncFlowIntegrationTest,
-}
-
-impl From<TestIdentifier> for u16 {
-    fn from(variant: TestIdentifier) -> Self {
-        match variant {
-            TestIdentifier::EndToEndFlowTest => 0,
-            TestIdentifier::EndToEndFlowTestManyTxs => 1,
-            TestIdentifier::InfraUnitTests => 2,
-            TestIdentifier::PositiveFlowIntegrationTest => 3,
-            TestIdentifier::RestartFlowIntegrationTest => 4,
-            TestIdentifier::RevertFlowIntegrationTest => 5,
-            TestIdentifier::SystemTestDumpSingleNodeConfig => 6,
-            TestIdentifier::HttpServerUnitTests => 7,
-            TestIdentifier::SyncFlowIntegrationTest => 8,
-        }
-    }
 }
 
 #[derive(Debug)]

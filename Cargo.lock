@@ -1189,6 +1189,7 @@ dependencies = [
  "cached",
  "colored 3.0.0",
  "nix 0.20.2",
+ "num_enum",
  "pretty_assertions",
  "rstest",
  "serde",
