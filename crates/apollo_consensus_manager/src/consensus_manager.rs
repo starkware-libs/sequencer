@@ -29,7 +29,7 @@ use apollo_state_sync_types::communication::SharedStateSyncClient;
 use async_trait::async_trait;
 use futures::channel::mpsc;
 use starknet_api::block::BlockNumber;
-use tracing::info;
+use tracing::{info, info_span, Instrument};
 
 use crate::config::ConsensusManagerConfig;
 use crate::metrics::{
@@ -164,7 +164,8 @@ impl ConsensusManager {
             },
         );
 
-        let network_task = tokio::spawn(network_manager.run());
+        let network_task =
+            tokio::spawn(network_manager.run().instrument(info_span!("[Consensus network]")));
         let stream_handler_task = tokio::spawn(stream_handler.run());
         let consensus_fut = apollo_consensus::run_consensus(
             context,
