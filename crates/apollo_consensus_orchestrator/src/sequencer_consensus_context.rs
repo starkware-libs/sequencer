@@ -40,7 +40,7 @@ use apollo_l1_gas_price_types::errors::{EthToStrkOracleClientError, L1GasPriceCl
 use apollo_l1_gas_price_types::{
     EthToStrkOracleClientTrait,
     L1GasPriceProviderClient,
-    DEFAULT_ETH_IN_FRI,
+    DEFAULT_ETH_TO_FRI_RATE,
 };
 use apollo_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use apollo_protobuf::consensus::{
@@ -95,7 +95,7 @@ use crate::metrics::{
     CONSENSUS_NUM_TXS_IN_PROPOSAL,
 };
 use crate::orchestrator_versioned_constants::VersionedConstants;
-use crate::utils::get_oracle_rate_and_prices;
+use crate::utils::get_spearate_oracle_rate_and_prices;
 
 // Contains parameters required for validating block info.
 #[derive(Clone, Debug)]
@@ -853,12 +853,12 @@ async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<Consens
     let batcher_timeout = chrono::Duration::from_std(args.batcher_timeout)
         .expect("Can't convert timeout to chrono::Duration");
     let timestamp = args.clock.now_as_timestamp();
-    let (eth_to_fri_rate, mut l1_prices) = get_oracle_rate_and_prices(
+    let (eth_to_fri_rate, mut l1_prices) = get_spearate_oracle_rate_and_prices(
         args.eth_to_strk_oracle_client.clone(),
         args.l1_gas_price_provider_client.clone(),
         timestamp,
         args.previous_block_info.as_ref(),
-        DEFAULT_ETH_IN_FRI,
+        DEFAULT_ETH_TO_FRI_RATE,
         args.min_l1_gas_price_wei,
         args.min_l1_data_gas_price_wei,
     )
@@ -1128,12 +1128,12 @@ async fn is_block_info_valid(
     }
     let l1_gas_price_margin_percent =
         VersionedConstants::latest_constants().l1_gas_price_margin_percent.into();
-    let (eth_to_fri_rate, mut l1_gas_prices) = get_oracle_rate_and_prices(
+    let (eth_to_fri_rate, mut l1_gas_prices) = get_spearate_oracle_rate_and_prices(
         eth_to_strk_oracle_client,
         l1_gas_price_provider,
         block_info_proposed.timestamp,
         previous_block_info.as_ref(),
-        DEFAULT_ETH_IN_FRI,
+        DEFAULT_ETH_TO_FRI_RATE,
         gas_price_params.min_l1_gas_price_wei,
         gas_price_params.min_l1_data_gas_price_wei,
     )
