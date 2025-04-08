@@ -95,6 +95,7 @@ impl<S: StateReader> StatefulValidator<S> {
         let validate_call_info = tx.validate_tx(
             self.state(),
             tx_context.clone(),
+            tx.execution_flags.validate,
             &mut GasCounter::new(tx_context.initial_sierra_gas()),
         )?;
 

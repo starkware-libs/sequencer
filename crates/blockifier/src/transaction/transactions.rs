@@ -111,6 +111,7 @@ pub trait ValidatableTransaction {
         &self,
         state: &mut dyn State,
         tx_context: Arc<TransactionContext>,
+        validate: bool,
         remaining_gas: &mut GasCounter,
     ) -> TransactionExecutionResult<Option<CallInfo>>;
 }
