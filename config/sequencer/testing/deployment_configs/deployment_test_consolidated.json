@@ -7,21 +7,7 @@
       "name": "Node",
       "controller": "StatefulSet",
       "config_path": "node.json",
-      "ingress": {
-        "domain": "sw-dev.io",
-        "internal": true,
-        "rules": [
-          {
-            "path": "/gateway",
-            "port": 8080
-          },
-          {
-            "path": "/feeder-gateway",
-            "port": 8080
-          }
-        ],
-        "alternative_names": []
-      },
+      "ingress": null,
       "autoscale": false,
       "replicas": 1,
       "storage": 32,

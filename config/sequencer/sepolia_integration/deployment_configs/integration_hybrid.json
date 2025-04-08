@@ -1,0 +1,127 @@
+{
+  "chain_id": "SN_INTEGRATION_SEPOLIA",
+  "image": "ghcr.io/starkware-libs/sequencer/sequencer:dev",
+  "application_config_subdir": "config/sequencer/sepolia_integration/app_configs/hybrid/",
+  "services": [
+    {
+      "name": "Core",
+      "controller": "StatefulSet",
+      "config_path": "core.json",
+      "ingress": null,
+      "autoscale": false,
+      "replicas": 1,
+      "storage": null,
+      "toleration": null,
+      "resources": {
+        "requests": {
+          "cpu": 1,
+          "memory": 2
+        },
+        "limits": {
+          "cpu": 4,
+          "memory": 8
+        }
+      },
+      "external_secret": {
+        "gcsm_key": "sequencer-integration-secrets"
+      }
+    },
+    {
+      "name": "HttpServer",
+      "controller": "StatefulSet",
+      "config_path": "http_server.json",
+      "ingress": {
+        "domain": "sw-dev.io",
+        "internal": true,
+        "rules": [],
+        "alternative_names": []
+      },
+      "autoscale": false,
+      "replicas": 1,
+      "storage": null,
+      "toleration": null,
+      "resources": {
+        "requests": {
+          "cpu": 1,
+          "memory": 2
+        },
+        "limits": {
+          "cpu": 4,
+          "memory": 8
+        }
+      },
+      "external_secret": {
+        "gcsm_key": "sequencer-integration-secrets"
+      }
+    },
+    {
+      "name": "Gateway",
+      "controller": "StatefulSet",
+      "config_path": "gateway.json",
+      "ingress": null,
+      "autoscale": false,
+      "replicas": 1,
+      "storage": null,
+      "toleration": null,
+      "resources": {
+        "requests": {
+          "cpu": 1,
+          "memory": 2
+        },
+        "limits": {
+          "cpu": 4,
+          "memory": 8
+        }
+      },
+      "external_secret": {
+        "gcsm_key": "sequencer-integration-secrets"
+      }
+    },
+    {
+      "name": "Mempool",
+      "controller": "StatefulSet",
+      "config_path": "mempool.json",
+      "ingress": null,
+      "autoscale": false,
+      "replicas": 1,
+      "storage": null,
+      "toleration": null,
+      "resources": {
+        "requests": {
+          "cpu": 1,
+          "memory": 2
+        },
+        "limits": {
+          "cpu": 4,
+          "memory": 8
+        }
+      },
+      "external_secret": {
+        "gcsm_key": "sequencer-integration-secrets"
+      }
+    },
+    {
+      "name": "SierraCompiler",
+      "controller": "StatefulSet",
+      "config_path": "sierra_compiler.json",
+      "ingress": null,
+      "autoscale": false,
+      "replicas": 1,
+      "storage": null,
+      "toleration": null,
+      "resources": {
+        "requests": {
+          "cpu": 1,
+          "memory": 2
+        },
+        "limits": {
+          "cpu": 4,
+          "memory": 8
+        }
+      },
+      "external_secret": {
+        "gcsm_key": "sequencer-integration-secrets"
+      }
+    }
+  ]
+}

@@ -17,7 +17,7 @@
           },
           {
             "path": "/feeder-gateway",
-            "port": 8080
+            "port": 8085
           }
         ],
         "alternative_names": []
@@ -37,7 +37,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "sequencer-dev-secrets"
+        "gcsm_key": "sequencer-integration-secrets"
       }
     }
   ]

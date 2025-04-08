@@ -18,7 +18,7 @@ pub struct Service {
     // TODO(Tsabary): change config path to PathBuf type.
     controller: Controller,
     config_path: String,
-    ingress: Ingress,
+    ingress: Option<Ingress>,
     autoscale: bool,
     replicas: usize,
     storage: Option<usize>,
@@ -104,7 +104,7 @@ impl Service {
     pub fn new(
         name: ServiceName,
         controller: Controller,
-        ingress: Ingress,
+        ingress: Option<Ingress>,
         autoscale: bool,
         replicas: usize,
         storage: Option<usize>,
@@ -150,8 +150,8 @@ impl ServiceName {
         name
     }
 
-    pub fn create_service(&self) -> Service {
-        self.as_inner().create_service()
+    pub fn create_service(&self, environment: &Environment) -> Service {
+        self.as_inner().create_service(environment)
     }
 
     fn as_inner(&self) -> &dyn ServiceNameInner {
@@ -164,7 +164,7 @@ impl ServiceName {
 }
 
 pub(crate) trait ServiceNameInner: Display {
-    fn create_service(&self) -> Service;
+    fn create_service(&self, environment: &Environment) -> Service;
 }
 
 impl DeploymentName {

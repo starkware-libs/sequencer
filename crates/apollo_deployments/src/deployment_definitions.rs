@@ -29,9 +29,23 @@ pub const DEPLOYMENTS: &[DeploymentFn] = &[
     system_test_distributed_deployment,
     system_test_consolidated_deployment,
     integration_consolidated_deployment,
+    integration_hybrid_deployment,
 ];
 
 // Integration deployments
+
+fn integration_hybrid_deployment() -> DeploymentAndPreset {
+    DeploymentAndPreset::new(
+        Deployment::new(
+            ChainId::IntegrationSepolia,
+            DeploymentName::HybridNode,
+            Environment::SepoliaIntegration,
+        ),
+        deployment_file_path(Environment::SepoliaIntegration, "integration_hybrid"),
+        INTEGRATION_BASE_APP_CONFIG_PATH,
+    )
+}
+
 fn integration_consolidated_deployment() -> DeploymentAndPreset {
     DeploymentAndPreset::new(
         Deployment::new(
