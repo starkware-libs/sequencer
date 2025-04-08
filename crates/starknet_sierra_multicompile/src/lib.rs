@@ -34,4 +34,6 @@ pub trait SierraToNativeCompiler: Send + Sync {
         &self,
         contract_class: ContractClass,
     ) -> Result<AotContractExecutor, CompilationUtilError>;
+
+    fn panic_on_compilation_failure(&self) -> bool;
 }

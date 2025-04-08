@@ -16,9 +16,9 @@ use crate::execution::call_info::{CallExecution, CallInfo};
 use crate::execution::contract_class::{CompiledClassV0, TrackedResource};
 use crate::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallHintProcessor;
 use crate::execution::entry_point::{
-    CallEntryPoint,
     EntryPointExecutionContext,
     EntryPointExecutionResult,
+    ExecutableCallEntryPoint,
 };
 use crate::execution::errors::{PostExecutionError, PreExecutionError};
 use crate::execution::execution_utils::{read_execution_retdata, Args, ReadOnlySegments};
@@ -42,7 +42,7 @@ pub const CAIRO0_BUILTINS_NAMES: [BuiltinName; 6] = [
 
 /// Executes a specific call to a contract entry point and returns its output.
 pub fn execute_entry_point_call(
-    call: CallEntryPoint,
+    call: ExecutableCallEntryPoint,
     compiled_class: CompiledClassV0,
     state: &mut dyn State,
     context: &mut EntryPointExecutionContext,
@@ -65,7 +65,7 @@ pub fn execute_entry_point_call(
 }
 
 pub fn initialize_execution_context<'a>(
-    call: &CallEntryPoint,
+    call: &ExecutableCallEntryPoint,
     compiled_class: CompiledClassV0,
     state: &'a mut dyn State,
     context: &'a mut EntryPointExecutionContext,
@@ -88,14 +88,8 @@ pub fn initialize_execution_context<'a>(
     let trace_enabled = false;
     let allow_missing_builtins = false;
     let program_base = None;
-    let mut runner = CairoRunner::new(
-        &compiled_class.program,
-        LayoutName::starknet,
-        None,
-        proof_mode,
-        trace_enabled,
-        false,
-    )?;
+    let mut runner =
+        CairoRunner::new(&compiled_class.program, LayoutName::starknet, proof_mode, trace_enabled)?;
 
     runner.initialize_builtins(allow_missing_builtins)?;
     runner.initialize_segments(program_base);
@@ -108,13 +102,14 @@ pub fn initialize_execution_context<'a>(
         initial_syscall_ptr,
         call.storage_address,
         call.caller_address,
+        call.class_hash,
     );
 
     Ok(VmExecutionContext { runner, syscall_handler, initial_syscall_ptr, entry_point_pc })
 }
 
 pub fn resolve_entry_point_pc(
-    call: &CallEntryPoint,
+    call: &ExecutableCallEntryPoint,
     compiled_class: &CompiledClassV0,
 ) -> Result<usize, PreExecutionError> {
     if call.entry_point_type == EntryPointType::Constructor
@@ -162,7 +157,7 @@ pub fn resolve_entry_point_pc(
 }
 
 pub fn prepare_call_arguments(
-    call: &CallEntryPoint,
+    call: &ExecutableCallEntryPoint,
     runner: &mut CairoRunner,
     initial_syscall_ptr: Relocatable,
     read_only_segments: &mut ReadOnlySegments,
@@ -223,7 +218,7 @@ pub fn run_entry_point(
 pub fn finalize_execution(
     mut runner: CairoRunner,
     syscall_handler: DeprecatedSyscallHintProcessor<'_>,
-    call: CallEntryPoint,
+    call: ExecutableCallEntryPoint,
     implicit_args: Vec<MaybeRelocatable>,
     n_total_args: usize,
 ) -> Result<CallInfo, PostExecutionError> {
@@ -257,13 +252,13 @@ pub fn finalize_execution(
     }
     // Take into account the syscall resources of the current call.
     vm_resources_without_inner_calls +=
-        &versioned_constants.get_additional_os_syscall_resources(&syscall_handler.syscall_counter);
+        &versioned_constants.get_additional_os_syscall_resources(&syscall_handler.syscalls_usage);
 
     let vm_resources = &vm_resources_without_inner_calls
         + &CallInfo::summarize_vm_resources(syscall_handler.inner_calls.iter());
 
     Ok(CallInfo {
-        call,
+        call: call.into(),
         execution: CallExecution {
             retdata: read_execution_retdata(&runner, retdata_size, &retdata_ptr)?,
             events: syscall_handler.events,

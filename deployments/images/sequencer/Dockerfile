@@ -1,4 +1,4 @@
-#syntax = devthefuture/dockerfile-x
+# syntax = devthefuture/dockerfile-x
 
 INCLUDE deployments/images/base/Dockerfile
 
@@ -7,21 +7,24 @@ INCLUDE deployments/images/base/Dockerfile
 FROM base AS builder
 WORKDIR /app
 COPY . .
+# Installing rust version in rust-toolchain.toml
+RUN rustup toolchain install
 RUN cargo build --bin starknet_sequencer_node
 
-FROM base AS sequencer
+FROM ubuntu:24.04
 
-ENV ID=1000
+ENV ID=1001
 WORKDIR /app
 COPY --from=builder /app/target/debug/starknet_sequencer_node ./target/debug/starknet_sequencer_node
+COPY --from=builder /usr/bin/tini /usr/bin/tini
 
 # Copy sequencer config
 COPY config/sequencer/default_config.json /app/config/sequencer/
 
 # Create a new user "sequencer".
 RUN set -ex; \
-    addgroup --gid ${ID} sequencer; \
-    adduser --ingroup $(getent group ${ID} | cut -d: -f1) --uid ${ID} --gecos "" --disabled-password --home /app sequencer; \
+    groupadd --gid ${ID} sequencer; \
+    useradd --gid ${ID} --uid ${ID} --comment "" --create-home --home-dir /app sequencer; \
     chown -R sequencer:sequencer /app
 
 # Expose RPC and monitoring ports.

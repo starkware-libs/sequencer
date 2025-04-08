@@ -14,7 +14,7 @@ use starknet_api::test_utils::{
     CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE,
     TEST_SEQUENCER_ADDRESS,
 };
-use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, Fee};
+use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, Fee, Tip};
 use starknet_api::transaction::{
     EventContent,
     EventData,
@@ -34,19 +34,15 @@ use crate::execution::entry_point::{CallEntryPoint, CallType};
 use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::syscalls::hint_processor::EmitEventError;
 use crate::state::state_api::StateReader;
-use crate::test_utils::contracts::FeatureContract;
-use crate::test_utils::initial_test_state::test_state;
+use crate::test_utils::contracts::{FeatureContract, FeatureContractData};
+use crate::test_utils::initial_test_state::{test_state, test_state_ex};
 use crate::test_utils::{
     calldata_for_deploy_test,
-    get_syscall_resources,
+    get_const_syscall_resources,
     trivial_external_entry_point_new,
     CairoVersion,
 };
-use crate::transaction::objects::{
-    CommonAccountFields,
-    DeprecatedTransactionInfo,
-    TransactionInfo,
-};
+use crate::transaction::objects::{CommonAccountFields, CurrentTransactionInfo, TransactionInfo};
 use crate::versioned_constants::VersionedConstants;
 use crate::{check_entry_point_execution_error_for_custom_hint, retdata};
 
@@ -160,12 +156,13 @@ fn test_nested_library_call() {
         accessed_storage_keys: HashSet::from([storage_key!(key + 1)]),
         ..Default::default()
     };
-    let mut library_call_resources = &get_syscall_resources(DeprecatedSyscallSelector::LibraryCall)
-        + &ExecutionResources {
-            n_steps: 39,
-            n_memory_holes: 0,
-            builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 1)]),
-        };
+    let mut library_call_resources =
+        &get_const_syscall_resources(DeprecatedSyscallSelector::LibraryCall)
+            + &ExecutionResources {
+                n_steps: 39,
+                n_memory_holes: 0,
+                builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 1)]),
+            };
     library_call_resources += &storage_entry_point_resources;
     let library_call_info = CallInfo {
         call: library_entry_point,
@@ -184,12 +181,13 @@ fn test_nested_library_call() {
     };
 
     // Nested library call cost: library_call(inner) + library_call(library_call(inner)).
-    let mut main_call_resources = &get_syscall_resources(DeprecatedSyscallSelector::LibraryCall)
-        + &ExecutionResources {
-            n_steps: 45,
-            n_memory_holes: 0,
-            builtin_instance_counter: HashMap::new(),
-        };
+    let mut main_call_resources =
+        &get_const_syscall_resources(DeprecatedSyscallSelector::LibraryCall)
+            + &ExecutionResources {
+                n_steps: 45,
+                n_memory_holes: 0,
+                builtin_instance_counter: HashMap::new(),
+            };
     main_call_resources += &(&library_call_resources * 2);
     let expected_call_info = CallInfo {
         call: main_entry_point.clone(),
@@ -257,7 +255,7 @@ fn test_call_contract() {
             ..trivial_external_entry_point
         },
         execution: expected_execution,
-        resources: &get_syscall_resources(DeprecatedSyscallSelector::CallContract)
+        resources: &get_const_syscall_resources(DeprecatedSyscallSelector::CallContract)
             + &ExecutionResources {
                 n_steps: 261,
                 n_memory_holes: 0,
@@ -452,20 +450,36 @@ fn test_block_info_syscalls(
 }
 
 #[rstest]
-fn test_tx_info(#[values(false, true)] only_query: bool) {
+fn test_tx_info(
+    #[values(false, true)] only_query: bool,
+    #[values(false, true)] v1_bound_account: bool,
+    // Whether the tip is larger than `v1_bound_accounts_max_tip`.
+    #[values(false, true)] high_tip: bool,
+) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
-    let mut state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[(test_contract, 1)]);
-    let mut version = felt!(1_u8);
+    let mut test_contract_data: FeatureContractData = test_contract.into();
+    if v1_bound_account {
+        let optional_class_hash =
+            VersionedConstants::latest_constants().os_constants.v1_bound_accounts_cairo0.first();
+        test_contract_data.class_hash =
+            *optional_class_hash.expect("No v1 bound accounts found in versioned constants.");
+    }
+
+    let mut state =
+        test_state_ex(&ChainInfo::create_for_testing(), Fee(0), &[(test_contract_data, 1)]);
+    let mut version = felt!(3_u8);
+    let mut expected_version = if v1_bound_account && !high_tip { felt!(1_u8) } else { version };
     if only_query {
         let simulate_version_base = *QUERY_VERSION_BASE;
         version += simulate_version_base;
+        expected_version += simulate_version_base;
     }
     let tx_hash = tx_hash!(1991);
     let max_fee = Fee(0);
     let nonce = nonce!(3_u16);
     let sender_address = test_contract.get_instance_address(0);
     let expected_tx_info = calldata![
-        version,                                         // Transaction version.
+        expected_version,                                // Transaction version.
         *sender_address.0.key(),                         // Account address.
         felt!(max_fee.0),                                // Max fee.
         tx_hash.0,                                       // Transaction hash.
@@ -478,16 +492,22 @@ fn test_tx_info(#[values(false, true)] only_query: bool) {
         calldata: expected_tx_info,
         ..trivial_external_entry_point_new(test_contract)
     };
-    let tx_info = TransactionInfo::Deprecated(DeprecatedTransactionInfo {
+
+    // Transaction tip.
+    let tip = Tip(VersionedConstants::latest_constants().os_constants.v1_bound_accounts_max_tip.0
+        + if high_tip { 1 } else { 0 });
+
+    let tx_info = TransactionInfo::Current(CurrentTransactionInfo {
         common_fields: CommonAccountFields {
             transaction_hash: tx_hash,
-            version: TransactionVersion::ONE,
+            version: TransactionVersion::THREE,
             nonce,
             sender_address,
             only_query,
             ..Default::default()
         },
-        max_fee,
+        tip,
+        ..CurrentTransactionInfo::create_for_testing()
     });
     let limit_steps_by_resources = false; // Do not limit steps by resources as we use default reasources.
     let result = entry_point_call

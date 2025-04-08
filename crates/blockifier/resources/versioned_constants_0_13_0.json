@@ -76,6 +76,7 @@
         "step_gas_cost": 100,
         "builtin_gas_costs": {
             "range_check": 70,
+            "range_check96": 0,
             "keccak": 0,
             "pedersen": 0,
             "bitwise": 0,
@@ -211,7 +212,10 @@
                 "range_check": 0,
                 "syscall_base_gas_cost": 0
             }
-        }
+        },
+        "v1_bound_accounts_cairo0": [],
+        "v1_bound_accounts_cairo1": [],
+        "v1_bound_accounts_max_tip": "0x0"
     },
     "os_resources": {
         "execute_syscalls": {

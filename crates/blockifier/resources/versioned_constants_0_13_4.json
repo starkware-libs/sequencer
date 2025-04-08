@@ -92,6 +92,7 @@
         },
         "builtin_gas_costs": {
             "range_check": 70,
+            "range_check96": 56,
             "keccak": 136189,
             "pedersen": 4050,
             "bitwise": 583,
@@ -116,7 +117,10 @@
             "validate_block_number_rounding": 100,
             "validate_timestamp_rounding": 3600
         },
-        "validated": "VALID"
+        "validated": "VALID",
+        "v1_bound_accounts_cairo0": [],
+        "v1_bound_accounts_cairo1": [],
+        "v1_bound_accounts_max_tip": "0x0"
     },
     "os_resources": {
         "execute_syscalls": {

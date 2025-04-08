@@ -28,8 +28,7 @@ const EXECUTION_OUTPUTS_UNWRAP_ERROR: &str = "Execution task outputs should not 
 #[derive(Debug)]
 pub struct ExecutionTaskOutput {
     pub reads: StateMaps,
-    // TODO(Yoni): rename to state_diff.
-    pub writes: StateMaps,
+    pub state_diff: StateMaps,
     pub contract_classes: ContractClassMapping,
     pub result: TransactionExecutionResult<TransactionExecutionInfo>,
 }
@@ -131,12 +130,12 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
         let execution_output_inner = match execution_result {
             Ok(_) => {
                 let tx_reads_writes = transactional_state.cache.take();
-                let writes = tx_reads_writes.to_state_diff().state_maps;
+                let state_diff = tx_reads_writes.to_state_diff().state_maps;
                 let contract_classes = transactional_state.class_hash_to_class.take();
-                tx_versioned_state.apply_writes(&writes, &contract_classes);
+                tx_versioned_state.apply_writes(&state_diff, &contract_classes);
                 ExecutionTaskOutput {
                     reads: tx_reads_writes.initial_reads,
-                    writes,
+                    state_diff,
                     contract_classes,
                     result: execution_result,
                 }
@@ -144,7 +143,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
             Err(_) => ExecutionTaskOutput {
                 reads: transactional_state.cache.take().initial_reads,
                 // Failed transaction - ignore the writes.
-                writes: StateMaps::default(),
+                state_diff: StateMaps::default(),
                 contract_classes: HashMap::default(),
                 result: execution_result,
             },
@@ -163,7 +162,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
         let aborted = !reads_valid && self.scheduler.try_validation_abort(tx_index);
         if aborted {
             tx_versioned_state
-                .delete_writes(&execution_output.writes, &execution_output.contract_classes);
+                .delete_writes(&execution_output.state_diff, &execution_output.contract_classes);
             self.scheduler.finish_abort(tx_index)
         } else {
             Task::AskForTask
@@ -194,7 +193,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
         if !reads_valid {
             // Revalidate failed: re-execute the transaction.
             tx_versioned_state.delete_writes(
-                &execution_output_ref.writes,
+                &execution_output_ref.state_diff,
                 &execution_output_ref.contract_classes,
             );
             // Release the execution output lock as it is acquired in execution (avoid dead-lock).
@@ -214,13 +213,10 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
 
         // Execution is final.
         let mut execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
-        let writes = &execution_output.as_ref().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR).writes;
-        // TODO(Yoni): get rid of this clone.
-        let mut tx_state_changes_keys = writes.clone().into_keys();
-        let tx_result =
-            &mut execution_output.as_mut().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR).result;
+        let execution_output = execution_output.as_mut().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR);
+        let mut tx_state_changes_keys = execution_output.state_diff.keys();
 
-        if let Ok(tx_execution_info) = tx_result.as_mut() {
+        if let Ok(tx_execution_info) = execution_output.result.as_mut() {
             let tx_context = self.block_context.to_tx_context(&self.chunk[tx_index]);
             // Add the deleted sequencer balance key to the storage keys.
             let concurrency_mode = true;
@@ -235,6 +231,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
                 &tx_state_changes_keys,
                 &tx_execution_info.summarize(&self.block_context.versioned_constants),
                 &tx_execution_info.receipt.resources,
+                &self.block_context.versioned_constants,
             );
             if let Err(error) = bouncer_result {
                 match error {
@@ -245,7 +242,12 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
                     }
                 }
             }
-            complete_fee_transfer_flow(&tx_context, tx_execution_info, &mut tx_versioned_state);
+            complete_fee_transfer_flow(
+                &tx_context,
+                tx_execution_info,
+                &mut execution_output.state_diff,
+                &mut tx_versioned_state,
+            );
             // Optimization: changing the sequencer balance storage cell does not trigger
             // (re-)validation of the next transactions.
         }

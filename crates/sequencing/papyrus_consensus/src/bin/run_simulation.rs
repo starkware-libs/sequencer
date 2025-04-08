@@ -181,7 +181,9 @@ impl LockDir {
 
 impl Drop for LockDir {
     fn drop(&mut self) {
-        let _ = self.lockfile.unlock();
+        // Due to [#48919](https://github.com/rust-lang/rust/issues/48919) we use fully qualified
+        // syntax (from rust 1.84), instead of `self.lockfile.unlock()`.
+        let _ = fs2::FileExt::unlock(&self.lockfile);
     }
 }
 

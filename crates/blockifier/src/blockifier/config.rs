@@ -3,14 +3,14 @@ use std::collections::BTreeMap;
 use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
+use starknet_api::core::ClassHash;
 use starknet_sierra_multicompile::config::SierraCompilationConfig;
 
-#[cfg(any(test, feature = "testing", feature = "native_blockifier"))]
 use crate::blockifier::transaction_executor::DEFAULT_STACK_SIZE;
 use crate::state::contract_class_manager::DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE;
 use crate::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
 
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct TransactionExecutorConfig {
     pub concurrency_config: ConcurrencyConfig,
     pub stack_size: usize,
@@ -22,6 +22,12 @@ impl TransactionExecutorConfig {
             concurrency_config: ConcurrencyConfig::create_for_testing(concurrency_enabled),
             stack_size: DEFAULT_STACK_SIZE,
         }
+    }
+}
+
+impl Default for TransactionExecutorConfig {
+    fn default() -> Self {
+        Self { concurrency_config: ConcurrencyConfig::default(), stack_size: DEFAULT_STACK_SIZE }
     }
 }
 
@@ -128,11 +134,19 @@ impl SerializeConfig for ContractClassManagerConfig {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub enum NativeClassesWhitelist {
+    All,
+    Limited(Vec<ClassHash>),
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct CairoNativeRunConfig {
     pub run_cairo_native: bool,
     pub wait_on_native_compilation: bool,
     pub channel_size: usize,
+    // TODO(AvivG): implement `native_classes_whitelist` logic.
+    pub native_classes_whitelist: NativeClassesWhitelist,
 }
 
 impl Default for CairoNativeRunConfig {
@@ -141,6 +155,7 @@ impl Default for CairoNativeRunConfig {
             run_cairo_native: false,
             wait_on_native_compilation: false,
             channel_size: DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE,
+            native_classes_whitelist: NativeClassesWhitelist::All,
         }
     }
 }
@@ -164,6 +179,14 @@ impl SerializeConfig for CairoNativeRunConfig {
                 "channel_size",
                 &self.channel_size,
                 "The size of the compilation request channel.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "native_classes_whitelist",
+                &self.native_classes_whitelist,
+                "Contracts for Cairo Specifies whether to execute all class hashes or only a \
+                 limited selection using Cairo native contracts. If limited, a specific list of \
+                 class hashes is provided. compilation.",
                 ParamPrivacyInput::Public,
             ),
         ])

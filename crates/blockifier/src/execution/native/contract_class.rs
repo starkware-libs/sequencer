@@ -5,7 +5,7 @@ use starknet_api::core::EntryPointSelector;
 
 use super::executor::ContractExecutor;
 use crate::execution::contract_class::{CompiledClassV1, EntryPointV1};
-use crate::execution::entry_point::CallEntryPoint;
+use crate::execution::entry_point::EntryPointTypeAndSelector;
 use crate::execution::errors::PreExecutionError;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NativeCompiledClassV1(pub Arc<NativeCompiledClassV1Inner>);
@@ -34,9 +34,9 @@ impl NativeCompiledClassV1 {
 
     pub fn get_entry_point(
         &self,
-        call: &CallEntryPoint,
+        entry_point: &EntryPointTypeAndSelector,
     ) -> Result<EntryPointV1, PreExecutionError> {
-        self.casm.get_entry_point(call)
+        self.casm.get_entry_point(entry_point)
     }
 
     pub fn casm(&self) -> CompiledClassV1 {

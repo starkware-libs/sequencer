@@ -75,7 +75,7 @@ fn global_contract_cache_update() {
         )
         .unwrap();
 
-    assert_eq!(block_executor.contract_class_manager.get_casm_cache_size(), 0);
+    assert_eq!(block_executor.contract_class_manager.get_cache_size(), 0);
 
     let queried_contract_class = block_executor
         .tx_executor()
@@ -86,7 +86,7 @@ fn global_contract_cache_update() {
         .unwrap();
 
     assert_eq!(queried_contract_class, contract_class);
-    assert_eq!(block_executor.contract_class_manager.get_casm_cache_size(), 1);
+    assert_eq!(block_executor.contract_class_manager.get_cache_size(), 1);
 }
 
 #[test]

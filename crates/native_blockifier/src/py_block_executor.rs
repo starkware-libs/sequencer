@@ -197,7 +197,7 @@ impl PyBlockExecutor {
         optional_py_class_info: Option<PyClassInfo>,
     ) -> NativeBlockifierResult<Py<PyBytes>> {
         let tx: Transaction = py_tx(tx, optional_py_class_info).expect(PY_TX_PARSING_ERR);
-        let tx_execution_info = self.tx_executor().execute(&tx)?;
+        let (tx_execution_info, _state_diff) = self.tx_executor().execute(&tx)?;
         let thin_tx_execution_info =
             ThinTransactionExecutionInfo::from_tx_execution_info(tx_execution_info);
 
@@ -232,7 +232,7 @@ impl PyBlockExecutor {
             .into_iter()
             // Note: there might be less results than txs (if there is no room for all of them).
             .map(|result| match result {
-                Ok(tx_execution_info) => (
+                Ok((tx_execution_info, _state_diff)) => (
                     true,
                     ThinTransactionExecutionInfo::from_tx_execution_info(
                         tx_execution_info,

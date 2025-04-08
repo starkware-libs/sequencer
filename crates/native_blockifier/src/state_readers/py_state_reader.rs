@@ -84,7 +84,7 @@ impl StateReader for PyStateReader {
                 py_versioned_raw_compiled_class.get_item(0)?.extract()?;
 
             // Extract and process the Sierra version
-            let (minor, major, patch): (u64, u64, u64) =
+            let (major, minor, patch): (u64, u64, u64) =
                 py_versioned_raw_compiled_class.get_item(1)?.extract()?;
 
             let sierra_version = SierraVersion::new(major, minor, patch);

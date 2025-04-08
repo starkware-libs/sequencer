@@ -13,6 +13,7 @@ workspace = true
 cairo_native = ["dep:cairo-native", "starknet_sierra_multicompile/cairo_native", "dep:sierra-emu"]
 jemalloc = ["dep:tikv-jemallocator"]
 native_blockifier = []
+node_api = []
 reexecution = ["transaction_serde"]
 testing = ["rand", "rstest", "rstest_reuse", "starknet_api/testing"]
 transaction_serde = []

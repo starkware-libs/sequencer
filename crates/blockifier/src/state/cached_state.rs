@@ -355,13 +355,13 @@ impl StateMaps {
         modified_contracts
     }
 
-    pub fn into_keys(self) -> StateChangesKeys {
+    pub fn keys(&self) -> StateChangesKeys {
         StateChangesKeys {
             modified_contracts: self.get_contract_addresses(),
-            nonce_keys: self.nonces.into_keys().collect(),
-            class_hash_keys: self.class_hashes.into_keys().collect(),
-            storage_keys: self.storage.into_keys().collect(),
-            compiled_class_hash_keys: self.compiled_class_hashes.into_keys().collect(),
+            nonce_keys: self.nonces.keys().cloned().collect(),
+            class_hash_keys: self.class_hashes.keys().cloned().collect(),
+            storage_keys: self.storage.keys().cloned().collect(),
+            compiled_class_hash_keys: self.compiled_class_hashes.keys().cloned().collect(),
         }
     }
 }

@@ -33,7 +33,7 @@ concurrency:
 
 jobs:
   blockifier_reexecution:
-    runs-on: starkware-ubuntu-latest-medium
+    runs-on: starkware-ubuntu-24.04-medium
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap

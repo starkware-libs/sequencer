@@ -25,6 +25,8 @@ on:
       - 'Cargo.toml'
       - 'crates/blockifier/**'
       - 'crates/native_blockifier/**'
+      - 'crates/starknet_sierra_multicompile/**'
+      - 'rust-toolchain.toml'
       - 'scripts/build_native_blockifier.sh'
       - 'scripts/dependencies.sh'
       - 'scripts/install_build_tools.sh'
@@ -44,7 +46,7 @@ env:
 
 jobs:
   native-blockifier-artifacts-push:
-    runs-on: starkware-ubuntu-latest-medium
+    runs-on: starkware-ubuntu-24.04-medium
     steps:
       - uses: actions/checkout@v4
 
@@ -131,11 +133,4 @@ jobs:
         uses: "google-github-actions/upload-cloud-storage@v2"
         with:
           path: "target/release/shared_executables/starknet-native-compile"
-          destination: "native_blockifier_artifacts/${{ env.SHORT_HASH }}/release/"
-
-      - name: Upload libcairo_native_runtime.a to GCP
-        id: upload_lnr_file
-        uses: "google-github-actions/upload-cloud-storage@v2"
-        with:
-          path: "crates/blockifier/cairo_native/target/release/libcairo_native_runtime.a"
           destination: "native_blockifier_artifacts/${{ env.SHORT_HASH }}/release/"

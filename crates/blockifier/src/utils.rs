@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
+use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+
 use crate::transaction::errors::NumericConversionError;
+use crate::versioned_constants::GasCosts;
 
 #[cfg(test)]
 #[path = "utils_test.rs"]
@@ -48,6 +51,7 @@ pub const fn const_max(a: u128, b: u128) -> u128 {
     [a, b][(a < b) as usize]
 }
 
+// TODO(Meshi): Move this code to starknet API.
 /// Conversion from u64 to usize. This conversion should only be used if the value came from a
 /// usize.
 pub fn usize_from_u64(val: u64) -> Result<usize, NumericConversionError> {
@@ -58,4 +62,27 @@ pub fn usize_from_u64(val: u64) -> Result<usize, NumericConversionError> {
 /// of address space.
 pub fn u64_from_usize(val: usize) -> u64 {
     val.try_into().expect("Conversion from usize to u64 should not fail.")
+}
+
+pub fn get_gas_cost_from_vm_resources(
+    execution_resources: &ExecutionResources,
+    gas_costs: &GasCosts,
+) -> u64 {
+    let n_steps = u64_from_usize(execution_resources.n_steps);
+    let n_memory_holes = u64_from_usize(execution_resources.n_memory_holes);
+    let total_builtin_gas_cost: u64 = execution_resources
+        .builtin_instance_counter
+        .iter()
+        .map(|(builtin, amount)| {
+            let builtin_cost = gas_costs
+                .builtins
+                .get_builtin_gas_cost(builtin)
+                .unwrap_or_else(|err| panic!("Failed to get gas cost: {}", err));
+            builtin_cost * u64_from_usize(*amount)
+        })
+        .sum();
+
+    n_steps * gas_costs.base.step_gas_cost
+        + n_memory_holes * gas_costs.base.memory_hole_gas_cost
+        + total_builtin_gas_cost
 }

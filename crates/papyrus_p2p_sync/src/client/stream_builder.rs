@@ -77,13 +77,9 @@ where
             .map(|now_or_never_res| now_or_never_res.expect("Internal block receiver closed"))
         {
             if block_number >= current_block_number {
-                let block_data =
-                    match Self::convert_sync_block_to_block_data(block_number, sync_block) {
-                        Some(block_data) => block_data,
-                        // If None is received then we don't use internal blocks for this stream
-                        // TODO(Eitan): Remove this once we have a class manager component.
-                        None => return None,
-                    };
+                // If None is received then we don't use internal blocks for this stream
+                // TODO(Eitan): Remove this once we have a class manager component.
+                let block_data = Self::convert_sync_block_to_block_data(block_number, sync_block)?;
                 if block_number == current_block_number {
                     return Some(block_data);
                 }

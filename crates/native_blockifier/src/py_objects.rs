@@ -8,23 +8,20 @@ use blockifier::blockifier::config::{
     CairoNativeRunConfig,
     ConcurrencyConfig,
     ContractClassManagerConfig,
+    NativeClassesWhitelist,
 };
-use blockifier::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount, HashMapWrapper};
+use blockifier::bouncer::{BouncerConfig, BouncerWeights};
 use blockifier::state::contract_class_manager::DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE;
 use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
 use blockifier::versioned_constants::VersionedConstantsOverrides;
-use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pyo3::prelude::*;
+use starknet_api::core::ClassHash;
 use starknet_api::execution_resources::GasAmount;
 use starknet_sierra_multicompile::config::SierraCompilationConfig;
 
-use crate::errors::{
-    InvalidNativeBlockifierInputError,
-    NativeBlockifierError,
-    NativeBlockifierInputError,
-    NativeBlockifierResult,
-};
+use crate::errors::{NativeBlockifierError, NativeBlockifierResult};
+use crate::py_utils::PyFelt;
 
 // From Rust to Python.
 
@@ -61,18 +58,20 @@ pub struct PyVersionedConstantsOverrides {
     pub validate_max_n_steps: u32,
     pub max_recursion_depth: usize,
     pub invoke_tx_max_n_steps: u32,
+    pub max_n_events: usize,
 }
 
 #[pymethods]
 impl PyVersionedConstantsOverrides {
     #[new]
-    #[pyo3(signature = (validate_max_n_steps, max_recursion_depth, invoke_tx_max_n_steps))]
+    #[pyo3(signature = (validate_max_n_steps, max_recursion_depth, invoke_tx_max_n_steps, max_n_events))]
     pub fn create(
         validate_max_n_steps: u32,
         max_recursion_depth: usize,
         invoke_tx_max_n_steps: u32,
+        max_n_events: usize,
     ) -> Self {
-        Self { validate_max_n_steps, max_recursion_depth, invoke_tx_max_n_steps }
+        Self { validate_max_n_steps, max_recursion_depth, invoke_tx_max_n_steps, max_n_events }
     }
 }
 
@@ -82,8 +81,9 @@ impl From<PyVersionedConstantsOverrides> for VersionedConstantsOverrides {
             validate_max_n_steps,
             max_recursion_depth,
             invoke_tx_max_n_steps,
+            max_n_events,
         } = py_versioned_constants_overrides;
-        Self { validate_max_n_steps, max_recursion_depth, invoke_tx_max_n_steps }
+        Self { validate_max_n_steps, max_recursion_depth, invoke_tx_max_n_steps, max_n_events }
     }
 }
 
@@ -103,30 +103,10 @@ impl TryFrom<PyBouncerConfig> for BouncerConfig {
     }
 }
 
-fn hash_map_into_builtin_count(
-    builtins: HashMap<String, usize>,
-) -> Result<BuiltinCount, NativeBlockifierInputError> {
-    let mut wrapper = HashMapWrapper::new();
-    for (builtin_name, count) in builtins.iter() {
-        let builtin = BuiltinName::from_str_with_suffix(builtin_name)
-            .ok_or(NativeBlockifierInputError::UnknownBuiltin(builtin_name.clone()))?;
-        wrapper.insert(builtin, *count);
-    }
-    let builtin_count: BuiltinCount = wrapper.into();
-    if builtin_count.all_non_zero() {
-        Ok(builtin_count)
-    } else {
-        Err(NativeBlockifierInputError::InvalidNativeBlockifierInputError(
-            InvalidNativeBlockifierInputError::InvalidBuiltinCounts(builtin_count),
-        ))
-    }
-}
-
 fn hash_map_into_bouncer_weights(
     mut data: HashMap<String, usize>,
 ) -> NativeBlockifierResult<BouncerWeights> {
     let l1_gas = data.remove(constants::L1_GAS_USAGE).expect("gas_weight must be present");
-    let n_steps = data.remove(constants::N_STEPS_RESOURCE).expect("n_steps must be present");
     let message_segment_length = data
         .remove(constants::MESSAGE_SEGMENT_LENGTH)
         .expect("message_segment_length must be present");
@@ -139,15 +119,8 @@ fn hash_map_into_bouncer_weights(
             .try_into()
             .unwrap_or_else(|err| panic!("Failed to convert 'sierra_gas' into GasAmount: {err}.")),
     );
-    Ok(BouncerWeights {
-        l1_gas,
-        n_steps,
-        message_segment_length,
-        state_diff_size,
-        n_events,
-        builtin_count: hash_map_into_builtin_count(data)?,
-        sierra_gas,
-    })
+
+    Ok(BouncerWeights { l1_gas, message_segment_length, state_diff_size, n_events, sierra_gas })
 }
 
 #[derive(Debug, Default, FromPyObject)]
@@ -169,10 +142,11 @@ impl From<PyConcurrencyConfig> for ConcurrencyConfig {
 #[derive(Clone, Debug, Default, FromPyObject)]
 pub struct PySierraCompilationConfig {
     pub sierra_to_native_compiler_path: String,
-    pub libcairo_native_runtime_path: String,
     pub max_native_bytecode_size: u64,
     pub max_cpu_time: u64,
     pub max_memory_usage: u64,
+    pub optimization_level: u8,
+    pub panic_on_compilation_failure: bool,
 }
 
 impl From<PySierraCompilationConfig> for SierraCompilationConfig {
@@ -186,17 +160,11 @@ impl From<PySierraCompilationConfig> for SierraCompilationConfig {
             } else {
                 Some(PathBuf::from(py_sierra_compilation_config.sierra_to_native_compiler_path))
             },
-            libcairo_native_runtime_path: if py_sierra_compilation_config
-                .libcairo_native_runtime_path
-                .is_empty()
-            {
-                None
-            } else {
-                Some(PathBuf::from(py_sierra_compilation_config.libcairo_native_runtime_path))
-            },
             max_native_bytecode_size: py_sierra_compilation_config.max_native_bytecode_size,
             max_cpu_time: py_sierra_compilation_config.max_cpu_time,
             max_memory_usage: py_sierra_compilation_config.max_memory_usage,
+            panic_on_compilation_failure: py_sierra_compilation_config.panic_on_compilation_failure,
+            optimization_level: py_sierra_compilation_config.optimization_level,
             ..Default::default()
         }
     }
@@ -207,6 +175,8 @@ pub struct PyCairoNativeRunConfig {
     pub run_cairo_native: bool,
     pub wait_on_native_compilation: bool,
     pub channel_size: usize,
+    // Determines which contracts are allowd to run Cairo Native. `None` → All.
+    pub native_classes_whitelist: Option<Vec<PyFelt>>,
 }
 
 impl Default for PyCairoNativeRunConfig {
@@ -215,16 +185,25 @@ impl Default for PyCairoNativeRunConfig {
             run_cairo_native: false,
             wait_on_native_compilation: false,
             channel_size: DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE,
+            native_classes_whitelist: None,
         }
     }
 }
 
 impl From<PyCairoNativeRunConfig> for CairoNativeRunConfig {
     fn from(py_cairo_native_run_config: PyCairoNativeRunConfig) -> Self {
+        let native_classes_whitelist = match py_cairo_native_run_config.native_classes_whitelist {
+            Some(felts) => NativeClassesWhitelist::Limited(
+                felts.into_iter().map(|felt| ClassHash(felt.0)).collect(),
+            ),
+            None => NativeClassesWhitelist::All,
+        };
+
         CairoNativeRunConfig {
             run_cairo_native: py_cairo_native_run_config.run_cairo_native,
             wait_on_native_compilation: py_cairo_native_run_config.wait_on_native_compilation,
             channel_size: py_cairo_native_run_config.channel_size,
+            native_classes_whitelist,
         }
     }
 }

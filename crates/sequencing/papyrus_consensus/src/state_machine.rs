@@ -410,7 +410,7 @@ impl StateMachine {
             return VecDeque::new();
         }
         let mut output = if proposal_id.is_some_and(|v| {
-            self.locked_value_round.map_or(true, |(locked_value, _)| v == locked_value)
+            self.locked_value_round.is_none_or(|(locked_value, _)| v == locked_value)
         }) {
             VecDeque::from([StateMachineEvent::Prevote(*proposal_id, self.round)])
         } else {
@@ -438,7 +438,7 @@ impl StateMachine {
             return VecDeque::new();
         }
         let mut output = if proposal_id.is_some_and(|v| {
-            self.locked_value_round.map_or(true, |(locked_value, locked_round)| {
+            self.locked_value_round.is_none_or(|(locked_value, locked_round)| {
                 locked_round <= *valid_round || locked_value == v
             })
         }) {

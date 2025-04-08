@@ -15,6 +15,7 @@ on:
       - 'crates/starknet_api/**'
       - 'crates/starknet_committer/**'
       - 'crates/starknet_patricia/**'
+      - 'rust-toolchain.toml'
       - 'scripts/dependencies.sh'
 
   pull_request:
@@ -32,6 +33,7 @@ on:
       - 'crates/starknet_api/**'
       - 'crates/starknet_committer/**'
       - 'crates/starknet_patricia/**'
+      - 'rust-toolchain.toml'
       - 'scripts/dependencies.sh'
 
 env:
@@ -48,7 +50,7 @@ concurrency:
 
 jobs:
   gcs-push:
-    runs-on: starkware-ubuntu-20-04-medium
+    runs-on: starkware-ubuntu-24.04-medium
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
@@ -68,7 +70,7 @@ jobs:
         run: echo "SHORT_HASH=${COMMIT_SHA:0:7}" >> $GITHUB_ENV
 
       - name: Build CLI binary
-        run: ./build_native_in_docker.sh cargo build -p committer_cli -r --bin committer_cli --target-dir CLI_TARGET
+        run: ./build_native_in_docker.sh rustup toolchain install && cargo build -p committer_cli -r --bin committer_cli --target-dir CLI_TARGET
 
       - id: auth
         uses: "google-github-actions/auth@v2"
