@@ -136,24 +136,21 @@ fn compile_with_args(
 
     if !compile_output.status.success() {
         let signal_info = match compile_output.status.signal() {
-            Some(9) => "SIGKILL (9): Exceeded CPU or memory limit — process was forcefully killed.",
+            Some(9) => {
+                "SIGKILL (9): Process was forcefully killed (for example, because it exceeded CPU \
+                 limit)."
+            }
             Some(25) => "SIGXFSZ (25): File size limit exceeded.",
             None => {
                 "Process exited with non-zero status but no signal (likely a handled error, e.g., \
                  memory allocation failure)."
             }
-            Some(sig) => {
-                return Err(CompilationUtilError::CompilationError(format!(
-                    "Process terminated by unexpected signal: {}",
-                    sig
-                )));
-            }
+            Some(sig) => &format!("Process terminated by unexpected signal: {}", sig),
         };
 
         let stderr_output = String::from_utf8(compile_output.stderr)
             .unwrap_or_else(|_| "Failed to decode stderr output".to_string());
 
-        // TODO(Avi, 28/2/2025): Make the error messages more readable.
         return Err(CompilationUtilError::CompilationError(format!(
             "Exit status: {}\nStderr: {}\nSignal info: {}",
             compile_output.status, stderr_output, signal_info
