@@ -5,6 +5,7 @@ use apollo_storage::compiled_class::CasmStorageReader;
 use apollo_storage::db::RO;
 use apollo_storage::state::StateStorageReader;
 use apollo_storage::StorageReader;
+use blockifier::blockifier::config::ContractClassManagerConfig;
 use blockifier::execution::contract_class::{
     CompiledClassV0,
     CompiledClassV1,
