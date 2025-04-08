@@ -22,7 +22,7 @@ use futures::{FutureExt, StreamExt};
 use metrics::counter;
 use papyrus_common::metrics::{PAPYRUS_CONSENSUS_HEIGHT, PAPYRUS_CONSENSUS_SYNC_COUNT};
 use starknet_api::block::BlockNumber;
-use tracing::{debug, error, info, instrument, trace, warn};
+use tracing::{debug, error, info, instrument, trace};
 
 use crate::config::TimeoutsConfig;
 use crate::metrics::{
@@ -39,7 +39,7 @@ use crate::types::{BroadcastVoteChannel, ConsensusContext, ConsensusError, Decis
 
 /// Run consensus indefinitely.
 ///
-/// If a decision is reached via consensus the context is updated. If a decision is learned via the
+/// If a decision is reached via consensus, the context is updated. If a decision is learned via the
 /// sync protocol, consensus silently moves on to the next height.
 ///
 /// Inputs:
@@ -53,7 +53,7 @@ use crate::types::{BroadcastVoteChannel, ConsensusContext, ConsensusError, Decis
 /// - `sync_retry_interval`: The interval to wait between sync retries.
 /// - `vote_receiver`: The channels to receive votes from the network. These are self contained
 ///   messages.
-/// - `proposal_receiver`: The channel to receive proposals from the network. Proposals are
+/// - `proposals_receiver`: The channel to receive proposals from the network. Proposals are
 ///   represented as streams (ProposalInit, Content.*, ProposalFin).
 // TODO(dvir): add test for this.
 // TODO(Asmaa): Update documentation when we update for the real sync.
@@ -70,7 +70,7 @@ pub async fn run_consensus<ContextT>(
     timeouts: TimeoutsConfig,
     sync_retry_interval: Duration,
     mut vote_receiver: BroadcastVoteChannel,
-    mut proposal_receiver: mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
+    mut proposals_receiver: mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
 ) -> Result<(), ConsensusError>
 where
     ContextT: ConsensusContext,
@@ -98,7 +98,7 @@ where
                 must_observer,
                 sync_retry_interval,
                 &mut vote_receiver,
-                &mut proposal_receiver,
+                &mut proposals_receiver,
             )
             .await?
         {
@@ -175,7 +175,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         must_observer: bool,
         sync_retry_interval: Duration,
         broadcast_channels: &mut BroadcastVoteChannel,
-        proposal_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
+        proposals_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
     ) -> Result<RunHeightRes, ConsensusError> {
         let res = self
             .run_height_inner(
@@ -184,22 +184,31 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 must_observer,
                 sync_retry_interval,
                 broadcast_channels,
-                proposal_receiver,
+                proposals_receiver,
             )
             .await?;
 
+        // Clear any existing votes and proposals for previous heights as well as the current just
+        // completed height.
+        //
         // Networking layer assumes messages are handled in a timely fashion, otherwise we may build
         // up a backlog of useless messages. Similarly we don't want to waste space on old messages.
         // This is particularly important when there is a significant lag and we continually finish
         // heights immediately due to sync.
+
+        // We use get_current_height_votes for its side effect of removing votes for lower
+        // heights (we don't care about the actual votes).
         self.get_current_height_votes(height);
         while let Some(message) =
             broadcast_channels.broadcasted_messages_receiver.next().now_or_never()
         {
+            // Discard any votes for this heigh or lower by sending a None SHC.
             self.handle_vote(context, height, None, message, broadcast_channels).await?;
         }
+        // We call this method to filter out any proposals for previous/current heights (we don't
+        // care about the returned proposals).
         self.get_current_height_proposals(height);
-        while let Ok(content_receiver) = proposal_receiver.try_next() {
+        while let Ok(content_receiver) = proposals_receiver.try_next() {
             self.handle_proposal(context, height, None, content_receiver).await?;
         }
 
@@ -213,7 +222,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         must_observer: bool,
         sync_retry_interval: Duration,
         broadcast_channels: &mut BroadcastVoteChannel,
-        proposal_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
+        proposals_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
     ) -> Result<RunHeightRes, ConsensusError> {
         self.report_max_cached_block_number_metric(height);
         if context.try_sync(height).await {
@@ -256,7 +265,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                     self.handle_vote(
                         context, height, Some(&mut shc), message, broadcast_channels).await?
                 },
-                content_receiver = proposal_receiver.next() => {
+                content_receiver = proposals_receiver.next() => {
                     self.handle_proposal(context, height, Some(&mut shc), content_receiver).await?
                 },
                 Some(shc_event) = shc_events.next() => {
@@ -293,7 +302,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 // Start should generate either TimeoutProposal (validator) or GetProposal
                 // (proposer). We do not enforce this since the Manager is
                 // intentionally not meant to understand consensus in detail.
-                warn!("Decision reached at start of height. {:?}", decision);
+                error!("Decision reached at start of height. {:?}", decision);
                 return Ok(decision);
             }
             ShcReturn::Tasks(tasks) => tasks,
@@ -343,7 +352,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         })?
         else {
             return Err(ConsensusError::InternalNetworkError(
-                "Proposal receiver closed".to_string(),
+                "Content receiver closed".to_string(),
             ));
         };
         let proposal_init: ProposalInit = first_part.try_into()?;
@@ -352,6 +361,12 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             std::cmp::Ordering::Greater => {
                 debug!("Received a proposal for a future height. {:?}", proposal_init);
                 // Note: new proposals with the same height/round will be ignored.
+                //
+                // TODO(matan): This only work for trusted peers. In the case of possibly malicious
+                // peers this is a possible DoS attack (malicious users can insert
+                // invalid/bad/malicious proposals before "good" nodes can propose).
+                //
+                // When moving to version 1.0 make sure this is addressed.
                 self.cached_proposals
                     .entry(proposal_init.height.0)
                     .or_default()
@@ -395,7 +410,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                     .now_or_never()
                     .is_none()
                 {
-                    error!("Unable to send continue_propogation. {:?}", metadata);
+                    error!("Unable to send continue_propagation. {:?}", metadata);
                 }
                 Ok(msg)
             }
@@ -436,11 +451,9 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         }
     }
 
-    // Checks if a cached proposal already exists (with correct height)
-    // - returns the proposal if it exists and removes it from the cache.
-    // - returns None if no proposal exists.
-    // - cleans up any proposals from earlier heights.
-    // - for a given height, returns the proposal with the lowest round (and removes it).
+    /// Checks if a cached proposal already exists (with correct height)
+    /// - returns the proposals for the height if they exist and removes them from the cache.
+    /// - cleans up any proposals from earlier heights.
     fn get_current_height_proposals(
         &mut self,
         height: BlockNumber,
@@ -452,8 +465,8 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             match entry.key().cmp(&height.0) {
                 std::cmp::Ordering::Greater => return vec![],
                 std::cmp::Ordering::Equal => {
-                    let submap = entry.remove();
-                    return submap.into_values().collect();
+                    let round_to_proposals = entry.remove();
+                    return round_to_proposals.into_values().collect();
                 }
                 std::cmp::Ordering::Less => {
                     entry.remove();
@@ -462,10 +475,10 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         }
     }
 
-    // Filters the cached messages:
-    // - returns all of the current height messages.
-    // - drops messages from earlier heights.
-    // - retains future messages in the cache.
+    /// Filters the cached messages:
+    /// - returns (and removes from stored votes) all of the current height votes.
+    /// - drops votes from earlier heights.
+    /// - retains future votes in the cache.
     fn get_current_height_votes(&mut self, height: BlockNumber) -> Vec<Vote> {
         // Depends on `future_votes` being sorted by height.
         loop {
