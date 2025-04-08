@@ -189,7 +189,7 @@ fn create_test_scenarios() -> Vec<TestScenario> {
             test_tx_hashes_fn: test_two_txs,
         },
         TestScenario {
-            create_rpc_txs_fn: create_declare_tx,
+            create_rpc_txs_fn: |tx_generator| create_declare_tx(tx_generator, false),
             create_l1_to_l2_messages_args_fn: |_| vec![],
             test_tx_hashes_fn: test_single_tx,
         },
@@ -226,8 +226,11 @@ fn test_two_txs(tx_hashes: &[TransactionHash]) -> Vec<TransactionHash> {
     tx_hashes.to_vec()
 }
 
-fn create_declare_tx(tx_generator: &mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction> {
+fn create_declare_tx(
+    tx_generator: &mut MultiAccountTransactionGenerator,
+    bootstrap_declare: bool,
+) -> Vec<RpcTransaction> {
     let account_tx_generator = tx_generator.account_with_id_mut(ACCOUNT_ID_0);
-    let declare_tx = account_tx_generator.generate_declare();
+    let declare_tx = account_tx_generator.generate_declare(bootstrap_declare);
     vec![declare_tx]
 }
