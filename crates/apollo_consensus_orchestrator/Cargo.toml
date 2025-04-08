@@ -7,6 +7,7 @@ license-file.workspace = true
 description = "Implements the consensus context and orchestrates the node's components accordingly"
 
 [dependencies]
+alloy.workspace = true
 apollo_config.workspace = true
 apollo_network.workspace = true
 apollo_protobuf.workspace = true
