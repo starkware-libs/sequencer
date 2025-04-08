@@ -173,6 +173,21 @@ pub(crate) fn load_class_inner<S: StateReader>(
     let identifier_getter = &hint_processor.os_program;
     let mut hint_extension = HintExtension::new();
     let mut compiled_class_facts_ptr = vm.add_memory_segment();
+    // Insert n_compiled_class_facts, compiled_class_facts.
+    insert_value_from_var_name(
+        Ids::CompiledClassFacts.into(),
+        compiled_class_facts_ptr,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    insert_value_from_var_name(
+        Ids::NCompiledClassFacts.into(),
+        hint_processor.compiled_classes.len(),
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
     // Iterate only over cairo 1 classes.
     for (class_hash, class) in hint_processor.compiled_classes.iter() {
         let compiled_class_fact = CompiledClassFact { class_hash, compiled_class: class };
