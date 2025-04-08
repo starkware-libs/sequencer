@@ -14,6 +14,7 @@ use thiserror::Error;
 
 pub mod constants;
 pub mod ethereum_base_layer_contract;
+pub mod metrics;
 
 pub(crate) mod eth_events;
 

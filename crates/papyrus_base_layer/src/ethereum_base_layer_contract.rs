@@ -28,6 +28,7 @@ use starknet_api::StarknetApiError;
 use url::Url;
 use validator::Validate;
 
+use crate::metrics::{init_metrics, BASE_LAYER_REQUESTS_TOTAL};
 use crate::{BaseLayerContract, L1BlockNumber, L1BlockReference, L1Event, PriceSample};
 
 pub type EthereumBaseLayerResult<T> = Result<T, EthereumBaseLayerError>;
@@ -57,6 +58,7 @@ impl EthereumBaseLayerContract {
         // This type is generated from `sol!` macro, and the `new` method assumes it is already
         // deployed at L1, and wraps it with a type.
         let contract = Starknet::new(config.starknet_contract_address, l1_client);
+        init_metrics();
         Self { contract, config }
     }
 }
@@ -72,6 +74,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         let call_state_block_number = self.contract.stateBlockNumber().block(block_id);
         let call_state_block_hash = self.contract.stateBlockHash().block(block_id);
 
+        BASE_LAYER_REQUESTS_TOTAL.increment(2);
         let (state_block_number, state_block_hash) = tokio::try_join!(
             call_state_block_number.call_raw().into_future(),
             call_state_block_hash.call_raw().into_future()
@@ -105,6 +108,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
     ) -> EthereumBaseLayerResult<Vec<L1Event>> {
         let filter = EthEventFilter::new().select(block_range).events(events);
 
+        BASE_LAYER_REQUESTS_TOTAL.increment(1);
         let matching_logs = self.contract.provider().get_logs(&filter).await?;
         matching_logs.into_iter().map(TryInto::try_into).collect()
     }
@@ -113,6 +117,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         &self,
         finality: u64,
     ) -> EthereumBaseLayerResult<Option<L1BlockNumber>> {
+        BASE_LAYER_REQUESTS_TOTAL.increment(1);
         Ok(self.contract.provider().get_block_number().await?.checked_sub(finality))
     }
 
@@ -132,6 +137,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         block_number: L1BlockNumber,
     ) -> EthereumBaseLayerResult<Option<L1BlockReference>> {
         let only_block_header: BlockTransactionsKind = BlockTransactionsKind::default();
+        BASE_LAYER_REQUESTS_TOTAL.increment(1);
         let block = self
             .contract
             .provider()
@@ -149,6 +155,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         &self,
         block_number: L1BlockNumber,
     ) -> EthereumBaseLayerResult<Option<PriceSample>> {
+        BASE_LAYER_REQUESTS_TOTAL.increment(1);
         let block = self
             .contract
             .provider()
