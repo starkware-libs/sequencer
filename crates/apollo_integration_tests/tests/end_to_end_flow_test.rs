@@ -52,6 +52,12 @@ fn tx_generator() -> MultiAccountTransactionGenerator {
     GasAmount(17500000),
     true
 )]
+#[case::bootstrap_declare_scenario(
+    TestIdentifier::EndToEndFlowTestBootstrapDeclare,
+    create_bootstrap_declare_scenario(),
+    GasAmount(29000000),
+    false
+)]
 #[tokio::test]
 async fn end_to_end_flow(
     mut tx_generator: MultiAccountTransactionGenerator,
@@ -201,6 +207,14 @@ fn create_many_txs_scenario() -> Vec<TestScenario> {
         create_rpc_txs_fn: create_many_invoke_txs,
         create_l1_to_l2_messages_args_fn: |_| vec![],
         test_tx_hashes_fn: test_many_invoke_txs,
+    }]
+}
+
+fn create_bootstrap_declare_scenario() -> Vec<TestScenario> {
+    vec![TestScenario {
+        create_rpc_txs_fn: |mut tx_generator| create_declare_tx(&mut tx_generator, true),
+        create_l1_to_l2_messages_args_fn: |_| vec![],
+        test_tx_hashes_fn: test_single_tx,
     }]
 }
 
