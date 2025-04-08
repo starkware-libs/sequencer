@@ -55,6 +55,8 @@ use papyrus_common::pending_classes::PendingClasses;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::felt;
 use tokio::sync::RwLock;
+use tracing::info_span;
+use tracing::instrument::Instrument;
 
 use crate::config::{CentralSyncClientConfig, StateSyncConfig};
 use crate::metrics::{
@@ -222,9 +224,11 @@ impl StateSyncRunner {
                     )
                 }
             };
+
+        let network_future = network_manager.run().instrument(info_span!("[Sync network]")).boxed();
         (
             Self {
-                network_future: network_manager.run().boxed(),
+                network_future,
                 p2p_sync_client_future,
                 p2p_sync_server_future,
                 central_sync_client_future,
