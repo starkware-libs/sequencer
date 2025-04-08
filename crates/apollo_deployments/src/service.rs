@@ -7,6 +7,7 @@ use serde::{Serialize, Serializer};
 use strum::{Display, EnumVariantNames, IntoEnumIterator};
 use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 
+use crate::deployment_definitions::Environment;
 use crate::deployments::consolidated::ConsolidatedNodeServiceName;
 use crate::deployments::distributed::DistributedNodeServiceName;
 use crate::deployments::hybrid::HybridNodeServiceName;
@@ -195,12 +196,19 @@ impl DeploymentName {
     pub fn get_component_configs(
         &self,
         base_port: Option<u16>,
+        environment: &Environment,
     ) -> IndexMap<ServiceName, ComponentConfig> {
         match self {
             // TODO(Tsabary): avoid this code duplication.
-            Self::ConsolidatedNode => ConsolidatedNodeServiceName::get_component_configs(base_port),
-            Self::HybridNode => HybridNodeServiceName::get_component_configs(base_port),
-            Self::DistributedNode => DistributedNodeServiceName::get_component_configs(base_port),
+            Self::ConsolidatedNode => {
+                ConsolidatedNodeServiceName::get_component_configs(base_port, environment)
+            }
+            Self::HybridNode => {
+                HybridNodeServiceName::get_component_configs(base_port, environment)
+            }
+            Self::DistributedNode => {
+                DistributedNodeServiceName::get_component_configs(base_port, environment)
+            }
         }
     }
 }
@@ -208,7 +216,10 @@ impl DeploymentName {
 pub trait GetComponentConfigs {
     // TODO(Tsabary): replace IndexMap with regular HashMap. Currently using IndexMap as the
     // integration test relies on indices rather than service names.
-    fn get_component_configs(base_port: Option<u16>) -> IndexMap<ServiceName, ComponentConfig>;
+    fn get_component_configs(
+        base_port: Option<u16>,
+        environment: &Environment,
+    ) -> IndexMap<ServiceName, ComponentConfig>;
 }
 
 impl Serialize for ServiceName {

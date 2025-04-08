@@ -1,3 +1,4 @@
+use apollo_deployments::deployment_definitions::Environment;
 use apollo_deployments::deployments::distributed::DistributedNodeServiceName;
 use apollo_deployments::deployments::hybrid::HybridNodeServiceName;
 use apollo_deployments::service::{DeploymentName, ServiceName};
@@ -67,7 +68,10 @@ impl IntoIterator for NodeComponentConfigs {
 pub fn create_consolidated_component_configs() -> NodeComponentConfigs {
     // All components are in executable index 0.
     NodeComponentConfigs::new(
-        DeploymentName::ConsolidatedNode.get_component_configs(None).into_values().collect(),
+        DeploymentName::ConsolidatedNode
+            .get_component_configs(None, &Environment::Testing)
+            .into_values()
+            .collect(),
         0,
         0,
         0,
@@ -89,8 +93,8 @@ pub fn create_distributed_component_configs(
 
     let base_port = available_ports.get_next_port();
 
-    let services_component_config =
-        DeploymentName::DistributedNode.get_component_configs(Some(base_port));
+    let services_component_config = DeploymentName::DistributedNode
+        .get_component_configs(Some(base_port), &Environment::Testing);
 
     let mut component_configs: Vec<ComponentConfig> =
         services_component_config.values().cloned().collect();
@@ -130,7 +134,7 @@ pub fn create_hybrid_component_configs(
     let base_port = available_ports.get_next_port();
 
     let services_component_config =
-        DeploymentName::HybridNode.get_component_configs(Some(base_port));
+        DeploymentName::HybridNode.get_component_configs(Some(base_port), &Environment::Testing);
 
     let mut component_configs: Vec<ComponentConfig> =
         services_component_config.values().cloned().collect();

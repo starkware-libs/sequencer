@@ -68,7 +68,7 @@ fn l1_components_state_consistency() {
     for deployment_fn in DEPLOYMENTS {
         let deployment_preset = deployment_fn();
         let deployment_name = deployment_preset.get_deployment().get_deployment_name();
-        let component_configs = deployment_name.get_component_configs(None);
+        let component_configs = deployment_name.get_component_configs(None, &Environment::Testing);
 
         let l1_gas_price_provider_indicator = component_configs.values().any(|component_config| {
             component_config.l1_gas_price_provider.execution_mode
