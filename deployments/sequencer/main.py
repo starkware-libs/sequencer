@@ -21,7 +21,11 @@ class SequencerNode(Chart):
     ):
         super().__init__(scope, name, disable_resource_name_hashes=True, namespace=namespace)
         self.service = ServiceApp(
-            self, name, namespace=namespace, service_topology=service_topology, monitoring=monitoring
+            self,
+            name,
+            namespace=namespace,
+            service_topology=service_topology,
+            monitoring=monitoring,
         )
 
 
