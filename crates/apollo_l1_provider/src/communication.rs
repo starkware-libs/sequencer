@@ -27,7 +27,7 @@ impl ComponentRequestHandler<L1ProviderRequest, L1ProviderResponse> for L1Provid
     async fn handle_request(&mut self, request: L1ProviderRequest) -> L1ProviderResponse {
         match request {
             L1ProviderRequest::AddEvents(events) => {
-                L1ProviderResponse::AddEvents(self.process_l1_events(events))
+                L1ProviderResponse::AddEvents(self.add_events(events))
             }
             L1ProviderRequest::CommitBlock { l1_handler_tx_hashes, height } => {
                 L1ProviderResponse::CommitBlock(self.commit_block(&l1_handler_tx_hashes, height))

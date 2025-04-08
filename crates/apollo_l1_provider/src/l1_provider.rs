@@ -58,7 +58,7 @@ impl L1Provider {
             panic!("Called initialize while not in bootstrap state. Restart service.");
         };
         bootstrapper.start_l2_sync(self.current_height).await;
-        self.process_l1_events(events)?;
+        self.add_events(events)?;
 
         Ok(())
     }
@@ -208,7 +208,7 @@ impl L1Provider {
     }
 
     #[instrument(skip_all, err)]
-    pub fn process_l1_events(&mut self, events: Vec<Event>) -> L1ProviderResult<()> {
+    pub fn add_events(&mut self, events: Vec<Event>) -> L1ProviderResult<()> {
         if self.state.uninitialized() {
             return Err(L1ProviderError::Uninitialized);
         }
