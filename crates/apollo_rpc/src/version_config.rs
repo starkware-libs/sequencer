@@ -12,8 +12,11 @@ pub const VERSION_PATTERN: &str = "[Vv][0-9]+_[0-9]+(_[0-9]+)?";
 #[derive(Clone, Copy, Debug)]
 pub enum VersionState {
     Supported,
+    #[allow(dead_code)]
     Deprecated,
 }
+// TODO(Lev): Since we stop support versioning and stay only with V0_8, we need to get rid of the
+// VersionState enum altogether.
 
 #[derive(PartialEq, Eq, Hash, Copy, Clone, Debug)]
 pub struct VersionId {
