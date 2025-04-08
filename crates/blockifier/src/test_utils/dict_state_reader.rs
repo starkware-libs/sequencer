@@ -7,7 +7,9 @@ use starknet_types_core::felt::Felt;
 use crate::execution::contract_class::RunnableCompiledClass;
 use crate::state::cached_state::StorageEntry;
 use crate::state::errors::StateError;
+use crate::state::global_cache::CachedClass;
 use crate::state::state_api::{StateReader, StateResult};
+use crate::state::state_reader_w_compile::CompilableStateReader;
 
 /// A simple implementation of `StateReader` using `HashMap`s as storage.
 #[derive(Clone, Debug, Default)]
@@ -56,5 +58,15 @@ impl StateReader for DictStateReader {
         let compiled_class_hash =
             self.class_hash_to_compiled_class_hash.get(&class_hash).copied().unwrap_or_default();
         Ok(compiled_class_hash)
+    }
+}
+
+impl CompilableStateReader for DictStateReader {
+    fn get_cached_class(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateResult<CachedClass>
+    {
+        todo!()
     }
 }

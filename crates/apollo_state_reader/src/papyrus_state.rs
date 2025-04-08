@@ -14,6 +14,7 @@ use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::{couple_casm_and_sierra, StateError};
 use blockifier::state::global_cache::CachedClass;
 use blockifier::state::state_api::{StateReader, StateResult};
+use blockifier::state::state_reader_w_compile::CompilableStateReader;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use log;
 use starknet_api::block::BlockNumber;
@@ -256,5 +257,11 @@ impl StateReader for PapyrusReader {
 
     fn get_compiled_class_hash(&self, _class_hash: ClassHash) -> StateResult<CompiledClassHash> {
         todo!()
+    }
+}
+
+impl CompilableStateReader for PapyrusReader {
+    fn get_cached_class(&self, class_hash: ClassHash) -> StateResult<CachedClass> {
+        self.get_compiled_class_from_db(class_hash)
     }
 }
