@@ -1376,6 +1376,7 @@ dependencies = [
  "apollo_config",
  "apollo_gateway_types",
  "apollo_infra",
+ "apollo_infra_utils",
  "apollo_mempool_p2p_types",
  "apollo_metrics",
  "apollo_network",
