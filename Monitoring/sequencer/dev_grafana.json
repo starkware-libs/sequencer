@@ -440,6 +440,50 @@
         "extra_params": {}
       }
     ],
+    "Gateway Infra": [
+      {
+        "title": "gateway_local_msgs_received",
+        "description": "Counter of messages received by gateway local server",
+        "type": "stat",
+        "expr": "gateway_local_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "gateway_local_msgs_processed",
+        "description": "Counter of messages processed by gateway local server",
+        "type": "stat",
+        "expr": "gateway_local_msgs_processed",
+        "extra_params": {}
+      },
+      {
+        "title": "gateway_remote_msgs_received",
+        "description": "Counter of messages received by gateway remote server",
+        "type": "stat",
+        "expr": "gateway_remote_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "gateway_remote_valid_msgs_received",
+        "description": "Counter of valid messages received by gateway remote server",
+        "type": "stat",
+        "expr": "gateway_remote_valid_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "gateway_remote_msgs_processed",
+        "description": "Counter of messages processed by gateway remote server",
+        "type": "stat",
+        "expr": "gateway_remote_msgs_processed",
+        "extra_params": {}
+      },
+      {
+        "title": "gateway_local_queue_depth",
+        "description": "The depth of the gateway's local message queue",
+        "type": "stat",
+        "expr": "gateway_local_queue_depth",
+        "extra_params": {}
+      }
+    ],
     "Class Manager Infra": [
       {
         "title": "class_manager_local_msgs_received",
