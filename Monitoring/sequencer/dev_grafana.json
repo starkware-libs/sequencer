@@ -28,6 +28,48 @@
         "type": "stat",
         "expr": "batcher_batched_transactions",
         "extra_params": {}
+      },
+      {
+        "title": "batcher_local_msgs_received",
+        "description": "Counter of messages received by batcher local server",
+        "type": "stat",
+        "expr": "batcher_local_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_local_msgs_processed",
+        "description": "Counter of messages processed by batcher local server",
+        "type": "stat",
+        "expr": "batcher_local_msgs_processed",
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_remote_msgs_received",
+        "description": "Counter of messages received by batcher remote server",
+        "type": "stat",
+        "expr": "batcher_remote_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_remote_valid_msgs_received",
+        "description": "Counter of valid messages received by batcher remote server",
+        "type": "stat",
+        "expr": "batcher_remote_valid_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_remote_msgs_processed",
+        "description": "Counter of messages processed by batcher remote server",
+        "type": "stat",
+        "expr": "batcher_remote_msgs_processed",
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_local_queue_depth",
+        "description": "The depth of the batcher's local message queue",
+        "type": "stat",
+        "expr": "batcher_local_queue_depth",
+        "extra_params": {}
       }
     ],
     "Consensus": [
