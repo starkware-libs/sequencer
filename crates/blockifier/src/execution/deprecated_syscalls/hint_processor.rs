@@ -17,9 +17,14 @@ use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::runners::cairo_runner::{ResourceTracker, RunResources};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_bigint::{BigUint, TryFromBigIntError};
-use starknet_api::block::BlockInfo;
+use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp};
 use starknet_api::contract_class::EntryPointType;
-use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
+use starknet_api::core::{
+    calculate_contract_address,
+    ClassHash,
+    ContractAddress,
+    EntryPointSelector,
+};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::Calldata;
 use starknet_api::transaction::{signed_tx_version, TransactionOptions, TransactionVersion};
@@ -36,24 +41,6 @@ use crate::execution::common_hints::{
 };
 use crate::execution::deprecated_syscalls::deprecated_syscall_executor::DeprecatedSyscallExecutor;
 use crate::execution::deprecated_syscalls::{
-    call_contract,
-    delegate_call,
-    delegate_l1_handler,
-    deploy,
-    emit_event,
-    get_block_number,
-    get_block_timestamp,
-    get_caller_address,
-    get_contract_address,
-    get_sequencer_address,
-    get_tx_info,
-    get_tx_signature,
-    library_call,
-    library_call_l1_handler,
-    replace_class,
-    send_message_to_l1,
-    storage_read,
-    storage_write,
     CallContractRequest,
     CallContractResponse,
     DelegateCallRequest,
@@ -89,16 +76,24 @@ use crate::execution::deprecated_syscalls::{
     StorageWriteRequest,
     StorageWriteResponse,
 };
-use crate::execution::entry_point::{CallEntryPoint, CallType, EntryPointExecutionContext};
+use crate::execution::entry_point::{
+    CallEntryPoint,
+    CallType,
+    ConstructorContext,
+    EntryPointExecutionContext,
+};
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
 use crate::execution::execution_utils::{
+    execute_deployment,
     felt_from_ptr,
     felt_range_from_ptr,
     ReadOnlySegment,
     ReadOnlySegments,
 };
 use crate::execution::hint_code;
+use crate::execution::syscalls::exceeds_event_size_limit;
 use crate::execution::syscalls::hint_processor::{EmitEventError, SyscallUsageMap};
+use crate::execution::syscalls::syscall_base::should_reject_deploy;
 use crate::state::errors::StateError;
 use crate::state::state_api::State;
 use crate::transaction::objects::TransactionInfo;
@@ -473,7 +468,34 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<CallContractResponse> {
-        call_contract(request, vm, syscall_handler)
+        let storage_address = request.contract_address;
+        let class_hash = syscall_handler.state.get_class_hash_at(storage_address)?;
+        let selector = request.function_selector;
+        // Check that the call is legal if in Validate execution mode.
+        if syscall_handler.is_validate_mode() && syscall_handler.storage_address != storage_address
+        {
+            return Err(DeprecatedSyscallExecutionError::InvalidSyscallInExecutionMode {
+                syscall_name: "call_contract".to_string(),
+                execution_mode: syscall_handler.execution_mode(),
+            });
+        }
+        let entry_point = CallEntryPoint {
+            class_hash: None,
+            code_address: Some(storage_address),
+            entry_point_type: EntryPointType::External,
+            entry_point_selector: selector,
+            calldata: request.calldata,
+            storage_address,
+            caller_address: syscall_handler.storage_address,
+            call_type: CallType::Call,
+            initial_gas: syscall_handler.context.gas_costs().base.default_initial_gas_cost,
+        };
+        let retdata_segment =
+            execute_inner_call(entry_point, vm, syscall_handler).map_err(|error| {
+                error.as_call_contract_execution_error(class_hash, storage_address, selector)
+            })?;
+
+        Ok(CallContractResponse { segment: retdata_segment })
     }
 
     fn delegate_call(
@@ -481,7 +503,20 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<DelegateCallResponse> {
-        delegate_call(request, vm, syscall_handler)
+        let call_to_external = true;
+        let storage_address = request.contract_address;
+        let class_hash = syscall_handler.state.get_class_hash_at(storage_address)?;
+        let retdata_segment = execute_library_call(
+            syscall_handler,
+            vm,
+            class_hash,
+            Some(storage_address),
+            call_to_external,
+            request.function_selector,
+            request.calldata,
+        )?;
+
+        Ok(DelegateCallResponse { segment: retdata_segment })
     }
 
     fn delegate_l1_handler(
@@ -489,79 +524,184 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<DelegateCallResponse> {
-        delegate_l1_handler(request, vm, syscall_handler)
+        let call_to_external = false;
+        let storage_address = request.contract_address;
+        let class_hash = syscall_handler.state.get_class_hash_at(storage_address)?;
+        let retdata_segment = execute_library_call(
+            syscall_handler,
+            vm,
+            class_hash,
+            Some(storage_address),
+            call_to_external,
+            request.function_selector,
+            request.calldata,
+        )?;
+
+        Ok(DelegateCallResponse { segment: retdata_segment })
     }
 
     fn deploy(
         request: DeployRequest,
-        vm: &mut VirtualMachine,
+        _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<DeployResponse> {
-        deploy(request, vm, syscall_handler)
+        let versioned_constants =
+            &syscall_handler.context.tx_context.block_context.versioned_constants;
+        if should_reject_deploy(
+            versioned_constants.disable_deploy_in_validation_mode,
+            syscall_handler.execution_mode(),
+        ) {
+            return Err(DeprecatedSyscallExecutionError::InvalidSyscallInExecutionMode {
+                syscall_name: "deploy".to_string(),
+                execution_mode: syscall_handler.execution_mode(),
+            });
+        }
+
+        let deployer_address = syscall_handler.storage_address;
+        let deployer_address_for_calculation = match request.deploy_from_zero {
+            true => ContractAddress::default(),
+            false => deployer_address,
+        };
+        let deployed_contract_address = calculate_contract_address(
+            request.contract_address_salt,
+            request.class_hash,
+            &request.constructor_calldata,
+            deployer_address_for_calculation,
+        )?;
+
+        // Increment the Deploy syscall's linear cost counter by the number of elements in the
+        // constructor calldata.
+        let syscall_usage = syscall_handler
+            .syscalls_usage
+            .get_mut(&DeprecatedSyscallSelector::Deploy)
+            .expect("syscalls_usage entry for Deploy must be initialized");
+        syscall_usage.linear_factor += request.constructor_calldata.0.len();
+
+        let ctor_context = ConstructorContext {
+            class_hash: request.class_hash,
+            code_address: Some(deployed_contract_address),
+            storage_address: deployed_contract_address,
+            caller_address: deployer_address,
+        };
+        let mut remaining_gas = syscall_handler.context.gas_costs().base.default_initial_gas_cost;
+        let call_info = execute_deployment(
+            syscall_handler.state,
+            syscall_handler.context,
+            ctor_context,
+            request.constructor_calldata,
+            &mut remaining_gas,
+        )?;
+        syscall_handler.inner_calls.push(call_info);
+
+        Ok(DeployResponse { contract_address: deployed_contract_address })
     }
 
     fn emit_event(
         request: EmitEventRequest,
-        vm: &mut VirtualMachine,
+        _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<EmitEventResponse> {
-        emit_event(request, vm, syscall_handler)
+        let execution_context = &mut syscall_handler.context;
+        exceeds_event_size_limit(
+            execution_context.versioned_constants(),
+            execution_context.n_emitted_events + 1,
+            &request.content,
+        )?;
+        let ordered_event =
+            OrderedEvent { order: execution_context.n_emitted_events, event: request.content };
+        syscall_handler.events.push(ordered_event);
+        execution_context.n_emitted_events += 1;
+
+        Ok(EmitEventResponse {})
     }
 
     fn get_block_number(
-        request: GetBlockNumberRequest,
-        vm: &mut VirtualMachine,
+        _request: GetBlockNumberRequest,
+        _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<GetBlockNumberResponse> {
-        get_block_number(request, vm, syscall_handler)
+        let versioned_constants = syscall_handler.context.versioned_constants();
+        let block_number = syscall_handler.get_block_info().block_number;
+        let block_number = match syscall_handler.execution_mode() {
+            ExecutionMode::Validate => {
+                let validate_block_number_rounding =
+                    versioned_constants.get_validate_block_number_rounding();
+                BlockNumber(
+                    (block_number.0 / validate_block_number_rounding)
+                        * validate_block_number_rounding,
+                )
+            }
+            ExecutionMode::Execute => block_number,
+        };
+        Ok(GetBlockNumberResponse { block_number })
     }
 
     fn get_block_timestamp(
-        request: GetBlockTimestampRequest,
-        vm: &mut VirtualMachine,
+        _request: GetBlockTimestampRequest,
+        _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<GetBlockTimestampResponse> {
-        get_block_timestamp(request, vm, syscall_handler)
+        let versioned_constants = syscall_handler.context.versioned_constants();
+        let block_timestamp = syscall_handler.get_block_info().block_timestamp;
+        let block_timestamp = match syscall_handler.execution_mode() {
+            ExecutionMode::Validate => {
+                let validate_timestamp_rounding =
+                    versioned_constants.get_validate_timestamp_rounding();
+                BlockTimestamp(
+                    (block_timestamp.0 / validate_timestamp_rounding) * validate_timestamp_rounding,
+                )
+            }
+            ExecutionMode::Execute => block_timestamp,
+        };
+        Ok(GetBlockTimestampResponse { block_timestamp })
     }
 
     fn get_caller_address(
-        request: GetCallerAddressRequest,
-        vm: &mut VirtualMachine,
+        _request: GetCallerAddressRequest,
+        _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<GetCallerAddressResponse> {
-        get_caller_address(request, vm, syscall_handler)
+        Ok(GetCallerAddressResponse { address: syscall_handler.caller_address })
     }
 
     fn get_contract_address(
-        request: GetContractAddressRequest,
-        vm: &mut VirtualMachine,
+        _request: GetContractAddressRequest,
+        _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<GetContractAddressResponse> {
-        get_contract_address(request, vm, syscall_handler)
+        Ok(GetContractAddressResponse { address: syscall_handler.storage_address })
     }
 
     fn get_sequencer_address(
-        request: GetSequencerAddressRequest,
-        vm: &mut VirtualMachine,
+        _request: GetSequencerAddressRequest,
+        _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<GetSequencerAddressResponse> {
-        get_sequencer_address(request, vm, syscall_handler)
+        syscall_handler.verify_not_in_validate_mode("get_sequencer_address")?;
+        Ok(GetSequencerAddressResponse {
+            address: syscall_handler.get_block_info().sequencer_address,
+        })
     }
 
     fn get_tx_info(
-        request: GetTxInfoRequest,
+        _request: GetTxInfoRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<GetTxInfoResponse> {
-        get_tx_info(request, vm, syscall_handler)
+        let tx_info_start_ptr = syscall_handler.get_or_allocate_tx_info_start_ptr(vm)?;
+
+        Ok(GetTxInfoResponse { tx_info_start_ptr })
     }
 
     fn get_tx_signature(
-        request: GetTxSignatureRequest,
+        _request: GetTxSignatureRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<GetTxSignatureResponse> {
-        get_tx_signature(request, vm, syscall_handler)
+        let start_ptr = syscall_handler.get_or_allocate_tx_signature_segment(vm)?;
+        let length = syscall_handler.context.tx_context.tx_info.signature().0.len();
+
+        Ok(GetTxSignatureResponse { segment: ReadOnlySegment { start_ptr, length } })
     }
 
     fn library_call(
@@ -569,7 +709,18 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<LibraryCallResponse> {
-        library_call(request, vm, syscall_handler)
+        let call_to_external = true;
+        let retdata_segment = execute_library_call(
+            syscall_handler,
+            vm,
+            request.class_hash,
+            None,
+            call_to_external,
+            request.function_selector,
+            request.calldata,
+        )?;
+
+        Ok(LibraryCallResponse { segment: retdata_segment })
     }
 
     fn library_call_l1_handler(
@@ -577,39 +728,64 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<LibraryCallResponse> {
-        library_call_l1_handler(request, vm, syscall_handler)
+        let call_to_external = false;
+        let retdata_segment = execute_library_call(
+            syscall_handler,
+            vm,
+            request.class_hash,
+            None,
+            call_to_external,
+            request.function_selector,
+            request.calldata,
+        )?;
+
+        Ok(LibraryCallResponse { segment: retdata_segment })
     }
 
     fn replace_class(
         request: ReplaceClassRequest,
-        vm: &mut VirtualMachine,
+        _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<ReplaceClassResponse> {
-        replace_class(request, vm, syscall_handler)
+        // Ensure the class is declared (by reading it).
+        syscall_handler.state.get_compiled_class(request.class_hash)?;
+        syscall_handler
+            .state
+            .set_class_hash_at(syscall_handler.storage_address, request.class_hash)?;
+
+        Ok(ReplaceClassResponse {})
     }
 
     fn send_message_to_l1(
         request: SendMessageToL1Request,
-        vm: &mut VirtualMachine,
+        _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<SendMessageToL1Response> {
-        send_message_to_l1(request, vm, syscall_handler)
+        let execution_context = &mut syscall_handler.context;
+        let ordered_message_to_l1 = OrderedL2ToL1Message {
+            order: execution_context.n_sent_messages_to_l1,
+            message: request.message,
+        };
+        syscall_handler.l2_to_l1_messages.push(ordered_message_to_l1);
+        execution_context.n_sent_messages_to_l1 += 1;
+
+        Ok(SendMessageToL1Response {})
     }
 
     fn storage_read(
         request: StorageReadRequest,
-        vm: &mut VirtualMachine,
+        _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<StorageReadResponse> {
-        storage_read(request, vm, syscall_handler)
+        syscall_handler.get_contract_storage_at(request.address)
     }
 
     fn storage_write(
         request: StorageWriteRequest,
-        vm: &mut VirtualMachine,
+        _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<StorageWriteResponse> {
-        storage_write(request, vm, syscall_handler)
+        syscall_handler.set_contract_storage_at(request.address, request.value)
     }
 }
 
