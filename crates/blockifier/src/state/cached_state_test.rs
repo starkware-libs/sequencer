@@ -536,7 +536,7 @@ fn test_contract_cache_is_used() {
     let class_hash = test_contract.get_class_hash();
     let contract_class = test_contract.get_runnable_class();
     let mut reader = DictStateReader::default();
-    reader.class_hash_to_class.insert(class_hash, contract_class.clone());
+    reader.class_hash_to_runnable_class.insert(class_hash, contract_class.clone());
     let state = CachedState::new(reader);
 
     // Assert local cache is initialized empty.
