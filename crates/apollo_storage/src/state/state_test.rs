@@ -13,9 +13,10 @@ use starknet_types_core::felt::Felt;
 
 use crate::class::{ClassStorageReader, ClassStorageWriter};
 use crate::compiled_class::{CasmStorageReader, CasmStorageWriter};
+use crate::db::TransactionKind;
 use crate::state::{StateStorageReader, StateStorageWriter};
 use crate::test_utils::get_test_storage;
-use crate::StorageWriter;
+use crate::{StorageTxn, StorageWriter};
 
 #[test]
 fn get_class_definition_at() {
@@ -67,11 +68,13 @@ fn get_class_definition_at() {
     assert!(statetxn.get_deprecated_class_definition_at(state0, &dc0).unwrap().is_none());
     assert!(statetxn.get_deprecated_class_definition_at(state1, &dc0).unwrap().is_some());
     assert!(statetxn.get_deprecated_class_definition_at(state2, &dc0).unwrap().is_some());
+    verify_deprecated_class_definition_block_number(&txn, dc0, Some(BlockNumber(0)));
 
     // Class1.
     assert!(statetxn.get_deprecated_class_definition_at(state0, &dc1).unwrap().is_none());
     assert!(statetxn.get_deprecated_class_definition_at(state1, &dc1).unwrap().is_some());
     assert!(statetxn.get_deprecated_class_definition_at(state2, &dc1).unwrap().is_some());
+    verify_deprecated_class_definition_block_number(&txn, dc1, Some(BlockNumber(0)));
 
     // New Classes Test
     drop(txn);
@@ -288,6 +291,11 @@ fn test_get_class_after_append_thin_state_diff() {
         state_reader.get_class_definition_block_number(&CLASS_HASH).unwrap(),
         Some(BlockNumber(0))
     );
+    verify_deprecated_class_definition_block_number(
+        &txn,
+        DEPRECATED_CLASS_HASH,
+        Some(BlockNumber(0)),
+    );
     assert!(state_reader.get_class_definition_at(state_number, &CLASS_HASH).unwrap().is_none());
     assert!(
         state_reader
@@ -407,6 +415,12 @@ fn revert_doesnt_delete_previously_declared_classes() {
         .commit()
         .unwrap();
 
+    verify_deprecated_class_definition_block_number(
+        &reader.begin_ro_txn().unwrap(),
+        cl0,
+        Some(BlockNumber(0)),
+    );
+
     // Assert that reverting diff 1 doesn't delete declared class from diff 0.
     let (txn, _) = writer.begin_rw_txn().unwrap().revert_state_diff(BlockNumber(1)).unwrap();
     txn.commit().unwrap();
@@ -421,6 +435,11 @@ fn revert_doesnt_delete_previously_declared_classes() {
         )
         .unwrap();
     assert!(declared_class.is_some());
+    verify_deprecated_class_definition_block_number(
+        &reader.begin_ro_txn().unwrap(),
+        cl0,
+        Some(BlockNumber(0)),
+    );
 
     // Assert that reverting diff 0 deletes the declared class.
     let (txn, _) = writer.begin_rw_txn().unwrap().revert_state_diff(BlockNumber(0)).unwrap();
@@ -436,6 +455,7 @@ fn revert_doesnt_delete_previously_declared_classes() {
         )
         .unwrap();
     assert!(declared_class.is_none());
+    verify_deprecated_class_definition_block_number(&reader.begin_ro_txn().unwrap(), cl0, None);
 }
 
 #[test]
@@ -785,5 +805,19 @@ fn declare_revert_declare_scenario() {
             .get_deprecated_class_definition_at(state_number, &deprecated_class_hash)
             .unwrap()
             .is_some()
+    );
+}
+
+fn verify_deprecated_class_definition_block_number<Mode: TransactionKind>(
+    txn: &StorageTxn<'_, Mode>,
+    class_hash: ClassHash,
+    expected_result: Option<BlockNumber>,
+) {
+    let state_reader = txn.get_state_reader().unwrap();
+    let result = state_reader.get_deprecated_class_definition_block_number(&class_hash).unwrap();
+    assert_eq!(
+        result, expected_result,
+        "Deprecated class definition block number mismatch, expected {expected_result:?}, got \
+         {result:?}"
     );
 }
