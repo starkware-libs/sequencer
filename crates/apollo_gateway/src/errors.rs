@@ -24,6 +24,14 @@ pub enum StatelessTransactionValidatorError {
     )]
     CalldataTooLong { calldata_length: usize, max_calldata_length: usize },
     #[error(
+        "Cannot declare contract class with bytecode size of {contract_bytecode_size}; max \
+         allowed size: {max_contract_bytecode_size}."
+    )]
+    ContractBytecodeSizeTooLarge {
+        contract_bytecode_size: usize,
+        max_contract_bytecode_size: usize,
+    },
+    #[error(
         "Cannot declare contract class with size of {contract_class_object_size}; max allowed \
          size: {max_contract_class_object_size}."
     )]
@@ -61,7 +69,8 @@ pub enum StatelessTransactionValidatorError {
 impl From<StatelessTransactionValidatorError> for GatewaySpecError {
     fn from(e: StatelessTransactionValidatorError) -> Self {
         match e {
-            StatelessTransactionValidatorError::ContractClassObjectSizeTooLarge { .. } => {
+            StatelessTransactionValidatorError::ContractClassObjectSizeTooLarge { .. }
+            | StatelessTransactionValidatorError::ContractBytecodeSizeTooLarge { .. } => {
                 GatewaySpecError::ContractClassSizeIsTooLarge
             }
             StatelessTransactionValidatorError::UnsupportedSierraVersion { .. } => {
