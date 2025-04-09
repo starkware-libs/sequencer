@@ -28,7 +28,10 @@ pub fn serialize_to_file_test<T: Serialize>(data: T, file_path: &str) {
 
     let error_message = format!(
         "{}\n{}",
-        "Dump file doesn't match the data. Please update it using the binary.".purple().bold(),
+        "Dump file doesn't match the data. Please update it by running `cargo run --bin \
+         deployment_generator`."
+            .purple()
+            .bold(),
         "Diffs shown below (loaded file <<>> data serialization)."
     );
     assert_json_eq(&loaded_data, &serialized_data, error_message);
