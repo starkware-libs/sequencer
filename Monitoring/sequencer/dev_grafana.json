@@ -527,6 +527,50 @@
         "expr": "class_manager_remote_msgs_processed",
         "extra_params": {}
       }
+    ],
+    "L1 Provider Infra": [
+      {
+        "title": "l1_provider_local_msgs_received",
+        "description": "Counter of messages received by L1 provider local server",
+        "type": "stat",
+        "expr": "l1_provider_local_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_local_msgs_processed",
+        "description": "Counter of messages processed by L1 provider local server",
+        "type": "stat",
+        "expr": "l1_provider_local_msgs_processed",
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_local_queue_depth",
+        "description": "The depth of the L1 provider's local message queue",
+        "type": "stat",
+        "expr": "l1_provider_local_queue_depth",
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_remote_msgs_received",
+        "description": "Counter of messages received by L1 provider remote server",
+        "type": "stat",
+        "expr": "l1_provider_remote_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_remote_valid_msgs_received",
+        "description": "Counter of valid messages received by L1 provider remote server",
+        "type": "stat",
+        "expr": "l1_provider_remote_valid_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_remote_msgs_processed",
+        "description": "Counter of messages processed by L1 provider remote server",
+        "type": "stat",
+        "expr": "l1_provider_remote_msgs_processed",
+        "extra_params": {}
+      }
     ]
   }
 }
