@@ -87,6 +87,7 @@ use crate::fee_market::{calculate_next_base_gas_price, FeeMarketInfo};
 use crate::metrics::{
     register_metrics,
     CONSENSUS_L2_GAS_PRICE,
+    CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR,
     CONSENSUS_NUM_BATCHES_IN_PROPOSAL,
     CONSENSUS_NUM_TXS_IN_PROPOSAL,
 };
@@ -1108,6 +1109,7 @@ async fn is_block_info_valid(
         Ok(prices) => prices,
         Err(e) => {
             warn!("Failed to get L1 gas prices, replacing with minimum values: {e:?}");
+            CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR.increment(1);
             PriceInfo {
                 base_fee_per_gas: min_max_prices.min_l1_gas_price_wei,
                 blob_fee: min_max_prices.min_l1_data_gas_price_wei,
