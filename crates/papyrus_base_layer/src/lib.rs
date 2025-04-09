@@ -10,7 +10,6 @@ use starknet_api::block::BlockHashAndNumber;
 use starknet_api::core::{ContractAddress, EntryPointSelector, EthAddress, Nonce};
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::L1HandlerTransaction;
-use thiserror::Error;
 
 pub mod constants;
 pub mod ethereum_base_layer_contract;
@@ -25,7 +24,8 @@ mod base_layer_test;
 
 pub type L1BlockNumber = u64;
 
-#[derive(Debug, Error, PartialEq, Eq)]
+#[cfg(any(feature = "testing", test))]
+#[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum MockError {}
 
 /// Interface for getting data from the Starknet base contract.
