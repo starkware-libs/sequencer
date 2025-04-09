@@ -285,6 +285,24 @@ pub enum L1ScraperError<T: BaseLayerContract + Send + Sync> {
     NeedsRestart,
 }
 
+impl<B: BaseLayerContract + Send + Sync> PartialEq for L1ScraperError<B> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::BaseLayerError(e1), Self::BaseLayerError(e2)) => e1 == e2,
+            (this @ Self::FinalityTooHigh { .. }, other @ Self::FinalityTooHigh { .. }) => {
+                this == other
+            }
+            (Self::HashCalculationError(e1), Self::HashCalculationError(e2)) => e1 == e2,
+            (Self::NetworkError(e1), Self::NetworkError(e2)) => e1 == e2,
+            (this @ Self::L1ReorgDetected { .. }, other @ Self::L1ReorgDetected { .. }) => {
+                this == other
+            }
+            (Self::NeedsRestart, Self::NeedsRestart) => true,
+            _ => false,
+        }
+    }
+}
+
 impl<B: BaseLayerContract + Send + Sync> L1ScraperError<B> {
     pub async fn finality_too_high(finality: u64, base_layer: &B) -> L1ScraperError<B> {
         let latest_l1_block_number_no_finality = base_layer.latest_l1_block_number(0).await;

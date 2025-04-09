@@ -25,14 +25,14 @@ mod base_layer_test;
 
 pub type L1BlockNumber = u64;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq)]
 pub enum MockError {}
 
 /// Interface for getting data from the Starknet base contract.
 #[cfg_attr(any(feature = "testing", test), automock(type Error = MockError;))]
 #[async_trait]
 pub trait BaseLayerContract {
-    type Error: Error + Display + Debug;
+    type Error: Error + PartialEq + Display + Debug;
 
     /// Get the latest Starknet block that is proved on the base layer at a specific L1 block
     /// number. If the number is too low, return an error.
