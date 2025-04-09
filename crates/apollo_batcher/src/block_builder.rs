@@ -80,7 +80,7 @@ pub enum FailOnErrorCause {
     #[error("Transaction failed: {0}")]
     TransactionFailed(BlockifierTransactionExecutorError),
     #[error("L1 Handler transaction validation failed")]
-    L1HandlerTransactionValidationFailed,
+    L1HandlerTransactionValidationFailed(TransactionProviderError),
 }
 
 #[cfg_attr(test, derive(Clone))]
