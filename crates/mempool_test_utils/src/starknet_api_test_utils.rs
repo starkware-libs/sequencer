@@ -553,7 +553,7 @@ pub fn generate_bootstrap_declare() -> RpcTransaction {
     let bootstrap_declare_args = declare_tx_args!(
         signature: TransactionSignature(vec![]),
         sender_address: DeclareTransaction::bootstrap_address(),
-        resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
+        resource_bounds: ValidResourceBounds::create_with_zero_amounts(),
         nonce: Nonce(Felt::ZERO),
         compiled_class_hash: *COMPILED_CLASS_HASH,
     );

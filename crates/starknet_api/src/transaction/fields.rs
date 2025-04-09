@@ -355,6 +355,17 @@ impl ValidResourceBounds {
         })
     }
 
+    #[cfg(any(feature = "testing", test))]
+    pub fn create_with_zero_amounts() -> Self {
+        let zero_amount_max_price =
+            ResourceBounds { max_amount: GasAmount(0), max_price_per_unit: GasPrice(u128::MAX) };
+        Self::AllResources(AllResourceBounds {
+            l1_gas: zero_amount_max_price,
+            l2_gas: zero_amount_max_price,
+            l1_data_gas: zero_amount_max_price,
+        })
+    }
+
     /// Utility method to "zip" an amount vector and a price vector to get an AllResourceBounds.
     #[cfg(any(feature = "testing", test))]
     pub fn all_bounds_from_vectors(
