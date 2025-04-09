@@ -9,6 +9,7 @@ use starknet_api::felt;
 use starknet_api::transaction::fields::Fee;
 use strum::IntoEnumIterator;
 
+use super::contracts::get_cached_class;
 use crate::context::ChainInfo;
 use crate::state::cached_state::CachedState;
 use crate::test_utils::contracts::{FeatureContractData, FeatureContractTrait};
@@ -45,12 +46,14 @@ pub fn test_state_inner(
     contract_instances: &[(FeatureContractData, u16)],
     erc20_contract_version: CairoVersion,
 ) -> CachedState<DictStateReader> {
-    let mut class_hash_to_class = HashMap::new();
+    let mut class_hash_to_runnable_class = HashMap::new();
     let mut address_to_class_hash = HashMap::new();
+    let mut class_hash_to_cached_class = HashMap::new();
 
     // Declare and deploy account and ERC20 contracts.
     let erc20 = FeatureContract::ERC20(erc20_contract_version);
-    class_hash_to_class.insert(erc20.get_class_hash(), erc20.get_runnable_class());
+    class_hash_to_runnable_class.insert(erc20.get_class_hash(), erc20.get_runnable_class());
+    class_hash_to_cached_class.insert(erc20.get_class_hash(), get_cached_class(erc20));
     address_to_class_hash
         .insert(chain_info.fee_token_address(&FeeType::Eth), erc20.get_class_hash());
     address_to_class_hash
@@ -59,15 +62,20 @@ pub fn test_state_inner(
     // Set up the rest of the requested contracts.
     for (contract, n_instances) in contract_instances.iter() {
         let class_hash = contract.class_hash;
-        class_hash_to_class.insert(class_hash, contract.runnable_class.clone());
+        class_hash_to_runnable_class.insert(class_hash, contract.runnable_class.clone());
+        class_hash_to_cached_class.insert(class_hash, contract.cached_class.clone());
         for instance in 0..*n_instances {
             let instance_address = contract.get_instance_address(instance);
             address_to_class_hash.insert(instance_address, class_hash);
         }
     }
 
-    let mut state_reader =
-        DictStateReader { address_to_class_hash, class_hash_to_class, ..Default::default() };
+    let mut state_reader = DictStateReader {
+        address_to_class_hash,
+        class_hash_to_runnable_class,
+        class_hash_to_cached_class,
+        ..Default::default()
+    };
 
     // fund the accounts.
     for (contract, n_instances) in contract_instances.iter() {
