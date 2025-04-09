@@ -1,6 +1,6 @@
 use starknet_crypto::Felt;
 
-use super::NonceManager;
+use super::{NonceManager, TestingTxArgs};
 use crate::core::{ClassHash, Nonce};
 use crate::data_availability::DataAvailabilityMode;
 use crate::executable_transaction::{
@@ -182,4 +182,14 @@ pub fn internal_deploy_account_tx(deploy_tx_args: DeployAccountTxArgs) -> Intern
             contract_address,
         });
     InternalRpcTransaction { tx: tx_without_hash, tx_hash }
+}
+
+impl TestingTxArgs for DeployAccountTxArgs {
+    fn get_tx(&self) -> RpcTransaction {
+        rpc_deploy_account_tx(self.clone())
+    }
+
+    fn get_internal_tx(&self) -> InternalRpcTransaction {
+        internal_deploy_account_tx(self.clone())
+    }
 }

@@ -1,3 +1,4 @@
+use super::TestingTxArgs;
 use crate::abi::abi_utils::selector_from_name;
 use crate::calldata;
 use crate::core::{ContractAddress, Nonce};
@@ -168,4 +169,14 @@ pub fn internal_invoke_tx(invoke_args: InvokeTxArgs) -> InternalRpcTransaction {
     let invoke_tx = InternalRpcTransactionWithoutTxHash::Invoke(tx);
 
     InternalRpcTransaction { tx: invoke_tx, tx_hash }
+}
+
+impl TestingTxArgs for InvokeTxArgs {
+    fn get_tx(&self) -> RpcTransaction {
+        rpc_invoke_tx(self.clone())
+    }
+
+    fn get_internal_tx(&self) -> InternalRpcTransaction {
+        internal_invoke_tx(self.clone())
+    }
 }

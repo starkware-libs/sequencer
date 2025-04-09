@@ -19,6 +19,7 @@ use crate::block::{
 use crate::contract_address;
 use crate::core::{ChainId, ContractAddress, Nonce};
 use crate::execution_resources::GasAmount;
+use crate::rpc_transaction::{InternalRpcTransaction, RpcTransaction};
 use crate::transaction::fields::Fee;
 use crate::transaction::{Transaction, TransactionHash};
 
@@ -176,4 +177,10 @@ impl BlockInfo {
     pub fn create_for_testing_with_kzg(use_kzg_da: bool) -> Self {
         Self { use_kzg_da, ..Self::create_for_testing() }
     }
+}
+
+/// A trait for producing test transactions.
+pub trait TestingTxArgs {
+    fn get_tx(&self) -> RpcTransaction;
+    fn get_internal_tx(&self) -> InternalRpcTransaction;
 }

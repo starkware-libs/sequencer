@@ -1,3 +1,4 @@
+use super::TestingTxArgs;
 use crate::contract_address;
 use crate::contract_class::ClassInfo;
 use crate::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
@@ -197,5 +198,20 @@ pub fn internal_rpc_declare_tx(declare_tx_args: DeclareTxArgs) -> InternalRpcTra
         }
     } else {
         panic!("Unexpected RpcTransaction type.")
+    }
+}
+
+pub struct DeclareTxArgsWithContractClass {
+    pub args: DeclareTxArgs,
+    pub contract_class: SierraContractClass,
+}
+
+impl TestingTxArgs for DeclareTxArgsWithContractClass {
+    fn get_tx(&self) -> RpcTransaction {
+        rpc_declare_tx(self.args.clone(), self.contract_class.clone())
+    }
+
+    fn get_internal_tx(&self) -> InternalRpcTransaction {
+        internal_rpc_declare_tx(self.args.clone())
     }
 }
