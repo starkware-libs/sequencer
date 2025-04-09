@@ -1320,7 +1320,7 @@ fn test_max_fee_to_max_steps_conversion(
     let actual_gas_used: GasAmount = u64_from_usize(
         get_const_syscall_resources(SyscallSelector::CallContract).n_steps
             + get_tx_resources(TransactionType::InvokeFunction).n_steps
-            + 1751,
+            + 1749,
     )
     .into();
     let actual_fee = u128::from(actual_gas_used.0) * 100000000000;

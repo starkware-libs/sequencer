@@ -291,7 +291,7 @@
                         "range_check_builtin": 16
                     },
                     "n_memory_holes": 0,
-                    "n_steps": 1273
+                    "n_steps": 1275
                 },
                 "calldata_factor": {
                     "builtin_instance_counter": {
@@ -299,7 +299,6 @@
                     },
                     "n_memory_holes": 0,
                     "n_steps": 8
-
                 }
             },
             "ReplaceClass": {
@@ -427,14 +426,18 @@
                         "poseidon_builtin": 11
                     },
                     "n_memory_holes": 0,
-                    "n_steps": 4554
+                    "n_steps": 4578
                 },
                 "calldata_factor": {
-                    "builtin_instance_counter": {
-                        "pedersen_builtin": 2
+                    "resources": {
+                        "builtin_instance_counter": {
+                            "poseidon_builtin": 1,
+                            "pedersen_builtin": 2
+                        },
+                        "n_memory_holes": 0,
+                        "n_steps": 37
                     },
-                    "n_memory_holes": 0,
-                    "n_steps": 21
+                    "scaling_factor": 2
                 }
             },
             "InvokeFunction": {
@@ -448,11 +451,14 @@
                     "n_steps": 4319
                 },
                 "calldata_factor": {
-                    "builtin_instance_counter": {
-                        "pedersen_builtin": 1
+                    "resources": {
+                        "builtin_instance_counter": {
+                            "poseidon_builtin": 1
+                        },
+                        "n_memory_holes": 0,
+                        "n_steps": 11
                     },
-                    "n_memory_holes": 0,
-                    "n_steps": 8
+                    "scaling_factor": 2
                 }
             },
             "L1Handler": {

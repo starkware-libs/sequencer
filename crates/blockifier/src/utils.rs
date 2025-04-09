@@ -67,6 +67,7 @@ pub fn u64_from_usize(val: usize) -> u64 {
 pub fn get_gas_cost_from_vm_resources(
     execution_resources: &ExecutionResources,
     gas_costs: &GasCosts,
+    scaling_factor: u64,
 ) -> u64 {
     let n_steps = u64_from_usize(execution_resources.n_steps);
     let n_memory_holes = u64_from_usize(execution_resources.n_memory_holes);
@@ -82,7 +83,8 @@ pub fn get_gas_cost_from_vm_resources(
         })
         .sum();
 
-    n_steps * gas_costs.base.step_gas_cost
+    (n_steps * gas_costs.base.step_gas_cost
         + n_memory_holes * gas_costs.base.memory_hole_gas_cost
-        + total_builtin_gas_cost
+        + total_builtin_gas_cost)
+        / scaling_factor
 }
