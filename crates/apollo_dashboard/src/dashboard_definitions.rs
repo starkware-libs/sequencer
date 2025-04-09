@@ -75,6 +75,12 @@ use apollo_infra::metrics::{
     L1_PROVIDER_REMOTE_MSGS_PROCESSED,
     L1_PROVIDER_REMOTE_MSGS_RECEIVED,
     L1_PROVIDER_REMOTE_VALID_MSGS_RECEIVED,
+    MEMPOOL_LOCAL_MSGS_PROCESSED,
+    MEMPOOL_LOCAL_MSGS_RECEIVED,
+    MEMPOOL_LOCAL_QUEUE_DEPTH,
+    MEMPOOL_REMOTE_MSGS_PROCESSED,
+    MEMPOOL_REMOTE_MSGS_RECEIVED,
+    MEMPOOL_REMOTE_VALID_MSGS_RECEIVED,
 };
 use apollo_mempool::metrics::{
     LABEL_NAME_DROP_REASON,
@@ -299,6 +305,19 @@ const PANEL_GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL: Panel = Panel::new(
     ),
     PanelType::Stat,
 );
+
+const PANEL_MEMPOOL_LOCAL_MSGS_RECEIVED: Panel =
+    Panel::from_counter(MEMPOOL_LOCAL_MSGS_RECEIVED, PanelType::Stat);
+const PANEL_MEMPOOL_LOCAL_MSGS_PROCESSED: Panel =
+    Panel::from_counter(MEMPOOL_LOCAL_MSGS_PROCESSED, PanelType::Stat);
+const PANEL_MEMPOOL_REMOTE_MSGS_RECEIVED: Panel =
+    Panel::from_counter(MEMPOOL_REMOTE_MSGS_RECEIVED, PanelType::Stat);
+const PANEL_MEMPOOL_REMOTE_VALID_MSGS_RECEIVED: Panel =
+    Panel::from_counter(MEMPOOL_REMOTE_VALID_MSGS_RECEIVED, PanelType::Stat);
+const PANEL_MEMPOOL_REMOTE_MSGS_PROCESSED: Panel =
+    Panel::from_counter(MEMPOOL_REMOTE_MSGS_PROCESSED, PanelType::Stat);
+const PANEL_MEMPOOL_LOCAL_QUEUE_DEPTH: Panel =
+    Panel::from_gauge(MEMPOOL_LOCAL_QUEUE_DEPTH, PanelType::Stat);
 
 const PANEL_MEMPOOL_TRANSACTIONS_RECEIVED: Panel = Panel::new(
     MEMPOOL_TRANSACTIONS_RECEIVED.get_name(),
@@ -581,6 +600,19 @@ pub const MEMPOOL_ROW: Row = Row::new(
     ],
 );
 
+pub const MEMPOOL_INFRA_ROW: Row = Row::new(
+    "Mempool Infra",
+    "Mempool infra metrics",
+    &[
+        PANEL_MEMPOOL_LOCAL_MSGS_RECEIVED,
+        PANEL_MEMPOOL_LOCAL_MSGS_PROCESSED,
+        PANEL_MEMPOOL_LOCAL_QUEUE_DEPTH,
+        PANEL_MEMPOOL_REMOTE_MSGS_RECEIVED,
+        PANEL_MEMPOOL_REMOTE_VALID_MSGS_RECEIVED,
+        PANEL_MEMPOOL_REMOTE_MSGS_PROCESSED,
+    ],
+);
+
 pub const SEQUENCER_DASHBOARD: Dashboard = Dashboard::new(
     "Sequencer Node Dashboard",
     "Monitoring of the decentralized sequencer node",
@@ -599,5 +631,6 @@ pub const SEQUENCER_DASHBOARD: Dashboard = Dashboard::new(
         CLASS_MANAGER_INFRA_ROW,
         L1_PROVIDER_INFRA_ROW,
         L1_GAS_PRICE_INFRA_ROW,
+        MEMPOOL_INFRA_ROW,
     ],
 );
