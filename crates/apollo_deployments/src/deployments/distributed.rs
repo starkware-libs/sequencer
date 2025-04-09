@@ -24,7 +24,7 @@ use crate::service::{
     ServiceNameInner,
 };
 
-const BASE_PORT: u16 = 55000; // TODO(Tsabary): arbitrary port, need to resolve.
+const BASE_PORT: u16 = 15000; // TODO(Tsabary): arbitrary port, need to resolve.
 
 // TODO(Tsabary): define consts and functions whenever relevant.
 
