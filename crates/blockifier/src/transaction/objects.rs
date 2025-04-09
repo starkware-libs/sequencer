@@ -221,6 +221,7 @@ impl TransactionExecutionInfo {
 pub trait ExecutionResourcesTraits {
     fn total_n_steps(&self) -> usize;
     fn prover_builtins(&self) -> HashMap<BuiltinName, usize>;
+    fn div_ceil(&self, rhs: usize) -> ExecutionResources;
 }
 
 impl ExecutionResourcesTraits for ExecutionResources {
@@ -248,6 +249,19 @@ impl ExecutionResourcesTraits for ExecutionResources {
         // See "total_n_steps" documentation.
         builtins.remove(&BuiltinName::segment_arena);
         builtins
+    }
+
+    fn div_ceil(&self, rhs: usize) -> ExecutionResources {
+        if rhs == 0 {
+            panic!("Division by zero");
+        }
+        let mut new = self.clone();
+        new.n_steps = self.n_steps.div_ceil(rhs);
+        new.n_memory_holes = self.n_memory_holes.div_ceil(rhs);
+        for counter in new.builtin_instance_counter.values_mut() {
+            *counter = counter.div_ceil(rhs);
+        }
+        new
     }
 }
 

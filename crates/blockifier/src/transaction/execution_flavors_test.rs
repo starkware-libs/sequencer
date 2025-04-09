@@ -679,7 +679,7 @@ fn test_simulate_validate_charge_fee_mid_execution(
         u64_from_usize(
             get_const_syscall_resources(SyscallSelector::CallContract).n_steps
                 + get_tx_resources(TransactionType::InvokeFunction).n_steps
-                + 5730,
+                + 5722,
         )
         .into(),
         validate,
@@ -822,17 +822,17 @@ fn test_simulate_validate_charge_fee_post_execution(
     // If `charge_fee` is true, we revert, charge the maximal allowed fee (derived from sender
     // bounds), and report resources base on execution steps reverted + other overhead.
     let invoke_steps = u64_from_usize(get_tx_resources(TransactionType::InvokeFunction).n_steps);
-    let base_gas_bound = (invoke_steps + 2485).into();
+    let base_gas_bound = (invoke_steps + 2479).into();
     let (just_not_enough_gas_bound, just_not_enough_fee_bound) =
         gas_and_fee(base_gas_bound, validate, &fee_type);
     // `__validate__` and overhead resources + number of reverted steps, comes out slightly more
     // than the gas bound.
     let (revert_gas_usage, revert_fee) =
-        gas_and_fee((invoke_steps + 4130).into(), validate, &fee_type);
+        gas_and_fee((invoke_steps + 4122).into(), validate, &fee_type);
     let (unlimited_gas_used, unlimited_fee) = gas_and_fee(
         (invoke_steps
             + u64_from_usize(
-                get_const_syscall_resources(SyscallSelector::CallContract).n_steps + 4130,
+                get_const_syscall_resources(SyscallSelector::CallContract).n_steps + 4122,
             ))
         .into(),
         validate,
@@ -881,13 +881,13 @@ fn test_simulate_validate_charge_fee_post_execution(
     let (success_actual_gas, actual_fee) = gas_and_fee(
         (u64_from_usize(get_const_syscall_resources(SyscallSelector::CallContract).n_steps)
             + invoke_steps
-            + 4328)
+            + 4315)
             .into(),
         validate,
         &fee_type,
     );
     let (fail_actual_gas, fail_actual_fee) =
-        gas_and_fee((invoke_steps + 2252).into(), validate, &fee_type);
+        gas_and_fee((invoke_steps + 2239).into(), validate, &fee_type);
     assert!(felt!(actual_fee.0) < current_balance);
     let transfer_amount = current_balance - Felt::from(actual_fee.0 / 2);
     let recipient = felt!(7_u8);
