@@ -184,6 +184,11 @@
     "privacy": "Public",
     "value": 1
   },
+  "context.part_per_thousand_l1_data_gas_price_multiplier": {
+    "description": "Part Per 1000 of multiplicative factor to apply to the data gas price, to enable fine-tuning of the price charged to end users.",
+    "privacy": "Public",
+    "value": 135
+  },
   "context.proposal_buffer_size": {
     "description": "The buffer size for streaming outbound proposals.",
     "privacy": "Public",

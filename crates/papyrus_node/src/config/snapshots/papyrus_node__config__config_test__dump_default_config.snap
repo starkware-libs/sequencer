@@ -224,6 +224,13 @@ expression: dumped_default_config
     },
     "privacy": "Public"
   },
+  "context.part_per_thousand_l1_data_gas_price_multiplier": {
+    "description": "Part Per 1000 of multiplicative factor to apply to the data gas price, to enable fine-tuning of the price charged to end users.",
+    "value": {
+      "$serde_json::private::Number": "135"
+    },
+    "privacy": "Public"
+  },
   "context.proposal_buffer_size": {
     "description": "The buffer size for streaming outbound proposals.",
     "value": {
