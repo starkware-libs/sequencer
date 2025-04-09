@@ -153,6 +153,7 @@ define_string_enum! {
         (Hash),
         (HashPtr),
         (Height),
+        (IsSierraGasMode),
         (InitialCarriedOutputs),
         (InitialContractStateRoot),
         (InitialRoot),

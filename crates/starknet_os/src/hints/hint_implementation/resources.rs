@@ -1,6 +1,8 @@
+use blockifier::execution::contract_class::TrackedResource;
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
+    insert_value_from_var_name,
     insert_value_into_ap,
 };
 use starknet_types_core::felt::Felt;
@@ -46,7 +48,23 @@ pub(crate) fn debug_expected_initial_gas<S: StateReader>(
 }
 
 pub(crate) fn is_sierra_gas_mode<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let current_execution_helper =
+        hint_processor.execution_helpers_manager.get_mut_current_execution_helper()?;
+    let gas_mode = current_execution_helper
+        .tx_execution_iter
+        .get_tx_execution_info_ref()?
+        .get_call_info_tracker()?
+        .call_info
+        .tracked_resource;
+
+    insert_value_from_var_name(
+        Ids::IsSierraGasMode.into(),
+        Felt::from(gas_mode == TrackedResource::SierraGas),
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    Ok(())
 }
