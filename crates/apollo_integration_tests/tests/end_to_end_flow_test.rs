@@ -47,18 +47,21 @@ fn tx_generator() -> MultiAccountTransactionGenerator {
     TestIdentifier::EndToEndFlowTest,
     create_test_scenarios(),
     GasAmount(29000000),
-    false
+    false,
+    true
 )]
 #[case::many_txs_scenario(
     TestIdentifier::EndToEndFlowTestManyTxs,
     create_many_txs_scenario(),
     GasAmount(17500000),
+    true,
     true
 )]
 #[case::bootstrap_declare_scenario(
     TestIdentifier::EndToEndFlowTestBootstrapDeclare,
     create_bootstrap_declare_scenario(),
     GasAmount(29000000),
+    false,
     false
 )]
 #[tokio::test]
@@ -68,6 +71,7 @@ async fn end_to_end_flow(
     #[case] test_blocks_scenarios: Vec<TestScenario>,
     #[case] block_max_capacity_sierra_gas: GasAmount,
     #[case] expecting_full_blocks: bool,
+    #[case] validate_non_zero_resource_bounds: bool,
 ) {
     configure_tracing().await;
     let recorder = PrometheusBuilder::new().build_recorder();
@@ -75,10 +79,13 @@ async fn end_to_end_flow(
 
     const TEST_SCENARIO_TIMOUT: std::time::Duration = std::time::Duration::from_secs(50);
     // Setup.
+    let override_gas_price_threshold_check = !validate_non_zero_resource_bounds;
     let mock_running_system = FlowTestSetup::new_from_tx_generator(
         &tx_generator,
         test_identifier.into(),
         block_max_capacity_sierra_gas,
+        validate_non_zero_resource_bounds,
+        override_gas_price_threshold_check,
     )
     .await;
 
