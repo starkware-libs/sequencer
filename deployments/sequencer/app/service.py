@@ -87,10 +87,10 @@ class ServiceApp(Construct):
 
         if self.service_topology.external_secret is not None:
             self.external_secret = self._get_external_secret()
-        
+
         if self.monitoring:
             self.podmonitoring = self._get_podmonitoring()
-    
+
     def _get_podmonitoring(self) -> PodMonitoring:
         return PodMonitoring(
             self,
@@ -109,7 +109,7 @@ class ServiceApp(Construct):
                 ],
             ),
         )
-        
+
     def _get_deployment(self) -> k8s.KubeDeployment:
         return k8s.KubeDeployment(
             self,
