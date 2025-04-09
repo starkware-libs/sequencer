@@ -1089,6 +1089,11 @@
     "privacy": "Public",
     "value": 4000
   },
+  "gateway_config.stateless_tx_validator_config.max_contract_bytecode_size": {
+    "description": "Limitation of contract class bytecode size.",
+    "privacy": "Public",
+    "value": 81920
+  },
   "gateway_config.stateless_tx_validator_config.max_contract_class_object_size": {
     "description": "Limitation of contract class object size.",
     "privacy": "Public",
