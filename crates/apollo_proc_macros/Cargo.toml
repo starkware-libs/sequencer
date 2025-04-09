@@ -9,7 +9,6 @@ description = "Procedural macros for the Papyrus node"
 [dependencies]
 quote.workspace = true
 syn = { workspace = true, features = ["full"] }
-tracing.workspace = true
 
 [dev-dependencies]
 apollo_metrics.workspace = true
