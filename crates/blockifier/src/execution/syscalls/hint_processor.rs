@@ -39,7 +39,7 @@ use starknet_types_core::felt::{Felt, FromStrError};
 use thiserror::Error;
 
 use crate::abi::sierra_types::SierraTypeError;
-use crate::blockifier_versioned_constants::{GasCosts, SyscallGasCost};
+use crate::blockifier_versioned_constants::{GasCosts, GasCostsError, SyscallGasCost};
 use crate::context::TransactionContext;
 use crate::execution::common_hints::{ExecutionMode, HintExecutionResult};
 use crate::execution::contract_class::TrackedResource;
@@ -575,8 +575,11 @@ impl<'a> SyscallHintProcessor<'a> {
 }
 
 impl SyscallExecutor for SyscallHintProcessor<'_> {
-    fn get_gas_cost_from_selector(&self, selector: &SyscallSelector) -> SyscallGasCost {
-        self.gas_costs().syscalls.get_syscall_gas_cost(selector).unwrap()
+    fn get_gas_cost_from_selector(
+        &self,
+        selector: &SyscallSelector,
+    ) -> Result<SyscallGasCost, GasCostsError> {
+        self.gas_costs().syscalls.get_syscall_gas_cost(selector)
     }
 
     fn get_mut_syscall_ptr(&mut self) -> &mut Relocatable {
