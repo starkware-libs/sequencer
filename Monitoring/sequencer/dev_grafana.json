@@ -615,6 +615,50 @@
         "expr": "l1_gas_price_provider_local_queue_depth",
         "extra_params": {}
       }
+    ],
+    "Mempool Infra": [
+      {
+        "title": "mempool_local_msgs_received",
+        "description": "Counter of messages received by mempool local server",
+        "type": "stat",
+        "expr": "mempool_local_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_local_msgs_processed",
+        "description": "Counter of messages processed by mempool local server",
+        "type": "stat",
+        "expr": "mempool_local_msgs_processed",
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_remote_msgs_received",
+        "description": "Counter of messages received by mempool remote server",
+        "type": "stat",
+        "expr": "mempool_remote_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_remote_valid_msgs_received",
+        "description": "Counter of valid messages received by mempool remote server",
+        "type": "stat",
+        "expr": "mempool_remote_valid_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_remote_msgs_processed",
+        "description": "Counter of messages processed by mempool remote server",
+        "type": "stat",
+        "expr": "mempool_remote_msgs_processed",
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_local_queue_depth",
+        "description": "The depth of the mempool's local message queue",
+        "type": "stat",
+        "expr": "mempool_local_queue_depth",
+        "extra_params": {}
+      }
     ]
   }
 }
