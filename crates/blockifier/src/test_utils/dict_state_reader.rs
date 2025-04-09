@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::state::StorageKey;
+use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_types_core::felt::Felt;
 
 use crate::execution::contract_class::RunnableCompiledClass;
@@ -15,8 +15,9 @@ pub struct DictStateReader {
     pub storage_view: HashMap<StorageEntry, Felt>,
     pub address_to_nonce: HashMap<ContractAddress, Nonce>,
     pub address_to_class_hash: HashMap<ContractAddress, ClassHash>,
-    pub class_hash_to_class: HashMap<ClassHash, RunnableCompiledClass>,
+    pub class_hash_to_runnable: HashMap<ClassHash, RunnableCompiledClass>,
     pub class_hash_to_compiled_class_hash: HashMap<ClassHash, CompiledClassHash>,
+    pub class_hash_to_sierra: HashMap<ClassHash, Option<SierraContractClass>>,
 }
 
 impl StateReader for DictStateReader {
@@ -36,7 +37,7 @@ impl StateReader for DictStateReader {
     }
 
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
-        let contract_class = self.class_hash_to_class.get(&class_hash).cloned();
+        let contract_class = self.class_hash_to_runnable.get(&class_hash).cloned();
         match contract_class {
             Some(contract_class) => Ok(contract_class),
             _ => Err(StateError::UndeclaredClassHash(class_hash)),
