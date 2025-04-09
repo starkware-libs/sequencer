@@ -8,6 +8,7 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
 use strum_macros::EnumIter;
+use thiserror::Error;
 
 use crate::contract_class::{ClassInfo, ContractClass};
 use crate::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
@@ -190,18 +191,24 @@ impl DeclareTransaction {
     /// Validates that the compiled class hash of the compiled class matches the supplied
     /// compiled class hash.
     /// Relevant only for version 3 transactions.
-    pub fn validate_compiled_class_hash(&self) -> bool {
+    pub fn validate_compiled_class_hash(&self) -> Result<(), ValidateCompiledClassHashError> {
         let supplied_compiled_class_hash = match &self.tx {
             crate::transaction::DeclareTransaction::V3(tx) => tx.compiled_class_hash,
             crate::transaction::DeclareTransaction::V2(tx) => tx.compiled_class_hash,
             crate::transaction::DeclareTransaction::V1(_)
-            | crate::transaction::DeclareTransaction::V0(_) => return true,
+            | crate::transaction::DeclareTransaction::V0(_) => return Ok(()),
         };
 
-        let contract_class = &self.class_info.contract_class;
-        let compiled_class_hash = contract_class.compiled_class_hash();
+        let compiled_class_hash = self.class_info.contract_class.compiled_class_hash();
 
-        compiled_class_hash == supplied_compiled_class_hash
+        if compiled_class_hash == supplied_compiled_class_hash {
+            Ok(())
+        } else {
+            Err(ValidateCompiledClassHashError::CompiledClassHashMismatch {
+                computed_class_hash: compiled_class_hash,
+                supplied_class_hash: supplied_compiled_class_hash,
+            })
+        }
     }
 
     pub fn contract_class(&self) -> ContractClass {
@@ -234,6 +241,18 @@ impl DeclareTransaction {
         // A felt representation of the string 'BOOTSTRAP'.
         ContractAddress::from(0x424f4f545354524150_u128)
     }
+}
+
+#[derive(Clone, Debug, Error, Eq, PartialEq)]
+pub enum ValidateCompiledClassHashError {
+    #[error(
+        "Computed compiled class hash: {computed_class_hash} does not match the given value: \
+         {supplied_class_hash}."
+    )]
+    CompiledClassHashMismatch {
+        computed_class_hash: CompiledClassHash,
+        supplied_class_hash: CompiledClassHash,
+    },
 }
 
 /// Validates that the Declare transaction version is compatible with the Cairo contract version.
