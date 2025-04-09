@@ -133,6 +133,9 @@ impl NativeClassManager {
             CachedClass::V1Native(CachedCairoNative::Compiled(native))
                 if !self.run_class_with_cairo_native(class_hash) =>
             {
+                if self.run_cairo_native() {
+                    log::debug!("Returning Casm class even though cairo native is enabled.");
+                }
                 CachedClass::V1(native.casm(), Arc::new(SierraContractClass::default()))
             }
             _ => cached_class,

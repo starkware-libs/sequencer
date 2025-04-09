@@ -15,6 +15,7 @@ use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::runners::cairo_runner::{CairoArg, CairoRunner, ExecutionResources};
 use cairo_vm::vm::vm_core::VirtualMachine;
+use log;
 use num_bigint::BigUint;
 use starknet_api::core::ClassHash;
 use starknet_api::deprecated_contract_class::Program as DeprecatedProgram;
@@ -132,6 +133,9 @@ pub fn execute_entry_point_call(
             if context.tracked_resource_stack.last() == Some(&TrackedResource::CairoSteps) {
                 // We cannot run native with cairo steps as the tracked resources (it's a vm
                 // resouorce).
+                log::debug!(
+                    "Executing entry point call with Cairo VM even though it is a native class."
+                );
                 entry_point_execution::execute_entry_point_call(
                     call,
                     compiled_class.casm(),
@@ -139,6 +143,9 @@ pub fn execute_entry_point_call(
                     context,
                 )
             } else {
+                log::debug!(
+                    "Executing entry point call in Cairo Native mode."
+                );
                 native_entry_point_execution::execute_entry_point_call(
                     call,
                     compiled_class,
