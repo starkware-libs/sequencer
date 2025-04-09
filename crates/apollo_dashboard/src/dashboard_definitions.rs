@@ -57,6 +57,12 @@ use apollo_infra::metrics::{
     CLASS_MANAGER_REMOTE_MSGS_PROCESSED,
     CLASS_MANAGER_REMOTE_MSGS_RECEIVED,
     CLASS_MANAGER_REMOTE_VALID_MSGS_RECEIVED,
+    GATEWAY_LOCAL_MSGS_PROCESSED,
+    GATEWAY_LOCAL_MSGS_RECEIVED,
+    GATEWAY_LOCAL_QUEUE_DEPTH,
+    GATEWAY_REMOTE_MSGS_PROCESSED,
+    GATEWAY_REMOTE_MSGS_RECEIVED,
+    GATEWAY_REMOTE_VALID_MSGS_RECEIVED,
 };
 use apollo_mempool::metrics::{
     LABEL_NAME_DROP_REASON,
@@ -196,6 +202,19 @@ const PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_TYPE: Panel = Panel::new(
     formatcp!("sum  by ({}) ({}) ", GATEWAY_LABEL_NAME_TX_TYPE, TRANSACTIONS_RECEIVED.get_name()),
     PanelType::Stat,
 );
+
+const PANEL_GATEWAY_LOCAL_MSGS_RECEIVED: Panel =
+    Panel::from_counter(GATEWAY_LOCAL_MSGS_RECEIVED, PanelType::Stat);
+const PANEL_GATEWAY_LOCAL_MSGS_PROCESSED: Panel =
+    Panel::from_counter(GATEWAY_LOCAL_MSGS_PROCESSED, PanelType::Stat);
+const PANEL_GATEWAY_REMOTE_MSGS_RECEIVED: Panel =
+    Panel::from_counter(GATEWAY_REMOTE_MSGS_RECEIVED, PanelType::Stat);
+const PANEL_GATEWAY_REMOTE_VALID_MSGS_RECEIVED: Panel =
+    Panel::from_counter(GATEWAY_REMOTE_VALID_MSGS_RECEIVED, PanelType::Stat);
+const PANEL_GATEWAY_REMOTE_MSGS_PROCESSED: Panel =
+    Panel::from_counter(GATEWAY_REMOTE_MSGS_PROCESSED, PanelType::Stat);
+const PANEL_GATEWAY_LOCAL_QUEUE_DEPTH: Panel =
+    Panel::from_gauge(GATEWAY_LOCAL_QUEUE_DEPTH, PanelType::Stat);
 
 const PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_SOURCE: Panel = Panel::new(
     TRANSACTIONS_RECEIVED.get_name(),
@@ -467,6 +486,19 @@ pub const GATEWAY_ROW: Row = Row::new(
     ],
 );
 
+pub const GATEWAY_INFRA_ROW: Row = Row::new(
+    "Gateway Infra",
+    "Gateway infra metrics",
+    &[
+        PANEL_GATEWAY_LOCAL_MSGS_RECEIVED,
+        PANEL_GATEWAY_LOCAL_MSGS_PROCESSED,
+        PANEL_GATEWAY_LOCAL_QUEUE_DEPTH,
+        PANEL_GATEWAY_REMOTE_MSGS_RECEIVED,
+        PANEL_GATEWAY_REMOTE_VALID_MSGS_RECEIVED,
+        PANEL_GATEWAY_REMOTE_MSGS_PROCESSED,
+    ],
+);
+
 pub const MEMPOOL_ROW: Row = Row::new(
     "Mempool",
     "Mempool metrics",
@@ -499,6 +531,7 @@ pub const SEQUENCER_DASHBOARD: Dashboard = Dashboard::new(
         MEMPOOL_ROW,
         APOLLO_STATE_READER_ROW,
         BATCHER_INFRA_ROW,
+        GATEWAY_INFRA_ROW,
         CLASS_MANAGER_INFRA_ROW,
     ],
 );
