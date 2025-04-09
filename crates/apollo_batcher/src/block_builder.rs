@@ -44,6 +44,7 @@ use thiserror::Error;
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, trace};
 
+use crate::block_builder::FailOnErrorCause::L1HandlerTransactionValidationFailed;
 use crate::metrics::FULL_BLOCKS;
 use crate::transaction_executor::TransactionExecutorTrait;
 use crate::transaction_provider::{NextTxs, TransactionProvider, TransactionProviderError};
@@ -78,6 +79,8 @@ pub enum FailOnErrorCause {
     DeadlineReached,
     #[error("Transaction failed: {0}")]
     TransactionFailed(BlockifierTransactionExecutorError),
+    #[error("L1 Handler transaction validation failed")]
+    L1HandlerTransactionValidationFailed,
 }
 
 #[cfg_attr(test, derive(Clone))]
@@ -201,10 +204,20 @@ impl BlockBuilderTrait for BlockBuilder {
                 info!("Received abort signal. Aborting block builder.");
                 return Err(BlockBuilderError::Aborted);
             }
-            let next_txs =
-                self.tx_provider.get_txs(self.tx_chunk_size).await.inspect_err(|err| {
-                    error!("Failed to get transactions from the transaction provider: {}", err);
-                })?;
+            let next_txs = match self.tx_provider.get_txs(self.tx_chunk_size).await {
+                Err(TransactionProviderError::L1HandlerTransactionValidationFailed { .. })
+                    if self.execution_params.fail_on_err =>
+                {
+                    return Err(BlockBuilderError::FailOnError(
+                        L1HandlerTransactionValidationFailed,
+                    ));
+                }
+                Err(err) => {
+                    error!("Failed to get transactions from the transaction provider: {:?}", err);
+                    return Err(err.into());
+                }
+                Ok(result) => result,
+            };
             let next_tx_chunk = match next_txs {
                 NextTxs::Txs(txs) => txs,
                 NextTxs::End => break,
