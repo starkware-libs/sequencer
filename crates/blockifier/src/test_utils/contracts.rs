@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
@@ -9,11 +11,15 @@ use starknet_api::deprecated_contract_class::{
     ContractClass as DeprecatedContractClass,
     EntryPointOffset,
 };
+use starknet_api::state::SierraContractClass;
 
 use crate::execution::contract_class::RunnableCompiledClass;
 use crate::execution::entry_point::EntryPointTypeAndSelector;
 #[cfg(feature = "cairo_native")]
 use crate::execution::native::contract_class::NativeCompiledClassV1;
+#[cfg(feature = "cairo_native")]
+use crate::state::global_cache::CachedCairoNative;
+use crate::state::global_cache::CachedClass;
 use crate::test_utils::struct_impls::LoadContractFromFile;
 
 pub trait FeatureContractTrait {
@@ -99,10 +105,32 @@ impl FeatureContractTrait for FeatureContract {
     }
 }
 
+pub fn runnable_to_cached_class(
+    runnable: RunnableCompiledClass,
+    sierra: SierraContractClass,
+) -> CachedClass {
+    match runnable {
+        RunnableCompiledClass::V0(class) => CachedClass::V0(class),
+        RunnableCompiledClass::V1(class) => {
+            let sierra_contract_class = sierra;
+            CachedClass::V1(class, Arc::new(sierra_contract_class))
+        }
+        #[cfg(feature = "cairo_native")]
+        RunnableCompiledClass::V1Native(native_class) => {
+            CachedClass::V1Native(CachedCairoNative::Compiled(native_class))
+        }
+    }
+}
+
+pub fn get_cached_class(contract: FeatureContract) -> CachedClass {
+    runnable_to_cached_class(contract.get_runnable_class(), contract.get_sierra())
+}
+
 /// The information needed to test a [FeatureContract].
 pub struct FeatureContractData {
     pub class_hash: ClassHash,
     pub runnable_class: RunnableCompiledClass,
+    pub cached_class: CachedClass,
     pub require_funding: bool,
     integer_base: u32,
 }
@@ -127,6 +155,7 @@ impl From<FeatureContract> for FeatureContractData {
         Self {
             class_hash: contract.get_class_hash(),
             runnable_class: contract.get_runnable_class(),
+            cached_class: get_cached_class(contract),
             require_funding,
             integer_base: contract.get_integer_base(),
         }
