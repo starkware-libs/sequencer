@@ -256,6 +256,7 @@ impl FlowSequencerSetup {
             base_layer_config,
             block_max_capacity_sierra_gas,
             validator_id,
+            block_bootstrap_txs,
         );
         let num_l1_txs = u64::try_from(NUM_L1_TRANSACTIONS).unwrap();
         node_config.l1_gas_price_scraper_config.number_of_blocks_for_mean = num_l1_txs;

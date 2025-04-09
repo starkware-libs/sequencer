@@ -142,6 +142,8 @@ async fn wait_for_sequencer_node(sequencer: &FlowSequencerSetup) {
     sequencer.monitoring_client.await_alive(5000, 50).await.expect("Node should be alive.");
 }
 
+// TODO(Dori): Find out why clippy thinks this code is unused, even though it's used in test setups.
+#[allow(dead_code)]
 pub fn test_single_tx(tx_hashes: &[TransactionHash]) -> Vec<TransactionHash> {
     assert_eq!(tx_hashes.len(), 1, "Expected a single transaction");
     tx_hashes.to_vec()
