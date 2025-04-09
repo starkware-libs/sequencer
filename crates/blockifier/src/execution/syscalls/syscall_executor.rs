@@ -1,7 +1,9 @@
 use cairo_vm::vm::errors::hint_errors::HintError;
 use cairo_vm::vm::vm_core::VirtualMachine;
 
-use super::secp::{
+use crate::execution::common_hints::HintExecutionResult;
+use crate::execution::syscalls::hint_processor::SyscallHintProcessor;
+use crate::execution::syscalls::secp::{
     SecpAddRequest,
     SecpAddResponse,
     SecpGetPointFromXRequest,
@@ -13,8 +15,6 @@ use super::secp::{
     SecpNewRequest,
     SecpNewResponse,
 };
-use crate::execution::common_hints::HintExecutionResult;
-use crate::execution::syscalls::hint_processor::SyscallHintProcessor;
 use crate::execution::syscalls::syscall_base::SyscallResult;
 use crate::execution::syscalls::{
     CallContractRequest,
