@@ -1,6 +1,6 @@
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output};
+use std::process::{Command, Output, Stdio};
 use std::{env, fs};
 
 use apollo_infra_utils::cairo_compiler_version::cairo1_compiler_version;
@@ -51,15 +51,16 @@ async fn download_cairo_package(version: &String) {
     std::fs::create_dir_all(&directory).unwrap();
 
     // Download the artifact.
-    let client = reqwest::Client::new();
     let filename = "release-x86_64-unknown-linux-musl.tar.gz";
     let package_url =
         format!("https://github.com/starkware-libs/cairo/releases/download/v{version}/{filename}");
-    let response = client.get(package_url).send().await.unwrap();
-    assert!(response.status().is_success(), "Failed to download the package: {response:?}.");
-    let tar_package_bytes: &[u8] = &response.bytes().await.unwrap();
-    info!("Extracting and writing package.");
-    tar::Archive::new(flate2::read::GzDecoder::new(tar_package_bytes)).unpack(&directory).unwrap();
+    let curl_command =
+        Command::new("curl").args(["-L", &package_url]).stdout(Stdio::piped()).spawn().unwrap();
+    run_and_verify_output(
+        Command::new("tar")
+            .args(["-xz", "-C", directory.to_str().unwrap()])
+            .stdin(Stdio::from(curl_command.stdout.unwrap())),
+    );
     info!("Done.");
 }
 
