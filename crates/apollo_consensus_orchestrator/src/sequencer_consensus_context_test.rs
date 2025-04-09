@@ -46,8 +46,8 @@ use apollo_protobuf::consensus::{
 };
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use chrono::{TimeZone, Utc};
+use futures::channel::mpsc;
 use futures::channel::oneshot::Canceled;
-use futures::channel::{mpsc, oneshot};
 use futures::executor::block_on;
 use futures::future::pending;
 use futures::{FutureExt, SinkExt, StreamExt};
@@ -169,11 +169,8 @@ fn setup_with_custom_mocks(
     )
 }
 
-// Setup for test of the `build_proposal` function.
-async fn build_proposal_setup(
-    mock_cende_context: MockCendeContext,
-) -> (oneshot::Receiver<BlockHash>, SequencerConsensusContext, NetworkDependencies) {
-    let mut batcher = MockBatcherClient::new();
+// Setup batcher client for proposal building flow.
+async fn setup_batcher_for_build(batcher: &mut MockBatcherClient, block_number: BlockNumber) {
     let proposal_id = Arc::new(OnceLock::new());
     let proposal_id_clone = Arc::clone(&proposal_id);
     batcher.expect_propose_block().times(1).returning(move |input: ProposeBlockInput| {
@@ -183,7 +180,7 @@ async fn build_proposal_setup(
     batcher
         .expect_start_height()
         .times(1)
-        .withf(|input| input.height == BlockNumber(0))
+        .withf(move |input| input.height == block_number)
         .return_once(|_| Ok(()));
     let proposal_id_clone = Arc::clone(&proposal_id);
     batcher.expect_get_proposal_content().times(1).returning(move |input| {
@@ -201,16 +198,6 @@ async fn build_proposal_setup(
             }),
         })
     });
-    let (default_deps, _network) = default_context_dependencies();
-    let context_deps = SequencerConsensusContextDeps {
-        batcher: Arc::new(batcher),
-        cende_ambassador: Arc::new(mock_cende_context),
-        ..default_deps
-    };
-    let mut context = setup_with_custom_mocks(context_deps);
-    let init = ProposalInit::default();
-
-    (context.build_proposal(init, TIMEOUT).await, context, _network)
 }
 
 // Returns a mock CendeContext that will return a successful write_prev_height_blob.
@@ -563,7 +550,12 @@ async fn interrupt_active_proposal() {
 async fn build_proposal() {
     let before: u64 =
         chrono::Utc::now().timestamp().try_into().expect("Timestamp conversion failed");
-    let (fin_receiver, _, mut network) = build_proposal_setup(success_cende_ammbassador()).await;
+    let mut batcher = MockBatcherClient::new();
+    setup_batcher_for_build(&mut batcher, BlockNumber(0)).await;
+    let (default_deps, mut network) = default_context_dependencies();
+    let context_deps = SequencerConsensusContextDeps { batcher: Arc::new(batcher), ..default_deps };
+    let mut context = setup_with_custom_mocks(context_deps);
+    let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await;
     // Test proposal parts.
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
     assert_eq!(receiver.next().await.unwrap(), ProposalPart::Init(ProposalInit::default()));
@@ -596,9 +588,17 @@ async fn build_proposal_cende_failure() {
         .expect_write_prev_height_blob()
         .times(1)
         .return_once(|_height| tokio::spawn(ready(false)));
+    let mut batcher = MockBatcherClient::new();
+    setup_batcher_for_build(&mut batcher, BlockNumber(0)).await;
+    let (default_deps, _network) = default_context_dependencies();
+    let context_deps = SequencerConsensusContextDeps {
+        batcher: Arc::new(batcher),
+        cende_ambassador: Arc::new(mock_cende_context),
+        ..default_deps
+    };
+    let mut context = setup_with_custom_mocks(context_deps);
 
-    let (fin_receiver, _, _network) = build_proposal_setup(mock_cende_context).await;
-
+    let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await;
     assert_eq!(fin_receiver.await, Err(Canceled));
 }
 
@@ -609,9 +609,17 @@ async fn build_proposal_cende_incomplete() {
         .expect_write_prev_height_blob()
         .times(1)
         .return_once(|_height| tokio::spawn(pending()));
+    let mut batcher = MockBatcherClient::new();
+    setup_batcher_for_build(&mut batcher, BlockNumber(0)).await;
+    let (default_deps, _network) = default_context_dependencies();
+    let context_deps = SequencerConsensusContextDeps {
+        batcher: Arc::new(batcher),
+        cende_ambassador: Arc::new(mock_cende_context),
+        ..default_deps
+    };
+    let mut context = setup_with_custom_mocks(context_deps);
 
-    let (fin_receiver, _, _network) = build_proposal_setup(mock_cende_context).await;
-
+    let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await;
     assert_eq!(fin_receiver.await, Err(Canceled));
 }
 
@@ -654,9 +662,13 @@ async fn batcher_not_ready(#[case] proposer: bool) {
 
 #[tokio::test]
 async fn propose_then_repropose() {
+    let mut batcher = MockBatcherClient::new();
+    setup_batcher_for_build(&mut batcher, BlockNumber(0)).await;
+    let (default_deps, mut network) = default_context_dependencies();
+    let context_deps = SequencerConsensusContextDeps { batcher: Arc::new(batcher), ..default_deps };
+    let mut context = setup_with_custom_mocks(context_deps);
     // Build proposal.
-    let (fin_receiver, mut context, mut network) =
-        build_proposal_setup(success_cende_ammbassador()).await;
+    let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await;
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
     // Receive the proposal parts.
     let _init = receiver.next().await.unwrap();
@@ -712,25 +724,7 @@ async fn decision_reached_sends_correct_values() {
     //
     // 1. Build proposal setup starts.
     let mut batcher = MockBatcherClient::new();
-
-    batcher.expect_propose_block().times(1).returning(|_| Ok(()));
-
-    batcher
-        .expect_start_height()
-        .withf(|input| input.height == BlockNumber(0))
-        .return_once(|_| Ok(()));
-    batcher.expect_get_proposal_content().times(1).returning(move |_| {
-        Ok(GetProposalContentResponse {
-            content: GetProposalContent::Txs(INTERNAL_TX_BATCH.clone()),
-        })
-    });
-    batcher.expect_get_proposal_content().times(1).returning(move |_| {
-        Ok(GetProposalContentResponse {
-            content: GetProposalContent::Finished(ProposalCommitment {
-                state_diff_commitment: STATE_DIFF_COMMITMENT,
-            }),
-        })
-    });
+    setup_batcher_for_build(&mut batcher, BlockNumber(0)).await;
 
     const BLOCK_TIME_STAMP_SECONDS: u64 = 123456;
     let mut clock = MockClock::new();
