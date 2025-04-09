@@ -108,7 +108,9 @@ pub(crate) fn get_n_blocks<S: StateReader>(
 }
 
 pub(crate) fn create_block_additional_hints<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    // TODO(Nimrod): Verify hint implementation once syscall handlers are per block.
+    hint_processor.execution_helpers_manager.increment_current_helper_index();
+    Ok(())
 }
