@@ -9,6 +9,7 @@ use apollo_node::config::component_execution_config::{
 };
 use apollo_node::config::node_config::SequencerNodeConfig;
 
+use super::BINARY_NAME;
 use crate::deployment_definitions::{deployment_file_path, Environment, DEPLOYMENTS};
 
 /// Test that the deployment file is up to date. To update it run:
@@ -20,6 +21,7 @@ fn deployment_files_are_up_to_date() {
         serialize_to_file_test(
             deployment_preset.get_deployment(),
             deployment_preset.get_dump_file_path().to_str().unwrap(),
+            BINARY_NAME,
         );
 
         // TODO(Tsabary): test that the dumped app-config files are up to date, i.e., their current

@@ -24,6 +24,8 @@ const APP_CONFIGS_DIR_NAME: &str = "app_configs/";
 
 type DeploymentFn = fn() -> DeploymentAndPreset;
 
+pub const BINARY_NAME: &str = "deployment_generator";
+
 pub const DEPLOYMENTS: &[DeploymentFn] = &[
     system_test_distributed_deployment,
     system_test_consolidated_deployment,

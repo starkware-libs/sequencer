@@ -11,6 +11,8 @@ use serde_json::Value;
 use starknet_api::core::ChainId;
 
 use crate::deployment_definitions::Environment;
+#[cfg(test)]
+use crate::deployment_definitions::BINARY_NAME;
 use crate::service::{DeploymentName, Service, ServiceName};
 
 const DEPLOYMENT_IMAGE: &str = "ghcr.io/starkware-libs/sequencer/sequencer:dev";
@@ -133,6 +135,7 @@ impl Deployment {
             serialize_to_file_test(
                 value,
                 config_path.to_str().expect("Should be able to convert path to string"),
+                BINARY_NAME,
             );
         }
     }
