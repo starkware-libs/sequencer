@@ -534,17 +534,20 @@ fn test_contract_cache_is_used() {
     // cache.
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
     let class_hash = test_contract.get_class_hash();
-    let contract_class = test_contract.get_runnable_class();
+    let contract_class = test_contract.get_cached_class();
     let mut reader = DictStateReader::default();
-    reader.class_hash_to_class.insert(class_hash, contract_class.clone());
+    reader.class_hash_to_cached_class.insert(class_hash, contract_class.clone());
     let state = CachedState::new(reader);
 
     // Assert local cache is initialized empty.
     assert!(state.class_hash_to_class.borrow().get(&class_hash).is_none());
 
     // Check state uses the cache.
-    assert_eq!(state.get_compiled_class(class_hash).unwrap(), contract_class);
-    assert_eq!(state.class_hash_to_class.borrow().get(&class_hash).unwrap(), &contract_class);
+    assert_eq!(state.get_compiled_class(class_hash).unwrap(), contract_class.to_runnable());
+    assert_eq!(
+        state.class_hash_to_class.borrow().get(&class_hash).unwrap(),
+        &contract_class.to_runnable()
+    );
 }
 
 #[test]
