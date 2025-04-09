@@ -12,3 +12,5 @@ define_metrics!(
             init=0}
     }
 );
+
+pub const STATE_READER_METRIC_RATE_DURATION: &str = "5m";
