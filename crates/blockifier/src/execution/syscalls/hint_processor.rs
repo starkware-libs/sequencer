@@ -716,8 +716,8 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         self.base.context.gas_costs().base.syscall_base_gas_cost
     }
 
-    fn update_revert_gas_with_next_remaining_gas(&mut self, remaining_gas: u64) {
-        self.base.context.update_revert_gas_with_next_remaining_gas(GasAmount(remaining_gas));
+    fn update_revert_gas_with_next_remaining_gas(&mut self, remaining_gas: GasAmount) {
+        self.base.context.update_revert_gas_with_next_remaining_gas(remaining_gas);
     }
 
     fn call_contract(
