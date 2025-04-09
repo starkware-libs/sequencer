@@ -1,6 +1,7 @@
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::hint_errors::HintError;
 use cairo_vm::vm::vm_core::VirtualMachine;
+use starknet_api::execution_resources::GasAmount;
 use starknet_types_core::felt::Felt;
 
 use crate::blockifier_versioned_constants::SyscallGasCost;
@@ -136,7 +137,7 @@ pub trait SyscallExecutor {
 
     fn get_syscall_base_gas_cost(&self) -> u64;
 
-    fn update_revert_gas_with_next_remaining_gas(&mut self, next_remaining_gas: u64);
+    fn update_revert_gas_with_next_remaining_gas(&mut self, next_remaining_gas: GasAmount);
 
     fn execute_syscall<Request, Response, ExecuteCallback>(
         &mut self,
@@ -198,7 +199,7 @@ pub trait SyscallExecutor {
         //    failure will be a Cairo1 revert (and the gas consumed on the call info will override
         //    the current tracked value), or we will pass through another syscall before failing -
         //    and by induction (we will reach this point again), the gas will be charged correctly.
-        self.update_revert_gas_with_next_remaining_gas(remaining_gas);
+        self.update_revert_gas_with_next_remaining_gas(GasAmount(remaining_gas));
 
         let original_response = execute_callback(request, vm, self, &mut remaining_gas);
         let response = match original_response {
