@@ -166,6 +166,7 @@ pub fn create_node_config(
     base_layer_config: EthereumBaseLayerConfig,
     block_max_capacity_sierra_gas: GasAmount,
     validator_id: ValidatorId,
+    validate_non_zero_resource_bounds: bool,
 ) -> (SequencerNodeConfig, ConfigPointersMap) {
     let recorder_url = consensus_manager_config.cende_config.recorder_url.clone();
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
@@ -174,7 +175,8 @@ pub fn create_node_config(
         chain_info.clone(),
         block_max_capacity_sierra_gas,
     );
-    let gateway_config = create_gateway_config(chain_info.clone());
+    let gateway_config =
+        create_gateway_config(chain_info.clone(), validate_non_zero_resource_bounds);
     let l1_scraper_config =
         L1ScraperConfig { chain_id: chain_info.chain_id.clone(), ..Default::default() };
     let l1_provider_config = L1ProviderConfig {
@@ -596,9 +598,12 @@ where
     tx_hashes
 }
 
-pub fn create_gateway_config(chain_info: ChainInfo) -> GatewayConfig {
+pub fn create_gateway_config(
+    chain_info: ChainInfo,
+    validate_non_zero_resource_bounds: bool,
+) -> GatewayConfig {
     let stateless_tx_validator_config = StatelessTransactionValidatorConfig {
-        validate_non_zero_resource_bounds: true,
+        validate_non_zero_resource_bounds,
         max_calldata_length: 10,
         max_signature_length: 2,
         ..Default::default()

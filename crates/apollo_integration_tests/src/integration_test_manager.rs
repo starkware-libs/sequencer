@@ -801,6 +801,7 @@ pub async fn get_sequencer_setup_configs(
         );
 
         // Derive the configuration for the sequencer node.
+        let validate_non_zero_resource_bounds = true;
         let (config, config_pointers_map) = create_node_config(
             &mut config_available_ports,
             chain_info,
@@ -813,6 +814,7 @@ pub async fn get_sequencer_setup_configs(
             base_layer_config.clone(),
             BLOCK_MAX_CAPACITY_N_STEPS,
             validator_id,
+            validate_non_zero_resource_bounds,
         );
         let base_app_config = DeploymentBaseAppConfig::new(
             config.clone(),
