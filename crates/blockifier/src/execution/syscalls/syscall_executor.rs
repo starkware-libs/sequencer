@@ -124,7 +124,18 @@ pub trait SyscallExecutor {
             SyscallSelector::StorageWrite => {
                 self.execute_syscall(vm, selector, Self::storage_write)
             }
-            _ => Err(HintError::UnknownHint(
+            // Explicitly list unsupported syscalls, so compiler can catch if a syscall is missing.
+            SyscallSelector::DelegateCall
+            | SyscallSelector::DelegateL1Handler
+            | SyscallSelector::GetBlockNumber
+            | SyscallSelector::GetBlockTimestamp
+            | SyscallSelector::GetCallerAddress
+            | SyscallSelector::GetContractAddress
+            | SyscallSelector::GetSequencerAddress
+            | SyscallSelector::GetTxInfo
+            | SyscallSelector::GetTxSignature
+            | SyscallSelector::KeccakRound
+            | SyscallSelector::LibraryCallL1Handler => Err(HintError::UnknownHint(
                 format!("Unsupported syscall selector {selector:?}.").into(),
             )),
         }
