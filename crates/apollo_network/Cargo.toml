@@ -10,6 +10,7 @@ testing = []
 
 [dependencies]
 apollo_config.workspace = true
+apollo_infra_utils.workspace = true
 apollo_metrics.workspace = true
 apollo_network_types.workspace = true
 async-stream.workspace = true
@@ -41,7 +42,6 @@ tokio-retry.workspace = true
 tracing.workspace = true
 unsigned-varint = { workspace = true, features = ["std"] }
 validator = { workspace = true, features = ["derive"] }
-
 
 [dev-dependencies]
 assert_matches.workspace = true

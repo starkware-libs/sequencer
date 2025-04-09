@@ -7,6 +7,7 @@ use apollo_config::converters::{
 };
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_infra_utils::dump_debug::DumpDebug;
 use futures::future::BoxFuture;
 use futures::FutureExt;
 use libp2p::swarm::dial_opts::DialOpts;
@@ -294,5 +295,21 @@ impl BridgedBehaviour for PeerManager {
             }
             _ => {}
         }
+    }
+}
+
+impl DumpDebug for PeerManager {
+    fn dump_debug(&self) -> String {
+        format!(
+            "PeerManager {{ peers: {:?}, session_to_peer_map: {:?}, pending_events: {:?}, \
+             peers_pending_dial_with_sessions: {:?}, sessions_received_when_no_peers: {:?}, \
+             connections_for_unknown_peers: {:?} }}",
+            self.peers,
+            self.session_to_peer_map,
+            self.pending_events,
+            self.peers_pending_dial_with_sessions,
+            self.sessions_received_when_no_peers,
+            self.connections_for_unknown_peers
+        )
     }
 }
