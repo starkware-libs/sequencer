@@ -610,7 +610,11 @@ async fn test_validate_block_l1_handler_validation_error(#[case] status: Invalid
 
     assert_matches!(
         result,
-        Err(BlockBuilderError::FailOnError(FailOnErrorCause::L1HandlerTransactionValidationFailed)),
+        Err(BlockBuilderError::FailOnError(
+            FailOnErrorCause::L1HandlerTransactionValidationFailed(
+                TransactionProviderError::L1HandlerTransactionValidationFailed { .. }
+            )
+        )),
         "Expected FailOnError for validation status: {status:?}"
     );
 }

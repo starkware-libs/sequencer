@@ -80,7 +80,7 @@ pub enum FailOnErrorCause {
     #[error("Transaction failed: {0}")]
     TransactionFailed(BlockifierTransactionExecutorError),
     #[error("L1 Handler transaction validation failed")]
-    L1HandlerTransactionValidationFailed,
+    L1HandlerTransactionValidationFailed(TransactionProviderError),
 }
 
 #[cfg_attr(test, derive(Clone))]
@@ -205,11 +205,11 @@ impl BlockBuilderTrait for BlockBuilder {
                 return Err(BlockBuilderError::Aborted);
             }
             let next_txs = match self.tx_provider.get_txs(self.tx_chunk_size).await {
-                Err(TransactionProviderError::L1HandlerTransactionValidationFailed { .. })
+                Err(e @ TransactionProviderError::L1HandlerTransactionValidationFailed { .. })
                     if self.execution_params.fail_on_err =>
                 {
                     return Err(BlockBuilderError::FailOnError(
-                        L1HandlerTransactionValidationFailed,
+                        L1HandlerTransactionValidationFailed(e),
                     ));
                 }
                 Err(err) => {
