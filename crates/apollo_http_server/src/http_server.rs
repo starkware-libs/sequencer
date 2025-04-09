@@ -11,7 +11,7 @@ use axum::http::HeaderMap;
 use axum::routing::{get, post};
 use axum::{async_trait, Json, Router};
 use starknet_api::rpc_transaction::RpcTransaction;
-use tracing::{debug, info, instrument, trace};
+use tracing::{debug, info, instrument};
 
 use crate::config::HttpServerConfig;
 use crate::deprecated_gateway_transaction::DeprecatedGatewayTransactionV3;
@@ -130,7 +130,8 @@ async fn add_tx_inner(
 
 fn record_added_transactions(add_tx_result: &HttpServerResult<GatewayOutput>, region: &str) {
     if let Ok(gateway_output) = add_tx_result {
-        trace!(
+        // TODO(Arni): Reconsider the tracing level for this log.
+        info!(
             "Recorded transaction with hash: {} from region: {}",
             gateway_output.transaction_hash(),
             region
