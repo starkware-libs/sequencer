@@ -1,9 +1,11 @@
 use starknet_api::core::ClassHash;
 
+use super::errors::StateError;
 use super::global_cache::CachedClass;
 use super::state_api::{StateReader, StateResult};
 use crate::execution::contract_class::RunnableCompiledClass;
 use crate::state::contract_class_manager::ContractClassManager;
+use crate::test_utils::dict_state_reader::DictStateReader;
 
 pub trait SupportsClassCaching {
     fn get_cached_class(&self, class_hash: ClassHash) -> StateResult<CachedClass>;
@@ -36,5 +38,15 @@ impl StateReaderWithClassCompilation {
                 cached_class.to_runnable()
             });
         Ok(runnable_class)
+    }
+}
+
+impl SupportsClassCaching for DictStateReader {
+    fn get_cached_class(&self, class_hash: ClassHash) -> StateResult<CachedClass> {
+        let cached_class = self.class_hash_to_cached_class.get(&class_hash).cloned();
+        match cached_class {
+            Some(cached_class) => Ok(cached_class),
+            _ => Err(StateError::UndeclaredClassHash(class_hash)),
+        }
     }
 }
