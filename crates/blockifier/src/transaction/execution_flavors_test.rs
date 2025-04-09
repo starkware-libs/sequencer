@@ -679,7 +679,7 @@ fn test_simulate_validate_charge_fee_mid_execution(
         u64_from_usize(
             get_const_syscall_resources(SyscallSelector::CallContract).n_steps
                 + get_tx_resources(TransactionType::InvokeFunction).n_steps
-                + 5730,
+                + 5728,
         )
         .into(),
         validate,
@@ -828,11 +828,11 @@ fn test_simulate_validate_charge_fee_post_execution(
     // `__validate__` and overhead resources + number of reverted steps, comes out slightly more
     // than the gas bound.
     let (revert_gas_usage, revert_fee) =
-        gas_and_fee((invoke_steps + 4130).into(), validate, &fee_type);
+        gas_and_fee((invoke_steps + 4128).into(), validate, &fee_type);
     let (unlimited_gas_used, unlimited_fee) = gas_and_fee(
         (invoke_steps
             + u64_from_usize(
-                get_const_syscall_resources(SyscallSelector::CallContract).n_steps + 4130,
+                get_const_syscall_resources(SyscallSelector::CallContract).n_steps + 4128,
             ))
         .into(),
         validate,
@@ -881,13 +881,13 @@ fn test_simulate_validate_charge_fee_post_execution(
     let (success_actual_gas, actual_fee) = gas_and_fee(
         (u64_from_usize(get_const_syscall_resources(SyscallSelector::CallContract).n_steps)
             + invoke_steps
-            + 4328)
+            + 4321)
             .into(),
         validate,
         &fee_type,
     );
     let (fail_actual_gas, fail_actual_fee) =
-        gas_and_fee((invoke_steps + 2252).into(), validate, &fee_type);
+        gas_and_fee((invoke_steps + 2245).into(), validate, &fee_type);
     assert!(felt!(actual_fee.0) < current_balance);
     let transfer_amount = current_balance - Felt::from(actual_fee.0 / 2);
     let recipient = felt!(7_u8);
