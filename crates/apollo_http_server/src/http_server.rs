@@ -44,11 +44,12 @@ pub struct AppState {
 impl HttpServer {
     pub fn new(config: HttpServerConfig, gateway_client: SharedGatewayClient) -> Self {
         let app_state = AppState { gateway_client };
-        init_metrics();
         HttpServer { config, app_state }
     }
 
     pub async fn run(&mut self) -> Result<(), HttpServerRunError> {
+        init_metrics();
+
         // Parses the bind address from HttpServerConfig, returning an error for invalid addresses.
         let HttpServerConfig { ip, port } = self.config;
         let addr = SocketAddr::new(ip, port);
