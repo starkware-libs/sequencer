@@ -373,6 +373,13 @@
         "extra_params": {}
       },
       {
+        "title": "mempool_delayed_declare_size",
+        "description": "The average number of delayed declare transactions",
+        "type": "graph",
+        "expr": "avg_over_time(mempool_delayed_declare_size[2m])",
+        "extra_params": {}
+      },
+      {
         "title": "mempool_transaction_time_spent",
         "description": "The time (secs) that a transaction spent in the mempool",
         "type": "graph",

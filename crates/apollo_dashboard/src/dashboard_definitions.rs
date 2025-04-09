@@ -47,6 +47,7 @@ use apollo_http_server::metrics::ADDED_TRANSACTIONS_TOTAL;
 use apollo_mempool::metrics::{
     LABEL_NAME_DROP_REASON,
     LABEL_NAME_TX_TYPE as MEMPOOL_LABEL_NAME_TX_TYPE,
+    MEMPOOL_DELAYED_DECLARES_SIZE,
     MEMPOOL_GET_TXS_SIZE,
     MEMPOOL_PENDING_QUEUE_SIZE,
     MEMPOOL_POOL_SIZE,
@@ -266,6 +267,13 @@ const PANEL_MEMPOOL_GET_TXS_SIZE: Panel = Panel::new(
     PanelType::Graph,
 );
 
+const PANEL_MEMPOOL_DELAYED_DECLARES_SIZE: Panel = Panel::new(
+    MEMPOOL_DELAYED_DECLARES_SIZE.get_name(),
+    "The average number of delayed declare transactions",
+    formatcp!("avg_over_time({}[2m])", MEMPOOL_DELAYED_DECLARES_SIZE.get_name()),
+    PanelType::Graph,
+);
+
 const PANEL_MEMPOOL_TRANSACTION_TIME_SPENT: Panel = Panel::new(
     TRANSACTION_TIME_SPENT_IN_MEMPOOL.get_name(),
     TRANSACTION_TIME_SPENT_IN_MEMPOOL.get_description(),
@@ -407,6 +415,7 @@ pub const MEMPOOL_ROW: Row = Row::new(
         PANEL_MEMPOOL_PENDING_QUEUE_SIZE,
         PANEL_MEMPOOL_TOTAL_SIZE_IN_BYTES,
         PANEL_MEMPOOL_GET_TXS_SIZE,
+        PANEL_MEMPOOL_DELAYED_DECLARES_SIZE,
         PANEL_MEMPOOL_TRANSACTION_TIME_SPENT,
     ],
 );
