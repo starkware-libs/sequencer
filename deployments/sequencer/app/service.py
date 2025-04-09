@@ -4,6 +4,12 @@ import typing
 from constructs import Construct
 from cdk8s import Names, ApiObjectMetadata
 from imports import k8s
+from imports.com.google.cloud import (
+    BackendConfig,
+    BackendConfigSpec,
+    BackendConfigSpecHealthCheck,
+    BackendConfigSpecConnectionDraining,
+)
 from imports.io.external_secrets import (
     ExternalSecretV1Beta1 as ExternalSecret,
     ExternalSecretV1Beta1Spec as ExternalSecretSpec,
@@ -78,6 +84,17 @@ class ServiceApp(Construct):
                 key="cloud.google.com/neg", value='{"ingress": true}'
             )
             self.ingress = self._get_ingress()
+
+            if not self.service_topology.ingress["internal"]:
+                self.backend_config = self._get_backend_config()
+                self.service.metadata.add_annotation(
+                    key="cloud.google.com/backend-config",
+                    value=json.dumps(
+                        {
+                            "default": f"{self.node.id}-backend-config",
+                        }
+                    ),
+                )
 
         if self.service_topology.storage is not None:
             self.pvc = self._get_persistent_volume_claim()
@@ -502,6 +519,30 @@ class ServiceApp(Construct):
                     name=backend,
                     port=k8s.ServiceBackendPort(number=port),
                 )
+            ),
+        )
+
+    def _get_backend_config(self) -> BackendConfig:
+        return BackendConfig(
+            self,
+            "backend-config",
+            metadata=ApiObjectMetadata(
+                name=f"{self.node.id}-backend-config",
+                labels=self.labels,
+            ),
+            spec=BackendConfigSpec(
+                connection_draining=BackendConfigSpecConnectionDraining(
+                    draining_timeout_sec=const.BACKEND_CONFIG_CONNECTION_DRAINING_SECONDS
+                ),
+                timeout_sec=const.BACKEND_CONFIG_TIMEOUT_SECONDS,
+                health_check=BackendConfigSpecHealthCheck(
+                    port=self._get_config_attr("monitoring_endpoint_config.port"),
+                    request_path=const.MONITORING_METRICS_ENDPOINT,
+                    check_interval_sec=const.BACKEND_CONFIG_HEALTH_CHECK_INTERVAL_SECONDS,
+                    timeout_sec=const.BACKEND_CONFIG_HEALTH_CHECK_TIMEOUT_SECONDS,
+                    healthy_threshold=const.BACKEND_CONFIG_HEALTHY_THRESHOLD,
+                    unhealthy_threshold=const.BACKEND_CONFIG_UNHEALTHY_THRESHOLD,
+                ),
             ),
         )
 
