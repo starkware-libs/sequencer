@@ -4,7 +4,7 @@ use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::execution_resources::GasAmount;
 use starknet_types_core::felt::Felt;
 
-use crate::blockifier_versioned_constants::SyscallGasCost;
+use crate::blockifier_versioned_constants::{GasCostsError, SyscallGasCost};
 use crate::execution::common_hints::HintExecutionResult;
 use crate::execution::syscalls::hint_processor::{SyscallExecutionError, OUT_OF_GAS_ERROR};
 use crate::execution::syscalls::secp::{
@@ -142,7 +142,10 @@ pub trait SyscallExecutor {
         }
     }
 
-    fn get_gas_cost_from_selector(&self, selector: &SyscallSelector) -> SyscallGasCost;
+    fn get_gas_cost_from_selector(
+        &self,
+        selector: &SyscallSelector,
+    ) -> Result<SyscallGasCost, GasCostsError>;
 
     fn get_mut_syscall_ptr(&mut self) -> &mut Relocatable;
 
@@ -166,7 +169,12 @@ pub trait SyscallExecutor {
             &mut u64, // Remaining gas.
         ) -> SyscallResult<Response>,
     {
-        let syscall_gas_cost = self.get_gas_cost_from_selector(&selector);
+        let syscall_gas_cost = self.get_gas_cost_from_selector(&selector).map_err(|e| {
+            HintError::CustomHint(
+                format!("Failed to get gas cost for syscall selector {selector:?}. Error: {e:?}")
+                    .into(),
+            )
+        })?;
 
         let SyscallRequestWrapper { gas_counter, request } =
             SyscallRequestWrapper::<Request>::read(vm, self.get_mut_syscall_ptr())?;
