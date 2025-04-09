@@ -715,6 +715,80 @@ async fn eth_to_fri_rate_out_of_range() {
     // TODO(guyn): How to check that the rejection is due to the eth_to_fri_rate?
 }
 
+#[rstest]
+#[case::maximum(true)]
+#[case::minimum(false)]
+#[tokio::test]
+async fn gas_price_limits(#[case] maximum: bool) {
+    // Set up a batcher that successfully validates.
+    let mut batcher = MockBatcherClient::new();
+    batcher
+        .expect_start_height()
+        .times(1)
+        .withf(|input| input.height == BlockNumber(0))
+        .return_once(|_| Ok(()));
+    batcher.expect_validate_block().times(1).returning(|_| Ok(()));
+    batcher.expect_send_proposal_content().times(1).returning(|input: SendProposalContentInput| {
+        assert!(matches!(input.content, SendProposalContent::Finish));
+        Ok(SendProposalContentResponse {
+            response: ProposalStatus::Finished(ProposalCommitment {
+                state_diff_commitment: STATE_DIFF_COMMITMENT,
+            }),
+        })
+    });
+    let (default_deps, _network) = default_context_dependencies();
+    let context_deps = SequencerConsensusContextDeps { batcher: Arc::new(batcher), ..default_deps };
+    let mut context = setup_with_custom_mocks(context_deps);
+
+    let min_gas_price = context.config.min_l1_gas_price_wei;
+    let min_data_price = context.config.min_l1_data_gas_price_wei;
+    let max_gas_price = context.config.max_l1_gas_price_wei;
+    let max_data_price = context.config.max_l1_data_gas_price_wei;
+
+    let price = if maximum {
+        // Take the higher maximum price and go much higher than that.
+        // If we don't go much higher, the l1_data_gas_price_multiplier will
+        // lower the data gas price below the clamp limit.
+        std::cmp::max(max_gas_price, max_data_price) * 100
+    } else {
+        0
+    };
+    let mut l1_gas_price_provider = MockL1GasPriceProviderClient::new();
+    l1_gas_price_provider.expect_get_price_info().returning(move |_| {
+        Ok(PriceInfo { base_fee_per_gas: GasPrice(price), blob_fee: GasPrice(price) })
+    });
+    context.l1_gas_price_provider = Arc::new(l1_gas_price_provider);
+    context.set_height_and_round(BlockNumber(0), 0).await;
+    let (mut content_sender, content_receiver) = mpsc::channel(context.config.proposal_buffer_size);
+
+    let mut block_info = block_info(BlockNumber(0));
+
+    if maximum {
+        // Set the gas price to the maximum value.
+        block_info.l1_gas_price_wei = GasPrice(max_gas_price);
+        block_info.l1_data_gas_price_wei = GasPrice(max_data_price);
+    } else {
+        // Set the gas price to the minimum value.
+        block_info.l1_gas_price_wei = GasPrice(min_gas_price);
+        block_info.l1_data_gas_price_wei = GasPrice(min_data_price);
+    }
+
+    // Send the block info and then send the fin.
+    content_sender.send(ProposalPart::BlockInfo(block_info).clone()).await.unwrap();
+    content_sender
+        .send(ProposalPart::Fin(ProposalFin {
+            proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+        }))
+        .await
+        .unwrap();
+
+    // Even though we used the minimum/maximum gas price, not the values we gave the provider,
+    // the proposal should be still be valid due to the clamping of limit prices.
+    let fin_receiver =
+        context.validate_proposal(ProposalInit::default(), TIMEOUT, content_receiver).await;
+    assert_eq!(fin_receiver.await, Ok(BlockHash(STATE_DIFF_COMMITMENT.0.0)));
+}
+
 #[tokio::test]
 async fn decision_reached_sends_correct_values() {
     let recorder = PrometheusBuilder::new().build_recorder();
