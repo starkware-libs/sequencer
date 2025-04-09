@@ -366,6 +366,28 @@ fn test_declare_contract_class_size_too_long() {
     )
 }
 
+#[test]
+fn test_declare_contract_bytecode_size_too_long() {
+    let sierra_program = create_sierra_program(&MIN_SIERRA_VERSION);
+    assert!(sierra_program.len() > 1);
+    let tx_validator = StatelessTransactionValidator {
+        config: StatelessTransactionValidatorConfig {
+            max_contract_bytecode_size: sierra_program.len() - 1,
+            ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
+        },
+    };
+
+    let tx = rpc_declare_tx(
+        declare_tx_args!(),
+        SierraContractClass { sierra_program, ..Default::default() },
+    );
+
+    assert_matches!(
+        tx_validator.validate(&tx),
+        Err(StatelessTransactionValidatorError::ContractBytecodeSizeTooLarge { .. })
+    );
+}
+
 #[rstest]
 #[case::valid(
     vec![

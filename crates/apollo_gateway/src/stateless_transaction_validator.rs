@@ -236,6 +236,13 @@ impl StatelessTransactionValidator {
         &self,
         contract_class: &starknet_api::state::SierraContractClass,
     ) -> StatelessTransactionValidatorResult<()> {
+        if contract_class.sierra_program.len() > self.config.max_contract_bytecode_size {
+            return Err(StatelessTransactionValidatorError::ContractBytecodeSizeTooLarge {
+                contract_bytecode_size: contract_class.sierra_program.len(),
+                max_contract_bytecode_size: self.config.max_contract_bytecode_size,
+            });
+        }
+
         let contract_class_object_size = serde_json::to_string(&contract_class)
             .expect("Unexpected error serializing contract class.")
             .len();
