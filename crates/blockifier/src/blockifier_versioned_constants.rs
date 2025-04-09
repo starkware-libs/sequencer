@@ -29,7 +29,7 @@ use crate::execution::execution_utils::poseidon_hash_many_cost;
 use crate::execution::syscalls::hint_processor::SyscallUsageMap;
 use crate::execution::syscalls::SyscallSelector;
 use crate::fee::resources::StarknetResources;
-use crate::utils::get_gas_cost_from_vm_resources;
+use crate::utils::{get_gas_cost_from_vm_resources, usize_from_u64};
 
 #[cfg(test)]
 #[path = "versioned_constants_test.rs"]
@@ -319,12 +319,16 @@ impl VersionedConstants {
             .get(syscall_selector)
             .expect("Fetching the execution resources of a syscall should not fail.");
 
-        let mut base_gas_cost = get_gas_cost_from_vm_resources(&vm_resources.constant, gas_costs);
+        let mut base_gas_cost =
+            get_gas_cost_from_vm_resources(&vm_resources.constant, gas_costs, 1);
 
         // The minimum total cost is `syscall_base_gas_cost`, which is pre-charged by the compiler.
         base_gas_cost = std::cmp::max(gas_costs.base.syscall_base_gas_cost, base_gas_cost);
-        let linear_gas_cost =
-            get_gas_cost_from_vm_resources(&vm_resources.calldata_factor, gas_costs);
+        let linear_gas_cost = get_gas_cost_from_vm_resources(
+            &vm_resources.calldata_factor.resources,
+            gas_costs,
+            vm_resources.calldata_factor.scaling_factor,
+        );
         SyscallGasCost { base: base_gas_cost, linear_factor: linear_gas_cost }
     }
 }
@@ -509,10 +513,10 @@ impl OsResources {
             .execute_txs_inner
             .values()
             .flat_map(|resources_params| {
-                [&resources_params.constant, &resources_params.calldata_factor]
+                [&resources_params.constant, &resources_params.calldata_factor.resources]
             })
             .chain(self.execute_syscalls.values().flat_map(|resources_params| {
-                [&resources_params.constant, &resources_params.calldata_factor]
+                [&resources_params.constant, &resources_params.calldata_factor.resources]
             }))
             .chain(std::iter::once(&self.compute_os_kzg_commitment_info));
         let builtin_names =
@@ -572,7 +576,10 @@ impl OsResources {
                     panic!("OS resources of syscall '{syscall_selector:?}' are unknown.")
                 });
             os_additional_resources += &(&(&syscall_resources.constant * syscall_usage.call_count)
-                + &(&syscall_resources.calldata_factor * syscall_usage.linear_factor));
+                + &(&syscall_resources.calldata_factor.resources
+                    * syscall_resources
+                        .calldata_factor
+                        .apply_scaling_factor(syscall_usage.linear_factor)));
         }
 
         os_additional_resources
@@ -590,7 +597,9 @@ impl OsResources {
         calldata_length: usize,
     ) -> ExecutionResources {
         let resources_vector = self.resources_params_for_tx_type(tx_type);
-        &resources_vector.constant + &(&(resources_vector.calldata_factor) * calldata_length)
+        &resources_vector.constant
+            + &(&(resources_vector.calldata_factor.resources)
+                * resources_vector.calldata_factor.apply_scaling_factor(calldata_length))
     }
 
     fn os_kzg_da_resources(&self, data_segment_length: usize) -> ExecutionResources {
@@ -1177,11 +1186,31 @@ pub enum GasCostsError {
     VirtualBuiltin,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize, Eq, PartialEq)]
+#[serde(try_from = "ResourceParamsRaw")]
+pub struct CallDataFactor {
+    pub resources: ExecutionResources,
+    pub scaling_factor: u64,
+}
+
+impl Default for CallDataFactor {
+    fn default() -> Self {
+        Self { resources: ExecutionResources::default(), scaling_factor: 1 }
+    }
+}
+
+impl CallDataFactor {
+    fn apply_scaling_factor(&self, calldata_factor: usize) -> usize {
+        let scaling_factor = usize_from_u64(self.scaling_factor).unwrap();
+        calldata_factor / scaling_factor
+    }
+}
+
 #[derive(Clone, Debug, Deserialize)]
 #[serde(try_from = "ResourceParamsRaw")]
 pub struct ResourcesParams {
     pub constant: ExecutionResources,
-    pub calldata_factor: ExecutionResources,
+    pub calldata_factor: CallDataFactor,
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -1190,31 +1219,65 @@ struct ResourceParamsRaw {
     raw_resource_params_as_dict: Map<String, Value>,
 }
 
+fn extract_resource_params_base(
+    mut json_data: ResourceParamsRaw,
+    main_field_name: &str,
+    optional_field_name: &str,
+    default_value: Value,
+) -> VersionedConstantsResult<(Value, Value)> {
+    let main_field_value = json_data.raw_resource_params_as_dict.remove(main_field_name);
+    let optional_field_value = json_data.raw_resource_params_as_dict.remove(optional_field_name);
+
+    match (main_field_value, optional_field_value) {
+        // Handle the case where both fields are present.
+        (Some(main_field_value), Some(optional_field_value)) => {
+            Ok((main_field_value, optional_field_value))
+        }
+        (Some(_), None) => Err(serde_json::Error::custom(format!(
+            "Malformed JSON: If `{main_field_name}` is present, then so should \
+             `{optional_field_name}`"
+        )))?,
+        (None, _) => {
+            // If the main filed name is not found, use the entire map for the main field and
+            // default for the optional field.
+            let entire_value = std::mem::take(&mut json_data.raw_resource_params_as_dict);
+            Ok((Value::Object(entire_value), default_value))
+        }
+    }
+}
+
 impl TryFrom<ResourceParamsRaw> for ResourcesParams {
     type Error = VersionedConstantsError;
 
-    fn try_from(mut json_data: ResourceParamsRaw) -> VersionedConstantsResult<Self> {
-        let constant_value = json_data.raw_resource_params_as_dict.remove("constant");
-        let calldata_factor_value = json_data.raw_resource_params_as_dict.remove("calldata_factor");
-
-        let (constant, calldata_factor) = match (constant_value, calldata_factor_value) {
-            (Some(constant), Some(calldata_factor)) => (constant, calldata_factor),
-            (Some(_), None) => {
-                return Err(serde_json::Error::custom(
-                    "Malformed JSON: If `constant` is present, then so should `calldata_factor`",
-                ))?;
-            }
-            (None, _) => {
-                // If `constant` is not found, use the entire map for `constant` and default
-                // `calldata_factor`
-                let entire_value = std::mem::take(&mut json_data.raw_resource_params_as_dict);
-                (Value::Object(entire_value), serde_json::to_value(ExecutionResources::default())?)
-            }
-        };
+    fn try_from(json_data: ResourceParamsRaw) -> VersionedConstantsResult<Self> {
+        let (constant, calldata_factor) = extract_resource_params_base(
+            json_data,
+            "constant",
+            "calldata_factor",
+            serde_json::to_value(CallDataFactor::default())?,
+        )?;
 
         Ok(Self {
             constant: serde_json::from_value(constant)?,
             calldata_factor: serde_json::from_value(calldata_factor)?,
+        })
+    }
+}
+
+impl TryFrom<ResourceParamsRaw> for CallDataFactor {
+    type Error = VersionedConstantsError;
+
+    fn try_from(json_data: ResourceParamsRaw) -> VersionedConstantsResult<Self> {
+        let (resources, scaling_factor) = extract_resource_params_base(
+            json_data,
+            "resources",
+            "scaling_factor",
+            Value::Number(1.into()),
+        )?;
+
+        Ok(Self {
+            resources: serde_json::from_value(resources)?,
+            scaling_factor: serde_json::from_value(scaling_factor)?,
         })
     }
 }
