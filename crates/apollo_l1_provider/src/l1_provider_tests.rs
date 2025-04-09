@@ -350,3 +350,14 @@ fn bootstrap_commit_block_received_twice_error_if_new_uncommitted_txs() {
         L1ProviderError::UnexpectedHeight { expected_height: BlockNumber(1), got: BlockNumber(0) }
     );
 }
+
+#[tokio::test]
+#[should_panic(expected = "Restart service")]
+async fn restart_service_if_initialized_in_steady_state() {
+    // Setup.
+    let mut l1_provider =
+        L1ProviderContentBuilder::new().with_state(ProviderState::Pending).build_into_l1_provider();
+
+    // Test.
+    l1_provider.initialize(vec![]).await.unwrap();
+}
