@@ -127,6 +127,7 @@ define_string_enum! {
         (CompressedDst),
         (CompressedStart),
         (ContractAddress),
+        (ContractClassComponentHashes),
         (ContractStateChanges),
         (DaSize),
         (DataEnd),
