@@ -8,7 +8,6 @@ use apollo_batcher_types::batcher_types::{
     GetProposalContent,
     GetProposalContentResponse,
     ProposalCommitment,
-    ProposalId,
     ProposalStatus,
     ProposeBlockInput,
     SendProposalContent,
@@ -200,6 +199,44 @@ async fn setup_batcher_for_build(batcher: &mut MockBatcherClient, block_number: 
     });
 }
 
+// Setup batcher client for proposal validation flow.
+async fn setup_batcher_for_validate(batcher: &mut MockBatcherClient, block_number: BlockNumber) {
+    let proposal_id = Arc::new(OnceLock::new());
+    let proposal_id_clone = Arc::clone(&proposal_id);
+    batcher.expect_validate_block().times(1).returning(move |input: ValidateBlockInput| {
+        proposal_id_clone.set(input.proposal_id).unwrap();
+        Ok(())
+    });
+    batcher
+        .expect_start_height()
+        .times(1)
+        .withf(move |input| input.height == block_number)
+        .return_once(|_| Ok(()));
+    let proposal_id_clone = Arc::clone(&proposal_id);
+    batcher.expect_send_proposal_content().times(1).returning(
+        move |input: SendProposalContentInput| {
+            assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
+            let SendProposalContent::Txs(txs) = input.content else {
+                panic!("Expected SendProposalContent::Txs, got {:?}", input.content);
+            };
+            assert_eq!(txs, *INTERNAL_TX_BATCH);
+            Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
+        },
+    );
+    let proposal_id_clone = Arc::clone(&proposal_id);
+    batcher.expect_send_proposal_content().times(1).returning(
+        move |input: SendProposalContentInput| {
+            assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
+            assert!(matches!(input.content, SendProposalContent::Finish));
+            Ok(SendProposalContentResponse {
+                response: ProposalStatus::Finished(ProposalCommitment {
+                    state_diff_commitment: STATE_DIFF_COMMITMENT,
+                }),
+            })
+        },
+    );
+}
+
 // Returns a mock CendeContext that will return a successful write_prev_height_blob.
 fn success_cende_ammbassador() -> MockCendeContext {
     let mut mock_cende = MockCendeContext::new();
@@ -240,40 +277,7 @@ async fn cancelled_proposal_aborts() {
 #[tokio::test]
 async fn validate_proposal_success() {
     let mut batcher = MockBatcherClient::new();
-    let proposal_id: Arc<OnceLock<ProposalId>> = Arc::new(OnceLock::new());
-    let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_validate_block().times(1).returning(move |input: ValidateBlockInput| {
-        proposal_id_clone.set(input.proposal_id).unwrap();
-        Ok(())
-    });
-    batcher
-        .expect_start_height()
-        .times(1)
-        .withf(|input| input.height == BlockNumber(0))
-        .return_once(|_| Ok(()));
-    let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_send_proposal_content().times(1).returning(
-        move |input: SendProposalContentInput| {
-            assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-            let SendProposalContent::Txs(txs) = input.content else {
-                panic!("Expected SendProposalContent::Txs, got {:?}", input.content);
-            };
-            assert_eq!(txs, *INTERNAL_TX_BATCH);
-            Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
-        },
-    );
-    let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_send_proposal_content().times(1).returning(
-        move |input: SendProposalContentInput| {
-            assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-            assert!(matches!(input.content, SendProposalContent::Finish));
-            Ok(SendProposalContentResponse {
-                response: ProposalStatus::Finished(ProposalCommitment {
-                    state_diff_commitment: STATE_DIFF_COMMITMENT,
-                }),
-            })
-        },
-    );
+    setup_batcher_for_validate(&mut batcher, BlockNumber(0)).await;
     let (default_deps, _network) = default_context_dependencies();
     let context_deps = SequencerConsensusContextDeps { batcher: Arc::new(batcher), ..default_deps };
     let mut context = setup_with_custom_mocks(context_deps);
@@ -326,28 +330,7 @@ async fn dont_send_block_info() {
 async fn repropose() {
     // Receive a proposal. Then re-retrieve it.
     let mut batcher = MockBatcherClient::new();
-    batcher.expect_validate_block().times(1).returning(move |_| Ok(()));
-    batcher
-        .expect_start_height()
-        .times(1)
-        .withf(|input| input.height == BlockNumber(0))
-        .return_once(|_| Ok(()));
-    batcher.expect_send_proposal_content().times(1).returning(
-        move |input: SendProposalContentInput| {
-            assert!(matches!(input.content, SendProposalContent::Txs(_)));
-            Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
-        },
-    );
-    batcher.expect_send_proposal_content().times(1).returning(
-        move |input: SendProposalContentInput| {
-            assert!(matches!(input.content, SendProposalContent::Finish));
-            Ok(SendProposalContentResponse {
-                response: ProposalStatus::Finished(ProposalCommitment {
-                    state_diff_commitment: STATE_DIFF_COMMITMENT,
-                }),
-            })
-        },
-    );
+    setup_batcher_for_validate(&mut batcher, BlockNumber(0)).await;
     let (default_deps, mut network) = default_context_dependencies();
     let context_deps = SequencerConsensusContextDeps { batcher: Arc::new(batcher), ..default_deps };
     let mut context = setup_with_custom_mocks(context_deps);
@@ -360,7 +343,7 @@ async fn repropose() {
     let block_info = ProposalPart::BlockInfo(block_info(BlockNumber(0)));
     content_sender.send(block_info.clone()).await.unwrap();
     let transactions =
-        ProposalPart::Transactions(TransactionBatch { transactions: vec![generate_invoke_tx(2)] });
+        ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() });
     content_sender.send(transactions.clone()).await.unwrap();
     let fin = ProposalPart::Fin(ProposalFin {
         proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
@@ -384,40 +367,7 @@ async fn repropose() {
 #[tokio::test]
 async fn proposals_from_different_rounds() {
     let mut batcher = MockBatcherClient::new();
-    let proposal_id: Arc<OnceLock<ProposalId>> = Arc::new(OnceLock::new());
-    let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_validate_block().times(1).returning(move |input: ValidateBlockInput| {
-        proposal_id_clone.set(input.proposal_id).unwrap();
-        Ok(())
-    });
-    batcher
-        .expect_start_height()
-        .times(1)
-        .withf(|input| input.height == BlockNumber(0))
-        .return_once(|_| Ok(()));
-    let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_send_proposal_content().times(1).returning(
-        move |input: SendProposalContentInput| {
-            assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-            let SendProposalContent::Txs(txs) = input.content else {
-                panic!("Expected SendProposalContent::Txs, got {:?}", input.content);
-            };
-            assert_eq!(txs, *INTERNAL_TX_BATCH);
-            Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
-        },
-    );
-    let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_send_proposal_content().times(1).returning(
-        move |input: SendProposalContentInput| {
-            assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-            assert!(matches!(input.content, SendProposalContent::Finish));
-            Ok(SendProposalContentResponse {
-                response: ProposalStatus::Finished(ProposalCommitment {
-                    state_diff_commitment: STATE_DIFF_COMMITMENT,
-                }),
-            })
-        },
-    );
+    setup_batcher_for_validate(&mut batcher, BlockNumber(0)).await;
     let (default_deps, _network) = default_context_dependencies();
     let context_deps = SequencerConsensusContextDeps { batcher: Arc::new(batcher), ..default_deps };
     let mut context = setup_with_custom_mocks(context_deps);
@@ -471,40 +421,7 @@ async fn proposals_from_different_rounds() {
 #[tokio::test]
 async fn interrupt_active_proposal() {
     let mut batcher = MockBatcherClient::new();
-    batcher
-        .expect_start_height()
-        .times(1)
-        .withf(|input| input.height == BlockNumber(0))
-        .return_once(|_| Ok(()));
-    batcher
-        .expect_validate_block()
-        .times(1)
-        .withf(|input| input.proposal_id == ProposalId(1))
-        .returning(|_| Ok(()));
-    batcher
-        .expect_send_proposal_content()
-        .withf(|input| {
-            input.proposal_id == ProposalId(1)
-                && input.content == SendProposalContent::Txs(INTERNAL_TX_BATCH.clone())
-        })
-        .times(1)
-        .returning(move |_| {
-            Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
-        });
-    batcher
-        .expect_send_proposal_content()
-        .withf(|input| {
-            input.proposal_id == ProposalId(1)
-                && matches!(input.content, SendProposalContent::Finish)
-        })
-        .times(1)
-        .returning(move |_| {
-            Ok(SendProposalContentResponse {
-                response: ProposalStatus::Finished(ProposalCommitment {
-                    state_diff_commitment: STATE_DIFF_COMMITMENT,
-                }),
-            })
-        });
+    setup_batcher_for_validate(&mut batcher, BlockNumber(0)).await;
     let (default_deps, _network) = default_context_dependencies();
     let context_deps = SequencerConsensusContextDeps { batcher: Arc::new(batcher), ..default_deps };
     let mut context = setup_with_custom_mocks(context_deps);
