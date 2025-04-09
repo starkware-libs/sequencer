@@ -54,13 +54,19 @@ async fn download_cairo_package(version: &String) {
     let filename = "release-x86_64-unknown-linux-musl.tar.gz";
     let package_url =
         format!("https://github.com/starkware-libs/cairo/releases/download/v{version}/{filename}");
-    let curl_command =
-        Command::new("curl").args(["-L", &package_url]).stdout(Stdio::piped()).spawn().unwrap();
-    run_and_verify_output(
-        Command::new("tar")
-            .args(["-xz", "-C", directory.to_str().unwrap()])
-            .stdin(Stdio::from(curl_command.stdout.unwrap())),
-    );
+    let curl_result = run_and_verify_output(Command::new("curl").args(["-L", &package_url]));
+    let mut tar_command = Command::new("tar")
+        .args(["-xz", "-C", directory.to_str().unwrap()])
+        .stdin(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let tar_command_stdin = tar_command.stdin.as_mut().unwrap();
+    tar_command_stdin.write_all(&curl_result.stdout).unwrap();
+    let output = tar_command.wait_with_output().unwrap();
+    if !output.status.success() {
+        let stderr_output = String::from_utf8(output.stderr).unwrap();
+        panic!("{stderr_output}");
+    }
     info!("Done.");
 }
 
