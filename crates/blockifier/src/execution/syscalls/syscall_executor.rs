@@ -1,7 +1,9 @@
 use cairo_vm::vm::errors::hint_errors::HintError;
 use cairo_vm::vm::vm_core::VirtualMachine;
 
-use super::secp::{
+use crate::execution::common_hints::HintExecutionResult;
+use crate::execution::syscalls::hint_processor::SyscallHintProcessor;
+use crate::execution::syscalls::secp::{
     SecpAddRequest,
     SecpAddResponse,
     SecpGetPointFromXRequest,
@@ -13,8 +15,6 @@ use super::secp::{
     SecpNewRequest,
     SecpNewResponse,
 };
-use crate::execution::common_hints::HintExecutionResult;
-use crate::execution::syscalls::hint_processor::SyscallHintProcessor;
 use crate::execution::syscalls::syscall_base::SyscallResult;
 use crate::execution::syscalls::{
     CallContractRequest,
@@ -230,48 +230,56 @@ pub trait SyscallExecutor {
         syscall_handler: &mut SyscallHintProcessor<'_>,
         remaining_gas: &mut u64,
     ) -> SyscallResult<SecpGetPointFromXResponse>;
+
     fn secp256k1_get_xy(
         request: SecpGetXyRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut SyscallHintProcessor<'_>,
         remaining_gas: &mut u64,
     ) -> SyscallResult<SecpGetXyResponse>;
+
     fn secp256k1_mul(
         request: SecpMulRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut SyscallHintProcessor<'_>,
         remaining_gas: &mut u64,
     ) -> SyscallResult<SecpMulResponse>;
+
     fn secp256k1_new(
         request: SecpNewRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut SyscallHintProcessor<'_>,
         remaining_gas: &mut u64,
     ) -> SyscallResult<SecpNewResponse>;
+
     fn secp256r1_add(
         request: SecpAddRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut SyscallHintProcessor<'_>,
         remaining_gas: &mut u64,
     ) -> SyscallResult<SecpAddResponse>;
+
     fn secp256r1_get_point_from_x(
         request: SecpGetPointFromXRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut SyscallHintProcessor<'_>,
         remaining_gas: &mut u64,
     ) -> SyscallResult<SecpGetPointFromXResponse>;
+
     fn secp256r1_get_xy(
         request: SecpGetXyRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut SyscallHintProcessor<'_>,
         remaining_gas: &mut u64,
     ) -> SyscallResult<SecpGetXyResponse>;
+
     fn secp256r1_mul(
         request: SecpMulRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut SyscallHintProcessor<'_>,
         remaining_gas: &mut u64,
     ) -> SyscallResult<SecpMulResponse>;
+
     fn secp256r1_new(
         request: SecpNewRequest,
         vm: &mut VirtualMachine,
