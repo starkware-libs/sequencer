@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::state::StorageKey;
+use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_types_core::felt::Felt;
 
+use crate::test_utils::contracts::{FeatureContractData, SierraContractClassWrapper};
 use crate::execution::contract_class::RunnableCompiledClass;
 use crate::state::cached_state::StorageEntry;
 use crate::state::errors::StateError;
@@ -16,18 +17,33 @@ pub struct DictStateReader {
     pub storage_view: HashMap<StorageEntry, Felt>,
     pub address_to_nonce: HashMap<ContractAddress, Nonce>,
     pub address_to_class_hash: HashMap<ContractAddress, ClassHash>,
-    pub class_hash_to_class: HashMap<ClassHash, RunnableCompiledClass>,
+    pub class_hash_to_runnable: HashMap<ClassHash, RunnableCompiledClass>,
     pub class_hash_to_compiled_class_hash: HashMap<ClassHash, CompiledClassHash>,
-    // TODO(AvivG): add class_hash_to_sierra.
+    pub class_hash_to_sierra: HashMap<ClassHash, SierraContractClass>,
 }
 
 impl DictStateReader {
+    pub fn add_class(
+        &mut self,
+        class_hash: ClassHash,
+        runnable: &RunnableCompiledClass,
+        sierra: &SierraContractClassWrapper,
+    ) {
+        self.class_hash_to_runnable.insert(class_hash, runnable.clone());
+        match sierra {
+            SierraContractClassWrapper::V1(sierra) => {
+                self.class_hash_to_sierra.insert(class_hash, sierra.clone());
+            }
+            SierraContractClassWrapper::V0 => {}
+        }
+    }
+
     pub fn add_contracts(&mut self, contract_instances: &[(FeatureContractData, u16)]) {
         // Set up the requested contracts.
         for (contract, n_instances) in contract_instances.iter() {
             let class_hash = contract.class_hash;
 
-            self.class_hash_to_class.insert(class_hash, contract.runnable_class.clone());
+            self.add_class(class_hash, &contract.runnable_class, &contract.sierra);
 
             for instance in 0..*n_instances {
                 let instance_address = contract.get_instance_address(instance);
@@ -54,7 +70,7 @@ impl StateReader for DictStateReader {
     }
 
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
-        let contract_class = self.class_hash_to_class.get(&class_hash).cloned();
+        let contract_class = self.class_hash_to_runnable.get(&class_hash).cloned();
         match contract_class {
             Some(contract_class) => Ok(contract_class),
             _ => Err(StateError::UndeclaredClassHash(class_hash)),

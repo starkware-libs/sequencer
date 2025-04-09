@@ -55,7 +55,11 @@ pub fn test_state_inner(
 
     let mut state_reader = DictStateReader { address_to_class_hash, ..Default::default() };
 
-    state_reader.class_hash_to_class.insert(erc20_class_hash, erc20.get_runnable_class());
+    state_reader.add_class(
+        erc20_class_hash,
+        &erc20.get_runnable_class(),
+        &erc20.get_sierra_class(),
+    );
 
     // Set up the rest of the requested contracts.
     state_reader.add_contracts(contract_instances);
