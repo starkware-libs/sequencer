@@ -8,6 +8,7 @@ use crate::executable_transaction::{
     DeployAccountTransaction as ExecutableDeployAccountTransaction,
 };
 use crate::rpc_transaction::{
+    InternalRpcDeployAccountTransaction,
     RpcDeployAccountTransaction,
     RpcDeployAccountTransactionV3,
     RpcTransaction,
@@ -163,4 +164,13 @@ pub fn rpc_deploy_account_tx(deploy_tx_args: DeployAccountTxArgs) -> RpcTransact
         fee_data_availability_mode: deploy_tx_args.fee_data_availability_mode,
         paymaster_data: deploy_tx_args.paymaster_data,
     }))
+}
+
+pub fn internal_deploy_account_tx(
+    deploy_tx_args: DeployAccountTxArgs,
+) -> InternalRpcDeployAccountTransaction {
+    let tx = rpc_deploy_account_tx(deploy_tx_args);
+    let contract_address = tx.calculate_sender_address().unwrap();
+    let tx = if let RpcTransaction::DeployAccount(tx) = tx { tx } else { unreachable!() };
+    InternalRpcDeployAccountTransaction { tx, contract_address }
 }
