@@ -1,5 +1,4 @@
 use apollo_compile_to_casm::metrics::COMPILATION_DURATION;
-use apollo_http_server::metrics::ADDED_TRANSACTIONS_TOTAL;
 use apollo_state_reader::metrics::{
     CLASS_CACHE_HITS,
     CLASS_CACHE_MISSES,
@@ -73,6 +72,7 @@ use crate::panels::gateway::{
     PANEL_GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL,
     PANEL_GATEWAY_VALIDATE_TX_LATENCY,
 };
+use crate::panels::http_server::PANEL_ADDED_TRANSACTIONS_TOTAL;
 use crate::panels::l1_gas_price::{
     PANEL_L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY,
     PANEL_L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_PROCESSED,
@@ -148,9 +148,6 @@ use crate::panels::state_sync::{
 mod dashboard_definitions_test;
 
 pub const DEV_JSON_PATH: &str = "Monitoring/sequencer/dev_grafana.json";
-
-const PANEL_ADDED_TRANSACTIONS_TOTAL: Panel =
-    Panel::from_counter(ADDED_TRANSACTIONS_TOTAL, PanelType::Stat);
 
 const PANEL_APOLLO_STATE_READER_CLASS_CACHE_MISS_RATIO: Panel = Panel::new(
     "class_cache_miss_ratio",
