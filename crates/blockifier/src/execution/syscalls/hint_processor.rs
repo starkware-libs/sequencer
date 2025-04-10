@@ -61,7 +61,10 @@ use crate::execution::syscalls::secp::{
     SecpNewResponse,
 };
 use crate::execution::syscalls::syscall_base::SyscallHandlerBase;
-use crate::execution::syscalls::syscall_executor::SyscallExecutor;
+use crate::execution::syscalls::syscall_executor::{
+    execute_syscall_from_selector,
+    SyscallExecutor,
+};
 use crate::execution::syscalls::{
     CallContractRequest,
     CallContractResponse,
@@ -338,7 +341,7 @@ impl<'a> SyscallHintProcessor<'a> {
             self.increment_syscall_count(&selector);
         }
 
-        self.execute_syscall_from_selector(vm, selector)
+        execute_syscall_from_selector(self, vm, selector)
     }
 
     pub fn get_or_allocate_execution_info_segment(
