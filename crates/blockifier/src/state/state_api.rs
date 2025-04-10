@@ -6,6 +6,7 @@ use starknet_types_core::felt::Felt;
 use super::cached_state::{ContractClassMapping, StateMaps};
 use crate::execution::contract_class::RunnableCompiledClass;
 use crate::state::errors::StateError;
+use crate::state::state_reader_and_contract_manager::CompiledClass;
 
 pub type StateResult<T> = Result<T, StateError>;
 
@@ -62,7 +63,10 @@ pub trait StateReader {
         Ok((low, high))
     }
 
-    // TODO(AvivG): add fn get_sierra(class_hash: ClassHash) -> StateResult<SierraContractClass>;
+    /// Returns the sierra and casm of the given class hash.
+    fn get_sierra_and_casm(&self, _class_hash: ClassHash) -> StateResult<CompiledClass> {
+        unimplemented!()
+    }
 }
 
 /// A class defining the API for writing to Starknet global state.
