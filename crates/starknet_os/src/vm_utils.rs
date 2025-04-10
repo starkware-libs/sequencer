@@ -130,6 +130,8 @@ fn deref_type_and_address_if_ptr<'a>(
 }
 
 /// Helper function to fetch the address of nested fields.
+/// Implicitly dereferences the type if it is a pointer.
+/// For the last field, it returns the address of the field.
 fn fetch_nested_fields_address<IG: IdentifierGetter>(
     base_address: Relocatable,
     base_struct: &Identifier,
@@ -159,16 +161,16 @@ fn fetch_nested_fields_address<IG: IdentifierGetter>(
             )))
         })?;
 
-    let new_base_address = (base_address + field_member.offset)?;
+    let address_with_offset = (base_address + field_member.offset)?;
+
+    if nested_fields.len() == 1 {
+        return Ok(address_with_offset);
+    }
 
     // If the field is a pointer, we remove the asterisk to know the exact type and
     // recursively fetch the address of the field.
     let (cairo_type, new_base_address) =
-        deref_type_and_address_if_ptr(&field_member.cairo_type, new_base_address, vm)?;
-
-    if nested_fields.len() == 1 {
-        return Ok(new_base_address);
-    }
+        deref_type_and_address_if_ptr(&field_member.cairo_type, address_with_offset, vm)?;
 
     let new_base_struct = identifier_getter.get_identifier(cairo_type)?;
 
