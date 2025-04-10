@@ -111,7 +111,11 @@ impl GetComponentConfigs for HybridNodeServiceName {
 
 // TODO(Tsabary): per each service, update all values.
 impl ServiceNameInner for HybridNodeServiceName {
-    fn create_service(&self, environment: &Environment) -> Service {
+    fn create_service(
+        &self,
+        environment: &Environment,
+        external_secret: &Option<ExternalSecret>,
+    ) -> Service {
         match environment {
             Environment::Testing => match self {
                 HybridNodeServiceName::Core => Service::new(
@@ -123,7 +127,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                     None,
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                    None,
+                    external_secret.clone(),
                 ),
                 HybridNodeServiceName::HttpServer => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -146,7 +150,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                     None,
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                    None,
+                    external_secret.clone(),
                 ),
                 HybridNodeServiceName::Gateway => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -157,7 +161,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                     None,
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                    None,
+                    external_secret.clone(),
                 ),
                 HybridNodeServiceName::Mempool => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -168,7 +172,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                     None,
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                    None,
+                    external_secret.clone(),
                 ),
                 HybridNodeServiceName::SierraCompiler => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -179,7 +183,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                     None,
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                    None,
+                    external_secret.clone(),
                 ),
             },
             Environment::SepoliaIntegration => match self {
@@ -192,7 +196,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                     Some(500),
                     Some("sequencer".into()),
                     Resources::new(Resource::new(2, 4), Resource::new(4, 8)),
-                    Some(ExternalSecret::new("sequencer-integration-secrets")),
+                    external_secret.clone(),
                 ),
                 HybridNodeServiceName::HttpServer => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -226,7 +230,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                     None,
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(2, 4)),
-                    Some(ExternalSecret::new("sequencer-integration-secrets")),
+                    external_secret.clone(),
                 ),
                 HybridNodeServiceName::Mempool => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -237,7 +241,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                     None,
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(2, 4)),
-                    Some(ExternalSecret::new("sequencer-integration-secrets")),
+                    external_secret.clone(),
                 ),
                 HybridNodeServiceName::SierraCompiler => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -248,7 +252,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                     None,
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(2, 4)),
-                    Some(ExternalSecret::new("sequencer-integration-secrets")),
+                    external_secret.clone(),
                 ),
             },
             _ => unimplemented!(),

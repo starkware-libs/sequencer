@@ -1,7 +1,7 @@
 {
   "chain_id": "SN_INTEGRATION_SEPOLIA",
   "image": "ghcr.io/starkware-libs/sequencer/sequencer:dev",
-  "application_config_subdir": "config/sequencer/testing/app_configs/distributed/",
+  "application_config_subdir": "config/sequencer/testing/app_configs/distributed/deployment_test_distributed/",
   "services": [
     {
       "name": "Batcher",
