@@ -142,11 +142,14 @@ fn declare() -> RpcTransaction {
     let mut tx = declare_tx();
     let declare_tx_v3 =
         assert_matches!(&mut tx, RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => tx);
-    declare_tx_v3.compiled_class_hash = get_contract_class_of_declare().compiled_class_hash();
+    // Set the compiled class hash to the class hash of the contract class.
+    // This update is needed because the contract class is not compiled from the sierra but is
+    // a default contract class. Thus requiring the compiled class hash to be updated.
+    declare_tx_v3.compiled_class_hash = default_contract_class().compiled_class_hash();
     tx
 }
 
-fn get_contract_class_of_declare() -> ContractClass {
+fn default_contract_class() -> ContractClass {
     let casm = CasmContractClass {
         prime: Default::default(),
         compiler_version: Default::default(),
@@ -180,7 +183,7 @@ fn setup_expect_add_class(mock_class_manager_client: &mut MockClassManagerClient
 fn setup_class_manager_client_mock(mock_class_manager_client: &mut MockClassManagerClient) {
     let contract_class = contract_class();
     let class_hash = contract_class.calculate_class_hash();
-    let executable = get_contract_class_of_declare();
+    let casm = default_contract_class();
 
     setup_expect_add_class(mock_class_manager_client);
     mock_class_manager_client
@@ -192,7 +195,7 @@ fn setup_class_manager_client_mock(mock_class_manager_client: &mut MockClassMana
         .expect_get_executable()
         .once()
         .with(eq(class_hash))
-        .return_once(move |_| Ok(Some(executable)));
+        .return_once(move |_| Ok(Some(casm)));
 }
 
 fn check_positive_add_tx_result(
