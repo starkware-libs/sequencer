@@ -207,11 +207,11 @@ pub struct Bouncer {
     pub executed_class_hashes: HashSet<ClassHash>,
     pub visited_storage_entries: HashSet<StorageEntry>,
     pub state_changes_keys: StateChangesKeys,
+    pub class_weights: HashMap<ClassHash, GasAmount>,
 
     pub bouncer_config: BouncerConfig,
 
     accumulated_weights: BouncerWeights,
-    class_weights: HashMap<ClassHash, GasAmount>,
 }
 
 impl Bouncer {

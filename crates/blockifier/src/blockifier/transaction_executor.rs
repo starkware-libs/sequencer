@@ -1,9 +1,13 @@
+use std::collections::HashMap;
+use std::mem;
 use std::panic::{self, catch_unwind, AssertUnwindSafe};
 use std::sync::{Arc, Mutex};
 
 use itertools::FoldWhile::{Continue, Done};
 use itertools::Itertools;
 use starknet_api::block::BlockHashAndNumber;
+use starknet_api::core::ClassHash;
+use starknet_api::execution_resources::GasAmount;
 use thiserror::Error;
 
 use crate::blockifier::block::pre_process_block;
@@ -47,6 +51,7 @@ pub struct BlockExecutionSummary {
     pub state_diff: CommitmentStateDiff,
     pub compressed_state_diff: Option<CommitmentStateDiff>,
     pub bouncer_weights: BouncerWeights,
+    pub classes_weights: HashMap<ClassHash, GasAmount>,
 }
 
 /// A transaction executor, used for building a single block.
@@ -187,6 +192,7 @@ impl<S: StateReader> TransactionExecutor<S> {
             state_diff: state_diff.into(),
             compressed_state_diff,
             bouncer_weights: *self.bouncer.get_accumulated_weights(),
+            classes_weights: mem::take(&mut self.bouncer.class_weights),
         })
     }
 }

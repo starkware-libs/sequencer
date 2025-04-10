@@ -209,7 +209,7 @@ impl PyBlockExecutor {
         &mut self,
     ) -> NativeBlockifierResult<(PyStateDiff, Option<PyStateDiff>, Py<PyBytes>)> {
         log::debug!("Finalizing execution...");
-        let BlockExecutionSummary { state_diff, compressed_state_diff, bouncer_weights } =
+        let BlockExecutionSummary { state_diff, compressed_state_diff, bouncer_weights, .. } =
             self.tx_executor().finalize()?;
         let py_state_diff = PyStateDiff::from(state_diff);
         let py_compressed_state_diff = compressed_state_diff.map(PyStateDiff::from);
@@ -218,7 +218,6 @@ impl PyBlockExecutor {
             serde_json::to_vec(&bouncer_weights).expect("Failed serializing bouncer weights.");
         let raw_block_weights =
             Python::with_gil(|py| PyBytes::new(py, &serialized_block_weights).into());
-
         log::debug!("Finalized execution.");
 
         Ok((py_state_diff, py_compressed_state_diff, raw_block_weights))

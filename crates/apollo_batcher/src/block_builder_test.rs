@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use apollo_class_manager_types::transaction_converter::TransactionConverter;
@@ -325,6 +325,7 @@ fn transaction_failed_test_expectations() -> TestExpectations {
             state_diff: expected_block_artifacts_copy.commitment_state_diff,
             compressed_state_diff: None,
             bouncer_weights: expected_block_artifacts_copy.bouncer_weights,
+            classes_weights: HashMap::default(),
         })
     });
 
@@ -359,6 +360,7 @@ fn set_close_block_expectations(
             state_diff: output_block_artifacts.commitment_state_diff,
             compressed_state_diff: None,
             bouncer_weights: output_block_artifacts.bouncer_weights,
+            classes_weights: HashMap::default(),
         })
     });
     output_block_artifacts_copy
