@@ -62,11 +62,11 @@ use crate::metrics::{
     GatewayMetricHandle,
     SourceLabelValue,
     GATEWAY_ADD_TX_LATENCY,
+    GATEWAY_TRANSACTIONS_FAILED,
+    GATEWAY_TRANSACTIONS_RECEIVED,
+    GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL,
     LABEL_NAME_SOURCE,
     LABEL_NAME_TX_TYPE,
-    TRANSACTIONS_FAILED,
-    TRANSACTIONS_RECEIVED,
-    TRANSACTIONS_SENT_TO_MEMPOOL,
 };
 use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReaderFactory};
 
@@ -223,11 +223,14 @@ async fn test_add_tx(
 
     let metric_counters_for_queries = GatewayMetricHandle::new(&tx, &p2p_message_metadata);
     let metrics = recorder.handle().render();
-    assert_eq!(metric_counters_for_queries.get_metric_value(TRANSACTIONS_RECEIVED, &metrics), 1);
+    assert_eq!(
+        metric_counters_for_queries.get_metric_value(GATEWAY_TRANSACTIONS_RECEIVED, &metrics),
+        1
+    );
     match expected_error {
         Some(expected_err) => {
             assert_eq!(
-                metric_counters_for_queries.get_metric_value(TRANSACTIONS_FAILED, &metrics),
+                metric_counters_for_queries.get_metric_value(GATEWAY_TRANSACTIONS_FAILED, &metrics),
                 1
             );
             assert_eq!(result.unwrap_err(), expected_err);
@@ -235,7 +238,7 @@ async fn test_add_tx(
         None => {
             assert_eq!(
                 metric_counters_for_queries
-                    .get_metric_value(TRANSACTIONS_SENT_TO_MEMPOOL, &metrics),
+                    .get_metric_value(GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL, &metrics),
                 1
             );
             check_positive_add_tx_result(tx, tx_hash, address, result.unwrap());
@@ -303,15 +306,19 @@ fn test_register_metrics() {
                 &[(LABEL_NAME_TX_TYPE, tx_type), (LABEL_NAME_SOURCE, source)];
 
             assert_eq!(
-                TRANSACTIONS_RECEIVED.parse_numeric_metric::<u64>(&metrics, labels).unwrap(),
+                GATEWAY_TRANSACTIONS_RECEIVED
+                    .parse_numeric_metric::<u64>(&metrics, labels)
+                    .unwrap(),
                 0
             );
             assert_eq!(
-                TRANSACTIONS_FAILED.parse_numeric_metric::<u64>(&metrics, labels).unwrap(),
+                GATEWAY_TRANSACTIONS_FAILED.parse_numeric_metric::<u64>(&metrics, labels).unwrap(),
                 0
             );
             assert_eq!(
-                TRANSACTIONS_SENT_TO_MEMPOOL.parse_numeric_metric::<u64>(&metrics, labels).unwrap(),
+                GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL
+                    .parse_numeric_metric::<u64>(&metrics, labels)
+                    .unwrap(),
                 0
             );
             assert_eq!(GATEWAY_ADD_TX_LATENCY.parse_histogram_metric(&metrics).unwrap().sum, 0.0);
