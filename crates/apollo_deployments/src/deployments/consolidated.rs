@@ -49,7 +49,11 @@ impl GetComponentConfigs for ConsolidatedNodeServiceName {
 }
 
 impl ServiceNameInner for ConsolidatedNodeServiceName {
-    fn create_service(&self, environment: &Environment) -> Service {
+    fn create_service(
+        &self,
+        environment: &Environment,
+        external_secret: &Option<ExternalSecret>,
+    ) -> Service {
         match environment {
             Environment::Testing => match self {
                 ConsolidatedNodeServiceName::Node => Service::new(
@@ -61,7 +65,7 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
                     Some(32),
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                    Some(ExternalSecret::new("sequencer-dev-secrets")),
+                    external_secret.clone(),
                 ),
             },
             Environment::SepoliaIntegration => match self {
@@ -73,20 +77,16 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
                         false,
                         vec![
                             IngressRule::new(String::from("/gateway"), 8080, None),
-                            IngressRule::new(
-                                String::from("/feeder_gateway"),
-                                8085,
-                                Some("nginx-service".into()),
-                            ),
+
                         ],
-                        vec!["starknet-upgrade-testing-sepolia.gateway-proxy.sw-dev.io".into()],
+                        vec!["sn-test-sepolia-2-sepolia.gateway-proxy.sw-dev.io".into()],
                     )),
                     false,
                     1,
                     Some(500),
                     Some("sequencer".into()),
                     Resources::new(Resource::new(2, 4), Resource::new(4, 8)),
-                    Some(ExternalSecret::new("sequencer-integration-secrets")),
+                    external_secret.clone(),
                 ),
             },
             _ => unimplemented!(),
