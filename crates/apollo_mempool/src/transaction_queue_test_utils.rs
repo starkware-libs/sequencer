@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use starknet_api::block::NonzeroGasPrice;
+use starknet_api::block::GasPrice;
 
 use crate::mempool::TransactionReference;
 use crate::transaction_queue::{PendingTransaction, PriorityTransaction, TransactionQueue};
@@ -9,7 +9,7 @@ impl TransactionQueue {
     pub fn new(
         priority_queue: Vec<TransactionReference>,
         pending_queue: Vec<TransactionReference>,
-        gas_price_threshold: NonzeroGasPrice,
+        gas_price_threshold: GasPrice,
     ) -> Self {
         // Build address to nonce mapping, check queues are mutually exclusive in addresses.
         let tx_references = pending_queue.iter().chain(priority_queue.iter());
