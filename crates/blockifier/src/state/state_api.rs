@@ -61,6 +61,8 @@ pub trait StateReader {
 
         Ok((low, high))
     }
+
+    // TODO(AvivG): add fn get_sierra(class_hash: ClassHash) -> StateResult<SierraContractClass>;
 }
 
 /// A class defining the API for writing to Starknet global state.
