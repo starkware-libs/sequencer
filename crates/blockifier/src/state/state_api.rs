@@ -1,6 +1,6 @@
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::state::StorageKey;
+use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_types_core::felt::Felt;
 
 use super::cached_state::{ContractClassMapping, StateMaps};
@@ -62,7 +62,10 @@ pub trait StateReader {
         Ok((low, high))
     }
 
-    // TODO(AvivG): add fn get_sierra(class_hash: ClassHash) -> StateResult<SierraContractClass>;
+    #[allow(unused_variables)]
+    fn get_sierra(&self, class_hash: ClassHash) -> StateResult<SierraContractClass> {
+        Err(StateError::UnimplimentedGetSierra)
+    }
 }
 
 /// A class defining the API for writing to Starknet global state.
