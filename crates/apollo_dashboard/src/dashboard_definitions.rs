@@ -1,9 +1,3 @@
-use apollo_batcher::metrics::{
-    BATCHED_TRANSACTIONS,
-    PROPOSAL_FAILED,
-    PROPOSAL_STARTED,
-    PROPOSAL_SUCCEEDED,
-};
 use apollo_consensus::metrics::{
     CONSENSUS_BLOCK_NUMBER,
     CONSENSUS_BUILD_PROPOSAL_FAILED,
@@ -45,12 +39,6 @@ use apollo_gateway::metrics::{
 };
 use apollo_http_server::metrics::ADDED_TRANSACTIONS_TOTAL;
 use apollo_infra::metrics::{
-    BATCHER_LOCAL_MSGS_PROCESSED,
-    BATCHER_LOCAL_MSGS_RECEIVED,
-    BATCHER_LOCAL_QUEUE_DEPTH,
-    BATCHER_REMOTE_MSGS_PROCESSED,
-    BATCHER_REMOTE_MSGS_RECEIVED,
-    BATCHER_REMOTE_VALID_MSGS_RECEIVED,
     CLASS_MANAGER_LOCAL_MSGS_PROCESSED,
     CLASS_MANAGER_LOCAL_MSGS_RECEIVED,
     CLASS_MANAGER_LOCAL_QUEUE_DEPTH,
@@ -128,6 +116,18 @@ use apollo_state_sync::metrics::{
 use const_format::formatcp;
 
 use crate::dashboard::{Dashboard, Panel, PanelType, Row};
+use crate::panels::batcher::{
+    PANEL_BATCHED_TRANSACTIONS,
+    PANEL_BATCHER_LOCAL_MSGS_PROCESSED,
+    PANEL_BATCHER_LOCAL_MSGS_RECEIVED,
+    PANEL_BATCHER_LOCAL_QUEUE_DEPTH,
+    PANEL_BATCHER_REMOTE_MSGS_PROCESSED,
+    PANEL_BATCHER_REMOTE_MSGS_RECEIVED,
+    PANEL_BATCHER_REMOTE_VALID_MSGS_RECEIVED,
+    PANEL_PROPOSAL_FAILED,
+    PANEL_PROPOSAL_STARTED,
+    PANEL_PROPOSAL_SUCCEEDED,
+};
 
 #[cfg(test)]
 #[path = "dashboard_definitions_test.rs"]
@@ -137,23 +137,6 @@ pub const DEV_JSON_PATH: &str = "Monitoring/sequencer/dev_grafana.json";
 
 const PANEL_ADDED_TRANSACTIONS_TOTAL: Panel =
     Panel::from_counter(ADDED_TRANSACTIONS_TOTAL, PanelType::Stat);
-const PANEL_PROPOSAL_STARTED: Panel = Panel::from_counter(PROPOSAL_STARTED, PanelType::Stat);
-const PANEL_PROPOSAL_SUCCEEDED: Panel = Panel::from_counter(PROPOSAL_SUCCEEDED, PanelType::Stat);
-const PANEL_PROPOSAL_FAILED: Panel = Panel::from_counter(PROPOSAL_FAILED, PanelType::Stat);
-const PANEL_BATCHED_TRANSACTIONS: Panel =
-    Panel::from_counter(BATCHED_TRANSACTIONS, PanelType::Stat);
-const PANEL_BATCHER_LOCAL_MSGS_RECEIVED: Panel =
-    Panel::from_counter(BATCHER_LOCAL_MSGS_RECEIVED, PanelType::Stat);
-const PANEL_BATCHER_LOCAL_MSGS_PROCESSED: Panel =
-    Panel::from_counter(BATCHER_LOCAL_MSGS_PROCESSED, PanelType::Stat);
-const PANEL_BATCHER_REMOTE_MSGS_RECEIVED: Panel =
-    Panel::from_counter(BATCHER_REMOTE_MSGS_RECEIVED, PanelType::Stat);
-const PANEL_BATCHER_REMOTE_VALID_MSGS_RECEIVED: Panel =
-    Panel::from_counter(BATCHER_REMOTE_VALID_MSGS_RECEIVED, PanelType::Stat);
-const PANEL_BATCHER_REMOTE_MSGS_PROCESSED: Panel =
-    Panel::from_counter(BATCHER_REMOTE_MSGS_PROCESSED, PanelType::Stat);
-const PANEL_BATCHER_LOCAL_QUEUE_DEPTH: Panel =
-    Panel::from_gauge(BATCHER_LOCAL_QUEUE_DEPTH, PanelType::Stat);
 
 const PANEL_CLASS_MANAGER_LOCAL_MSGS_RECEIVED: Panel =
     Panel::from_counter(CLASS_MANAGER_LOCAL_MSGS_RECEIVED, PanelType::Stat);
