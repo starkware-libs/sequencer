@@ -35,9 +35,20 @@ impl<S: StateReader> StateReaderAndContractManger<S> {
         Ok(runnable_class)
     }
 
-    fn get_cached_class(&self, _class_hash: ClassHash) -> StateResult<CachedClass> {
-        // TODO(AvivG): Implement this after StateReader::get_sierra exists:
-        todo!();
+    fn get_cached_class(&self, class_hash: ClassHash) -> StateResult<CachedClass> {
+        match self.state_reader.get_compiled_class(class_hash)? {
+            RunnableCompiledClass::V0(class) => Ok(CachedClass::V0(class)),
+            RunnableCompiledClass::V1(class) => {
+                let sierra_class = self.state_reader.get_sierra(class_hash)?;
+                Ok(CachedClass::V1(class, Arc::new(sierra_class)))
+            }
+            #[cfg(feature = "cairo_native")]
+            RunnableCompiledClass::V1Native(_) => {
+                // Native classes should not reach this point as this struct is used for cairo
+                // native compilation.
+                panic!("Native classes are not supported here")
+            }
+        }
     }
 }
 
