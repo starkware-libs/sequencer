@@ -172,29 +172,29 @@ use crate::hints::hint_implementation::secp::{is_on_curve, read_ec_point_from_ad
 use crate::hints::hint_implementation::state::{
     compute_commitments_on_finalized_state_with_aliases,
     decode_node,
+    guess_classes_ptr,
+    guess_state_ptr,
     load_bottom,
     load_edge,
     set_preimage_for_class_commitments,
     set_preimage_for_current_commitment_info,
     set_preimage_for_state_commitments,
+    update_classes_ptr,
+    update_state_ptr,
 };
 use crate::hints::hint_implementation::stateful_compression::{
     assert_key_big_enough_for_alias,
     contract_address_le_max_for_compression,
     enter_scope_with_aliases,
     guess_aliases_contract_storage_ptr,
-    guess_classes_ptr,
     guess_contract_addr_storage_ptr,
-    guess_state_ptr,
     initialize_alias_counter,
     key_lt_min_alias_alloc_value,
     read_alias_counter,
     read_alias_from_key,
     update_alias_counter,
     update_aliases_contract_to_storage_ptr,
-    update_classes_ptr,
     update_contract_addr_to_storage_ptr,
-    update_state_ptr,
     write_next_alias_from_key,
 };
 use crate::hints::hint_implementation::stateless_compression::implementation::{
