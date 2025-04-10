@@ -7,6 +7,7 @@ use starknet_api::transaction::TransactionHash;
 use crate::errors::GatewayError;
 
 const TRANSACTION_RECEIVED: &str = "TRANSACTION_RECEIVED";
+pub const SUPPORTED_TRANSACTION_VERSIONS: [u64; 1] = [3];
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GatewayInput {

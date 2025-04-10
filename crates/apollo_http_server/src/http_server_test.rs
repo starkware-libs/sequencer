@@ -33,6 +33,7 @@ use crate::test_utils::{
     deprecated_gateway_invoke_tx,
     rpc_invoke_tx,
     GatewayTransaction,
+    TransactionSerialization,
 };
 
 const DEPRECATED_GATEWAY_INVOKE_TX_RESPONSE_JSON_PATH: &str =
@@ -218,4 +219,61 @@ async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) 
     // Test a failed internal server error response.
     let error_str = http_client.assert_add_tx_error(tx, StatusCode::INTERNAL_SERVER_ERROR).await;
     assert_eq!(error_str, expected_gateway_client_err_str);
+}
+
+#[rstest]
+#[case::missing_version(
+    0,
+    None,
+    StarknetError {
+        code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::MalformedRequest),
+        message: "Missing version field".to_string(),
+    }
+)]
+#[case::bad_version(
+    1,
+    Some("bad version"),
+    StarknetError {
+        code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::MalformedRequest),
+        message: "Version field is not a valid hex string: bad version".to_string(),
+    }
+)]
+#[case::old_version(2, Some("0x1"), StarknetError {
+            code: StarknetErrorCode::KnownErrorCode(
+                KnownStarknetErrorCode::InvalidTransactionVersion,
+            ),
+            message: "Transaction version 1 is not supported. Supported versions: [3]."
+                .to_string(),
+        },
+)]
+#[case::newer_version(4, Some("0x4"), StarknetError {
+                code: StarknetErrorCode::KnownErrorCode(
+                    KnownStarknetErrorCode::InvalidTransactionVersion,
+                ),
+                message: "Transaction version 4 is not supported. Supported versions: [3]."
+                    .to_string(),
+            }
+)]
+#[tokio::test]
+async fn test_unsupported_tx_version(
+    #[case] index: u16,
+    #[case] version: Option<&str>,
+    #[case] expected_err: StarknetError,
+) {
+    // Set the tx version to the given version.
+    let mut tx_json =
+        TransactionSerialization(serde_json::to_value(deprecated_gateway_invoke_tx()).unwrap());
+    let as_object = tx_json.0.as_object_mut().unwrap();
+    if let Some(version) = version {
+        as_object.insert("version".to_string(), Value::String(version.to_string())).unwrap();
+    } else {
+        as_object.remove("version").unwrap();
+    }
+
+    let mock_gateway_client = MockGatewayClient::new();
+    let http_client = add_tx_http_client(mock_gateway_client, 9 + index).await;
+
+    let serialized_err = http_client.assert_add_tx_error(tx_json, StatusCode::BAD_REQUEST).await;
+    let starknet_error = serde_json::from_str::<StarknetError>(&serialized_err).unwrap();
+    assert_eq!(starknet_error, expected_err);
 }
