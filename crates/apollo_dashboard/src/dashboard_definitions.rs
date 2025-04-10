@@ -28,15 +28,6 @@ use apollo_consensus_orchestrator::metrics::{
     CONSENSUS_NUM_BATCHES_IN_PROPOSAL,
     CONSENSUS_NUM_TXS_IN_PROPOSAL,
 };
-use apollo_gateway::metrics::{
-    GATEWAY_ADD_TX_LATENCY,
-    GATEWAY_VALIDATE_TX_LATENCY,
-    LABEL_NAME_SOURCE,
-    LABEL_NAME_TX_TYPE as GATEWAY_LABEL_NAME_TX_TYPE,
-    TRANSACTIONS_FAILED,
-    TRANSACTIONS_RECEIVED,
-    TRANSACTIONS_SENT_TO_MEMPOOL,
-};
 use apollo_http_server::metrics::ADDED_TRANSACTIONS_TOTAL;
 use apollo_infra::metrics::{
     CLASS_MANAGER_LOCAL_MSGS_PROCESSED,
@@ -45,12 +36,6 @@ use apollo_infra::metrics::{
     CLASS_MANAGER_REMOTE_MSGS_PROCESSED,
     CLASS_MANAGER_REMOTE_MSGS_RECEIVED,
     CLASS_MANAGER_REMOTE_VALID_MSGS_RECEIVED,
-    GATEWAY_LOCAL_MSGS_PROCESSED,
-    GATEWAY_LOCAL_MSGS_RECEIVED,
-    GATEWAY_LOCAL_QUEUE_DEPTH,
-    GATEWAY_REMOTE_MSGS_PROCESSED,
-    GATEWAY_REMOTE_MSGS_RECEIVED,
-    GATEWAY_REMOTE_VALID_MSGS_RECEIVED,
     L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_PROCESSED,
     L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_RECEIVED,
     L1_GAS_PRICE_PROVIDER_LOCAL_QUEUE_DEPTH,
@@ -128,6 +113,21 @@ use crate::panels::batcher::{
     PANEL_PROPOSAL_FAILED,
     PANEL_PROPOSAL_STARTED,
     PANEL_PROPOSAL_SUCCEEDED,
+};
+use crate::panels::gateway::{
+    PANEL_GATEWAY_ADD_TX_LATENCY,
+    PANEL_GATEWAY_LOCAL_MSGS_PROCESSED,
+    PANEL_GATEWAY_LOCAL_MSGS_RECEIVED,
+    PANEL_GATEWAY_LOCAL_QUEUE_DEPTH,
+    PANEL_GATEWAY_REMOTE_MSGS_PROCESSED,
+    PANEL_GATEWAY_REMOTE_MSGS_RECEIVED,
+    PANEL_GATEWAY_REMOTE_VALID_MSGS_RECEIVED,
+    PANEL_GATEWAY_TRANSACTIONS_FAILED,
+    PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_SOURCE,
+    PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_TYPE,
+    PANEL_GATEWAY_TRANSACTIONS_RECEIVED_RATE,
+    PANEL_GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL,
+    PANEL_GATEWAY_VALIDATE_TX_LATENCY,
 };
 
 #[cfg(test)]
@@ -282,71 +282,6 @@ const PANEL_STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS: Panel =
     Panel::from_gauge(STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS, PanelType::Stat);
 const PANEL_STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS: Panel =
     Panel::from_gauge(STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS, PanelType::Stat);
-const PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_TYPE: Panel = Panel::new(
-    TRANSACTIONS_RECEIVED.get_name(),
-    TRANSACTIONS_RECEIVED.get_description(),
-    formatcp!("sum  by ({}) ({}) ", GATEWAY_LABEL_NAME_TX_TYPE, TRANSACTIONS_RECEIVED.get_name()),
-    PanelType::Stat,
-);
-
-const PANEL_GATEWAY_LOCAL_MSGS_RECEIVED: Panel =
-    Panel::from_counter(GATEWAY_LOCAL_MSGS_RECEIVED, PanelType::Stat);
-const PANEL_GATEWAY_LOCAL_MSGS_PROCESSED: Panel =
-    Panel::from_counter(GATEWAY_LOCAL_MSGS_PROCESSED, PanelType::Stat);
-const PANEL_GATEWAY_REMOTE_MSGS_RECEIVED: Panel =
-    Panel::from_counter(GATEWAY_REMOTE_MSGS_RECEIVED, PanelType::Stat);
-const PANEL_GATEWAY_REMOTE_VALID_MSGS_RECEIVED: Panel =
-    Panel::from_counter(GATEWAY_REMOTE_VALID_MSGS_RECEIVED, PanelType::Stat);
-const PANEL_GATEWAY_REMOTE_MSGS_PROCESSED: Panel =
-    Panel::from_counter(GATEWAY_REMOTE_MSGS_PROCESSED, PanelType::Stat);
-const PANEL_GATEWAY_LOCAL_QUEUE_DEPTH: Panel =
-    Panel::from_gauge(GATEWAY_LOCAL_QUEUE_DEPTH, PanelType::Stat);
-
-const PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_SOURCE: Panel = Panel::new(
-    TRANSACTIONS_RECEIVED.get_name(),
-    TRANSACTIONS_RECEIVED.get_description(),
-    formatcp!("sum  by ({}) ({}) ", LABEL_NAME_SOURCE, TRANSACTIONS_RECEIVED.get_name()),
-    PanelType::Stat,
-);
-
-const PANEL_GATEWAY_TRANSACTIONS_RECEIVED_RATE: Panel = Panel::new(
-    "gateway_transactions_received_rate (TPS)",
-    "The rate of transactions received by the gateway during the last 20 minutes",
-    formatcp!("sum(rate({}[20m]))", TRANSACTIONS_RECEIVED.get_name()),
-    PanelType::Graph,
-);
-
-const PANEL_GATEWAY_ADD_TX_LATENCY: Panel = Panel::new(
-    GATEWAY_ADD_TX_LATENCY.get_name(),
-    GATEWAY_ADD_TX_LATENCY.get_description(),
-    formatcp!("avg_over_time({}[2m])", GATEWAY_ADD_TX_LATENCY.get_name()),
-    PanelType::Graph,
-);
-
-const PANEL_GATEWAY_VALIDATE_TX_LATENCY: Panel = Panel::new(
-    GATEWAY_VALIDATE_TX_LATENCY.get_name(),
-    GATEWAY_VALIDATE_TX_LATENCY.get_description(),
-    formatcp!("avg_over_time({}[2m])", GATEWAY_VALIDATE_TX_LATENCY.get_name()),
-    PanelType::Graph,
-);
-
-const PANEL_GATEWAY_TRANSACTIONS_FAILED: Panel = Panel::new(
-    TRANSACTIONS_FAILED.get_name(),
-    TRANSACTIONS_FAILED.get_description(),
-    formatcp!("sum  by ({}) ({})", GATEWAY_LABEL_NAME_TX_TYPE, TRANSACTIONS_FAILED.get_name()),
-    PanelType::Stat,
-);
-
-const PANEL_GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL: Panel = Panel::new(
-    TRANSACTIONS_SENT_TO_MEMPOOL.get_name(),
-    TRANSACTIONS_SENT_TO_MEMPOOL.get_description(),
-    formatcp!(
-        "sum  by ({}) ({})",
-        GATEWAY_LABEL_NAME_TX_TYPE,
-        TRANSACTIONS_SENT_TO_MEMPOOL.get_name()
-    ),
-    PanelType::Stat,
-);
 
 const PANEL_MEMPOOL_LOCAL_MSGS_RECEIVED: Panel =
     Panel::from_counter(MEMPOOL_LOCAL_MSGS_RECEIVED, PanelType::Stat);
