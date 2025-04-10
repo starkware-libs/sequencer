@@ -20,6 +20,15 @@ pub struct StateReaderAndContractManger<S: StateReader> {
     pub contract_class_manager: ContractClassManager,
 }
 
+impl From<CompiledClass> for CachedClass {
+    fn from(compiled_class: CompiledClass) -> Self {
+        match compiled_class {
+            CompiledClass::V0(class) => CachedClass::V0(class),
+            CompiledClass::V1(class, sierra_class) => CachedClass::V1(class, sierra_class),
+        }
+    }
+}
+
 impl<S: StateReader> StateReaderAndContractManger<S> {
     fn get_compiled_from_class_manager(
         &self,
@@ -44,10 +53,8 @@ impl<S: StateReader> StateReaderAndContractManger<S> {
         Ok(runnable_class)
     }
 
-    fn get_cached_class(&self, _class_hash: ClassHash) -> StateResult<CachedClass> {
-        // TODO(AvivG): Implement this function once exists:
-        // StateReader::get_sierra_class(class_hash: ClassHash) -> StateResult<SierraContractClass>
-        todo!();
+    fn get_cached_class(&self, class_hash: ClassHash) -> StateResult<CachedClass> {
+        self.state_reader.get_sierra_and_casm(class_hash).map(|class| class.into())
     }
 }
 
