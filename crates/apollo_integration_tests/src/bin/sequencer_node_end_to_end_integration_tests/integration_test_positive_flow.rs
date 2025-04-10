@@ -4,6 +4,9 @@ use apollo_integration_tests::integration_test_utils::integration_test_setup;
 use starknet_api::block::BlockNumber;
 use tracing::info;
 
+// creating a pull request that modify the blockifier crate:
+// ci is triggered as expected?
+
 #[tokio::main]
 async fn main() {
     integration_test_setup("positive").await;
