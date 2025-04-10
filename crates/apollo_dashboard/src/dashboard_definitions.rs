@@ -36,12 +36,12 @@ use apollo_consensus_orchestrator::metrics::{
 };
 use apollo_gateway::metrics::{
     GATEWAY_ADD_TX_LATENCY,
+    GATEWAY_TRANSACTIONS_FAILED,
+    GATEWAY_TRANSACTIONS_RECEIVED,
+    GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL,
     GATEWAY_VALIDATE_TX_LATENCY,
     LABEL_NAME_SOURCE,
     LABEL_NAME_TX_TYPE as GATEWAY_LABEL_NAME_TX_TYPE,
-    TRANSACTIONS_FAILED,
-    TRANSACTIONS_RECEIVED,
-    TRANSACTIONS_SENT_TO_MEMPOOL,
 };
 use apollo_http_server::metrics::ADDED_TRANSACTIONS_TOTAL;
 use apollo_infra::metrics::{
@@ -235,9 +235,13 @@ const PANEL_STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS: Panel =
 const PANEL_STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS: Panel =
     Panel::from_gauge(STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS, PanelType::Stat);
 const PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_TYPE: Panel = Panel::new(
-    TRANSACTIONS_RECEIVED.get_name(),
-    TRANSACTIONS_RECEIVED.get_description(),
-    formatcp!("sum  by ({}) ({}) ", GATEWAY_LABEL_NAME_TX_TYPE, TRANSACTIONS_RECEIVED.get_name()),
+    GATEWAY_TRANSACTIONS_RECEIVED.get_name(),
+    GATEWAY_TRANSACTIONS_RECEIVED.get_description(),
+    formatcp!(
+        "sum  by ({}) ({}) ",
+        GATEWAY_LABEL_NAME_TX_TYPE,
+        GATEWAY_TRANSACTIONS_RECEIVED.get_name()
+    ),
     PanelType::Stat,
 );
 
@@ -255,16 +259,16 @@ const PANEL_GATEWAY_LOCAL_QUEUE_DEPTH: Panel =
     Panel::from_gauge(GATEWAY_LOCAL_QUEUE_DEPTH, PanelType::Stat);
 
 const PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_SOURCE: Panel = Panel::new(
-    TRANSACTIONS_RECEIVED.get_name(),
-    TRANSACTIONS_RECEIVED.get_description(),
-    formatcp!("sum  by ({}) ({}) ", LABEL_NAME_SOURCE, TRANSACTIONS_RECEIVED.get_name()),
+    GATEWAY_TRANSACTIONS_RECEIVED.get_name(),
+    GATEWAY_TRANSACTIONS_RECEIVED.get_description(),
+    formatcp!("sum  by ({}) ({}) ", LABEL_NAME_SOURCE, GATEWAY_TRANSACTIONS_RECEIVED.get_name()),
     PanelType::Stat,
 );
 
 const PANEL_GATEWAY_TRANSACTIONS_RECEIVED_RATE: Panel = Panel::new(
     "gateway_transactions_received_rate (TPS)",
     "The rate of transactions received by the gateway during the last 20 minutes",
-    formatcp!("sum(rate({}[20m]))", TRANSACTIONS_RECEIVED.get_name()),
+    formatcp!("sum(rate({}[20m]))", GATEWAY_TRANSACTIONS_RECEIVED.get_name()),
     PanelType::Graph,
 );
 
@@ -283,19 +287,23 @@ const PANEL_GATEWAY_VALIDATE_TX_LATENCY: Panel = Panel::new(
 );
 
 const PANEL_GATEWAY_TRANSACTIONS_FAILED: Panel = Panel::new(
-    TRANSACTIONS_FAILED.get_name(),
-    TRANSACTIONS_FAILED.get_description(),
-    formatcp!("sum  by ({}) ({})", GATEWAY_LABEL_NAME_TX_TYPE, TRANSACTIONS_FAILED.get_name()),
+    GATEWAY_TRANSACTIONS_FAILED.get_name(),
+    GATEWAY_TRANSACTIONS_FAILED.get_description(),
+    formatcp!(
+        "sum  by ({}) ({})",
+        GATEWAY_LABEL_NAME_TX_TYPE,
+        GATEWAY_TRANSACTIONS_FAILED.get_name()
+    ),
     PanelType::Stat,
 );
 
 const PANEL_GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL: Panel = Panel::new(
-    TRANSACTIONS_SENT_TO_MEMPOOL.get_name(),
-    TRANSACTIONS_SENT_TO_MEMPOOL.get_description(),
+    GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL.get_name(),
+    GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL.get_description(),
     formatcp!(
         "sum  by ({}) ({})",
         GATEWAY_LABEL_NAME_TX_TYPE,
-        TRANSACTIONS_SENT_TO_MEMPOOL.get_name()
+        GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL.get_name()
     ),
     PanelType::Stat,
 );
