@@ -1,6 +1,5 @@
 use std::cmp::max;
 
-use ethnum::U256;
 use serde::Serialize;
 use starknet_api::block::GasPrice;
 use starknet_api::execution_resources::GasAmount;
@@ -32,39 +31,49 @@ pub fn calculate_next_base_gas_price(
 ) -> GasPrice {
     let versioned_constants =
         orchestrator_versioned_constants::VersionedConstants::latest_constants();
-    // Setting target to 50% of max block size balances price changes and prevents spikes.
+    // Setting the target at 50% of the max block size balances the rate of gas price changes,
+    // helping to prevent sudden spikes, particularly during increases, for a better user
+    // experience.
     assert_eq!(
         gas_target,
         versioned_constants.max_block_size / 2,
         "Gas target must be 50% of max block size to balance price changes."
     );
-    // A minimum gas price prevents precision loss. Additionally, a minimum gas price helps avoid
-    // extended periods of low pricing.
+    // To prevent precision loss during multiplication and division, we set a minimum gas price.
+    // Additionally, a minimum gas price is established to prevent prolonged periods before the
+    // price reaches a higher value.
     assert!(
         price >= versioned_constants.min_gas_price,
-        "The gas price must be at least the minimum to prevent precision loss."
+        "The gas price must be at least the minimum to prevent precision loss during \
+         multiplication and division."
     );
 
-    // Use U256 to avoid overflow, as multiplying a u128 by a u64 remains within U256 bounds.
-    let gas_delta = U256::from(gas_used.0.abs_diff(gas_target.0));
-    let gas_target_u256 = U256::from(gas_target.0);
-    let price_u256 = U256::from(price.0);
+    // We use unsigned integers (u64 and u128) to avoid overflow issues, as the input values are
+    // naturally unsigned and i256 is unstable in Rust. This approach allows safe handling of
+    // all inputs using u128 for intermediate calculations.
 
-    // Calculate price change by multiplying first, then dividing. This avoids the precision loss
-    // that occurs when dividing before multiplying.
-    let denominator =
-        gas_target_u256 * U256::from(versioned_constants.gas_price_max_change_denominator);
-    let price_change = (price_u256 * gas_delta) / denominator;
+    // The absolute difference between gas_used and gas_target is always u64.
+    let gas_delta = gas_used.0.abs_diff(gas_target.0);
+    // Convert to u128 to prevent overflow, as a product of two u64 fits inside a u128.
+    let gas_delta_u128 = gas_delta.into();
+    let gas_target_u128: u128 = gas_target.0.into();
 
-    let adjusted_price_u256 =
-        if gas_used > gas_target { price_u256 + price_change } else { price_u256 - price_change };
+    let gas_delta_cost =
+        price.0.checked_mul(gas_delta_u128).expect("Multiplication overflow detected");
+    // Calculate the price change, maintaining precision by dividing after scaling up.
+    // This avoids significant precision loss that would occur if dividing before
+    // multiplication.
+    let price_change = gas_delta_cost
+        .checked_div(gas_target_u128 * versioned_constants.gas_price_max_change_denominator)
+        .expect("Division error, denominator must be nonzero");
 
-    // Sanity check: ensure direction of change is correct
+    let adjusted_price =
+        if gas_used > gas_target { price.0 + price_change } else { price.0 - price_change };
+
     assert!(
-        gas_used > gas_target && adjusted_price_u256 >= price_u256
-            || gas_used <= gas_target && adjusted_price_u256 <= price_u256
+        gas_used > gas_target && adjusted_price >= price.0
+            || gas_used <= gas_target && adjusted_price <= price.0
     );
 
-    let adjusted_price: u128 = adjusted_price_u256.try_into().expect("Failed to convert to u128");
     GasPrice(max(adjusted_price, versioned_constants.min_gas_price.0))
 }
