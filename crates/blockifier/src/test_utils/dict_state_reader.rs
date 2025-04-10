@@ -20,6 +20,7 @@ pub struct DictStateReader {
 }
 
 impl StateReader for DictStateReader {
+    // TODO(AvivG): impl get_sierra(class_hash: ClassHash) -> StateResult<SierraContractClass>
     fn get_storage_at(
         &self,
         contract_address: ContractAddress,
