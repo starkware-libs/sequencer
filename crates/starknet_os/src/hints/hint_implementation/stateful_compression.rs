@@ -4,6 +4,7 @@ use blockifier::state::state_api::{State, StateReader};
 use cairo_vm::any_box;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
+    get_relocatable_from_var_name,
     insert_value_from_var_name,
     insert_value_into_ap,
 };
@@ -136,9 +137,29 @@ pub(crate) fn guess_aliases_contract_storage_ptr<S: StateReader>(
 }
 
 pub(crate) fn update_aliases_contract_to_storage_ptr<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, constants, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    if let Some(state_update_pointers) = &mut hint_processor.state_update_pointers {
+        let aliases_contract_address = Const::get_alias_contract_address(constants)?;
+        let aliases_state_entry_ptr = get_relocatable_from_var_name(
+            Ids::NewAliasesStateEntry.into(),
+            vm,
+            ids_data,
+            ap_tracking,
+        )?;
+        let aliases_storage_ptr = get_relocatable_from_var_name(
+            Ids::SquashedAliasesStorageEnd.into(),
+            vm,
+            ids_data,
+            ap_tracking,
+        )?;
+        state_update_pointers.set_contract_state_entry_and_storage_ptr(
+            aliases_contract_address,
+            aliases_state_entry_ptr,
+            aliases_storage_ptr,
+        );
+    }
+    Ok(())
 }
 
 pub(crate) fn guess_state_ptr<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
