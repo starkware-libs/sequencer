@@ -420,6 +420,27 @@ impl<'a> DeprecatedSyscallHintProcessor<'a> {
     pub fn get_block_info(&self) -> &BlockInfo {
         &self.context.tx_context.block_context.block_info
     }
+
+    fn delegate_call_helper(
+        request: DelegateCallRequest,
+        vm: &mut VirtualMachine,
+        syscall_handler: &mut Self,
+        call_to_external: bool,
+    ) -> DeprecatedSyscallResult<DelegateCallResponse> {
+        let storage_address = request.contract_address;
+        let class_hash = syscall_handler.state.get_class_hash_at(storage_address)?;
+        let retdata_segment = execute_library_call(
+            syscall_handler,
+            vm,
+            class_hash,
+            Some(storage_address),
+            call_to_external,
+            request.function_selector,
+            request.calldata,
+        )?;
+
+        Ok(DelegateCallResponse { segment: retdata_segment })
+    }
 }
 
 impl ResourceTracker for DeprecatedSyscallHintProcessor<'_> {
@@ -502,20 +523,7 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<DelegateCallResponse> {
-        let call_to_external = true;
-        let storage_address = request.contract_address;
-        let class_hash = syscall_handler.state.get_class_hash_at(storage_address)?;
-        let retdata_segment = execute_library_call(
-            syscall_handler,
-            vm,
-            class_hash,
-            Some(storage_address),
-            call_to_external,
-            request.function_selector,
-            request.calldata,
-        )?;
-
-        Ok(DelegateCallResponse { segment: retdata_segment })
+        Self::delegate_call_helper(request, vm, syscall_handler, true)
     }
 
     fn delegate_l1_handler(
@@ -523,20 +531,7 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<DelegateCallResponse> {
-        let call_to_external = false;
-        let storage_address = request.contract_address;
-        let class_hash = syscall_handler.state.get_class_hash_at(storage_address)?;
-        let retdata_segment = execute_library_call(
-            syscall_handler,
-            vm,
-            class_hash,
-            Some(storage_address),
-            call_to_external,
-            request.function_selector,
-            request.calldata,
-        )?;
-
-        Ok(DelegateCallResponse { segment: retdata_segment })
+        Self::delegate_call_helper(request, vm, syscall_handler, false)
     }
 
     fn deploy(
