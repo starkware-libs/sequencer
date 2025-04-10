@@ -1,0 +1,52 @@
+{
+  "alerts": [
+    {
+      "name": "Mempool Transactions Dropped",
+      "title": "Mempool Transactions Dropped",
+      "ruleGroup": "mempool",
+      "for": "1m",
+      "expr": "mempool_transactions_dropped{job=\"node\"}",
+      "conditions": [
+        {
+          "evaluator": {"params": [0], "type": "gt"},
+          "operator": {"type": "and"},
+          "query": {"params": []},
+          "reducer": {"params": [], "type": "avg"},
+          "type": "query"
+        }
+      ]  
+    },
+    {
+      "name": "Batcher Proposal Failed",
+      "title": "Batcher Proposal Failed",
+      "ruleGroup": "batcher",
+      "for": "1m",
+      "expr": "batcher_proposal_failed{job=\"node\"}",
+      "conditions": [
+        {
+          "evaluator": {"params": [0], "type": "gt"},
+          "operator": {"type": "and"},
+          "query": {"params": []},
+          "reducer": {"params": [], "type": "avg"},
+          "type": "query"
+        }
+      ]  
+    },
+    {
+      "name": "Batcher Proposal Started",
+      "title": "Batcher Proposal Started - Test",
+      "ruleGroup": "batcher",
+      "for": "1m",
+      "expr": "batcher_proposal_started{job=\"node\"}",
+      "conditions": [
+        {
+          "evaluator": {"params": [50], "type": "lt"},
+          "operator": {"type": "and"},
+          "query": {"params": []},
+          "reducer": {"params": [], "type": "avg"},
+          "type": "query"
+        }
+      ]  
+    }
+  ]
+}
