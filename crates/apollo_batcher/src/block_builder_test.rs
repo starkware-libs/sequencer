@@ -14,7 +14,7 @@ use blockifier::blockifier::transaction_executor::{
     BlockExecutionSummary,
     TransactionExecutorError,
 };
-use blockifier::bouncer::BouncerWeights;
+use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
 use blockifier::fee::fee_checks::FeeCheckError;
 use blockifier::fee::receipt::TransactionReceipt;
 use blockifier::state::errors::StateError;
@@ -329,6 +329,7 @@ fn transaction_failed_test_expectations() -> TestExpectations {
             state_diff: expected_block_artifacts_copy.commitment_state_diff,
             compressed_state_diff: None,
             bouncer_weights: expected_block_artifacts_copy.bouncer_weights,
+            casm_hash_computation_data: CasmHashComputationData::default(),
         })
     });
 
@@ -363,6 +364,7 @@ fn set_close_block_expectations(
             state_diff: output_block_artifacts.commitment_state_diff,
             compressed_state_diff: None,
             bouncer_weights: output_block_artifacts.bouncer_weights,
+            casm_hash_computation_data: CasmHashComputationData::default(),
         })
     });
     output_block_artifacts_copy
@@ -753,6 +755,7 @@ async fn failed_l1_handler_transaction_consumed() {
             state_diff: Default::default(),
             compressed_state_diff: None,
             bouncer_weights: BouncerWeights::empty(),
+            casm_hash_computation_data: CasmHashComputationData::default(),
         })
     });
 
