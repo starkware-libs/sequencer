@@ -1,7 +1,7 @@
 {
   "chain_id": "SN_INTEGRATION_SEPOLIA",
   "image": "ghcr.io/starkware-libs/sequencer/sequencer:dev",
-  "application_config_subdir": "config/sequencer/testing/app_configs/consolidated/",
+  "application_config_subdir": "config/sequencer/testing/app_configs/consolidated/deployment_test_consolidated/",
   "services": [
     {
       "name": "Node",
@@ -22,9 +22,7 @@
           "memory": 8
         }
       },
-      "external_secret": {
-        "gcsm_key": "sequencer-dev-secrets"
-      }
+      "external_secret": null
     }
   ]
 }

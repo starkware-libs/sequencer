@@ -151,8 +151,12 @@ impl ServiceName {
         name
     }
 
-    pub fn create_service(&self, environment: &Environment) -> Service {
-        self.as_inner().create_service(environment)
+    pub fn create_service(
+        &self,
+        environment: &Environment,
+        external_secret: &Option<ExternalSecret>,
+    ) -> Service {
+        self.as_inner().create_service(environment, external_secret)
     }
 
     fn as_inner(&self) -> &dyn ServiceNameInner {
@@ -165,18 +169,29 @@ impl ServiceName {
 }
 
 pub(crate) trait ServiceNameInner: Display {
-    fn create_service(&self, environment: &Environment) -> Service;
+    fn create_service(
+        &self,
+        environment: &Environment,
+        external_secret: &Option<ExternalSecret>,
+    ) -> Service;
 }
 
 impl DeploymentName {
-    pub fn add_path_suffix(&self, path: PathBuf) -> PathBuf {
-        match self {
+    pub fn add_path_suffix(&self, path: PathBuf, instance_name: &str) -> PathBuf {
+        let deployment_name_dir = match self {
             // TODO(Tsabary): find a way to avoid this code duplication.
             // Trailing backslash needed to mitigate deployment test issues.
             Self::ConsolidatedNode => path.join("consolidated/"),
             Self::HybridNode => path.join("hybrid/"),
             Self::DistributedNode => path.join("distributed/"),
-        }
+        };
+        println!("Deployment name dir: {:?}", deployment_name_dir);
+        let deployment_with_instance = deployment_name_dir.join(instance_name);
+        println!("Deployment with instance: {:?}", deployment_with_instance);
+
+        let s = deployment_with_instance.to_string_lossy();
+        let modified = if s.ends_with('/') { s.into_owned() } else { format!("{}/", s) };
+        modified.into()
     }
 
     pub fn all_service_names(&self) -> Vec<ServiceName> {
