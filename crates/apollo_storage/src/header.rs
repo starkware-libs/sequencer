@@ -46,7 +46,6 @@ use starknet_api::block::{
     BlockNumber,
     BlockSignature,
     BlockTimestamp,
-    GasPrice,
     GasPricePerToken,
     StarknetVersion,
 };
@@ -59,7 +58,6 @@ use starknet_api::core::{
     TransactionCommitment,
 };
 use starknet_api::data_availability::L1DataAvailabilityMode;
-use starknet_api::execution_resources::GasAmount;
 use tracing::debug;
 
 use crate::db::serialization::NoVersionValueWrapper;
@@ -75,8 +73,8 @@ pub(crate) struct StorageBlockHeader {
     pub l1_gas_price: GasPricePerToken,
     pub l1_data_gas_price: GasPricePerToken,
     pub l2_gas_price: GasPricePerToken,
-    pub l2_gas_consumed: GasAmount,
-    pub next_l2_gas_price: GasPrice,
+    pub l2_gas_consumed: u64,
+    pub next_l2_gas_price: u64,
     pub state_root: GlobalRoot,
     pub sequencer: SequencerContractAddress,
     pub timestamp: BlockTimestamp,

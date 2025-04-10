@@ -1,7 +1,6 @@
 use serde::Deserialize;
-use starknet_api::block::{GasPrice, StarknetVersion};
+use starknet_api::block::StarknetVersion;
 use starknet_api::define_versioned_constants;
-use starknet_api::execution_resources::GasAmount;
 use thiserror::Error;
 
 /// Versioned constants for the Consensus.
@@ -12,11 +11,11 @@ pub struct VersionedConstants {
     /// between consecutive blocks.
     pub gas_price_max_change_denominator: u128,
     /// The minimum gas price in fri.
-    pub min_gas_price: GasPrice,
+    pub min_gas_price: u64,
     /// The maximum block size in gas units.
-    pub max_block_size: GasAmount,
+    pub max_block_size: u64,
     /// The target gas usage per block (usually half of a block's gas limit).
-    pub gas_target: GasAmount,
+    pub gas_target: u64,
     /// The margin for the eth to fri rate disagreement, expressed as a percentage (parts per
     /// hundred).
     pub l1_gas_price_margin_percent: u32,
