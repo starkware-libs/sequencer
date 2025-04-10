@@ -7,3 +7,4 @@ pub mod l1_provider;
 pub mod mempool;
 pub mod mempool_p2p;
 pub mod sierra_compiler;
+pub mod state_sync;
