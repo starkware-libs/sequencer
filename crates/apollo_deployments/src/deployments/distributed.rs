@@ -136,7 +136,11 @@ impl GetComponentConfigs for DistributedNodeServiceName {
 
 // TODO(Tsabary): per each service, update all values.
 impl ServiceNameInner for DistributedNodeServiceName {
-    fn create_service(&self, environment: &Environment) -> Service {
+    fn create_service(
+        &self,
+        environment: &Environment,
+        external_secret: &Option<ExternalSecret>,
+    ) -> Service {
         match environment {
             Environment::Testing => match self {
                 DistributedNodeServiceName::Batcher => Service::new(
@@ -148,7 +152,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     Some(32),
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                    None,
+                    external_secret.clone(),
                 ),
                 DistributedNodeServiceName::ClassManager => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -159,7 +163,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     Some(32),
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                    None,
+                    external_secret.clone(),
                 ),
                 DistributedNodeServiceName::ConsensusManager => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -170,7 +174,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     None,
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                    None,
+                    external_secret.clone(),
                 ),
                 DistributedNodeServiceName::HttpServer => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -180,11 +184,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         true,
                         vec![
                             IngressRule::new(String::from("/gateway"), 8080, None),
-                            IngressRule::new(
-                                String::from("/feeder_gateway"),
-                                8085,
-                                Some("nginx-service".into()),
-                            ),
+
                         ],
                         vec![],
                     )),
@@ -193,7 +193,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     None,
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                    None,
+                    external_secret.clone(),
                 ),
                 DistributedNodeServiceName::Gateway => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -204,7 +204,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     None,
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                    None,
+                    external_secret.clone(),
                 ),
                 DistributedNodeServiceName::L1 => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -215,7 +215,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     None,
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                    None,
+                    external_secret.clone(),
                 ),
                 DistributedNodeServiceName::Mempool => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -226,7 +226,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     None,
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                    None,
+                    external_secret.clone(),
                 ),
                 DistributedNodeServiceName::SierraCompiler => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -237,7 +237,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     None,
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                    None,
+                    external_secret.clone(),
                 ),
                 DistributedNodeServiceName::StateSync => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -248,7 +248,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     Some(32),
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                    None,
+                    external_secret.clone(),
                 ),
             },
             Environment::SepoliaIntegration => match self {
@@ -261,7 +261,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     Some(32),
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                    Some(ExternalSecret::new("sequencer-integration-secrets")),
+                    external_secret.clone(),
                 ),
                 DistributedNodeServiceName::ClassManager => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -272,7 +272,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     Some(32),
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                    Some(ExternalSecret::new("sequencer-integration-secrets")),
+                    external_secret.clone(),
                 ),
                 DistributedNodeServiceName::ConsensusManager => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -283,7 +283,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     None,
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                    Some(ExternalSecret::new("sequencer-integration-secrets")),
+                    external_secret.clone(),
                 ),
                 DistributedNodeServiceName::HttpServer => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -293,11 +293,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         true,
                         vec![
                             IngressRule::new(String::from("/gateway"), 8080, None),
-                            IngressRule::new(
-                                String::from("/feeder_gateway"),
-                                8085,
-                                Some("nginx-service".into()),
-                            ),
+
                         ],
                         vec![],
                     )),
@@ -306,7 +302,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     None,
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                    Some(ExternalSecret::new("sequencer-integration-secrets")),
+                    external_secret.clone(),
                 ),
                 DistributedNodeServiceName::Gateway => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -317,7 +313,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     None,
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                    Some(ExternalSecret::new("sequencer-integration-secrets")),
+                    external_secret.clone(),
                 ),
                 DistributedNodeServiceName::L1 => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -328,7 +324,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     None,
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                    Some(ExternalSecret::new("sequencer-integration-secrets")),
+                    external_secret.clone(),
                 ),
                 DistributedNodeServiceName::Mempool => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -339,7 +335,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     None,
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                    Some(ExternalSecret::new("sequencer-integration-secrets")),
+                    external_secret.clone(),
                 ),
                 DistributedNodeServiceName::SierraCompiler => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -350,7 +346,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     None,
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                    Some(ExternalSecret::new("sequencer-integration-secrets")),
+                    external_secret.clone(),
                 ),
                 DistributedNodeServiceName::StateSync => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -361,7 +357,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     Some(32),
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                    Some(ExternalSecret::new("sequencer-integration-secrets")),
+                    external_secret.clone(),
                 ),
             },
             _ => unimplemented!(),
