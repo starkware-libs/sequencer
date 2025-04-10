@@ -27,7 +27,7 @@ use blockifier::state::stateful_compression::{
 };
 use errors::{add_py_exceptions, UndeclaredClassHashError};
 use py_block_executor::PyBlockExecutor;
-use py_objects::PyExecutionResources;
+use py_objects::{PyCasmHashComputationData, PyExecutionResources};
 use py_validator::PyValidator;
 use pyo3::prelude::*;
 use starknet_api::block::StarknetVersion;
@@ -53,6 +53,7 @@ fn native_blockifier(py: Python<'_>, py_module: &PyModule) -> PyResult<()> {
     py_module.add_class::<PyVersionedConstantsOverrides>()?;
     py_module.add_class::<PyExecutionResources>()?;
     py_module.add_class::<StorageConfig>()?;
+    py_module.add_class::<PyCasmHashComputationData>()?;
     py_module.add("UndeclaredClassHashError", py.get_type::<UndeclaredClassHashError>())?;
     add_py_exceptions(py, py_module)?;
 

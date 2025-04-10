@@ -12,7 +12,7 @@ use blockifier::blockifier::config::{
     NativeClassesWhitelist,
 };
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
-use blockifier::bouncer::{BouncerConfig, BouncerWeights};
+use blockifier::bouncer::{BouncerConfig, BouncerWeights, CasmHashComputationData};
 use blockifier::state::contract_class_manager::DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE;
 use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
@@ -50,8 +50,30 @@ impl From<ExecutionResources> for PyExecutionResources {
     }
 }
 
-// From Python to Rust.
+#[pyclass]
+pub struct PyCasmHashComputationData {
+    #[pyo3(get)]
+    pub class_hash_to_casm_hash_computation_gas: HashMap<String, u64>,
+    #[pyo3(get)]
+    pub sierra_gas_without_casm_hash_computation: u64,
+}
 
+impl From<CasmHashComputationData> for PyCasmHashComputationData {
+    fn from(data: CasmHashComputationData) -> Self {
+        Self {
+            class_hash_to_casm_hash_computation_gas: data
+                .class_hash_to_casm_hash_computation_gas
+                .iter()
+                .map(|(class_hash, gas)| (class_hash.0.to_hex_string(), gas.0))
+                .collect(),
+            sierra_gas_without_casm_hash_computation: data
+                .sierra_gas_without_casm_hash_computation
+                .0,
+        }
+    }
+}
+
+// From Python to Rust.
 #[pyclass]
 #[derive(Clone)]
 pub struct PyVersionedConstantsOverrides {
