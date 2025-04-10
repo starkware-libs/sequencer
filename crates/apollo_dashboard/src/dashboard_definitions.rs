@@ -44,6 +44,14 @@ use apollo_gateway::metrics::{
     TRANSACTIONS_SENT_TO_MEMPOOL,
 };
 use apollo_http_server::metrics::ADDED_TRANSACTIONS_TOTAL;
+use apollo_infra::metrics::{
+    BATCHER_LOCAL_MSGS_PROCESSED,
+    BATCHER_LOCAL_MSGS_RECEIVED,
+    BATCHER_LOCAL_QUEUE_DEPTH,
+    BATCHER_REMOTE_MSGS_PROCESSED,
+    BATCHER_REMOTE_MSGS_RECEIVED,
+    BATCHER_REMOTE_VALID_MSGS_RECEIVED,
+};
 use apollo_mempool::metrics::{
     LABEL_NAME_DROP_REASON,
     LABEL_NAME_TX_TYPE as MEMPOOL_LABEL_NAME_TX_TYPE,
@@ -87,6 +95,18 @@ const PANEL_PROPOSAL_SUCCEEDED: Panel = Panel::from_counter(PROPOSAL_SUCCEEDED, 
 const PANEL_PROPOSAL_FAILED: Panel = Panel::from_counter(PROPOSAL_FAILED, PanelType::Stat);
 const PANEL_BATCHED_TRANSACTIONS: Panel =
     Panel::from_counter(BATCHED_TRANSACTIONS, PanelType::Stat);
+const PANEL_BATCHER_LOCAL_MSGS_RECEIVED: Panel =
+    Panel::from_counter(BATCHER_LOCAL_MSGS_RECEIVED, PanelType::Stat);
+const PANEL_BATCHER_LOCAL_MSGS_PROCESSED: Panel =
+    Panel::from_counter(BATCHER_LOCAL_MSGS_PROCESSED, PanelType::Stat);
+const PANEL_BATCHER_REMOTE_MSGS_RECEIVED: Panel =
+    Panel::from_counter(BATCHER_REMOTE_MSGS_RECEIVED, PanelType::Stat);
+const PANEL_BATCHER_REMOTE_VALID_MSGS_RECEIVED: Panel =
+    Panel::from_counter(BATCHER_REMOTE_VALID_MSGS_RECEIVED, PanelType::Stat);
+const PANEL_BATCHER_REMOTE_MSGS_PROCESSED: Panel =
+    Panel::from_counter(BATCHER_REMOTE_MSGS_PROCESSED, PanelType::Stat);
+const PANEL_BATCHER_LOCAL_QUEUE_DEPTH: Panel =
+    Panel::from_gauge(BATCHER_LOCAL_QUEUE_DEPTH, PanelType::Stat);
 
 const PANEL_CONSENSUS_BLOCK_NUMBER: Panel =
     Panel::from_gauge(CONSENSUS_BLOCK_NUMBER, PanelType::Stat);
@@ -348,6 +368,19 @@ const BATCHER_ROW: Row = Row::new(
     ],
 );
 
+const BATCHER_INFRA_ROW: Row = Row::new(
+    "Batcher Infra",
+    "Batcher infra metrics",
+    &[
+        PANEL_BATCHER_LOCAL_MSGS_RECEIVED,
+        PANEL_BATCHER_LOCAL_MSGS_PROCESSED,
+        PANEL_BATCHER_LOCAL_QUEUE_DEPTH,
+        PANEL_BATCHER_REMOTE_MSGS_RECEIVED,
+        PANEL_BATCHER_REMOTE_VALID_MSGS_RECEIVED,
+        PANEL_BATCHER_REMOTE_MSGS_PROCESSED,
+    ],
+);
+
 const APOLLO_STATE_READER_ROW: Row = Row::new(
     "Apollo State Reader",
     "Apollo state reader metrics",
@@ -433,5 +466,6 @@ pub const SEQUENCER_DASHBOARD: Dashboard = Dashboard::new(
         GATEWAY_ROW,
         MEMPOOL_ROW,
         APOLLO_STATE_READER_ROW,
+        BATCHER_INFRA_ROW,
     ],
 );
