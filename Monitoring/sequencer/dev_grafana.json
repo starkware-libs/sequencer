@@ -446,6 +446,50 @@
         "expr": "batcher_remote_msgs_processed",
         "extra_params": {}
       }
+    ],
+    "Class Manager Infra": [
+      {
+        "title": "class_manager_local_msgs_received",
+        "description": "Counter of messages received by class manager local server",
+        "type": "stat",
+        "expr": "class_manager_local_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_local_msgs_processed",
+        "description": "Counter of messages processed by class manager local server",
+        "type": "stat",
+        "expr": "class_manager_local_msgs_processed",
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_local_queue_depth",
+        "description": "The depth of the class manager's local message queue",
+        "type": "stat",
+        "expr": "class_manager_local_queue_depth",
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_remote_msgs_received",
+        "description": "Counter of messages received by class manager remote server",
+        "type": "stat",
+        "expr": "class_manager_remote_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_remote_valid_msgs_received",
+        "description": "Counter of valid messages received by class manager remote server",
+        "type": "stat",
+        "expr": "class_manager_remote_valid_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_remote_msgs_processed",
+        "description": "Counter of messages processed by class manager remote server",
+        "type": "stat",
+        "expr": "class_manager_remote_msgs_processed",
+        "extra_params": {}
+      }
     ]
   }
 }
