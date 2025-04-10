@@ -9,6 +9,7 @@ description = "Implements the consensus context and orchestrates the node's comp
 [dependencies]
 apollo_config.workspace = true
 apollo_network.workspace = true
+apollo_proc_macros.workspace = true
 apollo_protobuf.workspace = true
 async-trait.workspace = true
 blockifier.workspace = true
@@ -45,6 +46,8 @@ apollo_test_utils.workspace = true
 cairo-lang-casm.workspace = true
 cairo-lang-utils.workspace = true
 cairo-vm.workspace = true
+metrics.workspace = true
+metrics-exporter-prometheus.workspace = true
 mockall.workspace = true
 mockito.workspace = true
 num-bigint.workspace = true

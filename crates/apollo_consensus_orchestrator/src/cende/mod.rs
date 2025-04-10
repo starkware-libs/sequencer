@@ -9,6 +9,7 @@ use std::sync::Arc;
 use apollo_class_manager_types::{ClassManagerClientError, SharedClassManagerClient};
 use apollo_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_proc_macros::sequencer_latency_histogram;
 use async_trait::async_trait;
 use blockifier::bouncer::BouncerWeights;
 use blockifier::state::cached_state::CommitmentStateDiff;
@@ -39,8 +40,11 @@ use tracing::{error, info, warn, Instrument};
 use url::Url;
 
 use crate::fee_market::FeeMarketInfo;
-
-// TODO(dvir): add metrics when the infra side will be completed.
+use crate::metrics::{
+    CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER,
+    CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY,
+    CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY,
+};
 
 #[derive(thiserror::Error, Debug)]
 pub enum CendeAmbassadorError {
@@ -155,6 +159,7 @@ impl SerializeConfig for CendeConfig {
 
 #[async_trait]
 impl CendeContext for CendeAmbassador {
+    #[sequencer_latency_histogram(CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY, false)]
     fn write_prev_height_blob(&self, current_height: BlockNumber) -> JoinHandle<bool> {
         info!("Start writing to Aerospike previous height blob for height {current_height}.");
 
@@ -208,6 +213,7 @@ impl CendeContext for CendeAmbassador {
         )
     }
 
+    #[sequencer_latency_histogram(CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY, false)]
     async fn prepare_blob_for_next_height(
         &self,
         blob_parameters: BlobParameters,
@@ -222,6 +228,7 @@ impl CendeContext for CendeAmbassador {
             .await?,
         );
         info!("Blob for block number {block_number} is ready.");
+        CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER.set_lossy(block_number.0);
         Ok(())
     }
 }
