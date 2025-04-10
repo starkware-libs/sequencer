@@ -1,7 +1,7 @@
 {
   "chain_id": "SN_INTEGRATION_SEPOLIA",
-  "image": "ghcr.io/starkware-libs/sequencer/sequencer:dev",
-  "application_config_subdir": "config/sequencer/sepolia_integration/app_configs/consolidated/",
+  "image": "ghcr.io/starkware-libs/sequencer/sequencer:04-10-chore_apollo_deployments_3_nodes_integration_deployments-1a9c48e",
+  "application_config_subdir": "config/sequencer/sepolia_integration/app_configs/consolidated/integration_consolidated/",
   "services": [
     {
       "name": "Node",
@@ -41,7 +41,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "sequencer-integration-secrets"
+        "gcsm_key": "node-1-integration-secrets"
       }
     }
   ]

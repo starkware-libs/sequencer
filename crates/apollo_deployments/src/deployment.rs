@@ -10,10 +10,13 @@ use serde::Serialize;
 use serde_json::Value;
 use starknet_api::core::ChainId;
 
-use crate::deployment_definitions::Environment;
-use crate::service::{DeploymentName, Service, ServiceName};
+use crate::deployment_definitions::{Environment, CONFIG_BASE_DIR};
+use crate::service::{DeploymentName, ExternalSecret, Service, ServiceName};
 
-const DEPLOYMENT_IMAGE: &str = "ghcr.io/starkware-libs/sequencer/sequencer:dev";
+
+
+const DEPLOYMENT_IMAGE: &str = "ghcr.io/starkware-libs/sequencer/sequencer:04-10-chore_apollo_deployments_3_nodes_integration_deployments-1a9c48e";
+const DEPLOYMENT_CONFIG_DIR_NAME: &str = "deployment_configs/";
 
 pub struct DeploymentAndPreset {
     deployment: Deployment,
@@ -23,11 +26,8 @@ pub struct DeploymentAndPreset {
 }
 
 impl DeploymentAndPreset {
-    pub fn new(
-        deployment: Deployment,
-        dump_file_path: PathBuf,
-        base_app_config_file_path: &'static str,
-    ) -> Self {
+    pub fn new(deployment: Deployment, base_app_config_file_path: &'static str) -> Self {
+        let dump_file_path = deployment.deployment_file_path();
         Self { deployment, dump_file_path, base_app_config_file_path }
     }
 
@@ -54,6 +54,8 @@ pub struct Deployment {
     #[serde(skip_serializing)]
     environment: Environment,
     services: Vec<Service>,
+    #[serde(skip_serializing)]
+    instance_name: String,
 }
 
 impl Deployment {
@@ -61,20 +63,23 @@ impl Deployment {
         chain_id: ChainId,
         deployment_name: DeploymentName,
         environment: Environment,
+        instance_name: &str,
+        external_secret: Option<ExternalSecret>,
     ) -> Self {
         let service_names = deployment_name.all_service_names();
         let services = service_names
             .iter()
-            .map(|service_name| service_name.create_service(&environment))
+            .map(|service_name| service_name.create_service(&environment, &external_secret))
             .collect();
         Self {
             chain_id,
             image: DEPLOYMENT_IMAGE,
             application_config_subdir: deployment_name
-                .add_path_suffix(environment.application_config_dir_path()),
+                .add_path_suffix(environment.application_config_dir_path(), instance_name),
             deployment_name,
             environment,
             services,
+            instance_name: instance_name.to_string(),
         }
     }
 
@@ -115,6 +120,13 @@ impl Deployment {
                 config_path.to_str().expect("Should be able to convert path to string"),
             );
         }
+    }
+
+    pub fn deployment_file_path(&self) -> PathBuf {
+        PathBuf::from(CONFIG_BASE_DIR)
+            .join(self.environment.to_string())
+            .join(DEPLOYMENT_CONFIG_DIR_NAME)
+            .join(format!("{}.json", self.instance_name))
     }
 
     #[cfg(test)]
