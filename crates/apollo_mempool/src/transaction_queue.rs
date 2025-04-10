@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::collections::{BTreeSet, HashMap};
 
 use apollo_mempool_types::mempool_types::TransactionQueueSnapshot;
-use starknet_api::block::NonzeroGasPrice;
+use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::transaction::fields::Tip;
 use starknet_api::transaction::TransactionHash;
@@ -18,7 +18,7 @@ pub mod transaction_queue_test_utils;
 // used.
 #[derive(Debug, Default)]
 pub struct TransactionQueue {
-    gas_price_threshold: NonzeroGasPrice,
+    gas_price_threshold: GasPrice,
     // Transactions with gas price above gas price threshold (sorted by tip).
     priority_queue: BTreeSet<PriorityTransaction>,
     // Transactions with gas price below gas price threshold (sorted by price).
@@ -105,7 +105,7 @@ impl TransactionQueue {
         !self.priority_queue.is_empty()
     }
 
-    pub fn update_gas_price_threshold(&mut self, threshold: NonzeroGasPrice) {
+    pub fn update_gas_price_threshold(&mut self, threshold: GasPrice) {
         match threshold.cmp(&self.gas_price_threshold) {
             Ordering::Less => self.promote_txs_to_priority(threshold),
             Ordering::Greater => self.demote_txs_to_pending(threshold),
@@ -115,7 +115,7 @@ impl TransactionQueue {
         self.gas_price_threshold = threshold;
     }
 
-    fn promote_txs_to_priority(&mut self, threshold: NonzeroGasPrice) {
+    fn promote_txs_to_priority(&mut self, threshold: GasPrice) {
         let tmp_split_tx = PendingTransaction(TransactionReference {
             max_l2_gas_price: threshold,
             address: ContractAddress::default(),
@@ -134,7 +134,7 @@ impl TransactionQueue {
         self.priority_queue.extend(txs_over_threshold.map(|tx| PriorityTransaction::from(tx.0)));
     }
 
-    fn demote_txs_to_pending(&mut self, threshold: NonzeroGasPrice) {
+    fn demote_txs_to_pending(&mut self, threshold: GasPrice) {
         let mut txs_to_remove = Vec::new();
 
         // Remove all transactions from the priority queue that are below the threshold.
