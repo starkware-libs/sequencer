@@ -1,14 +1,12 @@
 use std::sync::Arc;
 
 use starknet_api::core::ClassHash;
-use starknet_api::state::SierraContractClass;
 use starknet_types_core::felt::Felt;
 
-use crate::execution::contract_class::{CompiledClassV0, CompiledClassV1, RunnableCompiledClass};
+use crate::execution::contract_class::RunnableCompiledClass;
 use crate::state::contract_class_manager::ContractClassManager;
 use crate::state::global_cache::CachedClass;
 use crate::state::state_api::{StateReader, StateResult};
-
 
 pub struct StateReaderAndContractManger<S: StateReader> {
     pub state_reader: S,
@@ -39,10 +37,20 @@ impl<S: StateReader> StateReaderAndContractManger<S> {
         Ok(runnable_class)
     }
 
-    fn get_cached_class(&self, _class_hash: ClassHash) -> StateResult<CachedClass> {
-        // TODO(AvivG): Implement this function once exists:
-        // StateReader::get_sierra_class(class_hash: ClassHash) -> StateResult<SierraContractClass>
-        todo!();
+    fn get_cached_class(&self, class_hash: ClassHash) -> StateResult<CachedClass> {
+        match self.state_reader.get_compiled_class(class_hash)? {
+            RunnableCompiledClass::V0(class) => Ok(CachedClass::V0(class)),
+            RunnableCompiledClass::V1(class) => {
+                let sierra_class = self.state_reader.get_sierra(class_hash)?;
+                Ok(CachedClass::V1(class, Arc::new(sierra_class)))
+            }
+            #[cfg(feature = "cairo_native")]
+            RunnableCompiledClass::V1Native(_) => {
+                // Native classes should not reach this point as this struct is used for cairo
+                // native compilation.
+                panic!("Native classes are not supported here")
+            }
+        }
     }
 }
 
