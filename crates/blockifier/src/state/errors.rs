@@ -32,6 +32,8 @@ pub enum StateError {
     /// Represents all unexpected errors that may occur while reading from state.
     #[error("Failed to read from state: {0}.")]
     StateReadError(String),
+    #[error("Unexpected variant: {0}.")]
+    UnexpectedVariant(String),
 }
 
 /// Ensures that the CASM and Sierra classes are coupled - Meaning that they both exist or are

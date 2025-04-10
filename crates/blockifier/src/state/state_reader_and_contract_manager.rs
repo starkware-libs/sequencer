@@ -1,9 +1,13 @@
+use std::sync::Arc;
+
 use starknet_api::core::ClassHash;
 use starknet_types_core::felt::Felt;
 
 use crate::execution::contract_class::RunnableCompiledClass;
 use crate::state::contract_class_manager::ContractClassManager;
 use crate::state::global_cache::CachedClass;
+#[cfg(feature = "cairo_native")]
+use crate::state::state_api::StateError;
 use crate::state::state_api::{StateReader, StateResult};
 
 pub struct StateReaderAndContractManger<S: StateReader> {
@@ -35,10 +39,21 @@ impl<S: StateReader> StateReaderAndContractManger<S> {
         Ok(runnable_class)
     }
 
-    fn get_cached_class(&self, _class_hash: ClassHash) -> StateResult<CachedClass> {
-        // TODO(AvivG): Implement this function once exists:
-        // StateReader::get_sierra_class(class_hash: ClassHash) -> StateResult<SierraContractClass>
-        todo!();
+    fn get_cached_class(&self, class_hash: ClassHash) -> StateResult<CachedClass> {
+        match self.state_reader.get_compiled_class(class_hash)? {
+            RunnableCompiledClass::V0(class) => Ok(CachedClass::V0(class)),
+            RunnableCompiledClass::V1(class) => {
+                let sierra_class = self.state_reader.get_sierra_class(class_hash)?;
+                Ok(CachedClass::V1(class, Arc::new(sierra_class)))
+            }
+            #[cfg(feature = "cairo_native")]
+            RunnableCompiledClass::V1Native(_) => {
+                // This should never happen — V1Native is not expected at this stage.
+                Err(StateError::UnexpectedVariant(
+                    "V1Native should not appear in get_cached_class() before compilation".into(),
+                ))
+            }
+        }
     }
 }
 
