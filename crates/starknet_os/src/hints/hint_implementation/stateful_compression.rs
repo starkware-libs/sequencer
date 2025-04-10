@@ -4,10 +4,12 @@ use blockifier::state::state_api::{State, StateReader};
 use cairo_vm::any_box;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
+    insert_value_from_var_name,
     insert_value_into_ap,
 };
 use starknet_types_core::felt::Felt;
 
+use crate::hint_processor::state_update_pointers::get_contract_state_entry_and_storage_ptr;
 use crate::hints::error::OsHintResult;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{Const, Ids, Scope};
@@ -108,9 +110,29 @@ pub(crate) fn update_contract_addr_to_storage_ptr<S: StateReader>(
 }
 
 pub(crate) fn guess_aliases_contract_storage_ptr<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, constants, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    let aliases_contract_address = Const::get_alias_contract_address(constants)?;
+    let (state_entry_ptr, storage_ptr) = get_contract_state_entry_and_storage_ptr(
+        &mut hint_processor.state_update_pointers,
+        vm,
+        aliases_contract_address,
+    );
+    insert_value_from_var_name(
+        Ids::PrevAliasesStateEntry.into(),
+        state_entry_ptr,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    insert_value_from_var_name(
+        Ids::SquashedAliasesStorageStart.into(),
+        storage_ptr,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    Ok(())
 }
 
 pub(crate) fn update_aliases_contract_to_storage_ptr<S: StateReader>(
