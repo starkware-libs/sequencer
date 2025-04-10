@@ -1,9 +1,6 @@
 use std::cmp::max;
 
-use ethnum::U256;
 use serde::Serialize;
-use starknet_api::block::GasPrice;
-use starknet_api::execution_resources::GasAmount;
 
 use crate::orchestrator_versioned_constants;
 
@@ -14,9 +11,9 @@ mod test;
 #[derive(Debug, Default, Serialize)]
 pub struct FeeMarketInfo {
     /// Total gas consumed in the current block.
-    pub l2_gas_consumed: GasAmount,
+    pub l2_gas_consumed: u64,
     /// Gas price for the next block.
-    pub next_l2_gas_price: GasPrice,
+    pub next_l2_gas_price: u64,
 }
 
 /// Calculate the base gas price for the next block according to EIP-1559.
@@ -25,46 +22,60 @@ pub struct FeeMarketInfo {
 /// - `price`: The base gas price per unit (in fri) of the current block.
 /// - `gas_used`: The total gas used in the current block.
 /// - `gas_target`: The target gas usage per block (usually half of a block's gas limit).
-pub fn calculate_next_base_gas_price(
-    price: GasPrice,
-    gas_used: GasAmount,
-    gas_target: GasAmount,
-) -> GasPrice {
+pub fn calculate_next_base_gas_price(price: u64, gas_used: u64, gas_target: u64) -> u64 {
     let versioned_constants =
         orchestrator_versioned_constants::VersionedConstants::latest_constants();
-    // Setting target to 50% of max block size balances price changes and prevents spikes.
+    // Setting the target at 50% of the max block size balances the rate of gas price changes,
+    // helping to prevent sudden spikes, particularly during increases, for a better user
+    // experience.
     assert_eq!(
         gas_target,
         versioned_constants.max_block_size / 2,
         "Gas target must be 50% of max block size to balance price changes."
     );
-    // A minimum gas price prevents precision loss. Additionally, a minimum gas price helps avoid
-    // extended periods of low pricing.
+    // To prevent precision loss during multiplication and division, we set a minimum gas price.
+    // Additionally, a minimum gas price is established to prevent prolonged periods before the
+    // price reaches a higher value.
     assert!(
         price >= versioned_constants.min_gas_price,
-        "The gas price must be at least the minimum to prevent precision loss."
+        "The gas price must be at least the minimum to prevent precision loss during \
+         multiplication and division."
     );
 
-    // Use U256 to avoid overflow, as multiplying a u128 by a u64 remains within U256 bounds.
-    let gas_delta = U256::from(gas_used.0.abs_diff(gas_target.0));
-    let gas_target_u256 = U256::from(gas_target.0);
-    let price_u256 = U256::from(price.0);
+    // We use unsigned integers (u64 and u128) to avoid overflow issues, as the input values are
+    // naturally unsigned and i256 is unstable in Rust. This approach allows safe handling of
+    // all inputs using u128 for intermediate calculations.
 
-    // Calculate price change by multiplying first, then dividing. This avoids the precision loss
-    // that occurs when dividing before multiplying.
-    let denominator =
-        gas_target_u256 * U256::from(versioned_constants.gas_price_max_change_denominator);
-    let price_change = (price_u256 * gas_delta) / denominator;
+    // The absolute difference between gas_used and gas_target is always u64.
+    let gas_delta = gas_used.abs_diff(gas_target);
+    // Convert to u128 to prevent overflow, as a product of two u64 fits inside a u128.
+    let price_u128 = u128::from(price);
+    let gas_delta_u128 = u128::from(gas_delta);
+    let gas_target_u128 = u128::from(gas_target);
 
-    let adjusted_price_u256 =
-        if gas_used > gas_target { price_u256 + price_change } else { price_u256 - price_change };
+    // Calculate the gas change as u128 to handle potential overflow during multiplication.
+    let gas_delta_cost =
+        price_u128.checked_mul(gas_delta_u128).expect("Both variables originate from u64");
+    // Calculate the price change, maintaining precision by dividing after scaling up.
+    // This avoids significant precision loss that would occur if dividing before
+    // multiplication.
+    let price_change_u128 =
+        gas_delta_cost / (gas_target_u128 * versioned_constants.gas_price_max_change_denominator);
 
-    // Sanity check: ensure direction of change is correct
+    // Convert back to u64, as the price change should fit within the u64 range.
+    // Since the target is half the maximum block size (which fits within a u64), the gas delta
+    // is bounded by half the maximum block size. Therefore, after dividing by the gas target
+    // (which is half the maximum block size), the result is guaranteed to fit within a u64.
+    let price_change = u64::try_from(price_change_u128)
+        .expect("Result fits u64 after division of a bounded gas delta");
+
+    let adjusted_price =
+        if gas_used > gas_target { price + price_change } else { price - price_change };
+
     assert!(
-        gas_used > gas_target && adjusted_price_u256 >= price_u256
-            || gas_used <= gas_target && adjusted_price_u256 <= price_u256
+        gas_used > gas_target && adjusted_price >= price
+            || gas_used <= gas_target && adjusted_price <= price
     );
 
-    let adjusted_price: u128 = adjusted_price_u256.try_into().expect("Failed to convert to u128");
-    GasPrice(max(adjusted_price, versioned_constants.min_gas_price.0))
+    max(adjusted_price, versioned_constants.min_gas_price)
 }

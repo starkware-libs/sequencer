@@ -27,7 +27,7 @@ message SignedBlockHeader {
     Uint128 l2_gas_price_fri = 16;
     Uint128 l2_gas_price_wei = 17;
     uint64 l2_gas_consumed = 18;
-    Uint128 next_l2_gas_price = 19;
+    uint64 next_l2_gas_price = 19;
     L1DataAvailabilityMode l1_data_availability_mode = 20;
     // for now, we assume a small consensus, so this fits in 1M. Else, these will be repeated and extracted from this message.
     repeated ConsensusSignature signatures = 21;
