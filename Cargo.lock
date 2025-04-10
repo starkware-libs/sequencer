@@ -990,6 +990,7 @@ dependencies = [
  "cairo-lang-utils",
  "cairo-vm",
  "chrono",
+ "ethnum",
  "futures",
  "indexmap 2.9.0",
  "mockall",
