@@ -62,8 +62,8 @@ pub trait StateReader {
         Ok((low, high))
     }
 
-    /// Returns the sierra of the given class hash.
-    fn get_sierra(&self, _class_hash: ClassHash) -> StateResult<SierraContractClass> {
+    /// Returns the sierra class of the given class hash.
+    fn get_sierra_class(&self, _class_hash: ClassHash) -> StateResult<SierraContractClass> {
         unimplemented!()
     }
 }
