@@ -1,7 +1,4 @@
-use apollo_state_reader::metrics::{CLASS_CACHE_HITS, CLASS_CACHE_MISSES, NATIVE_CLASS_RETURNED};
-use const_format::formatcp;
-
-use crate::dashboard::{Dashboard, Panel, PanelType, Row};
+use crate::dashboard::{Dashboard, Row};
 use crate::panels::batcher::{
     PANEL_BATCHED_TRANSACTIONS,
     PANEL_BATCHER_LOCAL_MSGS_PROCESSED,
@@ -118,6 +115,7 @@ use crate::panels::sierra_compiler::{
     PANEL_SIERRA_COMPILER_REMOTE_MSGS_RECEIVED,
     PANEL_SIERRA_COMPILER_REMOTE_VALID_MSGS_RECEIVED,
 };
+use crate::panels::state_reader::{PANEL_APOLLO_STATE_READER_CLASS_CACHE_MISS_RATIO, PANEL_APOLLO_STATE_READER_NATIVE_CLASS_RETURNED_RATIO};
 use crate::panels::state_sync::{
     PANEL_STATE_SYNC_LOCAL_MSGS_PROCESSED,
     PANEL_STATE_SYNC_LOCAL_MSGS_RECEIVED,
@@ -135,29 +133,6 @@ use crate::panels::state_sync::{
 mod dashboard_definitions_test;
 
 pub const DEV_JSON_PATH: &str = "Monitoring/sequencer/dev_grafana.json";
-
-const PANEL_APOLLO_STATE_READER_CLASS_CACHE_MISS_RATIO: Panel = Panel::new(
-    "class_cache_miss_ratio",
-    "The ratio of cache misses when requesting compiled classes from the apollo state reader",
-    formatcp!(
-        "100 * ({} / max(({} + {}), 1))",
-        CLASS_CACHE_MISSES.get_name(),
-        CLASS_CACHE_MISSES.get_name(),
-        CLASS_CACHE_HITS.get_name()
-    ),
-    PanelType::Graph,
-);
-const PANEL_APOLLO_STATE_READER_NATIVE_CLASS_RETURNED_RATIO: Panel = Panel::new(
-    "native_class_returned_ratio",
-    "The ratio of Native classes returned by the apollo state reader",
-    formatcp!(
-        "100 * ({} / max(({} + {}), 1))",
-        NATIVE_CLASS_RETURNED.get_name(),
-        CLASS_CACHE_HITS.get_name(),
-        CLASS_CACHE_MISSES.get_name()
-    ),
-    PanelType::Graph,
-);
 
 const MEMPOOL_P2P_ROW: Row = Row::new(
     "MempoolP2p",
