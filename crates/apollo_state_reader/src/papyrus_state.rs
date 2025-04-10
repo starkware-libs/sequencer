@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use apollo_class_manager_types::SharedClassManagerClient;
+use apollo_storage::class::ClassStorageReader;
 use apollo_storage::compiled_class::CasmStorageReader;
 use apollo_storage::db::RO;
 use apollo_storage::state::StateStorageReader;
@@ -14,6 +15,7 @@ use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::{couple_casm_and_sierra, StateError};
 use blockifier::state::global_cache::CachedClass;
 use blockifier::state::state_api::{StateReader, StateResult};
+use blockifier::state::state_reader_and_contract_manager::CompilableStateReader;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use log;
 use starknet_api::block::BlockNumber;
@@ -258,5 +260,30 @@ impl StateReader for PapyrusReader {
 
     fn get_compiled_class_hash(&self, _class_hash: ClassHash) -> StateResult<CompiledClassHash> {
         todo!()
+    }
+}
+
+impl CompilableStateReader for PapyrusReader {
+    fn get_cached_class(&self, class_hash: ClassHash) -> StateResult<CachedClass> {
+        match self.get_compiled_class(class_hash)? {
+            RunnableCompiledClass::V0(class) => Ok(CachedClass::V0(class)),
+            RunnableCompiledClass::V1(class) => {
+                let sierra_class = self
+                    .reader()?
+                    .get_class(&class_hash)
+                    .map_err(|err| StateError::StateReadError(err.to_string()))?
+                    .expect(
+                        "Should be able to fetch a Sierra class if its definition exists,
+                database is inconsistent.",
+                    );
+                Ok(CachedClass::V1(class, Arc::new(sierra_class)))
+            }
+            #[cfg(feature = "cairo_native")]
+            RunnableCompiledClass::V1Native(_) => {
+                // Native classes should not reach this point as this struct is used for cairo
+                // native compilation.
+                panic!("Native classes are not supported here")
+            }
+        }
     }
 }
