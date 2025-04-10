@@ -126,86 +126,103 @@ pub trait DeprecatedSyscallExecutor {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<CallContractResponse>;
+
     fn delegate_call(
         request: DelegateCallRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<DelegateCallResponse>;
+
     fn delegate_l1_handler(
         request: DelegateCallRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<DelegateCallResponse>;
+
     fn deploy(
         request: DeployRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<DeployResponse>;
+
     fn emit_event(
         request: EmitEventRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<EmitEventResponse>;
+
     fn get_block_number(
         request: GetBlockNumberRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<GetBlockNumberResponse>;
+
     fn get_block_timestamp(
         request: GetBlockTimestampRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<GetBlockTimestampResponse>;
+
     fn get_caller_address(
         request: GetCallerAddressRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<GetCallerAddressResponse>;
+
     fn get_contract_address(
         request: GetContractAddressRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<GetContractAddressResponse>;
+
     fn get_sequencer_address(
         request: GetSequencerAddressRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<GetSequencerAddressResponse>;
+
     fn get_tx_info(
         request: GetTxInfoRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<GetTxInfoResponse>;
+
     fn get_tx_signature(
         request: GetTxSignatureRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<GetTxSignatureResponse>;
+
     fn library_call(
         request: LibraryCallRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<LibraryCallResponse>;
+
     fn library_call_l1_handler(
         request: LibraryCallRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<LibraryCallResponse>;
+
     fn replace_class(
         request: ReplaceClassRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<ReplaceClassResponse>;
+
     fn send_message_to_l1(
         request: SendMessageToL1Request,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<SendMessageToL1Response>;
+
     fn storage_read(
         request: StorageReadRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<StorageReadResponse>;
+
     fn storage_write(
         request: StorageWriteRequest,
         vm: &mut VirtualMachine,
