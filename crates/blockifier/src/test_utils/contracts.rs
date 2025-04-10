@@ -9,6 +9,7 @@ use starknet_api::deprecated_contract_class::{
     ContractClass as DeprecatedContractClass,
     EntryPointOffset,
 };
+use starknet_api::state::SierraContractClass;
 
 use crate::execution::contract_class::RunnableCompiledClass;
 use crate::execution::entry_point::EntryPointTypeAndSelector;
@@ -102,7 +103,10 @@ impl FeatureContractTrait for FeatureContract {
 /// The information needed to test a [FeatureContract].
 pub struct FeatureContractData {
     pub class_hash: ClassHash,
-    pub runnable_class: RunnableCompiledClass,
+    pub runnable: RunnableCompiledClass,
+    // TODO(AvivG): Consider creating a struct for SierraContractClassWrapper that'll have a
+    // variant for Cairo 0.
+    pub sierra: Option<SierraContractClass>,
     pub require_funding: bool,
     integer_base: u32,
 }
@@ -126,9 +130,10 @@ impl From<FeatureContract> for FeatureContractData {
 
         Self {
             class_hash: contract.get_class_hash(),
-            runnable_class: contract.get_runnable_class(),
+            runnable: contract.get_runnable_class(),
             require_funding,
             integer_base: contract.get_integer_base(),
+            sierra: contract.get_sierra_no_panic(),
         }
     }
 }
