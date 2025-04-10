@@ -1,6 +1,7 @@
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{SierraContractClass, StorageKey};
+use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_types_core::felt::Felt;
 
 use super::cached_state::{ContractClassMapping, StateMaps};
@@ -62,8 +63,8 @@ pub trait StateReader {
         Ok((low, high))
     }
 
-    /// Returns the sierra of the given class hash.
-    fn get_sierra(&self, _class_hash: ClassHash) -> StateResult<SierraContractClass> {
+    /// Returns the sierra class of the given class hash.
+    fn get_sierra_class(&self, _class_hash: ClassHash) -> StateResult<SierraContractClass> {
         unimplemented!()
     }
 }
