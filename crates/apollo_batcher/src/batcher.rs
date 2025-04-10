@@ -187,7 +187,7 @@ impl Batcher {
         })?;
         self.mempool_client
             .update_gas_price(
-                propose_block_input.block_info.gas_prices.strk_gas_prices.l2_gas_price,
+                propose_block_input.block_info.gas_prices.strk_gas_prices.l2_gas_price.get(),
             )
             .await
             .map_err(|err| {

@@ -11,7 +11,7 @@ use apollo_mempool_types::mempool_types::{
     MempoolSnapshot,
     MempoolStateSnapshot,
 };
-use starknet_api::block::NonzeroGasPrice;
+use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::{InternalRpcTransaction, InternalRpcTransactionWithoutTxHash};
 use starknet_api::transaction::fields::Tip;
@@ -488,7 +488,7 @@ impl Mempool {
     }
 
     /// Updates the gas price threshold for transactions that are eligible for sequencing.
-    pub fn update_gas_price(&mut self, threshold: NonzeroGasPrice) {
+    pub fn update_gas_price(&mut self, threshold: GasPrice) {
         self.tx_queue.update_gas_price_threshold(threshold);
         self.update_state_metrics();
     }
@@ -558,7 +558,7 @@ impl Mempool {
         let [existing_tip, incoming_tip] =
             [existing_tx, incoming_tx].map(|tx| u128::from(tx.tip.0));
         let [existing_max_l2_gas_price, incoming_max_l2_gas_price] =
-            [existing_tx, incoming_tx].map(|tx| tx.max_l2_gas_price.get().0);
+            [existing_tx, incoming_tx].map(|tx| tx.max_l2_gas_price.0);
 
         self.increased_enough(existing_tip, incoming_tip)
             && self.increased_enough(existing_max_l2_gas_price, incoming_max_l2_gas_price)
@@ -673,7 +673,7 @@ pub struct TransactionReference {
     pub nonce: Nonce,
     pub tx_hash: TransactionHash,
     pub tip: Tip,
-    pub max_l2_gas_price: NonzeroGasPrice,
+    pub max_l2_gas_price: GasPrice,
 }
 
 impl TransactionReference {
@@ -683,8 +683,7 @@ impl TransactionReference {
             nonce: tx.nonce(),
             tx_hash: tx.tx_hash(),
             tip: tx.tip(),
-            max_l2_gas_price: NonzeroGasPrice::new(tx.resource_bounds().l2_gas.max_price_per_unit)
-                .expect("Max L2 gas price must be non-zero."),
+            max_l2_gas_price: tx.resource_bounds().l2_gas.max_price_per_unit,
         }
     }
 }
