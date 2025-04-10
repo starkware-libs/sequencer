@@ -10,7 +10,7 @@ use starknet_api::deprecated_contract_class::ContractClass;
 pub const TOKEN_FOR_TESTING_CLASS_HASH: &str = "0x30";
 // This package is run within the StarkWare repository build directory.
 pub const TOKEN_FOR_TESTING_CONTRACT_PATH: &str =
-    "./src/starkware/starknet/core/test_contract/apollo_compiled_contracts_lib/starkware/\
+    "./src/starkware/starknet/core/test_contract/starknet_compiled_contracts_lib/starkware/\
      starknet/core/test_contract/token_for_testing.json";
 
 pub fn create_py_test_state() -> CachedState<DictStateReader> {

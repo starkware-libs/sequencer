@@ -82,7 +82,7 @@ pub fn cairo1_compile(
     let mut base_compile_args = vec![];
 
     let sierra_output =
-        apollo_compile(path, git_tag_override, cargo_nightly_arg, &mut base_compile_args);
+        starknet_compile(path, git_tag_override, cargo_nightly_arg, &mut base_compile_args);
 
     let mut temp_file = NamedTempFile::new().unwrap();
     temp_file.write_all(&sierra_output).unwrap();
@@ -104,7 +104,7 @@ pub fn cairo1_compile(
 
 /// Compile Cairo1 Contract into their Sierra version using the compiler version set in the
 /// Cargo.toml
-pub fn apollo_compile(
+pub fn starknet_compile(
     path: String,
     git_tag_override: Option<String>,
     cargo_nightly_arg: Option<String>,
@@ -126,9 +126,9 @@ pub fn apollo_compile(
     }
 
     // Cairo -> Sierra.
-    let mut apollo_compile_commmand = Command::new("cargo");
-    apollo_compile_commmand.args(base_compile_args.clone());
-    apollo_compile_commmand.args([
+    let mut starknet_compile_commmand = Command::new("cargo");
+    starknet_compile_commmand.args(base_compile_args.clone());
+    starknet_compile_commmand.args([
         "starknet-compile",
         "--",
         "--single-file",
@@ -136,7 +136,7 @@ pub fn apollo_compile(
         "--allowed-libfuncs-list-name",
         "all",
     ]);
-    let sierra_output = run_and_verify_output(&mut apollo_compile_commmand);
+    let sierra_output = run_and_verify_output(&mut starknet_compile_commmand);
 
     sierra_output.stdout
 }

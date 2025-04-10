@@ -1,14 +1,14 @@
 use std::env;
 use std::path::Path;
 
+use apollo_compilation_utils::errors::CompilationUtilError;
+use apollo_compilation_utils::test_utils::contract_class_from_file;
 use apollo_infra_utils::path::resolve_project_relative_path;
 use assert_matches::assert_matches;
 use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;
 use mempool_test_utils::{FAULTY_ACCOUNT_CLASS_FILE, TEST_FILES_FOLDER};
 use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::state::SierraContractClass;
-use apollo_compilation_utils::errors::CompilationUtilError;
-use apollo_compilation_utils::test_utils::contract_class_from_file;
 
 use crate::compiler::SierraToCasmCompiler;
 use crate::config::{SierraCompilationConfig, DEFAULT_MAX_BYTECODE_SIZE};
@@ -55,6 +55,30 @@ fn test_negative_flow_compile_sierra_to_casm() {
 
     let result = compiler.compile(contract_class);
     assert_matches!(result, Err(CompilationUtilError::CompilationError(..)));
+}
+
+#[test]
+fn test_max_bytecode_size() {
+    let contract_class = get_test_contract();
+    let expected_casm_bytecode_length = 1965;
+
+    // Positive flow.
+    let compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
+        max_bytecode_size: expected_casm_bytecode_length,
+    });
+    let casm_contract_class = compiler
+        .compile(contract_class.clone())
+        .expect("Failed to compile contract class. Probably an issue with the max_bytecode_size.");
+    assert_eq!(casm_contract_class.bytecode.len(), expected_casm_bytecode_length);
+
+    // Negative flow.
+    let compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
+        max_bytecode_size: expected_casm_bytecode_length - 1,
+    });
+    let result = compiler.compile(contract_class);
+    assert_matches!(result, Err(CompilationUtilError::CompilationError(string))
+        if string.contains("Code size limit exceeded.")
+    );
 }
 
 // TODO(Elin): mock compiler.
