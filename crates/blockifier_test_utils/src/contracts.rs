@@ -162,19 +162,24 @@ impl FeatureContract {
         Self::instance_address(self.get_integer_base(), instance_id.into())
     }
 
-    pub fn get_raw_sierra(&self) -> String {
+    pub fn get_raw_sierra(&self) -> Option<String> {
         if self.cairo_version() == CairoVersion::Cairo0 {
-            panic!("The sierra contract is only available for Cairo1.");
+            return None;
         }
 
-        get_raw_contract_class(&self.get_sierra_path())
+        Some(get_raw_contract_class(&self.get_sierra_path()))
     }
 
     pub fn get_sierra(&self) -> SierraContractClass {
-        let raw_sierra = self.get_raw_sierra();
+        self.get_sierra_no_panic().expect("The sierra contract is only available for Cairo1.")
+    }
+
+    // TODO(AvivG): Unite this func with get_sierra.
+    pub fn get_sierra_no_panic(&self) -> Option<SierraContractClass> {
+        let raw_sierra = self.get_raw_sierra()?;
         let cairo_contract_class: CairoLangContractClass =
             serde_json::from_str(&raw_sierra).unwrap();
-        SierraContractClass::from(cairo_contract_class)
+        Some(SierraContractClass::from(cairo_contract_class))
     }
 
     pub fn get_sierra_version(&self) -> SierraVersion {
