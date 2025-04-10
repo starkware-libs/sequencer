@@ -1,5 +1,8 @@
 use blockifier::state::state_api::StateReader;
-use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_from_var_name;
+use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
+    get_relocatable_from_var_name,
+    insert_value_from_var_name,
+};
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintResult};
@@ -121,8 +124,19 @@ pub(crate) fn guess_state_ptr<S: StateReader>(
     )?)
 }
 
-pub(crate) fn update_state_ptr<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    todo!()
+pub(crate) fn update_state_ptr<S: StateReader>(
+    HintArgs { hint_processor, ids_data, ap_tracking, vm, .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    if let Some(state_update_pointers) = &mut hint_processor.state_update_pointers {
+        let contract_state_changes_end = get_relocatable_from_var_name(
+            Ids::FinalSquashedContractStateChangesEnd.into(),
+            vm,
+            ids_data,
+            ap_tracking,
+        )?;
+        state_update_pointers.set_state_entries_ptr(contract_state_changes_end);
+    }
+    Ok(())
 }
 
 pub(crate) fn guess_classes_ptr<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {

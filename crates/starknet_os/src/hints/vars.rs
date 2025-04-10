@@ -138,6 +138,7 @@ define_string_enum! {
         (Evals),
         (ExecutionContext),
         (FinalRoot),
+        (FinalSquashedContractStateChangesEnd),
         (FinalSquashedContractStateChangesStart),
         (FullOutput),
         (Hash),
