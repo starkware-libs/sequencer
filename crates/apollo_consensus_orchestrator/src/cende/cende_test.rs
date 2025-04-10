@@ -1,11 +1,13 @@
 use std::sync::Arc;
 
 use apollo_class_manager_types::MockClassManagerClient;
+use metrics_exporter_prometheus::PrometheusBuilder;
 use rstest::rstest;
 use starknet_api::block::{BlockInfo, BlockNumber};
 
 use super::{CendeAmbassador, RECORDER_WRITE_BLOB_PATH};
 use crate::cende::{BlobParameters, CendeConfig, CendeContext};
+use crate::metrics::CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER;
 
 const HEIGHT_TO_WRITE: BlockNumber = BlockNumber(10);
 
@@ -53,6 +55,9 @@ async fn write_prev_height_blob(
 
 #[tokio::test]
 async fn prepare_blob_for_next_height() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+
     let cende_ambassador =
         CendeAmbassador::new(CendeConfig::default(), Arc::new(MockClassManagerClient::new()));
 
@@ -64,6 +69,8 @@ async fn prepare_blob_for_next_height() {
         cende_ambassador.prev_height_blob.lock().await.as_ref().unwrap().block_number,
         HEIGHT_TO_WRITE
     );
+
+    CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER.assert_eq(&recorder.handle().render(), HEIGHT_TO_WRITE.0);
 }
 
 #[tokio::test]
