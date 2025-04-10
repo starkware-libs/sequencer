@@ -40,6 +40,7 @@ static DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: LazyLock<StatelessTransactionValida
         validate_non_zero_resource_bounds: false,
         max_calldata_length: 1,
         max_signature_length: 1,
+        max_contract_bytecode_size: 100000,
         max_contract_class_object_size: 100000,
         min_sierra_version: *MIN_SIERRA_VERSION,
         max_sierra_version: *MAX_SIERRA_VERSION,
