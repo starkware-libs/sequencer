@@ -69,6 +69,9 @@ pub struct GenericNetworkManager<SwarmT: SwarmTrait> {
 
 impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     pub async fn run(mut self) -> Result<(), NetworkError> {
+        if let Some(metrics) = self.metrics.as_ref() {
+            metrics.register();
+        }
         loop {
             tokio::select! {
                 Some(event) = self.swarm.next() => self.handle_swarm_event(event)?,
@@ -101,9 +104,6 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         advertised_multiaddr: Option<Multiaddr>,
         metrics: Option<NetworkMetrics>,
     ) -> Self {
-        if let Some(metrics) = metrics.as_ref() {
-            metrics.register();
-        }
         let reported_peer_receivers = FuturesUnordered::new();
         reported_peer_receivers.push(futures::future::pending().boxed());
         if let Some(address) = advertised_multiaddr.clone() {
