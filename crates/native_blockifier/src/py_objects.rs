@@ -50,6 +50,11 @@ impl From<ExecutionResources> for PyExecutionResources {
     }
 }
 
+#[pyclass]
+pub struct PyClassesWeights {
+    pub classes_weights: HashMap<ClassHash, GasAmount>,
+}
+
 // From Python to Rust.
 
 #[pyclass]
