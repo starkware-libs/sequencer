@@ -178,6 +178,7 @@ define_string_enum! {
         (Sha256Ptr, "sha256_ptr"),
         (SquashedAliasesStorageEnd),
         (SquashedAliasesStorageStart),
+        (SquashedDict),
         (StateEntry),
         (StateUpdatesStart),
         (SyscallPtr),

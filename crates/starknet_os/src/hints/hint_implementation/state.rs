@@ -139,8 +139,22 @@ pub(crate) fn update_state_ptr<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn guess_classes_ptr<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    todo!()
+pub(crate) fn guess_classes_ptr<S: StateReader>(
+    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    let class_changes_start =
+        if let Some(state_update_pointers) = &hint_processor.state_update_pointers {
+            state_update_pointers.get_classes_ptr()
+        } else {
+            vm.add_memory_segment()
+        };
+    Ok(insert_value_from_var_name(
+        Ids::SquashedDict.into(),
+        class_changes_start,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?)
 }
 
 pub(crate) fn update_classes_ptr<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
