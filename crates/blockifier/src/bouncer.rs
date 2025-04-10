@@ -205,6 +205,16 @@ impl std::fmt::Display for BouncerWeights {
     }
 }
 
+pub struct CasmHashComputationData {
+    pub class_hash_to_casm_hash_computation_gas: HashMap<ClassHash, GasAmount>,
+    pub sierra_gas_without_casm_hash_computation: GasAmount,
+}
+
+pub struct TxWeights {
+    pub bouncer_weights: BouncerWeights,
+    pub casm_hash_computation_data: CasmHashComputationData,
+}
+
 #[derive(Debug, PartialEq)]
 #[cfg_attr(test, derive(Clone))]
 pub struct Bouncer {
@@ -267,7 +277,8 @@ impl Bouncer {
             tx_resources,
             &marginal_state_changes_keys,
             versioned_constants,
-        )?;
+        )?
+        .bouncer_weights;
 
         // Check if the transaction can fit the current block available capacity.
         let err_msg = format!(
@@ -377,49 +388,76 @@ pub fn get_tx_weights<S: StateReader>(
     tx_resources: &TransactionResources,
     state_changes_keys: &StateChangesKeys,
     versioned_constants: &VersionedConstants,
-) -> TransactionExecutionResult<BouncerWeights> {
+) -> TransactionExecutionResult<TxWeights> {
     let message_resources = &tx_resources.starknet_resources.messages;
     let message_starknet_l1gas = usize_from_u64(message_resources.get_starknet_gas_cost().l1_gas.0)
         .expect("This conversion should not fail as the value is a converted usize.");
-    let mut additional_os_resources =
-        get_casm_hash_calculation_resources(state_reader, executed_class_hashes)?;
-    additional_os_resources += &get_particia_update_resources(n_visited_storage_entries);
 
-    let vm_resources = &additional_os_resources + &tx_resources.computation.vm_resources;
-    let sierra_gas = tx_resources.computation.sierra_gas;
+    let patrticia_update_resources = get_particia_update_resources(n_visited_storage_entries);
+
+    let vm_resources = &patrticia_update_resources + &tx_resources.computation.vm_resources;
     let vm_resources_gas = vm_resources_to_sierra_gas(vm_resources, versioned_constants);
-    let sierra_gas = sierra_gas.checked_add(vm_resources_gas).unwrap_or_else(|| {
-        panic!(
-            "Addition overflow while converting vm resources to gas. current gas: {}, vm as gas: \
-             {}.",
-            sierra_gas, vm_resources_gas
-        )
-    });
-
-    Ok(BouncerWeights {
+    let sierra_gas = tx_resources.computation.sierra_gas;
+    let sierra_gas_without_casm_hash_computation =
+        sierra_gas.checked_add(vm_resources_gas).unwrap_or_else(|| {
+            panic!(
+                "Addition overflow while adding sierra gas. current gas: {}, try to add
+                 gas: {}.",
+                sierra_gas, vm_resources_gas
+            )
+        });
+    let class_hash_to_casm_hash_computation_resources =
+        map_class_hash_to_casm_hash_computation_resources(state_reader, executed_class_hashes)?;
+    let total_casm_hash_computation_resources = class_hash_to_casm_hash_computation_resources
+        .values()
+        .fold(ExecutionResources::default(), |acc, resources| &acc + resources);
+    let sierra_gas = sierra_gas_without_casm_hash_computation
+        .checked_add(vm_resources_to_sierra_gas(
+            total_casm_hash_computation_resources,
+            versioned_constants,
+        ))
+        .unwrap_or_else(|| {
+            panic!(
+                "Addition overflow while adding sierra gas. current gas: {}, try to add
+                 gas: {}.",
+                sierra_gas_without_casm_hash_computation, vm_resources_gas
+            )
+        });
+    let casm_hash_computation_data = CasmHashComputationData {
+        class_hash_to_casm_hash_computation_gas: class_hash_to_casm_hash_computation_resources
+            .into_iter()
+            .map(|(class_hash, resources)| {
+                let gas = vm_resources_to_sierra_gas(resources, versioned_constants);
+                (class_hash, gas)
+            })
+            .collect(),
+        sierra_gas_without_casm_hash_computation,
+    };
+    let bouncer_weights = BouncerWeights {
         l1_gas: message_starknet_l1gas,
         message_segment_length: message_resources.message_segment_length,
         n_events: tx_resources.starknet_resources.archival_data.event_summary.n_events,
         state_diff_size: get_onchain_data_segment_length(&state_changes_keys.count()),
         sierra_gas,
         n_txs: 1,
-    })
+    };
+
+    Ok(TxWeights { bouncer_weights, casm_hash_computation_data })
 }
 
-/// Returns the estimated Cairo resources for Casm hash calculation (done by the OS), of the given
-/// classes.
-pub fn get_casm_hash_calculation_resources<S: StateReader>(
+/// Returns a mapping from each class hash to its estimated Cairo resources for Casm hash
+/// computation (done by the OS).
+pub fn map_class_hash_to_casm_hash_computation_resources<S: StateReader>(
     state_reader: &S,
     executed_class_hashes: &HashSet<ClassHash>,
-) -> TransactionExecutionResult<ExecutionResources> {
-    let mut casm_hash_computation_resources = ExecutionResources::default();
-
-    for class_hash in executed_class_hashes {
-        let class = state_reader.get_compiled_class(*class_hash)?;
-        casm_hash_computation_resources += &class.estimate_casm_hash_computation_resources();
-    }
-
-    Ok(casm_hash_computation_resources)
+) -> TransactionExecutionResult<HashMap<ClassHash, ExecutionResources>> {
+    executed_class_hashes
+        .iter()
+        .map(|class_hash| {
+            let class = state_reader.get_compiled_class(*class_hash)?;
+            Ok((*class_hash, class.estimate_casm_hash_computation_resources()))
+        })
+        .collect()
 }
 
 /// Returns the estimated Cairo resources for Patricia tree updates, or hash invocations
@@ -455,7 +493,8 @@ pub fn verify_tx_weights_within_max_capacity<S: StateReader>(
         tx_resources,
         tx_state_changes_keys,
         versioned_constants,
-    )?;
+    )?
+    .bouncer_weights;
 
     bouncer_config.within_max_capacity_or_err(tx_weights)
 }
