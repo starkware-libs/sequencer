@@ -179,6 +179,7 @@ define_string_enum! {
         (SquashedAliasesStorageEnd),
         (SquashedAliasesStorageStart),
         (SquashedDict),
+        (SquashedDictEnd),
         (StateEntry),
         (StateUpdatesStart),
         (SyscallPtr),
