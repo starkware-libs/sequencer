@@ -9,6 +9,7 @@ use starknet_api::deprecated_contract_class::{
     ContractClass as DeprecatedContractClass,
     EntryPointOffset,
 };
+use starknet_api::state::SierraContractClass;
 
 use crate::execution::contract_class::RunnableCompiledClass;
 use crate::execution::entry_point::EntryPointTypeAndSelector;
@@ -19,6 +20,7 @@ use crate::test_utils::struct_impls::LoadContractFromFile;
 pub trait FeatureContractTrait {
     fn get_class(&self) -> ContractClass;
     fn get_runnable_class(&self) -> RunnableCompiledClass;
+    fn get_sierra_class(&self) -> SierraContractClassWrapper;
 
     /// Fetch PC locations from the compiled contract to compute the expected PC locations in the
     /// traceback. Computation is not robust, but as long as the cairo function itself is not
@@ -97,12 +99,27 @@ impl FeatureContractTrait for FeatureContract {
 
         self.get_class().try_into().unwrap()
     }
+
+    fn get_sierra_class(&self) -> SierraContractClassWrapper {
+        let runnable = self.get_runnable_class();
+
+        match runnable {
+            RunnableCompiledClass::V1(_) => SierraContractClassWrapper::V1(self.get_sierra()),
+            _ => SierraContractClassWrapper::V0,
+        }
+    }
+}
+
+pub enum SierraContractClassWrapper {
+    V0,
+    V1(SierraContractClass),
 }
 
 /// The information needed to test a [FeatureContract].
 pub struct FeatureContractData {
     pub class_hash: ClassHash,
     pub runnable_class: RunnableCompiledClass,
+    pub sierra: SierraContractClassWrapper,
     pub require_funding: bool,
     integer_base: u32,
 }
@@ -129,6 +146,7 @@ impl From<FeatureContract> for FeatureContractData {
             runnable_class: contract.get_runnable_class(),
             require_funding,
             integer_base: contract.get_integer_base(),
+            sierra: contract.get_sierra_class(),
         }
     }
 }
