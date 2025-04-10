@@ -40,7 +40,7 @@ use crate::execution::common_hints::{
     HintExecutionResult,
 };
 use crate::execution::deprecated_syscalls::deprecated_syscall_executor::{
-    execute_syscall_from_selector,
+    execute_deprecated_syscall_from_selector,
     DeprecatedSyscallExecutor,
 };
 use crate::execution::deprecated_syscalls::{
@@ -291,7 +291,7 @@ impl<'a> DeprecatedSyscallHintProcessor<'a> {
         let selector = DeprecatedSyscallSelector::try_from(self.read_next_syscall_selector(vm)?)?;
         self.increment_syscall_count(&selector);
 
-        execute_syscall_from_selector(self, vm, selector)
+        execute_deprecated_syscall_from_selector(self, vm, selector)
     }
 
     pub fn get_or_allocate_tx_signature_segment(
