@@ -102,6 +102,11 @@ pub struct BouncerWeights {
     pub sierra_gas: GasAmount,
 }
 
+pub struct BouncerAndClassesWeights {
+    pub bouncer_weights: BouncerWeights,
+    pub class_hashes_computation_gas: HashMap<ClassHash, GasAmount>,
+}
+
 impl BouncerWeights {
     impl_checked_ops!(l1_gas, message_segment_length, n_events, state_diff_size, sierra_gas);
 
@@ -256,7 +261,8 @@ impl Bouncer {
             tx_resources,
             &marginal_state_changes_keys,
             versioned_constants,
-        )?;
+        )?
+        .bouncer_weights;
 
         // Check if the transaction can fit the current block available capacity.
         let err_msg = format!(
@@ -366,18 +372,23 @@ pub fn get_tx_weights<S: StateReader>(
     tx_resources: &TransactionResources,
     state_changes_keys: &StateChangesKeys,
     versioned_constants: &VersionedConstants,
-) -> TransactionExecutionResult<BouncerWeights> {
+) -> TransactionExecutionResult<BouncerAndClassesWeights> {
     let message_resources = &tx_resources.starknet_resources.messages;
     let message_starknet_l1gas = usize_from_u64(message_resources.get_starknet_gas_cost().l1_gas.0)
         .expect("This conversion should not fail as the value is a converted usize.");
-    let mut additional_os_resources =
+
+    let casm_hash_calculation_resources =
         get_casm_hash_calculation_resources(state_reader, executed_class_hashes)?;
-    additional_os_resources += &get_particia_update_resources(n_visited_storage_entries);
+    let total_casm_hash_calculation_resources = casm_hash_calculation_resources
+        .values()
+        .fold(ExecutionResources::default(), |acc, resources| &acc + resources);
+    let additional_os_resources = &total_casm_hash_calculation_resources
+        + &get_particia_update_resources(n_visited_storage_entries);
 
     let vm_resources = &additional_os_resources + &tx_resources.computation.vm_resources;
     let sierra_gas = tx_resources.computation.sierra_gas;
     let vm_resources_gas = vm_resources_to_sierra_gas(vm_resources, versioned_constants);
-    let sierra_gas = sierra_gas.checked_add(vm_resources_gas).unwrap_or_else(|| {
+    let sierra_gas: GasAmount = sierra_gas.checked_add(vm_resources_gas).unwrap_or_else(|| {
         panic!(
             "Addition overflow while converting vm resources to gas. current gas: {}, vm as gas: \
              {}.",
@@ -385,29 +396,37 @@ pub fn get_tx_weights<S: StateReader>(
         )
     });
 
-    Ok(BouncerWeights {
-        l1_gas: message_starknet_l1gas,
-        message_segment_length: message_resources.message_segment_length,
-        n_events: tx_resources.starknet_resources.archival_data.event_summary.n_events,
-        state_diff_size: get_onchain_data_segment_length(&state_changes_keys.count()),
-        sierra_gas,
+    Ok(BouncerAndClassesWeights {
+        bouncer_weights: BouncerWeights {
+            l1_gas: message_starknet_l1gas,
+            message_segment_length: message_resources.message_segment_length,
+            n_events: tx_resources.starknet_resources.archival_data.event_summary.n_events,
+            state_diff_size: get_onchain_data_segment_length(&state_changes_keys.count()),
+            sierra_gas,
+        },
+        class_hashes_computation_gas: casm_hash_calculation_resources
+            .into_iter()
+            .map(|(class_hash, resources)| {
+                let gas = vm_resources_to_sierra_gas(resources, versioned_constants);
+                (class_hash, gas)
+            })
+            .collect(),
     })
 }
 
-/// Returns the estimated Cairo resources for Casm hash calculation (done by the OS), of the given
-/// classes.
+/// Returns a mapping from each class hash to its estimated Cairo resources for Casm hash
+/// calculation.
 pub fn get_casm_hash_calculation_resources<S: StateReader>(
     state_reader: &S,
     executed_class_hashes: &HashSet<ClassHash>,
-) -> TransactionExecutionResult<ExecutionResources> {
-    let mut casm_hash_computation_resources = ExecutionResources::default();
-
-    for class_hash in executed_class_hashes {
-        let class = state_reader.get_compiled_class(*class_hash)?;
-        casm_hash_computation_resources += &class.estimate_casm_hash_computation_resources();
-    }
-
-    Ok(casm_hash_computation_resources)
+) -> TransactionExecutionResult<HashMap<ClassHash, ExecutionResources>> {
+    executed_class_hashes
+        .iter()
+        .map(|class_hash| {
+            let class = state_reader.get_compiled_class(*class_hash)?;
+            Ok((*class_hash, class.estimate_casm_hash_computation_resources()))
+        })
+        .collect()
 }
 
 /// Returns the estimated Cairo resources for Patricia tree updates, or hash invocations
@@ -443,7 +462,8 @@ pub fn verify_tx_weights_within_max_capacity<S: StateReader>(
         tx_resources,
         tx_state_changes_keys,
         versioned_constants,
-    )?;
+    )?
+    .bouncer_weights;
 
     bouncer_config.within_max_capacity_or_err(tx_weights)
 }
