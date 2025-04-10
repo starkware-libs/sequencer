@@ -258,7 +258,8 @@ impl BlockBuilderTrait for BlockBuilder {
             )
             .await?;
         }
-        let BlockExecutionSummary { state_diff, compressed_state_diff, bouncer_weights } =
+        // TODO(Aviv): Extract `casm_hash_computation_data`.
+        let BlockExecutionSummary { state_diff, compressed_state_diff, bouncer_weights, .. } =
             self.executor.lock().await.close_block()?;
         Ok(BlockExecutionArtifacts {
             execution_data,

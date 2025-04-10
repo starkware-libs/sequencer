@@ -209,7 +209,8 @@ impl PyBlockExecutor {
         &mut self,
     ) -> NativeBlockifierResult<(PyStateDiff, Option<PyStateDiff>, Py<PyBytes>)> {
         log::debug!("Finalizing execution...");
-        let BlockExecutionSummary { state_diff, compressed_state_diff, bouncer_weights } =
+        // TODO(Aviv): Extract `casm_hash_computation_data`.
+        let BlockExecutionSummary { state_diff, compressed_state_diff, bouncer_weights, .. } =
             self.tx_executor().finalize()?;
         let py_state_diff = PyStateDiff::from(state_diff);
         let py_compressed_state_diff = compressed_state_diff.map(PyStateDiff::from);
