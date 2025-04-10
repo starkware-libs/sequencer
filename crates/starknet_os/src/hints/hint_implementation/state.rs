@@ -103,8 +103,22 @@ pub(crate) fn decode_node<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> O
     todo!()
 }
 
-pub(crate) fn guess_state_ptr<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    todo!()
+pub(crate) fn guess_state_ptr<S: StateReader>(
+    HintArgs { hint_processor, ids_data, ap_tracking, vm, .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    let state_changes_start =
+        if let Some(state_update_pointers) = &hint_processor.state_update_pointers {
+            state_update_pointers.get_state_entries_ptr()
+        } else {
+            vm.add_memory_segment()
+        };
+    Ok(insert_value_from_var_name(
+        Ids::FinalSquashedContractStateChangesStart.into(),
+        state_changes_start,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?)
 }
 
 pub(crate) fn update_state_ptr<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
