@@ -747,6 +747,50 @@
         "expr": "sierra_compiler_local_queue_depth",
         "extra_params": {}
       }
+    ],
+    "StateSyncInfra": [
+      {
+        "title": "state_sync_local_msgs_received",
+        "description": "Counter of messages received by state sync local server",
+        "type": "stat",
+        "expr": "state_sync_local_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_local_msgs_processed",
+        "description": "Counter of messages processed by state sync local server",
+        "type": "stat",
+        "expr": "state_sync_local_msgs_processed",
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_remote_msgs_received",
+        "description": "Counter of messages received by state sync remote server",
+        "type": "stat",
+        "expr": "state_sync_remote_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_remote_valid_msgs_received",
+        "description": "Counter of valid messages received by state sync remote server",
+        "type": "stat",
+        "expr": "state_sync_remote_valid_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_remote_msgs_processed",
+        "description": "Counter of messages processed by state sync remote server",
+        "type": "stat",
+        "expr": "state_sync_remote_msgs_processed",
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_local_queue_depth",
+        "description": "The depth of the state sync's local message queue",
+        "type": "stat",
+        "expr": "state_sync_local_queue_depth",
+        "extra_params": {}
+      }
     ]
   }
 }
