@@ -4,7 +4,82 @@
       "name": "gateway_add_tx_rate_drop",
       "title": "Gateway add_tx rate drop",
       "ruleGroup": "gateway",
-      "expr": "sum(rate(gateway_transactions_received[20m]))",
+      "expr": "sum(rate(gateway_transactions_received[20m])) or vector(0)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.1
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "1m"
+    },
+    {
+      "name": "gateway_add_tx_latency_increase",
+      "title": "Gateway avg add_tx latency increase",
+      "ruleGroup": "gateway",
+      "expr": "sum(rate(gateway_add_tx_latency_sum[1m]))/sum(rate(gateway_add_tx_latency_count[1m]))",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              2.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "1m"
+    },
+    {
+      "name": "mempool_add_tx_rate_drop",
+      "title": "Mempool add_tx rate drop",
+      "ruleGroup": "mempool",
+      "expr": "sum(rate(mempool_transactions_received[20m])) or vector(0)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.1
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "1m"
+    },
+    {
+      "name": "mempool_get_txs_size_drop",
+      "title": "Mempool get_txs size drop",
+      "ruleGroup": "mempool",
+      "expr": "avg_over_time(mempool_get_txs_size[20m])",
       "conditions": [
         {
           "evaluator": {
@@ -23,7 +98,7 @@
           "type": "query"
         }
       ],
-      "for": "5m"
+      "for": "1m"
     }
   ]
 }

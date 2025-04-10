@@ -331,7 +331,7 @@ const PANEL_MEMPOOL_TRANSACTIONS_RECEIVED: Panel = Panel::new(
 const PANEL_MEMPOOL_TRANSACTIONS_RECEIVED_RATE: Panel = Panel::new(
     "mempool_transactions_received_rate (TPS)",
     "The rate of transactions received by the mempool during the last 20 minutes",
-    formatcp!("sum(rate({}[20m]))", MEMPOOL_TRANSACTIONS_RECEIVED.get_name()),
+    formatcp!("sum(rate({}[20m])) or vector(0)", MEMPOOL_TRANSACTIONS_RECEIVED.get_name()),
     PanelType::Graph,
 );
 
