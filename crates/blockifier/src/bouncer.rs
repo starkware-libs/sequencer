@@ -211,6 +211,7 @@ pub struct Bouncer {
     pub bouncer_config: BouncerConfig,
 
     accumulated_weights: BouncerWeights,
+    class_weights: HashMap<ClassHash, GasAmount>,
 }
 
 impl Bouncer {
@@ -225,6 +226,7 @@ impl Bouncer {
             state_changes_keys: StateChangesKeys::default(),
             bouncer_config: BouncerConfig::empty(),
             accumulated_weights: BouncerWeights::empty(),
+            class_weights: HashMap::default(),
         }
     }
 
@@ -254,15 +256,15 @@ impl Bouncer {
             .visited_storage_entries
             .difference(&self.visited_storage_entries)
             .count();
-        let tx_weights = get_tx_weights(
+        let tx_total_and_classes_weights = get_tx_weights(
             state_reader,
             &marginal_executed_class_hashes,
             n_marginal_visited_storage_entries,
             tx_resources,
             &marginal_state_changes_keys,
             versioned_constants,
-        )?
-        .bouncer_weights;
+        )?;
+        let tx_weights = tx_total_and_classes_weights.bouncer_weights;
 
         // Check if the transaction can fit the current block available capacity.
         let err_msg = format!(
@@ -281,7 +283,12 @@ impl Bouncer {
             Err(TransactionExecutorError::BlockFull)?
         }
 
-        self.update(tx_weights, tx_execution_summary, &marginal_state_changes_keys);
+        self.update(
+            tx_weights,
+            &tx_total_and_classes_weights.class_hashes_computation_gas,
+            tx_execution_summary,
+            &marginal_state_changes_keys,
+        );
 
         Ok(())
     }
@@ -289,6 +296,7 @@ impl Bouncer {
     fn update(
         &mut self,
         tx_weights: BouncerWeights,
+        classes_weights: &HashMap<ClassHash, GasAmount>,
         tx_execution_summary: &ExecutionSummary,
         state_changes_keys: &StateChangesKeys,
     ) {
@@ -298,6 +306,7 @@ impl Bouncer {
         );
         self.accumulated_weights =
             self.accumulated_weights.checked_add(tx_weights).expect(&err_msg);
+        self.class_weights.extend(classes_weights);
         self.visited_storage_entries.extend(&tx_execution_summary.visited_storage_entries);
         self.executed_class_hashes.extend(&tx_execution_summary.executed_class_hashes);
         // Note: cancelling writes (0 -> 1 -> 0) will not be removed, but it's fine since fee was

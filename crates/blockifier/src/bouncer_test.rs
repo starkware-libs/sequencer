@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use assert_matches::assert_matches;
 use rstest::rstest;
@@ -66,6 +66,8 @@ fn test_block_weights_has_room() {
         state_diff_size: 10,
         sierra_gas: GasAmount(10),
     },
+    class_weights: HashMap::from([
+        (class_hash!(0_u128), GasAmount(10))]),
 })]
 fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
     let execution_summary_to_update = ExecutionSummary {
@@ -85,12 +87,16 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
         sierra_gas: GasAmount(9),
     };
 
+    let classes_weights_to_update =
+        HashMap::from([(class_hash!(1_u128), GasAmount(1)), (class_hash!(2_u128), GasAmount(2))]);
+
     let state_changes_keys_to_update =
         StateChangesKeys::create_for_testing(HashSet::from([contract_address!(1_u128)]));
 
     let mut updated_bouncer = initial_bouncer.clone();
     updated_bouncer.update(
         weights_to_update,
+        &classes_weights_to_update,
         &execution_summary_to_update,
         &state_changes_keys_to_update,
     );
@@ -104,6 +110,7 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
         .extend(&execution_summary_to_update.visited_storage_entries);
     expected_bouncer.state_changes_keys.extend(&state_changes_keys_to_update);
     expected_bouncer.accumulated_weights += weights_to_update;
+    expected_bouncer.class_weights.extend(classes_weights_to_update);
 
     assert_eq!(updated_bouncer, expected_bouncer);
 }
