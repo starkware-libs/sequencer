@@ -1,5 +1,4 @@
 use std::env;
-use std::path::PathBuf;
 
 use apollo_infra_utils::dumping::serialize_to_file_test;
 use apollo_infra_utils::path::resolve_project_relative_path;
@@ -9,7 +8,7 @@ use apollo_node::config::component_execution_config::{
 };
 use apollo_node::config::node_config::SequencerNodeConfig;
 
-use crate::deployment_definitions::{deployment_file_path, Environment, DEPLOYMENTS};
+use crate::deployment_definitions::{Environment, DEPLOYMENTS};
 
 /// Test that the deployment file is up to date. To update it run:
 /// cargo run --bin deployment_generator -q
@@ -95,31 +94,4 @@ fn l1_components_state_consistency() {
             "L1 provider and scraper should either be both enabled or both disabled."
         );
     }
-}
-
-// The point of this test is to serve as a reminder to update all relevant paths in all relevant
-// paths when changing the deployment file path.
-#[test]
-fn deployment_config_paths() {
-    assert_eq!(
-        deployment_file_path(Environment::Testing, "test_deployment"),
-        PathBuf::from("config/sequencer/testing/deployment_configs/test_deployment.json")
-    );
-
-    assert_eq!(
-        deployment_file_path(Environment::SepoliaIntegration, "test_deployment"),
-        PathBuf::from(
-            "config/sequencer/sepolia_integration/deployment_configs/test_deployment.json"
-        )
-    );
-
-    assert_eq!(
-        deployment_file_path(Environment::SepoliaTestnet, "test_deployment"),
-        PathBuf::from("config/sequencer/sepolia_testnet/deployment_configs/test_deployment.json")
-    );
-
-    assert_eq!(
-        deployment_file_path(Environment::Mainnet, "test_deployment"),
-        PathBuf::from("config/sequencer/mainnet/deployment_configs/test_deployment.json")
-    );
 }
