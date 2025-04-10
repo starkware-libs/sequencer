@@ -36,8 +36,7 @@ impl<S: StateReader> StateReaderAndContractManger<S> {
     }
 
     fn get_cached_class(&self, _class_hash: ClassHash) -> StateResult<CachedClass> {
-        // TODO(AvivG): Implement this function once exists:
-        // StateReader::get_sierra(class_hash: ClassHash) -> StateResult<SierraContractClass>
+        // TODO(AvivG): Implement this after StateReader::get_sierra exists:
         todo!();
     }
 }
