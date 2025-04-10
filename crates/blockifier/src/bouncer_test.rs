@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use assert_matches::assert_matches;
 use rstest::{fixture, rstest};
@@ -8,7 +8,13 @@ use starknet_api::{class_hash, contract_address, storage_key};
 
 use super::BouncerConfig;
 use crate::blockifier::transaction_executor::TransactionExecutorError;
-use crate::bouncer::{verify_tx_weights_within_max_capacity, Bouncer, BouncerWeights};
+use crate::bouncer::{
+    verify_tx_weights_within_max_capacity,
+    Bouncer,
+    BouncerWeights,
+    CasmHashComputationData,
+    TxWeights,
+};
 use crate::context::BlockContext;
 use crate::execution::call_info::ExecutionSummary;
 use crate::fee::resources::{ComputationResources, TransactionResources};
@@ -110,6 +116,11 @@ fn test_block_weights_has_room_n_txs(
         sierra_gas: GasAmount(10),
         n_txs: 1,
     },
+    casm_hash_computation_data: CasmHashComputationData{
+        class_hash_to_casm_hash_computation_gas: HashMap::from([
+        (class_hash!(0_u128), GasAmount(5))]),
+        sierra_gas_without_casm_hash_computation: GasAmount(5),
+    }
 })]
 fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
     let execution_summary_to_update = ExecutionSummary {
@@ -130,15 +141,24 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
         n_txs: 1,
     };
 
+    let class_hash_to_casm_hash_computation_gas_to_update =
+        HashMap::from([(class_hash!(1_u128), GasAmount(1)), (class_hash!(2_u128), GasAmount(2))]);
+
+    let casm_hash_computation_data = CasmHashComputationData {
+        class_hash_to_casm_hash_computation_gas: class_hash_to_casm_hash_computation_gas_to_update,
+        sierra_gas_without_casm_hash_computation: GasAmount(6),
+    };
+
+    let tx_weights = TxWeights {
+        bouncer_weights: weights_to_update,
+        casm_hash_computation_data: casm_hash_computation_data.clone(),
+    };
+
     let state_changes_keys_to_update =
         StateChangesKeys::create_for_testing(HashSet::from([contract_address!(1_u128)]));
 
     let mut updated_bouncer = initial_bouncer.clone();
-    updated_bouncer.update(
-        weights_to_update,
-        &execution_summary_to_update,
-        &state_changes_keys_to_update,
-    );
+    updated_bouncer.update(tx_weights, &execution_summary_to_update, &state_changes_keys_to_update);
 
     let mut expected_bouncer = initial_bouncer;
     expected_bouncer
@@ -149,6 +169,7 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
         .extend(&execution_summary_to_update.visited_storage_entries);
     expected_bouncer.state_changes_keys.extend(&state_changes_keys_to_update);
     expected_bouncer.accumulated_weights += weights_to_update;
+    expected_bouncer.casm_hash_computation_data.extend(casm_hash_computation_data.clone());
 
     assert_eq!(updated_bouncer, expected_bouncer);
 }
