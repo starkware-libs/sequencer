@@ -157,6 +157,13 @@ pub(crate) fn guess_classes_ptr<S: StateReader>(
     )?)
 }
 
-pub(crate) fn update_classes_ptr<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    todo!()
+pub(crate) fn update_classes_ptr<S: StateReader>(
+    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    if let Some(state_update_pointers) = &mut hint_processor.state_update_pointers {
+        let classes_changes_end =
+            get_relocatable_from_var_name(Ids::SquashedDictEnd.into(), vm, ids_data, ap_tracking)?;
+        state_update_pointers.set_classes_ptr(classes_changes_end);
+    }
+    Ok(())
 }
