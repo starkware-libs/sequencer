@@ -154,9 +154,10 @@ impl L1GasPriceProvider {
                 lag: self.config.lag_margin_seconds,
             });
         };
-        // We need to convert the index to the forward direction.
-        // The `last_index` is the index of the last block that satisfies the timestamp-lag
-        // condition.
+        // Convert the index to the forward direction.
+        // `last_index` should be one past the final entry we will include in our calculation.
+        // The index returned from `position` is guaranteed to be less than `len()`,
+        // so `last_index` is guaranteed to be >= 1.
         let last_index = self.price_samples_by_block.len() - last_index_rev;
 
         let num_blocks = usize::try_from(self.config.number_of_blocks_for_mean)
@@ -172,16 +173,20 @@ impl L1GasPriceProvider {
             );
             0
         };
+        debug_assert!(first_index < last_index, "error calculating indices");
+        let actual_number_of_blocks = last_index - first_index;
+
         // Go over all elements between `first_index` and `last_index` (non-inclusive).
-        let (gas_price, data_gas_price) =
-            self.price_samples_by_block.iter().skip(first_index).take(num_blocks).fold(
-                (0, 0),
-                |(sum_base, sum_blob), data| {
-                    (sum_base + data.sample.base_fee_per_gas, sum_blob + data.sample.blob_fee)
-                },
-            );
+        let (gas_price, data_gas_price) = self
+            .price_samples_by_block
+            .iter()
+            .skip(first_index)
+            .take(actual_number_of_blocks)
+            .fold((0, 0), |(sum_base, sum_blob), data| {
+                (sum_base + data.sample.base_fee_per_gas, sum_blob + data.sample.blob_fee)
+            });
         let actual_number_of_blocks =
-            u128::try_from(last_index - first_index).expect("Cannot convert to u128");
+            u128::try_from(actual_number_of_blocks).expect("Cannot convert to u128");
         Ok(PriceInfo {
             base_fee_per_gas: gas_price / actual_number_of_blocks,
             blob_fee: data_gas_price / actual_number_of_blocks,
