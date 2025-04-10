@@ -158,9 +158,11 @@ fn test_get_compiled_class_without_native_in_cache(
 
     let test_contract = FeatureContract::TestContract(cairo_version);
     let test_class_hash = test_contract.get_class_hash();
+    let panic_on_compilation_failure = false;
     let contract_manager_config = ContractClassManagerConfig::create_for_testing(
         run_cairo_native,
         wait_on_native_compilation,
+        panic_on_compilation_failure,
     );
 
     let papyrus_reader =
@@ -204,7 +206,7 @@ fn test_get_compiled_class_when_native_is_cached() {
     let ((storage_reader, _), _) = apollo_storage::test_utils::get_test_storage();
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native));
     let test_class_hash = test_contract.get_class_hash();
-    let contract_manager_config = ContractClassManagerConfig::create_for_testing(true, true);
+    let contract_manager_config = ContractClassManagerConfig::create_for_testing(true, true, false);
     let papyrus_reader = PapyrusReader::new(
         storage_reader,
         BlockNumber::default(),

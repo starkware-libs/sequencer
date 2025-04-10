@@ -103,11 +103,38 @@ impl Default for ContractClassManagerConfig {
 }
 
 impl ContractClassManagerConfig {
-    #[cfg(any(test, feature = "testing", feature = "native_blockifier"))]
-    pub fn create_for_testing(run_cairo_native: bool, wait_on_native_compilation: bool) -> Self {
+    #[cfg(any(test, feature = "testing", feature = "cairo_native"))]
+    pub fn create_for_testing_from_native_config(
+        cairo_native_run_config: CairoNativeRunConfig,
+    ) -> Self {
+        ContractClassManagerConfig { cairo_native_run_config, ..Default::default() }
+    }
+
+    #[cfg(any(test, feature = "testing", feature = "cairo_native"))]
+    pub fn create_for_testing(
+        run_cairo_native: bool,
+        wait_on_native_compilation: bool,
+        panic_on_compilation_failure: bool,
+    ) -> Self {
+        ContractClassManagerConfig {
+            cairo_native_run_config: CairoNativeRunConfig {
+                run_cairo_native,
+                wait_on_native_compilation,
+                ..Default::default()
+            },
+            native_compiler_config: SierraCompilationConfig {
+                panic_on_compilation_failure,
+                ..Default::default()
+            },
+            ..Default::default()
+        }
+    }
+
+    #[cfg(not(feature = "cairo_native"))]
+    pub fn create_for_testing() -> Self {
         let cairo_native_run_config = CairoNativeRunConfig {
-            run_cairo_native,
-            wait_on_native_compilation,
+            run_cairo_native: false,
+            wait_on_native_compilation: false,
             ..Default::default()
         };
         Self { cairo_native_run_config, ..Default::default() }

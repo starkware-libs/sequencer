@@ -24,7 +24,9 @@ use starknet_api::test_utils::{
     TEST_ERC20_CONTRACT_ADDRESS2,
 };
 
-use crate::blockifier::config::{CairoNativeRunConfig, ContractClassManagerConfig};
+#[cfg(feature = "cairo_native")]
+use crate::blockifier::config::CairoNativeRunConfig;
+use crate::blockifier::config::ContractClassManagerConfig;
 use crate::blockifier_versioned_constants::{
     GasCosts,
     OsConstants,
@@ -216,11 +218,36 @@ impl CallExecution {
 }
 
 impl ContractClassManager {
-    pub fn create_for_testing(native_config: CairoNativeRunConfig) -> Self {
-        let config = ContractClassManagerConfig {
-            cairo_native_run_config: native_config,
-            ..Default::default()
-        };
+    #[cfg(feature = "cairo_native")]
+    pub fn create_for_testing_from_config(config: CairoNativeRunConfig) -> Self {
+        let config = ContractClassManagerConfig::create_for_testing_from_native_config(config);
+        ContractClassManager::start(config)
+    }
+
+    #[cfg(feature = "cairo_native")]
+    pub fn create_for_testing(
+        run_cairo_native: bool,
+        wait_on_native_compilation: bool,
+        panic_on_compilation_failure: bool,
+    ) -> Self {
+        let config = ContractClassManagerConfig::create_for_testing(
+            run_cairo_native,
+            wait_on_native_compilation,
+            panic_on_compilation_failure,
+        );
+        ContractClassManager::start(config)
+    }
+    #[cfg(not(feature = "cairo_native"))]
+    pub fn create_for_testing() -> Self {
+        let run_cairo_native = false;
+        let wait_on_native_compilation = false;
+        let panic_on_compilation_failure = false;
+
+        let config = ContractClassManagerConfig::create_for_testing(
+            run_cairo_native,
+            wait_on_native_compilation,
+            panic_on_compilation_failure,
+        );
         ContractClassManager::start(config)
     }
 }

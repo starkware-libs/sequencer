@@ -681,18 +681,15 @@ pub fn create_state_sync_configs(
 
 #[cfg(feature = "cairo_native")]
 fn cairo_native_class_manager_config() -> ContractClassManagerConfig {
-    ContractClassManagerConfig {
-        cairo_native_run_config: CairoNativeRunConfig {
-            run_cairo_native: true,
-            wait_on_native_compilation: true,
-            ..Default::default()
-        },
-        native_compiler_config: SierraCompilationConfig {
-            panic_on_compilation_failure: true,
-            ..Default::default()
-        },
-        ..Default::default()
-    }
+    let run_cairo_native = true;
+    let wait_on_native_compilation = true;
+    let panic_on_compilation_failure = true;
+
+    ContractClassManagerConfig::create_for_testing(
+        run_cairo_native,
+        wait_on_native_compilation,
+        panic_on_compilation_failure,
+    )
 }
 
 /// Stores tx hashes streamed so far.

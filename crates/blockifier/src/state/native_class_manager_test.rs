@@ -68,7 +68,7 @@ fn create_faulty_request() -> CompilationRequest {
 fn test_start(#[case] run_cairo_native: bool, #[case] wait_on_native_compilation: bool) {
     let native_config =
         CairoNativeRunConfig { run_cairo_native, wait_on_native_compilation, ..Default::default() };
-    let manager = NativeClassManager::create_for_testing(native_config.clone());
+    let manager = NativeClassManager::create_for_testing_from_config(native_config.clone());
 
     assert_eq!(manager.cairo_native_run_config.clone(), native_config);
     if run_cairo_native {
@@ -110,7 +110,7 @@ fn test_set_and_compile(
 ) {
     let native_config =
         CairoNativeRunConfig { run_cairo_native, wait_on_native_compilation, ..Default::default() };
-    let manager = NativeClassManager::create_for_testing(native_config);
+    let manager = NativeClassManager::create_for_testing_from_config(native_config);
     let request = if should_pass { create_test_request() } else { create_faulty_request() };
     let class_hash = request.0;
     let (_class_hash, sierra, casm) = request.clone();
@@ -180,7 +180,7 @@ fn test_send_compilation_request_channel_full() {
         channel_size: 0,
         ..CairoNativeRunConfig::default()
     };
-    let manager = NativeClassManager::create_for_testing(native_config);
+    let manager = NativeClassManager::create_for_testing_from_config(native_config);
     let request = create_test_request();
     assert!(manager.sender.is_some(), "Sender should be Some");
 
@@ -200,7 +200,7 @@ fn test_process_compilation_request(
     #[case] request: CompilationRequest,
     #[case] should_pass: bool,
 ) {
-    let manager = NativeClassManager::create_for_testing(CairoNativeRunConfig {
+    let manager = NativeClassManager::create_for_testing_from_config(CairoNativeRunConfig {
         wait_on_native_compilation: true,
         run_cairo_native: true,
         channel_size: TEST_CHANNEL_SIZE,
@@ -246,7 +246,7 @@ fn test_native_classes_whitelist(
         channel_size: TEST_CHANNEL_SIZE,
         native_classes_whitelist: whitelist,
     };
-    let manager = NativeClassManager::create_for_testing(native_config);
+    let manager = NativeClassManager::create_for_testing_from_config(native_config);
 
     let (class_hash, sierra, casm) = create_test_request();
 
