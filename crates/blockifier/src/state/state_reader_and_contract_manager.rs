@@ -1,10 +1,14 @@
+use std::sync::Arc;
+
 use starknet_api::core::ClassHash;
+use starknet_api::state::SierraContractClass;
 use starknet_types_core::felt::Felt;
 
-use crate::execution::contract_class::RunnableCompiledClass;
+use crate::execution::contract_class::{CompiledClassV0, CompiledClassV1, RunnableCompiledClass};
 use crate::state::contract_class_manager::ContractClassManager;
 use crate::state::global_cache::CachedClass;
 use crate::state::state_api::{StateReader, StateResult};
+
 
 pub struct StateReaderAndContractManger<S: StateReader> {
     pub state_reader: S,
@@ -37,7 +41,7 @@ impl<S: StateReader> StateReaderAndContractManger<S> {
 
     fn get_cached_class(&self, _class_hash: ClassHash) -> StateResult<CachedClass> {
         // TODO(AvivG): Implement this function once exists:
-        // StateReader::get_sierra(class_hash: ClassHash) -> StateResult<SierraContractClass>
+        // StateReader::get_sierra_class(class_hash: ClassHash) -> StateResult<SierraContractClass>
         todo!();
     }
 }
