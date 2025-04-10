@@ -1,4 +1,4 @@
-use apollo_gateway::metrics::TRANSACTIONS_RECEIVED;
+use apollo_gateway::metrics::GATEWAY_TRANSACTIONS_RECEIVED;
 use const_format::formatcp;
 
 use crate::dashboard::{
@@ -16,7 +16,7 @@ const GATEWAY_ADD_TX_RATE_DROP: Alert = Alert {
     name: "gateway_add_tx_rate_drop",
     title: "Gateway add_tx rate drop",
     alert_group: AlertGroup::Gateway,
-    expr: formatcp!("sum(rate({}[20m]))", TRANSACTIONS_RECEIVED.get_name()),
+    expr: formatcp!("sum(rate({}[20m]))", GATEWAY_TRANSACTIONS_RECEIVED.get_name()),
     conditions: &[AlertCondition {
         comparison_op: AlertComparisonOp::LessThan,
         comparison_value: 0.01,

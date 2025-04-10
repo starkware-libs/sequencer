@@ -78,7 +78,6 @@ impl Gateway {
     }
 
     #[instrument(skip_all, ret)]
-    // TODO(Yael): add labels for http/p2p once labels are supported
     #[sequencer_latency_histogram(GATEWAY_ADD_TX_LATENCY, true)]
     pub async fn add_tx(
         &self,
