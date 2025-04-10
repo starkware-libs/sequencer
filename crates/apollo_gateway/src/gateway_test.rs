@@ -1,9 +1,6 @@
 use std::sync::Arc;
 
-use apollo_class_manager_types::transaction_converter::{
-    TransactionConverter,
-    TransactionConverterTrait,
-};
+use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::{ClassHashes, EmptyClassManagerClient, MockClassManagerClient};
 use apollo_gateway_types::deprecated_gateway_error::{KnownStarknetErrorCode, StarknetErrorCode};
 use apollo_gateway_types::gateway_types::{
@@ -26,13 +23,13 @@ use assert_matches::assert_matches;
 use blockifier::context::ChainInfo;
 use blockifier::test_utils::initial_test_state::fund_account;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
+use blockifier_test_utils::calldata::create_trivial_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use mempool_test_utils::starknet_api_test_utils::{
     contract_class,
     declare_tx,
-    generate_deploy_account_with_salt,
-    invoke_tx,
+    test_valid_resource_bounds,
     VALID_ACCOUNT_BALANCE,
 };
 use metrics_exporter_prometheus::PrometheusBuilder;
@@ -40,15 +37,18 @@ use mockall::predicate::eq;
 use rstest::{fixture, rstest};
 use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::{CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::nonce;
 use starknet_api::rpc_transaction::{
-    InternalRpcTransaction,
     RpcDeclareTransaction,
     RpcTransaction,
     RpcTransactionLabelValue,
 };
-use starknet_api::transaction::fields::ContractAddressSalt;
+use starknet_api::test_utils::declare::DeclareTxArgsWithContractClass;
+use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
+use starknet_api::test_utils::invoke::InvokeTxArgs;
+use starknet_api::test_utils::{TestingTxArgs, CHAIN_ID_FOR_TESTS};
+use starknet_api::transaction::fields::TransactionSignature;
 use starknet_api::transaction::TransactionHash;
+use starknet_api::{declare_tx_args, deploy_account_tx_args, invoke_tx_args, nonce};
 use starknet_types_core::felt::Felt;
 use strum::VariantNames;
 
@@ -126,27 +126,49 @@ impl MockDependencies {
     }
 }
 
-fn invoke() -> RpcTransaction {
-    invoke_tx(CairoVersion::Cairo1(RunnableCairo1::Casm))
+fn account_contract() -> FeatureContract {
+    FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm))
+}
+
+fn invoke_args() -> InvokeTxArgs {
+    let cairo_version = CairoVersion::Cairo1(RunnableCairo1::Casm);
+    let test_contract = FeatureContract::TestContract(cairo_version);
+    let mut args = invoke_tx_args!(
+        resource_bounds: test_valid_resource_bounds(),
+        sender_address: account_contract().get_instance_address(0),
+        calldata: create_trivial_calldata(test_contract.get_instance_address(0))
+    );
+    let internal_tx = args.get_internal_tx();
+    args.tx_hash = internal_tx.tx.calculate_transaction_hash(&CHAIN_ID_FOR_TESTS).unwrap();
+    args
 }
 
 /// Make a deploy account transaction with a default salt.
-fn deploy_account() -> RpcTransaction {
-    generate_deploy_account_with_salt(
-        &FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-        ContractAddressSalt(Felt::ZERO),
-    )
+fn deploy_account_args() -> DeployAccountTxArgs {
+    let mut args = deploy_account_tx_args!(
+        class_hash: account_contract().get_class_hash(),
+        resource_bounds: test_valid_resource_bounds(),
+    );
+    let internal_tx = args.get_internal_tx();
+    args.tx_hash = internal_tx.tx.calculate_transaction_hash(&CHAIN_ID_FOR_TESTS).unwrap();
+    args
 }
 
-fn declare() -> RpcTransaction {
-    let mut tx = declare_tx();
-    let declare_tx_v3 =
-        assert_matches!(&mut tx, RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => tx);
-    // Set the compiled class hash to the class hash of the contract class.
-    // This update is needed because the contract class is not compiled from the sierra but is
-    // a default contract class. Thus requiring the compiled class hash to be updated.
-    declare_tx_v3.compiled_class_hash = default_contract_class().compiled_class_hash();
-    tx
+fn declare_args() -> DeclareTxArgsWithContractClass {
+    let contract_class = contract_class();
+    let mut args = DeclareTxArgsWithContractClass {
+        args: declare_tx_args!(
+            signature: TransactionSignature(vec![Felt::ZERO]),
+            sender_address: account_contract().get_instance_address(0),
+            resource_bounds: test_valid_resource_bounds(),
+            class_hash: contract_class.calculate_class_hash(),
+            compiled_class_hash: default_contract_class().compiled_class_hash(),
+        ),
+        contract_class,
+    };
+    let internal_tx = args.get_internal_tx();
+    args.args.tx_hash = internal_tx.tx.calculate_transaction_hash(&CHAIN_ID_FOR_TESTS).unwrap();
+    args
 }
 
 fn default_contract_class() -> ContractClass {
@@ -163,11 +185,12 @@ fn default_contract_class() -> ContractClass {
     ContractClass::V1((casm, sierra_version))
 }
 
-/// Setup MockClassManagerClient to expect the addition of the test contract class. The mock will
-/// return the class hash of the contract class that was added.
-fn setup_expect_add_class(mock_class_manager_client: &mut MockClassManagerClient) {
+/// Setup MockClassManagerClient to expect the addition and retrieval of the test contract
+/// class. Returns the compiled class hash of the contract class that the mock will return.
+fn setup_class_manager_client_mock(mock_class_manager_client: &mut MockClassManagerClient) {
     let contract_class = contract_class();
     let class_hash = contract_class.calculate_class_hash();
+    let casm = default_contract_class();
 
     mock_class_manager_client
         .expect_add_class()
@@ -176,16 +199,6 @@ fn setup_expect_add_class(mock_class_manager_client: &mut MockClassManagerClient
         .return_once(move |_| {
             Ok(ClassHashes { class_hash, executable_class_hash: Default::default() })
         });
-}
-
-/// Setup MockClassManagerClient to expect the addition and retrieval of the test contract
-/// class. Returns the compiled class hash of the contract class that the mock will return.
-fn setup_class_manager_client_mock(mock_class_manager_client: &mut MockClassManagerClient) {
-    let contract_class = contract_class();
-    let class_hash = contract_class.calculate_class_hash();
-    let casm = default_contract_class();
-
-    setup_expect_add_class(mock_class_manager_client);
     mock_class_manager_client
         .expect_get_sierra()
         .once()
@@ -220,20 +233,6 @@ fn check_positive_add_tx_result(
     );
 }
 
-async fn convert_rpc_tx_to_internal(
-    mock_dependencies_object: &MockDependencies,
-    rpc_tx: RpcTransaction,
-) -> InternalRpcTransaction {
-    let chain_id = mock_dependencies_object.config.chain_info.chain_id.clone();
-    let mut class_manager_client = MockClassManagerClient::new();
-    if matches!(&rpc_tx, RpcTransaction::Declare(_)) {
-        // Only Declare RPC transactions call `add_class` during conversion to internal transaction.
-        setup_expect_add_class(&mut class_manager_client);
-    }
-    let tx_converter = TransactionConverter::new(Arc::new(class_manager_client), chain_id);
-    tx_converter.convert_rpc_tx_to_internal_rpc_tx(rpc_tx).await.unwrap()
-}
-
 // TODO(AlonH): add test with Some broadcasted message metadata
 // TODO(AndrewL): split into negative and positive tests
 #[rstest]
@@ -257,20 +256,22 @@ async fn convert_rpc_tx_to_internal(
 #[tokio::test]
 async fn test_add_tx(
     mut mock_dependencies: MockDependencies,
-    #[values(invoke(), deploy_account(), declare())] tx: RpcTransaction,
+    #[values(invoke_args(), deploy_account_args(), declare_args())] tx_args: impl TestingTxArgs,
     #[case] expected_mempool_result: Result<(), MempoolClientError>,
     #[case] expected_error_code: Option<StarknetErrorCode>,
 ) {
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
 
-    let address = tx.calculate_sender_address().unwrap();
+    let tx = tx_args.get_rpc_tx();
+    let internal_tx = tx_args.get_internal_tx();
 
     if matches!(&tx, RpcTransaction::Declare(_)) {
         // Setup the mock class manager client to handle the declare tx.
         setup_class_manager_client_mock(&mut mock_dependencies.mock_class_manager_client);
     }
 
+    let address = internal_tx.contract_address();
     fund_account(
         &mock_dependencies.config.chain_info,
         address,
@@ -278,10 +279,8 @@ async fn test_add_tx(
         &mut mock_dependencies.state_reader_factory.state_reader.blockifier_state_reader,
     );
 
-    let internal_tx: InternalRpcTransaction =
-        convert_rpc_tx_to_internal(&mock_dependencies, tx.clone()).await;
     let tx_hash = internal_tx.tx_hash();
-
+    
     let p2p_message_metadata = Some(BroadcastedMessageMetadata::get_test_instance(&mut get_rng()));
     let add_tx_args = AddTransactionArgs {
         tx: internal_tx,
