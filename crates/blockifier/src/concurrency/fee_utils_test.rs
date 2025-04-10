@@ -29,6 +29,8 @@ pub fn test_fill_sequencer_balance_reads(
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
     erc20_version: CairoVersion,
 ) {
+    use crate::state::cached_state::CachedState;
+
     let account =
         FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let account_tx = invoke_tx_with_default_flags(invoke_tx_args! {
@@ -37,7 +39,7 @@ pub fn test_fill_sequencer_balance_reads(
         resource_bounds: default_all_resource_bounds,
     });
     let chain_info = &block_context.chain_info;
-    let state = &mut test_state_inner(chain_info, BALANCE, &[(account.into(), 1)], erc20_version);
+    let state = &mut CachedState::from(test_state_inner(chain_info, BALANCE, &[(account.into(), 1)], erc20_version));
 
     let sequencer_balance = Fee(100);
     let sequencer_address = block_context.block_info.sequencer_address;

@@ -24,7 +24,9 @@ use starknet_api::test_utils::{
     TEST_ERC20_CONTRACT_ADDRESS2,
 };
 
-use crate::blockifier::config::{CairoNativeRunConfig, ContractClassManagerConfig};
+#[cfg(feature = "cairo_native")]
+use crate::blockifier::config::CairoNativeRunConfig;
+use crate::blockifier::config::ContractClassManagerConfig;
 use crate::blockifier_versioned_constants::{
     GasCosts,
     OsConstants,
@@ -223,7 +225,19 @@ impl ContractClassManager {
         };
         ContractClassManager::start(config)
     }
+    #[cfg(not(feature = "cairo_native"))]
+    pub fn create_for_testing() -> Self {
+        let run_cairo_native = false;
+        let wait_on_native_compilation = false;
+
+        let config = ContractClassManagerConfig::create_for_testing(
+            run_cairo_native,
+            wait_on_native_compilation,
+        );
+        ContractClassManager::start(config)
+    }
 }
+
 // Contract loaders.
 
 // TODO(Noa): Consider using PathBuf.

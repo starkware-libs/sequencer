@@ -10,8 +10,12 @@ use starknet_api::transaction::fields::Fee;
 use strum::IntoEnumIterator;
 
 use super::contracts::get_cached_class;
+#[cfg(feature = "cairo_native")]
+use crate::blockifier::config::CairoNativeRunConfig;
 use crate::context::ChainInfo;
 use crate::state::cached_state::CachedState;
+use crate::state::contract_class_manager::ContractClassManager;
+use crate::state::state_reader_w_compile::StateReaderWithClassCompilation;
 use crate::test_utils::contracts::{FeatureContractData, FeatureContractTrait};
 use crate::test_utils::dict_state_reader::DictStateReader;
 
@@ -45,7 +49,7 @@ pub fn test_state_inner(
     initial_balances: Fee,
     contract_instances: &[(FeatureContractData, u16)],
     erc20_contract_version: CairoVersion,
-) -> CachedState<DictStateReader> {
+) -> DictStateReader {
     let mut class_hash_to_runnable_class = HashMap::new();
     let mut address_to_class_hash = HashMap::new();
     let mut class_hash_to_cached_class = HashMap::new();
@@ -87,7 +91,7 @@ pub fn test_state_inner(
         }
     }
 
-    CachedState::from(state_reader)
+    state_reader
 }
 
 pub fn test_state(
@@ -107,5 +111,49 @@ pub fn test_state_ex(
     initial_balances: Fee,
     contract_instances: &[(FeatureContractData, u16)],
 ) -> CachedState<DictStateReader> {
-    test_state_inner(chain_info, initial_balances, contract_instances, CairoVersion::Cairo0)
+    let reader =
+        test_state_inner(chain_info, initial_balances, contract_instances, CairoVersion::Cairo0);
+
+    CachedState::from(reader)
+}
+
+pub fn test_state_with_class_manager(
+    chain_info: &ChainInfo,
+    initial_balances: Fee,
+    contract_instances: &[(FeatureContract, u16)],
+) -> CachedState<StateReaderWithClassCompilation> {
+    let contract_instances_vec: Vec<(FeatureContractData, u16)> = contract_instances
+        .iter()
+        .map(|(feature_contract, i)| ((*feature_contract).into(), *i))
+        .collect();
+    let dict_reader = test_state_inner(
+        chain_info,
+        initial_balances,
+        &contract_instances_vec[..],
+        // TODO(AvivG): should erc20 cairo version be 1 or 0?
+        CairoVersion::Cairo0,
+    );
+
+    let reader = StateReaderWithClassCompilation {
+        state_reader: Box::new(dict_reader),
+        contract_class_manager: get_test_contract_class_manager(),
+    };
+
+    CachedState::from(reader)
+}
+
+fn get_test_contract_class_manager() -> ContractClassManager {
+    #[cfg(not(feature = "cairo_native"))]
+    return ContractClassManager::create_for_testing();
+
+    #[cfg(feature = "cairo_native")]
+    {
+        let native_config = CairoNativeRunConfig {
+            run_cairo_native: true,
+            wait_on_native_compilation: false,
+            ..Default::default()
+        };
+
+        ContractClassManager::create_for_testing(native_config)
+    }
 }
