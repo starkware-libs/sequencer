@@ -51,7 +51,7 @@ impl TransactionPool {
     pub fn insert(&mut self, tx: InternalRpcTransaction) -> MempoolResult<()> {
         let tx_reference = TransactionReference::new(&tx);
         let tx_hash = tx_reference.tx_hash;
-        let tx_size = tx.size_of();
+        let tx_size = tx.total_bytes();
 
         // Insert to pool.
         if let hash_map::Entry::Vacant(entry) = self.tx_pool.entry(tx_hash) {
@@ -95,7 +95,7 @@ impl TransactionPool {
         self.remove_from_account_mapping(&removed_tx);
         self.remove_from_timed_mapping(&removed_tx);
 
-        self.capacity.remove(tx.size_of());
+        self.capacity.remove(tx.total_bytes());
 
         Ok(tx)
     }
@@ -173,7 +173,7 @@ impl TransactionPool {
                      appear in the main mapping.",
                 )
             });
-            self.capacity.remove(tx.size_of());
+            self.capacity.remove(tx.total_bytes());
         }
     }
 

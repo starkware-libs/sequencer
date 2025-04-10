@@ -229,9 +229,11 @@ impl InternalRpcTransaction {
         }
     }
 
-    pub fn size_of(&self) -> u64 {
-        // TODO(Dafna): remove this function once size_of::SizeOf is used.
-        1
+    pub fn total_bytes(&self) -> u64 {
+        self.size_of()
+            .total_bytes()
+            .try_into()
+            .expect("The transaction size in bytes should fit in a u64 value.")
     }
 
     pub fn tx_hash(&self) -> TransactionHash {

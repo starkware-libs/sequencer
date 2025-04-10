@@ -567,24 +567,29 @@ fn test_add_tx_fills_nonce_gap(mut mempool: Mempool) {
 
 #[rstest]
 fn add_tx_exceeds_capacity() {
-    // Setup.
+    // Prepare the transactions to add. Prepare also declare transactions, to make sure delayed
+    // declares are counted.
+    let txs_to_add = (0..5)
+        .map(|i| add_tx_input!(tx_hash: i, tx_nonce: i))
+        .chain((5..10).map(|i| {
+            declare_add_tx_input(declare_tx_args!(
+                tx_hash: tx_hash!(i),
+                nonce: nonce!(i),
+                resource_bounds: test_valid_resource_bounds(),
+            ))
+        }))
+        .collect::<Vec<_>>();
+
+    // Setup mempool capacity to the size of the transactions to add.
+    let mempool_capacity = txs_to_add.iter().map(|tx| tx.tx.total_bytes()).sum();
     let mut mempool = Mempool::new(
-        MempoolConfig { capacity_in_bytes: 10, ..Default::default() },
+        MempoolConfig { capacity_in_bytes: mempool_capacity, ..Default::default() },
         Arc::new(FakeClock::default()),
     );
 
-    // Add the allowed number of transactions.
-    // Adding also declare transactions, to make sure delayed declares are counted.
-    for i in 0..5 {
-        let invoke_tx = add_tx_input!(tx_hash: i, tx_nonce: i);
-        let declare_tx = declare_add_tx_input(declare_tx_args!(
-            tx_hash: tx_hash!(5+i),
-            nonce: nonce!(5+i),
-            resource_bounds: test_valid_resource_bounds(),
-        ));
-
-        add_tx(&mut mempool, &invoke_tx);
-        add_tx(&mut mempool, &declare_tx);
+    // Add the transactions.
+    for tx in txs_to_add {
+        add_tx(&mut mempool, &tx);
     }
 
     // The next transaction should be rejected.
@@ -1164,7 +1169,7 @@ fn metrics_correctness() {
         pending_queue_size: 1,
         get_txs_size: 1,
         delayed_declares_size: 1,
-        total_size_in_bytes: 4,
+        total_size_in_bytes: 1520,
         transaction_time_spent_in_mempool: HistogramValue {
             sum: 65.0,
             count: 3,
