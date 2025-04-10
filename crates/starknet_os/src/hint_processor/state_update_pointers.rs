@@ -67,3 +67,16 @@ impl StateUpdatePointers {
         self.state_entries_ptr = ptr;
     }
 }
+
+pub(crate) fn get_contract_state_entry_and_storage_ptr(
+    optional_state_update_pointers: &mut Option<StateUpdatePointers>,
+    vm: &mut VirtualMachine,
+    contract_address: ContractAddress,
+) -> (Relocatable, Relocatable) {
+    match optional_state_update_pointers {
+        Some(state_update_pointers) => {
+            state_update_pointers.get_contract_state_entry_and_storage_ptr(contract_address, vm)
+        }
+        None => (vm.add_memory_segment(), vm.add_memory_segment()),
+    }
+}
