@@ -18,6 +18,7 @@ use crate::vm_utils::get_address_of_nested_fields;
 pub(crate) fn compute_ids_low<S: StateReader>(
     HintArgs { hint_processor, vm, ap_tracking, ids_data, constants, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
+    println!("getting d0 in compute_ids_low");
     let d0 = vm
         .get_integer(get_address_of_nested_fields(
             ids_data,
@@ -29,6 +30,7 @@ pub(crate) fn compute_ids_low<S: StateReader>(
             &hint_processor.os_program,
         )?)?
         .into_owned();
+    println!("getting d1 in compute_ids_low");
     let d1 = vm
         .get_integer(get_address_of_nested_fields(
             ids_data,

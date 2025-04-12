@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use blockifier::execution::syscalls::hint_processor::SyscallExecutionError;
-use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::get_ptr_from_var_name;
+use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::get_relocatable_from_var_name;
 use cairo_vm::hint_processor::hint_processor_definition::HintReference;
 use cairo_vm::serde::deserialize_program::{ApTracking, Identifier};
 use cairo_vm::types::errors::math_errors::MathError;
@@ -84,7 +84,7 @@ pub(crate) fn get_address_of_nested_fields<IG: IdentifierGetter>(
     nested_fields: &[&str],
     identifier_getter: &IG,
 ) -> VmUtilsResult<Relocatable> {
-    let base_address = get_ptr_from_var_name(id.into(), vm, ids_data, ap_tracking)?;
+    let base_address = get_relocatable_from_var_name(id.into(), vm, ids_data, ap_tracking)?;
 
     get_address_of_nested_fields_from_base_address(
         base_address,
