@@ -1,24 +1,12 @@
-use std::sync::Arc;
-
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_traits::ToPrimitive;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::contract_class::EntryPointType;
-use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, EthAddress, Nonce};
+use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, EthAddress};
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, Fee, TransactionSignature};
-use starknet_api::transaction::{
-    signed_tx_version,
-    EventContent,
-    EventData,
-    EventKey,
-    InvokeTransactionV0,
-    L2ToL1Payload,
-    TransactionHasher,
-    TransactionOptions,
-    TransactionVersion,
-};
+use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, TransactionSignature};
+use starknet_api::transaction::{EventContent, EventData, EventKey, L2ToL1Payload};
 use starknet_types_core::felt::Felt;
 
 use self::hint_processor::{
@@ -34,7 +22,6 @@ use self::hint_processor::{
     SyscallHintProcessor,
 };
 use crate::blockifier_versioned_constants::{EventLimits, VersionedConstants};
-use crate::context::TransactionContext;
 use crate::execution::call_info::MessageToL1;
 use crate::execution::deprecated_syscalls::DeprecatedSyscallSelector;
 use crate::execution::entry_point::{CallEntryPoint, CallType};
@@ -45,11 +32,6 @@ use crate::execution::execution_utils::{
     ReadOnlySegment,
 };
 use crate::execution::syscalls::syscall_base::SyscallResult;
-use crate::transaction::objects::{
-    CommonAccountFields,
-    DeprecatedTransactionInfo,
-    TransactionInfo,
-};
 
 pub mod hint_processor;
 mod secp;
@@ -504,73 +486,17 @@ pub(crate) fn meta_tx_v0(
     syscall_handler
         .increment_linear_factor_by(&SyscallSelector::MetaTxV0, request.get_linear_factor_length());
 
-    if syscall_handler.is_validate_mode() {
-        return Err(SyscallExecutionError::InvalidSyscallInExecutionMode {
-            syscall_name: "meta_tx_v0".to_string(),
-            execution_mode: syscall_handler.execution_mode(),
-        });
-    }
-
     let storage_address = request.contract_address;
     let selector = request.entry_point_selector;
-    let class_hash = syscall_handler.base.state.get_class_hash_at(storage_address)?;
-    let entry_point = CallEntryPoint {
-        class_hash: None,
-        code_address: Some(storage_address),
-        entry_point_type: EntryPointType::External,
-        entry_point_selector: selector,
-        calldata: request.calldata.clone(),
+
+    let raw_retdata = syscall_handler.base.meta_tx_v0(
         storage_address,
-        caller_address: ContractAddress::default(),
-        call_type: CallType::Call,
-        // NOTE: this value might be overridden later on.
-        initial_gas: *remaining_gas,
-    };
-
-    let old_tx_context = syscall_handler.base.context.tx_context.clone();
-    let only_query = old_tx_context.tx_info.only_query();
-
-    // Compute meta-transaction hash.
-    let transaction_hash = InvokeTransactionV0 {
-        max_fee: Fee(0),
-        signature: request.signature.clone(),
-        contract_address: storage_address,
-        entry_point_selector: selector,
-        calldata: request.calldata,
-    }
-    .calculate_transaction_hash(
-        &syscall_handler.base.context.tx_context.block_context.chain_info.chain_id,
-        &signed_tx_version(&TransactionVersion::ZERO, &TransactionOptions { only_query }),
+        selector,
+        request.calldata,
+        request.signature,
+        remaining_gas,
     )?;
-
-    // Replace `tx_context`.
-    let new_tx_info = TransactionInfo::Deprecated(DeprecatedTransactionInfo {
-        common_fields: CommonAccountFields {
-            transaction_hash,
-            version: TransactionVersion::ZERO,
-            signature: request.signature,
-            nonce: Nonce(0.into()),
-            sender_address: storage_address,
-            only_query,
-        },
-        max_fee: Fee(0),
-    });
-    syscall_handler.base.context.tx_context = Arc::new(TransactionContext {
-        block_context: old_tx_context.block_context.clone(),
-        tx_info: new_tx_info,
-    });
-
-    let retdata_segment = execute_inner_call(entry_point, vm, syscall_handler, remaining_gas)
-        .map_err(|error| match error {
-            SyscallExecutionError::Revert { .. } => error,
-            _ => {
-                // TODO(lior): Change to meta-tx specific error.
-                error.as_call_contract_execution_error(class_hash, storage_address, selector)
-            }
-        })?;
-
-    // Restore the old `tx_context`.
-    syscall_handler.base.context.tx_context = old_tx_context;
+    let retdata_segment = create_retdata_segment(vm, syscall_handler, &raw_retdata)?;
 
     Ok(MetaTxV0Response { segment: retdata_segment })
 }

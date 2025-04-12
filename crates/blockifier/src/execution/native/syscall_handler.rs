@@ -21,7 +21,7 @@ use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, EthAddress};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::fields::{Calldata, ContractAddressSalt};
+use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, TransactionSignature};
 use starknet_api::transaction::{EventContent, EventData, EventKey, L2ToL1Payload};
 use starknet_types_core::felt::Felt;
 
@@ -346,13 +346,34 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
 
     fn meta_tx_v0(
         &mut self,
-        _address: Felt,
-        _entry_point_selector: Felt,
-        _calldata: &[Felt],
-        _signature: &[Felt],
-        _remaining_gas: &mut u64,
+        address: Felt,
+        entry_point_selector: Felt,
+        calldata: &[Felt],
+        signature: &[Felt],
+        remaining_gas: &mut u64,
     ) -> SyscallResult<Vec<Felt>> {
-        todo!("Meta tx v0 syscall not implemented");
+        // The cost of MetaTxV0 syscall is the base cost plus the linear cost of the calldata
+        // len.
+        let total_gas_cost =
+            self.gas_costs().syscalls.meta_tx_v0.get_syscall_cost(u64_from_usize(calldata.len()));
+        self.pre_execute_syscall(remaining_gas, total_gas_cost)?;
+
+        let contract_address = ContractAddress::try_from(address)
+            .map_err(|error| self.handle_error(remaining_gas, error.into()))?;
+        let selector = EntryPointSelector(entry_point_selector);
+        let wrapper_calldata = Calldata(Arc::new(calldata.to_vec()));
+        let signature = TransactionSignature(signature.to_vec());
+
+        let raw_data_result = self.base.meta_tx_v0(
+            contract_address,
+            selector,
+            wrapper_calldata,
+            signature,
+            remaining_gas,
+        );
+        let raw_data = raw_data_result.map_err(|e| self.handle_error(remaining_gas, e))?;
+
+        Ok(raw_data)
     }
 
     fn library_call(
