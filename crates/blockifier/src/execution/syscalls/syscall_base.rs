@@ -1,14 +1,24 @@
 /// This file is for sharing common logic between Native and VM syscall implementations.
 use std::collections::{hash_map, HashMap};
 use std::convert::From;
+use std::sync::Arc;
 
 use starknet_api::block::{BlockHash, BlockNumber};
-use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress};
+use starknet_api::contract_class::EntryPointType;
+use starknet_api::core::{
+    calculate_contract_address,
+    ClassHash,
+    ContractAddress,
+    EntryPointSelector,
+    Nonce,
+};
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::fields::{Calldata, ContractAddressSalt};
+use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, Fee, TransactionSignature};
 use starknet_api::transaction::{
     signed_tx_version,
     EventContent,
+    InvokeTransactionV0,
+    TransactionHasher,
     TransactionOptions,
     TransactionVersion,
 };
@@ -16,6 +26,7 @@ use starknet_types_core::felt::Felt;
 
 use super::exceeds_event_size_limit;
 use crate::abi::constants;
+use crate::context::TransactionContext;
 use crate::execution::call_info::{
     CallInfo,
     MessageToL1,
@@ -26,6 +37,7 @@ use crate::execution::call_info::{
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::{
     CallEntryPoint,
+    CallType,
     ConstructorContext,
     EntryPointExecutionContext,
     ExecutableCallEntryPoint,
@@ -40,7 +52,11 @@ use crate::execution::syscalls::hint_processor::{
 };
 use crate::state::state_api::State;
 use crate::transaction::account_transaction::is_cairo1;
-use crate::transaction::objects::TransactionInfo;
+use crate::transaction::objects::{
+    CommonAccountFields,
+    DeprecatedTransactionInfo,
+    TransactionInfo,
+};
 
 pub type SyscallResult<T> = Result<T, SyscallExecutionError>;
 pub const KECCAK_FULL_RATE_IN_WORDS: usize = 17;
@@ -227,6 +243,71 @@ impl<'state> SyscallHandlerBase<'state> {
         self.context.n_emitted_events += 1;
 
         Ok(())
+    }
+
+    pub fn meta_tx_v0(
+        &mut self,
+        contract_address: ContractAddress,
+        entry_point_selector: EntryPointSelector,
+        calldata: Calldata,
+        signature: TransactionSignature,
+        remaining_gas: &mut u64,
+    ) -> SyscallResult<Vec<Felt>> {
+        if self.context.execution_mode == ExecutionMode::Validate {
+            self.reject_selector_in_validate_mode("meta_tx_v0")?;
+        }
+        let entry_point = CallEntryPoint {
+            class_hash: None,
+            code_address: Some(contract_address),
+            entry_point_type: EntryPointType::External,
+            entry_point_selector,
+            calldata: calldata.clone(),
+            storage_address: contract_address,
+            caller_address: ContractAddress::default(),
+            call_type: CallType::Call,
+            // NOTE: this value might be overridden later on.
+            initial_gas: *remaining_gas,
+        };
+
+        let old_tx_context = self.context.tx_context.clone();
+        let only_query = old_tx_context.tx_info.only_query();
+
+        // Compute meta-transaction hash.
+        let transaction_hash = InvokeTransactionV0 {
+            max_fee: Fee(0),
+            signature: signature.clone(),
+            contract_address,
+            entry_point_selector,
+            calldata,
+        }
+        .calculate_transaction_hash(
+            &self.context.tx_context.block_context.chain_info.chain_id,
+            &signed_tx_version(&TransactionVersion::ZERO, &TransactionOptions { only_query }),
+        )?;
+
+        // Replace `tx_context`.
+        let new_tx_info = TransactionInfo::Deprecated(DeprecatedTransactionInfo {
+            common_fields: CommonAccountFields {
+                transaction_hash,
+                version: TransactionVersion::ZERO,
+                signature,
+                nonce: Nonce(0.into()),
+                sender_address: contract_address,
+                only_query,
+            },
+            max_fee: Fee(0),
+        });
+        self.context.tx_context = Arc::new(TransactionContext {
+            block_context: old_tx_context.block_context.clone(),
+            tx_info: new_tx_info,
+        });
+
+        let result = self.execute_inner_call(entry_point, remaining_gas);
+
+        // Restore the old `tx_context`.
+        self.context.tx_context = old_tx_context;
+
+        result
     }
 
     pub fn replace_class(&mut self, class_hash: ClassHash) -> SyscallResult<()> {
