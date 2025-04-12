@@ -38,34 +38,46 @@ use crate::transaction::objects::{CommonAccountFields, CurrentTransactionInfo, T
 #[test_case(
     RunnableCairo1::Casm, ExecutionMode::Execute, false, true; "VM, execute, measure resources"
 )]
-// TODO(lior): Uncomment when native supports `meta_tx_v0`.
-// #[cfg_attr(
-//     feature = "cairo_native",
-//     test_case(
-//         RunnableCairo1::Native,
-//         ExecutionMode::Execute,
-//         false;
-//         "Native, execute"
-//     )
-// )]
-// #[cfg_attr(
-//     feature = "cairo_native",
-//     test_case(
-//         RunnableCairo1::Native,
-//         ExecutionMode::Execute,
-//         true;
-//         "Native, execute, only_query"
-//     )
-// )]
-// #[cfg_attr(
-//     feature = "cairo_native",
-//     test_case(
-//         RunnableCairo1::Native,
-//         ExecutionMode::Validate,
-//         false;
-//         "Native, validate"
-//     )
-// )]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+        RunnableCairo1::Native,
+        ExecutionMode::Execute,
+        false,
+        false;
+        "Native, execute"
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+        RunnableCairo1::Native,
+        ExecutionMode::Execute,
+        true,
+        false;
+        "Native, execute, only_query"
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+        RunnableCairo1::Native,
+        ExecutionMode::Validate,
+        false,
+        false;
+        "Native,  execute, measure resources"
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+        RunnableCairo1::Native,
+        ExecutionMode::Execute,
+        false,
+        true;
+        "Native, validate"
+    )
+)]
 fn test_meta_tx_v0(
     runnable_version: RunnableCairo1,
     execution_mode: ExecutionMode,
