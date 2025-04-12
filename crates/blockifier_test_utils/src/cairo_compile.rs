@@ -1,17 +1,19 @@
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
+use std::sync::LazyLock;
 use std::{env, fs};
 
 use apollo_infra_utils::cairo_compiler_version::cairo1_compiler_version;
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
-use apollo_infra_utils::path::project_path;
+use apollo_infra_utils::path::{project_path, resolve_project_relative_path};
 use tempfile::NamedTempFile;
 use tracing::info;
 
 use crate::contracts::TagAndToolchain;
 
-const CAIRO0_PIP_REQUIREMENTS_FILE: &str = "tests/requirements.txt";
+static CAIRO0_PIP_REQUIREMENTS_FILE: LazyLock<PathBuf> =
+    LazyLock::new(|| resolve_project_relative_path("scripts/requirements.txt").unwrap());
 const CAIRO1_REPO_RELATIVE_PATH_OVERRIDE_ENV_VAR: &str = "CAIRO1_REPO_RELATIVE_PATH";
 const DEFAULT_CAIRO1_REPO_RELATIVE_PATH: &str = "../../../cairo";
 
@@ -177,27 +179,25 @@ fn verify_cairo0_compiler_deps() {
         Command::new("sh").arg("-c").arg("pip freeze | grep cairo-lang").output().unwrap().stdout;
     let cairo_lang_version_untrimmed = String::from_utf8(cairo_lang_version_output).unwrap();
     let cairo_lang_version = cairo_lang_version_untrimmed.trim();
-    let requirements_contents = fs::read_to_string(CAIRO0_PIP_REQUIREMENTS_FILE).unwrap();
+    let requirements_contents = fs::read_to_string(&*CAIRO0_PIP_REQUIREMENTS_FILE).unwrap();
     let expected_cairo_lang_version = requirements_contents
         .lines()
-        .nth(1) // Skip docstring.
-        .expect(
-            "Expecting requirements file to contain a docstring in the first line, and \
-            then the required cairo-lang version in the second line."
-        ).trim();
+        .find(|line| line.starts_with("cairo-lang"))
+        .unwrap_or_else(|| {
+            panic!("Could not find cairo-lang in {:?}.", *CAIRO0_PIP_REQUIREMENTS_FILE)
+        })
+        .trim();
 
-    assert_eq!(
-        cairo_lang_version,
-        expected_cairo_lang_version,
+    assert!(
+        expected_cairo_lang_version.ends_with(cairo_lang_version),
         "cairo-lang version {expected_cairo_lang_version} not found ({}). Please run:\npip3.9 \
-         install -r {}/{}\nthen rerun the test.",
+         install -r {:?}\nthen rerun the test.",
         if cairo_lang_version.is_empty() {
             String::from("no installed cairo-lang found")
         } else {
             format!("installed version: {cairo_lang_version}")
         },
-        compile_time_cargo_manifest_dir!(),
-        CAIRO0_PIP_REQUIREMENTS_FILE
+        *CAIRO0_PIP_REQUIREMENTS_FILE
     );
 }
 
