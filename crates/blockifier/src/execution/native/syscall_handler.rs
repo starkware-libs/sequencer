@@ -21,7 +21,7 @@ use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, EthAddress};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::fields::{Calldata, ContractAddressSalt};
+use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, TransactionSignature};
 use starknet_api::transaction::{EventContent, EventData, EventKey, L2ToL1Payload};
 use starknet_types_core::felt::Felt;
 
@@ -346,13 +346,68 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
 
     fn meta_tx_v0(
         &mut self,
-        _address: Felt,
-        _entry_point_selector: Felt,
-        _calldata: &[Felt],
-        _signature: &[Felt],
-        _remaining_gas: &mut u64,
+        address: Felt,
+        entry_point_selector: Felt,
+        calldata: &[Felt],
+        signature: &[Felt],
+        remaining_gas: &mut u64,
     ) -> SyscallResult<Vec<Felt>> {
-        todo!("Meta tx v0 syscall not implemented");
+        // The cost of MetaTxV0 syscall is the base cost plus the linear cost of the calldata
+        // len.
+        let total_gas_cost =
+            self.gas_costs().syscalls.meta_tx_v0.get_syscall_cost(u64_from_usize(calldata.len()));
+        self.pre_execute_syscall(remaining_gas, total_gas_cost)?;
+
+        let contract_address = ContractAddress::try_from(address)
+            .map_err(|error| self.handle_error(remaining_gas, error.into()))?;
+
+        if self.base.context.execution_mode == ExecutionMode::Validate {
+            let err = SyscallExecutionError::InvalidSyscallInExecutionMode {
+                syscall_name: "meta_tx_v0".to_string(),
+                execution_mode: self.base.context.execution_mode,
+            };
+            return Err(self.handle_error(remaining_gas, err));
+        }
+
+        let selector = EntryPointSelector(entry_point_selector);
+        let wrapper_calldata = Calldata(Arc::new(calldata.to_vec()));
+        let signature = TransactionSignature(signature.to_vec());
+
+        // Extract the "original" tx context before it is overridden by the meta-tx.
+        let old_tx_context = self.base.context.tx_context.clone();
+        let entry_point = self
+            .base
+            .meta_tx_v0_preps(
+                contract_address,
+                selector,
+                wrapper_calldata,
+                signature,
+                remaining_gas,
+            )
+            .map_err(|err| self.handle_error(remaining_gas, err))?;
+
+        let class_hash = self
+            .base
+            .state
+            .get_class_hash_at(contract_address)
+            .map_err(|e| self.handle_error(remaining_gas, e.into()))?;
+
+        let error_wrapper_function =
+            |e: SyscallExecutionError,
+             class_hash: ClassHash,
+             storage_address: ContractAddress,
+             selector: EntryPointSelector| {
+                e.as_call_contract_execution_error(class_hash, storage_address, selector)
+            };
+
+        let result = self
+            .execute_inner_call(entry_point, remaining_gas, class_hash, error_wrapper_function)?
+            .0;
+
+        // Restore the old `tx_context`.
+        self.base.context.tx_context = old_tx_context;
+
+        Ok(result)
     }
 
     fn library_call(
