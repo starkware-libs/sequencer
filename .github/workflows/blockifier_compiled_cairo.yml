@@ -12,8 +12,8 @@ on:
       - 'crates/blockifier_test_utils/cairo_compile.rs'
       - 'crates/blockifier_test_utils/resources/feature_contracts/**'
       - 'crates/blockifier_test_utils/tests/feature_contracts_compatibility_test.rs'
-      - 'crates/blockifier_test_utils/tests/requirements.txt'
       - 'scripts/dependencies.sh'
+      - 'scripts/requirements.txt'
 
 env:
   RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
@@ -74,5 +74,5 @@ jobs:
       - name: Verify cairo contract recompilation (both cairo versions).
         run:
           cd sequencer &&
-          pip install -r crates/blockifier_test_utils/tests/requirements.txt &&
+          pip install -r scripts/requirements.txt &&
           cargo test -p blockifier_test_utils --test feature_contracts_compatibility_test -- --include-ignored --nocapture
