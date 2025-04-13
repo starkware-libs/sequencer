@@ -10,6 +10,7 @@ description = "The source (Cairo) code of the Starknet OS."
 workspace = true
 
 [dependencies]
+apollo_infra_utils.workspace = true
 cairo-vm.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
