@@ -1923,6 +1923,7 @@ name = "apollo_starknet_os_program"
 version = "0.15.0-rc.0"
 dependencies = [
  "apollo_infra_utils",
+ "cairo-vm",
  "serde_json",
 ]
 
