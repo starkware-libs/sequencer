@@ -61,6 +61,7 @@ const Configuration = {
             'apollo_rpc',
             'apollo_rpc_execution',
             'apollo_starknet_client',
+            'apollo_starknet_os_program',
             'apollo_state_reader',
             'apollo_state_sync',
             'apollo_state_sync_metrics',

@@ -1907,6 +1907,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "apollo_starknet_os_program"
+version = "0.0.0"
+
+[[package]]
 name = "apollo_state_reader"
 version = "0.0.0"
 dependencies = [
