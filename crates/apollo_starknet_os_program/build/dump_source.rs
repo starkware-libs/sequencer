@@ -28,7 +28,7 @@ fn get_cairo_file_map_recursive(entry: DirEntry) -> HashMap<String, String> {
 
 /// Find all files with a .cairo extension in the `src` directory, insert them into a map and dump
 /// the map as JSON to the specified location.
-pub fn dump_source_files(dump_to: PathBuf) {
+pub fn dump_source_files(dump_to: &PathBuf) {
     println!("cargo::warning=Dumping OS source files...");
 
     // Recursively fetch all cairo files and contents, and convert the paths to relative paths.
@@ -47,6 +47,6 @@ pub fn dump_source_files(dump_to: PathBuf) {
 
     // Serialize and dump the map to the specified location.
     let serialized = serde_json::to_string(&map_without_prefixes).unwrap();
-    std::fs::write(&dump_to, serialized)
+    std::fs::write(dump_to, serialized)
         .unwrap_or_else(|error| panic!("Failed to write to {dump_to:?}: {error:?}."));
 }

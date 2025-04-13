@@ -1,6 +1,6 @@
-#[cfg(feature = "dump_source_files")]
 use std::path::PathBuf;
 
+mod compile_program;
 #[cfg(feature = "dump_source_files")]
 mod dump_source;
 
@@ -8,8 +8,15 @@ mod dump_source;
 /// Recompiles the OS program if the source files change.
 /// Optionally, also exposes all source cairo files in a mapping from file path to contents.
 fn main() {
+    let out_dir = PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR not set."));
+
     #[cfg(feature = "dump_source_files")]
-    let out_dir = std::env::var("OUT_DIR").expect("OUT_DIR not set.");
-    #[cfg(feature = "dump_source_files")]
-    dump_source::dump_source_files(PathBuf::from(out_dir).join("cairo_files_map.json"));
+    dump_source::dump_source_files(&out_dir.join("cairo_files_map.json"));
+
+    println!("cargo::warning=Compiling Starknet OS program...");
+    let starknet_os_bytes = compile_program::compile_starknet_os();
+    println!("cargo::warning=Done. Writing compiled bytes to output directory.");
+    let starknet_os_bytes_path = out_dir.join("starknet_os_bytes");
+    std::fs::write(&starknet_os_bytes_path, &starknet_os_bytes)
+        .expect("Failed to write the compiled OS bytes to the output directory.");
 }
