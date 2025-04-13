@@ -37,7 +37,9 @@ pub fn verify_cairo0_compiler_deps() {
     assert_eq!(
         expected_cairo_lang_version, cairo_lang_version,
         "cairo-lang version {expected_cairo_lang_version} not found (installed version: \
-         {cairo_lang_version}). Please run:\npip3.9 install -r {:?}\nthen rerun the test.",
+         {cairo_lang_version}). Run the following commands (enter a python venv and install \
+         dependencies) and retry:\npython3.9 -m venv sequencer_venv\n. \
+         sequencer_venv/bin/activate\npip install -r {:?}",
         *PIP_REQUIREMENTS_FILE
     );
 }
