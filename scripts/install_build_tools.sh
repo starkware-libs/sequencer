@@ -13,6 +13,7 @@ function install_common_packages() {
             gnupg \
             libzstd-dev \
             python3-dev \
+            python3-venv \
             sudo \
             tzdata \
             wget
