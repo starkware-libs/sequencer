@@ -1,0 +1,10 @@
+[package]
+name = "apollo_starknet_os_program"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "The source (Cairo) code of the Starknet OS."
+
+[lints]
+workspace = true
