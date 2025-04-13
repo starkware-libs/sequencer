@@ -4,16 +4,15 @@ use std::process::{Command, Output, Stdio};
 use std::sync::LazyLock;
 use std::{env, fs};
 
+use apollo_infra_utils::cairo0_compiler::verify_cairo0_compiler_deps;
 use apollo_infra_utils::cairo_compiler_version::cairo1_compiler_version;
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
-use apollo_infra_utils::path::{project_path, resolve_project_relative_path};
+use apollo_infra_utils::path::project_path;
 use tempfile::NamedTempFile;
 use tracing::info;
 
 use crate::contracts::TagAndToolchain;
 
-static CAIRO0_PIP_REQUIREMENTS_FILE: LazyLock<PathBuf> =
-    LazyLock::new(|| resolve_project_relative_path("scripts/requirements.txt").unwrap());
 const CAIRO1_REPO_RELATIVE_PATH_OVERRIDE_ENV_VAR: &str = "CAIRO1_REPO_RELATIVE_PATH";
 const DEFAULT_CAIRO1_REPO_RELATIVE_PATH: &str = "../../../cairo";
 
@@ -170,35 +169,6 @@ pub fn starknet_compile(
     let sierra_output = run_and_verify_output(&mut starknet_compile_commmand);
 
     sierra_output.stdout
-}
-
-/// Verifies that the required dependencies are available before compiling; panics if unavailable.
-fn verify_cairo0_compiler_deps() {
-    // Python compiler. Verify correct version.
-    let cairo_lang_version_output =
-        Command::new("sh").arg("-c").arg("pip freeze | grep cairo-lang").output().unwrap().stdout;
-    let cairo_lang_version_untrimmed = String::from_utf8(cairo_lang_version_output).unwrap();
-    let cairo_lang_version = cairo_lang_version_untrimmed.trim();
-    let requirements_contents = fs::read_to_string(&*CAIRO0_PIP_REQUIREMENTS_FILE).unwrap();
-    let expected_cairo_lang_version = requirements_contents
-        .lines()
-        .find(|line| line.starts_with("cairo-lang"))
-        .unwrap_or_else(|| {
-            panic!("Could not find cairo-lang in {:?}.", *CAIRO0_PIP_REQUIREMENTS_FILE)
-        })
-        .trim();
-
-    assert!(
-        expected_cairo_lang_version.ends_with(cairo_lang_version),
-        "cairo-lang version {expected_cairo_lang_version} not found ({}). Please run:\npip3.9 \
-         install -r {:?}\nthen rerun the test.",
-        if cairo_lang_version.is_empty() {
-            String::from("no installed cairo-lang found")
-        } else {
-            format!("installed version: {cairo_lang_version}")
-        },
-        *CAIRO0_PIP_REQUIREMENTS_FILE
-    );
 }
 
 fn get_tag_and_repo_file_path(git_tag_override: Option<String>) -> (String, PathBuf) {
