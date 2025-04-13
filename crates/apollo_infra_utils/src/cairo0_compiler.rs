@@ -25,8 +25,9 @@ pub fn verify_cairo0_compiler_deps() {
 
     assert!(
         expected_cairo_lang_version.ends_with(cairo_lang_version),
-        "cairo-lang version {expected_cairo_lang_version} not found ({}). Please run:\npip3.9 \
-         install -r {:?}\nthen rerun the test.",
+        "cairo-lang version {expected_cairo_lang_version} not found ({}). Run the following \
+         commands (enter a python venv and install dependencies) and retry:\npython -m venv \
+         sequencer_venv\n. sequencer_venv/bin/activate\npip install -r {:?}",
         if cairo_lang_version.is_empty() {
             String::from("no installed cairo-lang found")
         } else {
