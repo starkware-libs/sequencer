@@ -57,6 +57,7 @@ const Configuration = {
             'apollo_rpc_execution',
             'apollo_compile_to_casm_types',
             'apollo_starknet_client',
+            'apollo_starknet_os_program',
             'apollo_state_reader',
             'apollo_state_sync',
             'apollo_state_sync_types',
