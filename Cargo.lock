@@ -1919,7 +1919,10 @@ version = "0.0.0"
 dependencies = [
  "apollo_infra_utils",
  "cairo-vm",
+ "serde",
  "serde_json",
+ "starknet-types-core",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
