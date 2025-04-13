@@ -1,3 +1,7 @@
+use std::path::PathBuf;
+use std::sync::LazyLock;
+
+use apollo_infra_utils::compile_time_cargo_manifest_dir;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::errors::program_errors::ProgramError;
 use serde::{Deserialize, Serialize};
@@ -20,9 +24,13 @@ pub enum ProgramHashError {
     UnexpectedRelocatable,
 }
 
-#[derive(Deserialize, Serialize)]
+pub(crate) static PROGRAM_HASH_PATH: LazyLock<PathBuf> = LazyLock::new(|| {
+    PathBuf::from(compile_time_cargo_manifest_dir!()).join("src/program_hash.json")
+});
+
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct ProgramHash {
-    os: Felt,
+    pub os: Felt,
 }
 
 const BOOTLOADER_VERSION: u8 = 0;
