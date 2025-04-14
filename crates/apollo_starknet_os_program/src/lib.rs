@@ -15,12 +15,10 @@ pub static CAIRO_FILES_MAP: LazyLock<HashMap<String, String>> = LazyLock::new(||
         .unwrap_or_else(|error| panic!("Failed to deserialize cairo_files_map.json: {error:?}."))
 });
 
+pub const OS_PROGRAM_BYTES: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/starknet_os_bytes"));
+
 pub static OS_PROGRAM: LazyLock<Program> = LazyLock::new(|| {
-    Program::from_bytes(
-        include_bytes!(concat!(env!("OUT_DIR"), "/starknet_os_bytes")),
-        Some("main"),
-    )
-    .expect("Failed to load the OS bytes.")
+    Program::from_bytes(OS_PROGRAM_BYTES, Some("main")).expect("Failed to load the OS bytes.")
 });
 
 pub static PROGRAM_HASH: LazyLock<ProgramHash> = LazyLock::new(|| {
