@@ -1,6 +1,3 @@
-use std::fs;
-use std::path::Path;
-
 use apollo_starknet_os_program::{OS_PROGRAM_BYTES, PROGRAM_HASH};
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::types::layout_name::LayoutName;
@@ -17,9 +14,6 @@ use crate::shared_utils::read::{load_input, write_to_file};
 #[derive(Deserialize, Debug)]
 /// Input to the os runner.
 pub(crate) struct Input {
-    // A path to a compiled program that its hint set should be a subset of those defined in
-    // starknet-os.
-    pub compiled_os_path: String,
     pub layout: LayoutName,
     pub os_hints: OsHints,
 }
@@ -62,14 +56,10 @@ pub fn validate_input(os_block_input: &[(OsBlockInput, CachedStateInput)]) {
 }
 
 pub fn parse_and_run_os(input_path: String, output_path: String) {
-    let Input { compiled_os_path, layout, os_hints } = load_input(input_path);
+    let Input { layout, os_hints } = load_input(input_path);
     validate_input(&os_hints.os_input.os_block_and_state_input);
 
-    // Load the compiled_os from the compiled_os_path.
-    let compiled_os =
-        fs::read(Path::new(&compiled_os_path)).expect("Failed to read compiled_os file");
-
-    let output = run_os_stateless(&compiled_os, layout, os_hints)
+    let output = run_os_stateless(layout, os_hints)
         .unwrap_or_else(|err| panic!("OS run failed. Error: {}", err));
     write_to_file(&output_path, &output);
     info!("OS program ran successfully.");
