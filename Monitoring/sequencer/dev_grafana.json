@@ -188,6 +188,22 @@
         "extra_params": {}
       }
     ],
+    "State Sync": [
+      {
+        "title": "apollo_state_sync_processed_transactions",
+        "description": "The number of transactions processed by the state sync component",
+        "type": "stat",
+        "expr": "apollo_state_sync_processed_transactions",
+        "extra_params": {}
+      },
+      {
+        "title": "apollo_state_sync_reverted_transactions",
+        "description": "The number of transactions reverted by the state sync component",
+        "type": "stat",
+        "expr": "apollo_state_sync_reverted_transactions",
+        "extra_params": {}
+      }
+    ],
     "MempoolP2p": [
       {
         "title": "apollo_mempool_p2p_num_connected_peers",
