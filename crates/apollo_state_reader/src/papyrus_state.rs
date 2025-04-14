@@ -260,4 +260,20 @@ impl StateReader for PapyrusReader {
     fn get_compiled_class_hash(&self, _class_hash: ClassHash) -> StateResult<CompiledClassHash> {
         todo!()
     }
+
+    fn get_sierra_class(&self, class_hash: ClassHash) -> StateResult<SierraContractClass> {
+        let Some(class_reader) = &self.class_reader else {
+            let sierra = self
+                .reader()?
+                .get_sierra_class(&class_hash)
+                .map_err(|err| StateError::StateReadError(err.to_string()))?
+                .expect(
+                    "Should be able to fetch a Sierra class if its definition exists,
+                database is inconsistent.",
+                );
+            return Ok(sierra);
+        };
+
+        class_reader.read_sierra(class_hash)
+    }
 }
