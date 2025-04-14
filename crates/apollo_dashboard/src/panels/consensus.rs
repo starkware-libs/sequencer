@@ -28,6 +28,7 @@ use apollo_consensus_orchestrator::metrics::{
     CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER,
     CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY,
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY,
+    CONSENSUS_L2_GAS_PRICE,
     CONSENSUS_NUM_BATCHES_IN_PROPOSAL,
     CONSENSUS_NUM_TXS_IN_PROPOSAL,
 };
@@ -74,6 +75,8 @@ pub(crate) const PANEL_CONSENSUS_NUM_BATCHES_IN_PROPOSAL: Panel =
     Panel::from_gauge(CONSENSUS_NUM_BATCHES_IN_PROPOSAL, PanelType::Stat);
 pub(crate) const PANEL_CONSENSUS_NUM_TXS_IN_PROPOSAL: Panel =
     Panel::from_gauge(CONSENSUS_NUM_TXS_IN_PROPOSAL, PanelType::Stat);
+pub(crate) const PANEL_CONSENSUS_L2_GAS_PRICE: Panel =
+    Panel::from_gauge(CONSENSUS_L2_GAS_PRICE, PanelType::Stat);
 
 pub(crate) const PANEL_CONSENSUS_NUM_CONNECTED_PEERS: Panel =
     Panel::from_gauge(CONSENSUS_NUM_CONNECTED_PEERS, PanelType::Stat);
