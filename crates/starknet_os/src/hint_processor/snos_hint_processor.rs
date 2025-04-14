@@ -25,6 +25,7 @@ use crate::hint_processor::execution_helper::{ExecutionHelperError, OsExecutionH
 use crate::hint_processor::state_update_pointers::StateUpdatePointers;
 use crate::hints::enum_definition::AllHints;
 use crate::hints::error::OsHintError;
+use crate::hints::hint_implementation::state::CommitmentType;
 use crate::hints::types::{HintArgs, HintEnum, HintExtensionImplementation, HintImplementation};
 #[cfg(any(feature = "testing", test))]
 use crate::io::os_input::{CachedStateInput, OsBlockInput, StarknetOsInput};
@@ -96,6 +97,7 @@ pub struct SnosHintProcessor<S: StateReader> {
     pub(crate) state_update_pointers: Option<StateUpdatePointers>,
     _deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
     builtin_hint_processor: BuiltinHintProcessor,
+    _commitment_type: CommitmentType,
     // KZG fields.
     da_segment: Option<Vec<Felt>>,
 }
@@ -140,6 +142,7 @@ impl<S: StateReader> SnosHintProcessor<S> {
             deprecated_compiled_classes: os_hints.os_input.deprecated_compiled_classes,
             compiled_classes: os_hints.os_input.compiled_classes,
             state_update_pointers: None,
+            _commitment_type: CommitmentType::State,
         })
     }
 
