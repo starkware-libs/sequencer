@@ -27,6 +27,7 @@ use blockifier::context::{BlockContext, ChainInfo};
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::StateError;
+use blockifier::state::state_reader_and_contract_manager::StateReaderAndContractManger;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use indexmap::{IndexMap, IndexSet};
@@ -429,7 +430,7 @@ impl BlockBuilderFactory {
         &self,
         block_metadata: BlockMetadata,
         runtime: tokio::runtime::Handle,
-    ) -> BlockBuilderResult<TransactionExecutor<PapyrusReader>> {
+    ) -> BlockBuilderResult<TransactionExecutor<StateReaderAndContractManger<PapyrusReader>>> {
         let height = block_metadata.block_info.block_number;
         let block_builder_config = self.block_builder_config.clone();
         let versioned_constants = VersionedConstants::get_versioned_constants(
@@ -443,12 +444,12 @@ impl BlockBuilderFactory {
         );
 
         let class_reader = Some(ClassReader { reader: self.class_manager_client.clone(), runtime });
-        let state_reader = PapyrusReader::new_with_class_manager(
-            self.storage_reader.clone(),
-            height,
-            self.contract_class_manager.clone(),
-            class_reader,
-        );
+        let papyrus_reader =
+            PapyrusReader::new_with_class_reader(self.storage_reader.clone(), height, class_reader);
+        let state_reader = StateReaderAndContractManger {
+            state_reader: papyrus_reader,
+            contract_class_manager: self.contract_class_manager.clone(),
+        };
 
         let executor = TransactionExecutor::pre_process_and_create(
             state_reader,

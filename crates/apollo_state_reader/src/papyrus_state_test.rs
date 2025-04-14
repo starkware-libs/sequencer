@@ -14,6 +14,7 @@ use blockifier::state::contract_class_manager::ContractClassManager;
 #[cfg(feature = "cairo_native")]
 use blockifier::state::global_cache::{CachedCairoNative, CachedClass};
 use blockifier::state::state_api::StateReader;
+use blockifier::state::state_reader_and_contract_manager::StateReaderAndContractManger;
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::test_utils::trivial_external_entry_point_new;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
@@ -56,11 +57,7 @@ fn test_entry_point_with_papyrus_state() -> apollo_storage::StorageResult<()> {
 
     // BlockNumber is 1 due to the initialization step above.
     let block_number = BlockNumber(1);
-    let papyrus_reader = PapyrusReader::new(
-        storage_reader,
-        block_number,
-        ContractClassManager::start(ContractClassManagerConfig::default()),
-    );
+    let papyrus_reader = PapyrusReader::new(storage_reader, block_number);
     let mut state = CachedState::from(papyrus_reader);
 
     // Call entrypoint that want to write to storage, which updates the cached state's write cache.
@@ -89,7 +86,7 @@ fn test_entry_point_with_papyrus_state() -> apollo_storage::StorageResult<()> {
 fn build_apollo_state_reader_and_declare_contract(
     contract: FeatureContract,
     contract_manager_config: ContractClassManagerConfig,
-) -> PapyrusReader {
+) -> StateReaderAndContractManger<PapyrusReader> {
     let class_hash = contract.get_class_hash();
     let ((storage_reader, mut storage_writer), _) = apollo_storage::test_utils::get_test_storage();
     let test_compiled_class_hash = contract.get_compiled_class_hash();
@@ -132,13 +129,15 @@ fn build_apollo_state_reader_and_declare_contract(
         }
     }
 
-    PapyrusReader::new(
-        storage_reader,
-        BlockNumber(1),
-        ContractClassManager::start(contract_manager_config),
-    )
+    let papyrus_reader = PapyrusReader::new(storage_reader, BlockNumber(1));
+
+    StateReaderAndContractManger {
+        state_reader: papyrus_reader,
+        contract_class_manager: ContractClassManager::start(contract_manager_config),
+    }
 }
 
+// TODO(AvivG): Move native test logic to the blockifier
 #[rstest]
 #[case::dont_run_cairo_native(false, false)]
 #[cfg_attr(feature = "cairo_native", case::run_cairo_native_without_waiting(true, false))]
@@ -163,12 +162,12 @@ fn test_get_compiled_class_without_native_in_cache(
         wait_on_native_compilation,
     );
 
-    let papyrus_reader =
+    let state_reader =
         build_apollo_state_reader_and_declare_contract(test_contract, contract_manager_config);
     // Sanity check - the cache is empty.
-    assert!(papyrus_reader.contract_class_manager.get_runnable(&test_class_hash).is_none());
+    assert!(state_reader.contract_class_manager.get_runnable(&test_class_hash).is_none());
 
-    let compiled_class = papyrus_reader.get_compiled_class(test_class_hash).unwrap();
+    let compiled_class = state_reader.get_compiled_class(test_class_hash).unwrap();
 
     match cairo_version {
         CairoVersion::Cairo1(_) => {
@@ -198,6 +197,7 @@ fn test_get_compiled_class_without_native_in_cache(
     }
 }
 
+// TODO(AvivG): Move native test logic to the blockifier
 #[cfg(feature = "cairo_native")]
 #[test]
 fn test_get_compiled_class_when_native_is_cached() {
@@ -208,18 +208,21 @@ fn test_get_compiled_class_when_native_is_cached() {
     let papyrus_reader = PapyrusReader::new(
         storage_reader,
         BlockNumber::default(),
-        ContractClassManager::start(contract_manager_config),
     );
+    let state_reader = StateReaderAndContractManger {
+        state_reader: papyrus_reader,
+        contract_class_manager: ContractClassManager::start(contract_manager_config),
+    };
     if let RunnableCompiledClass::V1Native(native_compiled_class) =
         test_contract.get_runnable_class()
     {
-        papyrus_reader.contract_class_manager.set_and_compile(
+        state_reader.contract_class_manager.set_and_compile(
             test_class_hash,
             CachedClass::V1Native(CachedCairoNative::Compiled(native_compiled_class)),
         );
     } else {
         panic!("Expected NativeCompiledClassV1");
     }
-    let compiled_class = papyrus_reader.get_compiled_class(test_class_hash).unwrap();
+    let compiled_class = state_reader.get_compiled_class(test_class_hash).unwrap();
     assert_matches!(compiled_class, RunnableCompiledClass::V1Native(_));
 }
