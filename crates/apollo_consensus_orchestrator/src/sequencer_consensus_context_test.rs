@@ -55,6 +55,7 @@ use rstest::rstest;
 use starknet_api::block::{
     BlockHash,
     BlockNumber,
+    GasPrice,
     TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
     TEMP_ETH_GAS_FEE_IN_WEI,
 };
@@ -111,13 +112,13 @@ fn block_info(height: BlockNumber) -> ConsensusBlockInfo {
         timestamp: chrono::Utc::now().timestamp().try_into().expect("Timestamp conversion failed"),
         builder: Default::default(),
         l1_da_mode: L1DataAvailabilityMode::Blob,
-        l2_gas_price_fri: 100000,
-        l1_gas_price_wei: TEMP_ETH_GAS_FEE_IN_WEI,
+        l2_gas_price_fri: GasPrice(100000),
+        l1_gas_price_wei: GasPrice(TEMP_ETH_GAS_FEE_IN_WEI),
         // TODO(guyn): I've put x10 on the data price, because currently
         // the minimal data gas price is 1 gwei, which is x10 this const.
         // Should adjust this when we have better min/max gas prices.
-        l1_data_gas_price_wei: TEMP_ETH_BLOB_GAS_FEE_IN_WEI * 10,
-        eth_to_fri_rate: ETH_TO_FRI_RATE,
+        l1_data_gas_price_wei: GasPrice(TEMP_ETH_BLOB_GAS_FEE_IN_WEI * 10),
+        eth_to_fri_rate: GasPrice(ETH_TO_FRI_RATE),
     }
 }
 // Structs which aren't utilized but should not be dropped.
@@ -236,8 +237,8 @@ fn dummy_gas_price_provider() -> MockL1GasPriceProviderClient {
     let mut l1_gas_price_provider = MockL1GasPriceProviderClient::new();
     l1_gas_price_provider.expect_get_price_info().returning(|_| {
         Ok(PriceInfo {
-            base_fee_per_gas: TEMP_ETH_GAS_FEE_IN_WEI,
-            blob_fee: TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
+            base_fee_per_gas: GasPrice(TEMP_ETH_GAS_FEE_IN_WEI),
+            blob_fee: GasPrice(TEMP_ETH_BLOB_GAS_FEE_IN_WEI),
         })
     });
 
@@ -575,7 +576,7 @@ async fn build_proposal() {
         panic!("Expected ProposalPart::BlockInfo");
     };
     assert!(info.timestamp >= before && info.timestamp <= after);
-    assert_eq!(info.eth_to_fri_rate, ETH_TO_FRI_RATE);
+    assert_eq!(info.eth_to_fri_rate.0, ETH_TO_FRI_RATE);
     assert_eq!(
         receiver.next().await.unwrap(),
         ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() })
@@ -695,7 +696,7 @@ async fn eth_to_fri_rate_out_of_range() {
     let (mut content_sender, content_receiver) = mpsc::channel(context.config.proposal_buffer_size);
     // Send a block info with an eth_to_fri_rate that is outside the margin of error.
     let mut block_info = block_info(BlockNumber(0));
-    block_info.eth_to_fri_rate *= 2;
+    block_info.eth_to_fri_rate = GasPrice(block_info.eth_to_fri_rate.0 * 2);
     content_sender.send(ProposalPart::BlockInfo(block_info).clone()).await.unwrap();
     // Max timeout to ensure the fin_receiver was canceled due to invalid block_info, not due to a
     // timeout.
