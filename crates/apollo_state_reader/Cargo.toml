@@ -14,7 +14,6 @@ workspace = true
 
 [dependencies]
 apollo_class_manager_types.workspace = true
-apollo_metrics.workspace = true
 apollo_storage.workspace = true
 blockifier.workspace = true
 cairo-lang-starknet-classes.workspace = true

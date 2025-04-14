@@ -10,6 +10,7 @@ use blockifier::execution::contract_class::{
     CompiledClassV1,
     RunnableCompiledClass,
 };
+use blockifier::metrics::{CLASS_CACHE_HITS, CLASS_CACHE_MISSES};
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::{couple_casm_and_sierra, StateError};
 use blockifier::state::global_cache::CachedClass;
@@ -22,8 +23,6 @@ use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedClass;
 use starknet_api::state::{SierraContractClass, StateNumber, StorageKey};
 use starknet_types_core::felt::Felt;
-
-use crate::metrics::{CLASS_CACHE_HITS, CLASS_CACHE_MISSES};
 
 #[cfg(test)]
 #[path = "papyrus_state_test.rs"]
@@ -185,7 +184,7 @@ impl PapyrusReader {
         #[cfg(feature = "cairo_native")]
         {
             if matches!(_runnable_class, RunnableCompiledClass::V1Native(_)) {
-                crate::metrics::NATIVE_CLASS_RETURNED.increment(1);
+                blockifier::metrics::NATIVE_CLASS_RETURNED.increment(1);
             }
         }
     }
