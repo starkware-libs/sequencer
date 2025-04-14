@@ -54,6 +54,7 @@ use crate::transaction::objects::{
 pub mod hint_processor;
 mod secp;
 pub mod syscall_base;
+mod syscall_executor;
 
 #[cfg(test)]
 pub mod syscall_tests;
