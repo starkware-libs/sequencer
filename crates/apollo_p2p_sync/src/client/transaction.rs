@@ -1,7 +1,10 @@
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_network::network_manager::ClientResponsesManager;
 use apollo_protobuf::sync::DataOrFin;
-use apollo_state_sync_metrics::metrics::{SYNC_BODY_MARKER, SYNC_PROCESSED_TRANSACTIONS};
+use apollo_state_sync_metrics::metrics::{
+    STATE_SYNC_BODY_MARKER,
+    STATE_SYNC_PROCESSED_TRANSACTIONS,
+};
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::body::{BodyStorageReader, BodyStorageWriter};
 use apollo_storage::header::HeaderStorageReader;
@@ -31,8 +34,8 @@ impl BlockData for (BlockBody, BlockNumber) {
             let num_txs =
                 self.0.transactions.len().try_into().expect("Failed to convert usize to u64");
             storage_writer.begin_rw_txn()?.append_body(self.1, self.0)?.commit()?;
-            SYNC_BODY_MARKER.set_lossy(self.1.unchecked_next().0);
-            SYNC_PROCESSED_TRANSACTIONS.increment(num_txs);
+            STATE_SYNC_BODY_MARKER.set_lossy(self.1.unchecked_next().0);
+            STATE_SYNC_PROCESSED_TRANSACTIONS.increment(num_txs);
             Ok(())
         }
         .boxed()
