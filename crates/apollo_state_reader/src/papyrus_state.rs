@@ -80,29 +80,22 @@ impl ClassReader {
 pub struct PapyrusReader {
     storage_reader: StorageReader,
     latest_block: BlockNumber,
-    // TODO(AvivG): remove class_manager once cairo_native logic moves to
-    // StateReaderAndContractManger.
-    contract_class_manager: ContractClassManager,
     // Reader is `None` for reader invoked through `native_blockifier`.
     class_reader: Option<ClassReader>,
 }
 
 impl PapyrusReader {
-    pub fn new_with_class_manager(
+    // TODO(AvivG): is this still necessary?
+    pub fn new_with_class_reader(
         storage_reader: StorageReader,
         latest_block: BlockNumber,
-        contract_class_manager: ContractClassManager,
         class_reader: Option<ClassReader>,
     ) -> Self {
-        Self { storage_reader, latest_block, contract_class_manager, class_reader }
+        Self { storage_reader, latest_block, class_reader }
     }
 
-    pub fn new(
-        storage_reader: StorageReader,
-        latest_block: BlockNumber,
-        contract_class_manager: ContractClassManager,
-    ) -> Self {
-        Self { storage_reader, latest_block, contract_class_manager, class_reader: None }
+    pub fn new(storage_reader: StorageReader, latest_block: BlockNumber) -> Self {
+        Self { storage_reader, latest_block, class_reader: None }
     }
 
     fn reader(&self) -> StateResult<RawPapyrusReader<'_>> {
