@@ -123,7 +123,12 @@ use apollo_mempool_p2p::metrics::{
     MEMPOOL_P2P_NUM_RECEIVED_MESSAGES,
     MEMPOOL_P2P_NUM_SENT_MESSAGES,
 };
-use apollo_state_reader::metrics::{CLASS_CACHE_HITS, CLASS_CACHE_MISSES, NATIVE_CLASS_RETURNED};
+use apollo_state_reader::metrics::{
+    CLASS_CACHE_HITS,
+    CLASS_CACHE_MISSES,
+    NATIVE_CLASS_RETURNED,
+    STATE_READER_METRIC_RATE_DURATION,
+};
 use apollo_state_sync::metrics::{
     STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS,
     STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS,
@@ -483,10 +488,13 @@ const PANEL_APOLLO_STATE_READER_CLASS_CACHE_MISS_RATIO: Panel = Panel::new(
     "class_cache_miss_ratio",
     "The ratio of cache misses when requesting compiled classes from the apollo state reader",
     formatcp!(
-        "100 * ({} / max(({} + {}), 1))",
+        "100 * (rate({}[{}]) / (rate({}[{}]) + rate({}[{}])))",
         CLASS_CACHE_MISSES.get_name(),
+        STATE_READER_METRIC_RATE_DURATION,
         CLASS_CACHE_MISSES.get_name(),
-        CLASS_CACHE_HITS.get_name()
+        STATE_READER_METRIC_RATE_DURATION,
+        CLASS_CACHE_HITS.get_name(),
+        STATE_READER_METRIC_RATE_DURATION
     ),
     PanelType::Graph,
 );
@@ -494,10 +502,13 @@ const PANEL_APOLLO_STATE_READER_NATIVE_CLASS_RETURNED_RATIO: Panel = Panel::new(
     "native_class_returned_ratio",
     "The ratio of Native classes returned by the apollo state reader",
     formatcp!(
-        "100 * ({} / max(({} + {}), 1))",
+        "100 * (rate({}[{}]) / (rate({}[{}]) + rate({}[{}])))",
         NATIVE_CLASS_RETURNED.get_name(),
+        STATE_READER_METRIC_RATE_DURATION,
         CLASS_CACHE_HITS.get_name(),
-        CLASS_CACHE_MISSES.get_name()
+        STATE_READER_METRIC_RATE_DURATION,
+        CLASS_CACHE_MISSES.get_name(),
+        STATE_READER_METRIC_RATE_DURATION,
     ),
     PanelType::Graph,
 );
