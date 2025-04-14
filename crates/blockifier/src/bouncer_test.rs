@@ -16,9 +16,8 @@ use crate::state::cached_state::{StateChangesKeys, TransactionalState};
 use crate::test_utils::initial_test_state::test_state;
 use crate::transaction::errors::TransactionExecutionError;
 
-// TODO(Einat): Add cases for different fields failing has_room and update the test name.
 #[test]
-fn test_block_weights_has_room() {
+fn test_block_weights_has_room_sierra_gas() {
     let max_bouncer_weights = BouncerWeights {
         l1_gas: 10,
         message_segment_length: 10,
@@ -46,6 +45,40 @@ fn test_block_weights_has_room() {
         state_diff_size: 5,
         sierra_gas: GasAmount(15),
         n_txs: 5,
+    };
+
+    assert!(!max_bouncer_weights.has_room(bouncer_weights_exceeds_max));
+}
+
+#[test]
+fn test_block_weights_has_room_n_txs() {
+    let max_bouncer_weights = BouncerWeights {
+        l1_gas: 10,
+        message_segment_length: 10,
+        n_events: 10,
+        state_diff_size: 10,
+        sierra_gas: GasAmount(10),
+        n_txs: 10,
+    };
+
+    let bouncer_weights = BouncerWeights {
+        l1_gas: 7,
+        message_segment_length: 10,
+        n_events: 2,
+        state_diff_size: 7,
+        sierra_gas: GasAmount(7),
+        n_txs: 7,
+    };
+
+    assert!(max_bouncer_weights.has_room(bouncer_weights));
+
+    let bouncer_weights_exceeds_max = BouncerWeights {
+        l1_gas: 5,
+        message_segment_length: 5,
+        n_events: 5,
+        state_diff_size: 5,
+        sierra_gas: GasAmount(5),
+        n_txs: 15,
     };
 
     assert!(!max_bouncer_weights.has_room(bouncer_weights_exceeds_max));
@@ -118,7 +151,10 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
 #[case::positive_flow(GasAmount(1), "ok")]
 #[case::block_full(GasAmount(11), "block_full")]
 #[case::transaction_too_large(GasAmount(21), "too_large")]
-fn test_bouncer_try_update(#[case] added_gas: GasAmount, #[case] scenario: &'static str) {
+fn test_bouncer_try_update_sierra_gas(
+    #[case] added_gas: GasAmount,
+    #[case] scenario: &'static str,
+) {
     let block_context = BlockContext::create_for_account_testing();
     let state = &mut test_state(&block_context.chain_info, Fee(0), &[]);
     let mut transactional_state = TransactionalState::create_transactional(state);
@@ -188,6 +224,76 @@ fn test_bouncer_try_update(#[case] added_gas: GasAmount, #[case] scenario: &'sta
                     TransactionExecutionError::TransactionTooLarge { max_capacity, tx_size }
                 )
             ) if *max_capacity == block_max_capacity && *tx_size == expected_weights),
+        _ => panic!("Unexpected scenario: {}", scenario),
+    }
+}
+
+#[rstest]
+#[case::positive_flow(10, "ok")]
+#[case::block_full(20, "block_full")]
+fn test_bouncer_try_update_n_txs(#[case] n_txs_in_block: usize, #[case] scenario: &'static str) {
+    let block_context = BlockContext::create_for_account_testing();
+    let state = &mut test_state(&block_context.chain_info, Fee(0), &[]);
+    let mut transactional_state = TransactionalState::create_transactional(state);
+
+    // Setup the bouncer.
+    let block_max_capacity = BouncerWeights {
+        l1_gas: 20,
+        message_segment_length: 20,
+        n_events: 20,
+        state_diff_size: 20,
+        sierra_gas: GasAmount(20),
+        n_txs: 20,
+    };
+    let bouncer_config = BouncerConfig { block_max_capacity };
+
+    let accumulated_weights = BouncerWeights {
+        l1_gas: 10,
+        message_segment_length: 10,
+        n_events: 10,
+        state_diff_size: 10,
+        sierra_gas: GasAmount(10),
+        n_txs: n_txs_in_block,
+    };
+
+    let mut bouncer = Bouncer { accumulated_weights, bouncer_config, ..Bouncer::empty() };
+
+    // Prepare the resources to be added to the bouncer.
+    let execution_summary = ExecutionSummary { ..Default::default() };
+
+    let tx_resources = TransactionResources {
+        computation: ComputationResources { ..Default::default() },
+        ..Default::default()
+    };
+    let tx_state_changes_keys = transactional_state.to_state_diff().unwrap().state_maps.keys();
+
+    // TODO(Yoni, 1/10/2024): simplify this test and move tx-too-large cases out.
+
+    // Check that the transaction is not too large.
+    let mut result = verify_tx_weights_within_max_capacity(
+        &transactional_state,
+        &execution_summary,
+        &tx_resources,
+        &tx_state_changes_keys,
+        &bouncer.bouncer_config,
+        &block_context.versioned_constants,
+    )
+    .map_err(TransactionExecutorError::TransactionExecutionError);
+
+    if result.is_ok() {
+        // Try to update the bouncer.
+        result = bouncer.try_update(
+            &transactional_state,
+            &tx_state_changes_keys,
+            &execution_summary,
+            &tx_resources,
+            &block_context.versioned_constants,
+        );
+    }
+
+    match scenario {
+        "ok" => assert_matches!(result, Ok(())),
+        "block_full" => assert_matches!(result, Err(TransactionExecutorError::BlockFull)),
         _ => panic!("Unexpected scenario: {}", scenario),
     }
 }
