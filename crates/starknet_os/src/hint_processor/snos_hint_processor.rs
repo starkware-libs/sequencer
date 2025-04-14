@@ -99,7 +99,7 @@ pub struct SnosHintProcessor<S: StateReader> {
     builtin_hint_processor: BuiltinHintProcessor,
     // The type of commitment tree next in line for hashing. Used to determine which HashBuiltin
     // type is to be used.
-    _commitment_type: CommitmentType,
+    pub(crate) commitment_type: CommitmentType,
     // KZG fields.
     da_segment: Option<Vec<Felt>>,
 }
@@ -144,7 +144,7 @@ impl<S: StateReader> SnosHintProcessor<S> {
             deprecated_compiled_classes: os_hints.os_input.deprecated_compiled_classes,
             compiled_classes: os_hints.os_input.compiled_classes,
             state_update_pointers: None,
-            _commitment_type: CommitmentType::State,
+            commitment_type: CommitmentType::State,
         })
     }
 
