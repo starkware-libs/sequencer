@@ -97,7 +97,7 @@ pub struct SnosHintProcessor<S: StateReader> {
     pub(crate) state_update_pointers: Option<StateUpdatePointers>,
     _deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
     builtin_hint_processor: BuiltinHintProcessor,
-    _commitment_type: CommitmentType,
+    commitment_type: CommitmentType,
     // KZG fields.
     da_segment: Option<Vec<Felt>>,
 }
@@ -142,7 +142,7 @@ impl<S: StateReader> SnosHintProcessor<S> {
             deprecated_compiled_classes: os_hints.os_input.deprecated_compiled_classes,
             compiled_classes: os_hints.os_input.compiled_classes,
             state_update_pointers: None,
-            _commitment_type: CommitmentType::State,
+            commitment_type: CommitmentType::State,
         })
     }
 
@@ -156,6 +156,16 @@ impl<S: StateReader> SnosHintProcessor<S> {
         }
         self.da_segment = Some(da_segment);
         Ok(())
+    }
+
+    /// Returns the current commitment type.
+    pub(crate) fn get_commitment_type(&self) -> CommitmentType {
+        self.commitment_type
+    }
+
+    /// Sets the commitment type to class.
+    pub(crate) fn set_commitment_type_to_class(&mut self) {
+        self.commitment_type = CommitmentType::Class;
     }
 
     /// Returns an execution helper reference of the currently processed block.
