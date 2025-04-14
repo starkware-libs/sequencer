@@ -111,7 +111,7 @@ def test_crates(crates: Set[str], base_command: BaseCommand):
 
 
 def run_test(
-    changes_only: bool, commit_id: Optional[str], base_command: bool, include_dependencies: bool
+    changes_only: bool, commit_id: Optional[str], base_command: BaseCommand, include_dependencies: bool
 ):
     """
     Runs tests.
