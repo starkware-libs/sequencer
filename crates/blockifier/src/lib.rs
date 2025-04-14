@@ -12,6 +12,7 @@ pub mod concurrency;
 pub mod context;
 pub mod execution;
 pub mod fee;
+pub mod metrics;
 pub mod state;
 #[cfg(any(feature = "testing", test))]
 pub mod test_utils;

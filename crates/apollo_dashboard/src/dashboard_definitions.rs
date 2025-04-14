@@ -96,16 +96,16 @@ use apollo_mempool_p2p::metrics::{
     MEMPOOL_P2P_NUM_RECEIVED_MESSAGES,
     MEMPOOL_P2P_NUM_SENT_MESSAGES,
 };
-use apollo_state_reader::metrics::{
-    CLASS_CACHE_HITS,
-    CLASS_CACHE_MISSES,
-    NATIVE_CLASS_RETURNED,
-    STATE_READER_METRIC_RATE_DURATION,
-};
 use apollo_state_sync::metrics::{
     STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS,
     STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS,
     STATE_SYNC_P2P_NUM_CONNECTED_PEERS,
+};
+use blockifier::metrics::{
+    CLASS_CACHE_HITS,
+    CLASS_CACHE_MISSES,
+    NATIVE_CLASS_RETURNED,
+    STATE_READER_METRIC_RATE_DURATION,
 };
 use const_format::formatcp;
 
@@ -394,9 +394,9 @@ const PANEL_MEMPOOL_TRANSACTION_TIME_SPENT: Panel = Panel::new(
     PanelType::Graph,
 );
 
-const PANEL_APOLLO_STATE_READER_CLASS_CACHE_MISS_RATIO: Panel = Panel::new(
+const PANEL_BLOCKIFIER_STATE_READER_CLASS_CACHE_MISS_RATIO: Panel = Panel::new(
     "class_cache_miss_ratio",
-    "The ratio of cache misses when requesting compiled classes from the apollo state reader",
+    "The ratio of cache misses when requesting compiled classes from the Blockifier State Reader",
     formatcp!(
         "100 * (rate({}[{}]) / (rate({}[{}]) + rate({}[{}])))",
         CLASS_CACHE_MISSES.get_name(),
@@ -408,9 +408,9 @@ const PANEL_APOLLO_STATE_READER_CLASS_CACHE_MISS_RATIO: Panel = Panel::new(
     ),
     PanelType::Graph,
 );
-const PANEL_APOLLO_STATE_READER_NATIVE_CLASS_RETURNED_RATIO: Panel = Panel::new(
+const PANEL_BLOCKIFIER_STATE_READER_NATIVE_CLASS_RETURNED_RATIO: Panel = Panel::new(
     "native_class_returned_ratio",
-    "The ratio of Native classes returned by the apollo state reader",
+    "The ratio of Native classes returned by the Blockifier State Reader",
     formatcp!(
         "100 * (rate({}[{}]) / (rate({}[{}]) + rate({}[{}])))",
         NATIVE_CLASS_RETURNED.get_name(),
@@ -558,12 +558,12 @@ const L1_GAS_PRICE_INFRA_ROW: Row = Row::new(
     ],
 );
 
-const APOLLO_STATE_READER_ROW: Row = Row::new(
-    "Apollo State Reader",
-    "Apollo state reader metrics",
+const BLOCKIFIER_STATE_READER_ROW: Row = Row::new(
+    "Blockifier State Reader",
+    "Blockifier State Reader metrics",
     &[
-        PANEL_APOLLO_STATE_READER_CLASS_CACHE_MISS_RATIO,
-        PANEL_APOLLO_STATE_READER_NATIVE_CLASS_RETURNED_RATIO,
+        PANEL_BLOCKIFIER_STATE_READER_CLASS_CACHE_MISS_RATIO,
+        PANEL_BLOCKIFIER_STATE_READER_NATIVE_CLASS_RETURNED_RATIO,
     ],
 );
 
@@ -671,7 +671,7 @@ pub const SEQUENCER_DASHBOARD: Dashboard = Dashboard::new(
         STATE_SYNC_P2P_ROW,
         GATEWAY_ROW,
         MEMPOOL_ROW,
-        APOLLO_STATE_READER_ROW,
+        BLOCKIFIER_STATE_READER_ROW,
         BATCHER_INFRA_ROW,
         GATEWAY_INFRA_ROW,
         CLASS_MANAGER_INFRA_ROW,
