@@ -8,6 +8,7 @@ use crate::execution::contract_class::RunnableCompiledClass;
 use crate::state::cached_state::StorageEntry;
 use crate::state::errors::StateError;
 use crate::state::state_api::{StateReader, StateResult};
+use crate::test_utils::contracts::FeatureContractData;
 
 /// A simple implementation of `StateReader` using `HashMap`s as storage.
 #[derive(Clone, Debug, Default)]
@@ -17,6 +18,23 @@ pub struct DictStateReader {
     pub address_to_class_hash: HashMap<ContractAddress, ClassHash>,
     pub class_hash_to_class: HashMap<ClassHash, RunnableCompiledClass>,
     pub class_hash_to_compiled_class_hash: HashMap<ClassHash, CompiledClassHash>,
+    // TODO(AvivG): add class_hash_to_sierra.
+}
+
+impl DictStateReader {
+    pub fn add_contracts(&mut self, contract_instances: &[(FeatureContractData, u16)]) {
+        // Set up the requested contracts.
+        for (contract, n_instances) in contract_instances.iter() {
+            let class_hash = contract.class_hash;
+
+            self.class_hash_to_class.insert(class_hash, contract.runnable_class.clone());
+
+            for instance in 0..*n_instances {
+                let instance_address = contract.get_instance_address(instance);
+                self.address_to_class_hash.insert(instance_address, class_hash);
+            }
+        }
+    }
 }
 
 impl StateReader for DictStateReader {
