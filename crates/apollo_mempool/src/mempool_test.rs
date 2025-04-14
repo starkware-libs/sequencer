@@ -446,6 +446,33 @@ fn test_add_tx_correctly_places_txs_in_queue_and_pool(mut mempool: Mempool) {
     expected_mempool_content.assert_eq(&mempool.content());
 }
 
+#[rstest]
+fn test_add_bootstrap_tx_depends_on_config(#[values(true, false)] allow_bootstrap: bool) {
+    let mut builder = MempoolTestContentBuilder::new();
+    builder.config.override_gas_price_threshold_check = allow_bootstrap;
+    builder.gas_price_threshold = GasPrice(7);
+    let mut mempool = builder.build_full_mempool();
+
+    let zero_bounds_tx = add_tx_input!(
+        tx_hash: 1,
+        address: "0x0",
+        tx_nonce: 0,
+        account_nonce: 0,
+        tip: 0,
+        max_l2_gas_price: 0
+    );
+    add_tx(&mut mempool, &zero_bounds_tx);
+
+    let txs = vec![TransactionReference::new(&zero_bounds_tx.tx)];
+    let (expected_priority, expected_pending) =
+        if allow_bootstrap { (txs, vec![]) } else { (vec![], txs) };
+    let expected_mempool_content = MempoolTestContentBuilder::new()
+        .with_pending_queue(expected_pending)
+        .with_priority_queue(expected_priority)
+        .build();
+    expected_mempool_content.assert_eq(&mempool.content());
+}
+
 // TODO(Elin): reconsider this test in a more realistic scenario.
 #[rstest]
 fn test_add_tx_rejects_duplicate_tx_hash(mut mempool: Mempool) {
