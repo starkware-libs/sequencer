@@ -156,6 +156,13 @@
         "type": "stat",
         "expr": "consensus_num_txs_in_proposal",
         "extra_params": {}
+      },
+      {
+        "title": "consensus_l2_gas_price",
+        "description": "The L2 gas price calculated in a valid proposal received",
+        "type": "stat",
+        "expr": "consensus_l2_gas_price",
+        "extra_params": {}
       }
     ],
     "Http Server": [

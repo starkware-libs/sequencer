@@ -84,6 +84,7 @@ use crate::config::ContextConfig;
 use crate::fee_market::{calculate_next_base_gas_price, FeeMarketInfo};
 use crate::metrics::{
     register_metrics,
+    CONSENSUS_L2_GAS_PRICE,
     CONSENSUS_NUM_BATCHES_IN_PROPOSAL,
     CONSENSUS_NUM_TXS_IN_PROPOSAL,
 };
@@ -532,6 +533,7 @@ impl ConsensusContext for SequencerConsensusContext {
             l2_gas_used.0,
             VersionedConstants::latest_constants().max_block_size / 2,
         );
+        CONSENSUS_L2_GAS_PRICE.set_lossy(self.l2_gas_price);
 
         let transaction_hashes =
             transactions.iter().map(|tx| tx.tx_hash()).collect::<Vec<TransactionHash>>();

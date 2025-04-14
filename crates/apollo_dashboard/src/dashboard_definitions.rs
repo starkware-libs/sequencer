@@ -31,6 +31,7 @@ use apollo_consensus_manager::metrics::{
     CONSENSUS_VOTES_NUM_SENT_MESSAGES,
 };
 use apollo_consensus_orchestrator::metrics::{
+    CONSENSUS_L2_GAS_PRICE,
     CONSENSUS_NUM_BATCHES_IN_PROPOSAL,
     CONSENSUS_NUM_TXS_IN_PROPOSAL,
 };
@@ -234,6 +235,8 @@ const PANEL_CONSENSUS_NUM_BATCHES_IN_PROPOSAL: Panel =
     Panel::from_gauge(CONSENSUS_NUM_BATCHES_IN_PROPOSAL, PanelType::Stat);
 const PANEL_CONSENSUS_NUM_TXS_IN_PROPOSAL: Panel =
     Panel::from_gauge(CONSENSUS_NUM_TXS_IN_PROPOSAL, PanelType::Stat);
+const PANEL_CONSENSUS_L2_GAS_PRICE: Panel =
+    Panel::from_gauge(CONSENSUS_L2_GAS_PRICE, PanelType::Stat);
 
 const PANEL_MEMPOOL_P2P_NUM_CONNECTED_PEERS: Panel =
     Panel::from_gauge(MEMPOOL_P2P_NUM_CONNECTED_PEERS, PanelType::Stat);
@@ -652,6 +655,7 @@ const CONSENSUS_ROW: Row = Row::new(
         PANEL_CONSENSUS_TIMEOUTS_BY_TYPE,
         PANEL_CONSENSUS_NUM_BATCHES_IN_PROPOSAL,
         PANEL_CONSENSUS_NUM_TXS_IN_PROPOSAL,
+        PANEL_CONSENSUS_L2_GAS_PRICE,
     ],
 );
 
