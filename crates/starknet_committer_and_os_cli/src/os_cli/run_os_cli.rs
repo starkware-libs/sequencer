@@ -9,7 +9,7 @@ use tracing::level_filters::LevelFilter;
 use tracing_subscriber::reload::Handle;
 use tracing_subscriber::Registry;
 
-use crate::os_cli::commands::{dump_source_files, parse_and_run_os};
+use crate::os_cli::commands::{dump_os_program, dump_source_files, parse_and_run_os};
 use crate::os_cli::tests::python_tests::OsPythonTestRunner;
 use crate::shared_utils::types::{run_python_test, IoArgs, PythonTestArg};
 
@@ -21,6 +21,11 @@ pub struct OsCliCommand {
 
 #[derive(Debug, Subcommand)]
 enum Command {
+    DumpOsProgram {
+        /// File path to output.
+        #[clap(long, short = 'o', default_value = "stdout")]
+        output_path: String,
+    },
     DumpSourceFiles {
         /// File path to output.
         #[clap(long, short = 'o')]
@@ -39,6 +44,7 @@ pub async fn run_os_cli(
 ) {
     info!("Starting starknet-os-cli with command: \n{:?}", os_command);
     match os_command.command {
+        Command::DumpOsProgram { output_path } => dump_os_program(output_path),
         Command::DumpSourceFiles { output_path } => dump_source_files(output_path),
         Command::PythonTest(python_test_arg) => {
             run_python_test::<OsPythonTestRunner>(python_test_arg).await;
