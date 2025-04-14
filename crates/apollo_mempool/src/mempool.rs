@@ -348,6 +348,10 @@ impl Mempool {
         Ok(())
     }
 
+    fn insert_to_tx_queue(&mut self, tx_reference: TransactionReference) {
+        self.tx_queue.insert(tx_reference, self.config.override_gas_price_threshold_check);
+    }
+
     fn add_tx_inner(&mut self, args: AddTransactionArgs) {
         let AddTransactionArgs { tx, account_state } = args;
         info!("Adding transaction to mempool.");
@@ -366,7 +370,7 @@ impl Mempool {
             // transactions that have become obsolete; those with an equal nonce should
             // already have been removed in `handle_fee_escalation`.
             self.tx_queue.remove(address);
-            self.tx_queue.insert(tx_reference);
+            self.insert_to_tx_queue(tx_reference);
         }
     }
 
@@ -416,7 +420,7 @@ impl Mempool {
                 if let Some(tx_reference) =
                     self.tx_pool.get_by_address_and_nonce(address, next_nonce)
                 {
-                    self.tx_queue.insert(tx_reference);
+                    self.insert_to_tx_queue(tx_reference);
                 }
             }
         }
@@ -430,7 +434,7 @@ impl Mempool {
                     panic!("Address {address} should appear in transaction pool.")
                 });
             self.tx_queue.remove(address);
-            self.tx_queue.insert(*tx_reference);
+            self.insert_to_tx_queue(*tx_reference);
         }
 
         debug!("Aligned mempool to committed nonces.");
@@ -500,7 +504,7 @@ impl Mempool {
             if let Some(next_tx_reference) =
                 self.tx_pool.get_next_eligible_tx(current_account_state)?
             {
-                self.tx_queue.insert(next_tx_reference);
+                self.insert_to_tx_queue(next_tx_reference);
             }
         }
 
