@@ -26,7 +26,7 @@ apollo_mempool.workspace = true
 apollo_mempool_p2p.workspace = true
 apollo_metrics.workspace = true
 apollo_state_reader.workspace = true
-apollo_state_sync.workspace = true
+apollo_state_sync_metrics.workspace = true
 const_format.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
@@ -43,4 +43,4 @@ apollo_infra = { workspace = true, features = ["testing"] }
 apollo_infra_utils = { workspace = true, features = ["testing"] }
 apollo_mempool = { workspace = true, features = ["testing"] }
 apollo_mempool_p2p = { workspace = true, features = ["testing"] }
-apollo_state_sync = { workspace = true, features = ["testing"] }
+apollo_state_sync_metrics = { workspace = true, features = ["testing"] }
