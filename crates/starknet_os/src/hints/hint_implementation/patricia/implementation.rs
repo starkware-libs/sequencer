@@ -1,6 +1,7 @@
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
+    get_ptr_from_var_name,
     get_relocatable_from_var_name,
     insert_value_from_var_name,
     insert_value_into_ap,
@@ -10,13 +11,30 @@ use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintResult};
-use crate::hints::hint_implementation::patricia::utils::{DecodeNodeCase, PreimageMap, UpdateTree};
+use crate::hints::hint_implementation::patricia::utils::{
+    DecodeNodeCase,
+    Path,
+    PreimageMap,
+    UpdateTree,
+};
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Ids, Scope};
 use crate::vm_utils::{get_address_of_nested_fields, insert_values_to_fields};
 
-pub(crate) fn set_siblings<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> OsHintResult {
-    todo!()
+pub(crate) fn set_siblings<S: StateReader>(
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+) -> OsHintResult {
+    let descend: &Path = exec_scopes.get_ref(Scope::Descend.into())?;
+
+    let length: u8 = descend.0.length.into();
+    let path = descend.0.path;
+
+    let siblings = get_ptr_from_var_name(Ids::Siblings.into(), vm, ids_data, ap_tracking)?;
+
+    vm.insert_value(siblings, Felt::from(length))?;
+    insert_value_from_var_name(Ids::Word.into(), Felt::from(&path), vm, ids_data, ap_tracking)?;
+
+    Ok(())
 }
 
 pub(crate) fn is_case_right<S: StateReader>(

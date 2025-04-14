@@ -84,6 +84,7 @@ define_string_enum! {
         (CompiledClassHash),
         (ComponentHashes),
         (DeprecatedClassHashes, "__deprecated_class_hashes"),
+        (Descend),
         (DictManager),
         (DictTracker),
         (InitialDict),
@@ -181,6 +182,7 @@ define_string_enum! {
         (SelectedEncodings),
         (SelectedPtrs),
         (Sha256Ptr, "sha256_ptr"),
+        (Siblings),
         (SquashedAliasesStorageEnd),
         (SquashedAliasesStorageStart),
         (SquashedDict),
@@ -192,6 +194,7 @@ define_string_enum! {
         (TxType),
         (UseKzgDa),
         (Value),
+        (Word),
     }
 }
 
