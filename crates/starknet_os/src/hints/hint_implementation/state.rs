@@ -29,12 +29,11 @@ fn verify_tree_height_eq_merkle_height(tree_height: Felt, merkle_height: Felt) -
 }
 
 fn set_preimage_for_commitments<S: StateReader>(
-    commitment_type: CommitmentType,
     HintArgs { hint_processor, vm, exec_scopes, ids_data, ap_tracking, constants }: HintArgs<'_, S>,
 ) -> OsHintResult {
     let os_input = &hint_processor.get_current_execution_helper()?.os_block_input;
     let CommitmentInfo { previous_root, updated_root, commitment_facts, tree_height } =
-        match commitment_type {
+        match hint_processor.commitment_type {
             CommitmentType::Class => &os_input.contract_class_commitment_info,
             CommitmentType::State => &os_input.contract_state_commitment_info,
         };
@@ -79,13 +78,15 @@ pub(crate) fn compute_commitments_on_finalized_state_with_aliases<S: StateReader
 pub(crate) fn set_preimage_for_state_commitments<S: StateReader>(
     hint_args: HintArgs<'_, S>,
 ) -> OsHintResult {
-    set_preimage_for_commitments(CommitmentType::State, hint_args)
+    hint_args.hint_processor.commitment_type = CommitmentType::State;
+    set_preimage_for_commitments(hint_args)
 }
 
 pub(crate) fn set_preimage_for_class_commitments<S: StateReader>(
     hint_args: HintArgs<'_, S>,
 ) -> OsHintResult {
-    set_preimage_for_commitments(CommitmentType::Class, hint_args)
+    hint_args.hint_processor.commitment_type = CommitmentType::Class;
+    set_preimage_for_commitments(hint_args)
 }
 
 pub(crate) fn set_preimage_for_current_commitment_info<S: StateReader>(
