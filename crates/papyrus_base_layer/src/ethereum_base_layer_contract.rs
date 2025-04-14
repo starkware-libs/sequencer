@@ -25,6 +25,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::hash::StarkHash;
 use starknet_api::StarknetApiError;
+use tracing::error;
 use url::Url;
 use validator::Validate;
 
@@ -78,8 +79,10 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         )?;
 
         let validate = true;
-        let block_number = sol_data::Uint::<64>::abi_decode(&state_block_number, validate)?;
-        let block_hash = sol_data::FixedBytes::<32>::abi_decode(&state_block_hash, validate)?;
+        let block_number = sol_data::Uint::<64>::abi_decode(&state_block_number, validate)
+            .inspect_err(|err| error!("{err}: {state_block_number}"))?;
+        let block_hash = sol_data::FixedBytes::<32>::abi_decode(&state_block_hash, validate)
+            .inspect_err(|err| error!("{err}: {state_block_hash}"))?;
         Ok(BlockHashAndNumber {
             number: BlockNumber(block_number),
             hash: BlockHash(StarkHash::from_bytes_be(&block_hash)),
@@ -198,6 +201,21 @@ pub enum EthereumBaseLayerError {
     TypeError(#[from] alloy::sol_types::Error),
     #[error("{0:?}")]
     UnhandledL1Event(alloy::primitives::Log),
+}
+
+impl PartialEq for EthereumBaseLayerError {
+    fn eq(&self, other: &Self) -> bool {
+        use EthereumBaseLayerError::*;
+        match (self, other) {
+            (Contract(this), Contract(other)) => this.to_string() == other.to_string(),
+            (FeeOutOfRange(this), FeeOutOfRange(other)) => this == other,
+            (RpcError(this), RpcError(other)) => this.to_string() == other.to_string(),
+            (StarknetApiParsingError(this), StarknetApiParsingError(other)) => this == other,
+            (TypeError(this), TypeError(other)) => this == other,
+            (UnhandledL1Event(this), UnhandledL1Event(other)) => this == other,
+            _ => false,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Validate)]

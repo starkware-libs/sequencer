@@ -8,6 +8,7 @@ use apollo_l1_gas_price_types::{L1GasPriceProviderResult, PriceInfo};
 use papyrus_base_layer::{L1BlockNumber, PriceSample};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockTimestamp, TEMP_ETH_BLOB_GAS_FEE_IN_WEI, TEMP_ETH_GAS_FEE_IN_WEI};
+use tracing::warn;
 use validator::Validate;
 
 #[cfg(test)]
@@ -153,28 +154,42 @@ impl L1GasPriceProvider {
                 lag: self.config.lag_margin_seconds,
             });
         };
-        // We need to convert the index to the forward direction.
+        // Convert the index to the forward direction.
+        // `last_index` should be one past the final entry we will include in our calculation.
+        // The index returned from `position` is guaranteed to be less than `len()`,
+        // so `last_index` is guaranteed to be >= 1.
         let last_index = self.price_samples_by_block.len() - last_index_rev;
 
         let num_blocks = usize::try_from(self.config.number_of_blocks_for_mean)
             .expect("number_of_blocks_for_mean is too large to fit into a usize");
-        if last_index < num_blocks {
-            return Err(L1GasPriceProviderError::InsufficientHistoryError {
-                expected: num_blocks,
-                found: last_index,
-            });
-        }
-        // Go over all elements between last_index-num_blocks to last_index (non-inclusive).
-        let (gas_price, data_gas_price) =
-            self.price_samples_by_block.iter().skip(last_index - num_blocks).take(num_blocks).fold(
-                (0, 0),
-                |(sum_base, sum_blob), data| {
-                    (sum_base + data.sample.base_fee_per_gas, sum_blob + data.sample.blob_fee)
-                },
+
+        let first_index = if last_index >= num_blocks {
+            last_index - num_blocks
+        } else {
+            warn!(
+                "Not enough history to calculate the mean gas price. Using only {} blocks instead \
+                 of {}.",
+                last_index, num_blocks
             );
+            0
+        };
+        debug_assert!(first_index < last_index, "error calculating indices");
+        let actual_number_of_blocks = last_index - first_index;
+
+        // Go over all elements between `first_index` and `last_index` (non-inclusive).
+        let (gas_price, data_gas_price) = self
+            .price_samples_by_block
+            .iter()
+            .skip(first_index)
+            .take(actual_number_of_blocks)
+            .fold((0, 0), |(sum_base, sum_blob), data| {
+                (sum_base + data.sample.base_fee_per_gas, sum_blob + data.sample.blob_fee)
+            });
+        let actual_number_of_blocks =
+            u128::try_from(actual_number_of_blocks).expect("Cannot convert to u128");
         Ok(PriceInfo {
-            base_fee_per_gas: gas_price / u128::from(self.config.number_of_blocks_for_mean),
-            blob_fee: data_gas_price / u128::from(self.config.number_of_blocks_for_mean),
+            base_fee_per_gas: gas_price / actual_number_of_blocks,
+            blob_fee: data_gas_price / actual_number_of_blocks,
         })
     }
 }

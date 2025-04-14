@@ -1,16 +1,14 @@
 use std::sync::Arc;
 
-use apollo_class_manager_types::transaction_converter::{
-    TransactionConverter,
-    TransactionConverterTrait,
+use apollo_class_manager_types::transaction_converter::TransactionConverter;
+use apollo_class_manager_types::{ClassHashes, EmptyClassManagerClient, MockClassManagerClient};
+use apollo_gateway_types::deprecated_gateway_error::{KnownStarknetErrorCode, StarknetErrorCode};
+use apollo_gateway_types::gateway_types::{
+    DeclareGatewayOutput,
+    DeployAccountGatewayOutput,
+    GatewayOutput,
+    InvokeGatewayOutput,
 };
-use apollo_class_manager_types::{
-    EmptyClassManagerClient,
-    MockClassManagerClient,
-    SharedClassManagerClient,
-};
-use apollo_gateway_types::errors::GatewaySpecError;
-use apollo_gateway_types::gateway_types::{GatewayOutput, InvokeGatewayOutput};
 use apollo_mempool_types::communication::{
     AddTransactionArgsWrapper,
     MempoolClientError,
@@ -25,18 +23,33 @@ use assert_matches::assert_matches;
 use blockifier::context::ChainInfo;
 use blockifier::test_utils::initial_test_state::fund_account;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
-use mempool_test_utils::starknet_api_test_utils::{declare_tx, invoke_tx, VALID_ACCOUNT_BALANCE};
+use blockifier_test_utils::calldata::create_trivial_calldata;
+use blockifier_test_utils::contracts::FeatureContract;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use mempool_test_utils::starknet_api_test_utils::{
+    contract_class,
+    declare_tx,
+    test_valid_resource_bounds,
+    VALID_ACCOUNT_BALANCE,
+};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use rstest::{fixture, rstest};
+use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::{CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::rpc_transaction::{
-    InternalRpcTransaction,
     RpcDeclareTransaction,
     RpcTransaction,
     RpcTransactionLabelValue,
 };
+use starknet_api::test_utils::declare::DeclareTxArgsWithContractClass;
+use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
+use starknet_api::test_utils::invoke::InvokeTxArgs;
+use starknet_api::test_utils::{TestingTxArgs, CHAIN_ID_FOR_TESTS};
+use starknet_api::transaction::fields::TransactionSignature;
 use starknet_api::transaction::TransactionHash;
+use starknet_api::{declare_tx_args, deploy_account_tx_args, invoke_tx_args, nonce};
+use starknet_types_core::felt::Felt;
 use strum::VariantNames;
 
 use crate::config::{
@@ -50,14 +63,13 @@ use crate::metrics::{
     GatewayMetricHandle,
     SourceLabelValue,
     GATEWAY_ADD_TX_LATENCY,
+    GATEWAY_TRANSACTIONS_FAILED,
+    GATEWAY_TRANSACTIONS_RECEIVED,
+    GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL,
     LABEL_NAME_SOURCE,
     LABEL_NAME_TX_TYPE,
-    TRANSACTIONS_FAILED,
-    TRANSACTIONS_RECEIVED,
-    TRANSACTIONS_SENT_TO_MEMPOOL,
 };
 use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReaderFactory};
-use crate::test_utils::TransactionType;
 
 #[fixture]
 fn config() -> GatewayConfig {
@@ -81,15 +93,20 @@ fn mock_dependencies(
 ) -> MockDependencies {
     let mock_mempool_client = MockMempoolClient::new();
     // TODO(noamsp): use MockTransactionConverter
-    let class_manager_client = Arc::new(EmptyClassManagerClient);
-    MockDependencies { config, state_reader_factory, mock_mempool_client, class_manager_client }
+    let mock_class_manager_client = MockClassManagerClient::new();
+    MockDependencies {
+        config,
+        state_reader_factory,
+        mock_mempool_client,
+        mock_class_manager_client,
+    }
 }
 
 struct MockDependencies {
     config: GatewayConfig,
     state_reader_factory: TestStateReaderFactory,
     mock_mempool_client: MockMempoolClient,
-    class_manager_client: SharedClassManagerClient,
+    mock_class_manager_client: MockClassManagerClient,
 }
 
 impl MockDependencies {
@@ -100,7 +117,7 @@ impl MockDependencies {
             self.config,
             Arc::new(self.state_reader_factory),
             Arc::new(self.mock_mempool_client),
-            TransactionConverter::new(self.class_manager_client, chain_id),
+            TransactionConverter::new(Arc::new(self.mock_class_manager_client), chain_id),
         )
     }
 
@@ -109,67 +126,159 @@ impl MockDependencies {
     }
 }
 
-type SenderAddress = ContractAddress;
-
-fn create_tx() -> (RpcTransaction, SenderAddress) {
-    let tx = invoke_tx(CairoVersion::Cairo1(RunnableCairo1::Casm));
-    let sender_address = match &tx {
-        RpcTransaction::Invoke(starknet_api::rpc_transaction::RpcInvokeTransaction::V3(
-            invoke_tx,
-        )) => invoke_tx.sender_address,
-        _ => panic!("Unexpected transaction type"),
-    };
-    (tx, sender_address)
+fn account_contract() -> FeatureContract {
+    FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm))
 }
 
-async fn convert_rpc_tx_to_internal(
-    mock_dependencies_object: &MockDependencies,
+fn invoke_args() -> InvokeTxArgs {
+    let cairo_version = CairoVersion::Cairo1(RunnableCairo1::Casm);
+    let test_contract = FeatureContract::TestContract(cairo_version);
+    let mut args = invoke_tx_args!(
+        resource_bounds: test_valid_resource_bounds(),
+        sender_address: account_contract().get_instance_address(0),
+        calldata: create_trivial_calldata(test_contract.get_instance_address(0))
+    );
+    let internal_tx = args.get_internal_tx();
+    args.tx_hash = internal_tx.tx.calculate_transaction_hash(&CHAIN_ID_FOR_TESTS).unwrap();
+    args
+}
+
+/// Make a deploy account transaction with a default salt.
+fn deploy_account_args() -> DeployAccountTxArgs {
+    let mut args = deploy_account_tx_args!(
+        class_hash: account_contract().get_class_hash(),
+        resource_bounds: test_valid_resource_bounds(),
+    );
+    let internal_tx = args.get_internal_tx();
+    args.tx_hash = internal_tx.tx.calculate_transaction_hash(&CHAIN_ID_FOR_TESTS).unwrap();
+    args
+}
+
+fn declare_args() -> DeclareTxArgsWithContractClass {
+    let contract_class = contract_class();
+    let mut args = DeclareTxArgsWithContractClass {
+        args: declare_tx_args!(
+            signature: TransactionSignature(vec![Felt::ZERO]),
+            sender_address: account_contract().get_instance_address(0),
+            resource_bounds: test_valid_resource_bounds(),
+            class_hash: contract_class.calculate_class_hash(),
+            compiled_class_hash: default_compiled_contract_class().compiled_class_hash(),
+        ),
+        contract_class,
+    };
+    let internal_tx = args.get_internal_tx();
+    args.args.tx_hash = internal_tx.tx.calculate_transaction_hash(&CHAIN_ID_FOR_TESTS).unwrap();
+    args
+}
+
+fn default_compiled_contract_class() -> ContractClass {
+    let casm = CasmContractClass {
+        prime: Default::default(),
+        compiler_version: Default::default(),
+        bytecode: Default::default(),
+        bytecode_segment_lengths: Default::default(),
+        hints: Default::default(),
+        pythonic_hints: Default::default(),
+        entry_points_by_type: Default::default(),
+    };
+    let sierra_version = SierraVersion::default();
+    ContractClass::V1((casm, sierra_version))
+}
+
+/// Setup MockClassManagerClient to expect the addition and retrieval of the test contract
+/// class. Returns the compiled class hash of the contract class that the mock will return.
+fn setup_class_manager_client_mock(
+    mock_class_manager_client: &mut MockClassManagerClient,
     rpc_tx: RpcTransaction,
-) -> InternalRpcTransaction {
-    let chain_id = mock_dependencies_object.config.chain_info.chain_id.clone();
-    let class_manager_client = MockClassManagerClient::new();
-    let tx_converter = TransactionConverter::new(Arc::new(class_manager_client), chain_id);
-    tx_converter.convert_rpc_tx_to_internal_rpc_tx(rpc_tx).await.unwrap()
+) {
+    let RpcTransaction::Declare(RpcDeclareTransaction::V3(declare_tx)) = rpc_tx else {
+        return;
+    };
+
+    let contract_class = declare_tx.contract_class;
+    let class_hash = contract_class.calculate_class_hash();
+    let casm = default_compiled_contract_class();
+
+    mock_class_manager_client
+        .expect_add_class()
+        .once()
+        .with(eq(contract_class.clone()))
+        .return_once(move |_| {
+            Ok(ClassHashes { class_hash, executable_class_hash: Default::default() })
+        });
+    mock_class_manager_client
+        .expect_get_sierra()
+        .once()
+        .with(eq(class_hash))
+        .return_once(move |_| Ok(Some(contract_class)));
+    mock_class_manager_client
+        .expect_get_executable()
+        .once()
+        .with(eq(class_hash))
+        .return_once(move |_| Ok(Some(casm)));
+}
+
+fn check_positive_add_tx_result(
+    rpc_tx: RpcTransaction,
+    tx_hash: TransactionHash,
+    address: ContractAddress,
+    result: GatewayOutput,
+) {
+    assert_eq!(
+        result,
+        match rpc_tx {
+            RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => {
+                GatewayOutput::Declare(DeclareGatewayOutput::new(
+                    tx_hash,
+                    tx.contract_class.calculate_class_hash(),
+                ))
+            }
+            RpcTransaction::DeployAccount(_) =>
+                GatewayOutput::DeployAccount(DeployAccountGatewayOutput::new(tx_hash, address)),
+            RpcTransaction::Invoke(_) => GatewayOutput::Invoke(InvokeGatewayOutput::new(tx_hash)),
+        }
+    );
 }
 
 // TODO(AlonH): add test with Some broadcasted message metadata
-// We use default nonce, address, and tx_hash since Gateway errors drop these details when
-// converting Mempool errors.
+// TODO(AndrewL): split into negative and positive tests
 #[rstest]
-#[case::successful_invoke_transaction_addition(
-    TransactionType::Invoke, Ok(()), None)]
-#[case::invoke_tx_with_duplicate_tx_hash(
-    TransactionType::Invoke,
+#[case::successful_transaction(Ok(()), None)]
+#[case::tx_with_duplicate_tx_hash(
     Err(MempoolClientError::MempoolError(MempoolError::DuplicateTransaction { tx_hash: TransactionHash::default() })),
-    Some(GatewaySpecError::DuplicateTx)
+    Some( StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::DuplicatedTransaction))
 )]
-#[case::invoke_tx_with_duplicate_nonce(
-    TransactionType::Invoke,
+#[case::tx_with_duplicate_nonce(
     Err(MempoolClientError::MempoolError(MempoolError::DuplicateNonce { address: ContractAddress::default(), nonce: Nonce::default() })),
-    Some(GatewaySpecError::InvalidTransactionNonce)
+    Some( StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::InvalidTransactionNonce))
 )]
-#[case::invoke_tx_with_nonce_too_old(
-    TransactionType::Invoke,
-    Err(MempoolClientError::MempoolError(MempoolError::NonceTooOld { address: ContractAddress::default(), nonce: Nonce::default() })),
-    Some(GatewaySpecError::InvalidTransactionNonce)
+#[case::tx_with_nonce_too_old(
+    Err(MempoolClientError::MempoolError(MempoolError::NonceTooOld { address: ContractAddress::default(), tx_nonce: Nonce::default(), account_nonce: nonce!(1) })),
+    Some( StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::InvalidTransactionNonce))
 )]
-#[case::invoke_tx_with_nonce_too_large(
-    TransactionType::Invoke,
+#[case::tx_with_nonce_too_large(
     Err(MempoolClientError::MempoolError(MempoolError::NonceTooLarge(Nonce::default()))),
-    Some(GatewaySpecError::InvalidTransactionNonce)
+    Some(StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.NONCE_TOO_LARGE".to_string()))
 )]
 #[tokio::test]
 async fn test_add_tx(
     mut mock_dependencies: MockDependencies,
-    #[case] _tx_type: TransactionType,
-    #[case] expected_result: Result<(), MempoolClientError>,
-    #[case] expected_error: Option<GatewaySpecError>,
+    #[values(invoke_args(), deploy_account_args(), declare_args())] tx_args: impl TestingTxArgs,
+    #[case] expected_mempool_result: Result<(), MempoolClientError>,
+    #[case] expected_error_code: Option<StarknetErrorCode>,
 ) {
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
 
-    let (rpc_tx, address) = create_tx();
+    let input_tx = tx_args.get_rpc_tx();
+    let expected_internal_tx = tx_args.get_internal_tx();
 
+    setup_class_manager_client_mock(
+        &mut mock_dependencies.mock_class_manager_client,
+        input_tx.clone(),
+    );
+
+    let address = expected_internal_tx.contract_address();
     fund_account(
         &mock_dependencies.config.chain_info,
         address,
@@ -177,45 +286,49 @@ async fn test_add_tx(
         &mut mock_dependencies.state_reader_factory.state_reader.blockifier_state_reader,
     );
 
-    let internal_tx: InternalRpcTransaction =
-        convert_rpc_tx_to_internal(&mock_dependencies, rpc_tx.clone()).await;
-    let tx_hash = internal_tx.tx_hash();
-
     let p2p_message_metadata = Some(BroadcastedMessageMetadata::get_test_instance(&mut get_rng()));
-    let add_tx_args = AddTransactionArgs {
-        tx: internal_tx,
-        account_state: AccountState { address, nonce: *rpc_tx.nonce() },
+    let mempool_add_tx_args = AddTransactionArgs {
+        tx: expected_internal_tx.clone(),
+        account_state: AccountState { address, nonce: *input_tx.nonce() },
     };
     mock_dependencies.expect_add_tx(
         AddTransactionArgsWrapper {
-            args: add_tx_args,
+            args: mempool_add_tx_args,
             p2p_message_metadata: p2p_message_metadata.clone(),
         },
-        expected_result,
+        expected_mempool_result,
     );
 
     let gateway = mock_dependencies.gateway();
 
-    let result = gateway.add_tx(rpc_tx.clone(), p2p_message_metadata.clone()).await;
+    let result = gateway.add_tx(input_tx.clone(), p2p_message_metadata.clone()).await;
 
-    let metric_counters_for_queries = GatewayMetricHandle::new(&rpc_tx, &p2p_message_metadata);
+    let metric_counters_for_queries = GatewayMetricHandle::new(&input_tx, &p2p_message_metadata);
     let metrics = recorder.handle().render();
-    assert_eq!(metric_counters_for_queries.get_metric_value(TRANSACTIONS_RECEIVED, &metrics), 1);
-    match expected_error {
+    assert_eq!(
+        metric_counters_for_queries.get_metric_value(GATEWAY_TRANSACTIONS_RECEIVED, &metrics),
+        1
+    );
+    match expected_error_code {
         Some(expected_err) => {
             assert_eq!(
-                metric_counters_for_queries.get_metric_value(TRANSACTIONS_FAILED, &metrics),
+                metric_counters_for_queries.get_metric_value(GATEWAY_TRANSACTIONS_FAILED, &metrics),
                 1
             );
-            assert_eq!(result.unwrap_err(), expected_err);
+            assert_eq!(result.unwrap_err().code, expected_err);
         }
         None => {
             assert_eq!(
                 metric_counters_for_queries
-                    .get_metric_value(TRANSACTIONS_SENT_TO_MEMPOOL, &metrics),
+                    .get_metric_value(GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL, &metrics),
                 1
             );
-            assert_eq!(result.unwrap(), GatewayOutput::Invoke(InvokeGatewayOutput::new(tx_hash)));
+            check_positive_add_tx_result(
+                input_tx,
+                expected_internal_tx.tx_hash,
+                address,
+                result.unwrap(),
+            );
         }
     }
 }
@@ -239,7 +352,10 @@ async fn test_compiled_class_hash_mismatch(mock_dependencies: MockDependencies) 
     let gateway = mock_dependencies.gateway();
 
     let err = gateway.add_tx(tx, None).await.unwrap_err();
-    assert_matches!(err, GatewaySpecError::CompiledClassHashMismatch);
+    let expected_code = StarknetErrorCode::UnknownErrorCode(
+        "StarknetErrorCode.INVALID_COMPILED_CLASS_HASH".to_string(),
+    );
+    assert_eq!(err.code, expected_code);
 }
 
 #[rstest]
@@ -260,12 +376,10 @@ async fn test_block_declare_config(
     );
 
     let result = gateway.add_tx(declare_tx(), None).await;
-    assert_eq!(
-        result.unwrap_err(),
-        GatewaySpecError::UnexpectedError {
-            data: "Transaction type is temporarily blocked.".to_string()
-        }
+    let expected_code = StarknetErrorCode::UnknownErrorCode(
+        "StarknetErrorCode.BLOCKED_TRANSACTION_TYPE".to_string(),
     );
+    assert_eq!(result.unwrap_err().code, expected_code);
 }
 
 #[test]
@@ -280,15 +394,19 @@ fn test_register_metrics() {
                 &[(LABEL_NAME_TX_TYPE, tx_type), (LABEL_NAME_SOURCE, source)];
 
             assert_eq!(
-                TRANSACTIONS_RECEIVED.parse_numeric_metric::<u64>(&metrics, labels).unwrap(),
+                GATEWAY_TRANSACTIONS_RECEIVED
+                    .parse_numeric_metric::<u64>(&metrics, labels)
+                    .unwrap(),
                 0
             );
             assert_eq!(
-                TRANSACTIONS_FAILED.parse_numeric_metric::<u64>(&metrics, labels).unwrap(),
+                GATEWAY_TRANSACTIONS_FAILED.parse_numeric_metric::<u64>(&metrics, labels).unwrap(),
                 0
             );
             assert_eq!(
-                TRANSACTIONS_SENT_TO_MEMPOOL.parse_numeric_metric::<u64>(&metrics, labels).unwrap(),
+                GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL
+                    .parse_numeric_metric::<u64>(&metrics, labels)
+                    .unwrap(),
                 0
             );
             assert_eq!(GATEWAY_ADD_TX_LATENCY.parse_histogram_metric(&metrics).unwrap().sum, 0.0);

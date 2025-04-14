@@ -499,17 +499,17 @@ pub(crate) fn meta_tx_v0(
     syscall_handler: &mut SyscallHintProcessor<'_>,
     remaining_gas: &mut u64,
 ) -> SyscallResult<MetaTxV0Response> {
+    // Increment the MetaTxV0 syscall's linear cost counter by the number of elements in the
+    // calldata.
+    syscall_handler
+        .increment_linear_factor_by(&SyscallSelector::MetaTxV0, request.get_linear_factor_length());
+
     if syscall_handler.is_validate_mode() {
         return Err(SyscallExecutionError::InvalidSyscallInExecutionMode {
             syscall_name: "meta_tx_v0".to_string(),
             execution_mode: syscall_handler.execution_mode(),
         });
     }
-
-    // Increment the MetaTxV0 syscall's linear cost counter by the number of elements in the
-    // calldata.
-    syscall_handler
-        .increment_linear_factor_by(&SyscallSelector::MetaTxV0, request.get_linear_factor_length());
 
     let storage_address = request.contract_address;
     let selector = request.entry_point_selector;

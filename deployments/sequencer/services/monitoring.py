@@ -10,6 +10,6 @@ class GrafanaDashboard:
     def __init__(self, dashboard_file: str):
         self.dashboard_path = os.path.join(self.ROOT_DIR, dashboard_file)
 
-    def get(self):
+    def get_dashboard(self):
         with open(self.dashboard_path, "r") as f:
             return json.load(f)

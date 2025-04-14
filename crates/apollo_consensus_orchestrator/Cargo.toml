@@ -16,6 +16,7 @@ cairo-lang-starknet-classes.workspace = true
 chrono.workspace = true
 futures.workspace = true
 indexmap.workspace = true
+mockall.workspace = true
 paste.workspace = true
 reqwest = { workspace = true, features = ["json"] }
 serde.workspace = true

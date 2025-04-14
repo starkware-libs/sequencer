@@ -55,6 +55,7 @@ pub async fn create_node_components(
     config: &SequencerNodeConfig,
     clients: &SequencerNodeClients,
 ) -> SequencerNodeComponents {
+    info!("Creating node components.");
     let batcher = match config.components.batcher.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
@@ -317,20 +318,7 @@ pub async fn create_node_components(
     let l1_gas_price_provider = match config.components.l1_gas_price_provider.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            match config.components.l1_gas_price_scraper.execution_mode {
-                ActiveComponentExecutionMode::Disabled => {
-                    // TODO(guyn, matan): remove this once proper dependency injection is in place.
-                    warn!(
-                        "L1 gas price provider is running in local mode, but L1 gas price scraper \
-                         is disabled. This may lead to unexpected behavior. Consider enabling the \
-                         L1 gas price scraper."
-                    );
-                    Some(L1GasPriceProvider::make_new_provider_with_fake_data(
-                        config.l1_gas_price_provider_config.clone(),
-                    ))
-                }
-                _ => Some(L1GasPriceProvider::new(config.l1_gas_price_provider_config.clone())),
-            }
+            Some(L1GasPriceProvider::new(config.l1_gas_price_provider_config.clone()))
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };

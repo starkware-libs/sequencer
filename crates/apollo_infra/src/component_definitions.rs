@@ -95,7 +95,7 @@ where
     pub tx: Sender<Response>,
 }
 
-#[derive(Debug, Error, Deserialize, Serialize, Clone)]
+#[derive(Debug, Error, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub enum ServerError {
     #[error("Could not deserialize client request: {0}")]
     RequestDeserializationFailure(String),

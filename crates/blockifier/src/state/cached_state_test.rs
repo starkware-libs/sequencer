@@ -408,7 +408,7 @@ fn test_state_cache_merge(
     // Get the total state changes of the CachedState underlying all the temporary transactional
     // states. We expect the state_changes to match the merged state_changes of the transactional
     // states, but only when done in the right order.
-    let state_changes_final = state.get_actual_state_changes().unwrap();
+    let state_changes_final = state.to_state_diff().unwrap();
     assert_eq!(
         StateCache::squash_state_caches(vec![&state_cache1, &state_cache2, &state_cache3])
             .to_state_diff(),

@@ -1,11 +1,19 @@
 use std::cell::Cell;
+use std::sync::Arc;
 
+use apollo_class_manager_types::{
+    ClassManagerClientError,
+    ClassManagerError,
+    MockClassManagerClient,
+    SharedClassManagerClient,
+};
 use apollo_storage::body::BodyStorageWriter;
 use apollo_storage::class::ClassStorageWriter;
 use apollo_storage::compiled_class::CasmStorageWriter;
 use apollo_storage::header::HeaderStorageWriter;
 use apollo_storage::state::StateStorageWriter;
 use apollo_storage::test_utils::get_test_storage;
+use apollo_storage::StorageWriter;
 use assert_matches::assert_matches;
 use blockifier::execution::contract_class::{
     CompiledClassV0,
@@ -14,6 +22,7 @@ use blockifier::execution::contract_class::{
 };
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::StateReader;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_utils::bigint::BigUintAsHex;
 use indexmap::indexmap;
 use papyrus_common::pending_classes::{ApiContractClass, PendingClasses, PendingClassesTrait};
@@ -24,11 +33,11 @@ use papyrus_common::state::{
     StorageEntry,
 };
 use starknet_api::block::{BlockBody, BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber};
-use starknet_api::contract_class::SierraVersion;
+use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::{ClassHash, CompiledClassHash, Nonce};
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{SierraContractClass, StateNumber, ThinStateDiff};
-use starknet_api::{contract_address, felt, storage_key};
+use starknet_api::{class_hash, contract_address, felt, storage_key};
 use starknet_types_core::felt::Felt;
 
 use crate::objects::PendingData;
@@ -161,6 +170,7 @@ fn read_state() {
         state_number: state_number0,
         maybe_pending_data: None,
         missing_compiled_class: Cell::new(None),
+        class_manager_handle: None,
     };
     let storage_after_block_0 = state_reader0.get_storage_at(address0, storage_key0).unwrap();
     assert_eq!(storage_after_block_0, Felt::default());
@@ -181,6 +191,7 @@ fn read_state() {
         state_number: state_number1,
         maybe_pending_data: None,
         missing_compiled_class: Cell::new(None),
+        class_manager_handle: None,
     };
     let storage_after_block_1 = state_reader1.get_storage_at(address0, storage_key0).unwrap();
     assert_eq!(storage_after_block_1, storage_value0);
@@ -203,6 +214,7 @@ fn read_state() {
         state_number: state_number2,
         maybe_pending_data: None,
         missing_compiled_class: Cell::new(None),
+        class_manager_handle: None,
     };
     let nonce_after_block_2 = state_reader2.get_nonce_at(address0).unwrap();
     assert_eq!(nonce_after_block_2, nonce0);
@@ -268,4 +280,142 @@ fn serialization_precision() {
     let serialized = serde_json::from_str::<serde_json::Value>(input).unwrap();
     let deserialized = serde_json::to_string(&serialized).unwrap();
     assert_eq!(input, deserialized);
+}
+
+fn set_execution_state_reader(
+    class_manager_client: SharedClassManagerClient,
+    block_number: u64,
+) -> (ExecutionStateReader, StorageWriter) {
+    let ((storage_reader, storage_writer), _temp_dir) = get_test_storage();
+    let run_time_handle = tokio::runtime::Runtime::new().unwrap().handle().clone();
+
+    (
+        ExecutionStateReader {
+            storage_reader,
+            state_number: StateNumber::unchecked_right_after_block(BlockNumber(block_number)),
+            maybe_pending_data: None,
+            missing_compiled_class: Cell::new(None),
+            class_manager_handle: Some((class_manager_client, run_time_handle)),
+        },
+        storage_writer,
+    )
+}
+
+#[test]
+fn get_compiled_class() {
+    let casm_contract_class = CasmContractClass {
+        compiler_version: "0.0.0".to_string(),
+        prime: Default::default(),
+        bytecode: Default::default(),
+        bytecode_segment_lengths: Default::default(),
+        hints: Default::default(),
+        pythonic_hints: Default::default(),
+        entry_points_by_type: Default::default(),
+    };
+    let expected_result = casm_contract_class.clone();
+
+    let mut mock_class_manager_client = MockClassManagerClient::new();
+    mock_class_manager_client.expect_get_executable().returning(move |_| {
+        Ok(Some(ContractClass::V1((casm_contract_class.clone(), SierraVersion::default()))))
+    });
+    let shared_mock_class_manager_client = Arc::new(mock_class_manager_client);
+
+    // Set execution state reader with state_number to be right after block 0.
+    let (mut exec_state_reader, mut storage_writer) =
+        set_execution_state_reader(shared_mock_class_manager_client.clone(), 0);
+
+    // Prepare storage so class with hash 0x2 is declared in block 0 and class with hash 0x3 is
+    // declared in block 1.
+    let class_hash_0x2 = class_hash!("0x2");
+    let class_hash_0x3 = class_hash!("0x3");
+
+    storage_writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_header(BlockNumber(0), &BlockHeader::default())
+        .unwrap()
+        .append_state_diff(
+            BlockNumber(0),
+            ThinStateDiff {
+                declared_classes: indexmap!(class_hash_0x2 => CompiledClassHash::default()),
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .append_header(
+            BlockNumber(1),
+            &BlockHeader { block_hash: BlockHash(felt!(1_u128)), ..Default::default() },
+        )
+        .unwrap()
+        .append_state_diff(
+            BlockNumber(1),
+            ThinStateDiff {
+                declared_classes: indexmap!(class_hash_0x3 => CompiledClassHash::default()),
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    // At state_number right after block 0, class with hash 0x2 is already declared.
+    let result = exec_state_reader.get_compiled_class(class_hash_0x2).unwrap();
+    assert_eq!(
+        result,
+        RunnableCompiledClass::V1(
+            (expected_result.clone(), SierraVersion::default()).try_into().unwrap()
+        )
+    );
+
+    // Class with hash 0x3 is not yet declared.
+    let result = exec_state_reader.get_compiled_class(class_hash_0x3);
+    assert_matches!(result, Err(StateError::UndeclaredClassHash(hash)) if hash == class_hash_0x3);
+
+    // Adjust execution state reader state_number to be right after block 1.
+    exec_state_reader.state_number = StateNumber::unchecked_right_after_block(BlockNumber(1));
+
+    // Class with hash 0x2 is still declared.
+    let result = exec_state_reader.get_compiled_class(class_hash_0x2).unwrap();
+    assert_eq!(
+        result,
+        RunnableCompiledClass::V1(
+            (expected_result.clone(), SierraVersion::default()).try_into().unwrap()
+        )
+    );
+
+    // And class with hash 0x3 is declared too.
+    let result = exec_state_reader.get_compiled_class(class_hash_0x3).unwrap();
+    assert_eq!(
+        result,
+        RunnableCompiledClass::V1((expected_result, SierraVersion::default()).try_into().unwrap())
+    );
+}
+
+#[test]
+fn get_non_existing_compiled_class() {
+    let mut mock_class_manager_client = MockClassManagerClient::new();
+    mock_class_manager_client.expect_get_executable().returning(move |_| Ok(None));
+
+    let (exec_state_reader, _) = set_execution_state_reader(Arc::new(mock_class_manager_client), 0);
+
+    let class_hash = class_hash!("0x2");
+    let result = exec_state_reader.get_compiled_class(class_hash);
+    assert_matches!(result, Err(StateError::UndeclaredClassHash(hash)) if hash == class_hash);
+}
+
+#[test]
+fn get_compiled_class_with_error() {
+    let internal_err_msg = "Mock Error";
+    let mut mock_class_manager_client = MockClassManagerClient::new();
+    mock_class_manager_client.expect_get_executable().returning(move |_| {
+        Err(ClassManagerClientError::ClassManagerError(ClassManagerError::Client(
+            internal_err_msg.to_string(),
+        )))
+    });
+
+    let (exec_state_reader, _) = set_execution_state_reader(Arc::new(mock_class_manager_client), 0);
+
+    let result = exec_state_reader.get_compiled_class(class_hash!("0x2"));
+    let expected_err_msg = format!("Internal client error: {}", internal_err_msg);
+    assert_matches!(result, Err(StateError::StateReadError(err_str)) if err_str == expected_err_msg);
 }

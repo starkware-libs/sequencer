@@ -44,6 +44,7 @@ use thiserror::Error;
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, trace};
 
+use crate::block_builder::FailOnErrorCause::L1HandlerTransactionValidationFailed;
 use crate::metrics::FULL_BLOCKS;
 use crate::transaction_executor::TransactionExecutorTrait;
 use crate::transaction_provider::{NextTxs, TransactionProvider, TransactionProviderError};
@@ -78,6 +79,8 @@ pub enum FailOnErrorCause {
     DeadlineReached,
     #[error("Transaction failed: {0}")]
     TransactionFailed(BlockifierTransactionExecutorError),
+    #[error("L1 Handler transaction validation failed")]
+    L1HandlerTransactionValidationFailed,
 }
 
 #[cfg_attr(test, derive(Clone))]
@@ -150,10 +153,12 @@ pub struct BlockBuilder {
 
     // Parameters to configure the block builder behavior.
     tx_chunk_size: usize,
+    tx_polling_interval_millis: u64,
     execution_params: BlockBuilderExecutionParams,
 }
 
 impl BlockBuilder {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         executor: impl TransactionExecutorTrait + 'static,
         tx_provider: Box<dyn TransactionProvider>,
@@ -163,6 +168,7 @@ impl BlockBuilder {
         abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
         transaction_converter: TransactionConverter,
         tx_chunk_size: usize,
+        tx_polling_interval_millis: u64,
         execution_params: BlockBuilderExecutionParams,
     ) -> Self {
         let executor = Arc::new(Mutex::new(executor));
@@ -173,6 +179,7 @@ impl BlockBuilder {
             abort_signal_receiver,
             transaction_converter,
             tx_chunk_size,
+            tx_polling_interval_millis,
             execution_params,
         }
     }
@@ -197,18 +204,30 @@ impl BlockBuilderTrait for BlockBuilder {
                 info!("Received abort signal. Aborting block builder.");
                 return Err(BlockBuilderError::Aborted);
             }
-            let next_txs =
-                self.tx_provider.get_txs(self.tx_chunk_size).await.inspect_err(|err| {
-                    error!("Failed to get transactions from the transaction provider: {}", err);
-                })?;
+            let next_txs = match self.tx_provider.get_txs(self.tx_chunk_size).await {
+                Err(TransactionProviderError::L1HandlerTransactionValidationFailed { .. })
+                    if self.execution_params.fail_on_err =>
+                {
+                    return Err(BlockBuilderError::FailOnError(
+                        L1HandlerTransactionValidationFailed,
+                    ));
+                }
+                Err(err) => {
+                    error!("Failed to get transactions from the transaction provider: {:?}", err);
+                    return Err(err.into());
+                }
+                Ok(result) => result,
+            };
             let next_tx_chunk = match next_txs {
                 NextTxs::Txs(txs) => txs,
                 NextTxs::End => break,
             };
             debug!("Got {} transactions from the transaction provider.", next_tx_chunk.len());
             if next_tx_chunk.is_empty() {
-                // TODO(AlonH): Consider what is the best sleep duration.
-                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                tokio::time::sleep(tokio::time::Duration::from_millis(
+                    self.tx_polling_interval_millis,
+                ))
+                .await;
                 continue;
             }
 
@@ -352,6 +371,7 @@ pub struct BlockBuilderConfig {
     pub execute_config: TransactionExecutorConfig,
     pub bouncer_config: BouncerConfig,
     pub tx_chunk_size: usize,
+    pub tx_polling_interval_millis: u64,
     pub versioned_constants_overrides: VersionedConstantsOverrides,
 }
 
@@ -363,6 +383,7 @@ impl Default for BlockBuilderConfig {
             execute_config: TransactionExecutorConfig::default(),
             bouncer_config: BouncerConfig::default(),
             tx_chunk_size: 100,
+            tx_polling_interval_millis: 100,
             versioned_constants_overrides: VersionedConstantsOverrides::default(),
         }
     }
@@ -377,6 +398,13 @@ impl SerializeConfig for BlockBuilderConfig {
             "tx_chunk_size",
             &self.tx_chunk_size,
             "Number of transactions in each request from the tx_provider.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "tx_polling_interval_millis",
+            &self.tx_polling_interval_millis,
+            "Time to wait (in milliseconds) between transaction requests when the previous \
+             request returned no transactions.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut append_sub_config_name(
@@ -457,6 +485,7 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
             abort_signal_receiver,
             transaction_converter,
             self.block_builder_config.tx_chunk_size,
+            self.block_builder_config.tx_polling_interval_millis,
             execution_params,
         ));
         Ok((block_builder, abort_signal_sender))

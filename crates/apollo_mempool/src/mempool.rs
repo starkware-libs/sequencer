@@ -29,6 +29,7 @@ use crate::metrics::{
     MEMPOOL_PENDING_QUEUE_SIZE,
     MEMPOOL_POOL_SIZE,
     MEMPOOL_PRIORITY_QUEUE_SIZE,
+    MEMPOOL_TOTAL_SIZE_BYTES,
 };
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
@@ -150,7 +151,7 @@ impl MempoolState {
         let TransactionReference { address, nonce: tx_nonce, .. } = tx_reference;
         let account_nonce = self.resolve_nonce(address, incoming_account_nonce);
         if tx_nonce < account_nonce {
-            return Err(MempoolError::NonceTooOld { address, nonce: tx_nonce });
+            return Err(MempoolError::NonceTooOld { address, tx_nonce, account_nonce });
         }
 
         Ok(())
@@ -191,7 +192,7 @@ impl AddTransactionQueue {
     fn push_back(&mut self, submission_time: Instant, args: AddTransactionArgs) {
         self.size_in_bytes = self
             .size_in_bytes
-            .checked_add(args.tx.size_of())
+            .checked_add(args.tx.total_bytes())
             .expect("Overflow when adding a transaction to AddTransactionQueue.");
         self.elements.push_back((submission_time, args));
     }
@@ -201,7 +202,7 @@ impl AddTransactionQueue {
         if let Some((_, args)) = &removed_element {
             self.size_in_bytes = self
                 .size_in_bytes
-                .checked_sub(args.tx.size_of())
+                .checked_sub(args.tx.total_bytes())
                 .expect("Underflow when removing a transaction from AddTransactionQueue.");
         }
         removed_element
@@ -633,7 +634,7 @@ impl Mempool {
 
     // Returns true if the mempool will exceeds its capacity by adding the given transaction.
     fn exceeds_capacity(&self, tx: &InternalRpcTransaction) -> bool {
-        self.size_in_bytes() + tx.size_of() > self.config.capacity_in_bytes
+        self.size_in_bytes() + tx.total_bytes() > self.config.capacity_in_bytes
     }
 
     #[cfg(test)]
@@ -650,6 +651,7 @@ impl Mempool {
         MEMPOOL_PRIORITY_QUEUE_SIZE.set_lossy(self.tx_queue.priority_queue_len());
         MEMPOOL_PENDING_QUEUE_SIZE.set_lossy(self.tx_queue.pending_queue_len());
         MEMPOOL_DELAYED_DECLARES_SIZE.set_lossy(self.delayed_declares.len());
+        MEMPOOL_TOTAL_SIZE_BYTES.set_lossy(self.size_in_bytes());
     }
 }
 

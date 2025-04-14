@@ -1,6 +1,6 @@
 use starknet_crypto::Felt;
 
-use super::NonceManager;
+use super::{NonceManager, TestingTxArgs};
 use crate::core::{ClassHash, Nonce};
 use crate::data_availability::DataAvailabilityMode;
 use crate::executable_transaction::{
@@ -8,6 +8,9 @@ use crate::executable_transaction::{
     DeployAccountTransaction as ExecutableDeployAccountTransaction,
 };
 use crate::rpc_transaction::{
+    InternalRpcDeployAccountTransaction,
+    InternalRpcTransaction,
+    InternalRpcTransactionWithoutTxHash,
     RpcDeployAccountTransaction,
     RpcDeployAccountTransactionV3,
     RpcTransaction,
@@ -163,4 +166,30 @@ pub fn rpc_deploy_account_tx(deploy_tx_args: DeployAccountTxArgs) -> RpcTransact
         fee_data_availability_mode: deploy_tx_args.fee_data_availability_mode,
         paymaster_data: deploy_tx_args.paymaster_data,
     }))
+}
+
+pub fn internal_deploy_account_tx(deploy_tx_args: DeployAccountTxArgs) -> InternalRpcTransaction {
+    let tx_hash = deploy_tx_args.tx_hash;
+    let rpc_tx = rpc_deploy_account_tx(deploy_tx_args);
+    let RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(tx)) = rpc_tx else {
+        unreachable!();
+    };
+
+    let contract_address = tx.calculate_contract_address().unwrap();
+    let tx_without_hash =
+        InternalRpcTransactionWithoutTxHash::DeployAccount(InternalRpcDeployAccountTransaction {
+            tx: RpcDeployAccountTransaction::V3(tx),
+            contract_address,
+        });
+    InternalRpcTransaction { tx: tx_without_hash, tx_hash }
+}
+
+impl TestingTxArgs for DeployAccountTxArgs {
+    fn get_rpc_tx(&self) -> RpcTransaction {
+        rpc_deploy_account_tx(self.clone())
+    }
+
+    fn get_internal_tx(&self) -> InternalRpcTransaction {
+        internal_deploy_account_tx(self.clone())
+    }
 }

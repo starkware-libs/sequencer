@@ -7,17 +7,14 @@ use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use axum::body::Body;
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use hyper::StatusCode;
-use mempool_test_utils::starknet_api_test_utils::invoke_tx;
+use mempool_test_utils::starknet_api_test_utils::{declare_tx, deploy_account_tx, invoke_tx};
 use reqwest::{Client, Response};
 use serde::Serialize;
-use starknet_api::rpc_transaction::{RpcInvokeTransaction, RpcTransaction};
+use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 
 use crate::config::HttpServerConfig;
-use crate::deprecated_gateway_transaction::{
-    DeprecatedGatewayInvokeTransaction,
-    DeprecatedGatewayTransactionV3,
-};
+use crate::deprecated_gateway_transaction::DeprecatedGatewayTransactionV3;
 use crate::http_server::HttpServer;
 
 /// A test utility client for interacting with an http server.
@@ -32,9 +29,10 @@ impl HttpTestClient {
         Self { socket, client }
     }
 
+    // TODO(Yael): add a check for the response content, for all GatewayOutput types.
     pub async fn assert_add_tx_success(&self, tx: impl GatewayTransaction) -> TransactionHash {
         let response = self.add_tx(tx).await;
-        assert!(response.status().is_success());
+        assert!(response.status().is_success(), "{:?}", response.status());
         let text = response.text().await.unwrap();
         let response: GatewayOutput = serde_json::from_str(&text)
             .unwrap_or_else(|_| panic!("Gateway responded with: {}", text));
@@ -47,7 +45,13 @@ impl HttpTestClient {
         expected_error_status: StatusCode,
     ) -> String {
         let response = self.add_tx(rpc_tx).await;
-        assert_eq!(response.status(), expected_error_status);
+        assert_eq!(
+            response.status(),
+            expected_error_status,
+            "Unexpected status code. Expected: {}, got: {}",
+            expected_error_status,
+            response.status()
+        );
         response.text().await.unwrap()
     }
 
@@ -127,6 +131,20 @@ impl GatewayTransaction for DeprecatedGatewayTransactionV3 {
     }
 }
 
+// Used for tx json that doesn't serialize into a valid tx to test the error handling of
+// unsupported tx versions.
+#[derive(Clone, Serialize)]
+pub struct TransactionSerialization(pub serde_json::Value);
+impl GatewayTransaction for TransactionSerialization {
+    fn endpoint(&self) -> &str {
+        "add_transaction"
+    }
+
+    fn content_type(&self) -> &str {
+        "application/text"
+    }
+}
+
 pub async fn add_tx_http_client(
     mock_gateway_client: MockGatewayClient,
     port_index: u16,
@@ -138,17 +156,18 @@ pub async fn add_tx_http_client(
     http_client_server_setup(mock_gateway_client, http_server_config).await
 }
 
-pub fn rpc_tx() -> RpcTransaction {
+pub fn rpc_invoke_tx() -> RpcTransaction {
     invoke_tx(CairoVersion::default())
 }
 
-pub fn deprecated_gateway_tx() -> DeprecatedGatewayTransactionV3 {
-    let tx = invoke_tx(CairoVersion::default());
-    if let RpcTransaction::Invoke(RpcInvokeTransaction::V3(invoke_tx)) = tx {
-        DeprecatedGatewayTransactionV3::Invoke(DeprecatedGatewayInvokeTransaction::V3(
-            invoke_tx.into(),
-        ))
-    } else {
-        panic!("Expected invoke transaction")
-    }
+pub fn deprecated_gateway_invoke_tx() -> DeprecatedGatewayTransactionV3 {
+    DeprecatedGatewayTransactionV3::from(rpc_invoke_tx())
+}
+
+pub fn deprecated_gateway_deploy_account_tx() -> DeprecatedGatewayTransactionV3 {
+    DeprecatedGatewayTransactionV3::from(deploy_account_tx())
+}
+
+pub fn deprecated_gateway_declare_tx() -> DeprecatedGatewayTransactionV3 {
+    DeprecatedGatewayTransactionV3::from(declare_tx())
 }

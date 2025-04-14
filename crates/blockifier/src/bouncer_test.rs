@@ -144,8 +144,7 @@ fn test_bouncer_try_update(#[case] added_gas: GasAmount, #[case] scenario: &'sta
         computation: ComputationResources { sierra_gas: added_gas, ..Default::default() },
         ..Default::default()
     };
-    let tx_state_changes_keys =
-        transactional_state.get_actual_state_changes().unwrap().state_maps.keys();
+    let tx_state_changes_keys = transactional_state.to_state_diff().unwrap().state_maps.keys();
 
     // TODO(Yoni, 1/10/2024): simplify this test and move tx-too-large cases out.
 

@@ -152,7 +152,6 @@ pub fn latency_histogram(attr: TokenStream, input: TokenStream) -> TokenStream {
     };
 
     create_modified_function(
-        metric_name,
         control_with_config,
         input_fn,
         metric_recording_logic,
@@ -204,7 +203,6 @@ pub fn sequencer_latency_histogram(attr: TokenStream, input: TokenStream) -> Tok
     };
 
     create_modified_function(
-        metric_name,
         control_with_config,
         input_fn,
         metric_recording_logic,
@@ -242,7 +240,6 @@ fn parse_latency_histogram_attributes<T: Parse>(
 
 /// Helper function to create the expanded block and modified function.
 fn create_modified_function(
-    metric_name: impl ToTokens,
     control_with_config: LitBool,
     input_fn: ItemFn,
     metric_recording_logic: impl ToTokens,
@@ -260,7 +257,6 @@ fn create_modified_function(
             if let Some(start_time) = start_function_time {
                 let exec_time = start_time.elapsed().as_secs_f64();
                 #metric_recording_logic
-                tracing::debug!("{}: {}", stringify!(#metric_name), exec_time);
             }
             return_value
         }

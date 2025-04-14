@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use blockifier::execution::syscalls::hint_processor::SyscallExecutionError;
-use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::get_ptr_from_var_name;
+use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::get_relocatable_from_var_name;
 use cairo_vm::hint_processor::hint_processor_definition::HintReference;
 use cairo_vm::serde::deserialize_program::{ApTracking, Identifier};
 use cairo_vm::types::errors::math_errors::MathError;
@@ -84,7 +84,7 @@ pub(crate) fn get_address_of_nested_fields<IG: IdentifierGetter>(
     nested_fields: &[&str],
     identifier_getter: &IG,
 ) -> VmUtilsResult<Relocatable> {
-    let base_address = get_ptr_from_var_name(id.into(), vm, ids_data, ap_tracking)?;
+    let base_address = get_relocatable_from_var_name(id.into(), vm, ids_data, ap_tracking)?;
 
     get_address_of_nested_fields_from_base_address(
         base_address,
@@ -130,6 +130,8 @@ fn deref_type_and_address_if_ptr<'a>(
 }
 
 /// Helper function to fetch the address of nested fields.
+/// Implicitly dereferences the type if it is a pointer.
+/// For the last field, it returns the address of the field.
 fn fetch_nested_fields_address<IG: IdentifierGetter>(
     base_address: Relocatable,
     base_struct: &Identifier,
@@ -159,16 +161,16 @@ fn fetch_nested_fields_address<IG: IdentifierGetter>(
             )))
         })?;
 
-    let new_base_address = (base_address + field_member.offset)?;
+    let address_with_offset = (base_address + field_member.offset)?;
 
-    // If the field is a pointer, we remove the asterisk to know the exact type and
-    // recursively fetch the address of the field.
-    let (cairo_type, new_base_address) =
-        deref_type_and_address_if_ptr(&field_member.cairo_type, new_base_address, vm)?;
-
+    // If this is the innermost field, do not dereference the address even if it is a pointer.
+    // Otherwise, check if the field is a pointer type, and if so, dereference.
     if nested_fields.len() == 1 {
-        return Ok(new_base_address);
+        return Ok(address_with_offset);
     }
+
+    let (cairo_type, new_base_address) =
+        deref_type_and_address_if_ptr(&field_member.cairo_type, address_with_offset, vm)?;
 
     let new_base_struct = identifier_getter.get_identifier(cairo_type)?;
 

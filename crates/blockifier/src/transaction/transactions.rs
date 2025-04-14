@@ -23,7 +23,7 @@ use starknet_api::transaction::{
     TransactionVersion,
 };
 
-use crate::context::{BlockContext, TransactionContext};
+use crate::context::{BlockContext, GasCounter, TransactionContext};
 use crate::execution::call_info::CallInfo;
 use crate::execution::entry_point::{
     CallEntryPoint,
@@ -111,7 +111,7 @@ pub trait ValidatableTransaction {
         &self,
         state: &mut dyn State,
         tx_context: Arc<TransactionContext>,
-        remaining_gas: &mut u64,
+        remaining_gas: &mut GasCounter,
     ) -> TransactionExecutionResult<Option<CallInfo>>;
 }
 

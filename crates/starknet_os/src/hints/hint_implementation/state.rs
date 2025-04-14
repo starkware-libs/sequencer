@@ -1,19 +1,14 @@
 use blockifier::state::state_api::StateReader;
-use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_from_var_name;
-use cairo_vm::types::relocatable::Relocatable;
+use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
+    get_relocatable_from_var_name,
+    insert_value_from_var_name,
+};
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{Const, Ids, Scope};
 use crate::io::os_input::CommitmentInfo;
-
-#[derive(Clone)]
-pub(crate) struct StateUpdatePointers {
-    pub(crate) _contract_address_to_storage_ptr: Relocatable,
-    pub(crate) _state_tree_pointer: Relocatable,
-    pub(crate) _class_tree_pointer: Relocatable,
-}
 
 #[derive(Copy, Clone)]
 enum CommitmentType {
@@ -109,4 +104,66 @@ pub(crate) fn load_bottom<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> O
 
 pub(crate) fn decode_node<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
     todo!()
+}
+
+pub(crate) fn guess_state_ptr<S: StateReader>(
+    HintArgs { hint_processor, ids_data, ap_tracking, vm, .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    let state_changes_start =
+        if let Some(state_update_pointers) = &hint_processor.state_update_pointers {
+            state_update_pointers.get_state_entries_ptr()
+        } else {
+            vm.add_memory_segment()
+        };
+    Ok(insert_value_from_var_name(
+        Ids::FinalSquashedContractStateChangesStart.into(),
+        state_changes_start,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?)
+}
+
+pub(crate) fn update_state_ptr<S: StateReader>(
+    HintArgs { hint_processor, ids_data, ap_tracking, vm, .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    if let Some(state_update_pointers) = &mut hint_processor.state_update_pointers {
+        let contract_state_changes_end = get_relocatable_from_var_name(
+            Ids::FinalSquashedContractStateChangesEnd.into(),
+            vm,
+            ids_data,
+            ap_tracking,
+        )?;
+        state_update_pointers.set_state_entries_ptr(contract_state_changes_end);
+    }
+    Ok(())
+}
+
+pub(crate) fn guess_classes_ptr<S: StateReader>(
+    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    let class_changes_start =
+        if let Some(state_update_pointers) = &hint_processor.state_update_pointers {
+            state_update_pointers.get_classes_ptr()
+        } else {
+            vm.add_memory_segment()
+        };
+    Ok(insert_value_from_var_name(
+        Ids::SquashedDict.into(),
+        class_changes_start,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?)
+}
+
+pub(crate) fn update_classes_ptr<S: StateReader>(
+    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    if let Some(state_update_pointers) = &mut hint_processor.state_update_pointers {
+        let classes_changes_end =
+            get_relocatable_from_var_name(Ids::SquashedDictEnd.into(), vm, ids_data, ap_tracking)?;
+        state_update_pointers.set_classes_ptr(classes_changes_end);
+    }
+    Ok(())
 }

@@ -10,8 +10,13 @@ use serde::Serialize;
 use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
 
+use crate::deployment_definitions::{Environment, EnvironmentComponentConfigModifications};
 use crate::service::{
+    Controller,
+    ExternalSecret,
     GetComponentConfigs,
+    Ingress,
+    IngressRule,
     Resource,
     Resources,
     Service,
@@ -19,7 +24,9 @@ use crate::service::{
     ServiceNameInner,
 };
 
-const BASE_PORT: u16 = 55000; // TODO(Tsabary): arbitrary port, need to resolve.
+const BASE_PORT: u16 = 15000; // TODO(Tsabary): arbitrary port, need to resolve.
+
+// TODO(Tsabary): define consts and functions whenever relevant.
 
 #[repr(u16)]
 #[derive(Clone, Copy, Debug, Display, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter)]
@@ -44,7 +51,10 @@ impl From<DistributedNodeServiceName> for ServiceName {
 }
 
 impl GetComponentConfigs for DistributedNodeServiceName {
-    fn get_component_configs(base_port: Option<u16>) -> IndexMap<ServiceName, ComponentConfig> {
+    fn get_component_configs(
+        base_port: Option<u16>,
+        environment: &Environment,
+    ) -> IndexMap<ServiceName, ComponentConfig> {
         let mut component_config_map = IndexMap::<ServiceName, ComponentConfig>::new();
 
         // TODO(Tsabary): the following is a temporary solution to differentiate the l1 provider
@@ -54,17 +64,22 @@ impl GetComponentConfigs for DistributedNodeServiceName {
         // to satisfy the above.
         let base_port_with_offset = Some(base_port.unwrap_or(BASE_PORT) + 5);
 
-        let batcher = DistributedNodeServiceName::Batcher.component_config_pair(base_port);
+        let batcher =
+            DistributedNodeServiceName::Batcher.component_config_pair(base_port, environment);
         let class_manager =
-            DistributedNodeServiceName::ClassManager.component_config_pair(base_port);
-        let gateway = DistributedNodeServiceName::Gateway.component_config_pair(base_port);
-        let l1_gas_price_provider =
-            DistributedNodeServiceName::L1.component_config_pair(base_port_with_offset);
-        let l1_provider = DistributedNodeServiceName::L1.component_config_pair(base_port);
-        let mempool = DistributedNodeServiceName::Mempool.component_config_pair(base_port);
-        let sierra_compiler =
-            DistributedNodeServiceName::SierraCompiler.component_config_pair(base_port);
-        let state_sync = DistributedNodeServiceName::StateSync.component_config_pair(base_port);
+            DistributedNodeServiceName::ClassManager.component_config_pair(base_port, environment);
+        let gateway =
+            DistributedNodeServiceName::Gateway.component_config_pair(base_port, environment);
+        let l1_gas_price_provider = DistributedNodeServiceName::L1
+            .component_config_pair(base_port_with_offset, environment);
+        let l1_provider =
+            DistributedNodeServiceName::L1.component_config_pair(base_port, environment);
+        let mempool =
+            DistributedNodeServiceName::Mempool.component_config_pair(base_port, environment);
+        let sierra_compiler = DistributedNodeServiceName::SierraCompiler
+            .component_config_pair(base_port, environment);
+        let state_sync =
+            DistributedNodeServiceName::StateSync.component_config_pair(base_port, environment);
 
         for inner_service_name in DistributedNodeServiceName::iter() {
             let component_config = match inner_service_name {
@@ -121,119 +136,291 @@ impl GetComponentConfigs for DistributedNodeServiceName {
 
 // TODO(Tsabary): per each service, update all values.
 impl ServiceNameInner for DistributedNodeServiceName {
-    fn create_service(&self) -> Service {
-        match self {
-            DistributedNodeServiceName::Batcher => Service::new(
-                Into::<ServiceName>::into(*self),
-                false,
-                false,
-                1,
-                Some(32),
-                Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                None,
-            ),
-            DistributedNodeServiceName::ClassManager => Service::new(
-                Into::<ServiceName>::into(*self),
-                false,
-                false,
-                1,
-                Some(32),
-                Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                None,
-            ),
-            DistributedNodeServiceName::ConsensusManager => Service::new(
-                Into::<ServiceName>::into(*self),
-                false,
-                false,
-                1,
-                None,
-                Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                None,
-            ),
-            DistributedNodeServiceName::HttpServer => Service::new(
-                Into::<ServiceName>::into(*self),
-                false,
-                false,
-                1,
-                None,
-                Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                None,
-            ),
-            DistributedNodeServiceName::Gateway => Service::new(
-                Into::<ServiceName>::into(*self),
-                false,
-                false,
-                1,
-                None,
-                Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                None,
-            ),
-            DistributedNodeServiceName::L1 => Service::new(
-                Into::<ServiceName>::into(*self),
-                false,
-                false,
-                1,
-                None,
-                Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                None,
-            ),
-            DistributedNodeServiceName::Mempool => Service::new(
-                Into::<ServiceName>::into(*self),
-                false,
-                false,
-                1,
-                None,
-                Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                None,
-            ),
-            DistributedNodeServiceName::SierraCompiler => Service::new(
-                Into::<ServiceName>::into(*self),
-                false,
-                false,
-                1,
-                None,
-                Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                None,
-            ),
-            DistributedNodeServiceName::StateSync => Service::new(
-                Into::<ServiceName>::into(*self),
-                false,
-                false,
-                1,
-                Some(32),
-                Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-                None,
-            ),
+    fn create_service(&self, environment: &Environment) -> Service {
+        match environment {
+            Environment::Testing => match self {
+                DistributedNodeServiceName::Batcher => Service::new(
+                    Into::<ServiceName>::into(*self),
+                    Controller::StatefulSet,
+                    None,
+                    false,
+                    1,
+                    Some(32),
+                    None,
+                    Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
+                    None,
+                ),
+                DistributedNodeServiceName::ClassManager => Service::new(
+                    Into::<ServiceName>::into(*self),
+                    Controller::StatefulSet,
+                    None,
+                    false,
+                    1,
+                    Some(32),
+                    None,
+                    Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
+                    None,
+                ),
+                DistributedNodeServiceName::ConsensusManager => Service::new(
+                    Into::<ServiceName>::into(*self),
+                    Controller::StatefulSet,
+                    None,
+                    false,
+                    1,
+                    None,
+                    None,
+                    Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
+                    None,
+                ),
+                DistributedNodeServiceName::HttpServer => Service::new(
+                    Into::<ServiceName>::into(*self),
+                    Controller::StatefulSet,
+                    Some(Ingress::new(
+                        String::from("sw-dev.io"),
+                        true,
+                        vec![
+                            IngressRule::new(String::from("/gateway"), 8080, None),
+                            IngressRule::new(
+                                String::from("/feeder_gateway"),
+                                8085,
+                                Some("nginx-service".into()),
+                            ),
+                        ],
+                        vec![],
+                    )),
+                    false,
+                    1,
+                    None,
+                    None,
+                    Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
+                    None,
+                ),
+                DistributedNodeServiceName::Gateway => Service::new(
+                    Into::<ServiceName>::into(*self),
+                    Controller::StatefulSet,
+                    None,
+                    false,
+                    1,
+                    None,
+                    None,
+                    Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
+                    None,
+                ),
+                DistributedNodeServiceName::L1 => Service::new(
+                    Into::<ServiceName>::into(*self),
+                    Controller::StatefulSet,
+                    None,
+                    false,
+                    1,
+                    None,
+                    None,
+                    Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
+                    None,
+                ),
+                DistributedNodeServiceName::Mempool => Service::new(
+                    Into::<ServiceName>::into(*self),
+                    Controller::StatefulSet,
+                    None,
+                    false,
+                    1,
+                    None,
+                    None,
+                    Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
+                    None,
+                ),
+                DistributedNodeServiceName::SierraCompiler => Service::new(
+                    Into::<ServiceName>::into(*self),
+                    Controller::StatefulSet,
+                    None,
+                    false,
+                    1,
+                    None,
+                    None,
+                    Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
+                    None,
+                ),
+                DistributedNodeServiceName::StateSync => Service::new(
+                    Into::<ServiceName>::into(*self),
+                    Controller::StatefulSet,
+                    None,
+                    false,
+                    1,
+                    Some(32),
+                    None,
+                    Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
+                    None,
+                ),
+            },
+            Environment::SepoliaIntegration => match self {
+                DistributedNodeServiceName::Batcher => Service::new(
+                    Into::<ServiceName>::into(*self),
+                    Controller::StatefulSet,
+                    None,
+                    false,
+                    1,
+                    Some(32),
+                    None,
+                    Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
+                    Some(ExternalSecret::new("sequencer-integration-secrets")),
+                ),
+                DistributedNodeServiceName::ClassManager => Service::new(
+                    Into::<ServiceName>::into(*self),
+                    Controller::StatefulSet,
+                    None,
+                    false,
+                    1,
+                    Some(32),
+                    None,
+                    Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
+                    Some(ExternalSecret::new("sequencer-integration-secrets")),
+                ),
+                DistributedNodeServiceName::ConsensusManager => Service::new(
+                    Into::<ServiceName>::into(*self),
+                    Controller::StatefulSet,
+                    None,
+                    false,
+                    1,
+                    None,
+                    None,
+                    Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
+                    Some(ExternalSecret::new("sequencer-integration-secrets")),
+                ),
+                DistributedNodeServiceName::HttpServer => Service::new(
+                    Into::<ServiceName>::into(*self),
+                    Controller::StatefulSet,
+                    Some(Ingress::new(
+                        String::from("sw-dev.io"),
+                        true,
+                        vec![
+                            IngressRule::new(String::from("/gateway"), 8080, None),
+                            IngressRule::new(
+                                String::from("/feeder_gateway"),
+                                8085,
+                                Some("nginx-service".into()),
+                            ),
+                        ],
+                        vec![],
+                    )),
+                    false,
+                    1,
+                    None,
+                    None,
+                    Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
+                    Some(ExternalSecret::new("sequencer-integration-secrets")),
+                ),
+                DistributedNodeServiceName::Gateway => Service::new(
+                    Into::<ServiceName>::into(*self),
+                    Controller::StatefulSet,
+                    None,
+                    false,
+                    1,
+                    None,
+                    None,
+                    Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
+                    Some(ExternalSecret::new("sequencer-integration-secrets")),
+                ),
+                DistributedNodeServiceName::L1 => Service::new(
+                    Into::<ServiceName>::into(*self),
+                    Controller::StatefulSet,
+                    None,
+                    false,
+                    1,
+                    None,
+                    None,
+                    Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
+                    Some(ExternalSecret::new("sequencer-integration-secrets")),
+                ),
+                DistributedNodeServiceName::Mempool => Service::new(
+                    Into::<ServiceName>::into(*self),
+                    Controller::StatefulSet,
+                    None,
+                    false,
+                    1,
+                    None,
+                    None,
+                    Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
+                    Some(ExternalSecret::new("sequencer-integration-secrets")),
+                ),
+                DistributedNodeServiceName::SierraCompiler => Service::new(
+                    Into::<ServiceName>::into(*self),
+                    Controller::StatefulSet,
+                    None,
+                    false,
+                    1,
+                    None,
+                    None,
+                    Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
+                    Some(ExternalSecret::new("sequencer-integration-secrets")),
+                ),
+                DistributedNodeServiceName::StateSync => Service::new(
+                    Into::<ServiceName>::into(*self),
+                    Controller::StatefulSet,
+                    None,
+                    false,
+                    1,
+                    Some(32),
+                    None,
+                    Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
+                    Some(ExternalSecret::new("sequencer-integration-secrets")),
+                ),
+            },
+            _ => unimplemented!(),
         }
     }
 }
 
 impl DistributedNodeServiceName {
+    // TODO(Tsabary): there's code duplication here that needs to be removed, especially with
+    // respect of the hybrid node.
+
     /// Returns a component execution config for a component that runs locally, and accepts inbound
     /// connections from remote components.
     pub fn component_config_for_local_service(
         &self,
         base_port: Option<u16>,
+        environment: &Environment,
     ) -> ReactiveComponentExecutionConfig {
-        ReactiveComponentExecutionConfig::local_with_remote_enabled(
+        let mut base = ReactiveComponentExecutionConfig::local_with_remote_enabled(
             self.url(),
             self.ip(),
             self.port(base_port),
-        )
+        );
+        let EnvironmentComponentConfigModifications {
+            local_server_config,
+            max_concurrency,
+            remote_client_config: _,
+        } = environment.get_component_config_modifications();
+        base.local_server_config = local_server_config;
+        base.max_concurrency = max_concurrency;
+        base
     }
 
     /// Returns a component execution config for a component that is accessed remotely.
     pub fn component_config_for_remote_service(
         &self,
         base_port: Option<u16>,
+        environment: &Environment,
     ) -> ReactiveComponentExecutionConfig {
-        ReactiveComponentExecutionConfig::remote(self.url(), self.ip(), self.port(base_port))
+        let mut base =
+            ReactiveComponentExecutionConfig::remote(self.url(), self.ip(), self.port(base_port));
+        let EnvironmentComponentConfigModifications {
+            local_server_config: _,
+            max_concurrency,
+            remote_client_config,
+        } = environment.get_component_config_modifications();
+        base.remote_client_config = remote_client_config;
+        base.max_concurrency = max_concurrency;
+        base
     }
 
-    fn component_config_pair(&self, base_port: Option<u16>) -> DistributedNodeServiceConfigPair {
+    fn component_config_pair(
+        &self,
+        base_port: Option<u16>,
+        environment: &Environment,
+    ) -> DistributedNodeServiceConfigPair {
         DistributedNodeServiceConfigPair {
-            local: self.component_config_for_local_service(base_port),
-            remote: self.component_config_for_remote_service(base_port),
+            local: self.component_config_for_local_service(base_port, environment),
+            remote: self.component_config_for_remote_service(base_port, environment),
         }
     }
 

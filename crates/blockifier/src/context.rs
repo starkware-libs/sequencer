@@ -9,6 +9,7 @@ use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::{
     AllResourceBounds,
+    Fee,
     GasVectorComputationMode,
     Tip,
     ValidResourceBounds,
@@ -74,9 +75,18 @@ impl TransactionContext {
             Tip::ZERO
         }
     }
+
+    pub fn max_possible_fee(&self) -> Fee {
+        match &self.tx_info {
+            TransactionInfo::Current(current_tx_info) => {
+                current_tx_info.resource_bounds.max_possible_fee(self.effective_tip())
+            }
+            TransactionInfo::Deprecated(deprecated_tx_info) => deprecated_tx_info.max_fee,
+        }
+    }
 }
 
-pub(crate) struct GasCounter {
+pub struct GasCounter {
     pub(crate) spent_gas: GasAmount,
     pub(crate) remaining_gas: GasAmount,
 }

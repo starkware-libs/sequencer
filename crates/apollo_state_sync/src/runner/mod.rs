@@ -23,7 +23,7 @@ use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra::component_server::WrapperServer;
 use apollo_network::network_manager::metrics::{NetworkMetrics, SqmrNetworkMetrics};
-use apollo_network::network_manager::{self, NetworkError, NetworkManager};
+use apollo_network::network_manager::{NetworkError, NetworkManager};
 use apollo_p2p_sync::client::{
     P2pSyncClient,
     P2pSyncClientChannels,
@@ -55,6 +55,8 @@ use papyrus_common::pending_classes::PendingClasses;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::felt;
 use tokio::sync::RwLock;
+use tracing::info_span;
+use tracing::instrument::Instrument;
 
 use crate::config::{CentralSyncClientConfig, StateSyncConfig};
 use crate::metrics::{
@@ -160,42 +162,42 @@ impl StateSyncRunner {
             );
         }
 
-        let network_manager_metrics = Some(NetworkMetrics {
-            num_connected_peers: STATE_SYNC_P2P_NUM_CONNECTED_PEERS,
-            num_blacklisted_peers: STATE_SYNC_P2P_NUM_BLACKLISTED_PEERS,
-            broadcast_metrics_by_topic: None,
-            sqmr_metrics: Some(SqmrNetworkMetrics {
-                num_active_inbound_sessions: STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS,
-                num_active_outbound_sessions: STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS,
-            }),
+        let mut maybe_network_manager = network_config.map(|network_config| {
+            let network_manager_metrics = Some(NetworkMetrics {
+                num_connected_peers: STATE_SYNC_P2P_NUM_CONNECTED_PEERS,
+                num_blacklisted_peers: STATE_SYNC_P2P_NUM_BLACKLISTED_PEERS,
+                broadcast_metrics_by_topic: None,
+                sqmr_metrics: Some(SqmrNetworkMetrics {
+                    num_active_inbound_sessions: STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS,
+                    num_active_outbound_sessions: STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS,
+                }),
+            });
+            NetworkManager::new(
+                network_config.clone(),
+                Some(VERSION_FULL.to_string()),
+                network_manager_metrics,
+            )
         });
-        let mut network_manager = network_manager::NetworkManager::new(
-            network_config,
-            Some(VERSION_FULL.to_string()),
-            network_manager_metrics,
-        );
-
-        // Creating the sync server future
-        let p2p_sync_server = Self::new_p2p_state_sync_server(
-            storage_reader.clone(),
-            &mut network_manager,
-            class_manager_client.clone(),
-        );
-        let p2p_sync_server_future = p2p_sync_server.run().boxed();
 
         // Creating the sync clients futures
         // Exactly one of the sync clients must be turned on.
         let (p2p_sync_client_future, central_sync_client_future, new_block_dev_null_future) =
             match (p2p_sync_client_config, central_sync_client_config) {
                 (Some(p2p_sync_client_config), None) => {
+                    // TODO(noamsp): Add this check to the config validation.
+                    let network_manager = maybe_network_manager
+                        .as_mut()
+                        .expect("Network manager should be present if p2p sync client is present");
+
                     let p2p_sync_client = Self::new_p2p_state_sync_client(
                         storage_reader.clone(),
                         storage_writer,
                         p2p_sync_client_config,
-                        &mut network_manager,
+                        network_manager,
                         new_block_receiver,
-                        class_manager_client,
+                        class_manager_client.clone(),
                     );
+
                     let p2p_sync_client_future = p2p_sync_client.run().boxed();
                     let central_sync_client_future = future::pending().boxed();
                     let new_block_dev_null_future = future::pending().boxed();
@@ -206,8 +208,9 @@ impl StateSyncRunner {
                         storage_reader.clone(),
                         storage_writer,
                         central_sync_client_config,
-                        class_manager_client,
+                        class_manager_client.clone(),
                     );
+
                     let p2p_sync_client_future = future::pending().boxed();
                     let central_sync_client_future = central_sync_client.run().boxed();
                     let new_block_dev_null_future =
@@ -222,9 +225,35 @@ impl StateSyncRunner {
                     )
                 }
             };
+
+        // Creating the sync server future and the network future
+        // If the network manager is not present, we create a pending future for the server
+        // and the network future.
+        let (p2p_sync_server_future, network_future) = match maybe_network_manager {
+            Some(mut network_manager) => {
+                let p2p_sync_server = Self::new_p2p_state_sync_server(
+                    storage_reader.clone(),
+                    &mut network_manager,
+                    class_manager_client,
+                );
+
+                let p2p_sync_server_future = p2p_sync_server.run().boxed();
+                let network_future =
+                    network_manager.run().instrument(info_span!("[Sync network]")).boxed();
+
+                (p2p_sync_server_future, network_future)
+            }
+            None => {
+                let p2p_sync_server_future = future::pending().boxed();
+                let network_future = future::pending().boxed();
+
+                (p2p_sync_server_future, network_future)
+            }
+        };
+
         (
             Self {
-                network_future: network_manager.run().boxed(),
+                network_future,
                 p2p_sync_client_future,
                 p2p_sync_server_future,
                 central_sync_client_future,

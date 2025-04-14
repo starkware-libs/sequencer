@@ -54,6 +54,7 @@ use apollo_state_sync_types::communication::{
     StateSyncRequest,
     StateSyncResponse,
 };
+use tracing::info;
 
 use crate::communication::SequencerNodeCommunication;
 use crate::config::component_execution_config::ReactiveComponentExecutionMode;
@@ -272,6 +273,7 @@ pub fn create_node_clients(
     config: &SequencerNodeConfig,
     channels: &mut SequencerNodeCommunication,
 ) -> SequencerNodeClients {
+    info!("Creating node clients.");
     let batcher_client = create_client!(
         &config.components.batcher.execution_mode,
         LocalBatcherClient,

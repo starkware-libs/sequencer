@@ -51,6 +51,17 @@ impl TryFrom<PathBuf> for ExecutionConfig {
     }
 }
 
+pub(crate) fn is_contract_class_declared(
+    txn: &StorageTxn<'_, RO>,
+    class_hash: &ClassHash,
+    state_number: StateNumber,
+) -> Result<bool, ExecutionUtilsError> {
+    Ok(txn
+        .get_state_reader()?
+        .get_class_definition_block_number(class_hash)?
+        .is_some_and(|block_number| state_number.is_after(block_number)))
+}
+
 pub(crate) fn get_contract_class(
     txn: &StorageTxn<'_, RO>,
     class_hash: &ClassHash,

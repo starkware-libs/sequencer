@@ -4,6 +4,7 @@ use apollo_config::converters::deserialize_float_seconds_to_duration;
 pub mod communication;
 pub mod l1_provider;
 pub mod l1_scraper;
+pub mod metrics;
 pub mod soft_delete_index_map;
 pub mod transaction_manager;
 
@@ -46,6 +47,13 @@ impl ProviderState {
             ProviderState::Bootstrap(_) => "Bootstrap",
             ProviderState::Validate => "Validate",
         }
+    }
+
+    /// Checks if the provider is in its uninitialized state. In this state, the provider has
+    /// started, but its startup sequence, triggered via the initialization API, has not yet
+    /// begun.
+    pub fn uninitialized(&mut self) -> bool {
+        self.get_bootstrapper().is_some_and(|bootstrapper| !bootstrapper.sync_started())
     }
 
     pub fn is_bootstrapping(&self) -> bool {

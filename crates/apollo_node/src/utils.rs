@@ -14,6 +14,8 @@ use crate::servers::{create_node_servers, SequencerNodeServers};
 pub async fn create_node_modules(
     config: &SequencerNodeConfig,
 ) -> (SequencerNodeClients, SequencerNodeServers) {
+    info!("Creating node modules.");
+
     let mut channels = create_node_channels();
     let clients = create_node_clients(config, &mut channels);
     let components = create_node_components(config, &clients).await;
@@ -43,6 +45,7 @@ pub fn load_and_validate_config(args: Vec<String>) -> Result<SequencerNodeConfig
         get_config_presentation::<SequencerNodeConfig>(&config, false)
             .expect("Should be able to get representation.")
     );
+    info!("Finished dumping configuration.");
 
     Ok(config)
 }

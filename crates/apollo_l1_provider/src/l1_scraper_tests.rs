@@ -4,7 +4,8 @@ use std::time::Duration;
 
 use alloy::primitives::U256;
 use apollo_infra::trace_util::configure_tracing;
-use apollo_l1_provider_types::{Event, L1ProviderClient};
+use apollo_l1_provider_types::errors::L1ProviderError;
+use apollo_l1_provider_types::{Event, L1ProviderClient, MockL1ProviderClient};
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use itertools::Itertools;
@@ -18,6 +19,7 @@ use papyrus_base_layer::test_utils::{
     anvil_instance_from_config,
     ethereum_base_layer_config_for_anvil,
 };
+use papyrus_base_layer::MockBaseLayerContract;
 use starknet_api::block::BlockNumber;
 use starknet_api::contract_address;
 use starknet_api::core::{EntryPointSelector, Nonce};
@@ -28,7 +30,7 @@ use starknet_api::transaction::{L1HandlerTransaction, TransactionHasher, Transac
 
 use crate::bootstrapper::Bootstrapper;
 use crate::l1_provider::L1ProviderBuilder;
-use crate::l1_scraper::{L1Scraper, L1ScraperConfig};
+use crate::l1_scraper::{L1Scraper, L1ScraperConfig, L1ScraperError};
 use crate::test_utils::FakeL1ProviderClient;
 use crate::{event_identifiers_to_track, L1ProviderConfig};
 
@@ -435,6 +437,36 @@ async fn test_stuck_sync() {
         l1_provider.commit_block(&[], height_add(STARTUP_HEIGHT, i.into())).unwrap();
         tokio::time::sleep(config.startup_sync_sleep_retry_interval_seconds).await;
     }
+}
+
+#[tokio::test]
+/// If the provider crashes, the scraper should detect this and trigger a self restart by returning
+/// an appropriate error.
+async fn provider_crash_should_crash_scraper() {
+    // Setup.
+    let mut l1_provider_client = MockL1ProviderClient::default();
+    l1_provider_client.expect_add_events().once().returning(|_| {
+        Err(apollo_l1_provider_types::errors::L1ProviderClientError::L1ProviderError(
+            L1ProviderError::Uninitialized,
+        ))
+    });
+    let mut base_layer = MockBaseLayerContract::new();
+    base_layer.expect_latest_l1_block_number().return_once(|_| Ok(Some(Default::default())));
+    base_layer.expect_l1_block_at().returning(|_| Ok(Some(Default::default())));
+    base_layer.expect_latest_l1_block().return_once(|_| Ok(Some(Default::default())));
+    base_layer.expect_events().return_once(|_, _| Ok(Default::default()));
+
+    let mut scraper = L1Scraper::new(
+        L1ScraperConfig::default(),
+        Arc::new(l1_provider_client),
+        base_layer,
+        event_identifiers_to_track(),
+    )
+    .await
+    .unwrap();
+
+    // Test.
+    assert_eq!(scraper.send_events_to_l1_provider().await, Err(L1ScraperError::NeedsRestart));
 }
 
 #[test]

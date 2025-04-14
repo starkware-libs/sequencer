@@ -56,7 +56,6 @@ use crate::transaction::errors::{
     TransactionPreValidationError,
 };
 use crate::transaction::objects::{
-    DeprecatedTransactionInfo,
     HasRelatedFeeType,
     RevertError,
     TransactionExecutionInfo,
@@ -396,40 +395,21 @@ impl AccountTransaction {
         })
     }
 
-    fn handle_validate_tx(
-        &self,
-        state: &mut dyn State,
-        tx_context: Arc<TransactionContext>,
-        remaining_gas: &mut GasCounter,
-    ) -> TransactionExecutionResult<Option<CallInfo>> {
-        if self.execution_flags.validate {
-            let remaining_validation_gas = &mut remaining_gas.limit_usage(
-                tx_context.block_context.versioned_constants.os_constants.validate_max_sierra_gas,
-            );
-            Ok(self.validate_tx(state, tx_context, remaining_validation_gas)?.inspect(
-                |call_info| {
-                    remaining_gas.subtract_used_gas(call_info);
-                },
-            ))
-        } else {
-            Ok(None)
-        }
-    }
-
     fn assert_actual_fee_in_bounds(tx_context: &Arc<TransactionContext>, actual_fee: Fee) {
-        match &tx_context.tx_info {
-            TransactionInfo::Current(context) => {
-                let max_fee = context.resource_bounds.max_possible_fee();
-                if actual_fee > max_fee {
+        let max_fee = tx_context.max_possible_fee();
+        if actual_fee > max_fee {
+            match &tx_context.tx_info {
+                TransactionInfo::Current(context) => {
                     panic!(
                         "Actual fee {:#?} exceeded bounds; max possible fee is {:#?} (computed \
-                         from {:#?}).",
-                        actual_fee, max_fee, context.resource_bounds
+                         from {:#?} with tip {:#?}).",
+                        actual_fee,
+                        max_fee,
+                        context.resource_bounds,
+                        tx_context.effective_tip()
                     );
                 }
-            }
-            TransactionInfo::Deprecated(DeprecatedTransactionInfo { max_fee, .. }) => {
-                if actual_fee > *max_fee {
+                TransactionInfo::Deprecated(_) => {
                     panic!(
                         "Actual fee {:#?} exceeded bounds; max fee is {:#?}.",
                         actual_fee, max_fee
@@ -581,11 +561,9 @@ impl AccountTransaction {
                 )),
             );
             execute_call_info = self.run_execute(state, &mut execution_context, remaining_gas)?;
-            validate_call_info =
-                self.handle_validate_tx(state, tx_context.clone(), remaining_gas)?;
+            validate_call_info = self.validate_tx(state, tx_context.clone(), remaining_gas)?;
         } else {
-            validate_call_info =
-                self.handle_validate_tx(state, tx_context.clone(), remaining_gas)?;
+            validate_call_info = self.validate_tx(state, tx_context.clone(), remaining_gas)?;
             let mut execution_context = EntryPointExecutionContext::new_invoke(
                 tx_context.clone(),
                 self.execution_flags.charge_fee,
@@ -602,7 +580,7 @@ impl AccountTransaction {
         let tx_receipt = TransactionReceipt::from_account_tx(
             self,
             &tx_context,
-            &state.get_actual_state_changes()?,
+            &state.to_state_diff()?,
             CallInfo::summarize_many(
                 validate_call_info.iter().chain(execute_call_info.iter()),
                 &tx_context.block_context.versioned_constants,
@@ -634,8 +612,7 @@ impl AccountTransaction {
         remaining_gas: &mut GasCounter,
     ) -> TransactionExecutionResult<ValidateExecuteCallInfo> {
         // Run the validation, and if execution later fails, only keep the validation diff.
-        let validate_call_info =
-            self.handle_validate_tx(state, tx_context.clone(), remaining_gas)?;
+        let validate_call_info = self.validate_tx(state, tx_context.clone(), remaining_gas)?;
 
         let mut execution_context = EntryPointExecutionContext::new_invoke(
             tx_context.clone(),
@@ -802,6 +779,24 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
         let tx_context = Arc::new(block_context.to_tx_context(self));
         self.verify_tx_version(tx_context.tx_info.version())?;
 
+        // Do not run validate or perform any account-related actions for declare transactions that
+        // meet the following conditions.
+        // This flow is used for the sequencer to bootstrap a new system.
+        if let Transaction::Declare(tx) = &self.tx {
+            if tx.is_bootstrap_declare(self.execution_flags.charge_fee) {
+                let mut context = EntryPointExecutionContext::new_invoke(
+                    tx_context.clone(),
+                    self.execution_flags.charge_fee,
+                    SierraGasRevertTracker::new(GasAmount::default()),
+                );
+                let mut remaining_gas = 0;
+                let res = tx.run_execute(state, &mut context, &mut remaining_gas)?;
+                assert!(res.is_none(), "Declare execute should not result in a CallInfo.");
+
+                return Ok(TransactionExecutionInfo::default());
+            }
+        }
+
         // Nonce and fee check should be done before running user code.
         self.perform_pre_validation_stage(state, &tx_context)?;
 
@@ -885,13 +880,19 @@ impl ValidatableTransaction for AccountTransaction {
         &self,
         state: &mut dyn State,
         tx_context: Arc<TransactionContext>,
-        remaining_gas: &mut u64,
+        remaining_gas: &mut GasCounter,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
+        if !self.execution_flags.validate {
+            return Ok(None);
+        }
+        let remaining_validation_gas = &mut remaining_gas.limit_usage(
+            tx_context.block_context.versioned_constants.os_constants.validate_max_sierra_gas,
+        );
         let limit_steps_by_resources = self.execution_flags.charge_fee;
         let mut context = EntryPointExecutionContext::new_validate(
             tx_context,
             limit_steps_by_resources,
-            SierraGasRevertTracker::new(GasAmount(*remaining_gas)),
+            SierraGasRevertTracker::new(GasAmount(*remaining_validation_gas)),
         );
         let tx_info = &context.tx_context.tx_info;
         if tx_info.is_v0() {
@@ -910,12 +911,12 @@ impl ValidatableTransaction for AccountTransaction {
             storage_address,
             caller_address: ContractAddress::default(),
             call_type: CallType::Call,
-            initial_gas: *remaining_gas,
+            initial_gas: *remaining_validation_gas,
         };
 
         // Note that we allow a revert here and we handle it bellow to get a better error message.
         let validate_call_info = validate_call
-            .execute(state, &mut context, remaining_gas)
+            .execute(state, &mut context, remaining_validation_gas)
             .map_err(|error| TransactionExecutionError::ValidateTransactionError {
                 error,
                 class_hash,
@@ -945,6 +946,7 @@ impl ValidatableTransaction for AccountTransaction {
                 });
             }
         }
+        remaining_gas.subtract_used_gas(&validate_call_info);
         Ok(Some(validate_call_info))
     }
 }

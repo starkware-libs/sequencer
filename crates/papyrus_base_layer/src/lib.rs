@@ -10,7 +10,6 @@ use starknet_api::block::BlockHashAndNumber;
 use starknet_api::core::{ContractAddress, EntryPointSelector, EthAddress, Nonce};
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::L1HandlerTransaction;
-use thiserror::Error;
 
 pub mod constants;
 pub mod ethereum_base_layer_contract;
@@ -25,14 +24,15 @@ mod base_layer_test;
 
 pub type L1BlockNumber = u64;
 
-#[derive(Debug, Error)]
+#[cfg(any(feature = "testing", test))]
+#[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum MockError {}
 
 /// Interface for getting data from the Starknet base contract.
 #[cfg_attr(any(feature = "testing", test), automock(type Error = MockError;))]
 #[async_trait]
 pub trait BaseLayerContract {
-    type Error: Error + Display + Debug;
+    type Error: Error + PartialEq + Display + Debug;
 
     /// Get the latest Starknet block that is proved on the base layer at a specific L1 block
     /// number. If the number is too low, return an error.

@@ -1,7 +1,5 @@
 use std::cell::RefCell;
-use std::env;
 use std::fs::File;
-use std::path::Path;
 use std::rc::Rc;
 use std::sync::LazyLock;
 
@@ -13,7 +11,7 @@ use blockifier_test_utils::contracts::FeatureContract;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::executable_transaction::AccountTransaction;
+use starknet_api::executable_transaction::{AccountTransaction, DeclareTransaction};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::hash::StarkHash;
 use starknet_api::rpc_transaction::RpcTransaction;
@@ -87,9 +85,8 @@ pub fn test_valid_resource_bounds() -> ValidResourceBounds {
 
 /// Get the contract class used for testing.
 pub fn contract_class() -> SierraContractClass {
-    env::set_current_dir(resolve_project_relative_path(TEST_FILES_FOLDER).unwrap())
-        .expect("Couldn't set working dir.");
-    let json_file_path = Path::new(CONTRACT_CLASS_FILE);
+    let test_files_folder_path = resolve_project_relative_path(TEST_FILES_FOLDER).unwrap();
+    let json_file_path = test_files_folder_path.join(CONTRACT_CLASS_FILE);
     serde_json::from_reader(File::open(json_file_path).unwrap()).unwrap()
 }
 
@@ -141,6 +138,13 @@ pub fn executable_invoke_tx(cairo_version: CairoVersion) -> AccountTransaction {
     let mut tx_generator = MultiAccountTransactionGenerator::new();
     tx_generator.register_deployed_account(default_account);
     tx_generator.account_with_id_mut(0).generate_executable_invoke()
+}
+
+pub fn deploy_account_tx() -> RpcTransaction {
+    generate_deploy_account_with_salt(
+        &FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+        ContractAddressSalt(0_u64.into()),
+    )
 }
 
 pub fn generate_deploy_account_with_salt(
@@ -542,6 +546,18 @@ impl AccountTransactionGenerator {
 
         (account_tx_generator, default_deploy_account_tx)
     }
+}
+
+/// Generate a declare transaction for initial bootstrapping phase (no fees).
+pub fn generate_bootstrap_declare() -> RpcTransaction {
+    let bootstrap_declare_args = declare_tx_args!(
+        signature: TransactionSignature(vec![]),
+        sender_address: DeclareTransaction::bootstrap_address(),
+        resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
+        nonce: Nonce(Felt::ZERO),
+        compiled_class_hash: *COMPILED_CLASS_HASH,
+    );
+    rpc_declare_tx(bootstrap_declare_args, contract_class())
 }
 
 /// Extends (account) feature contracts with a fixed sender address.

@@ -11,7 +11,7 @@ use crate::blockifier::transaction_executor::{
     TransactionExecutorError,
     BLOCK_STATE_ACCESS_ERR,
 };
-use crate::context::{BlockContext, TransactionContext};
+use crate::context::{BlockContext, GasCounter, TransactionContext};
 use crate::execution::call_info::CallInfo;
 use crate::fee::fee_checks::PostValidationReport;
 use crate::fee::receipt::TransactionReceipt;
@@ -95,13 +95,13 @@ impl<S: StateReader> StatefulValidator<S> {
         let validate_call_info = tx.validate_tx(
             self.state(),
             tx_context.clone(),
-            &mut tx_context.initial_sierra_gas().0,
+            &mut GasCounter::new(tx_context.initial_sierra_gas()),
         )?;
 
         let tx_receipt = TransactionReceipt::from_account_tx(
             tx,
             &tx_context,
-            &self.state().get_actual_state_changes()?,
+            &self.state().to_state_diff()?,
             CallInfo::summarize_many(
                 validate_call_info.iter(),
                 &tx_context.block_context.versioned_constants,

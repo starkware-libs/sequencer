@@ -2,16 +2,28 @@ use std::clone::Clone;
 use std::net::SocketAddr;
 use std::string::String;
 
-use apollo_gateway_types::communication::SharedGatewayClient;
-use apollo_gateway_types::gateway_types::{GatewayInput, GatewayOutput};
+use apollo_gateway_types::communication::{GatewayClientError, SharedGatewayClient};
+use apollo_gateway_types::deprecated_gateway_error::{
+    KnownStarknetErrorCode,
+    StarknetError,
+    StarknetErrorCode,
+};
+use apollo_gateway_types::errors::GatewayError;
+use apollo_gateway_types::gateway_types::{
+    GatewayInput,
+    GatewayOutput,
+    SUPPORTED_TRANSACTION_VERSIONS,
+};
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::type_name::short_type_name;
 use axum::extract::State;
 use axum::http::HeaderMap;
-use axum::routing::post;
+use axum::routing::{get, post};
 use axum::{async_trait, Json, Router};
+use serde::de::Error;
 use starknet_api::rpc_transaction::RpcTransaction;
-use tracing::{debug, info, instrument, trace};
+use starknet_api::serde_utils::bytes_from_hex_str;
+use tracing::{debug, info, instrument};
 
 use crate::config::HttpServerConfig;
 use crate::deprecated_gateway_transaction::DeprecatedGatewayTransactionV3;
@@ -44,11 +56,12 @@ pub struct AppState {
 impl HttpServer {
     pub fn new(config: HttpServerConfig, gateway_client: SharedGatewayClient) -> Self {
         let app_state = AppState { gateway_client };
-        init_metrics();
         HttpServer { config, app_state }
     }
 
     pub async fn run(&mut self) -> Result<(), HttpServerRunError> {
+        init_metrics();
+
         // Parses the bind address from HttpServerConfig, returning an error for invalid addresses.
         let HttpServerConfig { ip, port } = self.config;
         let addr = SocketAddr::new(ip, port);
@@ -68,6 +81,16 @@ impl HttpServer {
             // Rest api endpoint
             .route("/gateway/add_transaction", post(add_tx))
             .with_state(self.app_state.clone())
+            // TODO(shahak): Remove this once we fix the centralized simulator to not use is_alive
+            // and is_ready.
+            .route(
+                "/gateway/is_alive",
+                get(|| futures::future::ready("Gateway is alive!".to_owned()))
+            )
+            .route(
+                "/gateway/is_ready",
+                get(|| futures::future::ready("Gateway is ready!".to_owned()))
+            )
     }
 }
 
@@ -90,6 +113,10 @@ async fn add_tx(
     tx: String,
 ) -> HttpServerResult<Json<GatewayOutput>> {
     ADDED_TRANSACTIONS_TOTAL.increment(1);
+    validate_supported_tx_version(&tx).inspect_err(|e| {
+        debug!("Error while validating transaction version: {}", e);
+        ADDED_TRANSACTIONS_FAILURE.increment(1);
+    })?;
     let tx: DeprecatedGatewayTransactionV3 = serde_json::from_str(&tx).inspect_err(|e| {
         debug!("Error while parsing transaction: {}", e);
         ADDED_TRANSACTIONS_FAILURE.increment(1);
@@ -99,6 +126,40 @@ async fn add_tx(
     })?;
 
     add_tx_inner(app_state, headers, rpc_tx).await
+}
+
+#[allow(clippy::result_large_err)]
+fn validate_supported_tx_version(tx: &str) -> HttpServerResult<()> {
+    let tx_json_value: serde_json::Value = serde_json::from_str(tx)?;
+    let tx_version_json = tx_json_value
+        .get("version")
+        .ok_or_else(|| serde_json::Error::custom("Missing version field"))?;
+    let tx_version = tx_version_json
+        .as_str()
+        .ok_or_else(|| serde_json::Error::custom("Version field is not valid"))?;
+    let tx_version =
+        u64::from_be_bytes(bytes_from_hex_str::<8, true>(tx_version).map_err(|_| {
+            serde_json::Error::custom(format!(
+                "Version field is not a valid hex string: {tx_version}"
+            ))
+        })?);
+    if !SUPPORTED_TRANSACTION_VERSIONS.contains(&tx_version) {
+        return Err(HttpServerError::GatewayClientError(GatewayClientError::GatewayError(
+            GatewayError::DeprecatedGatewayError {
+                source: StarknetError {
+                    code: StarknetErrorCode::KnownErrorCode(
+                        KnownStarknetErrorCode::InvalidTransactionVersion,
+                    ),
+                    message: format!(
+                        "Transaction version {tx_version} is not supported. Supported versions: \
+                         {SUPPORTED_TRANSACTION_VERSIONS:?}."
+                    ),
+                },
+                p2p_message_metadata: None,
+            },
+        )));
+    }
+    Ok(())
 }
 
 async fn add_tx_inner(
@@ -120,7 +181,8 @@ async fn add_tx_inner(
 
 fn record_added_transactions(add_tx_result: &HttpServerResult<GatewayOutput>, region: &str) {
     if let Ok(gateway_output) = add_tx_result {
-        trace!(
+        // TODO(Arni): Reconsider the tracing level for this log.
+        info!(
             "Recorded transaction with hash: {} from region: {}",
             gateway_output.transaction_hash(),
             region

@@ -16,9 +16,9 @@ generate_permutation_labels! {
 
 define_metrics!(
     Gateway => {
-        LabeledMetricCounter { TRANSACTIONS_RECEIVED, "gateway_transactions_received", "Counter of transactions received", init = 0 , labels = TRANSACTION_TYPE_AND_SOURCE_LABELS},
-        LabeledMetricCounter { TRANSACTIONS_FAILED, "gateway_transactions_failed", "Counter of failed transactions", init = 0 , labels = TRANSACTION_TYPE_AND_SOURCE_LABELS},
-        LabeledMetricCounter { TRANSACTIONS_SENT_TO_MEMPOOL, "gateway_transactions_sent_to_mempool", "Counter of transactions sent to the mempool", init = 0 , labels = TRANSACTION_TYPE_AND_SOURCE_LABELS},
+        LabeledMetricCounter { GATEWAY_TRANSACTIONS_RECEIVED, "gateway_transactions_received", "Counter of transactions received", init = 0 , labels = TRANSACTION_TYPE_AND_SOURCE_LABELS},
+        LabeledMetricCounter { GATEWAY_TRANSACTIONS_FAILED, "gateway_transactions_failed", "Counter of failed transactions", init = 0 , labels = TRANSACTION_TYPE_AND_SOURCE_LABELS},
+        LabeledMetricCounter { GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL, "gateway_transactions_sent_to_mempool", "Counter of transactions sent to the mempool", init = 0 , labels = TRANSACTION_TYPE_AND_SOURCE_LABELS},
         MetricHistogram { GATEWAY_ADD_TX_LATENCY, "gateway_add_tx_latency", "Latency of gateway add_tx function in secs" },
         MetricHistogram { GATEWAY_VALIDATE_TX_LATENCY, "gateway_validate_tx_latency", "Latency of gateway validate function in secs" },
     },
@@ -60,7 +60,7 @@ impl GatewayMetricHandle {
     }
 
     pub fn count_transaction_received(&self) {
-        TRANSACTIONS_RECEIVED.increment(1, &self.label());
+        GATEWAY_TRANSACTIONS_RECEIVED.increment(1, &self.label());
     }
 
     pub fn transaction_sent_to_mempool(&mut self) {
@@ -77,17 +77,17 @@ impl Drop for GatewayMetricHandle {
     fn drop(&mut self) {
         match self.tx_status {
             TransactionStatus::SentToMempool => {
-                TRANSACTIONS_SENT_TO_MEMPOOL.increment(1, &self.label())
+                GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL.increment(1, &self.label())
             }
-            TransactionStatus::Failed => TRANSACTIONS_FAILED.increment(1, &self.label()),
+            TransactionStatus::Failed => GATEWAY_TRANSACTIONS_FAILED.increment(1, &self.label()),
         }
     }
 }
 
 pub(crate) fn register_metrics() {
-    TRANSACTIONS_RECEIVED.register();
-    TRANSACTIONS_FAILED.register();
-    TRANSACTIONS_SENT_TO_MEMPOOL.register();
+    GATEWAY_TRANSACTIONS_RECEIVED.register();
+    GATEWAY_TRANSACTIONS_FAILED.register();
+    GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL.register();
     GATEWAY_ADD_TX_LATENCY.register();
     GATEWAY_VALIDATE_TX_LATENCY.register();
 }

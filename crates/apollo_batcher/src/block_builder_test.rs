@@ -3,6 +3,12 @@ use std::sync::Arc;
 
 use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::MockClassManagerClient;
+use apollo_l1_provider_types::InvalidValidationStatus;
+use apollo_l1_provider_types::InvalidValidationStatus::{
+    AlreadyIncludedInProposedBlock,
+    AlreadyIncludedOnL2,
+    ConsumedOnL1OrUnknown,
+};
 use assert_matches::assert_matches;
 use blockifier::blockifier::transaction_executor::{
     BlockExecutionSummary,
@@ -41,12 +47,14 @@ use crate::block_builder::{
 use crate::metrics::FULL_BLOCKS;
 use crate::test_utils::{test_l1_handler_txs, test_txs};
 use crate::transaction_executor::MockTransactionExecutorTrait;
-use crate::transaction_provider::{MockTransactionProvider, NextTxs};
+use crate::transaction_provider::TransactionProviderError::L1HandlerTransactionValidationFailed;
+use crate::transaction_provider::{MockTransactionProvider, NextTxs, TransactionProviderError};
 
 const BLOCK_GENERATION_DEADLINE_SECS: u64 = 1;
 const BLOCK_GENERATION_LONG_DEADLINE_SECS: u64 = 5;
 const TX_CHANNEL_SIZE: usize = 50;
 const TX_CHUNK_SIZE: usize = 3;
+const TX_POLLING_INTERVAL: u64 = 100;
 
 struct TestExpectations {
     mock_transaction_executor: MockTransactionExecutorTrait,
@@ -417,6 +425,16 @@ fn add_limitless_empty_calls(mock_tx_provider: &mut MockTransactionProvider) {
         .returning(|_n_txs| Ok(NextTxs::Txs(Vec::new())));
 }
 
+fn mock_tx_provider_with_error(error: TransactionProviderError) -> MockTransactionProvider {
+    let mut mock_tx_provider = MockTransactionProvider::new();
+    mock_tx_provider
+        .expect_get_txs()
+        .times(1)
+        .with(eq(TX_CHUNK_SIZE))
+        .return_once(move |_n_txs| Err(error));
+    mock_tx_provider
+}
+
 fn compare_tx_hashes(
     input: &[InternalConsensusTransaction],
     blockifier_input: &[BlockifierTransaction],
@@ -467,6 +485,7 @@ async fn run_build_block(
         abort_receiver,
         transaction_converter,
         TX_CHUNK_SIZE,
+        TX_POLLING_INTERVAL,
         BlockBuilderExecutionParams { deadline, fail_on_err },
     );
 
@@ -564,6 +583,35 @@ async fn test_validate_block_with_error(
     assert_matches!(
         result, BlockBuilderError::FailOnError(err)
         if err.to_string() == expected_error.to_string()
+    );
+}
+
+#[rstest]
+#[case::already_included_in_proposed_block(AlreadyIncludedInProposedBlock)]
+#[case::already_included_on_l2(AlreadyIncludedOnL2)]
+#[case::consumed_on_l1_or_unknown(ConsumedOnL1OrUnknown)]
+#[tokio::test]
+async fn test_validate_block_l1_handler_validation_error(#[case] status: InvalidValidationStatus) {
+    let tx_provider = mock_tx_provider_with_error(L1HandlerTransactionValidationFailed {
+        tx_hash: tx_hash!(0),
+        validation_status: status,
+    });
+
+    let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
+    let result = run_build_block(
+        MockTransactionExecutorTrait::new(),
+        tx_provider,
+        None,
+        true,
+        abort_receiver,
+        BLOCK_GENERATION_DEADLINE_SECS,
+    )
+    .await;
+
+    assert_matches!(
+        result,
+        Err(BlockBuilderError::FailOnError(FailOnErrorCause::L1HandlerTransactionValidationFailed)),
+        "Expected FailOnError for validation status: {status:?}"
     );
 }
 

@@ -16,7 +16,7 @@ use papyrus_base_layer::{BaseLayerContract, L1BlockNumber};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
 use thiserror::Error;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 use validator::Validate;
 
 #[cfg(test)]
@@ -122,7 +122,7 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
     }
 
     /// Run the scraper, starting from the given L1 `block_num`, indefinitely.
-    async fn run(&mut self, mut block_num: L1BlockNumber) -> L1GasPriceScraperResult<(), B> {
+    pub async fn run(&mut self, mut block_num: L1BlockNumber) -> L1GasPriceScraperResult<(), B> {
         loop {
             block_num = self.update_prices(block_num).await?;
             tokio::time::sleep(self.config.polling_interval).await;
@@ -135,12 +135,16 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
         &mut self,
         mut block_num: L1BlockNumber,
     ) -> L1GasPriceScraperResult<L1BlockNumber, B> {
-        while let Some(sample) = self
-            .base_layer
-            .get_price_sample(block_num)
-            .await
-            .map_err(L1GasPriceScraperError::BaseLayerError)?
-        {
+        loop {
+            let sample = match self.base_layer.get_price_sample(block_num).await {
+                Ok(Some(sample)) => sample,
+                Ok(None) => return Ok(block_num),
+                Err(e) => {
+                    warn!("BaseLayerError during scraping: {e:?}");
+                    return Ok(block_num);
+                }
+            };
+
             self.l1_gas_price_provider
                 .add_price_info(block_num, sample)
                 .await
@@ -148,7 +152,6 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
 
             block_num += 1;
         }
-        Ok(block_num)
     }
 }
 

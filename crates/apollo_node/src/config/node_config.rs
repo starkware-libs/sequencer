@@ -77,6 +77,18 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 "batcher_config.block_builder_config.chain_info.fee_token_addresses.\
                  eth_fee_token_address",
                 "gateway_config.chain_info.fee_token_addresses.eth_fee_token_address",
+                "state_sync_config.rpc_config.execution_config.eth_fee_contract_address",
+            ]),
+        ),
+        (
+            ser_pointer_target_param(
+                "starknet_url",
+                &POINTER_TARGET_VALUE.to_string(),
+                "URL for communicating with Starknet.",
+            ),
+            set_pointing_param_paths(&[
+                "state_sync_config.central_sync_client_config.central_source_config.starknet_url",
+                "state_sync_config.rpc_config.starknet_url",
             ]),
         ),
         (
@@ -89,6 +101,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 "batcher_config.block_builder_config.chain_info.fee_token_addresses.\
                  strk_fee_token_address",
                 "gateway_config.chain_info.fee_token_addresses.strk_fee_token_address",
+                "state_sync_config.rpc_config.execution_config.strk_fee_contract_address",
             ]),
         ),
         (

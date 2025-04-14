@@ -9,7 +9,7 @@ services:
       - sequencer-network
 
   grafana:
-    image: grafana/grafana:10.4.14-ubuntu
+    image: grafana/grafana:10.4.16-ubuntu
     environment:
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
@@ -25,6 +25,9 @@ services:
     build:
       context: ${SEQUENCER_ROOT_DIR}
       dockerfile: ${SEQUENCER_ROOT_DIR}/deployments/images/sequencer/node_setup.Dockerfile
+    environment:
+      - RUST_LOG=${RUST_LOG}
+      - RUST_BACKTRACE=${RUST_BACKTRACE}
     entrypoint: "/bin/bash -c"
     command: >
       "./target/debug/sequencer_node_setup --output-base-dir ./output --data-prefix-path /data --n-distributed 0 --n-consolidated 1;
@@ -40,6 +43,9 @@ services:
     build:
       context: ${SEQUENCER_ROOT_DIR}
       dockerfile: ${SEQUENCER_ROOT_DIR}/deployments/images/sequencer/dummy_recorder.Dockerfile
+    environment:
+      - RUST_LOG=${RUST_LOG}
+      - RUST_BACKTRACE=${RUST_BACKTRACE}
     ports:
       - "8080:8080"
     networks:
@@ -73,6 +79,7 @@ services:
       jq '.\"http_server_config.ip\" = \"0.0.0.0\"' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
       jq '.\"http_server_config.port\" = ${SEQUENCER_HTTP_PORT}' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
       jq '.\"monitoring_endpoint_config.port\" = ${SEQUENCER_MONITORING_PORT}' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
+      # These are here to avoid using an L1 baselayer. This is because anvil was deliberately disabled in the docker test. 
       jq '.\"components.l1_scraper.execution_mode\" = \"Disabled\"' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
       jq '.\"l1_provider_config.provider_startup_height_override.#is_none\" = true' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
       jq '.\"components.l1_gas_price_scraper.execution_mode\" = \"Disabled\"' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
@@ -94,6 +101,9 @@ services:
     build:
       context: ${SEQUENCER_ROOT_DIR}
       dockerfile: ${SEQUENCER_ROOT_DIR}/deployments/images/sequencer/Dockerfile
+    environment:
+      - RUST_LOG=${RUST_LOG}
+      - RUST_BACKTRACE=${RUST_BACKTRACE}
     ports:
       - ${SEQUENCER_HTTP_PORT}:${SEQUENCER_HTTP_PORT}
       - ${SEQUENCER_MONITORING_PORT}:${SEQUENCER_MONITORING_PORT}
@@ -112,6 +122,9 @@ services:
     build:
       context: ${SEQUENCER_ROOT_DIR}
       dockerfile: ${SEQUENCER_ROOT_DIR}/deployments/images/sequencer/simulator.Dockerfile
+    environment:
+      - RUST_LOG=${RUST_LOG}
+      - RUST_BACKTRACE=${RUST_BACKTRACE}
     entrypoint: "/bin/bash -c"
     command: >
       "./target/debug/sequencer_simulator \

@@ -1,6 +1,7 @@
 use blockifier::state::state_api::StateReader;
 #[cfg(any(feature = "testing", test))]
 use blockifier::test_utils::dict_state_reader::DictStateReader;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::{
     BuiltinHintProcessor,
     HintProcessorData,
@@ -15,15 +16,19 @@ use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
 use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
 use cairo_vm::vm::vm_core::VirtualMachine;
+use starknet_api::core::ClassHash;
+use starknet_api::deprecated_contract_class::ContractClass;
 use starknet_types_core::felt::Felt;
 
+use crate::errors::StarknetOsError;
 use crate::hint_processor::execution_helper::{ExecutionHelperError, OsExecutionHelper};
+use crate::hint_processor::state_update_pointers::StateUpdatePointers;
 use crate::hints::enum_definition::AllHints;
 use crate::hints::error::OsHintError;
 use crate::hints::types::{HintArgs, HintEnum, HintExtensionImplementation, HintImplementation};
 #[cfg(any(feature = "testing", test))]
-use crate::io::os_input::OsBlockInput;
-use crate::io::os_input::OsHintsConfig;
+use crate::io::os_input::{CachedStateInput, OsBlockInput, StarknetOsInput};
+use crate::io::os_input::{OsHints, OsHintsConfig, OsInputError};
 
 type VmHintResultType<T> = Result<T, VmHintError>;
 type VmHintResult = VmHintResultType<()>;
@@ -74,6 +79,11 @@ impl<S: StateReader> ExecutionHelpersManager<S> {
     fn get_current_index(&self) -> Result<usize, ExecutionHelperError> {
         self.current_index.ok_or(ExecutionHelperError::NoCurrentExecutionHelper)
     }
+
+    /// Returns the number of execution helpers.
+    pub fn n_helpers(&self) -> usize {
+        self.execution_helpers.len()
+    }
 }
 
 pub struct SnosHintProcessor<S: StateReader> {
@@ -81,6 +91,9 @@ pub struct SnosHintProcessor<S: StateReader> {
     pub(crate) execution_helpers_manager: ExecutionHelpersManager<S>,
     pub(crate) os_hints_config: OsHintsConfig,
     pub syscall_hint_processor: SyscallHintProcessor,
+    pub(crate) deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
+    pub(crate) compiled_classes: HashMap<ClassHash, CasmContractClass>,
+    pub(crate) state_update_pointers: Option<StateUpdatePointers>,
     _deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
     builtin_hint_processor: BuiltinHintProcessor,
     // KZG fields.
@@ -90,20 +103,44 @@ pub struct SnosHintProcessor<S: StateReader> {
 impl<S: StateReader> SnosHintProcessor<S> {
     pub fn new(
         os_program: Program,
-        execution_helpers: Vec<OsExecutionHelper<S>>,
-        os_hints_config: OsHintsConfig,
+        os_hints: OsHints,
+        state_readers: Vec<S>,
         syscall_hint_processor: SyscallHintProcessor,
         deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
-    ) -> Self {
-        Self {
+    ) -> Result<Self, StarknetOsError> {
+        if state_readers.len() != os_hints.os_input.os_block_and_state_input.len() {
+            return Err(OsInputError::InvalidLengthOfStateReaders(
+                state_readers.len(),
+                os_hints.os_input.os_block_and_state_input.len(),
+            )
+            .into());
+        }
+        let execution_helpers = os_hints
+            .os_input
+            .os_block_and_state_input
+            .into_iter()
+            .zip(state_readers.into_iter())
+            .map(|((os_block_input, cached_state_input), state_reader)| {
+                OsExecutionHelper::new(
+                    os_block_input,
+                    state_reader,
+                    cached_state_input,
+                    os_hints.os_hints_config.debug_mode,
+                )
+            })
+            .collect::<Result<_, _>>()?;
+        Ok(Self {
             os_program,
             execution_helpers_manager: ExecutionHelpersManager::new(execution_helpers),
-            os_hints_config,
+            os_hints_config: os_hints.os_hints_config,
             syscall_hint_processor,
             _deprecated_syscall_hint_processor: deprecated_syscall_hint_processor,
             da_segment: None,
             builtin_hint_processor: BuiltinHintProcessor::new_empty(),
-        }
+            deprecated_compiled_classes: os_hints.os_input.deprecated_compiled_classes,
+            compiled_classes: os_hints.os_input.compiled_classes,
+            state_update_pointers: None,
+        })
     }
 
     /// Stores the data-availabilty segment, to be used for computing the KZG commitment in blob
@@ -130,6 +167,12 @@ impl<S: StateReader> SnosHintProcessor<S> {
         &mut self,
     ) -> Result<&mut OsExecutionHelper<S>, ExecutionHelperError> {
         self.execution_helpers_manager.get_mut_current_execution_helper()
+    }
+
+    /// Returns the number of blocks executed by the OS.
+    pub fn n_blocks(&self) -> usize {
+        // Each execution helper corresponds to a block.
+        self.execution_helpers_manager.n_helpers()
     }
 }
 
@@ -196,25 +239,26 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<S> {
 impl SnosHintProcessor<DictStateReader> {
     pub fn new_for_testing(
         state_reader: Option<DictStateReader>,
-        os_block_input: Option<OsBlockInput>,
         os_program: Option<Program>,
         os_hints_config: Option<OsHintsConfig>,
-    ) -> Self {
+        os_block_input: Option<(OsBlockInput, CachedStateInput)>,
+    ) -> Result<Self, StarknetOsError> {
         let state_reader = state_reader.unwrap_or_default();
-        let os_input = os_block_input.unwrap_or_default();
         let os_program = os_program.unwrap_or_default();
         let os_hints_config = os_hints_config.unwrap_or_default();
-        let execution_helper =
-            OsExecutionHelper::<DictStateReader>::new_for_testing(state_reader, os_input);
-
+        let os_block_input = os_block_input.unwrap_or_default();
+        let os_input = StarknetOsInput {
+            os_block_and_state_input: vec![os_block_input],
+            ..Default::default()
+        };
+        let os_hints = OsHints { os_input, os_hints_config };
         let syscall_handler = SyscallHintProcessor::new();
         let deprecated_syscall_handler = DeprecatedSyscallHintProcessor {};
 
         SnosHintProcessor::new(
             os_program,
-            // TODO(Nimrod): Construct vector of helpers from block inputs.
-            vec![execution_helper],
-            os_hints_config,
+            os_hints,
+            vec![state_reader],
             syscall_handler,
             deprecated_syscall_handler,
         )

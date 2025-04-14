@@ -6,7 +6,7 @@ repository.workspace = true
 license-file.workspace = true
 
 [features]
-testing = ["num-traits", "thiserror", "tokio", "tower"]
+testing = ["apollo_metrics/testing", "num-traits", "thiserror", "tokio", "tower"]
 
 [lints]
 workspace = true
@@ -30,6 +30,7 @@ validator.workspace = true
 
 [dev-dependencies]
 apollo_mempool_types = { workspace = true, features = ["testing"] }
+apollo_metrics = { workspace = true, features = ["testing"] }
 metrics.workspace = true
 num-traits.workspace = true
 pretty_assertions.workspace = true

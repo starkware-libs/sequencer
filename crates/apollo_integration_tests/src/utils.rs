@@ -185,6 +185,7 @@ pub fn create_node_config(
     let class_manager_config =
         create_class_manager_config(storage_config.class_manager_storage_config);
     state_sync_config.storage_config = storage_config.state_sync_storage_config;
+    let starknet_url = state_sync_config.rpc_config.starknet_url.clone();
 
     // Update config pointer values.
     let mut config_pointers_map = ConfigPointersMap::new(CONFIG_POINTERS.clone());
@@ -209,6 +210,10 @@ pub fn create_node_config(
     config_pointers_map.change_target_value(
         "recorder_url",
         to_value(recorder_url).expect("Failed to serialize Url"),
+    );
+    config_pointers_map.change_target_value(
+        "starknet_url",
+        to_value(starknet_url).expect("Failed to serialize starknet_url"),
     );
     (
         SequencerNodeConfig {
@@ -671,7 +676,7 @@ pub fn create_state_sync_configs(
         .into_iter()
         .map(|network_config| StateSyncConfig {
             storage_config: state_sync_storage_config.clone(),
-            network_config,
+            network_config: Some(network_config),
             ..Default::default()
         })
         .collect()

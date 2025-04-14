@@ -1,5 +1,3 @@
-#[cfg(test)]
-use std::path::Path;
 use std::path::PathBuf;
 
 use apollo_infra_utils::dumping::serialize_to_file;
@@ -12,6 +10,7 @@ use serde::Serialize;
 use serde_json::Value;
 use starknet_api::core::ChainId;
 
+use crate::deployment_definitions::Environment;
 use crate::service::{DeploymentName, Service, ServiceName};
 
 const DEPLOYMENT_IMAGE: &str = "ghcr.io/starkware-libs/sequencer/sequencer:dev";
@@ -49,22 +48,32 @@ impl DeploymentAndPreset {
 pub struct Deployment {
     chain_id: ChainId,
     image: &'static str,
-    application_config_subdir: String,
+    application_config_subdir: PathBuf,
     #[serde(skip_serializing)]
     deployment_name: DeploymentName,
+    #[serde(skip_serializing)]
+    environment: Environment,
     services: Vec<Service>,
 }
 
 impl Deployment {
-    pub fn new(chain_id: ChainId, deployment_name: DeploymentName) -> Self {
+    pub fn new(
+        chain_id: ChainId,
+        deployment_name: DeploymentName,
+        environment: Environment,
+    ) -> Self {
         let service_names = deployment_name.all_service_names();
-        let services =
-            service_names.iter().map(|service_name| service_name.create_service()).collect();
+        let services = service_names
+            .iter()
+            .map(|service_name| service_name.create_service(&environment))
+            .collect();
         Self {
             chain_id,
             image: DEPLOYMENT_IMAGE,
-            application_config_subdir: deployment_name.get_path(),
+            application_config_subdir: deployment_name
+                .add_path_suffix(environment.application_config_dir_path()),
             deployment_name,
+            environment,
             services,
         }
     }
@@ -78,7 +87,7 @@ impl Deployment {
         base_app_config_file_path: &str,
     ) -> IndexMap<ServiceName, Value> {
         let deployment_base_app_config = get_deployment_from_config_path(base_app_config_file_path);
-        let component_configs = self.deployment_name.get_component_configs(None);
+        let component_configs = self.deployment_name.get_component_configs(None, &self.environment);
 
         let mut result = IndexMap::new();
 
@@ -100,8 +109,7 @@ impl Deployment {
     pub fn dump_application_config_files(&self, base_app_config_file_path: &str) {
         let app_configs = self.application_config_values(base_app_config_file_path);
         for (service, value) in app_configs.into_iter() {
-            let config_path =
-                PathBuf::from(&self.application_config_subdir).join(service.get_config_file_path());
+            let config_path = &self.application_config_subdir.join(service.get_config_file_path());
             serialize_to_file(
                 value,
                 config_path.to_str().expect("Should be able to convert path to string"),
@@ -113,8 +121,7 @@ impl Deployment {
     pub(crate) fn assert_application_configs_exist(&self) {
         for service in &self.services {
             // Concatenate paths.
-            let subdir_path = Path::new(&self.application_config_subdir);
-            let full_path = subdir_path.join(service.get_config_path());
+            let full_path = &self.application_config_subdir.join(service.get_config_path());
             // Assert existence.
             assert!(full_path.exists(), "File does not exist: {:?}", full_path);
         }
@@ -124,8 +131,7 @@ impl Deployment {
     pub fn test_dump_application_config_files(&self, base_app_config_file_path: &str) {
         let app_configs = self.application_config_values(base_app_config_file_path);
         for (service, value) in app_configs.into_iter() {
-            let config_path =
-                PathBuf::from(&self.application_config_subdir).join(service.get_config_file_path());
+            let config_path = &self.application_config_subdir.join(service.get_config_file_path());
             serialize_to_file_test(
                 value,
                 config_path.to_str().expect("Should be able to convert path to string"),

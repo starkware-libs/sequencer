@@ -6,7 +6,7 @@ use starknet_api::rpc_transaction::{
     RpcTransaction,
 };
 use starknet_api::state::EntryPoint;
-use starknet_api::transaction::fields::{Fee, ValidResourceBounds};
+use starknet_api::transaction::fields::{Fee, Tip, ValidResourceBounds};
 use starknet_types_core::felt::Felt;
 use tracing::{instrument, Level};
 
@@ -52,7 +52,9 @@ impl StatelessTransactionValidator {
         }
 
         let resource_bounds = *tx.resource_bounds();
-        if ValidResourceBounds::AllResources(resource_bounds).max_possible_fee() == Fee(0) {
+        // The resource bounds should be positive even without the tip.
+        if ValidResourceBounds::AllResources(resource_bounds).max_possible_fee(Tip::ZERO) == Fee(0)
+        {
             return Err(StatelessTransactionValidatorError::ZeroResourceBounds { resource_bounds });
         }
 
@@ -234,6 +236,13 @@ impl StatelessTransactionValidator {
         &self,
         contract_class: &starknet_api::state::SierraContractClass,
     ) -> StatelessTransactionValidatorResult<()> {
+        if contract_class.sierra_program.len() > self.config.max_contract_bytecode_size {
+            return Err(StatelessTransactionValidatorError::ContractBytecodeSizeTooLarge {
+                contract_bytecode_size: contract_class.sierra_program.len(),
+                max_contract_bytecode_size: self.config.max_contract_bytecode_size,
+            });
+        }
+
         let contract_class_object_size = serde_json::to_string(&contract_class)
             .expect("Unexpected error serializing contract class.")
             .len();

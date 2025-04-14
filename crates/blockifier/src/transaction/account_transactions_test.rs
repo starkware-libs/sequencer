@@ -5,6 +5,7 @@ use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::{create_calldata, create_trivial_calldata};
 use blockifier_test_utils::contracts::FeatureContract;
+use cairo_lang_runner::short_string::as_cairo_short_string;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
 use num_traits::Inv;
@@ -17,7 +18,14 @@ use starknet_api::abi::abi_utils::{
     selector_from_name,
 };
 use starknet_api::block::{FeeType, GasPrice};
-use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress};
+use starknet_api::core::{
+    calculate_contract_address,
+    ClassHash,
+    CompiledClassHash,
+    ContractAddress,
+    Nonce,
+    PatriciaKey,
+};
 use starknet_api::executable_transaction::{
     AccountTransaction as ApiExecutableTransaction,
     DeclareTransaction as ApiExecutableDeclareTransaction,
@@ -52,6 +60,7 @@ use starknet_api::transaction::fields::{
 use starknet_api::transaction::{
     DeclareTransaction,
     DeclareTransactionV2,
+    DeclareTransactionV3,
     TransactionHash,
     TransactionVersion,
 };
@@ -80,9 +89,16 @@ use crate::fee::fee_utils::{
     GasVectorToL1GasForFee,
 };
 use crate::fee::gas_usage::estimate_minimal_gas_vector;
-use crate::state::cached_state::{StateChangesCount, StateChangesCountForFee, TransactionalState};
+use crate::state::cached_state::{
+    CachedState,
+    StateChangesCount,
+    StateChangesCountForFee,
+    StateMaps,
+    TransactionalState,
+};
 use crate::state::state_api::{State, StateReader};
 use crate::test_utils::contracts::FeatureContractTrait;
+use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::{fund_account, test_state};
 use crate::test_utils::syscall::build_recurse_calldata;
 use crate::test_utils::test_templates::cairo_version;
@@ -97,7 +113,11 @@ use crate::transaction::account_transaction::{
     ExecutionFlags as AccountExecutionFlags,
 };
 use crate::transaction::errors::{TransactionExecutionError, TransactionPreValidationError};
-use crate::transaction::objects::{HasRelatedFeeType, TransactionInfoCreator};
+use crate::transaction::objects::{
+    HasRelatedFeeType,
+    TransactionExecutionInfo,
+    TransactionInfoCreator,
+};
 use crate::transaction::test_utils::{
     all_resource_bounds,
     block_context,
@@ -847,6 +867,82 @@ fn test_fail_declare(block_context: BlockContext, max_fee: Fee) {
     );
 }
 
+#[rstest]
+#[case::valid(DeclareTransaction::V3(DeclareTransactionV3 {
+    sender_address: ApiExecutableDeclareTransaction::bootstrap_address(),
+    class_hash: class_hash!(7_u64),
+    compiled_class_hash: CompiledClassHash(8_u64.into()),
+    ..Default::default()
+}))]
+#[should_panic(expected = "UninitializedStorageAddress")]
+#[case::wrong_tx_version(DeclareTransaction::V2(DeclareTransactionV2 {
+    sender_address: ApiExecutableDeclareTransaction::bootstrap_address(),
+    ..Default::default()
+}))]
+#[should_panic(expected = "InvalidNonce")]
+#[case::wrong_nonce(DeclareTransaction::V3(DeclareTransactionV3 {
+    sender_address: ApiExecutableDeclareTransaction::bootstrap_address(),
+    nonce: Nonce(felt!(1_u64)),
+    ..Default::default()
+}))]
+#[should_panic(expected = "UninitializedStorageAddress")]
+#[case::wrong_sender_address(DeclareTransaction::V3(DeclareTransactionV3 {
+    sender_address: ContractAddress(PatriciaKey::from(1_u128)),
+    ..Default::default()
+}))]
+#[should_panic(expected = "InsufficientResourceBounds")]
+#[case::non_trivial_resource_bounds(DeclareTransaction::V3(DeclareTransactionV3 {
+    sender_address: ApiExecutableDeclareTransaction::bootstrap_address(),
+    resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds {
+        l1_gas: ResourceBounds::default(),
+        l2_gas: ResourceBounds{max_amount: GasAmount(1), max_price_per_unit: GasPrice(1)},
+        l1_data_gas: ResourceBounds::default(),
+    }),
+    ..Default::default()
+}))]
+fn test_bootstrap_declare(block_context: BlockContext, #[case] declare_tx: DeclareTransaction) {
+    let class_info = calculate_class_info_for_testing(
+        FeatureContract::Empty(CairoVersion::Cairo1(RunnableCairo1::Casm)).get_class(),
+    );
+    let executable_declare = ApiExecutableDeclareTransaction {
+        tx: declare_tx.clone(),
+        tx_hash: TransactionHash::default(),
+        class_info,
+    };
+    let declare_account_tx = AccountTransaction::new_for_sequencing(
+        ApiExecutableTransaction::Declare(executable_declare),
+    );
+
+    let mut state = CachedState::from(DictStateReader::default());
+    let res = declare_account_tx.execute(&mut state, &block_context).unwrap();
+
+    // Check declaration.
+    assert_eq!(
+        state.get_compiled_class_hash(declare_tx.class_hash()).unwrap(),
+        declare_tx.compiled_class_hash()
+    );
+
+    // Ensure the only change is the class declaration: no fees, nonce bump, etc.
+    assert_eq!(res, TransactionExecutionInfo::default());
+    assert_eq!(
+        state.to_state_diff().unwrap().state_maps,
+        StateMaps {
+            compiled_class_hashes: HashMap::from([(
+                declare_tx.class_hash(),
+                declare_tx.compiled_class_hash()
+            )]),
+            declared_contracts: HashMap::from([(declare_tx.class_hash(), true)]),
+            ..Default::default()
+        }
+    );
+}
+
+#[test]
+fn test_bootstrap_address() {
+    let num = *ApiExecutableDeclareTransaction::bootstrap_address().0.key();
+    assert_eq!("BOOTSTRAP", as_cairo_short_string(&num).unwrap());
+}
+
 fn recursive_function_calldata(
     contract_address: &ContractAddress,
     depth: u32,
@@ -1534,7 +1630,7 @@ fn test_count_actual_storage_changes(
         account_tx.execute_raw(&mut state, &block_context, concurrency_mode).unwrap();
 
     let fee_1 = execution_info.receipt.fee;
-    let state_changes_1 = state.get_actual_state_changes().unwrap();
+    let state_changes_1 = state.to_state_diff().unwrap();
 
     let cell_write_storage_change = ((contract_address, storage_key!(15_u8)), felt!(1_u8));
     let mut expected_sequencer_total_fee = initial_sequencer_balance + Felt::from(fee_1.0);
@@ -1582,7 +1678,7 @@ fn test_count_actual_storage_changes(
         account_tx.execute_raw(&mut state, &block_context, concurrency_mode).unwrap();
 
     let fee_2 = execution_info.receipt.fee;
-    let state_changes_2 = state.get_actual_state_changes().unwrap();
+    let state_changes_2 = state.to_state_diff().unwrap();
 
     expected_sequencer_total_fee += Felt::from(fee_2.0);
     expected_sequencer_fee_update.1 = expected_sequencer_total_fee;
@@ -1623,7 +1719,7 @@ fn test_count_actual_storage_changes(
         account_tx.execute_raw(&mut state, &block_context, concurrency_mode).unwrap();
 
     let fee_transfer = execution_info.receipt.fee;
-    let state_changes_transfer = state.get_actual_state_changes().unwrap();
+    let state_changes_transfer = state.to_state_diff().unwrap();
     let transfer_receipient_storage_change = (
         (fee_token_address, get_fee_token_var_address(contract_address!(recipient))),
         transfer_amount,

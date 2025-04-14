@@ -1,26 +1,48 @@
 {
   "chain_id": "SN_INTEGRATION_SEPOLIA",
   "image": "ghcr.io/starkware-libs/sequencer/sequencer:dev",
-  "application_config_subdir": "config/sequencer/presets/consolidated_node/application_configs/",
+  "application_config_subdir": "config/sequencer/sepolia_integration/app_configs/consolidated/",
   "services": [
     {
       "name": "Node",
+      "controller": "StatefulSet",
       "config_path": "node.json",
-      "ingress": false,
+      "ingress": {
+        "domain": "sw-dev.io",
+        "internal": false,
+        "rules": [
+          {
+            "path": "/gateway",
+            "port": 8080,
+            "backend": null
+          },
+          {
+            "path": "/feeder_gateway",
+            "port": 8085,
+            "backend": "nginx-service"
+          }
+        ],
+        "alternative_names": [
+          "starknet-upgrade-testing-sepolia.gateway-proxy.sw-dev.io"
+        ]
+      },
       "autoscale": false,
       "replicas": 1,
-      "storage": 32,
+      "storage": 500,
+      "toleration": "sequencer",
       "resources": {
         "requests": {
-          "cpu": 1,
-          "memory": 2
+          "cpu": 2,
+          "memory": 4
         },
         "limits": {
           "cpu": 4,
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": {
+        "gcsm_key": "sequencer-integration-secrets"
+      }
     }
   ]
 }

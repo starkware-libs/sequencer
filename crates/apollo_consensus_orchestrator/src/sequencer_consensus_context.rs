@@ -56,6 +56,8 @@ use async_trait::async_trait;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use futures::channel::{mpsc, oneshot};
 use futures::{FutureExt, SinkExt, StreamExt};
+#[cfg(any(feature = "testing", test))]
+use mockall::automock;
 use starknet_api::block::{
     BlockHash,
     BlockHashAndNumber,
@@ -134,6 +136,7 @@ enum BuildProposalError {
 
 // TODO(guy.f): Times are probably used in other crates which would benefit from this. Move this to
 // a common mod that can be used across crates.
+#[cfg_attr(any(test, feature = "testing"), automock)]
 pub trait Clock: Send + Sync {
     fn now(&self) -> chrono::DateTime<chrono::Utc> {
         chrono::Utc::now()
@@ -524,7 +527,7 @@ impl ConsensusContext for SequencerConsensusContext {
             .await
             .expect("Failed to get state diff.");
 
-        let next_l2_gas_price = calculate_next_base_gas_price(
+        self.l2_gas_price = calculate_next_base_gas_price(
             self.l2_gas_price,
             l2_gas_used.0,
             VersionedConstants::latest_constants().max_block_size / 2,
@@ -536,11 +539,15 @@ impl ConsensusContext for SequencerConsensusContext {
         let cende_block_info = convert_to_sn_api_block_info(&block_info);
         let l1_gas_price = GasPricePerToken {
             price_in_fri: cende_block_info.gas_prices.strk_gas_prices.l1_gas_price.get(),
-            price_in_wei: GasPrice(block_info.l1_gas_price_wei),
+            price_in_wei: cende_block_info.gas_prices.eth_gas_prices.l1_gas_price.get(),
         };
         let l1_data_gas_price = GasPricePerToken {
             price_in_fri: cende_block_info.gas_prices.strk_gas_prices.l1_data_gas_price.get(),
-            price_in_wei: GasPrice(block_info.l1_data_gas_price_wei),
+            price_in_wei: cende_block_info.gas_prices.eth_gas_prices.l1_data_gas_price.get(),
+        };
+        let l2_gas_price = GasPricePerToken {
+            price_in_fri: cende_block_info.gas_prices.strk_gas_prices.l2_gas_price.get(),
+            price_in_wei: cende_block_info.gas_prices.eth_gas_prices.l2_gas_price.get(),
         };
         let sequencer = SequencerContractAddress(block_info.builder);
 
@@ -548,14 +555,9 @@ impl ConsensusContext for SequencerConsensusContext {
             block_number: BlockNumber(height),
             l1_gas_price,
             l1_data_gas_price,
-            l2_gas_price: GasPricePerToken {
-                price_in_fri: GasPrice(__self.l2_gas_price.into()),
-                // TODO(guy.f): We shouldn't be sending price_in_wei for l2, should we remove
-                // it from the Token or not use GasPriceToken here.
-                price_in_wei: GasPrice(1),
-            },
+            l2_gas_price,
             l2_gas_consumed: l2_gas_used.0,
-            next_l2_gas_price,
+            next_l2_gas_price: self.l2_gas_price,
             sequencer,
             timestamp: BlockTimestamp(block_info.timestamp),
             l1_da_mode: block_info.l1_da_mode,
@@ -571,8 +573,6 @@ impl ConsensusContext for SequencerConsensusContext {
         let state_sync_client = self.state_sync_client.clone();
         // `add_new_block` returns immediately, it doesn't wait for sync to fully process the block.
         state_sync_client.add_new_block(sync_block).await.expect("Failed to add new block.");
-
-        self.l2_gas_price = next_l2_gas_price;
 
         // TODO(dvir): pass here real `BlobParameters` info.
         // TODO(dvir): when passing here the correct `BlobParameters`, also test that
@@ -849,9 +849,6 @@ async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<Consens
         retrospective_block_hash,
         block_info: convert_to_sn_api_block_info(&block_info),
     };
-    // TODO(Matan): Should we be returning an error?
-    // I think this implies defining an error type in this crate and moving the trait definition
-    // here also.
     debug!("Initiating build proposal: {build_proposal_input:?}");
     args.batcher.propose_block(build_proposal_input).await?;
     Ok(block_info)
@@ -1044,8 +1041,6 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
 
     // Update valid_proposals before sending fin to avoid a race condition
     // with `repropose` being called before `valid_proposals` is updated.
-    //
-    // TODO(Matan): Consider validating the ProposalFin signature here.
     let mut valid_proposals = args.valid_proposals.lock().unwrap();
     valid_proposals
         .entry(args.block_info_validation.height)
@@ -1080,7 +1075,6 @@ async fn is_block_info_valid(
     min_max_prices: GasPriceBounds,
 ) -> bool {
     let now: u64 = clock.now_as_timestamp();
-    // TODO(Asmaa): Validate the rest of the block info.
     if !(block_info.height == block_info_validation.height
         && block_info.timestamp >= block_info_validation.last_block_timestamp.unwrap_or(0)
         && block_info.timestamp <= now + block_info_validation.block_timestamp_window_seconds
@@ -1200,7 +1194,6 @@ async fn initiate_validation(
     let input = ValidateBlockInput {
         proposal_id,
         deadline: clock.now() + chrono_timeout,
-        // TODO(Matan 3/11/2024): Add the real value of the retrospective block hash.
         retrospective_block_hash: retrospective_block_hash(state_sync_client, &block_info).await?,
         block_info: convert_to_sn_api_block_info(&block_info),
     };

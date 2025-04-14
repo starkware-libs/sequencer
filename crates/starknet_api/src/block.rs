@@ -4,6 +4,7 @@ mod block_test;
 
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
+use size_of::SizeOf;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Poseidon, StarkHash as CoreStarkHash};
 use strum_macros::EnumIter;
@@ -339,6 +340,7 @@ pub struct GasPricePerToken {
     Serialize,
     PartialOrd,
     Ord,
+    SizeOf,
 )]
 #[serde(from = "PrefixedBytesAsHex<16_usize>", into = "PrefixedBytesAsHex<16_usize>")]
 pub struct GasPrice(pub u128);
@@ -379,6 +381,10 @@ impl GasPrice {
     pub const fn saturating_mul(self, rhs: GasAmount) -> Fee {
         #[allow(clippy::as_conversions)]
         Fee(self.0.saturating_mul(rhs.0 as u128))
+    }
+
+    pub fn saturating_add(self, rhs: Tip) -> Self {
+        Self(self.0.saturating_add(rhs.0.into()))
     }
 
     pub fn checked_mul(self, rhs: GasAmount) -> Option<Fee> {

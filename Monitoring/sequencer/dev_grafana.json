@@ -359,10 +359,24 @@
         "extra_params": {}
       },
       {
+        "title": "mempool_total_size_bytes",
+        "description": "The average total transaction size in bytes over time in the mempool",
+        "type": "graph",
+        "expr": "avg_over_time(mempool_total_size_bytes[2m])",
+        "extra_params": {}
+      },
+      {
         "title": "mempool_get_txs_size",
         "description": "The average size of the get_txs",
         "type": "graph",
         "expr": "avg_over_time(mempool_get_txs_size[2m])",
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_delayed_declare_size",
+        "description": "The average number of delayed declare transactions",
+        "type": "graph",
+        "expr": "avg_over_time(mempool_delayed_declare_size[2m])",
         "extra_params": {}
       },
       {
@@ -379,6 +393,409 @@
         "description": "The ratio of cache misses when requesting compiled classes from the apollo state reader",
         "type": "graph",
         "expr": "100 * (class_cache_misses / max((class_cache_misses + class_cache_hits), 1))",
+        "extra_params": {}
+      },
+      {
+        "title": "native_class_returned_ratio",
+        "description": "The ratio of Native classes returned by the apollo state reader",
+        "type": "graph",
+        "expr": "100 * (native_class_returned / max((class_cache_hits + class_cache_misses), 1))",
+        "extra_params": {}
+      }
+    ],
+    "Batcher Infra": [
+      {
+        "title": "batcher_local_msgs_received",
+        "description": "Counter of messages received by batcher local server",
+        "type": "stat",
+        "expr": "batcher_local_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_local_msgs_processed",
+        "description": "Counter of messages processed by batcher local server",
+        "type": "stat",
+        "expr": "batcher_local_msgs_processed",
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_local_queue_depth",
+        "description": "The depth of the batcher's local message queue",
+        "type": "stat",
+        "expr": "batcher_local_queue_depth",
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_remote_msgs_received",
+        "description": "Counter of messages received by batcher remote server",
+        "type": "stat",
+        "expr": "batcher_remote_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_remote_valid_msgs_received",
+        "description": "Counter of valid messages received by batcher remote server",
+        "type": "stat",
+        "expr": "batcher_remote_valid_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "batcher_remote_msgs_processed",
+        "description": "Counter of messages processed by batcher remote server",
+        "type": "stat",
+        "expr": "batcher_remote_msgs_processed",
+        "extra_params": {}
+      }
+    ],
+    "Gateway Infra": [
+      {
+        "title": "gateway_local_msgs_received",
+        "description": "Counter of messages received by gateway local server",
+        "type": "stat",
+        "expr": "gateway_local_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "gateway_local_msgs_processed",
+        "description": "Counter of messages processed by gateway local server",
+        "type": "stat",
+        "expr": "gateway_local_msgs_processed",
+        "extra_params": {}
+      },
+      {
+        "title": "gateway_local_queue_depth",
+        "description": "The depth of the gateway's local message queue",
+        "type": "stat",
+        "expr": "gateway_local_queue_depth",
+        "extra_params": {}
+      },
+      {
+        "title": "gateway_remote_msgs_received",
+        "description": "Counter of messages received by gateway remote server",
+        "type": "stat",
+        "expr": "gateway_remote_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "gateway_remote_valid_msgs_received",
+        "description": "Counter of valid messages received by gateway remote server",
+        "type": "stat",
+        "expr": "gateway_remote_valid_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "gateway_remote_msgs_processed",
+        "description": "Counter of messages processed by gateway remote server",
+        "type": "stat",
+        "expr": "gateway_remote_msgs_processed",
+        "extra_params": {}
+      }
+    ],
+    "Class Manager Infra": [
+      {
+        "title": "class_manager_local_msgs_received",
+        "description": "Counter of messages received by class manager local server",
+        "type": "stat",
+        "expr": "class_manager_local_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_local_msgs_processed",
+        "description": "Counter of messages processed by class manager local server",
+        "type": "stat",
+        "expr": "class_manager_local_msgs_processed",
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_local_queue_depth",
+        "description": "The depth of the class manager's local message queue",
+        "type": "stat",
+        "expr": "class_manager_local_queue_depth",
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_remote_msgs_received",
+        "description": "Counter of messages received by class manager remote server",
+        "type": "stat",
+        "expr": "class_manager_remote_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_remote_valid_msgs_received",
+        "description": "Counter of valid messages received by class manager remote server",
+        "type": "stat",
+        "expr": "class_manager_remote_valid_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_remote_msgs_processed",
+        "description": "Counter of messages processed by class manager remote server",
+        "type": "stat",
+        "expr": "class_manager_remote_msgs_processed",
+        "extra_params": {}
+      }
+    ],
+    "L1 Provider Infra": [
+      {
+        "title": "l1_provider_local_msgs_received",
+        "description": "Counter of messages received by L1 provider local server",
+        "type": "stat",
+        "expr": "l1_provider_local_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_local_msgs_processed",
+        "description": "Counter of messages processed by L1 provider local server",
+        "type": "stat",
+        "expr": "l1_provider_local_msgs_processed",
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_local_queue_depth",
+        "description": "The depth of the L1 provider's local message queue",
+        "type": "stat",
+        "expr": "l1_provider_local_queue_depth",
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_remote_msgs_received",
+        "description": "Counter of messages received by L1 provider remote server",
+        "type": "stat",
+        "expr": "l1_provider_remote_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_remote_valid_msgs_received",
+        "description": "Counter of valid messages received by L1 provider remote server",
+        "type": "stat",
+        "expr": "l1_provider_remote_valid_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_remote_msgs_processed",
+        "description": "Counter of messages processed by L1 provider remote server",
+        "type": "stat",
+        "expr": "l1_provider_remote_msgs_processed",
+        "extra_params": {}
+      }
+    ],
+    "L1 Gas Price Infra": [
+      {
+        "title": "l1_gas_price_provider_local_msgs_received",
+        "description": "Counter of messages received by L1 gas price provider local server",
+        "type": "stat",
+        "expr": "l1_gas_price_provider_local_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_provider_local_msgs_processed",
+        "description": "Counter of messages processed by L1 gas price provider local server",
+        "type": "stat",
+        "expr": "l1_gas_price_provider_local_msgs_processed",
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_provider_local_queue_depth",
+        "description": "The depth of the L1 gas price provider's local message queue",
+        "type": "stat",
+        "expr": "l1_gas_price_provider_local_queue_depth",
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_provider_remote_msgs_received",
+        "description": "Counter of messages received by L1 gas price provider remote server",
+        "type": "stat",
+        "expr": "l1_gas_price_provider_remote_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_provider_remote_valid_msgs_received",
+        "description": "Counter of valid messages received by L1 gas price provider remote server",
+        "type": "stat",
+        "expr": "l1_gas_price_provider_remote_valid_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_provider_remote_msgs_processed",
+        "description": "Counter of messages processed by L1 gas price provider remote server",
+        "type": "stat",
+        "expr": "l1_gas_price_provider_remote_msgs_processed",
+        "extra_params": {}
+      }
+    ],
+    "Mempool Infra": [
+      {
+        "title": "mempool_local_msgs_received",
+        "description": "Counter of messages received by mempool local server",
+        "type": "stat",
+        "expr": "mempool_local_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_local_msgs_processed",
+        "description": "Counter of messages processed by mempool local server",
+        "type": "stat",
+        "expr": "mempool_local_msgs_processed",
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_local_queue_depth",
+        "description": "The depth of the mempool's local message queue",
+        "type": "stat",
+        "expr": "mempool_local_queue_depth",
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_remote_msgs_received",
+        "description": "Counter of messages received by mempool remote server",
+        "type": "stat",
+        "expr": "mempool_remote_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_remote_valid_msgs_received",
+        "description": "Counter of valid messages received by mempool remote server",
+        "type": "stat",
+        "expr": "mempool_remote_valid_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_remote_msgs_processed",
+        "description": "Counter of messages processed by mempool remote server",
+        "type": "stat",
+        "expr": "mempool_remote_msgs_processed",
+        "extra_params": {}
+      }
+    ],
+    "MempoolP2pInfra": [
+      {
+        "title": "mempool_p2p_propagator_local_msgs_received",
+        "description": "Counter of messages received by mempool p2p local server",
+        "type": "stat",
+        "expr": "mempool_p2p_propagator_local_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_p2p_propagator_local_msgs_processed",
+        "description": "Counter of messages processed by mempool p2p local server",
+        "type": "stat",
+        "expr": "mempool_p2p_propagator_local_msgs_processed",
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_p2p_propagator_local_queue_depth",
+        "description": "The depth of the mempool p2p's local message queue",
+        "type": "stat",
+        "expr": "mempool_p2p_propagator_local_queue_depth",
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_p2p_propagator_remote_msgs_received",
+        "description": "Counter of messages received by mempool p2p remote server",
+        "type": "stat",
+        "expr": "mempool_p2p_propagator_remote_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_p2p_propagator_remote_valid_msgs_received",
+        "description": "Counter of valid messages received by mempool p2p remote server",
+        "type": "stat",
+        "expr": "mempool_p2p_propagator_remote_valid_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_p2p_propagator_remote_msgs_processed",
+        "description": "Counter of messages processed by mempool p2p remote server",
+        "type": "stat",
+        "expr": "mempool_p2p_propagator_remote_msgs_processed",
+        "extra_params": {}
+      }
+    ],
+    "SierraCompilerInfra": [
+      {
+        "title": "sierra_compiler_local_msgs_received",
+        "description": "Counter of messages received by sierra compiler local server",
+        "type": "stat",
+        "expr": "sierra_compiler_local_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "sierra_compiler_local_msgs_processed",
+        "description": "Counter of messages processed by sierra compiler local server",
+        "type": "stat",
+        "expr": "sierra_compiler_local_msgs_processed",
+        "extra_params": {}
+      },
+      {
+        "title": "sierra_compiler_local_queue_depth",
+        "description": "The depth of the sierra compiler's local message queue",
+        "type": "stat",
+        "expr": "sierra_compiler_local_queue_depth",
+        "extra_params": {}
+      },
+      {
+        "title": "sierra_compiler_remote_msgs_received",
+        "description": "Counter of messages received by state sync remote server",
+        "type": "stat",
+        "expr": "sierra_compiler_remote_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "sierra_compiler_remote_valid_msgs_received",
+        "description": "Counter of valid messages received by state sync remote server",
+        "type": "stat",
+        "expr": "sierra_compiler_remote_valid_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "sierra_compiler_remote_msgs_processed",
+        "description": "Counter of messages processed by state sync remote server",
+        "type": "stat",
+        "expr": "sierra_compiler_remote_msgs_processed",
+        "extra_params": {}
+      }
+    ],
+    "StateSyncInfra": [
+      {
+        "title": "state_sync_local_msgs_received",
+        "description": "Counter of messages received by state sync local server",
+        "type": "stat",
+        "expr": "state_sync_local_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_local_msgs_processed",
+        "description": "Counter of messages processed by state sync local server",
+        "type": "stat",
+        "expr": "state_sync_local_msgs_processed",
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_local_queue_depth",
+        "description": "The depth of the state sync's local message queue",
+        "type": "stat",
+        "expr": "state_sync_local_queue_depth",
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_remote_msgs_received",
+        "description": "Counter of messages received by state sync remote server",
+        "type": "stat",
+        "expr": "state_sync_remote_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_remote_valid_msgs_received",
+        "description": "Counter of valid messages received by state sync remote server",
+        "type": "stat",
+        "expr": "state_sync_remote_valid_msgs_received",
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_remote_msgs_processed",
+        "description": "Counter of messages processed by state sync remote server",
+        "type": "stat",
+        "expr": "state_sync_remote_msgs_processed",
         "extra_params": {}
       }
     ]

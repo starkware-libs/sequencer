@@ -1,15 +1,17 @@
 {
   "chain_id": "SN_INTEGRATION_SEPOLIA",
   "image": "ghcr.io/starkware-libs/sequencer/sequencer:dev",
-  "application_config_subdir": "config/sequencer/presets/consolidated_node/application_configs/",
+  "application_config_subdir": "config/sequencer/testing/app_configs/consolidated/",
   "services": [
     {
       "name": "Node",
+      "controller": "StatefulSet",
       "config_path": "node.json",
-      "ingress": false,
+      "ingress": null,
       "autoscale": false,
       "replicas": 1,
       "storage": 32,
+      "toleration": null,
       "resources": {
         "requests": {
           "cpu": 1,
@@ -20,7 +22,9 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": {
+        "gcsm_key": "sequencer-dev-secrets"
+      }
     }
   ]
 }

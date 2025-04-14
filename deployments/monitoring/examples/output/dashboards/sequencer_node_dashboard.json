@@ -1,0 +1,1955 @@
+{
+    "dashboard": {
+        "annotations": {
+            "list": [
+                {
+                    "builtIn": 1,
+                    "datasource": {
+                        "type": "grafana",
+                        "uid": "-- Grafana --"
+                    },
+                    "enable": true,
+                    "hide": true,
+                    "iconColor": "rgba(0, 211, 255, 1)",
+                    "name": "Annotations & Alerts",
+                    "type": "dashboard"
+                }
+            ]
+        },
+        "editable": true,
+        "fiscalYearStartMonth": 0,
+        "graphTooltip": 0,
+        "links": [],
+        "liveNow": false,
+        "panels": [
+            {
+                "collapsed": true,
+                "gridPos": {
+                    "h": 1,
+                    "w": 24,
+                    "x": 0,
+                    "y": 97
+                },
+                "id": 1,
+                "panels": [
+                    {
+                        "id": 2,
+                        "type": "stat",
+                        "title": "batcher_proposal_started",
+                        "description": "Counter of proposals started",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 0,
+                            "y": 1
+                        },
+                        "targets": [
+                            {
+                                "expr": "batcher_proposal_started",
+                                "refId": "C"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 3,
+                        "type": "stat",
+                        "title": "batcher_proposal_succeeded",
+                        "description": "Counter of successful proposals",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 12,
+                            "y": 1
+                        },
+                        "targets": [
+                            {
+                                "expr": "batcher_proposal_succeeded",
+                                "refId": "D"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 4,
+                        "type": "stat",
+                        "title": "batcher_proposal_failed",
+                        "description": "Counter of failed proposals",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 0,
+                            "y": 7
+                        },
+                        "targets": [
+                            {
+                                "expr": "batcher_proposal_failed",
+                                "refId": "E"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 5,
+                        "type": "stat",
+                        "title": "batcher_batched_transactions",
+                        "description": "Counter of batched transactions across all forks",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 12,
+                            "y": 7
+                        },
+                        "targets": [
+                            {
+                                "expr": "batcher_batched_transactions",
+                                "refId": "F"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 6,
+                        "type": "graph",
+                        "title": "cairo_native_cache_miss_ratio",
+                        "description": "The ratio of cache misses in the Cairo native cache",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 0,
+                            "y": 13
+                        },
+                        "targets": [
+                            {
+                                "expr": "100 * (class_cache_misses / clamp_min((class_cache_misses + class_cache_hits), 1))",
+                                "refId": "G"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                ],
+                "title": "Batcher",
+                "type": "row"
+            },
+            {
+                "collapsed": true,
+                "gridPos": {
+                    "h": 1,
+                    "w": 24,
+                    "x": 0,
+                    "y": 97
+                },
+                "id": 7,
+                "panels": [
+                    {
+                        "id": 8,
+                        "type": "stat",
+                        "title": "consensus_block_number",
+                        "description": "The block number consensus is working to decide",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 0,
+                            "y": 14
+                        },
+                        "targets": [
+                            {
+                                "expr": "consensus_block_number",
+                                "refId": "I"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 9,
+                        "type": "stat",
+                        "title": "consensus_round",
+                        "description": "The round of the state machine",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 12,
+                            "y": 14
+                        },
+                        "targets": [
+                            {
+                                "expr": "consensus_round",
+                                "refId": "J"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 10,
+                        "type": "stat",
+                        "title": "consensus_max_cached_block_number",
+                        "description": "How many blocks after current are cached",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 0,
+                            "y": 20
+                        },
+                        "targets": [
+                            {
+                                "expr": "consensus_max_cached_block_number",
+                                "refId": "K"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 11,
+                        "type": "stat",
+                        "title": "consensus_cached_votes",
+                        "description": "How many votes are cached when starting to work on a new block number",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 12,
+                            "y": 20
+                        },
+                        "targets": [
+                            {
+                                "expr": "consensus_cached_votes",
+                                "refId": "L"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 12,
+                        "type": "stat",
+                        "title": "consensus_decisions_reached_by_consensus",
+                        "description": "The total number of decisions reached by way of consensus",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 0,
+                            "y": 26
+                        },
+                        "targets": [
+                            {
+                                "expr": "consensus_decisions_reached_by_consensus",
+                                "refId": "M"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 13,
+                        "type": "stat",
+                        "title": "consensus_decisions_reached_by_sync",
+                        "description": "The total number of decisions reached by way of sync",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 12,
+                            "y": 26
+                        },
+                        "targets": [
+                            {
+                                "expr": "consensus_decisions_reached_by_sync",
+                                "refId": "N"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 14,
+                        "type": "stat",
+                        "title": "consensus_proposals_received",
+                        "description": "The total number of proposals received",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 0,
+                            "y": 32
+                        },
+                        "targets": [
+                            {
+                                "expr": "consensus_proposals_received",
+                                "refId": "O"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 15,
+                        "type": "stat",
+                        "title": "consensus_proposals_valid_init",
+                        "description": "The total number of proposals received with a valid init",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 12,
+                            "y": 32
+                        },
+                        "targets": [
+                            {
+                                "expr": "consensus_proposals_valid_init",
+                                "refId": "P"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 16,
+                        "type": "stat",
+                        "title": "consensus_proposals_validated",
+                        "description": "The total number of complete, valid proposals received",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 0,
+                            "y": 38
+                        },
+                        "targets": [
+                            {
+                                "expr": "consensus_proposals_validated",
+                                "refId": "Q"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 17,
+                        "type": "stat",
+                        "title": "consensus_proposals_invalid",
+                        "description": "The total number of proposals that failed validation",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 12,
+                            "y": 38
+                        },
+                        "targets": [
+                            {
+                                "expr": "consensus_proposals_invalid",
+                                "refId": "R"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 18,
+                        "type": "stat",
+                        "title": "consensus_build_proposal_total",
+                        "description": "The total number of proposals built",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 0,
+                            "y": 44
+                        },
+                        "targets": [
+                            {
+                                "expr": "consensus_build_proposal_total",
+                                "refId": "S"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 19,
+                        "type": "stat",
+                        "title": "consensus_build_proposal_failed",
+                        "description": "The number of proposals that failed to be built",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 12,
+                            "y": 44
+                        },
+                        "targets": [
+                            {
+                                "expr": "consensus_build_proposal_failed",
+                                "refId": "T"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 20,
+                        "type": "stat",
+                        "title": "consensus_reproposals",
+                        "description": "The number of reproposals sent",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 0,
+                            "y": 50
+                        },
+                        "targets": [
+                            {
+                                "expr": "consensus_reproposals",
+                                "refId": "U"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                ],
+                "title": "Consensus",
+                "type": "row"
+            },
+            {
+                "collapsed": true,
+                "gridPos": {
+                    "h": 1,
+                    "w": 24,
+                    "x": 0,
+                    "y": 97
+                },
+                "id": 21,
+                "panels": [
+                    {
+                        "id": 22,
+                        "type": "stat",
+                        "title": "http_server_added_transactions_total",
+                        "description": "Total number of transactions added",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 0,
+                            "y": 51
+                        },
+                        "targets": [
+                            {
+                                "expr": "http_server_added_transactions_total",
+                                "refId": "W"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                ],
+                "title": "Http Server",
+                "type": "row"
+            },
+            {
+                "collapsed": true,
+                "gridPos": {
+                    "h": 1,
+                    "w": 24,
+                    "x": 0,
+                    "y": 97
+                },
+                "id": 23,
+                "panels": [
+                    {
+                        "id": 24,
+                        "type": "stat",
+                        "title": "apollo_mempool_p2p_num_connected_peers",
+                        "description": "The number of connected peers to the mempool p2p component",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 0,
+                            "y": 52
+                        },
+                        "targets": [
+                            {
+                                "expr": "apollo_mempool_p2p_num_connected_peers",
+                                "refId": "Y"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 25,
+                        "type": "stat",
+                        "title": "apollo_mempool_p2p_num_sent_messages",
+                        "description": "The number of messages sent by the mempool p2p component",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 12,
+                            "y": 52
+                        },
+                        "targets": [
+                            {
+                                "expr": "apollo_mempool_p2p_num_sent_messages",
+                                "refId": "Z"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 26,
+                        "type": "stat",
+                        "title": "apollo_mempool_p2p_num_received_messages",
+                        "description": "The number of messages received by the mempool p2p component",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 0,
+                            "y": 58
+                        },
+                        "targets": [
+                            {
+                                "expr": "apollo_mempool_p2p_num_received_messages",
+                                "refId": "A"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                ],
+                "title": "MempoolP2p",
+                "type": "row"
+            },
+            {
+                "collapsed": true,
+                "gridPos": {
+                    "h": 1,
+                    "w": 24,
+                    "x": 0,
+                    "y": 97
+                },
+                "id": 27,
+                "panels": [
+                    {
+                        "id": 28,
+                        "type": "stat",
+                        "title": "apollo_consensus_num_connected_peers",
+                        "description": "The number of connected peers to the consensus p2p component",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 0,
+                            "y": 59
+                        },
+                        "targets": [
+                            {
+                                "expr": "apollo_consensus_num_connected_peers",
+                                "refId": "C"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 29,
+                        "type": "stat",
+                        "title": "apollo_consensus_votes_num_sent_messages",
+                        "description": "The number of messages sent by the consensus p2p component over the Votes topic",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 12,
+                            "y": 59
+                        },
+                        "targets": [
+                            {
+                                "expr": "apollo_consensus_votes_num_sent_messages",
+                                "refId": "D"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 30,
+                        "type": "stat",
+                        "title": "apollo_consensus_votes_num_received_messages",
+                        "description": "The number of messages received by the consensus p2p component over the Votes topic",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 0,
+                            "y": 65
+                        },
+                        "targets": [
+                            {
+                                "expr": "apollo_consensus_votes_num_received_messages",
+                                "refId": "E"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 31,
+                        "type": "stat",
+                        "title": "apollo_consensus_proposals_num_sent_messages",
+                        "description": "The number of messages sent by the consensus p2p component over the Proposals topic",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 12,
+                            "y": 65
+                        },
+                        "targets": [
+                            {
+                                "expr": "apollo_consensus_proposals_num_sent_messages",
+                                "refId": "F"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 32,
+                        "type": "stat",
+                        "title": "apollo_consensus_proposals_num_received_messages",
+                        "description": "The number of messages received by the consensus p2p component over the Proposals topic",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 0,
+                            "y": 71
+                        },
+                        "targets": [
+                            {
+                                "expr": "apollo_consensus_proposals_num_received_messages",
+                                "refId": "G"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                ],
+                "title": "ConsensusP2p",
+                "type": "row"
+            },
+            {
+                "collapsed": true,
+                "gridPos": {
+                    "h": 1,
+                    "w": 24,
+                    "x": 0,
+                    "y": 97
+                },
+                "id": 33,
+                "panels": [
+                    {
+                        "id": 34,
+                        "type": "stat",
+                        "title": "apollo_sync_num_connected_peers",
+                        "description": "The number of connected peers to the state sync p2p component",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 0,
+                            "y": 72
+                        },
+                        "targets": [
+                            {
+                                "expr": "apollo_sync_num_connected_peers",
+                                "refId": "I"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 35,
+                        "type": "stat",
+                        "title": "apollo_sync_num_active_inbound_sessions",
+                        "description": "The number of inbound sessions to the state sync p2p component",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 12,
+                            "y": 72
+                        },
+                        "targets": [
+                            {
+                                "expr": "apollo_sync_num_active_inbound_sessions",
+                                "refId": "J"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 36,
+                        "type": "stat",
+                        "title": "apollo_sync_num_active_outbound_sessions",
+                        "description": "The number of outbound sessions to the state sync p2p component",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 0,
+                            "y": 78
+                        },
+                        "targets": [
+                            {
+                                "expr": "apollo_sync_num_active_outbound_sessions",
+                                "refId": "K"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                ],
+                "title": "StateSyncP2p",
+                "type": "row"
+            },
+            {
+                "collapsed": true,
+                "gridPos": {
+                    "h": 1,
+                    "w": 24,
+                    "x": 0,
+                    "y": 97
+                },
+                "id": 37,
+                "panels": [
+                    {
+                        "id": 38,
+                        "type": "stat",
+                        "title": "gateway_transactions_received",
+                        "description": "Counter of transactions received",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 0,
+                            "y": 79
+                        },
+                        "targets": [
+                            {
+                                "expr": "sum  by (tx_type) (gateway_transactions_received) ",
+                                "refId": "M"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 39,
+                        "type": "stat",
+                        "title": "gateway_transactions_received",
+                        "description": "Counter of transactions received",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 12,
+                            "y": 79
+                        },
+                        "targets": [
+                            {
+                                "expr": "sum  by (source) (gateway_transactions_received) ",
+                                "refId": "N"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 40,
+                        "type": "graph",
+                        "title": "gateway_transactions_received_rate (TPS)",
+                        "description": "The rate of transactions received by the gateway during the last 20 minutes",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 0,
+                            "y": 85
+                        },
+                        "targets": [
+                            {
+                                "expr": "sum(rate(gateway_transactions_received[20m]))",
+                                "refId": "O"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 41,
+                        "type": "graph",
+                        "title": "gateway_add_tx_latency",
+                        "description": "Latency of gateway add_tx function in secs",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 12,
+                            "y": 85
+                        },
+                        "targets": [
+                            {
+                                "expr": "avg_over_time(gateway_add_tx_latency[2m])",
+                                "refId": "P"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 42,
+                        "type": "stat",
+                        "title": "gateway_transactions_failed",
+                        "description": "Counter of failed transactions",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 0,
+                            "y": 91
+                        },
+                        "targets": [
+                            {
+                                "expr": "sum  by (tx_type) (gateway_transactions_failed)",
+                                "refId": "Q"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 43,
+                        "type": "stat",
+                        "title": "gateway_transactions_sent_to_mempool",
+                        "description": "Counter of transactions sent to the mempool",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 12,
+                            "y": 91
+                        },
+                        "targets": [
+                            {
+                                "expr": "sum  by (tx_type) (gateway_transactions_sent_to_mempool)",
+                                "refId": "R"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                ],
+                "title": "Gateway",
+                "type": "row"
+            },
+            {
+                "collapsed": true,
+                "gridPos": {
+                    "h": 1,
+                    "w": 24,
+                    "x": 0,
+                    "y": 97
+                },
+                "id": 44,
+                "panels": [
+                    {
+                        "id": 45,
+                        "type": "stat",
+                        "title": "mempool_transactions_received",
+                        "description": "Counter of transactions received by the mempool",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 0,
+                            "y": 98
+                        },
+                        "targets": [
+                            {
+                                "expr": "sum  by (tx_type) (mempool_transactions_received)",
+                                "refId": "T"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 46,
+                        "type": "graph",
+                        "title": "mempool_transactions_received_rate (TPS)",
+                        "description": "The rate of transactions received by the mempool during the last 20 minutes",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 12,
+                            "y": 98
+                        },
+                        "targets": [
+                            {
+                                "expr": "sum(rate(mempool_transactions_received[20m]))",
+                                "refId": "U"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 47,
+                        "type": "stat",
+                        "title": "mempool_transactions_dropped",
+                        "description": "Counter of transactions dropped from the mempool",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 0,
+                            "y": 104
+                        },
+                        "targets": [
+                            {
+                                "expr": "sum  by (drop_reason) (mempool_transactions_dropped)",
+                                "refId": "V"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 48,
+                        "type": "stat",
+                        "title": "mempool_txs_committed",
+                        "description": "The number of transactions that were committed to block",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 12,
+                            "y": 104
+                        },
+                        "targets": [
+                            {
+                                "expr": "mempool_txs_committed",
+                                "refId": "W"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 49,
+                        "type": "graph",
+                        "title": "mempool_pool_size",
+                        "description": "The average size of the pool",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 0,
+                            "y": 110
+                        },
+                        "targets": [
+                            {
+                                "expr": "avg_over_time(mempool_pool_size[2m])",
+                                "refId": "X"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 50,
+                        "type": "graph",
+                        "title": "mempool_priority_queue_size",
+                        "description": "The average size of the priority queue",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 12,
+                            "y": 110
+                        },
+                        "targets": [
+                            {
+                                "expr": "avg_over_time(mempool_priority_queue_size[2m])",
+                                "refId": "Y"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 51,
+                        "type": "graph",
+                        "title": "mempool_pending_queue_size",
+                        "description": "The average size of the pending queue",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 0,
+                            "y": 116
+                        },
+                        "targets": [
+                            {
+                                "expr": "avg_over_time(mempool_pending_queue_size[2m])",
+                                "refId": "Z"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 52,
+                        "type": "graph",
+                        "title": "mempool_get_txs_size",
+                        "description": "The average size of the get_txs",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 12,
+                            "y": 116
+                        },
+                        "targets": [
+                            {
+                                "expr": "avg_over_time(mempool_get_txs_size[2m])",
+                                "refId": "A"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "id": 53,
+                        "type": "graph",
+                        "title": "mempool_transaction_time_spent",
+                        "description": "The time (secs) that a transaction spent in the mempool",
+                        "gridPos": {
+                            "h": 6,
+                            "w": 12,
+                            "x": 0,
+                            "y": 122
+                        },
+                        "targets": [
+                            {
+                                "expr": "avg_over_time(mempool_transaction_time_spent[2m])",
+                                "refId": "B"
+                            }
+                        ],
+                        "fieldConfig": {
+                            "defaults": {
+                                "unit": "none",
+                                "thresholds": {
+                                    "mode": "absolute",
+                                    "steps": [
+                                        {
+                                            "color": "green",
+                                            "value": null
+                                        },
+                                        {
+                                            "color": "orange",
+                                            "value": 70
+                                        },
+                                        {
+                                            "color": "red",
+                                            "value": 90
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                ],
+                "title": "Mempool",
+                "type": "row"
+            }
+        ],
+        "refresh": "5s",
+        "schemaVersion": 38,
+        "style": "dark",
+        "tags": [],
+        "templating": {
+            "list": []
+        },
+        "time": {
+            "from": "now-6h",
+            "to": "now"
+        },
+        "timepicker": {},
+        "timezone": "",
+        "title": "Sequencer Node Dashboard",
+        "version": 0,
+        "weekStart": ""
+    }
+}

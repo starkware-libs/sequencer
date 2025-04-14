@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use size_of::SizeOf;
 use starknet_types_core::felt::Felt;
 use strum_macros::EnumIter;
 
@@ -85,16 +86,31 @@ impl From<Fee> for Felt {
 
 /// A contract address salt.
 #[derive(
-    Debug, Copy, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
+    Debug,
+    Copy,
+    Clone,
+    Default,
+    Eq,
+    PartialEq,
+    Hash,
+    Deserialize,
+    Serialize,
+    PartialOrd,
+    Ord,
+    SizeOf,
 )]
 pub struct ContractAddressSalt(pub StarkHash);
 
 /// A transaction signature.
-#[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, SizeOf,
+)]
 pub struct TransactionSignature(pub Vec<Felt>);
 
 /// The calldata of a transaction.
-#[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, SizeOf,
+)]
 pub struct Calldata(pub Arc<Vec<Felt>>);
 
 #[macro_export]
@@ -119,6 +135,7 @@ macro_rules! calldata {
     Serialize,
     derive_more::Deref,
     derive_more::Display,
+    SizeOf,
 )]
 #[serde(from = "PrefixedBytesAsHex<8_usize>", into = "PrefixedBytesAsHex<8_usize>")]
 pub struct Tip(pub u64);
@@ -185,7 +202,18 @@ impl Resource {
 /// Fee bounds for an execution resource.
 /// TODO(Yael): add types ResourceAmount and ResourcePrice and use them instead of u64 and u128.
 #[derive(
-    Clone, Copy, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Deserialize,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    Serialize,
+    SizeOf,
 )]
 // TODO(Nimrod): Consider renaming this struct.
 pub struct ResourceBounds {
@@ -284,7 +312,7 @@ impl ValidResourceBounds {
     /// Returns the maximum possible fee that can be charged for the transaction.
     /// The computation is saturating, meaning that if the result is larger than the maximum
     /// possible fee, the maximum possible fee is returned.
-    pub fn max_possible_fee(&self) -> Fee {
+    pub fn max_possible_fee(&self, tip: Tip) -> Fee {
         match self {
             ValidResourceBounds::L1Gas(l1_bounds) => {
                 l1_bounds.max_amount.saturating_mul(l1_bounds.max_price_per_unit)
@@ -296,7 +324,9 @@ impl ValidResourceBounds {
             }) => l1_gas
                 .max_amount
                 .saturating_mul(l1_gas.max_price_per_unit)
-                .saturating_add(l2_gas.max_amount.saturating_mul(l2_gas.max_price_per_unit))
+                .saturating_add(
+                    l2_gas.max_amount.saturating_mul(l2_gas.max_price_per_unit.saturating_add(tip)),
+                )
                 .saturating_add(
                     l1_data_gas.max_amount.saturating_mul(l1_data_gas.max_price_per_unit),
                 ),
@@ -347,8 +377,25 @@ impl ValidResourceBounds {
     }
 }
 
+impl Default for ValidResourceBounds {
+    fn default() -> Self {
+        Self::AllResources(AllResourceBounds::default())
+    }
+}
+
 #[derive(
-    Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Deserialize,
+    Eq,
+    PartialEq,
+    Hash,
+    Ord,
+    PartialOrd,
+    Serialize,
+    SizeOf,
 )]
 pub struct AllResourceBounds {
     pub l1_gas: ResourceBounds,
@@ -458,7 +505,9 @@ impl TryFrom<DeprecatedResourceBoundsMapping> for ValidResourceBounds {
 }
 
 /// Paymaster-related data.
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+#[derive(
+    Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, SizeOf,
+)]
 pub struct PaymasterData(pub Vec<Felt>);
 
 impl PaymasterData {
@@ -469,7 +518,9 @@ impl PaymasterData {
 
 /// If nonempty, will contain the required data for deploying and initializing an account contract:
 /// its class hash, address salt and constructor calldata.
-#[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, SizeOf,
+)]
 pub struct AccountDeploymentData(pub Vec<Felt>);
 
 impl AccountDeploymentData {
