@@ -12,7 +12,7 @@ use errors::{EthToStrkOracleClientError, L1GasPriceClientError, L1GasPriceProvid
 use mockall::automock;
 use papyrus_base_layer::{L1BlockNumber, PriceSample};
 use serde::{Deserialize, Serialize};
-use starknet_api::block::BlockTimestamp;
+use starknet_api::block::{BlockTimestamp, GasPrice};
 use strum_macros::AsRefStr;
 use tracing::instrument;
 
@@ -22,8 +22,8 @@ pub type L1GasPriceProviderClientResult<T> = Result<T, L1GasPriceClientError>;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PriceInfo {
-    pub base_fee_per_gas: u128,
-    pub blob_fee: u128,
+    pub base_fee_per_gas: GasPrice,
+    pub blob_fee: GasPrice,
 }
 
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]

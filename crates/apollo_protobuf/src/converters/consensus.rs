@@ -5,7 +5,7 @@ mod consensus_test;
 use std::convert::{TryFrom, TryInto};
 
 use prost::Message;
-use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block::{BlockHash, BlockNumber, GasPrice};
 use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::hash::StarkHash;
 
@@ -197,10 +197,12 @@ impl TryFrom<protobuf::BlockInfo> for ConsensusBlockInfo {
         let timestamp = value.timestamp;
         let builder = value.builder.ok_or(missing("builder"))?.try_into()?;
         let l1_da_mode = enum_int_to_l1_data_availability_mode(value.l1_da_mode)?;
-        let l2_gas_price_fri = value.l2_gas_price_fri.ok_or(missing("l2_gas_price_fri"))?.into();
-        let l1_gas_price_wei = value.l1_gas_price_wei.ok_or(missing("l1_gas_price_wei"))?.into();
+        let l2_gas_price_fri =
+            GasPrice(value.l2_gas_price_fri.ok_or(missing("l2_gas_price_fri"))?.into());
+        let l1_gas_price_wei =
+            GasPrice(value.l1_gas_price_wei.ok_or(missing("l1_gas_price_wei"))?.into());
         let l1_data_gas_price_wei =
-            value.l1_data_gas_price_wei.ok_or(missing("l1_data_gas_price_wei"))?.into();
+            GasPrice(value.l1_data_gas_price_wei.ok_or(missing("l1_data_gas_price_wei"))?.into());
         let eth_to_fri_rate = value.eth_to_fri_rate.ok_or(missing("eth_to_fri_rate"))?.into();
         Ok(ConsensusBlockInfo {
             height: BlockNumber(height),
@@ -222,9 +224,9 @@ impl From<ConsensusBlockInfo> for protobuf::BlockInfo {
             timestamp: value.timestamp,
             builder: Some(value.builder.into()),
             l1_da_mode: l1_data_availability_mode_to_enum_int(value.l1_da_mode),
-            l1_gas_price_wei: Some(value.l1_gas_price_wei.into()),
-            l1_data_gas_price_wei: Some(value.l1_data_gas_price_wei.into()),
-            l2_gas_price_fri: Some(value.l2_gas_price_fri.into()),
+            l1_gas_price_wei: Some(value.l1_gas_price_wei.0.into()),
+            l1_data_gas_price_wei: Some(value.l1_data_gas_price_wei.0.into()),
+            l2_gas_price_fri: Some(value.l2_gas_price_fri.0.into()),
             eth_to_fri_rate: Some(value.eth_to_fri_rate.into()),
         }
     }
