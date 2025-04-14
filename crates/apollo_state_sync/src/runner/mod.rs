@@ -38,6 +38,12 @@ use apollo_starknet_client::reader::objects::pending_data::{
     PendingBlockOrDeprecated,
 };
 use apollo_starknet_client::reader::PendingData;
+use apollo_state_sync_metrics::metrics::{
+    STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS,
+    STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS,
+    STATE_SYNC_P2P_NUM_BLACKLISTED_PEERS,
+    STATE_SYNC_P2P_NUM_CONNECTED_PEERS,
+};
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::body::BodyStorageReader;
 use apollo_storage::class_manager::ClassManagerStorageReader;
@@ -59,12 +65,6 @@ use tracing::info_span;
 use tracing::instrument::Instrument;
 
 use crate::config::{CentralSyncClientConfig, StateSyncConfig};
-use crate::metrics::{
-    STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS,
-    STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS,
-    STATE_SYNC_P2P_NUM_BLACKLISTED_PEERS,
-    STATE_SYNC_P2P_NUM_CONNECTED_PEERS,
-};
 
 pub struct StateSyncRunner {
     network_future: BoxFuture<'static, Result<(), NetworkError>>,

@@ -45,6 +45,7 @@ members = [
   "crates/apollo_starknet_client",
   "crates/apollo_state_reader",
   "crates/apollo_state_sync",
+  "crates/apollo_state_sync_metrics",
   "crates/apollo_state_sync_types",
   "crates/apollo_storage",
   "crates/apollo_task_executor",
@@ -121,6 +122,7 @@ apollo_sierra_multicompile_types = { path = "crates/apollo_sierra_multicompile_t
 apollo_starknet_client.path = "crates/apollo_starknet_client"
 apollo_state_reader.path = "crates/apollo_state_reader"
 apollo_state_sync.path = "crates/apollo_state_sync"
+apollo_state_sync_metrics.path = "crates/apollo_state_sync_metrics"
 apollo_state_sync_types.path = "crates/apollo_state_sync_types"
 apollo_storage.path = "crates/apollo_storage"
 apollo_task_executor.path = "crates/apollo_task_executor"
