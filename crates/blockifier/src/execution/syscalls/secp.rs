@@ -145,14 +145,14 @@ impl SyscallRequest for SecpAddRequest {
     }
 }
 
-type SecpAddResponse = SecpOpRespone;
+pub(crate) type SecpAddResponse = SecpOpRespone;
 
 pub fn secp256k1_add(
     request: SecpAddRequest,
     _vm: &mut VirtualMachine,
     syscall_handler: &mut SyscallHintProcessor<'_>,
     _remaining_gas: &mut u64,
-) -> SyscallResult<SecpOpRespone> {
+) -> SyscallResult<SecpAddResponse> {
     syscall_handler.secp256k1_hint_processor.secp_add(request)
 }
 
@@ -161,7 +161,7 @@ pub fn secp256r1_add(
     _vm: &mut VirtualMachine,
     syscall_handler: &mut SyscallHintProcessor<'_>,
     _remaining_gas: &mut u64,
-) -> SyscallResult<SecpOpRespone> {
+) -> SyscallResult<SecpAddResponse> {
     syscall_handler.secp256r1_hint_processor.secp_add(request)
 }
 
@@ -184,7 +184,7 @@ impl SyscallRequest for SecpGetPointFromXRequest {
     }
 }
 
-type SecpGetPointFromXResponse = SecpOptionalEcPointResponse;
+pub(crate) type SecpGetPointFromXResponse = SecpOptionalEcPointResponse;
 
 pub fn secp256k1_get_point_from_x(
     request: SecpGetPointFromXRequest,
@@ -217,7 +217,7 @@ impl SyscallRequest for SecpGetXyRequest {
     }
 }
 
-type SecpGetXyResponse = EcPointCoordinates;
+pub(crate) type SecpGetXyResponse = EcPointCoordinates;
 
 impl SyscallResponse for SecpGetXyResponse {
     fn write(self, vm: &mut VirtualMachine, ptr: &mut Relocatable) -> WriteResponseResult {
@@ -261,7 +261,7 @@ impl SyscallRequest for SecpMulRequest {
     }
 }
 
-type SecpMulResponse = SecpOpRespone;
+pub(crate) type SecpMulResponse = SecpOpRespone;
 
 pub fn secp256k1_mul(
     request: SecpMulRequest,
@@ -283,7 +283,7 @@ pub fn secp256r1_mul(
 
 // SecpNew syscall.
 
-type SecpNewRequest = EcPointCoordinates;
+pub(crate) type SecpNewRequest = EcPointCoordinates;
 
 impl SyscallRequest for SecpNewRequest {
     fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<SecpNewRequest> {
@@ -293,7 +293,7 @@ impl SyscallRequest for SecpNewRequest {
     }
 }
 
-type SecpNewResponse = SecpOptionalEcPointResponse;
+pub(crate) type SecpNewResponse = SecpOptionalEcPointResponse;
 
 pub fn secp256k1_new(
     request: SecpNewRequest,
