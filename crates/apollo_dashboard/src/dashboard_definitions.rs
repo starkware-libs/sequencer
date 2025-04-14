@@ -96,16 +96,16 @@ use apollo_mempool_p2p::metrics::{
     MEMPOOL_P2P_NUM_RECEIVED_MESSAGES,
     MEMPOOL_P2P_NUM_SENT_MESSAGES,
 };
-use apollo_state_reader::metrics::{
-    CLASS_CACHE_HITS,
-    CLASS_CACHE_MISSES,
-    NATIVE_CLASS_RETURNED,
-    STATE_READER_METRIC_RATE_DURATION,
-};
 use apollo_state_sync::metrics::{
     STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS,
     STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS,
     STATE_SYNC_P2P_NUM_CONNECTED_PEERS,
+};
+use blockifier::metrics::{
+    CLASS_CACHE_HITS,
+    CLASS_CACHE_MISSES,
+    NATIVE_CLASS_RETURNED,
+    STATE_READER_METRIC_RATE_DURATION,
 };
 use const_format::formatcp;
 
