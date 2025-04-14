@@ -13,6 +13,9 @@ pub struct MempoolConfig {
     // TODO(AlonH): consider adding validations; should be bounded?
     // Percentage increase for tip and max gas price to enable transaction replacement.
     pub fee_escalation_percentage: u8, // E.g., 10 for a 10% increase.
+    // If true, transactions with max L2 gas price per unit bound that are less than the threshold
+    // are still inserted into the priority queue.
+    pub override_gas_price_threshold_check: bool,
     // Time-to-live for transactions in the mempool, in seconds.
     // Transactions older than this value will be lazily removed.
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
@@ -31,6 +34,7 @@ impl Default for MempoolConfig {
     fn default() -> Self {
         MempoolConfig {
             enable_fee_escalation: true,
+            override_gas_price_threshold_check: false,
             fee_escalation_percentage: 10,
             transaction_ttl: Duration::from_secs(60), // 1 minute.
             declare_delay: Duration::from_secs(1),
