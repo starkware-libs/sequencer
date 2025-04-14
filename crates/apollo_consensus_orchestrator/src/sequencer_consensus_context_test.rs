@@ -51,6 +51,7 @@ use futures::channel::{mpsc, oneshot};
 use futures::executor::block_on;
 use futures::future::pending;
 use futures::{FutureExt, SinkExt, StreamExt};
+use metrics_exporter_prometheus::PrometheusBuilder;
 use rstest::rstest;
 use starknet_api::block::{
     BlockHash,
@@ -69,6 +70,8 @@ use starknet_types_core::felt::Felt;
 use super::{DefaultClock, SequencerConsensusContextDeps};
 use crate::cende::MockCendeContext;
 use crate::config::ContextConfig;
+use crate::metrics::CONSENSUS_L2_GAS_PRICE;
+use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::sequencer_consensus_context::{MockClock, SequencerConsensusContext};
 
 const TIMEOUT: Duration = Duration::from_millis(1200);
@@ -706,6 +709,8 @@ async fn eth_to_fri_rate_out_of_range() {
 
 #[tokio::test]
 async fn decision_reached_sends_correct_values() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     // We need to create a valid proposal to call decision_reached on.
     //
     // 1. Build proposal setup starts.
@@ -782,4 +787,15 @@ async fn decision_reached_sends_correct_values() {
     };
 
     context.decision_reached(BlockHash(STATE_DIFF_COMMITMENT.0.0), vec![vote]).await.unwrap();
+
+    let metrics = recorder.handle().render();
+    let reported_gas_price: u128 = CONSENSUS_L2_GAS_PRICE
+        .parse_numeric_metric(&metrics)
+        .expect("Failed to parse consensus L2 gas price metric");
+
+    assert!(
+        reported_gas_price == VersionedConstants::latest_constants().min_gas_price.0,
+        "Expected L2 gas price to remain at min_gas_price due to 0 gas used, but got \
+         {reported_gas_price}"
+    );
 }
