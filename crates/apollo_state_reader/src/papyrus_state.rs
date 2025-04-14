@@ -193,8 +193,6 @@ impl PapyrusReader {
 
 // Currently unused - will soon replace the same `impl` for `PapyrusStateReader`.
 impl StateReader for PapyrusReader {
-    // TODO(AvivG): impl get_sierra_class(class_hash: ClassHash) -> StateResult<SierraContractClass>
-    // TODO(AvivG): implement get_sierra for PapyrusReader.
     fn get_storage_at(
         &self,
         contract_address: ContractAddress,
@@ -260,5 +258,22 @@ impl StateReader for PapyrusReader {
 
     fn get_compiled_class_hash(&self, _class_hash: ClassHash) -> StateResult<CompiledClassHash> {
         todo!()
+    }
+
+    fn get_sierra_class(&self, class_hash: ClassHash) -> StateResult<SierraContractClass> {
+        // Assumption: only asked for Cairo 1 classes.
+        let Some(class_reader) = &self.class_reader else {
+            let sierra = self
+                .reader()?
+                .get_sierra_class(&class_hash)
+                .map_err(|err| StateError::StateReadError(err.to_string()))?
+                .expect(
+                    "Should be able to fetch a Sierra class if its definition exists,
+                database is inconsistent.",
+                );
+            return Ok(sierra);
+        };
+
+        class_reader.read_sierra(class_hash)
     }
 }

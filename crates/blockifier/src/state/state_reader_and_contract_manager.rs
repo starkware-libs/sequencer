@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-use std::sync::Arc;
-
 use starknet_api::core::ClassHash;
 use starknet_types_core::felt::Felt;
 
@@ -43,7 +41,7 @@ impl<S: StateReader> StateReaderAndContractManger<S> {
         match self.state_reader.get_compiled_class(class_hash)? {
             RunnableCompiledClass::V0(class) => Ok(CachedClass::V0(class)),
             RunnableCompiledClass::V1(class) => {
-                let sierra_class = self.state_reader.get_sierra(class_hash)?;
+                let sierra_class = self.state_reader.get_sierra_class(class_hash)?;
                 Ok(CachedClass::V1(class, Arc::new(sierra_class)))
             }
             #[cfg(feature = "cairo_native")]

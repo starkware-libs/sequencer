@@ -1,7 +1,6 @@
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{SierraContractClass, StorageKey};
-use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_types_core::felt::Felt;
 
 use super::cached_state::{ContractClassMapping, StateMaps};

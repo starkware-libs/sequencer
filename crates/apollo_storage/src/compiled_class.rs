@@ -77,6 +77,13 @@ pub trait CasmStorageReader {
     /// Note: If the last blocks don't contain any declared classes, the marker will point at the
     /// block after the last block that had declared classes.
     fn get_compiled_class_marker(&self) -> StorageResult<BlockNumber>;
+
+    /// Returns the Sierra class for the given hash.
+    /// If it exists, returns `Some(sierra)`.
+    fn get_sierra_class(
+        &self,
+        class_hash: &ClassHash,
+    ) -> StorageResult<Option<SierraContractClass>>;
 }
 
 /// Interface for writing data related to the compiled classes.
@@ -106,6 +113,13 @@ impl<Mode: TransactionKind> CasmStorageReader for StorageTxn<'_, Mode> {
     fn get_compiled_class_marker(&self) -> StorageResult<BlockNumber> {
         let markers_table = self.open_table(&self.tables.markers)?;
         Ok(markers_table.get(&self.txn, &MarkerKind::CompiledClass)?.unwrap_or_default())
+    }
+
+    fn get_sierra_class(
+        &self,
+        class_hash: &ClassHash,
+    ) -> StorageResult<Option<SierraContractClass>> {
+        self.get_class(class_hash)
     }
 }
 
