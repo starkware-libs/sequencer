@@ -102,7 +102,7 @@ use apollo_state_reader::metrics::{
     NATIVE_CLASS_RETURNED,
     STATE_READER_METRIC_RATE_DURATION,
 };
-use apollo_state_sync::metrics::{
+use apollo_state_sync_metrics::metrics::{
     P2P_SYNC_NUM_ACTIVE_INBOUND_SESSIONS,
     P2P_SYNC_NUM_ACTIVE_OUTBOUND_SESSIONS,
     P2P_SYNC_NUM_CONNECTED_PEERS,
