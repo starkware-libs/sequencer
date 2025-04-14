@@ -12104,6 +12104,7 @@ name = "starknet_os"
 version = "0.15.0-rc.2"
 dependencies = [
  "apollo_infra_utils",
+ "apollo_starknet_os_program",
  "ark-bls12-381",
  "ark-ff 0.4.2",
  "ark-poly 0.4.2",
