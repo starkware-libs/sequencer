@@ -1030,8 +1030,8 @@ dependencies = [
  "apollo_mempool",
  "apollo_mempool_p2p",
  "apollo_metrics",
- "apollo_state_reader",
  "apollo_state_sync",
+ "blockifier",
  "const_format",
  "indexmap 2.9.0",
  "serde",
@@ -1817,7 +1817,6 @@ name = "apollo_state_reader"
 version = "0.0.0"
 dependencies = [
  "apollo_class_manager_types",
- "apollo_metrics",
  "apollo_storage",
  "assert_matches",
  "blockifier",
@@ -3070,6 +3069,7 @@ dependencies = [
  "anyhow",
  "apollo_config",
  "apollo_infra_utils",
+ "apollo_metrics",
  "apollo_sierra_multicompile",
  "ark-ec 0.4.2",
  "ark-ff 0.4.2",

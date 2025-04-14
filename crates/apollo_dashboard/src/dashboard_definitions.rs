@@ -96,7 +96,7 @@ use apollo_mempool_p2p::metrics::{
     MEMPOOL_P2P_NUM_RECEIVED_MESSAGES,
     MEMPOOL_P2P_NUM_SENT_MESSAGES,
 };
-use apollo_state_reader::metrics::{
+use blockifier::metrics::{
     CLASS_CACHE_HITS,
     CLASS_CACHE_MISSES,
     NATIVE_CLASS_RETURNED,
