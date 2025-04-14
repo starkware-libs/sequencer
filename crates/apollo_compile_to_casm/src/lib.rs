@@ -1,12 +1,12 @@
 //! A lib for compiling Sierra into Casm.
-use apollo_infra::component_definitions::ComponentStarter;
+use apollo_compilation_utils::class_utils::into_contract_class_for_compilation;
+use apollo_compilation_utils::errors::CompilationUtilError;
 use apollo_compile_to_casm_types::{RawClass, RawExecutableClass, RawExecutableHashedClass};
+use apollo_infra::component_definitions::ComponentStarter;
 use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::CompiledClassHash;
 use starknet_api::state::SierraContractClass;
 use starknet_api::StarknetApiError;
-use apollo_compilation_utils::class_utils::into_contract_class_for_compilation;
-use apollo_compilation_utils::errors::CompilationUtilError;
 use thiserror::Error;
 use tracing::instrument;
 

@@ -886,12 +886,8 @@ dependencies = [
 name = "apollo_compilation_utils"
 version = "0.0.0"
 dependencies = [
- "apollo_compile_to_casm_types",
- "apollo_config",
- "apollo_infra",
  "apollo_infra_utils",
  "assert_matches",
- "async-trait",
  "cairo-lang-sierra",
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",

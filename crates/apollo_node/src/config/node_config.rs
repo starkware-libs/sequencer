@@ -6,6 +6,7 @@ use std::vec::Vec;
 use apollo_batcher::config::BatcherConfig;
 use apollo_batcher::VersionedConstantsOverrides;
 use apollo_class_manager::config::FsClassManagerConfig;
+use apollo_compile_to_casm::config::SierraCompilationConfig;
 use apollo_config::dumping::{
     append_sub_config_name,
     generate_struct_pointer,
@@ -33,7 +34,6 @@ use apollo_state_sync::config::StateSyncConfig;
 use clap::Command;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use serde::{Deserialize, Serialize};
-use apollo_compile_to_casm::config::SierraCompilationConfig;
 use validator::Validate;
 
 use crate::config::component_config::ComponentConfig;

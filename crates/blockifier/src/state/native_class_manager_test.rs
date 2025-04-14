@@ -2,13 +2,13 @@ use std::sync::mpsc::{sync_channel, TrySendError};
 use std::sync::Arc;
 use std::thread::sleep;
 
+use apollo_compilation_utils::errors::CompilationUtilError;
+use apollo_compile_to_native::config::DEFAULT_MAX_CPU_TIME;
 use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use rstest::rstest;
 use starknet_api::core::ClassHash;
-use apollo_compilation_utils::errors::CompilationUtilError;
-use apollo_compile_to_native::config::DEFAULT_MAX_CPU_TIME;
 
 use crate::blockifier::config::{CairoNativeRunConfig, NativeClassesWhitelist};
 use crate::execution::contract_class::{CompiledClassV1, RunnableCompiledClass};

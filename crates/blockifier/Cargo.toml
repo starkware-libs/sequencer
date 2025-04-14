@@ -11,10 +11,10 @@ workspace = true
 
 [features]
 cairo_native = [
-  "blockifier_test_utils/cairo_native",
-  "dep:cairo-native",
   "apollo_compilation_utils/cairo_native",
   "apollo_compile_to_native/cairo_native",
+  "blockifier_test_utils/cairo_native",
+  "dep:cairo-native",
 ]
 native_blockifier = []
 node_api = []

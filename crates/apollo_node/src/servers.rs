@@ -3,6 +3,10 @@ use std::pin::Pin;
 
 use apollo_batcher::communication::{LocalBatcherServer, RemoteBatcherServer};
 use apollo_class_manager::communication::{LocalClassManagerServer, RemoteClassManagerServer};
+use apollo_compile_to_casm::communication::{
+    LocalSierraCompilerServer,
+    RemoteSierraCompilerServer,
+};
 use apollo_consensus_manager::communication::ConsensusManagerServer;
 use apollo_gateway::communication::{LocalGatewayServer, RemoteGatewayServer};
 use apollo_http_server::communication::HttpServer;
@@ -88,26 +92,12 @@ use apollo_mempool_p2p::propagator::{
 };
 use apollo_mempool_p2p::runner::MempoolP2pRunnerServer;
 use apollo_monitoring_endpoint::communication::MonitoringEndpointServer;
-<<<<<<< HEAD
-||||||| fa359cdbb
-use apollo_sierra_multicompile::communication::LocalSierraCompilerServer;
-=======
-use apollo_sierra_multicompile::communication::{
-    LocalSierraCompilerServer,
-    RemoteSierraCompilerServer,
-};
->>>>>>> origin/main
 use apollo_state_sync::runner::StateSyncRunnerServer;
 use apollo_state_sync::{LocalStateSyncServer, RemoteStateSyncServer};
 use futures::stream::FuturesUnordered;
 use futures::{Future, FutureExt, StreamExt};
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
-<<<<<<< HEAD
-use apollo_compile_to_casm::communication::LocalSierraCompilerServer;
-||||||| fa359cdbb
-=======
 use tracing::info;
->>>>>>> origin/main
 
 use crate::clients::SequencerNodeClients;
 use crate::communication::SequencerNodeCommunication;
