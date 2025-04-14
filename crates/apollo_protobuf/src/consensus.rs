@@ -74,6 +74,7 @@ pub struct ConsensusBlockInfo {
     pub timestamp: u64,
     pub builder: ContractAddress,
     pub l1_da_mode: L1DataAvailabilityMode,
+    // TODO(Ayelet/Asmaa): Refactor gas prices fields to GasPrice struct.
     pub l2_gas_price_fri: u128,
     pub l1_gas_price_wei: u128,
     pub l1_data_gas_price_wei: u128,
