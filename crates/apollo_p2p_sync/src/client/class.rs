@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_network::network_manager::ClientResponsesManager;
 use apollo_protobuf::sync::DataOrFin;
-use apollo_state_sync_metrics::metrics::SYNC_CLASS_MANAGER_MARKER;
+use apollo_state_sync_metrics::metrics::STATE_SYNC_CLASS_MANAGER_MARKER;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::class_manager::{ClassManagerStorageReader, ClassManagerStorageWriter};
 use apollo_storage::state::StateStorageReader;
@@ -68,7 +68,7 @@ impl BlockData for (DeclaredClasses, DeprecatedDeclaredClasses, BlockNumber) {
                 .begin_rw_txn()?
                 .update_class_manager_block_marker(&self.2.unchecked_next())?
                 .commit()?;
-            SYNC_CLASS_MANAGER_MARKER.set_lossy(self.2.unchecked_next().0);
+            STATE_SYNC_CLASS_MANAGER_MARKER.set_lossy(self.2.unchecked_next().0);
 
             Ok(())
         }

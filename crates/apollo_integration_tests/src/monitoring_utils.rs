@@ -3,12 +3,12 @@ use apollo_infra_utils::run_until::run_until;
 use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
 use apollo_state_sync_metrics::metrics::{
-    SYNC_BODY_MARKER,
-    SYNC_CLASS_MANAGER_MARKER,
-    SYNC_COMPILED_CLASS_MARKER,
-    SYNC_HEADER_MARKER,
-    SYNC_PROCESSED_TRANSACTIONS,
-    SYNC_STATE_MARKER,
+    STATE_SYNC_BODY_MARKER,
+    STATE_SYNC_CLASS_MANAGER_MARKER,
+    STATE_SYNC_COMPILED_CLASS_MARKER,
+    STATE_SYNC_HEADER_MARKER,
+    STATE_SYNC_PROCESSED_TRANSACTIONS,
+    STATE_SYNC_STATE_MARKER,
 };
 use starknet_api::block::BlockNumber;
 use tokio::try_join;
@@ -33,11 +33,11 @@ async fn get_sync_latest_block_number(sync_monitoring_client: &MonitoringClient)
     let metrics = sync_monitoring_client.get_metrics().await.expect("Failed to get metrics.");
 
     let latest_marker_value = [
-        SYNC_HEADER_MARKER,
-        SYNC_BODY_MARKER,
-        SYNC_STATE_MARKER,
-        SYNC_CLASS_MANAGER_MARKER,
-        SYNC_COMPILED_CLASS_MARKER,
+        STATE_SYNC_HEADER_MARKER,
+        STATE_SYNC_BODY_MARKER,
+        STATE_SYNC_STATE_MARKER,
+        STATE_SYNC_CLASS_MANAGER_MARKER,
+        STATE_SYNC_COMPILED_CLASS_MARKER,
     ]
     .iter()
     .map(|marker| {
@@ -180,5 +180,8 @@ pub async fn await_txs_accepted(
 
 pub async fn sequencer_num_accepted_txs(monitoring_client: &MonitoringClient) -> usize {
     // If the sequencer accepted txs, sync should process them and update the respective metric.
-    monitoring_client.get_metric::<usize>(SYNC_PROCESSED_TRANSACTIONS.get_name()).await.unwrap()
+    monitoring_client
+        .get_metric::<usize>(STATE_SYNC_PROCESSED_TRANSACTIONS.get_name())
+        .await
+        .unwrap()
 }

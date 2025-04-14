@@ -4,7 +4,7 @@ use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_network::network_manager::ClientResponsesManager;
 use apollo_proc_macros::latency_histogram;
 use apollo_protobuf::sync::{DataOrFin, StateDiffChunk};
-use apollo_state_sync_metrics::metrics::SYNC_STATE_MARKER;
+use apollo_state_sync_metrics::metrics::STATE_SYNC_STATE_MARKER;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
@@ -32,7 +32,7 @@ impl BlockData for (ThinStateDiff, BlockNumber) {
     ) -> BoxFuture<'a, Result<(), P2pSyncClientError>> {
         async move {
             storage_writer.begin_rw_txn()?.append_state_diff(self.1, self.0)?.commit()?;
-            SYNC_STATE_MARKER.set_lossy(self.1.unchecked_next().0);
+            STATE_SYNC_STATE_MARKER.set_lossy(self.1.unchecked_next().0);
             Ok(())
         }
         .boxed()

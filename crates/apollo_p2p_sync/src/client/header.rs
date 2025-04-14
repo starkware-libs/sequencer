@@ -1,7 +1,7 @@
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_network::network_manager::ClientResponsesManager;
 use apollo_protobuf::sync::{DataOrFin, SignedBlockHeader};
-use apollo_state_sync_metrics::metrics::{SYNC_HEADER_LATENCY_SEC, SYNC_HEADER_MARKER};
+use apollo_state_sync_metrics::metrics::{STATE_SYNC_HEADER_LATENCY_SEC, STATE_SYNC_HEADER_MARKER};
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::header::{HeaderStorageReader, HeaderStorageWriter};
 use apollo_storage::{StorageError, StorageReader, StorageWriter};
@@ -46,7 +46,7 @@ impl BlockData for SignedBlockHeader {
                     .expect("Vec::first should return a value on a vector of size 1"),
                 )?
                 .commit()?;
-            SYNC_HEADER_MARKER.set_lossy(
+            STATE_SYNC_HEADER_MARKER.set_lossy(
                 self.block_header.block_header_without_hash.block_number.unchecked_next().0,
             );
             // TODO(shahak): Fix code dup with central sync
@@ -61,7 +61,7 @@ impl BlockData for SignedBlockHeader {
             let header_latency = time_delta.num_seconds();
             debug!("Header latency: {}.", header_latency);
             if header_latency >= 0 {
-                SYNC_HEADER_LATENCY_SEC.set_lossy(header_latency);
+                STATE_SYNC_HEADER_LATENCY_SEC.set_lossy(header_latency);
             }
             Ok(())
         }

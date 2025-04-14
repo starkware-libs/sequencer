@@ -19,14 +19,14 @@ use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_proc_macros::latency_histogram;
 use apollo_starknet_client::reader::PendingData;
 use apollo_state_sync_metrics::metrics::{
-    SYNC_BASE_LAYER_MARKER,
-    SYNC_BODY_MARKER,
-    SYNC_CENTRAL_BLOCK_MARKER,
-    SYNC_COMPILED_CLASS_MARKER,
-    SYNC_HEADER_LATENCY_SEC,
-    SYNC_HEADER_MARKER,
-    SYNC_PROCESSED_TRANSACTIONS,
-    SYNC_STATE_MARKER,
+    CENTRAL_SYNC_BASE_LAYER_MARKER,
+    CENTRAL_SYNC_CENTRAL_BLOCK_MARKER,
+    STATE_SYNC_BODY_MARKER,
+    STATE_SYNC_COMPILED_CLASS_MARKER,
+    STATE_SYNC_HEADER_LATENCY_SEC,
+    STATE_SYNC_HEADER_MARKER,
+    STATE_SYNC_PROCESSED_TRANSACTIONS,
+    STATE_SYNC_STATE_MARKER,
 };
 use apollo_storage::base_layer::{BaseLayerStorageReader, BaseLayerStorageWriter};
 use apollo_storage::body::BodyStorageWriter;
@@ -498,9 +498,9 @@ impl<
             Ok(())
         })
         .await?;
-        SYNC_HEADER_MARKER.set_lossy(block_number.unchecked_next().0);
-        SYNC_BODY_MARKER.set_lossy(block_number.unchecked_next().0);
-        SYNC_PROCESSED_TRANSACTIONS.increment(num_txs);
+        STATE_SYNC_HEADER_MARKER.set_lossy(block_number.unchecked_next().0);
+        STATE_SYNC_BODY_MARKER.set_lossy(block_number.unchecked_next().0);
+        STATE_SYNC_PROCESSED_TRANSACTIONS.increment(num_txs);
         let time_delta = Utc::now()
             - Utc
                 .timestamp_opt(timestamp.0 as i64, 0)
@@ -509,7 +509,7 @@ impl<
         let header_latency = time_delta.num_seconds();
         debug!("Header latency: {}.", header_latency);
         if header_latency >= 0 {
-            SYNC_HEADER_LATENCY_SEC.set_lossy(header_latency);
+            STATE_SYNC_HEADER_LATENCY_SEC.set_lossy(header_latency);
         }
 
         Ok(())
@@ -600,8 +600,8 @@ impl<
         .await?;
 
         let compiled_class_marker = self.reader.begin_ro_txn()?.get_compiled_class_marker()?;
-        SYNC_STATE_MARKER.set_lossy(block_number.unchecked_next().0);
-        SYNC_COMPILED_CLASS_MARKER.set_lossy(compiled_class_marker.0);
+        STATE_SYNC_STATE_MARKER.set_lossy(block_number.unchecked_next().0);
+        STATE_SYNC_COMPILED_CLASS_MARKER.set_lossy(compiled_class_marker.0);
 
         // Info the user on syncing the block once all the data is stored.
         info!("Added block {} with hash {:#064x}.", block_number, block_hash.0);
@@ -652,7 +652,7 @@ impl<
                 let compiled_class_marker =
                     self.reader.begin_ro_txn()?.get_compiled_class_marker()?;
                 // Write class and casm to class manager.
-                SYNC_COMPILED_CLASS_MARKER.set_lossy(compiled_class_marker.0);
+                STATE_SYNC_COMPILED_CLASS_MARKER.set_lossy(compiled_class_marker.0);
                 debug!("Added compiled class.");
                 Ok(())
             }
@@ -697,7 +697,7 @@ impl<
             if txn.get_base_layer_block_marker()? != block_number.unchecked_next() {
                 info!("Verified block {block_number} hash against base layer.");
                 txn.update_base_layer_block_marker(&block_number.unchecked_next())?.commit()?;
-                SYNC_BASE_LAYER_MARKER.set_lossy(block_number.unchecked_next().0);
+                CENTRAL_SYNC_BASE_LAYER_MARKER.set_lossy(block_number.unchecked_next().0);
             }
             Ok(())
         })
@@ -845,7 +845,7 @@ fn stream_new_blocks<
             let central_block_marker = latest_central_block.map_or(
                 BlockNumber::default(), |block_hash_and_number| block_hash_and_number.number.unchecked_next()
             );
-            SYNC_CENTRAL_BLOCK_MARKER.set_lossy(central_block_marker.0);
+            CENTRAL_SYNC_CENTRAL_BLOCK_MARKER.set_lossy(central_block_marker.0);
             if header_marker == central_block_marker {
                 // Only if the node have the last block and state (without casms), sync pending data.
                 if collect_pending_data && reader.begin_ro_txn()?.get_state_marker()? == header_marker{
