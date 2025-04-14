@@ -1081,6 +1081,7 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         indoc! {r#"
     if execution_helper.debug_mode:
         # Validate the predicted gas cost.
+        # TODO(Yoni, 1/1/2025): remove this check once Cairo 0 is not supported.
         actual = ids.remaining_gas - ids.entry_point_return_values.gas_builtin
         predicted = execution_helper.call_info.gas_consumed
         if execution_helper.call_info.tracked_resource.is_sierra_gas():
@@ -1408,6 +1409,7 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         onchain_data_start = ids.da_start
         onchain_data_size = ids.output_ptr - onchain_data_start
 
+        # TODO(Yoni,20/07/2023): Take from input.
         max_page_size = 3800
         n_pages = div_ceil(onchain_data_size, max_page_size)
         for i in range(n_pages):
