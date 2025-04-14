@@ -112,7 +112,7 @@ apollo_mempool.path = "crates/apollo_mempool"
 apollo_mempool_p2p.path = "crates/apollo_mempool_p2p"
 apollo_mempool_p2p_types.path = "crates/apollo_mempool_p2p_types"
 apollo_mempool_types.path = "crates/apollo_mempool_types"
-apollo_metrics.path = "crates/apollo_metrics"
+apollo_metrics = { path = "crates/apollo_metrics", version = "0.0.0" }
 apollo_monitoring_endpoint.path = "crates/apollo_monitoring_endpoint"
 apollo_network.path = "crates/apollo_network"
 apollo_network_types.path = "crates/apollo_network_types"
