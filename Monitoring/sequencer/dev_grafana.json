@@ -158,6 +158,13 @@
         "extra_params": {}
       },
       {
+        "title": "consensus_l2_gas_price",
+        "description": "The L2 gas price calculated in a valid proposal received",
+        "type": "stat",
+        "expr": "consensus_l2_gas_price",
+        "extra_params": {}
+      },
+      {
         "title": "cende_last_prepared_blob_block_number",
         "description": "The blob block number that cende knows. That means the sequencer can be the proposer only if the current height is greater by one than this value.",
         "type": "stat",
