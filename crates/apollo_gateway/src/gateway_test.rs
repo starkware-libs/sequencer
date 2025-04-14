@@ -218,12 +218,11 @@ fn setup_class_manager_client_mock(
         .return_once(move |_| Ok(Some(casm)));
 }
 
-fn check_positive_add_tx_result(
-    rpc_tx: RpcTransaction,
-    tx_hash: TransactionHash,
-    address: ContractAddress,
-    result: GatewayOutput,
-) {
+fn check_positive_add_tx_result(tx_args: impl TestingTxArgs, result: GatewayOutput) {
+    let rpc_tx = tx_args.get_rpc_tx();
+    let expected_internal_tx = tx_args.get_internal_tx();
+    let address = expected_internal_tx.contract_address();
+    let tx_hash = expected_internal_tx.tx_hash();
     assert_eq!(
         result,
         match rpc_tx {
@@ -238,6 +237,43 @@ fn check_positive_add_tx_result(
             RpcTransaction::Invoke(_) => GatewayOutput::Invoke(InvokeGatewayOutput::new(tx_hash)),
         }
     );
+}
+
+async fn setup_mock_state(
+    mock_dependencies: &mut MockDependencies,
+    tx_args: &impl TestingTxArgs,
+    expected_mempool_result: Result<(), MempoolClientError>,
+) -> Option<BroadcastedMessageMetadata> {
+    let input_tx = tx_args.get_rpc_tx();
+    let expected_internal_tx = tx_args.get_internal_tx();
+
+    setup_class_manager_client_mock(
+        &mut mock_dependencies.mock_class_manager_client,
+        input_tx.clone(),
+    );
+
+    let address = expected_internal_tx.contract_address();
+    fund_account(
+        &mock_dependencies.config.chain_info,
+        address,
+        VALID_ACCOUNT_BALANCE,
+        &mut mock_dependencies.state_reader_factory.state_reader.blockifier_state_reader,
+    );
+
+    let p2p_message_metadata = Some(BroadcastedMessageMetadata::get_test_instance(&mut get_rng()));
+    let mempool_add_tx_args = AddTransactionArgs {
+        tx: expected_internal_tx.clone(),
+        account_state: AccountState { address, nonce: *input_tx.nonce() },
+    };
+    mock_dependencies.expect_add_tx(
+        AddTransactionArgsWrapper {
+            args: mempool_add_tx_args,
+            p2p_message_metadata: p2p_message_metadata.clone(),
+        },
+        expected_mempool_result,
+    );
+
+    p2p_message_metadata
 }
 
 // TODO(AlonH): add test with Some broadcasted message metadata
@@ -270,37 +306,11 @@ async fn test_add_tx(
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
 
+    let p2p_message_metadata =
+        setup_mock_state(&mut mock_dependencies, &tx_args, expected_mempool_result).await;
+
     let input_tx = tx_args.get_rpc_tx();
-    let expected_internal_tx = tx_args.get_internal_tx();
-
-    setup_class_manager_client_mock(
-        &mut mock_dependencies.mock_class_manager_client,
-        input_tx.clone(),
-    );
-
-    let address = expected_internal_tx.contract_address();
-    fund_account(
-        &mock_dependencies.config.chain_info,
-        address,
-        VALID_ACCOUNT_BALANCE,
-        &mut mock_dependencies.state_reader_factory.state_reader.blockifier_state_reader,
-    );
-
-    let p2p_message_metadata = Some(BroadcastedMessageMetadata::get_test_instance(&mut get_rng()));
-    let mempool_add_tx_args = AddTransactionArgs {
-        tx: expected_internal_tx.clone(),
-        account_state: AccountState { address, nonce: *input_tx.nonce() },
-    };
-    mock_dependencies.expect_add_tx(
-        AddTransactionArgsWrapper {
-            args: mempool_add_tx_args,
-            p2p_message_metadata: p2p_message_metadata.clone(),
-        },
-        expected_mempool_result,
-    );
-
     let gateway = mock_dependencies.gateway();
-
     let result = gateway.add_tx(input_tx.clone(), p2p_message_metadata.clone()).await;
 
     let metric_counters_for_queries = GatewayMetricHandle::new(&input_tx, &p2p_message_metadata);
@@ -323,12 +333,7 @@ async fn test_add_tx(
                     .get_metric_value(GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL, &metrics),
                 1
             );
-            check_positive_add_tx_result(
-                input_tx,
-                expected_internal_tx.tx_hash,
-                address,
-                result.unwrap(),
-            );
+            check_positive_add_tx_result(tx_args, result.unwrap());
         }
     }
 }
