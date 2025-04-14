@@ -17,7 +17,6 @@ define_metrics!(
         MetricGauge { STATE_SYNC_CENTRAL_BLOCK_MARKER, "apollo_state_sync_central_block_marker", "The first block number that doesn't exist yet" },
         MetricGauge { STATE_SYNC_HEADER_LATENCY_SEC, "apollo_state_sync_header_latency", "The latency, in seconds, between a block timestamp (as state in its header) and the time the state sync component stores the header" },
         // Counters
-        // TODO(shahak): add to metric's dashboard
         MetricCounter { STATE_SYNC_PROCESSED_TRANSACTIONS, "apollo_state_sync_processed_transactions", "The number of transactions processed by the state sync component", init = 0 },
         MetricCounter { STATE_SYNC_REVERTED_TRANSACTIONS, "apollo_state_sync_reverted_transactions", "The number of transactions reverted by the state sync component", init = 0 },
     },

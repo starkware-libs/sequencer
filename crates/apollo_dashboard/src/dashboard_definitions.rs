@@ -106,6 +106,8 @@ use apollo_state_sync_metrics::metrics::{
     STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS,
     STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS,
     STATE_SYNC_P2P_NUM_CONNECTED_PEERS,
+    STATE_SYNC_PROCESSED_TRANSACTIONS,
+    STATE_SYNC_REVERTED_TRANSACTIONS,
 };
 use const_format::formatcp;
 
@@ -297,12 +299,17 @@ const PANEL_CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES: Panel =
     Panel::from_counter(CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES, PanelType::Stat);
 const PANEL_CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES: Panel =
     Panel::from_counter(CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES, PanelType::Stat);
+
 const PANEL_STATE_SYNC_P2P_NUM_CONNECTED_PEERS: Panel =
     Panel::from_gauge(STATE_SYNC_P2P_NUM_CONNECTED_PEERS, PanelType::Stat);
 const PANEL_STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS: Panel =
     Panel::from_gauge(STATE_SYNC_P2P_NUM_ACTIVE_INBOUND_SESSIONS, PanelType::Stat);
 const PANEL_STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS: Panel =
     Panel::from_gauge(STATE_SYNC_P2P_NUM_ACTIVE_OUTBOUND_SESSIONS, PanelType::Stat);
+const PANEL_STATE_SYNC_PROCESSED_TRANSACTIONS: Panel =
+    Panel::from_counter(STATE_SYNC_PROCESSED_TRANSACTIONS, PanelType::Stat);
+const PANEL_STATE_SYNC_REVERTED_TRANSACTIONS: Panel =
+    Panel::from_counter(STATE_SYNC_REVERTED_TRANSACTIONS, PanelType::Stat);
 
 const PANEL_MEMPOOL_LOCAL_MSGS_RECEIVED: Panel =
     Panel::from_counter(MEMPOOL_LOCAL_MSGS_RECEIVED, PanelType::Stat);
@@ -601,6 +608,12 @@ const HTTP_SERVER_ROW: Row = Row::new(
     &[PANEL_ADDED_TRANSACTIONS_TOTAL],
 );
 
+const STATE_SYNC_ROW: Row = Row::new(
+    "State Sync",
+    "State sync metrics",
+    &[PANEL_STATE_SYNC_PROCESSED_TRANSACTIONS, PANEL_STATE_SYNC_REVERTED_TRANSACTIONS],
+);
+
 pub const GATEWAY_ROW: Row = Row::new(
     "Gateway",
     "Gateway metrics",
@@ -666,6 +679,7 @@ pub const SEQUENCER_DASHBOARD: Dashboard = Dashboard::new(
         BATCHER_ROW,
         CONSENSUS_ROW,
         HTTP_SERVER_ROW,
+        STATE_SYNC_ROW,
         MEMPOOL_P2P_ROW,
         CONSENSUS_P2P_ROW,
         STATE_SYNC_P2P_ROW,
