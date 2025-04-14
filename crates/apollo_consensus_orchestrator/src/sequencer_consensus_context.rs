@@ -265,10 +265,10 @@ struct ProposalBuildArguments {
     eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
     state_sync_client: SharedStateSyncClient,
     l1_gas_price_provider_client: Arc<dyn L1GasPriceProviderClient>,
-    min_l1_gas_price_wei: u128,
-    max_l1_gas_price_wei: u128,
-    min_l1_data_gas_price_wei: u128,
-    max_l1_data_gas_price_wei: u128,
+    min_l1_gas_price_wei: GasPrice,
+    max_l1_gas_price_wei: GasPrice,
+    min_l1_data_gas_price_wei: GasPrice,
+    max_l1_data_gas_price_wei: GasPrice,
     valid_proposals: Arc<Mutex<HeightToIdToContent>>,
     proposal_id: ProposalId,
     cende_write_success: AbortOnDropHandle<bool>,
@@ -286,10 +286,10 @@ struct ProposalValidateArguments {
     eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
     state_sync_client: SharedStateSyncClient,
     l1_gas_price_provider_client: Arc<dyn L1GasPriceProviderClient>,
-    min_l1_gas_price_wei: u128,
-    max_l1_gas_price_wei: u128,
-    min_l1_data_gas_price_wei: u128,
-    max_l1_data_gas_price_wei: u128,
+    min_l1_gas_price_wei: GasPrice,
+    max_l1_gas_price_wei: GasPrice,
+    min_l1_data_gas_price_wei: GasPrice,
+    max_l1_data_gas_price_wei: GasPrice,
     timeout: Duration,
     batcher_timeout_margin: Duration,
     valid_proposals: Arc<Mutex<HeightToIdToContent>>,
@@ -348,10 +348,10 @@ impl ConsensusContext for SequencerConsensusContext {
             eth_to_strk_oracle_client: Arc::clone(&self.eth_to_strk_oracle_client),
             state_sync_client: self.state_sync_client.clone(),
             l1_gas_price_provider_client: Arc::clone(&self.l1_gas_price_provider),
-            min_l1_gas_price_wei: self.config.min_l1_gas_price_wei,
-            max_l1_gas_price_wei: self.config.max_l1_gas_price_wei,
-            min_l1_data_gas_price_wei: self.config.min_l1_data_gas_price_wei,
-            max_l1_data_gas_price_wei: self.config.max_l1_data_gas_price_wei,
+            min_l1_gas_price_wei: GasPrice(self.config.min_l1_gas_price_wei),
+            max_l1_gas_price_wei: GasPrice(self.config.max_l1_gas_price_wei),
+            min_l1_data_gas_price_wei: GasPrice(self.config.min_l1_data_gas_price_wei),
+            max_l1_data_gas_price_wei: GasPrice(self.config.max_l1_data_gas_price_wei),
             valid_proposals: Arc::clone(&self.valid_proposals),
             proposal_id,
             cende_write_success,
@@ -712,10 +712,10 @@ impl SequencerConsensusContext {
         let eth_to_strk_oracle_client = self.eth_to_strk_oracle_client.clone();
         let state_sync_client = self.state_sync_client.clone();
         let l1_gas_price_provider_client = self.l1_gas_price_provider.clone();
-        let min_l1_gas_price_wei = self.config.min_l1_gas_price_wei;
-        let max_l1_gas_price_wei = self.config.max_l1_gas_price_wei;
-        let min_l1_data_gas_price_wei = self.config.min_l1_data_gas_price_wei;
-        let max_l1_data_gas_price_wei = self.config.max_l1_data_gas_price_wei;
+        let min_l1_gas_price_wei = GasPrice(self.config.min_l1_gas_price_wei);
+        let max_l1_gas_price_wei = GasPrice(self.config.max_l1_gas_price_wei);
+        let min_l1_data_gas_price_wei = GasPrice(self.config.min_l1_data_gas_price_wei);
+        let max_l1_data_gas_price_wei = GasPrice(self.config.max_l1_data_gas_price_wei);
         let transaction_converter = self.transaction_converter.clone();
         let valid_proposals = Arc::clone(&self.valid_proposals);
         let proposal_id = ProposalId(self.proposal_id);
@@ -834,7 +834,7 @@ async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<Consens
         timestamp,
         builder: args.builder_address,
         l1_da_mode: args.l1_da_mode,
-        l2_gas_price_fri: args.l2_gas_price.0,
+        l2_gas_price_fri: args.l2_gas_price,
         l1_gas_price_wei: l1_prices.base_fee_per_gas,
         l1_data_gas_price_wei: l1_prices.blob_fee,
         eth_to_fri_rate,
@@ -1059,10 +1059,10 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
 }
 
 struct GasPriceBounds {
-    min_l1_gas_price_wei: u128,
-    max_l1_gas_price_wei: u128,
-    max_l1_data_gas_price_wei: u128,
-    min_l1_data_gas_price_wei: u128,
+    min_l1_gas_price_wei: GasPrice,
+    max_l1_gas_price_wei: GasPrice,
+    max_l1_data_gas_price_wei: GasPrice,
+    min_l1_data_gas_price_wei: GasPrice,
 }
 
 async fn is_block_info_valid(
@@ -1078,7 +1078,7 @@ async fn is_block_info_valid(
         && block_info.timestamp >= block_info_validation.last_block_timestamp.unwrap_or(0)
         && block_info.timestamp <= now + block_info_validation.block_timestamp_window_seconds
         && block_info.l1_da_mode == block_info_validation.l1_da_mode
-        && block_info.l2_gas_price_fri == block_info_validation.l2_gas_price_fri.0)
+        && block_info.l2_gas_price_fri == block_info_validation.l2_gas_price_fri)
     {
         return false;
     }
@@ -1131,9 +1131,9 @@ async fn is_block_info_valid(
     true
 }
 
-fn within_margin(number1: u128, number2: u128, margin_percent: u128) -> bool {
-    let margin = (number1 * margin_percent) / 100;
-    number1.abs_diff(number2) <= margin
+fn within_margin(number1: GasPrice, number2: GasPrice, margin_percent: u128) -> bool {
+    let margin = (number1.0 * margin_percent) / 100;
+    number1.0.abs_diff(number2.0) <= margin
 }
 
 // The second proposal part when validating a proposal must be:
@@ -1283,25 +1283,24 @@ async fn batcher_abort_proposal(batcher: &dyn BatcherClient, proposal_id: Propos
 }
 
 fn convert_to_sn_api_block_info(block_info: &ConsensusBlockInfo) -> starknet_api::block::BlockInfo {
-    let l1_gas_price_fri = NonzeroGasPrice::new(GasPrice(ConsensusBlockInfo::wei_to_fri(
+    let l1_gas_price_fri = NonzeroGasPrice::new(ConsensusBlockInfo::wei_to_fri(
         block_info.l1_gas_price_wei,
         block_info.eth_to_fri_rate,
-    )))
+    ))
     .unwrap();
-    let l1_data_gas_price_fri = NonzeroGasPrice::new(GasPrice(ConsensusBlockInfo::wei_to_fri(
+    let l1_data_gas_price_fri = NonzeroGasPrice::new(ConsensusBlockInfo::wei_to_fri(
         block_info.l1_data_gas_price_wei,
         block_info.eth_to_fri_rate,
-    )))
+    ))
     .unwrap();
-    let l2_gas_price_fri = NonzeroGasPrice::new(GasPrice(block_info.l2_gas_price_fri)).unwrap();
-    let l2_gas_price_wei = NonzeroGasPrice::new(GasPrice(ConsensusBlockInfo::fri_to_wei(
+    let l2_gas_price_fri = NonzeroGasPrice::new(block_info.l2_gas_price_fri).unwrap();
+    let l2_gas_price_wei = NonzeroGasPrice::new(ConsensusBlockInfo::fri_to_wei(
         block_info.l2_gas_price_fri,
         block_info.eth_to_fri_rate,
-    )))
+    ))
     .unwrap();
-    let l1_gas_price_wei = NonzeroGasPrice::new(GasPrice(block_info.l1_gas_price_wei)).unwrap();
-    let l1_data_gas_price_wei =
-        NonzeroGasPrice::new(GasPrice(block_info.l1_data_gas_price_wei)).unwrap();
+    let l1_gas_price_wei = NonzeroGasPrice::new(block_info.l1_gas_price_wei).unwrap();
+    let l1_data_gas_price_wei = NonzeroGasPrice::new(block_info.l1_data_gas_price_wei).unwrap();
 
     starknet_api::block::BlockInfo {
         block_number: block_info.height,

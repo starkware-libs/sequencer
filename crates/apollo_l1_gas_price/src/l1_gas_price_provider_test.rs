@@ -48,8 +48,8 @@ fn gas_price_provider_mean_prices() {
             / num_samples;
     let data_price_calculation =
         (samples[1].blob_fee + samples[2].blob_fee + samples[3].blob_fee) / num_samples;
-    assert_eq!(gas_price, gas_price_calculation);
-    assert_eq!(data_gas_price, data_price_calculation);
+    assert_eq!(gas_price.0, gas_price_calculation);
+    assert_eq!(data_gas_price.0, data_price_calculation);
 }
 
 #[test]

@@ -389,8 +389,16 @@ impl GasPrice {
         self.0.checked_mul(u128::from(rhs.0)).map(Fee)
     }
 
+    pub fn checked_mul_u128(self, rhs: u128) -> Option<GasPrice> {
+        self.0.checked_mul(rhs).map(Self)
+    }
+
     pub fn checked_add(self, rhs: Tip) -> Option<Self> {
         self.0.checked_add(rhs.0.into()).map(Self)
+    }
+
+    pub fn checked_div(self, rhs: u128) -> Option<Self> {
+        self.0.checked_div(rhs).map(Self)
     }
 }
 
