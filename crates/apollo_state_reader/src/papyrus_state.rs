@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_storage::compiled_class::CasmStorageReader;
 use apollo_storage::db::RO;
@@ -10,13 +8,9 @@ use blockifier::execution::contract_class::{
     CompiledClassV1,
     RunnableCompiledClass,
 };
-use blockifier::metrics::{CLASS_CACHE_HITS, CLASS_CACHE_MISSES};
-use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::{couple_casm_and_sierra, StateError};
-use blockifier::state::global_cache::CachedClass;
 use blockifier::state::state_api::{StateReader, StateResult};
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
-use log;
 use starknet_api::block::BlockNumber;
 use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
@@ -80,29 +74,22 @@ impl ClassReader {
 pub struct PapyrusReader {
     storage_reader: StorageReader,
     latest_block: BlockNumber,
-    // TODO(AvivG): remove class_manager once cairo_native logic moves to
-    // StateReaderAndContractManger.
-    contract_class_manager: ContractClassManager,
     // Reader is `None` for reader invoked through `native_blockifier`.
     class_reader: Option<ClassReader>,
 }
 
 impl PapyrusReader {
-    pub fn new_with_class_manager(
+    // TODO(AvivG): is this still necessary?
+    pub fn new_with_class_reader(
         storage_reader: StorageReader,
         latest_block: BlockNumber,
-        contract_class_manager: ContractClassManager,
         class_reader: Option<ClassReader>,
     ) -> Self {
-        Self { storage_reader, latest_block, contract_class_manager, class_reader }
+        Self { storage_reader, latest_block, class_reader }
     }
 
-    pub fn new(
-        storage_reader: StorageReader,
-        latest_block: BlockNumber,
-        contract_class_manager: ContractClassManager,
-    ) -> Self {
-        Self { storage_reader, latest_block, contract_class_manager, class_reader: None }
+    pub fn new(storage_reader: StorageReader, latest_block: BlockNumber) -> Self {
+        Self { storage_reader, latest_block, class_reader: None }
     }
 
     fn reader(&self) -> StateResult<RawPapyrusReader<'_>> {
@@ -113,7 +100,10 @@ impl PapyrusReader {
 
     /// Returns a V1 contract with Sierra if V1 contract is found, or a V0 contract without Sierra
     /// if a V1 contract is not found, or an `Error` otherwise.
-    fn get_compiled_class_from_db(&self, class_hash: ClassHash) -> StateResult<CachedClass> {
+    fn get_compiled_class_from_db(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateResult<RunnableCompiledClass> {
         let state_number = StateNumber(self.latest_block);
         let class_declaration_block_number = self
             .reader()?
@@ -127,18 +117,18 @@ impl PapyrusReader {
             // Cairo 1.
             let (casm_compiled_class, sierra) = self.read_casm_and_sierra(class_hash)?;
             let sierra_version = SierraVersion::extract_from_program(&sierra.sierra_program)?;
-            return Ok(CachedClass::V1(
-                CompiledClassV1::try_from((casm_compiled_class, sierra_version))?,
-                Arc::new(sierra),
-            ));
+            return Ok(RunnableCompiledClass::V1(CompiledClassV1::try_from((
+                casm_compiled_class,
+                sierra_version,
+            ))?));
         }
 
         // Possibly Cairo 0.
         let v0_compiled_class = self.read_deprecated_casm(class_hash)?;
         match v0_compiled_class {
-            Some(starknet_api_contract_class) => {
-                Ok(CachedClass::V0(CompiledClassV0::try_from(starknet_api_contract_class)?))
-            }
+            Some(starknet_api_contract_class) => Ok(RunnableCompiledClass::V0(
+                CompiledClassV0::try_from(starknet_api_contract_class)?,
+            )),
             None => Err(StateError::UndeclaredClassHash(class_hash)),
         }
     }
@@ -178,15 +168,6 @@ impl PapyrusReader {
         };
 
         class_reader.read_optional_deprecated_casm(class_hash)
-    }
-
-    fn update_native_metrics(&self, _runnable_class: &RunnableCompiledClass) {
-        #[cfg(feature = "cairo_native")]
-        {
-            if matches!(_runnable_class, RunnableCompiledClass::V1Native(_)) {
-                blockifier::metrics::NATIVE_CLASS_RETURNED.increment(1);
-            }
-        }
     }
 }
 
@@ -233,26 +214,7 @@ impl StateReader for PapyrusReader {
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
         // Assumption: the global cache is cleared upon reverted blocks.
 
-        // TODO(Yoni): move this logic to a separate reader. Move tests from papyrus_state.
-        if let Some(runnable_class) = self.contract_class_manager.get_runnable(&class_hash) {
-            CLASS_CACHE_HITS.increment(1);
-            self.update_native_metrics(&runnable_class);
-            return Ok(runnable_class);
-        }
-        CLASS_CACHE_MISSES.increment(1);
-
-        let cached_class = self.get_compiled_class_from_db(class_hash)?;
-        self.contract_class_manager.set_and_compile(class_hash, cached_class.clone());
-        // Access the cache again in case the class was compiled.
-        let runnable_class =
-            self.contract_class_manager.get_runnable(&class_hash).unwrap_or_else(|| {
-                // Edge case that should not be happen if the cache size is big enough.
-                // TODO(Yoni): consider having an atomic set-and-get.
-                log::error!("Class is missing immediately after being cached.");
-                cached_class.to_runnable()
-            });
-        self.update_native_metrics(&runnable_class);
-        Ok(runnable_class)
+        self.get_compiled_class_from_db(class_hash)
     }
 
     fn get_compiled_class_hash(&self, _class_hash: ClassHash) -> StateResult<CompiledClassHash> {
