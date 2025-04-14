@@ -6,11 +6,11 @@ repository.workspace = true
 license-file.workspace = true
 
 [dependencies]
-apollo_central_sync.workspace = true
 apollo_config.workspace = true
 apollo_network.workspace = true
 apollo_proc_macros.workspace = true
 apollo_protobuf.workspace = true
+apollo_state_sync_metrics.workspace = true
 apollo_storage.workspace = true
 apollo_test_utils.workspace = true
 async-stream.workspace = true

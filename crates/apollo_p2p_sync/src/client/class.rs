@@ -1,9 +1,9 @@
 use std::collections::HashSet;
 
-use apollo_central_sync::metrics::SYNC_CLASS_MANAGER_MARKER;
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_network::network_manager::ClientResponsesManager;
 use apollo_protobuf::sync::DataOrFin;
+use apollo_state_sync_metrics::metrics::SYNC_CLASS_MANAGER_MARKER;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::class_manager::{ClassManagerStorageReader, ClassManagerStorageWriter};
 use apollo_storage::state::StateStorageReader;
