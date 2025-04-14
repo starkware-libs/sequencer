@@ -2,6 +2,7 @@ use starknet_api::core::ClassHash;
 use starknet_types_core::felt::Felt;
 
 use crate::execution::contract_class::RunnableCompiledClass;
+use crate::metrics::{CLASS_CACHE_HITS, CLASS_CACHE_MISSES};
 use crate::state::contract_class_manager::ContractClassManager;
 use crate::state::global_cache::CachedClass;
 use crate::state::state_api::{StateReader, StateResult};
@@ -21,11 +22,13 @@ impl<S: FetchCompiliedClasses> StateReaderAndContractManger<S> {
         &self,
         class_hash: ClassHash,
     ) -> StateResult<RunnableCompiledClass> {
-        // TODO(AvivG): update metrics.
         // Assumption: the global cache is cleared upon reverted blocks.
         if let Some(runnable_class) = self.contract_class_manager.get_runnable(&class_hash) {
+            CLASS_CACHE_HITS.increment(1);
+            self.update_native_metrics(&runnable_class);
             return Ok(runnable_class);
         }
+        CLASS_CACHE_MISSES.increment(1);
 
         let cached_class = self.state_reader.get_compiled_classes(class_hash)?;
         self.contract_class_manager.set_and_compile(class_hash, cached_class.clone());
@@ -37,7 +40,17 @@ impl<S: FetchCompiliedClasses> StateReaderAndContractManger<S> {
                 log::error!("Class is missing immediately after being cached.");
                 cached_class.to_runnable()
             });
+        self.update_native_metrics(&runnable_class);
         Ok(runnable_class)
+    }
+
+    fn update_native_metrics(&self, _runnable_class: &RunnableCompiledClass) {
+        #[cfg(feature = "cairo_native")]
+        {
+            if matches!(_runnable_class, RunnableCompiledClass::V1Native(_)) {
+                crate::metrics::NATIVE_CLASS_RETURNED.increment(1);
+            }
+        }
     }
 }
 

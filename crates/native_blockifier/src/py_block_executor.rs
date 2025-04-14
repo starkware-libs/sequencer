@@ -13,6 +13,7 @@ use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
 use blockifier::state::contract_class_manager::ContractClassManager;
+use blockifier::state::state_reader_and_contract_manager::StateReaderAndContractManger;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction;
 use pyo3::prelude::*;
@@ -62,7 +63,7 @@ pub struct PyBlockExecutor {
     pub tx_executor_config: TransactionExecutorConfig,
     pub chain_info: ChainInfo,
     pub versioned_constants: VersionedConstants,
-    pub tx_executor: Option<TransactionExecutor<PapyrusReader>>,
+    pub tx_executor: Option<TransactionExecutor<StateReaderAndContractManger<PapyrusReader>>>,
     /// `Send` trait is required for `pyclass` compatibility as Python objects must be threadsafe.
     pub storage: Box<dyn Storage + Send>,
     pub contract_class_manager: ContractClassManager,
@@ -123,10 +124,10 @@ impl PyBlockExecutor {
         let next_block_number = block_context.block_info().block_number;
 
         // Create state reader.
-        let papyrus_reader = self.get_aligned_reader(next_block_number);
+        let state_reader = self.get_aligned_reader(next_block_number);
         // Create and set executor.
         self.tx_executor = Some(TransactionExecutor::pre_process_and_create(
-            papyrus_reader,
+            state_reader,
             block_context,
             into_block_number_hash_pair(old_block_number_and_hash),
             self.tx_executor_config.clone(),
@@ -346,18 +347,24 @@ impl PyBlockExecutor {
 }
 
 impl PyBlockExecutor {
-    pub fn tx_executor(&mut self) -> &mut TransactionExecutor<PapyrusReader> {
+    pub fn tx_executor(
+        &mut self,
+    ) -> &mut TransactionExecutor<StateReaderAndContractManger<PapyrusReader>> {
         self.tx_executor.as_mut().expect("Transaction executor should be initialized")
     }
 
-    fn get_aligned_reader(&self, next_block_number: BlockNumber) -> PapyrusReader {
+    fn get_aligned_reader(
+        &self,
+        next_block_number: BlockNumber,
+    ) -> StateReaderAndContractManger<PapyrusReader> {
         // Full-node storage must be aligned to the Python storage before initializing a reader.
         self.storage.validate_aligned(next_block_number.0);
-        PapyrusReader::new(
-            self.storage.reader().clone(),
-            next_block_number,
-            self.contract_class_manager.clone(),
-        )
+        let papyrus_reader = PapyrusReader::new(self.storage.reader().clone(), next_block_number);
+
+        StateReaderAndContractManger {
+            state_reader: papyrus_reader,
+            contract_class_manager: self.contract_class_manager.clone(),
+        }
     }
 
     pub fn create_for_testing_with_storage(storage: impl Storage + Send + 'static) -> Self {
