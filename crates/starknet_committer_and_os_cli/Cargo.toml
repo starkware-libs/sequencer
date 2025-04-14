@@ -18,6 +18,7 @@ tempfile.workspace = true
 
 # TODO(Amos): Add `testing` feature and move Python test dependencies under it.
 [dependencies]
+apollo_starknet_os_program.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-vm.workspace = true
 # Should be moved under `testing` feature, when it exists.

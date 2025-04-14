@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::Path;
 
+use apollo_starknet_os_program::OS_PROGRAM_BYTES;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
@@ -100,4 +101,10 @@ pub(crate) fn serialize_os_runner_output(
     cairo_pie
         .write_zip_file(Path::new(&cairo_pie_zip_path), merge_extra_segments)
         .unwrap_or_else(|err| panic!("Failed to write cairo pie. Error: {}", err));
+}
+
+pub(crate) fn dump_os_program(output_path: String) {
+    let os_program_json = serde_json::from_slice::<serde_json::Value>(OS_PROGRAM_BYTES)
+        .expect("OS bytes are JSON-serializable.");
+    write_to_file(&output_path, &os_program_json);
 }
