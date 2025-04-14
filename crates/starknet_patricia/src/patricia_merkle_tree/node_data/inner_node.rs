@@ -158,4 +158,10 @@ impl PathToBottom {
             self.length - n_edges,
         )
     }
+
+    /// Returns a path of length 0.
+    pub fn new_zero() -> Self {
+        Self::new(EdgePath(U256::new(0)), EdgePathLength(0))
+            .unwrap_or_else(|_| panic!("Creating a zero path unexpectedly failed."))
+    }
 }
