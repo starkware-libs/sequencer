@@ -2,7 +2,6 @@
 // within this crate
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 
-pub mod metrics;
 mod pending_sync;
 pub mod sources;
 #[cfg(test)]
@@ -19,6 +18,16 @@ use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_proc_macros::latency_histogram;
 use apollo_starknet_client::reader::PendingData;
+use apollo_state_sync_metrics::metrics::{
+    SYNC_BASE_LAYER_MARKER,
+    SYNC_BODY_MARKER,
+    SYNC_CENTRAL_BLOCK_MARKER,
+    SYNC_COMPILED_CLASS_MARKER,
+    SYNC_HEADER_LATENCY_SEC,
+    SYNC_HEADER_MARKER,
+    SYNC_PROCESSED_TRANSACTIONS,
+    SYNC_STATE_MARKER,
+};
 use apollo_storage::base_layer::{BaseLayerStorageReader, BaseLayerStorageWriter};
 use apollo_storage::body::BodyStorageWriter;
 use apollo_storage::class::{ClassStorageReader, ClassStorageWriter};
@@ -54,16 +63,6 @@ use tokio::sync::{Mutex, RwLock};
 use tokio::task::{spawn_blocking, JoinError};
 use tracing::{debug, error, info, instrument, trace, warn};
 
-use crate::metrics::{
-    SYNC_BASE_LAYER_MARKER,
-    SYNC_BODY_MARKER,
-    SYNC_CENTRAL_BLOCK_MARKER,
-    SYNC_COMPILED_CLASS_MARKER,
-    SYNC_HEADER_LATENCY_SEC,
-    SYNC_HEADER_MARKER,
-    SYNC_PROCESSED_TRANSACTIONS,
-    SYNC_STATE_MARKER,
-};
 use crate::pending_sync::sync_pending_data;
 use crate::sources::base_layer::{BaseLayerSourceTrait, EthereumBaseLayerSource};
 use crate::sources::central::{CentralError, CentralSource, CentralSourceTrait};

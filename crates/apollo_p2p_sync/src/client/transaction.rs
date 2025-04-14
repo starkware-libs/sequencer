@@ -1,7 +1,7 @@
-use apollo_central_sync::metrics::{SYNC_BODY_MARKER, SYNC_PROCESSED_TRANSACTIONS};
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_network::network_manager::ClientResponsesManager;
 use apollo_protobuf::sync::DataOrFin;
+use apollo_state_sync_metrics::metrics::{SYNC_BODY_MARKER, SYNC_PROCESSED_TRANSACTIONS};
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::body::{BodyStorageReader, BodyStorageWriter};
 use apollo_storage::header::HeaderStorageReader;
