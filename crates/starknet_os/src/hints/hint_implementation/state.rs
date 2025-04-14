@@ -11,7 +11,7 @@ use crate::hints::vars::{Const, Ids, Scope};
 use crate::io::os_input::CommitmentInfo;
 
 #[derive(Copy, Clone)]
-enum CommitmentType {
+pub(crate) enum CommitmentType {
     Class,
     State,
 }
