@@ -20,7 +20,7 @@ def setup_logger(debug: bool):
     handler = colorlog.StreamHandler()
     handler.setFormatter(
         colorlog.ColoredFormatter(
-            '%(asctime)s %(log_color)s%(levelname)s%(reset)s %(message)s',
+            "%(asctime)s %(log_color)s%(levelname)s%(reset)s %(message)s",
             log_colors={
                 "DEBUG": "blue",
                 "INFO": "green",
@@ -118,6 +118,7 @@ def create_alert_rule(
     title: str,
     folder_uid: str,
     rule_group: str,
+    interval_sec: int,
     _for: str,
     expr: str,
     conditions: list[dict[str, any]],
@@ -128,6 +129,7 @@ def create_alert_rule(
     alert_rule["title"] = title
     alert_rule["folderUID"] = folder_uid
     alert_rule["ruleGroup"] = rule_group
+    alert_rule["intervalSec"] = interval_sec
     alert_rule["for"] = _for
     alert_rule["data"] = [
         create_alert_query(model=create_alert_query_model(expr=expr)),
@@ -169,6 +171,28 @@ def dump_alert(output_dir: str, alert: dict[str, any]) -> None:
         json.dump(alert, f, indent=2)
     logging.info(f'Alert "{alert["name"]}" saved to {alert_full_path}')
 
+
+def get_alert_rule_group(client: GrafanaApi, folder_uid: str, group_uid: str) -> str:
+    logging.debug(f"Getting alert rule group {group_uid}")
+    return client.alertingprovisioning.get_rule_group(folder_uid=folder_uid, group_uid=group_uid)
+
+
+def update_alert_rule_group(
+    client: GrafanaApi,
+    folder_uid: str,
+    group_uid: str,
+    alertrule_group: dict[any, any],
+    disable_provenance=True,
+) -> None:
+    logging.debug(f"Updating alert rule group {group_uid}")
+    client.alertingprovisioning.update_rule_group(
+        folder_uid=folder_uid,
+        group_uid=group_uid,
+        alertrule_group=alertrule_group,
+        disable_provenance=disable_provenance,
+    )
+
+
 def main():
     args = parser.parse_args()
     logger = setup_logger(debug=args.debug)
@@ -176,7 +200,7 @@ def main():
     logger.info(
         f'Starting to build grafana dashboard, time is {start_time.strftime("%Y-%m-%d %H:%M:%S")}'
     )
-    
+
     with open(args.dev_alerts_file, "r") as f:
         dev_alerts = json.load(f)
 
@@ -194,6 +218,7 @@ def main():
                 name=dev_alert["name"],
                 title=dev_alert["title"],
                 folder_uid=folder_uid,
+                interval_sec=dev_alert["intervalSec"],
                 rule_group=dev_alert["ruleGroup"],
                 _for=dev_alert["for"],
                 expr=dev_alert["expr"],
@@ -209,9 +234,26 @@ def main():
                 client.alertingprovisioning.create_alertrule(
                     alertrule=alert, disable_provenance=True
                 )
-                logging.info(f'Alert "{alert["name"]}" was uploaded to Grafana successfully')
+                logging.info(f'Alert "{alert["name"]}" uploaded to Grafana successfully')
             except Exception as e:
                 logging.error(f'Failed to create alert "{alert["name"]}". {e}')
+
+            try:
+                group_uid = alert["ruleGroup"]
+                rule_group = get_alert_rule_group(
+                    client=client, folder_uid=folder_uid, group_uid=group_uid
+                )
+                if rule_group["interval"] != alert["intervalSec"]:
+                    rule_group["interval"] = alert["intervalSec"]
+                    update_alert_rule_group(
+                        client=client,
+                        folder_uid=folder_uid,
+                        group_uid=group_uid,
+                        alertrule_group=rule_group,
+                    )
+                    logging.info(f"Alert rule group {group_uid} updated successfully")
+            except Exception as e:
+                logging.error(f'Failed to update alert rule group "{alert["ruleGroup"]}". {e}')
 
         dump_alert(output_dir=args.out_dir, alert=alert)
 
