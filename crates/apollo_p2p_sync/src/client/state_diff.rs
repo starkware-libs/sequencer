@@ -1,10 +1,10 @@
 use std::collections::HashSet;
 
-use apollo_central_sync::metrics::SYNC_STATE_MARKER;
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_network::network_manager::ClientResponsesManager;
 use apollo_proc_macros::latency_histogram;
 use apollo_protobuf::sync::{DataOrFin, StateDiffChunk};
+use apollo_state_sync_metrics::metrics::SYNC_STATE_MARKER;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};

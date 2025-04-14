@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 
 use apollo_batcher::metrics::BATCHER_ALL_METRICS;
-use apollo_central_sync::metrics::APOLLO_CENTRAL_SYNC_ALL_METRICS;
 use apollo_consensus_manager::metrics::CONSENSUS_ALL_METRICS;
 use apollo_gateway::metrics::GATEWAY_ALL_METRICS;
 use apollo_http_server::metrics::HTTP_SERVER_ALL_METRICS;
@@ -20,7 +19,6 @@ fn metric_names_no_duplications() {
         .chain(INFRA_ALL_METRICS.iter())
         .chain(MEMPOOL_ALL_METRICS.iter())
         .chain(MEMPOOL_P2P_ALL_METRICS.iter())
-        .chain(APOLLO_CENTRAL_SYNC_ALL_METRICS.iter())
         .chain(STATE_SYNC_ALL_METRICS.iter())
         .collect::<Vec<&&'static str>>();
 

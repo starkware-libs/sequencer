@@ -3,15 +3,6 @@ mod test;
 
 use std::sync::Arc;
 
-use apollo_central_sync::metrics::{
-    SYNC_BODY_MARKER,
-    SYNC_CLASS_MANAGER_MARKER,
-    SYNC_COMPILED_CLASS_MARKER,
-    SYNC_HEADER_MARKER,
-    SYNC_PROCESSED_TRANSACTIONS,
-    SYNC_REVERTED_TRANSACTIONS,
-    SYNC_STATE_MARKER,
-};
 use apollo_central_sync::sources::central::{CentralError, CentralSource};
 use apollo_central_sync::sources::pending::PendingSource;
 use apollo_central_sync::{
@@ -43,6 +34,13 @@ use apollo_state_sync_metrics::metrics::{
     P2P_SYNC_NUM_ACTIVE_OUTBOUND_SESSIONS,
     P2P_SYNC_NUM_BLACKLISTED_PEERS,
     P2P_SYNC_NUM_CONNECTED_PEERS,
+    SYNC_BODY_MARKER,
+    SYNC_CLASS_MANAGER_MARKER,
+    SYNC_COMPILED_CLASS_MARKER,
+    SYNC_HEADER_MARKER,
+    SYNC_PROCESSED_TRANSACTIONS,
+    SYNC_REVERTED_TRANSACTIONS,
+    SYNC_STATE_MARKER,
 };
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::body::BodyStorageReader;
