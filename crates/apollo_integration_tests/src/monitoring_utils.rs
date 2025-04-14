@@ -1,5 +1,8 @@
 use apollo_batcher::metrics::STORAGE_HEIGHT;
-use apollo_central_sync::metrics::{
+use apollo_infra_utils::run_until::run_until;
+use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
+use apollo_monitoring_endpoint::test_utils::MonitoringClient;
+use apollo_state_sync_metrics::metrics::{
     SYNC_BODY_MARKER,
     SYNC_CLASS_MANAGER_MARKER,
     SYNC_COMPILED_CLASS_MARKER,
@@ -7,9 +10,6 @@ use apollo_central_sync::metrics::{
     SYNC_PROCESSED_TRANSACTIONS,
     SYNC_STATE_MARKER,
 };
-use apollo_infra_utils::run_until::run_until;
-use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
-use apollo_monitoring_endpoint::test_utils::MonitoringClient;
 use starknet_api::block::BlockNumber;
 use tokio::try_join;
 use tracing::info;

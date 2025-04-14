@@ -39,7 +39,6 @@ pub enum MetricScope {
     Mempool,
     MempoolP2p,
     StateSync,
-    ApolloCentralSync,
 }
 
 pub struct MetricCounter {

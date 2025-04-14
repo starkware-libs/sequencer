@@ -811,9 +811,9 @@ version = "0.0.0"
 dependencies = [
  "apollo_class_manager_types",
  "apollo_config",
- "apollo_metrics",
  "apollo_proc_macros",
  "apollo_starknet_client",
+ "apollo_state_sync_metrics",
  "apollo_storage",
  "apollo_test_utils",
  "assert_matches",
@@ -1019,7 +1019,6 @@ name = "apollo_dashboard"
 version = "0.0.0"
 dependencies = [
  "apollo_batcher",
- "apollo_central_sync",
  "apollo_consensus",
  "apollo_consensus_manager",
  "apollo_consensus_orchestrator",
@@ -1209,7 +1208,6 @@ dependencies = [
  "alloy",
  "anyhow",
  "apollo_batcher",
- "apollo_central_sync",
  "apollo_class_manager",
  "apollo_consensus",
  "apollo_consensus_manager",
@@ -1229,6 +1227,7 @@ dependencies = [
  "apollo_protobuf",
  "apollo_sierra_multicompile",
  "apollo_state_sync",
+ "apollo_state_sync_metrics",
  "apollo_storage",
  "assert_matches",
  "axum",
@@ -1564,12 +1563,12 @@ dependencies = [
 name = "apollo_p2p_sync"
 version = "0.0.0"
 dependencies = [
- "apollo_central_sync",
  "apollo_class_manager_types",
  "apollo_config",
  "apollo_network",
  "apollo_proc_macros",
  "apollo_protobuf",
+ "apollo_state_sync_metrics",
  "apollo_state_sync_types",
  "apollo_storage",
  "apollo_test_utils",
