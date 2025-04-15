@@ -49,6 +49,8 @@ pub enum StarknetApiError {
     /// Error when serializing into number.
     #[error(transparent)]
     ParseIntError(#[from] ParseIntError),
+    #[error("Failed to convert from hex to Felt: {0:?} ")]
+    ResourceHexToFeltConversion(String),
     /// Missing resource type / duplicated resource type.
     #[error("Missing resource type / duplicated resource type; got {0}.")]
     InvalidResourceMappingInitializer(String),

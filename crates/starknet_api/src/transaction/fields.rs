@@ -277,6 +277,50 @@ where
     ))
 }
 
+pub struct ResourceAsFelts {
+    pub resource_name: Felt,
+    pub max_amount: Felt,
+    pub max_price_per_unit: Felt,
+}
+
+impl ResourceAsFelts {
+    pub fn new(
+        resource: Resource,
+        resource_bounds: &ResourceBounds,
+    ) -> Result<Self, StarknetApiError> {
+        Ok(Self {
+            resource_name: Felt::from_hex(resource.to_hex()).map_err(|_| {
+                StarknetApiError::ResourceHexToFeltConversion(resource.to_hex().to_string())
+            })?,
+            max_amount: Felt::from(resource_bounds.max_amount),
+            max_price_per_unit: Felt::from(resource_bounds.max_price_per_unit),
+        })
+    }
+
+    pub fn flatten(self) -> Vec<Felt> {
+        vec![self.resource_name, self.max_amount, self.max_price_per_unit]
+    }
+}
+
+pub fn valid_resource_bounds_as_felts(
+    resource_bounds: &ValidResourceBounds,
+    exclude_l1_data_gas: bool,
+) -> Result<Vec<ResourceAsFelts>, StarknetApiError> {
+    let mut resource_bounds_vec: Vec<_> = vec![
+        ResourceAsFelts::new(Resource::L1Gas, &resource_bounds.get_l1_bounds())?,
+        ResourceAsFelts::new(Resource::L2Gas, &resource_bounds.get_l2_bounds())?,
+    ];
+    if exclude_l1_data_gas {
+        return Ok(resource_bounds_vec);
+    }
+    if let ValidResourceBounds::AllResources(AllResourceBounds { l1_data_gas, .. }) =
+        resource_bounds
+    {
+        resource_bounds_vec.push(ResourceAsFelts::new(Resource::L1DataGas, l1_data_gas)?)
+    }
+    Ok(resource_bounds_vec)
+}
+
 #[derive(Debug, PartialEq)]
 pub enum GasVectorComputationMode {
     All,
