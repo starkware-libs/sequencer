@@ -201,7 +201,6 @@ pub fn internal_rpc_declare_tx(declare_tx_args: DeclareTxArgs) -> InternalRpcTra
     }
 }
 
-// TODO(Andrew): Consider adding SierraContractClass to the DeclareTxArgs struct
 pub struct DeclareTxArgsWithContractClass {
     pub args: DeclareTxArgs,
     pub contract_class: SierraContractClass,
