@@ -52,6 +52,12 @@ impl From<u128> for EdgePath {
     }
 }
 
+impl From<Felt> for EdgePath {
+    fn from(value: Felt) -> Self {
+        U256::from_be_bytes(value.to_bytes_be()).into()
+    }
+}
+
 impl From<&EdgePath> for Felt {
     fn from(path: &EdgePath) -> Self {
         Self::from_bytes_be(&path.0.to_be_bytes())
