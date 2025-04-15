@@ -81,7 +81,7 @@ impl L1Provider {
                     n_txs
                 );
                 debug!(
-                    "Returned L1Handler txs: {:#?}",
+                    "Returned L1Handler txs: {:?}",
                     txs.iter().map(|tx| tx.tx_hash).collect::<Vec<_>>()
                 );
                 Ok(txs)
