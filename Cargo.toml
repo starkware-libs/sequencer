@@ -100,8 +100,8 @@ cairo-lang-sierra = "2.12.0-dev.0"
 cairo-lang-sierra-to-casm = "2.12.0-dev.0"
 cairo-lang-starknet-classes = "2.12.0-dev.0"
 cairo-lang-utils = "2.12.0-dev.0"
-cairo-native = { git = "https://github.com/lambdaclass/cairo_native", rev = "79d9878618ae761c074be78a909a58840158cf2c" }
-sierra-emu = { git = "https://github.com/lambdaclass/sierra-emu", rev = "a13128c78d0e681f3d2bd021cabd3a2a4406efb0" }
+cairo-native = { git = "https://github.com/lambdaclass/cairo_native", rev = "c03e59ada0a0e210b96b51d7df186e2a6aec0fd1" }
+sierra-emu = { git = "https://github.com/lambdaclass/sierra-emu", rev = "a210166cf9b7de6a5d5906b1f3321eff08db9fa0" }
 cairo-vm = "2.0.1"
 camelpaste = "0.1.0"
 chrono = "0.4.26"
