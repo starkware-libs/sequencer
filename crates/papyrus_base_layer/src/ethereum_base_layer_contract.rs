@@ -25,7 +25,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::hash::StarkHash;
 use starknet_api::StarknetApiError;
-use tracing::error;
+use tracing::{error, info};
 use url::Url;
 use validator::Validate;
 
@@ -109,7 +109,11 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         let filter = EthEventFilter::new().select(block_range).events(events);
 
         let matching_logs = self.contract.provider().get_logs(&filter).await?;
-        matching_logs.into_iter().map(TryInto::try_into).collect()
+        matching_logs
+            .into_iter()
+            .inspect(|log| info!("Got event with hash: {:?}", log.transaction_hash))
+            .map(L1Event::try_from)
+            .collect()
     }
 
     async fn latest_l1_block_number(
