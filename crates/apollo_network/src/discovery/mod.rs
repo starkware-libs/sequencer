@@ -217,19 +217,18 @@ impl Behaviour {
     // TODO(shahak): Add support to discovery from multiple bootstrap nodes.
     // TODO(shahak): Add support to multiple addresses for bootstrap node.
     // TODO(AndrewL): Update API to support multiple bootstrap peers.
-    pub fn new(
-        config: DiscoveryConfig,
-        bootstrap_peer_id: PeerId,
-        bootstrap_peer_address: Multiaddr,
-    ) -> Self {
+    pub fn new(config: DiscoveryConfig, bootstrap_peers: Vec<(PeerId, Multiaddr)>) -> Self {
         let bootstrap_dial_retry_strategy = config.bootstrap_dial_retry_config.strategy();
-        let bootstrap_peers = vec![
-            (BootstrapPeerMetadata::new(
-                bootstrap_peer_id,
-                bootstrap_peer_address,
-                bootstrap_dial_retry_strategy,
-            )),
-        ];
+        let bootstrap_peers = bootstrap_peers
+            .into_iter()
+            .map(|(peer_id, peer_address)| {
+                BootstrapPeerMetadata::new(
+                    peer_id,
+                    peer_address,
+                    bootstrap_dial_retry_strategy.clone(),
+                )
+            })
+            .collect();
         Self { config, bootstrap_peers, poll_futures: FuturesUnordered::new() }
     }
 
