@@ -57,6 +57,7 @@ use apollo_mempool_p2p::metrics::{
     MEMPOOL_P2P_NUM_RECEIVED_MESSAGES,
     MEMPOOL_P2P_NUM_SENT_MESSAGES,
 };
+use apollo_compile_to_casm::metrics::COMPILATION_LATENCY;
 use apollo_state_reader::metrics::{
     CLASS_CACHE_HITS,
     CLASS_CACHE_MISSES,
@@ -344,6 +345,13 @@ const PANEL_APOLLO_STATE_READER_NATIVE_CLASS_RETURNED_RATIO: Panel = Panel::new(
     PanelType::Graph,
 );
 
+const PANEL_COMPILATION_LATENCY: Panel = Panel::new(
+    COMPILATION_LATENCY.get_name(),
+    COMPILATION_LATENCY.get_description(),
+    formatcp!("avg_over_time({}[2m])", COMPILATION_LATENCY.get_name()),
+    PanelType::Graph,
+);
+
 const MEMPOOL_P2P_ROW: Row = Row::new(
     "MempoolP2p",
     "Mempool peer to peer metrics",
@@ -580,6 +588,9 @@ pub const MEMPOOL_INFRA_ROW: Row = Row::new(
     ],
 );
 
+pub const SIERRA_MULTICOMPILE_ROW: Row =
+    Row::new("Sierra Multicompile", "Sierra multicompile metrics", &[PANEL_COMPILATION_LATENCY]);
+
 pub const SEQUENCER_DASHBOARD: Dashboard = Dashboard::new(
     "Sequencer Node Dashboard",
     "Monitoring of the decentralized sequencer node",
@@ -601,6 +612,7 @@ pub const SEQUENCER_DASHBOARD: Dashboard = Dashboard::new(
         MEMPOOL_INFRA_ROW,
         MEMPOOL_P2P_INFRA_ROW,
         SIERRA_COMPILER_INFRA_ROW,
+        SIERRA_MULTICOMPILE_ROW,
         STATE_SYNC_INFRA_ROW,
     ],
 );
