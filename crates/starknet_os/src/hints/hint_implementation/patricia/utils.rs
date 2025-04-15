@@ -184,7 +184,7 @@ pub(crate) fn build_update_tree(
 }
 
 /// Deserializes the preimage mapping from the commitment facts.
-fn create_preimage_mapping(
+pub(crate) fn create_preimage_mapping(
     commitment_facts: &HashMap<HashOutput, Vec<Felt>>,
 ) -> Result<PreimageMap, PatriciaError> {
     let mut preimage_mapping = PreimageMap::new();

@@ -10,6 +10,7 @@ use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintResult};
+use crate::hints::hint_implementation::patricia::utils::create_preimage_mapping;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
 use crate::io::os_input::CommitmentInfo;
@@ -64,7 +65,7 @@ fn set_preimage_for_commitments<S: StateReader>(
     //   ownership; we should, however, somehow invalidate the
     //   `os_input.contract_state_commitment_info.commitment_facts` field in this case (panic if
     //   accessed again after this line).
-    exec_scopes.insert_value(Scope::Preimage.into(), commitment_facts.clone());
+    exec_scopes.insert_value(Scope::Preimage.into(), create_preimage_mapping(commitment_facts)?);
 
     let merkle_height = Const::MerkleHeight.fetch(constants)?;
     let tree_height: Felt = (*tree_height).into();
