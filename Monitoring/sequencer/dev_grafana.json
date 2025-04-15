@@ -776,6 +776,15 @@
         "extra_params": {}
       }
     ],
+    "Compile sierra to casm": [
+      {
+        "title": "apollo_compile_to_casm_compilation_latency",
+        "description": "Compilation to casm latency in seconds",
+        "type": "graph",
+        "expr": "avg_over_time(apollo_compile_to_casm_compilation_latency[2m])",
+        "extra_params": {}
+      }
+    ],
     "StateSyncInfra": [
       {
         "title": "state_sync_local_msgs_received",
