@@ -111,7 +111,7 @@ async fn discovery_redials_on_dial_failure(
     bootstrap_peer_address: Multiaddr,
 ) {
     let mut behaviour =
-        Behaviour::new(config.clone(), bootstrap_peer_id, bootstrap_peer_address.clone());
+        Behaviour::new(config.clone(), vec![(bootstrap_peer_id, bootstrap_peer_address.clone())]);
 
     let event = timeout(TIMEOUT, behaviour.next()).await.unwrap().unwrap();
     assert_matches!(
@@ -147,7 +147,7 @@ async fn discovery_redials_when_all_connections_closed(
     bootstrap_peer_address: Multiaddr,
 ) {
     let mut behaviour =
-        Behaviour::new(config.clone(), bootstrap_peer_id, bootstrap_peer_address.clone());
+        Behaviour::new(config.clone(), vec![(bootstrap_peer_id, bootstrap_peer_address.clone())]);
     connect_to_bootstrap_node(&mut behaviour, bootstrap_peer_id, bootstrap_peer_address.clone())
         .await;
 
@@ -179,7 +179,7 @@ async fn discovery_doesnt_redial_when_one_connection_closes(
     bootstrap_peer_address: Multiaddr,
 ) {
     let mut behaviour =
-        Behaviour::new(config.clone(), bootstrap_peer_id, bootstrap_peer_address.clone());
+        Behaviour::new(config.clone(), vec![(bootstrap_peer_id, bootstrap_peer_address.clone())]);
     connect_to_bootstrap_node(&mut behaviour, bootstrap_peer_id, bootstrap_peer_address.clone())
         .await;
 
@@ -250,7 +250,7 @@ async fn discovery_sleeps_between_queries(
     bootstrap_peer_address: Multiaddr,
 ) {
     let mut behaviour =
-        Behaviour::new(config.clone(), bootstrap_peer_id, bootstrap_peer_address.clone());
+        Behaviour::new(config.clone(), vec![(bootstrap_peer_id, bootstrap_peer_address.clone())]);
     connect_to_bootstrap_node(&mut behaviour, bootstrap_peer_id, bootstrap_peer_address).await;
 
     // Consume the initial query event.
@@ -272,7 +272,7 @@ async fn discovery_performs_queries_even_if_not_connected_to_bootstrap_peer(
     bootstrap_peer_address: Multiaddr,
 ) {
     let mut behaviour =
-        Behaviour::new(config.clone(), bootstrap_peer_id, bootstrap_peer_address.clone());
+        Behaviour::new(config.clone(), vec![(bootstrap_peer_id, bootstrap_peer_address.clone())]);
 
     // Consume the initial dial and query events.
     timeout(TIMEOUT, behaviour.next()).await.unwrap();
