@@ -80,10 +80,12 @@ impl MixedBehaviour {
                 .map(|bootstrap_peer_multiaddr| {
                     discovery::Behaviour::new(
                         discovery_config,
-                        DialOpts::from(bootstrap_peer_multiaddr.clone())
-                            .get_peer_id()
-                            .expect("bootstrap_peer_multiaddr doesn't have a peer id"),
-                        bootstrap_peer_multiaddr.clone(),
+                        vec![(
+                            DialOpts::from(bootstrap_peer_multiaddr.clone())
+                                .get_peer_id()
+                                .expect("bootstrap_peer_multiaddr doesn't have a peer id"),
+                            bootstrap_peer_multiaddr.clone(),
+                        )],
                     )
                 })
                 .into(),
