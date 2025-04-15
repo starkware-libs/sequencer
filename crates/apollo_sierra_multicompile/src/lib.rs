@@ -1,6 +1,8 @@
 //! A lib for compiling Sierra into Casm.
-use apollo_infra::component_definitions::ComponentStarter;
+use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
+use apollo_proc_macros::sequencer_latency_histogram;
 use apollo_sierra_multicompile_types::{RawClass, RawExecutableClass, RawExecutableHashedClass};
+use async_trait::async_trait;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;
 #[cfg(feature = "cairo_native")]
@@ -15,6 +17,7 @@ use tracing::instrument;
 
 use crate::command_line_compiler::CommandLineCompiler;
 use crate::errors::CompilationUtilError;
+use crate::metrics::{register_metrics, COMPILATION_LATENCY};
 use crate::utils::into_contract_class_for_compilation;
 
 pub mod command_line_compiler;
@@ -22,6 +25,7 @@ pub mod communication;
 pub mod config;
 pub mod constants;
 pub mod errors;
+pub mod metrics;
 pub mod paths;
 pub mod resource_limits;
 pub mod utils;
@@ -85,6 +89,7 @@ impl SierraCompiler {
 
     // TODO(Elin): move (de)serialization to infra. layer.
     #[instrument(skip(self, class), err)]
+    #[sequencer_latency_histogram(COMPILATION_LATENCY, true)]
     pub fn compile(&self, class: RawClass) -> SierraCompilerResult<RawExecutableHashedClass> {
         let class = SierraContractClass::try_from(class)?;
         let sierra_version = SierraVersion::extract_from_program(&class.sierra_program)
@@ -107,4 +112,10 @@ pub fn create_sierra_compiler(config: SierraCompilationConfig) -> SierraCompiler
     SierraCompiler::new(compiler)
 }
 
-impl ComponentStarter for SierraCompiler {}
+#[async_trait]
+impl ComponentStarter for SierraCompiler {
+    async fn start(&mut self) {
+        default_component_start_fn::<Self>().await;
+        register_metrics();
+    }
+}
