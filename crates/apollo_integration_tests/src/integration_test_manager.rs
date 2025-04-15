@@ -19,6 +19,7 @@ use apollo_node::config::definitions::ConfigPointersMap;
 use apollo_node::config::node_config::{SequencerNodeConfig, CONFIG_NON_POINTERS_WHITELIST};
 use apollo_node::test_utils::node_runner::{get_node_executable_path, spawn_run_node};
 use apollo_storage::StorageConfig;
+use apollo_test_utils::send_request;
 use blockifier::context::ChainInfo;
 use futures::future::join_all;
 use futures::TryFutureExt;
@@ -481,6 +482,42 @@ impl IntegrationTestManager {
             wait_for_block,
         )
         .await;
+        self.rpc_verify_last_block(wait_for_block).await;
+    }
+
+    // Verify with JSON RPC server if the last block is the expected one.
+    async fn rpc_verify_last_block(&self, expected_block: BlockNumber) {
+        let node_0_setup = self
+            .running_nodes
+            .get(&0)
+            .map(|node| &(node.node_setup))
+            .unwrap_or_else(|| self.idle_nodes.get(&0).expect("Node 0 doesn't exist"));
+        let config = node_0_setup
+            .executables
+            .get(node_0_setup.http_server_index)
+            .expect("http_server_index points to a non existing executable index")
+            .get_config();
+
+        let url = config.state_sync_config.rpc_config.server_address.to_string();
+        let server_address: SocketAddr = url.parse().expect("Invalid socket address format");
+        info!("Connecting to Node id 0 JSON RPC server at: {server_address:?}");
+
+        let res = send_request(server_address, "starknet_blockNumber", "", "V0_8").await;
+        if let Some(block_number) = res.get("result").and_then(|result| result.as_u64()) {
+            assert!(
+                block_number >= expected_block.0,
+                "JSON RPC server -> Block number mismatch: expected greater or equal than {}, got \
+                 {}.",
+                expected_block.0,
+                block_number
+            );
+        } else {
+            info!("JSON RPC server -> Received: {:?}", res);
+            panic!(
+                "JSON RPC server -> Failed to extract block number: 'result' field is missing or \
+                 not a valid u64."
+            );
+        }
     }
 
     /// Create a simulator that's connected to the http server of Node 0.
@@ -743,6 +780,7 @@ pub async fn get_sequencer_setup_configs(
         .expect("Failed to get an AvailablePorts instance for state sync configs");
     let mut state_sync_configs = create_state_sync_configs(
         StorageConfig::default(),
+        state_sync_ports.get_next_ports(component_configs_len),
         state_sync_ports.get_next_ports(component_configs_len),
     );
 

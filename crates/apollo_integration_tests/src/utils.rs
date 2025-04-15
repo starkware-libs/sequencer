@@ -34,6 +34,7 @@ use apollo_network::NetworkConfig;
 use apollo_node::config::component_config::ComponentConfig;
 use apollo_node::config::definitions::ConfigPointersMap;
 use apollo_node::config::node_config::{SequencerNodeConfig, CONFIG_POINTERS};
+use apollo_rpc::RpcConfig;
 #[cfg(feature = "cairo_native")]
 use apollo_sierra_multicompile::config::SierraCompilationConfig;
 use apollo_state_sync::config::StateSyncConfig;
@@ -187,6 +188,7 @@ pub fn create_node_config(
     let class_manager_config =
         create_class_manager_config(storage_config.class_manager_storage_config);
     state_sync_config.storage_config = storage_config.state_sync_storage_config;
+    state_sync_config.rpc_config.chain_id = chain_info.chain_id.clone();
     let starknet_url = state_sync_config.rpc_config.starknet_url.clone();
 
     // Update config pointer values.
@@ -673,12 +675,17 @@ pub fn set_validator_id(
 pub fn create_state_sync_configs(
     state_sync_storage_config: StorageConfig,
     ports: Vec<u16>,
+    mut rpc_ports: Vec<u16>,
 ) -> Vec<StateSyncConfig> {
     create_connected_network_configs(ports)
         .into_iter()
         .map(|network_config| StateSyncConfig {
             storage_config: state_sync_storage_config.clone(),
             network_config: Some(network_config),
+            rpc_config: RpcConfig {
+                server_address: format!("127.0.0.1:{}", rpc_ports.remove(0)),
+                ..Default::default()
+            },
             ..Default::default()
         })
         .collect()

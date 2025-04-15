@@ -14,12 +14,14 @@ fn run_panics_when_network_future_returns() {
     let p2p_sync_server_future = pending().boxed();
     let central_sync_client_future = pending().boxed();
     let new_block_dev_null_future = pending().boxed();
+    let rpc_server_future = pending().boxed();
     let mut state_sync_runner = StateSyncRunner {
         network_future,
         p2p_sync_client_future,
         p2p_sync_server_future,
         central_sync_client_future,
         new_block_dev_null_future,
+        rpc_server_future,
     };
     state_sync_runner.start().now_or_never().unwrap();
 }
@@ -33,12 +35,14 @@ fn run_panics_when_network_future_returns_error() {
     let p2p_sync_server_future = pending().boxed();
     let central_sync_client_future = pending().boxed();
     let new_block_dev_null_future = pending().boxed();
+    let rpc_server_future = pending().boxed();
     let mut state_sync_runner = StateSyncRunner {
         network_future,
         p2p_sync_client_future,
         p2p_sync_server_future,
         central_sync_client_future,
         new_block_dev_null_future,
+        rpc_server_future,
     };
     state_sync_runner.start().now_or_never().unwrap();
 }
@@ -51,12 +55,14 @@ fn run_panics_when_sync_client_future_returns_error() {
     let p2p_sync_server_future = pending().boxed();
     let central_sync_client_future = pending().boxed();
     let new_block_dev_null_future = pending().boxed();
+    let rpc_server_future = pending().boxed();
     let mut state_sync_runner = StateSyncRunner {
         network_future,
         p2p_sync_client_future,
         p2p_sync_server_future,
         central_sync_client_future,
         new_block_dev_null_future,
+        rpc_server_future,
     };
     state_sync_runner.start().now_or_never().unwrap();
 }
