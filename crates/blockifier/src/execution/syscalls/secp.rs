@@ -304,8 +304,8 @@ pub fn secp256k1_new(
     syscall_handler.secp256k1_hint_processor.secp_new(request)
 }
 
-type Secp256r1NewRequest = EcPointCoordinates;
-type Secp256r1NewResponse = SecpOptionalEcPointResponse;
+pub(crate) type Secp256r1NewRequest = EcPointCoordinates;
+pub(crate) type Secp256r1NewResponse = SecpOptionalEcPointResponse;
 
 pub fn secp256r1_new(
     request: Secp256r1NewRequest,
