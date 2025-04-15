@@ -2,8 +2,14 @@ use std::collections::{HashMap, HashSet};
 
 use num_bigint::BigUint;
 use starknet_patricia::hash::hash_trait::HashOutput;
-use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{BinaryData, EdgeData};
+use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
+    BinaryData,
+    EdgeData,
+    EdgePathLength,
+    PathToBottom,
+};
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
+use starknet_types_core::felt::Felt;
 
 use crate::hints::hint_implementation::patricia::error::PatriciaError;
 
@@ -20,17 +26,20 @@ pub enum Preimage {
 pub type PreimageMap = HashMap<HashOutput, Preimage>;
 
 impl Preimage {
+    pub(crate) const BINARY_LENGTH: u8 = 2;
+    pub(crate) const EDGE_LENGTH: u8 = 3;
+
     pub fn length(&self) -> u8 {
         match self {
-            Preimage::Binary(_) => 2,
-            Preimage::Edge(_) => 3,
+            Self::Binary(_) => Self::BINARY_LENGTH,
+            Self::Edge(_) => Self::EDGE_LENGTH,
         }
     }
 
     fn get_binary(&self) -> Result<&BinaryData, PatriciaError> {
         match self {
-            Preimage::Binary(binary) => Ok(binary),
-            Preimage::Edge(_) => Err(PatriciaError::ExpectedBinary(self.clone())),
+            Self::Binary(binary) => Ok(binary),
+            Self::Edge(_) => Err(PatriciaError::ExpectedBinary(self.clone())),
         }
     }
 }
@@ -172,4 +181,36 @@ pub(crate) fn build_update_tree(
     Ok(layer
         .remove(&LayerIndex::FIRST_LEAF)
         .expect("There should be a root node since modifications are not empty."))
+}
+
+/// Deserializes the preimage mapping from the commitment facts.
+fn create_preimage_mapping(
+    commitment_facts: &HashMap<HashOutput, Vec<Felt>>,
+) -> Result<PreimageMap, PatriciaError> {
+    let mut preimage_mapping = PreimageMap::new();
+    for (hash, raw_preimage) in commitment_facts.iter() {
+        match raw_preimage.as_slice() {
+            [left, right] => {
+                let binary_data =
+                    BinaryData { left_hash: HashOutput(*left), right_hash: HashOutput(*right) };
+                preimage_mapping.insert(*hash, Preimage::Binary(binary_data));
+            }
+            [length, path, bottom] => {
+                let edge_data = EdgeData {
+                    bottom_hash: HashOutput(*bottom),
+                    path_to_bottom: PathToBottom::new(
+                        (*path).into(),
+                        EdgePathLength::new((*length).try_into().map_err(|_| {
+                            PatriciaError::InvalidRawPreimage(raw_preimage.clone())
+                        })?)?,
+                    )?,
+                };
+                preimage_mapping.insert(*hash, Preimage::Edge(edge_data));
+            }
+            _ => {
+                return Err(PatriciaError::InvalidRawPreimage(raw_preimage.clone()));
+            }
+        }
+    }
+    Ok(preimage_mapping)
 }
