@@ -792,6 +792,15 @@
         "extra_params": {}
       }
     ],
+    "Compile sierra to casm": [
+      {
+        "title": "compile_to_casm_compilation_duration",
+        "description": "Server-side compilation to casm duration in seconds",
+        "type": "graph",
+        "expr": "avg_over_time(compile_to_casm_compilation_duration[2m])",
+        "extra_params": {}
+      }
+    ],
     "StateSyncInfra": [
       {
         "title": "state_sync_local_msgs_received",
