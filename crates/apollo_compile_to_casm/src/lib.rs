@@ -3,6 +3,7 @@ use apollo_compilation_utils::class_utils::into_contract_class_for_compilation;
 use apollo_compilation_utils::errors::CompilationUtilError;
 use apollo_compile_to_casm_types::{RawClass, RawExecutableClass, RawExecutableHashedClass};
 use apollo_infra::component_definitions::ComponentStarter;
+use apollo_proc_macros::sequencer_latency_histogram;
 use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::CompiledClassHash;
 use starknet_api::state::SierraContractClass;
@@ -12,11 +13,13 @@ use tracing::instrument;
 
 use crate::compiler::SierraToCasmCompiler;
 use crate::config::SierraCompilationConfig;
+use crate::metrics::{register_metrics, COMPILATION_LATENCY};
 
 pub mod communication;
 pub mod compiler;
 pub mod config;
 pub mod constants;
+pub mod metrics;
 
 #[cfg(test)]
 #[path = "compile_test.rs"]
@@ -57,6 +60,7 @@ impl SierraCompiler {
 
     // TODO(Elin): move (de)serialization to infra. layer.
     #[instrument(skip(self, class), err)]
+    #[sequencer_latency_histogram(COMPILATION_LATENCY, true)]
     pub fn compile(&self, class: RawClass) -> SierraCompilerResult<RawExecutableHashedClass> {
         let class = SierraContractClass::try_from(class)?;
         let sierra_version = SierraVersion::extract_from_program(&class.sierra_program)
@@ -79,4 +83,10 @@ pub fn create_sierra_compiler(config: SierraCompilationConfig) -> SierraCompiler
     SierraCompiler::new(compiler)
 }
 
-impl ComponentStarter for SierraCompiler {}
+#[async_trait]
+impl ComponentStarter for SierraCompiler {
+    async fn start(&mut self) {
+        default_component_start_fn::<Self>().await;
+        register_metrics();
+    }
+}

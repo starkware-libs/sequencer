@@ -8,6 +8,7 @@ use apollo_http_server::metrics::HTTP_SERVER_ALL_METRICS;
 use apollo_infra::metrics::INFRA_ALL_METRICS;
 use apollo_mempool::metrics::MEMPOOL_ALL_METRICS;
 use apollo_mempool_p2p::metrics::MEMPOOL_P2P_ALL_METRICS;
+use apollo_sierra_multicompile::metrics::SIERRA_MULTICOMPILE_ALL_METRICS;
 use apollo_state_sync::metrics::STATE_SYNC_ALL_METRICS;
 
 #[test]
@@ -22,6 +23,7 @@ fn metric_names_no_duplications() {
         .chain(MEMPOOL_P2P_ALL_METRICS.iter())
         .chain(APOLLO_CENTRAL_SYNC_ALL_METRICS.iter())
         .chain(STATE_SYNC_ALL_METRICS.iter())
+        .chain(SIERRA_MULTICOMPILE_ALL_METRICS.iter())
         .collect::<Vec<&&'static str>>();
 
     let mut unique_metric_names: HashSet<&&'static str> = HashSet::new();
