@@ -2,8 +2,14 @@ use std::collections::{HashMap, HashSet};
 
 use num_bigint::BigUint;
 use starknet_patricia::hash::hash_trait::HashOutput;
-use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{BinaryData, EdgeData};
+use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
+    BinaryData,
+    EdgeData,
+    EdgePathLength,
+    PathToBottom,
+};
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
+use starknet_types_core::felt::Felt;
 
 use crate::hints::hint_implementation::patricia::error::PatriciaError;
 
@@ -20,10 +26,13 @@ pub enum Preimage {
 pub type PreimageMap = HashMap<HashOutput, Preimage>;
 
 impl Preimage {
+    pub const BINARY_LENGTH: u8 = 2;
+    pub const EDGE_LENGTH: u8 = 3;
+
     pub fn length(&self) -> u8 {
         match self {
-            Preimage::Binary(_) => 2,
-            Preimage::Edge(_) => 3,
+            Preimage::Binary(_) => Self::BINARY_LENGTH,
+            Preimage::Edge(_) => Self::EDGE_LENGTH,
         }
     }
 
@@ -172,4 +181,38 @@ pub(crate) fn build_update_tree(
     Ok(layer
         .remove(&LayerIndex::FIRST_LEAF)
         .expect("There should be a root node since modifications are not empty."))
+}
+
+/// Deserializes the preimage mapping from the commitment facts.
+fn create_preimage_mapping(
+    commitment_facts: &HashMap<HashOutput, Vec<Felt>>,
+) -> Result<PreimageMap, PatriciaError> {
+    let mut preimage_mapping = PreimageMap::new();
+    for (hash, raw_preimage) in commitment_facts.iter() {
+        #[allow(clippy::as_conversions)]
+        match raw_preimage.len() as u8 {
+            Preimage::BINARY_LENGTH => {
+                let binary_data = BinaryData {
+                    left_hash: HashOutput(raw_preimage[0]),
+                    right_hash: HashOutput(raw_preimage[1]),
+                };
+                preimage_mapping.insert(*hash, Preimage::Binary(binary_data));
+            }
+            Preimage::EDGE_LENGTH => {
+                let (length, path, bottom) = (raw_preimage[0], raw_preimage[1], raw_preimage[2]);
+                let edge_data = EdgeData {
+                    bottom_hash: HashOutput(bottom),
+                    path_to_bottom: PathToBottom::new(
+                        path.into(),
+                        EdgePathLength::new(length.try_into().expect("Invalid path length."))?,
+                    )?,
+                };
+                preimage_mapping.insert(*hash, Preimage::Edge(edge_data));
+            }
+            _ => {
+                return Err(PatriciaError::InvalidRawPreimage(raw_preimage.clone()));
+            }
+        }
+    }
+    Ok(preimage_mapping)
 }
