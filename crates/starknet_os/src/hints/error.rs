@@ -8,7 +8,7 @@ use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use num_bigint::{BigUint, TryFromBigIntError};
 use starknet_api::block::BlockNumber;
-use starknet_api::core::ClassHash;
+use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::StarknetApiError;
 use starknet_patricia::hash::hash_trait::HashOutput;
@@ -59,6 +59,8 @@ pub enum OsHintError {
     Memory(#[from] MemoryError),
     #[error("No bytecode segment structure for class hash: {0:?}.")]
     MissingBytecodeSegmentStructure(ClassHash),
+    #[error("No commitment info for contract address: {0:?}.")]
+    MissingCommitmentInfo(ContractAddress),
     #[error("Hint {hint:?} has no nondet offset.")]
     MissingOffsetForHint { hint: AllHints },
     #[error("No preimage found for value {0:?}.")]
