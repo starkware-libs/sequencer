@@ -579,8 +579,9 @@ impl OsResources {
                     panic!("OS resources of syscall '{syscall_selector:?}' are unknown.")
                 });
             os_additional_resources += &(&(&syscall_resources.constant * syscall_usage.call_count)
-                + &(&syscall_resources.calldata_factor.resources * syscall_usage.linear_factor)
-                    .div_ceil(syscall_resources.calldata_factor.scaling_factor));
+                + &syscall_resources
+                    .calldata_factor
+                    .calculate_resources(syscall_usage.linear_factor));
         }
 
         os_additional_resources
@@ -599,8 +600,7 @@ impl OsResources {
     ) -> ExecutionResources {
         let resources_vector = self.resources_params_for_tx_type(tx_type);
         &resources_vector.constant
-            + &(&(resources_vector.calldata_factor.resources) * calldata_length)
-                .div_ceil(resources_vector.calldata_factor.scaling_factor)
+            + &resources_vector.calldata_factor.calculate_resources(calldata_length)
     }
 
     fn os_kzg_da_resources(&self, data_segment_length: usize) -> ExecutionResources {
@@ -1197,6 +1197,12 @@ pub struct CallDataFactor {
 impl Default for CallDataFactor {
     fn default() -> Self {
         Self { resources: ExecutionResources::default(), scaling_factor: 1 }
+    }
+}
+
+impl CallDataFactor {
+    pub fn calculate_resources(&self, linear_factor: usize) -> ExecutionResources {
+        (&self.resources * linear_factor).div_ceil(self.scaling_factor).clone()
     }
 }
 
