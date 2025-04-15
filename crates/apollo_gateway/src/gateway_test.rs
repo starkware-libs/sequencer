@@ -303,31 +303,29 @@ async fn run_add_tx_and_extract_metrics(
 }
 
 // TODO(AlonH): add test with Some broadcasted message metadata
-// TODO(AndrewL): split into negative and positive tests
 #[rstest]
-#[case::successful_transaction(Ok(()), None)]
 #[case::tx_with_duplicate_tx_hash(
     Err(MempoolClientError::MempoolError(MempoolError::DuplicateTransaction { tx_hash: TransactionHash::default() })),
-    Some( StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::DuplicatedTransaction))
+     StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::DuplicatedTransaction)
 )]
 #[case::tx_with_duplicate_nonce(
     Err(MempoolClientError::MempoolError(MempoolError::DuplicateNonce { address: ContractAddress::default(), nonce: Nonce::default() })),
-    Some( StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::InvalidTransactionNonce))
+    StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::InvalidTransactionNonce)
 )]
 #[case::tx_with_nonce_too_old(
     Err(MempoolClientError::MempoolError(MempoolError::NonceTooOld { address: ContractAddress::default(), tx_nonce: Nonce::default(), account_nonce: nonce!(1) })),
-    Some( StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::InvalidTransactionNonce))
+    StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::InvalidTransactionNonce)
 )]
 #[case::tx_with_nonce_too_large(
     Err(MempoolClientError::MempoolError(MempoolError::NonceTooLarge(Nonce::default()))),
-    Some(StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.NONCE_TOO_LARGE".to_string()))
+    StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.NONCE_TOO_LARGE".to_string())
 )]
 #[tokio::test]
-async fn test_add_tx(
+async fn test_add_tx_negative(
     mut mock_dependencies: MockDependencies,
     #[values(invoke_args(), deploy_account_args(), declare_args())] tx_args: impl TestingTxArgs,
     #[case] expected_mempool_result: Result<(), MempoolClientError>,
-    #[case] expected_error_code: Option<StarknetErrorCode>,
+    #[case] expected_error_code: StarknetErrorCode,
 ) {
     let p2p_message_metadata =
         setup_mock_state(&mut mock_dependencies, &tx_args, expected_mempool_result).await;
@@ -339,25 +337,34 @@ async fn test_add_tx(
         metric_handle_for_queries.get_metric_value(GATEWAY_TRANSACTIONS_RECEIVED, &metrics),
         1
     );
-    match expected_error_code {
-        Some(expected_err) => {
-            assert_eq!(
-                metric_handle_for_queries.get_metric_value(GATEWAY_TRANSACTIONS_FAILED, &metrics),
-                1
-            );
-            assert_eq!(result.unwrap_err().code, expected_err);
-        }
-        None => {
-            assert_eq!(
-                metric_handle_for_queries
-                    .get_metric_value(GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL, &metrics),
-                1
-            );
-            check_positive_add_tx_result(tx_args, result.unwrap());
-        }
-    }
+    assert_eq!(
+        metric_handle_for_queries.get_metric_value(GATEWAY_TRANSACTIONS_FAILED, &metrics),
+        1
+    );
+    assert_eq!(result.unwrap_err().code, expected_error_code);
 }
 
+#[rstest]
+#[tokio::test]
+async fn test_add_tx_positive(
+    mut mock_dependencies: MockDependencies,
+    #[values(invoke_args(), deploy_account_args(), declare_args())] tx_args: impl TestingTxArgs,
+) {
+    let p2p_message_metadata = setup_mock_state(&mut mock_dependencies, &tx_args, Ok(())).await;
+
+    let AddTxResults { result, metric_handle_for_queries, metrics } =
+        run_add_tx_and_extract_metrics(mock_dependencies, &tx_args, p2p_message_metadata).await;
+
+    assert_eq!(
+        metric_handle_for_queries.get_metric_value(GATEWAY_TRANSACTIONS_RECEIVED, &metrics),
+        1
+    );
+    assert_eq!(
+        metric_handle_for_queries.get_metric_value(GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL, &metrics),
+        1
+    );
+    check_positive_add_tx_result(tx_args, result.unwrap());
+}
 // Gateway spec errors tests.
 // TODO(Arni): Add tests for all the error cases. Check the response (use `into_response` on the
 // result of `add_tx`).
