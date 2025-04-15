@@ -6,6 +6,9 @@ repository.workspace = true
 version.workspace = true
 description = "A utility crate for compiling Sierra code into CASM."
 
+[features]
+testing = []
+
 [lints]
 workspace = true
 
@@ -14,6 +17,8 @@ apollo_compilation_utils.workspace = true
 apollo_compile_to_casm_types.workspace = true
 apollo_config.workspace = true
 apollo_infra.workspace = true
+apollo_metrics.workspace = true
+apollo_proc_macros.workspace = true
 async-trait.workspace = true
 cairo-lang-starknet-classes.workspace = true
 serde.workspace = true

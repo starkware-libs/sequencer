@@ -18,6 +18,7 @@ apollo_central_sync.workspace = true
 apollo_consensus.workspace = true
 apollo_consensus_manager.workspace = true
 apollo_consensus_orchestrator.workspace = true
+apollo_compile_to_casm.workspace = true
 apollo_gateway.workspace = true
 apollo_http_server.workspace = true
 apollo_infra.workspace = true
@@ -35,6 +36,7 @@ serde_json = { workspace = true, features = ["arbitrary_precision"] }
 [dev-dependencies]
 apollo_batcher = { workspace = true, features = ["testing"] }
 apollo_central_sync = { workspace = true, features = ["testing"] }
+apollo_compile_to_casm = { workspace = true, features = ["testing"] }
 apollo_consensus = { workspace = true, features = ["testing"] }
 apollo_consensus_manager = { workspace = true, features = ["testing"] }
 apollo_gateway = { workspace = true, features = ["testing"] }

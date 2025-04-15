@@ -38,6 +38,7 @@ pub enum MetricScope {
     L1ToL2Message,
     Mempool,
     MempoolP2p,
+    CompileToCasm,
     StateSync,
     ApolloCentralSync,
 }

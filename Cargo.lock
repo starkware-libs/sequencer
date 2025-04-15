@@ -911,6 +911,8 @@ dependencies = [
  "apollo_config",
  "apollo_infra",
  "apollo_infra_utils",
+ "apollo_metrics",
+ "apollo_proc_macros",
  "assert_matches",
  "async-trait",
  "cairo-lang-starknet-classes",
@@ -1093,6 +1095,7 @@ version = "0.0.0"
 dependencies = [
  "apollo_batcher",
  "apollo_central_sync",
+ "apollo_compile_to_casm",
  "apollo_consensus",
  "apollo_consensus_manager",
  "apollo_consensus_orchestrator",
