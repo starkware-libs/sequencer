@@ -650,18 +650,18 @@ y_square_int = y_squared_from_x(
     alpha=SECP256R1.alpha,
     beta=SECP256R1.beta,
     field_prime=SECP256R1.prime,
-    )
-    
-    # Note that (y_square_int ** ((SECP256R1.prime + 1) / 4)) ** 2 =
-    #   = y_square_int ** ((SECP256R1.prime + 1) / 2) =
-    #   = y_square_int ** ((SECP256R1.prime - 1) / 2 + 1) =
-    #   = y_square_int * y_square_int ** ((SECP256R1.prime - 1) / 2) = y_square_int * {+/-}1.
-    y = pow(y_square_int, (SECP256R1.prime + 1) // 4, SECP256R1.prime)
-    
-    # We need to decide whether to take y or prime - y.
-    if ids.v % 2 == y % 2:
+)
+
+# Note that (y_square_int ** ((SECP256R1.prime + 1) / 4)) ** 2 =
+#   = y_square_int ** ((SECP256R1.prime + 1) / 2) =
+#   = y_square_int ** ((SECP256R1.prime - 1) / 2 + 1) =
+#   = y_square_int * y_square_int ** ((SECP256R1.prime - 1) / 2) = y_square_int * {+/-}1.
+y = pow(y_square_int, (SECP256R1.prime + 1) // 4, SECP256R1.prime)
+
+# We need to decide whether to take y or prime - y.
+if ids.v % 2 == y % 2:
     value = y
-    else:
+else:
     value = (-y) % SECP256R1.prime"#,
     ])
 }
