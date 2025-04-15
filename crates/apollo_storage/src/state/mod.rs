@@ -134,6 +134,7 @@ pub trait StateStorageReader<Mode: TransactionKind> {
 
 type RevertedStateDiff = (
     ThinStateDiff,
+    Vec<ClassHash>,
     IndexMap<ClassHash, SierraContractClass>,
     IndexMap<ClassHash, DeprecatedContractClass>,
     IndexMap<ClassHash, CasmContractClass>,
@@ -506,11 +507,15 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
         if compiled_classes_marker == next_block_number {
             markers_table.upsert(&self.txn, &MarkerKind::CompiledClass, &block_number)?;
         }
+        let deleted_class_hashes = delete_declared_classes_block(
+            &self.txn,
+            &thin_state_diff,
+            &declared_classes_block_table,
+        )?;
         let deleted_classes = delete_declared_classes(
             &self.txn,
             &thin_state_diff,
             &declared_classes_table,
-            &declared_classes_block_table,
             &self.file_handlers,
         )?;
         let deleted_deprecated_classes = delete_deprecated_declared_classes(
@@ -541,6 +546,7 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
             self,
             Some((
                 thin_state_diff,
+                deleted_class_hashes,
                 deleted_classes,
                 deleted_deprecated_classes,
                 deleted_compiled_classes,
@@ -655,11 +661,23 @@ fn write_storage_diffs<'env>(
     Ok(())
 }
 
+fn delete_declared_classes_block<'env>(
+    txn: &'env DbTransaction<'env, RW>,
+    thin_state_diff: &ThinStateDiff,
+    declared_classes_block_table: &'env DeclaredClassesBlockTable<'env>,
+) -> StorageResult<Vec<ClassHash>> {
+    let mut deleted_data = Vec::new();
+    for class_hash in thin_state_diff.declared_classes.keys() {
+        declared_classes_block_table.delete(txn, class_hash)?;
+        deleted_data.push(*class_hash);
+    }
+    Ok(deleted_data)
+}
+
 fn delete_declared_classes<'env>(
     txn: &'env DbTransaction<'env, RW>,
     thin_state_diff: &ThinStateDiff,
     declared_classes_table: &'env DeclaredClassesTable<'env>,
-    declared_classes_block_table: &'env DeclaredClassesBlockTable<'env>,
     file_handlers: &FileHandlers<RW>,
 ) -> StorageResult<IndexMap<ClassHash, SierraContractClass>> {
     let mut deleted_data = IndexMap::new();
@@ -672,7 +690,6 @@ fn delete_declared_classes<'env>(
             file_handlers.get_contract_class_unchecked(contract_class_location)?,
         );
         declared_classes_table.delete(txn, class_hash)?;
-        declared_classes_block_table.delete(txn, class_hash)?;
     }
 
     Ok(deleted_data)
