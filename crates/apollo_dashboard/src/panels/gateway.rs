@@ -53,7 +53,7 @@ pub(crate) const PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_SOURCE: Panel = Panel::n
 pub(crate) const PANEL_GATEWAY_TRANSACTIONS_RECEIVED_RATE: Panel = Panel::new(
     "gateway_transactions_received_rate (TPS)",
     "The rate of transactions received by the gateway during the last 20 minutes",
-    formatcp!("sum(rate({}[20m]))", GATEWAY_TRANSACTIONS_RECEIVED.get_name()),
+    formatcp!("sum(rate({}[20m])) or vector(0)", GATEWAY_TRANSACTIONS_RECEIVED.get_name()),
     PanelType::Graph,
 );
 

@@ -297,7 +297,7 @@
         "title": "gateway_transactions_received_rate (TPS)",
         "description": "The rate of transactions received by the gateway during the last 20 minutes",
         "type": "graph",
-        "expr": "sum(rate(gateway_transactions_received[20m]))",
+        "expr": "sum(rate(gateway_transactions_received[20m])) or vector(0)",
         "extra_params": {}
       },
       {
@@ -341,7 +341,7 @@
         "title": "mempool_transactions_received_rate (TPS)",
         "description": "The rate of transactions received by the mempool during the last 20 minutes",
         "type": "graph",
-        "expr": "sum(rate(mempool_transactions_received[20m]))",
+        "expr": "sum(rate(mempool_transactions_received[20m])) or vector(0)",
         "extra_params": {}
       },
       {
