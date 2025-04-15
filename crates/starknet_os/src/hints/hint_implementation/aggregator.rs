@@ -10,7 +10,7 @@ pub(crate) fn allocate_segments_for_messages<S: StateReader>(
 ) -> OsHintResult {
     let segment1 = vm.add_temporary_segment();
     let segment2 = vm.add_temporary_segment();
-    let initial_carried_outputs = vm.gen_arg(&[segment1, segment2])?;
+    let initial_carried_outputs = vm.gen_arg(&vec![segment1, segment2])?;
     insert_value_from_var_name(
         Ids::InitialCarriedOutputs.into(),
         initial_carried_outputs,
