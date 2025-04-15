@@ -219,6 +219,9 @@ pub struct Alert {
     // The time duration for which the alert conditions must be true before an alert is triggered.
     #[serde(rename = "for")]
     pub pending_duration: &'static str,
+    // The interval in sec between evaluations of the alert.
+    #[serde(rename = "intervalSec")]
+    pub evaluation_interval_sec: u64,
 }
 
 /// Description of the alerts to be configured in the dashboard.
