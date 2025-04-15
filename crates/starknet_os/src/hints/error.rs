@@ -18,6 +18,7 @@ use crate::hint_processor::execution_helper::ExecutionHelperError;
 use crate::hint_processor::os_logger::OsLoggerError;
 use crate::hints::enum_definition::AllHints;
 use crate::hints::hint_implementation::kzg::utils::FftError;
+use crate::hints::hint_implementation::patricia::error::PatriciaError;
 use crate::hints::vars::{Const, Ids};
 use crate::vm_utils::VmUtilsError;
 
@@ -70,6 +71,8 @@ pub enum OsHintError {
     MissingUnselectedBuiltinPtr { builtin: MaybeRelocatable, decoded: Option<String> },
     #[error(transparent)]
     OsLogger(#[from] OsLoggerError),
+    #[error(transparent)]
+    Patricia(#[from] PatriciaError),
     #[error("{error:?} for json value {value}.")]
     SerdeJsonDeserialize { error: serde_json::Error, value: serde_json::value::Value },
     #[error(transparent)]
