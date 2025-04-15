@@ -1,0 +1,23 @@
+use apollo_infra::metrics::{
+    CLASS_MANAGER_LOCAL_MSGS_PROCESSED,
+    CLASS_MANAGER_LOCAL_MSGS_RECEIVED,
+    CLASS_MANAGER_LOCAL_QUEUE_DEPTH,
+    CLASS_MANAGER_REMOTE_MSGS_PROCESSED,
+    CLASS_MANAGER_REMOTE_MSGS_RECEIVED,
+    CLASS_MANAGER_REMOTE_VALID_MSGS_RECEIVED,
+};
+
+use crate::dashboard::{Panel, PanelType};
+
+pub(crate) const PANEL_CLASS_MANAGER_LOCAL_MSGS_RECEIVED: Panel =
+    Panel::from_counter(CLASS_MANAGER_LOCAL_MSGS_RECEIVED, PanelType::Stat);
+pub(crate) const PANEL_CLASS_MANAGER_LOCAL_MSGS_PROCESSED: Panel =
+    Panel::from_counter(CLASS_MANAGER_LOCAL_MSGS_PROCESSED, PanelType::Stat);
+pub(crate) const PANEL_CLASS_MANAGER_REMOTE_MSGS_RECEIVED: Panel =
+    Panel::from_counter(CLASS_MANAGER_REMOTE_MSGS_RECEIVED, PanelType::Stat);
+pub(crate) const PANEL_CLASS_MANAGER_REMOTE_VALID_MSGS_RECEIVED: Panel =
+    Panel::from_counter(CLASS_MANAGER_REMOTE_VALID_MSGS_RECEIVED, PanelType::Stat);
+pub(crate) const PANEL_CLASS_MANAGER_REMOTE_MSGS_PROCESSED: Panel =
+    Panel::from_counter(CLASS_MANAGER_REMOTE_MSGS_PROCESSED, PanelType::Stat);
+pub(crate) const PANEL_CLASS_MANAGER_LOCAL_QUEUE_DEPTH: Panel =
+    Panel::from_gauge(CLASS_MANAGER_LOCAL_QUEUE_DEPTH, PanelType::Stat);
