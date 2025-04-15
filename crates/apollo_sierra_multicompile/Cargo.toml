@@ -15,6 +15,8 @@ workspace = true
 [dependencies]
 apollo_config.workspace = true
 apollo_infra.workspace = true
+apollo_metrics.workspace = true
+apollo_proc_macros.workspace = true
 apollo_sierra_multicompile_types.workspace = true
 async-trait.workspace = true
 cairo-lang-sierra.workspace = true
