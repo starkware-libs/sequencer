@@ -13,6 +13,7 @@ use starknet_api::test_utils::{
     TEST_SEQUENCER_ADDRESS,
 };
 use starknet_api::transaction::fields::{
+    valid_resource_bounds_as_felts,
     AccountDeploymentData,
     AllResourceBounds,
     Calldata,
@@ -32,7 +33,6 @@ use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::context::ChainInfo;
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::CallEntryPoint;
-use crate::execution::syscalls::hint_processor::valid_resource_bounds_as_felts;
 use crate::test_utils::contracts::FeatureContractData;
 use crate::test_utils::initial_test_state::test_state_ex;
 use crate::test_utils::{trivial_external_entry_point_with_address, BALANCE};
