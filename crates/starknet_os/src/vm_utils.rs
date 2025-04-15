@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use blockifier::execution::syscalls::hint_processor::SyscallExecutionError;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::get_relocatable_from_var_name;
 use cairo_vm::hint_processor::hint_processor_definition::HintReference;
 use cairo_vm::serde::deserialize_program::{ApTracking, Identifier};
@@ -10,6 +9,7 @@ use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::errors::hint_errors::HintError;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::vm_core::VirtualMachine;
+use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::class_hash::hinted_class_hash::HintedClassHashError;
@@ -32,7 +32,7 @@ pub enum VmUtilsError {
     #[error(transparent)]
     Memory(#[from] MemoryError),
     #[error("Failed to parse resource bounds: {0}.")]
-    ResourceBoundsParsing(SyscallExecutionError),
+    ResourceBoundsParsing(StarknetApiError),
     #[error(transparent)]
     SerdeJson(#[from] serde_json::Error),
     #[error("{error:?} for json value {value}.")]

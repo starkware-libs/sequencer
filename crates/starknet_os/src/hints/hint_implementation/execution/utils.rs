@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
-use blockifier::execution::syscalls::hint_processor::{
-    valid_resource_bounds_as_felts,
-    ResourceAsFelts,
-};
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::vm_core::VirtualMachine;
-use starknet_api::transaction::fields::ValidResourceBounds;
+use starknet_api::transaction::fields::{
+    valid_resource_bounds_as_felts,
+    ResourceAsFelts,
+    ValidResourceBounds,
+};
 use starknet_types_core::felt::Felt;
 
 use crate::hints::vars::CairoStruct;

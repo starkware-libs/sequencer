@@ -16,11 +16,9 @@ use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::{
-    AllResourceBounds,
+    valid_resource_bounds_as_felts,
     Calldata,
-    Resource,
-    ResourceBounds,
-    ValidResourceBounds,
+    ResourceAsFelts,
 };
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::{Felt, FromStrError};
@@ -290,46 +288,6 @@ pub struct SyscallHintProcessor<'a> {
 
     // Additional fields.
     hints: &'a HashMap<String, Hint>,
-}
-
-pub struct ResourceAsFelts {
-    pub resource_name: Felt,
-    pub max_amount: Felt,
-    pub max_price_per_unit: Felt,
-}
-
-impl ResourceAsFelts {
-    pub fn new(resource: Resource, resource_bounds: &ResourceBounds) -> SyscallResult<Self> {
-        Ok(Self {
-            resource_name: Felt::from_hex(resource.to_hex())
-                .map_err(SyscallExecutionError::from)?,
-            max_amount: Felt::from(resource_bounds.max_amount),
-            max_price_per_unit: Felt::from(resource_bounds.max_price_per_unit),
-        })
-    }
-
-    pub fn flatten(self) -> Vec<Felt> {
-        vec![self.resource_name, self.max_amount, self.max_price_per_unit]
-    }
-}
-
-pub fn valid_resource_bounds_as_felts(
-    resource_bounds: &ValidResourceBounds,
-    exclude_l1_data_gas: bool,
-) -> SyscallResult<Vec<ResourceAsFelts>> {
-    let mut resource_bounds_vec: Vec<_> = vec![
-        ResourceAsFelts::new(Resource::L1Gas, &resource_bounds.get_l1_bounds())?,
-        ResourceAsFelts::new(Resource::L2Gas, &resource_bounds.get_l2_bounds())?,
-    ];
-    if exclude_l1_data_gas {
-        return Ok(resource_bounds_vec);
-    }
-    if let ValidResourceBounds::AllResources(AllResourceBounds { l1_data_gas, .. }) =
-        resource_bounds
-    {
-        resource_bounds_vec.push(ResourceAsFelts::new(Resource::L1DataGas, l1_data_gas)?)
-    }
-    Ok(resource_bounds_vec)
 }
 
 impl<'a> SyscallHintProcessor<'a> {
