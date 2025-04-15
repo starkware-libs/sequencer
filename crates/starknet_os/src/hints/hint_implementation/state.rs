@@ -1,9 +1,12 @@
+use std::collections::HashMap;
+
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
     get_relocatable_from_var_name,
     insert_value_from_var_name,
 };
+use starknet_api::core::ContractAddress;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::EdgeData;
 use starknet_types_core::felt::Felt;
@@ -64,7 +67,7 @@ fn set_preimage_for_commitments<S: StateReader>(
     exec_scopes.insert_value(Scope::Preimage.into(), create_preimage_mapping(commitment_facts)?);
 
     let merkle_height = Const::MerkleHeight.fetch(constants)?;
-    let tree_height: Felt = (*tree_height).into();
+    let tree_height = Felt::from(*tree_height);
     verify_tree_height_eq_merkle_height(tree_height, *merkle_height)?;
 
     Ok(())
@@ -101,9 +104,40 @@ pub(crate) fn set_preimage_for_class_commitments<S: StateReader>(
 }
 
 pub(crate) fn set_preimage_for_current_commitment_info<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { vm, constants, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    let contract_address: ContractAddress =
+        get_integer_from_var_name(Ids::ContractAddress.into(), vm, ids_data, ap_tracking)?
+            .try_into()?;
+    let commitment_info_by_address: &HashMap<ContractAddress, CommitmentInfo> =
+        exec_scopes.get_ref(Scope::CommitmentInfoByAddress.into())?;
+    let commitment_info = commitment_info_by_address
+        .get(&contract_address)
+        .ok_or(OsHintError::MissingCommitmentInfo(contract_address))?;
+    insert_value_from_var_name(
+        Ids::InitialContractStateRoot.into(),
+        commitment_info.previous_root.0,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    insert_value_from_var_name(
+        Ids::FinalContractStateRoot.into(),
+        commitment_info.updated_root.0,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+
+    let tree_height = Felt::from(commitment_info.tree_height.0);
+    let merkle_height = Const::MerkleHeight.fetch(constants)?;
+    verify_tree_height_eq_merkle_height(tree_height, *merkle_height)?;
+
+    exec_scopes.insert_value(
+        Scope::Preimage.into(),
+        create_preimage_mapping(&commitment_info.commitment_facts)?,
+    );
+    Ok(())
 }
 
 pub(crate) fn load_edge<S: StateReader>(
