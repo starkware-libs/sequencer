@@ -8,7 +8,7 @@ use apollo_http_server::metrics::HTTP_SERVER_ALL_METRICS;
 use apollo_infra::metrics::INFRA_ALL_METRICS;
 use apollo_mempool::metrics::MEMPOOL_ALL_METRICS;
 use apollo_mempool_p2p::metrics::MEMPOOL_P2P_ALL_METRICS;
-use apollo_state_sync::metrics::STATE_SYNC_ALL_METRICS;
+use apollo_state_sync_metrics::metrics::STATE_SYNC_ALL_METRICS;
 
 #[test]
 fn metric_names_no_duplications() {

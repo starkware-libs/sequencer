@@ -59,6 +59,7 @@ const Configuration = {
             'apollo_starknet_client',
             'apollo_state_reader',
             'apollo_state_sync',
+            'apollo_state_sync_metrics',
             'apollo_state_sync_types',
             'apollo_storage',
             'apollo_task_executor',
