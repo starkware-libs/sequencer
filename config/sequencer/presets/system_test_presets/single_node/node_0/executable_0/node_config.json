@@ -5,6 +5,7 @@
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.l1_gas": 2500000,
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.message_segment_length": 3700,
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.n_events": 5000,
+  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.n_txs": 600,
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.sierra_gas": 30000000,
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.state_diff_size": 4000,
   "batcher_config.block_builder_config.execute_config.concurrency_config.chunk_size": 64,
