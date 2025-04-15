@@ -57,6 +57,7 @@ use crate::config::{
     StatefulTransactionValidatorConfig,
     StatelessTransactionValidatorConfig,
 };
+use crate::errors::GatewayResult;
 use crate::gateway::Gateway;
 use crate::metrics::{
     register_metrics,
@@ -277,6 +278,30 @@ async fn setup_mock_state(
     p2p_message_metadata
 }
 
+struct AddTxResults {
+    result: GatewayResult<GatewayOutput>,
+    metric_handle_for_queries: GatewayMetricHandle,
+    metrics: String,
+}
+
+async fn run_add_tx_and_extract_metrics(
+    mock_dependencies: MockDependencies,
+    tx_args: &impl TestingTxArgs,
+    p2p_message_metadata: Option<BroadcastedMessageMetadata>,
+) -> AddTxResults {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+
+    let input_tx = tx_args.get_rpc_tx();
+    let gateway = mock_dependencies.gateway();
+    let result = gateway.add_tx(input_tx.clone(), p2p_message_metadata.clone()).await;
+
+    let metric_handle_for_queries = GatewayMetricHandle::new(&input_tx, &p2p_message_metadata);
+    let metrics = recorder.handle().render();
+
+    AddTxResults { result, metric_handle_for_queries, metrics }
+}
+
 // TODO(AlonH): add test with Some broadcasted message metadata
 // TODO(AndrewL): split into negative and positive tests
 #[rstest]
@@ -304,33 +329,27 @@ async fn test_add_tx(
     #[case] expected_mempool_result: Result<(), MempoolClientError>,
     #[case] expected_error_code: Option<StarknetErrorCode>,
 ) {
-    let recorder = PrometheusBuilder::new().build_recorder();
-    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
-
     let p2p_message_metadata =
         setup_mock_state(&mut mock_dependencies, &tx_args, expected_mempool_result).await;
 
-    let input_tx = tx_args.get_rpc_tx();
-    let gateway = mock_dependencies.gateway();
-    let result = gateway.add_tx(input_tx.clone(), p2p_message_metadata.clone()).await;
+    let AddTxResults { result, metric_handle_for_queries, metrics } =
+        run_add_tx_and_extract_metrics(mock_dependencies, &tx_args, p2p_message_metadata).await;
 
-    let metric_counters_for_queries = GatewayMetricHandle::new(&input_tx, &p2p_message_metadata);
-    let metrics = recorder.handle().render();
     assert_eq!(
-        metric_counters_for_queries.get_metric_value(GATEWAY_TRANSACTIONS_RECEIVED, &metrics),
+        metric_handle_for_queries.get_metric_value(GATEWAY_TRANSACTIONS_RECEIVED, &metrics),
         1
     );
     match expected_error_code {
         Some(expected_err) => {
             assert_eq!(
-                metric_counters_for_queries.get_metric_value(GATEWAY_TRANSACTIONS_FAILED, &metrics),
+                metric_handle_for_queries.get_metric_value(GATEWAY_TRANSACTIONS_FAILED, &metrics),
                 1
             );
             assert_eq!(result.unwrap_err().code, expected_err);
         }
         None => {
             assert_eq!(
-                metric_counters_for_queries
+                metric_handle_for_queries
                     .get_metric_value(GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL, &metrics),
                 1
             );
