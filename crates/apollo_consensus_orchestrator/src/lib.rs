@@ -20,3 +20,6 @@ pub mod config;
 
 #[allow(missing_docs)]
 pub mod metrics;
+
+#[cfg(test)]
+pub(crate) mod test_utils;
