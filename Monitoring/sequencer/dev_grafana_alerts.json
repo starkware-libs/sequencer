@@ -23,7 +23,8 @@
           "type": "query"
         }
       ],
-      "for": "1m"
+      "for": "1m",
+      "intervalSec": 20
     },
     {
       "name": "gateway_add_tx_latency_increase",
@@ -48,7 +49,8 @@
           "type": "query"
         }
       ],
-      "for": "1m"
+      "for": "1m",
+      "intervalSec": 20
     },
     {
       "name": "mempool_add_tx_rate_drop",
@@ -73,7 +75,8 @@
           "type": "query"
         }
       ],
-      "for": "1m"
+      "for": "1m",
+      "intervalSec": 20
     },
     {
       "name": "mempool_get_txs_size_drop",
@@ -98,7 +101,8 @@
           "type": "query"
         }
       ],
-      "for": "1m"
+      "for": "1m",
+      "intervalSec": 20
     }
   ]
 }

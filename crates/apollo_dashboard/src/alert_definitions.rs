@@ -13,7 +13,6 @@ use crate::dashboard::{
 
 pub const DEV_ALERTS_JSON_PATH: &str = "Monitoring/sequencer/dev_grafana_alerts.json";
 
-// TODO(Yael): evaluate every 20 secs as in centralized SN.
 const GATEWAY_ADD_TX_RATE_DROP: Alert = Alert {
     name: "gateway_add_tx_rate_drop",
     title: "Gateway add_tx rate drop",
@@ -25,9 +24,9 @@ const GATEWAY_ADD_TX_RATE_DROP: Alert = Alert {
         logical_op: AlertLogicalOp::And,
     }],
     pending_duration: "1m",
+    evaluation_interval_sec: 20,
 };
 
-// TODO(Yael): evaluate every 20 secs as in centralized SN.
 const GATEWAY_ADD_TX_LATENCY_INCREASE: Alert = Alert {
     name: "gateway_add_tx_latency_increase",
     title: "Gateway avg add_tx latency increase",
@@ -43,9 +42,9 @@ const GATEWAY_ADD_TX_LATENCY_INCREASE: Alert = Alert {
         logical_op: AlertLogicalOp::And,
     }],
     pending_duration: "1m",
+    evaluation_interval_sec: 20,
 };
 
-// TODO(Yael): evaluate every 20 secs as in centralized SN.
 const MEMPOOL_ADD_TX_RATE_DROP: Alert = Alert {
     name: "mempool_add_tx_rate_drop",
     title: "Mempool add_tx rate drop",
@@ -57,11 +56,11 @@ const MEMPOOL_ADD_TX_RATE_DROP: Alert = Alert {
         logical_op: AlertLogicalOp::And,
     }],
     pending_duration: "1m",
+    evaluation_interval_sec: 20,
 };
 
 // The rate of add_txs is lower than the rate of transactions inserted into a block since this node
 // is not always the proposer.
-// TODO(Yael): evaluate every 20 secs as in centralized SN.
 const MEMPOOL_GET_TXS_SIZE_DROP: Alert = Alert {
     name: "mempool_get_txs_size_drop",
     title: "Mempool get_txs size drop",
@@ -73,6 +72,7 @@ const MEMPOOL_GET_TXS_SIZE_DROP: Alert = Alert {
         logical_op: AlertLogicalOp::And,
     }],
     pending_duration: "1m",
+    evaluation_interval_sec: 20,
 };
 
 pub const SEQUENCER_ALERTS: Alerts = Alerts::new(&[
