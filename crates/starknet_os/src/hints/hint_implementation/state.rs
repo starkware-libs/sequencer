@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
@@ -9,8 +7,9 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_types_core::felt::Felt;
 
+use super::patricia::utils::Preimage;
 use crate::hints::error::{OsHintError, OsHintResult};
-use crate::hints::hint_implementation::patricia::utils::create_preimage_mapping;
+use crate::hints::hint_implementation::patricia::utils::{create_preimage_mapping, PreimageMap};
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
 use crate::io::os_input::CommitmentInfo;
@@ -116,36 +115,43 @@ pub(crate) fn load_edge<S: StateReader>(
     // TODO(Nimrod): Verify that it's ok to ignore the scope variable
     // `__patricia_skip_validation_runner`.
     let node = HashOutput(get_integer_from_var_name(Ids::Node.into(), vm, ids_data, ap_tracking)?);
-    let preimage_mapping: &HashMap<HashOutput, Vec<Felt>> =
-        exec_scopes.get_ref(Scope::Preimage.into())?;
+    let preimage_mapping: &PreimageMap = exec_scopes.get_ref(Scope::Preimage.into())?;
     let preimage = preimage_mapping.get(&node).ok_or(OsHintError::MissingPreimage(node))?;
-    let [length, path, bottom] =
-        preimage.as_slice().try_into().map_err(|_| OsHintError::AssertionFailed {
+    if let Preimage::Edge(edge_data) = preimage {
+        // Allocate space for the edge node.
+        let edge_ptr = vm.add_memory_segment();
+        insert_value_from_var_name(Ids::Edge.into(), edge_ptr, vm, ids_data, ap_tracking)?;
+        // Fill the node fields.
+        insert_values_to_fields(
+            edge_ptr,
+            CairoStruct::NodeEdge,
+            vm,
+            &[
+                ("length", Felt::from(edge_data.path_to_bottom.length).into()),
+                ("path", Felt::from(&edge_data.path_to_bottom.path).into()),
+                ("bottom", edge_data.bottom_hash.0.into()),
+            ],
+            &hint_processor.os_program,
+        )?;
+        let hash_ptr =
+            get_relocatable_from_var_name(Ids::HashPtr.into(), vm, ids_data, ap_tracking)?;
+        insert_value_to_nested_field(
+            hash_ptr,
+            hint_processor.commitment_type.hash_builtin_struct(),
+            vm,
+            &["result"],
+            &hint_processor.os_program,
+            node.0 - Felt::from(edge_data.path_to_bottom.length),
+        )?;
+        Ok(())
+    } else {
+        // We expect an edge node.
+        Err(OsHintError::AssertionFailed {
             message: format!(
                 "The length of an edge preimage node is expected to be 3, found {preimage:?}"
             ),
-        })?;
-    // Allocate space for the edge node.
-    let edge_ptr = vm.add_memory_segment();
-    insert_value_from_var_name(Ids::Edge.into(), edge_ptr, vm, ids_data, ap_tracking)?;
-    // Fill the node fields.
-    insert_values_to_fields(
-        edge_ptr,
-        CairoStruct::NodeEdge,
-        vm,
-        &[("length", length.into()), ("path", path.into()), ("bottom", bottom.into())],
-        &hint_processor.os_program,
-    )?;
-    let hash_ptr = get_relocatable_from_var_name(Ids::HashPtr.into(), vm, ids_data, ap_tracking)?;
-    insert_value_to_nested_field(
-        hash_ptr,
-        hint_processor.commitment_type.hash_builtin_struct(),
-        vm,
-        &["result"],
-        &hint_processor.os_program,
-        node.0 - length,
-    )?;
-    Ok(())
+        })
+    }
 }
 
 pub(crate) fn load_bottom<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
