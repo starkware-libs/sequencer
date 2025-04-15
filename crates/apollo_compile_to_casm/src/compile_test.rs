@@ -1,41 +1,24 @@
 use std::env;
 use std::path::Path;
 
+use apollo_compilation_utils::errors::CompilationUtilError;
+use apollo_compilation_utils::test_utils::contract_class_from_file;
 use apollo_infra_utils::path::resolve_project_relative_path;
 use assert_matches::assert_matches;
 use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;
 use mempool_test_utils::{FAULTY_ACCOUNT_CLASS_FILE, TEST_FILES_FOLDER};
-use rstest::rstest;
 use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::state::SierraContractClass;
 
-use crate::command_line_compiler::CommandLineCompiler;
-use crate::config::{
-    SierraCompilationConfig,
-    DEFAULT_MAX_CASM_BYTECODE_SIZE,
-    DEFAULT_MAX_CPU_TIME,
-    DEFAULT_MAX_MEMORY_USAGE,
-    DEFAULT_MAX_NATIVE_BYTECODE_SIZE,
-    DEFAULT_OPTIMIZATION_LEVEL,
-};
-use crate::errors::CompilationUtilError;
-use crate::test_utils::contract_class_from_file;
-#[cfg(feature = "cairo_native")]
-use crate::SierraToNativeCompiler;
-use crate::{RawClass, SierraCompiler, SierraToCasmCompiler};
+use crate::compiler::SierraToCasmCompiler;
+use crate::config::{SierraCompilationConfig, DEFAULT_MAX_BYTECODE_SIZE};
+use crate::{RawClass, SierraCompiler};
 
-const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompilationConfig {
-    max_casm_bytecode_size: DEFAULT_MAX_CASM_BYTECODE_SIZE,
-    sierra_to_native_compiler_path: None,
-    max_native_bytecode_size: DEFAULT_MAX_NATIVE_BYTECODE_SIZE,
-    max_cpu_time: DEFAULT_MAX_CPU_TIME,
-    max_memory_usage: DEFAULT_MAX_MEMORY_USAGE,
-    panic_on_compilation_failure: true,
-    optimization_level: DEFAULT_OPTIMIZATION_LEVEL,
-};
+const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig =
+    SierraCompilationConfig { max_bytecode_size: DEFAULT_MAX_BYTECODE_SIZE };
 
-fn command_line_compiler() -> CommandLineCompiler {
-    CommandLineCompiler::new(SIERRA_COMPILATION_CONFIG)
+fn compiler() -> SierraToCasmCompiler {
+    SierraToCasmCompiler::new(SIERRA_COMPILATION_CONFIG)
 }
 
 fn get_test_contract() -> CairoLangContractClass {
@@ -52,9 +35,9 @@ fn get_faulty_test_contract() -> CairoLangContractClass {
     contract_class
 }
 
-#[rstest]
-#[case::command_line_compiler(command_line_compiler())]
-fn test_compile_sierra_to_casm(#[case] compiler: impl SierraToCasmCompiler) {
+#[test]
+fn test_compile_sierra_to_casm() {
+    let compiler = compiler();
     let expected_casm_contract_length = 72305;
 
     let contract_class = get_test_contract();
@@ -65,53 +48,32 @@ fn test_compile_sierra_to_casm(#[case] compiler: impl SierraToCasmCompiler) {
 }
 
 // TODO(Arni, 1/5/2024): Add a test for panic result test.
-#[rstest]
-#[case::command_line_compiler(command_line_compiler())]
-fn test_negative_flow_compile_sierra_to_casm(#[case] compiler: impl SierraToCasmCompiler) {
+#[test]
+fn test_negative_flow_compile_sierra_to_casm() {
+    let compiler = compiler();
     let contract_class = get_faulty_test_contract();
 
     let result = compiler.compile(contract_class);
     assert_matches!(result, Err(CompilationUtilError::CompilationError(..)));
 }
 
-#[cfg(feature = "cairo_native")]
 #[test]
-fn test_compile_sierra_to_native() {
-    let compiler = command_line_compiler();
-    let contract_class = get_test_contract();
-
-    let _native_contract_executor = compiler.compile_to_native(contract_class).unwrap();
-}
-
-#[cfg(feature = "cairo_native")]
-#[test]
-fn test_negative_flow_compile_sierra_to_native() {
-    let compiler = command_line_compiler();
-    let contract_class = get_faulty_test_contract();
-
-    let result = compiler.compile_to_native(contract_class);
-    assert_matches!(result, Err(CompilationUtilError::CompilationError(..)));
-}
-
-#[rstest]
-fn test_max_casm_bytecode_size() {
+fn test_max_bytecode_size() {
     let contract_class = get_test_contract();
     let expected_casm_bytecode_length = 1965;
 
     // Positive flow.
-    let compiler = CommandLineCompiler::new(SierraCompilationConfig {
-        max_casm_bytecode_size: expected_casm_bytecode_length,
-        ..SierraCompilationConfig::default()
+    let compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
+        max_bytecode_size: expected_casm_bytecode_length,
     });
-    let casm_contract_class = compiler.compile(contract_class.clone()).expect(
-        "Failed to compile contract class. Probably an issue with the max_casm_bytecode_size.",
-    );
+    let casm_contract_class = compiler
+        .compile(contract_class.clone())
+        .expect("Failed to compile contract class. Probably an issue with the max_bytecode_size.");
     assert_eq!(casm_contract_class.bytecode.len(), expected_casm_bytecode_length);
 
     // Negative flow.
-    let compiler = CommandLineCompiler::new(SierraCompilationConfig {
-        max_casm_bytecode_size: expected_casm_bytecode_length - 1,
-        ..SierraCompilationConfig::default()
+    let compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
+        max_bytecode_size: expected_casm_bytecode_length - 1,
     });
     let result = compiler.compile(contract_class);
     assert_matches!(result, Err(CompilationUtilError::CompilationError(string))
@@ -123,7 +85,7 @@ fn test_max_casm_bytecode_size() {
 #[test]
 fn test_sierra_compiler() {
     // Setup.
-    let compiler = command_line_compiler();
+    let compiler = compiler();
     let class = get_test_contract();
     let expected_executable_class = compiler.compile(class.clone()).unwrap();
 

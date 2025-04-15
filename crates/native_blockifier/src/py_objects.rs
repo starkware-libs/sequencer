@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use apollo_sierra_multicompile::config::SierraCompilationConfig;
+use apollo_compile_to_native::config::SierraCompilationConfig;
 use blockifier::abi::constants;
 use blockifier::blockifier::config::{
     CairoNativeRunConfig,
@@ -146,13 +146,12 @@ pub struct PySierraCompilationConfig {
     pub max_cpu_time: u64,
     pub max_memory_usage: u64,
     pub optimization_level: u8,
-    pub panic_on_compilation_failure: bool,
 }
 
 impl From<PySierraCompilationConfig> for SierraCompilationConfig {
     fn from(py_sierra_compilation_config: PySierraCompilationConfig) -> Self {
         SierraCompilationConfig {
-            sierra_to_native_compiler_path: if py_sierra_compilation_config
+            compiler_binary_path: if py_sierra_compilation_config
                 .sierra_to_native_compiler_path
                 .is_empty()
             {
@@ -160,12 +159,10 @@ impl From<PySierraCompilationConfig> for SierraCompilationConfig {
             } else {
                 Some(PathBuf::from(py_sierra_compilation_config.sierra_to_native_compiler_path))
             },
-            max_native_bytecode_size: py_sierra_compilation_config.max_native_bytecode_size,
+            max_file_size: py_sierra_compilation_config.max_native_bytecode_size,
             max_cpu_time: py_sierra_compilation_config.max_cpu_time,
             max_memory_usage: py_sierra_compilation_config.max_memory_usage,
-            panic_on_compilation_failure: py_sierra_compilation_config.panic_on_compilation_failure,
             optimization_level: py_sierra_compilation_config.optimization_level,
-            ..Default::default()
         }
     }
 }
@@ -177,6 +174,7 @@ pub struct PyCairoNativeRunConfig {
     pub channel_size: usize,
     // Determines which contracts are allowd to run Cairo Native. `None` → All.
     pub native_classes_whitelist: Option<Vec<PyFelt>>,
+    pub panic_on_compilation_failure: bool,
 }
 
 impl Default for PyCairoNativeRunConfig {
@@ -186,6 +184,7 @@ impl Default for PyCairoNativeRunConfig {
             wait_on_native_compilation: false,
             channel_size: DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE,
             native_classes_whitelist: None,
+            panic_on_compilation_failure: false,
         }
     }
 }
@@ -204,6 +203,7 @@ impl From<PyCairoNativeRunConfig> for CairoNativeRunConfig {
             wait_on_native_compilation: py_cairo_native_run_config.wait_on_native_compilation,
             channel_size: py_cairo_native_run_config.channel_size,
             native_classes_whitelist,
+            panic_on_compilation_failure: py_cairo_native_run_config.panic_on_compilation_failure,
         }
     }
 }

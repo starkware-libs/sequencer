@@ -34,8 +34,6 @@ use apollo_network::NetworkConfig;
 use apollo_node::config::component_config::ComponentConfig;
 use apollo_node::config::definitions::ConfigPointersMap;
 use apollo_node::config::node_config::{SequencerNodeConfig, CONFIG_POINTERS};
-#[cfg(feature = "cairo_native")]
-use apollo_sierra_multicompile::config::SierraCompilationConfig;
 use apollo_state_sync::config::StateSyncConfig;
 use apollo_storage::StorageConfig;
 use axum::extract::Query;
@@ -690,9 +688,6 @@ fn cairo_native_class_manager_config() -> ContractClassManagerConfig {
         cairo_native_run_config: CairoNativeRunConfig {
             run_cairo_native: true,
             wait_on_native_compilation: true,
-            ..Default::default()
-        },
-        native_compiler_config: SierraCompilationConfig {
             panic_on_compilation_failure: true,
             ..Default::default()
         },

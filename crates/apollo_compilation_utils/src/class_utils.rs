@@ -13,8 +13,8 @@ use starknet_api::state::{
 };
 use starknet_types_core::felt::Felt;
 
-/// Retruns a [`CairoLangContractClass`] struct ready for Sierra to Casm compilation. Note the `abi`
-/// field is None as it is not relevant for the compilation.
+/// Returns a [`CairoLangContractClass`] struct ready for Sierra compilation. Note the `abi` field
+/// is None as it is not relevant for the compilation.
 pub fn into_contract_class_for_compilation(
     rpc_contract_class: &StarknetApiContractClass,
 ) -> CairoLangContractClass {

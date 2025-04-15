@@ -3,6 +3,10 @@ use std::pin::Pin;
 
 use apollo_batcher::communication::{LocalBatcherServer, RemoteBatcherServer};
 use apollo_class_manager::communication::{LocalClassManagerServer, RemoteClassManagerServer};
+use apollo_compile_to_casm::communication::{
+    LocalSierraCompilerServer,
+    RemoteSierraCompilerServer,
+};
 use apollo_consensus_manager::communication::ConsensusManagerServer;
 use apollo_gateway::communication::{LocalGatewayServer, RemoteGatewayServer};
 use apollo_http_server::communication::HttpServer;
@@ -88,10 +92,6 @@ use apollo_mempool_p2p::propagator::{
 };
 use apollo_mempool_p2p::runner::MempoolP2pRunnerServer;
 use apollo_monitoring_endpoint::communication::MonitoringEndpointServer;
-use apollo_sierra_multicompile::communication::{
-    LocalSierraCompilerServer,
-    RemoteSierraCompilerServer,
-};
 use apollo_state_sync::runner::StateSyncRunnerServer;
 use apollo_state_sync::{LocalStateSyncServer, RemoteStateSyncServer};
 use futures::stream::FuturesUnordered;

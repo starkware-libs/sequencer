@@ -5,13 +5,13 @@ use apollo_class_manager_types::{
     ClassManagerResult,
     ExecutableClassHash,
 };
-use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
-use apollo_sierra_multicompile_types::{
+use apollo_compile_to_casm_types::{
     RawClass,
     RawExecutableClass,
     SharedSierraCompilerClient,
     SierraCompilerClientError,
 };
+use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
 use async_trait::async_trait;
 use starknet_api::state::SierraContractClass;
 use tracing::instrument;

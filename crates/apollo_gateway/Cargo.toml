@@ -13,6 +13,7 @@ testing = ["blockifier/testing", "blockifier_test_utils"]
 
 [dependencies]
 apollo_class_manager_types.workspace = true
+apollo_compilation_utils.workspace = true
 apollo_config.workspace = true
 apollo_gateway_types.workspace = true
 apollo_infra.workspace = true
@@ -21,7 +22,6 @@ apollo_metrics.workspace = true
 apollo_network_types.workspace = true
 apollo_proc_macros.workspace = true
 apollo_rpc.workspace = true
-apollo_sierra_multicompile.workspace = true
 apollo_state_sync_types.workspace = true
 async-trait.workspace = true
 axum.workspace = true

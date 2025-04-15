@@ -1,6 +1,7 @@
 use apollo_batcher::batcher::{create_batcher, Batcher};
 use apollo_class_manager::class_manager::create_class_manager;
 use apollo_class_manager::ClassManager;
+use apollo_compile_to_casm::{create_sierra_compiler, SierraCompiler};
 use apollo_consensus_manager::consensus_manager::ConsensusManager;
 use apollo_gateway::gateway::{create_gateway, Gateway};
 use apollo_http_server::http_server::{create_http_server, HttpServer};
@@ -17,7 +18,6 @@ use apollo_monitoring_endpoint::monitoring_endpoint::{
     create_monitoring_endpoint,
     MonitoringEndpoint,
 };
-use apollo_sierra_multicompile::{create_sierra_compiler, SierraCompiler};
 use apollo_state_sync::runner::StateSyncRunner;
 use apollo_state_sync::{create_state_sync_and_runner, StateSync};
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;

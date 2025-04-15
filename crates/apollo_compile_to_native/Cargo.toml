@@ -1,0 +1,41 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "apollo_compile_to_native"
+repository.workspace = true
+version.workspace = true
+description = "A utility crate for compiling Sierra code into Cairo native."
+
+[features]
+cairo_native = [
+  "apollo_compilation_utils/cairo_native",
+  "dep:apollo_compilation_utils",
+  "dep:apollo_infra_utils",
+  "dep:cairo-lang-starknet-classes",
+  "dep:cairo-native",
+  "dep:tempfile",
+]
+
+[lints]
+workspace = true
+
+[dependencies]
+apollo_compilation_utils = { workspace = true, optional = true }
+apollo_config.workspace = true
+cairo-lang-starknet-classes = { workspace = true, optional = true }
+cairo-native = { workspace = true, optional = true }
+serde.workspace = true
+tempfile = { workspace = true, optional = true }
+validator.workspace = true
+
+[dev-dependencies]
+apollo_compilation_utils = { workspace = true, features = ["testing"] }
+apollo_infra_utils.workspace = true
+assert_matches.workspace = true
+mempool_test_utils.workspace = true
+rstest.workspace = true
+toml_test_utils.workspace = true
+
+[build-dependencies]
+apollo_compilation_utils = { workspace = true, optional = true }
+apollo_infra_utils = { workspace = true, optional = true }

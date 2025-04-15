@@ -847,10 +847,10 @@ name = "apollo_class_manager"
 version = "0.0.0"
 dependencies = [
  "apollo_class_manager_types",
+ "apollo_compile_to_casm_types",
  "apollo_config",
  "apollo_infra",
  "apollo_metrics",
- "apollo_sierra_multicompile_types",
  "apollo_storage",
  "async-trait",
  "hex",
@@ -870,9 +870,9 @@ dependencies = [
 name = "apollo_class_manager_types"
 version = "0.0.0"
 dependencies = [
+ "apollo_compile_to_casm_types",
  "apollo_infra",
  "apollo_proc_macros",
- "apollo_sierra_multicompile_types",
  "async-trait",
  "mockall",
  "serde",
@@ -880,6 +880,79 @@ dependencies = [
  "starknet_api",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
+]
+
+[[package]]
+name = "apollo_compilation_utils"
+version = "0.0.0"
+dependencies = [
+ "apollo_infra_utils",
+ "assert_matches",
+ "cairo-lang-sierra",
+ "cairo-lang-starknet-classes",
+ "cairo-lang-utils",
+ "cairo-native",
+ "rlimit",
+ "rstest",
+ "serde",
+ "serde_json",
+ "starknet-types-core",
+ "starknet_api",
+ "tempfile",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "apollo_compile_to_casm"
+version = "0.0.0"
+dependencies = [
+ "apollo_compilation_utils",
+ "apollo_compile_to_casm_types",
+ "apollo_config",
+ "apollo_infra",
+ "apollo_infra_utils",
+ "assert_matches",
+ "async-trait",
+ "cairo-lang-starknet-classes",
+ "mempool_test_utils",
+ "serde",
+ "serde_json",
+ "starknet_api",
+ "thiserror 1.0.69",
+ "tracing",
+ "validator",
+]
+
+[[package]]
+name = "apollo_compile_to_casm_types"
+version = "0.0.0"
+dependencies = [
+ "apollo_infra",
+ "apollo_proc_macros",
+ "async-trait",
+ "mockall",
+ "serde",
+ "serde_json",
+ "starknet_api",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "apollo_compile_to_native"
+version = "0.0.0"
+dependencies = [
+ "apollo_compilation_utils",
+ "apollo_config",
+ "apollo_infra_utils",
+ "assert_matches",
+ "cairo-lang-starknet-classes",
+ "cairo-native",
+ "mempool_test_utils",
+ "rstest",
+ "serde",
+ "tempfile",
+ "toml_test_utils",
+ "validator",
 ]
 
 [[package]]
@@ -1059,6 +1132,7 @@ name = "apollo_gateway"
 version = "0.0.0"
 dependencies = [
  "apollo_class_manager_types",
+ "apollo_compilation_utils",
  "apollo_config",
  "apollo_gateway_types",
  "apollo_infra",
@@ -1068,7 +1142,6 @@ dependencies = [
  "apollo_network_types",
  "apollo_proc_macros",
  "apollo_rpc",
- "apollo_sierra_multicompile",
  "apollo_state_sync_types",
  "apollo_test_utils",
  "assert_matches",
@@ -1227,7 +1300,6 @@ dependencies = [
  "apollo_network",
  "apollo_node",
  "apollo_protobuf",
- "apollo_sierra_multicompile",
  "apollo_state_sync",
  "apollo_storage",
  "assert_matches",
@@ -1521,6 +1593,8 @@ dependencies = [
  "apollo_batcher_types",
  "apollo_class_manager",
  "apollo_class_manager_types",
+ "apollo_compile_to_casm",
+ "apollo_compile_to_casm_types",
  "apollo_config",
  "apollo_consensus_manager",
  "apollo_gateway",
@@ -1538,8 +1612,6 @@ dependencies = [
  "apollo_mempool_types",
  "apollo_monitoring_endpoint",
  "apollo_reverts",
- "apollo_sierra_multicompile",
- "apollo_sierra_multicompile_types",
  "apollo_state_sync",
  "apollo_state_sync_types",
  "assert_matches",
@@ -1733,48 +1805,6 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
-]
-
-[[package]]
-name = "apollo_sierra_multicompile"
-version = "0.0.0"
-dependencies = [
- "apollo_config",
- "apollo_infra",
- "apollo_infra_utils",
- "apollo_sierra_multicompile_types",
- "assert_matches",
- "async-trait",
- "cairo-lang-sierra",
- "cairo-lang-starknet-classes",
- "cairo-lang-utils",
- "cairo-native",
- "mempool_test_utils",
- "rlimit",
- "rstest",
- "serde",
- "serde_json",
- "starknet-types-core",
- "starknet_api",
- "tempfile",
- "thiserror 1.0.69",
- "toml_test_utils",
- "tracing",
- "validator",
-]
-
-[[package]]
-name = "apollo_sierra_multicompile_types"
-version = "0.0.0"
-dependencies = [
- "apollo_infra",
- "apollo_proc_macros",
- "async-trait",
- "mockall",
- "serde",
- "serde_json",
- "starknet_api",
- "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -3068,9 +3098,10 @@ name = "blockifier"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "apollo_compilation_utils",
+ "apollo_compile_to_native",
  "apollo_config",
  "apollo_infra_utils",
- "apollo_sierra_multicompile",
  "ark-ec 0.4.2",
  "ark-ff 0.4.2",
  "ark-secp256k1 0.4.0",
@@ -8532,7 +8563,7 @@ dependencies = [
 name = "native_blockifier"
 version = "0.0.0"
 dependencies = [
- "apollo_sierra_multicompile",
+ "apollo_compile_to_native",
  "apollo_state_reader",
  "apollo_storage",
  "blockifier",

@@ -5,9 +5,9 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use apollo_class_manager_types::{CachedClassStorageError, ClassId, ExecutableClassHash};
+use apollo_compile_to_casm_types::{RawClass, RawClassError, RawExecutableClass};
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use apollo_sierra_multicompile_types::{RawClass, RawClassError, RawExecutableClass};
 use apollo_storage::class_hash::{ClassHashStorageReader, ClassHashStorageWriter};
 use serde::{Deserialize, Serialize};
 use starknet_api::class_cache::GlobalContractCache;

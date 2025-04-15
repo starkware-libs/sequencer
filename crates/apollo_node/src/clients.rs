@@ -14,6 +14,13 @@ use apollo_class_manager_types::{
     RemoteClassManagerClient,
     SharedClassManagerClient,
 };
+use apollo_compile_to_casm_types::{
+    LocalSierraCompilerClient,
+    RemoteSierraCompilerClient,
+    SharedSierraCompilerClient,
+    SierraCompilerRequest,
+    SierraCompilerResponse,
+};
 use apollo_gateway_types::communication::{
     GatewayRequest,
     GatewayResponse,
@@ -39,13 +46,6 @@ use apollo_mempool_types::communication::{
     MempoolResponse,
     RemoteMempoolClient,
     SharedMempoolClient,
-};
-use apollo_sierra_multicompile_types::{
-    LocalSierraCompilerClient,
-    RemoteSierraCompilerClient,
-    SharedSierraCompilerClient,
-    SierraCompilerRequest,
-    SierraCompilerResponse,
 };
 use apollo_state_sync_types::communication::{
     LocalStateSyncClient,
