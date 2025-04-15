@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::{ClassHashes, EmptyClassManagerClient, MockClassManagerClient};
@@ -241,11 +241,17 @@ fn check_positive_add_tx_result(tx_args: impl TestingTxArgs, result: GatewayOutp
     );
 }
 
+static P2P_MESSAGE_METADATA: LazyLock<Option<BroadcastedMessageMetadata>> =
+    LazyLock::new(|| Some(BroadcastedMessageMetadata::get_test_instance(&mut get_rng())));
+fn p2p_message_metadata() -> Option<BroadcastedMessageMetadata> {
+    P2P_MESSAGE_METADATA.clone()
+}
+
 async fn setup_mock_state(
     mock_dependencies: &mut MockDependencies,
     tx_args: &impl TestingTxArgs,
     expected_mempool_result: Result<(), MempoolClientError>,
-) -> Option<BroadcastedMessageMetadata> {
+) {
     let input_tx = tx_args.get_rpc_tx();
     let expected_internal_tx = tx_args.get_internal_tx();
 
@@ -262,7 +268,6 @@ async fn setup_mock_state(
         &mut mock_dependencies.state_reader_factory.state_reader.blockifier_state_reader,
     );
 
-    let p2p_message_metadata = Some(BroadcastedMessageMetadata::get_test_instance(&mut get_rng()));
     let mempool_add_tx_args = AddTransactionArgs {
         tx: expected_internal_tx.clone(),
         account_state: AccountState { address, nonce: *input_tx.nonce() },
@@ -270,12 +275,10 @@ async fn setup_mock_state(
     mock_dependencies.expect_add_tx(
         AddTransactionArgsWrapper {
             args: mempool_add_tx_args,
-            p2p_message_metadata: p2p_message_metadata.clone(),
+            p2p_message_metadata: p2p_message_metadata(),
         },
         expected_mempool_result,
     );
-
-    p2p_message_metadata
 }
 
 struct AddTxResults {
@@ -287,16 +290,15 @@ struct AddTxResults {
 async fn run_add_tx_and_extract_metrics(
     mock_dependencies: MockDependencies,
     tx_args: &impl TestingTxArgs,
-    p2p_message_metadata: Option<BroadcastedMessageMetadata>,
 ) -> AddTxResults {
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
 
     let input_tx = tx_args.get_rpc_tx();
     let gateway = mock_dependencies.gateway();
-    let result = gateway.add_tx(input_tx.clone(), p2p_message_metadata.clone()).await;
+    let result = gateway.add_tx(input_tx.clone(), p2p_message_metadata()).await;
 
-    let metric_handle_for_queries = GatewayMetricHandle::new(&input_tx, &p2p_message_metadata);
+    let metric_handle_for_queries = GatewayMetricHandle::new(&input_tx, &p2p_message_metadata());
     let metrics = recorder.handle().render();
 
     AddTxResults { result, metric_handle_for_queries, metrics }
@@ -327,11 +329,10 @@ async fn test_add_tx_negative(
     #[case] expected_mempool_result: Result<(), MempoolClientError>,
     #[case] expected_error_code: StarknetErrorCode,
 ) {
-    let p2p_message_metadata =
-        setup_mock_state(&mut mock_dependencies, &tx_args, expected_mempool_result).await;
+    setup_mock_state(&mut mock_dependencies, &tx_args, expected_mempool_result).await;
 
     let AddTxResults { result, metric_handle_for_queries, metrics } =
-        run_add_tx_and_extract_metrics(mock_dependencies, &tx_args, p2p_message_metadata).await;
+        run_add_tx_and_extract_metrics(mock_dependencies, &tx_args).await;
 
     assert_eq!(
         metric_handle_for_queries.get_metric_value(GATEWAY_TRANSACTIONS_RECEIVED, &metrics),
@@ -350,10 +351,10 @@ async fn test_add_tx_positive(
     mut mock_dependencies: MockDependencies,
     #[values(invoke_args(), deploy_account_args(), declare_args())] tx_args: impl TestingTxArgs,
 ) {
-    let p2p_message_metadata = setup_mock_state(&mut mock_dependencies, &tx_args, Ok(())).await;
+    setup_mock_state(&mut mock_dependencies, &tx_args, Ok(())).await;
 
     let AddTxResults { result, metric_handle_for_queries, metrics } =
-        run_add_tx_and_extract_metrics(mock_dependencies, &tx_args, p2p_message_metadata).await;
+        run_add_tx_and_extract_metrics(mock_dependencies, &tx_args).await;
 
     assert_eq!(
         metric_handle_for_queries.get_metric_value(GATEWAY_TRANSACTIONS_RECEIVED, &metrics),
