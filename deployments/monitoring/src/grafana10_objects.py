@@ -84,7 +84,6 @@ alert_rule_object = {
     "title": "",
     "orgId": 1,
     "condition": "B",
-    "interval": "1m",
     "data": [],
     "for": "5m",
     "execErrState": "Error",
