@@ -654,7 +654,8 @@ pub fn create_class_manager_config(
 ) -> FsClassManagerConfig {
     let cached_class_storage_config =
         CachedClassStorageConfig { class_cache_size: 100, deprecated_class_cache_size: 100 };
-    let class_manager_config = ClassManagerConfig { cached_class_storage_config };
+    let class_manager_config =
+        ClassManagerConfig { cached_class_storage_config, ..Default::default() };
     FsClassManagerConfig { class_manager_config, class_storage_config }
 }
 

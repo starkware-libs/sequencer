@@ -19,7 +19,7 @@ impl ClassManager<FsClassStorage> {
     ) -> Self {
         let cached_class_storage_config =
             CachedClassStorageConfig { class_cache_size: 10, deprecated_class_cache_size: 10 };
-        let config = ClassManagerConfig { cached_class_storage_config };
+        let config = ClassManagerConfig { cached_class_storage_config, ..Default::default() };
         let storage =
             FsClassStorage::new_for_testing(persistent_root, class_hash_storage_path_prefix);
 
