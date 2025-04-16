@@ -40,6 +40,8 @@ pub enum OsHintError {
     ExecutionScopes(#[from] ExecScopeError),
     #[error("{id:?} value {felt} is not a bit.")]
     ExpectedBit { id: Ids, felt: Felt },
+    #[error("Expected an InnerNode.")]
+    ExpectedInnerNode,
     #[error(transparent)]
     Fft(#[from] FftError),
     #[error(transparent)]

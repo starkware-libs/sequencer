@@ -1,6 +1,7 @@
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
+    get_relocatable_from_var_name,
     insert_value_from_var_name,
     insert_value_into_ap,
 };
@@ -9,10 +10,10 @@ use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintResult};
-use crate::hints::hint_implementation::patricia::utils::{DecodeNodeCase, PreimageMap};
+use crate::hints::hint_implementation::patricia::utils::{DecodeNodeCase, PreimageMap, UpdateTree};
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Ids, Scope};
-use crate::vm_utils::get_address_of_nested_fields;
+use crate::vm_utils::{get_address_of_nested_fields, insert_values_to_fields};
 
 pub(crate) fn set_siblings<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
     todo!()
@@ -109,9 +110,48 @@ pub(crate) fn height_is_zero_or_len_node_preimage_is_two<S: StateReader>(
 }
 
 pub(crate) fn prepare_preimage_validation_non_deterministic_hashes<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    let node: UpdateTree = exec_scopes.get(Scope::Node.into())?;
+    let UpdateTree::InnerNode(inner_node) = node else {
+        return Err(OsHintError::ExpectedInnerNode);
+    };
+
+    let case = inner_node.case();
+    let (left_child, right_child) = inner_node.get_children();
+
+    exec_scopes.insert_value(Scope::LeftChild.into(), left_child.clone());
+    exec_scopes.insert_value(Scope::RightChild.into(), right_child.clone());
+    exec_scopes.insert_value(Scope::Case.into(), case.clone());
+
+    let ids_node =
+        HashOutput(get_integer_from_var_name(Ids::Node.into(), vm, ids_data, ap_tracking)?);
+
+    let preimage_map: &PreimageMap = exec_scopes.get_ref(Scope::Preimage.into())?;
+
+    // This hint is called only when the Node is Binary.
+    let binary_data =
+        preimage_map.get(&ids_node).ok_or(OsHintError::MissingPreimage(ids_node))?.get_binary()?;
+
+    let hash_ptr_address =
+        get_relocatable_from_var_name(Ids::CurrentHash.into(), vm, ids_data, ap_tracking)?;
+
+    let nested_fields_and_values =
+        [("x", binary_data.left_hash.0.into()), ("y", binary_data.right_hash.0.into())];
+    insert_values_to_fields(
+        hash_ptr_address,
+        hint_processor.commitment_type.hash_builtin_struct(),
+        vm,
+        nested_fields_and_values.as_slice(),
+        &hint_processor.os_program,
+    )?;
+
+    // TODO(Rotem): Verify that it's OK to ignore the scope variable
+    // `__patricia_skip_validation_runner`.
+
+    insert_value_into_ap(vm, Felt::from(case != DecodeNodeCase::Both))?;
+
+    Ok(())
 }
 
 pub(crate) fn build_descent_map<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
