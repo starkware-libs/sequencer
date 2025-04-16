@@ -92,7 +92,6 @@ define_string_enum! {
         (Node),
         (Preimage),
         (RightChild),
-        (SerializeDataAvailabilityCreatePages, "__serialize_data_availability_create_pages__"),
         (SyscallHandlerType),
         (Transactions),
         (Tx),
