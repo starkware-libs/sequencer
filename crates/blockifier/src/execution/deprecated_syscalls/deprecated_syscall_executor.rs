@@ -42,7 +42,6 @@ use crate::execution::deprecated_syscalls::{
     SyscallResponse,
 };
 
-#[allow(dead_code)]
 pub trait DeprecatedSyscallExecutor {
     fn execute_syscall_from_selector(
         &mut self,
