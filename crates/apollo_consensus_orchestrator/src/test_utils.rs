@@ -121,19 +121,6 @@ pub struct NetworkDependencies {
     pub outbound_proposal_receiver: mpsc::Receiver<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
 }
 
-// TODO(guy.f): Remove this method and rename `setup_with_custom_mocks` to `setup`, replace
-// all calls to pass in a `SequencerConsensusContextDeps` object.
-pub fn setup(
-    batcher: MockBatcherClient,
-    cende_ambassador: MockCendeContext,
-) -> (SequencerConsensusContext, NetworkDependencies) {
-    let mut context_recipe = ContextRecipe::default();
-    context_recipe.context_deps.batcher = Arc::new(batcher);
-    context_recipe.context_deps.cende_ambassador = Arc::new(cende_ambassador);
-
-    context_recipe.build_context()
-}
-
 // Setup for test of the `build_proposal` function.
 pub async fn build_proposal_setup(
     mock_cende_context: MockCendeContext,
@@ -167,7 +154,11 @@ pub async fn build_proposal_setup(
         })
     });
 
-    let (mut context, _network) = setup(batcher, mock_cende_context);
+    let mut context_recipe = ContextRecipe::default();
+    context_recipe.context_deps.batcher = Arc::new(batcher);
+    context_recipe.context_deps.cende_ambassador = Arc::new(mock_cende_context);
+
+    let (mut context, _network) = context_recipe.build_context();
     let init = ProposalInit::default();
 
     (context.build_proposal(init, TIMEOUT).await, context, _network)
