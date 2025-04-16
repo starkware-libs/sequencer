@@ -44,6 +44,11 @@ pub struct ContextConfig {
     pub min_l1_data_gas_price_wei: u128,
     /// The maximum L1 data gas price in wei.
     pub max_l1_data_gas_price_wei: u128,
+    /// Part per thousand of multiplicative factor to apply to the data gas price, to enable
+    /// fine-tuning of the price charged to end users. Commonly used to apply a discount due to
+    /// the blob's data being compressed. Can be used to raise the prices in case of blob
+    /// under-utilization.
+    pub l1_data_gas_price_multiplier_ppt: u128,
 }
 
 impl SerializeConfig for ContextConfig {
@@ -124,6 +129,13 @@ impl SerializeConfig for ContextConfig {
                 "The maximum L1 data gas price in wei.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "l1_data_gas_price_multiplier_ppt",
+                &self.l1_data_gas_price_multiplier_ppt,
+                "Part per thousand of multiplicative factor to apply to the data gas price, to \
+                 enable fine-tuning of the price charged to end users.",
+                ParamPrivacyInput::Public,
+            ),
         ])
     }
 }
@@ -143,6 +155,7 @@ impl Default for ContextConfig {
             max_l1_gas_price_wei: 200 * GWEI_FACTOR,
             min_l1_data_gas_price_wei: GWEI_FACTOR,
             max_l1_data_gas_price_wei: 150 * GWEI_FACTOR,
+            l1_data_gas_price_multiplier_ppt: 135,
         }
     }
 }

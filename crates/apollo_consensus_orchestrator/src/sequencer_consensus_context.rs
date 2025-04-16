@@ -271,6 +271,7 @@ struct ProposalBuildArguments {
     max_l1_gas_price_wei: u128,
     min_l1_data_gas_price_wei: u128,
     max_l1_data_gas_price_wei: u128,
+    l1_data_gas_price_multiplier: Ratio<u128>,
     valid_proposals: Arc<Mutex<HeightToIdToContent>>,
     proposal_id: ProposalId,
     cende_write_success: AbortOnDropHandle<bool>,
@@ -292,6 +293,7 @@ struct ProposalValidateArguments {
     max_l1_gas_price_wei: u128,
     min_l1_data_gas_price_wei: u128,
     max_l1_data_gas_price_wei: u128,
+    l1_data_gas_price_multiplier: Ratio<u128>,
     timeout: Duration,
     batcher_timeout_margin: Duration,
     valid_proposals: Arc<Mutex<HeightToIdToContent>>,
@@ -354,6 +356,10 @@ impl ConsensusContext for SequencerConsensusContext {
             max_l1_gas_price_wei: self.config.max_l1_gas_price_wei,
             min_l1_data_gas_price_wei: self.config.min_l1_data_gas_price_wei,
             max_l1_data_gas_price_wei: self.config.max_l1_data_gas_price_wei,
+            l1_data_gas_price_multiplier: Ratio::new(
+                self.config.l1_data_gas_price_multiplier_ppt,
+                1000,
+            ),
             valid_proposals: Arc::clone(&self.valid_proposals),
             proposal_id,
             cende_write_success,
@@ -721,6 +727,8 @@ impl SequencerConsensusContext {
         let max_l1_gas_price_wei = self.config.max_l1_gas_price_wei;
         let min_l1_data_gas_price_wei = self.config.min_l1_data_gas_price_wei;
         let max_l1_data_gas_price_wei = self.config.max_l1_data_gas_price_wei;
+        let l1_data_gas_price_multiplier =
+            Ratio::new(self.config.l1_data_gas_price_multiplier_ppt, 1000);
         let transaction_converter = self.transaction_converter.clone();
         let valid_proposals = Arc::clone(&self.valid_proposals);
         let proposal_id = ProposalId(self.proposal_id);
@@ -741,6 +749,7 @@ impl SequencerConsensusContext {
                     max_l1_gas_price_wei,
                     min_l1_data_gas_price_wei,
                     max_l1_data_gas_price_wei,
+                    l1_data_gas_price_multiplier,
                     timeout,
                     batcher_timeout_margin,
                     valid_proposals,
@@ -832,10 +841,7 @@ async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<Consens
     l1_prices.base_fee_per_gas =
         l1_prices.base_fee_per_gas.clamp(args.min_l1_gas_price_wei, args.max_l1_gas_price_wei);
 
-    // TODO(Arni): This value should be an input of this function.
-    let part_per_thousand_data_gas_price_multiplier: u128 = 1000;
-    let data_gas_price_multiplier = Ratio::new(part_per_thousand_data_gas_price_multiplier, 1000);
-    l1_prices.blob_fee = (data_gas_price_multiplier * l1_prices.blob_fee)
+    l1_prices.blob_fee = (args.l1_data_gas_price_multiplier * l1_prices.blob_fee)
         .to_integer()
         .clamp(args.min_l1_data_gas_price_wei, args.max_l1_data_gas_price_wei);
 
@@ -969,11 +975,12 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
     else {
         return;
     };
-    let min_max_prices = GasPriceBounds {
+    let min_max_prices = GasPriceParams {
         min_l1_gas_price_wei: args.min_l1_gas_price_wei,
         max_l1_gas_price_wei: args.max_l1_gas_price_wei,
         min_l1_data_gas_price_wei: args.min_l1_data_gas_price_wei,
         max_l1_data_gas_price_wei: args.max_l1_data_gas_price_wei,
+        l1_data_gas_price_multiplier: args.l1_data_gas_price_multiplier,
     };
     if !is_block_info_valid(
         args.block_info_validation.clone(),
@@ -1068,11 +1075,12 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
     }
 }
 
-struct GasPriceBounds {
+struct GasPriceParams {
     min_l1_gas_price_wei: u128,
     max_l1_gas_price_wei: u128,
     max_l1_data_gas_price_wei: u128,
     min_l1_data_gas_price_wei: u128,
+    l1_data_gas_price_multiplier: Ratio<u128>,
 }
 
 async fn is_block_info_valid(
@@ -1081,7 +1089,7 @@ async fn is_block_info_valid(
     eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
     clock: &dyn Clock,
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
-    min_max_prices: GasPriceBounds,
+    gas_price_params: GasPriceParams,
 ) -> bool {
     let now: u64 = clock.now_as_timestamp();
     if !(block_info.height == block_info_validation.height
@@ -1109,21 +1117,20 @@ async fn is_block_info_valid(
         Err(e) => {
             warn!("Failed to get L1 gas prices, replacing with minimum values: {e:?}");
             PriceInfo {
-                base_fee_per_gas: min_max_prices.min_l1_gas_price_wei,
-                blob_fee: min_max_prices.min_l1_data_gas_price_wei,
+                base_fee_per_gas: gas_price_params.min_l1_gas_price_wei,
+                blob_fee: gas_price_params.min_l1_data_gas_price_wei,
             }
         }
     };
     gas_prices.base_fee_per_gas = gas_prices
         .base_fee_per_gas
-        .clamp(min_max_prices.min_l1_gas_price_wei, min_max_prices.max_l1_gas_price_wei);
+        .clamp(gas_price_params.min_l1_gas_price_wei, gas_price_params.max_l1_gas_price_wei);
 
-    // TODO(Arni): This value should be an input of this function.
-    let part_per_thousand_data_gas_price_multiplier: u128 = 1000;
-    let data_gas_price_multiplier = Ratio::new(part_per_thousand_data_gas_price_multiplier, 1000);
-    gas_prices.blob_fee = (data_gas_price_multiplier * gas_prices.blob_fee)
-        .to_integer()
-        .clamp(min_max_prices.min_l1_data_gas_price_wei, min_max_prices.max_l1_data_gas_price_wei);
+    gas_prices.blob_fee =
+        (gas_price_params.l1_data_gas_price_multiplier * gas_prices.blob_fee).to_integer().clamp(
+            gas_price_params.min_l1_data_gas_price_wei,
+            gas_price_params.max_l1_data_gas_price_wei,
+        );
 
     let l1_gas_price_fri =
         ConsensusBlockInfo::wei_to_fri(gas_prices.base_fee_per_gas, eth_to_fri_rate);
