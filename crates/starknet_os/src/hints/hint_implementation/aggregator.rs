@@ -22,9 +22,10 @@ pub(crate) fn allocate_segments_for_messages<S: StateReader>(
 }
 
 pub(crate) fn disable_da_page_creation<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    hint_processor.serialize_data_availability_create_pages = false;
+    Ok(())
 }
 
 pub(crate) fn get_os_output_for_inner_blocks<S: StateReader>(
