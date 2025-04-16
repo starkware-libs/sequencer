@@ -1,3 +1,5 @@
+use std::ops::Sub;
+
 use ethnum::U256;
 use starknet_types_core::felt::Felt;
 
@@ -33,6 +35,14 @@ impl From<SubTreeHeight> for u8 {
 impl From<SubTreeHeight> for Felt {
     fn from(value: SubTreeHeight) -> Self {
         value.0.into()
+    }
+}
+
+impl Sub<u8> for SubTreeHeight {
+    type Output = Self;
+
+    fn sub(self, rhs: u8) -> Self::Output {
+        Self::new(self.0 - rhs)
     }
 }
 
