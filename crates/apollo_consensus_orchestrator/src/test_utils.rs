@@ -21,7 +21,6 @@ use apollo_class_manager_types::transaction_converter::{
     TransactionConverterTrait,
 };
 use apollo_class_manager_types::EmptyClassManagerClient;
-use apollo_consensus::types::ConsensusContext;
 use apollo_l1_gas_price_types::{
     MockEthToStrkOracleClientTrait,
     MockL1GasPriceProviderClient,
@@ -33,22 +32,11 @@ use apollo_network::network_manager::test_utils::{
     TestSubscriberChannels,
 };
 use apollo_network::network_manager::BroadcastTopicChannels;
-use apollo_protobuf::consensus::{
-    ConsensusBlockInfo,
-    HeightAndRound,
-    ProposalInit,
-    ProposalPart,
-    Vote,
-};
+use apollo_protobuf::consensus::{ConsensusBlockInfo, HeightAndRound, ProposalPart, Vote};
 use apollo_state_sync_types::communication::MockStateSyncClient;
-use futures::channel::{mpsc, oneshot};
+use futures::channel::mpsc;
 use futures::executor::block_on;
-use starknet_api::block::{
-    BlockHash,
-    BlockNumber,
-    TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
-    TEMP_ETH_GAS_FEE_IN_WEI,
-};
+use starknet_api::block::{BlockNumber, TEMP_ETH_BLOB_GAS_FEE_IN_WEI, TEMP_ETH_GAS_FEE_IN_WEI};
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
 use starknet_api::core::{ChainId, Nonce, StateDiffCommitment};
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -119,49 +107,6 @@ pub fn block_info(height: BlockNumber) -> ConsensusBlockInfo {
 pub struct NetworkDependencies {
     _vote_network: BroadcastNetworkMock<Vote>,
     pub outbound_proposal_receiver: mpsc::Receiver<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
-}
-
-// Setup for test of the `build_proposal` function.
-pub async fn build_proposal_setup(
-    mock_cende_context: MockCendeContext,
-) -> (oneshot::Receiver<BlockHash>, SequencerConsensusContext, NetworkDependencies) {
-    let mut batcher = MockBatcherClient::new();
-    let proposal_id = Arc::new(OnceLock::new());
-    let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_propose_block().times(1).returning(move |input: ProposeBlockInput| {
-        proposal_id_clone.set(input.proposal_id).unwrap();
-        Ok(())
-    });
-    batcher
-        .expect_start_height()
-        .times(1)
-        .withf(|input| input.height == BlockNumber(0))
-        .return_once(|_| Ok(()));
-    let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_get_proposal_content().times(1).returning(move |input| {
-        assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-        Ok(GetProposalContentResponse {
-            content: GetProposalContent::Txs(INTERNAL_TX_BATCH.clone()),
-        })
-    });
-    let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_get_proposal_content().times(1).returning(move |input| {
-        assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-        Ok(GetProposalContentResponse {
-            content: GetProposalContent::Finished(ProposalCommitment {
-                state_diff_commitment: STATE_DIFF_COMMITMENT,
-            }),
-        })
-    });
-
-    let mut context_recipe = ContextRecipe::default();
-    context_recipe.context_deps.batcher = Arc::new(batcher);
-    context_recipe.context_deps.cende_ambassador = Arc::new(mock_cende_context);
-
-    let (mut context, _network) = context_recipe.build_context();
-    let init = ProposalInit::default();
-
-    (context.build_proposal(init, TIMEOUT).await, context, _network)
 }
 
 // Returns a mock CendeContext that will return a successful write_prev_height_blob.
