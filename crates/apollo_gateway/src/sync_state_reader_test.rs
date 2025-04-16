@@ -1,13 +1,16 @@
 use std::sync::Arc;
 
 use apollo_class_manager_types::MockClassManagerClient;
-use apollo_state_sync_types::communication::MockStateSyncClient;
+use apollo_state_sync_types::communication::{MockStateSyncClient, StateSyncClientResult};
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_test_utils::{get_rng, GetTestInstance};
+use assert_matches::assert_matches;
 use blockifier::execution::contract_class::RunnableCompiledClass;
+use blockifier::state::errors::StateError;
 use blockifier::state::state_api::StateReader;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use mockall::predicate;
+use rstest::rstest;
 use starknet_api::block::{
     BlockHeaderWithoutHash,
     BlockInfo,
@@ -19,7 +22,7 @@ use starknet_api::block::{
     NonzeroGasPrice,
 };
 use starknet_api::contract_class::{ContractClass, SierraVersion};
-use starknet_api::core::SequencerContractAddress;
+use starknet_api::core::{ClassHash, SequencerContractAddress};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::{class_hash, contract_address, felt, nonce, storage_key};
 
@@ -187,24 +190,26 @@ async fn test_get_class_hash_at() {
     assert_eq!(result, expected_result);
 }
 
-// TODO(NoamS): test undeclared class flow (when class manager client returns None).
-// TODO(shahak): test undeclared class flow (when sync client returns false).
-#[tokio::test]
-async fn test_get_compiled_class() {
-    let mut mock_state_sync_client = MockStateSyncClient::new();
+fn casm_contract_class_and_hash() -> (CasmContractClass, ClassHash) {
+    (
+        CasmContractClass {
+            compiler_version: "0.0.0".to_string(),
+            prime: Default::default(),
+            bytecode: Default::default(),
+            bytecode_segment_lengths: Default::default(),
+            hints: Default::default(),
+            pythonic_hints: Default::default(),
+            entry_points_by_type: Default::default(),
+        },
+        class_hash!("0x2"),
+    )
+}
+
+fn setup_class_manager_mock(
+    class_hash: ClassHash,
+    casm_contract_class: CasmContractClass,
+) -> MockClassManagerClient {
     let mut mock_class_manager_client = MockClassManagerClient::new();
-    let block_number = BlockNumber(1);
-    let class_hash = class_hash!("0x2");
-    let casm_contract_class = CasmContractClass {
-        compiler_version: "0.0.0".to_string(),
-        prime: Default::default(),
-        bytecode: Default::default(),
-        bytecode_segment_lengths: Default::default(),
-        hints: Default::default(),
-        pythonic_hints: Default::default(),
-        entry_points_by_type: Default::default(),
-    };
-    let expected_result = casm_contract_class.clone();
 
     mock_class_manager_client
         .expect_get_executable()
@@ -214,11 +219,40 @@ async fn test_get_compiled_class() {
             Ok(Some(ContractClass::V1((casm_contract_class.clone(), SierraVersion::default()))))
         });
 
+    mock_class_manager_client
+}
+
+fn setup_state_sync_client_mock(
+    block_number: BlockNumber,
+    class_hash: ClassHash,
+    sync_client_result: StateSyncClientResult<bool>,
+) -> MockStateSyncClient {
+    let mut mock_state_sync_client = MockStateSyncClient::new();
+
     mock_state_sync_client
         .expect_is_class_declared_at()
         .times(1)
         .with(predicate::eq(block_number), predicate::eq(class_hash))
-        .return_once(|_, _| Ok(true));
+        .return_once(move |_, _| sync_client_result);
+
+    mock_state_sync_client
+}
+
+// TODO(NoamS): test undeclared class flow (when class manager client returns None).
+#[rstest]
+#[case::sync_client_class_declared(casm_contract_class_and_hash(), Ok(true))]
+#[tokio::test]
+async fn test_get_compiled_class_positive(
+    #[case] casm_contract_class_and_hash: (CasmContractClass, ClassHash),
+    #[case] sync_client_result: StateSyncClientResult<bool>,
+) {
+    let (casm_contract_class, class_hash) = casm_contract_class_and_hash;
+    let block_number = BlockNumber(1);
+
+    let mock_class_manager_client =
+        setup_class_manager_mock(class_hash, casm_contract_class.clone());
+    let mock_state_sync_client =
+        setup_state_sync_client_mock(block_number, class_hash, sync_client_result);
 
     let state_sync_reader = SyncStateReader::from_number(
         Arc::new(mock_state_sync_client),
@@ -226,14 +260,55 @@ async fn test_get_compiled_class() {
         block_number,
         tokio::runtime::Handle::current(),
     );
-
     let result =
         tokio::task::spawn_blocking(move || state_sync_reader.get_compiled_class(class_hash))
             .await
-            .unwrap()
             .unwrap();
+
     assert_eq!(
-        result,
-        RunnableCompiledClass::V1((expected_result, SierraVersion::default()).try_into().unwrap())
+        result.unwrap(),
+        RunnableCompiledClass::V1(
+            (casm_contract_class, SierraVersion::default()).try_into().unwrap()
+        )
     );
+}
+
+// TODO(NoamS): test undeclared class flow (when class manager client returns None).
+#[rstest]
+#[case::sync_client_class_not_declared(casm_contract_class_and_hash(), Ok(false), StateError::UndeclaredClassHash(class_hash!("0x2")))]
+#[tokio::test]
+async fn test_get_compiled_class_negative(
+    #[case] casm_contract_class_and_hash: (CasmContractClass, ClassHash),
+    #[case] sync_client_result: StateSyncClientResult<bool>,
+    #[case] expected_error: StateError,
+) {
+    let (casm_contract_class, class_hash) = casm_contract_class_and_hash;
+    let block_number = BlockNumber(1);
+
+    let mock_class_manager_client =
+        setup_class_manager_mock(class_hash, casm_contract_class.clone());
+    let mock_state_sync_client =
+        setup_state_sync_client_mock(block_number, class_hash, sync_client_result);
+
+    let state_sync_reader = SyncStateReader::from_number(
+        Arc::new(mock_state_sync_client),
+        Arc::new(mock_class_manager_client),
+        block_number,
+        tokio::runtime::Handle::current(),
+    );
+    let result =
+        tokio::task::spawn_blocking(move || state_sync_reader.get_compiled_class(class_hash))
+            .await
+            .unwrap();
+
+    match expected_error {
+        StateError::UndeclaredClassHash(expected_class_hash) => {
+            let received_class_hash =
+                assert_matches!(result.unwrap_err(), StateError::UndeclaredClassHash(h) => h);
+            assert_eq!(expected_class_hash, received_class_hash)
+        }
+        _ => {
+            panic!("Unsupported Test Error Type {:?}", expected_error)
+        }
+    }
 }
