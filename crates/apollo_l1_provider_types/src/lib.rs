@@ -9,7 +9,7 @@ use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
-use papyrus_base_layer::L1Event;
+use papyrus_base_layer::EventData;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::L1HandlerTransaction;
@@ -185,9 +185,9 @@ where
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Event {
     L1HandlerTransaction(L1HandlerTransaction),
-    TransactionCanceled(L1Event),
-    TransactionCancellationStarted(L1Event),
-    TransactionConsumed(L1Event),
+    TransactionCanceled(EventData),
+    TransactionCancellationStarted(EventData),
+    TransactionConsumed(EventData),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]

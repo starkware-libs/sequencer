@@ -162,20 +162,19 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
     }
 
     fn event_from_raw_l1_event(&self, l1_event: L1Event) -> L1ScraperResult<Event, B> {
-        match l1_event {
+        Ok(match l1_event {
             L1Event::LogMessageToL2 { tx, fee } => {
                 let chain_id = &self.config.chain_id;
-                match ExecutableL1HandlerTransaction::create(tx, chain_id, fee) {
-                    Ok(tx) => Ok(Event::L1HandlerTransaction(tx)),
-                    Err(hash_calc_err) => Err(L1ScraperError::HashCalculationError(hash_calc_err)),
-                }
+                let tx = ExecutableL1HandlerTransaction::create(tx, chain_id, fee)
+                    .map_err(L1ScraperError::HashCalculationError)?;
+                Event::L1HandlerTransaction(tx)
             }
-            L1Event::MessageToL2CancellationStarted(_) => {
-                Ok(Event::TransactionCancellationStarted(l1_event))
+            L1Event::MessageToL2CancellationStarted(event_data) => {
+                Event::TransactionCancellationStarted(event_data)
             }
-            L1Event::MessageToL2Canceled(_) => Ok(Event::TransactionCanceled(l1_event)),
-            L1Event::ConsumedMessageToL2(_) => Ok(Event::TransactionConsumed(l1_event)),
-        }
+            L1Event::MessageToL2Canceled(event_data) => Event::TransactionCanceled(event_data),
+            L1Event::ConsumedMessageToL2(event_data) => Event::TransactionConsumed(event_data),
+        })
     }
 
     async fn assert_no_l1_reorgs(&self) -> L1ScraperResult<(), B> {
