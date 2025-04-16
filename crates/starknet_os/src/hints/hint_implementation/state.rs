@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
@@ -74,20 +72,10 @@ fn set_preimage_for_commitments<S: StateReader>(
 }
 
 pub(crate) fn compute_commitments_on_finalized_state_with_aliases<S: StateReader>(
-    HintArgs { hint_processor, exec_scopes, .. }: HintArgs<'_, S>,
+    HintArgs { .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    // TODO(Nimrod): Try to avoid this clone.
-    // TODO(Nimrod): Do nothing here. In `set_preimage_for_current_commitment_info` use
-    // `address_to_storage_commitment_info` directly from the execution helper.
-    exec_scopes.insert_value(
-        Scope::CommitmentInfoByAddress.into(),
-        hint_processor
-            .get_current_execution_helper()?
-            .os_block_input
-            .address_to_storage_commitment_info
-            .clone(),
-    );
-
+    // Do nothing here and use `address_to_storage_commitment_info` directly from the execution
+    // helper.
     Ok(())
 }
 
@@ -106,13 +94,16 @@ pub(crate) fn set_preimage_for_class_commitments<S: StateReader>(
 }
 
 pub(crate) fn set_preimage_for_current_commitment_info<S: StateReader>(
-    HintArgs { vm, constants, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_, S>,
+    HintArgs { vm, constants, ids_data, ap_tracking, exec_scopes, hint_processor }: HintArgs<'_, S>,
 ) -> OsHintResult {
     let contract_address: ContractAddress =
         get_integer_from_var_name(Ids::ContractAddress.into(), vm, ids_data, ap_tracking)?
             .try_into()?;
-    let commitment_info_by_address: &HashMap<ContractAddress, CommitmentInfo> =
-        exec_scopes.get_ref(Scope::CommitmentInfoByAddress.into())?;
+    let commitment_info_by_address = &hint_processor
+        .execution_helpers_manager
+        .get_current_execution_helper()?
+        .os_block_input
+        .address_to_storage_commitment_info;
     let commitment_info = commitment_info_by_address
         .get(&contract_address)
         .ok_or(OsHintError::MissingCommitmentInfo(contract_address))?;
