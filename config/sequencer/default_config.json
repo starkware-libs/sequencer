@@ -914,6 +914,11 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "consensus_manager_config.network_config.broadcasted_message_metadata_buffer_size": {
+    "description": "The size of the buffer that holds the metadata of the broadcasted messages.",
+    "privacy": "Public",
+    "value": 100000
+  },
   "consensus_manager_config.network_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
     "pointer_target": "chain_id",
@@ -958,6 +963,11 @@
     "description": "The port that the node listens on for incoming tcp connections.",
     "privacy": "Public",
     "value": 10000
+  },
+  "consensus_manager_config.network_config.reported_peer_ids_buffer_size": {
+    "description": "The size of the buffer that holds the reported peer ids.",
+    "privacy": "Public",
+    "value": 100000
   },
   "consensus_manager_config.network_config.secret_key": {
     "description": "The secret key used for building the peer id. If it's an empty string a random one will be used.",
@@ -1264,6 +1274,11 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "mempool_p2p_config.network_config.broadcasted_message_metadata_buffer_size": {
+    "description": "The size of the buffer that holds the metadata of the broadcasted messages.",
+    "privacy": "Public",
+    "value": 100000
+  },
   "mempool_p2p_config.network_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
     "pointer_target": "chain_id",
@@ -1308,6 +1323,11 @@
     "description": "The port that the node listens on for incoming tcp connections.",
     "privacy": "Public",
     "value": 11111
+  },
+  "mempool_p2p_config.network_config.reported_peer_ids_buffer_size": {
+    "description": "The size of the buffer that holds the reported peer ids.",
+    "privacy": "Public",
+    "value": 100000
   },
   "mempool_p2p_config.network_config.secret_key": {
     "description": "The secret key used for building the peer id. If it's an empty string a random one will be used.",
@@ -1494,6 +1514,11 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "state_sync_config.network_config.broadcasted_message_metadata_buffer_size": {
+    "description": "The size of the buffer that holds the metadata of the broadcasted messages.",
+    "privacy": "Public",
+    "value": 100000
+  },
   "state_sync_config.network_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
     "pointer_target": "chain_id",
@@ -1538,6 +1563,11 @@
     "description": "The port that the node listens on for incoming tcp connections.",
     "privacy": "Public",
     "value": 12345
+  },
+  "state_sync_config.network_config.reported_peer_ids_buffer_size": {
+    "description": "The size of the buffer that holds the reported peer ids.",
+    "privacy": "Public",
+    "value": 100000
   },
   "state_sync_config.network_config.secret_key": {
     "description": "The secret key used for building the peer id. If it's an empty string a random one will be used.",

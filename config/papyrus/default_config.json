@@ -244,6 +244,11 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "network.broadcasted_message_metadata_buffer_size": {
+    "description": "The size of the buffer that holds the metadata of the broadcasted messages.",
+    "privacy": "Public",
+    "value": 100000
+  },
   "network.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
     "pointer_target": "chain_id",
@@ -288,6 +293,11 @@
     "description": "The port that the node listens on for incoming tcp connections.",
     "privacy": "Public",
     "value": 10000
+  },
+  "network.reported_peer_ids_buffer_size": {
+    "description": "The size of the buffer that holds the reported peer ids.",
+    "privacy": "Public",
+    "value": 100000
   },
   "network.secret_key": {
     "description": "The secret key used for building the peer id. If it's an empty string a random one will be used.",
