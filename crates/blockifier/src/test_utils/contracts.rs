@@ -14,15 +14,11 @@ use crate::execution::contract_class::RunnableCompiledClass;
 use crate::execution::entry_point::EntryPointTypeAndSelector;
 #[cfg(feature = "cairo_native")]
 use crate::execution::native::contract_class::NativeCompiledClassV1;
-#[cfg(feature = "cairo_native")]
-use crate::state::global_cache::CachedCairoNative;
-use crate::state::global_cache::CachedClass;
 use crate::test_utils::struct_impls::LoadContractFromFile;
 
 pub trait FeatureContractTrait {
     fn get_class(&self) -> ContractClass;
     fn get_runnable_class(&self) -> RunnableCompiledClass;
-    fn get_cached_class(&self) -> CachedClass;
 
     /// Fetch PC locations from the compiled contract to compute the expected PC locations in the
     /// traceback. Computation is not robust, but as long as the cairo function itself is not
@@ -101,30 +97,12 @@ impl FeatureContractTrait for FeatureContract {
 
         self.get_class().try_into().unwrap()
     }
-
-    fn get_cached_class(&self) -> CachedClass {
-        #[cfg(feature = "cairo_native")]
-        if CairoVersion::Cairo1(RunnableCairo1::Native) == self.cairo_version() {
-            let native_contract_class =
-                NativeCompiledClassV1::compile_or_get_cached(&self.get_compiled_path());
-            return CachedClass::V1Native(CachedCairoNative::Compiled(
-                native_contract_class.clone(),
-            ));
-        }
-
-        match self.get_class() {
-            ContractClass::V0(class) => CachedClass::V0(class.try_into().unwrap()),
-            ContractClass::V1(class) => {
-                CachedClass::V1(class.try_into().unwrap(), self.get_sierra().into())
-            }
-        }
-    }
 }
 
 /// The information needed to test a [FeatureContract].
 pub struct FeatureContractData {
     pub class_hash: ClassHash,
-    pub cached_class: CachedClass,
+    pub runnable_class: RunnableCompiledClass,
     pub require_funding: bool,
     integer_base: u32,
 }
@@ -148,7 +126,7 @@ impl From<FeatureContract> for FeatureContractData {
 
         Self {
             class_hash: contract.get_class_hash(),
-            cached_class: contract.get_cached_class(),
+            runnable_class: contract.get_runnable_class(),
             require_funding,
             integer_base: contract.get_integer_base(),
         }
