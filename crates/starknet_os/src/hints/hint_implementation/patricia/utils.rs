@@ -175,8 +175,8 @@ impl Path {
 
 #[derive(Debug, Eq, Hash, PartialEq, Clone)]
 pub struct DescentStart {
-    height: SubTreeHeight,
-    path_to_upper_node: Path,
+    pub height: SubTreeHeight,
+    pub path_to_upper_node: Path,
 }
 
 impl DescentStart {
