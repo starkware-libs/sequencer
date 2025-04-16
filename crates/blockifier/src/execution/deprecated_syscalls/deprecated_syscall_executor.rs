@@ -93,7 +93,24 @@ pub trait DeprecatedSyscallExecutor {
             DeprecatedSyscallSelector::StorageWrite => {
                 self.execute_syscall(vm, Self::storage_write)
             }
-            _ => Err(HintError::UnknownHint(
+            // Explicitly list unsupported syscalls, so compiler can catch if a syscall is missing.
+            DeprecatedSyscallSelector::GetBlockHash
+            | DeprecatedSyscallSelector::GetClassHashAt
+            | DeprecatedSyscallSelector::GetExecutionInfo
+            | DeprecatedSyscallSelector::Keccak
+            | DeprecatedSyscallSelector::KeccakRound
+            | DeprecatedSyscallSelector::Sha256ProcessBlock
+            | DeprecatedSyscallSelector::MetaTxV0
+            | DeprecatedSyscallSelector::Secp256k1Add
+            | DeprecatedSyscallSelector::Secp256k1GetPointFromX
+            | DeprecatedSyscallSelector::Secp256k1GetXy
+            | DeprecatedSyscallSelector::Secp256k1Mul
+            | DeprecatedSyscallSelector::Secp256k1New
+            | DeprecatedSyscallSelector::Secp256r1Add
+            | DeprecatedSyscallSelector::Secp256r1GetPointFromX
+            | DeprecatedSyscallSelector::Secp256r1GetXy
+            | DeprecatedSyscallSelector::Secp256r1Mul
+            | DeprecatedSyscallSelector::Secp256r1New => Err(HintError::UnknownHint(
                 format!("Unsupported syscall selector {selector:?}.").into(),
             )),
         }
