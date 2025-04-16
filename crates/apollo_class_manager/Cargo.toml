@@ -31,6 +31,7 @@ validator.workspace = true
 
 [dev-dependencies]
 apollo_sierra_multicompile_types = { workspace = true, features = ["testing"] }
+assert_matches.workspace = true
 mockall.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 tokio.workspace = true
