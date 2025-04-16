@@ -288,10 +288,10 @@
                 "constant": {
                     "builtin_instance_counter": {
                         "pedersen_builtin": 9,
-                        "range_check_builtin": 16
+                        "range_check_builtin": 20
                     },
                     "n_memory_holes": 0,
-                    "n_steps": 1275
+                    "n_steps": 1319
                 },
                 "calldata_factor": {
                     "builtin_instance_counter": {
