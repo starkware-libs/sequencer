@@ -10,8 +10,6 @@ use starknet_api::deprecated_contract_class::{
     EntryPointOffset,
 };
 
-// reverting 
-
 use crate::execution::contract_class::RunnableCompiledClass;
 use crate::execution::entry_point::EntryPointTypeAndSelector;
 #[cfg(feature = "cairo_native")]
