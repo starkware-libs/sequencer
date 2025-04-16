@@ -53,6 +53,13 @@ impl ContractClass {
             }
         }
     }
+
+    pub fn bytecode_length(&self) -> usize {
+        match self {
+            ContractClass::V0(contract_class) => contract_class.bytecode_length(),
+            ContractClass::V1((contract_class, _sierra_version)) => contract_class.bytecode.len(),
+        }
+    }
 }
 
 #[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq, PartialOrd)]
