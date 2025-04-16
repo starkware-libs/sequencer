@@ -104,9 +104,9 @@ fn process_events_happy_flow() {
 
         // Test.
         l1_provider
-            .process_l1_events(vec![l1_handler_event(tx_hash!(4)), l1_handler_event(tx_hash!(3))])
+            .add_events(vec![l1_handler_event(tx_hash!(4)), l1_handler_event(tx_hash!(3))])
             .unwrap();
-        l1_provider.process_l1_events(vec![l1_handler_event(tx_hash!(6))]).unwrap();
+        l1_provider.add_events(vec![l1_handler_event(tx_hash!(6))]).unwrap();
 
         let expected_l1_provider = L1ProviderContentBuilder::new()
             .with_txs([
@@ -137,11 +137,11 @@ fn process_events_committed_txs() {
 
     // Test.
     // Unconsumed transaction, should fail silently.
-    l1_provider.process_l1_events(vec![l1_handler_event(tx_hash!(1))]).unwrap();
+    l1_provider.add_events(vec![l1_handler_event(tx_hash!(1))]).unwrap();
     assert_eq!(l1_provider, expected_l1_provider);
 
     // Committed transaction, should fail silently.
-    l1_provider.process_l1_events(vec![l1_handler_event(tx_hash!(2))]).unwrap();
+    l1_provider.add_events(vec![l1_handler_event(tx_hash!(2))]).unwrap();
     assert_eq!(l1_provider, expected_l1_provider);
 }
 
@@ -308,7 +308,7 @@ fn tx_in_commit_block_before_processed_is_skipped() {
     expected_l1_provider.assert_eq(&l1_provider);
 
     // Parsing the tx after getting it from commit-block is a NOP.
-    l1_provider.process_l1_events(vec![l1_handler_event(tx_hash!(2))]).unwrap();
+    l1_provider.add_events(vec![l1_handler_event(tx_hash!(2))]).unwrap();
     expected_l1_provider.assert_eq(&l1_provider);
 }
 
