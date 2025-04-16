@@ -41,9 +41,13 @@ use url::Url;
 
 use crate::fee_market::FeeMarketInfo;
 use crate::metrics::{
+    CendeWriteFailureReason,
     CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER,
     CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY,
+    CENDE_WRITE_BLOB_FAILURE,
+    CENDE_WRITE_BLOB_SUCCESS,
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY,
+    LABEL_CENDE_FAILURE_REASON,
 };
 
 #[derive(thiserror::Error, Debug)]
@@ -171,6 +175,10 @@ impl CendeContext for CendeAmbassador {
                  have been written here in a normal flow, should already be written to Aerospike. \
                  Not writing to Aerospike previous height blob!!!.",
             );
+            CENDE_WRITE_BLOB_FAILURE.increment(
+                1,
+                &[(LABEL_CENDE_FAILURE_REASON, CendeWriteFailureReason::SkipWriteHeight.into())],
+            );
             return tokio::spawn(ready(true));
         }
 
@@ -184,6 +192,13 @@ impl CendeContext for CendeAmbassador {
                     // This case happens when restarting the node, `prev_height_blob` initial value
                     // is `None`.
                     warn!("No blob to write to Aerospike.");
+                    CENDE_WRITE_BLOB_FAILURE.increment(
+                        1,
+                        &[(
+                            LABEL_CENDE_FAILURE_REASON,
+                            CendeWriteFailureReason::BlobNotAvailable.into(),
+                        )],
+                    );
                     return false;
                 };
 
@@ -202,7 +217,13 @@ impl CendeContext for CendeAmbassador {
                          Blob block number {}, height {current_height}",
                         blob.block_number
                     );
-
+                    CENDE_WRITE_BLOB_FAILURE.increment(
+                        1,
+                        &[(
+                            LABEL_CENDE_FAILURE_REASON,
+                            CendeWriteFailureReason::HeightMismatch.into(),
+                        )],
+                    );
                     return false;
                 }
 
@@ -245,7 +266,7 @@ async fn send_write_blob(request_builder: RequestBuilder, blob: &AerospikeBlob) 
                     blob.transactions.len(),
                 );
                 print_write_blob_response(response).await;
-
+                CENDE_WRITE_BLOB_SUCCESS.increment(1);
                 true
             } else {
                 warn!(
@@ -254,13 +275,23 @@ async fn send_write_blob(request_builder: RequestBuilder, blob: &AerospikeBlob) 
                     response.status(),
                 );
                 print_write_blob_response(response).await;
-
+                CENDE_WRITE_BLOB_FAILURE.increment(
+                    1,
+                    &[(
+                        LABEL_CENDE_FAILURE_REASON,
+                        CendeWriteFailureReason::CendeRecorderError.into(),
+                    )],
+                );
                 false
             }
         }
         Err(err) => {
             // TODO(dvir): try to test this case.
             warn!("Failed to send a request to the recorder. Error: {err}");
+            CENDE_WRITE_BLOB_FAILURE.increment(
+                1,
+                &[(LABEL_CENDE_FAILURE_REASON, CendeWriteFailureReason::CommunicationError.into())],
+            );
             false
         }
     }

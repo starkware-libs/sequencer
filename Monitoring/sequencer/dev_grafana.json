@@ -177,6 +177,20 @@
         "type": "stat",
         "expr": "avg_over_time(cende_write_prev_height_blob_latency[2m])",
         "extra_params": {}
+      },
+      {
+        "title": "cende_write_blob_success",
+        "description": "The number of successful blob writes to Aerospike",
+        "type": "graph",
+        "expr": "cende_write_blob_success",
+        "extra_params": {}
+      },
+      {
+        "title": "cende_write_blob_failure",
+        "description": "The number of failed blob writes to Aerospike",
+        "type": "stat",
+        "expr": "sum  by (cende_write_failure_reason) (cende_write_blob_failure)",
+        "extra_params": {}
       }
     ],
     "Http Server": [
