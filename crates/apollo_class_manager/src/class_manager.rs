@@ -13,6 +13,7 @@ use apollo_compile_to_casm_types::{
 };
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
 use async_trait::async_trait;
+use starknet_api::contract_class::ContractClass;
 use starknet_api::state::SierraContractClass;
 use tracing::instrument;
 
@@ -48,8 +49,7 @@ impl<S: ClassStorage> ClassManager<S> {
     #[instrument(skip(self, class), ret, err)]
     pub async fn add_class(&mut self, class: RawClass) -> ClassManagerResult<ClassHashes> {
         // TODO(Elin): think how to not clone the class to deserialize.
-        let sierra_class =
-            SierraContractClass::try_from(class.clone()).map_err(ClassManagerError::from)?;
+        let sierra_class = SierraContractClass::try_from(class.clone())?;
         let class_hash = sierra_class.calculate_class_hash();
         if let Ok(Some(executable_class_hash)) = self.classes.get_executable_class_hash(class_hash)
         {
@@ -66,6 +66,9 @@ impl<S: ClassStorage> ClassManager<S> {
                     ClassManagerError::Client(error.to_string())
                 }
             })?;
+
+        let executable_class = ContractClass::try_from(raw_executable_class.clone())?;
+        self.validate_class_length(&executable_class, &raw_executable_class)?;
 
         self.classes.set_class(class_hash, class, executable_class_hash, raw_executable_class)?;
 
@@ -105,6 +108,31 @@ impl<S: ClassStorage> ClassManager<S> {
         executable_class: RawExecutableClass,
     ) -> ClassManagerResult<()> {
         Ok(self.classes.set_class(class_id, class, executable_class_id, executable_class)?)
+    }
+
+    fn validate_class_length(
+        &self,
+        class: &ContractClass,
+        serialized_class: &RawExecutableClass,
+    ) -> ClassManagerResult<()> {
+        let contract_bytecode_size = class.bytecode_length();
+        if contract_bytecode_size > self.config.max_compiled_contract_bytecode_size {
+            return Err(ClassManagerError::ContractBytecodeSizeTooLarge {
+                contract_bytecode_size,
+                max_contract_bytecode_size: self.config.max_compiled_contract_bytecode_size,
+            });
+        }
+
+        let contract_class_object_size =
+            serialized_class.size().expect("Unexpected error serializing contract class.");
+        if contract_class_object_size > self.config.max_compiled_contract_class_object_size {
+            return Err(ClassManagerError::ContractClassObjectSizeTooLarge {
+                contract_class_object_size,
+                max_contract_class_object_size: self.config.max_compiled_contract_class_object_size,
+            });
+        }
+
+        Ok(())
     }
 }
 
