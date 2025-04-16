@@ -26,8 +26,8 @@ pub struct TransactionPool {
     txs_by_account: AccountTransactionIndex,
     // Transactions sorted by their time spent in the pool (i.e. newest to oldest).
     txs_by_submission_time: TimedTransactionMap,
-    // Tracks the capacity of the pool.
-    capacity: PoolCapacity,
+    // Tracks the size of the pool.
+    size: PoolSize,
 }
 
 impl TransactionPool {
@@ -36,16 +36,16 @@ impl TransactionPool {
             tx_pool: HashMap::new(),
             txs_by_account: AccountTransactionIndex::default(),
             txs_by_submission_time: TimedTransactionMap::new(clock),
-            capacity: PoolCapacity::default(),
+            size: PoolSize::default(),
         }
     }
 
     pub fn len(&self) -> usize {
-        self.capacity.n_txs()
+        self.tx_pool.len()
     }
 
     pub fn size_in_bytes(&self) -> u64 {
-        self.capacity.size_in_bytes()
+        self.size.size_in_bytes()
     }
 
     pub fn insert(&mut self, tx: InternalRpcTransaction) -> MempoolResult<()> {
@@ -80,7 +80,7 @@ impl TransactionPool {
             )
         };
 
-        self.capacity.add(tx_size);
+        self.size.add(tx_size);
 
         Ok(())
     }
@@ -95,7 +95,7 @@ impl TransactionPool {
         self.remove_from_account_mapping(&removed_tx);
         self.remove_from_timed_mapping(&removed_tx);
 
-        self.capacity.remove(tx.total_bytes());
+        self.size.remove(tx.total_bytes());
 
         Ok(tx)
     }
@@ -173,7 +173,7 @@ impl TransactionPool {
                      appear in the main mapping.",
                 )
             });
-            self.capacity.remove(tx.total_bytes());
+            self.size.remove(tx.total_bytes());
         }
     }
 
@@ -274,15 +274,13 @@ impl AccountTransactionIndex {
 }
 
 #[derive(Debug, Default, Eq, PartialEq, Clone)]
-pub struct PoolCapacity {
-    n_txs: usize,
+pub struct PoolSize {
     // Keeps track of the total size of the transactions in the pool.
     size_in_bytes: u64,
 }
 
-impl PoolCapacity {
+impl PoolSize {
     fn add(&mut self, tx_size_in_bytes: u64) {
-        self.n_txs += 1;
         self.size_in_bytes = self
             .size_in_bytes
             .checked_add(tx_size_in_bytes)
@@ -290,16 +288,10 @@ impl PoolCapacity {
     }
 
     fn remove(&mut self, tx_size_in_bytes: u64) {
-        self.n_txs =
-            self.n_txs.checked_sub(1).expect("Underflow: Cannot subtract from an empty pool.");
         self.size_in_bytes = self
             .size_in_bytes
             .checked_sub(tx_size_in_bytes)
             .expect("Underflow when subtracting from PoolCapacity size_in_bytes.");
-    }
-
-    fn n_txs(&self) -> usize {
-        self.n_txs
     }
 
     fn size_in_bytes(&self) -> u64 {
