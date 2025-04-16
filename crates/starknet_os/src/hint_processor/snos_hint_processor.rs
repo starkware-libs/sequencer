@@ -102,6 +102,7 @@ pub struct SnosHintProcessor<S: StateReader> {
     pub(crate) commitment_type: CommitmentType,
     // KZG fields.
     da_segment: Option<Vec<Felt>>,
+    _serialize_data_availability_create_pages: bool,
 }
 
 impl<S: StateReader> SnosHintProcessor<S> {
@@ -145,6 +146,7 @@ impl<S: StateReader> SnosHintProcessor<S> {
             compiled_classes: os_hints.os_input.compiled_classes,
             state_update_pointers: None,
             commitment_type: CommitmentType::State,
+            _serialize_data_availability_create_pages: false,
         })
     }
 
