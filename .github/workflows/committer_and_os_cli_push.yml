@@ -65,7 +65,7 @@ jobs:
         run: echo "SHORT_HASH=${COMMIT_SHA:0:7}" >> $GITHUB_ENV
 
       - name: Build CLI binary
-        run: ./build_native_in_docker.sh rustup toolchain install && cargo build -p starknet_committer_and_os_cli -r --bin starknet_committer_and_os_cli --target-dir CLI_TARGET
+        run: ./build_native_in_docker.sh scripts/build_service_cli.sh
 
       - id: auth
         uses: "google-github-actions/auth@v2"
@@ -76,5 +76,5 @@ jobs:
         id: upload_file
         uses: "google-github-actions/upload-cloud-storage@v2"
         with:
-          path: "CLI_TARGET/release/starknet_committer_and_os_cli"
+          path: "release/starknet_committer_and_os_cli"
           destination: "committer-products-external/${{ env.SHORT_HASH }}/release/"
