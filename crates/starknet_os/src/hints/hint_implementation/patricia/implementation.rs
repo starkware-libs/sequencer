@@ -103,8 +103,17 @@ pub(crate) fn write_case_not_left_to_ap<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn split_descend<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    todo!()
+pub(crate) fn split_descend<S: StateReader>(
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    let descend: &Path = exec_scopes.get_ref(Scope::Descend.into())?;
+    let length: u8 = descend.0.length.into();
+    let path = descend.0.path;
+
+    insert_value_from_var_name(Ids::Length.into(), Felt::from(length), vm, ids_data, ap_tracking)?;
+    insert_value_from_var_name(Ids::Word.into(), Felt::from(&path), vm, ids_data, ap_tracking)?;
+
+    Ok(())
 }
 
 pub(crate) fn height_is_zero_or_len_node_preimage_is_two<S: StateReader>(
