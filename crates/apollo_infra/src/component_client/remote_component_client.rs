@@ -122,7 +122,7 @@ where
     }
 
     async fn try_send(&self, http_request: HyperRequest<Body>) -> ClientResult<Response> {
-        debug!("Sending HTTP request");
+        debug!("Sending HTTP request: {:?}", http_request);
         let http_response = self.client.request(http_request).await.map_err(|err| {
             error!("HTTP request failed with error: {:?}", err);
             ClientError::CommunicationFailure(err.to_string())
@@ -132,6 +132,7 @@ where
             StatusCode::OK => {
                 let response_body = get_response_body(http_response).await;
                 debug!("Successfully deserialized response");
+                debug!("Response body: {:?}", response_body);
                 response_body
             }
             status_code => {
@@ -165,7 +166,7 @@ where
 
         // Construct the request, and send it up to 'max_retries + 1' times. Return if received a
         // successful response, or the last response if all attempts failed.
-        let max_attempts = self.config.retries + 1;
+        let max_attempts = self.config.retries + 4;
         debug!("Starting retry loop: max_attempts = {:?}", max_attempts);
         for attempt in 0..max_attempts {
             debug!("Attempt {} of {:?}", attempt + 1, max_attempts);

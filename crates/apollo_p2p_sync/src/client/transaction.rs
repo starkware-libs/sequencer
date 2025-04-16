@@ -14,6 +14,7 @@ use futures::{FutureExt, StreamExt};
 use starknet_api::block::{BlockBody, BlockNumber};
 use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use starknet_api::transaction::{FullTransaction, Transaction, TransactionOutput};
+use tracing::info;
 
 use super::block_data_stream_builder::{
     BadPeerError,
@@ -35,6 +36,7 @@ impl BlockData for (BlockBody, BlockNumber) {
                 self.0.transactions.len().try_into().expect("Failed to convert usize to u64");
             storage_writer.begin_rw_txn()?.append_body(self.1, self.0)?.commit()?;
             STATE_SYNC_BODY_MARKER.set_lossy(self.1.unchecked_next().0);
+            info!("increment STATE_SYNC_PROCESSED_TRANSACTIONS by num_txs={}", num_txs);
             STATE_SYNC_PROCESSED_TRANSACTIONS.increment(num_txs);
             Ok(())
         }

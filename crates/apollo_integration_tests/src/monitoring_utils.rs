@@ -12,7 +12,7 @@ use apollo_state_sync_metrics::metrics::{
 };
 use starknet_api::block::BlockNumber;
 use tokio::try_join;
-use tracing::info;
+use tracing::{debug, info};
 
 /// Gets the latest block number from the batcher's metrics.
 pub async fn get_batcher_latest_block_number(
@@ -180,8 +180,10 @@ pub async fn await_txs_accepted(
 
 pub async fn sequencer_num_accepted_txs(monitoring_client: &MonitoringClient) -> usize {
     // If the sequencer accepted txs, sync should process them and update the respective metric.
-    monitoring_client
+    let n = monitoring_client
         .get_metric::<usize>(STATE_SYNC_PROCESSED_TRANSACTIONS.get_name())
         .await
-        .unwrap()
+        .unwrap();
+    info!("Sequencer accepted {n} txs.", n = n,);
+    n
 }

@@ -1,6 +1,6 @@
 {
   "chain_id": "SN_INTEGRATION_SEPOLIA",
-  "image": "ghcr.io/starkware-libs/sequencer/sequencer:dev",
+  "image": "ghcr.io/starkware-libs/sequencer/sequencer:nadin-debug-sim2-e9840a6@sha256:65ca980b1492a0988f0d911e7ac896c5e4716ee5c7c651fac6281ba84f1de0ad",
   "application_config_subdir": "config/sequencer/testing/app_configs/distributed/",
   "services": [
     {
@@ -22,7 +22,9 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": {
+        "gcsm_key": "sequencer-dev-secrets"
+      }
     },
     {
       "name": "ClassManager",
@@ -43,7 +45,9 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": {
+        "gcsm_key": "sequencer-dev-secrets"
+      }
     },
     {
       "name": "ConsensusManager",
@@ -64,7 +68,9 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": {
+        "gcsm_key": "sequencer-dev-secrets"
+      }
     },
     {
       "name": "HttpServer",
@@ -101,7 +107,9 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": {
+        "gcsm_key": "sequencer-dev-secrets"
+      }
     },
     {
       "name": "Gateway",
@@ -122,7 +130,9 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": {
+        "gcsm_key": "sequencer-dev-secrets"
+      }
     },
     {
       "name": "L1",
@@ -143,7 +153,9 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": {
+        "gcsm_key": "sequencer-dev-secrets"
+      }
     },
     {
       "name": "Mempool",
@@ -164,7 +176,9 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": {
+        "gcsm_key": "sequencer-dev-secrets"
+      }
     },
     {
       "name": "SierraCompiler",
@@ -185,7 +199,9 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": {
+        "gcsm_key": "sequencer-dev-secrets"
+      }
     },
     {
       "name": "StateSync",
@@ -206,7 +222,9 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": {
+        "gcsm_key": "sequencer-dev-secrets"
+      }
     }
   ]
 }

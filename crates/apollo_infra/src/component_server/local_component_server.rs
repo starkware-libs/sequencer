@@ -105,7 +105,7 @@ async fn request_response_loop<Request, Response, Component>(
     while let Some(request_and_res_tx) = rx.recv().await {
         let request = request_and_res_tx.request;
         let tx = request_and_res_tx.tx;
-        debug!("Component {} received request {:?}", short_type_name::<Component>(), request);
+        // debug!("Component {} received request {:?}", short_type_name::<Component>(), request);
 
         metrics.increment_received();
         metrics.set_queue_depth(rx.len());
@@ -225,7 +225,7 @@ async fn concurrent_request_response_loop<Request, Response, Component>(
     while let Some(request_and_res_tx) = rx.recv().await {
         let request = request_and_res_tx.request;
         let tx = request_and_res_tx.tx;
-        debug!("Component {} received request {:?}", short_type_name::<Component>(), request);
+        // debug!("Component {} received request {:?}", short_type_name::<Component>(), request);
 
         metrics.increment_received();
         metrics.set_queue_depth(rx.len());

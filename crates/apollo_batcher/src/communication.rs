@@ -2,6 +2,7 @@ use apollo_batcher_types::communication::{BatcherRequest, BatcherResponse};
 use apollo_infra::component_definitions::ComponentRequestHandler;
 use apollo_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 use async_trait::async_trait;
+use tracing::info;
 
 use crate::batcher::Batcher;
 
@@ -11,6 +12,8 @@ pub type RemoteBatcherServer = RemoteComponentServer<BatcherRequest, BatcherResp
 #[async_trait]
 impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
     async fn handle_request(&mut self, request: BatcherRequest) -> BatcherResponse {
+        info!("Handling request: {:?}", request);
+        println!("Handling request: {:?}", request);
         match request {
             BatcherRequest::ProposeBlock(input) => {
                 BatcherResponse::ProposeBlock(self.propose_block(input).await)

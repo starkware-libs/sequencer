@@ -111,6 +111,10 @@ impl MempoolP2pPropagator {
     async fn broadcast_queued_transactions(&mut self) -> MempoolP2pPropagatorResult<()> {
         let queued_transactions: Vec<RpcTransaction> = self.transaction_queue.drain(..).collect();
         if queued_transactions.is_empty() {
+            info!(
+                "No transactions to broadcast. The transaction queue is empty."
+            );
+            MEMPOOL_P2P_BROADCASTED_BATCH_SIZE.record(0.0);
             return Ok(());
         }
         let number_of_transactions_in_batch = queued_transactions.len().into_f64();

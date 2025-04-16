@@ -500,6 +500,7 @@ impl<
         .await?;
         STATE_SYNC_HEADER_MARKER.set_lossy(block_number.unchecked_next().0);
         STATE_SYNC_BODY_MARKER.set_lossy(block_number.unchecked_next().0);
+        info!("increment STATE_SYNC_PROCESSED_TRANSACTIONS by num_txs={}", num_txs);
         STATE_SYNC_PROCESSED_TRANSACTIONS.increment(num_txs);
         let time_delta = Utc::now()
             - Utc
