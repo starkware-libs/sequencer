@@ -11,6 +11,7 @@ use apollo_class_manager_types::transaction_converter::{
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_infra_utils::tracing::LogCompatibleToStringExt;
 use apollo_state_reader::papyrus_state::{ClassReader, PapyrusReader};
 use apollo_storage::StorageReader;
 use async_trait::async_trait;
@@ -330,7 +331,11 @@ async fn collect_execution_results_and_stream_txs(
             // TODO(yael 18/9/2024): add timeout error handling here once this
             // feature is added.
             Err(err) => {
-                debug!("Transaction {} failed with error: {}.", tx_hash, err);
+                debug!(
+                    "Transaction {} failed with error: {}.",
+                    tx_hash,
+                    err.log_compatible_to_string()
+                );
                 if fail_on_err {
                     return Err(BlockBuilderError::FailOnError(
                         FailOnErrorCause::TransactionFailed(err),
