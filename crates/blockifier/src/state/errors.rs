@@ -57,3 +57,31 @@ pub fn couple_casm_and_sierra(
         (None, None) => Ok(None),
     }
 }
+
+impl PartialEq for StateError {
+    fn eq(&self, other: &Self) -> bool {
+        // Compare the enum variants and their contained values.
+        match (self, other) {
+            (
+                StateError::CasmAndSierraMismatch { class_hash: lhs_hash, message: lhs_message },
+                StateError::CasmAndSierraMismatch { class_hash: rhs_hash, message: rhs_message },
+            ) => lhs_hash == rhs_hash && lhs_message == rhs_message,
+            (StateError::FromBigUint(lhs), StateError::FromBigUint(rhs)) => lhs == rhs,
+            (StateError::OldBlockHashNotProvided, StateError::OldBlockHashNotProvided) => true,
+            (StateError::OutOfRangeContractAddress, StateError::OutOfRangeContractAddress) => true,
+            (StateError::ProgramError(lhs), StateError::ProgramError(rhs)) => {
+                panic!("Unsupported comparison of ProgramError variants: {lhs:?} vs {rhs:?}")
+            }
+            (
+                StateError::UnavailableContractAddress(lhs),
+                StateError::UnavailableContractAddress(rhs),
+            ) => lhs == rhs,
+            (StateError::UndeclaredClassHash(lhs), StateError::UndeclaredClassHash(rhs)) => {
+                lhs == rhs
+            }
+            (StateError::StarknetApiError(lhs), StateError::StarknetApiError(rhs)) => lhs == rhs,
+            (StateError::StateReadError(lhs), StateError::StateReadError(rhs)) => lhs == rhs,
+            _ => false,
+        }
+    }
+}
