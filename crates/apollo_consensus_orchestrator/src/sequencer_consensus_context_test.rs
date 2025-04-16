@@ -37,12 +37,12 @@ use crate::sequencer_consensus_context::MockClock;
 use crate::test_utils::{
     block_info,
     build_proposal_setup,
-    default_context_dependencies,
     dummy_gas_price_provider,
     generate_invoke_tx,
     setup,
     setup_with_custom_mocks,
     success_cende_ammbassador,
+    ContextRecipe,
     ETH_TO_FRI_RATE,
     INTERNAL_TX_BATCH,
     STATE_DIFF_COMMITMENT,
@@ -567,14 +567,14 @@ async fn decision_reached_sends_correct_values() {
         // TODO(guy.f): Verify the values sent here are correct.
         .return_once(|_height| Ok(()));
 
-    let (default_deps, _network_dependencies) = default_context_dependencies();
+    let ContextRecipe { context_deps, network_deps: _network_deps } = ContextRecipe::default();
     let context_deps = SequencerConsensusContextDeps {
         batcher: Arc::new(batcher),
         cende_ambassador: Arc::new(cende_ammbassador),
         state_sync_client: Arc::new(mock_sync_client),
         clock: Arc::new(clock),
         l1_gas_price_provider: Arc::new(dummy_gas_price_provider()),
-        ..default_deps
+        ..context_deps
     };
 
     let mut context = setup_with_custom_mocks(context_deps);
