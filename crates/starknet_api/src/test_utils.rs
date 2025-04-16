@@ -4,6 +4,9 @@ use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
 use apollo_infra_utils::path::current_dir;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use cairo_lang_utils::bigint::BigUintAsHex;
+use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
 
@@ -17,6 +20,7 @@ use crate::block::{
     NonzeroGasPrice,
 };
 use crate::contract_address;
+use crate::contract_class::{ContractClass, SierraVersion};
 use crate::core::{ChainId, ContractAddress, Nonce};
 use crate::execution_resources::GasAmount;
 use crate::rpc_transaction::{InternalRpcTransaction, RpcTransaction};
@@ -183,4 +187,23 @@ impl BlockInfo {
 pub trait TestingTxArgs {
     fn get_rpc_tx(&self) -> RpcTransaction;
     fn get_internal_tx(&self) -> InternalRpcTransaction;
+}
+
+impl ContractClass {
+    pub fn test_casm_contract_class() -> Self {
+        let default_casm = CasmContractClass {
+            prime: Default::default(),
+            compiler_version: Default::default(),
+            bytecode: vec![
+                BigUintAsHex { value: BigUint::from(1_u8) },
+                BigUintAsHex { value: BigUint::from(1_u8) },
+                BigUintAsHex { value: BigUint::from(1_u8) },
+            ],
+            bytecode_segment_lengths: Default::default(),
+            hints: Default::default(),
+            pythonic_hints: Default::default(),
+            entry_points_by_type: Default::default(),
+        };
+        ContractClass::V1((default_casm, SierraVersion::default()))
+    }
 }
