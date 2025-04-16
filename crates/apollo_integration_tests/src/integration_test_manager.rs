@@ -280,6 +280,7 @@ impl IntegrationTestManager {
                 exec.base_app_config.modify_config(|config| {
                     config.l1_gas_price_provider_config.lag_margin_seconds = 0
                 });
+                exec.base_app_config.dump_config_file(&exec.node_config_path);
             }
         }
 
