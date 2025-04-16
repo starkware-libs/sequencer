@@ -10,7 +10,7 @@ use futures::channel::mpsc::{self, Receiver, SendError, Sender};
 use futures::{FutureExt, SinkExt, StreamExt};
 use prost::DecodeError;
 
-use crate::stream_handler::StreamHandler;
+use crate::stream_handler::{StreamHandler, MAX_STREAMS};
 const CHANNEL_SIZE: usize = 100;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -264,6 +264,47 @@ async fn inbound_in_order() {
     }
     // Check that the receiver was closed:
     assert!(matches!(receiver.try_next(), Ok(None)));
+}
+
+#[tokio::test]
+async fn lru_cache_for_inbound_streams() {
+    let num_streams = MAX_STREAMS.get() + 1;
+    let (
+        mut stream_handler,
+        mut inbound_network_sender,
+        mut inbound_internal_receiver,
+        _client_to_streamhandler_sender,
+        _streamhandler_to_network_receiver,
+    ) = setup();
+
+    let metadata = BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
+    for i in 0..num_streams {
+        let message = build_fin_message(i.try_into().unwrap(), 1);
+        inbound_network_sender.send((Ok(message), metadata.clone())).await.unwrap();
+        stream_handler.handle_next_msg().await.unwrap();
+    }
+
+    for i in (0..num_streams).rev() {
+        let message = build_init_message(i.try_into().unwrap(), i.try_into().unwrap(), 0);
+        inbound_network_sender.send((Ok(message), metadata.clone())).await.unwrap();
+        stream_handler.handle_next_msg().await.unwrap();
+    }
+
+    for i in (0..num_streams).rev() {
+        let mut receiver = inbound_internal_receiver.next().now_or_never().unwrap().unwrap();
+        let message = receiver.next().await.unwrap();
+        assert_eq!(
+            message,
+            ProposalPart::Init(ProposalInit { round: i.try_into().unwrap(), ..Default::default() })
+        );
+        match i {
+            // This stream was reopened, but it should only have one message, and left open.
+            0 => assert!(receiver.try_next().is_err()),
+            // The rest of the channels should have successfully received all messages,
+            // and closed after receiving the Fin message.
+            _ => assert!(matches!(receiver.try_next(), Ok(None))),
+        }
+    }
 }
 
 #[tokio::test]
