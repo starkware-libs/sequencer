@@ -65,7 +65,7 @@ async fn discovery_outputs_dial_request_and_query_on_start() {
     let bootstrap_peer_id = PeerId::random();
     let bootstrap_peer_address = Multiaddr::empty();
 
-    let mut behaviour = Behaviour::new(CONFIG, bootstrap_peer_id, bootstrap_peer_address);
+    let mut behaviour = Behaviour::new(CONFIG, vec![(bootstrap_peer_id, bootstrap_peer_address)]);
 
     let event = timeout(TIMEOUT, behaviour.next()).await.unwrap().unwrap();
     assert_matches!(
@@ -106,7 +106,7 @@ async fn discovery_redials_on_dial_failure() {
 
     let mut config = CONFIG.clone();
     config.heartbeat_interval = BOOTSTRAP_DIAL_SLEEP * 2;
-    let mut behaviour = Behaviour::new(config, bootstrap_peer_id, bootstrap_peer_address);
+    let mut behaviour = Behaviour::new(config, vec![(bootstrap_peer_id, bootstrap_peer_address)]);
 
     let event = timeout(TIMEOUT, behaviour.next()).await.unwrap().unwrap();
     assert_matches!(
@@ -190,7 +190,8 @@ async fn create_behaviour_and_connect_to_bootstrap_node(config: DiscoveryConfig)
     let bootstrap_peer_id = PeerId::random();
     let bootstrap_peer_address = Multiaddr::empty();
 
-    let mut behaviour = Behaviour::new(config, bootstrap_peer_id, bootstrap_peer_address.clone());
+    let mut behaviour =
+        Behaviour::new(config, vec![(bootstrap_peer_id, bootstrap_peer_address.clone())]);
 
     // Consume the dial event.
     timeout(TIMEOUT, behaviour.next()).await.unwrap();
@@ -265,7 +266,8 @@ async fn discovery_performs_queries_even_if_not_connected_to_bootstrap_peer() {
     let bootstrap_peer_id = PeerId::random();
     let bootstrap_peer_address = Multiaddr::empty();
 
-    let mut behaviour = Behaviour::new(config, bootstrap_peer_id, bootstrap_peer_address.clone());
+    let mut behaviour =
+        Behaviour::new(config, vec![(bootstrap_peer_id, bootstrap_peer_address)].clone());
 
     // Consume the initial dial and query events.
     timeout(TIMEOUT, behaviour.next()).await.unwrap();
