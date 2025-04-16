@@ -8,11 +8,18 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
 };
 use num_bigint::BigUint;
 use starknet_patricia::hash::hash_trait::HashOutput;
+use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
+    EdgePathLength,
+    PathToBottom,
+};
+use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::patricia::utils::{
     DecodeNodeCase,
+    DescentMap,
+    DescentStart,
     Path,
     PreimageMap,
     UpdateTree,
@@ -80,8 +87,39 @@ pub(crate) fn set_bit<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn set_ap_to_descend<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
-    todo!()
+pub(crate) fn set_ap_to_descend<S: StateReader>(
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
+) -> OsHintResult {
+    let descent_map: &DescentMap = exec_scopes.get_ref(Scope::DescentMap.into())?;
+
+    let height = {
+        let ids_height = get_integer_from_var_name(Ids::Height.into(), vm, ids_data, ap_tracking)?;
+        SubTreeHeight(u8::try_from(ids_height).map_err(|error| OsHintError::IdsConversion {
+            variant: Ids::Height,
+            felt: ids_height,
+            ty: "u8".to_string(),
+            reason: error.to_string(),
+        })?)
+    };
+    let path_to_upper_node = {
+        let ids_path = get_integer_from_var_name(Ids::Path.into(), vm, ids_data, ap_tracking)?;
+        // The path is from the root to the current node, so we can calculate its length.
+        Path(PathToBottom::new(
+            ids_path.into(),
+            EdgePathLength::new(SubTreeHeight::ACTUAL_HEIGHT.0 - height.0)?,
+        )?)
+    };
+    let descent_start = DescentStart { height, path_to_upper_node };
+
+    let case_descent = match descent_map.get(&descent_start) {
+        None => Felt::ZERO,
+        Some(path) => {
+            exec_scopes.insert_value(Scope::Descend.into(), path.clone());
+            Felt::ONE
+        }
+    };
+    insert_value_into_ap(vm, case_descent)?;
+    Ok(())
 }
 
 pub(crate) fn assert_case_is_right<S: StateReader>(
