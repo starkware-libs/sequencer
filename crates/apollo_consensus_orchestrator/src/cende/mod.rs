@@ -46,6 +46,7 @@ use crate::metrics::{
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY,
 };
 
+#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[derive(thiserror::Error, Debug)]
 pub enum CendeAmbassadorError {
     #[error(transparent)]
