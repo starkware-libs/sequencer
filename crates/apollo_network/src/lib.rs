@@ -53,6 +53,8 @@ pub struct NetworkConfig {
     pub chain_id: ChainId,
     pub discovery_config: DiscoveryConfig,
     pub peer_manager_config: PeerManagerConfig,
+    pub broadcasted_message_metadata_buffer_size: usize,
+    pub reported_peer_ids_buffer_size: usize,
 }
 
 impl SerializeConfig for NetworkConfig {
@@ -81,6 +83,18 @@ impl SerializeConfig for NetworkConfig {
                 "chain_id",
                 &self.chain_id,
                 "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "broadcasted_message_metadata_buffer_size",
+                &self.broadcasted_message_metadata_buffer_size,
+                "The size of the buffer that holds the metadata of the broadcasted messages.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "reported_peer_ids_buffer_size",
+                &self.reported_peer_ids_buffer_size,
+                "The size of the buffer that holds the reported peer ids.",
                 ParamPrivacyInput::Public,
             ),
         ]);
@@ -126,6 +140,8 @@ impl Default for NetworkConfig {
             chain_id: ChainId::Mainnet,
             discovery_config: DiscoveryConfig::default(),
             peer_manager_config: PeerManagerConfig::default(),
+            broadcasted_message_metadata_buffer_size: 100000,
+            reported_peer_ids_buffer_size: 100000,
         }
     }
 }

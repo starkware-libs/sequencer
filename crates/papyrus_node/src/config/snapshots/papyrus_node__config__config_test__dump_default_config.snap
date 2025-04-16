@@ -288,6 +288,13 @@ expression: dumped_default_config
     "value": true,
     "privacy": "TemporaryValue"
   },
+  "network.broadcasted_message_metadata_buffer_size": {
+    "description": "The size of the buffer that holds the metadata of the broadcasted messages.",
+    "value": {
+      "$serde_json::private::Number": "100000"
+    },
+    "privacy": "Public"
+  },
   "network.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
     "value": "SN_MAIN",
@@ -346,6 +353,13 @@ expression: dumped_default_config
     "description": "The port that the node listens on for incoming tcp connections.",
     "value": {
       "$serde_json::private::Number": "10000"
+    },
+    "privacy": "Public"
+  },
+  "network.reported_peer_ids_buffer_size": {
+    "description": "The size of the buffer that holds the reported peer ids.",
+    "value": {
+      "$serde_json::private::Number": "100000"
     },
     "privacy": "Public"
   },
