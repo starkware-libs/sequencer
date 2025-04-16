@@ -9,7 +9,7 @@ use tracing::level_filters::LevelFilter;
 use tracing_subscriber::reload::Handle;
 use tracing_subscriber::Registry;
 
-use crate::os_cli::commands::{dump_os_program, parse_and_run_os};
+use crate::os_cli::commands::{dump_program, dump_program_hash, parse_and_run_os};
 use crate::os_cli::tests::python_tests::OsPythonTestRunner;
 use crate::shared_utils::types::{run_python_test, IoArgs, PythonTestArg};
 
@@ -19,9 +19,24 @@ pub struct OsCliCommand {
     command: Command,
 }
 
+#[derive(clap::ValueEnum, Clone, Debug, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ProgramToDump {
+    Os,
+}
+
 #[derive(Debug, Subcommand)]
 enum Command {
-    DumpOsProgram {
+    DumpProgram {
+        /// File path to output.
+        #[clap(long, short = 'o', default_value = "stdout")]
+        output_path: String,
+
+        /// Program to dump.
+        #[clap(long, value_enum)]
+        program: ProgramToDump,
+    },
+    DumpProgramHash {
         /// File path to output.
         #[clap(long, short = 'o', default_value = "stdout")]
         output_path: String,
@@ -39,7 +54,8 @@ pub async fn run_os_cli(
 ) {
     info!("Starting starknet-os-cli with command: \n{:?}", os_command);
     match os_command.command {
-        Command::DumpOsProgram { output_path } => dump_os_program(output_path),
+        Command::DumpProgram { output_path, program } => dump_program(output_path, program),
+        Command::DumpProgramHash { output_path } => dump_program_hash(output_path),
         Command::PythonTest(python_test_arg) => {
             run_python_test::<OsPythonTestRunner>(python_test_arg).await;
         }
