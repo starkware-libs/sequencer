@@ -50,11 +50,6 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup Python venv
-        run: |
-          python3 -m venv ci
-          ci/bin/pip install -r scripts/requirements.txt
-
       # Run feature combo test.
       - name: "Run feature combo on all crates."
-        run: ci/bin/python scripts/run_feature_combos_test.py
+        run: scripts/run_feature_combos_test.py

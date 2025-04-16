@@ -19,3 +19,6 @@ runs:
         github_token: ${{ inputs.github_token }}
     - name: Install cairo native.
       uses: ./.github/actions/setup_native_deps
+    - name: Install python requirements.
+      shell: bash
+      run: pip install -r scripts/requirements.txt

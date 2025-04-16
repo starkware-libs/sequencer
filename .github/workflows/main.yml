@@ -59,11 +59,6 @@ jobs:
           extra_rust_toolchains: ${{ env.EXTRA_RUST_TOOLCHAINS }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup Python venv
-        run: |
-          python3 -m venv ci
-          ci/bin/pip install -r scripts/requirements.txt
-
       # Check Cargo.lock is up to date.
       - name: "Check Cargo.lock"
         run: |
@@ -77,13 +72,13 @@ jobs:
       # Run code style on PR.
       - name: "Run TODO style pull request"
         if: github.event_name == 'pull_request'
-        run: ci/bin/python scripts/named_todos.py --commit_id ${{ github.event.pull_request.base.sha }}
+        run: scripts/named_todos.py --commit_id ${{ github.event.pull_request.base.sha }}
       - name: "Run clippy pull request"
         if: github.event_name == 'pull_request'
-        run: ci/bin/python scripts/run_tests.py --command clippy --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
+        run: scripts/run_tests.py --command clippy --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
       - name: "Run cargo doc pull request"
         if: github.event_name == 'pull_request'
-        run: ci/bin/python scripts/run_tests.py --command doc --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
+        run: scripts/run_tests.py --command doc --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
 
       # Run code style on push.
       - name: "Run rustfmt"
@@ -93,10 +88,10 @@ jobs:
 
       - name: "Run clippy on push"
         if: github.event_name == 'push'
-        run: ci/bin/python scripts/run_tests.py --command clippy
+        run: scripts/run_tests.py --command clippy
       - name: "Run cargo doc on push"
         if: github.event_name == 'push'
-        run: ci/bin/python scripts/run_tests.py --command doc
+        run: scripts/run_tests.py --command doc
 
       - name: "Run taplo"
         run: scripts/taplo.sh
@@ -139,9 +134,7 @@ jobs:
       - name: "Run tests pull request"
         if: github.event_name == 'pull_request'
         run: |
-          python3 -m venv ci
-          ci/bin/pip install -r scripts/requirements.txt
-          ci/bin/python scripts/run_tests.py --command test --changes_only --include_dependencies --commit_id ${{ github.event.pull_request.base.sha }}
+          scripts/run_tests.py --command test --changes_only --include_dependencies --commit_id ${{ github.event.pull_request.base.sha }}
         env:
           SEED: 0
 
@@ -149,11 +142,9 @@ jobs:
         if: github.event_name == 'pull_request'
         # TODO(Tsabary): Find a better way to set the ephemeral port range.
         run: |
-          python3 -m venv ci
-          ci/bin/pip install -r scripts/requirements.txt
           echo "net.ipv4.ip_local_port_range = 40000 40200" | sudo tee /etc/sysctl.conf
           sudo sysctl -p
-          ci/bin/python scripts/run_tests.py --command integration --changes_only --include_dependencies --commit_id ${{ github.event.pull_request.base.sha }}
+          scripts/run_tests.py --command integration --changes_only --include_dependencies --commit_id ${{ github.event.pull_request.base.sha }}
         env:
           SEED: 0
 
@@ -161,9 +152,7 @@ jobs:
         if: github.event_name == 'push'
         # TODO(AdiY/Dori): Better support for running tests on push.
         run: |
-          python3 -m venv ci
-          ci/bin/pip install -r scripts/requirements.txt
-          ci/bin/python scripts/run_tests.py --command test
+          scripts/run_tests.py --command test
         env:
           SEED: 0
 
