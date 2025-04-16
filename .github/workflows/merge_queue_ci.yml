@@ -22,21 +22,18 @@ jobs:
         id: setup-pypy
         with:
           python-version: "pypy3.9"
+          cache: 'pip'
       - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
       - env:
           LD_LIBRARY_PATH: ${{ steps.setup-pypy.outputs.pythonLocation }}/bin
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
+      - run: pip install -r scripts/requirements.txt
 
       # Install rust components.
       - uses: ./.github/actions/bootstrap
         with:
           extra_rust_toolchains: ${{ env.EXTRA_RUST_TOOLCHAINS }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Setup Python venv
-        run: |
-          python3 -m venv ci
-          ci/bin/pip install -r scripts/requirements.txt
 
       # Check Cargo.lock is up to date.
       - name: "Check Cargo.lock"
@@ -45,7 +42,7 @@ jobs:
           git diff --exit-code Cargo.lock
 
       - name: "Run clippy on merge queue"
-        run: ci/bin/python scripts/run_tests.py --command clippy
+        run: scripts/run_tests.py --command clippy
 
       - name: "Run rustfmt on merge queue"
         # The nightly here is coupled with the one in install_rust/action.yml.
