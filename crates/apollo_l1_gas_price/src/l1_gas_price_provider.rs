@@ -8,7 +8,7 @@ use apollo_l1_gas_price_types::{L1GasPriceProviderResult, PriceInfo};
 use papyrus_base_layer::{L1BlockNumber, PriceSample};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockTimestamp, TEMP_ETH_BLOB_GAS_FEE_IN_WEI, TEMP_ETH_GAS_FEE_IN_WEI};
-use tracing::warn;
+use tracing::{info, warn};
 use validator::Validate;
 
 #[cfg(test)]
@@ -136,6 +136,7 @@ impl L1GasPriceProvider {
                 });
             }
         }
+        info!("Received price sample for L1 block {height}: {sample:?}");
         self.price_samples_by_block.push(GasPriceData { height, sample });
         Ok(())
     }
