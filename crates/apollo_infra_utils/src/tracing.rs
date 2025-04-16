@@ -42,3 +42,9 @@ pub enum TraceLevel {
     Warn,
     Error,
 }
+
+pub trait LogCompatibleToStringExt: std::fmt::Display {
+    fn log_compatible_to_string(&self) -> String {
+        self.to_string().replace('\n', "\t")
+    }
+}
