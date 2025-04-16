@@ -135,6 +135,7 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
         &mut self,
         mut block_num: L1BlockNumber,
     ) -> L1GasPriceScraperResult<L1BlockNumber, B> {
+        info!("Scraping gas prices starting from block {block_num}");
         loop {
             let sample = match self.base_layer.get_price_sample(block_num).await {
                 Ok(Some(sample)) => sample,
