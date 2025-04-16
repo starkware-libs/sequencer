@@ -74,7 +74,7 @@ fn test_versioned_state_proxy() {
     let class_hash = class_hash!(27_u8);
     let another_class_hash = class_hash!(28_u8);
     let compiled_class_hash = compiled_class_hash!(29_u8);
-    let contract_class = test_contract.get_cached_class();
+    let contract_class = test_contract.get_runnable_class();
 
     // Create the versioned state
     let cached_state = CachedState::from(DictStateReader {
@@ -82,7 +82,7 @@ fn test_versioned_state_proxy() {
         address_to_nonce: HashMap::from([(contract_address, nonce)]),
         address_to_class_hash: HashMap::from([(contract_address, class_hash)]),
         class_hash_to_compiled_class_hash: HashMap::from([(class_hash, compiled_class_hash)]),
-        class_hash_to_cached_class: HashMap::from([(class_hash, contract_class.clone())]),
+        class_hash_to_class: HashMap::from([(class_hash, contract_class.clone())]),
     });
 
     let versioned_state = Arc::new(Mutex::new(VersionedState::new(cached_state)));
@@ -100,10 +100,7 @@ fn test_versioned_state_proxy() {
         versioned_state_proxys[5].get_compiled_class_hash(class_hash).unwrap(),
         compiled_class_hash
     );
-    assert_eq!(
-        versioned_state_proxys[7].get_compiled_class(class_hash).unwrap(),
-        contract_class.to_runnable()
-    );
+    assert_eq!(versioned_state_proxys[7].get_compiled_class(class_hash).unwrap(), contract_class);
     assert_matches!(
         versioned_state_proxys[7].get_compiled_class(another_class_hash).unwrap_err(),
         StateError::UndeclaredClassHash(class_hash) if
@@ -131,7 +128,7 @@ fn test_versioned_state_proxy() {
             declared_contracts: HashMap::from([(another_class_hash, true)]),
             ..Default::default()
         },
-        &HashMap::from([(another_class_hash, contract_class.clone().to_runnable())]),
+        &HashMap::from([(another_class_hash, contract_class.clone())]),
     );
     versioned_state_proxys[4].state().apply_writes(
         4,

@@ -45,15 +45,16 @@ pub fn test_state_inner(
     contract_instances: &[(FeatureContractData, u16)],
     erc20_contract_version: CairoVersion,
 ) -> CachedState<DictStateReader> {
-    let mut class_hash_to_cached_class = HashMap::new();
+    let mut class_hash_to_class = HashMap::new();
     let mut address_to_class_hash = HashMap::new();
 
     // Declare and deploy account and ERC20 contracts.
     let erc20 = FeatureContract::ERC20(erc20_contract_version);
-    let erc20_class_hash = erc20.get_class_hash();
-    class_hash_to_cached_class.insert(erc20_class_hash, erc20.get_cached_class());
-    address_to_class_hash.insert(chain_info.fee_token_address(&FeeType::Eth), erc20_class_hash);
-    address_to_class_hash.insert(chain_info.fee_token_address(&FeeType::Strk), erc20_class_hash);
+    class_hash_to_class.insert(erc20.get_class_hash(), erc20.get_runnable_class());
+    address_to_class_hash
+        .insert(chain_info.fee_token_address(&FeeType::Eth), erc20.get_class_hash());
+    address_to_class_hash
+        .insert(chain_info.fee_token_address(&FeeType::Strk), erc20.get_class_hash());
 
     // Set up the rest of the requested contracts.
     for (contract, n_instances) in contract_instances.iter() {
@@ -66,7 +67,7 @@ pub fn test_state_inner(
     }
 
     let mut state_reader =
-        DictStateReader { address_to_class_hash, class_hash_to_cached_class, ..Default::default() };
+        DictStateReader { address_to_class_hash, class_hash_to_class, ..Default::default() };
 
     // fund the accounts.
     for (contract, n_instances) in contract_instances.iter() {
