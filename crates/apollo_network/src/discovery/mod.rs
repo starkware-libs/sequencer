@@ -18,7 +18,8 @@ use apollo_config::dumping::{append_sub_config_name, ser_param, SerializeConfig}
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use bootstrap_peer::BootstrapPeerMetadata;
 use futures::future::BoxFuture;
-use futures::FutureExt;
+use futures::stream::FuturesUnordered;
+use futures::{FutureExt, StreamExt};
 use libp2p::core::Endpoint;
 use libp2p::swarm::{
     dummy,
@@ -38,11 +39,11 @@ use crate::mixed_behaviour::BridgedBehaviour;
 
 pub struct Behaviour {
     config: DiscoveryConfig,
-    bootstrap_peer: BootstrapPeerMetadata,
+    bootstrap_peers: Vec<BootstrapPeerMetadata>,
     // Storing the future that contains the code logic for polling inside the behaviour because the
     // code contains a sleep and if a sleep is reconstructed every poll then it will sleep for much
     // more than the input time.
-    poll_future: Option<BoxFuture<'static, PollFutureOutput>>,
+    poll_futures: FuturesUnordered<BoxFuture<'static, (PollFutureOutput, usize)>>,
 }
 
 #[derive(Debug)]
@@ -76,7 +77,11 @@ impl NetworkBehaviour for Behaviour {
     }
 
     fn on_swarm_event(&mut self, event: FromSwarm<'_>) {
-        self.bootstrap_peer.on_swarm_event(&event, &self.config.bootstrap_dial_retry_config);
+        // TODO(AndrewL): Optimize this to only call on_swarm_event for the bootstrap peer that
+        // changed.
+        for peer in self.bootstrap_peers.iter_mut() {
+            peer.on_swarm_event(&event, &self.config.bootstrap_dial_retry_config);
+        }
     }
 
     fn on_connection_handler_event(
@@ -92,30 +97,39 @@ impl NetworkBehaviour for Behaviour {
         cx: &mut Context<'_>,
     ) -> Poll<ToSwarm<Self::ToSwarm, <Self::ConnectionHandler as ConnectionHandler>::FromBehaviour>>
     {
-        let mut poll_future = self
-            .poll_future
-            .take()
-            .unwrap_or(self.bootstrap_peer.poll(self.config.heartbeat_interval));
-        let output = poll_future.poll_unpin(cx);
+        // only called at the first call to poll
+        if self.poll_futures.is_empty() {
+            for (i, peer) in self.bootstrap_peers.iter_mut().enumerate() {
+                let poll_future = peer.poll(self.config.heartbeat_interval).boxed();
+                let poll_future = async move {
+                    let result = poll_future.await;
+                    (result, i)
+                }
+                .boxed();
+                self.poll_futures.push(poll_future);
+            }
+        }
+
+        let output = self.poll_futures.poll_next_unpin(cx);
         match output {
-            Poll::Ready(PollFutureOutput {
-                event,
-                is_bootstrap_in_kad_routing_table,
-                is_dialing_to_bootstrap_peer,
-                time_for_next_kad_query,
-            }) => {
-                self.poll_future = None;
-                self.bootstrap_peer.update_after_poll(
+            Poll::Ready(Some((
+                PollFutureOutput {
+                    event,
+                    is_bootstrap_in_kad_routing_table,
+                    is_dialing_to_bootstrap_peer,
+                    time_for_next_kad_query,
+                },
+                i,
+            ))) => {
+                self.bootstrap_peers[i].update_after_poll(
                     is_bootstrap_in_kad_routing_table,
                     is_dialing_to_bootstrap_peer,
                     time_for_next_kad_query,
                 );
                 Poll::Ready(event)
             }
-            Poll::Pending => {
-                self.poll_future = Some(poll_future);
-                Poll::Pending
-            }
+            Poll::Ready(None) => unreachable!(),
+            Poll::Pending => Poll::Pending,
         }
     }
 }
@@ -202,31 +216,31 @@ impl RetryConfig {
 impl Behaviour {
     // TODO(shahak): Add support to discovery from multiple bootstrap nodes.
     // TODO(shahak): Add support to multiple addresses for bootstrap node.
+    // TODO(AndrewL): Update API to support multiple bootstrap peers.
     pub fn new(
         config: DiscoveryConfig,
         bootstrap_peer_id: PeerId,
         bootstrap_peer_address: Multiaddr,
     ) -> Self {
         let bootstrap_dial_retry_strategy = config.bootstrap_dial_retry_config.strategy();
-        Self {
-            config,
-            bootstrap_peer: BootstrapPeerMetadata::new(
+        let bootstrap_peers = vec![
+            (BootstrapPeerMetadata::new(
                 bootstrap_peer_id,
                 bootstrap_peer_address,
                 bootstrap_dial_retry_strategy,
-            ),
-            poll_future: None,
-        }
+            )),
+        ];
+        Self { config, bootstrap_peers, poll_futures: FuturesUnordered::new() }
     }
 
     #[cfg(test)]
     pub fn bootstrap_peer_id(&self) -> PeerId {
-        self.bootstrap_peer.bootstrap_peer_id
+        self.bootstrap_peers[0].bootstrap_peer_id
     }
 
     #[cfg(test)]
     pub fn bootstrap_peer_address(&self) -> &Multiaddr {
-        &self.bootstrap_peer.bootstrap_peer_address
+        &self.bootstrap_peers[0].bootstrap_peer_address
     }
 }
 
