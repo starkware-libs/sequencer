@@ -121,36 +121,17 @@ pub struct NetworkDependencies {
     pub outbound_proposal_receiver: mpsc::Receiver<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
 }
 
-pub fn setup_with_custom_mocks(
-    context_deps: SequencerConsensusContextDeps,
-) -> SequencerConsensusContext {
-    SequencerConsensusContext::new(
-        ContextConfig {
-            proposal_buffer_size: CHANNEL_SIZE,
-            num_validators: NUM_VALIDATORS,
-            chain_id: CHAIN_ID,
-            ..Default::default()
-        },
-        context_deps,
-    )
-}
-
 // TODO(guy.f): Remove this method and rename `setup_with_custom_mocks` to `setup`, replace
 // all calls to pass in a `SequencerConsensusContextDeps` object.
 pub fn setup(
     batcher: MockBatcherClient,
     cende_ambassador: MockCendeContext,
 ) -> (SequencerConsensusContext, NetworkDependencies) {
-    let ContextRecipe { context_deps: default_deps, network_deps: network_dependencies } =
-        ContextRecipe::default();
-    let context_deps = SequencerConsensusContextDeps {
-        batcher: Arc::new(batcher),
-        cende_ambassador: Arc::new(cende_ambassador),
-        l1_gas_price_provider: Arc::new(dummy_gas_price_provider()),
-        ..default_deps
-    };
+    let mut context_recipe = ContextRecipe::default();
+    context_recipe.context_deps.batcher = Arc::new(batcher);
+    context_recipe.context_deps.cende_ambassador = Arc::new(cende_ambassador);
 
-    (setup_with_custom_mocks(context_deps), network_dependencies)
+    context_recipe.build_context()
 }
 
 // Setup for test of the `build_proposal` function.
@@ -252,9 +233,19 @@ impl Default for ContextRecipe {
 }
 
 impl ContextRecipe {
-    fn build_context(self) -> SequencerConsensusContext {
-        // Consume self assuming there isn't a need for two identical context instances
-        setup_with_custom_mocks(self.context_deps)
+    pub fn build_context(self) -> (SequencerConsensusContext, NetworkDependencies) {
+        (
+            SequencerConsensusContext::new(
+                ContextConfig {
+                    proposal_buffer_size: CHANNEL_SIZE,
+                    num_validators: NUM_VALIDATORS,
+                    chain_id: CHAIN_ID,
+                    ..Default::default()
+                },
+                self.context_deps,
+            ),
+            self.network_deps,
+        )
     }
 }
 
