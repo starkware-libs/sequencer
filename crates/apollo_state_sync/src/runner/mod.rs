@@ -59,7 +59,7 @@ use papyrus_common::pending_classes::PendingClasses;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::felt;
 use tokio::sync::RwLock;
-use tracing::info_span;
+use tracing::{info, info_span};
 use tracing::instrument::Instrument;
 
 use crate::config::{CentralSyncClientConfig, StateSyncConfig};
@@ -379,6 +379,7 @@ fn register_metrics<Mode: TransactionKind>(txn: &StorageTxn<'_, Mode>) {
     STATE_SYNC_STATE_MARKER.register();
     STATE_SYNC_CLASS_MANAGER_MARKER.register();
     STATE_SYNC_COMPILED_CLASS_MARKER.register();
+    info!("Registering metric STATE_SYNC_PROCESSED_TRANSACTIONS");
     STATE_SYNC_PROCESSED_TRANSACTIONS.register();
     STATE_SYNC_REVERTED_TRANSACTIONS.register();
     update_marker_metrics(txn);

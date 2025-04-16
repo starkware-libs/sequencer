@@ -499,6 +499,7 @@ impl Batcher {
         &mut self,
         input: DecisionReachedInput,
     ) -> BatcherResult<DecisionReachedResponse> {
+        info!("Decision reached for proposal {}", input.proposal_id);
         let height = self.active_height.ok_or(BatcherError::NoActiveHeight)?;
 
         let proposal_id = input.proposal_id;
@@ -530,6 +531,10 @@ impl Batcher {
             .map(|(_, info)| info)
             .collect();
 
+        info!(
+            "Decision reached for proposal {}: committed block at height {} with {} txs.",
+            proposal_id, height, n_txs
+        );
         LAST_BATCHED_BLOCK.set_lossy(height.0);
         BATCHED_TRANSACTIONS.increment(n_txs);
         REJECTED_TRANSACTIONS.increment(n_rejected_txs);
