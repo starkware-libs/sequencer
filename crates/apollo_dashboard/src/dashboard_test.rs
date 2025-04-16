@@ -15,6 +15,7 @@ fn serialize_alert() {
             logical_op: AlertLogicalOp::And,
         }],
         pending_duration: "5m",
+        evaluation_interval_sec: 20,
     };
 
     let serialized = serde_json::to_value(&alert).unwrap();
@@ -31,7 +32,8 @@ fn serialize_alert() {
                 "type": "query"
             }
         ],
-        "for": "5m"
+        "for": "5m",
+        "intervalSec": 20
     });
     assert_json_eq(&serialized, &expected, "Json Comparison failed".to_string());
 }
