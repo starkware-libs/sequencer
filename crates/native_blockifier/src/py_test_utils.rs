@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use blockifier::execution::contract_class::CompiledClassV0;
 use blockifier::state::cached_state::CachedState;
-use blockifier::state::global_cache::CachedClass;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::struct_impls::LoadContractFromFile;
 use starknet_api::class_hash;
@@ -17,9 +16,7 @@ pub const TOKEN_FOR_TESTING_CONTRACT_PATH: &str =
 pub fn create_py_test_state() -> CachedState<DictStateReader> {
     let contract_class: CompiledClassV0 =
         ContractClass::from_file(TOKEN_FOR_TESTING_CONTRACT_PATH).try_into().unwrap();
-    let class_hash_to_cached_class = HashMap::from([(
-        class_hash!(TOKEN_FOR_TESTING_CLASS_HASH),
-        CachedClass::V0(contract_class),
-    )]);
-    CachedState::from(DictStateReader { class_hash_to_cached_class, ..Default::default() })
+    let class_hash_to_class =
+        HashMap::from([(class_hash!(TOKEN_FOR_TESTING_CLASS_HASH), contract_class.into())]);
+    CachedState::from(DictStateReader { class_hash_to_class, ..Default::default() })
 }
