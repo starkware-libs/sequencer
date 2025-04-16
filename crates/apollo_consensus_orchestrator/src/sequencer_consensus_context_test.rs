@@ -29,7 +29,6 @@ use metrics_exporter_prometheus::PrometheusBuilder;
 use rstest::rstest;
 use starknet_api::block::{BlockHash, BlockNumber};
 
-use super::SequencerConsensusContextDeps;
 use crate::cende::MockCendeContext;
 use crate::metrics::CONSENSUS_L2_GAS_PRICE;
 use crate::orchestrator_versioned_constants::VersionedConstants;
@@ -37,10 +36,8 @@ use crate::sequencer_consensus_context::MockClock;
 use crate::test_utils::{
     block_info,
     build_proposal_setup,
-    dummy_gas_price_provider,
     generate_invoke_tx,
     setup,
-    setup_with_custom_mocks,
     success_cende_ammbassador,
     ContextRecipe,
     ETH_TO_FRI_RATE,
@@ -567,17 +564,13 @@ async fn decision_reached_sends_correct_values() {
         // TODO(guy.f): Verify the values sent here are correct.
         .return_once(|_height| Ok(()));
 
-    let ContextRecipe { context_deps, network_deps: _network_deps } = ContextRecipe::default();
-    let context_deps = SequencerConsensusContextDeps {
-        batcher: Arc::new(batcher),
-        cende_ambassador: Arc::new(cende_ammbassador),
-        state_sync_client: Arc::new(mock_sync_client),
-        clock: Arc::new(clock),
-        l1_gas_price_provider: Arc::new(dummy_gas_price_provider()),
-        ..context_deps
-    };
+    let mut context_recipe = ContextRecipe::default();
+    context_recipe.context_deps.batcher = Arc::new(batcher);
+    context_recipe.context_deps.cende_ambassador = Arc::new(cende_ammbassador);
+    context_recipe.context_deps.state_sync_client = Arc::new(mock_sync_client);
+    context_recipe.context_deps.clock = Arc::new(clock);
 
-    let mut context = setup_with_custom_mocks(context_deps);
+    let (mut context, _network_dependencies) = context_recipe.build_context();
 
     // This sets up the required state for the test, prior to running the code being tested.
     let _fin = context.build_proposal(ProposalInit::default(), TIMEOUT).await.await;
