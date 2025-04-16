@@ -37,7 +37,6 @@ use crate::test_utils::{
     block_info,
     build_proposal_setup,
     generate_invoke_tx,
-    setup,
     success_cende_ammbassador,
     ContextRecipe,
     ETH_TO_FRI_RATE,
@@ -54,7 +53,10 @@ async fn cancelled_proposal_aborts() {
 
     batcher.expect_start_height().times(1).return_once(|_| Ok(()));
 
-    let (mut context, _network) = setup(batcher, success_cende_ammbassador());
+    let mut context_recipe = ContextRecipe::default();
+    context_recipe.context_deps.batcher = Arc::new(batcher);
+
+    let (mut context, _network) = context_recipe.build_context();
 
     let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await;
 
@@ -101,7 +103,10 @@ async fn validate_proposal_success() {
             })
         },
     );
-    let (mut context, _network) = setup(batcher, success_cende_ammbassador());
+    let mut context_recipe = ContextRecipe::default();
+    context_recipe.context_deps.batcher = Arc::new(batcher);
+
+    let (mut context, _network) = context_recipe.build_context();
 
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
@@ -132,7 +137,10 @@ async fn dont_send_block_info() {
         .times(1)
         .withf(|input| input.height == BlockNumber(0))
         .return_once(|_| Ok(()));
-    let (mut context, _network) = setup(batcher, success_cende_ammbassador());
+    let mut context_recipe = ContextRecipe::default();
+    context_recipe.context_deps.batcher = Arc::new(batcher);
+
+    let (mut context, _network) = context_recipe.build_context();
 
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
@@ -171,7 +179,10 @@ async fn repropose() {
             })
         },
     );
-    let (mut context, mut network) = setup(batcher, success_cende_ammbassador());
+    let mut context_recipe = ContextRecipe::default();
+    context_recipe.context_deps.batcher = Arc::new(batcher);
+
+    let (mut context, mut network) = context_recipe.build_context();
 
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
@@ -239,7 +250,10 @@ async fn proposals_from_different_rounds() {
             })
         },
     );
-    let (mut context, _network) = setup(batcher, success_cende_ammbassador());
+    let mut context_recipe = ContextRecipe::default();
+    context_recipe.context_deps.batcher = Arc::new(batcher);
+
+    let (mut context, _network) = context_recipe.build_context();
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
     context.set_height_and_round(BlockNumber(0), 1).await;
@@ -324,7 +338,10 @@ async fn interrupt_active_proposal() {
                 }),
             })
         });
-    let (mut context, _network) = setup(batcher, success_cende_ammbassador());
+    let mut context_recipe = ContextRecipe::default();
+    context_recipe.context_deps.batcher = Arc::new(batcher);
+
+    let (mut context, _network) = context_recipe.build_context();
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
 
@@ -437,7 +454,10 @@ async fn batcher_not_ready(#[case] proposer: bool) {
             .times(1)
             .returning(move |_| Err(BatcherClientError::BatcherError(BatcherError::NotReady)));
     }
-    let (mut context, _network) = setup(batcher, success_cende_ammbassador());
+    let mut context_recipe = ContextRecipe::default();
+    context_recipe.context_deps.batcher = Arc::new(batcher);
+
+    let (mut context, _network) = context_recipe.build_context();
     context.set_height_and_round(BlockNumber::default(), Round::default()).await;
 
     if proposer {
@@ -493,7 +513,10 @@ async fn eth_to_fri_rate_out_of_range() {
         .withf(|input| input.height == BlockNumber(0))
         .return_once(|_| Ok(()));
 
-    let (mut context, _network) = setup(batcher, success_cende_ammbassador());
+    let mut context_recipe = ContextRecipe::default();
+    context_recipe.context_deps.batcher = Arc::new(batcher);
+
+    let (mut context, _network) = context_recipe.build_context();
     context.set_height_and_round(BlockNumber(0), 0).await;
     let (mut content_sender, content_receiver) = mpsc::channel(context.config.proposal_buffer_size);
     // Send a block info with an eth_to_fri_rate that is outside the margin of error.
