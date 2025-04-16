@@ -56,7 +56,8 @@ pub(crate) fn get_use_kzg_da_from_input<S: StateReader>(
 }
 
 pub(crate) fn set_state_update_pointers_to_none<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    todo!()
+    hint_processor.state_update_pointers = None;
+    Ok(())
 }
