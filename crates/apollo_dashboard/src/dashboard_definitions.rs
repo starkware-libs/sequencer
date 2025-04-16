@@ -1,3 +1,4 @@
+use apollo_compile_to_casm::metrics::COMPILATION_DURATION;
 use apollo_http_server::metrics::ADDED_TRANSACTIONS_TOTAL;
 use apollo_infra::metrics::{
     STATE_SYNC_LOCAL_MSGS_PROCESSED,
@@ -201,6 +202,13 @@ const PANEL_APOLLO_STATE_READER_NATIVE_CLASS_RETURNED_RATIO: Panel = Panel::new(
         CLASS_CACHE_MISSES.get_name(),
         STATE_READER_METRIC_RATE_DURATION,
     ),
+    PanelType::Graph,
+);
+
+const PANEL_COMPILATION_DURATION: Panel = Panel::new(
+    COMPILATION_DURATION.get_name(),
+    COMPILATION_DURATION.get_description(),
+    formatcp!("avg_over_time({}[2m])", COMPILATION_DURATION.get_name()),
     PanelType::Graph,
 );
 
@@ -446,6 +454,9 @@ pub const MEMPOOL_INFRA_ROW: Row = Row::new(
     ],
 );
 
+pub const COMPILE_TO_CASM_ROW: Row =
+    Row::new("Compile sierra to casm", "Compile to casm metrics", &[PANEL_COMPILATION_DURATION]);
+
 pub const SEQUENCER_DASHBOARD: Dashboard = Dashboard::new(
     "Sequencer Node Dashboard",
     "Monitoring of the decentralized sequencer node",
@@ -468,6 +479,7 @@ pub const SEQUENCER_DASHBOARD: Dashboard = Dashboard::new(
         MEMPOOL_INFRA_ROW,
         MEMPOOL_P2P_INFRA_ROW,
         SIERRA_COMPILER_INFRA_ROW,
+        COMPILE_TO_CASM_ROW,
         STATE_SYNC_INFRA_ROW,
     ],
 );
