@@ -67,10 +67,9 @@ pub(crate) fn write_full_output_to_memory<S: StateReader>(
 }
 
 pub(crate) fn configure_kzg_manager<S: StateReader>(
-    HintArgs { exec_scopes, .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    // TODO(Aner): verify that inserting into the "root" scope is not neccessary.
-    exec_scopes.insert_value(Scope::SerializeDataAvailabilityCreatePages.into(), true);
+    hint_processor.serialize_data_availability_create_pages = true;
     Ok(())
 }
 
