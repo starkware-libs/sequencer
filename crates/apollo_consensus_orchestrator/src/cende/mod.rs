@@ -41,8 +41,11 @@ use url::Url;
 
 use crate::fee_market::FeeMarketInfo;
 use crate::metrics::{
+    record_write_failure,
+    CendeWriteFailureReason,
     CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER,
     CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY,
+    CENDE_WRITE_BLOB_SUCCESS,
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY,
 };
 
@@ -171,6 +174,7 @@ impl CendeContext for CendeAmbassador {
                  have been written here in a normal flow, should already be written to Aerospike. \
                  Not writing to Aerospike previous height blob!!!.",
             );
+            record_write_failure(CendeWriteFailureReason::SkipWriteHeight);
             return tokio::spawn(ready(true));
         }
 
@@ -184,6 +188,7 @@ impl CendeContext for CendeAmbassador {
                     // This case happens when restarting the node, `prev_height_blob` initial value
                     // is `None`.
                     warn!("No blob to write to Aerospike.");
+                    record_write_failure(CendeWriteFailureReason::BlobNotAvailable);
                     return false;
                 };
 
@@ -202,7 +207,7 @@ impl CendeContext for CendeAmbassador {
                          Blob block number {}, height {current_height}",
                         blob.block_number
                     );
-
+                    record_write_failure(CendeWriteFailureReason::HeightMismatch);
                     return false;
                 }
 
@@ -245,7 +250,7 @@ async fn send_write_blob(request_builder: RequestBuilder, blob: &AerospikeBlob) 
                     blob.transactions.len(),
                 );
                 print_write_blob_response(response).await;
-
+                CENDE_WRITE_BLOB_SUCCESS.increment(1);
                 true
             } else {
                 warn!(
@@ -254,13 +259,14 @@ async fn send_write_blob(request_builder: RequestBuilder, blob: &AerospikeBlob) 
                     response.status(),
                 );
                 print_write_blob_response(response).await;
-
+                record_write_failure(CendeWriteFailureReason::CendeRecorderError);
                 false
             }
         }
         Err(err) => {
             // TODO(dvir): try to test this case.
             warn!("Failed to send a request to the recorder. Error: {err}");
+            record_write_failure(CendeWriteFailureReason::CommunicationError);
             false
         }
     }
