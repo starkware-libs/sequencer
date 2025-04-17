@@ -15,7 +15,7 @@ const MAIN_PARENT_BRANCH: &str = "main";
 const EXPECTED_MAIN_VERSION: &str = "0.0.0";
 
 static ROOT_CRATES_FOR_PUBLISH: LazyLock<HashSet<&str>> =
-    LazyLock::new(|| HashSet::from(["blockifier"]));
+    LazyLock::new(|| HashSet::from(["blockifier", "apollo_starknet_os_program"]));
 static CRATES_FOR_PUBLISH: LazyLock<HashSet<String>> = LazyLock::new(|| {
     let publish_deps: HashSet<String> = ROOT_CRATES_FOR_PUBLISH
         .iter()
