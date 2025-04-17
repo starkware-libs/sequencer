@@ -81,6 +81,11 @@ async fn all_nodes_have_same_bootstrap_peer() {
     while connected_peers.len() < NUM_NODES * (NUM_NODES - 1) {
         let (peer_id, event) = swarms_stream.next().await.unwrap();
 
+        println!(
+            "## CONNECTED PEERS: {}\tPEER ID: {peer_id}\tEVENT: {event:?}",
+            connected_peers.len()
+        );
+
         let mixed_event: mixed_behaviour::Event = match event.unwrap() {
             SwarmEvent::Behaviour(DiscoveryMixedBehaviourEvent::Discovery(event)) => event.into(),
             SwarmEvent::Behaviour(DiscoveryMixedBehaviourEvent::Kademlia(event)) => event.into(),
