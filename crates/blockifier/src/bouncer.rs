@@ -205,9 +205,35 @@ impl std::fmt::Display for BouncerWeights {
     }
 }
 
+#[derive(Debug, PartialEq)]
+#[cfg_attr(test, derive(Clone))]
 pub struct CasmHashComputationData {
     pub class_hash_to_casm_hash_computation_gas: HashMap<ClassHash, GasAmount>,
     pub sierra_gas_without_casm_hash_computation: GasAmount,
+}
+
+impl CasmHashComputationData {
+    pub fn empty() -> Self {
+        Self {
+            class_hash_to_casm_hash_computation_gas: HashMap::default(),
+            sierra_gas_without_casm_hash_computation: GasAmount(0),
+        }
+    }
+
+    pub fn extend(&mut self, other: CasmHashComputationData) {
+        self.class_hash_to_casm_hash_computation_gas
+            .extend(other.class_hash_to_casm_hash_computation_gas);
+        self.sierra_gas_without_casm_hash_computation
+            .checked_add(other.sierra_gas_without_casm_hash_computation)
+            .unwrap_or_else(|| {
+                panic!(
+                    "Addition overflow while adding sierra gas. current gas: {}, try to add
+                 gas: {}.",
+                    self.sierra_gas_without_casm_hash_computation,
+                    other.sierra_gas_without_casm_hash_computation
+                )
+            });
+    }
 }
 
 pub struct TxWeights {
@@ -220,12 +246,14 @@ pub struct TxWeights {
 pub struct Bouncer {
     // Additional info; maintained and used to calculate the residual contribution of a transaction
     // to the accumulated weights.
+    // TODO(Aviv): Remove these field and use the casm hash computation data instead.
     pub executed_class_hashes: HashSet<ClassHash>,
     pub visited_storage_entries: HashSet<StorageEntry>,
     pub state_changes_keys: StateChangesKeys,
+    // Additional info for the scheduler
+    pub casm_hash_computation_data: CasmHashComputationData,
 
     pub bouncer_config: BouncerConfig,
-
     accumulated_weights: BouncerWeights,
 }
 
@@ -241,6 +269,7 @@ impl Bouncer {
             state_changes_keys: StateChangesKeys::default(),
             bouncer_config: BouncerConfig::empty(),
             accumulated_weights: BouncerWeights::empty(),
+            casm_hash_computation_data: CasmHashComputationData::empty(),
         }
     }
 
@@ -277,21 +306,22 @@ impl Bouncer {
             tx_resources,
             &marginal_state_changes_keys,
             versioned_constants,
-        )?
-        .bouncer_weights;
+        )?;
+        let tx_bouncer_weights = tx_weights.bouncer_weights;
 
         // Check if the transaction can fit the current block available capacity.
         let err_msg = format!(
-            "Addition overflow. Transaction weights: {tx_weights:?}, block weights: {:?}.",
+            "Addition overflow. Transaction weights: {tx_bouncer_weights:?}, block weights: {:?}.",
             self.accumulated_weights
         );
         if !self
             .bouncer_config
-            .has_room(self.accumulated_weights.checked_add(tx_weights).expect(&err_msg))
+            .has_room(self.accumulated_weights.checked_add(tx_bouncer_weights).expect(&err_msg))
         {
             log::debug!(
                 "Transaction cannot be added to the current block, block capacity reached; \
-                 transaction weights: {tx_weights:?}, block weights: {:?}.",
+                 transaction weights: {:?}, block weights: {:?}.",
+                tx_weights.bouncer_weights,
                 self.accumulated_weights
             );
             Err(TransactionExecutorError::BlockFull)?
@@ -304,16 +334,18 @@ impl Bouncer {
 
     fn update(
         &mut self,
-        tx_weights: BouncerWeights,
+        tx_weights: TxWeights,
         tx_execution_summary: &ExecutionSummary,
         state_changes_keys: &StateChangesKeys,
     ) {
+        let bouncer_weights = &tx_weights.bouncer_weights;
         let err_msg = format!(
-            "Addition overflow. Transaction weights: {tx_weights:?}, block weights: {:?}.",
+            "Addition overflow. Transaction weights: {bouncer_weights:?}, block weights: {:?}.",
             self.accumulated_weights
         );
         self.accumulated_weights =
-            self.accumulated_weights.checked_add(tx_weights).expect(&err_msg);
+            self.accumulated_weights.checked_add(tx_weights.bouncer_weights).expect(&err_msg);
+        self.casm_hash_computation_data.extend(tx_weights.casm_hash_computation_data);
         self.visited_storage_entries.extend(&tx_execution_summary.visited_storage_entries);
         self.executed_class_hashes.extend(&tx_execution_summary.executed_class_hashes);
         // Note: cancelling writes (0 -> 1 -> 0) will not be removed, but it's fine since fee was
