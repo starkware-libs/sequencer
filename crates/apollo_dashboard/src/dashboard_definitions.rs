@@ -1,10 +1,4 @@
 use apollo_compile_to_casm::metrics::COMPILATION_DURATION;
-use apollo_state_reader::metrics::{
-    CLASS_CACHE_HITS,
-    CLASS_CACHE_MISSES,
-    NATIVE_CLASS_RETURNED,
-    STATE_READER_METRIC_RATE_DURATION,
-};
 use const_format::formatcp;
 
 use crate::dashboard::{Dashboard, Panel, PanelType, Row};
@@ -129,6 +123,10 @@ use crate::panels::sierra_compiler::{
     PANEL_SIERRA_COMPILER_REMOTE_MSGS_RECEIVED,
     PANEL_SIERRA_COMPILER_REMOTE_VALID_MSGS_RECEIVED,
 };
+use crate::panels::state_reader::{
+    PANEL_APOLLO_STATE_READER_CLASS_CACHE_MISS_RATIO,
+    PANEL_APOLLO_STATE_READER_NATIVE_CLASS_RETURNED_RATIO,
+};
 use crate::panels::state_sync::{
     PANEL_P2P_SYNC_NUM_ACTIVE_INBOUND_SESSIONS,
     PANEL_P2P_SYNC_NUM_ACTIVE_OUTBOUND_SESSIONS,
@@ -149,42 +147,12 @@ mod dashboard_definitions_test;
 
 pub const DEV_JSON_PATH: &str = "Monitoring/sequencer/dev_grafana.json";
 
-const PANEL_APOLLO_STATE_READER_CLASS_CACHE_MISS_RATIO: Panel = Panel::new(
-    "class_cache_miss_ratio",
-    "The ratio of cache misses when requesting compiled classes from the apollo state reader",
-    formatcp!(
-        "100 * (rate({}[{}]) / (rate({}[{}]) + rate({}[{}])))",
-        CLASS_CACHE_MISSES.get_name(),
-        STATE_READER_METRIC_RATE_DURATION,
-        CLASS_CACHE_MISSES.get_name(),
-        STATE_READER_METRIC_RATE_DURATION,
-        CLASS_CACHE_HITS.get_name(),
-        STATE_READER_METRIC_RATE_DURATION
-    ),
-    PanelType::Graph,
-);
-const PANEL_APOLLO_STATE_READER_NATIVE_CLASS_RETURNED_RATIO: Panel = Panel::new(
-    "native_class_returned_ratio",
-    "The ratio of Native classes returned by the apollo state reader",
-    formatcp!(
-        "100 * (rate({}[{}]) / (rate({}[{}]) + rate({}[{}])))",
-        NATIVE_CLASS_RETURNED.get_name(),
-        STATE_READER_METRIC_RATE_DURATION,
-        CLASS_CACHE_HITS.get_name(),
-        STATE_READER_METRIC_RATE_DURATION,
-        CLASS_CACHE_MISSES.get_name(),
-        STATE_READER_METRIC_RATE_DURATION,
-    ),
-    PanelType::Graph,
-);
-
 const PANEL_COMPILATION_DURATION: Panel = Panel::new(
     COMPILATION_DURATION.get_name(),
     COMPILATION_DURATION.get_description(),
     formatcp!("avg_over_time({}[2m])", COMPILATION_DURATION.get_name()),
     PanelType::Graph,
 );
-
 const MEMPOOL_P2P_ROW: Row = Row::new(
     "MempoolP2p",
     "Mempool peer to peer metrics",
