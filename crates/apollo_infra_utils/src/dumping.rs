@@ -17,7 +17,7 @@ use crate::path::resolve_project_relative_path;
 use crate::test_utils::assert_json_eq;
 
 #[cfg(any(feature = "testing", test))]
-pub fn serialize_to_file_test<T: Serialize>(data: T, file_path: &str) {
+pub fn serialize_to_file_test<T: Serialize>(data: T, file_path: &str, fix_binary_name: &str) {
     env::set_current_dir(resolve_project_relative_path("").unwrap())
         .expect("Couldn't set working dir.");
 
@@ -27,9 +27,13 @@ pub fn serialize_to_file_test<T: Serialize>(data: T, file_path: &str) {
         to_value(&data).expect("Should have been able to serialize the data to JSON");
 
     let error_message = format!(
-        "{}\n{}",
-        "Dump file doesn't match the data. Please update it using the binary.".purple().bold(),
-        "Diffs shown below (loaded file <<>> data serialization)."
+        "{}{}{}\n{}",
+        "Dump file doesn't match the data, please update it using: 'cargo run --bin "
+            .purple()
+            .bold(),
+        fix_binary_name.purple().bold(),
+        "'.".purple().bold(),
+        "Diffs shown below (loaded file <<>> data serialization):"
     );
     assert_json_eq(&loaded_data, &serialized_data, error_message);
 }
