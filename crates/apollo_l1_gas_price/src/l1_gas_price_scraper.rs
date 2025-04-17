@@ -19,6 +19,8 @@ use thiserror::Error;
 use tracing::{error, info, warn};
 use validator::Validate;
 
+use crate::metrics::{register_scraper_metrics, L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT};
+
 #[cfg(test)]
 #[path = "l1_gas_price_scraper_test.rs"]
 pub mod l1_gas_price_scraper_test;
@@ -142,6 +144,7 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
                 Ok(None) => return Ok(block_num),
                 Err(e) => {
                     warn!("BaseLayerError during scraping: {e:?}");
+                    L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT.increment(1);
                     return Ok(block_num);
                 }
             };
@@ -163,6 +166,7 @@ where
 {
     async fn start(&mut self) {
         info!("Starting component {}.", type_name::<Self>());
+        register_scraper_metrics();
         let start_from = match self.config.starting_block {
             Some(block) => block,
             None => {
