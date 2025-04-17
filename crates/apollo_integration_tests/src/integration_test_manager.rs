@@ -389,7 +389,7 @@ impl IntegrationTestManager {
         let condition =
             |&latest_block_number: &BlockNumber| latest_block_number == expected_block_number;
 
-        let await_reverted_tasks = self.running_nodes.values().map(|running_node| async {
+        let await_reverted_tasks = self.running_nodes.iter().map(|(node_id, running_node)| async {
             let running_node_setup = &running_node.node_setup;
             let batcher_logger = CustomLogger::new(
                 TraceLevel::Info,
@@ -413,27 +413,42 @@ impl IntegrationTestManager {
                 )),
             );
 
-            join!(
-                await_batcher_block(
-                    interval_ms,
-                    condition,
-                    max_attempts,
-                    running_node_setup.batcher_monitoring_client(),
-                    batcher_logger,
+            (
+                *node_id,
+                join!(
+                    await_batcher_block(
+                        interval_ms,
+                        condition,
+                        max_attempts,
+                        running_node_setup.batcher_monitoring_client(),
+                        batcher_logger,
+                    ),
+                    await_sync_block(
+                        interval_ms,
+                        condition,
+                        max_attempts,
+                        running_node_setup.state_sync_monitoring_client(),
+                        sync_logger,
+                    )
                 ),
-                await_sync_block(
-                    interval_ms,
-                    condition,
-                    max_attempts,
-                    running_node_setup.state_sync_monitoring_client(),
-                    sync_logger,
-                )
             )
         });
 
-        tokio::time::timeout(timeout_duration, join_all(await_reverted_tasks))
+        let revert_results = tokio::time::timeout(timeout_duration, join_all(await_reverted_tasks))
             .await
-            .expect("Running Nodes should be reverted.");
+            .unwrap_or_else(|_| {
+                panic!(
+                    "Running nodes should be reverted in {} seconds.",
+                    timeout_duration.as_secs_f32()
+                )
+            });
+        for revert_result in revert_results {
+            let (node_id, (batcher_result, sync_result)) = revert_result;
+            assert!(
+                batcher_result.is_ok() && sync_result.is_ok(),
+                "Node {node_id} failed to revert."
+            );
+        }
 
         info!(
             "All running nodes have been reverted succesfully to block number \
