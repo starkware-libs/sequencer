@@ -73,14 +73,14 @@ fn output_channel()
 fn block_execution_artifacts(
     execution_infos: IndexMap<TransactionHash, TransactionExecutionInfo>,
     rejected_tx_hashes: HashSet<TransactionHash>,
-    accepted_l1_handler_tx_hashes: IndexSet<TransactionHash>,
+    consumed_l1_handler_tx_hashes: IndexSet<TransactionHash>,
 ) -> BlockExecutionArtifacts {
     let l2_gas_used = GasAmount(execution_infos.len().try_into().unwrap());
     BlockExecutionArtifacts {
         execution_data: BlockTransactionExecutionData {
             execution_infos,
             rejected_tx_hashes,
-            accepted_l1_handler_tx_hashes,
+            consumed_l1_handler_tx_hashes,
         },
         commitment_state_diff: Default::default(),
         compressed_state_diff: Default::default(),
@@ -290,11 +290,8 @@ fn transaction_failed_test_expectations() -> TestExpectations {
     let input_invoke_txs = test_txs(0..3);
     let input_l1_handler_txs = test_l1_handler_txs(3..6);
     let failed_tx_hashes = HashSet::from([tx_hash!(1), tx_hash!(4)]);
-    let accepted_l1_handler_tx_hashes: IndexSet<_> = input_l1_handler_txs
-        .iter()
-        .map(|tx| tx.tx_hash())
-        .filter(|tx_hash| !failed_tx_hashes.contains(tx_hash))
-        .collect();
+    let consumed_l1_handler_tx_hashes: IndexSet<_> =
+        input_l1_handler_txs.iter().map(|tx| tx.tx_hash()).collect();
     let input_txs = input_invoke_txs.into_iter().chain(input_l1_handler_txs);
 
     let expected_txs_output: Vec<_> =
@@ -324,7 +321,7 @@ fn transaction_failed_test_expectations() -> TestExpectations {
     let expected_block_artifacts = block_execution_artifacts(
         execution_infos_mapping,
         failed_tx_hashes,
-        accepted_l1_handler_tx_hashes,
+        consumed_l1_handler_tx_hashes,
     );
     let expected_block_artifacts_copy = expected_block_artifacts.clone();
     mock_transaction_executor.expect_close_block().times(1).return_once(move || {
@@ -731,4 +728,44 @@ async fn test_execution_info_order() {
             assert_eq!(tx_hash, &tx.tx_hash());
         },
     );
+}
+
+#[rstest]
+#[tokio::test]
+async fn failed_l1_handler_transaction_consumed() {
+    let l1_handler_tx = test_l1_handler_txs(0..2);
+    let mock_tx_provider = mock_tx_provider_stream_done(l1_handler_tx.clone());
+
+    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
+    mock_transaction_executor.expect_add_txs_to_block().times(1).return_once(move |_| {
+        vec![
+            Err(TransactionExecutorError::StateError(StateError::OutOfRangeContractAddress)),
+            Ok(execution_info()),
+        ]
+    });
+
+    mock_transaction_executor.expect_close_block().times(1).return_once(|| {
+        Ok(BlockExecutionSummary {
+            state_diff: Default::default(),
+            compressed_state_diff: None,
+            bouncer_weights: BouncerWeights::empty(),
+        })
+    });
+
+    let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
+    let result_block_artifacts = run_build_block(
+        mock_transaction_executor,
+        mock_tx_provider,
+        None,
+        false,
+        abort_receiver,
+        BLOCK_GENERATION_DEADLINE_SECS,
+    )
+    .await
+    .unwrap();
+
+    // Verify that all L1 handler transaction's are included in the consumed l1 transactions.
+    assert!([l1_handler_tx[0].tx_hash(), l1_handler_tx[1].tx_hash()].iter().all(|tx_hash| {
+        result_block_artifacts.execution_data.consumed_l1_handler_tx_hashes.contains(tx_hash)
+    }));
 }
