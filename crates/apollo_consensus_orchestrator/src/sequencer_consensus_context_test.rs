@@ -56,6 +56,7 @@ use rstest::rstest;
 use starknet_api::block::{
     BlockHash,
     BlockNumber,
+    GasPrice,
     TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
     TEMP_ETH_GAS_FEE_IN_WEI,
 };
@@ -114,12 +115,12 @@ fn block_info(height: BlockNumber) -> ConsensusBlockInfo {
         timestamp: chrono::Utc::now().timestamp().try_into().expect("Timestamp conversion failed"),
         builder: Default::default(),
         l1_da_mode: L1DataAvailabilityMode::Blob,
-        l2_gas_price_fri: 100000,
-        l1_gas_price_wei: TEMP_ETH_GAS_FEE_IN_WEI,
+        l2_gas_price_fri: GasPrice(100000),
+        l1_gas_price_wei: GasPrice(TEMP_ETH_GAS_FEE_IN_WEI),
         // TODO(guyn): I've put x10 on the data price, because currently
         // the minimal data gas price is 1 gwei, which is x10 this const.
         // Should adjust this when we have better min/max gas prices.
-        l1_data_gas_price_wei: TEMP_ETH_BLOB_GAS_FEE_IN_WEI * 10,
+        l1_data_gas_price_wei: GasPrice(TEMP_ETH_BLOB_GAS_FEE_IN_WEI * 10),
         eth_to_fri_rate: ETH_TO_FRI_RATE,
     }
 }
@@ -227,8 +228,8 @@ fn dummy_gas_price_provider() -> MockL1GasPriceProviderClient {
     let mut l1_gas_price_provider = MockL1GasPriceProviderClient::new();
     l1_gas_price_provider.expect_get_price_info().returning(|_| {
         Ok(PriceInfo {
-            base_fee_per_gas: TEMP_ETH_GAS_FEE_IN_WEI,
-            blob_fee: TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
+            base_fee_per_gas: GasPrice(TEMP_ETH_GAS_FEE_IN_WEI),
+            blob_fee: GasPrice(TEMP_ETH_BLOB_GAS_FEE_IN_WEI),
         })
     });
 

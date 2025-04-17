@@ -7,7 +7,7 @@ use std::fmt::Display;
 use bytes::{Buf, BufMut};
 use prost::DecodeError;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block::{BlockHash, BlockNumber, GasPrice};
 use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::core::ContractAddress;
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -74,22 +74,27 @@ pub struct ConsensusBlockInfo {
     pub timestamp: u64,
     pub builder: ContractAddress,
     pub l1_da_mode: L1DataAvailabilityMode,
-    // TODO(Ayelet/Asmaa): Refactor gas prices fields to GasPrice struct.
-    pub l2_gas_price_fri: u128,
-    pub l1_gas_price_wei: u128,
-    pub l1_data_gas_price_wei: u128,
+    pub l2_gas_price_fri: GasPrice,
+    pub l1_gas_price_wei: GasPrice,
+    pub l1_data_gas_price_wei: GasPrice,
     /// The value of 1 ETH in FRI.
     pub eth_to_fri_rate: u128,
 }
 
 impl ConsensusBlockInfo {
-    pub fn wei_to_fri(wei: u128, eth_to_fri_rate: u128) -> u128 {
+    pub fn wei_to_fri(wei: GasPrice, eth_to_fri_rate: u128) -> GasPrice {
         // We use integer division since wei * eth_to_fri_rate is expected to be high enough to not
         // cause too much precision loss.
-        wei.checked_mul(eth_to_fri_rate).expect("Gas price is too high.") / ETH_TO_WEI
+        wei.checked_mul_u128(eth_to_fri_rate)
+            .expect("Gas price is too high.")
+            .checked_div(ETH_TO_WEI)
+            .expect("ETH to FRI rate must be non-zero")
     }
-    pub fn fri_to_wei(fri: u128, eth_to_fri_rate: u128) -> u128 {
-        fri.checked_mul(ETH_TO_WEI).expect("Gas price is too high") / eth_to_fri_rate
+    pub fn fri_to_wei(fri: GasPrice, eth_to_fri_rate: u128) -> GasPrice {
+        fri.checked_mul_u128(ETH_TO_WEI)
+            .expect("Gas price is too high")
+            .checked_div(eth_to_fri_rate)
+            .expect("FRI to ETH rate must be non-zero")
     }
 }
 
