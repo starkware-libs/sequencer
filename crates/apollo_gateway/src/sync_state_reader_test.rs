@@ -224,7 +224,6 @@ fn assert_eq_state_result(
     }
 }
 
-// TODO(NoamS): test undeclared class flow (when class manager client returns None).
 #[rstest]
 #[case::sync_client_class_declared(
     Ok(Some(ContractClass::V1((dummy_casm_contract_class(), SierraVersion::default())))),
@@ -233,6 +232,11 @@ fn assert_eq_state_result(
 )]
 #[case::sync_client_class_not_declared(
     Ok(Some(ContractClass::V1((dummy_casm_contract_class(), SierraVersion::default())))),
+    Ok(false),
+    Err(StateError::UndeclaredClassHash(*DUMMY_CLASS_HASH))
+)]
+#[case::sync_client_class_not_declared_and_class_manager_client_returns_none(
+    Ok(None),
     Ok(false),
     Err(StateError::UndeclaredClassHash(*DUMMY_CLASS_HASH))
 )]
@@ -272,4 +276,15 @@ async fn test_get_compiled_class(
             .unwrap();
 
     assert_eq_state_result(&result, &expected_result);
+}
+
+#[tokio::test]
+#[should_panic]
+async fn test_get_compiled_class_where_class_manager_client_returns_none() {
+    test_get_compiled_class(
+        Ok(None),
+        Ok(true),
+        Err(StateError::UndeclaredClassHash(*DUMMY_CLASS_HASH)),
+    )
+    .await;
 }
