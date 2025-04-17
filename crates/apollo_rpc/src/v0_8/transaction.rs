@@ -38,7 +38,7 @@ use starknet_api::transaction::fields::{
     Resource,
     ResourceBounds,
     Tip,
-    TransactionSignature,
+    TransactionDeprSignature,
     ValidResourceBounds,
 };
 use starknet_api::transaction::{
@@ -114,7 +114,7 @@ pub struct DeclareTransactionV0 {
     pub nonce: Nonce,
     pub max_fee: Fee,
     pub version: TransactionVersion0,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
 }
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 #[serde(deny_unknown_fields)]
@@ -124,7 +124,7 @@ pub struct DeclareTransactionV1 {
     pub nonce: Nonce,
     pub max_fee: Fee,
     pub version: TransactionVersion1,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
 }
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct DeclareTransactionV2 {
@@ -134,7 +134,7 @@ pub struct DeclareTransactionV2 {
     pub nonce: Nonce,
     pub max_fee: Fee,
     pub version: TransactionVersion2,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
 }
 
 impl From<starknet_api::transaction::DeclareTransactionV2> for DeclareTransactionV2 {
@@ -221,7 +221,7 @@ impl From<ValidResourceBounds> for ResourceBoundsMapping {
 pub struct DeclareTransactionV3 {
     pub resource_bounds: ResourceBoundsMapping,
     pub tip: Tip,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub nonce: Nonce,
     pub class_hash: ClassHash,
     pub compiled_class_hash: CompiledClassHash,
@@ -264,7 +264,7 @@ pub enum DeclareTransaction {
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct DeployAccountTransactionV1 {
     pub max_fee: Fee,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub nonce: Nonce,
     pub class_hash: ClassHash,
     pub contract_address_salt: ContractAddressSalt,
@@ -274,7 +274,7 @@ pub struct DeployAccountTransactionV1 {
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct DeployAccountTransactionV3 {
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub nonce: Nonce,
     pub class_hash: ClassHash,
     pub contract_address_salt: ContractAddressSalt,
@@ -390,7 +390,7 @@ impl From<DeployAccountTransaction> for client_transaction::DeployAccountTransac
 pub struct InvokeTransactionV0 {
     pub max_fee: Fee,
     pub version: TransactionVersion0,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub contract_address: ContractAddress,
     pub entry_point_selector: EntryPointSelector,
     pub calldata: Calldata,
@@ -414,7 +414,7 @@ impl From<InvokeTransactionV0> for client_transaction::InvokeTransaction {
 pub struct InvokeTransactionV1 {
     pub max_fee: Fee,
     pub version: TransactionVersion1,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub nonce: Nonce,
     pub sender_address: ContractAddress,
     pub calldata: Calldata,
@@ -439,7 +439,7 @@ pub struct InvokeTransactionV3 {
     pub sender_address: ContractAddress,
     pub calldata: Calldata,
     pub version: TransactionVersion3,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub nonce: Nonce,
     pub resource_bounds: ResourceBoundsMapping,
     pub tip: Tip,

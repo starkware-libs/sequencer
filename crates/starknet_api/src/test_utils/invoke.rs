@@ -21,7 +21,7 @@ use crate::transaction::fields::{
     Fee,
     PaymasterData,
     Tip,
-    TransactionSignature,
+    TransactionDeprSignature,
     ValidResourceBounds,
 };
 use crate::transaction::{
@@ -36,7 +36,7 @@ use crate::transaction::{
 #[derive(Clone)]
 pub struct InvokeTxArgs {
     pub max_fee: Fee,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub sender_address: ContractAddress,
     pub calldata: Calldata,
     pub version: TransactionVersion,
@@ -55,7 +55,7 @@ impl Default for InvokeTxArgs {
     fn default() -> Self {
         InvokeTxArgs {
             max_fee: Fee::default(),
-            signature: TransactionSignature::default(),
+            signature: TransactionDeprSignature::default(),
             sender_address: ContractAddress::default(),
             calldata: calldata![],
             version: TransactionVersion::THREE,

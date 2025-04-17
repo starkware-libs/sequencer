@@ -21,7 +21,7 @@ use crate::transaction::fields::{
     Fee,
     PaymasterData,
     Tip,
-    TransactionSignature,
+    TransactionDeprSignature,
     ValidResourceBounds,
 };
 use crate::transaction::{
@@ -38,7 +38,7 @@ pub const TEST_SENDER_ADDRESS: u128 = 0x1000;
 #[derive(Clone)]
 pub struct DeclareTxArgs {
     pub max_fee: Fee,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub sender_address: ContractAddress,
     pub version: TransactionVersion,
     pub resource_bounds: ValidResourceBounds,
@@ -58,7 +58,7 @@ impl Default for DeclareTxArgs {
     fn default() -> Self {
         Self {
             max_fee: Fee::default(),
-            signature: TransactionSignature::default(),
+            signature: TransactionDeprSignature::default(),
             sender_address: contract_address!(TEST_SENDER_ADDRESS),
             version: TransactionVersion::THREE,
             resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),

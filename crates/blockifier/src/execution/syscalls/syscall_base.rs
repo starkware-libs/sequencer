@@ -13,7 +13,7 @@ use starknet_api::core::{
     Nonce,
 };
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, Fee, TransactionSignature};
+use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, Fee, TransactionDeprSignature};
 use starknet_api::transaction::{
     signed_tx_version,
     EventContent,
@@ -250,7 +250,7 @@ impl<'state> SyscallHandlerBase<'state> {
         contract_address: ContractAddress,
         entry_point_selector: EntryPointSelector,
         calldata: Calldata,
-        signature: TransactionSignature,
+        signature: TransactionDeprSignature,
         remaining_gas: &mut u64,
     ) -> SyscallResult<Vec<Felt>> {
         if self.context.execution_mode == ExecutionMode::Validate {

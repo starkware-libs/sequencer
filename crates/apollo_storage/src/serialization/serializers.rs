@@ -84,7 +84,7 @@ use starknet_api::transaction::fields::{
     Resource,
     ResourceBounds,
     Tip,
-    TransactionSignature,
+    TransactionDeprSignature,
     ValidResourceBounds,
 };
 use starknet_api::transaction::{
@@ -208,14 +208,14 @@ auto_storage_serde! {
     }
     pub struct DeclareTransactionV0V1 {
         pub max_fee: Fee,
-        pub signature: TransactionSignature,
+        pub signature: TransactionDeprSignature,
         pub nonce: Nonce,
         pub class_hash: ClassHash,
         pub sender_address: ContractAddress,
     }
     pub struct DeclareTransactionV2 {
         pub max_fee: Fee,
-        pub signature: TransactionSignature,
+        pub signature: TransactionDeprSignature,
         pub nonce: Nonce,
         pub class_hash: ClassHash,
         pub compiled_class_hash: CompiledClassHash,
@@ -224,7 +224,7 @@ auto_storage_serde! {
     pub struct DeclareTransactionV3 {
         pub resource_bounds: ValidResourceBounds,
         pub tip: Tip,
-        pub signature: TransactionSignature,
+        pub signature: TransactionDeprSignature,
         pub nonce: Nonce,
         pub class_hash: ClassHash,
         pub compiled_class_hash: CompiledClassHash,
@@ -454,7 +454,7 @@ auto_storage_serde! {
         Invoke(InvokeTransactionOutput) = 3,
         L1Handler(L1HandlerTransactionOutput) = 4,
     }
-    pub struct TransactionSignature(pub Vec<Felt>);
+    pub struct TransactionDeprSignature(pub Vec<Felt>);
     pub struct TransactionVersion(pub Felt);
     pub enum ValidResourceBounds {
         L1Gas(ResourceBounds) = 0,
@@ -1192,7 +1192,7 @@ macro_rules! auto_storage_serde_conditionally_compressed {
 auto_storage_serde_conditionally_compressed! {
     pub struct DeployAccountTransactionV1 {
         pub max_fee: Fee,
-        pub signature: TransactionSignature,
+        pub signature: TransactionDeprSignature,
         pub nonce: Nonce,
         pub class_hash: ClassHash,
         pub contract_address_salt: ContractAddressSalt,
@@ -1202,7 +1202,7 @@ auto_storage_serde_conditionally_compressed! {
     pub struct DeployAccountTransactionV3 {
         pub resource_bounds: ValidResourceBounds,
         pub tip: Tip,
-        pub signature: TransactionSignature,
+        pub signature: TransactionDeprSignature,
         pub nonce: Nonce,
         pub class_hash: ClassHash,
         pub contract_address_salt: ContractAddressSalt,
@@ -1221,7 +1221,7 @@ auto_storage_serde_conditionally_compressed! {
 
     pub struct InvokeTransactionV0 {
         pub max_fee: Fee,
-        pub signature: TransactionSignature,
+        pub signature: TransactionDeprSignature,
         pub contract_address: ContractAddress,
         pub entry_point_selector: EntryPointSelector,
         pub calldata: Calldata,
@@ -1229,7 +1229,7 @@ auto_storage_serde_conditionally_compressed! {
 
     pub struct InvokeTransactionV1 {
         pub max_fee: Fee,
-        pub signature: TransactionSignature,
+        pub signature: TransactionDeprSignature,
         pub nonce: Nonce,
         pub sender_address: ContractAddress,
         pub calldata: Calldata,
@@ -1238,7 +1238,7 @@ auto_storage_serde_conditionally_compressed! {
     pub struct InvokeTransactionV3 {
         pub resource_bounds: ValidResourceBounds,
         pub tip: Tip,
-        pub signature: TransactionSignature,
+        pub signature: TransactionDeprSignature,
         pub nonce: Nonce,
         pub sender_address: ContractAddress,
         pub calldata: Calldata,

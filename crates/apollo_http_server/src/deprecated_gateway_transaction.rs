@@ -23,7 +23,7 @@ use starknet_api::transaction::fields::{
     PaymasterData,
     ResourceBounds,
     Tip,
-    TransactionSignature,
+    TransactionDeprSignature,
 };
 
 // TODO(Yael): remove the deprecated_gateway_transaction once we decide to support only transactions
@@ -101,7 +101,7 @@ pub enum DeprecatedGatewayInvokeTransaction {
 pub struct DeprecatedGatewayInvokeTransactionV3 {
     pub sender_address: ContractAddress,
     pub calldata: Calldata,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub nonce: Nonce,
     pub resource_bounds: DeprecatedGatewayAllResourceBounds,
     pub tip: Tip,
@@ -155,7 +155,7 @@ pub enum DeprecatedGatewayDeployAccountTransaction {
 
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct DeprecatedGatewayDeployAccountTransactionV3 {
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub nonce: Nonce,
     pub class_hash: ClassHash,
     pub contract_address_salt: ContractAddressSalt,
@@ -213,7 +213,7 @@ pub enum DeprecatedGatewayDeclareTransaction {
 pub struct DeprecatedGatewayDeclareTransactionV3 {
     pub sender_address: ContractAddress,
     pub compiled_class_hash: CompiledClassHash,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub nonce: Nonce,
     pub contract_class: DeprecatedGatewaySierraContractClass,
     pub resource_bounds: DeprecatedGatewayAllResourceBounds,

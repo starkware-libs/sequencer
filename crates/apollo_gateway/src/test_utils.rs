@@ -13,7 +13,7 @@ use starknet_api::transaction::fields::{
     Calldata,
     PaymasterData,
     ResourceBounds,
-    TransactionSignature,
+    TransactionDeprSignature,
     ValidResourceBounds,
 };
 use starknet_api::{declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args};
@@ -51,7 +51,7 @@ pub struct RpcTransactionArgs {
     pub sender_address: ContractAddress,
     pub resource_bounds: AllResourceBounds,
     pub calldata: Calldata,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub account_deployment_data: AccountDeploymentData,
     pub paymaster_data: PaymasterData,
     pub nonce_data_availability_mode: DataAvailabilityMode,

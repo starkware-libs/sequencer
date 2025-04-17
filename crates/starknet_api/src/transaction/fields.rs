@@ -105,8 +105,11 @@ pub struct ContractAddressSalt(pub StarkHash);
 #[derive(
     Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, SizeOf,
 )]
-pub struct TransactionSignature(pub Vec<Felt>);
-
+pub struct TransactionDeprSignature(pub Vec<Felt>);
+#[derive(
+    Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, SizeOf,
+)]
+pub struct TransactionSignature(pub Arc<Vec<Felt>>);
 /// The calldata of a transaction.
 #[derive(
     Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, SizeOf,

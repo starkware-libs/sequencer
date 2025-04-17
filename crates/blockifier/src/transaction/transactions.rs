@@ -14,7 +14,7 @@ use starknet_api::transaction::fields::{
     AccountDeploymentData,
     Calldata,
     Fee,
-    TransactionSignature,
+    TransactionDeprSignature,
 };
 use starknet_api::transaction::{
     constants,
@@ -165,7 +165,7 @@ impl TransactionInfoCreator for L1HandlerTransaction {
             common_fields: CommonAccountFields {
                 transaction_hash: self.tx_hash,
                 version: self.tx.version,
-                signature: TransactionSignature::default(),
+                signature: TransactionDeprSignature::default(),
                 nonce: self.tx.nonce,
                 sender_address: self.tx.contract_address,
                 only_query: false,
