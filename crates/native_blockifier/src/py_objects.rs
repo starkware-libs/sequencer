@@ -12,7 +12,7 @@ use blockifier::blockifier::config::{
     NativeClassesWhitelist,
 };
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
-use blockifier::bouncer::{BouncerConfig, BouncerWeights};
+use blockifier::bouncer::{BouncerConfig, BouncerWeights, CasmHashComputationData};
 use blockifier::state::contract_class_manager::DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE;
 use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
@@ -50,8 +50,12 @@ impl From<ExecutionResources> for PyExecutionResources {
     }
 }
 
-// From Python to Rust.
+#[pyclass]
+pub struct PyCasmHashComputationData {
+    pub casm_hash_computation_data: CasmHashComputationData,
+}
 
+// From Python to Rust.
 #[pyclass]
 #[derive(Clone)]
 pub struct PyVersionedConstantsOverrides {
