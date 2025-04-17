@@ -15,6 +15,7 @@ use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_types_core::felt::Felt;
 
+use super::utils::{build_update_tree, patricia_guess_descents, LayerIndex};
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::patricia::utils::{
     DecodeNodeCase,
@@ -26,7 +27,11 @@ use crate::hints::hint_implementation::patricia::utils::{
 };
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Ids, Scope};
-use crate::vm_utils::{get_address_of_nested_fields, insert_values_to_fields};
+use crate::vm_utils::{
+    get_address_of_nested_fields,
+    get_address_of_nested_fields_from_base_address,
+    insert_values_to_fields,
+};
 
 pub(crate) fn set_siblings<S: StateReader>(
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
@@ -220,7 +225,77 @@ pub(crate) fn prepare_preimage_validation_non_deterministic_hashes<S: StateReade
 }
 
 pub(crate) fn build_descent_map<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, hint_processor, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let n_updates = {
+        let ids_n_updates =
+            get_integer_from_var_name(Ids::NUpdates.into(), vm, ids_data, ap_tracking)?;
+        usize::try_from(ids_n_updates).map_err(|error| OsHintError::IdsConversion {
+            variant: Ids::NUpdates,
+            felt: ids_n_updates,
+            ty: "usize".to_string(),
+            reason: error.to_string(),
+        })?
+    };
+
+    let update_ptr_address =
+        get_relocatable_from_var_name(Ids::UpdatePtr.into(), vm, ids_data, ap_tracking)?;
+
+    // TODO(Rotem): Implement a `get_size_of_cairo_struct` function when upgrading to Cairo VM 2.0.0
+    // which adds a `size` field to `Identifier`.
+    let dict_access_size = 3;
+
+    let mut modifications = Vec::new();
+    for i in 0..n_updates {
+        let curr_update_ptr = (update_ptr_address + i * dict_access_size)?;
+        let layer_index = vm.get_integer(get_address_of_nested_fields_from_base_address(
+            curr_update_ptr,
+            CairoStruct::DictAccess,
+            vm,
+            &["key"],
+            hint_processor.os_program,
+        )?)?;
+        let new_value = vm.get_integer(get_address_of_nested_fields_from_base_address(
+            curr_update_ptr,
+            CairoStruct::DictAccess,
+            vm,
+            &["new_value"],
+            hint_processor.os_program,
+        )?)?;
+
+        modifications.push((
+            LayerIndex::new(layer_index.into_owned().to_biguint())?,
+            HashOutput(new_value.into_owned()),
+        ));
+    }
+
+    let height = {
+        let ids_height = get_integer_from_var_name(Ids::Height.into(), vm, ids_data, ap_tracking)?;
+        SubTreeHeight(u8::try_from(ids_height).map_err(|error| OsHintError::IdsConversion {
+            variant: Ids::Height,
+            felt: ids_height,
+            ty: "u8".to_string(),
+            reason: error.to_string(),
+        })?)
+    };
+    let node = build_update_tree(height, modifications)?;
+    exec_scopes.insert_value(Scope::Node.into(), node.clone());
+
+    let preimage_map: &PreimageMap = exec_scopes.get_ref(Scope::Preimage.into())?;
+    let prev_root =
+        HashOutput(get_integer_from_var_name(Ids::PrevRoot.into(), vm, ids_data, ap_tracking)?);
+    let new_root =
+        HashOutput(get_integer_from_var_name(Ids::NewRoot.into(), vm, ids_data, ap_tracking)?);
+    let descent_map = patricia_guess_descents(height, node, preimage_map, prev_root, new_root)?;
+    exec_scopes.insert_value(Scope::DescentMap.into(), descent_map);
+
+    // We do not build `common_args` as it seems to be a Python trick to enter new scopes with a
+    // dict destructuring one-liner as the dict references itself. Neat trick that does not
+    // translate too well in Rust. We just make sure that `descent_map`, and `preimage` are in
+    // the scope.
+
+    // TODO(Rotem): Verify that it's OK to ignore the scope variable
+    // `__patricia_skip_validation_runner`.
+
+    Ok(())
 }
