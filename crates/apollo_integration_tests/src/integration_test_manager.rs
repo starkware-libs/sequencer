@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::future::Future;
 use std::net::{Ipv4Addr, SocketAddr};
+use std::panic;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -23,7 +24,11 @@ use apollo_test_utils::send_request;
 use blockifier::context::ChainInfo;
 use futures::future::join_all;
 use futures::TryFutureExt;
-use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
+use mempool_test_utils::starknet_api_test_utils::{
+    contract_class,
+    AccountId,
+    MultiAccountTransactionGenerator,
+};
 use papyrus_base_layer::ethereum_base_layer_contract::StarknetL1Contract;
 use papyrus_base_layer::test_utils::{
     ethereum_base_layer_config_for_anvil,
@@ -492,10 +497,10 @@ impl IntegrationTestManager {
         )
         .await;
         self.rpc_verify_last_block(wait_for_block).await;
+        // self.rpc_look_for_declared_class(BLOCK_TO_WAIT_FOR_DECLARE, wait_for_block, false).await;
     }
 
-    // Verify with JSON RPC server if the last block is the expected one.
-    async fn rpc_verify_last_block(&self, expected_block: BlockNumber) {
+    fn get_rpc_server_socket(&self) -> SocketAddr {
         let node_0_setup = self
             .running_nodes
             .get(&0)
@@ -508,9 +513,14 @@ impl IntegrationTestManager {
             .get_config();
 
         let url = config.state_sync_config.rpc_config.server_address.to_string();
-        let server_address: SocketAddr = url.parse().expect("Invalid socket address format");
-        info!("Connecting to Node id 0 JSON RPC server at: {server_address:?}");
+        url.parse::<SocketAddr>().expect("Invalid socket address format")
+    }
 
+    // Verify with JSON RPC server if the last block is the expected one.
+    async fn rpc_verify_last_block(&self, expected_block: BlockNumber) {
+        info!("Verifying last block number by JSON RPC server.");
+
+        let server_address = self.get_rpc_server_socket();
         let res = send_request(server_address, "starknet_blockNumber", "", "V0_8").await;
         if let Some(block_number) = res.get("result").and_then(|result| result.as_u64()) {
             assert!(
@@ -555,6 +565,40 @@ impl IntegrationTestManager {
     pub async fn send_declare_txs_and_verify(&mut self) {
         info!("Sending a declare tx and waiting for block {}.", BLOCK_TO_WAIT_FOR_DECLARE);
         self.test_and_verify(DeclareTx, DEFAULT_SENDER_ACCOUNT, BLOCK_TO_WAIT_FOR_DECLARE).await;
+        self.rpc_verify_class_declared(BLOCK_TO_WAIT_FOR_DECLARE).await;
+    }
+
+    // Verify with JSON RPC server that class is declare transaction was successful.
+    async fn rpc_verify_class_declared(&self, expected_block: BlockNumber) {
+        info!("Verifying class declaration by JSON RPC server.");
+
+        let server_address = self.get_rpc_server_socket();
+        let contract_class = contract_class();
+        let class_hash = contract_class.calculate_class_hash();
+        let class_version = contract_class.contract_class_version;
+        let params = format!(
+            r#"{{"block_number": {}}}, "0x{}""#,
+            expected_block,
+            hex::encode(class_hash.0.to_bytes_be())
+        );
+
+        info!(
+            "rpc_verify_class_declared: server_addrerss: {}, class_version: {},  params {}",
+            server_address, class_version, params
+        );
+
+        let res = send_request(server_address, "starknet_getClass", params.as_str(), "V0_8").await;
+        if let Some(contract_class_version) = res.get("result").and_then(|result| {
+            result.get("contract_class_version").and_then(|version| version.as_str())
+        }) {
+            assert_eq!(
+                contract_class_version, class_version,
+                "JSON RPC server -> Class version mismatch: expected {}, got {}.",
+                class_version, contract_class_version
+            );
+        } else {
+            panic!("JSON RPC server -> Contract class declaration failed");
+        }
     }
 
     pub async fn await_txs_accepted_on_all_running_nodes(&mut self, target_n_txs: usize) {

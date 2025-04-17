@@ -602,6 +602,7 @@ impl JsonRpcServer for JsonRpcServerImpl {
         block_id: BlockId,
         class_hash: ClassHash,
     ) -> RpcResult<GatewayContractClass> {
+        // Check in pending classes.
         let block_id = if let BlockId::Tag(Tag::Pending) = block_id {
             let maybe_class = &self.pending_classes.read().await.get_class(class_hash);
             if let Some(class) = maybe_class {
@@ -618,6 +619,29 @@ impl JsonRpcServer for JsonRpcServerImpl {
         let block_number = get_accepted_block_number(&txn, block_id)?;
         let state_number = StateNumber::unchecked_right_after_block(block_number);
         let state_reader = txn.get_state_reader().map_err(internal_server_error)?;
+
+        let optional_class_definition_block_number = state_reader
+            .get_class_definition_block_number(&class_hash)
+            .map_err(internal_server_error)?;
+
+        // If class manager supplied, first check with it.
+        if let Some(class_manager_client) = &self.class_manager_client {
+            let optional_sierra_contract_class = class_manager_client
+                .get_sierra(class_hash)
+                .await
+                .map_err(internal_server_error_with_msg)?;
+
+            if let Some(sierra_contract_class) = optional_sierra_contract_class {
+                // Check if this class exists in the Cairo1 classes table.
+                if optional_class_definition_block_number.is_some()
+                    && optional_class_definition_block_number <= Some(block_number)
+                {
+                    return Ok(GatewayContractClass::Sierra(sierra_contract_class.into()));
+                } else {
+                    return Err(ErrorObjectOwned::from(CLASS_HASH_NOT_FOUND));
+                }
+            }
+        }
 
         // The class might be a deprecated class. Search it first in the declared classes and if not
         // found, search in the deprecated classes.
