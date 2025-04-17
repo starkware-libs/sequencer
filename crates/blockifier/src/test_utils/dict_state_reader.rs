@@ -88,4 +88,18 @@ impl StateReader for DictStateReader {
             self.class_hash_to_compiled_class_hash.get(&class_hash).copied().unwrap_or_default();
         Ok(compiled_class_hash)
     }
+
+    fn get_sierra(&self, class_hash: ClassHash) -> StateResult<SierraContractClass> {
+        let runnable = self.get_compiled_class(class_hash)?;
+
+        assert!(
+            matches!(runnable, RunnableCompiledClass::V1(_)),
+            "Expected Cairo 1 class for Sierra retrieval"
+        );
+
+        self.class_hash_to_sierra
+            .get(&class_hash)
+            .cloned()
+            .ok_or_else(|| panic!("Missing Sierra class for class hash: {class_hash:?}"))
+    }
 }
