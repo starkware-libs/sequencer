@@ -76,6 +76,7 @@ const Configuration = {
             'mempool_test_utils',
             'native_blockifier',
             'papyrus_base_layer',
+            'papyrus_base_layer_client',
             'papyrus_common',
             'papyrus_load_test',
             'papyrus_monitoring_gateway',
