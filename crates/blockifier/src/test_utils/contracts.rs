@@ -108,6 +108,19 @@ pub struct FeatureContractData {
     pub require_funding: bool,
     integer_base: u32,
 }
+
+impl Default for FeatureContractData {
+    fn default() -> Self {
+        Self {
+            class_hash: ClassHash::default(),
+            runnable_class: RunnableCompiledClass::V1(Default::default()),
+            sierra: None,
+            require_funding: false,
+            integer_base: 0,
+        }
+    }
+}
+
 impl FeatureContractData {
     pub fn get_instance_address(&self, instance: u16) -> ContractAddress {
         // If a test requires overriding the contract address, replace storing `integer_base` in the

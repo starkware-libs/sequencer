@@ -238,6 +238,19 @@ impl Deref for CompiledClassV1 {
     }
 }
 
+#[cfg(any(feature = "testing", test))]
+impl Default for CompiledClassV1 {
+    fn default() -> Self {
+        Self(Arc::new(ContractClassV1Inner {
+            program: Program::default(),
+            entry_points_by_type: EntryPointsByType::default(),
+            hints: HashMap::new(),
+            sierra_version: SierraVersion::default(),
+            bytecode_segment_lengths: NestedIntList::Leaf(0),
+        }))
+    }
+}
+
 impl CompiledClassV1 {
     pub fn constructor_selector(&self) -> Option<EntryPointSelector> {
         self.0.entry_points_by_type.constructor.first().map(|ep| ep.selector)
