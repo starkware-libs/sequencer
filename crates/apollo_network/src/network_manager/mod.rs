@@ -41,10 +41,6 @@ pub enum NetworkError {
     #[error("Channels for broadcast topic with hash {topic_hash:?} were dropped.")]
     BroadcastChannelsDropped { topic_hash: TopicHash },
 }
-
-// TODO(Shahak): Understand whats the correct thing to do here.
-const MESSAGE_METADATA_BUFFER_SIZE: usize = 100000;
-
 pub struct GenericNetworkManager<SwarmT: SwarmTrait> {
     swarm: SwarmT,
     inbound_protocol_to_buffer_size: HashMap<StreamProtocol, usize>,
@@ -103,6 +99,8 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         mut swarm: SwarmT,
         advertised_multiaddr: Option<Multiaddr>,
         metrics: Option<NetworkMetrics>,
+        broadcasted_message_metadata_buffer_size: usize,
+        reported_peer_ids_buffer_size: usize,
     ) -> Self {
         let reported_peer_receivers = FuturesUnordered::new();
         reported_peer_receivers.push(futures::future::pending().boxed());
@@ -110,9 +108,9 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             swarm.add_external_address(address);
         }
         let (reported_peers_sender, reported_peers_receiver) =
-            futures::channel::mpsc::channel(MESSAGE_METADATA_BUFFER_SIZE);
+            futures::channel::mpsc::channel(reported_peer_ids_buffer_size);
         let (continue_propagation_sender, continue_propagation_receiver) =
-            futures::channel::mpsc::channel(MESSAGE_METADATA_BUFFER_SIZE);
+            futures::channel::mpsc::channel(broadcasted_message_metadata_buffer_size);
         Self {
             swarm,
             inbound_protocol_to_buffer_size: HashMap::new(),
@@ -686,6 +684,8 @@ impl NetworkManager {
             chain_id,
             discovery_config,
             peer_manager_config,
+            broadcasted_message_metadata_buffer_size,
+            reported_peer_ids_buffer_size,
         } = config;
 
         // TODO(shahak): Add quic transport.
@@ -730,7 +730,13 @@ impl NetworkManager {
                 .with_p2p(*swarm.local_peer_id())
                 .expect("advertised_multiaddr has a peer id different than the local peer id")
         });
-        Self::generic_new(swarm, advertised_multiaddr, metrics)
+        Self::generic_new(
+            swarm,
+            advertised_multiaddr,
+            metrics,
+            broadcasted_message_metadata_buffer_size,
+            reported_peer_ids_buffer_size,
+        )
     }
 
     pub fn get_local_peer_id(&self) -> String {
