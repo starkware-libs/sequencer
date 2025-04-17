@@ -108,6 +108,7 @@ pub struct FeatureContractData {
     pub require_funding: bool,
     integer_base: u32,
 }
+
 impl FeatureContractData {
     pub fn get_instance_address(&self, instance: u16) -> ContractAddress {
         // If a test requires overriding the contract address, replace storing `integer_base` in the
