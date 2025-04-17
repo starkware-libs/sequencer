@@ -22,7 +22,7 @@ use crate::hints::vars::{CairoStruct, Ids, Scope};
 use crate::vm_utils::{get_address_of_nested_fields, LoadCairoObject};
 
 pub(crate) fn load_deprecated_class_facts<S: StateReader>(
-    HintArgs { hint_processor, vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let deprecated_compiled_classes = &hint_processor.deprecated_compiled_classes;
     // TODO(Rotem): see if we can avoid cloning here.
@@ -46,7 +46,7 @@ pub(crate) fn load_deprecated_class_facts<S: StateReader>(
 }
 
 pub(crate) fn load_deprecated_class_inner<S: StateReader>(
-    HintArgs { hint_processor, vm, exec_scopes, ids_data, ap_tracking, constants }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, exec_scopes, ids_data, ap_tracking, constants }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let deprecated_class_iter = exec_scopes
         .get_mut_ref::<IntoIter<ClassHash, ContractClass>>(Scope::CompiledClassFacts.into())?;
@@ -56,7 +56,7 @@ pub(crate) fn load_deprecated_class_inner<S: StateReader>(
     })?;
 
     let dep_class_base = vm.add_memory_segment();
-    deprecated_class.load_into(vm, &hint_processor.os_program, dep_class_base, constants)?;
+    deprecated_class.load_into(vm, hint_processor.os_program, dep_class_base, constants)?;
 
     exec_scopes.insert_value(Scope::CompiledClassHash.into(), class_hash);
     exec_scopes.insert_value(Scope::CompiledClass.into(), deprecated_class);
@@ -71,7 +71,7 @@ pub(crate) fn load_deprecated_class_inner<S: StateReader>(
 }
 
 pub(crate) fn load_deprecated_class<S: StateReader>(
-    HintArgs { hint_processor, vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintExtensionResult {
     let computed_hash_addr = get_address_of_nested_fields(
         ids_data,
@@ -80,7 +80,7 @@ pub(crate) fn load_deprecated_class<S: StateReader>(
         vm,
         ap_tracking,
         &["hash"],
-        &hint_processor.os_program,
+        hint_processor.os_program,
     )?;
     let computed_hash = vm.get_integer(computed_hash_addr)?;
     let expected_hash = exec_scopes.get::<Felt>(Scope::CompiledClassHash.into())?;
@@ -122,7 +122,7 @@ pub(crate) fn load_deprecated_class<S: StateReader>(
         vm,
         ap_tracking,
         &["bytecode_ptr"],
-        &hint_processor.os_program,
+        hint_processor.os_program,
     )?;
     let byte_code_ptr = vm.get_relocatable(byte_code_ptr_addr)?;
 

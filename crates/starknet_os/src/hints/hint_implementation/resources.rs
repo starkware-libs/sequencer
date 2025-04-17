@@ -10,7 +10,7 @@ use crate::hints::types::HintArgs;
 use crate::hints::vars::Ids;
 
 pub(crate) fn remaining_gas_gt_max<S: StateReader>(
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let remaining_gas =
         get_integer_from_var_name(Ids::RemainingGas.into(), vm, ids_data, ap_tracking)?;
@@ -20,11 +20,11 @@ pub(crate) fn remaining_gas_gt_max<S: StateReader>(
 }
 
 pub(crate) fn debug_expected_initial_gas<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     todo!()
 }
 
-pub(crate) fn is_sierra_gas_mode<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
+pub(crate) fn is_sierra_gas_mode<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> OsHintResult {
     todo!()
 }

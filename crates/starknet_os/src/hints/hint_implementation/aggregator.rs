@@ -6,7 +6,7 @@ use crate::hints::types::HintArgs;
 use crate::hints::vars::Ids;
 
 pub(crate) fn allocate_segments_for_messages<S: StateReader>(
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let segment1 = vm.add_temporary_segment();
     let segment2 = vm.add_temporary_segment();
@@ -22,41 +22,41 @@ pub(crate) fn allocate_segments_for_messages<S: StateReader>(
 }
 
 pub(crate) fn disable_da_page_creation<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     todo!()
 }
 
 pub(crate) fn get_os_output_for_inner_blocks<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     todo!()
 }
 
 pub(crate) fn get_aggregator_output<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     todo!()
 }
 
-pub(crate) fn write_da_segment<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
+pub(crate) fn write_da_segment<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> OsHintResult {
     todo!()
 }
 
 pub(crate) fn get_full_output_from_input<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     todo!()
 }
 
 pub(crate) fn get_use_kzg_da_from_input<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     todo!()
 }
 
 pub(crate) fn set_state_update_pointers_to_none<S: StateReader>(
-    HintArgs { hint_processor, .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     hint_processor.state_update_pointers = None;
     Ok(())

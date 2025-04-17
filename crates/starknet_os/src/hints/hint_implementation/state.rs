@@ -45,7 +45,11 @@ fn verify_tree_height_eq_merkle_height(tree_height: Felt, merkle_height: Felt) -
 }
 
 fn set_preimage_for_commitments<S: StateReader>(
-    HintArgs { hint_processor, vm, exec_scopes, ids_data, ap_tracking, constants }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, exec_scopes, ids_data, ap_tracking, constants }: HintArgs<
+        '_,
+        '_,
+        S,
+    >,
 ) -> OsHintResult {
     let os_input = &hint_processor.get_current_execution_helper()?.os_block_input;
     let CommitmentInfo { previous_root, updated_root, commitment_facts, tree_height } =
@@ -72,7 +76,7 @@ fn set_preimage_for_commitments<S: StateReader>(
 }
 
 pub(crate) fn compute_commitments_on_finalized_state_with_aliases<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     // Do nothing here and use `address_to_storage_commitment_info` directly from the execution
     // helper.
@@ -80,21 +84,25 @@ pub(crate) fn compute_commitments_on_finalized_state_with_aliases<S: StateReader
 }
 
 pub(crate) fn set_preimage_for_state_commitments<S: StateReader>(
-    hint_args: HintArgs<'_, S>,
+    hint_args: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     hint_args.hint_processor.commitment_type = CommitmentType::State;
     set_preimage_for_commitments(hint_args)
 }
 
 pub(crate) fn set_preimage_for_class_commitments<S: StateReader>(
-    hint_args: HintArgs<'_, S>,
+    hint_args: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     hint_args.hint_processor.commitment_type = CommitmentType::Class;
     set_preimage_for_commitments(hint_args)
 }
 
 pub(crate) fn set_preimage_for_current_commitment_info<S: StateReader>(
-    HintArgs { vm, constants, ids_data, ap_tracking, exec_scopes, hint_processor }: HintArgs<'_, S>,
+    HintArgs { vm, constants, ids_data, ap_tracking, exec_scopes, hint_processor }: HintArgs<
+        '_,
+        '_,
+        S,
+    >,
 ) -> OsHintResult {
     let contract_address: ContractAddress =
         get_integer_from_var_name(Ids::ContractAddress.into(), vm, ids_data, ap_tracking)?
@@ -133,7 +141,7 @@ pub(crate) fn set_preimage_for_current_commitment_info<S: StateReader>(
 }
 
 pub(crate) fn load_edge<S: StateReader>(
-    HintArgs { hint_processor, vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     // TODO(Nimrod): Verify that it's ok to ignore the scope variable
     // `__patricia_skip_validation_runner`.
@@ -159,7 +167,7 @@ pub(crate) fn load_edge<S: StateReader>(
             ("path", Felt::from(&path_to_bottom.path).into()),
             ("bottom", bottom_hash.0.into()),
         ],
-        &hint_processor.os_program,
+        hint_processor.os_program,
     )?;
     let hash_ptr = get_relocatable_from_var_name(Ids::HashPtr.into(), vm, ids_data, ap_tracking)?;
     insert_value_to_nested_field(
@@ -167,22 +175,22 @@ pub(crate) fn load_edge<S: StateReader>(
         hint_processor.commitment_type.hash_builtin_struct(),
         vm,
         &["result"],
-        &hint_processor.os_program,
+        hint_processor.os_program,
         node.0 - Felt::from(path_to_bottom.length),
     )?;
     Ok(())
 }
 
-pub(crate) fn load_bottom<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
+pub(crate) fn load_bottom<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> OsHintResult {
     todo!()
 }
 
-pub(crate) fn decode_node<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
+pub(crate) fn decode_node<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> OsHintResult {
     todo!()
 }
 
 pub(crate) fn guess_state_ptr<S: StateReader>(
-    HintArgs { hint_processor, ids_data, ap_tracking, vm, .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, ids_data, ap_tracking, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let state_changes_start =
         if let Some(state_update_pointers) = &hint_processor.state_update_pointers {
@@ -200,7 +208,7 @@ pub(crate) fn guess_state_ptr<S: StateReader>(
 }
 
 pub(crate) fn update_state_ptr<S: StateReader>(
-    HintArgs { hint_processor, ids_data, ap_tracking, vm, .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, ids_data, ap_tracking, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     if let Some(state_update_pointers) = &mut hint_processor.state_update_pointers {
         let contract_state_changes_end = get_relocatable_from_var_name(
@@ -215,7 +223,7 @@ pub(crate) fn update_state_ptr<S: StateReader>(
 }
 
 pub(crate) fn guess_classes_ptr<S: StateReader>(
-    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let class_changes_start =
         if let Some(state_update_pointers) = &hint_processor.state_update_pointers {
@@ -233,7 +241,7 @@ pub(crate) fn guess_classes_ptr<S: StateReader>(
 }
 
 pub(crate) fn update_classes_ptr<S: StateReader>(
-    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     if let Some(state_update_pointers) = &mut hint_processor.state_update_pointers {
         let classes_changes_end =

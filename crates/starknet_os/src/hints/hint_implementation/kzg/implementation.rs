@@ -18,7 +18,7 @@ use crate::hints::types::HintArgs;
 use crate::hints::vars::{Const, Ids};
 
 pub(crate) fn store_da_segment<S: StateReader>(
-    HintArgs { hint_processor, vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     log::debug!("Executing store_da_segment hint.");
     let state_updates_start =
@@ -80,7 +80,7 @@ pub(crate) fn store_da_segment<S: StateReader>(
 }
 
 pub(crate) fn write_split_result<S: StateReader>(
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let value =
         get_integer_from_var_name(Ids::Value.into(), vm, ids_data, ap_tracking)?.to_bigint();
