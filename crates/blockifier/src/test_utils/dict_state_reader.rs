@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{SierraContractClass, StorageKey};
@@ -8,6 +9,7 @@ use crate::execution::contract_class::RunnableCompiledClass;
 use crate::state::cached_state::StorageEntry;
 use crate::state::errors::StateError;
 use crate::state::state_api::{StateReader, StateResult};
+use crate::state::state_reader_and_contract_manager::CompiledClass;
 
 /// A simple implementation of `StateReader` using `HashMap`s as storage.
 #[derive(Clone, Debug, Default)]
@@ -53,7 +55,6 @@ impl DictStateReader {
 }
 
 impl StateReader for DictStateReader {
-    // TODO(AvivG): impl get_sierra_and_casm(class_hash: ClassHash) -> StateResult<SierraContractClass>
     fn get_storage_at(
         &self,
         contract_address: ContractAddress,
@@ -90,5 +91,32 @@ impl StateReader for DictStateReader {
         let compiled_class_hash =
             self.class_hash_to_compiled_class_hash.get(&class_hash).copied().unwrap_or_default();
         Ok(compiled_class_hash)
+    }
+
+    fn get_sierra_and_casm(&self, class_hash: ClassHash) -> StateResult<CompiledClass> {
+        let runnable = self
+            .class_hash_to_class
+            .get(&class_hash)
+            .ok_or(StateError::UndeclaredClassHash(class_hash))?;
+
+        match runnable {
+            RunnableCompiledClass::V0(class) => {
+                // Cairo 0 class — Sierra is not expected or needed.
+                Ok(CompiledClass::V0(class.clone()))
+            }
+            RunnableCompiledClass::V1(casm_class) => {
+                // Cairo 1 class — Sierra is required for compilation.
+                let sierra_class = self
+                    .class_hash_to_sierra
+                    .get(&class_hash)
+                    .ok_or(StateError::MissingSierra(class_hash))?;
+                Ok(CompiledClass::V1(casm_class.clone(), Arc::new(sierra_class.clone())))
+            }
+            #[cfg(feature = "cairo_native")]
+            RunnableCompiledClass::V1Native(_) => {
+                // Native classes should not reach this point — Sierra is not required.
+                panic!("Native classes are not supported here")
+            }
+        }
     }
 }
