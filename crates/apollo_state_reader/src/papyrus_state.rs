@@ -14,6 +14,7 @@ use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::{couple_casm_and_sierra, StateError};
 use blockifier::state::global_cache::CachedClass;
 use blockifier::state::state_api::{StateReader, StateResult};
+use blockifier::state::state_reader_and_contract_manager::CompiledClass;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use log;
 use starknet_api::block::BlockNumber;
@@ -259,5 +260,16 @@ impl StateReader for PapyrusReader {
 
     fn get_compiled_class_hash(&self, _class_hash: ClassHash) -> StateResult<CompiledClassHash> {
         todo!()
+    }
+
+    fn get_sierra_and_casm(&self, class_hash: ClassHash) -> StateResult<CompiledClass> {
+        match self.get_compiled_class_from_db(class_hash)? {
+            CachedClass::V1(casm, sierra) => Ok(CompiledClass::V1(casm, sierra)),
+            CachedClass::V0(casm) => Ok(CompiledClass::V0(casm)),
+            #[cfg(feature = "cairo_native")]
+            CachedClass::V1Native(_) => {
+                panic!("native contract is not expected at this stage.")
+            }
+        }
     }
 }
