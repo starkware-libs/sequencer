@@ -1,13 +1,14 @@
 use std::collections::HashMap;
 
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::state::StorageKey;
+use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_types_core::felt::Felt;
 
 use crate::execution::contract_class::RunnableCompiledClass;
 use crate::state::cached_state::StorageEntry;
 use crate::state::errors::StateError;
 use crate::state::state_api::{StateReader, StateResult};
+use crate::test_utils::contracts::FeatureContractData;
 
 /// A simple implementation of `StateReader` using `HashMap`s as storage.
 #[derive(Clone, Debug, Default)]
@@ -16,7 +17,32 @@ pub struct DictStateReader {
     pub address_to_nonce: HashMap<ContractAddress, Nonce>,
     pub address_to_class_hash: HashMap<ContractAddress, ClassHash>,
     pub class_hash_to_class: HashMap<ClassHash, RunnableCompiledClass>,
+    pub class_hash_to_sierra: HashMap<ClassHash, SierraContractClass>,
     pub class_hash_to_compiled_class_hash: HashMap<ClassHash, CompiledClassHash>,
+}
+
+impl DictStateReader {
+    pub fn add_class(&mut self, contract: &FeatureContractData) {
+        self.class_hash_to_class.insert(contract.class_hash, contract.runnable_class.clone());
+
+        match contract.runnable_class {
+            RunnableCompiledClass::V0(_) => {
+                assert!(
+                    contract.sierra.is_none(),
+                    "Sierra class should not be provided for Cairo0"
+                );
+            }
+            RunnableCompiledClass::V1(_) => {
+                assert!(contract.sierra.is_some(), "Sierra class is required for Cairo1");
+                self.class_hash_to_sierra
+                    .insert(contract.class_hash, contract.sierra.clone().unwrap());
+            }
+            #[cfg(feature = "cairo_native")]
+            RunnableCompiledClass::V1Native(_) => {
+                // Do nothing, Sierra class is not required for native classes.
+            }
+        }
+    }
 }
 
 impl StateReader for DictStateReader {
