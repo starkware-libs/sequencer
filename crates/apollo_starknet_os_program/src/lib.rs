@@ -15,9 +15,15 @@ pub static CAIRO_FILES_MAP: LazyLock<HashMap<String, String>> = LazyLock::new(||
 });
 
 pub const OS_PROGRAM_BYTES: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/starknet_os_bytes"));
+pub const AGGREGATOR_PROGRAM_BYTES: &[u8] =
+    include_bytes!(concat!(env!("OUT_DIR"), "/starknet_aggregator_bytes"));
 
 pub static OS_PROGRAM: LazyLock<Program> = LazyLock::new(|| {
     Program::from_bytes(OS_PROGRAM_BYTES, Some("main")).expect("Failed to load the OS bytes.")
+});
+pub static AGGREGATOR_PROGRAM: LazyLock<Program> = LazyLock::new(|| {
+    Program::from_bytes(AGGREGATOR_PROGRAM_BYTES, Some("main"))
+        .expect("Failed to load the aggregator bytes.")
 });
 
 pub static PROGRAM_HASH: LazyLock<ProgramHash> = LazyLock::new(|| {
