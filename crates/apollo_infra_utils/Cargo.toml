@@ -20,12 +20,15 @@ num_enum.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 socket2 = { workspace = true, optional = true }
+thiserror.workspace = true
 tokio = { workspace = true, features = ["process", "rt", "time"] }
 toml = { workspace = true, optional = true }
 tracing.workspace = true
 
 [dev-dependencies]
+assert-json-diff.workspace = true
 cached.workspace = true
+colored.workspace = true
 nix.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
