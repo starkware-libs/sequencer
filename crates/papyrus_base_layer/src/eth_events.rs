@@ -20,6 +20,7 @@ impl TryFrom<Log> for L1Event {
 
     fn try_from(log: Log) -> EthereumBaseLayerResult<Self> {
         let validate = true;
+        let l1_tx_hash = log.transaction_hash;
         let log = log.inner;
 
         let event = Starknet::StarknetEvents::decode_log(&log, validate)?.data;
@@ -41,7 +42,7 @@ impl TryFrom<Log> for L1Event {
                     nonce: event_data.nonce,
                     calldata: event_data.payload,
                 };
-                Ok(L1Event::LogMessageToL2 { tx, fee })
+                Ok(L1Event::LogMessageToL2 { tx, fee, l1_tx_hash })
             }
             Starknet::StarknetEvents::ConsumedMessageToL2(event) => {
                 Ok(L1Event::ConsumedMessageToL2(event.try_into()?))
