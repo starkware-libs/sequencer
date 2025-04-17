@@ -16,7 +16,7 @@ use crate::vm_utils::get_address_of_nested_fields;
 /// * The limbs of value are in the range [0, BASE * 3).
 /// * value is in the range [0, 2 ** 256).
 pub(crate) fn compute_ids_low<S: StateReader>(
-    HintArgs { hint_processor, vm, ap_tracking, ids_data, constants, .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, ap_tracking, ids_data, constants, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let d0 = vm
         .get_integer(get_address_of_nested_fields(
@@ -26,7 +26,7 @@ pub(crate) fn compute_ids_low<S: StateReader>(
             vm,
             ap_tracking,
             &["d0"],
-            &hint_processor.os_program,
+            hint_processor.os_program,
         )?)?
         .into_owned();
     let d1 = vm
@@ -37,7 +37,7 @@ pub(crate) fn compute_ids_low<S: StateReader>(
             vm,
             ap_tracking,
             &["d1"],
-            &hint_processor.os_program,
+            hint_processor.os_program,
         )?)?
         .into_owned();
     let base = get_constant_from_var_name(Const::Base.into(), constants)?;

@@ -20,8 +20,8 @@ pub trait HintEnum {
     fn to_str(&self) -> &'static str;
 }
 
-pub struct HintArgs<'a, S: StateReader> {
-    pub hint_processor: &'a mut SnosHintProcessor<S>,
+pub struct HintArgs<'a, 'program, S: StateReader> {
+    pub hint_processor: &'a mut SnosHintProcessor<'program, S>,
     pub vm: &'a mut VirtualMachine,
     pub exec_scopes: &'a mut ExecutionScopes,
     pub ids_data: &'a HashMap<String, HintReference>,
@@ -31,7 +31,7 @@ pub struct HintArgs<'a, S: StateReader> {
 
 /// Executes the hint logic.
 pub trait HintImplementation {
-    fn execute_hint<S: StateReader>(&self, hint_args: HintArgs<'_, S>) -> OsHintResult;
+    fn execute_hint<S: StateReader>(&self, hint_args: HintArgs<'_, '_, S>) -> OsHintResult;
 }
 
 /// Hint extensions extend the current map of hints used by the VM.
@@ -40,6 +40,6 @@ pub trait HintImplementation {
 pub trait HintExtensionImplementation {
     fn execute_hint_extensive<S: StateReader>(
         &self,
-        hint_extension_args: HintArgs<'_, S>,
+        hint_extension_args: HintArgs<'_, '_, S>,
     ) -> OsHintExtensionResult;
 }

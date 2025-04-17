@@ -87,8 +87,9 @@ impl<S: StateReader> ExecutionHelpersManager<S> {
     }
 }
 
-pub struct SnosHintProcessor<S: StateReader> {
-    pub(crate) os_program: Program,
+pub struct SnosHintProcessor<'a, S: StateReader> {
+    // The program being run. The hint processor does not require ownership.
+    pub(crate) os_program: &'a Program,
     pub(crate) execution_helpers_manager: ExecutionHelpersManager<S>,
     pub(crate) os_hints_config: OsHintsConfig,
     pub syscall_hint_processor: SyscallHintProcessor,
@@ -104,9 +105,9 @@ pub struct SnosHintProcessor<S: StateReader> {
     da_segment: Option<Vec<Felt>>,
 }
 
-impl<S: StateReader> SnosHintProcessor<S> {
+impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
     pub fn new(
-        os_program: Program,
+        os_program: &'a Program,
         os_hints: OsHints,
         state_readers: Vec<S>,
         syscall_hint_processor: SyscallHintProcessor,
@@ -181,7 +182,7 @@ impl<S: StateReader> SnosHintProcessor<S> {
     }
 }
 
-impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<S> {
+impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<'_, S> {
     fn execute_hint(
         &mut self,
         _vm: &mut VirtualMachine,
@@ -241,15 +242,14 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<S> {
 }
 
 #[cfg(any(test, feature = "testing"))]
-impl SnosHintProcessor<DictStateReader> {
+impl<'a> SnosHintProcessor<'a, DictStateReader> {
     pub fn new_for_testing(
         state_reader: Option<DictStateReader>,
-        os_program: Option<Program>,
+        os_program: &'a Program,
         os_hints_config: Option<OsHintsConfig>,
         os_block_input: Option<(OsBlockInput, CachedStateInput)>,
     ) -> Result<Self, StarknetOsError> {
         let state_reader = state_reader.unwrap_or_default();
-        let os_program = os_program.unwrap_or_default();
         let os_hints_config = os_hints_config.unwrap_or_default();
         let os_block_input = os_block_input.unwrap_or_default();
         let os_input = StarknetOsInput {
@@ -271,7 +271,7 @@ impl SnosHintProcessor<DictStateReader> {
 }
 
 /// Default implementation (required for the VM to use the type as a hint processor).
-impl<S: StateReader> ResourceTracker for SnosHintProcessor<S> {}
+impl<S: StateReader> ResourceTracker for SnosHintProcessor<'_, S> {}
 
 pub struct SyscallHintProcessor {
     // Sha256 segments.

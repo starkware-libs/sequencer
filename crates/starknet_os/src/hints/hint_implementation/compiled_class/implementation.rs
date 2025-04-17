@@ -29,7 +29,7 @@ use crate::vm_utils::{
 };
 
 pub(crate) fn assign_bytecode_segments<S: StateReader>(
-    HintArgs { exec_scopes, .. }: HintArgs<'_, S>,
+    HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let bytecode_segment_structure: BytecodeSegmentNode =
         exec_scopes.get(Scope::BytecodeSegmentStructure.into())?;
@@ -44,13 +44,13 @@ pub(crate) fn assign_bytecode_segments<S: StateReader>(
 }
 
 pub(crate) fn assert_end_of_bytecode_segments<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     todo!()
 }
 
 pub(crate) fn bytecode_segment_structure<S: StateReader>(
-    HintArgs { hint_processor, exec_scopes, ids_data, ap_tracking, vm, .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, exec_scopes, ids_data, ap_tracking, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let bytecode_segment_structures: &HashMap<ClassHash, BytecodeSegmentNode> =
         exec_scopes.get_ref(Scope::BytecodeSegmentStructures.into())?;
@@ -62,7 +62,7 @@ pub(crate) fn bytecode_segment_structure<S: StateReader>(
         vm,
         ap_tracking,
         &["hash"],
-        &hint_processor.os_program,
+        hint_processor.os_program,
     )?;
 
     let class_hash = ClassHash(*vm.get_integer(class_hash_address)?.as_ref());
@@ -81,13 +81,15 @@ pub(crate) fn bytecode_segment_structure<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn delete_memory_data<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
+pub(crate) fn delete_memory_data<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, '_, S>,
+) -> OsHintResult {
     // TODO(Yoni): Assert that the address was not accessed before.
     todo!()
 }
 
 pub(crate) fn is_leaf<S: StateReader>(
-    HintArgs { vm, exec_scopes, ap_tracking, ids_data, .. }: HintArgs<'_, S>,
+    HintArgs { vm, exec_scopes, ap_tracking, ids_data, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let bytecode_segment_structure: &BytecodeSegmentNode =
         exec_scopes.get_ref(Scope::BytecodeSegmentStructure.into())?;
@@ -102,13 +104,13 @@ pub(crate) fn is_leaf<S: StateReader>(
 }
 
 pub(crate) fn iter_current_segment_info<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     todo!()
 }
 
 pub(crate) fn load_class<S: StateReader>(
-    HintArgs { exec_scopes, ids_data, ap_tracking, vm, hint_processor, .. }: HintArgs<'_, S>,
+    HintArgs { exec_scopes, ids_data, ap_tracking, vm, hint_processor, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     exec_scopes.exit_scope()?;
     let expected_hash_address = get_address_of_nested_fields(
@@ -118,7 +120,7 @@ pub(crate) fn load_class<S: StateReader>(
         vm,
         ap_tracking,
         &["hash"],
-        &hint_processor.os_program,
+        hint_processor.os_program,
     )?;
     let expected_hash = vm.get_integer(expected_hash_address)?;
     let computed_hash = get_integer_from_var_name(Ids::Hash.into(), vm, ids_data, ap_tracking)?;
@@ -135,7 +137,7 @@ pub(crate) fn load_class<S: StateReader>(
 }
 
 pub(crate) fn set_ap_to_segment_hash<S: StateReader>(
-    HintArgs { exec_scopes, vm, .. }: HintArgs<'_, S>,
+    HintArgs { exec_scopes, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let bytecode_segment_structure: &BytecodeSegmentNode =
         exec_scopes.get_ref(Scope::BytecodeSegmentStructure.into())?;
@@ -144,7 +146,7 @@ pub(crate) fn set_ap_to_segment_hash<S: StateReader>(
 }
 
 pub(crate) fn validate_compiled_class_facts_post_execution<S: StateReader>(
-    HintArgs { hint_processor, exec_scopes, .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let mut bytecode_segment_structures = HashMap::new();
     for (compiled_hash, compiled_class) in hint_processor.compiled_classes.iter() {
@@ -168,9 +170,9 @@ pub(crate) fn validate_compiled_class_facts_post_execution<S: StateReader>(
 
 // Hint extensions.
 pub(crate) fn load_class_inner<S: StateReader>(
-    HintArgs { hint_processor, constants, vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, constants, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintExtensionResult {
-    let identifier_getter = &hint_processor.os_program;
+    let identifier_getter = hint_processor.os_program;
     let mut hint_extension = HintExtension::new();
     let mut compiled_class_facts_ptr = vm.add_memory_segment();
     // Insert n_compiled_class_facts, compiled_class_facts.
