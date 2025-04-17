@@ -247,8 +247,6 @@ pub struct TxWeights {
 pub struct Bouncer {
     // Additional info; maintained and used to calculate the residual contribution of a transaction
     // to the accumulated weights.
-    // TODO(Aviv): Remove these field and use the casm hash computation data instead.
-    pub executed_class_hashes: HashSet<ClassHash>,
     pub visited_storage_entries: HashSet<StorageEntry>,
     pub state_changes_keys: StateChangesKeys,
     // Additional info for the scheduler
@@ -265,7 +263,6 @@ impl Bouncer {
 
     pub fn empty() -> Self {
         Bouncer {
-            executed_class_hashes: HashSet::default(),
             visited_storage_entries: HashSet::default(),
             state_changes_keys: StateChangesKeys::default(),
             bouncer_config: BouncerConfig::empty(),
@@ -276,6 +273,14 @@ impl Bouncer {
 
     pub fn get_accumulated_weights(&self) -> &BouncerWeights {
         &self.accumulated_weights
+    }
+
+    pub fn get_executed_class_hashes(&self) -> HashSet<ClassHash> {
+        self.casm_hash_computation_data
+            .class_hash_to_casm_hash_computation_gas
+            .keys()
+            .cloned()
+            .collect()
     }
 
     /// Updates the bouncer with a new transaction.
@@ -293,7 +298,7 @@ impl Bouncer {
             tx_state_changes_keys.difference(&self.state_changes_keys);
         let marginal_executed_class_hashes = tx_execution_summary
             .executed_class_hashes
-            .difference(&self.executed_class_hashes)
+            .difference(&self.get_executed_class_hashes())
             .cloned()
             .collect();
         let n_marginal_visited_storage_entries = tx_execution_summary
@@ -348,7 +353,6 @@ impl Bouncer {
             self.accumulated_weights.checked_add(tx_weights.bouncer_weights).expect(&err_msg);
         self.casm_hash_computation_data.extend(tx_weights.casm_hash_computation_data);
         self.visited_storage_entries.extend(&tx_execution_summary.visited_storage_entries);
-        self.executed_class_hashes.extend(&tx_execution_summary.executed_class_hashes);
         // Note: cancelling writes (0 -> 1 -> 0) will not be removed, but it's fine since fee was
         // charged for them.
         self.state_changes_keys.extend(state_changes_keys);
