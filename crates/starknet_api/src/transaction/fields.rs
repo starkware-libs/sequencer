@@ -105,8 +105,14 @@ pub struct ContractAddressSalt(pub StarkHash);
 #[derive(
     Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, SizeOf,
 )]
-pub struct TransactionSignature(pub Vec<Felt>);
-
+pub struct TransactionDeprSignature(pub Vec<Felt>);
+/// A transaction signature, wrapped in `Arc` for efficient cloning and safe sharing across threads.
+/// `Rc` is avoided due to its lack of thread safety, and `Mutex` is unnecessary as the signature
+/// vector is immutable and never modified.
+#[derive(
+    Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, SizeOf,
+)]
+pub struct TransactionSignature(pub Arc<Vec<Felt>>);
 /// The calldata of a transaction.
 #[derive(
     Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, SizeOf,

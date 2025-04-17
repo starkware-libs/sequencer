@@ -93,7 +93,7 @@ use starknet_api::transaction::fields::{
     PaymasterData,
     ResourceBounds,
     Tip,
-    TransactionSignature,
+    TransactionDeprSignature,
 };
 use starknet_api::transaction::{
     EventContent,
@@ -227,7 +227,7 @@ fn invoke_transaction() -> RpcInvokeTransaction {
     RpcInvokeTransaction::V3(RpcInvokeTransactionV3 {
         resource_bounds: resource_bounds(),
         tip: Tip(1),
-        signature: TransactionSignature(felt_vector()),
+        signature: TransactionDeprSignature(felt_vector()),
         nonce: nonce!(1),
         sender_address: contract_address!(
             "0x14abfd58671a1a9b30de2fcd2a42e8bff2ce1096a7c70bc7995904965f277e"
@@ -256,7 +256,7 @@ fn deploy_account_tx() -> InternalRpcDeployAccountTransaction {
         tx: RpcDeployAccountTransaction::V3(RpcDeployAccountTransactionV3 {
             resource_bounds: resource_bounds(),
             tip: Tip(1),
-            signature: TransactionSignature(felt_vector()),
+            signature: TransactionDeprSignature(felt_vector()),
             nonce: nonce!(1),
             class_hash: ClassHash(felt!(
                 "0x1b5a0b09f23b091d5d1fa2f660ddfad6bcfce607deba23806cd7328ccfb8ee9"
@@ -291,7 +291,7 @@ fn declare_transaction() -> InternalRpcDeclareTransactionV3 {
     InternalRpcDeclareTransactionV3 {
         resource_bounds: resource_bounds(),
         tip: Tip(1),
-        signature: TransactionSignature(felt_vector()),
+        signature: TransactionDeprSignature(felt_vector()),
         nonce: nonce!(1),
         class_hash: declare_class_hash(),
         compiled_class_hash: declare_compiled_class_hash(),

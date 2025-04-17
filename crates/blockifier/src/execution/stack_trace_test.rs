@@ -27,7 +27,7 @@ use starknet_api::transaction::constants::{
 use starknet_api::transaction::fields::{
     ContractAddressSalt,
     Fee,
-    TransactionSignature,
+    TransactionDeprSignature,
     ValidResourceBounds,
 };
 use starknet_api::transaction::TransactionVersion;
@@ -764,7 +764,7 @@ fn test_contract_ctor_frame_stack_trace(
     let salt = felt!(7_u8);
     // Constructor arg: set to true to fail deployment.
     let validate_constructor = felt!(FELT_TRUE);
-    let signature = TransactionSignature(vec![felt!(INVALID)]);
+    let signature = TransactionDeprSignature(vec![felt!(INVALID)]);
     let expected_deployed_address = calculate_contract_address(
         ContractAddressSalt(salt),
         faulty_class_hash,

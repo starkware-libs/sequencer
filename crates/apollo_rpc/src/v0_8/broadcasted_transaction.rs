@@ -22,7 +22,7 @@ use starknet_api::transaction::fields::{
     Fee,
     PaymasterData,
     Tip,
-    TransactionSignature,
+    TransactionDeprSignature,
 };
 use starknet_api::transaction::TransactionVersion;
 
@@ -75,7 +75,7 @@ pub struct BroadcastedDeclareV1Transaction {
     pub sender_address: ContractAddress,
     pub nonce: Nonce,
     pub max_fee: Fee,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
 }
 
 /// A broadcasted declare transaction of a Cairo-v1 contract.
@@ -94,7 +94,7 @@ pub struct BroadcastedDeclareV2Transaction {
     pub sender_address: ContractAddress,
     pub nonce: Nonce,
     pub max_fee: Fee,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq)]
@@ -103,7 +103,7 @@ pub struct BroadcastedDeclareV3Transaction {
     pub r#type: DeclareType,
     pub sender_address: ContractAddress,
     pub compiled_class_hash: CompiledClassHash,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub nonce: Nonce,
     pub contract_class: ContractClass,
     pub resource_bounds: ResourceBoundsMapping,

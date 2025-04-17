@@ -121,7 +121,7 @@ use starknet_api::transaction::fields::{
     Resource,
     ResourceBounds,
     Tip,
-    TransactionSignature,
+    TransactionDeprSignature,
     ValidResourceBounds,
 };
 use starknet_api::transaction::{
@@ -545,14 +545,14 @@ auto_impl_get_test_instance! {
     }
     pub struct DeclareTransactionV0V1 {
         pub max_fee: Fee,
-        pub signature: TransactionSignature,
+        pub signature: TransactionDeprSignature,
         pub nonce: Nonce,
         pub class_hash: ClassHash,
         pub sender_address: ContractAddress,
     }
     pub struct DeclareTransactionV2 {
         pub max_fee: Fee,
-        pub signature: TransactionSignature,
+        pub signature: TransactionDeprSignature,
         pub nonce: Nonce,
         pub class_hash: ClassHash,
         pub compiled_class_hash: CompiledClassHash,
@@ -561,7 +561,7 @@ auto_impl_get_test_instance! {
     pub struct DeclareTransactionV3 {
         pub resource_bounds: ValidResourceBounds,
         pub tip: Tip,
-        pub signature: TransactionSignature,
+        pub signature: TransactionDeprSignature,
         pub nonce: Nonce,
         pub class_hash: ClassHash,
         pub compiled_class_hash: CompiledClassHash,
@@ -585,7 +585,7 @@ auto_impl_get_test_instance! {
     }
     pub struct DeployAccountTransactionV1 {
         pub max_fee: Fee,
-        pub signature: TransactionSignature,
+        pub signature: TransactionDeprSignature,
         pub nonce: Nonce,
         pub class_hash: ClassHash,
         pub contract_address_salt: ContractAddressSalt,
@@ -594,7 +594,7 @@ auto_impl_get_test_instance! {
     pub struct DeployAccountTransactionV3 {
         pub resource_bounds: ValidResourceBounds,
         pub tip: Tip,
-        pub signature: TransactionSignature,
+        pub signature: TransactionDeprSignature,
         pub nonce: Nonce,
         pub class_hash: ClassHash,
         pub contract_address_salt: ContractAddressSalt,
@@ -682,14 +682,14 @@ auto_impl_get_test_instance! {
     }
     pub struct InvokeTransactionV0 {
         pub max_fee: Fee,
-        pub signature: TransactionSignature,
+        pub signature: TransactionDeprSignature,
         pub contract_address: ContractAddress,
         pub entry_point_selector: EntryPointSelector,
         pub calldata: Calldata,
     }
     pub struct InvokeTransactionV1 {
         pub max_fee: Fee,
-        pub signature: TransactionSignature,
+        pub signature: TransactionDeprSignature,
         pub nonce: Nonce,
         pub sender_address: ContractAddress,
         pub calldata: Calldata,
@@ -697,7 +697,7 @@ auto_impl_get_test_instance! {
     pub struct InvokeTransactionV3 {
         pub resource_bounds: ValidResourceBounds,
         pub tip: Tip,
-        pub signature: TransactionSignature,
+        pub signature: TransactionDeprSignature,
         pub nonce: Nonce,
         pub sender_address: ContractAddress,
         pub calldata: Calldata,
@@ -768,7 +768,7 @@ auto_impl_get_test_instance! {
     pub struct InternalRpcDeclareTransactionV3 {
         pub sender_address: ContractAddress,
         pub compiled_class_hash: CompiledClassHash,
-        pub signature: TransactionSignature,
+        pub signature: TransactionDeprSignature,
         pub nonce: Nonce,
         pub class_hash: ClassHash,
         pub resource_bounds: AllResourceBounds,
@@ -793,7 +793,7 @@ auto_impl_get_test_instance! {
     pub struct RpcDeclareTransactionV3 {
         pub resource_bounds: AllResourceBounds,
         pub tip: Tip,
-        pub signature: TransactionSignature,
+        pub signature: TransactionDeprSignature,
         pub nonce: Nonce,
         pub contract_class: SierraContractClass,
         pub compiled_class_hash: CompiledClassHash,
@@ -809,7 +809,7 @@ auto_impl_get_test_instance! {
     pub struct RpcDeployAccountTransactionV3 {
         pub resource_bounds: AllResourceBounds,
         pub tip: Tip,
-        pub signature: TransactionSignature,
+        pub signature: TransactionDeprSignature,
         pub nonce: Nonce,
         pub class_hash: ClassHash,
         pub contract_address_salt: ContractAddressSalt,
@@ -829,7 +829,7 @@ auto_impl_get_test_instance! {
     pub struct RpcInvokeTransactionV3 {
         pub resource_bounds: AllResourceBounds,
         pub tip: Tip,
-        pub signature: TransactionSignature,
+        pub signature: TransactionDeprSignature,
         pub nonce: Nonce,
         pub sender_address: ContractAddress,
         pub calldata: Calldata,
@@ -890,7 +890,7 @@ auto_impl_get_test_instance! {
         Invoke(InvokeTransactionOutput) = 3,
         L1Handler(L1HandlerTransactionOutput) = 4,
     }
-    pub struct TransactionSignature(pub Vec<Felt>);
+    pub struct TransactionDeprSignature(pub Vec<Felt>);
     pub struct TransactionVersion(pub Felt);
     pub struct TypedParameter {
         pub name: String,

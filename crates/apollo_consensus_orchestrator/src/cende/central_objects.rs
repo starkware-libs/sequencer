@@ -42,7 +42,7 @@ use starknet_api::transaction::fields::{
     PaymasterData,
     ResourceBounds,
     Tip,
-    TransactionSignature,
+    TransactionDeprSignature,
 };
 use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
@@ -174,7 +174,7 @@ impl From<AllResourceBounds> for CentralResourceBounds {
 struct CentralInvokeTransactionV3 {
     resource_bounds: CentralResourceBounds,
     tip: Tip,
-    signature: TransactionSignature,
+    signature: TransactionDeprSignature,
     nonce: Nonce,
     sender_address: ContractAddress,
     calldata: Calldata,
@@ -217,7 +217,7 @@ enum CentralInvokeTransaction {
 struct CentralDeployAccountTransactionV3 {
     resource_bounds: CentralResourceBounds,
     tip: Tip,
-    signature: TransactionSignature,
+    signature: TransactionDeprSignature,
     nonce: Nonce,
     class_hash: ClassHash,
     contract_address_salt: ContractAddressSalt,
@@ -270,7 +270,7 @@ fn into_string_tuple(val: SierraVersion) -> (String, String, String) {
 struct CentralDeclareTransactionV3 {
     resource_bounds: CentralResourceBounds,
     tip: Tip,
-    signature: TransactionSignature,
+    signature: TransactionDeprSignature,
     nonce: Nonce,
     class_hash: ClassHash,
     compiled_class_hash: CompiledClassHash,
