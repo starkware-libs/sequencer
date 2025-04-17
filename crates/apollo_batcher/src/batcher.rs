@@ -519,7 +519,7 @@ impl Batcher {
             height,
             state_diff.clone(),
             block_execution_artifacts.address_to_nonce(),
-            block_execution_artifacts.execution_data.accepted_l1_handler_tx_hashes,
+            block_execution_artifacts.execution_data.consumed_l1_handler_tx_hashes,
             block_execution_artifacts.execution_data.rejected_tx_hashes,
         )
         .await?;
@@ -550,7 +550,7 @@ impl Batcher {
         height: BlockNumber,
         state_diff: ThinStateDiff,
         address_to_nonce: HashMap<ContractAddress, Nonce>,
-        accepted_l1_handler_tx_hashes: IndexSet<TransactionHash>,
+        consumed_l1_handler_tx_hashes: IndexSet<TransactionHash>,
         rejected_tx_hashes: HashSet<TransactionHash>,
     ) -> BatcherResult<()> {
         info!(
@@ -577,7 +577,7 @@ impl Batcher {
 
         let l1_provider_result = self
             .l1_provider_client
-            .commit_block(accepted_l1_handler_tx_hashes.iter().copied().collect(), height)
+            .commit_block(consumed_l1_handler_tx_hashes.iter().copied().collect(), height)
             .await;
         l1_provider_result.unwrap_or_else(|err| match err {
             L1ProviderClientError::L1ProviderError(L1ProviderError::UnexpectedHeight {
