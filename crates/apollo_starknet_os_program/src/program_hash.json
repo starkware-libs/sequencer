@@ -1,3 +1,5 @@
 {
-  "os": "0x44a93b0a0bed63f4c3ca30418dff64aed464ce2cf1e9cad25624f540cac27c8"
+  "os": "0x44a93b0a0bed63f4c3ca30418dff64aed464ce2cf1e9cad25624f540cac27c8",
+  "aggregator": "0x181986bfe23bbfdac56c40522bd5c2b1b64c824c74bd6722a3ccacc8cc888e2",
+  "aggregator_with_prefix": "0x1ae51bd7157e0754f1e1729806ad5579a7ac6926cd0c8dd342ad1e7a3758c2e"
 }

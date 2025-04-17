@@ -3,11 +3,8 @@ use std::path::PathBuf;
 use apollo_infra_utils::cairo0_compiler::{compile_cairo0_program, Cairo0CompilerError};
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
 
-/// Compile the StarkNet OS program.
-pub fn compile_starknet_os() -> Vec<u8> {
-    let cairo_root_path = PathBuf::from(compile_time_cargo_manifest_dir!()).join("src/cairo");
-    let os_main_path = cairo_root_path.join("starkware/starknet/core/os/os.cairo");
-    match compile_cairo0_program(os_main_path, cairo_root_path) {
+fn compile_program(path_to_main_file: PathBuf) -> Vec<u8> {
+    match compile_cairo0_program(path_to_main_file, cairo_root_path()) {
         Ok(bytes) => bytes,
         Err(Cairo0CompilerError::Cairo0CompilerVersion(error)) => {
             panic!(
@@ -18,7 +15,19 @@ pub fn compile_starknet_os() -> Vec<u8> {
             )
         }
         Err(other_error) => {
-            panic!("Failed to compile the StarkNet OS program. Error:\n{other_error}.")
+            panic!("Failed to compile the program. Error:\n{other_error}.")
         }
     }
+}
+
+fn cairo_root_path() -> PathBuf {
+    PathBuf::from(compile_time_cargo_manifest_dir!()).join("src/cairo")
+}
+
+pub fn compile_starknet_os() -> Vec<u8> {
+    compile_program(cairo_root_path().join("starkware/starknet/core/os/os.cairo"))
+}
+
+pub fn compile_starknet_aggregator() -> Vec<u8> {
+    compile_program(cairo_root_path().join("starkware/starknet/core/aggregator/main.cairo"))
 }
