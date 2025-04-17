@@ -105,6 +105,15 @@ impl BlockifierStateReader for SyncStateReader {
     }
 
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
+        let is_class_declared = self
+            .runtime
+            .block_on(self.state_sync_client.is_class_declared_at(self.block_number, class_hash))
+            .map_err(|e| StateError::StateReadError(e.to_string()))?;
+
+        if !is_class_declared {
+            return Err(StateError::UndeclaredClassHash(class_hash));
+        }
+
         let contract_class = self
             .runtime
             .block_on(self.class_manager_client.get_executable(class_hash))
@@ -116,20 +125,7 @@ impl BlockifierStateReader for SyncStateReader {
 
         match contract_class {
             ContractClass::V1(casm_contract_class) => {
-                let is_class_declared = self
-                    .runtime
-                    .block_on(
-                        self.state_sync_client.is_class_declared_at(self.block_number, class_hash),
-                    )
-                    .map_err(|e| StateError::StateReadError(e.to_string()))?;
-
-                // TODO(shahak): Verify cairo0 as well and change the order to first check if class
-                // is declared once sync's is_class_declared_at supports cairo0
-                if is_class_declared {
-                    Ok(RunnableCompiledClass::V1(casm_contract_class.try_into()?))
-                } else {
-                    Err(StateError::UndeclaredClassHash(class_hash))
-                }
+                Ok(RunnableCompiledClass::V1(casm_contract_class.try_into()?))
             }
             ContractClass::V0(deprecated_contract_class) => {
                 Ok(RunnableCompiledClass::V0(deprecated_contract_class.try_into()?))
