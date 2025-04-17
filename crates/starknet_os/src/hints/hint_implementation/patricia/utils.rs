@@ -414,3 +414,26 @@ fn get_descents(
 
     Ok(())
 }
+
+/// Builds a descent map for a Patricia update. See get_descents().
+/// update_tree - The modification tree for the patricia update, given by build_update_tree().
+pub(crate) fn patricia_guess_descents(
+    height: SubTreeHeight,
+    update_tree: UpdateTree,
+    preimage_map: &PreimageMap,
+    prev_root: HashOutput,
+    new_root: HashOutput,
+) -> Result<DescentMap, PatriciaError> {
+    let mut descent_map = DescentMap::new();
+    get_descents(
+        &mut descent_map,
+        DescentStart { height, path_to_upper_node: Path(PathToBottom::new_zero()) },
+        preimage_map,
+        (
+            &update_tree,
+            CanonicNode::new(preimage_map, &prev_root),
+            CanonicNode::new(preimage_map, &new_root),
+        ),
+    )?;
+    Ok(descent_map)
+}
