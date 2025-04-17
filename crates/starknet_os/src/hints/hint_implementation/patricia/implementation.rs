@@ -17,16 +17,19 @@ use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::patricia::utils::{
+    build_update_tree,
+    patricia_guess_descents,
     DecodeNodeCase,
     DescentMap,
     DescentStart,
+    LayerIndex,
     Path,
     PreimageMap,
     UpdateTree,
 };
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Ids, Scope};
-use crate::vm_utils::{get_address_of_nested_fields, insert_values_to_fields};
+use crate::vm_utils::{get_address_of_nested_fields, get_field_offset, insert_values_to_fields};
 
 pub(crate) fn set_siblings<S: StateReader>(
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
@@ -220,7 +223,71 @@ pub(crate) fn prepare_preimage_validation_non_deterministic_hashes<S: StateReade
 }
 
 pub(crate) fn build_descent_map<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, hint_processor, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let n_updates = {
+        let ids_n_updates =
+            get_integer_from_var_name(Ids::NUpdates.into(), vm, ids_data, ap_tracking)?;
+        usize::try_from(ids_n_updates).map_err(|error| OsHintError::IdsConversion {
+            variant: Ids::NUpdates,
+            felt: ids_n_updates,
+            ty: "usize".to_string(),
+            reason: error.to_string(),
+        })?
+    };
+
+    let update_ptr_address =
+        get_relocatable_from_var_name(Ids::UpdatePtr.into(), vm, ids_data, ap_tracking)?;
+
+    // TODO(Rotem): Implement a `get_size_of_cairo_struct` function when upgrading to Cairo VM 2.0.0
+    // which adds a `size` field to `Identifier`.
+    // https://github.com/lambdaclass/cairo-vm/blob/main/vm/src/serde/deserialize_program.rs#L105
+    let dict_access_size = 3;
+
+    let key_offset = get_field_offset(CairoStruct::DictAccess, "key", hint_processor.os_program)?;
+    let new_value_offset =
+        get_field_offset(CairoStruct::DictAccess, "new_value", hint_processor.os_program)?;
+
+    let mut modifications = Vec::new();
+    for i in 0..n_updates {
+        let curr_update_ptr = (update_ptr_address + i * dict_access_size)?;
+        let layer_index = vm.get_integer((curr_update_ptr + key_offset)?)?;
+        let new_value = vm.get_integer((curr_update_ptr + new_value_offset)?)?;
+
+        modifications.push((
+            LayerIndex::new(layer_index.into_owned().to_biguint())?,
+            HashOutput(new_value.into_owned()),
+        ));
+    }
+
+    let height = {
+        let ids_height = get_integer_from_var_name(Ids::Height.into(), vm, ids_data, ap_tracking)?;
+        SubTreeHeight(u8::try_from(ids_height).map_err(|error| OsHintError::IdsConversion {
+            variant: Ids::Height,
+            felt: ids_height,
+            ty: "u8".to_string(),
+            reason: error.to_string(),
+        })?)
+    };
+    let node = build_update_tree(height, modifications)?;
+
+    let preimage_map: &PreimageMap = exec_scopes.get_ref(Scope::Preimage.into())?;
+    let prev_root =
+        HashOutput(get_integer_from_var_name(Ids::PrevRoot.into(), vm, ids_data, ap_tracking)?);
+    let new_root =
+        HashOutput(get_integer_from_var_name(Ids::NewRoot.into(), vm, ids_data, ap_tracking)?);
+    let descent_map = patricia_guess_descents(height, &node, preimage_map, prev_root, new_root)?;
+
+    exec_scopes.insert_value(Scope::Node.into(), node);
+    exec_scopes.insert_value(Scope::DescentMap.into(), descent_map);
+
+    // We do not build `common_args` as it is a Python trick to enter new scopes with a
+    // dict destructuring one-liner as the dict references itself. Neat trick that does not
+    // translate too well in Rust. We just make sure that `descent_map`, and `preimage` are in
+    // the scope.
+
+    // TODO(Rotem): If and when hash verification skipping is supported, take
+    // `__patricia_skip_validation_runner` into account.
+
+    Ok(())
 }
