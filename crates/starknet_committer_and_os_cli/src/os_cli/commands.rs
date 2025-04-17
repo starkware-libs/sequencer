@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use apollo_starknet_os_program::{CAIRO_FILES_MAP, OS_PROGRAM_BYTES, PROGRAM_HASH};
+use apollo_starknet_os_program::{CAIRO_FILES_MAP, OS_PROGRAM_BYTES, PROGRAM_HASHES};
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
@@ -119,5 +119,5 @@ pub(crate) fn dump_program(output_path: String, program: ProgramToDump) {
 }
 
 pub(crate) fn dump_program_hashes(output_path: String) {
-    write_to_file(&output_path, &*PROGRAM_HASH);
+    write_to_file(&output_path, &*PROGRAM_HASHES);
 }

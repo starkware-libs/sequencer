@@ -19,4 +19,11 @@ fn main() {
     let starknet_os_bytes_path = out_dir.join("starknet_os_bytes");
     std::fs::write(&starknet_os_bytes_path, &starknet_os_bytes)
         .expect("Failed to write the compiled OS bytes to the output directory.");
+
+    println!("cargo::warning=Compiling Starknet aggregator program...");
+    let starknet_aggregator_bytes = compile_program::compile_starknet_aggregator();
+    println!("cargo::warning=Done. Writing compiled bytes to output directory.");
+    let starknet_aggregator_bytes_path = out_dir.join("starknet_aggregator_bytes");
+    std::fs::write(&starknet_aggregator_bytes_path, &starknet_aggregator_bytes)
+        .expect("Failed to write the compiled aggregator bytes to the output directory.");
 }
