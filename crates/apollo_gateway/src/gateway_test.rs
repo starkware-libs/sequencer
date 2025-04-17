@@ -159,7 +159,7 @@ fn declare_args() -> DeclareTxArgsWithContractClass {
     let contract_class = contract_class();
     let mut args = DeclareTxArgsWithContractClass {
         args: declare_tx_args!(
-            signature: TransactionSignature(vec![Felt::ZERO]),
+            signature: TransactionSignature(vec![Felt::ZERO].into()),
             sender_address: account_contract().get_instance_address(0),
             resource_bounds: test_valid_resource_bounds(),
             class_hash: contract_class.calculate_class_hash(),

@@ -162,7 +162,8 @@ pub fn calculate_block_commitments(
             if starknet_version < &BlockHashVersion::V0_13_4.into()
                 && tx_leaf.transaction_signature.0.is_empty()
             {
-                tx_leaf_element.transaction_signature.0.push(Felt::ZERO);
+                tx_leaf_element.transaction_signature =
+                    TransactionSignature(vec![Felt::ZERO].into());
             }
             tx_leaf_element
         })

@@ -272,7 +272,8 @@ impl TryFrom<protobuf::transaction_in_block::DeployAccountV1> for DeployAccountT
                 .parts
                 .into_iter()
                 .map(Felt::try_from)
-                .collect::<Result<Vec<_>, _>>()?,
+                .collect::<Result<Vec<_>, _>>()?
+                .into(),
         );
 
         let nonce = Nonce(value.nonce.ok_or(missing("DeployAccountV1::nonce"))?.try_into()?);
@@ -305,7 +306,7 @@ impl From<DeployAccountTransactionV1> for protobuf::transaction_in_block::Deploy
         Self {
             max_fee: Some(Felt::from(value.max_fee.0).into()),
             signature: Some(protobuf::AccountSignature {
-                parts: value.signature.0.into_iter().map(|stark_felt| stark_felt.into()).collect(),
+                parts: value.signature.0.iter().map(|stark_felt| (*stark_felt).into()).collect(),
             }),
             nonce: Some(value.nonce.0.into()),
             class_hash: Some(value.class_hash.0.into()),
@@ -336,7 +337,8 @@ impl TryFrom<protobuf::DeployAccountV3> for DeployAccountTransactionV3 {
                 .parts
                 .into_iter()
                 .map(Felt::try_from)
-                .collect::<Result<Vec<_>, _>>()?,
+                .collect::<Result<Vec<_>, _>>()?
+                .into(),
         );
 
         let nonce = Nonce(value.nonce.ok_or(missing("DeployAccountV3::nonce"))?.try_into()?);
@@ -384,7 +386,7 @@ impl From<DeployAccountTransactionV3> for protobuf::DeployAccountV3 {
             resource_bounds: Some(protobuf::ResourceBounds::from(value.resource_bounds)),
             tip: value.tip.0,
             signature: Some(protobuf::AccountSignature {
-                parts: value.signature.0.into_iter().map(|stark_felt| stark_felt.into()).collect(),
+                parts: value.signature.0.iter().map(|stark_felt| (*stark_felt).into()).collect(),
             }),
             nonce: Some(value.nonce.0.into()),
             class_hash: Some(value.class_hash.0.into()),
@@ -504,7 +506,8 @@ impl TryFrom<protobuf::transaction_in_block::InvokeV0> for InvokeTransactionV0 {
                 .parts
                 .into_iter()
                 .map(Felt::try_from)
-                .collect::<Result<Vec<_>, _>>()?,
+                .collect::<Result<Vec<_>, _>>()?
+                .into(),
         );
 
         let contract_address = value.address.ok_or(missing("InvokeV0::address"))?.try_into()?;
@@ -528,7 +531,7 @@ impl From<InvokeTransactionV0> for protobuf::transaction_in_block::InvokeV0 {
         Self {
             max_fee: Some(Felt::from(value.max_fee.0).into()),
             signature: Some(protobuf::AccountSignature {
-                parts: value.signature.0.into_iter().map(|stark_felt| stark_felt.into()).collect(),
+                parts: value.signature.0.iter().map(|stark_felt| (*stark_felt).into()).collect(),
             }),
             address: Some(value.contract_address.into()),
             entry_point_selector: Some(value.entry_point_selector.0.into()),
@@ -555,7 +558,8 @@ impl TryFrom<protobuf::transaction_in_block::InvokeV1> for InvokeTransactionV1 {
                 .parts
                 .into_iter()
                 .map(Felt::try_from)
-                .collect::<Result<Vec<_>, _>>()?,
+                .collect::<Result<Vec<_>, _>>()?
+                .into(),
         );
 
         let sender_address = value.sender.ok_or(missing("InvokeV1::sender"))?.try_into()?;
@@ -576,7 +580,7 @@ impl From<InvokeTransactionV1> for protobuf::transaction_in_block::InvokeV1 {
         Self {
             max_fee: Some(Felt::from(value.max_fee.0).into()),
             signature: Some(protobuf::AccountSignature {
-                parts: value.signature.0.into_iter().map(|signature| signature.into()).collect(),
+                parts: value.signature.0.iter().map(|signature| (*signature).into()).collect(),
             }),
             sender: Some(value.sender_address.into()),
             nonce: Some(value.nonce.0.into()),
@@ -601,7 +605,8 @@ impl TryFrom<protobuf::InvokeV3> for InvokeTransactionV3 {
                 .parts
                 .into_iter()
                 .map(Felt::try_from)
-                .collect::<Result<Vec<_>, _>>()?,
+                .collect::<Result<Vec<_>, _>>()?
+                .into(),
         );
 
         let nonce = Nonce(value.nonce.ok_or(missing("InvokeV3::nonce"))?.try_into()?);
@@ -652,7 +657,7 @@ impl From<InvokeTransactionV3> for protobuf::InvokeV3 {
             resource_bounds: Some(protobuf::ResourceBounds::from(value.resource_bounds)),
             tip: value.tip.0,
             signature: Some(protobuf::AccountSignature {
-                parts: value.signature.0.into_iter().map(|signature| signature.into()).collect(),
+                parts: value.signature.0.iter().map(|signature| (*signature).into()).collect(),
             }),
             nonce: Some(value.nonce.0.into()),
             sender: Some(value.sender_address.into()),
@@ -699,7 +704,8 @@ impl TryFrom<protobuf::transaction_in_block::DeclareV0WithoutClass> for DeclareT
                 .parts
                 .into_iter()
                 .map(Felt::try_from)
-                .collect::<Result<Vec<_>, _>>()?,
+                .collect::<Result<Vec<_>, _>>()?
+                .into(),
         );
 
         // V0 transactions don't have a nonce, but the StarkNet API adds one to them
@@ -719,7 +725,7 @@ impl From<DeclareTransactionV0V1> for protobuf::transaction_in_block::DeclareV0W
         Self {
             max_fee: Some(Felt::from(value.max_fee.0).into()),
             signature: Some(protobuf::AccountSignature {
-                parts: value.signature.0.into_iter().map(|stark_felt| stark_felt.into()).collect(),
+                parts: value.signature.0.iter().map(|stark_felt| (*stark_felt).into()).collect(),
             }),
             sender: Some(value.sender_address.into()),
             class_hash: Some(value.class_hash.0.into()),
@@ -747,7 +753,8 @@ impl TryFrom<protobuf::transaction_in_block::DeclareV1WithoutClass> for DeclareT
                 .parts
                 .into_iter()
                 .map(Felt::try_from)
-                .collect::<Result<Vec<_>, _>>()?,
+                .collect::<Result<Vec<_>, _>>()?
+                .into(),
         );
 
         let nonce = Nonce(value.nonce.ok_or(missing("DeclareV1::nonce"))?.try_into()?);
@@ -766,7 +773,7 @@ impl From<DeclareTransactionV0V1> for protobuf::transaction_in_block::DeclareV1W
         Self {
             max_fee: Some(Felt::from(value.max_fee.0).into()),
             signature: Some(protobuf::AccountSignature {
-                parts: value.signature.0.into_iter().map(|stark_felt| stark_felt.into()).collect(),
+                parts: value.signature.0.iter().map(|stark_felt| (*stark_felt).into()).collect(),
             }),
             nonce: Some(value.nonce.0.into()),
             class_hash: Some(value.class_hash.0.into()),
@@ -795,7 +802,8 @@ impl TryFrom<protobuf::transaction_in_block::DeclareV2WithoutClass> for DeclareT
                 .parts
                 .into_iter()
                 .map(Felt::try_from)
-                .collect::<Result<Vec<_>, _>>()?,
+                .collect::<Result<Vec<_>, _>>()?
+                .into(),
         );
 
         let nonce = Nonce(value.nonce.ok_or(missing("DeclareV2::nonce"))?.try_into()?);
@@ -821,7 +829,7 @@ impl From<DeclareTransactionV2> for protobuf::transaction_in_block::DeclareV2Wit
         Self {
             max_fee: Some(Felt::from(value.max_fee.0).into()),
             signature: Some(protobuf::AccountSignature {
-                parts: value.signature.0.into_iter().map(|signature| signature.into()).collect(),
+                parts: value.signature.0.iter().map(|signature| (*signature).into()).collect(),
             }),
             nonce: Some(value.nonce.0.into()),
             class_hash: Some(value.class_hash.0.into()),

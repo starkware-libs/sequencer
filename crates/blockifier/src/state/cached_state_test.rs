@@ -506,7 +506,7 @@ fn test_write_at_validate_and_execute(
     }
 
     let signature =
-        TransactionSignature(vec![Felt::from(STORAGE_WRITE), validate_value, execute_value]);
+        TransactionSignature(vec![Felt::from(STORAGE_WRITE), validate_value, execute_value].into());
     let tx_execution_info = run_invoke_tx(
         &mut state,
         &block_context,

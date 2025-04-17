@@ -1512,7 +1512,7 @@ fn get_calldata_for_test_execution_info(
             expected_max_fee,
             felt!(u64::try_from(expected_signature.len()).unwrap()),
         ],
-        expected_signature,
+        expected_signature.as_ref().clone(),
         vec![
             expected_transaction_hash,
             expected_chain_id,
@@ -1528,9 +1528,8 @@ fn get_calldata_for_test_execution_info(
             entry_point_selector.0,
         ],
     ]
-    .iter()
+    .into_iter()
     .flatten()
-    .cloned()
     .collect::<Vec<_>>();
 
     Calldata(Arc::new(
@@ -1542,9 +1541,8 @@ fn get_calldata_for_test_execution_info(
             ],
             calldata,
         ]
-        .iter()
+        .into_iter()
         .flatten()
-        .cloned()
         .collect::<Vec<_>>(),
     ))
 }

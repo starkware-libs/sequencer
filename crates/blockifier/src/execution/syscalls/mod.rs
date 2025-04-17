@@ -330,7 +330,8 @@ impl SyscallRequest for MetaTxV0Request {
     fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<MetaTxV0Request> {
         let contract_address = ContractAddress::try_from(felt_from_ptr(vm, ptr)?)?;
         let (entry_point_selector, calldata) = read_call_params(vm, ptr)?;
-        let signature = TransactionSignature(read_felt_array::<SyscallExecutionError>(vm, ptr)?);
+        let signature =
+            TransactionSignature(read_felt_array::<SyscallExecutionError>(vm, ptr)?.into());
 
         Ok(MetaTxV0Request { contract_address, entry_point_selector, calldata, signature })
     }

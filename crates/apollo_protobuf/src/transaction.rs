@@ -48,7 +48,8 @@ impl TryFrom<protobuf::DeclareV3Common> for DeclareTransactionV3Common {
                 .parts
                 .into_iter()
                 .map(Felt::try_from)
-                .collect::<Result<Vec<_>, _>>()?,
+                .collect::<Result<Vec<_>, _>>()?
+                .into(),
         );
 
         let nonce = Nonce(value.nonce.ok_or(missing("DeclareV3Common::nonce"))?.try_into()?);
@@ -101,7 +102,7 @@ impl From<DeclareTransactionV3Common> for protobuf::DeclareV3Common {
             resource_bounds: Some(protobuf::ResourceBounds::from(value.resource_bounds)),
             tip: value.tip.0,
             signature: Some(protobuf::AccountSignature {
-                parts: value.signature.0.into_iter().map(|signature| signature.into()).collect(),
+                parts: value.signature.0.iter().map(|signature| (*signature).into()).collect(),
             }),
             nonce: Some(value.nonce.0.into()),
             compiled_class_hash: Some(value.compiled_class_hash.0.into()),
