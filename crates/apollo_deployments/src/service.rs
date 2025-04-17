@@ -112,11 +112,15 @@ impl Service {
         toleration: Option<String>,
         resources: Resources,
         external_secret: Option<ExternalSecret>,
+        additional_config_filenames: Vec<String>,
     ) -> Self {
+        // Configs are loaded by order such that a config may override previous ones.
+        let mut config_paths: Vec<String> = additional_config_filenames.clone();
+        config_paths.push(name.get_config_file_path());
+
         Self {
             name,
-            // Configs are loaded by order such that a config may override previous ones.
-            config_paths: vec![name.get_config_file_path()],
+            config_paths,
             controller,
             ingress,
             autoscale,
@@ -156,8 +160,9 @@ impl ServiceName {
         &self,
         environment: &Environment,
         external_secret: &Option<ExternalSecret>,
+        additional_config_filenames: Vec<String>,
     ) -> Service {
-        self.as_inner().create_service(environment, external_secret)
+        self.as_inner().create_service(environment, external_secret, additional_config_filenames)
     }
 
     fn as_inner(&self) -> &dyn ServiceNameInner {
@@ -174,6 +179,7 @@ pub(crate) trait ServiceNameInner: Display {
         &self,
         environment: &Environment,
         external_secret: &Option<ExternalSecret>,
+        additional_config_filenames: Vec<String>,
     ) -> Service;
 }
 
