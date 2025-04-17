@@ -154,6 +154,7 @@ define_string_enum! {
         (InitialRoot),
         (IsLeaf),
         (KzgCommitments),
+        (Length),
         (Low),
         (MaxGas),
         (NBlobs),
