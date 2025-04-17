@@ -64,6 +64,7 @@ use crate::metrics::{
     LAST_SYNCED_BLOCK,
     REJECTED_TRANSACTIONS,
     REVERTED_BLOCKS,
+    ROUND,
     STORAGE_HEIGHT,
     SYNCED_TRANSACTIONS,
 };
@@ -159,6 +160,7 @@ impl Batcher {
 
         info!("Starting to work on height {}.", input.height);
         self.active_height = Some(input.height);
+        ROUND.set(0);
 
         Ok(())
     }
@@ -168,6 +170,7 @@ impl Batcher {
         &mut self,
         propose_block_input: ProposeBlockInput,
     ) -> BatcherResult<()> {
+        ROUND.increment(1);
         let block_number = propose_block_input.block_info.block_number;
         let proposal_metrics_handle = ProposalMetricsHandle::new();
         let active_height = self.active_height.ok_or(BatcherError::NoActiveHeight)?;
@@ -253,6 +256,7 @@ impl Batcher {
         &mut self,
         validate_block_input: ValidateBlockInput,
     ) -> BatcherResult<()> {
+        ROUND.increment(1);
         let proposal_metrics_handle = ProposalMetricsHandle::new();
         let active_height = self.active_height.ok_or(BatcherError::NoActiveHeight)?;
         verify_block_input(
