@@ -175,9 +175,22 @@ impl StateSync {
             .begin_ro_txn()?
             .get_state_reader()?
             .get_class_definition_block_number(&class_hash)?;
-        Ok(class_definition_block_number_opt.is_some_and(|class_definition_block_number| {
-            class_definition_block_number <= block_number
-        }))
+        if let Some(class_definition_block_number) = class_definition_block_number_opt {
+            return Ok(class_definition_block_number <= block_number);
+        }
+
+        // TODO(noamsp): Add unit testing for cairo0
+        let deprecated_class_definition_block_number_opt = self
+            .storage_reader
+            .begin_ro_txn()?
+            .get_state_reader()?
+            .get_deprecated_class_definition_block_number(&class_hash)?;
+
+        Ok(deprecated_class_definition_block_number_opt.is_some_and(
+            |deprecated_class_definition_block_number| {
+                deprecated_class_definition_block_number <= block_number
+            },
+        ))
     }
 }
 
