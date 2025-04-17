@@ -183,6 +183,8 @@ pub fn open_storage(
         declared_classes_block: db_writer.create_simple_table("declared_classes_block")?,
         deprecated_declared_classes: db_writer
             .create_simple_table("deprecated_declared_classes")?,
+        deprecated_declared_classes_block: db_writer
+            .create_simple_table("deprecated_declared_classes_block")?,
         deployed_contracts: db_writer.create_simple_table("deployed_contracts")?,
         events: db_writer.create_common_prefix_table("events")?,
         headers: db_writer.create_simple_table("headers")?,
@@ -533,6 +535,7 @@ struct_field_names! {
         declared_classes: TableIdentifier<ClassHash, VersionZeroWrapper<LocationInFile>, SimpleTable>,
         declared_classes_block: TableIdentifier<ClassHash, NoVersionValueWrapper<BlockNumber>, SimpleTable>,
         deprecated_declared_classes: TableIdentifier<ClassHash, VersionZeroWrapper<IndexedDeprecatedContractClass>, SimpleTable>,
+        deprecated_declared_classes_block: TableIdentifier<ClassHash, NoVersionValueWrapper<BlockNumber>, SimpleTable>,
         // TODO(dvir): consider use here also the CommonPrefix table type.
         deployed_contracts: TableIdentifier<(ContractAddress, BlockNumber), VersionZeroWrapper<ClassHash>, SimpleTable>,
         events: TableIdentifier<(ContractAddress, TransactionIndex), NoVersionValueWrapper<NoValue>, CommonPrefix>,
