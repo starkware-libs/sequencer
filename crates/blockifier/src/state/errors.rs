@@ -32,6 +32,8 @@ pub enum StateError {
     /// Represents all unexpected errors that may occur while reading from state.
     #[error("Failed to read from state: {0}.")]
     StateReadError(String),
+    #[error("Missing Sierra class for CASM class with hash {:#064x}.", **.0)]
+    MissingSierra(ClassHash),
 }
 
 /// Ensures that the CASM and Sierra classes are coupled - Meaning that they both exist or are
