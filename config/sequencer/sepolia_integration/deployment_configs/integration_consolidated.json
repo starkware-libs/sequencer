@@ -6,7 +6,9 @@
     {
       "name": "Node",
       "controller": "StatefulSet",
-      "config_path": "node.json",
+      "config_paths": [
+        "node.json"
+      ],
       "ingress": {
         "domain": "sw-dev.io",
         "internal": false,
