@@ -28,6 +28,10 @@ pub mod l1_gas_price_scraper_test;
 type L1GasPriceScraperResult<T, B> = Result<T, L1GasPriceScraperError<B>>;
 pub type SharedL1GasPriceProvider = Arc<dyn L1GasPriceProviderClient>;
 
+// How many sets of config.num_blocks_for_mean blocks to go back
+// on the chain when starting to scrape.
+const STARTUP_NUM_BLOCKS_MULTIPLIER: u64 = 2;
+
 #[derive(Error, Debug)]
 pub enum L1GasPriceScraperError<T: BaseLayerContract + Send + Sync> {
     #[error("Base layer error: {0}")]
@@ -180,7 +184,9 @@ where
                 // 2 * number_of_blocks_for_mean before the tip of L1.
                 // Note that for new chains this subtraction may be negative,
                 // hence the use of saturating_sub.
-                latest.saturating_sub(self.config.number_of_blocks_for_mean * 2)
+                latest.saturating_sub(
+                    self.config.number_of_blocks_for_mean * STARTUP_NUM_BLOCKS_MULTIPLIER,
+                )
             }
         };
         self.run(start_from)
