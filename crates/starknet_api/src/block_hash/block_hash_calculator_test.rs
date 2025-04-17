@@ -31,7 +31,7 @@ use crate::core::{
 use crate::data_availability::L1DataAvailabilityMode;
 use crate::execution_resources::GasAmount;
 use crate::hash::PoseidonHash;
-use crate::transaction::fields::TransactionSignature;
+use crate::transaction::fields::TransactionDeprSignature;
 use crate::{felt, tx_hash};
 
 /// Macro to test if changing any field in the header or commitments
@@ -106,7 +106,7 @@ fn test_block_hash_regression(
         parent_hash: BlockHash(Felt::from(11_u8)),
     };
     let transactions_data = vec![TransactionHashingData {
-        transaction_signature: TransactionSignature(vec![Felt::TWO, Felt::THREE]),
+        transaction_signature: TransactionDeprSignature(vec![Felt::TWO, Felt::THREE]),
         transaction_output: get_transaction_output(),
         transaction_hash: tx_hash!(1),
     }];

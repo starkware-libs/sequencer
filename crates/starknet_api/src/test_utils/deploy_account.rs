@@ -21,7 +21,7 @@ use crate::transaction::fields::{
     Fee,
     PaymasterData,
     Tip,
-    TransactionSignature,
+    TransactionDeprSignature,
     ValidResourceBounds,
 };
 use crate::transaction::{
@@ -36,7 +36,7 @@ use crate::transaction::{
 #[derive(Clone)]
 pub struct DeployAccountTxArgs {
     pub max_fee: Fee,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub version: TransactionVersion,
     pub resource_bounds: ValidResourceBounds,
     pub tip: Tip,
@@ -54,7 +54,7 @@ impl Default for DeployAccountTxArgs {
     fn default() -> Self {
         DeployAccountTxArgs {
             max_fee: Fee::default(),
-            signature: TransactionSignature::default(),
+            signature: TransactionDeprSignature::default(),
             version: TransactionVersion::THREE,
             resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
             tip: Tip::default(),

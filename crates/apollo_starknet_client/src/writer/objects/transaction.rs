@@ -35,7 +35,7 @@ use starknet_api::transaction::fields::{
     Fee,
     PaymasterData,
     Tip,
-    TransactionSignature,
+    TransactionDeprSignature,
 };
 use starknet_api::transaction::TransactionVersion;
 
@@ -92,7 +92,7 @@ pub struct DeployAccountV1Transaction {
     pub constructor_calldata: Calldata,
     pub nonce: Nonce,
     pub max_fee: Fee,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub version: TransactionVersion,
     pub r#type: DeployAccountType,
 }
@@ -110,7 +110,7 @@ pub struct DeployAccountV3Transaction {
     pub class_hash: ClassHash,
     pub constructor_calldata: Calldata,
     pub nonce: Nonce,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub nonce_data_availability_mode: ReservedDataAvailabilityMode,
     pub fee_data_availability_mode: ReservedDataAvailabilityMode,
     pub paymaster_data: PaymasterData,
@@ -139,7 +139,7 @@ pub struct InvokeV0Transaction {
     pub calldata: Calldata,
     pub contract_address: ContractAddress,
     pub max_fee: Fee,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub version: TransactionVersion,
     pub r#type: InvokeType,
     pub entry_point_selector: EntryPointSelector,
@@ -156,7 +156,7 @@ pub struct InvokeV1Transaction {
     pub sender_address: ContractAddress,
     pub nonce: Nonce,
     pub max_fee: Fee,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub version: TransactionVersion,
     pub r#type: InvokeType,
 }
@@ -174,7 +174,7 @@ pub struct InvokeV3Transaction {
     pub calldata: Calldata,
     pub sender_address: ContractAddress,
     pub nonce: Nonce,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub nonce_data_availability_mode: ReservedDataAvailabilityMode,
     pub fee_data_availability_mode: ReservedDataAvailabilityMode,
     pub paymaster_data: PaymasterData,
@@ -205,7 +205,7 @@ pub struct DeclareV1Transaction {
     pub nonce: Nonce,
     pub max_fee: Fee,
     pub version: TransactionVersion,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub r#type: DeclareType,
 }
 
@@ -222,7 +222,7 @@ pub struct DeclareV2Transaction {
     pub nonce: Nonce,
     pub max_fee: Fee,
     pub version: TransactionVersion,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub r#type: DeclareType,
 }
 
@@ -237,7 +237,7 @@ pub struct DeclareV3Transaction {
     pub contract_class: ContractClass,
     pub resource_bounds: DeprecatedResourceBoundsMapping,
     pub tip: Tip,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub nonce: Nonce,
     pub compiled_class_hash: CompiledClassHash,
     pub sender_address: ContractAddress,

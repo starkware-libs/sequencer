@@ -7,7 +7,7 @@ use blockifier_test_utils::contracts::FeatureContract;
 use indexmap::indexmap;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
-use starknet_api::transaction::fields::{Fee, TransactionSignature, ValidResourceBounds};
+use starknet_api::transaction::fields::{Fee, TransactionDeprSignature, ValidResourceBounds};
 use starknet_api::{
     class_hash,
     compiled_class_hash,
@@ -506,7 +506,7 @@ fn test_write_at_validate_and_execute(
     }
 
     let signature =
-        TransactionSignature(vec![Felt::from(STORAGE_WRITE), validate_value, execute_value]);
+        TransactionDeprSignature(vec![Felt::from(STORAGE_WRITE), validate_value, execute_value]);
     let tx_execution_info = run_invoke_tx(
         &mut state,
         &block_context,

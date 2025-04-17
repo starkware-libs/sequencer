@@ -30,7 +30,7 @@ use starknet_api::transaction::fields::{
     Fee,
     GasVectorComputationMode,
     ResourceBounds,
-    TransactionSignature,
+    TransactionDeprSignature,
     ValidResourceBounds,
 };
 use starknet_api::transaction::{constants, TransactionVersion};
@@ -254,7 +254,7 @@ pub fn create_account_tx_for_validate_test(
     if let Some(additional_data) = additional_data {
         signature_vector.extend(additional_data);
     }
-    let signature = TransactionSignature(signature_vector);
+    let signature = TransactionDeprSignature(signature_vector);
     let execution_flags =
         ExecutionFlags { validate, charge_fee, only_query, strict_nonce_check: true };
     match tx_type {

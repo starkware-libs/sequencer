@@ -23,7 +23,7 @@ use starknet_api::transaction::fields::{
     Fee,
     PaymasterData,
     Tip,
-    TransactionSignature,
+    TransactionDeprSignature,
     ValidResourceBounds,
 };
 use starknet_api::transaction::{
@@ -183,7 +183,7 @@ pub struct IntermediateDeclareTransaction {
     pub resource_bounds: Option<ValidResourceBounds>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tip: Option<Tip>,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub nonce: Nonce,
     pub class_hash: ClassHash,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -352,7 +352,7 @@ pub struct IntermediateDeployAccountTransaction {
     pub resource_bounds: Option<ValidResourceBounds>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tip: Option<Tip>,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub nonce: Nonce,
     pub class_hash: ClassHash,
     pub contract_address_salt: ContractAddressSalt,
@@ -487,7 +487,7 @@ pub struct IntermediateInvokeTransaction {
     pub nonce: Option<Nonce>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_fee: Option<Fee>,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub nonce_data_availability_mode: Option<ReservedDataAvailabilityMode>,
     #[serde(skip_serializing_if = "Option::is_none")]

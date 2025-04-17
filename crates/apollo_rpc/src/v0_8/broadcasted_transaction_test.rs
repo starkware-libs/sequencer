@@ -26,7 +26,7 @@ use starknet_api::transaction::fields::{
     PaymasterData,
     ResourceBounds,
     Tip,
-    TransactionSignature,
+    TransactionDeprSignature,
 };
 use starknet_types_core::felt::Felt;
 
@@ -64,7 +64,7 @@ auto_impl_get_test_instance! {
         pub sender_address: ContractAddress,
         pub nonce: Nonce,
         pub max_fee: Fee,
-        pub signature: TransactionSignature,
+        pub signature: TransactionDeprSignature,
     }
     pub struct BroadcastedDeclareV2Transaction {
         pub r#type: DeclareType,
@@ -73,13 +73,13 @@ auto_impl_get_test_instance! {
         pub sender_address: ContractAddress,
         pub nonce: Nonce,
         pub max_fee: Fee,
-        pub signature: TransactionSignature,
+        pub signature: TransactionDeprSignature,
     }
     pub struct BroadcastedDeclareV3Transaction {
         pub r#type: DeclareType,
         pub sender_address: ContractAddress,
         pub compiled_class_hash: CompiledClassHash,
-        pub signature: TransactionSignature,
+        pub signature: TransactionDeprSignature,
         pub nonce: Nonce,
         pub contract_class: ContractClass,
         pub resource_bounds: ResourceBoundsMapping,

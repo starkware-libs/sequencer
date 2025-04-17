@@ -21,7 +21,7 @@ use starknet_api::transaction::fields::{
     GasVectorComputationMode,
     Resource,
     Tip,
-    TransactionSignature,
+    TransactionDeprSignature,
     ValidResourceBounds,
 };
 use starknet_api::transaction::TransactionVersion;
@@ -498,7 +498,7 @@ fn execute_fail_validation(
     let tx = executable_invoke_tx(invoke_tx_args! {
         max_fee,
         resource_bounds: max_resource_bounds,
-        signature: TransactionSignature(vec![
+        signature: TransactionDeprSignature(vec![
             Felt::from(INVALID),
             Felt::ZERO
         ]),
