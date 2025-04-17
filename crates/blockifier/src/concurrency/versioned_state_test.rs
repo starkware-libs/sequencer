@@ -42,7 +42,7 @@ use crate::state::cached_state::{
 };
 use crate::state::errors::StateError;
 use crate::state::state_api::{State, StateReader, UpdatableState};
-use crate::test_utils::contracts::FeatureContractTrait;
+use crate::test_utils::contracts::{FeatureContractData, FeatureContractTrait};
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::BALANCE;
@@ -75,15 +75,24 @@ fn test_versioned_state_proxy() {
     let another_class_hash = class_hash!(28_u8);
     let compiled_class_hash = compiled_class_hash!(29_u8);
     let contract_class = test_contract.get_runnable_class();
+    let sierra_class = test_contract.safe_get_sierra();
 
     // Create the versioned state
-    let cached_state = CachedState::from(DictStateReader {
+    let mut state_reader = DictStateReader {
         storage_view: HashMap::from([((contract_address, key), felt)]),
         address_to_nonce: HashMap::from([(contract_address, nonce)]),
         address_to_class_hash: HashMap::from([(contract_address, class_hash)]),
         class_hash_to_compiled_class_hash: HashMap::from([(class_hash, compiled_class_hash)]),
-        class_hash_to_class: HashMap::from([(class_hash, contract_class.clone())]),
+        ..Default::default()
+    };
+    state_reader.add_class(&FeatureContractData {
+        class_hash,
+        runnable_class: contract_class.clone(),
+        sierra: sierra_class,
+        ..Default::default()
     });
+
+    let cached_state = CachedState::from(state_reader);
 
     let versioned_state = Arc::new(Mutex::new(VersionedState::new(cached_state)));
 
