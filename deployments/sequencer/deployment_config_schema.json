@@ -10,7 +10,13 @@
         "type": "object",
         "properties": {
           "name": { "type": "string" },
-          "config_path": { "type": "string" },
+          "config_paths": {
+            "type": "array" ,
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          },
           "controller": {
             "type": "string",
             "pattern": "^(?i)(statefulset|deployment)$",
