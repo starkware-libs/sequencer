@@ -1,12 +1,14 @@
 {
   "chain_id": "SN_INTEGRATION_SEPOLIA",
-  "image": "ghcr.io/starkware-libs/sequencer/sequencer:dev",
-  "application_config_subdir": "config/sequencer/sepolia_integration/app_configs/hybrid/",
+  "image": "ghcr.io/starkware-libs/sequencer/sequencer:04-10-chore_apollo_deployments_3_nodes_integration_deployments-1a9c48e",
+  "application_config_subdir": "config/sequencer/sepolia_integration/app_configs/hybrid/integration_hybrid_node_2/",
   "services": [
     {
       "name": "Core",
       "controller": "StatefulSet",
-      "config_path": "core.json",
+      "config_paths": [
+        "core.json"
+      ],
       "ingress": null,
       "autoscale": false,
       "replicas": 1,
@@ -23,13 +25,15 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "sequencer-integration-secrets"
+        "gcsm_key": "node-2-integration-secrets"
       }
     },
     {
       "name": "HttpServer",
       "controller": "Deployment",
-      "config_path": "http_server.json",
+      "config_paths": [
+        "http_server.json"
+      ],
       "ingress": {
         "domain": "sw-dev.io",
         "internal": false,
@@ -38,15 +42,10 @@
             "path": "/gateway",
             "port": 8080,
             "backend": null
-          },
-          {
-            "path": "/feeder_gateway",
-            "port": 8085,
-            "backend": "nginx-service"
           }
         ],
         "alternative_names": [
-          "starknet-upgrade-testing-sepolia.gateway-proxy.sw-dev.io"
+          "sn-test-sepolia-2-sepolia.gateway-proxy.sw-dev.io"
         ]
       },
       "autoscale": false,
@@ -64,13 +63,15 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "sequencer-integration-secrets"
+        "gcsm_key": "node-2-integration-secrets"
       }
     },
     {
       "name": "Gateway",
       "controller": "Deployment",
-      "config_path": "gateway.json",
+      "config_paths": [
+        "gateway.json"
+      ],
       "ingress": null,
       "autoscale": true,
       "replicas": 2,
@@ -87,13 +88,15 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "sequencer-integration-secrets"
+        "gcsm_key": "node-2-integration-secrets"
       }
     },
     {
       "name": "Mempool",
       "controller": "Deployment",
-      "config_path": "mempool.json",
+      "config_paths": [
+        "mempool.json"
+      ],
       "ingress": null,
       "autoscale": false,
       "replicas": 1,
@@ -110,13 +113,15 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "sequencer-integration-secrets"
+        "gcsm_key": "node-2-integration-secrets"
       }
     },
     {
       "name": "SierraCompiler",
       "controller": "Deployment",
-      "config_path": "sierra_compiler.json",
+      "config_paths": [
+        "sierra_compiler.json"
+      ],
       "ingress": null,
       "autoscale": true,
       "replicas": 2,
@@ -133,7 +138,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "sequencer-integration-secrets"
+        "gcsm_key": "node-2-integration-secrets"
       }
     }
   ]

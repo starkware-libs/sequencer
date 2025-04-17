@@ -46,7 +46,7 @@ pub fn run_os<S: StateReader>(
 
     // Create the hint processor.
     let mut snos_hint_processor = SnosHintProcessor::new(
-        os_program,
+        &os_program,
         os_hints,
         state_readers,
         syscall_handler,

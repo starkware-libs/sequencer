@@ -16,7 +16,7 @@ use crate::hints::types::HintArgs;
 use crate::hints::vars::{Const, Ids, Scope};
 
 pub(crate) fn enter_scope_with_aliases<S: StateReader>(
-    HintArgs { exec_scopes, .. }: HintArgs<'_, S>,
+    HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     // Note that aliases, execution_helper, state_update_pointers and block_input do not enter the
     // new scope as they are not needed.
@@ -27,31 +27,31 @@ pub(crate) fn enter_scope_with_aliases<S: StateReader>(
 }
 
 pub(crate) fn key_lt_min_alias_alloc_value<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     todo!()
 }
 
 pub(crate) fn assert_key_big_enough_for_alias<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     todo!()
 }
 
 pub(crate) fn read_alias_from_key<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     todo!()
 }
 
 pub(crate) fn write_next_alias_from_key<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     todo!()
 }
 
 pub(crate) fn read_alias_counter<S: StateReader>(
-    HintArgs { hint_processor, vm, constants, .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, constants, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let aliases_contract_address = Const::get_alias_contract_address(constants)?;
     let alias_counter_storage_key = Const::get_alias_counter_storage_key(constants)?;
@@ -63,7 +63,7 @@ pub(crate) fn read_alias_counter<S: StateReader>(
 }
 
 pub(crate) fn initialize_alias_counter<S: StateReader>(
-    HintArgs { hint_processor, constants, .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, constants, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let aliases_contract_address = Const::get_alias_contract_address(constants)?;
     let alias_counter_storage_key = Const::get_alias_counter_storage_key(constants)?;
@@ -76,7 +76,7 @@ pub(crate) fn initialize_alias_counter<S: StateReader>(
 }
 
 pub(crate) fn update_alias_counter<S: StateReader>(
-    HintArgs { hint_processor, constants, ids_data, ap_tracking, vm, .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, constants, ids_data, ap_tracking, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let aliases_contract_address = Const::get_alias_contract_address(constants)?;
     let alias_counter_storage_key = Const::get_alias_counter_storage_key(constants)?;
@@ -90,7 +90,7 @@ pub(crate) fn update_alias_counter<S: StateReader>(
 }
 
 pub(crate) fn contract_address_le_max_for_compression<S: StateReader>(
-    HintArgs { constants, vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
+    HintArgs { constants, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let contract_address =
         get_integer_from_var_name(Ids::ContractAddress.into(), vm, ids_data, ap_tracking)?;
@@ -99,19 +99,19 @@ pub(crate) fn contract_address_le_max_for_compression<S: StateReader>(
 }
 
 pub(crate) fn guess_contract_addr_storage_ptr<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     todo!()
 }
 
 pub(crate) fn update_contract_addr_to_storage_ptr<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, S>,
+    HintArgs { .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     todo!()
 }
 
 pub(crate) fn guess_aliases_contract_storage_ptr<S: StateReader>(
-    HintArgs { hint_processor, vm, constants, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, constants, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let aliases_contract_address = Const::get_alias_contract_address(constants)?;
     let (state_entry_ptr, storage_ptr) = get_contract_state_entry_and_storage_ptr(
@@ -137,7 +137,7 @@ pub(crate) fn guess_aliases_contract_storage_ptr<S: StateReader>(
 }
 
 pub(crate) fn update_aliases_contract_to_storage_ptr<S: StateReader>(
-    HintArgs { hint_processor, vm, constants, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, constants, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     if let Some(state_update_pointers) = &mut hint_processor.state_update_pointers {
         let aliases_contract_address = Const::get_alias_contract_address(constants)?;

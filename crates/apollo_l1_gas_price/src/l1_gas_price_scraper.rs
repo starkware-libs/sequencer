@@ -19,12 +19,18 @@ use thiserror::Error;
 use tracing::{error, info, warn};
 use validator::Validate;
 
+use crate::metrics::{register_scraper_metrics, L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT};
+
 #[cfg(test)]
 #[path = "l1_gas_price_scraper_test.rs"]
 pub mod l1_gas_price_scraper_test;
 
 type L1GasPriceScraperResult<T, B> = Result<T, L1GasPriceScraperError<B>>;
 pub type SharedL1GasPriceProvider = Arc<dyn L1GasPriceProviderClient>;
+
+// How many sets of config.num_blocks_for_mean blocks to go back
+// on the chain when starting to scrape.
+const STARTUP_NUM_BLOCKS_MULTIPLIER: u64 = 2;
 
 #[derive(Error, Debug)]
 pub enum L1GasPriceScraperError<T: BaseLayerContract + Send + Sync> {
@@ -142,6 +148,7 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
                 Ok(None) => return Ok(block_num),
                 Err(e) => {
                     warn!("BaseLayerError during scraping: {e:?}");
+                    L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT.increment(1);
                     return Ok(block_num);
                 }
             };
@@ -163,6 +170,7 @@ where
 {
     async fn start(&mut self) {
         info!("Starting component {}.", type_name::<Self>());
+        register_scraper_metrics();
         let start_from = match self.config.starting_block {
             Some(block) => block,
             None => {
@@ -176,7 +184,9 @@ where
                 // 2 * number_of_blocks_for_mean before the tip of L1.
                 // Note that for new chains this subtraction may be negative,
                 // hence the use of saturating_sub.
-                latest.saturating_sub(self.config.number_of_blocks_for_mean * 2)
+                latest.saturating_sub(
+                    self.config.number_of_blocks_for_mean * STARTUP_NUM_BLOCKS_MULTIPLIER,
+                )
             }
         };
         self.run(start_from)
