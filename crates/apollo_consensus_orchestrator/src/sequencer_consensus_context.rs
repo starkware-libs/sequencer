@@ -992,10 +992,6 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
     )
     .await
     {
-        warn!(
-            "Invalid BlockInfo. block_info_validation={:?}, block_info={:?}",
-            args.block_info_validation, block_info
-        );
         return;
     }
     if let Err(e) = initiate_validation(
@@ -1083,25 +1079,28 @@ struct GasPriceParams {
     l1_data_gas_price_multiplier: Ratio<u128>,
 }
 
+#[instrument(level = "warn", skip_all, fields(?block_info_validation, ?block_info_proposed))]
 async fn is_block_info_valid(
     block_info_validation: BlockInfoValidation,
-    block_info: ConsensusBlockInfo,
+    block_info_proposed: ConsensusBlockInfo,
     eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
     clock: &dyn Clock,
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     gas_price_params: GasPriceParams,
 ) -> bool {
     let now: u64 = clock.now_as_timestamp();
-    if !(block_info.height == block_info_validation.height
-        && block_info.timestamp >= block_info_validation.last_block_timestamp.unwrap_or(0)
-        && block_info.timestamp <= now + block_info_validation.block_timestamp_window_seconds
-        && block_info.l1_da_mode == block_info_validation.l1_da_mode
-        && block_info.l2_gas_price_fri == block_info_validation.l2_gas_price_fri)
+    if !(block_info_proposed.height == block_info_validation.height
+        && block_info_proposed.timestamp >= block_info_validation.last_block_timestamp.unwrap_or(0)
+        // Check timestamp isn't in the future (allowing for clock disagreement).
+        && block_info_proposed.timestamp <= now + block_info_validation.block_timestamp_window_seconds
+        && block_info_proposed.l1_da_mode == block_info_validation.l1_da_mode
+        && block_info_proposed.l2_gas_price_fri == block_info_validation.l2_gas_price_fri)
     {
+        warn!("Invalid BlockInfo. local_timestamp={now}");
         return false;
     }
     let eth_to_fri_rate =
-        match eth_to_strk_oracle_client.eth_to_fri_rate(block_info.timestamp).await {
+        match eth_to_strk_oracle_client.eth_to_fri_rate(block_info_proposed.timestamp).await {
             Ok(rate) => rate,
             Err(err) => {
                 warn!("Failed to get eth to fri rate: {err:?}");
@@ -1110,9 +1109,9 @@ async fn is_block_info_valid(
         };
     let l1_gas_price_margin_percent =
         VersionedConstants::latest_constants().l1_gas_price_margin_percent.into();
-    let gas_prices =
-        l1_gas_price_provider.get_price_info(BlockTimestamp(block_info.timestamp)).await;
-    let mut gas_prices = match gas_prices {
+    let l1_gas_prices =
+        l1_gas_price_provider.get_price_info(BlockTimestamp(block_info_proposed.timestamp)).await;
+    let mut l1_gas_prices = match l1_gas_prices {
         Ok(prices) => prices,
         Err(e) => {
             warn!("Failed to get L1 gas prices, replacing with minimum values: {e:?}");
@@ -1122,23 +1121,28 @@ async fn is_block_info_valid(
             }
         }
     };
-    gas_prices.base_fee_per_gas = gas_prices
+    debug!("L1 price info: {l1_gas_prices:?}");
+    l1_gas_prices.base_fee_per_gas = l1_gas_prices
         .base_fee_per_gas
         .clamp(gas_price_params.min_l1_gas_price_wei, gas_price_params.max_l1_gas_price_wei);
 
-    gas_prices.blob_fee = GasPrice(
-        (gas_price_params.l1_data_gas_price_multiplier * gas_prices.blob_fee.0).to_integer(),
+    l1_gas_prices.blob_fee = GasPrice(
+        (gas_price_params.l1_data_gas_price_multiplier * l1_gas_prices.blob_fee.0).to_integer(),
     )
     .clamp(gas_price_params.min_l1_data_gas_price_wei, gas_price_params.max_l1_data_gas_price_wei);
 
     let l1_gas_price_fri =
-        ConsensusBlockInfo::wei_to_fri(gas_prices.base_fee_per_gas, eth_to_fri_rate);
+        ConsensusBlockInfo::wei_to_fri(l1_gas_prices.base_fee_per_gas, eth_to_fri_rate);
     let l1_data_gas_price_fri =
-        ConsensusBlockInfo::wei_to_fri(gas_prices.blob_fee, eth_to_fri_rate);
-    let l1_gas_price_fri_proposed =
-        ConsensusBlockInfo::wei_to_fri(block_info.l1_gas_price_wei, eth_to_fri_rate);
-    let l1_data_gas_price_fri_proposed =
-        ConsensusBlockInfo::wei_to_fri(block_info.l1_data_gas_price_wei, eth_to_fri_rate);
+        ConsensusBlockInfo::wei_to_fri(l1_gas_prices.blob_fee, eth_to_fri_rate);
+    let l1_gas_price_fri_proposed = ConsensusBlockInfo::wei_to_fri(
+        block_info_proposed.l1_gas_price_wei,
+        block_info_proposed.eth_to_fri_rate,
+    );
+    let l1_data_gas_price_fri_proposed = ConsensusBlockInfo::wei_to_fri(
+        block_info_proposed.l1_data_gas_price_wei,
+        block_info_proposed.eth_to_fri_rate,
+    );
     if !(within_margin(l1_gas_price_fri_proposed, l1_gas_price_fri, l1_gas_price_margin_percent)
         && within_margin(
             l1_data_gas_price_fri_proposed,
@@ -1146,6 +1150,14 @@ async fn is_block_info_valid(
             l1_gas_price_margin_percent,
         ))
     {
+        warn!(
+            %l1_gas_price_fri_proposed,
+            %l1_gas_price_fri,
+            %l1_data_gas_price_fri_proposed,
+            %l1_data_gas_price_fri,
+            %l1_gas_price_margin_percent,
+            "Invalid L1 gas price proposed.",
+        );
         return false;
     }
     true

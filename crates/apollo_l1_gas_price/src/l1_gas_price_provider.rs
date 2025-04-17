@@ -13,7 +13,7 @@ use starknet_api::block::{
     TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
     TEMP_ETH_GAS_FEE_IN_WEI,
 };
-use tracing::warn;
+use tracing::{info, warn};
 use validator::Validate;
 
 #[cfg(test)]
@@ -141,6 +141,7 @@ impl L1GasPriceProvider {
                 });
             }
         }
+        info!("Received price sample for L1 block {height}: {sample:?}");
         self.price_samples_by_block.push(GasPriceData { height, sample });
         Ok(())
     }
