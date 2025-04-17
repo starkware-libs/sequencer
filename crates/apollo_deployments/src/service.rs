@@ -17,7 +17,7 @@ pub struct Service {
     name: ServiceName,
     // TODO(Tsabary): change config path to PathBuf type.
     controller: Controller,
-    config_path: String,
+    config_paths: Vec<String>,
     ingress: Option<Ingress>,
     autoscale: bool,
     replicas: usize,
@@ -115,7 +115,8 @@ impl Service {
     ) -> Self {
         Self {
             name,
-            config_path: name.get_config_file_path(),
+            // Configs are loaded by order such that a config may override previous ones.
+            config_paths: vec![name.get_config_file_path()],
             controller,
             ingress,
             autoscale,
@@ -127,8 +128,8 @@ impl Service {
         }
     }
 
-    pub fn get_config_path(&self) -> String {
-        self.config_path.clone()
+    pub fn get_config_paths(&self) -> Vec<String> {
+        self.config_paths.clone()
     }
 }
 

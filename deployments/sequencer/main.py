@@ -66,7 +66,7 @@ def main():
             monitoring=args.create_monitoring,
             service_topology=topology.ServiceTopology(
                 config=config.SequencerConfig(
-                    config_subdir=application_config_subdir, config_path=svc["config_path"]
+                    config_subdir=application_config_subdir, config_paths=svc["config_paths"]
                 ),
                 image=image,
                 controller=svc["controller"].lower(),

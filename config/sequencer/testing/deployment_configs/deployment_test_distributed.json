@@ -6,7 +6,9 @@
     {
       "name": "Batcher",
       "controller": "StatefulSet",
-      "config_path": "batcher.json",
+      "config_paths": [
+        "batcher.json"
+      ],
       "ingress": null,
       "autoscale": false,
       "replicas": 1,
@@ -27,7 +29,9 @@
     {
       "name": "ClassManager",
       "controller": "StatefulSet",
-      "config_path": "class_manager.json",
+      "config_paths": [
+        "class_manager.json"
+      ],
       "ingress": null,
       "autoscale": false,
       "replicas": 1,
@@ -48,7 +52,9 @@
     {
       "name": "ConsensusManager",
       "controller": "StatefulSet",
-      "config_path": "consensus_manager.json",
+      "config_paths": [
+        "consensus_manager.json"
+      ],
       "ingress": null,
       "autoscale": false,
       "replicas": 1,
@@ -69,7 +75,9 @@
     {
       "name": "HttpServer",
       "controller": "StatefulSet",
-      "config_path": "http_server.json",
+      "config_paths": [
+        "http_server.json"
+      ],
       "ingress": {
         "domain": "sw-dev.io",
         "internal": true,
@@ -101,7 +109,9 @@
     {
       "name": "Gateway",
       "controller": "StatefulSet",
-      "config_path": "gateway.json",
+      "config_paths": [
+        "gateway.json"
+      ],
       "ingress": null,
       "autoscale": false,
       "replicas": 1,
@@ -122,7 +132,9 @@
     {
       "name": "L1",
       "controller": "StatefulSet",
-      "config_path": "l1.json",
+      "config_paths": [
+        "l1.json"
+      ],
       "ingress": null,
       "autoscale": false,
       "replicas": 1,
@@ -143,7 +155,9 @@
     {
       "name": "Mempool",
       "controller": "StatefulSet",
-      "config_path": "mempool.json",
+      "config_paths": [
+        "mempool.json"
+      ],
       "ingress": null,
       "autoscale": false,
       "replicas": 1,
@@ -164,7 +178,9 @@
     {
       "name": "SierraCompiler",
       "controller": "StatefulSet",
-      "config_path": "sierra_compiler.json",
+      "config_paths": [
+        "sierra_compiler.json"
+      ],
       "ingress": null,
       "autoscale": false,
       "replicas": 1,
@@ -185,7 +201,9 @@
     {
       "name": "StateSync",
       "controller": "StatefulSet",
-      "config_path": "state_sync.json",
+      "config_paths": [
+        "state_sync.json"
+      ],
       "ingress": null,
       "autoscale": false,
       "replicas": 1,
