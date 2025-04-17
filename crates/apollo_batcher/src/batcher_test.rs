@@ -815,6 +815,7 @@ async fn proposal_startup_failure_allows_new_proposals() {
 async fn add_sync_block() {
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+    let transaction_hashes: Vec<_> = test_tx_hashes().into_iter().collect();
     let mut mock_dependencies = MockDependencies::default();
 
     mock_dependencies
@@ -838,12 +839,11 @@ async fn add_sync_block() {
         .l1_provider_client
         .expect_commit_block()
         .times(1)
-        .with(eq(vec![]), eq(INITIAL_HEIGHT))
+        .with(eq(transaction_hashes.clone()), eq(INITIAL_HEIGHT))
         .returning(|_, _| Ok(()));
 
     let mut batcher = create_batcher(mock_dependencies).await;
 
-    let transaction_hashes: Vec<_> = test_tx_hashes().into_iter().collect();
     let n_synced_transactions = transaction_hashes.len();
 
     let sync_block = SyncBlock {
