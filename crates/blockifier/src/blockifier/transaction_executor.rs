@@ -1,6 +1,7 @@
 use std::panic::{self, catch_unwind, AssertUnwindSafe};
 use std::sync::{Arc, Mutex};
 
+use apollo_infra_utils::tracing::LogCompatibleToStringExt;
 use itertools::FoldWhile::{Continue, Done};
 use itertools::Itertools;
 use starknet_api::block::BlockHashAndNumber;
@@ -40,6 +41,8 @@ pub enum TransactionExecutorError {
     #[error(transparent)]
     CompressionError(#[from] CompressionError),
 }
+
+impl LogCompatibleToStringExt for TransactionExecutorError {}
 
 pub type TransactionExecutorResult<T> = Result<T, TransactionExecutorError>;
 
