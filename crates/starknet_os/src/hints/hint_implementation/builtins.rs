@@ -13,11 +13,13 @@ use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Ids};
 use crate::vm_utils::get_address_of_nested_fields;
 
-pub(crate) fn selected_builtins<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
+pub(crate) fn selected_builtins<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, '_, S>,
+) -> OsHintResult {
     todo!()
 }
 
-pub(crate) fn select_builtin<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
+pub(crate) fn select_builtin<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> OsHintResult {
     todo!()
 }
 
@@ -26,7 +28,7 @@ pub(crate) fn select_builtin<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -
 ///
 /// Assumption: selected builtins encoding is an ordered subset of builtin_params.
 pub(crate) fn update_builtin_ptrs<S: StateReader>(
-    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let n_builtins = get_integer_from_var_name(Ids::NBuiltins.into(), vm, ids_data, ap_tracking)?;
 
@@ -37,7 +39,7 @@ pub(crate) fn update_builtin_ptrs<S: StateReader>(
         vm,
         ap_tracking,
         &["builtin_encodings"],
-        &hint_processor.os_program,
+        hint_processor.os_program,
     )?;
 
     let n_selected_builtins =

@@ -17,7 +17,7 @@ use crate::hints::types::HintArgs;
 use crate::hints::vars::{Ids, Scope};
 
 pub(crate) fn dictionary_from_bucket<S: StateReader>(
-    HintArgs { exec_scopes, .. }: HintArgs<'_, S>,
+    HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let initial_dict: HashMap<MaybeRelocatable, MaybeRelocatable> = (0..TOTAL_N_BUCKETS)
         .map(|bucket_index| (Felt::from(bucket_index).into(), Felt::ZERO.into()))
@@ -27,7 +27,7 @@ pub(crate) fn dictionary_from_bucket<S: StateReader>(
 }
 
 pub(crate) fn get_prev_offset<S: StateReader>(
-    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let dict_manager = exec_scopes.get_dict_manager()?;
 
@@ -44,7 +44,7 @@ pub(crate) fn get_prev_offset<S: StateReader>(
 }
 
 pub(crate) fn compression_hint<S: StateReader>(
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let data_start = get_ptr_from_var_name(Ids::DataStart.into(), vm, ids_data, ap_tracking)?;
     let data_end = get_ptr_from_var_name(Ids::DataEnd.into(), vm, ids_data, ap_tracking)?;
@@ -63,7 +63,7 @@ pub(crate) fn compression_hint<S: StateReader>(
 }
 
 pub(crate) fn set_decompressed_dst<S: StateReader>(
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let decompressed_dst =
         get_ptr_from_var_name(Ids::DecompressedDst.into(), vm, ids_data, ap_tracking)?;

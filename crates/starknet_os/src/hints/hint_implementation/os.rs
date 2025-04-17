@@ -14,7 +14,7 @@ use crate::hints::vars::{CairoStruct, Scope};
 use crate::vm_utils::insert_values_to_fields;
 
 pub(crate) fn initialize_class_hashes<S: StateReader>(
-    HintArgs { hint_processor, exec_scopes, .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let class_hash_to_compiled_class_hash: HashMap<MaybeRelocatable, MaybeRelocatable> =
         hint_processor
@@ -31,7 +31,7 @@ pub(crate) fn initialize_class_hashes<S: StateReader>(
 }
 
 pub(crate) fn initialize_state_changes<S: StateReader>(
-    HintArgs { hint_processor, exec_scopes, vm, .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, exec_scopes, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let cached_state = &hint_processor.get_current_execution_helper()?.cached_state;
     let writes_accessed_addresses = cached_state.writes_contract_addresses();
@@ -51,7 +51,7 @@ pub(crate) fn initialize_state_changes<S: StateReader>(
                 ("storage_ptr", storage_ptr.into()),
                 ("nonce", nonce.0.into()),
             ],
-            &hint_processor.os_program,
+            hint_processor.os_program,
         )?;
         initial_dict.insert((*contract_address.0.key()).into(), state_entry_base.into());
     }
@@ -60,14 +60,14 @@ pub(crate) fn initialize_state_changes<S: StateReader>(
 }
 
 pub(crate) fn write_full_output_to_memory<S: StateReader>(
-    HintArgs { vm, hint_processor, .. }: HintArgs<'_, S>,
+    HintArgs { vm, hint_processor, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let full_output = Felt::from(hint_processor.os_hints_config.full_output);
     insert_nondet_hint_value(vm, AllHints::OsHint(OsHint::WriteFullOutputToMemory), full_output)
 }
 
 pub(crate) fn configure_kzg_manager<S: StateReader>(
-    HintArgs { exec_scopes, .. }: HintArgs<'_, S>,
+    HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     // TODO(Aner): verify that inserting into the "root" scope is not neccessary.
     exec_scopes.insert_value(Scope::SerializeDataAvailabilityCreatePages.into(), true);
@@ -75,40 +75,42 @@ pub(crate) fn configure_kzg_manager<S: StateReader>(
 }
 
 pub(crate) fn set_ap_to_prev_block_hash<S: StateReader>(
-    HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let os_input = &hint_processor.get_current_execution_helper()?.os_block_input;
     Ok(insert_value_into_ap(vm, os_input.prev_block_hash.0)?)
 }
 
 pub(crate) fn set_ap_to_new_block_hash<S: StateReader>(
-    HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let os_input = &hint_processor.get_current_execution_helper()?.os_block_input;
     Ok(insert_value_into_ap(vm, os_input.new_block_hash.0)?)
 }
 
-pub(crate) fn starknet_os_input<S: StateReader>(HintArgs { .. }: HintArgs<'_, S>) -> OsHintResult {
+pub(crate) fn starknet_os_input<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, '_, S>,
+) -> OsHintResult {
     // Nothing to do here; OS input already available on the hint processor.
     Ok(())
 }
 
 pub(crate) fn init_state_update_pointer<S: StateReader>(
-    HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     hint_processor.state_update_pointers = Some(StateUpdatePointers::new(vm));
     Ok(())
 }
 
 pub(crate) fn get_n_blocks<S: StateReader>(
-    HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let n_blocks = hint_processor.n_blocks();
     insert_nondet_hint_value(vm, AllHints::OsHint(OsHint::GetBlocksNumber), n_blocks)
 }
 
 pub(crate) fn create_block_additional_hints<S: StateReader>(
-    HintArgs { hint_processor, .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     // TODO(Nimrod): Verify hint implementation once syscall handlers are per block.
     hint_processor.execution_helpers_manager.increment_current_helper_index();

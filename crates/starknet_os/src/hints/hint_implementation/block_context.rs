@@ -16,7 +16,7 @@ use crate::hints::vars::{Const, Ids};
 // Hint implementations.
 
 pub(crate) fn block_number<S: StateReader>(
-    HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let block_number =
         hint_processor.get_current_execution_helper()?.os_block_input.block_info.block_number;
@@ -24,7 +24,7 @@ pub(crate) fn block_number<S: StateReader>(
 }
 
 pub(crate) fn block_timestamp<S: StateReader>(
-    HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let block_timestamp =
         hint_processor.get_current_execution_helper()?.os_block_input.block_info.block_timestamp;
@@ -32,7 +32,7 @@ pub(crate) fn block_timestamp<S: StateReader>(
 }
 
 pub(crate) fn chain_id<S: StateReader>(
-    HintArgs { vm, hint_processor, .. }: HintArgs<'_, S>,
+    HintArgs { vm, hint_processor, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let chain_id =
         &hint_processor.get_current_execution_helper()?.os_block_input.chain_info.chain_id;
@@ -41,7 +41,7 @@ pub(crate) fn chain_id<S: StateReader>(
 }
 
 pub(crate) fn fee_token_address<S: StateReader>(
-    HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let strk_fee_token_address = hint_processor
         .get_current_execution_helper()?
@@ -53,7 +53,7 @@ pub(crate) fn fee_token_address<S: StateReader>(
 }
 
 pub(crate) fn sequencer_address<S: StateReader>(
-    HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let address =
         hint_processor.get_current_execution_helper()?.os_block_input.block_info.sequencer_address;
@@ -61,7 +61,7 @@ pub(crate) fn sequencer_address<S: StateReader>(
 }
 
 pub(crate) fn get_block_mapping<S: StateReader>(
-    HintArgs { ids_data, constants, vm, ap_tracking, exec_scopes, .. }: HintArgs<'_, S>,
+    HintArgs { ids_data, constants, vm, ap_tracking, exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let block_hash_contract_address = Const::BlockHashContractAddress.fetch(constants)?;
     let contract_state_changes_ptr =
@@ -82,7 +82,7 @@ pub(crate) fn get_block_mapping<S: StateReader>(
 }
 
 pub(crate) fn write_use_kzg_da_to_memory<S: StateReader>(
-    HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let use_kzg_da =
         hint_processor.os_hints_config.use_kzg_da && !hint_processor.os_hints_config.full_output;
