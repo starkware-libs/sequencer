@@ -33,6 +33,8 @@ const APP_CONFIGS_DIR_NAME: &str = "app_configs/";
 
 type DeploymentFn = fn() -> DeploymentAndPreset;
 
+// TODO(Tsabary): create deployment instances per per deployment.
+
 pub const DEPLOYMENTS: &[DeploymentFn] = &[
     system_test_distributed_deployment,
     system_test_consolidated_deployment,
@@ -53,6 +55,7 @@ fn integration_hybrid_deployment_node_0() -> DeploymentAndPreset {
         Some(ExternalSecret::new("node-0-integration-secrets")),
         DEPLOYMENT_IMAGE_FOR_PRE_INTEGRATION,
         PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH_NODE_0),
+        vec![],
     ))
 }
 
@@ -65,6 +68,7 @@ fn integration_hybrid_deployment_node_1() -> DeploymentAndPreset {
         Some(ExternalSecret::new("node-1-integration-secrets")),
         DEPLOYMENT_IMAGE_FOR_PRE_INTEGRATION,
         PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH_NODE_1),
+        vec![],
     ))
 }
 
@@ -77,6 +81,7 @@ fn integration_hybrid_deployment_node_2() -> DeploymentAndPreset {
         Some(ExternalSecret::new("node-2-integration-secrets")),
         DEPLOYMENT_IMAGE_FOR_PRE_INTEGRATION,
         PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH_NODE_2),
+        vec![],
     ))
 }
 
@@ -89,6 +94,7 @@ fn integration_consolidated_deployment() -> DeploymentAndPreset {
         Some(ExternalSecret::new("node-1-integration-secrets")),
         DEPLOYMENT_IMAGE_FOR_PRE_INTEGRATION,
         PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH_NODE_0),
+        vec![],
     ))
 }
 
@@ -102,6 +108,7 @@ fn system_test_distributed_deployment() -> DeploymentAndPreset {
         None,
         DEPLOYMENT_IMAGE_FOR_TESTING,
         PathBuf::from(SYSTEM_TEST_BASE_APP_CONFIG_PATH),
+        vec![],
     ))
 }
 
@@ -114,6 +121,7 @@ fn system_test_consolidated_deployment() -> DeploymentAndPreset {
         None,
         DEPLOYMENT_IMAGE_FOR_TESTING,
         PathBuf::from(SYSTEM_TEST_BASE_APP_CONFIG_PATH),
+        vec![],
     ))
 }
 
