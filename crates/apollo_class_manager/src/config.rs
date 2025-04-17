@@ -81,14 +81,39 @@ impl SerializeConfig for FsClassStorageConfig {
     }
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct ClassManagerConfig {
     pub cached_class_storage_config: CachedClassStorageConfig,
+    pub max_compiled_contract_bytecode_size: usize,
+    pub max_compiled_contract_class_object_size: usize,
+}
+
+impl Default for ClassManagerConfig {
+    fn default() -> Self {
+        ClassManagerConfig {
+            cached_class_storage_config: CachedClassStorageConfig::default(),
+            max_compiled_contract_bytecode_size: 81920,
+            max_compiled_contract_class_object_size: 4089446,
+        }
+    }
 }
 
 impl SerializeConfig for ClassManagerConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = BTreeMap::new();
+        let mut dump = BTreeMap::from([
+            ser_param(
+                "max_compiled_contract_bytecode_size",
+                &self.max_compiled_contract_bytecode_size,
+                "Limitation of compiled contract class bytecode size.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_compiled_contract_class_object_size",
+                &self.max_compiled_contract_class_object_size,
+                "Limitation of compiled contract class object size.",
+                ParamPrivacyInput::Public,
+            ),
+        ]);
         dump.append(&mut append_sub_config_name(
             self.cached_class_storage_config.dump(),
             "cached_class_storage_config",
