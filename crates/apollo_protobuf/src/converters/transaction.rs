@@ -23,7 +23,7 @@ use starknet_api::transaction::fields::{
     PaymasterData,
     ResourceBounds,
     Tip,
-    TransactionSignature,
+    TransactionDeprSignature,
     ValidResourceBounds,
 };
 use starknet_api::transaction::{
@@ -265,7 +265,7 @@ impl TryFrom<protobuf::transaction_in_block::DeployAccountV1> for DeployAccountT
             }
         })?);
 
-        let signature = TransactionSignature(
+        let signature = TransactionDeprSignature(
             value
                 .signature
                 .ok_or(missing("DeployAccountV1::signature"))?
@@ -329,7 +329,7 @@ impl TryFrom<protobuf::DeployAccountV3> for DeployAccountTransactionV3 {
 
         let tip = Tip(value.tip);
 
-        let signature = TransactionSignature(
+        let signature = TransactionDeprSignature(
             value
                 .signature
                 .ok_or(missing("DeployAccountV3::signature"))?
@@ -497,7 +497,7 @@ impl TryFrom<protobuf::transaction_in_block::InvokeV0> for InvokeTransactionV0 {
             }
         })?);
 
-        let signature = TransactionSignature(
+        let signature = TransactionDeprSignature(
             value
                 .signature
                 .ok_or(missing("InvokeV0::signature"))?
@@ -548,7 +548,7 @@ impl TryFrom<protobuf::transaction_in_block::InvokeV1> for InvokeTransactionV1 {
             }
         })?);
 
-        let signature = TransactionSignature(
+        let signature = TransactionDeprSignature(
             value
                 .signature
                 .ok_or(missing("InvokeV1::signature"))?
@@ -594,7 +594,7 @@ impl TryFrom<protobuf::InvokeV3> for InvokeTransactionV3 {
 
         let tip = Tip(value.tip);
 
-        let signature = TransactionSignature(
+        let signature = TransactionDeprSignature(
             value
                 .signature
                 .ok_or(missing("InvokeV3::signature"))?
@@ -692,7 +692,7 @@ impl TryFrom<protobuf::transaction_in_block::DeclareV0WithoutClass> for DeclareT
             }
         })?);
 
-        let signature = TransactionSignature(
+        let signature = TransactionDeprSignature(
             value
                 .signature
                 .ok_or(missing("DeclareV0::signature"))?
@@ -740,7 +740,7 @@ impl TryFrom<protobuf::transaction_in_block::DeclareV1WithoutClass> for DeclareT
             }
         })?);
 
-        let signature = TransactionSignature(
+        let signature = TransactionDeprSignature(
             value
                 .signature
                 .ok_or(missing("DeclareV1::signature"))?
@@ -788,7 +788,7 @@ impl TryFrom<protobuf::transaction_in_block::DeclareV2WithoutClass> for DeclareT
             }
         })?);
 
-        let signature = TransactionSignature(
+        let signature = TransactionDeprSignature(
             value
                 .signature
                 .ok_or(missing("DeclareV2::signature"))?

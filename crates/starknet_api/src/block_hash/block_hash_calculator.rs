@@ -20,7 +20,7 @@ use crate::crypto::utils::HashChain;
 use crate::data_availability::L1DataAvailabilityMode;
 use crate::execution_resources::GasVector;
 use crate::state::ThinStateDiff;
-use crate::transaction::fields::{Fee, TransactionSignature};
+use crate::transaction::fields::{Fee, TransactionDeprSignature};
 use crate::transaction::{Event, MessageToL1, TransactionExecutionStatus, TransactionHash};
 use crate::{StarknetApiError, StarknetApiResult};
 
@@ -93,7 +93,7 @@ pub struct TransactionOutputForHash {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 pub struct TransactionHashingData {
-    pub transaction_signature: TransactionSignature,
+    pub transaction_signature: TransactionDeprSignature,
     pub transaction_output: TransactionOutputForHash,
     pub transaction_hash: TransactionHash,
 }

@@ -5,7 +5,7 @@ use starknet_api::transaction::fields::{
     AccountDeploymentData,
     PaymasterData,
     Tip,
-    TransactionSignature,
+    TransactionDeprSignature,
     ValidResourceBounds,
 };
 use starknet_types_core::felt::Felt;
@@ -22,7 +22,7 @@ use crate::protobuf;
 pub(crate) struct DeclareTransactionV3Common {
     pub resource_bounds: ValidResourceBounds,
     pub tip: Tip,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub nonce: Nonce,
     pub compiled_class_hash: CompiledClassHash,
     pub sender_address: ContractAddress,
@@ -41,7 +41,7 @@ impl TryFrom<protobuf::DeclareV3Common> for DeclareTransactionV3Common {
 
         let tip = Tip(value.tip);
 
-        let signature = TransactionSignature(
+        let signature = TransactionDeprSignature(
             value
                 .signature
                 .ok_or(missing("DeclareV3Common::signature"))?

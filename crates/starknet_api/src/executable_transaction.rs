@@ -20,7 +20,7 @@ use crate::transaction::fields::{
     Fee,
     PaymasterData,
     Tip,
-    TransactionSignature,
+    TransactionDeprSignature,
     ValidResourceBounds,
 };
 use crate::transaction::{
@@ -112,7 +112,7 @@ impl AccountTransaction {
     implement_account_tx_inner_getters!(
         (resource_bounds, ValidResourceBounds),
         (tip, Tip),
-        (signature, TransactionSignature),
+        (signature, TransactionDeprSignature),
         (nonce, Nonce),
         (nonce_data_availability_mode, DataAvailabilityMode),
         (fee_data_availability_mode, DataAvailabilityMode),
@@ -162,7 +162,7 @@ impl DeclareTransaction {
         (class_hash, ClassHash),
         (nonce, Nonce),
         (sender_address, ContractAddress),
-        (signature, TransactionSignature),
+        (signature, TransactionDeprSignature),
         (version, TransactionVersion),
         // compiled_class_hash is only supported in V2 and V3, otherwise the getter panics.
         (compiled_class_hash, CompiledClassHash),
@@ -286,7 +286,7 @@ impl DeployAccountTransaction {
         (constructor_calldata, Calldata),
         (contract_address_salt, ContractAddressSalt),
         (nonce, Nonce),
-        (signature, TransactionSignature),
+        (signature, TransactionDeprSignature),
         (version, TransactionVersion),
         (resource_bounds, ValidResourceBounds),
         (tip, Tip),
@@ -321,7 +321,7 @@ impl InvokeTransaction {
     implement_inner_tx_getter_calls!(
         (calldata, Calldata),
         (nonce, Nonce),
-        (signature, TransactionSignature),
+        (signature, TransactionDeprSignature),
         (sender_address, ContractAddress),
         (version, TransactionVersion),
         (resource_bounds, ValidResourceBounds),

@@ -15,7 +15,7 @@ use starknet_api::transaction::fields::{
     Fee,
     PaymasterData,
     Tip,
-    TransactionSignature,
+    TransactionDeprSignature,
 };
 use starknet_api::transaction::{L1HandlerTransaction, Transaction};
 use starknet_api::{calldata, contract_address, felt, nonce};
@@ -67,7 +67,7 @@ auto_impl_get_test_instance! {
     }
     pub struct DeployAccountTransactionV1 {
         pub max_fee: Fee,
-        pub signature: TransactionSignature,
+        pub signature: TransactionDeprSignature,
         pub nonce: Nonce,
         pub class_hash: ClassHash,
         pub contract_address_salt: ContractAddressSalt,
@@ -75,7 +75,7 @@ auto_impl_get_test_instance! {
         pub version: TransactionVersion1,
     }
     pub struct DeployAccountTransactionV3 {
-        pub signature: TransactionSignature,
+        pub signature: TransactionDeprSignature,
         pub nonce: Nonce,
         pub class_hash: ClassHash,
         pub contract_address_salt: ContractAddressSalt,
@@ -95,7 +95,7 @@ auto_impl_get_test_instance! {
     pub struct InvokeTransactionV0 {
         pub max_fee: Fee,
         pub version: TransactionVersion0,
-        pub signature: TransactionSignature,
+        pub signature: TransactionDeprSignature,
         pub contract_address: ContractAddress,
         pub entry_point_selector: EntryPointSelector,
         pub calldata: Calldata,
@@ -103,7 +103,7 @@ auto_impl_get_test_instance! {
     pub struct InvokeTransactionV1 {
         pub max_fee: Fee,
         pub version: TransactionVersion1,
-        pub signature: TransactionSignature,
+        pub signature: TransactionDeprSignature,
         pub nonce: Nonce,
         pub sender_address: ContractAddress,
         pub calldata: Calldata,
@@ -112,7 +112,7 @@ auto_impl_get_test_instance! {
         pub sender_address: ContractAddress,
         pub calldata: Calldata,
         pub version: TransactionVersion3,
-        pub signature: TransactionSignature,
+        pub signature: TransactionDeprSignature,
         pub nonce: Nonce,
         pub resource_bounds: ResourceBoundsMapping,
         pub tip: Tip,

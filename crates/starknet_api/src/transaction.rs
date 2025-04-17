@@ -27,7 +27,7 @@ use crate::transaction::fields::{
     Fee,
     PaymasterData,
     Tip,
-    TransactionSignature,
+    TransactionDeprSignature,
     ValidResourceBounds,
 };
 use crate::transaction_hash::{
@@ -269,7 +269,7 @@ impl TransactionOutput {
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct DeclareTransactionV0V1 {
     pub max_fee: Fee,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub nonce: Nonce,
     pub class_hash: ClassHash,
     pub sender_address: ContractAddress,
@@ -295,7 +295,7 @@ impl TransactionHasher for DeclareTransactionV0V1 {
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct DeclareTransactionV2 {
     pub max_fee: Fee,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub nonce: Nonce,
     pub class_hash: ClassHash,
     pub compiled_class_hash: CompiledClassHash,
@@ -318,7 +318,7 @@ impl TransactionHasher for DeclareTransactionV2 {
 pub struct DeclareTransactionV3 {
     pub resource_bounds: ValidResourceBounds,
     pub tip: Tip,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub nonce: Nonce,
     pub class_hash: ClassHash,
     pub compiled_class_hash: CompiledClassHash,
@@ -365,7 +365,7 @@ impl DeclareTransaction {
         (class_hash, ClassHash),
         (nonce, Nonce),
         (sender_address, ContractAddress),
-        (signature, TransactionSignature)
+        (signature, TransactionDeprSignature)
     );
 
     implement_v3_tx_getters!(
@@ -472,7 +472,7 @@ impl<T: DeployTransactionTrait> CalculateContractAddress for T {
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct DeployAccountTransactionV1 {
     pub max_fee: Fee,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub nonce: Nonce,
     pub class_hash: ClassHash,
     pub contract_address_salt: ContractAddressSalt,
@@ -496,7 +496,7 @@ impl TransactionHasher for DeployAccountTransactionV1 {
 pub struct DeployAccountTransactionV3 {
     pub resource_bounds: ValidResourceBounds,
     pub tip: Tip,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub nonce: Nonce,
     pub class_hash: ClassHash,
     pub contract_address_salt: ContractAddressSalt,
@@ -555,7 +555,7 @@ impl DeployAccountTransaction {
         (constructor_calldata, Calldata),
         (contract_address_salt, ContractAddressSalt),
         (nonce, Nonce),
-        (signature, TransactionSignature)
+        (signature, TransactionDeprSignature)
     );
 
     implement_v3_tx_getters!(
@@ -619,7 +619,7 @@ impl_deploy_transaction_trait!(DeployTransaction);
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct InvokeTransactionV0 {
     pub max_fee: Fee,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub contract_address: ContractAddress,
     pub entry_point_selector: EntryPointSelector,
     pub calldata: Calldata,
@@ -639,7 +639,7 @@ impl TransactionHasher for InvokeTransactionV0 {
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct InvokeTransactionV1 {
     pub max_fee: Fee,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub nonce: Nonce,
     pub sender_address: ContractAddress,
     pub calldata: Calldata,
@@ -660,7 +660,7 @@ impl TransactionHasher for InvokeTransactionV1 {
 pub struct InvokeTransactionV3 {
     pub resource_bounds: ValidResourceBounds,
     pub tip: Tip,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub nonce: Nonce,
     pub sender_address: ContractAddress,
     pub calldata: Calldata,
@@ -702,7 +702,7 @@ macro_rules! implement_invoke_tx_getters {
 }
 
 impl InvokeTransaction {
-    implement_invoke_tx_getters!((calldata, Calldata), (signature, TransactionSignature));
+    implement_invoke_tx_getters!((calldata, Calldata), (signature, TransactionDeprSignature));
 
     implement_v3_tx_getters!(
         (resource_bounds, ValidResourceBounds),

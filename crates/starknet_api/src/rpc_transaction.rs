@@ -21,7 +21,7 @@ use crate::transaction::fields::{
     ContractAddressSalt,
     PaymasterData,
     Tip,
-    TransactionSignature,
+    TransactionDeprSignature,
     ValidResourceBounds,
 };
 use crate::transaction::{
@@ -166,7 +166,7 @@ impl RpcTransaction {
     implement_ref_getters!(
         (nonce, Nonce),
         (resource_bounds, AllResourceBounds),
-        (signature, TransactionSignature),
+        (signature, TransactionDeprSignature),
         (tip, Tip),
         (nonce_data_availability_mode, DataAvailabilityMode),
         (fee_data_availability_mode, DataAvailabilityMode)
@@ -368,7 +368,7 @@ pub struct RpcDeclareTransactionV3 {
     // pub r#type: DeclareType,
     pub sender_address: ContractAddress,
     pub compiled_class_hash: CompiledClassHash,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub nonce: Nonce,
     pub contract_class: SierraContractClass,
     pub resource_bounds: AllResourceBounds,
@@ -402,7 +402,7 @@ impl From<RpcDeclareTransactionV3> for DeclareTransactionV3 {
 pub struct InternalRpcDeclareTransactionV3 {
     pub sender_address: ContractAddress,
     pub compiled_class_hash: CompiledClassHash,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub nonce: Nonce,
     pub class_hash: ClassHash,
     pub resource_bounds: AllResourceBounds,
@@ -489,7 +489,7 @@ impl From<InternalRpcDeclareTransactionV3> for DeclareTransaction {
 /// A deploy account transaction that can be added to Starknet through the RPC.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, SizeOf)]
 pub struct RpcDeployAccountTransactionV3 {
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub nonce: Nonce,
     pub class_hash: ClassHash,
     pub contract_address_salt: ContractAddressSalt,
@@ -565,7 +565,7 @@ impl TransactionHasher for RpcDeployAccountTransactionV3 {
 pub struct RpcInvokeTransactionV3 {
     pub sender_address: ContractAddress,
     pub calldata: Calldata,
-    pub signature: TransactionSignature,
+    pub signature: TransactionDeprSignature,
     pub nonce: Nonce,
     pub resource_bounds: AllResourceBounds,
     pub tip: Tip,
