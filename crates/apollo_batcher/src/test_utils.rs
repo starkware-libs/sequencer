@@ -128,7 +128,7 @@ impl BlockExecutionArtifacts {
             execution_data: BlockTransactionExecutionData {
                 execution_infos: indexed_execution_infos(),
                 rejected_tx_hashes: test_txs(10..15).iter().map(|tx| tx.tx_hash()).collect(),
-                accepted_l1_handler_tx_hashes: Default::default(),
+                consumed_l1_handler_tx_hashes: Default::default(),
             },
             commitment_state_diff: CommitmentStateDiff {
                 address_to_class_hash: IndexMap::from_iter([(
