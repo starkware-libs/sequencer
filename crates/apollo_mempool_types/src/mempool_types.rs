@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
-use starknet_api::block::NonzeroGasPrice;
+use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -45,7 +45,7 @@ pub struct MempoolSnapshot {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TransactionQueueSnapshot {
-    pub gas_price_threshold: NonzeroGasPrice,
+    pub gas_price_threshold: GasPrice,
     pub priority_queue: Vec<TransactionHash>,
     pub pending_queue: Vec<TransactionHash>,
 }

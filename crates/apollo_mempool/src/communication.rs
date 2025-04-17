@@ -12,7 +12,7 @@ use apollo_mempool_types::errors::MempoolError;
 use apollo_mempool_types::mempool_types::{CommitBlockArgs, MempoolResult, MempoolSnapshot};
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use async_trait::async_trait;
-use starknet_api::block::NonzeroGasPrice;
+use starknet_api::block::GasPrice;
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 
@@ -96,7 +96,7 @@ impl MempoolCommunicationWrapper {
         Ok(self.mempool.account_tx_in_pool_or_recent_block(account_address))
     }
 
-    fn update_gas_price(&mut self, gas_price: NonzeroGasPrice) -> MempoolResult<()> {
+    fn update_gas_price(&mut self, gas_price: GasPrice) -> MempoolResult<()> {
         self.mempool.update_gas_price(gas_price);
         Ok(())
     }

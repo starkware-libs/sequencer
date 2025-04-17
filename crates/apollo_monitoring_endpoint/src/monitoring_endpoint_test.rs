@@ -16,7 +16,7 @@ use hyper::Client;
 use metrics::{counter, describe_counter};
 use pretty_assertions::assert_eq;
 use serde_json::{from_slice, to_value, Value};
-use starknet_api::block::NonzeroGasPrice;
+use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::{nonce, tx_hash};
 use tokio::spawn;
@@ -144,7 +144,7 @@ fn create_hash_map(i: u32, j: u32) -> HashMap<ContractAddress, Nonce> {
 fn expected_mempool_snapshot() -> MempoolSnapshot {
     let expected_chronological_hashes = (1..10).map(|i| tx_hash!(i)).collect::<Vec<_>>();
     let expected_transaction_queue = TransactionQueueSnapshot {
-        gas_price_threshold: NonzeroGasPrice::MIN,
+        gas_price_threshold: GasPrice(1),
         priority_queue: (1..5).map(|i| tx_hash!(i)).collect::<Vec<_>>(),
         pending_queue: (5..10).map(|i| tx_hash!(i)).collect::<Vec<_>>(),
     };

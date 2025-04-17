@@ -119,8 +119,12 @@ impl Default for MockDependencies {
         let mut storage_reader = MockBatcherStorageReaderTrait::new();
         storage_reader.expect_height().returning(|| Ok(INITIAL_HEIGHT));
         let mut mempool_client = MockMempoolClient::new();
-        let expected_gas_price =
-            propose_block_input(PROPOSAL_ID).block_info.gas_prices.strk_gas_prices.l2_gas_price;
+        let expected_gas_price = propose_block_input(PROPOSAL_ID)
+            .block_info
+            .gas_prices
+            .strk_gas_prices
+            .l2_gas_price
+            .get();
         mempool_client.expect_update_gas_price().with(eq(expected_gas_price)).returning(|_| Ok(()));
         mempool_client
             .expect_commit_block()

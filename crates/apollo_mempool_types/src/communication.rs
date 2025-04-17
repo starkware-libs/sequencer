@@ -9,7 +9,7 @@ use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::NonzeroGasPrice;
+use starknet_api::block::GasPrice;
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use strum_macros::AsRefStr;
@@ -46,7 +46,7 @@ pub trait MempoolClient: Send + Sync {
         &self,
         contract_address: ContractAddress,
     ) -> MempoolClientResult<bool>;
-    async fn update_gas_price(&self, gas_price: NonzeroGasPrice) -> MempoolClientResult<()>;
+    async fn update_gas_price(&self, gas_price: GasPrice) -> MempoolClientResult<()>;
     async fn get_mempool_snapshot(&self) -> MempoolClientResult<MempoolSnapshot>;
 }
 
@@ -57,7 +57,7 @@ pub enum MempoolRequest {
     GetTransactions(usize),
     AccountTxInPoolOrRecentBlock(ContractAddress),
     // TODO(yair): Rename to `StartBlock` and add cleanup of staged txs.
-    UpdateGasPrice(NonzeroGasPrice),
+    UpdateGasPrice(GasPrice),
     GetMempoolSnapshot(),
 }
 impl_debug_for_infra_requests_and_responses!(MempoolRequest);
@@ -133,7 +133,7 @@ where
         )
     }
 
-    async fn update_gas_price(&self, gas_price: NonzeroGasPrice) -> MempoolClientResult<()> {
+    async fn update_gas_price(&self, gas_price: GasPrice) -> MempoolClientResult<()> {
         let request = MempoolRequest::UpdateGasPrice(gas_price);
         handle_all_response_variants!(
             MempoolResponse,
