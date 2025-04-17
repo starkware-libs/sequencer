@@ -790,7 +790,7 @@ else:
     (
         OsInputTransactions,
         os_input_transactions,
-        indoc! {r#"memory[fp + 12] = to_felt_or_relocatable(len(block_input.transactions))"#
+        indoc! {r#"memory[fp + 0] = to_felt_or_relocatable(len(block_input.transactions))"#
         }
     ),
     (
