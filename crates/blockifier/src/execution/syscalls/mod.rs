@@ -29,7 +29,7 @@ use crate::execution::execution_utils::{
 use crate::execution::syscalls::syscall_base::SyscallResult;
 
 pub mod hint_processor;
-mod secp;
+pub mod secp;
 pub mod syscall_base;
 mod syscall_executor;
 
