@@ -129,7 +129,7 @@ pub enum UpdateTree {
 
 type TreeLayer = HashMap<LayerIndex, UpdateTree>;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CanonicNode {
     BinaryOrLeaf(HashOutput),
     Edge(EdgeData),
@@ -230,4 +230,45 @@ pub(crate) fn create_preimage_mapping(
         }
     }
     Ok(preimage_mapping)
+}
+
+/// Retrieves the children of a CanonicNode.
+/// We call this function only from `get_descents`, which stops when we get to a leaf.
+/// So we assume node is not a leaf.
+fn get_children(
+    node: &CanonicNode,
+    preimage_map: &PreimageMap,
+) -> Result<(CanonicNode, CanonicNode), PatriciaError> {
+    match node {
+        CanonicNode::Empty => {
+            // An empty node.
+            Ok((CanonicNode::Empty, CanonicNode::Empty))
+        }
+        CanonicNode::BinaryOrLeaf(hash) => {
+            // A binary node (not a leaf).
+            let preimage = preimage_map.get(hash).ok_or(PatriciaError::MissingPreimage(*hash))?;
+
+            let binary = preimage.get_binary()?;
+            Ok((
+                CanonicNode::new(preimage_map, &binary.left_hash),
+                CanonicNode::new(preimage_map, &binary.right_hash),
+            ))
+        }
+        CanonicNode::Edge(edge) => {
+            let hash = edge.bottom_hash;
+            let path_to_bottom = edge.path_to_bottom;
+
+            let child = if u8::from(path_to_bottom.length) == 1 {
+                CanonicNode::BinaryOrLeaf(hash)
+            } else {
+                let new_path = path_to_bottom.remove_first_edges(EdgePathLength::new(1)?)?;
+                CanonicNode::Edge(EdgeData { bottom_hash: hash, path_to_bottom: new_path })
+            };
+
+            if path_to_bottom.is_left_descendant() {
+                return Ok((child, CanonicNode::Empty));
+            }
+            Ok((CanonicNode::Empty, child))
+        }
+    }
 }
