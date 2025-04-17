@@ -1009,6 +1009,11 @@
     "privacy": "TemporaryValue",
     "value": "PointerTarget"
   },
+  "format_logs_for_gcp": {
+    "description": "Whether to format the logs to be GCP friendly",
+    "privacy": "Public",
+    "value": false
+  },
   "gateway_config.block_declare": {
     "description": "If true, the gateway will block declare transactions.",
     "privacy": "Public",

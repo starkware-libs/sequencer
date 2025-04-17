@@ -10,7 +10,7 @@ use tracing::info;
 
 #[tokio::main]
 async fn main() {
-    configure_tracing().await;
+    configure_tracing(false).await;
     info!("Running system test setup.");
 
     // Parse command line arguments.

@@ -152,7 +152,7 @@ async fn bootstrap_e2e() {
     if !in_ci() {
         return;
     }
-    configure_tracing().await;
+    configure_tracing(false).await;
 
     // Setup.
 
@@ -267,7 +267,7 @@ async fn bootstrap_delayed_sync_state_with_trivial_catch_up() {
     if !in_ci() {
         return;
     }
-    configure_tracing().await;
+    configure_tracing(false).await;
 
     // Setup.
 
@@ -338,7 +338,7 @@ async fn bootstrap_delayed_sync_state_with_sync_behind_batcher() {
     if !in_ci() {
         return;
     }
-    configure_tracing().await;
+    configure_tracing(false).await;
 
     // Setup.
 
@@ -415,7 +415,7 @@ async fn bootstrap_delayed_sync_state_with_sync_behind_batcher() {
 #[tokio::test]
 #[should_panic = "Sync task is stuck"]
 async fn test_stuck_sync() {
-    configure_tracing().await;
+    configure_tracing(false).await;
     const STARTUP_HEIGHT: BlockNumber = BlockNumber(1);
 
     let mut sync_client = MockStateSyncClient::default();

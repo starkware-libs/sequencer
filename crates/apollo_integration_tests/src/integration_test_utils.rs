@@ -3,7 +3,7 @@ use apollo_node::test_utils::node_runner::get_node_executable_path;
 use tracing::{info, warn};
 
 pub async fn integration_test_setup(test_specifier: &str) {
-    configure_tracing().await;
+    configure_tracing(false).await;
     info!("Running sequencer node end to end {test_specifier} flow integration test setup.");
 
     let sequencer_path = get_node_executable_path();
