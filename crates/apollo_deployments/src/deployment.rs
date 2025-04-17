@@ -132,10 +132,12 @@ impl Deployment {
     #[cfg(test)]
     pub(crate) fn assert_application_configs_exist(&self) {
         for service in &self.services {
-            // Concatenate paths.
-            let full_path = &self.application_config_subdir.join(service.get_config_path());
-            // Assert existence.
-            assert!(full_path.exists(), "File does not exist: {:?}", full_path);
+            for config_path in service.get_config_paths() {
+                // Concatenate paths.
+                let full_path = &self.application_config_subdir.join(config_path);
+                // Assert existence.
+                assert!(full_path.exists(), "File does not exist: {:?}", full_path);
+            }
         }
     }
 

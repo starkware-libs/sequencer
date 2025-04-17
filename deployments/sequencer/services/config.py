@@ -1,6 +1,6 @@
 import json
 import os
-from typing import Dict, Any
+from typing import Dict, Any, List
 from jsonschema import validate, ValidationError
 
 
@@ -43,13 +43,21 @@ class DeploymentConfig:
 class SequencerConfig:
     ROOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../../")
 
-    def __init__(self, config_subdir: str, config_path: str):
+    def __init__(self, config_subdir: str, config_paths: List[str]):
         self.config_subdir = os.path.join(self.ROOT_DIR, config_subdir)
-        self.config_path = os.path.join(self.config_subdir, config_path)
+        self.config_paths = config_paths
 
     def get_config(self) -> Dict[Any, Any]:
-        with open(self.config_path) as config_file:
-            return json.loads(config_file.read())
+        result = {}
+        for config_path in self.config_paths:
+            path = os.path.join(self.config_subdir, config_path)
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if not isinstance(data, dict):
+                    raise ValueError(f"File {path} does not contain a JSON object")
+                result.update(data)  # later values overwrite previous
+
+        return result
 
     def validate(self):
         pass
