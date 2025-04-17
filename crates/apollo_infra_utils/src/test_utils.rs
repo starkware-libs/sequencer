@@ -23,6 +23,7 @@ const _: () = {
 // TODO(Nadin): Come up with a better name for this enum.
 pub enum TestIdentifier {
     EndToEndFlowTest,
+    EndToEndFlowTestBootstrapDeclare,
     EndToEndFlowTestManyTxs,
     InfraUnitTests,
     PositiveFlowIntegrationTest,
@@ -37,14 +38,15 @@ impl From<TestIdentifier> for u16 {
     fn from(variant: TestIdentifier) -> Self {
         match variant {
             TestIdentifier::EndToEndFlowTest => 0,
-            TestIdentifier::EndToEndFlowTestManyTxs => 1,
-            TestIdentifier::InfraUnitTests => 2,
-            TestIdentifier::PositiveFlowIntegrationTest => 3,
-            TestIdentifier::RestartFlowIntegrationTest => 4,
-            TestIdentifier::RevertFlowIntegrationTest => 5,
-            TestIdentifier::SystemTestDumpSingleNodeConfig => 6,
-            TestIdentifier::HttpServerUnitTests => 7,
-            TestIdentifier::SyncFlowIntegrationTest => 8,
+            TestIdentifier::EndToEndFlowTestBootstrapDeclare => 1,
+            TestIdentifier::EndToEndFlowTestManyTxs => 2,
+            TestIdentifier::InfraUnitTests => 3,
+            TestIdentifier::PositiveFlowIntegrationTest => 4,
+            TestIdentifier::RestartFlowIntegrationTest => 5,
+            TestIdentifier::RevertFlowIntegrationTest => 6,
+            TestIdentifier::SystemTestDumpSingleNodeConfig => 7,
+            TestIdentifier::HttpServerUnitTests => 8,
+            TestIdentifier::SyncFlowIntegrationTest => 9,
         }
     }
 }

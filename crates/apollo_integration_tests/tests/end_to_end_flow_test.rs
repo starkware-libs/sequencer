@@ -19,7 +19,10 @@ use apollo_integration_tests::utils::{
     ACCOUNT_ID_0,
     UNDEPLOYED_ACCOUNT_ID,
 };
-use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
+use mempool_test_utils::starknet_api_test_utils::{
+    generate_bootstrap_declare,
+    MultiAccountTransactionGenerator,
+};
 use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusRecorder};
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
@@ -44,13 +47,22 @@ fn tx_generator() -> MultiAccountTransactionGenerator {
     TestIdentifier::EndToEndFlowTest,
     create_test_scenarios(),
     GasAmount(29000000),
-    false
+    false,
+    true
 )]
 #[case::many_txs_scenario(
     TestIdentifier::EndToEndFlowTestManyTxs,
     create_many_txs_scenario(),
     GasAmount(17500000),
+    true,
     true
+)]
+#[case::bootstrap_declare_scenario(
+    TestIdentifier::EndToEndFlowTestBootstrapDeclare,
+    create_bootstrap_declare_scenario(),
+    GasAmount(29000000),
+    false,
+    false
 )]
 #[tokio::test]
 async fn end_to_end_flow(
@@ -59,6 +71,7 @@ async fn end_to_end_flow(
     #[case] test_blocks_scenarios: Vec<TestScenario>,
     #[case] block_max_capacity_sierra_gas: GasAmount,
     #[case] expecting_full_blocks: bool,
+    #[case] block_bootstrap_txs: bool,
 ) {
     configure_tracing().await;
     let recorder = PrometheusBuilder::new().build_recorder();
@@ -70,6 +83,7 @@ async fn end_to_end_flow(
         &tx_generator,
         test_identifier.into(),
         block_max_capacity_sierra_gas,
+        block_bootstrap_txs,
     )
     .await;
 
@@ -201,6 +215,14 @@ fn create_many_txs_scenario() -> Vec<TestScenario> {
         create_rpc_txs_fn: create_many_invoke_txs,
         create_l1_to_l2_messages_args_fn: |_| vec![],
         test_tx_hashes_fn: test_many_invoke_txs,
+    }]
+}
+
+fn create_bootstrap_declare_scenario() -> Vec<TestScenario> {
+    vec![TestScenario {
+        create_rpc_txs_fn: |_| vec![generate_bootstrap_declare()],
+        create_l1_to_l2_messages_args_fn: |_| vec![],
+        test_tx_hashes_fn: test_single_tx,
     }]
 }
 
