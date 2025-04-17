@@ -8,7 +8,7 @@ const RECORDER_PORT: u16 = 8080;
 
 #[tokio::main]
 async fn main() {
-    configure_tracing().await;
+    configure_tracing(false).await;
 
     let socket_address = SocketAddr::from(([0, 0, 0, 0], RECORDER_PORT));
     let join_handle = spawn_success_recorder(socket_address);

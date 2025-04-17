@@ -60,7 +60,7 @@ async fn end_to_end_flow(
     #[case] block_max_capacity_sierra_gas: GasAmount,
     #[case] expecting_full_blocks: bool,
 ) {
-    configure_tracing().await;
+    configure_tracing(false).await;
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
 
