@@ -53,6 +53,8 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
         &self,
         environment: &Environment,
         external_secret: &Option<ExternalSecret>,
+        base_app_config_file_path: String,
+        deployment_instance_config_file_path: String,
     ) -> Service {
         match environment {
             Environment::Testing => match self {
@@ -66,6 +68,8 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
+                    base_app_config_file_path,
+                    deployment_instance_config_file_path,
                 ),
             },
             Environment::SepoliaIntegration => match self {
@@ -84,6 +88,8 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
                     Some("sequencer".into()),
                     Resources::new(Resource::new(2, 4), Resource::new(4, 8)),
                     external_secret.clone(),
+                    base_app_config_file_path,
+                    deployment_instance_config_file_path,
                 ),
             },
             _ => unimplemented!(),

@@ -112,11 +112,17 @@ impl Service {
         toleration: Option<String>,
         resources: Resources,
         external_secret: Option<ExternalSecret>,
+        base_app_config_file_path: String,
+        deployment_instance_config_file_path: String,
     ) -> Self {
         Self {
             name,
             // Configs are loaded by order such that a config may override previous ones.
-            config_paths: vec![name.get_config_file_path()],
+            config_paths: vec![
+                base_app_config_file_path,
+                deployment_instance_config_file_path,
+                name.get_config_file_path(),
+            ],
             controller,
             ingress,
             autoscale,
@@ -156,8 +162,15 @@ impl ServiceName {
         &self,
         environment: &Environment,
         external_secret: &Option<ExternalSecret>,
+        base_app_config_file_path: String,
+        deployment_instance_config_file_path: String,
     ) -> Service {
-        self.as_inner().create_service(environment, external_secret)
+        self.as_inner().create_service(
+            environment,
+            external_secret,
+            base_app_config_file_path,
+            deployment_instance_config_file_path,
+        )
     }
 
     fn as_inner(&self) -> &dyn ServiceNameInner {
@@ -174,6 +187,8 @@ pub(crate) trait ServiceNameInner: Display {
         &self,
         environment: &Environment,
         external_secret: &Option<ExternalSecret>,
+        base_app_config_file_path: String,
+        deployment_instance_config_file_path: String,
     ) -> Service;
 }
 

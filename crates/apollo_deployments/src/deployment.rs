@@ -18,17 +18,17 @@ const DEPLOYMENT_IMAGE: &str =
      04-10-chore_apollo_deployments_3_nodes_integration_deployments-1a9c48e";
 const DEPLOYMENT_CONFIG_DIR_NAME: &str = "deployment_configs/";
 
+// TODO(Tsabary): this struct has become a wrapper for `Deployment`, should be removed.
 pub struct DeploymentAndPreset {
     deployment: Deployment,
     // TODO(Tsabary): consider using PathBuf instead.
     dump_file_path: PathBuf,
-    base_app_config_file_path: &'static str,
 }
 
 impl DeploymentAndPreset {
-    pub fn new(deployment: Deployment, base_app_config_file_path: &'static str) -> Self {
+    pub fn new(deployment: Deployment) -> Self {
         let dump_file_path = deployment.deployment_file_path();
-        Self { deployment, dump_file_path, base_app_config_file_path }
+        Self { deployment, dump_file_path }
     }
 
     pub fn get_deployment(&self) -> &Deployment {
@@ -40,7 +40,7 @@ impl DeploymentAndPreset {
     }
 
     pub fn get_base_app_config_file_path(&self) -> &'static str {
-        self.base_app_config_file_path
+        self.deployment.get_base_app_config_file_path()
     }
 }
 
@@ -56,6 +56,8 @@ pub struct Deployment {
     services: Vec<Service>,
     #[serde(skip_serializing)]
     instance_name: String,
+    #[serde(skip_serializing)]
+    base_app_config_file_path: &'static str,
 }
 
 impl Deployment {
@@ -65,11 +67,20 @@ impl Deployment {
         environment: Environment,
         instance_name: &str,
         external_secret: Option<ExternalSecret>,
+        base_app_config_file_path: &'static str,
+        deployment_instance_config_file_path: &'static str,
     ) -> Self {
         let service_names = deployment_name.all_service_names();
         let services = service_names
             .iter()
-            .map(|service_name| service_name.create_service(&environment, &external_secret))
+            .map(|service_name| {
+                service_name.create_service(
+                    &environment,
+                    &external_secret,
+                    base_app_config_file_path.to_string(),
+                    deployment_instance_config_file_path.to_string(),
+                )
+            })
             .collect();
         Self {
             chain_id,
@@ -80,7 +91,12 @@ impl Deployment {
             environment,
             services,
             instance_name: instance_name.to_string(),
+            base_app_config_file_path,
         }
+    }
+
+    pub fn get_base_app_config_file_path(&self) -> &'static str {
+        self.base_app_config_file_path
     }
 
     pub fn get_deployment_name(&self) -> &DeploymentName {

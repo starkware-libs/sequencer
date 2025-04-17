@@ -115,6 +115,8 @@ impl ServiceNameInner for HybridNodeServiceName {
         &self,
         environment: &Environment,
         external_secret: &Option<ExternalSecret>,
+        base_app_config_file_path: String,
+        deployment_instance_config_file_path: String,
     ) -> Service {
         match environment {
             Environment::Testing => match self {
@@ -128,6 +130,8 @@ impl ServiceNameInner for HybridNodeServiceName {
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
+                    base_app_config_file_path,
+                    deployment_instance_config_file_path,
                 ),
                 HybridNodeServiceName::HttpServer => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -144,6 +148,8 @@ impl ServiceNameInner for HybridNodeServiceName {
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
+                    base_app_config_file_path,
+                    deployment_instance_config_file_path,
                 ),
                 HybridNodeServiceName::Gateway => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -155,6 +161,8 @@ impl ServiceNameInner for HybridNodeServiceName {
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
+                    base_app_config_file_path,
+                    deployment_instance_config_file_path,
                 ),
                 HybridNodeServiceName::Mempool => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -166,6 +174,8 @@ impl ServiceNameInner for HybridNodeServiceName {
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
+                    base_app_config_file_path,
+                    deployment_instance_config_file_path,
                 ),
                 HybridNodeServiceName::SierraCompiler => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -177,6 +187,8 @@ impl ServiceNameInner for HybridNodeServiceName {
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
+                    base_app_config_file_path,
+                    deployment_instance_config_file_path,
                 ),
             },
             Environment::SepoliaIntegration => match self {
@@ -190,6 +202,8 @@ impl ServiceNameInner for HybridNodeServiceName {
                     Some("sequencer".into()),
                     Resources::new(Resource::new(2, 4), Resource::new(4, 8)),
                     external_secret.clone(),
+                    base_app_config_file_path,
+                    deployment_instance_config_file_path,
                 ),
                 HybridNodeServiceName::HttpServer => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -206,6 +220,8 @@ impl ServiceNameInner for HybridNodeServiceName {
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
+                    base_app_config_file_path,
+                    deployment_instance_config_file_path,
                 ),
                 HybridNodeServiceName::Gateway => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -217,6 +233,8 @@ impl ServiceNameInner for HybridNodeServiceName {
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(2, 4)),
                     external_secret.clone(),
+                    base_app_config_file_path,
+                    deployment_instance_config_file_path,
                 ),
                 HybridNodeServiceName::Mempool => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -228,6 +246,8 @@ impl ServiceNameInner for HybridNodeServiceName {
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(2, 4)),
                     external_secret.clone(),
+                    base_app_config_file_path,
+                    deployment_instance_config_file_path,
                 ),
                 HybridNodeServiceName::SierraCompiler => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -239,6 +259,8 @@ impl ServiceNameInner for HybridNodeServiceName {
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(2, 4)),
                     external_secret.clone(),
+                    base_app_config_file_path,
+                    deployment_instance_config_file_path,
                 ),
             },
             _ => unimplemented!(),

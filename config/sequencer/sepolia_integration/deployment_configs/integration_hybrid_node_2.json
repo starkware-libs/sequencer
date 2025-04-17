@@ -7,6 +7,8 @@
       "name": "Core",
       "controller": "StatefulSet",
       "config_paths": [
+        "config/sequencer/sepolia_integration/base_app_configs/node_2.json",
+        "config/sequencer/sepolia_integration/base_app_configs/node_2.json",
         "core.json"
       ],
       "ingress": null,
@@ -32,6 +34,8 @@
       "name": "HttpServer",
       "controller": "Deployment",
       "config_paths": [
+        "config/sequencer/sepolia_integration/base_app_configs/node_2.json",
+        "config/sequencer/sepolia_integration/base_app_configs/node_2.json",
         "http_server.json"
       ],
       "ingress": {
@@ -70,6 +74,8 @@
       "name": "Gateway",
       "controller": "Deployment",
       "config_paths": [
+        "config/sequencer/sepolia_integration/base_app_configs/node_2.json",
+        "config/sequencer/sepolia_integration/base_app_configs/node_2.json",
         "gateway.json"
       ],
       "ingress": null,
@@ -95,6 +101,8 @@
       "name": "Mempool",
       "controller": "Deployment",
       "config_paths": [
+        "config/sequencer/sepolia_integration/base_app_configs/node_2.json",
+        "config/sequencer/sepolia_integration/base_app_configs/node_2.json",
         "mempool.json"
       ],
       "ingress": null,
@@ -120,6 +128,8 @@
       "name": "SierraCompiler",
       "controller": "Deployment",
       "config_paths": [
+        "config/sequencer/sepolia_integration/base_app_configs/node_2.json",
+        "config/sequencer/sepolia_integration/base_app_configs/node_2.json",
         "sierra_compiler.json"
       ],
       "ingress": null,
