@@ -7,6 +7,8 @@
       "name": "Batcher",
       "controller": "StatefulSet",
       "config_paths": [
+        "config/sequencer/testing/base_app_configs/single_node_deployment_test.json",
+        "config/sequencer/testing/base_app_configs/single_node_deployment_test.json",
         "batcher.json"
       ],
       "ingress": null,
@@ -30,6 +32,8 @@
       "name": "ClassManager",
       "controller": "StatefulSet",
       "config_paths": [
+        "config/sequencer/testing/base_app_configs/single_node_deployment_test.json",
+        "config/sequencer/testing/base_app_configs/single_node_deployment_test.json",
         "class_manager.json"
       ],
       "ingress": null,
@@ -53,6 +57,8 @@
       "name": "ConsensusManager",
       "controller": "StatefulSet",
       "config_paths": [
+        "config/sequencer/testing/base_app_configs/single_node_deployment_test.json",
+        "config/sequencer/testing/base_app_configs/single_node_deployment_test.json",
         "consensus_manager.json"
       ],
       "ingress": null,
@@ -76,6 +82,8 @@
       "name": "HttpServer",
       "controller": "StatefulSet",
       "config_paths": [
+        "config/sequencer/testing/base_app_configs/single_node_deployment_test.json",
+        "config/sequencer/testing/base_app_configs/single_node_deployment_test.json",
         "http_server.json"
       ],
       "ingress": {
@@ -110,6 +118,8 @@
       "name": "Gateway",
       "controller": "StatefulSet",
       "config_paths": [
+        "config/sequencer/testing/base_app_configs/single_node_deployment_test.json",
+        "config/sequencer/testing/base_app_configs/single_node_deployment_test.json",
         "gateway.json"
       ],
       "ingress": null,
@@ -133,6 +143,8 @@
       "name": "L1",
       "controller": "StatefulSet",
       "config_paths": [
+        "config/sequencer/testing/base_app_configs/single_node_deployment_test.json",
+        "config/sequencer/testing/base_app_configs/single_node_deployment_test.json",
         "l1.json"
       ],
       "ingress": null,
@@ -156,6 +168,8 @@
       "name": "Mempool",
       "controller": "StatefulSet",
       "config_paths": [
+        "config/sequencer/testing/base_app_configs/single_node_deployment_test.json",
+        "config/sequencer/testing/base_app_configs/single_node_deployment_test.json",
         "mempool.json"
       ],
       "ingress": null,
@@ -179,6 +193,8 @@
       "name": "SierraCompiler",
       "controller": "StatefulSet",
       "config_paths": [
+        "config/sequencer/testing/base_app_configs/single_node_deployment_test.json",
+        "config/sequencer/testing/base_app_configs/single_node_deployment_test.json",
         "sierra_compiler.json"
       ],
       "ingress": null,
@@ -202,6 +218,8 @@
       "name": "StateSync",
       "controller": "StatefulSet",
       "config_paths": [
+        "config/sequencer/testing/base_app_configs/single_node_deployment_test.json",
+        "config/sequencer/testing/base_app_configs/single_node_deployment_test.json",
         "state_sync.json"
       ],
       "ingress": null,

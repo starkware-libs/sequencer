@@ -7,6 +7,8 @@
       "name": "Node",
       "controller": "StatefulSet",
       "config_paths": [
+        "config/sequencer/testing/base_app_configs/single_node_deployment_test.json",
+        "config/sequencer/testing/base_app_configs/single_node_deployment_test.json",
         "node.json"
       ],
       "ingress": null,

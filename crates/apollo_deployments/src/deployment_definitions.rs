@@ -28,6 +28,8 @@ const APP_CONFIGS_DIR_NAME: &str = "app_configs/";
 
 type DeploymentFn = fn() -> DeploymentAndPreset;
 
+// TODO(Tsabary): create deployment instances per per deployment.
+
 pub const DEPLOYMENTS: &[DeploymentFn] = &[
     system_test_distributed_deployment,
     system_test_consolidated_deployment,
@@ -40,82 +42,76 @@ pub const DEPLOYMENTS: &[DeploymentFn] = &[
 // Integration deployments
 
 fn integration_hybrid_deployment_node_0() -> DeploymentAndPreset {
-    DeploymentAndPreset::new(
-        Deployment::new(
-            ChainId::IntegrationSepolia,
-            DeploymentName::HybridNode,
-            Environment::SepoliaIntegration,
-            "integration_hybrid_node_0",
-            Some(ExternalSecret::new("node-0-integration-secrets")),
-        ),
+    DeploymentAndPreset::new(Deployment::new(
+        ChainId::IntegrationSepolia,
+        DeploymentName::HybridNode,
+        Environment::SepoliaIntegration,
+        "integration_hybrid_node_0",
+        Some(ExternalSecret::new("node-0-integration-secrets")),
         INTEGRATION_BASE_APP_CONFIG_PATH_NODE_0,
-    )
+        INTEGRATION_BASE_APP_CONFIG_PATH_NODE_0,
+    ))
 }
 
 fn integration_hybrid_deployment_node_1() -> DeploymentAndPreset {
-    DeploymentAndPreset::new(
-        Deployment::new(
-            ChainId::IntegrationSepolia,
-            DeploymentName::HybridNode,
-            Environment::SepoliaIntegration,
-            "integration_hybrid_node_1",
-            Some(ExternalSecret::new("node-1-integration-secrets")),
-        ),
+    DeploymentAndPreset::new(Deployment::new(
+        ChainId::IntegrationSepolia,
+        DeploymentName::HybridNode,
+        Environment::SepoliaIntegration,
+        "integration_hybrid_node_1",
+        Some(ExternalSecret::new("node-1-integration-secrets")),
         INTEGRATION_BASE_APP_CONFIG_PATH_NODE_1,
-    )
+        INTEGRATION_BASE_APP_CONFIG_PATH_NODE_1,
+    ))
 }
 
 fn integration_hybrid_deployment_node_2() -> DeploymentAndPreset {
-    DeploymentAndPreset::new(
-        Deployment::new(
-            ChainId::IntegrationSepolia,
-            DeploymentName::HybridNode,
-            Environment::SepoliaIntegration,
-            "integration_hybrid_node_2",
-            Some(ExternalSecret::new("node-2-integration-secrets")),
-        ),
+    DeploymentAndPreset::new(Deployment::new(
+        ChainId::IntegrationSepolia,
+        DeploymentName::HybridNode,
+        Environment::SepoliaIntegration,
+        "integration_hybrid_node_2",
+        Some(ExternalSecret::new("node-2-integration-secrets")),
         INTEGRATION_BASE_APP_CONFIG_PATH_NODE_2,
-    )
+        INTEGRATION_BASE_APP_CONFIG_PATH_NODE_2,
+    ))
 }
 
 fn integration_consolidated_deployment() -> DeploymentAndPreset {
-    DeploymentAndPreset::new(
-        Deployment::new(
-            ChainId::IntegrationSepolia,
-            DeploymentName::ConsolidatedNode,
-            Environment::SepoliaIntegration,
-            "integration_consolidated",
-            Some(ExternalSecret::new("node-1-integration-secrets")),
-        ),
+    DeploymentAndPreset::new(Deployment::new(
+        ChainId::IntegrationSepolia,
+        DeploymentName::ConsolidatedNode,
+        Environment::SepoliaIntegration,
+        "integration_consolidated",
+        Some(ExternalSecret::new("node-1-integration-secrets")),
         INTEGRATION_BASE_APP_CONFIG_PATH_NODE_0,
-    )
+        INTEGRATION_BASE_APP_CONFIG_PATH_NODE_0,
+    ))
 }
 
 // System test deployments
 fn system_test_distributed_deployment() -> DeploymentAndPreset {
-    DeploymentAndPreset::new(
-        Deployment::new(
-            ChainId::IntegrationSepolia,
-            DeploymentName::DistributedNode,
-            Environment::Testing,
-            "deployment_test_distributed",
-            None,
-        ),
+    DeploymentAndPreset::new(Deployment::new(
+        ChainId::IntegrationSepolia,
+        DeploymentName::DistributedNode,
+        Environment::Testing,
+        "deployment_test_distributed",
+        None,
         SYSTEM_TEST_BASE_APP_CONFIG_PATH,
-    )
+        SYSTEM_TEST_BASE_APP_CONFIG_PATH,
+    ))
 }
 
 fn system_test_consolidated_deployment() -> DeploymentAndPreset {
-    DeploymentAndPreset::new(
-        Deployment::new(
-            ChainId::IntegrationSepolia,
-            DeploymentName::ConsolidatedNode,
-            Environment::Testing,
-            "deployment_test_consolidated",
-            None,
-        ),
+    DeploymentAndPreset::new(Deployment::new(
+        ChainId::IntegrationSepolia,
+        DeploymentName::ConsolidatedNode,
+        Environment::Testing,
+        "deployment_test_consolidated",
+        None,
         SYSTEM_TEST_BASE_APP_CONFIG_PATH,
-    )
+        SYSTEM_TEST_BASE_APP_CONFIG_PATH,
+    ))
 }
 
 #[derive(EnumString, Clone, Display, PartialEq, Debug)]

@@ -140,6 +140,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
         &self,
         environment: &Environment,
         external_secret: &Option<ExternalSecret>,
+        base_app_config_file_path: String,
+        deployment_instance_config_file_path: String,
     ) -> Service {
         match environment {
             Environment::Testing => match self {
@@ -153,6 +155,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
+                    base_app_config_file_path,
+                    deployment_instance_config_file_path,
                 ),
                 DistributedNodeServiceName::ClassManager => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -164,6 +168,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
+                    base_app_config_file_path,
+                    deployment_instance_config_file_path,
                 ),
                 DistributedNodeServiceName::ConsensusManager => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -175,6 +181,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
+                    base_app_config_file_path,
+                    deployment_instance_config_file_path,
                 ),
                 DistributedNodeServiceName::HttpServer => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -191,6 +199,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
+                    base_app_config_file_path,
+                    deployment_instance_config_file_path,
                 ),
                 DistributedNodeServiceName::Gateway => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -202,6 +212,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
+                    base_app_config_file_path,
+                    deployment_instance_config_file_path,
                 ),
                 DistributedNodeServiceName::L1 => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -213,6 +225,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
+                    base_app_config_file_path,
+                    deployment_instance_config_file_path,
                 ),
                 DistributedNodeServiceName::Mempool => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -224,6 +238,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
+                    base_app_config_file_path,
+                    deployment_instance_config_file_path,
                 ),
                 DistributedNodeServiceName::SierraCompiler => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -235,6 +251,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
+                    base_app_config_file_path,
+                    deployment_instance_config_file_path,
                 ),
                 DistributedNodeServiceName::StateSync => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -246,6 +264,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
+                    base_app_config_file_path,
+                    deployment_instance_config_file_path,
                 ),
             },
             Environment::SepoliaIntegration => match self {
@@ -259,6 +279,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
+                    base_app_config_file_path,
+                    deployment_instance_config_file_path,
                 ),
                 DistributedNodeServiceName::ClassManager => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -270,6 +292,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
+                    base_app_config_file_path,
+                    deployment_instance_config_file_path,
                 ),
                 DistributedNodeServiceName::ConsensusManager => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -281,6 +305,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
+                    base_app_config_file_path,
+                    deployment_instance_config_file_path,
                 ),
                 DistributedNodeServiceName::HttpServer => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -297,6 +323,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
+                    base_app_config_file_path,
+                    deployment_instance_config_file_path,
                 ),
                 DistributedNodeServiceName::Gateway => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -308,6 +336,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
+                    base_app_config_file_path,
+                    deployment_instance_config_file_path,
                 ),
                 DistributedNodeServiceName::L1 => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -319,6 +349,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
+                    base_app_config_file_path,
+                    deployment_instance_config_file_path,
                 ),
                 DistributedNodeServiceName::Mempool => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -330,6 +362,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
+                    base_app_config_file_path,
+                    deployment_instance_config_file_path,
                 ),
                 DistributedNodeServiceName::SierraCompiler => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -341,6 +375,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
+                    base_app_config_file_path,
+                    deployment_instance_config_file_path,
                 ),
                 DistributedNodeServiceName::StateSync => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -352,6 +388,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
+                    base_app_config_file_path,
+                    deployment_instance_config_file_path,
                 ),
             },
             _ => unimplemented!(),

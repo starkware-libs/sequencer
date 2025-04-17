@@ -7,6 +7,8 @@
       "name": "Node",
       "controller": "StatefulSet",
       "config_paths": [
+        "config/sequencer/sepolia_integration/base_app_configs/node_0.json",
+        "config/sequencer/sepolia_integration/base_app_configs/node_0.json",
         "node.json"
       ],
       "ingress": {
