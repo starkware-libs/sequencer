@@ -194,7 +194,10 @@ async fn test_get_class_hash_at() {
 // TODO(shahak): test undeclared class flow (when sync client returns false).
 #[rstest]
 #[tokio::test]
-async fn test_get_compiled_class(#[values(true, false)] sync_client_result: bool) {
+async fn test_get_compiled_class(
+    #[values(true, false)] sync_client_result: bool,
+    #[values(true, false)] class_client_manager_positive_result: bool,
+) {
     let mut mock_state_sync_client = MockStateSyncClient::new();
     let mut mock_class_manager_client = MockClassManagerClient::new();
     let block_number = BlockNumber(1);
@@ -215,7 +218,11 @@ async fn test_get_compiled_class(#[values(true, false)] sync_client_result: bool
         .times(1)
         .with(predicate::eq(class_hash))
         .returning(move |_| {
-            Ok(Some(ContractClass::V1((casm_contract_class.clone(), SierraVersion::default()))))
+            Ok(if class_client_manager_positive_result {
+                Some(ContractClass::V1((casm_contract_class.clone(), SierraVersion::default())))
+            } else {
+                None
+            })
         });
 
     mock_state_sync_client
@@ -232,19 +239,21 @@ async fn test_get_compiled_class(#[values(true, false)] sync_client_result: bool
     );
 
     let result =
-        tokio::task::spawn_blocking(move || state_sync_reader.get_compiled_class(class_hash))
-            .await
-            .unwrap();
-    if sync_client_result {
+        tokio::task::spawn_blocking(move || state_sync_reader.get_compiled_class(class_hash)).await;
+
+    if !class_client_manager_positive_result {
+        // TODO(AndrewL): Clarify if this is the expected result before merging the PR
+        result.unwrap_err();
+    } else if sync_client_result {
         assert_eq!(
-            result.unwrap(),
+            result.unwrap().unwrap(),
             RunnableCompiledClass::V1(
                 (expected_result, SierraVersion::default()).try_into().unwrap()
             )
         );
     } else {
         let returned_class_hash =
-            assert_matches!(result.unwrap_err(), StateError::UndeclaredClassHash(h) => h);
+            assert_matches!(result.unwrap().unwrap_err(), StateError::UndeclaredClassHash(h) => h);
         assert_eq!(returned_class_hash, class_hash);
     }
 }
