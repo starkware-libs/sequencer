@@ -104,7 +104,7 @@ pub struct SnosHintProcessor<'a, S: StateReader> {
     // KZG fields.
     da_segment: Option<Vec<Felt>>,
     // Indicates wether to create pages or not when serializing data-availability.
-    _serialize_data_availability_create_pages: bool,
+    pub(crate) serialize_data_availability_create_pages: bool,
 }
 
 impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
@@ -148,7 +148,7 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
             compiled_classes: os_hints.os_input.compiled_classes,
             state_update_pointers: None,
             commitment_type: CommitmentType::State,
-            _serialize_data_availability_create_pages: false,
+            serialize_data_availability_create_pages: false,
         })
     }
 
