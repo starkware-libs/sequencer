@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::future::Future;
 use std::net::{Ipv4Addr, SocketAddr};
+use std::panic;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -23,7 +24,11 @@ use apollo_test_utils::send_request;
 use blockifier::context::ChainInfo;
 use futures::future::join_all;
 use futures::TryFutureExt;
-use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
+use mempool_test_utils::starknet_api_test_utils::{
+    contract_class,
+    AccountId,
+    MultiAccountTransactionGenerator,
+};
 use papyrus_base_layer::ethereum_base_layer_contract::StarknetL1Contract;
 use papyrus_base_layer::test_utils::{
     ethereum_base_layer_config_for_anvil,
@@ -34,6 +39,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, Nonce};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
+use starknet_api::state::SierraContractClass;
 use starknet_api::transaction::TransactionHash;
 use tokio::join;
 use tokio_util::task::AbortOnDropHandle;
@@ -494,41 +500,6 @@ impl IntegrationTestManager {
         self.rpc_verify_last_block(wait_for_block).await;
     }
 
-    // Verify with JSON RPC server if the last block is the expected one.
-    async fn rpc_verify_last_block(&self, expected_block: BlockNumber) {
-        let node_0_setup = self
-            .running_nodes
-            .get(&0)
-            .map(|node| &(node.node_setup))
-            .unwrap_or_else(|| self.idle_nodes.get(&0).expect("Node 0 doesn't exist"));
-        let config = node_0_setup
-            .executables
-            .get(node_0_setup.http_server_index)
-            .expect("http_server_index points to a non existing executable index")
-            .get_config();
-
-        let url = config.state_sync_config.rpc_config.server_address.to_string();
-        let server_address: SocketAddr = url.parse().expect("Invalid socket address format");
-        info!("Connecting to Node id 0 JSON RPC server at: {server_address:?}");
-
-        let res = send_request(server_address, "starknet_blockNumber", "", "V0_8").await;
-        if let Some(block_number) = res.get("result").and_then(|result| result.as_u64()) {
-            assert!(
-                block_number >= expected_block.0,
-                "JSON RPC server -> Block number mismatch: expected greater or equal than {}, got \
-                 {}.",
-                expected_block.0,
-                block_number
-            );
-        } else {
-            info!("JSON RPC server -> Received: {:?}", res);
-            panic!(
-                "JSON RPC server -> Failed to extract block number: 'result' field is missing or \
-                 not a valid u64."
-            );
-        }
-    }
-
     /// Create a simulator that's connected to the http server of Node 0.
     pub fn create_simulator(&self) -> SequencerSimulator {
         let node_0_setup = self
@@ -555,6 +526,7 @@ impl IntegrationTestManager {
     pub async fn send_declare_txs_and_verify(&mut self) {
         info!("Sending a declare tx and waiting for block {}.", BLOCK_TO_WAIT_FOR_DECLARE);
         self.test_and_verify(DeclareTx, DEFAULT_SENDER_ACCOUNT, BLOCK_TO_WAIT_FOR_DECLARE).await;
+        self.rpc_verify_class_declared(BLOCK_TO_WAIT_FOR_DECLARE).await;
     }
 
     pub async fn await_txs_accepted_on_all_running_nodes(&mut self, target_n_txs: usize) {
@@ -596,6 +568,78 @@ impl IntegrationTestManager {
             self.running_nodes.values().map(|node| node.await_alive(interval, max_attempts));
 
         join_all(await_alive_tasks).await;
+    }
+
+    // Get RPC server socket address for the node 0.
+    fn get_rpc_server_socket(&self) -> SocketAddr {
+        let node_0_setup = self
+            .running_nodes
+            .get(&0)
+            .map(|node| &(node.node_setup))
+            .unwrap_or_else(|| self.idle_nodes.get(&0).expect("Node 0 doesn't exist"));
+        let config = node_0_setup
+            .executables
+            .get(node_0_setup.http_server_index)
+            .expect("http_server_index points to a non existing executable index")
+            .get_config();
+
+        let url = config.state_sync_config.rpc_config.server_address.to_string();
+        url.parse::<SocketAddr>().expect("Invalid socket address format")
+    }
+
+    // Verify with JSON RPC server if the last block is the expected one.
+    async fn rpc_verify_last_block(&self, expected_block: BlockNumber) {
+        info!("Verifying last block number by JSON RPC server.");
+
+        let server_address = self.get_rpc_server_socket();
+        let res = send_request(server_address, "starknet_blockNumber", "", "V0_8").await;
+        if let Some(block_number) = res.get("result").and_then(|result| result.as_u64()) {
+            assert!(
+                block_number >= expected_block.0,
+                "JSON RPC server -> Block number mismatch: expected greater or equal than {}, got \
+                 {}.",
+                expected_block.0,
+                block_number
+            );
+        } else {
+            info!("JSON RPC server -> Received: {:?}", res);
+            panic!(
+                "JSON RPC server -> Failed to extract block number: 'result' field is missing or \
+                 not a valid u64."
+            );
+        }
+    }
+
+    // Verify with JSON RPC server that class is declare transaction was successful.
+    async fn rpc_verify_class_declared(&self, expected_block: BlockNumber) {
+        info!("Verifying class declaration by JSON RPC server.");
+
+        let server_address = self.get_rpc_server_socket();
+        let declared_contract_class = contract_class();
+        let class_hash = declared_contract_class.calculate_class_hash();
+        let params = format!(
+            r#"{{"block_number": {}}}, "0x{}""#,
+            expected_block,
+            hex::encode(class_hash.0.to_bytes_be())
+        );
+
+        info!(
+            "rpc_verify_class_declared: server_addrerss: {}, class_version: {},  params {}",
+            server_address, declared_contract_class.contract_class_version, params
+        );
+
+        let res = send_request(server_address, "starknet_getClass", params.as_str(), "V0_8").await;
+        if let Some(received_contract_class) = res.get("result") {
+            let contract_class: SierraContractClass =
+                serde_json::from_value(received_contract_class.clone())
+                    .expect("Failed to convert received contract class to SierraContractClass");
+            assert_eq!(
+                contract_class, declared_contract_class,
+                "JSON RPC server -> Contract Class mismatch.",
+            );
+        } else {
+            panic!("JSON RPC server -> Failed to get class");
+        }
     }
 
     async fn run_integration_test_simulator(
