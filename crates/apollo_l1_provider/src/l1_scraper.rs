@@ -19,7 +19,7 @@ use starknet_api::executable_transaction::L1HandlerTransaction as ExecutableL1Ha
 use starknet_api::StarknetApiError;
 use thiserror::Error;
 use tokio::time::sleep;
-use tracing::{error, info, instrument, warn};
+use tracing::{debug, error, info, instrument, warn};
 use validator::Validate;
 
 use crate::metrics::{register_scraper_metrics, L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT};
@@ -122,11 +122,35 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
             .events(scraping_start_number..=latest_l1_block.number, &self.tracked_event_identifiers)
             .await;
 
-        let events = scraping_result.map_err(L1ScraperError::BaseLayerError)?;
-        let events = events
+        let l1_events = scraping_result.map_err(L1ScraperError::BaseLayerError)?;
+        // Used for debug.
+        let l1_hashes = l1_events
+            .iter()
+            .filter_map(|event| match event {
+                L1Event::LogMessageToL2 { l1_tx_hash, .. } => Some(*l1_tx_hash),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        let events = l1_events
             .into_iter()
             .map(|event| self.event_from_raw_l1_event(event))
             .collect::<L1ScraperResult<Vec<_>, _>>()?;
+
+        // Used for debug.
+        let l2_hashes = events.iter().filter_map(|event| match event {
+            Event::L1HandlerTransaction(l1_handler_transaction) => {
+                Some(l1_handler_transaction.tx_hash)
+            }
+            _ => None,
+        });
+
+        let formatted_pairs = l1_hashes
+            .into_iter()
+            .zip(l2_hashes)
+            .map(|(l1_hash, l2_hash)| format!("L1 hash: {:?}, L2 hash: {}", l1_hash, l2_hash))
+            .collect::<Vec<_>>();
+        debug!("Got Messages to L2: {:?}", formatted_pairs);
 
         Ok((latest_l1_block, events))
     }
@@ -163,7 +187,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
 
     fn event_from_raw_l1_event(&self, l1_event: L1Event) -> L1ScraperResult<Event, B> {
         Ok(match l1_event {
-            L1Event::LogMessageToL2 { tx, fee } => {
+            L1Event::LogMessageToL2 { tx, fee, .. } => {
                 let chain_id = &self.config.chain_id;
                 let tx = ExecutableL1HandlerTransaction::create(tx, chain_id, fee)
                     .map_err(L1ScraperError::HashCalculationError)?;
