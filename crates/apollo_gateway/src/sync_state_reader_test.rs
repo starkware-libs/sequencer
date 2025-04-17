@@ -4,10 +4,13 @@ use apollo_class_manager_types::MockClassManagerClient;
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_test_utils::{get_rng, GetTestInstance};
+use assert_matches::assert_matches;
 use blockifier::execution::contract_class::RunnableCompiledClass;
+use blockifier::state::errors::StateError;
 use blockifier::state::state_api::StateReader;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use mockall::predicate;
+use rstest::rstest;
 use starknet_api::block::{
     BlockHeaderWithoutHash,
     BlockInfo,
@@ -189,8 +192,9 @@ async fn test_get_class_hash_at() {
 
 // TODO(NoamS): test undeclared class flow (when class manager client returns None).
 // TODO(shahak): test undeclared class flow (when sync client returns false).
+#[rstest]
 #[tokio::test]
-async fn test_get_compiled_class() {
+async fn test_get_compiled_class(#[values(true, false)] sync_client_result: bool) {
     let mut mock_state_sync_client = MockStateSyncClient::new();
     let mut mock_class_manager_client = MockClassManagerClient::new();
     let block_number = BlockNumber(1);
@@ -218,7 +222,7 @@ async fn test_get_compiled_class() {
         .expect_is_class_declared_at()
         .times(1)
         .with(predicate::eq(block_number), predicate::eq(class_hash))
-        .return_once(|_, _| Ok(true));
+        .return_once(move |_, _| Ok(sync_client_result));
 
     let state_sync_reader = SyncStateReader::from_number(
         Arc::new(mock_state_sync_client),
@@ -230,10 +234,17 @@ async fn test_get_compiled_class() {
     let result =
         tokio::task::spawn_blocking(move || state_sync_reader.get_compiled_class(class_hash))
             .await
-            .unwrap()
             .unwrap();
-    assert_eq!(
-        result,
-        RunnableCompiledClass::V1((expected_result, SierraVersion::default()).try_into().unwrap())
-    );
+    if sync_client_result {
+        assert_eq!(
+            result.unwrap(),
+            RunnableCompiledClass::V1(
+                (expected_result, SierraVersion::default()).try_into().unwrap()
+            )
+        );
+    } else {
+        let returned_class_hash =
+            assert_matches!(result.unwrap_err(), StateError::UndeclaredClassHash(h) => h);
+        assert_eq!(returned_class_hash, class_hash);
+    }
 }
