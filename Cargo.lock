@@ -11437,6 +11437,7 @@ name = "shared_execution_objects"
 version = "0.0.0"
 dependencies = [
  "blockifier",
+ "rstest",
  "serde",
  "starknet_api",
 ]

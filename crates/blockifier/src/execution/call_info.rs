@@ -330,3 +330,10 @@ impl<'a> Iterator for CallInfoIter<'a> {
         Some(call_info)
     }
 }
+
+impl CallInfoIter<'_> {
+    pub fn new(call_infos: Vec<&CallInfo>) -> CallInfoIter<'_> {
+        // Push order is right to left.
+        CallInfoIter { call_infos: call_infos.into_iter().rev().collect() }
+    }
+}
