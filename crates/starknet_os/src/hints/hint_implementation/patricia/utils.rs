@@ -129,6 +129,25 @@ pub enum UpdateTree {
 
 type TreeLayer = HashMap<LayerIndex, UpdateTree>;
 
+#[derive(Clone, Debug, PartialEq)]
+pub enum CanonicNode {
+    BinaryOrLeaf(HashOutput),
+    Edge(EdgeData),
+    Empty,
+}
+
+impl CanonicNode {
+    fn new(preimage_map: &PreimageMap, node_hash: &HashOutput) -> CanonicNode {
+        if node_hash.0 == Felt::ZERO {
+            return Self::Empty;
+        }
+        if let Some(Preimage::Edge(edge)) = preimage_map.get(node_hash) {
+            return Self::Edge(*edge);
+        }
+        Self::BinaryOrLeaf(*node_hash)
+    }
+}
+
 /// Constructs layers of a tree from leaf updates. This is not a full state tree, it is just the
 /// subtree induced by the modification leaves.
 /// Returns a tree of updates. A tree is built from layers, where each layer represents the nodes in
