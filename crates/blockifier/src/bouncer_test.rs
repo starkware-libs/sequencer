@@ -60,7 +60,6 @@ fn test_block_weights_has_room() {
 #[rstest]
 #[case::empty_initial_bouncer(Bouncer::new(BouncerConfig::empty()))]
 #[case::non_empty_initial_bouncer(Bouncer {
-    executed_class_hashes: HashSet::from([class_hash!(0_u128)]),
     visited_storage_entries: HashSet::from([(
         contract_address!(0_u128),
         storage_key!(0_u128),
@@ -122,9 +121,6 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
     updated_bouncer.update(tx_weights, &execution_summary_to_update, &state_changes_keys_to_update);
 
     let mut expected_bouncer = initial_bouncer;
-    expected_bouncer
-        .executed_class_hashes
-        .extend(&execution_summary_to_update.executed_class_hashes);
     expected_bouncer
         .visited_storage_entries
         .extend(&execution_summary_to_update.visited_storage_entries);
