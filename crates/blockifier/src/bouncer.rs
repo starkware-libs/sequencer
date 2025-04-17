@@ -205,7 +205,7 @@ impl std::fmt::Display for BouncerWeights {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Default)]
 #[cfg_attr(test, derive(Clone))]
 pub struct CasmHashComputationData {
     pub class_hash_to_casm_hash_computation_gas: HashMap<ClassHash, GasAmount>,
@@ -214,10 +214,7 @@ pub struct CasmHashComputationData {
 
 impl CasmHashComputationData {
     pub fn empty() -> Self {
-        Self {
-            class_hash_to_casm_hash_computation_gas: HashMap::default(),
-            sierra_gas_without_casm_hash_computation: GasAmount(0),
-        }
+        Self::default()
     }
 
     pub fn extend(&mut self, other: CasmHashComputationData) {
@@ -248,7 +245,6 @@ pub struct Bouncer {
     // to the accumulated weights.
     pub visited_storage_entries: HashSet<StorageEntry>,
     pub state_changes_keys: StateChangesKeys,
-    // Additional info for the scheduler
     pub casm_hash_computation_data: CasmHashComputationData,
 
     pub bouncer_config: BouncerConfig,

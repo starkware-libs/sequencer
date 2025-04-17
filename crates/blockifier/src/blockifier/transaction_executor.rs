@@ -1,3 +1,4 @@
+use std::mem;
 use std::panic::{self, catch_unwind, AssertUnwindSafe};
 use std::sync::{Arc, Mutex};
 
@@ -8,7 +9,7 @@ use thiserror::Error;
 
 use crate::blockifier::block::pre_process_block;
 use crate::blockifier::config::TransactionExecutorConfig;
-use crate::bouncer::{Bouncer, BouncerWeights};
+use crate::bouncer::{Bouncer, BouncerWeights, CasmHashComputationData};
 use crate::concurrency::worker_logic::WorkerExecutor;
 use crate::context::BlockContext;
 use crate::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps, TransactionalState};
@@ -47,6 +48,7 @@ pub struct BlockExecutionSummary {
     pub state_diff: CommitmentStateDiff,
     pub compressed_state_diff: Option<CommitmentStateDiff>,
     pub bouncer_weights: BouncerWeights,
+    pub casm_hash_computation_data: CasmHashComputationData,
 }
 
 /// A transaction executor, used for building a single block.
@@ -187,6 +189,7 @@ impl<S: StateReader> TransactionExecutor<S> {
             state_diff: state_diff.into(),
             compressed_state_diff,
             bouncer_weights: *self.bouncer.get_accumulated_weights(),
+            casm_hash_computation_data: mem::take(&mut self.bouncer.casm_hash_computation_data),
         })
     }
 }
