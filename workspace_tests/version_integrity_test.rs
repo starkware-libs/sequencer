@@ -11,11 +11,11 @@ use toml_test_utils::{
 };
 
 const PARENT_BRANCH: &str = include_str!("../scripts/parent_branch.txt");
-const MAIN_PARENT_BRANCH: &str = "main";
+const MAIN_BRANCH: &str = "main";
 const EXPECTED_MAIN_VERSION: &str = "0.0.0";
 
 static ROOT_CRATES_FOR_PUBLISH: LazyLock<HashSet<&str>> =
-    LazyLock::new(|| HashSet::from(["blockifier"]));
+    LazyLock::new(|| HashSet::from(["blockifier", "apollo_starknet_os_program"]));
 static CRATES_FOR_PUBLISH: LazyLock<HashSet<String>> = LazyLock::new(|| {
     let publish_deps: HashSet<String> = ROOT_CRATES_FOR_PUBLISH
         .iter()
@@ -224,12 +224,12 @@ fn test_no_features_in_workspace() {
 
 #[test]
 fn test_main_branch_is_versionless() {
-    if PARENT_BRANCH.trim() == MAIN_PARENT_BRANCH {
+    if PARENT_BRANCH.trim() == MAIN_BRANCH {
         let workspace_version = ROOT_TOML.workspace_version();
         assert_eq!(
             workspace_version, EXPECTED_MAIN_VERSION,
             "The workspace version should be '{EXPECTED_MAIN_VERSION}' when the parent branch is \
-             '{MAIN_PARENT_BRANCH}'; found {workspace_version}.",
+             '{MAIN_BRANCH}'; found {workspace_version}.",
         );
     }
 }
