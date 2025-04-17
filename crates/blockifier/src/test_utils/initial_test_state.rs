@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use blockifier_test_utils::contracts::FeatureContract;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
@@ -11,7 +9,7 @@ use strum::IntoEnumIterator;
 
 use crate::context::ChainInfo;
 use crate::state::cached_state::CachedState;
-use crate::test_utils::contracts::{FeatureContractData, FeatureContractTrait};
+use crate::test_utils::contracts::FeatureContractData;
 use crate::test_utils::dict_state_reader::DictStateReader;
 
 /// Utility to fund an account.
@@ -45,29 +43,28 @@ pub fn test_state_inner(
     contract_instances: &[(FeatureContractData, u16)],
     erc20_contract_version: CairoVersion,
 ) -> CachedState<DictStateReader> {
-    let mut class_hash_to_class = HashMap::new();
-    let mut address_to_class_hash = HashMap::new();
+    let mut state_reader = DictStateReader::default();
 
     // Declare and deploy account and ERC20 contracts.
     let erc20 = FeatureContract::ERC20(erc20_contract_version);
-    class_hash_to_class.insert(erc20.get_class_hash(), erc20.get_runnable_class());
-    address_to_class_hash
-        .insert(chain_info.fee_token_address(&FeeType::Eth), erc20.get_class_hash());
-    address_to_class_hash
-        .insert(chain_info.fee_token_address(&FeeType::Strk), erc20.get_class_hash());
+    let erc20_class_hash = erc20.get_class_hash();
+    state_reader.add_class(&FeatureContractData::from(erc20));
+    state_reader
+        .address_to_class_hash
+        .insert(chain_info.fee_token_address(&FeeType::Eth), erc20_class_hash);
+    state_reader
+        .address_to_class_hash
+        .insert(chain_info.fee_token_address(&FeeType::Strk), erc20_class_hash);
 
     // Set up the rest of the requested contracts.
     for (contract, n_instances) in contract_instances.iter() {
         let class_hash = contract.class_hash;
-        class_hash_to_class.insert(class_hash, contract.runnable_class.clone());
+        state_reader.add_class(contract);
         for instance in 0..*n_instances {
             let instance_address = contract.get_instance_address(instance);
-            address_to_class_hash.insert(instance_address, class_hash);
+            state_reader.address_to_class_hash.insert(instance_address, class_hash);
         }
     }
-
-    let mut state_reader =
-        DictStateReader { address_to_class_hash, class_hash_to_class, ..Default::default() };
 
     // fund the accounts.
     for (contract, n_instances) in contract_instances.iter() {
