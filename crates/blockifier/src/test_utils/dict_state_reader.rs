@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{SierraContractClass, StorageKey};
@@ -7,7 +8,9 @@ use starknet_types_core::felt::Felt;
 use crate::execution::contract_class::RunnableCompiledClass;
 use crate::state::cached_state::StorageEntry;
 use crate::state::errors::StateError;
+use crate::state::global_cache::CachedClass;
 use crate::state::state_api::{StateReader, StateResult};
+use crate::state::state_reader_and_contract_manager::FetchCompiliedClasses;
 use crate::test_utils::contracts::FeatureContractData;
 
 /// A simple implementation of `StateReader` using `HashMap`s as storage.
@@ -82,5 +85,27 @@ impl StateReader for DictStateReader {
         let compiled_class_hash =
             self.class_hash_to_compiled_class_hash.get(&class_hash).copied().unwrap_or_default();
         Ok(compiled_class_hash)
+    }
+}
+
+impl FetchCompiliedClasses for DictStateReader {
+    fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CachedClass> {
+        match self.get_compiled_class(class_hash)? {
+            RunnableCompiledClass::V0(class) => Ok(CachedClass::V0(class)),
+            RunnableCompiledClass::V1(class) => {
+                let sierra_class = self
+                    .class_hash_to_sierra
+                    .get(&class_hash)
+                    .cloned()
+                    .expect("Missing Sierra class");
+                Ok(CachedClass::V1(class, Arc::new(sierra_class)))
+            }
+            #[cfg(feature = "cairo_native")]
+            RunnableCompiledClass::V1Native(_) => {
+                // Native classes should not reach this point as the cached_class is used for cairo
+                // native compilation.
+                panic!("Native classes are not supported here")
+            }
+        }
     }
 }
