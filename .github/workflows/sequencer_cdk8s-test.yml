@@ -25,7 +25,7 @@ on:
       - "Monitoring/sequencer/**"
 
 jobs:
-  deployment:
+  prepare:
     runs-on: ubuntu-24.04
     env:
       namespace: test
@@ -33,16 +33,6 @@ jobs:
     steps:
       - name: Checkout sequencer
         uses: actions/checkout@v4
-
-      - name: Create local K3D cluster
-        uses: AbsaOSS/k3d-action@v2
-        with:
-          cluster-name: "test-cluster-1"
-          args: >-
-            --agents 1
-            --no-lb
-            --wait
-            --timeout "120s"
 
       - name: Setup python
         uses: actions/setup-python@v5.4.0
@@ -75,16 +65,56 @@ jobs:
           pipenv install
           cdk8s synth --app "pipenv run python main.py --namespace ${{ env.namespace }} --deployment-config-file ${{ env.deployment_config_path }}"
 
-      - name: Deploy CRD`s used by CDk8s
-        working-directory: deployments/sequencer
-        run: kubectl create -R -f resources/crds
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cdk8s-artifacts
+          path: |
+            deployments/sequencer/dist
+            deployments/sequencer/resources
 
-      - name: kubectl create dry-run test
-        working-directory: deployments/sequencer
-        run: |
-          kubectl create namespace ${{ env.namespace }}
-          kubectl create -R -f ./dist --dry-run=server
+  validate:
+    runs-on: ubuntu-24.04
+    needs: prepare
+    env:
+      dist_path: ./cdk8s-artifacts/dist
+      crds_path: ./cdk8s-artifacts/resources/crds
+    steps:
+      - name: Setup go lang
+        uses: actions/setup-go@v5
+        with:
+          go-version: "stable"
 
-      - name: Shutdown k3d
-        if: always()
-        run: k3d cluster delete --all
+      - name: Setup kubectl-validate
+        run: go install sigs.k8s.io/kubectl-validate@latest
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: cdk8s-artifacts
+          path: cdk8s-artifacts
+          merge-multiple: true
+
+      - name: kubectl validation test for version 1.27
+        run: kubectl validate ${{ env.dist_path }} --local-crds ${{ env.crds_path }} --version 1.27
+        continue-on-error: true
+
+      - name: kubectl validation test for version 1.28
+        run: kubectl validate ${{ env.dist_path }} --local-crds ${{ env.crds_path }} --version 1.28
+        continue-on-error: true
+
+      - name: kubectl validation test for version 1.29
+        run: kubectl validate ${{ env.dist_path }} --local-crds ${{ env.crds_path }} --version 1.29
+        continue-on-error: false
+
+      - name: kubectl validation test for version 1.30
+        run: kubectl validate ${{ env.dist_path }} --local-crds ${{ env.crds_path }} --version 1.30
+        continue-on-error: false
+
+      - name: kubectl validation test for version 1.31
+        run: kubectl validate ${{ env.dist_path }} --local-crds ${{ env.crds_path }} --version 1.31
+        continue-on-error: false
+
+      - name: kubectl validation test for version 1.32
+        run: kubectl validate ${{ env.dist_path }} --local-crds ${{ env.crds_path }} --version 1.32
+        continue-on-error: false
