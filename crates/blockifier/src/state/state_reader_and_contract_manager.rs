@@ -3,7 +3,6 @@ use starknet_types_core::felt::Felt;
 
 use crate::execution::contract_class::RunnableCompiledClass;
 use crate::state::contract_class_manager::ContractClassManager;
-use crate::state::global_cache::CachedClass;
 use crate::state::state_api::{StateReader, StateResult};
 
 pub struct StateReaderAndContractManger<S: StateReader> {
@@ -22,7 +21,7 @@ impl<S: StateReader> StateReaderAndContractManger<S> {
             return Ok(runnable_class);
         }
 
-        let cached_class = self.get_cached_class(class_hash)?;
+        let cached_class = self.state_reader.get_cached_class(class_hash)?;
         self.contract_class_manager.set_and_compile(class_hash, cached_class.clone());
         // Access the cache again in case the class was compiled.
         let runnable_class =
@@ -33,12 +32,6 @@ impl<S: StateReader> StateReaderAndContractManger<S> {
                 cached_class.to_runnable()
             });
         Ok(runnable_class)
-    }
-
-    fn get_cached_class(&self, _class_hash: ClassHash) -> StateResult<CachedClass> {
-        // TODO(AvivG): Implement this function once exists:
-        // StateReader::get_sierra(class_hash: ClassHash) -> StateResult<SierraContractClass>
-        todo!();
     }
 }
 

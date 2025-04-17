@@ -259,4 +259,8 @@ impl StateReader for PapyrusReader {
     fn get_compiled_class_hash(&self, _class_hash: ClassHash) -> StateResult<CompiledClassHash> {
         todo!()
     }
+
+    fn get_cached_class(&self, class_hash: ClassHash) -> StateResult<CachedClass> {
+        self.get_compiled_class_from_db(class_hash)
+    }
 }
