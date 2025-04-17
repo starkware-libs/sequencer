@@ -126,6 +126,23 @@ impl TestScenario for ConsensusTxs {
     }
 }
 
+pub struct DeclareTx;
+
+impl TestScenario for DeclareTx {
+    fn create_txs(
+        &self,
+        tx_generator: &mut MultiAccountTransactionGenerator,
+        account_id: AccountId,
+    ) -> (Vec<RpcTransaction>, Vec<L1ToL2MessageArgs>) {
+        let declare_tx = tx_generator.account_with_id_mut(account_id).generate_declare();
+        (vec![declare_tx], vec![])
+    }
+
+    fn n_txs(&self) -> usize {
+        1
+    }
+}
+
 pub struct DeployAndInvokeTxs;
 
 impl TestScenario for DeployAndInvokeTxs {
