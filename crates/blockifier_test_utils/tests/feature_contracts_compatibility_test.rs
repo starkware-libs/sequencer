@@ -55,7 +55,7 @@ pub struct Cairo1FeatureContractMetadata {
 // ```
 // python -m venv tmp_venv
 // . tmp_venv/bin/activate
-// pip install -r crates/blockifier_test_utils/tests/requirements.txt
+// pip install -r scripts/requirements.txt
 // ```
 // Then, run the FIX_COMMAND above.
 

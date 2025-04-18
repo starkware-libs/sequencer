@@ -1,6 +1,9 @@
 exclude = [
+  "ci/**/*.toml",
   "crates/blockifier/cairo_native/**/*.toml",
   "crates/native_blockifier/.cargo/config.toml",
+  "sequencer_venv/**/*.toml",
+  "target/**/*.toml",
 ]
 
 [formatting]

@@ -31,5 +31,5 @@ jobs:
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
 
       - run: |
-          pip install -r crates/blockifier_test_utils/tests/requirements.txt
+          pip install -r scripts/requirements.txt
           cargo test -p blockifier -p native_blockifier -- --include-ignored
