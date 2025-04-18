@@ -1,5 +1,6 @@
 use std::any::Any;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use cairo_lang_casm::hints::{Hint, StarknetHint};
 use cairo_lang_runner::casm_run::execute_core_hint_base;
@@ -22,6 +23,7 @@ use starknet_api::transaction::fields::{
     valid_resource_bounds_as_felts,
     Calldata,
     ResourceAsFelts,
+    TransactionSignature,
 };
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::{Felt, FromStrError};
@@ -732,7 +734,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
             storage_address,
             selector,
             request.calldata,
-            request.signature,
+            TransactionSignature(Arc::new(request.signature.0)),
             remaining_gas,
         )?;
         let retdata_segment = create_retdata_segment(vm, syscall_handler, &raw_retdata)?;

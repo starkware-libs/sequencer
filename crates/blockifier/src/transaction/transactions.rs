@@ -14,7 +14,7 @@ use starknet_api::transaction::fields::{
     AccountDeploymentData,
     Calldata,
     Fee,
-    TransactionDeprSignature,
+    TransactionSignature,
 };
 use starknet_api::transaction::{
     constants,
@@ -165,7 +165,7 @@ impl TransactionInfoCreator for L1HandlerTransaction {
             common_fields: CommonAccountFields {
                 transaction_hash: self.tx_hash,
                 version: self.tx.version,
-                signature: TransactionDeprSignature::default(),
+                signature: TransactionSignature::default(),
                 nonce: self.tx.nonce,
                 sender_address: self.tx.contract_address,
                 only_query: false,
@@ -225,7 +225,7 @@ impl TransactionInfoCreatorInner for DeclareTransaction {
         let common_fields = CommonAccountFields {
             transaction_hash: self.tx_hash,
             version: self.version(),
-            signature: self.signature(),
+            signature: TransactionSignature(Arc::new(self.signature().0)),
             nonce: self.nonce(),
             sender_address: self.sender_address(),
             only_query,
@@ -291,7 +291,7 @@ impl TransactionInfoCreatorInner for DeployAccountTransaction {
         let common_fields = CommonAccountFields {
             transaction_hash: self.tx_hash(),
             version: self.version(),
-            signature: self.signature(),
+            signature: TransactionSignature(Arc::new(self.signature().0)),
             nonce: self.nonce(),
             sender_address: self.contract_address(),
             only_query,
@@ -365,7 +365,7 @@ impl TransactionInfoCreatorInner for InvokeTransaction {
         let common_fields = CommonAccountFields {
             transaction_hash: self.tx_hash(),
             version: self.version(),
-            signature: self.signature(),
+            signature: TransactionSignature(Arc::new(self.signature().0)),
             nonce: self.nonce(),
             sender_address: self.sender_address(),
             only_query,
