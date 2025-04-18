@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
@@ -32,7 +34,7 @@ use crate::core::{
 use crate::data_availability::L1DataAvailabilityMode;
 use crate::execution_resources::GasAmount;
 use crate::hash::PoseidonHash;
-use crate::transaction::fields::TransactionDeprSignature;
+use crate::transaction::fields::TransactionSignature;
 use crate::{felt, tx_hash};
 
 /// Macro to test if changing any field in the header or commitments
@@ -107,7 +109,7 @@ fn test_block_hash_regression(
         parent_hash: BlockHash(Felt::from(11_u8)),
     };
     let transactions_data = vec![TransactionHashingData {
-        transaction_signature: TransactionDeprSignature(vec![Felt::TWO, Felt::THREE]),
+        transaction_signature: TransactionSignature(Arc::new(vec![Felt::TWO, Felt::THREE])),
         transaction_output: get_transaction_output(),
         transaction_hash: tx_hash!(1),
     }];
@@ -138,7 +140,7 @@ fn test_block_hash_regression(
 #[test]
 fn test_tx_commitment_with_an_empty_signature() {
     let transactions_data = vec![TransactionHashingData {
-        transaction_signature: TransactionDeprSignature(vec![]),
+        transaction_signature: TransactionSignature::default(),
         transaction_output: get_transaction_output(),
         transaction_hash: tx_hash!(1),
     }];
