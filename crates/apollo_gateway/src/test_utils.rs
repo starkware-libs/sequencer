@@ -108,7 +108,7 @@ pub fn rpc_tx_for_testing(
             };
             rpc_declare_tx(
                 declare_tx_args!(
-                    signature,
+                    signature: TransactionSignature(Arc::new(signature.0)),
                     sender_address,
                     resource_bounds: ValidResourceBounds::AllResources(resource_bounds),
                     account_deployment_data,

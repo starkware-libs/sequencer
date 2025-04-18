@@ -18,7 +18,6 @@ use crate::transaction::fields::{
     PaymasterData,
     ResourceBounds,
     Tip,
-    TransactionDeprSignature,
     TransactionSignature,
     ValidResourceBounds,
 };
@@ -37,7 +36,7 @@ fn create_declare_tx() -> RpcTransaction {
         DeclareTxArgs {
             resource_bounds: ValidResourceBounds::AllResources(create_resource_bounds_for_testing()),
             tip: Tip(1),
-            signature: TransactionDeprSignature(vec![felt!("0x1"), felt!("0x2")]),
+            signature: TransactionSignature(Arc::new(vec![felt!("0x1"), felt!("0x2")])),
             sender_address: contract_address!("0x3"),
             nonce: nonce!(1),
             paymaster_data: PaymasterData(vec![felt!("0x0")]),
