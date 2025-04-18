@@ -12,7 +12,7 @@ use starknet_api::transaction::fields::{
     GasVectorComputationMode,
     PaymasterData,
     Tip,
-    TransactionDeprSignature,
+    TransactionSignature,
     ValidResourceBounds,
 };
 use starknet_api::transaction::{
@@ -65,7 +65,7 @@ impl TransactionInfo {
         (only_query, bool)
     );
 
-    pub fn signature(&self) -> TransactionDeprSignature {
+    pub fn signature(&self) -> TransactionSignature {
         match self {
             Self::Current(context) => context.common_fields.signature.clone(),
             Self::Deprecated(context) => context.common_fields.signature.clone(),
@@ -153,7 +153,7 @@ pub struct DeprecatedTransactionInfo {
 pub struct CommonAccountFields {
     pub transaction_hash: TransactionHash,
     pub version: TransactionVersion,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
     pub nonce: Nonce,
     pub sender_address: ContractAddress,
     pub only_query: bool,
