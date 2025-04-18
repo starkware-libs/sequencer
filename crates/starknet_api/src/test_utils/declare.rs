@@ -21,7 +21,7 @@ use crate::transaction::fields::{
     Fee,
     PaymasterData,
     Tip,
-    TransactionDeprSignature,
+    TransactionSignature,
     ValidResourceBounds,
 };
 use crate::transaction::{
@@ -38,7 +38,7 @@ pub const TEST_SENDER_ADDRESS: u128 = 0x1000;
 #[derive(Clone)]
 pub struct DeclareTxArgs {
     pub max_fee: Fee,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
     pub sender_address: ContractAddress,
     pub version: TransactionVersion,
     pub resource_bounds: ValidResourceBounds,
@@ -58,7 +58,7 @@ impl Default for DeclareTxArgs {
     fn default() -> Self {
         Self {
             max_fee: Fee::default(),
-            signature: TransactionDeprSignature::default(),
+            signature: TransactionSignature::default(),
             sender_address: contract_address!(TEST_SENDER_ADDRESS),
             version: TransactionVersion::THREE,
             resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
@@ -97,7 +97,7 @@ pub fn declare_tx(declare_tx_args: DeclareTxArgs) -> DeclareTransaction {
     if declare_tx_args.version == TransactionVersion::ZERO {
         DeclareTransaction::V0(DeclareTransactionV0V1 {
             max_fee: declare_tx_args.max_fee,
-            signature: declare_tx_args.signature,
+            signature: declare_tx_args.signature.into(),
             sender_address: declare_tx_args.sender_address,
             nonce: declare_tx_args.nonce,
             class_hash: declare_tx_args.class_hash,
@@ -105,7 +105,7 @@ pub fn declare_tx(declare_tx_args: DeclareTxArgs) -> DeclareTransaction {
     } else if declare_tx_args.version == TransactionVersion::ONE {
         DeclareTransaction::V1(DeclareTransactionV0V1 {
             max_fee: declare_tx_args.max_fee,
-            signature: declare_tx_args.signature,
+            signature: declare_tx_args.signature.into(),
             sender_address: declare_tx_args.sender_address,
             nonce: declare_tx_args.nonce,
             class_hash: declare_tx_args.class_hash,
@@ -113,7 +113,7 @@ pub fn declare_tx(declare_tx_args: DeclareTxArgs) -> DeclareTransaction {
     } else if declare_tx_args.version == TransactionVersion::TWO {
         DeclareTransaction::V2(DeclareTransactionV2 {
             max_fee: declare_tx_args.max_fee,
-            signature: declare_tx_args.signature,
+            signature: declare_tx_args.signature.into(),
             sender_address: declare_tx_args.sender_address,
             nonce: declare_tx_args.nonce,
             class_hash: declare_tx_args.class_hash,
@@ -121,7 +121,7 @@ pub fn declare_tx(declare_tx_args: DeclareTxArgs) -> DeclareTransaction {
         })
     } else if declare_tx_args.version == TransactionVersion::THREE {
         DeclareTransaction::V3(DeclareTransactionV3 {
-            signature: declare_tx_args.signature,
+            signature: declare_tx_args.signature.into(),
             sender_address: declare_tx_args.sender_address,
             resource_bounds: declare_tx_args.resource_bounds,
             tip: declare_tx_args.tip,
@@ -163,7 +163,7 @@ pub fn rpc_declare_tx(
 
     RpcTransaction::Declare(RpcDeclareTransaction::V3(RpcDeclareTransactionV3 {
         contract_class,
-        signature: declare_tx_args.signature,
+        signature: declare_tx_args.signature.into(),
         sender_address: declare_tx_args.sender_address,
         resource_bounds,
         tip: declare_tx_args.tip,

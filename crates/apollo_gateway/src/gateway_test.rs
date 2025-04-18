@@ -46,7 +46,7 @@ use starknet_api::test_utils::declare::DeclareTxArgsWithContractClass;
 use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
 use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::test_utils::{TestingTxArgs, CHAIN_ID_FOR_TESTS};
-use starknet_api::transaction::fields::TransactionDeprSignature;
+use starknet_api::transaction::fields::TransactionSignature;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{declare_tx_args, deploy_account_tx_args, invoke_tx_args, nonce};
 use starknet_types_core::felt::Felt;
@@ -159,7 +159,7 @@ fn declare_args() -> DeclareTxArgsWithContractClass {
     let contract_class = contract_class();
     let mut args = DeclareTxArgsWithContractClass {
         args: declare_tx_args!(
-            signature: TransactionDeprSignature(vec![Felt::ZERO]),
+            signature: TransactionSignature(Arc::new(vec![Felt::ZERO])),
             sender_address: account_contract().get_instance_address(0),
             resource_bounds: test_valid_resource_bounds(),
             class_hash: contract_class.calculate_class_hash(),
