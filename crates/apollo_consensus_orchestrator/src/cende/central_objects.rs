@@ -42,7 +42,7 @@ use starknet_api::transaction::fields::{
     PaymasterData,
     ResourceBounds,
     Tip,
-    TransactionDeprSignature,
+    TransactionSignature,
 };
 use starknet_api::transaction::TransactionHash;
 use starknet_types_core::felt::Felt;
@@ -174,7 +174,7 @@ impl From<AllResourceBounds> for CentralResourceBounds {
 struct CentralInvokeTransactionV3 {
     resource_bounds: CentralResourceBounds,
     tip: Tip,
-    signature: TransactionDeprSignature,
+    signature: TransactionSignature,
     nonce: Nonce,
     sender_address: ContractAddress,
     calldata: Calldata,
@@ -193,7 +193,7 @@ impl From<(RpcInvokeTransaction, TransactionHash)> for CentralInvokeTransactionV
         CentralInvokeTransactionV3 {
             sender_address: tx.sender_address,
             calldata: tx.calldata,
-            signature: tx.signature,
+            signature: tx.signature.into(),
             nonce: tx.nonce,
             resource_bounds: tx.resource_bounds.into(),
             tip: tx.tip,
@@ -217,7 +217,7 @@ enum CentralInvokeTransaction {
 struct CentralDeployAccountTransactionV3 {
     resource_bounds: CentralResourceBounds,
     tip: Tip,
-    signature: TransactionDeprSignature,
+    signature: TransactionSignature,
     nonce: Nonce,
     class_hash: ClassHash,
     contract_address_salt: ContractAddressSalt,
@@ -241,7 +241,7 @@ impl From<(InternalRpcDeployAccountTransaction, TransactionHash)>
         CentralDeployAccountTransactionV3 {
             resource_bounds: tx.resource_bounds.into(),
             tip: tx.tip,
-            signature: tx.signature,
+            signature: tx.signature.into(),
             nonce: tx.nonce,
             class_hash: tx.class_hash,
             contract_address_salt: tx.contract_address_salt,
@@ -270,7 +270,7 @@ fn into_string_tuple(val: SierraVersion) -> (String, String, String) {
 struct CentralDeclareTransactionV3 {
     resource_bounds: CentralResourceBounds,
     tip: Tip,
-    signature: TransactionDeprSignature,
+    signature: TransactionSignature,
     nonce: Nonce,
     class_hash: ClassHash,
     compiled_class_hash: CompiledClassHash,
@@ -300,7 +300,7 @@ impl TryFrom<(InternalRpcDeclareTransactionV3, &SierraContractClass, Transaction
         Ok(CentralDeclareTransactionV3 {
             resource_bounds: tx.resource_bounds.into(),
             tip: tx.tip,
-            signature: tx.signature,
+            signature: tx.signature.into(),
             nonce: tx.nonce,
             class_hash: tx.class_hash,
             compiled_class_hash: tx.compiled_class_hash,
