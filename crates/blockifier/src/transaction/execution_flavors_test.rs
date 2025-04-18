@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use blockifier_test_utils::calldata::{create_calldata, create_trivial_calldata};
@@ -21,7 +23,7 @@ use starknet_api::transaction::fields::{
     GasVectorComputationMode,
     Resource,
     Tip,
-    TransactionDeprSignature,
+    TransactionSignature,
     ValidResourceBounds,
 };
 use starknet_api::transaction::TransactionVersion;
@@ -498,10 +500,10 @@ fn execute_fail_validation(
     let tx = executable_invoke_tx(invoke_tx_args! {
         max_fee,
         resource_bounds: max_resource_bounds,
-        signature: TransactionDeprSignature(vec![
+        signature: TransactionSignature(Arc::new(vec![
             Felt::from(INVALID),
             Felt::ZERO
-        ]),
+        ])),
         sender_address: faulty_account_address,
         calldata: create_calldata(faulty_account_address, "foo", &[]),
         version,
