@@ -1,4 +1,4 @@
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
@@ -20,7 +20,7 @@ use crate::crypto::utils::HashChain;
 use crate::data_availability::L1DataAvailabilityMode;
 use crate::execution_resources::GasVector;
 use crate::state::ThinStateDiff;
-use crate::transaction::fields::{Fee, TransactionDeprSignature};
+use crate::transaction::fields::{Fee, TransactionSignature};
 use crate::transaction::{Event, MessageToL1, TransactionExecutionStatus, TransactionHash};
 use crate::{StarknetApiError, StarknetApiResult};
 
@@ -93,7 +93,7 @@ pub struct TransactionOutputForHash {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 pub struct TransactionHashingData {
-    pub transaction_signature: TransactionDeprSignature,
+    pub transaction_signature: TransactionSignature,
     pub transaction_output: TransactionOutputForHash,
     pub transaction_hash: TransactionHash,
 }
@@ -162,7 +162,8 @@ pub fn calculate_block_commitments(
             if starknet_version < &BlockHashVersion::V0_13_4.into()
                 && tx_leaf.transaction_signature.0.is_empty()
             {
-                tx_leaf_element.transaction_signature.0.push(Felt::ZERO);
+                tx_leaf_element.transaction_signature =
+                    TransactionSignature(Arc::new(vec![Felt::ZERO]));
             }
             tx_leaf_element
         })

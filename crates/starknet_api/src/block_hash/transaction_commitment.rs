@@ -5,7 +5,7 @@ use super::block_hash_calculator::TransactionHashingData;
 use crate::core::TransactionCommitment;
 use crate::crypto::patricia_hash::calculate_root;
 use crate::crypto::utils::HashChain;
-use crate::transaction::fields::TransactionDeprSignature;
+use crate::transaction::fields::TransactionSignature;
 use crate::transaction::TransactionHash;
 
 #[cfg(test)]
@@ -16,7 +16,7 @@ mod transaction_commitment_test;
 #[derive(Clone)]
 pub struct TransactionLeafElement {
     pub(crate) transaction_hash: TransactionHash,
-    pub(crate) transaction_signature: TransactionDeprSignature,
+    pub(crate) transaction_signature: TransactionSignature,
 }
 
 impl From<&TransactionHashingData> for TransactionLeafElement {
