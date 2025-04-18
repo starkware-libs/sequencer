@@ -32,7 +32,6 @@ use starknet_api::transaction::fields::{
     Fee,
     GasVectorComputationMode,
     ResourceBounds,
-    TransactionDeprSignature,
     TransactionSignature,
     ValidResourceBounds,
 };
@@ -275,7 +274,7 @@ pub fn create_account_tx_for_validate_test(
                 declare_tx_args! {
                     max_fee,
                     resource_bounds,
-                    signature: TransactionDeprSignature(signature.0.as_ref().clone()),
+                    signature,
                     sender_address,
                     version: tx_version,
                     nonce: nonce_manager.next(sender_address),
