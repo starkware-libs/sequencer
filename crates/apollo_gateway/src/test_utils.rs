@@ -117,7 +117,7 @@ pub fn rpc_tx_for_testing(
             )
         }
         TransactionType::DeployAccount => rpc_deploy_account_tx(deploy_account_tx_args!(
-            signature,
+            signature: signature.into(),
             resource_bounds: ValidResourceBounds::AllResources(resource_bounds),
             constructor_calldata: calldata,
             paymaster_data,
