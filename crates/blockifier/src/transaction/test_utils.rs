@@ -312,7 +312,7 @@ pub fn create_account_tx_for_validate_test(
             let tx = executable_invoke_tx(invoke_tx_args! {
                 max_fee,
                 resource_bounds,
-                signature: TransactionDeprSignature(signature.0.as_ref().clone()),
+                signature,
                 sender_address,
                 calldata: execute_calldata,
                 version: tx_version,
