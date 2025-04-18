@@ -21,12 +21,7 @@ use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, EthAddress};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::fields::{
-    Calldata,
-    ContractAddressSalt,
-    TransactionDeprSignature,
-    TransactionSignature,
-};
+use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, TransactionSignature};
 use starknet_api::transaction::{EventContent, EventData, EventKey, L2ToL1Payload};
 use starknet_types_core::felt::Felt;
 
@@ -367,13 +362,13 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
             .map_err(|error| self.handle_error(remaining_gas, error.into()))?;
         let selector = EntryPointSelector(entry_point_selector);
         let wrapper_calldata = Calldata(Arc::new(calldata.to_vec()));
-        let signature = TransactionDeprSignature(signature.to_vec());
+        let signature = TransactionSignature(Arc::new(signature.to_vec()));
 
         let raw_data_result = self.base.meta_tx_v0(
             contract_address,
             selector,
             wrapper_calldata,
-            TransactionSignature(Arc::new(signature.0)),
+            signature,
             remaining_gas,
         );
         let raw_data = raw_data_result.map_err(|e| self.handle_error(remaining_gas, e))?;
