@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use serde::{Deserialize, Serialize};
 #[cfg(any(feature = "testing", test))]
 use starknet_api::compression_utils::compress_and_encode;
@@ -24,6 +26,7 @@ use starknet_api::transaction::fields::{
     ResourceBounds,
     Tip,
     TransactionDeprSignature,
+    TransactionSignature,
 };
 
 // TODO(Yael): remove the deprecated_gateway_transaction once we decide to support only transactions
@@ -101,7 +104,7 @@ pub enum DeprecatedGatewayInvokeTransaction {
 pub struct DeprecatedGatewayInvokeTransactionV3 {
     pub sender_address: ContractAddress,
     pub calldata: Calldata,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
     pub nonce: Nonce,
     pub resource_bounds: DeprecatedGatewayAllResourceBounds,
     pub tip: Tip,
@@ -116,7 +119,7 @@ impl From<DeprecatedGatewayInvokeTransactionV3> for RpcInvokeTransactionV3 {
         RpcInvokeTransactionV3 {
             sender_address: deprecated_invoke_tx.sender_address,
             calldata: deprecated_invoke_tx.calldata,
-            signature: deprecated_invoke_tx.signature,
+            signature: TransactionDeprSignature(deprecated_invoke_tx.signature.0.as_ref().clone()),
             nonce: deprecated_invoke_tx.nonce,
             resource_bounds: deprecated_invoke_tx.resource_bounds.into(),
             tip: deprecated_invoke_tx.tip,
@@ -137,7 +140,7 @@ impl From<RpcInvokeTransactionV3> for DeprecatedGatewayInvokeTransactionV3 {
             resource_bounds: value.resource_bounds.into(),
             paymaster_data: value.paymaster_data,
             sender_address: value.sender_address,
-            signature: value.signature,
+            signature: TransactionSignature(Arc::new(value.signature.0)),
             nonce: value.nonce,
             account_deployment_data: value.account_deployment_data,
             nonce_data_availability_mode: value.nonce_data_availability_mode,
@@ -155,7 +158,7 @@ pub enum DeprecatedGatewayDeployAccountTransaction {
 
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct DeprecatedGatewayDeployAccountTransactionV3 {
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
     pub nonce: Nonce,
     pub class_hash: ClassHash,
     pub contract_address_salt: ContractAddressSalt,
@@ -170,7 +173,9 @@ pub struct DeprecatedGatewayDeployAccountTransactionV3 {
 impl From<DeprecatedGatewayDeployAccountTransactionV3> for RpcDeployAccountTransactionV3 {
     fn from(deprecated_deploy_account_tx: DeprecatedGatewayDeployAccountTransactionV3) -> Self {
         RpcDeployAccountTransactionV3 {
-            signature: deprecated_deploy_account_tx.signature,
+            signature: TransactionDeprSignature(
+                deprecated_deploy_account_tx.signature.0.as_ref().clone(),
+            ),
             nonce: deprecated_deploy_account_tx.nonce,
             class_hash: deprecated_deploy_account_tx.class_hash,
             contract_address_salt: deprecated_deploy_account_tx.contract_address_salt,
@@ -188,7 +193,7 @@ impl From<DeprecatedGatewayDeployAccountTransactionV3> for RpcDeployAccountTrans
 impl From<RpcDeployAccountTransactionV3> for DeprecatedGatewayDeployAccountTransactionV3 {
     fn from(value: RpcDeployAccountTransactionV3) -> Self {
         Self {
-            signature: value.signature,
+            signature: TransactionSignature(Arc::new(value.signature.0)),
             nonce: value.nonce,
             class_hash: value.class_hash,
             contract_address_salt: value.contract_address_salt,
@@ -213,7 +218,7 @@ pub enum DeprecatedGatewayDeclareTransaction {
 pub struct DeprecatedGatewayDeclareTransactionV3 {
     pub sender_address: ContractAddress,
     pub compiled_class_hash: CompiledClassHash,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
     pub nonce: Nonce,
     pub contract_class: DeprecatedGatewaySierraContractClass,
     pub resource_bounds: DeprecatedGatewayAllResourceBounds,
@@ -233,7 +238,7 @@ impl TryFrom<DeprecatedGatewayDeclareTransactionV3> for RpcDeclareTransactionV3 
         Ok(RpcDeclareTransactionV3 {
             sender_address: deprecated_declare_tx.sender_address,
             compiled_class_hash: deprecated_declare_tx.compiled_class_hash,
-            signature: deprecated_declare_tx.signature,
+            signature: TransactionDeprSignature(deprecated_declare_tx.signature.0.as_ref().clone()),
             nonce: deprecated_declare_tx.nonce,
             contract_class: deprecated_declare_tx.contract_class.try_into()?,
             resource_bounds: deprecated_declare_tx.resource_bounds.into(),
@@ -252,7 +257,7 @@ impl From<RpcDeclareTransactionV3> for DeprecatedGatewayDeclareTransactionV3 {
         Self {
             sender_address: value.sender_address,
             compiled_class_hash: value.compiled_class_hash,
-            signature: value.signature,
+            signature: TransactionSignature(Arc::new(value.signature.0)),
             nonce: value.nonce,
             contract_class: value.contract_class.try_into().expect(
                 "Failed to convert SierraContractClass to DeprecatedGatewaySierraContractClass",
