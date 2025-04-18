@@ -28,6 +28,7 @@ use starknet_api::transaction::fields::{
     ContractAddressSalt,
     Fee,
     TransactionDeprSignature,
+    TransactionSignature,
     ValidResourceBounds,
 };
 use starknet_api::transaction::TransactionVersion;
@@ -752,6 +753,8 @@ fn test_contract_ctor_frame_stack_trace(
     default_all_resource_bounds: ValidResourceBounds,
     #[case] cairo_version: CairoVersion,
 ) {
+    use std::sync::Arc;
+
     let chain_info = &block_context.chain_info;
     let account = FeatureContract::AccountWithoutValidations(cairo_version);
     let faulty_ctor = FeatureContract::FaultyAccount(cairo_version);
@@ -775,7 +778,7 @@ fn test_contract_ctor_frame_stack_trace(
     // Invoke the deploy_contract function on the dummy account to deploy the faulty contract.
     let invoke_deploy_tx = invoke_tx_with_default_flags(invoke_tx_args! {
         sender_address: account_address,
-        signature,
+        signature: TransactionSignature(Arc::new(signature.0)),
         calldata: create_calldata(
             account_address,
             DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME,
