@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use starknet_api::block::GasPrice;
 use starknet_api::core::ContractAddress;
 use starknet_api::data_availability::DataAvailabilityMode;
@@ -14,6 +16,7 @@ use starknet_api::transaction::fields::{
     PaymasterData,
     ResourceBounds,
     TransactionDeprSignature,
+    TransactionSignature,
     ValidResourceBounds,
 };
 use starknet_api::{declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args};
@@ -117,7 +120,7 @@ pub fn rpc_tx_for_testing(
             )
         }
         TransactionType::DeployAccount => rpc_deploy_account_tx(deploy_account_tx_args!(
-            signature,
+            signature: TransactionSignature(Arc::new(signature.0)),
             resource_bounds: ValidResourceBounds::AllResources(resource_bounds),
             constructor_calldata: calldata,
             paymaster_data,

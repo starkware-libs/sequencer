@@ -22,6 +22,7 @@ use crate::transaction::fields::{
     PaymasterData,
     Tip,
     TransactionDeprSignature,
+    TransactionSignature,
     ValidResourceBounds,
 };
 use crate::transaction::{
@@ -36,7 +37,7 @@ use crate::transaction::{
 #[derive(Clone)]
 pub struct DeployAccountTxArgs {
     pub max_fee: Fee,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
     pub version: TransactionVersion,
     pub resource_bounds: ValidResourceBounds,
     pub tip: Tip,
@@ -54,7 +55,7 @@ impl Default for DeployAccountTxArgs {
     fn default() -> Self {
         DeployAccountTxArgs {
             max_fee: Fee::default(),
-            signature: TransactionDeprSignature::default(),
+            signature: TransactionSignature::default(),
             version: TransactionVersion::THREE,
             resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
             tip: Tip::default(),
@@ -95,7 +96,7 @@ pub fn deploy_account_tx(
     if deploy_tx_args.version == TransactionVersion::ONE {
         DeployAccountTransaction::V1(DeployAccountTransactionV1 {
             max_fee: deploy_tx_args.max_fee,
-            signature: deploy_tx_args.signature,
+            signature: TransactionDeprSignature(deploy_tx_args.signature.0.as_ref().clone()),
             nonce,
             class_hash: deploy_tx_args.class_hash,
             contract_address_salt: deploy_tx_args.contract_address_salt,
@@ -103,7 +104,7 @@ pub fn deploy_account_tx(
         })
     } else if deploy_tx_args.version == TransactionVersion::THREE {
         DeployAccountTransaction::V3(DeployAccountTransactionV3 {
-            signature: deploy_tx_args.signature,
+            signature: TransactionDeprSignature(deploy_tx_args.signature.0.as_ref().clone()),
             resource_bounds: deploy_tx_args.resource_bounds,
             tip: deploy_tx_args.tip,
             nonce_data_availability_mode: deploy_tx_args.nonce_data_availability_mode,
@@ -161,7 +162,7 @@ pub fn rpc_deploy_account_tx(deploy_tx_args: DeployAccountTxArgs) -> RpcTransact
         class_hash: deploy_tx_args.class_hash,
         constructor_calldata: deploy_tx_args.constructor_calldata,
         nonce: deploy_tx_args.nonce,
-        signature: deploy_tx_args.signature,
+        signature: TransactionDeprSignature(deploy_tx_args.signature.0.as_ref().clone()),
         nonce_data_availability_mode: deploy_tx_args.nonce_data_availability_mode,
         fee_data_availability_mode: deploy_tx_args.fee_data_availability_mode,
         paymaster_data: deploy_tx_args.paymaster_data,

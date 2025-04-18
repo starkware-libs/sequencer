@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
@@ -31,6 +33,7 @@ use starknet_api::transaction::fields::{
     GasVectorComputationMode,
     ResourceBounds,
     TransactionDeprSignature,
+    TransactionSignature,
     ValidResourceBounds,
 };
 use starknet_api::transaction::{constants, TransactionVersion};
@@ -254,7 +257,7 @@ pub fn create_account_tx_for_validate_test(
     if let Some(additional_data) = additional_data {
         signature_vector.extend(additional_data);
     }
-    let signature = TransactionDeprSignature(signature_vector);
+    let signature = TransactionSignature(Arc::new(signature_vector));
     let execution_flags =
         ExecutionFlags { validate, charge_fee, only_query, strict_nonce_check: true };
     match tx_type {
@@ -272,7 +275,7 @@ pub fn create_account_tx_for_validate_test(
                 declare_tx_args! {
                     max_fee,
                     resource_bounds,
-                    signature,
+                    signature: TransactionDeprSignature(signature.0.as_ref().clone()),
                     sender_address,
                     version: tx_version,
                     nonce: nonce_manager.next(sender_address),
@@ -309,7 +312,7 @@ pub fn create_account_tx_for_validate_test(
             let tx = executable_invoke_tx(invoke_tx_args! {
                 max_fee,
                 resource_bounds,
-                signature,
+                signature: TransactionDeprSignature(signature.0.as_ref().clone()),
                 sender_address,
                 calldata: execute_calldata,
                 version: tx_version,
