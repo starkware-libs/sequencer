@@ -1,7 +1,12 @@
 use std::fs;
 use std::path::Path;
 
-use apollo_starknet_os_program::{CAIRO_FILES_MAP, OS_PROGRAM_BYTES, PROGRAM_HASH};
+use apollo_starknet_os_program::{
+    AGGREGATOR_PROGRAM_BYTES,
+    CAIRO_FILES_MAP,
+    OS_PROGRAM_BYTES,
+    PROGRAM_HASH,
+};
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
@@ -109,6 +114,7 @@ pub(crate) fn dump_source_files(output_path: String) {
 
 pub(crate) fn dump_program(output_path: String, program: ProgramToDump) {
     let bytes = match program {
+        ProgramToDump::Aggregator => AGGREGATOR_PROGRAM_BYTES,
         ProgramToDump::Os => OS_PROGRAM_BYTES,
     };
     // Dumping the `Program` struct won't work - it is not deserializable via cairo-lang's Program
