@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 #[cfg(any(test, feature = "testing"))]
 use std::sync::LazyLock;
@@ -67,24 +67,26 @@ pub fn cairo0_compilers_correct_version() -> Result<(), Cairo0CompilerVersionErr
 
 /// Compile a Cairo0 program.
 pub fn compile_cairo0_program(
-    path_to_main: PathBuf,
-    cairo_root_path: PathBuf,
+    path_to_main: &Path,
+    cairo_root_path: &Path,
 ) -> Result<Vec<u8>, Cairo0CompilerError> {
     cairo0_compilers_correct_version()?;
     if !path_to_main.exists() {
-        return Err(Cairo0CompilerError::SourceFileNotFound(path_to_main));
+        return Err(Cairo0CompilerError::SourceFileNotFound(path_to_main.to_path_buf()));
     }
     if !cairo_root_path.exists() {
-        return Err(Cairo0CompilerError::CairoRootNotFound(cairo_root_path));
+        return Err(Cairo0CompilerError::CairoRootNotFound(cairo_root_path.to_path_buf()));
     }
     let mut compile_command = Command::new(CAIRO0_COMPILE);
     compile_command.args([
-        path_to_main.to_str().ok_or(Cairo0CompilerError::InvalidPath(path_to_main.clone()))?,
+        path_to_main
+            .to_str()
+            .ok_or(Cairo0CompilerError::InvalidPath(path_to_main.to_path_buf()))?,
         "--debug_info_with_source",
         "--cairo_path",
         cairo_root_path
             .to_str()
-            .ok_or(Cairo0CompilerError::InvalidPath(cairo_root_path.clone()))?,
+            .ok_or(Cairo0CompilerError::InvalidPath(cairo_root_path.to_path_buf()))?,
     ]);
     let compile_output = compile_command.output()?;
 

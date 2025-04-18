@@ -1,6 +1,7 @@
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
+use apollo_starknet_os_program::test_utils::compile_os_module;
 use apollo_starknet_os_program::{AGGREGATOR_PROGRAM_BYTES, OS_PROGRAM_BYTES, PROGRAM_HASH};
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::types::layout_name::LayoutName;
@@ -73,6 +74,15 @@ pub fn parse_and_run_os(input_path: String, output_path: String) {
         .unwrap_or_else(|err| panic!("OS run failed. Error: {}", err));
     write_to_file(&output_path, &output);
     info!("OS program ran successfully.");
+}
+
+pub(crate) fn compile_and_dump_module(path_to_module: String, output_path: String) {
+    // Dumping the `Program` struct won't work - it is not deserializable via cairo-lang's Program
+    // class. JSONify the raw bytes instead.
+    let module_bytes = compile_os_module(&PathBuf::from(path_to_module));
+    let module_json = serde_json::from_slice::<serde_json::Value>(&module_bytes)
+        .expect("Module bytes are JSON-serializable.");
+    write_to_file(&output_path, &module_json);
 }
 
 pub(crate) fn dump_os_program(output_path: String) {

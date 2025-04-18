@@ -5,6 +5,7 @@ use tracing_subscriber::reload::Handle;
 use tracing_subscriber::Registry;
 
 use crate::os_cli::commands::{
+    compile_and_dump_module,
     dump_aggregator_program,
     dump_os_program,
     dump_program_hash,
@@ -21,6 +22,15 @@ pub struct OsCliCommand {
 
 #[derive(Debug, Subcommand)]
 enum Command {
+    CompileAndDumpModule {
+        /// Path to module in the OS program crate.
+        #[clap(long, short = 'm')]
+        path_to_module: String,
+
+        /// File path to output.
+        #[clap(long, short = 'o', default_value = "stdout")]
+        output_path: String,
+    },
     DumpAggregatorProgram {
         /// File path to output.
         #[clap(long, short = 'o', default_value = "stdout")]
@@ -49,6 +59,9 @@ pub async fn run_os_cli(
 ) {
     info!("Starting starknet-os-cli with command: \n{:?}", os_command);
     match os_command.command {
+        Command::CompileAndDumpModule { path_to_module, output_path } => {
+            compile_and_dump_module(path_to_module, output_path)
+        }
         Command::DumpAggregatorProgram { output_path } => dump_aggregator_program(output_path),
         Command::DumpOsProgram { output_path } => dump_os_program(output_path),
         Command::DumpProgramHash { output_path } => dump_program_hash(output_path),
