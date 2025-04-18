@@ -24,7 +24,7 @@ fn main() {
 }
 
 fn compile_program(path_to_main_file: PathBuf) -> Vec<u8> {
-    match compile_cairo0_program(path_to_main_file, cairo_root_path()) {
+    match compile_cairo0_program(&path_to_main_file, &cairo_root_path()) {
         Ok(bytes) => bytes,
         Err(Cairo0CompilerError::Cairo0CompilerVersion(error)) => {
             panic!(

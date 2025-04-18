@@ -67,15 +67,15 @@ pub fn cairo0_compilers_correct_version() -> Result<(), Cairo0CompilerVersionErr
 
 /// Compile a Cairo0 program.
 pub fn compile_cairo0_program(
-    path_to_main: PathBuf,
-    cairo_root_path: PathBuf,
+    path_to_main: &PathBuf,
+    cairo_root_path: &PathBuf,
 ) -> Result<Vec<u8>, Cairo0CompilerError> {
     cairo0_compilers_correct_version()?;
     if !path_to_main.exists() {
-        return Err(Cairo0CompilerError::SourceFileNotFound(path_to_main));
+        return Err(Cairo0CompilerError::SourceFileNotFound(path_to_main.clone()));
     }
     if !cairo_root_path.exists() {
-        return Err(Cairo0CompilerError::CairoRootNotFound(cairo_root_path));
+        return Err(Cairo0CompilerError::CairoRootNotFound(cairo_root_path.clone()));
     }
     let mut compile_command = Command::new(CAIRO0_COMPILE);
     compile_command.args([
