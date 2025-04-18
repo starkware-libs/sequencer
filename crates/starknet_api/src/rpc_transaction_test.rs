@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
@@ -17,6 +19,7 @@ use crate::transaction::fields::{
     ResourceBounds,
     Tip,
     TransactionDeprSignature,
+    TransactionSignature,
     ValidResourceBounds,
 };
 use crate::{calldata, class_hash, contract_address, felt, nonce};
@@ -55,7 +58,7 @@ fn create_deploy_account_tx() -> RpcTransaction {
         class_hash: class_hash!("0x2"),
         constructor_calldata: calldata![felt!("0x1")],
         nonce: nonce!(1),
-        signature: TransactionDeprSignature(vec![felt!("0x1")]),
+        signature: TransactionSignature(Arc::new(vec![felt!("0x1")])),
         nonce_data_availability_mode: DataAvailabilityMode::L2,
         fee_data_availability_mode: DataAvailabilityMode::L1,
         paymaster_data: PaymasterData(vec![felt!("0x2"), felt!("0x0")]),
