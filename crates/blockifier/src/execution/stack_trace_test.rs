@@ -775,7 +775,7 @@ fn test_contract_ctor_frame_stack_trace(
     // Invoke the deploy_contract function on the dummy account to deploy the faulty contract.
     let invoke_deploy_tx = invoke_tx_with_default_flags(invoke_tx_args! {
         sender_address: account_address,
-        signature,
+        signature: signature.into(),
         calldata: create_calldata(
             account_address,
             DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME,

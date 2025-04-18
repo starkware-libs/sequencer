@@ -125,7 +125,7 @@ pub fn rpc_tx_for_testing(
             fee_data_availability_mode,
         )),
         TransactionType::Invoke => rpc_invoke_tx(invoke_tx_args!(
-            signature,
+            signature: signature.into(),
             sender_address,
             calldata,
             resource_bounds: ValidResourceBounds::AllResources(resource_bounds),

@@ -21,7 +21,7 @@ use crate::transaction::fields::{
     Fee,
     PaymasterData,
     Tip,
-    TransactionDeprSignature,
+    TransactionSignature,
     ValidResourceBounds,
 };
 use crate::transaction::{
@@ -36,7 +36,7 @@ use crate::transaction::{
 #[derive(Clone)]
 pub struct InvokeTxArgs {
     pub max_fee: Fee,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
     pub sender_address: ContractAddress,
     pub calldata: Calldata,
     pub version: TransactionVersion,
@@ -55,7 +55,7 @@ impl Default for InvokeTxArgs {
     fn default() -> Self {
         InvokeTxArgs {
             max_fee: Fee::default(),
-            signature: TransactionDeprSignature::default(),
+            signature: TransactionSignature::default(),
             sender_address: ContractAddress::default(),
             calldata: calldata![],
             version: TransactionVersion::THREE,
@@ -96,7 +96,7 @@ pub fn invoke_tx(invoke_args: InvokeTxArgs) -> InvokeTransaction {
             max_fee: invoke_args.max_fee,
             calldata: invoke_args.calldata,
             contract_address: invoke_args.sender_address,
-            signature: invoke_args.signature,
+            signature: invoke_args.signature.into(),
             // V0 transactions should always select the `__execute__` entry point.
             entry_point_selector: selector_from_name(EXECUTE_ENTRY_POINT_NAME),
         })
@@ -106,7 +106,7 @@ pub fn invoke_tx(invoke_args: InvokeTxArgs) -> InvokeTransaction {
             sender_address: invoke_args.sender_address,
             nonce: invoke_args.nonce,
             calldata: invoke_args.calldata,
-            signature: invoke_args.signature,
+            signature: invoke_args.signature.into(),
         })
     } else if invoke_args.version == TransactionVersion::THREE {
         InvokeTransaction::V3(InvokeTransactionV3 {
@@ -114,7 +114,7 @@ pub fn invoke_tx(invoke_args: InvokeTxArgs) -> InvokeTransaction {
             calldata: invoke_args.calldata,
             sender_address: invoke_args.sender_address,
             nonce: invoke_args.nonce,
-            signature: invoke_args.signature,
+            signature: invoke_args.signature.into(),
             tip: invoke_args.tip,
             nonce_data_availability_mode: invoke_args.nonce_data_availability_mode,
             fee_data_availability_mode: invoke_args.fee_data_availability_mode,
@@ -149,7 +149,7 @@ pub fn rpc_invoke_tx(invoke_args: InvokeTxArgs) -> RpcTransaction {
         calldata: invoke_args.calldata,
         sender_address: invoke_args.sender_address,
         nonce: invoke_args.nonce,
-        signature: invoke_args.signature,
+        signature: invoke_args.signature.into(),
         nonce_data_availability_mode: invoke_args.nonce_data_availability_mode,
         fee_data_availability_mode: invoke_args.fee_data_availability_mode,
         paymaster_data: invoke_args.paymaster_data,
