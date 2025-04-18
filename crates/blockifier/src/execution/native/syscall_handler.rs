@@ -21,7 +21,7 @@ use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, EthAddress};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, TransactionDeprSignature};
+use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, TransactionSignature};
 use starknet_api::transaction::{EventContent, EventData, EventKey, L2ToL1Payload};
 use starknet_types_core::felt::Felt;
 
@@ -175,7 +175,7 @@ impl<'state> NativeSyscallHandler<'state> {
             version: self.base.tx_version_for_get_execution_info().0,
             account_contract_address: Felt::from(tx_info.sender_address()),
             max_fee: tx_info.max_fee_for_execution_info_syscall().0,
-            signature: tx_info.signature().0,
+            signature: tx_info.signature().0.as_ref().clone(),
             transaction_hash: tx_info.transaction_hash().0,
             chain_id: Felt::from_hex(
                 &self.base.context.tx_context.block_context.chain_info.chain_id.as_hex(),
@@ -205,7 +205,7 @@ impl<'state> NativeSyscallHandler<'state> {
             version: self.base.tx_version_for_get_execution_info().0,
             account_contract_address: Felt::from(tx_info.sender_address()),
             max_fee: tx_info.max_fee_for_execution_info_syscall().0,
-            signature: tx_info.signature().0,
+            signature: tx_info.signature().0.as_ref().clone(),
             transaction_hash: tx_info.transaction_hash().0,
             chain_id: Felt::from_hex(
                 &self.base.context.tx_context.block_context.chain_info.chain_id.as_hex(),
@@ -362,7 +362,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
             .map_err(|error| self.handle_error(remaining_gas, error.into()))?;
         let selector = EntryPointSelector(entry_point_selector);
         let wrapper_calldata = Calldata(Arc::new(calldata.to_vec()));
-        let signature = TransactionDeprSignature(signature.to_vec());
+        let signature = TransactionSignature(Arc::new(signature.to_vec()));
 
         let raw_data_result = self.base.meta_tx_v0(
             contract_address,
