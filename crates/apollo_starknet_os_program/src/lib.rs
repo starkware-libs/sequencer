@@ -1,8 +1,9 @@
+use std::fs::File;
 use std::sync::LazyLock;
 
 use cairo_vm::types::program::Program;
 
-use crate::program_hash::ProgramHash;
+use crate::program_hash::{ProgramHash, PROGRAM_HASH_PATH};
 
 pub mod program_hash;
 
@@ -15,6 +16,9 @@ pub static OS_PROGRAM: LazyLock<Program> = LazyLock::new(|| {
 });
 
 pub static PROGRAM_HASH: LazyLock<ProgramHash> = LazyLock::new(|| {
-    serde_json::from_str(include_str!("program_hash.json"))
-        .expect("Failed to deserialize program_hash.json.")
+    serde_json::from_reader(
+        File::open(&*PROGRAM_HASH_PATH)
+            .unwrap_or_else(|error| panic!("Failed to open {PROGRAM_HASH_PATH:?}: {error:?}.")),
+    )
+    .unwrap_or_else(|error| panic!("Failed to deserialize {PROGRAM_HASH_PATH:?}: {error:?}."))
 });
