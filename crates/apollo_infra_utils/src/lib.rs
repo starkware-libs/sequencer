@@ -1,3 +1,4 @@
+pub mod cairo0_compiler;
 #[cfg(any(feature = "testing", test))]
 pub mod cairo_compiler_version;
 pub mod command;
