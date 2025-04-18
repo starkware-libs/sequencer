@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use apollo_starknet_os_program::{OS_PROGRAM_BYTES, PROGRAM_HASH};
+use apollo_starknet_os_program::{AGGREGATOR_PROGRAM_BYTES, OS_PROGRAM_BYTES, PROGRAM_HASH};
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::types::layout_name::LayoutName;
 use rand_distr::num_traits::Zero;
@@ -81,6 +81,15 @@ pub(crate) fn dump_os_program(output_path: String) {
     let os_program_json = serde_json::from_slice::<serde_json::Value>(OS_PROGRAM_BYTES)
         .expect("OS bytes are JSON-serializable.");
     write_to_file(&output_path, &os_program_json);
+}
+
+pub(crate) fn dump_aggregator_program(output_path: String) {
+    // Dumping the `Program` struct won't work - it is not deserializable via cairo-lang's Program
+    // class. JSONify the raw bytes instead.
+    let aggregator_program_json =
+        serde_json::from_slice::<serde_json::Value>(AGGREGATOR_PROGRAM_BYTES)
+            .expect("Aggregator bytes are JSON-serializable.");
+    write_to_file(&output_path, &aggregator_program_json);
 }
 
 pub(crate) fn dump_program_hash(output_path: String) {
