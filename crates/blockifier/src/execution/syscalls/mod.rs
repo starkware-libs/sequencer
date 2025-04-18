@@ -4,7 +4,7 @@ use num_traits::ToPrimitive;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, EthAddress};
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, TransactionDeprSignature};
+use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, TransactionSignature};
 use starknet_api::transaction::{EventContent, EventData, EventKey, L2ToL1Payload};
 use starknet_types_core::felt::Felt;
 
@@ -323,7 +323,7 @@ pub struct MetaTxV0Request {
     pub contract_address: ContractAddress,
     pub entry_point_selector: EntryPointSelector,
     pub calldata: Calldata,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
 }
 
 impl SyscallRequest for MetaTxV0Request {
@@ -331,7 +331,7 @@ impl SyscallRequest for MetaTxV0Request {
         let contract_address = ContractAddress::try_from(felt_from_ptr(vm, ptr)?)?;
         let (entry_point_selector, calldata) = read_call_params(vm, ptr)?;
         let signature =
-            TransactionDeprSignature(read_felt_array::<SyscallExecutionError>(vm, ptr)?);
+            TransactionSignature(read_felt_array::<SyscallExecutionError>(vm, ptr)?.into());
 
         Ok(MetaTxV0Request { contract_address, entry_point_selector, calldata, signature })
     }

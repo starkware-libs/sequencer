@@ -732,7 +732,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
             storage_address,
             selector,
             request.calldata,
-            request.signature.into(),
+            request.signature,
             remaining_gas,
         )?;
         let retdata_segment = create_retdata_segment(vm, syscall_handler, &raw_retdata)?;
