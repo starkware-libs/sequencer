@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::collections::HashMap;
 
 use assert_matches::assert_matches;
@@ -7,7 +8,7 @@ use blockifier_test_utils::contracts::FeatureContract;
 use indexmap::indexmap;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
-use starknet_api::transaction::fields::{Fee, TransactionDeprSignature, ValidResourceBounds};
+use starknet_api::transaction::fields::{Fee, TransactionSignature, ValidResourceBounds};
 use starknet_api::{
     class_hash,
     compiled_class_hash,
@@ -505,8 +506,11 @@ fn test_write_at_validate_and_execute(
         state.set_storage_at(contract_address, 15_u8.into(), felt!("0x1")).unwrap();
     }
 
-    let signature =
-        TransactionDeprSignature(vec![Felt::from(STORAGE_WRITE), validate_value, execute_value]);
+    let signature = TransactionSignature(Arc::new(vec![
+        Felt::from(STORAGE_WRITE),
+        validate_value,
+        execute_value,
+    ]));
     let tx_execution_info = run_invoke_tx(
         &mut state,
         &block_context,
