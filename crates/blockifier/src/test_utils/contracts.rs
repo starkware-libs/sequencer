@@ -106,7 +106,7 @@ pub struct FeatureContractData {
     pub runnable_class: RunnableCompiledClass,
     pub sierra: Option<SierraContractClass>,
     pub require_funding: bool,
-    integer_base: u32,
+    pub integer_base: u32,
 }
 impl FeatureContractData {
     pub fn get_instance_address(&self, instance: u16) -> ContractAddress {
