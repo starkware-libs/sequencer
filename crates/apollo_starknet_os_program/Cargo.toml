@@ -24,6 +24,7 @@ thiserror.workspace = true
 [build-dependencies]
 apollo_infra_utils.workspace = true
 serde_json.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 
 [dev-dependencies]
 apollo_infra_utils = { workspace = true, features = ["testing"] }
