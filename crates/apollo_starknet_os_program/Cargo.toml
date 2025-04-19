@@ -9,6 +9,9 @@ description = "The source (Cairo) code of the Starknet OS."
 [lints]
 workspace = true
 
+[features]
+test_programs = []
+
 [dependencies]
 apollo_infra_utils.workspace = true
 cairo-vm.workspace = true

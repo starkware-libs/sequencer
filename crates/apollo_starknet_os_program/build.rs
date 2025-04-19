@@ -10,6 +10,8 @@ async fn main() {
     let out_dir = PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR not set."));
 
     let mut task_set = tokio::task::JoinSet::new();
+    #[cfg(feature = "test_programs")]
+    task_set.spawn(compile_test_contracts(out_dir.clone()));
     task_set.spawn(compile_and_output_program(
         out_dir.clone(),
         "starkware/starknet/core/os/os.cairo",
@@ -53,6 +55,17 @@ async fn compile_and_output_program(
     std::fs::write(&bytes_path, &bytes).unwrap_or_else(|error| {
         panic!("Failed to write the compiled {program_name} bytes to {bytes_path:?}: {error}.")
     });
+}
+
+#[cfg(feature = "test_programs")]
+async fn compile_test_contracts(out_dir: PathBuf) {
+    let mut task_set = tokio::task::JoinSet::new();
+    task_set.spawn(compile_and_output_program(
+        out_dir,
+        "starkware/starknet/core/os/state/aliases_test.cairo",
+        "aliases_test",
+    ));
+    task_set.join_all().await;
 }
 
 fn cairo_root_path() -> PathBuf {

@@ -23,6 +23,7 @@ pub struct OsCliCommand {
 #[serde(rename_all = "kebab-case")]
 pub enum ProgramToDump {
     Aggregator,
+    AliasesTest,
     Os,
 }
 
