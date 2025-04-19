@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::Path;
 
+use apollo_starknet_os_program::test_programs::ALIASES_TEST_BYTES;
 use apollo_starknet_os_program::{AGGREGATOR_PROGRAM_BYTES, OS_PROGRAM_BYTES, PROGRAM_HASH};
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::types::layout_name::LayoutName;
@@ -79,6 +80,7 @@ pub fn parse_and_run_os(input_path: String, output_path: String) {
 pub(crate) fn dump_program(output_path: String, program: ProgramToDump) {
     let bytes = match program {
         ProgramToDump::Aggregator => AGGREGATOR_PROGRAM_BYTES,
+        ProgramToDump::AliasesTest => ALIASES_TEST_BYTES,
         ProgramToDump::Os => OS_PROGRAM_BYTES,
     };
     // Dumping the `Program` struct won't work - it is not deserializable via cairo-lang's Program
