@@ -1923,6 +1923,7 @@ dependencies = [
  "serde_json",
  "starknet-types-core",
  "thiserror 1.0.69",
+ "tokio",
 ]
 
 [[package]]
