@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+use serde::Serialize;
 use tracing::info;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::reload::Handle;
@@ -8,6 +9,7 @@ use crate::os_cli::commands::{
     dump_aggregator_program,
     dump_os_program,
     dump_program_hash,
+    dump_test_contract,
     parse_and_run_os,
 };
 use crate::os_cli::tests::python_tests::OsPythonTestRunner;
@@ -17,6 +19,12 @@ use crate::shared_utils::types::{run_python_test, IoArgs, PythonTestArg};
 pub struct OsCliCommand {
     #[clap(subcommand)]
     command: Command,
+}
+
+#[derive(clap::ValueEnum, Clone, Debug, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum TestContract {
+    AliasesTest,
 }
 
 #[derive(Debug, Subcommand)]
@@ -32,6 +40,14 @@ enum Command {
         output_path: String,
     },
     DumpProgramHash {
+        /// File path to output.
+        #[clap(long, short = 'o', default_value = "stdout")]
+        output_path: String,
+    },
+    DumpTestContract {
+        /// The test contract to dump.
+        #[clap(long, value_enum)]
+        test_contract: TestContract,
         /// File path to output.
         #[clap(long, short = 'o', default_value = "stdout")]
         output_path: String,
@@ -52,6 +68,9 @@ pub async fn run_os_cli(
         Command::DumpAggregatorProgram { output_path } => dump_aggregator_program(output_path),
         Command::DumpOsProgram { output_path } => dump_os_program(output_path),
         Command::DumpProgramHash { output_path } => dump_program_hash(output_path),
+        Command::DumpTestContract { test_contract, output_path } => {
+            dump_test_contract(test_contract, output_path);
+        }
         Command::PythonTest(python_test_arg) => {
             run_python_test::<OsPythonTestRunner>(python_test_arg).await;
         }

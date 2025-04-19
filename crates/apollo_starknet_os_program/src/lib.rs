@@ -6,6 +6,8 @@ use cairo_vm::types::program::Program;
 use crate::program_hash::{ProgramHash, PROGRAM_HASH_PATH};
 
 pub mod program_hash;
+#[cfg(feature = "test_contracts")]
+pub mod test_contracts;
 
 pub const OS_PROGRAM_BYTES: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/starknet_os_bytes"));
 pub const AGGREGATOR_PROGRAM_BYTES: &[u8] =

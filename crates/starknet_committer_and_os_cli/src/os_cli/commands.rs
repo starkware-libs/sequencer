@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::Path;
 
+use apollo_starknet_os_program::test_contracts::ALIASES_TEST_BYTES;
 use apollo_starknet_os_program::{AGGREGATOR_PROGRAM_BYTES, OS_PROGRAM_BYTES, PROGRAM_HASH};
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::types::layout_name::LayoutName;
@@ -12,6 +13,7 @@ use starknet_os::io::os_input::{CachedStateInput, OsBlockInput, OsHints};
 use starknet_os::runner::run_os_stateless;
 use tracing::info;
 
+use crate::os_cli::run_os_cli::TestContract;
 use crate::shared_utils::read::{load_input, write_to_file};
 
 #[derive(Deserialize, Debug)]
@@ -94,4 +96,13 @@ pub(crate) fn dump_aggregator_program(output_path: String) {
 
 pub(crate) fn dump_program_hash(output_path: String) {
     write_to_file(&output_path, &*PROGRAM_HASH);
+}
+
+pub(crate) fn dump_test_contract(test_contract: TestContract, output_path: String) {
+    let test_contract_bytes = match test_contract {
+        TestContract::AliasesTest => ALIASES_TEST_BYTES,
+    };
+    let test_contract_json = serde_json::from_slice::<serde_json::Value>(test_contract_bytes)
+        .expect("Test contract bytes are JSON-serializable.");
+    write_to_file(&output_path, &test_contract_json);
 }
