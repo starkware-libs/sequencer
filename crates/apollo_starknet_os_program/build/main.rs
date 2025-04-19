@@ -15,6 +15,8 @@ async fn main() {
     dump_source::dump_source_files(&out_dir.join("cairo_files_map.json"));
 
     let mut task_set = tokio::task::JoinSet::new();
+    #[cfg(feature = "test_programs")]
+    task_set.spawn(compile_program::compile_test_contracts(out_dir.clone()));
     task_set.spawn(compile_program::compile_and_output_program(
         out_dir.clone(),
         "starkware/starknet/core/os/os.cairo",
