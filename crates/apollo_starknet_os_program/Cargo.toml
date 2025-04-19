@@ -20,3 +20,4 @@ thiserror.workspace = true
 [build-dependencies]
 apollo_infra_utils.workspace = true
 cairo-vm.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
