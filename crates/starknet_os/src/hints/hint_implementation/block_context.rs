@@ -43,7 +43,7 @@ pub(crate) fn fee_token_address<S: StateReader>(
     HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let strk_fee_token_address =
-        hint_processor.chain_info.fee_token_addresses.strk_fee_token_address;
+        hint_processor.chain_info.strk_fee_token_address;
     Ok(insert_value_into_ap(vm, strk_fee_token_address.0.key())?)
 }
 
