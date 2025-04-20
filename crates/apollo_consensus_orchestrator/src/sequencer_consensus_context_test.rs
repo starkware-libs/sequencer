@@ -708,6 +708,11 @@ async fn eth_to_fri_rate_out_of_range() {
     let fin_receiver =
         context.validate_proposal(ProposalInit::default(), TIMEOUT * 100, content_receiver).await;
     assert_eq!(fin_receiver.await, Err(Canceled));
+
+    let handle_result = tokio::join!(context.active_proposal.unwrap().1).0;
+    // The validation should successfully end, rejecting the proposal.
+    assert!(handle_result.is_ok());
+    // TODO(guyn): How to check that the rejection is due to the eth_to_fri_rate?
 }
 
 #[tokio::test]

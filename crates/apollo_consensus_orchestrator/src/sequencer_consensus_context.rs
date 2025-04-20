@@ -965,7 +965,12 @@ async fn get_proposal_content(
 
 async fn validate_proposal(mut args: ProposalValidateArguments) {
     let mut content = Vec::new();
-    let deadline = args.clock.now_at_tokio_instant() + args.timeout;
+    let now = args.clock.now_at_tokio_instant();
+    let Some(deadline) = now.checked_add(args.timeout) else {
+        warn!("Cannot calculate deadline. Timeout: {:?}, now: {:?}", args.timeout, now);
+        return;
+    };
+
     let Some((block_info, fin_sender)) = await_second_proposal_part(
         &args.cancel_token,
         deadline,
