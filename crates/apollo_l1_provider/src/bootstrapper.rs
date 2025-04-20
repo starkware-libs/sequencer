@@ -175,9 +175,8 @@ async fn l2_sync_task(
 
         match block {
             Ok(Some(block)) => {
-                // FIXME: block.transaction_hashes should be `block.l1_transaction_hashes`!
                 l1_provider_client
-                    .commit_block(block.transaction_hashes, current_height)
+                    .commit_block(block.l1_transaction_hashes, current_height)
                     .await
                     .unwrap();
                 current_height = current_height.unchecked_next();
