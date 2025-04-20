@@ -122,7 +122,7 @@ pub fn declare_tx(declare_tx_args: DeclareTxArgs) -> DeclareTransaction {
         })
     } else if declare_tx_args.version == TransactionVersion::THREE {
         DeclareTransaction::V3(DeclareTransactionV3 {
-            signature: TransactionDeprSignature(declare_tx_args.signature.0.as_ref().clone()),
+            signature: declare_tx_args.signature,
             sender_address: declare_tx_args.sender_address,
             resource_bounds: declare_tx_args.resource_bounds,
             tip: declare_tx_args.tip,

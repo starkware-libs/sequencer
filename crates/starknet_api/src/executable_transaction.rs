@@ -21,6 +21,7 @@ use crate::transaction::fields::{
     PaymasterData,
     Tip,
     TransactionDeprSignature,
+    TransactionSignature,
     ValidResourceBounds,
 };
 use crate::transaction::{
@@ -112,14 +113,19 @@ impl AccountTransaction {
     implement_account_tx_inner_getters!(
         (resource_bounds, ValidResourceBounds),
         (tip, Tip),
-        (signature, TransactionDeprSignature),
         (nonce, Nonce),
         (nonce_data_availability_mode, DataAvailabilityMode),
         (fee_data_availability_mode, DataAvailabilityMode),
         (paymaster_data, PaymasterData),
         (version, TransactionVersion)
     );
-
+    pub fn signature(&self) -> TransactionDeprSignature {
+        match self {
+            Self::Declare(tx) => TransactionDeprSignature(tx.signature().0.as_ref().clone()),
+            Self::Invoke(tx) => tx.signature().clone(),
+            Self::DeployAccount(tx) => tx.signature().clone(),
+        }
+    }
     pub fn contract_address(&self) -> ContractAddress {
         match self {
             AccountTransaction::Declare(tx_data) => tx_data.tx.sender_address(),
@@ -162,7 +168,7 @@ impl DeclareTransaction {
         (class_hash, ClassHash),
         (nonce, Nonce),
         (sender_address, ContractAddress),
-        (signature, TransactionDeprSignature),
+        (signature, TransactionSignature),
         (version, TransactionVersion),
         // compiled_class_hash is only supported in V2 and V3, otherwise the getter panics.
         (compiled_class_hash, CompiledClassHash),

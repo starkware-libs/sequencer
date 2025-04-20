@@ -225,7 +225,7 @@ impl TransactionInfoCreatorInner for DeclareTransaction {
         let common_fields = CommonAccountFields {
             transaction_hash: self.tx_hash,
             version: self.version(),
-            signature: TransactionSignature(Arc::new(self.signature().0)),
+            signature: self.signature(),
             nonce: self.nonce(),
             sender_address: self.sender_address(),
             only_query,
