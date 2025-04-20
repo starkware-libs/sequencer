@@ -7,7 +7,7 @@ use rand_distr::num_traits::Zero;
 use serde::Deserialize;
 use starknet_api::contract_class::ContractClass;
 use starknet_api::executable_transaction::{AccountTransaction, Transaction};
-use starknet_os::io::os_input::{CachedStateInput, OsBlockInput, OsHints};
+use starknet_os::io::os_input::{OsBlockInput, OsHints, StarknetOsInput};
 use starknet_os::runner::run_os_stateless;
 use tracing::info;
 
@@ -54,15 +54,20 @@ fn validate_single_input(os_block_input: &OsBlockInput) {
 }
 
 /// Validate a list of os_block_input.
-pub fn validate_input(os_block_input: &[(OsBlockInput, CachedStateInput)]) {
-    for (os_block_input, _) in os_block_input {
+pub fn validate_input(os_input: &StarknetOsInput) {
+    assert_eq!(
+        os_input.os_block_inputs.len(),
+        os_input.cached_state_inputs.len(),
+        "The number of blocks and number of state inputs should be equal."
+    );
+    for os_block_input in os_input.os_block_inputs.iter() {
         validate_single_input(os_block_input);
     }
 }
 
 pub fn parse_and_run_os(input_path: String, output_path: String) {
     let Input { compiled_os_path, layout, os_hints } = load_input(input_path);
-    validate_input(&os_hints.os_input.os_block_and_state_input);
+    validate_input(&os_hints.os_input);
 
     // Load the compiled_os from the compiled_os_path.
     let compiled_os =
