@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use num_bigint::BigUint;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
@@ -83,6 +85,10 @@ where
 
 pub fn from_py_felts(py_felts: Vec<PyFelt>) -> Vec<Felt> {
     py_felts.into_iter().map(|felt| felt.0).collect()
+}
+
+pub fn from_py_felts_to_arc(py_felts: Vec<PyFelt>) -> Arc<Vec<Felt>> {
+    Arc::new(from_py_felts(py_felts))
 }
 
 pub fn int_to_chain_id(int: &PyAny) -> PyResult<ChainId> {
