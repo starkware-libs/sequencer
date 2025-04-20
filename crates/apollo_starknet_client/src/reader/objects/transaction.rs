@@ -3,7 +3,6 @@
 mod transaction_test;
 
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
@@ -24,7 +23,6 @@ use starknet_api::transaction::fields::{
     Fee,
     PaymasterData,
     Tip,
-    TransactionDeprSignature,
     TransactionSignature,
     ValidResourceBounds,
 };
@@ -185,7 +183,7 @@ pub struct IntermediateDeclareTransaction {
     pub resource_bounds: Option<ValidResourceBounds>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tip: Option<Tip>,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
     pub nonce: Nonce,
     pub class_hash: ClassHash,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -239,7 +237,7 @@ impl TryFrom<IntermediateDeclareTransaction> for starknet_api::transaction::Decl
                 tx_hash: declare_tx.transaction_hash,
                 msg: "Declare V1 must contain max_fee field.".to_string(),
             })?,
-            signature: TransactionSignature(Arc::new(declare_tx.signature.0)),
+            signature: declare_tx.signature,
             nonce: declare_tx.nonce,
             class_hash: declare_tx.class_hash,
             sender_address: declare_tx.sender_address,
@@ -256,7 +254,7 @@ impl TryFrom<IntermediateDeclareTransaction> for starknet_api::transaction::Decl
                 tx_hash: declare_tx.transaction_hash,
                 msg: "Declare V2 must contain max_fee field.".to_string(),
             })?,
-            signature: TransactionSignature(Arc::new(declare_tx.signature.0)),
+            signature: declare_tx.signature,
             nonce: declare_tx.nonce,
             class_hash: declare_tx.class_hash,
             compiled_class_hash: declare_tx.compiled_class_hash.ok_or(
@@ -285,7 +283,7 @@ impl TryFrom<IntermediateDeclareTransaction> for starknet_api::transaction::Decl
                 tx_hash: declare_tx.transaction_hash,
                 msg: "Declare V3 must contain tip field.".to_string(),
             })?,
-            signature: TransactionSignature(Arc::new(declare_tx.signature.0)),
+            signature: declare_tx.signature,
             nonce: declare_tx.nonce,
             class_hash: declare_tx.class_hash,
             compiled_class_hash: declare_tx.compiled_class_hash.ok_or(
@@ -354,7 +352,7 @@ pub struct IntermediateDeployAccountTransaction {
     pub resource_bounds: Option<ValidResourceBounds>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tip: Option<Tip>,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
     pub nonce: Nonce,
     pub class_hash: ClassHash,
     pub contract_address_salt: ContractAddressSalt,
@@ -413,7 +411,7 @@ impl TryFrom<IntermediateDeployAccountTransaction>
                 tx_hash: deploy_account_tx.transaction_hash,
                 msg: "DeployAccount V1 must contain max_fee field.".to_string(),
             })?,
-            signature: TransactionSignature(Arc::new(deploy_account_tx.signature.0)),
+            signature: deploy_account_tx.signature,
             nonce: deploy_account_tx.nonce,
         })
     }
@@ -438,7 +436,7 @@ impl TryFrom<IntermediateDeployAccountTransaction>
                 tx_hash: deploy_account_tx.transaction_hash,
                 msg: "DeployAccount V3 must contain tip field.".to_string(),
             })?,
-            signature: TransactionSignature(Arc::new(deploy_account_tx.signature.0)),
+            signature: deploy_account_tx.signature,
             nonce: deploy_account_tx.nonce,
             class_hash: deploy_account_tx.class_hash,
             contract_address_salt: deploy_account_tx.contract_address_salt,
@@ -489,7 +487,7 @@ pub struct IntermediateInvokeTransaction {
     pub nonce: Option<Nonce>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_fee: Option<Fee>,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub nonce_data_availability_mode: Option<ReservedDataAvailabilityMode>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -532,7 +530,7 @@ impl TryFrom<IntermediateInvokeTransaction> for starknet_api::transaction::Invok
                 tx_hash: invoke_tx.transaction_hash,
                 msg: "Invoke V0 must contain max_fee field.".to_string(),
             })?,
-            signature: TransactionSignature(Arc::new(invoke_tx.signature.0)),
+            signature: invoke_tx.signature,
             contract_address: invoke_tx.sender_address,
             entry_point_selector: invoke_tx.entry_point_selector.ok_or(
                 ReaderClientError::BadTransaction {
@@ -555,7 +553,7 @@ impl TryFrom<IntermediateInvokeTransaction> for starknet_api::transaction::Invok
                 tx_hash: invoke_tx.transaction_hash,
                 msg: "Invoke V1 must contain max_fee field.".to_string(),
             })?,
-            signature: TransactionSignature(Arc::new(invoke_tx.signature.0)),
+            signature: invoke_tx.signature,
             nonce: invoke_tx.nonce.ok_or(ReaderClientError::BadTransaction {
                 tx_hash: invoke_tx.transaction_hash,
                 msg: "Invoke V1 must contain nonce field.".to_string(),
@@ -582,7 +580,7 @@ impl TryFrom<IntermediateInvokeTransaction> for starknet_api::transaction::Invok
                 tx_hash: invoke_tx.transaction_hash,
                 msg: "Invoke V3 must contain tip field.".to_string(),
             })?,
-            signature: TransactionSignature(Arc::new(invoke_tx.signature.0)),
+            signature: invoke_tx.signature,
             nonce: invoke_tx.nonce.ok_or(ReaderClientError::BadTransaction {
                 tx_hash: invoke_tx.transaction_hash,
                 msg: "Invoke V3 must contain nonce field.".to_string(),
