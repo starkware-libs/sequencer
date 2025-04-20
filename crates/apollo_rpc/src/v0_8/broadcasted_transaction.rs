@@ -95,7 +95,7 @@ pub struct BroadcastedDeclareV2Transaction {
     pub sender_address: ContractAddress,
     pub nonce: Nonce,
     pub max_fee: Fee,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq)]
