@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::vec;
 
 use apollo_protobuf::sync::DataOrFin;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
@@ -27,10 +28,16 @@ use crate::client::test_utils::{
 
 #[tokio::test]
 async fn receive_block_internally() {
-    let transaction_hashes_len = 2;
-    let sync_block = create_random_sync_block(BlockNumber(0), transaction_hashes_len, get_rng());
+    let account_transaction_hashes_len = 4;
+    let l1_transaction_hashes_len = 2;
+    let sync_block = create_random_sync_block(
+        BlockNumber(0),
+        account_transaction_hashes_len,
+        l1_transaction_hashes_len,
+        get_rng(),
+    );
     let block_header_without_hash = sync_block.block_header_without_hash.clone();
-    let transaction_hashes = sync_block.transaction_hashes.clone();
+    let transaction_hashes = sync_block.get_all_transaction_hashes();
     let state_diff = sync_block.state_diff.clone();
 
     run_test(
@@ -67,7 +74,7 @@ async fn receive_block_internally() {
                     assert!(block_header.clone().is_some());
                     assert!(
                         block_header.clone().unwrap().n_transactions
-                            == Into::<usize>::into(transaction_hashes_len)
+                            == Into::<usize>::into(transaction_hashes.len())
                     );
                     assert!(block_header.unwrap().state_diff_length.unwrap() == 1);
                     assert_eq!(
@@ -96,16 +103,30 @@ async fn receive_block_internally() {
 #[tokio::test]
 async fn receive_blocks_out_of_order() {
     let mut rng = get_rng();
-    let sync_block_0 = create_random_sync_block(BlockNumber(0), 1, rng.clone());
+    let account_transaction_hashes_len_0 = 4;
+    let l1_transaction_hashes_len_0 = 2;
+    let sync_block_0 = create_random_sync_block(
+        BlockNumber(0),
+        account_transaction_hashes_len_0,
+        l1_transaction_hashes_len_0,
+        get_rng(),
+    );
     let block_header_without_hash_0 = sync_block_0.block_header_without_hash.clone();
-    let transaction_hashes_0 = sync_block_0.transaction_hashes.clone();
+    let transaction_hashes_0 = sync_block_0.get_all_transaction_hashes();
     let state_diff_0 = sync_block_0.state_diff.clone();
 
     // We need to forward the rng to the next generated num to make sure the blocks are different.
     rng.gen::<u8>();
-    let sync_block_1 = create_random_sync_block(BlockNumber(1), 1, rng);
+    let account_transaction_hashes_len_1 = 3;
+    let l1_transaction_hashes_len_1 = 1;
+    let sync_block_1 = create_random_sync_block(
+        BlockNumber(1),
+        account_transaction_hashes_len_1,
+        l1_transaction_hashes_len_1,
+        get_rng(),
+    );
     let block_header_without_hash_1 = sync_block_1.block_header_without_hash.clone();
-    let transaction_hashes_1 = sync_block_1.transaction_hashes.clone();
+    let transaction_hashes_1 = sync_block_1.get_all_transaction_hashes();
     let state_diff_1 = sync_block_1.state_diff.clone();
 
     run_test(
@@ -181,8 +202,8 @@ async fn receive_blocks_out_of_order() {
 #[tokio::test]
 async fn receive_blocks_first_externally_and_then_internally() {
     let rng = get_rng();
-    let sync_block_0 = create_random_sync_block(BlockNumber(0), 1, rng.clone());
-    let sync_block_1 = create_random_sync_block(BlockNumber(1), 1, rng);
+    let sync_block_0 = create_random_sync_block(BlockNumber(0), 1, 0, rng.clone());
+    let sync_block_1 = create_random_sync_block(BlockNumber(1), 1, 0, rng);
     run_test(
         HashMap::from([(DataType::Header, 2)]),
         None,
@@ -239,7 +260,8 @@ async fn receive_blocks_first_externally_and_then_internally() {
 
 fn create_random_sync_block(
     block_number: BlockNumber,
-    transaction_hashes_len: u8,
+    account_transaction_hashes_len: u8,
+    l1_transaction_hashes_len: u8,
     mut rng: ChaCha8Rng,
 ) -> SyncBlock {
     let contract_address = ContractAddress::from(1_u128);
@@ -253,9 +275,13 @@ fn create_random_sync_block(
         nonces: IndexMap::new(),
     };
 
-    let mut transaction_hashes = vec![];
-    for _ in 0..transaction_hashes_len {
-        transaction_hashes.push(TransactionHash::random(&mut rng));
+    let mut account_transaction_hashes = vec![];
+    for _ in 0..account_transaction_hashes_len {
+        account_transaction_hashes.push(TransactionHash::random(&mut rng));
+    }
+    let mut l1_transaction_hashes = vec![];
+    for _ in 0..l1_transaction_hashes_len {
+        l1_transaction_hashes.push(TransactionHash::random(&mut rng));
     }
     let BlockHeaderWithoutHash {
         block_number: _,
@@ -285,5 +311,10 @@ fn create_random_sync_block(
         l1_da_mode,
         starknet_version,
     };
-    SyncBlock { state_diff, transaction_hashes, block_header_without_hash }
+    SyncBlock {
+        state_diff,
+        account_transaction_hashes,
+        l1_transaction_hashes,
+        block_header_without_hash,
+    }
 }
