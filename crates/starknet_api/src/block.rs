@@ -3,7 +3,8 @@
 mod block_test;
 
 use itertools::Itertools;
-use serde::{Deserialize, Serialize};
+use serde::de::Error;
+use serde::{Deserialize, Deserializer, Serialize};
 use size_of::SizeOf;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Poseidon, StarkHash as CoreStarkHash};
@@ -334,14 +335,35 @@ pub struct GasPricePerToken {
     Eq,
     PartialEq,
     Hash,
-    Deserialize,
     Serialize,
     PartialOrd,
     Ord,
     SizeOf,
 )]
-#[serde(from = "PrefixedBytesAsHex<16_usize>", into = "PrefixedBytesAsHex<16_usize>")]
+#[serde(into = "PrefixedBytesAsHex<16_usize>")]
 pub struct GasPrice(pub u128);
+
+impl<'de> Deserialize<'de> for GasPrice {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        // Deserialize to a serde_json::Value first
+        let value = serde_json::Value::deserialize(deserializer)?;
+
+        match value {
+            serde_json::Value::Number(n) => n
+                .as_u64()
+                .map(|v| GasPrice(v as u128))
+                .ok_or_else(|| D::Error::custom("expected a non-negative integer")),
+            serde_json::Value::String(s) => {
+                let s = s.strip_prefix("0x").unwrap_or(&s);
+                u128::from_str_radix(s, 16).map(GasPrice).map_err(D::Error::custom)
+            }
+            _ => Err(D::Error::custom("expected a hex string or u128 number")),
+        }
+    }
+}
 
 macro_rules! impl_from_uint_for_gas_price {
     ($($uint:ty),*) => {
