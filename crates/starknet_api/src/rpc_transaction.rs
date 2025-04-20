@@ -3,6 +3,7 @@
 mod rpc_transaction_test;
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use cairo_lang_starknet_classes::contract_class::ContractEntryPoints as CairoLangContractEntryPoints;
 use serde::{Deserialize, Serialize};
@@ -22,6 +23,7 @@ use crate::transaction::fields::{
     PaymasterData,
     Tip,
     TransactionDeprSignature,
+    TransactionSignature,
     ValidResourceBounds,
 };
 use crate::transaction::{
@@ -385,7 +387,7 @@ impl From<RpcDeclareTransactionV3> for DeclareTransactionV3 {
             class_hash: tx.contract_class.calculate_class_hash(),
             resource_bounds: ValidResourceBounds::AllResources(tx.resource_bounds),
             tip: tx.tip,
-            signature: tx.signature,
+            signature: TransactionSignature(Arc::new(tx.signature.0)),
             nonce: tx.nonce,
             compiled_class_hash: tx.compiled_class_hash,
             sender_address: tx.sender_address,
@@ -468,7 +470,7 @@ impl From<InternalRpcDeclareTransactionV3> for DeclareTransactionV3 {
             class_hash: tx.class_hash,
             resource_bounds: ValidResourceBounds::AllResources(tx.resource_bounds),
             tip: tx.tip,
-            signature: tx.signature,
+            signature: TransactionSignature(Arc::new(tx.signature.0)),
             nonce: tx.nonce,
             compiled_class_hash: tx.compiled_class_hash,
             sender_address: tx.sender_address,

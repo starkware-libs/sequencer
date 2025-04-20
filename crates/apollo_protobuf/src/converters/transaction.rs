@@ -2,6 +2,7 @@
 #[path = "transaction_test.rs"]
 mod transaction_test;
 use std::convert::{TryFrom, TryInto};
+use std::sync::Arc;
 
 use prost::Message;
 use starknet_api::block::GasPrice;
@@ -24,6 +25,7 @@ use starknet_api::transaction::fields::{
     ResourceBounds,
     Tip,
     TransactionDeprSignature,
+    TransactionSignature,
     ValidResourceBounds,
 };
 use starknet_api::transaction::{
@@ -866,7 +868,7 @@ impl TryFrom<protobuf::transaction_in_block::DeclareV3WithoutClass> for DeclareT
         Ok(Self {
             resource_bounds: common.resource_bounds,
             tip: common.tip,
-            signature: common.signature,
+            signature: TransactionSignature(Arc::new(common.signature.0)),
             nonce: common.nonce,
             class_hash,
             compiled_class_hash: common.compiled_class_hash,
@@ -884,7 +886,7 @@ impl From<DeclareTransactionV3> for protobuf::transaction_in_block::DeclareV3Wit
         let common = DeclareTransactionV3Common {
             resource_bounds: value.resource_bounds,
             tip: value.tip,
-            signature: value.signature,
+            signature: TransactionDeprSignature(value.signature.0.as_ref().clone()),
             nonce: value.nonce,
             compiled_class_hash: value.compiled_class_hash,
             sender_address: value.sender_address,
