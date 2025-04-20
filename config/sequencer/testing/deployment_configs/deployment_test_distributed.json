@@ -1,6 +1,6 @@
 {
   "chain_id": "SN_INTEGRATION_SEPOLIA",
-  "image": "ghcr.io/starkware-libs/sequencer/sequencer:04-10-chore_apollo_deployments_3_nodes_integration_deployments-1a9c48e",
+  "image": "ghcr.io/starkware-libs/sequencer/sequencer:nadin-increase-retries-b6f2e5e@sha256:d0f58e1829530649272dab51f83cd20220054c949179d28e1010147eb81fb842",
   "application_config_subdir": "config/sequencer/testing/app_configs/distributed/deployment_test_distributed/",
   "services": [
     {
@@ -24,7 +24,9 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": {
+        "gcsm_key": "sequencer-dev-secrets"
+      }
     },
     {
       "name": "ClassManager",
@@ -47,7 +49,9 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": {
+        "gcsm_key": "sequencer-dev-secrets"
+      }
     },
     {
       "name": "ConsensusManager",
@@ -70,7 +74,9 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": {
+        "gcsm_key": "sequencer-dev-secrets"
+      }
     },
     {
       "name": "HttpServer",
@@ -104,7 +110,9 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": {
+        "gcsm_key": "sequencer-dev-secrets"
+      }
     },
     {
       "name": "Gateway",
@@ -127,7 +135,9 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": {
+        "gcsm_key": "sequencer-dev-secrets"
+      }
     },
     {
       "name": "L1",
@@ -150,7 +160,9 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": {
+        "gcsm_key": "sequencer-dev-secrets"
+      }
     },
     {
       "name": "Mempool",
@@ -173,7 +185,9 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": {
+        "gcsm_key": "sequencer-dev-secrets"
+      }
     },
     {
       "name": "SierraCompiler",
@@ -196,7 +210,9 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": {
+        "gcsm_key": "sequencer-dev-secrets"
+      }
     },
     {
       "name": "StateSync",
@@ -219,7 +235,9 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": {
+        "gcsm_key": "sequencer-dev-secrets"
+      }
     }
   ]
 }

@@ -16,7 +16,7 @@ use crate::component_client::ClientResult;
 
 pub const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";
 const DEFAULT_CHANNEL_BUFFER_SIZE: usize = 32;
-const DEFAULT_RETRIES: usize = 3;
+const DEFAULT_RETRIES: usize = 6;
 const DEFAULT_IDLE_CONNECTIONS: usize = usize::MAX;
 const DEFAULT_IDLE_TIMEOUT: u64 = 90;
 const DEFAULT_RETRY_INTERVAL: u64 = 3;
