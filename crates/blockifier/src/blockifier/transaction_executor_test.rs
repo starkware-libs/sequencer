@@ -24,7 +24,7 @@ use crate::context::BlockContext;
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContractTrait;
-use crate::test_utils::initial_test_state::test_state;
+use crate::test_utils::initial_test_state::test_state_with_contract_manager;
 use crate::test_utils::l1_handler::l1handler_tx;
 use crate::test_utils::{maybe_dummy_block_hash_and_number, BALANCE};
 use crate::transaction::account_transaction::AccountTransaction;
@@ -118,7 +118,7 @@ fn test_declare(
 ) {
     let account_contract = FeatureContract::AccountWithoutValidations(account_cairo_version);
     let declared_contract = FeatureContract::Empty(cairo_version);
-    let state = test_state(&block_context.chain_info, BALANCE, &[(account_contract, 1)]);
+    let state = test_state_with_contract_manager(&block_context.chain_info, BALANCE, &[(account_contract, 1)]);
 
     let declare_tx = executable_declare_tx(
         declare_tx_args! {
@@ -142,7 +142,7 @@ fn test_deploy_account(
     cairo_version: CairoVersion,
 ) {
     let account_contract = FeatureContract::AccountWithoutValidations(cairo_version);
-    let state = test_state(&block_context.chain_info, BALANCE, &[(account_contract, 0)]);
+    let state = test_state_with_contract_manager(&block_context.chain_info, BALANCE, &[(account_contract, 0)]);
 
     let deploy_account_tx = executable_deploy_account_tx(deploy_account_tx_args! {
         class_hash: account_contract.get_class_hash(),
@@ -208,7 +208,7 @@ fn test_invoke(
 ) {
     let test_contract = FeatureContract::TestContract(cairo_version);
     let account_contract = FeatureContract::AccountWithoutValidations(cairo_version);
-    let state = test_state(
+    let state = test_state_with_contract_manager(
         &block_context.chain_info,
         BALANCE,
         &[(test_contract, 1), (account_contract, 1)],
@@ -228,7 +228,7 @@ fn test_invoke(
 #[rstest]
 fn test_l1_handler(block_context: BlockContext) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
-    let state = test_state(&block_context.chain_info, BALANCE, &[(test_contract, 1)]);
+    let state = test_state_with_contract_manager(&block_context.chain_info, BALANCE, &[(test_contract, 1)]);
 
     let tx = Transaction::L1Handler(l1handler_tx(
         Fee(1908000000000000),
