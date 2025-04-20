@@ -436,7 +436,7 @@ impl TryFrom<IntermediateDeployAccountTransaction>
                 tx_hash: deploy_account_tx.transaction_hash,
                 msg: "DeployAccount V3 must contain tip field.".to_string(),
             })?,
-            signature: deploy_account_tx.signature,
+            signature: deploy_account_tx.signature.into(),
             nonce: deploy_account_tx.nonce,
             class_hash: deploy_account_tx.class_hash,
             contract_address_salt: deploy_account_tx.contract_address_salt,
