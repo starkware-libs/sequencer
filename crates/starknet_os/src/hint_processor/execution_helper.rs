@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 
+use blockifier::execution::call_info::CallInfoIter;
 use blockifier::state::cached_state::{CachedState, StateMaps};
 use blockifier::state::state_api::StateReader;
 #[cfg(any(feature = "testing", test))]
 use blockifier::test_utils::dict_state_reader::DictStateReader;
+use starknet_api::executable_transaction::TransactionType;
 
 use crate::errors::StarknetOsError;
 use crate::hint_processor::os_logger::OsLogger;
@@ -14,6 +16,7 @@ pub struct OsExecutionHelper<'a, S: StateReader> {
     pub(crate) cached_state: CachedState<S>,
     pub(crate) os_block_input: &'a OsBlockInput,
     pub(crate) os_logger: OsLogger,
+    call_infos_iter: Option<CallInfoIter<'a>>,
 }
 
 impl<'a, S: StateReader> OsExecutionHelper<'a, S> {
@@ -27,6 +30,7 @@ impl<'a, S: StateReader> OsExecutionHelper<'a, S> {
             cached_state: Self::initialize_cached_state(state_reader, state_input)?,
             os_block_input,
             os_logger: OsLogger::new(debug_mode),
+            call_infos_iter: None,
         })
     }
 
@@ -57,6 +61,12 @@ impl<'a, S: StateReader> OsExecutionHelper<'a, S> {
 
         Ok(empty_cached_state)
     }
+
+    pub fn init_call_infos_iter(&mut self, tx_info_index: usize) {
+        let tx_execution_info = &self.os_block_input._tx_execution_infos[tx_info_index];
+        self.call_infos_iter =
+            Some(tx_execution_info.call_info_iter(TransactionType::InvokeFunction));
+    }
 }
 
 #[cfg(any(feature = "testing", test))]
@@ -69,6 +79,7 @@ impl<'a> OsExecutionHelper<'a, DictStateReader> {
             cached_state: CachedState::from(state_reader),
             os_block_input,
             os_logger: OsLogger::new(true),
+            call_infos_iter: None,
         }
     }
 }
