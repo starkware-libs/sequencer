@@ -2,8 +2,6 @@
 #[path = "rpc_transaction_test.rs"]
 mod rpc_transaction_test;
 
-use std::sync::Arc;
-
 use prost::Message;
 use starknet_api::rpc_transaction::{
     RpcDeclareTransaction,
@@ -15,12 +13,7 @@ use starknet_api::rpc_transaction::{
     RpcTransaction,
 };
 use starknet_api::state::SierraContractClass;
-use starknet_api::transaction::fields::{
-    AllResourceBounds,
-    TransactionDeprSignature,
-    TransactionSignature,
-    ValidResourceBounds,
-};
+use starknet_api::transaction::fields::{AllResourceBounds, ValidResourceBounds};
 use starknet_api::transaction::{DeployAccountTransactionV3, InvokeTransactionV3};
 
 use super::common::missing;
@@ -168,7 +161,7 @@ impl TryFrom<protobuf::DeclareV3WithClass> for RpcDeclareTransactionV3 {
                 }
             },
             sender_address: common.sender_address,
-            signature: TransactionSignature(Arc::new(common.signature.0)),
+            signature: common.signature,
             nonce: common.nonce,
             compiled_class_hash: common.compiled_class_hash,
             contract_class: class,
@@ -186,7 +179,7 @@ impl From<RpcDeclareTransactionV3> for protobuf::DeclareV3WithClass {
         let snapi_declare = DeclareTransactionV3Common {
             resource_bounds: ValidResourceBounds::AllResources(value.resource_bounds),
             sender_address: value.sender_address,
-            signature: TransactionDeprSignature(value.signature.0.as_ref().clone()),
+            signature: value.signature,
             nonce: value.nonce,
             compiled_class_hash: value.compiled_class_hash,
             tip: value.tip,

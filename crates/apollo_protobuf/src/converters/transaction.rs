@@ -24,7 +24,6 @@ use starknet_api::transaction::fields::{
     PaymasterData,
     ResourceBounds,
     Tip,
-    TransactionDeprSignature,
     TransactionSignature,
     ValidResourceBounds,
 };
@@ -868,7 +867,7 @@ impl TryFrom<protobuf::transaction_in_block::DeclareV3WithoutClass> for DeclareT
         Ok(Self {
             resource_bounds: common.resource_bounds,
             tip: common.tip,
-            signature: TransactionSignature(Arc::new(common.signature.0)),
+            signature: common.signature,
             nonce: common.nonce,
             class_hash,
             compiled_class_hash: common.compiled_class_hash,
@@ -886,7 +885,7 @@ impl From<DeclareTransactionV3> for protobuf::transaction_in_block::DeclareV3Wit
         let common = DeclareTransactionV3Common {
             resource_bounds: value.resource_bounds,
             tip: value.tip,
-            signature: TransactionDeprSignature(value.signature.0.as_ref().clone()),
+            signature: value.signature,
             nonce: value.nonce,
             compiled_class_hash: value.compiled_class_hash,
             sender_address: value.sender_address,
