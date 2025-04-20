@@ -13,6 +13,10 @@ use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::StarknetApiError;
 use starknet_patricia::hash::hash_trait::HashOutput;
+use starknet_patricia::patricia_merkle_tree::node_data::errors::{
+    EdgePathError,
+    PathToBottomError,
+};
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::execution_helper::ExecutionHelperError;
@@ -46,6 +50,8 @@ pub enum OsHintError {
     #[error(transparent)]
     Fft(#[from] FftError),
     #[error(transparent)]
+    EdgePath(#[from] EdgePathError),
+    #[error(transparent)]
     ExecutionHelper(#[from] ExecutionHelperError),
     #[error("Failed to convert {variant:?} felt value {felt:?} to type {ty}: {reason:?}.")]
     IdsConversion { variant: Ids, felt: Felt, ty: String, reason: String },
@@ -78,6 +84,8 @@ pub enum OsHintError {
     MissingUnselectedBuiltinPtr { builtin: MaybeRelocatable, decoded: Option<String> },
     #[error(transparent)]
     OsLogger(#[from] OsLoggerError),
+    #[error(transparent)]
+    PathToBottom(#[from] PathToBottomError),
     #[error(transparent)]
     Patricia(#[from] PatriciaError),
     #[error(transparent)]
