@@ -175,7 +175,7 @@ pub struct InvokeV3Transaction {
     pub calldata: Calldata,
     pub sender_address: ContractAddress,
     pub nonce: Nonce,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
     pub nonce_data_availability_mode: ReservedDataAvailabilityMode,
     pub fee_data_availability_mode: ReservedDataAvailabilityMode,
     pub paymaster_data: PaymasterData,
