@@ -1240,7 +1240,7 @@ auto_storage_serde_conditionally_compressed! {
     pub struct InvokeTransactionV3 {
         pub resource_bounds: ValidResourceBounds,
         pub tip: Tip,
-        pub signature: TransactionDeprSignature,
+        pub signature: TransactionSignature,
         pub nonce: Nonce,
         pub sender_address: ContractAddress,
         pub calldata: Calldata,
