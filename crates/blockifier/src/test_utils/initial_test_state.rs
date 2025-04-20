@@ -99,6 +99,23 @@ pub fn test_state_ex(
     test_state_inner(chain_info, initial_balances, contract_instances, CairoVersion::Cairo0)
 }
 
+pub fn test_state_with_contract_manager(
+    chain_info: &ChainInfo,
+    initial_balances: Fee,
+    contract_instances: &[(FeatureContract, u16)],
+) -> CachedState<StateReaderAndContractManger<DictStateReader>> {
+    let contract_instances_vec: Vec<(FeatureContractData, u16)> = contract_instances
+        .iter()
+        .map(|(feature_contract, i)| ((*feature_contract).into(), *i))
+        .collect();
+    test_state_inner_with_contract_manager(
+        chain_info,
+        initial_balances,
+        &contract_instances_vec[..],
+        CairoVersion::Cairo0,
+    )
+}
+
 pub fn test_state_inner(
     chain_info: &ChainInfo,
     initial_balances: Fee,
