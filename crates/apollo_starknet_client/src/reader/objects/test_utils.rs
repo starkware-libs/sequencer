@@ -20,7 +20,7 @@ use starknet_api::transaction::fields::{
     Fee,
     PaymasterData,
     Tip,
-    TransactionDeprSignature,
+    TransactionSignature,
     ValidResourceBounds,
 };
 use starknet_api::transaction::{
@@ -65,7 +65,7 @@ auto_impl_get_test_instance! {
     pub struct IntermediateDeclareTransaction {
         pub resource_bounds: Option<ValidResourceBounds>,
         pub tip: Option<Tip>,
-        pub signature: TransactionDeprSignature,
+        pub signature: TransactionSignature,
         pub nonce: Nonce,
         pub class_hash: ClassHash,
         pub compiled_class_hash: Option<CompiledClassHash>,
@@ -81,7 +81,7 @@ auto_impl_get_test_instance! {
     pub struct IntermediateDeployAccountTransaction {
         pub resource_bounds: Option<ValidResourceBounds>,
         pub tip: Option<Tip>,
-        pub signature: TransactionDeprSignature,
+        pub signature: TransactionSignature,
         pub nonce: Nonce,
         pub class_hash: ClassHash,
         pub contract_address_salt: ContractAddressSalt,
@@ -110,7 +110,7 @@ auto_impl_get_test_instance! {
         pub entry_point_selector: Option<EntryPointSelector>,
         pub nonce: Option<Nonce>,
         pub max_fee: Option<Fee>,
-        pub signature: TransactionDeprSignature,
+        pub signature: TransactionSignature,
         pub nonce_data_availability_mode: Option<ReservedDataAvailabilityMode>,
         pub fee_data_availability_mode: Option<ReservedDataAvailabilityMode>,
         pub paymaster_data: Option<PaymasterData>,
