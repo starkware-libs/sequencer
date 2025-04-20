@@ -36,6 +36,7 @@ use starknet_api::transaction::fields::{
     PaymasterData,
     Tip,
     TransactionDeprSignature,
+    TransactionSignature,
 };
 use starknet_api::transaction::TransactionVersion;
 
@@ -92,7 +93,7 @@ pub struct DeployAccountV1Transaction {
     pub constructor_calldata: Calldata,
     pub nonce: Nonce,
     pub max_fee: Fee,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
     pub version: TransactionVersion,
     pub r#type: DeployAccountType,
 }
