@@ -145,7 +145,7 @@ impl SyscallRequest for SecpAddRequest {
     }
 }
 
-pub(crate) type SecpAddResponse = SecpOpRespone;
+pub type SecpAddResponse = SecpOpRespone;
 
 // SecpGetPointFromXRequest syscall.
 
@@ -166,7 +166,7 @@ impl SyscallRequest for SecpGetPointFromXRequest {
     }
 }
 
-pub(crate) type SecpGetPointFromXResponse = SecpOptionalEcPointResponse;
+pub type SecpGetPointFromXResponse = SecpOptionalEcPointResponse;
 
 // SecpGetXy syscall.
 
@@ -181,7 +181,7 @@ impl SyscallRequest for SecpGetXyRequest {
     }
 }
 
-pub(crate) type SecpGetXyResponse = EcPointCoordinates;
+pub type SecpGetXyResponse = EcPointCoordinates;
 
 impl SyscallResponse for SecpGetXyResponse {
     fn write(self, vm: &mut VirtualMachine, ptr: &mut Relocatable) -> WriteResponseResult {
@@ -207,11 +207,11 @@ impl SyscallRequest for SecpMulRequest {
     }
 }
 
-pub(crate) type SecpMulResponse = SecpOpRespone;
+pub type SecpMulResponse = SecpOpRespone;
 
 // SecpNew syscall.
 
-pub(crate) type SecpNewRequest = EcPointCoordinates;
+pub type SecpNewRequest = EcPointCoordinates;
 
 impl SyscallRequest for SecpNewRequest {
     fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<SecpNewRequest> {
@@ -221,6 +221,6 @@ impl SyscallRequest for SecpNewRequest {
     }
 }
 
-pub(crate) type SecpNewResponse = SecpOptionalEcPointResponse;
-pub(crate) type Secp256r1NewRequest = EcPointCoordinates;
-pub(crate) type Secp256r1NewResponse = SecpOptionalEcPointResponse;
+pub type SecpNewResponse = SecpOptionalEcPointResponse;
+pub type Secp256r1NewRequest = EcPointCoordinates;
+pub type Secp256r1NewResponse = SecpOptionalEcPointResponse;
