@@ -6,7 +6,15 @@ import colorlog
 import datetime
 import json
 import os
+
+from tenacity import retry, stop_after_attempt, wait_fixed, before_sleep_log
 from grafana_client import GrafanaApi
+from grafana_client.client import (
+    GrafanaException,
+    GrafanaClientError,
+    GrafanaServerError,
+    GrafanaBadInputError,
+)
 
 from grafana10_objects import (
     alert_rule_object,
@@ -149,19 +157,27 @@ def get_all_folders(client: GrafanaApi) -> list[dict[str, any]]:
     return client.folder.get_all_folders()
 
 
-def is_folder_exists(client: GrafanaApi, title: str) -> bool:
+def get_folder_uid(client: GrafanaApi, title: str) -> str:
+    """
+    Returns the UID of the folder if it exists, otherwise None.
+    """
     folders = get_all_folders(client=client)
-    return True if any(folder["title"] == title for folder in folders) else False
+    for folder in folders:
+        if folder["title"] == title:
+            return folder["uid"]
+    return None
 
 
 def create_folder_return_uid(client: GrafanaApi, title: str) -> str:
-    if is_folder_exists(client=client, title=title):
-        return
+    folder_uid = get_folder_uid(client=client, title=title)
+    if folder_uid:
+        logging.info(f"Folder '{title}' already exists. Returning existing UID: {folder_uid}")
+        return folder_uid
     else:
-        logging.info(f"Creating folder {title}")
+        logging.info(f"Creating folder '{title}'")
         folder = client.folder.create_folder(title)
-        logging.info(f"Folder {title} created successfully. {folder}")
-    return folder["uid"]
+        logging.info(f"Folder '{title}' created successfully. {folder}")
+        return folder["uid"]
 
 
 def dump_alert(output_dir: str, alert: dict[str, any]) -> None:
@@ -173,10 +189,19 @@ def dump_alert(output_dir: str, alert: dict[str, any]) -> None:
 
 
 def get_alert_rule_group(client: GrafanaApi, folder_uid: str, group_uid: str) -> str:
-    logging.debug(f"Getting alert rule group {group_uid}")
-    return client.alertingprovisioning.get_rule_group(folder_uid=folder_uid, group_uid=group_uid)
+    logging.debug(f'Getting alert rule group "{group_uid}"')
+    rule_group = client.alertingprovisioning.get_rule_group(
+        folder_uid=folder_uid, group_uid=group_uid
+    )
+    logging.debug(f"Got alert group: {rule_group}")
+    return rule_group
 
 
+@retry(
+    stop=stop_after_attempt(10),
+    wait=wait_fixed(2),
+    before_sleep=before_sleep_log(logging.getLogger(), logging.DEBUG),
+)
 def update_alert_rule_group(
     client: GrafanaApi,
     folder_uid: str,
@@ -184,13 +209,19 @@ def update_alert_rule_group(
     alertrule_group: dict[any, any],
     disable_provenance=True,
 ) -> None:
-    logging.debug(f"Updating alert rule group {group_uid}")
-    client.alertingprovisioning.update_rule_group(
-        folder_uid=folder_uid,
-        group_uid=group_uid,
-        alertrule_group=alertrule_group,
-        disable_provenance=disable_provenance,
-    )
+    logging.debug(f'Updating alert rule group "{group_uid}"')
+
+    try:
+        client.alertingprovisioning.update_rule_group(
+            folder_uid=folder_uid,
+            group_uid=group_uid,
+            alertrule_group=alertrule_group,
+            disable_provenance=disable_provenance,
+        )
+        logging.info(f"Successfully updated alert rule group {group_uid}")
+    except Exception as e:
+        logging.error(f"Failed to update alert rule group {group_uid}: {e}")
+        raise
 
 
 def main():
@@ -235,8 +266,35 @@ def main():
                     alertrule=alert, disable_provenance=True
                 )
                 logging.info(f'Alert "{alert["name"]}" uploaded to Grafana successfully')
+
+            except GrafanaBadInputError as e:
+                if "alerting.alert-rule.conflict" in e.message:
+                    logging.warning(
+                        f'Alert "{alert["name"]}" already exists. Skipping creation. Conflict message: {e.message}'
+                    )
+                else:
+                    # Handle other bad input errors
+                    logging.error(
+                        f'Failed to create alert "{alert["name"]}". Bad input: {e.message}'
+                    )
+            except GrafanaClientError as e:
+                # Handle other client-side errors (e.g., invalid request)
+                logging.error(
+                    f'Failed to create alert "{alert["name"]}". Client error: {e.message}'
+                )
+            except GrafanaServerError as e:
+                # Handle server-side errors (5xx errors)
+                logging.error(
+                    f'Failed to create alert "{alert["name"]}". Server error: {e.message}'
+                )
+            except GrafanaException as e:
+                # Catch any other Grafana-related exceptions
+                logging.error(
+                    f'Failed to create alert "{alert["name"]}". Grafana error: {e.message}'
+                )
             except Exception as e:
-                logging.error(f'Failed to create alert "{alert["name"]}". {e}')
+                # Catch any other exceptions (non-Grafana-related)
+                logging.error(f'Failed to create alert "{alert["name"]}". Unexpected error: {e}')
 
             try:
                 group_uid = alert["ruleGroup"]
@@ -251,7 +309,7 @@ def main():
                         group_uid=group_uid,
                         alertrule_group=rule_group,
                     )
-                    logging.info(f"Alert rule group {group_uid} updated successfully")
+                    logging.info(f'Alert rule group "{group_uid}" updated successfully')
             except Exception as e:
                 logging.error(f'Failed to update alert rule group "{alert["ruleGroup"]}". {e}')
 
