@@ -123,7 +123,7 @@ impl AccountTransaction {
         match self {
             Self::Declare(tx) => TransactionDeprSignature(tx.signature().0.as_ref().clone()),
             Self::Invoke(tx) => tx.signature().clone(),
-            Self::DeployAccount(tx) => tx.signature().clone(),
+            Self::DeployAccount(tx) => TransactionDeprSignature(tx.signature().0.as_ref().clone()),
         }
     }
     pub fn contract_address(&self) -> ContractAddress {
@@ -292,7 +292,7 @@ impl DeployAccountTransaction {
         (constructor_calldata, Calldata),
         (contract_address_salt, ContractAddressSalt),
         (nonce, Nonce),
-        (signature, TransactionDeprSignature),
+        (signature, TransactionSignature),
         (version, TransactionVersion),
         (resource_bounds, ValidResourceBounds),
         (tip, Tip),

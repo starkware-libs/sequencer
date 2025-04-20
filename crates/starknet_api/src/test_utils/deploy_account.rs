@@ -96,7 +96,7 @@ pub fn deploy_account_tx(
     if deploy_tx_args.version == TransactionVersion::ONE {
         DeployAccountTransaction::V1(DeployAccountTransactionV1 {
             max_fee: deploy_tx_args.max_fee,
-            signature: TransactionDeprSignature(deploy_tx_args.signature.0.as_ref().clone()),
+            signature: deploy_tx_args.signature,
             nonce,
             class_hash: deploy_tx_args.class_hash,
             contract_address_salt: deploy_tx_args.contract_address_salt,
