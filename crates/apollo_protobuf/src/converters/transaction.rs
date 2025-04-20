@@ -550,7 +550,7 @@ impl TryFrom<protobuf::transaction_in_block::InvokeV1> for InvokeTransactionV1 {
             }
         })?);
 
-        let signature = TransactionDeprSignature(
+        let signature = TransactionSignature(Arc::new(
             value
                 .signature
                 .ok_or(missing("InvokeV1::signature"))?
@@ -558,7 +558,7 @@ impl TryFrom<protobuf::transaction_in_block::InvokeV1> for InvokeTransactionV1 {
                 .into_iter()
                 .map(Felt::try_from)
                 .collect::<Result<Vec<_>, _>>()?,
-        );
+        ));
 
         let sender_address = value.sender.ok_or(missing("InvokeV1::sender"))?.try_into()?;
 
@@ -578,7 +578,7 @@ impl From<InvokeTransactionV1> for protobuf::transaction_in_block::InvokeV1 {
         Self {
             max_fee: Some(Felt::from(value.max_fee.0).into()),
             signature: Some(protobuf::AccountSignature {
-                parts: value.signature.0.into_iter().map(|signature| signature.into()).collect(),
+                parts: value.signature.0.iter().map(|signature| (*signature).into()).collect(),
             }),
             sender: Some(value.sender_address.into()),
             nonce: Some(value.nonce.0.into()),

@@ -553,7 +553,7 @@ impl TryFrom<IntermediateInvokeTransaction> for starknet_api::transaction::Invok
                 tx_hash: invoke_tx.transaction_hash,
                 msg: "Invoke V1 must contain max_fee field.".to_string(),
             })?,
-            signature: invoke_tx.signature,
+            signature: invoke_tx.signature.into(),
             nonce: invoke_tx.nonce.ok_or(ReaderClientError::BadTransaction {
                 tx_hash: invoke_tx.transaction_hash,
                 msg: "Invoke V1 must contain nonce field.".to_string(),
