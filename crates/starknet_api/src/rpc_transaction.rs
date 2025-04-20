@@ -306,7 +306,7 @@ impl TryFrom<DeployAccountTransactionV3> for RpcDeployAccountTransactionV3 {
                     });
                 }
             },
-            signature: value.signature,
+            signature: TransactionDeprSignature(value.signature.0.as_ref().clone()),
             nonce: value.nonce,
             class_hash: value.class_hash,
             contract_address_salt: value.contract_address_salt,
@@ -510,7 +510,7 @@ impl From<RpcDeployAccountTransactionV3> for DeployAccountTransactionV3 {
         Self {
             resource_bounds: ValidResourceBounds::AllResources(tx.resource_bounds),
             tip: tx.tip,
-            signature: tx.signature,
+            signature: TransactionSignature(Arc::new(tx.signature.0)),
             nonce: tx.nonce,
             class_hash: tx.class_hash,
             contract_address_salt: tx.contract_address_salt,

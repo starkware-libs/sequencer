@@ -331,7 +331,7 @@ impl TryFrom<protobuf::DeployAccountV3> for DeployAccountTransactionV3 {
 
         let tip = Tip(value.tip);
 
-        let signature = TransactionDeprSignature(
+        let signature = TransactionSignature(Arc::new(
             value
                 .signature
                 .ok_or(missing("DeployAccountV3::signature"))?
@@ -339,7 +339,7 @@ impl TryFrom<protobuf::DeployAccountV3> for DeployAccountTransactionV3 {
                 .into_iter()
                 .map(Felt::try_from)
                 .collect::<Result<Vec<_>, _>>()?,
-        );
+        ));
 
         let nonce = Nonce(value.nonce.ok_or(missing("DeployAccountV3::nonce"))?.try_into()?);
 
@@ -386,7 +386,7 @@ impl From<DeployAccountTransactionV3> for protobuf::DeployAccountV3 {
             resource_bounds: Some(protobuf::ResourceBounds::from(value.resource_bounds)),
             tip: value.tip.0,
             signature: Some(protobuf::AccountSignature {
-                parts: value.signature.0.into_iter().map(|stark_felt| stark_felt.into()).collect(),
+                parts: value.signature.0.iter().map(|stark_felt| (*stark_felt).into()).collect(),
             }),
             nonce: Some(value.nonce.0.into()),
             class_hash: Some(value.class_hash.0.into()),
