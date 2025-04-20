@@ -5,6 +5,7 @@ use cairo_vm::types::relocatable::MaybeRelocatable;
 use cairo_vm::vm::errors::exec_scope_errors::ExecScopeError;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
+use cairo_vm::vm::errors::runner_errors::RunnerError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use num_bigint::{BigUint, TryFromBigIntError};
 use starknet_api::block::BlockNumber;
@@ -77,6 +78,8 @@ pub enum OsHintError {
     OsLogger(#[from] OsLoggerError),
     #[error(transparent)]
     Patricia(#[from] PatriciaError),
+    #[error(transparent)]
+    Runner(#[from] RunnerError),
     #[error("{error:?} for json value {value}.")]
     SerdeJsonDeserialize { error: serde_json::Error, value: serde_json::value::Value },
     #[error(transparent)]
