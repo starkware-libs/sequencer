@@ -26,7 +26,6 @@ use starknet_api::transaction::fields::{
     PaymasterData,
     ResourceBounds,
     Tip,
-    TransactionDeprSignature,
     TransactionSignature,
 };
 use starknet_types_core::felt::Felt;
@@ -80,7 +79,7 @@ auto_impl_get_test_instance! {
         pub r#type: DeclareType,
         pub sender_address: ContractAddress,
         pub compiled_class_hash: CompiledClassHash,
-        pub signature: TransactionDeprSignature,
+        pub signature: TransactionSignature,
         pub nonce: Nonce,
         pub contract_class: ContractClass,
         pub resource_bounds: ResourceBoundsMapping,
