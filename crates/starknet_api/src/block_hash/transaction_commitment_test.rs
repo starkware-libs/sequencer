@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::Poseidon;
 
@@ -47,6 +45,6 @@ fn test_transaction_commitment_regression() {
 
 fn get_transaction_leaf_element() -> TransactionLeafElement {
     let transaction_hash = tx_hash!(1);
-    let transaction_signature = TransactionSignature(Arc::new(vec![Felt::TWO, Felt::THREE]));
+    let transaction_signature = TransactionSignature(vec![Felt::TWO, Felt::THREE].into());
     TransactionLeafElement { transaction_hash, transaction_signature }
 }

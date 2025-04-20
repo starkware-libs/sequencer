@@ -557,6 +557,7 @@ impl DeployAccountTransaction {
         (nonce, Nonce),
         (signature, TransactionSignature)
     );
+
     implement_v3_tx_getters!(
         (resource_bounds, ValidResourceBounds),
         (tip, Tip),
@@ -702,6 +703,7 @@ macro_rules! implement_invoke_tx_getters {
 
 impl InvokeTransaction {
     implement_invoke_tx_getters!((calldata, Calldata), (signature, TransactionSignature));
+
     implement_v3_tx_getters!(
         (resource_bounds, ValidResourceBounds),
         (tip, Tip),

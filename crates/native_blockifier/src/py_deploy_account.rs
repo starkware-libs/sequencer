@@ -21,7 +21,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::errors::{NativeBlockifierInputError, NativeBlockifierResult};
 use crate::py_transaction::{PyDataAvailabilityMode, PyResourceBoundsMapping};
-use crate::py_utils::{from_py_felts, from_py_felts_to_arc, py_attr, PyFelt};
+use crate::py_utils::{from_py_felts, py_attr, PyFelt};
 
 #[derive(FromPyObject)]
 struct PyDeployAccountTransactionV1 {
@@ -37,7 +37,7 @@ impl From<PyDeployAccountTransactionV1> for DeployAccountTransactionV1 {
     fn from(tx: PyDeployAccountTransactionV1) -> Self {
         Self {
             max_fee: Fee(tx.max_fee),
-            signature: TransactionSignature(from_py_felts_to_arc(tx.signature)),
+            signature: TransactionSignature(from_py_felts(tx.signature).into()),
             nonce: Nonce(tx.nonce.0),
             class_hash: ClassHash(tx.class_hash.0),
             contract_address_salt: ContractAddressSalt(tx.contract_address_salt.0),
@@ -66,7 +66,7 @@ impl TryFrom<PyDeployAccountTransactionV3> for DeployAccountTransactionV3 {
         Ok(Self {
             resource_bounds: tx.resource_bounds.try_into()?,
             tip: Tip(tx.tip),
-            signature: TransactionSignature(from_py_felts_to_arc(tx.signature)),
+            signature: TransactionSignature(from_py_felts(tx.signature).into()),
             nonce: Nonce(tx.nonce.0),
             class_hash: ClassHash(tx.class_hash.0),
             contract_address_salt: ContractAddressSalt(tx.contract_address_salt.0),

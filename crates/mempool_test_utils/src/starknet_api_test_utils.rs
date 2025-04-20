@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::fs::File;
 use std::rc::Rc;
-use std::sync::{Arc, LazyLock};
+use std::sync::LazyLock;
 
 use apollo_infra_utils::path::resolve_project_relative_path;
 use assert_matches::assert_matches;
@@ -106,7 +106,7 @@ pub fn declare_tx() -> RpcTransaction {
 
     rpc_declare_tx(
         declare_tx_args!(
-            signature: TransactionSignature(Arc::new(vec![Felt::ZERO])),
+            signature: TransactionSignature(vec![Felt::ZERO].into()),
             sender_address: account_address,
             resource_bounds: test_valid_resource_bounds(),
             nonce,
@@ -489,7 +489,7 @@ impl AccountTransactionGenerator {
     pub fn generate_declare(&mut self) -> RpcTransaction {
         let nonce = self.next_nonce();
         let declare_args = declare_tx_args!(
-            signature: TransactionSignature(Arc::new(vec![Felt::ZERO])),
+            signature: TransactionSignature(vec![Felt::ZERO].into()),
             sender_address: self.sender_address(),
             resource_bounds: test_valid_resource_bounds(),
             nonce,

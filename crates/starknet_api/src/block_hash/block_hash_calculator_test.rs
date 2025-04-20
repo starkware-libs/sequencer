@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
@@ -109,7 +107,7 @@ fn test_block_hash_regression(
         parent_hash: BlockHash(Felt::from(11_u8)),
     };
     let transactions_data = vec![TransactionHashingData {
-        transaction_signature: TransactionSignature(Arc::new(vec![Felt::TWO, Felt::THREE])),
+        transaction_signature: TransactionSignature(vec![Felt::TWO, Felt::THREE].into()),
         transaction_output: get_transaction_output(),
         transaction_hash: tx_hash!(1),
     }];

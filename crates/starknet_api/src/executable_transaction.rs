@@ -119,6 +119,7 @@ impl AccountTransaction {
         (paymaster_data, PaymasterData),
         (version, TransactionVersion)
     );
+
     pub fn contract_address(&self) -> ContractAddress {
         match self {
             AccountTransaction::Declare(tx_data) => tx_data.tx.sender_address(),
