@@ -225,10 +225,7 @@ pub(crate) fn enter_syscall_scopes<S: StateReader>(
     // are accessible through the hint processor.
     let deprecated_class_hashes: HashSet<ClassHash> =
         exec_scopes.get(Scope::DeprecatedClassHashes.into())?;
-    // TODO(Nimrod): See if we can avoid cloning here.
     let current_execution_helper = hint_processor.get_current_execution_helper()?;
-    let component_hashes =
-        current_execution_helper.os_block_input.declared_class_hash_to_component_hashes.clone();
     let transactions_iter =
         current_execution_helper.os_block_input.transactions.clone().into_iter();
     let dict_manager = exec_scopes.get_dict_manager()?;
@@ -236,7 +233,6 @@ pub(crate) fn enter_syscall_scopes<S: StateReader>(
     let new_scope = HashMap::from([
         (Scope::DictManager.into(), any_box!(dict_manager)),
         (Scope::DeprecatedClassHashes.into(), any_box!(deprecated_class_hashes)),
-        (Scope::ComponentHashes.into(), any_box!(component_hashes)),
         (Scope::Transactions.into(), any_box!(transactions_iter)),
     ]);
     exec_scopes.enter_scope(new_scope);
