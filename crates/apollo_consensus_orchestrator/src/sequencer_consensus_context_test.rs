@@ -31,10 +31,10 @@ use starknet_api::block::{BlockHash, BlockNumber};
 use test_utils::{
     block_info,
     build_proposal_setup,
-    default_context_dependencies,
     generate_invoke_tx,
     setup_with_custom_mocks,
     success_cende_ammbassador,
+    ContextRecipe,
     ETH_TO_FRI_RATE,
     INTERNAL_TX_BATCH,
     STATE_DIFF_COMMITMENT,
@@ -56,9 +56,8 @@ async fn cancelled_proposal_aborts() {
     batcher.expect_propose_block().times(1).return_once(|_| Ok(()));
 
     batcher.expect_start_height().times(1).return_once(|_| Ok(()));
-    let (default_deps, _network) = default_context_dependencies();
-    let context_deps = SequencerConsensusContextDeps { batcher: Arc::new(batcher), ..default_deps };
-    let mut context = setup_with_custom_mocks(context_deps);
+    let context_recipe = ContextRecipe::with_batcher(batcher);
+    let mut context = setup_with_custom_mocks(context_recipe.context_deps);
 
     let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await;
 
@@ -105,9 +104,8 @@ async fn validate_proposal_success() {
             })
         },
     );
-    let (default_deps, _network) = default_context_dependencies();
-    let context_deps = SequencerConsensusContextDeps { batcher: Arc::new(batcher), ..default_deps };
-    let mut context = setup_with_custom_mocks(context_deps);
+    let context_recipe = ContextRecipe::with_batcher(batcher);
+    let mut context = setup_with_custom_mocks(context_recipe.context_deps);
 
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
@@ -138,9 +136,8 @@ async fn dont_send_block_info() {
         .times(1)
         .withf(|input| input.height == BlockNumber(0))
         .return_once(|_| Ok(()));
-    let (default_deps, _network) = default_context_dependencies();
-    let context_deps = SequencerConsensusContextDeps { batcher: Arc::new(batcher), ..default_deps };
-    let mut context = setup_with_custom_mocks(context_deps);
+    let context_recipe = ContextRecipe::with_batcher(batcher);
+    let mut context = setup_with_custom_mocks(context_recipe.context_deps);
 
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
@@ -179,8 +176,7 @@ async fn repropose() {
             })
         },
     );
-    let (default_deps, mut network) = default_context_dependencies();
-    let context_deps = SequencerConsensusContextDeps { batcher: Arc::new(batcher), ..default_deps };
+    let ContextRecipe { context_deps, mut network_deps } = ContextRecipe::with_batcher(batcher);
     let mut context = setup_with_custom_mocks(context_deps);
 
     // Initialize the context for a specific height, starting with round 0.
@@ -204,7 +200,7 @@ async fn repropose() {
 
     let init = ProposalInit { round: 1, ..Default::default() };
     context.repropose(BlockHash(STATE_DIFF_COMMITMENT.0.0), init).await;
-    let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
+    let (_, mut receiver) = network_deps.outbound_proposal_receiver.next().await.unwrap();
     assert_eq!(receiver.next().await.unwrap(), ProposalPart::Init(init));
     assert_eq!(receiver.next().await.unwrap(), block_info);
     assert_eq!(receiver.next().await.unwrap(), transactions);
@@ -249,9 +245,8 @@ async fn proposals_from_different_rounds() {
             })
         },
     );
-    let (default_deps, _network) = default_context_dependencies();
-    let context_deps = SequencerConsensusContextDeps { batcher: Arc::new(batcher), ..default_deps };
-    let mut context = setup_with_custom_mocks(context_deps);
+    let context_recipe = ContextRecipe::with_batcher(batcher);
+    let mut context = setup_with_custom_mocks(context_recipe.context_deps);
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
     context.set_height_and_round(BlockNumber(0), 1).await;
@@ -336,9 +331,8 @@ async fn interrupt_active_proposal() {
                 }),
             })
         });
-    let (default_deps, _network) = default_context_dependencies();
-    let context_deps = SequencerConsensusContextDeps { batcher: Arc::new(batcher), ..default_deps };
-    let mut context = setup_with_custom_mocks(context_deps);
+    let context_recipe = ContextRecipe::with_batcher(batcher);
+    let mut context = setup_with_custom_mocks(context_recipe.context_deps);
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
 
@@ -451,9 +445,8 @@ async fn batcher_not_ready(#[case] proposer: bool) {
             .times(1)
             .returning(move |_| Err(BatcherClientError::BatcherError(BatcherError::NotReady)));
     }
-    let (default_deps, _network) = default_context_dependencies();
-    let context_deps = SequencerConsensusContextDeps { batcher: Arc::new(batcher), ..default_deps };
-    let mut context = setup_with_custom_mocks(context_deps);
+    let context_recipe = ContextRecipe::with_batcher(batcher);
+    let mut context = setup_with_custom_mocks(context_recipe.context_deps);
     context.set_height_and_round(BlockNumber::default(), Round::default()).await;
 
     if proposer {
@@ -508,9 +501,8 @@ async fn eth_to_fri_rate_out_of_range() {
         .times(1)
         .withf(|input| input.height == BlockNumber(0))
         .return_once(|_| Ok(()));
-    let (default_deps, _network) = default_context_dependencies();
-    let context_deps = SequencerConsensusContextDeps { batcher: Arc::new(batcher), ..default_deps };
-    let mut context = setup_with_custom_mocks(context_deps);
+    let context_recipe = ContextRecipe::with_batcher(batcher);
+    let mut context = setup_with_custom_mocks(context_recipe.context_deps);
     context.set_height_and_round(BlockNumber(0), 0).await;
     let (mut content_sender, content_receiver) = mpsc::channel(context.config.proposal_buffer_size);
     // Send a block info with an eth_to_fri_rate that is outside the margin of error.
@@ -581,16 +573,12 @@ async fn decision_reached_sends_correct_values() {
         // TODO(guy.f): Verify the values sent here are correct.
         .return_once(|_height| Ok(()));
 
-    let (default_deps, _network_dependencies) = default_context_dependencies();
-    let context_deps = SequencerConsensusContextDeps {
-        batcher: Arc::new(batcher),
-        cende_ambassador: Arc::new(cende_ammbassador),
-        state_sync_client: Arc::new(mock_sync_client),
-        clock: Arc::new(clock),
-        ..default_deps
-    };
-
-    let mut context = setup_with_custom_mocks(context_deps);
+    let mut context_recipe = ContextRecipe::default();
+    context_recipe.context_deps.batcher = Arc::new(batcher);
+    context_recipe.context_deps.cende_ambassador = Arc::new(cende_ammbassador);
+    context_recipe.context_deps.state_sync_client = Arc::new(mock_sync_client);
+    context_recipe.context_deps.clock = Arc::new(clock);
+    let mut context = setup_with_custom_mocks(context_recipe.context_deps);
 
     // This sets up the required state for the test, prior to running the code being tested.
     let _fin = context.build_proposal(ProposalInit::default(), TIMEOUT).await.await;
