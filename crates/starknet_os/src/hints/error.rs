@@ -66,6 +66,8 @@ pub enum OsHintError {
     MissingCommitmentInfo(ContractAddress),
     #[error("Hint {hint:?} has no nondet offset.")]
     MissingOffsetForHint { hint: AllHints },
+    #[error("No component hashes for class hash {0:?}.")]
+    MissingComponentHashes(ClassHash),
     #[error("No preimage found for value {0:?}.")]
     MissingPreimage(HashOutput),
     #[error("No (selected) builtin found at address {builtin} (attempted decoding: {decoded:?}).")]
