@@ -283,7 +283,7 @@ impl TryFrom<IntermediateDeclareTransaction> for starknet_api::transaction::Decl
                 tx_hash: declare_tx.transaction_hash,
                 msg: "Declare V3 must contain tip field.".to_string(),
             })?,
-            signature: declare_tx.signature,
+            signature: declare_tx.signature.into(),
             nonce: declare_tx.nonce,
             class_hash: declare_tx.class_hash,
             compiled_class_hash: declare_tx.compiled_class_hash.ok_or(
