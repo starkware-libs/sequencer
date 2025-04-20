@@ -627,7 +627,7 @@ impl_deploy_transaction_trait!(DeployTransaction);
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct InvokeTransactionV0 {
     pub max_fee: Fee,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
     pub contract_address: ContractAddress,
     pub entry_point_selector: EntryPointSelector,
     pub calldata: Calldata,
@@ -713,7 +713,7 @@ impl InvokeTransaction {
     implement_invoke_tx_getters!((calldata, Calldata));
     pub fn signature(&self) -> TransactionDeprSignature {
         match self {
-            Self::V0(tx) => tx.signature.clone(),
+            Self::V0(tx) => tx.signature.clone().into(),
             Self::V1(tx) => tx.signature.clone(),
             Self::V3(tx) => tx.signature.clone().into(),
         }

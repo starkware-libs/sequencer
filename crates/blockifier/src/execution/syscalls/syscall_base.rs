@@ -275,7 +275,7 @@ impl<'state> SyscallHandlerBase<'state> {
         // Compute meta-transaction hash.
         let transaction_hash = InvokeTransactionV0 {
             max_fee: Fee(0),
-            signature: signature.clone().into(),
+            signature: signature.clone(),
             contract_address,
             entry_point_selector,
             calldata,
