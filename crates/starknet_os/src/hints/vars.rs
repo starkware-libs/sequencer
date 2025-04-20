@@ -82,7 +82,6 @@ define_string_enum! {
         (CompiledClass),
         (CompiledClassFacts),
         (CompiledClassHash),
-        (ComponentHashes),
         (DeprecatedClassHashes, "__deprecated_class_hashes"),
         (Descend),
         (DictManager),

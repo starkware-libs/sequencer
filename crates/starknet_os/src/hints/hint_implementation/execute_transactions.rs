@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
@@ -8,7 +6,6 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     insert_value_into_ap,
 };
 use cairo_vm::types::relocatable::Relocatable;
-use starknet_api::core::ClassHash;
 use starknet_api::executable_transaction::{AccountTransaction, Transaction};
 use starknet_types_core::felt::Felt;
 
@@ -17,7 +14,6 @@ use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{Ids, Scope};
-use crate::io::os_input::ContractClassComponentHashes;
 
 pub(crate) fn set_sha256_segment_in_syscall_handler<S: StateReader>(
     HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
@@ -55,7 +51,7 @@ pub(crate) fn fill_holes_in_rc96_segment<S: StateReader>(
 /// Assigns the class hash of the current transaction to the component hashes var.
 /// Assumes the current transaction is of type Declare.
 pub(crate) fn set_component_hashes<S: StateReader>(
-    HintArgs { exec_scopes, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+    HintArgs { hint_processor, vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let tx = exec_scopes.get::<Transaction>(Scope::Tx.into())?;
     let class_hash = if let Transaction::Account(AccountTransaction::Declare(declare_tx)) = tx {
@@ -63,11 +59,11 @@ pub(crate) fn set_component_hashes<S: StateReader>(
     } else {
         return Err(OsHintError::UnexpectedTxType(tx));
     };
-    // TODO(Tzahi): Remove from exec_scopes and take directly from the hint processor.
-    let components_hashes: HashMap<ClassHash, ContractClassComponentHashes> =
-        exec_scopes.get(Scope::ComponentHashes.into())?;
+    let current_execution_helper = hint_processor.get_current_execution_helper()?;
+    let component_hashes =
+        &current_execution_helper.os_block_input.declared_class_hash_to_component_hashes;
     let class_component_hashes = vm.gen_arg(
-        components_hashes
+        component_hashes
             .get(&class_hash)
             .ok_or_else(|| OsHintError::MissingComponentHashes(class_hash))?,
     )?;
