@@ -417,7 +417,7 @@ impl SyscallRequest for SendMessageToL1Request {
     }
 }
 
-pub(crate) type SendMessageToL1Response = EmptyResponse;
+pub type SendMessageToL1Response = EmptyResponse;
 
 // StorageRead syscall.
 

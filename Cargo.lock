@@ -11940,6 +11940,7 @@ dependencies = [
  "assert_matches",
  "blockifier",
  "c-kzg",
+ "cairo-lang-casm",
  "cairo-lang-runner",
  "cairo-lang-starknet-classes",
  "cairo-vm",
