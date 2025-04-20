@@ -21,7 +21,6 @@ use crate::transaction::fields::{
     Fee,
     PaymasterData,
     Tip,
-    TransactionDeprSignature,
     TransactionSignature,
     ValidResourceBounds,
 };
@@ -164,7 +163,7 @@ pub fn rpc_declare_tx(
 
     RpcTransaction::Declare(RpcDeclareTransaction::V3(RpcDeclareTransactionV3 {
         contract_class,
-        signature: TransactionDeprSignature(declare_tx_args.signature.0.as_ref().clone()),
+        signature: declare_tx_args.signature,
         sender_address: declare_tx_args.sender_address,
         resource_bounds,
         tip: declare_tx_args.tip,
