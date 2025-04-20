@@ -122,6 +122,7 @@ use starknet_api::transaction::fields::{
     ResourceBounds,
     Tip,
     TransactionDeprSignature,
+    TransactionSignature,
     ValidResourceBounds,
 };
 use starknet_api::transaction::{
@@ -561,7 +562,7 @@ auto_impl_get_test_instance! {
     pub struct DeclareTransactionV3 {
         pub resource_bounds: ValidResourceBounds,
         pub tip: Tip,
-        pub signature: TransactionDeprSignature,
+        pub signature: TransactionSignature,
         pub nonce: Nonce,
         pub class_hash: ClassHash,
         pub compiled_class_hash: CompiledClassHash,
@@ -891,6 +892,7 @@ auto_impl_get_test_instance! {
         L1Handler(L1HandlerTransactionOutput) = 4,
     }
     pub struct TransactionDeprSignature(pub Vec<Felt>);
+    pub struct TransactionSignature(pub Arc<Vec<Felt>>);
     pub struct TransactionVersion(pub Felt);
     pub struct TypedParameter {
         pub name: String,
