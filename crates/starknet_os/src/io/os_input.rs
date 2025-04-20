@@ -62,7 +62,8 @@ pub struct OsHints {
 #[cfg_attr(any(test, feature = "testing"), derive(Default))]
 #[derive(Debug)]
 pub struct StarknetOsInput {
-    pub os_block_and_state_input: Vec<(OsBlockInput, CachedStateInput)>,
+    pub os_block_inputs: Vec<OsBlockInput>,
+    pub cached_state_inputs: Vec<CachedStateInput>,
     pub(crate) deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
     pub(crate) compiled_classes: HashMap<ClassHash, CasmContractClass>,
 }
