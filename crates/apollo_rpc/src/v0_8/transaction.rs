@@ -415,7 +415,7 @@ impl From<InvokeTransactionV0> for client_transaction::InvokeTransaction {
 pub struct InvokeTransactionV1 {
     pub max_fee: Fee,
     pub version: TransactionVersion1,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
     pub nonce: Nonce,
     pub sender_address: ContractAddress,
     pub calldata: Calldata,
@@ -520,7 +520,7 @@ impl TryFrom<starknet_api::transaction::InvokeTransaction> for InvokeTransaction
             ) => Ok(Self::Version1(InvokeTransactionV1 {
                 max_fee,
                 version: TransactionVersion1::Version1,
-                signature: TransactionDeprSignature(signature.0.as_ref().clone()),
+                signature,
                 nonce,
                 sender_address,
                 calldata,
