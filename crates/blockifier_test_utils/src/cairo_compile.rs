@@ -1,11 +1,13 @@
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output};
+use std::process::{Command, Output, Stdio};
 use std::{env, fs};
 
 use apollo_infra_utils::cairo_compiler_version::cairo1_compiler_version;
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
+use apollo_infra_utils::path::project_path;
 use tempfile::NamedTempFile;
+use tracing::info;
 
 use crate::contracts::TagAndToolchain;
 
@@ -33,6 +35,39 @@ fn local_cairo1_compiler_repo_path() -> PathBuf {
         env::var(CAIRO1_REPO_RELATIVE_PATH_OVERRIDE_ENV_VAR)
             .unwrap_or_else(|_| DEFAULT_CAIRO1_REPO_RELATIVE_PATH.into()),
     )
+}
+
+/// Path to local compiler package directory, of the specified version.
+fn cairo1_package_dir(version: &String) -> PathBuf {
+    project_path().unwrap().join(format!("target/bin/cairo_package__{version}"))
+}
+
+/// Downloads the cairo package to the local directory.
+/// Creates the directory if it does not exist.
+#[allow(dead_code)]
+async fn download_cairo_package(version: &String) {
+    let directory = cairo1_package_dir(version);
+    info!("Downloading Cairo package to {directory:?}.");
+    std::fs::create_dir_all(&directory).unwrap();
+
+    // Download the artifact.
+    let filename = "release-x86_64-unknown-linux-musl.tar.gz";
+    let package_url =
+        format!("https://github.com/starkware-libs/cairo/releases/download/v{version}/{filename}");
+    let curl_result = run_and_verify_output(Command::new("curl").args(["-L", &package_url]));
+    let mut tar_command = Command::new("tar")
+        .args(["-xz", "-C", directory.to_str().unwrap()])
+        .stdin(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let tar_command_stdin = tar_command.stdin.as_mut().unwrap();
+    tar_command_stdin.write_all(&curl_result.stdout).unwrap();
+    let output = tar_command.wait_with_output().unwrap();
+    if !output.status.success() {
+        let stderr_output = String::from_utf8(output.stderr).unwrap();
+        panic!("{stderr_output}");
+    }
+    info!("Done.");
 }
 
 /// Runs a command. If it has succeeded, it returns the command's output; otherwise, it panics with
