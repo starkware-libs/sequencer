@@ -87,6 +87,7 @@ fn block_execution_artifacts(
         bouncer_weights: BouncerWeights { l1_gas: 100, ..BouncerWeights::empty() },
         // Each mock transaction uses 1 L2 gas so the total amount should be the number of txs.
         l2_gas_used,
+        casm_hash_computation_data: CasmHashComputationData::default(),
     }
 }
 
