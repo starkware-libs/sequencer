@@ -39,6 +39,7 @@ use starknet_api::transaction::fields::{
     ResourceBounds,
     Tip,
     TransactionDeprSignature,
+    TransactionSignature,
     ValidResourceBounds,
 };
 use starknet_api::transaction::{
@@ -134,7 +135,7 @@ pub struct DeclareTransactionV2 {
     pub nonce: Nonce,
     pub max_fee: Fee,
     pub version: TransactionVersion2,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
 }
 
 impl From<starknet_api::transaction::DeclareTransactionV2> for DeclareTransactionV2 {
