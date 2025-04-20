@@ -12,13 +12,23 @@ use crate::hint_processor::snos_hint_processor::{
     SnosHintProcessor,
     SyscallHintProcessor,
 };
-use crate::io::os_input::OsHints;
+use crate::io::os_input::{OsHints, StarknetOsInput};
 use crate::io::os_output::{get_run_output, StarknetOsRunnerOutput};
 
 pub fn run_os<S: StateReader>(
     compiled_os: &[u8],
     layout: LayoutName,
-    os_hints: OsHints,
+    OsHints {
+        os_hints_config,
+        os_input:
+            StarknetOsInput {
+                os_block_inputs,
+                cached_state_inputs,
+                deprecated_compiled_classes,
+                compiled_classes,
+                chain_info,
+            },
+    }: OsHints,
     state_readers: Vec<S>,
 ) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
     // Init CairoRunConfig.
@@ -47,7 +57,12 @@ pub fn run_os<S: StateReader>(
     // Create the hint processor.
     let mut snos_hint_processor = SnosHintProcessor::new(
         &os_program,
-        os_hints,
+        os_hints_config,
+        os_block_inputs.iter().collect(),
+        cached_state_inputs,
+        deprecated_compiled_classes,
+        compiled_classes,
+        chain_info,
         state_readers,
         syscall_handler,
         deprecated_syscall_handler,
