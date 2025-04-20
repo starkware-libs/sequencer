@@ -2,6 +2,8 @@ import argparse
 import re
 import random
 import string
+import hashlib
+from typing import Optional
 
 
 def argument_parser():
@@ -45,6 +47,9 @@ def sanitize_name(name: str) -> str:
     return name
 
 
-def generate_random_hash(length=6):
-    # Create a random string of letters (no digits)
-    return "".join(random.choices(string.ascii_letters, k=length))
+def generate_random_hash(length: int = 6, from_string: Optional[str] = None) -> str:
+    if from_string:
+        hash_object = hashlib.sha256(from_string.encode())
+        return hash_object.hexdigest()[:length]
+    else:
+        return "".join(random.choices(string.ascii_letters, k=length))
