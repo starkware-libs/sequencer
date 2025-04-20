@@ -102,7 +102,7 @@
         },
         "required": [
           "name",
-          "config_path",
+          "config_paths",
           "controller",
           "ingress",
           "replicas",
