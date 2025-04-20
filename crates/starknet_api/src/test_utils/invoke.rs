@@ -149,7 +149,7 @@ pub fn rpc_invoke_tx(invoke_args: InvokeTxArgs) -> RpcTransaction {
         calldata: invoke_args.calldata,
         sender_address: invoke_args.sender_address,
         nonce: invoke_args.nonce,
-        signature: invoke_args.signature.into(),
+        signature: invoke_args.signature,
         nonce_data_availability_mode: invoke_args.nonce_data_availability_mode,
         fee_data_availability_mode: invoke_args.fee_data_availability_mode,
         paymaster_data: invoke_args.paymaster_data,

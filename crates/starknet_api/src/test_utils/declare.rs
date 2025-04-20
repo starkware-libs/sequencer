@@ -163,7 +163,7 @@ pub fn rpc_declare_tx(
 
     RpcTransaction::Declare(RpcDeclareTransaction::V3(RpcDeclareTransactionV3 {
         contract_class,
-        signature: declare_tx_args.signature.into(),
+        signature: declare_tx_args.signature,
         sender_address: declare_tx_args.sender_address,
         resource_bounds,
         tip: declare_tx_args.tip,
