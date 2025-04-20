@@ -157,7 +157,7 @@ pub struct InvokeV1Transaction {
     pub sender_address: ContractAddress,
     pub nonce: Nonce,
     pub max_fee: Fee,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
     pub version: TransactionVersion,
     pub r#type: InvokeType,
 }
