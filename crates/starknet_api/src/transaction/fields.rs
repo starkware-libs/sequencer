@@ -101,11 +101,6 @@ impl From<Fee> for Felt {
 )]
 pub struct ContractAddressSalt(pub StarkHash);
 
-/// A transaction signature.
-#[derive(
-    Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, SizeOf,
-)]
-pub struct TransactionDeprSignature(pub Vec<Felt>);
 /// A transaction signature, wrapped in `Arc` for efficient cloning and safe sharing across threads.
 /// `Rc` is avoided due to its lack of thread safety, and `Mutex` is unnecessary as the signature
 /// vector is immutable and never modified.
@@ -114,17 +109,6 @@ pub struct TransactionDeprSignature(pub Vec<Felt>);
 )]
 pub struct TransactionSignature(pub Arc<Vec<Felt>>);
 
-impl From<TransactionDeprSignature> for TransactionSignature {
-    fn from(signature: TransactionDeprSignature) -> Self {
-        TransactionSignature(Arc::new(signature.0))
-    }
-}
-
-impl From<TransactionSignature> for TransactionDeprSignature {
-    fn from(signature: TransactionSignature) -> Self {
-        TransactionDeprSignature(signature.0.as_ref().clone())
-    }
-}
 /// The calldata of a transaction.
 #[derive(
     Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, SizeOf,
