@@ -391,7 +391,7 @@ impl From<DeployAccountTransaction> for client_transaction::DeployAccountTransac
 pub struct InvokeTransactionV0 {
     pub max_fee: Fee,
     pub version: TransactionVersion0,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
     pub contract_address: ContractAddress,
     pub entry_point_selector: EntryPointSelector,
     pub calldata: Calldata,
@@ -504,7 +504,7 @@ impl TryFrom<starknet_api::transaction::InvokeTransaction> for InvokeTransaction
             ) => Ok(Self::Version0(InvokeTransactionV0 {
                 max_fee,
                 version: TransactionVersion0::Version0,
-                signature: signature.into(),
+                signature,
                 contract_address,
                 entry_point_selector,
                 calldata,

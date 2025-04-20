@@ -140,7 +140,7 @@ pub struct InvokeV0Transaction {
     pub calldata: Calldata,
     pub contract_address: ContractAddress,
     pub max_fee: Fee,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
     pub version: TransactionVersion,
     pub r#type: InvokeType,
     pub entry_point_selector: EntryPointSelector,
