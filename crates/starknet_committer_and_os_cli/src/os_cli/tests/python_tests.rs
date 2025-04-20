@@ -201,7 +201,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_code::{
 use starknet_os::hints::enum_definition::{AggregatorHint, HintExtension, OsHint};
 use starknet_os::hints::types::HintEnum;
 use starknet_os::runner::run_os_stateless;
-use starknet_os::test_utils::cairo_runner::{EndpointArg, ImplicitArg};
+use starknet_os::test_utils::cairo_runner::{EndpointArg, EntryPointRunnerConfig, ImplicitArg};
 use starknet_os::test_utils::errors::Cairo0EntryPointRunnerError;
 use starknet_os::test_utils::utils::run_cairo_function_and_check_result;
 use strum::IntoEnumIterator;
@@ -283,7 +283,9 @@ fn compare_os_hints(input: &str) -> OsPythonTestResult {
     Ok(serde_json::to_string(&(only_in_python, only_in_rust))?)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn test_cairo_function(
+    runner_config: &EntryPointRunnerConfig,
     program_str: &str,
     function_name: &str,
     explicit_args: &[EndpointArg],
@@ -293,6 +295,7 @@ fn test_cairo_function(
     hint_locals: HashMap<String, Box<dyn Any>>,
 ) -> OsPythonTestResult {
     run_cairo_function_and_check_result(
+        runner_config,
         program_str,
         function_name,
         explicit_args,
@@ -312,6 +315,7 @@ fn run_dummy_cairo_function(input: &str) -> OsPythonTestResult {
     let param_1 = 123;
     let param_2 = 456;
     test_cairo_function(
+        &EntryPointRunnerConfig::default(),
         input,
         "dummy_function",
         &[param_1.into(), param_2.into()],
@@ -334,6 +338,7 @@ fn test_constants(input: &str) -> OsPythonTestResult {
     let initial_available_alias = 128;
     let alias_contract_address = 2;
     test_cairo_function(
+        &EntryPointRunnerConfig::default(),
         input,
         "test_constants",
         &[
