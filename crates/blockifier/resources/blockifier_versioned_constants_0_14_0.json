@@ -151,10 +151,10 @@
         "execute_syscalls": {
             "CallContract": {
                 "builtin_instance_counter": {
-                    "range_check_builtin": 16
+                    "range_check_builtin": 18
                 },
                 "n_memory_holes": 0,
-                "n_steps": 903
+                "n_steps": 924
             },
             "DelegateCall": {
                 "builtin_instance_counter": {
@@ -174,10 +174,10 @@
                 "constant": {
                     "builtin_instance_counter": {
                         "pedersen_builtin": 7,
-                        "range_check_builtin": 19
+                        "range_check_builtin": 21
                     },
                     "n_memory_holes": 0,
-                    "n_steps": 1173
+                    "n_steps": 1194
                 },
                 "calldata_factor": {
                     "builtin_instance_counter": {
@@ -272,10 +272,10 @@
             },
             "LibraryCall": {
                 "builtin_instance_counter": {
-                    "range_check_builtin": 16
+                    "range_check_builtin": 18
                 },
                 "n_memory_holes": 0,
-                "n_steps": 879
+                "n_steps": 900
             },
             "LibraryCallL1Handler": {
                 "builtin_instance_counter": {
@@ -288,10 +288,10 @@
                 "constant": {
                     "builtin_instance_counter": {
                         "pedersen_builtin": 9,
-                        "range_check_builtin": 16
+                        "range_check_builtin": 20
                     },
                     "n_memory_holes": 0,
-                    "n_steps": 1275
+                    "n_steps": 1319
                 },
                 "calldata_factor": {
                     "builtin_instance_counter": {
@@ -412,21 +412,21 @@
             "Declare": {
                 "builtin_instance_counter": {
                     "pedersen_builtin": 4,
-                    "range_check_builtin": 70,
+                    "range_check_builtin": 72,
                     "poseidon_builtin": 15
                 },
                 "n_memory_holes": 0,
-                "n_steps": 3501
+                "n_steps": 3544
             },
             "DeployAccount": {
                 "constant": {
                     "builtin_instance_counter": {
                         "pedersen_builtin": 11,
-                        "range_check_builtin": 89,
+                        "range_check_builtin": 93,
                         "poseidon_builtin": 11
                     },
                     "n_memory_holes": 0,
-                    "n_steps": 4578
+                    "n_steps": 4625
                 },
                 "calldata_factor": {
                     "resources": {
@@ -444,11 +444,11 @@
                 "constant": {
                     "builtin_instance_counter": {
                         "pedersen_builtin": 4,
-                        "range_check_builtin": 86,
+                        "range_check_builtin": 90,
                         "poseidon_builtin": 12
                     },
                     "n_memory_holes": 0,
-                    "n_steps": 4319
+                    "n_steps": 4390
                 },
                 "calldata_factor": {
                     "resources": {
@@ -468,7 +468,7 @@
                         "range_check_builtin": 19
                     },
                     "n_memory_holes": 0,
-                    "n_steps": 1354
+                    "n_steps": 1336
                 },
                 "calldata_factor": {
                     "builtin_instance_counter": {

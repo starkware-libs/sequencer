@@ -172,7 +172,7 @@ fn test_meta_tx_v0(
     assert_eq!(
         call_info.execution,
         CallExecution {
-            gas_consumed: if measure_resources { 0 } else { 530010 },
+            gas_consumed: if measure_resources { 0 } else { 534690 },
             ..CallExecution::default()
         }
     );
