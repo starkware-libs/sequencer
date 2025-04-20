@@ -480,7 +480,7 @@ impl<T: DeployTransactionTrait> CalculateContractAddress for T {
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct DeployAccountTransactionV1 {
     pub max_fee: Fee,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
     pub nonce: Nonce,
     pub class_hash: ClassHash,
     pub contract_address_salt: ContractAddressSalt,
@@ -562,14 +562,9 @@ impl DeployAccountTransaction {
         (class_hash, ClassHash),
         (constructor_calldata, Calldata),
         (contract_address_salt, ContractAddressSalt),
-        (nonce, Nonce)
+        (nonce, Nonce),
+        (signature, TransactionSignature)
     );
-    pub fn signature(&self) -> TransactionDeprSignature {
-        match self {
-            Self::V1(tx) => tx.signature.clone(),
-            Self::V3(tx) => TransactionDeprSignature(tx.signature.0.clone().as_ref().clone()),
-        }
-    }
     implement_v3_tx_getters!(
         (resource_bounds, ValidResourceBounds),
         (tip, Tip),

@@ -267,7 +267,7 @@ impl TryFrom<protobuf::transaction_in_block::DeployAccountV1> for DeployAccountT
             }
         })?);
 
-        let signature = TransactionDeprSignature(
+        let signature = TransactionSignature(Arc::new(
             value
                 .signature
                 .ok_or(missing("DeployAccountV1::signature"))?
@@ -275,7 +275,7 @@ impl TryFrom<protobuf::transaction_in_block::DeployAccountV1> for DeployAccountT
                 .into_iter()
                 .map(Felt::try_from)
                 .collect::<Result<Vec<_>, _>>()?,
-        );
+        ));
 
         let nonce = Nonce(value.nonce.ok_or(missing("DeployAccountV1::nonce"))?.try_into()?);
 
@@ -307,7 +307,7 @@ impl From<DeployAccountTransactionV1> for protobuf::transaction_in_block::Deploy
         Self {
             max_fee: Some(Felt::from(value.max_fee.0).into()),
             signature: Some(protobuf::AccountSignature {
-                parts: value.signature.0.into_iter().map(|stark_felt| stark_felt.into()).collect(),
+                parts: value.signature.0.iter().map(|stark_felt| (*stark_felt).into()).collect(),
             }),
             nonce: Some(value.nonce.0.into()),
             class_hash: Some(value.class_hash.0.into()),
