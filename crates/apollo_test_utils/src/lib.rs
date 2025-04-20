@@ -553,7 +553,7 @@ auto_impl_get_test_instance! {
     }
     pub struct DeclareTransactionV2 {
         pub max_fee: Fee,
-        pub signature: TransactionDeprSignature,
+        pub signature: TransactionSignature,
         pub nonce: Nonce,
         pub class_hash: ClassHash,
         pub compiled_class_hash: CompiledClassHash,

@@ -790,7 +790,7 @@ impl TryFrom<protobuf::transaction_in_block::DeclareV2WithoutClass> for DeclareT
             }
         })?);
 
-        let signature = TransactionDeprSignature(
+        let signature = TransactionSignature(Arc::new(
             value
                 .signature
                 .ok_or(missing("DeclareV2::signature"))?
@@ -798,7 +798,7 @@ impl TryFrom<protobuf::transaction_in_block::DeclareV2WithoutClass> for DeclareT
                 .into_iter()
                 .map(Felt::try_from)
                 .collect::<Result<Vec<_>, _>>()?,
-        );
+        ));
 
         let nonce = Nonce(value.nonce.ok_or(missing("DeclareV2::nonce"))?.try_into()?);
 
@@ -823,7 +823,7 @@ impl From<DeclareTransactionV2> for protobuf::transaction_in_block::DeclareV2Wit
         Self {
             max_fee: Some(Felt::from(value.max_fee.0).into()),
             signature: Some(protobuf::AccountSignature {
-                parts: value.signature.0.into_iter().map(|signature| signature.into()).collect(),
+                parts: value.signature.0.iter().map(|signature| (*signature).into()).collect(),
             }),
             nonce: Some(value.nonce.0.into()),
             class_hash: Some(value.class_hash.0.into()),

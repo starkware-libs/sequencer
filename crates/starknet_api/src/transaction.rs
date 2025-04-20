@@ -1,4 +1,4 @@
-use std::sync::{Arc, LazyLock};
+use std::sync::LazyLock;
 
 use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
@@ -27,7 +27,6 @@ use crate::transaction::fields::{
     Fee,
     PaymasterData,
     Tip,
-    TransactionDeprSignature,
     TransactionSignature,
     ValidResourceBounds,
 };
@@ -296,7 +295,7 @@ impl TransactionHasher for DeclareTransactionV0V1 {
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct DeclareTransactionV2 {
     pub max_fee: Fee,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
     pub nonce: Nonce,
     pub class_hash: ClassHash,
     pub compiled_class_hash: CompiledClassHash,
@@ -365,16 +364,9 @@ impl DeclareTransaction {
     implement_declare_tx_getters!(
         (class_hash, ClassHash),
         (nonce, Nonce),
-        (sender_address, ContractAddress)
+        (sender_address, ContractAddress),
+        (signature, TransactionSignature)
     );
-    pub fn signature(&self) -> TransactionSignature {
-        match self {
-            Self::V0(tx) => tx.signature.clone(),
-            Self::V1(tx) => tx.signature.clone(),
-            Self::V2(tx) => TransactionSignature(Arc::new(tx.signature.0.clone())),
-            Self::V3(tx) => tx.signature.clone(),
-        }
-    }
 
     implement_v3_tx_getters!(
         (resource_bounds, ValidResourceBounds),
