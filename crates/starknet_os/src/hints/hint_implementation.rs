@@ -9,7 +9,7 @@ pub(crate) mod execute_syscalls;
 pub(crate) mod execute_transactions;
 pub(crate) mod execution;
 pub(crate) mod find_element;
-pub(crate) mod kzg;
+pub mod kzg;
 pub(crate) mod math;
 pub(crate) mod os;
 pub(crate) mod os_logger;
