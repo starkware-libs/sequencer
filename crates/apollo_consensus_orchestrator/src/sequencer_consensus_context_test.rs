@@ -703,10 +703,10 @@ async fn eth_to_fri_rate_out_of_range() {
     let mut block_info = block_info(BlockNumber(0));
     block_info.eth_to_fri_rate *= 2;
     content_sender.send(ProposalPart::BlockInfo(block_info).clone()).await.unwrap();
-    // Max timeout to ensure the fin_receiver was canceled due to invalid block_info, not due to a
-    // timeout.
+    // Use a large enough timeout to ensure fin_receiver was canceled due to invalid block_info,
+    // not due to a timeout.
     let fin_receiver =
-        context.validate_proposal(ProposalInit::default(), Duration::MAX, content_receiver).await;
+        context.validate_proposal(ProposalInit::default(), TIMEOUT * 100, content_receiver).await;
     assert_eq!(fin_receiver.await, Err(Canceled));
 }
 
