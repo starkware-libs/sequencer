@@ -105,23 +105,8 @@ pub struct ContractAddressSalt(pub StarkHash);
 #[derive(
     Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, SizeOf,
 )]
-pub struct TransactionDeprSignature(pub Vec<Felt>);
-#[derive(
-    Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, SizeOf,
-)]
 pub struct TransactionSignature(pub Arc<Vec<Felt>>);
 
-impl From<TransactionDeprSignature> for TransactionSignature {
-    fn from(signature: TransactionDeprSignature) -> Self {
-        TransactionSignature(Arc::new(signature.0))
-    }
-}
-
-impl From<TransactionSignature> for TransactionDeprSignature {
-    fn from(signature: TransactionSignature) -> Self {
-        TransactionDeprSignature(signature.0.as_ref().clone())
-    }
-}
 /// The calldata of a transaction.
 #[derive(
     Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, SizeOf,
