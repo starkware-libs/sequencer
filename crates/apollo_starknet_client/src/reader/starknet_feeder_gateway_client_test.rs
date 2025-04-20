@@ -22,7 +22,7 @@ use starknet_api::deprecated_contract_class::{
     TypedParameter,
 };
 use starknet_api::state::{EntryPoint, FunctionIndex};
-use starknet_api::transaction::fields::{Fee, TransactionDeprSignature};
+use starknet_api::transaction::fields::{Fee, TransactionSignature};
 use starknet_api::transaction::{TransactionHash, TransactionVersion};
 use starknet_api::{class_hash, contract_address, felt, nonce};
 
@@ -195,7 +195,7 @@ async fn declare_tx_serde() {
         transaction_hash: TransactionHash(felt!(
             "0x2f2ef64daffdc72bf33b34ad024891691b8eb1d0ab70cc7f8fb71f6fd5e1f22"
         )),
-        signature: TransactionDeprSignature(vec![]),
+        signature: TransactionSignature::default(),
     };
     let raw_declare_tx = serde_json::to_string(&declare_tx).unwrap();
     assert_eq!(declare_tx, serde_json::from_str(&raw_declare_tx).unwrap());
