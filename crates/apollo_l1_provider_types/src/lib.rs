@@ -1,5 +1,6 @@
 pub mod errors;
 
+use std::fmt::Display;
 use std::sync::Arc;
 
 use apollo_infra::component_client::ClientError;
@@ -188,6 +189,21 @@ pub enum Event {
     TransactionCanceled(EventData),
     TransactionCancellationStarted(EventData),
     TransactionConsumed(EventData),
+}
+
+impl Display for Event {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Event::L1HandlerTransaction(tx) => {
+                write!(f, "L1HandlerTransaction(tx_hash={})", tx.tx_hash)
+            }
+            Event::TransactionCanceled(data) => write!(f, "TransactionCanceled({})", data),
+            Event::TransactionCancellationStarted(data) => {
+                write!(f, "TransactionCancellationStarted({})", data)
+            }
+            Event::TransactionConsumed(data) => write!(f, "TransactionConsumed({})", data),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]

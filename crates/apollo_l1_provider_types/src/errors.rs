@@ -38,7 +38,7 @@ impl L1ProviderError {
     }
 
     pub fn unsupported_l1_event(event: Event) -> Self {
-        Self::UnsupportedL1Event(format!("{event:?}"))
+        Self::UnsupportedL1Event(event.to_string())
     }
 }
 
