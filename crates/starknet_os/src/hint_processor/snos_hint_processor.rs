@@ -12,7 +12,7 @@ use blockifier::execution::syscalls::secp::{
     SecpNewResponse,
 };
 use blockifier::execution::syscalls::syscall_base::SyscallResult;
-use blockifier::execution::syscalls::syscall_executor::SyscallExecutor;
+use blockifier::execution::syscalls::syscall_executor::{execute_next_syscall, SyscallExecutor};
 use blockifier::execution::syscalls::{
     CallContractRequest,
     CallContractResponse,
@@ -47,6 +47,7 @@ use blockifier::execution::syscalls::{
 use blockifier::state::state_api::StateReader;
 #[cfg(any(feature = "testing", test))]
 use blockifier::test_utils::dict_state_reader::DictStateReader;
+use cairo_lang_casm::hints::Hint;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::{
     BuiltinHintProcessor,
@@ -59,7 +60,7 @@ use cairo_vm::stdlib::collections::HashMap;
 use cairo_vm::types::exec_scope::ExecutionScopes;
 use cairo_vm::types::program::Program;
 use cairo_vm::types::relocatable::Relocatable;
-use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
+use cairo_vm::vm::errors::hint_errors::{HintError, HintError as VmHintError};
 use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::core::ClassHash;
@@ -287,7 +288,20 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<'_, S> {
         }
 
         // Cairo1 syscall or Cairo1 core hint.
-        todo!()
+        let hint = hint_data.downcast_ref::<Hint>().ok_or(HintError::WrongHintData)?;
+        match hint {
+            Hint::Core(_hint) => {
+                todo!()
+            }
+            Hint::Starknet(hint) => {
+                execute_next_syscall(self, vm, hint)?;
+                // TODO(Aner): verify next line.
+                Ok(HintExtension::default())
+            }
+            Hint::External(_) => {
+                panic!("starknet should never accept classes with external hints!")
+            }
+        }
     }
 }
 
