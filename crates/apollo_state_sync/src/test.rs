@@ -12,7 +12,7 @@ use futures::channel::mpsc::channel;
 use indexmap::IndexMap;
 use rand_chacha::rand_core::RngCore;
 use starknet_api::block::{Block, BlockHeader, BlockNumber};
-use starknet_api::core::{ClassHash, ContractAddress, Nonce};
+use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce};
 use starknet_api::state::{StorageKey, ThinStateDiff};
 use starknet_types_core::felt::Felt;
 
@@ -20,7 +20,11 @@ use crate::StateSync;
 
 fn setup() -> (StateSync, StorageWriter) {
     let ((storage_reader, storage_writer), _) = get_test_storage();
-    let state_sync = StateSync { storage_reader, new_block_sender: channel(0).0 };
+    let state_sync = StateSync {
+        chain_id: ChainId::Other("testnet".to_string()),
+        storage_reader,
+        new_block_sender: channel(0).0,
+    };
     (state_sync, storage_writer)
 }
 
@@ -62,8 +66,8 @@ async fn test_get_block() {
 
     assert_eq!(block.block_header_without_hash, expected_header.block_header_without_hash);
     assert_eq!(block.state_diff, expected_state_diff);
-    assert_eq!(block.transaction_hashes.len(), 1);
-    assert_eq!(block.transaction_hashes[0], expected_body.transaction_hashes[0]);
+    assert_eq!(block.account_transaction_hashes.len(), 1);
+    assert_eq!(block.account_transaction_hashes[0], expected_body.transaction_hashes[0]);
 }
 
 #[tokio::test]

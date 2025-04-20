@@ -130,7 +130,7 @@ impl BlockDataStreamBuilder<SignedBlockHeader> for HeaderStreamBuilder {
                 block_hash: BlockHash(StarkHash::from(block_number.0)),
                 block_header_without_hash: sync_block.block_header_without_hash,
                 state_diff_length: Some(sync_block.state_diff.len()),
-                n_transactions: sync_block.transaction_hashes.len(),
+                n_transactions: sync_block.account_transaction_hashes.len(),
                 ..Default::default()
             },
             signatures: vec![BlockSignature::default()],

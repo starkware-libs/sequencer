@@ -42,7 +42,8 @@ async fn test_get_block_info() {
         move |_| {
             Ok(Some(SyncBlock {
                 state_diff: Default::default(),
-                transaction_hashes: Default::default(),
+                account_transaction_hashes: Default::default(),
+                l1_transaction_hashes: Default::default(),
                 block_header_without_hash: BlockHeaderWithoutHash {
                     block_number,
                     l1_gas_price,
