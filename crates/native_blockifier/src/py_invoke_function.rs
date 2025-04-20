@@ -40,7 +40,7 @@ impl TryFrom<PyInvokeTransactionV0> for InvokeTransactionV0 {
     fn try_from(tx: PyInvokeTransactionV0) -> Result<Self, Self::Error> {
         Ok(Self {
             max_fee: Fee(tx.max_fee),
-            signature: TransactionDeprSignature(from_py_felts(tx.signature)),
+            signature: TransactionSignature(from_py_felts_to_arc(tx.signature)),
             contract_address: ContractAddress::try_from(tx.sender_address.0)?,
             entry_point_selector: EntryPointSelector(tx.entry_point_selector.0),
             calldata: Calldata(Arc::from(from_py_felts(tx.calldata))),
