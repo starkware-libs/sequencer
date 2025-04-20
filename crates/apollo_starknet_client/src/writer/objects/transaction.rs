@@ -206,7 +206,7 @@ pub struct DeclareV1Transaction {
     pub nonce: Nonce,
     pub max_fee: Fee,
     pub version: TransactionVersion,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
     pub r#type: DeclareType,
 }
 

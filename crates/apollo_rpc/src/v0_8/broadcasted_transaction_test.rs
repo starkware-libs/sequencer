@@ -27,6 +27,7 @@ use starknet_api::transaction::fields::{
     ResourceBounds,
     Tip,
     TransactionDeprSignature,
+    TransactionSignature,
 };
 use starknet_types_core::felt::Felt;
 
@@ -64,7 +65,7 @@ auto_impl_get_test_instance! {
         pub sender_address: ContractAddress,
         pub nonce: Nonce,
         pub max_fee: Fee,
-        pub signature: TransactionDeprSignature,
+        pub signature: TransactionSignature,
     }
     pub struct BroadcastedDeclareV2Transaction {
         pub r#type: DeclareType,
