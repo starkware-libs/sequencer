@@ -107,7 +107,7 @@ pub fn invoke_tx(invoke_args: InvokeTxArgs) -> InvokeTransaction {
             sender_address: invoke_args.sender_address,
             nonce: invoke_args.nonce,
             calldata: invoke_args.calldata,
-            signature: TransactionDeprSignature(invoke_args.signature.0.as_ref().clone()),
+            signature: invoke_args.signature,
         })
     } else if invoke_args.version == TransactionVersion::THREE {
         InvokeTransaction::V3(InvokeTransactionV3 {

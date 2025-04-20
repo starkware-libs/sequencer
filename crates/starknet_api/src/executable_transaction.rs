@@ -20,7 +20,6 @@ use crate::transaction::fields::{
     Fee,
     PaymasterData,
     Tip,
-    TransactionDeprSignature,
     TransactionSignature,
     ValidResourceBounds,
 };
@@ -117,15 +116,9 @@ impl AccountTransaction {
         (nonce_data_availability_mode, DataAvailabilityMode),
         (fee_data_availability_mode, DataAvailabilityMode),
         (paymaster_data, PaymasterData),
-        (version, TransactionVersion)
+        (version, TransactionVersion),
+        (signature, TransactionSignature)
     );
-    pub fn signature(&self) -> TransactionDeprSignature {
-        match self {
-            Self::Declare(tx) => TransactionDeprSignature(tx.signature().0.as_ref().clone()),
-            Self::Invoke(tx) => tx.signature().clone(),
-            Self::DeployAccount(tx) => TransactionDeprSignature(tx.signature().0.as_ref().clone()),
-        }
-    }
     pub fn contract_address(&self) -> ContractAddress {
         match self {
             AccountTransaction::Declare(tx_data) => tx_data.tx.sender_address(),
@@ -327,7 +320,7 @@ impl InvokeTransaction {
     implement_inner_tx_getter_calls!(
         (calldata, Calldata),
         (nonce, Nonce),
-        (signature, TransactionDeprSignature),
+        (signature, TransactionSignature),
         (sender_address, ContractAddress),
         (version, TransactionVersion),
         (resource_bounds, ValidResourceBounds),
