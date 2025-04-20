@@ -1,4 +1,5 @@
 use std::env;
+use std::sync::Arc;
 
 use apollo_rpc::{
     AddInvokeOkResultRPC0_8,
@@ -11,7 +12,7 @@ use jsonrpsee::core::client::ClientT;
 use jsonrpsee::http_client::{HttpClient, HttpClientBuilder};
 use jsonrpsee::rpc_params;
 use starknet_api::core::{ChainId, ContractAddress, EntryPointSelector, Nonce};
-use starknet_api::transaction::fields::{Fee, TransactionDeprSignature};
+use starknet_api::transaction::fields::{Fee, TransactionSignature};
 use starknet_api::transaction::{Transaction, TransactionOptions};
 use starknet_api::transaction_hash::get_transaction_hash;
 use starknet_api::{calldata, contract_address, felt};
@@ -78,7 +79,7 @@ async fn test_gw_integration_testnet() {
     // Create an invoke transaction for Eth transfer with a signature placeholder.
     let mut invoke_tx = InvokeTransactionV1RPC0_8 {
         max_fee: Fee(MAX_FEE),
-        signature: TransactionDeprSignature::default(),
+        signature: TransactionSignature::default(),
         nonce,
         sender_address,
         version: TransactionVersion1RPC0_8::default(),
@@ -114,10 +115,10 @@ async fn test_gw_integration_testnet() {
         &hash.0,
     )
     .unwrap();
-    invoke_tx.signature = TransactionDeprSignature(vec![
+    invoke_tx.signature = TransactionSignature(Arc::new(vec![
         Felt::from_bytes_be(&signature.r.to_bytes_be()),
         Felt::from_bytes_be(&signature.s.to_bytes_be()),
-    ]);
+    ]));
 
     let invoke_res = client
         .request::<AddInvokeOkResultRPC0_8, _>(
