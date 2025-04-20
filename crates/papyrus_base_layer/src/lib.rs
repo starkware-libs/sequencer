@@ -2,6 +2,7 @@ use std::error::Error;
 use std::fmt::{Debug, Display};
 use std::ops::RangeInclusive;
 
+use alloy::primitives::FixedBytes;
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
@@ -94,7 +95,8 @@ pub struct L1BlockReference {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum L1Event {
     ConsumedMessageToL2(EventData),
-    LogMessageToL2 { tx: L1HandlerTransaction, fee: Fee },
+    // TODO(Arni): Consider adding the l1_tx_hash to all variants of L1 Event.
+    LogMessageToL2 { tx: L1HandlerTransaction, fee: Fee, l1_tx_hash: Option<FixedBytes<32>> },
     MessageToL2CancellationStarted(EventData),
     MessageToL2Canceled(EventData),
 }

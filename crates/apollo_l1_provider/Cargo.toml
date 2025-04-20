@@ -6,7 +6,7 @@ repository.workspace = true
 license.workspace = true
 
 [features]
-testing = ["itertools", "pretty_assertions", "starknet_api/testing"]
+testing = ["pretty_assertions", "starknet_api/testing"]
 
 [dependencies]
 apollo_config.workspace = true
@@ -17,7 +17,7 @@ apollo_state_sync_types.workspace = true
 async-trait.workspace = true
 hex.workspace = true
 indexmap.workspace = true
-itertools = { workspace = true, optional = true }
+itertools.workspace = true
 papyrus_base_layer.workspace = true
 pretty_assertions = { workspace = true, optional = true }
 serde.workspace = true
