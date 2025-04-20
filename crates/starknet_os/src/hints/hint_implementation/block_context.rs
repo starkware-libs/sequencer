@@ -34,8 +34,7 @@ pub(crate) fn block_timestamp<S: StateReader>(
 pub(crate) fn chain_id<S: StateReader>(
     HintArgs { vm, hint_processor, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let chain_id =
-        &hint_processor.get_current_execution_helper()?.os_block_input.chain_info.chain_id;
+    let chain_id = &hint_processor.os_hints_config.chain_info.chain_id;
     let chain_id_as_felt = ascii_as_felt(&chain_id.to_string())?;
     Ok(insert_value_into_ap(vm, chain_id_as_felt)?)
 }
@@ -43,11 +42,7 @@ pub(crate) fn chain_id<S: StateReader>(
 pub(crate) fn fee_token_address<S: StateReader>(
     HintArgs { hint_processor, vm, .. }: HintArgs<'_, S>,
 ) -> OsHintResult {
-    let strk_fee_token_address = hint_processor
-        .get_current_execution_helper()?
-        .os_block_input
-        .chain_info
-        .strk_fee_token_address;
+    let strk_fee_token_address = hint_processor.os_hints_config.chain_info.strk_fee_token_address;
     Ok(insert_value_into_ap(vm, strk_fee_token_address.0.key())?)
 }
 

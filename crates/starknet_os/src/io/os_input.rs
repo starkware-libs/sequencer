@@ -93,7 +93,6 @@ pub struct OsBlockInput {
     pub(crate) contract_state_commitment_info: CommitmentInfo,
     pub(crate) address_to_storage_commitment_info: HashMap<ContractAddress, CommitmentInfo>,
     pub(crate) contract_class_commitment_info: CommitmentInfo,
-    pub(crate) chain_info: OsChainInfo,
     // Note: The Declare tx in the starknet_api crate has a class_info field with a contract_class
     // field. This field is needed by the blockifier, but not used in the OS, so it is expected
     // (and verified) to be initialized with an illegal value, to avoid using it accidentally.
@@ -118,6 +117,7 @@ pub struct OsHintsConfig {
     pub debug_mode: bool,
     pub full_output: bool,
     pub use_kzg_da: bool,
+    pub chain_info: OsChainInfo,
 }
 
 #[derive(Default, Debug)]
