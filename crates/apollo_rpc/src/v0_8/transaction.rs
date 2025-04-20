@@ -333,7 +333,7 @@ impl TryFrom<starknet_api::transaction::DeployAccountTransaction> for DeployAcco
                     paymaster_data,
                 },
             ) => Ok(Self::Version3(DeployAccountTransactionV3 {
-                signature,
+                signature: signature.into(),
                 nonce,
                 class_hash,
                 contract_address_salt,

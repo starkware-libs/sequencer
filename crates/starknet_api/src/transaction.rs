@@ -505,7 +505,7 @@ impl TransactionHasher for DeployAccountTransactionV1 {
 pub struct DeployAccountTransactionV3 {
     pub resource_bounds: ValidResourceBounds,
     pub tip: Tip,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
     pub nonce: Nonce,
     pub class_hash: ClassHash,
     pub contract_address_salt: ContractAddressSalt,
@@ -563,10 +563,15 @@ impl DeployAccountTransaction {
         (class_hash, ClassHash),
         (constructor_calldata, Calldata),
         (contract_address_salt, ContractAddressSalt),
-        (nonce, Nonce),
-        (signature, TransactionDeprSignature)
+        (nonce, Nonce)
     );
-
+    // TODO(Ron): Remove this method by using the macro getter.
+    pub fn signature(&self) -> TransactionDeprSignature {
+        match self {
+            Self::V1(tx) => tx.signature.clone(),
+            Self::V3(tx) => tx.signature.clone().into(),
+        }
+    }
     implement_v3_tx_getters!(
         (resource_bounds, ValidResourceBounds),
         (tip, Tip),
