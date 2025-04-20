@@ -38,7 +38,6 @@ use starknet_api::transaction::fields::{
     Resource,
     ResourceBounds,
     Tip,
-    TransactionDeprSignature,
     TransactionSignature,
     ValidResourceBounds,
 };
@@ -115,7 +114,7 @@ pub struct DeclareTransactionV0 {
     pub nonce: Nonce,
     pub max_fee: Fee,
     pub version: TransactionVersion0,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
 }
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 #[serde(deny_unknown_fields)]
@@ -125,7 +124,7 @@ pub struct DeclareTransactionV1 {
     pub nonce: Nonce,
     pub max_fee: Fee,
     pub version: TransactionVersion1,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
 }
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct DeclareTransactionV2 {
@@ -222,7 +221,7 @@ impl From<ValidResourceBounds> for ResourceBoundsMapping {
 pub struct DeclareTransactionV3 {
     pub resource_bounds: ResourceBoundsMapping,
     pub tip: Tip,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
     pub nonce: Nonce,
     pub class_hash: ClassHash,
     pub compiled_class_hash: CompiledClassHash,
@@ -239,7 +238,7 @@ impl From<starknet_api::transaction::DeclareTransactionV3> for DeclareTransactio
         Self {
             resource_bounds: tx.resource_bounds.into(),
             tip: tx.tip,
-            signature: tx.signature.into(),
+            signature: tx.signature,
             nonce: tx.nonce,
             class_hash: tx.class_hash,
             compiled_class_hash: tx.compiled_class_hash,
@@ -616,7 +615,7 @@ impl TryFrom<starknet_api::transaction::Transaction> for Transaction {
                         nonce: tx.nonce,
                         max_fee: tx.max_fee,
                         version: TransactionVersion0::Version0,
-                        signature: tx.signature.into(),
+                        signature: tx.signature,
                     })))
                 }
                 starknet_api::transaction::DeclareTransaction::V1(tx) => {
@@ -626,7 +625,7 @@ impl TryFrom<starknet_api::transaction::Transaction> for Transaction {
                         nonce: tx.nonce,
                         max_fee: tx.max_fee,
                         version: TransactionVersion1::Version1,
-                        signature: tx.signature.into(),
+                        signature: tx.signature,
                     })))
                 }
                 starknet_api::transaction::DeclareTransaction::V2(tx) => {
