@@ -97,7 +97,7 @@ pub fn declare_tx(declare_tx_args: DeclareTxArgs) -> DeclareTransaction {
     if declare_tx_args.version == TransactionVersion::ZERO {
         DeclareTransaction::V0(DeclareTransactionV0V1 {
             max_fee: declare_tx_args.max_fee,
-            signature: declare_tx_args.signature.into(),
+            signature: declare_tx_args.signature,
             sender_address: declare_tx_args.sender_address,
             nonce: declare_tx_args.nonce,
             class_hash: declare_tx_args.class_hash,
@@ -105,7 +105,7 @@ pub fn declare_tx(declare_tx_args: DeclareTxArgs) -> DeclareTransaction {
     } else if declare_tx_args.version == TransactionVersion::ONE {
         DeclareTransaction::V1(DeclareTransactionV0V1 {
             max_fee: declare_tx_args.max_fee,
-            signature: declare_tx_args.signature.into(),
+            signature: declare_tx_args.signature,
             sender_address: declare_tx_args.sender_address,
             nonce: declare_tx_args.nonce,
             class_hash: declare_tx_args.class_hash,
