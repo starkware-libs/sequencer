@@ -624,7 +624,7 @@ impl From<InvokeTransaction> for starknet_api::transaction::InvokeTransaction {
             }) => Self::V3(starknet_api::transaction::InvokeTransactionV3 {
                 resource_bounds: resource_bounds.into(),
                 tip,
-                signature: TransactionSignature(Arc::new(signature.0)),
+                signature,
                 nonce,
                 sender_address,
                 calldata,

@@ -15,7 +15,6 @@ use starknet_api::transaction::fields::{
     Fee,
     PaymasterData,
     Tip,
-    TransactionDeprSignature,
     TransactionSignature,
 };
 use starknet_api::transaction::{L1HandlerTransaction, Transaction};
@@ -113,7 +112,7 @@ auto_impl_get_test_instance! {
         pub sender_address: ContractAddress,
         pub calldata: Calldata,
         pub version: TransactionVersion3,
-        pub signature: TransactionDeprSignature,
+        pub signature: TransactionSignature,
         pub nonce: Nonce,
         pub resource_bounds: ResourceBoundsMapping,
         pub tip: Tip,
