@@ -10,6 +10,7 @@ use starknet_api::transaction::fields::{
     PaymasterData,
     Tip,
     TransactionDeprSignature,
+    TransactionSignature,
 };
 use starknet_api::transaction::{
     DeclareTransactionV0V1,
@@ -21,7 +22,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::errors::{NativeBlockifierInputError, NativeBlockifierResult};
 use crate::py_transaction::{PyClassInfo, PyDataAvailabilityMode, PyResourceBoundsMapping};
-use crate::py_utils::{from_py_felts, py_attr, PyFelt};
+use crate::py_utils::{from_py_felts, from_py_felts_to_arc, py_attr, PyFelt};
 
 #[derive(FromPyObject)]
 struct PyDeclareTransactionV0V1 {
@@ -90,7 +91,7 @@ impl TryFrom<PyDeclareTransactionV3> for DeclareTransactionV3 {
         Ok(Self {
             resource_bounds: tx.resource_bounds.try_into()?,
             tip: Tip(tx.tip),
-            signature: TransactionDeprSignature(from_py_felts(tx.signature)),
+            signature: TransactionSignature(from_py_felts_to_arc(tx.signature)),
             nonce: Nonce(tx.nonce.0),
             class_hash: ClassHash(tx.class_hash.0),
             compiled_class_hash: CompiledClassHash(tx.compiled_class_hash.0),

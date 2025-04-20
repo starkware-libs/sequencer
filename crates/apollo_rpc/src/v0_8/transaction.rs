@@ -238,7 +238,7 @@ impl From<starknet_api::transaction::DeclareTransactionV3> for DeclareTransactio
         Self {
             resource_bounds: tx.resource_bounds.into(),
             tip: tx.tip,
-            signature: tx.signature,
+            signature: tx.signature.into(),
             nonce: tx.nonce,
             class_hash: tx.class_hash,
             compiled_class_hash: tx.compiled_class_hash,
