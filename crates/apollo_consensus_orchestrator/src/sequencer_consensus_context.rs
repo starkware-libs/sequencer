@@ -543,9 +543,6 @@ impl ConsensusContext for SequencerConsensusContext {
         let gas_price_u64 = u64::try_from(self.l2_gas_price.0).unwrap_or(u64::MAX);
         CONSENSUS_L2_GAS_PRICE.set_lossy(gas_price_u64);
 
-        let transaction_hashes =
-            transactions.iter().map(|tx| tx.tx_hash()).collect::<Vec<TransactionHash>>();
-
         let cende_block_info = convert_to_sn_api_block_info(&block_info);
         let l1_gas_price = GasPricePerToken {
             price_in_fri: cende_block_info.gas_prices.strk_gas_prices.l1_gas_price.get(),
@@ -575,9 +572,26 @@ impl ConsensusContext for SequencerConsensusContext {
             ..Default::default()
         };
 
+        // Divide transactions hashes to L1Handler and RpcTransaction hashes.
+        let account_transaction_hashes = transactions
+            .iter()
+            .filter_map(|tx| match tx {
+                InternalConsensusTransaction::RpcTransaction(_) => Some(tx.tx_hash()),
+                _ => None,
+            })
+            .collect::<Vec<TransactionHash>>();
+        let l1_transaction_hashes = transactions
+            .iter()
+            .filter_map(|tx| match tx {
+                InternalConsensusTransaction::L1Handler(_) => Some(tx.tx_hash()),
+                _ => None,
+            })
+            .collect::<Vec<TransactionHash>>();
+
         let sync_block = SyncBlock {
             state_diff: state_diff.clone(),
-            transaction_hashes,
+            account_transaction_hashes,
+            l1_transaction_hashes,
             block_header_without_hash,
         };
         let state_sync_client = self.state_sync_client.clone();

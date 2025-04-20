@@ -463,7 +463,8 @@ impl Batcher {
         // TODO(AlonH): Use additional data from the sync block.
         let SyncBlock {
             state_diff,
-            transaction_hashes,
+            account_transaction_hashes: _,
+            l1_transaction_hashes,
             block_header_without_hash: BlockHeaderWithoutHash { block_number, .. },
         } = sync_block;
 
@@ -485,12 +486,12 @@ impl Batcher {
             height,
             state_diff,
             address_to_nonce,
-            transaction_hashes.iter().copied().collect(),
+            l1_transaction_hashes.iter().copied().collect(),
             Default::default(),
         )
         .await?;
         LAST_SYNCED_BLOCK.set_lossy(block_number.0);
-        SYNCED_TRANSACTIONS.increment(transaction_hashes.len().try_into().unwrap());
+        SYNCED_TRANSACTIONS.increment(l1_transaction_hashes.len().try_into().unwrap());
         Ok(())
     }
 
