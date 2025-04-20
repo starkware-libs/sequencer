@@ -116,17 +116,18 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
         syscall_hint_processor: SyscallHintProcessor,
         deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
     ) -> Result<Self, StarknetOsError> {
-        if state_readers.len() != os_hints.os_input.os_block_and_state_input.len() {
+        if state_readers.len() != os_hints.os_input.os_block_inputs.len() {
             return Err(OsInputError::InvalidLengthOfStateReaders(
                 state_readers.len(),
-                os_hints.os_input.os_block_and_state_input.len(),
+                os_hints.os_input.os_block_inputs.len(),
             )
             .into());
         }
         let execution_helpers = os_hints
             .os_input
-            .os_block_and_state_input
+            .os_block_inputs
             .into_iter()
+            .zip(os_hints.os_input.cached_state_inputs.into_iter())
             .zip(state_readers.into_iter())
             .map(|((os_block_input, cached_state_input), state_reader)| {
                 OsExecutionHelper::new(
@@ -254,11 +255,13 @@ impl<'a> SnosHintProcessor<'a, DictStateReader> {
         os_hints_config: Option<OsHintsConfig>,
         os_block_input: Option<(OsBlockInput, CachedStateInput)>,
     ) -> Result<Self, StarknetOsError> {
+        let (block_input, state_input) =
+            os_block_input.unwrap_or((OsBlockInput::default(), CachedStateInput::default()));
         let state_reader = state_reader.unwrap_or_default();
         let os_hints_config = os_hints_config.unwrap_or_default();
-        let os_block_input = os_block_input.unwrap_or_default();
         let os_input = StarknetOsInput {
-            os_block_and_state_input: vec![os_block_input],
+            os_block_inputs: vec![block_input],
+            cached_state_inputs: vec![state_input],
             ..Default::default()
         };
         let os_hints = OsHints { os_input, os_hints_config };
