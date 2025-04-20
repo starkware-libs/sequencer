@@ -308,17 +308,20 @@ async fn collect_execution_results_and_stream_txs(
         }
     }
     for (input_tx, result) in tx_chunk.into_iter().zip(results.into_iter()) {
+        let tx_hash = input_tx.tx_hash();
+
+        // Insert the tx_hash into the appropriate collection if it's an L1_Handler transaction.
+        if let InternalConsensusTransaction::L1Handler(_) = input_tx {
+            execution_data.consumed_l1_handler_tx_hashes.insert(tx_hash);
+        }
+
         match result {
             Ok(tx_execution_info) => {
                 *l2_gas_used = l2_gas_used
                     .checked_add(tx_execution_info.receipt.gas.l2_gas)
                     .expect("Total L2 gas overflow.");
 
-                let tx_hash = input_tx.tx_hash();
                 execution_data.execution_infos.insert(tx_hash, tx_execution_info);
-                if let InternalConsensusTransaction::L1Handler(_) = input_tx {
-                    execution_data.accepted_l1_handler_tx_hashes.insert(tx_hash);
-                }
 
                 if let Some(output_content_sender) = output_content_sender {
                     output_content_sender.send(input_tx)?;
@@ -327,13 +330,13 @@ async fn collect_execution_results_and_stream_txs(
             // TODO(yael 18/9/2024): add timeout error handling here once this
             // feature is added.
             Err(err) => {
-                debug!("Transaction {} failed with error: {}.", input_tx.tx_hash(), err);
+                debug!("Transaction {} failed with error: {}.", tx_hash, err);
                 if fail_on_err {
                     return Err(BlockBuilderError::FailOnError(
                         FailOnErrorCause::TransactionFailed(err),
                     ));
                 }
-                execution_data.rejected_tx_hashes.insert(input_tx.tx_hash());
+                execution_data.rejected_tx_hashes.insert(tx_hash);
             }
         }
     }
@@ -498,5 +501,5 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
 pub struct BlockTransactionExecutionData {
     pub execution_infos: IndexMap<TransactionHash, TransactionExecutionInfo>,
     pub rejected_tx_hashes: HashSet<TransactionHash>,
-    pub accepted_l1_handler_tx_hashes: IndexSet<TransactionHash>,
+    pub consumed_l1_handler_tx_hashes: IndexSet<TransactionHash>,
 }
