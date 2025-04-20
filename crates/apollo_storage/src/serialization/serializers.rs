@@ -1231,7 +1231,7 @@ auto_storage_serde_conditionally_compressed! {
 
     pub struct InvokeTransactionV1 {
         pub max_fee: Fee,
-        pub signature: TransactionDeprSignature,
+        pub signature: TransactionSignature,
         pub nonce: Nonce,
         pub sender_address: ContractAddress,
         pub calldata: Calldata,

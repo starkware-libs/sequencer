@@ -11,7 +11,6 @@ use starknet_api::transaction::fields::{
     Fee,
     PaymasterData,
     Tip,
-    TransactionDeprSignature,
     TransactionSignature,
 };
 use starknet_api::transaction::{
@@ -62,7 +61,7 @@ impl TryFrom<PyInvokeTransactionV1> for InvokeTransactionV1 {
     fn try_from(tx: PyInvokeTransactionV1) -> Result<Self, Self::Error> {
         Ok(Self {
             max_fee: Fee(tx.max_fee),
-            signature: TransactionDeprSignature(from_py_felts(tx.signature)),
+            signature: TransactionSignature(from_py_felts_to_arc(tx.signature)),
             nonce: Nonce(tx.nonce.0),
             sender_address: ContractAddress::try_from(tx.sender_address.0)?,
             calldata: Calldata(Arc::from(from_py_felts(tx.calldata))),

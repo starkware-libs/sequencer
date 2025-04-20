@@ -16,7 +16,7 @@ use starknet_api::transaction::fields::{
     Fee,
     PaymasterData,
     Tip,
-    TransactionDeprSignature,
+    TransactionSignature,
     ValidResourceBounds,
 };
 use starknet_api::transaction::{constants, TransactionHash, TransactionVersion};
@@ -129,7 +129,7 @@ impl AccountTransaction {
         (tip, Tip),
         (sender_address, ContractAddress),
         (tx_hash, TransactionHash),
-        (signature, TransactionDeprSignature),
+        (signature, TransactionSignature),
         (nonce, Nonce),
         (nonce_data_availability_mode, DataAvailabilityMode),
         (fee_data_availability_mode, DataAvailabilityMode),
