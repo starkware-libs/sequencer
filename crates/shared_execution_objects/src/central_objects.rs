@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use blockifier::abi::constants as abi_constants;
+use blockifier::bouncer::CasmHashComputationData;
 use blockifier::execution::call_info::CallInfo;
 use blockifier::fee::receipt::TransactionReceipt;
 use blockifier::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionInfo};
@@ -56,6 +57,27 @@ impl From<TransactionExecutionInfo> for CentralTransactionExecutionInfo {
             revert_error: tx_execution_info.revert_error.map(|error| error.to_string()),
             total_gas: tx_execution_info.receipt.gas,
             actual_resources: tx_execution_info.receipt.into(),
+        }
+    }
+}
+
+#[derive(Serialize, Debug)]
+pub struct CentralCasmHashComputationData {
+    pub class_hash_to_casm_hash_computation_gas: HashMap<String, u64>,
+    pub sierra_gas_without_casm_hash_computation: u64,
+}
+
+impl From<CasmHashComputationData> for CentralCasmHashComputationData {
+    fn from(data: CasmHashComputationData) -> Self {
+        Self {
+            class_hash_to_casm_hash_computation_gas: data
+                .class_hash_to_casm_hash_computation_gas
+                .iter()
+                .map(|(class_hash, gas)| (class_hash.0.to_hex_string(), gas.0))
+                .collect(),
+            sierra_gas_without_casm_hash_computation: data
+                .sierra_gas_without_casm_hash_computation
+                .0,
         }
     }
 }

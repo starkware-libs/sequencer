@@ -4,6 +4,7 @@ use std::vec;
 
 use apollo_class_manager_types::MockClassManagerClient;
 use apollo_infra_utils::test_utils::assert_json_eq;
+use blockifier::bouncer::CasmHashComputationData;
 use blockifier::execution::call_info::{
     CallExecution,
     CallInfo,
@@ -139,6 +140,8 @@ pub const CENTRAL_TRANSACTION_EXECUTION_INFO_JSON_PATH: &str =
 pub const CENTRAL_TRANSACTION_EXECUTION_INFO_REVERTED_JSON_PATH: &str =
     "central_transaction_execution_info_reverted.json";
 pub const CENTRAL_BLOB_JSON_PATH: &str = "central_blob.json";
+pub const CENTRAL_CASM_HASH_COMPUTATION_DATA_JSON_PATH: &str =
+    "central_casm_hash_computation_data.json";
 
 fn resource_bounds() -> AllResourceBounds {
     AllResourceBounds {
@@ -372,6 +375,16 @@ fn sierra_contract_class() -> SierraContractClass {
             l1handler: vec![entry_point(5, 6)],
         },
         abi: "dummy abi".to_string(),
+    }
+}
+
+fn casm_hash_computation_data() -> CasmHashComputationData {
+    CasmHashComputationData {
+        class_hash_to_casm_hash_computation_gas: HashMap::from([(
+            declare_class_hash(),
+            GasAmount(1),
+        )]),
+        sierra_gas_without_casm_hash_computation: GasAmount(3),
     }
 }
 
@@ -610,6 +623,7 @@ fn central_blob() -> AerospikeBlob {
         bouncer_weights: central_bouncer_weights(),
         fee_market_info: central_fee_market_info(),
         execution_infos: vec![transaction_execution_info()],
+        casm_hash_computation_data: casm_hash_computation_data(),
     };
 
     // This is to make the function sync (not async) so that it can be used as a case in the
@@ -648,6 +662,10 @@ fn central_blob() -> AerospikeBlob {
 #[case::transaction_execution_info_reverted(
     central_transaction_execution_info_reverted(),
     CENTRAL_TRANSACTION_EXECUTION_INFO_REVERTED_JSON_PATH
+)]
+#[case::casm_hash_computation_data(
+    casm_hash_computation_data(),
+    CENTRAL_CASM_HASH_COMPUTATION_DATA_JSON_PATH
 )]
 #[case::central_blob(central_blob(), CENTRAL_BLOB_JSON_PATH)]
 fn serialize_central_objects(#[case] rust_obj: impl Serialize, #[case] python_json_path: &str) {
