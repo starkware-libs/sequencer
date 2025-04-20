@@ -16,6 +16,7 @@ use starknet_api::transaction::fields::{
     PaymasterData,
     Tip,
     TransactionDeprSignature,
+    TransactionSignature,
 };
 use starknet_api::transaction::{L1HandlerTransaction, Transaction};
 use starknet_api::{calldata, contract_address, felt, nonce};
@@ -67,7 +68,7 @@ auto_impl_get_test_instance! {
     }
     pub struct DeployAccountTransactionV1 {
         pub max_fee: Fee,
-        pub signature: TransactionDeprSignature,
+        pub signature: TransactionSignature,
         pub nonce: Nonce,
         pub class_hash: ClassHash,
         pub contract_address_salt: ContractAddressSalt,
