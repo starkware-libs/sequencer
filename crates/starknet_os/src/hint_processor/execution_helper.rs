@@ -10,15 +10,15 @@ use crate::hint_processor::os_logger::OsLogger;
 use crate::io::os_input::{CachedStateInput, OsBlockInput};
 
 /// A helper struct that provides access to the OS state and commitments.
-pub struct OsExecutionHelper<S: StateReader> {
+pub struct OsExecutionHelper<'a, S: StateReader> {
     pub(crate) cached_state: CachedState<S>,
-    pub(crate) os_block_input: OsBlockInput,
+    pub(crate) os_block_input: &'a OsBlockInput,
     pub(crate) os_logger: OsLogger,
 }
 
-impl<S: StateReader> OsExecutionHelper<S> {
+impl<'a, S: StateReader> OsExecutionHelper<'a, S> {
     pub fn new(
-        os_block_input: OsBlockInput,
+        os_block_input: &'a OsBlockInput,
         state_reader: S,
         state_input: CachedStateInput,
         debug_mode: bool,
@@ -60,8 +60,11 @@ impl<S: StateReader> OsExecutionHelper<S> {
 }
 
 #[cfg(any(feature = "testing", test))]
-impl OsExecutionHelper<DictStateReader> {
-    pub fn new_for_testing(state_reader: DictStateReader, os_block_input: OsBlockInput) -> Self {
+impl<'a> OsExecutionHelper<'a, DictStateReader> {
+    pub fn new_for_testing(
+        state_reader: DictStateReader,
+        os_block_input: &'a OsBlockInput,
+    ) -> Self {
         Self {
             cached_state: CachedState::from(state_reader),
             os_block_input,
