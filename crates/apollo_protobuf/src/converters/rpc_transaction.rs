@@ -161,7 +161,7 @@ impl TryFrom<protobuf::DeclareV3WithClass> for RpcDeclareTransactionV3 {
                 }
             },
             sender_address: common.sender_address,
-            signature: common.signature,
+            signature: common.signature.into(),
             nonce: common.nonce,
             compiled_class_hash: common.compiled_class_hash,
             contract_class: class,
@@ -179,7 +179,7 @@ impl From<RpcDeclareTransactionV3> for protobuf::DeclareV3WithClass {
         let snapi_declare = DeclareTransactionV3Common {
             resource_bounds: ValidResourceBounds::AllResources(value.resource_bounds),
             sender_address: value.sender_address,
-            signature: value.signature,
+            signature: value.signature.into(),
             nonce: value.nonce,
             compiled_class_hash: value.compiled_class_hash,
             tip: value.tip,

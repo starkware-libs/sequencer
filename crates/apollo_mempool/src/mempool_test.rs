@@ -1169,7 +1169,7 @@ fn metrics_correctness() {
         pending_queue_size: 1,
         get_txs_size: 1,
         delayed_declares_size: 1,
-        total_size_in_bytes: 1520,
+        total_size_in_bytes: 1552,
         transaction_time_spent_in_mempool: HistogramValue {
             sum: 65.0,
             count: 3,
