@@ -9,7 +9,6 @@ use starknet_api::transaction::fields::{
     Fee,
     PaymasterData,
     Tip,
-    TransactionDeprSignature,
     TransactionSignature,
 };
 use starknet_api::transaction::{
@@ -61,7 +60,7 @@ impl TryFrom<PyDeclareTransactionV2> for DeclareTransactionV2 {
     fn try_from(tx: PyDeclareTransactionV2) -> Result<Self, Self::Error> {
         Ok(Self {
             max_fee: Fee(tx.max_fee),
-            signature: TransactionDeprSignature(from_py_felts(tx.signature)),
+            signature: TransactionSignature(from_py_felts_to_arc(tx.signature)),
             nonce: Nonce(tx.nonce.0),
             class_hash: ClassHash(tx.class_hash.0),
             compiled_class_hash: CompiledClassHash(tx.compiled_class_hash.0),
