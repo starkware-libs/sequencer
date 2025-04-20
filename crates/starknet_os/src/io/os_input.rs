@@ -65,7 +65,6 @@ pub struct StarknetOsInput {
     pub os_block_and_state_input: Vec<(OsBlockInput, CachedStateInput)>,
     pub(crate) deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
     pub(crate) compiled_classes: HashMap<ClassHash, CasmContractClass>,
-    pub(crate) chain_info: OsChainInfo,
 }
 
 // TODO(Meshi): Remove Once the blockifier ChainInfo do not support deprecated fee token.
@@ -118,6 +117,7 @@ pub struct OsHintsConfig {
     pub debug_mode: bool,
     pub full_output: bool,
     pub use_kzg_da: bool,
+    pub chain_info: OsChainInfo,
 }
 
 #[derive(Default, Debug)]
