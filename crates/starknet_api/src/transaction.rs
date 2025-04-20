@@ -674,7 +674,7 @@ impl TransactionHasher for InvokeTransactionV1 {
 pub struct InvokeTransactionV3 {
     pub resource_bounds: ValidResourceBounds,
     pub tip: Tip,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
     pub nonce: Nonce,
     pub sender_address: ContractAddress,
     pub calldata: Calldata,
@@ -716,8 +716,7 @@ macro_rules! implement_invoke_tx_getters {
 }
 
 impl InvokeTransaction {
-    implement_invoke_tx_getters!((calldata, Calldata), (signature, TransactionDeprSignature));
-
+    implement_invoke_tx_getters!((calldata, Calldata));
     implement_v3_tx_getters!(
         (resource_bounds, ValidResourceBounds),
         (tip, Tip),
@@ -726,6 +725,14 @@ impl InvokeTransaction {
         (paymaster_data, PaymasterData),
         (account_deployment_data, AccountDeploymentData)
     );
+    // TODO(Ron): Remove this method by using the macro getter.
+    pub fn signature(&self) -> TransactionDeprSignature {
+        match self {
+            Self::V0(tx) => tx.signature.clone(),
+            Self::V1(tx) => tx.signature.clone(),
+            Self::V3(tx) => tx.signature.clone().into(),
+        }
+    }
 
     pub fn nonce(&self) -> Nonce {
         match self {
