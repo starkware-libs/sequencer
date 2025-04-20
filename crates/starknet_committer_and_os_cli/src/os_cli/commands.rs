@@ -21,6 +21,7 @@ pub(crate) struct Input {
     pub compiled_os_path: String,
     pub layout: LayoutName,
     pub os_hints: OsHints,
+    pub cairo_pie_zip_path: String,
 }
 
 /// Validate a single os_block_input.
@@ -61,7 +62,7 @@ pub fn validate_input(os_block_input: &[(OsBlockInput, CachedStateInput)]) {
 }
 
 pub fn parse_and_run_os(input_path: String, output_path: String) {
-    let Input { compiled_os_path, layout, os_hints } = load_input(input_path);
+    let Input { compiled_os_path, layout, os_hints, cairo_pie_zip_path } = load_input(input_path);
     validate_input(&os_hints.os_input.os_block_and_state_input);
 
     // Load the compiled_os from the compiled_os_path.
@@ -71,5 +72,6 @@ pub fn parse_and_run_os(input_path: String, output_path: String) {
     let output = run_os_stateless(&compiled_os, layout, os_hints)
         .unwrap_or_else(|err| panic!("OS run failed. Error: {}", err));
     write_to_file(&output_path, &output);
+    output.write_cairo_pie(Path::new(&cairo_pie_zip_path));
     info!("OS program ran successfully.");
 }

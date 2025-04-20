@@ -668,10 +668,12 @@ else:
 
 /// Runs the OS with the given input and returns the deserialized output.
 fn run_os_flow_test(input: &str) -> OsPythonTestResult {
-    let Input { layout, compiled_os_path, os_hints } = serde_json::from_str(input)?;
+    let Input { layout, compiled_os_path, os_hints, cairo_pie_zip_path } =
+        serde_json::from_str(input)?;
     // Load the compiled_os from the compiled_os_path.
     let compiled_os =
         fs::read(Path::new(&compiled_os_path)).expect("Failed to read compiled_os file");
     let os_output = run_os_stateless(&compiled_os, layout, os_hints)?;
-    Ok(serde_json::to_string(&os_output)?)
+    os_output.write_cairo_pie(Path::new(&cairo_pie_zip_path));
+    Ok(serde_json::to_string(&os_output.os_output)?)
 }
