@@ -541,7 +541,7 @@ impl TryFrom<starknet_api::transaction::InvokeTransaction> for InvokeTransaction
                 sender_address,
                 calldata,
                 version: TransactionVersion3::Version3,
-                signature,
+                signature: TransactionDeprSignature(signature.0.as_ref().clone()),
                 nonce,
                 resource_bounds: resource_bounds.into(),
                 tip,

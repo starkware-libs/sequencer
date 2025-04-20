@@ -672,7 +672,7 @@ impl TransactionHasher for InvokeTransactionV1 {
 pub struct InvokeTransactionV3 {
     pub resource_bounds: ValidResourceBounds,
     pub tip: Tip,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
     pub nonce: Nonce,
     pub sender_address: ContractAddress,
     pub calldata: Calldata,
@@ -714,8 +714,14 @@ macro_rules! implement_invoke_tx_getters {
 }
 
 impl InvokeTransaction {
-    implement_invoke_tx_getters!((calldata, Calldata), (signature, TransactionDeprSignature));
-
+    implement_invoke_tx_getters!((calldata, Calldata));
+    pub fn signature(&self) -> TransactionDeprSignature {
+        match self {
+            Self::V0(tx) => tx.signature.clone(),
+            Self::V1(tx) => tx.signature.clone(),
+            Self::V3(tx) => TransactionDeprSignature(tx.signature.0.clone().as_ref().clone()),
+        }
+    }
     implement_v3_tx_getters!(
         (resource_bounds, ValidResourceBounds),
         (tip, Tip),

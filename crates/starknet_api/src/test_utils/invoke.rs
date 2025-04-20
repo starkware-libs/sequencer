@@ -114,7 +114,7 @@ pub fn invoke_tx(invoke_args: InvokeTxArgs) -> InvokeTransaction {
             calldata: invoke_args.calldata,
             sender_address: invoke_args.sender_address,
             nonce: invoke_args.nonce,
-            signature: invoke_args.signature.into(),
+            signature: invoke_args.signature,
             tip: invoke_args.tip,
             nonce_data_availability_mode: invoke_args.nonce_data_availability_mode,
             fee_data_availability_mode: invoke_args.fee_data_availability_mode,

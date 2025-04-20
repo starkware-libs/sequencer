@@ -582,7 +582,7 @@ impl TryFrom<IntermediateInvokeTransaction> for starknet_api::transaction::Invok
                 tx_hash: invoke_tx.transaction_hash,
                 msg: "Invoke V3 must contain tip field.".to_string(),
             })?,
-            signature: invoke_tx.signature,
+            signature: TransactionSignature(Arc::new(invoke_tx.signature.0)),
             nonce: invoke_tx.nonce.ok_or(ReaderClientError::BadTransaction {
                 tx_hash: invoke_tx.transaction_hash,
                 msg: "Invoke V3 must contain nonce field.".to_string(),

@@ -622,7 +622,7 @@ impl From<RpcInvokeTransactionV3> for InvokeTransactionV3 {
         Self {
             resource_bounds: ValidResourceBounds::AllResources(tx.resource_bounds),
             tip: tx.tip,
-            signature: tx.signature,
+            signature: TransactionSignature(Arc::new(tx.signature.0)),
             nonce: tx.nonce,
             sender_address: tx.sender_address,
             calldata: tx.calldata,
@@ -647,7 +647,7 @@ impl TryFrom<InvokeTransactionV3> for RpcInvokeTransactionV3 {
                     });
                 }
             },
-            signature: value.signature,
+            signature: TransactionDeprSignature(value.signature.0.as_ref().clone()),
             nonce: value.nonce,
             tip: value.tip,
             paymaster_data: value.paymaster_data,
