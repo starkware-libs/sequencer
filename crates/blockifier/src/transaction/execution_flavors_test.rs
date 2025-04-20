@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use blockifier_test_utils::calldata::{create_calldata, create_trivial_calldata};
@@ -500,10 +498,10 @@ fn execute_fail_validation(
     let tx = executable_invoke_tx(invoke_tx_args! {
         max_fee,
         resource_bounds: max_resource_bounds,
-        signature: TransactionSignature(Arc::new(vec![
+        signature: TransactionSignature(vec![
             Felt::from(INVALID),
             Felt::ZERO
-        ])),
+        ].into()),
         sender_address: faulty_account_address,
         calldata: create_calldata(faulty_account_address, "foo", &[]),
         version,

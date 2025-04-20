@@ -2,7 +2,6 @@
 #[path = "transaction_test.rs"]
 mod transaction_test;
 use std::convert::{TryFrom, TryInto};
-use std::sync::Arc;
 
 use prost::Message;
 use starknet_api::block::GasPrice;
@@ -266,15 +265,16 @@ impl TryFrom<protobuf::transaction_in_block::DeployAccountV1> for DeployAccountT
             }
         })?);
 
-        let signature = TransactionSignature(Arc::new(
+        let signature = TransactionSignature(
             value
                 .signature
                 .ok_or(missing("DeployAccountV1::signature"))?
                 .parts
                 .into_iter()
                 .map(Felt::try_from)
-                .collect::<Result<Vec<_>, _>>()?,
-        ));
+                .collect::<Result<Vec<_>, _>>()?
+                .into(),
+        );
 
         let nonce = Nonce(value.nonce.ok_or(missing("DeployAccountV1::nonce"))?.try_into()?);
 
@@ -330,15 +330,16 @@ impl TryFrom<protobuf::DeployAccountV3> for DeployAccountTransactionV3 {
 
         let tip = Tip(value.tip);
 
-        let signature = TransactionSignature(Arc::new(
+        let signature = TransactionSignature(
             value
                 .signature
                 .ok_or(missing("DeployAccountV3::signature"))?
                 .parts
                 .into_iter()
                 .map(Felt::try_from)
-                .collect::<Result<Vec<_>, _>>()?,
-        ));
+                .collect::<Result<Vec<_>, _>>()?
+                .into(),
+        );
 
         let nonce = Nonce(value.nonce.ok_or(missing("DeployAccountV3::nonce"))?.try_into()?);
 
@@ -498,15 +499,16 @@ impl TryFrom<protobuf::transaction_in_block::InvokeV0> for InvokeTransactionV0 {
             }
         })?);
 
-        let signature = TransactionSignature(Arc::new(
+        let signature = TransactionSignature(
             value
                 .signature
                 .ok_or(missing("InvokeV0::signature"))?
                 .parts
                 .into_iter()
                 .map(Felt::try_from)
-                .collect::<Result<Vec<_>, _>>()?,
-        ));
+                .collect::<Result<Vec<_>, _>>()?
+                .into(),
+        );
 
         let contract_address = value.address.ok_or(missing("InvokeV0::address"))?.try_into()?;
 
@@ -549,15 +551,16 @@ impl TryFrom<protobuf::transaction_in_block::InvokeV1> for InvokeTransactionV1 {
             }
         })?);
 
-        let signature = TransactionSignature(Arc::new(
+        let signature = TransactionSignature(
             value
                 .signature
                 .ok_or(missing("InvokeV1::signature"))?
                 .parts
                 .into_iter()
                 .map(Felt::try_from)
-                .collect::<Result<Vec<_>, _>>()?,
-        ));
+                .collect::<Result<Vec<_>, _>>()?
+                .into(),
+        );
 
         let sender_address = value.sender.ok_or(missing("InvokeV1::sender"))?.try_into()?;
 
@@ -595,15 +598,16 @@ impl TryFrom<protobuf::InvokeV3> for InvokeTransactionV3 {
 
         let tip = Tip(value.tip);
 
-        let signature = TransactionSignature(Arc::new(
+        let signature = TransactionSignature(
             value
                 .signature
                 .ok_or(missing("InvokeV3::signature"))?
                 .parts
                 .into_iter()
                 .map(Felt::try_from)
-                .collect::<Result<Vec<_>, _>>()?,
-        ));
+                .collect::<Result<Vec<_>, _>>()?
+                .into(),
+        );
 
         let nonce = Nonce(value.nonce.ok_or(missing("InvokeV3::nonce"))?.try_into()?);
 
@@ -693,15 +697,16 @@ impl TryFrom<protobuf::transaction_in_block::DeclareV0WithoutClass> for DeclareT
             }
         })?);
 
-        let signature = TransactionSignature(Arc::new(
+        let signature = TransactionSignature(
             value
                 .signature
                 .ok_or(missing("DeclareV0::signature"))?
                 .parts
                 .into_iter()
                 .map(Felt::try_from)
-                .collect::<Result<Vec<_>, _>>()?,
-        ));
+                .collect::<Result<Vec<_>, _>>()?
+                .into(),
+        );
 
         // V0 transactions don't have a nonce, but the StarkNet API adds one to them
         let nonce = Nonce::default();
@@ -741,15 +746,16 @@ impl TryFrom<protobuf::transaction_in_block::DeclareV1WithoutClass> for DeclareT
             }
         })?);
 
-        let signature = TransactionSignature(Arc::new(
+        let signature = TransactionSignature(
             value
                 .signature
                 .ok_or(missing("DeclareV1::signature"))?
                 .parts
                 .into_iter()
                 .map(Felt::try_from)
-                .collect::<Result<Vec<_>, _>>()?,
-        ));
+                .collect::<Result<Vec<_>, _>>()?
+                .into(),
+        );
 
         let nonce = Nonce(value.nonce.ok_or(missing("DeclareV1::nonce"))?.try_into()?);
 
@@ -789,15 +795,16 @@ impl TryFrom<protobuf::transaction_in_block::DeclareV2WithoutClass> for DeclareT
             }
         })?);
 
-        let signature = TransactionSignature(Arc::new(
+        let signature = TransactionSignature(
             value
                 .signature
                 .ok_or(missing("DeclareV2::signature"))?
                 .parts
                 .into_iter()
                 .map(Felt::try_from)
-                .collect::<Result<Vec<_>, _>>()?,
-        ));
+                .collect::<Result<Vec<_>, _>>()?
+                .into(),
+        );
 
         let nonce = Nonce(value.nonce.ok_or(missing("DeclareV2::nonce"))?.try_into()?);
 

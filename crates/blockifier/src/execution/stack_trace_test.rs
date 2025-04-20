@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
@@ -766,7 +764,7 @@ fn test_contract_ctor_frame_stack_trace(
     let salt = felt!(7_u8);
     // Constructor arg: set to true to fail deployment.
     let validate_constructor = felt!(FELT_TRUE);
-    let signature = TransactionSignature(Arc::new(vec![felt!(INVALID)]));
+    let signature = TransactionSignature(vec![felt!(INVALID)].into());
     let expected_deployed_address = calculate_contract_address(
         ContractAddressSalt(salt),
         faulty_class_hash,

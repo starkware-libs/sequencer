@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
@@ -256,7 +254,7 @@ pub fn create_account_tx_for_validate_test(
     if let Some(additional_data) = additional_data {
         signature_vector.extend(additional_data);
     }
-    let signature = TransactionSignature(Arc::new(signature_vector));
+    let signature = TransactionSignature(signature_vector.into());
     let execution_flags =
         ExecutionFlags { validate, charge_fee, only_query, strict_nonce_check: true };
     match tx_type {

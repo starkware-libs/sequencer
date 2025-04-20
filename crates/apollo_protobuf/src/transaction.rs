@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
@@ -43,15 +41,16 @@ impl TryFrom<protobuf::DeclareV3Common> for DeclareTransactionV3Common {
 
         let tip = Tip(value.tip);
 
-        let signature = TransactionSignature(Arc::new(
+        let signature = TransactionSignature(
             value
                 .signature
                 .ok_or(missing("DeclareV3Common::signature"))?
                 .parts
                 .into_iter()
                 .map(Felt::try_from)
-                .collect::<Result<Vec<_>, _>>()?,
-        ));
+                .collect::<Result<Vec<_>, _>>()?
+                .into(),
+        );
 
         let nonce = Nonce(value.nonce.ok_or(missing("DeclareV3Common::nonce"))?.try_into()?);
 

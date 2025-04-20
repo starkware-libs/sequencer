@@ -1,4 +1,4 @@
-use std::sync::{Arc, LazyLock};
+use std::sync::LazyLock;
 
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
@@ -163,7 +163,7 @@ pub fn calculate_block_commitments(
                 && tx_leaf.transaction_signature.0.is_empty()
             {
                 tx_leaf_element.transaction_signature =
-                    TransactionSignature(Arc::new(vec![Felt::ZERO]));
+                    TransactionSignature(vec![Felt::ZERO].into());
             }
             tx_leaf_element
         })

@@ -362,7 +362,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
             .map_err(|error| self.handle_error(remaining_gas, error.into()))?;
         let selector = EntryPointSelector(entry_point_selector);
         let wrapper_calldata = Calldata(Arc::new(calldata.to_vec()));
-        let signature = TransactionSignature(Arc::new(signature.to_vec()));
+        let signature = TransactionSignature(signature.to_vec().into());
 
         let raw_data_result = self.base.meta_tx_v0(
             contract_address,

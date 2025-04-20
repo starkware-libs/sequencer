@@ -23,7 +23,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::errors::{NativeBlockifierInputError, NativeBlockifierResult};
 use crate::py_transaction::{PyDataAvailabilityMode, PyResourceBoundsMapping};
-use crate::py_utils::{from_py_felts, from_py_felts_to_arc, py_attr, PyFelt};
+use crate::py_utils::{from_py_felts, py_attr, PyFelt};
 
 #[derive(FromPyObject)]
 struct PyInvokeTransactionV0 {
@@ -39,7 +39,7 @@ impl TryFrom<PyInvokeTransactionV0> for InvokeTransactionV0 {
     fn try_from(tx: PyInvokeTransactionV0) -> Result<Self, Self::Error> {
         Ok(Self {
             max_fee: Fee(tx.max_fee),
-            signature: TransactionSignature(from_py_felts_to_arc(tx.signature)),
+            signature: TransactionSignature(from_py_felts(tx.signature).into()),
             contract_address: ContractAddress::try_from(tx.sender_address.0)?,
             entry_point_selector: EntryPointSelector(tx.entry_point_selector.0),
             calldata: Calldata(Arc::from(from_py_felts(tx.calldata))),
@@ -61,7 +61,7 @@ impl TryFrom<PyInvokeTransactionV1> for InvokeTransactionV1 {
     fn try_from(tx: PyInvokeTransactionV1) -> Result<Self, Self::Error> {
         Ok(Self {
             max_fee: Fee(tx.max_fee),
-            signature: TransactionSignature(from_py_felts_to_arc(tx.signature)),
+            signature: TransactionSignature(from_py_felts(tx.signature).into()),
             nonce: Nonce(tx.nonce.0),
             sender_address: ContractAddress::try_from(tx.sender_address.0)?,
             calldata: Calldata(Arc::from(from_py_felts(tx.calldata))),
@@ -89,7 +89,7 @@ impl TryFrom<PyInvokeTransactionV3> for InvokeTransactionV3 {
         Ok(Self {
             resource_bounds: tx.resource_bounds.try_into()?,
             tip: Tip(tx.tip),
-            signature: TransactionSignature(from_py_felts_to_arc(tx.signature)),
+            signature: TransactionSignature(from_py_felts(tx.signature).into()),
             nonce: Nonce(tx.nonce.0),
             sender_address: ContractAddress::try_from(tx.sender_address.0)?,
             calldata: Calldata(Arc::from(from_py_felts(tx.calldata))),

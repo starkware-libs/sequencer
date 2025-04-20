@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
@@ -506,11 +505,8 @@ fn test_write_at_validate_and_execute(
         state.set_storage_at(contract_address, 15_u8.into(), felt!("0x1")).unwrap();
     }
 
-    let signature = TransactionSignature(Arc::new(vec![
-        Felt::from(STORAGE_WRITE),
-        validate_value,
-        execute_value,
-    ]));
+    let signature =
+        TransactionSignature(vec![Felt::from(STORAGE_WRITE), validate_value, execute_value].into());
     let tx_execution_info = run_invoke_tx(
         &mut state,
         &block_context,
