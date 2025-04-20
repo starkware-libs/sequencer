@@ -22,7 +22,7 @@ use blockifier::blockifier::transaction_executor::{
     TransactionExecutorResult,
 };
 use blockifier::blockifier_versioned_constants::{VersionedConstants, VersionedConstantsOverrides};
-use blockifier::bouncer::{BouncerConfig, BouncerWeights};
+use blockifier::bouncer::{BouncerConfig, BouncerWeights, CasmHashComputationData};
 use blockifier::context::{BlockContext, ChainInfo};
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::state::contract_class_manager::ContractClassManager;
@@ -93,6 +93,7 @@ pub struct BlockExecutionArtifacts {
     pub compressed_state_diff: Option<CommitmentStateDiff>,
     pub bouncer_weights: BouncerWeights,
     pub l2_gas_used: GasAmount,
+    pub casm_hash_computation_data: CasmHashComputationData,
 }
 
 impl BlockExecutionArtifacts {
@@ -258,15 +259,19 @@ impl BlockBuilderTrait for BlockBuilder {
             )
             .await?;
         }
-        // TODO(Aviv): Extract `casm_hash_computation_data`.
-        let BlockExecutionSummary { state_diff, compressed_state_diff, bouncer_weights, .. } =
-            self.executor.lock().await.close_block()?;
+        let BlockExecutionSummary {
+            state_diff,
+            compressed_state_diff,
+            bouncer_weights,
+            casm_hash_computation_data,
+        } = self.executor.lock().await.close_block()?;
         Ok(BlockExecutionArtifacts {
             execution_data,
             commitment_state_diff: state_diff,
             compressed_state_diff,
             bouncer_weights,
             l2_gas_used,
+            casm_hash_computation_data,
         })
     }
 }
