@@ -193,7 +193,7 @@ fn test_latest_no_panic() {
 
 #[test]
 fn test_syscall_gas_cost_calculation() {
-    const EXPECTED_CALL_CONTRACT_GAS_COST: u64 = 91420;
+    const EXPECTED_CALL_CONTRACT_GAS_COST: u64 = 91560;
     const EXPECTED_SECP256K1MUL_GAS_COST: u64 = 8143850;
     const EXPECTED_SHA256PROCESSBLOCK_GAS_COST: u64 = 841295;
 

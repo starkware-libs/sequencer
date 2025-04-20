@@ -42,7 +42,7 @@ fn no_constructor(runnable_version: RunnableCairo1) {
     let deploy_call = &entry_point_call.execute_directly(&mut state).unwrap();
     assert_eq!(
         deploy_call.execution,
-        CallExecution { retdata: retdata![], gas_consumed: 158600, ..CallExecution::default() }
+        CallExecution { retdata: retdata![], gas_consumed: 158740, ..CallExecution::default() }
     );
 
     let deployed_contract_address = calculate_contract_address(
@@ -114,7 +114,7 @@ fn with_constructor(runnable_version: RunnableCairo1) {
 
     assert_eq!(
         deploy_call.execution,
-        CallExecution { retdata: retdata![], gas_consumed: 188780, ..CallExecution::default() }
+        CallExecution { retdata: retdata![], gas_consumed: 188920, ..CallExecution::default() }
     );
 
     let constructor_call = &deploy_call.inner_calls[0];
