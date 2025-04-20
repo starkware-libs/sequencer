@@ -204,7 +204,7 @@ def GetChecksForMode(args: argparse.Namespace) -> list[Check]:
     match mode:
         case RunModes.LOCAL_PRESUBMIT | RunModes.CI_PRESUBMIT:
             return [
-                # CommitLintCheck.from_args(args),
+                CommitLintCheck.from_args(args),
                 GitSubmodulesCheck.from_args(args),
                 TodosCheck.from_args(args),
                 CargoLockCheck.from_args(args),
