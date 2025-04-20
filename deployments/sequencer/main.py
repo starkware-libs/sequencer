@@ -81,11 +81,10 @@ def main():
         )
 
     if args.create_monitoring:
+        dashboard_hash = helpers.generate_random_hash(from_string=f"{args.cluster}-{args.namespace}")
         SequencerMonitoring(
             scope=app,
-            name=helpers.sanitize_name(
-                f"sequencer-monitoring-{helpers.generate_random_hash(from_string=f"{args.cluster}-{args.namespace}")}"
-            ),
+            name=helpers.sanitize_name(f"sequencer-monitoring-{dashboard_hash}"),
             cluster=args.cluster,
             namespace=helpers.sanitize_name(args.namespace),
             grafana_dashboard=monitoring.GrafanaDashboard("sequencer_node_dashboard.json"),
