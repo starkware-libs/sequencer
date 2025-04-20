@@ -615,7 +615,7 @@ impl TryFrom<starknet_api::transaction::Transaction> for Transaction {
                         nonce: tx.nonce,
                         max_fee: tx.max_fee,
                         version: TransactionVersion0::Version0,
-                        signature: tx.signature,
+                        signature: TransactionDeprSignature(tx.signature.0.as_ref().clone()),
                     })))
                 }
                 starknet_api::transaction::DeclareTransaction::V1(tx) => {
@@ -625,7 +625,7 @@ impl TryFrom<starknet_api::transaction::Transaction> for Transaction {
                         nonce: tx.nonce,
                         max_fee: tx.max_fee,
                         version: TransactionVersion1::Version1,
-                        signature: tx.signature,
+                        signature: TransactionDeprSignature(tx.signature.0.as_ref().clone()),
                     })))
                 }
                 starknet_api::transaction::DeclareTransaction::V2(tx) => {

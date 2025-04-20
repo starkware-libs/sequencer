@@ -694,7 +694,7 @@ impl TryFrom<protobuf::transaction_in_block::DeclareV0WithoutClass> for DeclareT
             }
         })?);
 
-        let signature = TransactionDeprSignature(
+        let signature = TransactionSignature(Arc::new(
             value
                 .signature
                 .ok_or(missing("DeclareV0::signature"))?
@@ -702,7 +702,7 @@ impl TryFrom<protobuf::transaction_in_block::DeclareV0WithoutClass> for DeclareT
                 .into_iter()
                 .map(Felt::try_from)
                 .collect::<Result<Vec<_>, _>>()?,
-        );
+        ));
 
         // V0 transactions don't have a nonce, but the StarkNet API adds one to them
         let nonce = Nonce::default();
@@ -721,7 +721,7 @@ impl From<DeclareTransactionV0V1> for protobuf::transaction_in_block::DeclareV0W
         Self {
             max_fee: Some(Felt::from(value.max_fee.0).into()),
             signature: Some(protobuf::AccountSignature {
-                parts: value.signature.0.into_iter().map(|stark_felt| stark_felt.into()).collect(),
+                parts: value.signature.0.iter().map(|stark_felt| (*stark_felt).into()).collect(),
             }),
             sender: Some(value.sender_address.into()),
             class_hash: Some(value.class_hash.0.into()),
@@ -742,7 +742,7 @@ impl TryFrom<protobuf::transaction_in_block::DeclareV1WithoutClass> for DeclareT
             }
         })?);
 
-        let signature = TransactionDeprSignature(
+        let signature = TransactionSignature(Arc::new(
             value
                 .signature
                 .ok_or(missing("DeclareV1::signature"))?
@@ -750,7 +750,7 @@ impl TryFrom<protobuf::transaction_in_block::DeclareV1WithoutClass> for DeclareT
                 .into_iter()
                 .map(Felt::try_from)
                 .collect::<Result<Vec<_>, _>>()?,
-        );
+        ));
 
         let nonce = Nonce(value.nonce.ok_or(missing("DeclareV1::nonce"))?.try_into()?);
 
@@ -768,7 +768,7 @@ impl From<DeclareTransactionV0V1> for protobuf::transaction_in_block::DeclareV1W
         Self {
             max_fee: Some(Felt::from(value.max_fee.0).into()),
             signature: Some(protobuf::AccountSignature {
-                parts: value.signature.0.into_iter().map(|stark_felt| stark_felt.into()).collect(),
+                parts: value.signature.0.iter().map(|stark_felt| (*stark_felt).into()).collect(),
             }),
             nonce: Some(value.nonce.0.into()),
             class_hash: Some(value.class_hash.0.into()),

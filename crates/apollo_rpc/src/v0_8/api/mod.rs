@@ -496,7 +496,7 @@ impl TryFrom<BroadcastedDeclareTransaction> for ExecutableTransactionInput {
                 Ok(Self::DeclareV1(
                     starknet_api::transaction::DeclareTransactionV0V1 {
                         max_fee,
-                        signature,
+                        signature: TransactionSignature(Arc::new(signature.0)),
                         nonce,
                         // The blockifier doesn't need the class hash, but it uses the SN_API
                         // DeclareTransactionV0V1 which requires it.
