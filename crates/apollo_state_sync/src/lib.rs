@@ -19,9 +19,11 @@ use apollo_storage::{StorageReader, StorageTxn};
 use async_trait::async_trait;
 use futures::channel::mpsc::{channel, Sender};
 use futures::SinkExt;
+use indexmap::IndexSet;
 use starknet_api::block::BlockNumber;
-use starknet_api::core::{ClassHash, ContractAddress, Nonce, BLOCK_HASH_TABLE_ADDRESS};
+use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce, BLOCK_HASH_TABLE_ADDRESS};
 use starknet_api::state::{StateNumber, StorageKey};
+use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_types_core::felt::Felt;
 
 use crate::config::StateSyncConfig;
@@ -34,12 +36,14 @@ pub fn create_state_sync_and_runner(
     class_manager_client: SharedClassManagerClient,
 ) -> (StateSync, StateSyncRunner) {
     let (new_block_sender, new_block_receiver) = channel(BUFFER_SIZE);
+    let chain_id = config.rpc_config.chain_id.clone();
     let (state_sync_runner, storage_reader) =
         StateSyncRunner::new(config, new_block_receiver, class_manager_client);
-    (StateSync { storage_reader, new_block_sender }, state_sync_runner)
+    (StateSync { chain_id, storage_reader, new_block_sender }, state_sync_runner)
 }
 
 pub struct StateSync {
+    chain_id: ChainId,
     storage_reader: StorageReader,
     new_block_sender: Sender<SyncBlock>,
 }
@@ -97,10 +101,32 @@ impl StateSync {
         let Some(block_header) = block_header else {
             return Ok(None);
         };
+        let Some(block_transactions) = txn.get_block_transactions(block_number)? else {
+            return Ok(None);
+        };
+        let l1_transaction_hashes = block_transactions
+            .iter()
+            .filter_map(|tx| {
+                if let Transaction::L1Handler(_) = tx {
+                    Some(
+                        tx.calculate_transaction_hash(&self.chain_id)
+                            .unwrap_or_else(|_| panic!("Failed to calculate transaction hash")),
+                    )
+                } else {
+                    None
+                }
+            })
+            .collect::<IndexSet<TransactionHash>>();
+        let account_transaction_hashes = block_transaction_hashes
+            .into_iter()
+            .filter(|tx_hash| !l1_transaction_hashes.contains(tx_hash))
+            .collect::<Vec<TransactionHash>>();
+
         Ok(Some(SyncBlock {
             state_diff: thin_state_diff,
             block_header_without_hash: block_header.block_header_without_hash,
-            transaction_hashes: block_transaction_hashes,
+            account_transaction_hashes,
+            l1_transaction_hashes: l1_transaction_hashes.into_iter().collect(),
         }))
     }
 
