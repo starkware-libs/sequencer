@@ -275,7 +275,7 @@ pub struct DeployAccountTransactionV1 {
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct DeployAccountTransactionV3 {
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
     pub nonce: Nonce,
     pub class_hash: ClassHash,
     pub contract_address_salt: ContractAddressSalt,
@@ -334,7 +334,7 @@ impl TryFrom<starknet_api::transaction::DeployAccountTransaction> for DeployAcco
                     paymaster_data,
                 },
             ) => Ok(Self::Version3(DeployAccountTransactionV3 {
-                signature: signature.into(),
+                signature,
                 nonce,
                 class_hash,
                 contract_address_salt,

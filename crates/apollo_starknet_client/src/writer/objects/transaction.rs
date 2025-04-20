@@ -111,7 +111,7 @@ pub struct DeployAccountV3Transaction {
     pub class_hash: ClassHash,
     pub constructor_calldata: Calldata,
     pub nonce: Nonce,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
     pub nonce_data_availability_mode: ReservedDataAvailabilityMode,
     pub fee_data_availability_mode: ReservedDataAvailabilityMode,
     pub paymaster_data: PaymasterData,
