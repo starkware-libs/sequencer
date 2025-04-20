@@ -22,7 +22,6 @@ use starknet_api::transaction::fields::{
     Fee,
     PaymasterData,
     Tip,
-    TransactionDeprSignature,
     TransactionSignature,
 };
 use starknet_api::transaction::TransactionVersion;
@@ -104,7 +103,7 @@ pub struct BroadcastedDeclareV3Transaction {
     pub r#type: DeclareType,
     pub sender_address: ContractAddress,
     pub compiled_class_hash: CompiledClassHash,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
     pub nonce: Nonce,
     pub contract_class: ContractClass,
     pub resource_bounds: ResourceBoundsMapping,
