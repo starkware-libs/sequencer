@@ -1,7 +1,7 @@
 use std::ops::Range;
 
 use async_trait::async_trait;
-use blockifier::bouncer::BouncerWeights;
+use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
 use blockifier::fee::receipt::TransactionReceipt;
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::transaction::objects::TransactionExecutionInfo;
@@ -142,6 +142,7 @@ impl BlockExecutionArtifacts {
             compressed_state_diff: Default::default(),
             bouncer_weights: BouncerWeights::empty(),
             l2_gas_used: GasAmount::default(),
+            casm_hash_computation_data: CasmHashComputationData::empty(),
         }
     }
 }

@@ -205,8 +205,7 @@ impl std::fmt::Display for BouncerWeights {
     }
 }
 
-#[derive(Debug, PartialEq, Default)]
-#[cfg_attr(test, derive(Clone))]
+#[derive(Debug, PartialEq, Default, Clone)]
 pub struct CasmHashComputationData {
     pub class_hash_to_casm_hash_computation_gas: HashMap<ClassHash, GasAmount>,
     pub sierra_gas_without_casm_hash_computation: GasAmount,
