@@ -13,7 +13,16 @@ use starknet_api::core::{
     Nonce,
 };
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, Fee, TransactionSignature};
+use starknet_api::transaction::fields::{
+    Calldata,
+    Calldata,
+    ContractAddressSalt,
+    ContractAddressSalt,
+    Fee,
+    Fee,
+    TransactionSignature,
+    TransactionSignature,
+};
 use starknet_api::transaction::{
     signed_tx_version,
     EventContent,
@@ -275,7 +284,7 @@ impl<'state> SyscallHandlerBase<'state> {
         // Compute meta-transaction hash.
         let transaction_hash = InvokeTransactionV0 {
             max_fee: Fee(0),
-            signature: signature.clone().into(),
+            signature: signature.clone(),
             contract_address,
             entry_point_selector,
             calldata,
