@@ -193,7 +193,7 @@ impl From<(RpcInvokeTransaction, TransactionHash)> for CentralInvokeTransactionV
         CentralInvokeTransactionV3 {
             sender_address: tx.sender_address,
             calldata: tx.calldata,
-            signature: tx.signature.into(),
+            signature: tx.signature,
             nonce: tx.nonce,
             resource_bounds: tx.resource_bounds.into(),
             tip: tx.tip,
@@ -241,7 +241,7 @@ impl From<(InternalRpcDeployAccountTransaction, TransactionHash)>
         CentralDeployAccountTransactionV3 {
             resource_bounds: tx.resource_bounds.into(),
             tip: tx.tip,
-            signature: tx.signature.into(),
+            signature: tx.signature,
             nonce: tx.nonce,
             class_hash: tx.class_hash,
             contract_address_salt: tx.contract_address_salt,
@@ -300,7 +300,7 @@ impl TryFrom<(InternalRpcDeclareTransactionV3, &SierraContractClass, Transaction
         Ok(CentralDeclareTransactionV3 {
             resource_bounds: tx.resource_bounds.into(),
             tip: tx.tip,
-            signature: tx.signature.into(),
+            signature: tx.signature,
             nonce: tx.nonce,
             class_hash: tx.class_hash,
             compiled_class_hash: tx.compiled_class_hash,

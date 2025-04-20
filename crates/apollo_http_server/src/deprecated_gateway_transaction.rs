@@ -116,7 +116,7 @@ impl From<DeprecatedGatewayInvokeTransactionV3> for RpcInvokeTransactionV3 {
         RpcInvokeTransactionV3 {
             sender_address: deprecated_invoke_tx.sender_address,
             calldata: deprecated_invoke_tx.calldata,
-            signature: deprecated_invoke_tx.signature.into(),
+            signature: deprecated_invoke_tx.signature,
             nonce: deprecated_invoke_tx.nonce,
             resource_bounds: deprecated_invoke_tx.resource_bounds.into(),
             tip: deprecated_invoke_tx.tip,
@@ -137,7 +137,7 @@ impl From<RpcInvokeTransactionV3> for DeprecatedGatewayInvokeTransactionV3 {
             resource_bounds: value.resource_bounds.into(),
             paymaster_data: value.paymaster_data,
             sender_address: value.sender_address,
-            signature: value.signature.into(),
+            signature: value.signature,
             nonce: value.nonce,
             account_deployment_data: value.account_deployment_data,
             nonce_data_availability_mode: value.nonce_data_availability_mode,
@@ -170,7 +170,7 @@ pub struct DeprecatedGatewayDeployAccountTransactionV3 {
 impl From<DeprecatedGatewayDeployAccountTransactionV3> for RpcDeployAccountTransactionV3 {
     fn from(deprecated_deploy_account_tx: DeprecatedGatewayDeployAccountTransactionV3) -> Self {
         RpcDeployAccountTransactionV3 {
-            signature: deprecated_deploy_account_tx.signature.into(),
+            signature: deprecated_deploy_account_tx.signature,
             nonce: deprecated_deploy_account_tx.nonce,
             class_hash: deprecated_deploy_account_tx.class_hash,
             contract_address_salt: deprecated_deploy_account_tx.contract_address_salt,
@@ -188,7 +188,7 @@ impl From<DeprecatedGatewayDeployAccountTransactionV3> for RpcDeployAccountTrans
 impl From<RpcDeployAccountTransactionV3> for DeprecatedGatewayDeployAccountTransactionV3 {
     fn from(value: RpcDeployAccountTransactionV3) -> Self {
         Self {
-            signature: value.signature.into(),
+            signature: value.signature,
             nonce: value.nonce,
             class_hash: value.class_hash,
             contract_address_salt: value.contract_address_salt,
@@ -233,7 +233,7 @@ impl TryFrom<DeprecatedGatewayDeclareTransactionV3> for RpcDeclareTransactionV3 
         Ok(RpcDeclareTransactionV3 {
             sender_address: deprecated_declare_tx.sender_address,
             compiled_class_hash: deprecated_declare_tx.compiled_class_hash,
-            signature: deprecated_declare_tx.signature.into(),
+            signature: deprecated_declare_tx.signature,
             nonce: deprecated_declare_tx.nonce,
             contract_class: deprecated_declare_tx.contract_class.try_into()?,
             resource_bounds: deprecated_declare_tx.resource_bounds.into(),
@@ -252,7 +252,7 @@ impl From<RpcDeclareTransactionV3> for DeprecatedGatewayDeclareTransactionV3 {
         Self {
             sender_address: value.sender_address,
             compiled_class_hash: value.compiled_class_hash,
-            signature: value.signature.into(),
+            signature: value.signature,
             nonce: value.nonce,
             contract_class: value.contract_class.try_into().expect(
                 "Failed to convert SierraContractClass to DeprecatedGatewaySierraContractClass",
