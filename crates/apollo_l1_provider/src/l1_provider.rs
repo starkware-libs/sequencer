@@ -220,8 +220,14 @@ impl L1Provider {
         for event in events {
             match event {
                 Event::L1HandlerTransaction(l1_handler_tx) => {
-                    // TODO(Gilad): can we ignore this silently?
-                    let _is_known_or_committed = self.tx_manager.add_tx(l1_handler_tx);
+                    let tx_hash = l1_handler_tx.tx_hash;
+                    let is_known_or_committed = self.tx_manager.add_tx(l1_handler_tx);
+                    if is_known_or_committed {
+                        debug!(
+                            "Unexpected L1 Handler transaction with hash: {tx_hash}, already \
+                             known or committed."
+                        );
+                    }
                 }
                 _ => return Err(L1ProviderError::unsupported_l1_event(event)),
             }
