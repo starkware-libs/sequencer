@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 use std::io::Read;
-use std::sync::Arc;
 
 use apollo_proc_macros::versioned_rpc;
 use apollo_rpc_execution::objects::FeeEstimation;
@@ -26,7 +25,7 @@ use starknet_api::deprecated_contract_class::{
     Program,
 };
 use starknet_api::state::{StateNumber, StorageKey};
-use starknet_api::transaction::fields::{Fee, TransactionSignature};
+use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{EventKey, TransactionHash, TransactionOffsetInBlock};
 use starknet_types_core::felt::Felt;
 use tracing::debug;
@@ -496,7 +495,7 @@ impl TryFrom<BroadcastedDeclareTransaction> for ExecutableTransactionInput {
                 Ok(Self::DeclareV1(
                     starknet_api::transaction::DeclareTransactionV0V1 {
                         max_fee,
-                        signature: TransactionSignature(Arc::new(signature.0)),
+                        signature,
                         nonce,
                         // The blockifier doesn't need the class hash, but it uses the SN_API
                         // DeclareTransactionV0V1 which requires it.
