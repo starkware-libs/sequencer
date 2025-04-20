@@ -119,35 +119,6 @@ pub struct NetworkDependencies {
     pub outbound_proposal_receiver: mpsc::Receiver<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
 }
 
-pub fn default_context_dependencies() -> (SequencerConsensusContextDeps, NetworkDependencies) {
-    let (outbound_proposal_sender, outbound_proposal_receiver) =
-        mpsc::channel::<(HeightAndRound, mpsc::Receiver<ProposalPart>)>(CHANNEL_SIZE);
-
-    let TestSubscriberChannels { mock_network: mock_vote_network, subscriber_channels } =
-        mock_register_broadcast_topic().expect("Failed to create mock network");
-    let BroadcastTopicChannels { broadcast_topic_client: votes_topic_client, .. } =
-        subscriber_channels;
-
-    let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
-    eth_to_strk_oracle_client.expect_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
-    let sequencer_deps = SequencerConsensusContextDeps {
-        class_manager_client: Arc::new(EmptyClassManagerClient),
-        state_sync_client: Arc::new(MockStateSyncClient::new()),
-        batcher: Arc::new(MockBatcherClient::new()),
-        outbound_proposal_sender,
-        vote_broadcast_client: votes_topic_client,
-        cende_ambassador: Arc::new(success_cende_ammbassador()),
-        eth_to_strk_oracle_client: Arc::new(eth_to_strk_oracle_client),
-        l1_gas_price_provider: Arc::new(dummy_gas_price_provider()),
-        clock: Arc::new(DefaultClock::default()),
-    };
-
-    let network_dependencies =
-        NetworkDependencies { _vote_network: mock_vote_network, outbound_proposal_receiver };
-
-    (sequencer_deps, network_dependencies)
-}
-
 pub fn setup_with_custom_mocks(
     context_deps: SequencerConsensusContextDeps,
 ) -> SequencerConsensusContext {
@@ -194,19 +165,19 @@ pub async fn build_proposal_setup(
             }),
         })
     });
-    let (default_deps, _network) = default_context_dependencies();
-    let context_deps = SequencerConsensusContextDeps {
-        batcher: Arc::new(batcher),
-        cende_ambassador: Arc::new(mock_cende_context),
-        ..default_deps
-    };
+    let mut context_recipe = ContextRecipe::with_batcher(batcher);
+    context_recipe.context_deps.cende_ambassador = Arc::new(mock_cende_context);
+
+    let ContextRecipe { context_deps, network_deps } = context_recipe;
+
     let mut context = setup_with_custom_mocks(context_deps);
     let init = ProposalInit::default();
 
-    (context.build_proposal(init, TIMEOUT).await, context, _network)
+    (context.build_proposal(init, TIMEOUT).await, context, network_deps)
 }
 
 // Returns a mock CendeContext that will return a successful write_prev_height_blob.
+// TODO(alonl): fix typo ammbassador -> ambassador
 pub fn success_cende_ammbassador() -> MockCendeContext {
     let mut mock_cende = MockCendeContext::new();
     mock_cende.expect_write_prev_height_blob().return_once(|_height| tokio::spawn(ready(true)));
@@ -232,7 +203,31 @@ pub struct ContextRecipe {
 
 impl Default for ContextRecipe {
     fn default() -> Self {
-        let (context_deps, network_deps) = default_context_dependencies();
+        let (outbound_proposal_sender, outbound_proposal_receiver) =
+            mpsc::channel::<(HeightAndRound, mpsc::Receiver<ProposalPart>)>(CHANNEL_SIZE);
+
+        let TestSubscriberChannels { mock_network: mock_vote_network, subscriber_channels } =
+            mock_register_broadcast_topic().expect("Failed to create mock network");
+        let BroadcastTopicChannels { broadcast_topic_client: votes_topic_client, .. } =
+            subscriber_channels;
+
+        let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
+        eth_to_strk_oracle_client.expect_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
+        let context_deps = SequencerConsensusContextDeps {
+            class_manager_client: Arc::new(EmptyClassManagerClient),
+            state_sync_client: Arc::new(MockStateSyncClient::new()),
+            batcher: Arc::new(MockBatcherClient::new()),
+            outbound_proposal_sender,
+            vote_broadcast_client: votes_topic_client,
+            cende_ambassador: Arc::new(success_cende_ammbassador()),
+            eth_to_strk_oracle_client: Arc::new(eth_to_strk_oracle_client),
+            l1_gas_price_provider: Arc::new(dummy_gas_price_provider()),
+            clock: Arc::new(DefaultClock::default()),
+        };
+
+        let network_deps =
+            NetworkDependencies { _vote_network: mock_vote_network, outbound_proposal_receiver };
+
         Self { context_deps, network_deps }
     }
 }
@@ -244,7 +239,7 @@ impl ContextRecipe {
     }
 
     pub fn with_batcher(batcher: MockBatcherClient) -> Self {
-        let (mut context_deps, network_deps) = default_context_dependencies();
+        let ContextRecipe { mut context_deps, network_deps } = Self::default();
         context_deps.batcher = Arc::new(batcher);
         Self { context_deps, network_deps }
     }
