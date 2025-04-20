@@ -265,7 +265,7 @@ pub enum DeclareTransaction {
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct DeployAccountTransactionV1 {
     pub max_fee: Fee,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
     pub nonce: Nonce,
     pub class_hash: ClassHash,
     pub contract_address_salt: ContractAddressSalt,
@@ -313,7 +313,7 @@ impl TryFrom<starknet_api::transaction::DeployAccountTransaction> for DeployAcco
                 },
             ) => Ok(Self::Version1(DeployAccountTransactionV1 {
                 max_fee,
-                signature: TransactionDeprSignature(signature.0.as_ref().clone()),
+                signature,
                 nonce,
                 class_hash,
                 contract_address_salt,

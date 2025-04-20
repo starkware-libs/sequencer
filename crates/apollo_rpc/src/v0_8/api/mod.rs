@@ -544,7 +544,7 @@ impl From<DeployAccountTransaction> for starknet_api::transaction::DeployAccount
                 version: _,
             }) => Self::V1(starknet_api::transaction::DeployAccountTransactionV1 {
                 max_fee,
-                signature: TransactionSignature(Arc::new(signature.0)),
+                signature,
                 nonce,
                 class_hash,
                 contract_address_salt,
