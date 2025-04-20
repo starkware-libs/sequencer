@@ -1,4 +1,4 @@
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 use std::vec;
 
 use assert_matches::assert_matches;
@@ -12,7 +12,7 @@ use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
     PaymasterData,
-    TransactionDeprSignature,
+    TransactionSignature,
 };
 use starknet_api::{calldata, contract_address, declare_tx_args, felt, StarknetApiError};
 use starknet_types_core::felt::Felt;
@@ -106,7 +106,7 @@ static DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: LazyLock<StatelessTransactionValida
 )]
 #[case::non_empty_valid_signature(
     DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(),
-    RpcTransactionArgs { signature: TransactionDeprSignature(vec![Felt::ONE]), ..Default::default()}
+    RpcTransactionArgs { signature: TransactionSignature(Arc::new(vec![Felt::ONE])), ..Default::default()}
 )]
 #[case::valid_tx(DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(), RpcTransactionArgs::default())]
 fn test_positive_flow(
@@ -154,7 +154,7 @@ fn test_invalid_resource_bounds(
 )]
 #[case::signature_too_long(
     RpcTransactionArgs {
-        signature: TransactionDeprSignature(vec![Felt::ONE, Felt::TWO]),
+        signature: TransactionSignature(Arc::new(vec![Felt::ONE, Felt::TWO])),
         ..Default::default()
     },
     StatelessTransactionValidatorError::SignatureTooLong {
