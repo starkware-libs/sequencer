@@ -223,10 +223,7 @@ impl L1Provider {
                     // TODO(Gilad): can we ignore this silently?
                     let _is_known_or_committed = self.tx_manager.add_tx(l1_handler_tx);
                 }
-                _ => {
-                    // TODO(Gilad): Properly handle all events.
-                    error!("Unsupported event type {:?}", event)
-                }
+                _ => return Err(L1ProviderError::unsupported_l1_event(event)),
             }
         }
         Ok(())
