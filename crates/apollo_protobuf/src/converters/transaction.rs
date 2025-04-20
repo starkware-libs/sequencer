@@ -596,7 +596,7 @@ impl TryFrom<protobuf::InvokeV3> for InvokeTransactionV3 {
 
         let tip = Tip(value.tip);
 
-        let signature = TransactionDeprSignature(
+        let signature = TransactionSignature(Arc::new(
             value
                 .signature
                 .ok_or(missing("InvokeV3::signature"))?
@@ -604,7 +604,7 @@ impl TryFrom<protobuf::InvokeV3> for InvokeTransactionV3 {
                 .into_iter()
                 .map(Felt::try_from)
                 .collect::<Result<Vec<_>, _>>()?,
-        );
+        ));
 
         let nonce = Nonce(value.nonce.ok_or(missing("InvokeV3::nonce"))?.try_into()?);
 
@@ -654,7 +654,7 @@ impl From<InvokeTransactionV3> for protobuf::InvokeV3 {
             resource_bounds: Some(protobuf::ResourceBounds::from(value.resource_bounds)),
             tip: value.tip.0,
             signature: Some(protobuf::AccountSignature {
-                parts: value.signature.0.into_iter().map(|signature| signature.into()).collect(),
+                parts: value.signature.0.iter().map(|signature| (*signature).into()).collect(),
             }),
             nonce: Some(value.nonce.0.into()),
             sender: Some(value.sender_address.into()),
