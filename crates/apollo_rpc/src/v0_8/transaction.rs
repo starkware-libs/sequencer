@@ -312,7 +312,7 @@ impl TryFrom<starknet_api::transaction::DeployAccountTransaction> for DeployAcco
                 },
             ) => Ok(Self::Version1(DeployAccountTransactionV1 {
                 max_fee,
-                signature,
+                signature: signature.into(),
                 nonce,
                 class_hash,
                 contract_address_salt,

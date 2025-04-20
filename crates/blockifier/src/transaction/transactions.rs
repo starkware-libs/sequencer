@@ -291,7 +291,7 @@ impl TransactionInfoCreatorInner for DeployAccountTransaction {
         let common_fields = CommonAccountFields {
             transaction_hash: self.tx_hash(),
             version: self.version(),
-            signature: self.signature().into(),
+            signature: self.signature(),
             nonce: self.nonce(),
             sender_address: self.contract_address(),
             only_query,
