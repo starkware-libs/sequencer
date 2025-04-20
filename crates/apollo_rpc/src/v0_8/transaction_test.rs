@@ -76,7 +76,7 @@ auto_impl_get_test_instance! {
         pub version: TransactionVersion1,
     }
     pub struct DeployAccountTransactionV3 {
-        pub signature: TransactionDeprSignature,
+        pub signature: TransactionSignature,
         pub nonce: Nonce,
         pub class_hash: ClassHash,
         pub contract_address_salt: ContractAddressSalt,
