@@ -3,7 +3,6 @@
 mod rpc_transaction_test;
 
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use cairo_lang_starknet_classes::contract_class::ContractEntryPoints as CairoLangContractEntryPoints;
 use serde::{Deserialize, Serialize};
@@ -22,7 +21,6 @@ use crate::transaction::fields::{
     ContractAddressSalt,
     PaymasterData,
     Tip,
-    TransactionDeprSignature,
     TransactionSignature,
     ValidResourceBounds,
 };
@@ -168,7 +166,7 @@ impl RpcTransaction {
     implement_ref_getters!(
         (nonce, Nonce),
         (resource_bounds, AllResourceBounds),
-        (signature, TransactionDeprSignature),
+        (signature, TransactionSignature),
         (tip, Tip),
         (nonce_data_availability_mode, DataAvailabilityMode),
         (fee_data_availability_mode, DataAvailabilityMode)
@@ -306,7 +304,7 @@ impl TryFrom<DeployAccountTransactionV3> for RpcDeployAccountTransactionV3 {
                     });
                 }
             },
-            signature: TransactionDeprSignature(value.signature.0.as_ref().clone()),
+            signature: value.signature,
             nonce: value.nonce,
             class_hash: value.class_hash,
             contract_address_salt: value.contract_address_salt,
@@ -370,7 +368,7 @@ pub struct RpcDeclareTransactionV3 {
     // pub r#type: DeclareType,
     pub sender_address: ContractAddress,
     pub compiled_class_hash: CompiledClassHash,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
     pub nonce: Nonce,
     pub contract_class: SierraContractClass,
     pub resource_bounds: AllResourceBounds,
@@ -387,7 +385,7 @@ impl From<RpcDeclareTransactionV3> for DeclareTransactionV3 {
             class_hash: tx.contract_class.calculate_class_hash(),
             resource_bounds: ValidResourceBounds::AllResources(tx.resource_bounds),
             tip: tx.tip,
-            signature: TransactionSignature(Arc::new(tx.signature.0)),
+            signature: tx.signature,
             nonce: tx.nonce,
             compiled_class_hash: tx.compiled_class_hash,
             sender_address: tx.sender_address,
@@ -404,7 +402,7 @@ impl From<RpcDeclareTransactionV3> for DeclareTransactionV3 {
 pub struct InternalRpcDeclareTransactionV3 {
     pub sender_address: ContractAddress,
     pub compiled_class_hash: CompiledClassHash,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
     pub nonce: Nonce,
     pub class_hash: ClassHash,
     pub resource_bounds: AllResourceBounds,
@@ -470,7 +468,7 @@ impl From<InternalRpcDeclareTransactionV3> for DeclareTransactionV3 {
             class_hash: tx.class_hash,
             resource_bounds: ValidResourceBounds::AllResources(tx.resource_bounds),
             tip: tx.tip,
-            signature: TransactionSignature(Arc::new(tx.signature.0)),
+            signature: tx.signature,
             nonce: tx.nonce,
             compiled_class_hash: tx.compiled_class_hash,
             sender_address: tx.sender_address,
@@ -491,7 +489,7 @@ impl From<InternalRpcDeclareTransactionV3> for DeclareTransaction {
 /// A deploy account transaction that can be added to Starknet through the RPC.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, SizeOf)]
 pub struct RpcDeployAccountTransactionV3 {
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
     pub nonce: Nonce,
     pub class_hash: ClassHash,
     pub contract_address_salt: ContractAddressSalt,
@@ -510,7 +508,7 @@ impl From<RpcDeployAccountTransactionV3> for DeployAccountTransactionV3 {
         Self {
             resource_bounds: ValidResourceBounds::AllResources(tx.resource_bounds),
             tip: tx.tip,
-            signature: TransactionSignature(Arc::new(tx.signature.0)),
+            signature: tx.signature,
             nonce: tx.nonce,
             class_hash: tx.class_hash,
             contract_address_salt: tx.contract_address_salt,
@@ -567,7 +565,7 @@ impl TransactionHasher for RpcDeployAccountTransactionV3 {
 pub struct RpcInvokeTransactionV3 {
     pub sender_address: ContractAddress,
     pub calldata: Calldata,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
     pub nonce: Nonce,
     pub resource_bounds: AllResourceBounds,
     pub tip: Tip,
@@ -622,7 +620,7 @@ impl From<RpcInvokeTransactionV3> for InvokeTransactionV3 {
         Self {
             resource_bounds: ValidResourceBounds::AllResources(tx.resource_bounds),
             tip: tx.tip,
-            signature: TransactionSignature(Arc::new(tx.signature.0)),
+            signature: tx.signature,
             nonce: tx.nonce,
             sender_address: tx.sender_address,
             calldata: tx.calldata,
@@ -647,7 +645,7 @@ impl TryFrom<InvokeTransactionV3> for RpcInvokeTransactionV3 {
                     });
                 }
             },
-            signature: TransactionDeprSignature(value.signature.0.as_ref().clone()),
+            signature: value.signature,
             nonce: value.nonce,
             tip: value.tip,
             paymaster_data: value.paymaster_data,

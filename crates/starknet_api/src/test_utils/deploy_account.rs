@@ -161,7 +161,7 @@ pub fn rpc_deploy_account_tx(deploy_tx_args: DeployAccountTxArgs) -> RpcTransact
         class_hash: deploy_tx_args.class_hash,
         constructor_calldata: deploy_tx_args.constructor_calldata,
         nonce: deploy_tx_args.nonce,
-        signature: deploy_tx_args.signature.into(),
+        signature: deploy_tx_args.signature,
         nonce_data_availability_mode: deploy_tx_args.nonce_data_availability_mode,
         fee_data_availability_mode: deploy_tx_args.fee_data_availability_mode,
         paymaster_data: deploy_tx_args.paymaster_data,

@@ -769,7 +769,7 @@ auto_impl_get_test_instance! {
     pub struct InternalRpcDeclareTransactionV3 {
         pub sender_address: ContractAddress,
         pub compiled_class_hash: CompiledClassHash,
-        pub signature: TransactionDeprSignature,
+        pub signature: TransactionSignature,
         pub nonce: Nonce,
         pub class_hash: ClassHash,
         pub resource_bounds: AllResourceBounds,
@@ -794,7 +794,7 @@ auto_impl_get_test_instance! {
     pub struct RpcDeclareTransactionV3 {
         pub resource_bounds: AllResourceBounds,
         pub tip: Tip,
-        pub signature: TransactionDeprSignature,
+        pub signature: TransactionSignature,
         pub nonce: Nonce,
         pub contract_class: SierraContractClass,
         pub compiled_class_hash: CompiledClassHash,
@@ -810,7 +810,7 @@ auto_impl_get_test_instance! {
     pub struct RpcDeployAccountTransactionV3 {
         pub resource_bounds: AllResourceBounds,
         pub tip: Tip,
-        pub signature: TransactionDeprSignature,
+        pub signature: TransactionSignature,
         pub nonce: Nonce,
         pub class_hash: ClassHash,
         pub contract_address_salt: ContractAddressSalt,
@@ -830,7 +830,7 @@ auto_impl_get_test_instance! {
     pub struct RpcInvokeTransactionV3 {
         pub resource_bounds: AllResourceBounds,
         pub tip: Tip,
-        pub signature: TransactionDeprSignature,
+        pub signature: TransactionSignature,
         pub nonce: Nonce,
         pub sender_address: ContractAddress,
         pub calldata: Calldata,
