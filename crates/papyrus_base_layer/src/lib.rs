@@ -108,3 +108,14 @@ pub struct EventData {
     pub payload: Calldata,
     pub nonce: Nonce,
 }
+
+impl Display for EventData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "EventData {{ from_address: {:?}, to_address: {:?}, calldata: <omitted>, \
+             entry_point_selector: {}, nonce: {} }}",
+            self.from_address, self.to_address, self.entry_point_selector, self.nonce
+        )
+    }
+}

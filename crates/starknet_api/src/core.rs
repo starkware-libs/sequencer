@@ -257,7 +257,18 @@ impl Nonce {
 
 /// The selector of an [EntryPoint](`crate::state::EntryPoint`).
 #[derive(
-    Debug, Copy, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
+    Debug,
+    Copy,
+    Clone,
+    Default,
+    Eq,
+    PartialEq,
+    Hash,
+    Deserialize,
+    Serialize,
+    PartialOrd,
+    Ord,
+    derive_more::Display,
 )]
 pub struct EntryPointSelector(pub StarkHash);
 
