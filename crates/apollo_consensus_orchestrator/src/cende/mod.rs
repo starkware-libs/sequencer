@@ -11,7 +11,7 @@ use apollo_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_proc_macros::sequencer_latency_histogram;
 use async_trait::async_trait;
-use blockifier::bouncer::BouncerWeights;
+use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use central_objects::{
@@ -19,6 +19,7 @@ use central_objects::{
     CentralBlockInfo,
     CentralBouncerWeights,
     CentralCasmContractClassEntry,
+    CentralCasmHashComputationData,
     CentralCompressedStateDiff,
     CentralFeeMarketInfo,
     CentralSierraContractClassEntry,
@@ -75,6 +76,7 @@ pub(crate) struct AerospikeBlob {
     execution_infos: Vec<CentralTransactionExecutionInfo>,
     contract_classes: Vec<CentralSierraContractClassEntry>,
     compiled_classes: Vec<CentralCasmContractClassEntry>,
+    casm_hash_computation_data: CentralCasmHashComputationData,
 }
 
 #[cfg_attr(test, automock)]
@@ -289,6 +291,7 @@ pub struct BlobParameters {
     pub(crate) bouncer_weights: BouncerWeights,
     pub(crate) fee_market_info: FeeMarketInfo,
     pub(crate) transactions: Vec<InternalConsensusTransaction>,
+    pub(crate) casm_hash_computation_data: CasmHashComputationData,
     // TODO(dvir): consider passing the execution_infos from the batcher as a string that
     // serialized in the correct format from the batcher.
     pub(crate) execution_infos: Vec<TransactionExecutionInfo>,
@@ -330,6 +333,7 @@ impl AerospikeBlob {
             execution_infos,
             contract_classes,
             compiled_classes,
+            casm_hash_computation_data: blob_parameters.casm_hash_computation_data,
         })
     }
 }

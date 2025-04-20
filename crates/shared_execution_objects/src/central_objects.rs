@@ -8,7 +8,6 @@ use serde::Serialize;
 use starknet_api::executable_transaction::TransactionType;
 use starknet_api::execution_resources::GasVector;
 use starknet_api::transaction::fields::Fee;
-
 /// A mapping from a transaction execution resource to its actual usage.
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
