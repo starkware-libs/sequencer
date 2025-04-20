@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
@@ -27,7 +29,7 @@ use starknet_api::transaction::constants::{
 use starknet_api::transaction::fields::{
     ContractAddressSalt,
     Fee,
-    TransactionDeprSignature,
+    TransactionSignature,
     ValidResourceBounds,
 };
 use starknet_api::transaction::TransactionVersion;
@@ -764,7 +766,7 @@ fn test_contract_ctor_frame_stack_trace(
     let salt = felt!(7_u8);
     // Constructor arg: set to true to fail deployment.
     let validate_constructor = felt!(FELT_TRUE);
-    let signature = TransactionDeprSignature(vec![felt!(INVALID)]);
+    let signature = TransactionSignature(Arc::new(vec![felt!(INVALID)]));
     let expected_deployed_address = calculate_contract_address(
         ContractAddressSalt(salt),
         faulty_class_hash,
@@ -775,7 +777,7 @@ fn test_contract_ctor_frame_stack_trace(
     // Invoke the deploy_contract function on the dummy account to deploy the faulty contract.
     let invoke_deploy_tx = invoke_tx_with_default_flags(invoke_tx_args! {
         sender_address: account_address,
-        signature: signature.into(),
+        signature,
         calldata: create_calldata(
             account_address,
             DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME,
