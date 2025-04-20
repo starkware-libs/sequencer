@@ -96,7 +96,7 @@ auto_impl_get_test_instance! {
     pub struct InvokeTransactionV0 {
         pub max_fee: Fee,
         pub version: TransactionVersion0,
-        pub signature: TransactionDeprSignature,
+        pub signature: TransactionSignature,
         pub contract_address: ContractAddress,
         pub entry_point_selector: EntryPointSelector,
         pub calldata: Calldata,
