@@ -7,8 +7,11 @@ use starknet_api::felt;
 use starknet_api::transaction::fields::Fee;
 use strum::IntoEnumIterator;
 
+use crate::blockifier::config::ContractClassManagerConfig;
 use crate::context::ChainInfo;
 use crate::state::cached_state::CachedState;
+use crate::state::contract_class_manager::ContractClassManager;
+use crate::state::state_reader_and_contract_manager::StateReaderAndContractManger;
 use crate::test_utils::contracts::{FeatureContractData, FeatureContractTrait};
 use crate::test_utils::dict_state_reader::DictStateReader;
 
@@ -29,7 +32,7 @@ pub fn fund_account(
     }
 }
 
-/// Initializes a state reader for testing:
+/// Sets up a state reader for testing:
 /// * "Declares" a Cairo0 account and a Cairo0 ERC20 contract (class hash => class mapping set).
 /// * "Deploys" two ERC20 contracts (address => class hash mapping set) at the fee token addresses
 ///   on the input block context.
@@ -37,14 +40,13 @@ pub fn fund_account(
 /// * "Declares" the input list of contracts.
 /// * "Deploys" the requested number of instances of each input contract.
 /// * Makes each input account contract privileged.
-pub fn test_state_inner(
+fn setup_test_state(
     chain_info: &ChainInfo,
     initial_balances: Fee,
     contract_instances: &[(FeatureContractData, u16)],
     erc20_contract_version: CairoVersion,
-) -> CachedState<DictStateReader> {
-    let mut state_reader = DictStateReader::default();
-
+    state_reader: &mut DictStateReader,
+) {
     // Declare and deploy account and ERC20 contracts.
     let erc20 = FeatureContract::ERC20(erc20_contract_version);
     let erc20_class_hash = erc20.get_class_hash();
@@ -76,12 +78,10 @@ pub fn test_state_inner(
         for instance in 0..*n_instances {
             let instance_address = contract.get_instance_address(instance);
             if contract.require_funding {
-                fund_account(chain_info, instance_address, initial_balances, &mut state_reader);
+                fund_account(chain_info, instance_address, initial_balances, state_reader);
             }
         }
     }
-
-    CachedState::from(state_reader)
 }
 
 pub fn test_state(
@@ -102,4 +102,34 @@ pub fn test_state_ex(
     contract_instances: &[(FeatureContractData, u16)],
 ) -> CachedState<DictStateReader> {
     test_state_inner(chain_info, initial_balances, contract_instances, CairoVersion::Cairo0)
+}
+
+pub fn test_state_inner(
+    chain_info: &ChainInfo,
+    initial_balances: Fee,
+    contract_instances: &[(FeatureContractData, u16)],
+    erc20_version: CairoVersion,
+) -> CachedState<DictStateReader> {
+    let mut reader = DictStateReader::default();
+    setup_test_state(chain_info, initial_balances, contract_instances, erc20_version, &mut reader);
+    CachedState::from(reader)
+}
+
+pub fn test_state_inner_with_contract_manager(
+    chain_info: &ChainInfo,
+    initial_balances: Fee,
+    contract_instances: &[(FeatureContractData, u16)],
+    erc20_version: CairoVersion,
+) -> CachedState<StateReaderAndContractManger<DictStateReader>> {
+    let mut reader = DictStateReader::default();
+    setup_test_state(chain_info, initial_balances, contract_instances, erc20_version, &mut reader);
+
+    let manager =
+        ContractClassManager::start(ContractClassManagerConfig::create_for_testing(true, true));
+    let reader = StateReaderAndContractManger {
+        state_reader: reader.clone(),
+        contract_class_manager: manager,
+    };
+
+    CachedState::from(reader)
 }
