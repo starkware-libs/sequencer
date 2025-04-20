@@ -28,6 +28,7 @@ use crate::transaction::fields::{
     PaymasterData,
     Tip,
     TransactionDeprSignature,
+    TransactionSignature,
     ValidResourceBounds,
 };
 use crate::transaction_hash::{
@@ -318,7 +319,7 @@ impl TransactionHasher for DeclareTransactionV2 {
 pub struct DeclareTransactionV3 {
     pub resource_bounds: ValidResourceBounds,
     pub tip: Tip,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
     pub nonce: Nonce,
     pub class_hash: ClassHash,
     pub compiled_class_hash: CompiledClassHash,
@@ -364,9 +365,17 @@ impl DeclareTransaction {
     implement_declare_tx_getters!(
         (class_hash, ClassHash),
         (nonce, Nonce),
-        (sender_address, ContractAddress),
-        (signature, TransactionDeprSignature)
+        (sender_address, ContractAddress)
     );
+    // TODO(Ron): Remove this method by using the macro getter.
+    pub fn signature(&self) -> TransactionSignature {
+        match self {
+            Self::V0(tx) => tx.signature.clone().into(),
+            Self::V1(tx) => tx.signature.clone().into(),
+            Self::V2(tx) => tx.signature.clone().into(),
+            Self::V3(tx) => tx.signature.clone(),
+        }
+    }
 
     implement_v3_tx_getters!(
         (resource_bounds, ValidResourceBounds),
