@@ -173,6 +173,30 @@ impl Path {
     }
 }
 
+#[derive(Debug, Eq, Hash, PartialEq, Clone)]
+pub struct DescentStart {
+    height: SubTreeHeight,
+    path_to_upper_node: Path,
+}
+
+impl DescentStart {
+    fn turn_left(&self) -> Result<Self, PatriciaError> {
+        Ok(Self {
+            height: SubTreeHeight(self.height.0 - 1),
+            path_to_upper_node: self.path_to_upper_node.turn_left()?,
+        })
+    }
+
+    fn turn_right(&self) -> Result<Self, PatriciaError> {
+        Ok(Self {
+            height: SubTreeHeight(self.height.0 - 1),
+            path_to_upper_node: self.path_to_upper_node.turn_right()?,
+        })
+    }
+}
+
+pub type DescentMap = HashMap<DescentStart, Path>;
+
 /// Constructs layers of a tree from leaf updates. This is not a full state tree, it is just the
 /// subtree induced by the modification leaves.
 /// Returns a tree of updates. A tree is built from layers, where each layer represents the nodes in
@@ -296,4 +320,97 @@ fn get_children(
             Ok((CanonicNode::Empty, child))
         }
     }
+}
+
+/// Builds a descent map given multiple trees.
+/// A descent is a maximal subpath s.t.
+/// 1. In each tree (previous, new, and update tree), the authentication subpath consists of empty
+///    nodes.
+/// 2. The subpath is longer than 1.
+///
+/// Simply put, a descent is a path of length > 1 where there is only one path with data
+/// in the tree. Each entry in the descent map is of the form:
+/// (start_node_height, start_node_path) -> (descent_length, end_node_relative_path).
+///
+/// The descent map is computed over three trees: The update tree, previous tree, new tree.
+/// Each descent represents the longest path from the start node until a binary node is encountered
+/// in at least one of the trees.
+/// The function does not return descents that begin at an empty node in the first tree.
+///
+/// Args:
+/// height - height of the current node. The length of a path from the node to a leaf.
+/// path - path from the root to the current node.
+/// preimage_map - mapping from hash to preimage.
+/// trees - as described above.
+///
+/// It is assumed that a non empty node cannot have two empty children.
+fn get_descents(
+    descent_map: &mut DescentMap,
+    descent_start: DescentStart,
+    preimage_map: &PreimageMap,
+    (mut update_tree, mut previous_tree, mut new_tree): (&UpdateTree, CanonicNode, CanonicNode),
+) -> Result<(), PatriciaError> {
+    if update_tree == &UpdateTree::None || descent_start.height.0 == 0 {
+        return Ok(());
+    }
+
+    let mut curr_descent_start = descent_start.clone();
+
+    // Traverse all the trees simultaneously, as long as they all satisfy the descent condition,
+    // to find the maximal descent subpath.
+    let (lefts, rights) = loop {
+        let (update_left, update_right) = match update_tree {
+            UpdateTree::InnerNode(inner_node) => inner_node.get_children(),
+            _ => unreachable!("Expected an inner node."),
+        };
+
+        let (previous_left, previous_right) = get_children(&previous_tree, preimage_map)?;
+        let (new_left, new_right) = get_children(&new_tree, preimage_map)?;
+
+        let lefts_are_empty = update_left == &UpdateTree::None
+            && previous_left == CanonicNode::Empty
+            && new_left == CanonicNode::Empty;
+        let rights_are_empty = update_right == &UpdateTree::None
+            && previous_right == CanonicNode::Empty
+            && new_right == CanonicNode::Empty;
+
+        if lefts_are_empty {
+            curr_descent_start = curr_descent_start.turn_right()?;
+            if curr_descent_start.height.0 > 0 {
+                (update_tree, previous_tree, new_tree) = (update_right, previous_right, new_right);
+                continue;
+            }
+        } else if rights_are_empty {
+            curr_descent_start = curr_descent_start.turn_left()?;
+            if curr_descent_start.height.0 > 0 {
+                (update_tree, previous_tree, new_tree) = (update_left, previous_left, new_left);
+                continue;
+            }
+        }
+
+        if !(lefts_are_empty || rights_are_empty) || curr_descent_start.height.0 == 0 {
+            break (
+                (update_left, previous_left, new_left),
+                (update_right, previous_right, new_right),
+            );
+        }
+    };
+
+    let length = descent_start.height.0 - curr_descent_start.height.0;
+    // length <= 1 is not a descent.
+    if length > 1 {
+        descent_map.insert(
+            descent_start,
+            curr_descent_start.path_to_upper_node.remove_first_edges(EdgePathLength::new(
+                u8::from(curr_descent_start.path_to_upper_node.0.length) - length,
+            )?)?,
+        );
+    }
+
+    if curr_descent_start.height.0 > 0 {
+        get_descents(descent_map, curr_descent_start.turn_left()?, preimage_map, lefts)?;
+        get_descents(descent_map, curr_descent_start.turn_right()?, preimage_map, rights)?;
+    }
+
+    Ok(())
 }
