@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use starknet_api::block::GasPrice;
 use starknet_api::core::ContractAddress;
 use starknet_api::data_availability::DataAvailabilityMode;
@@ -15,7 +13,6 @@ use starknet_api::transaction::fields::{
     Calldata,
     PaymasterData,
     ResourceBounds,
-    TransactionDeprSignature,
     TransactionSignature,
     ValidResourceBounds,
 };
@@ -54,7 +51,7 @@ pub struct RpcTransactionArgs {
     pub sender_address: ContractAddress,
     pub resource_bounds: AllResourceBounds,
     pub calldata: Calldata,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
     pub account_deployment_data: AccountDeploymentData,
     pub paymaster_data: PaymasterData,
     pub nonce_data_availability_mode: DataAvailabilityMode,
@@ -108,7 +105,7 @@ pub fn rpc_tx_for_testing(
             };
             rpc_declare_tx(
                 declare_tx_args!(
-                    signature: TransactionSignature(Arc::new(signature.0)),
+                    signature,
                     sender_address,
                     resource_bounds: ValidResourceBounds::AllResources(resource_bounds),
                     account_deployment_data,
@@ -120,7 +117,7 @@ pub fn rpc_tx_for_testing(
             )
         }
         TransactionType::DeployAccount => rpc_deploy_account_tx(deploy_account_tx_args!(
-            signature: TransactionSignature(Arc::new(signature.0)),
+            signature,
             resource_bounds: ValidResourceBounds::AllResources(resource_bounds),
             constructor_calldata: calldata,
             paymaster_data,
@@ -128,7 +125,7 @@ pub fn rpc_tx_for_testing(
             fee_data_availability_mode,
         )),
         TransactionType::Invoke => rpc_invoke_tx(invoke_tx_args!(
-            signature: TransactionSignature(Arc::new(signature.0)),
+            signature,
             sender_address,
             calldata,
             resource_bounds: ValidResourceBounds::AllResources(resource_bounds),
