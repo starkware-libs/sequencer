@@ -411,7 +411,7 @@ impl TryFrom<IntermediateDeployAccountTransaction>
                 tx_hash: deploy_account_tx.transaction_hash,
                 msg: "DeployAccount V1 must contain max_fee field.".to_string(),
             })?,
-            signature: deploy_account_tx.signature,
+            signature: deploy_account_tx.signature.into(),
             nonce: deploy_account_tx.nonce,
         })
     }
