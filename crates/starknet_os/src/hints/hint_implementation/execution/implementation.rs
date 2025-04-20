@@ -221,8 +221,9 @@ pub(crate) fn is_deprecated<S: StateReader>(
 pub(crate) fn enter_syscall_scopes<S: StateReader>(
     HintArgs { exec_scopes, hint_processor, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    // The scope variables `syscall_handler`, `deprecated_syscall_handler` and `execution_helper`
-    // are accessible through the hint processor.
+    // Unlike the Python implementation, there is no need to add `syscall_handler`,
+    // `deprecated_syscall_handler`, and `execution_helper` as scope variables
+    // since they are accessible via the hint processor.
     let deprecated_class_hashes: HashSet<ClassHash> =
         exec_scopes.get(Scope::DeprecatedClassHashes.into())?;
     let current_execution_helper = hint_processor.get_current_execution_helper()?;

@@ -404,17 +404,15 @@ define_hint_enum!(
         block_timestamp,
         "memory[ap] = to_felt_or_relocatable(syscall_handler.block_info.block_timestamp)"
     ),
-    // TODO(Meshi): Fix hint implantation.
     (
         ChainId,
         chain_id,
-        "memory[ap] = to_felt_or_relocatable(block_input.general_config.chain_id.value)"
+        "memory[ap] = to_felt_or_relocatable(os_hints_config.starknet_os_config.chain_id)"
     ),
-    // TODO(Meshi): Fix hint implantation.
     (
         FeeTokenAddress,
         fee_token_address,
-        "memory[ap] = to_felt_or_relocatable(block_input.general_config.fee_token_address)"
+        "memory[ap] = to_felt_or_relocatable(os_hints_config.starknet_os_config.fee_token_address)"
     ),
     (
         SequencerAddress,
@@ -584,7 +582,6 @@ define_hint_enum!(
         "is_segment_used_callback": bytecode_segment_access_oracle.is_segment_used
     })"#}
     ),
-    // TODO(Meshi): Fix hint implantation.
     (
         EnterScopeWithAliases,
         enter_scope_with_aliases,
@@ -786,7 +783,6 @@ else:
         }
     ),
     (StartTx, start_tx, indoc! {r#"execution_helper.start_tx()"# }),
-    // TODO(Meshi): Fix hint implantation.
     (
         OsInputTransactions,
         os_input_transactions,
@@ -987,7 +983,6 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         "is_deprecated = 1 if ids.execution_context.class_hash in __deprecated_class_hashes else 0"
     ),
     (IsDeprecated, is_deprecated, "memory[ap] = to_felt_or_relocatable(is_deprecated)"),
-    // TODO(Meshi): Fix hint implantation.
     (
         EnterSyscallScopes,
         enter_syscall_scopes,
@@ -1291,7 +1286,6 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
 	assert ids.value == value, "Inconsistent storage value.""#
         }
     ),
-    // TODO(Meshi): Fix hint implantation.
     (
         GetOldBlockNumberAndHash,
         get_old_block_number_and_hash,
@@ -1381,7 +1375,6 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
             ids.res = log2_ceil(ids.value)"#
         }
     ),
-    // TODO(Meshi): Fix hint implantation.
     (
         WriteFullOutputToMemory,
         write_full_output_to_memory,
@@ -1393,13 +1386,11 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         indoc! {r#"__serialize_data_availability_create_pages__ = True
         kzg_manager = global_hints.kzg_manager"#}
     ),
-    // TODO(Meshi): Fix hint implantation.
     (
         SetApToPrevBlockHash,
         set_ap_to_prev_block_hash,
         indoc! {r#"memory[ap] = to_felt_or_relocatable(block_input.prev_block_hash)"#}
     ),
-    // TODO(Meshi): Fix hint implantation.
     (
         SetApToNewBlockHash,
         set_ap_to_new_block_hash,
@@ -1570,7 +1561,6 @@ else:
         read_ec_point_from_address,
         r#"memory[ap] = to_felt_or_relocatable(ids.response.ec_point.address_ if ids.not_on_curve == 0 else segments.add())"#
     ),
-    // TODO(Meshi): Fix hint implantation.
     (
         SetPreimageForStateCommitments,
         set_preimage_for_state_commitments,
@@ -1584,7 +1574,6 @@ preimage = {
 assert block_input.contract_state_commitment_info.tree_height == ids.MERKLE_HEIGHT"#
         }
     ),
-    // TODO(Meshi): Fix hint implantation.
     (
         SetPreimageForClassCommitments,
         set_preimage_for_class_commitments,
