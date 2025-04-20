@@ -1,3 +1,6 @@
+use std::io;
+use std::path::Path;
+
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::errors::memory_errors::MemoryError;
@@ -16,6 +19,12 @@ pub struct StarknetOsRunnerOutput {
     // TODO(Tzahi): Define a struct for the output.
     pub os_output: Vec<Felt>,
     pub cairo_pie: CairoPie,
+}
+
+impl StarknetOsRunnerOutput {
+    pub fn write_cairo_pie(&self, path: &Path) -> Result<(), io::Error> {
+        self.cairo_pie.write_zip_file(path)
+    }
 }
 
 // Retrieve the output ptr data of a finalized run as a vec of felts.
