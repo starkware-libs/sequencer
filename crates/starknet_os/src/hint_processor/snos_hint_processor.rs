@@ -27,28 +27,26 @@ use crate::hints::enum_definition::AllHints;
 use crate::hints::error::OsHintError;
 use crate::hints::hint_implementation::state::CommitmentType;
 use crate::hints::types::{HintArgs, HintEnum, HintExtensionImplementation, HintImplementation};
-#[cfg(any(feature = "testing", test))]
-use crate::io::os_input::{CachedStateInput, OsBlockInput, StarknetOsInput};
-use crate::io::os_input::{OsHints, OsHintsConfig, OsInputError};
+use crate::io::os_input::{CachedStateInput, OsBlockInput, OsHintsConfig, OsInputError};
 
 type VmHintResultType<T> = Result<T, VmHintError>;
 type VmHintResult = VmHintResultType<()>;
 type VmHintExtensionResult = VmHintResultType<HintExtension>;
 
-pub(crate) struct ExecutionHelpersManager<S: StateReader> {
-    execution_helpers: Vec<OsExecutionHelper<S>>,
+pub(crate) struct ExecutionHelpersManager<'a, S: StateReader> {
+    execution_helpers: Vec<OsExecutionHelper<'a, S>>,
     current_index: Option<usize>,
 }
 
-impl<S: StateReader> ExecutionHelpersManager<S> {
-    pub fn new(execution_helpers: Vec<OsExecutionHelper<S>>) -> Self {
+impl<'a, S: StateReader> ExecutionHelpersManager<'a, S> {
+    pub fn new(execution_helpers: Vec<OsExecutionHelper<'a, S>>) -> Self {
         Self { execution_helpers, current_index: None }
     }
 
     /// Returns an execution helper reference of the currently processed block.
     pub fn get_current_execution_helper(
         &self,
-    ) -> Result<&OsExecutionHelper<S>, ExecutionHelperError> {
+    ) -> Result<&OsExecutionHelper<'a, S>, ExecutionHelperError> {
         let current_idx = self.get_current_index()?;
         Ok(self
             .execution_helpers
@@ -59,7 +57,7 @@ impl<S: StateReader> ExecutionHelpersManager<S> {
     /// Returns an execution helper mutable reference of the currently processed block.
     pub fn get_mut_current_execution_helper(
         &mut self,
-    ) -> Result<&mut OsExecutionHelper<S>, ExecutionHelperError> {
+    ) -> Result<&mut OsExecutionHelper<'a, S>, ExecutionHelperError> {
         let current_idx = self.get_current_index()?;
         Ok(self
             .execution_helpers
@@ -90,7 +88,7 @@ impl<S: StateReader> ExecutionHelpersManager<S> {
 pub struct SnosHintProcessor<'a, S: StateReader> {
     // The program being run. The hint processor does not require ownership.
     pub(crate) os_program: &'a Program,
-    pub(crate) execution_helpers_manager: ExecutionHelpersManager<S>,
+    pub(crate) execution_helpers_manager: ExecutionHelpersManager<'a, S>,
     pub(crate) os_hints_config: OsHintsConfig,
     pub syscall_hint_processor: SyscallHintProcessor,
     pub(crate) deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
@@ -108,45 +106,48 @@ pub struct SnosHintProcessor<'a, S: StateReader> {
 }
 
 impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         os_program: &'a Program,
-        os_hints: OsHints,
+        os_hints_config: OsHintsConfig,
+        os_block_inputs: Vec<&'a OsBlockInput>,
+        cached_state_inputs: Vec<CachedStateInput>,
+        deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
+        compiled_classes: HashMap<ClassHash, CasmContractClass>,
         state_readers: Vec<S>,
         syscall_hint_processor: SyscallHintProcessor,
         deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
     ) -> Result<Self, StarknetOsError> {
-        if state_readers.len() != os_hints.os_input.os_block_inputs.len() {
+        if state_readers.len() != os_block_inputs.len() {
             return Err(OsInputError::InvalidLengthOfStateReaders(
                 state_readers.len(),
-                os_hints.os_input.os_block_inputs.len(),
+                os_block_inputs.len(),
             )
             .into());
         }
-        let execution_helpers = os_hints
-            .os_input
-            .os_block_inputs
+        let execution_helpers = os_block_inputs
             .into_iter()
-            .zip(os_hints.os_input.cached_state_inputs.into_iter())
+            .zip(cached_state_inputs.into_iter())
             .zip(state_readers.into_iter())
             .map(|((os_block_input, cached_state_input), state_reader)| {
                 OsExecutionHelper::new(
                     os_block_input,
                     state_reader,
                     cached_state_input,
-                    os_hints.os_hints_config.debug_mode,
+                    os_hints_config.debug_mode,
                 )
             })
             .collect::<Result<_, _>>()?;
         Ok(Self {
             os_program,
             execution_helpers_manager: ExecutionHelpersManager::new(execution_helpers),
-            os_hints_config: os_hints.os_hints_config,
+            os_hints_config,
             syscall_hint_processor,
             _deprecated_syscall_hint_processor: deprecated_syscall_hint_processor,
             da_segment: None,
             builtin_hint_processor: BuiltinHintProcessor::new_empty(),
-            deprecated_compiled_classes: os_hints.os_input.deprecated_compiled_classes,
-            compiled_classes: os_hints.os_input.compiled_classes,
+            deprecated_compiled_classes,
+            compiled_classes,
             state_update_pointers: None,
             commitment_type: CommitmentType::State,
             serialize_data_availability_create_pages: false,
@@ -168,14 +169,14 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
     /// Returns an execution helper reference of the currently processed block.
     pub fn get_current_execution_helper(
         &self,
-    ) -> Result<&OsExecutionHelper<S>, ExecutionHelperError> {
+    ) -> Result<&OsExecutionHelper<'a, S>, ExecutionHelperError> {
         self.execution_helpers_manager.get_current_execution_helper()
     }
 
     /// Returns an execution helper mutable reference of the currently processed block.
     pub fn get_mut_current_execution_helper(
         &mut self,
-    ) -> Result<&mut OsExecutionHelper<S>, ExecutionHelperError> {
+    ) -> Result<&mut OsExecutionHelper<'a, S>, ExecutionHelperError> {
         self.execution_helpers_manager.get_mut_current_execution_helper()
     }
 
@@ -251,24 +252,23 @@ impl<'a> SnosHintProcessor<'a, DictStateReader> {
         state_reader: Option<DictStateReader>,
         os_program: &'a Program,
         os_hints_config: Option<OsHintsConfig>,
-        os_block_input: Option<(OsBlockInput, CachedStateInput)>,
+        os_block_input: &'a OsBlockInput,
+        os_state_input: Option<CachedStateInput>,
     ) -> Result<Self, StarknetOsError> {
-        let (block_input, state_input) =
-            os_block_input.unwrap_or((OsBlockInput::default(), CachedStateInput::default()));
         let state_reader = state_reader.unwrap_or_default();
+        let block_inputs = vec![os_block_input];
+        let state_inputs = vec![os_state_input.unwrap_or_default()];
         let os_hints_config = os_hints_config.unwrap_or_default();
-        let os_input = StarknetOsInput {
-            os_block_inputs: vec![block_input],
-            cached_state_inputs: vec![state_input],
-            ..Default::default()
-        };
-        let os_hints = OsHints { os_input, os_hints_config };
         let syscall_handler = SyscallHintProcessor::new();
         let deprecated_syscall_handler = DeprecatedSyscallHintProcessor {};
 
         SnosHintProcessor::new(
             os_program,
-            os_hints,
+            os_hints_config,
+            block_inputs,
+            state_inputs,
+            HashMap::new(), // deprecated_compiled_classes
+            HashMap::new(), // compiled_classes
             vec![state_reader],
             syscall_handler,
             deprecated_syscall_handler,
