@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::vec;
 
 use apollo_protobuf::sync::DataOrFin;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
@@ -30,7 +31,7 @@ async fn receive_block_internally() {
     let transaction_hashes_len = 2;
     let sync_block = create_random_sync_block(BlockNumber(0), transaction_hashes_len, get_rng());
     let block_header_without_hash = sync_block.block_header_without_hash.clone();
-    let transaction_hashes = sync_block.transaction_hashes.clone();
+    let transaction_hashes = sync_block.account_transaction_hashes.clone();
     let state_diff = sync_block.state_diff.clone();
 
     run_test(
@@ -98,14 +99,14 @@ async fn receive_blocks_out_of_order() {
     let mut rng = get_rng();
     let sync_block_0 = create_random_sync_block(BlockNumber(0), 1, rng.clone());
     let block_header_without_hash_0 = sync_block_0.block_header_without_hash.clone();
-    let transaction_hashes_0 = sync_block_0.transaction_hashes.clone();
+    let transaction_hashes_0 = sync_block_0.account_transaction_hashes.clone();
     let state_diff_0 = sync_block_0.state_diff.clone();
 
     // We need to forward the rng to the next generated num to make sure the blocks are different.
     rng.gen::<u8>();
     let sync_block_1 = create_random_sync_block(BlockNumber(1), 1, rng);
     let block_header_without_hash_1 = sync_block_1.block_header_without_hash.clone();
-    let transaction_hashes_1 = sync_block_1.transaction_hashes.clone();
+    let transaction_hashes_1 = sync_block_1.account_transaction_hashes.clone();
     let state_diff_1 = sync_block_1.state_diff.clone();
 
     run_test(
@@ -285,5 +286,10 @@ fn create_random_sync_block(
         l1_da_mode,
         starknet_version,
     };
-    SyncBlock { state_diff, transaction_hashes, block_header_without_hash }
+    SyncBlock {
+        state_diff,
+        account_transaction_hashes: transaction_hashes,
+        l1_transaction_hashes: vec![],
+        block_header_without_hash,
+    }
 }

@@ -103,9 +103,15 @@ impl BlockDataStreamBuilder<FullTransaction> for TransactionStreamFactory {
         block_number: BlockNumber,
         sync_block: SyncBlock,
     ) -> (BlockBody, BlockNumber) {
-        let num_transactions = sync_block.transaction_hashes.len();
+        let num_transactions =
+            sync_block.account_transaction_hashes.len() + sync_block.l1_transaction_hashes.len();
         let block_body = BlockBody {
-            transaction_hashes: sync_block.transaction_hashes,
+            transaction_hashes: sync_block
+                .account_transaction_hashes
+                .iter()
+                .chain(sync_block.l1_transaction_hashes.iter())
+                .cloned()
+                .collect(),
             transaction_outputs: std::iter::repeat_with(|| {
                 TransactionOutput::Invoke(Default::default())
             })

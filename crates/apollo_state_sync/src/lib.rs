@@ -22,6 +22,7 @@ use futures::SinkExt;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, BLOCK_HASH_TABLE_ADDRESS};
 use starknet_api::state::{StateNumber, StorageKey};
+use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_types_core::felt::Felt;
 
 use crate::config::StateSyncConfig;
@@ -88,7 +89,9 @@ impl StateSync {
     fn get_block(&self, block_number: BlockNumber) -> StateSyncResult<Option<SyncBlock>> {
         let txn = self.storage_reader.begin_ro_txn()?;
         let block_header = txn.get_block_header(block_number)?;
-        let Some(block_transaction_hashes) = txn.get_block_transaction_hashes(block_number)? else {
+        let Some(block_transactions_with_hash) =
+            txn.get_block_transactions_with_hash(block_number)?
+        else {
             return Ok(None);
         };
         let Some(thin_state_diff) = txn.get_state_diff(block_number)? else {
@@ -97,10 +100,21 @@ impl StateSync {
         let Some(block_header) = block_header else {
             return Ok(None);
         };
+
+        let mut l1_transaction_hashes: Vec<TransactionHash> = vec![];
+        let mut account_transaction_hashes: Vec<TransactionHash> = vec![];
+        for (tx, tx_hash) in block_transactions_with_hash {
+            match tx {
+                Transaction::L1Handler(_) => l1_transaction_hashes.push(tx_hash),
+                _ => account_transaction_hashes.push(tx_hash),
+            }
+        }
+
         Ok(Some(SyncBlock {
             state_diff: thin_state_diff,
             block_header_without_hash: block_header.block_header_without_hash,
-            transaction_hashes: block_transaction_hashes,
+            account_transaction_hashes,
+            l1_transaction_hashes,
         }))
     }
 
