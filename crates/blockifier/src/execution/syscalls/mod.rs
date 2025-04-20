@@ -29,9 +29,9 @@ use crate::execution::execution_utils::{
 use crate::execution::syscalls::syscall_base::SyscallResult;
 
 pub mod hint_processor;
-mod secp;
+pub mod secp;
 pub mod syscall_base;
-mod syscall_executor;
+pub mod syscall_executor;
 
 #[cfg(test)]
 pub mod syscall_tests;
@@ -220,7 +220,7 @@ impl SyscallRequest for EmitEventRequest {
     }
 }
 
-type EmitEventResponse = EmptyResponse;
+pub type EmitEventResponse = EmptyResponse;
 
 pub fn exceeds_event_size_limit(
     versioned_constants: &VersionedConstants,
@@ -282,7 +282,7 @@ impl SyscallResponse for GetBlockHashResponse {
 
 // GetExecutionInfo syscall.
 
-type GetExecutionInfoRequest = EmptyRequest;
+pub type GetExecutionInfoRequest = EmptyRequest;
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct GetExecutionInfoResponse {
@@ -314,7 +314,7 @@ impl SyscallRequest for LibraryCallRequest {
     }
 }
 
-type LibraryCallResponse = CallContractResponse;
+pub type LibraryCallResponse = CallContractResponse;
 
 // MetaTxV0 syscall.
 
@@ -340,7 +340,7 @@ impl SyscallRequest for MetaTxV0Request {
     }
 }
 
-type MetaTxV0Response = CallContractResponse;
+pub type MetaTxV0Response = CallContractResponse;
 
 // ReplaceClass syscall.
 
@@ -376,7 +376,7 @@ impl SyscallRequest for SendMessageToL1Request {
     }
 }
 
-type SendMessageToL1Response = EmptyResponse;
+pub type SendMessageToL1Response = EmptyResponse;
 
 // TODO(spapini): Do something with address domain in read and write.
 // StorageRead syscall.
@@ -499,8 +499,8 @@ impl SyscallResponse for Sha256ProcessBlockResponse {
 
 // GetClassHashAt syscall.
 
-pub(crate) type GetClassHashAtRequest = ContractAddress;
-pub(crate) type GetClassHashAtResponse = ClassHash;
+pub type GetClassHashAtRequest = ContractAddress;
+pub type GetClassHashAtResponse = ClassHash;
 
 impl SyscallRequest for GetClassHashAtRequest {
     fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<GetClassHashAtRequest> {
