@@ -199,11 +199,13 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_code::{
 };
 use starknet_os::hints::enum_definition::{AggregatorHint, HintExtension, OsHint};
 use starknet_os::hints::types::HintEnum;
+use starknet_os::io::os_output::StarknetOsRunnerOutput;
 use starknet_os::runner::run_os_stateless;
 use starknet_os::test_utils::cairo_runner::EntryPointRunnerConfig;
 use strum::IntoEnumIterator;
 
 use crate::os_cli::commands::{validate_input, Input};
+use crate::os_cli::run_os_cli::OsCliOutput;
 use crate::os_cli::tests::aliases::aliases_test;
 use crate::os_cli::tests::types::{OsPythonTestError, OsPythonTestResult, OsSpecificTestError};
 use crate::os_cli::tests::utils::test_cairo_function;
@@ -608,10 +610,14 @@ else:
 
 /// Runs the OS with the given input and returns the deserialized output.
 fn run_os_flow_test(input: &str) -> OsPythonTestResult {
-    let Input { layout, compiled_os_path, os_hints } = serde_json::from_str(input)?;
+    let Input { layout, compiled_os_path, os_hints, cairo_pie_zip_path } =
+        serde_json::from_str(input)?;
     // Load the compiled_os from the compiled_os_path.
     let compiled_os =
         fs::read(Path::new(&compiled_os_path)).expect("Failed to read compiled_os file");
-    let os_output = run_os_stateless(&compiled_os, layout, os_hints)?;
-    Ok(serde_json::to_string(&os_output)?)
+    let StarknetOsRunnerOutput { os_output, cairo_pie } =
+        run_os_stateless(&compiled_os, layout, os_hints)?;
+    cairo_pie.write_zip_file(Path::new(&cairo_pie_zip_path)).expect("Failed to write cairo pie.");
+    let output = OsCliOutput { os_output };
+    Ok(serde_json::to_string(&output)?)
 }
