@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
@@ -5,7 +7,7 @@ use starknet_api::transaction::fields::{
     AccountDeploymentData,
     PaymasterData,
     Tip,
-    TransactionDeprSignature,
+    TransactionSignature,
     ValidResourceBounds,
 };
 use starknet_types_core::felt::Felt;
@@ -22,7 +24,7 @@ use crate::protobuf;
 pub(crate) struct DeclareTransactionV3Common {
     pub resource_bounds: ValidResourceBounds,
     pub tip: Tip,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
     pub nonce: Nonce,
     pub compiled_class_hash: CompiledClassHash,
     pub sender_address: ContractAddress,
@@ -41,7 +43,7 @@ impl TryFrom<protobuf::DeclareV3Common> for DeclareTransactionV3Common {
 
         let tip = Tip(value.tip);
 
-        let signature = TransactionDeprSignature(
+        let signature = TransactionSignature(Arc::new(
             value
                 .signature
                 .ok_or(missing("DeclareV3Common::signature"))?
@@ -49,7 +51,7 @@ impl TryFrom<protobuf::DeclareV3Common> for DeclareTransactionV3Common {
                 .into_iter()
                 .map(Felt::try_from)
                 .collect::<Result<Vec<_>, _>>()?,
-        );
+        ));
 
         let nonce = Nonce(value.nonce.ok_or(missing("DeclareV3Common::nonce"))?.try_into()?);
 
@@ -101,7 +103,7 @@ impl From<DeclareTransactionV3Common> for protobuf::DeclareV3Common {
             resource_bounds: Some(protobuf::ResourceBounds::from(value.resource_bounds)),
             tip: value.tip.0,
             signature: Some(protobuf::AccountSignature {
-                parts: value.signature.0.into_iter().map(|signature| signature.into()).collect(),
+                parts: value.signature.0.iter().map(|signature| (*signature).into()).collect(),
             }),
             nonce: Some(value.nonce.0.into()),
             compiled_class_hash: Some(value.compiled_class_hash.0.into()),
