@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::io::Read;
+use std::sync::Arc;
 
 use apollo_proc_macros::versioned_rpc;
 use apollo_rpc_execution::objects::FeeEstimation;
@@ -25,7 +26,7 @@ use starknet_api::deprecated_contract_class::{
     Program,
 };
 use starknet_api::state::{StateNumber, StorageKey};
-use starknet_api::transaction::fields::Fee;
+use starknet_api::transaction::fields::{Fee, TransactionSignature};
 use starknet_api::transaction::{EventKey, TransactionHash, TransactionOffsetInBlock};
 use starknet_types_core::felt::Felt;
 use tracing::debug;
@@ -564,7 +565,7 @@ impl From<DeployAccountTransaction> for starknet_api::transaction::DeployAccount
             }) => Self::V3(starknet_api::transaction::DeployAccountTransactionV3 {
                 resource_bounds: resource_bounds.into(),
                 tip,
-                signature,
+                signature: TransactionSignature(Arc::new(signature.0)),
                 nonce,
                 class_hash,
                 contract_address_salt,

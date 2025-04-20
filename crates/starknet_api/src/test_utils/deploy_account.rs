@@ -104,7 +104,7 @@ pub fn deploy_account_tx(
         })
     } else if deploy_tx_args.version == TransactionVersion::THREE {
         DeployAccountTransaction::V3(DeployAccountTransactionV3 {
-            signature: TransactionDeprSignature(deploy_tx_args.signature.0.as_ref().clone()),
+            signature: deploy_tx_args.signature,
             resource_bounds: deploy_tx_args.resource_bounds,
             tip: deploy_tx_args.tip,
             nonce_data_availability_mode: deploy_tx_args.nonce_data_availability_mode,
