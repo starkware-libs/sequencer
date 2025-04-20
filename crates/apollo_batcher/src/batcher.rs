@@ -541,6 +541,7 @@ impl Batcher {
                 execution_infos,
                 bouncer_weights: block_execution_artifacts.bouncer_weights,
                 compressed_state_diff: block_execution_artifacts.compressed_state_diff,
+                casm_hash_computation_data: block_execution_artifacts.casm_hash_computation_data,
             },
         })
     }
