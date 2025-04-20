@@ -10,7 +10,6 @@ use starknet_api::transaction::fields::{
     Fee,
     PaymasterData,
     Tip,
-    TransactionDeprSignature,
     TransactionSignature,
 };
 use starknet_api::transaction::{
@@ -38,7 +37,7 @@ impl From<PyDeployAccountTransactionV1> for DeployAccountTransactionV1 {
     fn from(tx: PyDeployAccountTransactionV1) -> Self {
         Self {
             max_fee: Fee(tx.max_fee),
-            signature: TransactionDeprSignature(from_py_felts(tx.signature)),
+            signature: TransactionSignature(from_py_felts_to_arc(tx.signature)),
             nonce: Nonce(tx.nonce.0),
             class_hash: ClassHash(tx.class_hash.0),
             contract_address_salt: ContractAddressSalt(tx.contract_address_salt.0),
