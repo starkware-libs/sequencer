@@ -485,7 +485,7 @@ impl Batcher {
             height,
             state_diff,
             address_to_nonce,
-            Default::default(),
+            transaction_hashes.iter().copied().collect(),
             Default::default(),
         )
         .await?;
