@@ -3,14 +3,17 @@ use std::path::Path;
 
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::types::layout_name::LayoutName;
+use cairo_vm::vm::runners::cairo_pie::CairoPie;
 use rand_distr::num_traits::Zero;
 use serde::Deserialize;
 use starknet_api::contract_class::ContractClass;
 use starknet_api::executable_transaction::{AccountTransaction, Transaction};
 use starknet_os::io::os_input::{CachedStateInput, OsBlockInput, OsHints};
+use starknet_os::io::os_output::StarknetOsRunnerOutput;
 use starknet_os::runner::run_os_stateless;
 use tracing::info;
 
+use super::run_os_cli::OsCliOutput;
 use crate::shared_utils::read::{load_input, write_to_file};
 
 #[derive(Deserialize, Debug)]
@@ -21,6 +24,7 @@ pub(crate) struct Input {
     pub compiled_os_path: String,
     pub layout: LayoutName,
     pub os_hints: OsHints,
+    pub cairo_pie_zip_path: String,
 }
 
 /// Validate a single os_block_input.
@@ -61,15 +65,33 @@ pub fn validate_input(os_block_input: &[(OsBlockInput, CachedStateInput)]) {
 }
 
 pub fn parse_and_run_os(input_path: String, output_path: String) {
-    let Input { compiled_os_path, layout, os_hints } = load_input(input_path);
+    let Input { compiled_os_path, layout, os_hints, cairo_pie_zip_path } = load_input(input_path);
     validate_input(&os_hints.os_input.os_block_and_state_input);
 
     // Load the compiled_os from the compiled_os_path.
     let compiled_os =
         fs::read(Path::new(&compiled_os_path)).expect("Failed to read compiled_os file");
 
-    let output = run_os_stateless(&compiled_os, layout, os_hints)
-        .unwrap_or_else(|err| panic!("OS run failed. Error: {}", err));
-    write_to_file(&output_path, &output);
+    let StarknetOsRunnerOutput { os_output, cairo_pie } =
+        run_os_stateless(&compiled_os, layout, os_hints)
+            .unwrap_or_else(|err| panic!("OS run failed. Error: {}", err));
+    serialize_os_runner_output(
+        &OsCliOutput { os_output },
+        output_path,
+        &cairo_pie,
+        cairo_pie_zip_path,
+    );
     info!("OS program ran successfully.");
+}
+
+pub(crate) fn serialize_os_runner_output(
+    output: &OsCliOutput,
+    output_path: String,
+    cairo_pie: &CairoPie,
+    cairo_pie_zip_path: String,
+) {
+    write_to_file(&output_path, output);
+    cairo_pie
+        .write_zip_file(Path::new(&cairo_pie_zip_path))
+        .unwrap_or_else(|err| panic!("Failed to write cairo pie. Error: {}", err));
 }
