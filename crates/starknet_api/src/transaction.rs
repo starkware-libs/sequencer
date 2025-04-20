@@ -270,7 +270,7 @@ impl TransactionOutput {
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct DeclareTransactionV0V1 {
     pub max_fee: Fee,
-    pub signature: TransactionDeprSignature,
+    pub signature: TransactionSignature,
     pub nonce: Nonce,
     pub class_hash: ClassHash,
     pub sender_address: ContractAddress,
@@ -369,8 +369,8 @@ impl DeclareTransaction {
     );
     pub fn signature(&self) -> TransactionSignature {
         match self {
-            Self::V0(tx) => TransactionSignature(Arc::new(tx.signature.0.clone())),
-            Self::V1(tx) => TransactionSignature(Arc::new(tx.signature.0.clone())),
+            Self::V0(tx) => tx.signature.clone(),
+            Self::V1(tx) => tx.signature.clone(),
             Self::V2(tx) => TransactionSignature(Arc::new(tx.signature.0.clone())),
             Self::V3(tx) => tx.signature.clone(),
         }

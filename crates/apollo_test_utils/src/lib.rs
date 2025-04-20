@@ -546,7 +546,7 @@ auto_impl_get_test_instance! {
     }
     pub struct DeclareTransactionV0V1 {
         pub max_fee: Fee,
-        pub signature: TransactionDeprSignature,
+        pub signature: TransactionSignature,
         pub nonce: Nonce,
         pub class_hash: ClassHash,
         pub sender_address: ContractAddress,
