@@ -532,7 +532,7 @@ impl TryFrom<IntermediateInvokeTransaction> for starknet_api::transaction::Invok
                 tx_hash: invoke_tx.transaction_hash,
                 msg: "Invoke V0 must contain max_fee field.".to_string(),
             })?,
-            signature: invoke_tx.signature,
+            signature: TransactionSignature(Arc::new(invoke_tx.signature.0)),
             contract_address: invoke_tx.sender_address,
             entry_point_selector: invoke_tx.entry_point_selector.ok_or(
                 ReaderClientError::BadTransaction {

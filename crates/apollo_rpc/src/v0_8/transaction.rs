@@ -503,7 +503,7 @@ impl TryFrom<starknet_api::transaction::InvokeTransaction> for InvokeTransaction
             ) => Ok(Self::Version0(InvokeTransactionV0 {
                 max_fee,
                 version: TransactionVersion0::Version0,
-                signature,
+                signature: TransactionDeprSignature(signature.0.as_ref().clone()),
                 contract_address,
                 entry_point_selector,
                 calldata,

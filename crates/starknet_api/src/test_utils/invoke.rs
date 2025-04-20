@@ -97,7 +97,7 @@ pub fn invoke_tx(invoke_args: InvokeTxArgs) -> InvokeTransaction {
             max_fee: invoke_args.max_fee,
             calldata: invoke_args.calldata,
             contract_address: invoke_args.sender_address,
-            signature: TransactionDeprSignature(invoke_args.signature.0.as_ref().clone()),
+            signature: invoke_args.signature,
             // V0 transactions should always select the `__execute__` entry point.
             entry_point_selector: selector_from_name(EXECUTE_ENTRY_POINT_NAME),
         })
