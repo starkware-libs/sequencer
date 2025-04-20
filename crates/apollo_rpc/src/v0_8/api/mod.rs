@@ -603,7 +603,7 @@ impl From<InvokeTransaction> for starknet_api::transaction::InvokeTransaction {
                 calldata,
             }) => Self::V1(starknet_api::transaction::InvokeTransactionV1 {
                 max_fee,
-                signature: signature.into(),
+                signature,
                 nonce,
                 sender_address,
                 calldata,
