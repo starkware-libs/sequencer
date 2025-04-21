@@ -419,7 +419,7 @@ fn get_descents(
 /// update_tree - The modification tree for the patricia update, given by build_update_tree().
 pub(crate) fn patricia_guess_descents(
     height: SubTreeHeight,
-    update_tree: UpdateTree,
+    update_tree: &UpdateTree,
     preimage_map: &PreimageMap,
     prev_root: HashOutput,
     new_root: HashOutput,
@@ -430,7 +430,7 @@ pub(crate) fn patricia_guess_descents(
         DescentStart { height, path_to_upper_node: Path(PathToBottom::new_zero()) },
         preimage_map,
         (
-            &update_tree,
+            update_tree,
             CanonicNode::new(preimage_map, &prev_root),
             CanonicNode::new(preimage_map, &new_root),
         ),
