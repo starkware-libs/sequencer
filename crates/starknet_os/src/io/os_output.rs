@@ -16,6 +16,8 @@ pub struct StarknetOsRunnerOutput {
     // TODO(Tzahi): Define a struct for the output.
     pub os_output: Vec<Felt>,
     pub cairo_pie: CairoPie,
+    #[cfg(feature = "testing")]
+    pub unused_hints: Vec<&'static str>,
 }
 
 // Retrieve the output ptr data of a finalized run as a vec of felts.

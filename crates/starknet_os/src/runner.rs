@@ -12,6 +12,8 @@ use crate::hint_processor::snos_hint_processor::{
     SnosHintProcessor,
     SyscallHintProcessor,
 };
+#[cfg(feature = "testing")]
+use crate::hints::enum_definition::AllHints;
 use crate::io::os_input::OsHints;
 use crate::io::os_output::{get_run_output, StarknetOsRunnerOutput};
 
@@ -84,6 +86,17 @@ pub fn run_os<S: StateReader>(
     // Parse the Cairo VM output.
     let cairo_pie = cairo_runner.get_cairo_pie().map_err(StarknetOsError::RunnerError)?;
 
+    #[cfg(feature = "testing")]
+    {
+        let unused_hints =
+            AllHints::all_iter().filter(|e| !snos_hint_processor.used_hints.contains(e));
+        Ok(StarknetOsRunnerOutput {
+            os_output,
+            cairo_pie,
+            unused_hints: unused_hints.map(|s| s.into()).collect(),
+        })
+    }
+    #[cfg(not(feature = "testing"))]
     Ok(StarknetOsRunnerOutput { os_output, cairo_pie })
 }
 

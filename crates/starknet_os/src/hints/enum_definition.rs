@@ -233,7 +233,10 @@ pub mod test;
 
 macro_rules! all_hints_enum {
     ($($inner_enum:ident),+) => {
-        #[cfg_attr(any(test, feature = "testing"), derive(strum_macros::EnumIter))]
+        #[cfg_attr(
+            any(test, feature = "testing"),
+            derive(strum_macros::EnumIter, strum_macros::IntoStaticStr)
+        )]
         #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
         pub enum AllHints {
             $($inner_enum($inner_enum)),+
