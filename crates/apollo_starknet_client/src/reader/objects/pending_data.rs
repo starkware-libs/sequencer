@@ -211,6 +211,8 @@ pub struct PendingBlock {
     pub transaction_receipts: Vec<TransactionReceipt>,
     pub starknet_version: String,
     pub l1_da_mode: L1DataAvailabilityMode,
+    // TODO(shahak): Consider adding fee market info fields by adding withFeeMarketInfo=true to the
+    // feeder request.
 
     // We do not care about commitments in pending blocks.
     #[serde(default)]
