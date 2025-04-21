@@ -237,3 +237,15 @@ impl<IG: IdentifierGetter, T: LoadCairoObject<IG> + CairoSized<IG>> LoadCairoObj
         Ok(())
     }
 }
+
+#[allow(dead_code)]
+/// Returns the offset of a field in a cairo struct.
+pub(crate) fn get_field_offset<IG: IdentifierGetter>(
+    var_type: CairoStruct,
+    field: &str,
+    identifier_getter: &IG,
+) -> VmUtilsResult<usize> {
+    let base_struct = identifier_getter.get_identifier(var_type.into())?;
+    let field_member = fetch_field_member(base_struct, field)?;
+    Ok(field_member.offset)
+}
