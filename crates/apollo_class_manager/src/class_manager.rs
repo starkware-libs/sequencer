@@ -48,8 +48,7 @@ impl<S: ClassStorage> ClassManager<S> {
     #[instrument(skip(self, class), ret, err)]
     pub async fn add_class(&mut self, class: RawClass) -> ClassManagerResult<ClassHashes> {
         // TODO(Elin): think how to not clone the class to deserialize.
-        let sierra_class =
-            SierraContractClass::try_from(class.clone()).map_err(ClassManagerError::from)?;
+        let sierra_class = SierraContractClass::try_from(class.clone())?;
         let class_hash = sierra_class.calculate_class_hash();
         if let Ok(Some(executable_class_hash)) = self.classes.get_executable_class_hash(class_hash)
         {
@@ -66,6 +65,8 @@ impl<S: ClassStorage> ClassManager<S> {
                     ClassManagerError::Client(error.to_string())
                 }
             })?;
+
+        self.validate_class_length(&raw_executable_class)?;
 
         self.classes.set_class(class_hash, class, executable_class_hash, raw_executable_class)?;
 
@@ -105,6 +106,24 @@ impl<S: ClassStorage> ClassManager<S> {
         executable_class: RawExecutableClass,
     ) -> ClassManagerResult<()> {
         Ok(self.classes.set_class(class_id, class, executable_class_id, executable_class)?)
+    }
+
+    fn validate_class_length(
+        &self,
+        serialized_class: &RawExecutableClass,
+    ) -> ClassManagerResult<()> {
+        // Note: The class bytecode length is validated in the compiler.
+
+        let contract_class_object_size =
+            serialized_class.size().expect("Unexpected error serializing contract class.");
+        if contract_class_object_size > self.config.max_compiled_contract_class_object_size {
+            return Err(ClassManagerError::ContractClassObjectSizeTooLarge {
+                contract_class_object_size,
+                max_contract_class_object_size: self.config.max_compiled_contract_class_object_size,
+            });
+        }
+
+        Ok(())
     }
 }
 
