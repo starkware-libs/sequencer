@@ -193,7 +193,6 @@ impl PapyrusReader {
 
 // Currently unused - will soon replace the same `impl` for `PapyrusStateReader`.
 impl StateReader for PapyrusReader {
-    // TODO(AvivG): implement get_sierra for PapyrusReader.
     fn get_storage_at(
         &self,
         contract_address: ContractAddress,
