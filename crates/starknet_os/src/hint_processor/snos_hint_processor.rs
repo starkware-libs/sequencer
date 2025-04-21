@@ -361,10 +361,6 @@ impl SyscallHintProcessor {
 
 #[allow(unused_variables)]
 impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
-    fn read_next_syscall_selector(&mut self, vm: &mut VirtualMachine) -> SyscallResult<Felt> {
-        todo!()
-    }
-
     fn increment_syscall_count(&mut self, selector: &SyscallSelector) {
         todo!()
     }
