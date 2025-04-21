@@ -48,16 +48,11 @@ use blockifier::state::state_api::StateReader;
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::execution_resources::GasAmount;
-use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 
 #[allow(unused_variables)]
 impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
-    fn read_next_syscall_selector(&mut self, vm: &mut VirtualMachine) -> SyscallResult<Felt> {
-        todo!()
-    }
-
     fn increment_syscall_count(&mut self, selector: &SyscallSelector) {
         todo!()
     }
