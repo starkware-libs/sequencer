@@ -327,7 +327,7 @@ fn test_guess_descents_full_tree() {
     preimage_map.extend(build_full_preimage_map(height, HashOutput(Felt::from(16))));
 
     let descent_map =
-        patricia_guess_descents(height, update_tree, &preimage_map, prev_root, new_root).unwrap();
+        patricia_guess_descents(height, &update_tree, &preimage_map, prev_root, new_root).unwrap();
     assert!(descent_map.is_empty());
 }
 
@@ -367,7 +367,7 @@ fn test_guess_descents_update_one_leaf() {
         .insert(new_root, Preimage::Edge(EdgeData { bottom_hash: new_leaf, path_to_bottom }));
 
     let descent_map =
-        patricia_guess_descents(height, update_tree, &preimage_map, prev_root, new_root).unwrap();
+        patricia_guess_descents(height, &update_tree, &preimage_map, prev_root, new_root).unwrap();
     assert_eq!(
         descent_map,
         DescentMap::from([(
@@ -437,7 +437,7 @@ fn test_guess_descents_update_two_adjacent_leaves() {
     );
 
     let descent_map =
-        patricia_guess_descents(height, update_tree, &preimage_map, prev_root, new_root).unwrap();
+        patricia_guess_descents(height, &update_tree, &preimage_map, prev_root, new_root).unwrap();
     assert_eq!(
         descent_map,
         DescentMap::from([(
@@ -540,7 +540,7 @@ fn test_guess_descents_update_two_leaves() {
     );
 
     let descent_map =
-        patricia_guess_descents(height, update_tree, &preimage_map, prev_root, new_root).unwrap();
+        patricia_guess_descents(height, &update_tree, &preimage_map, prev_root, new_root).unwrap();
     assert_eq!(
         descent_map,
         DescentMap::from([
@@ -617,7 +617,7 @@ fn test_guess_descents_change_leaf() {
     );
 
     let descent_map =
-        patricia_guess_descents(height, update_tree, &preimage_map, prev_root, new_root).unwrap();
+        patricia_guess_descents(height, &update_tree, &preimage_map, prev_root, new_root).unwrap();
     assert_eq!(
         descent_map,
         DescentMap::from([(
@@ -683,7 +683,7 @@ fn test_guess_descents_split_edge_node() {
     );
 
     let descent_map =
-        patricia_guess_descents(height, update_tree, &preimage_map, prev_root, new_root).unwrap();
+        patricia_guess_descents(height, &update_tree, &preimage_map, prev_root, new_root).unwrap();
     assert_eq!(
         descent_map,
         DescentMap::from([(
