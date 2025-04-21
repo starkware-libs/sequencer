@@ -9,6 +9,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
 use num_bigint::BigUint;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
+    EdgeData,
     EdgePathLength,
     PathToBottom,
 };
@@ -24,12 +25,18 @@ use crate::hints::hint_implementation::patricia::utils::{
     DescentStart,
     LayerIndex,
     Path,
+    Preimage,
     PreimageMap,
     UpdateTree,
 };
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Ids, Scope};
-use crate::vm_utils::{get_address_of_nested_fields, get_field_offset, insert_values_to_fields};
+use crate::vm_utils::{
+    get_address_of_nested_fields,
+    get_field_offset,
+    insert_value_to_nested_field,
+    insert_values_to_fields,
+};
 
 pub(crate) fn set_siblings<S: StateReader>(
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
@@ -290,4 +297,95 @@ pub(crate) fn build_descent_map<S: StateReader>(
     // `__patricia_skip_validation_runner` into account.
 
     Ok(())
+}
+
+pub(crate) fn enter_scope_node<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, '_, S>,
+) -> OsHintResult {
+    todo!()
+}
+
+pub(crate) fn enter_scope_new_node<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, '_, S>,
+) -> OsHintResult {
+    todo!()
+}
+
+pub(crate) fn enter_scope_next_node_bit_0<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, '_, S>,
+) -> OsHintResult {
+    todo!()
+}
+
+pub(crate) fn enter_scope_next_node_bit_1<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, '_, S>,
+) -> OsHintResult {
+    todo!()
+}
+
+pub(crate) fn enter_scope_left_child<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, '_, S>,
+) -> OsHintResult {
+    todo!()
+}
+
+pub(crate) fn enter_scope_right_child<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, '_, S>,
+) -> OsHintResult {
+    todo!()
+}
+
+pub(crate) fn enter_scope_descend_edge<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, '_, S>,
+) -> OsHintResult {
+    todo!()
+}
+
+pub(crate) fn load_edge<S: StateReader>(
+    HintArgs { hint_processor, vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_, '_, S>,
+) -> OsHintResult {
+    // TODO(Nimrod): Verify that it's ok to ignore the scope variable
+    // `__patricia_skip_validation_runner`.
+    let node = HashOutput(get_integer_from_var_name(Ids::Node.into(), vm, ids_data, ap_tracking)?);
+    let preimage_mapping: &PreimageMap = exec_scopes.get_ref(Scope::Preimage.into())?;
+    let preimage = preimage_mapping.get(&node).ok_or(OsHintError::MissingPreimage(node))?;
+    let Preimage::Edge(EdgeData { bottom_hash, path_to_bottom }) = preimage else {
+        // We expect an edge node.
+        return Err(OsHintError::AssertionFailed {
+            message: format!("An edge node is expected, found {preimage:?}"),
+        });
+    };
+    // Allocate space for the edge node.
+    let edge_ptr = vm.add_memory_segment();
+    insert_value_from_var_name(Ids::Edge.into(), edge_ptr, vm, ids_data, ap_tracking)?;
+    // Fill the node fields.
+    insert_values_to_fields(
+        edge_ptr,
+        CairoStruct::NodeEdge,
+        vm,
+        &[
+            ("length", Felt::from(path_to_bottom.length).into()),
+            ("path", Felt::from(&path_to_bottom.path).into()),
+            ("bottom", bottom_hash.0.into()),
+        ],
+        hint_processor.os_program,
+    )?;
+    let hash_ptr = get_relocatable_from_var_name(Ids::HashPtr.into(), vm, ids_data, ap_tracking)?;
+    insert_value_to_nested_field(
+        hash_ptr,
+        hint_processor.commitment_type.hash_builtin_struct(),
+        vm,
+        &["result"],
+        hint_processor.os_program,
+        node.0 - Felt::from(path_to_bottom.length),
+    )?;
+    Ok(())
+}
+
+pub(crate) fn load_bottom<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> OsHintResult {
+    todo!()
+}
+
+pub(crate) fn decode_node<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> OsHintResult {
+    todo!()
 }
