@@ -1,6 +1,5 @@
 use std::future::ready;
 use std::sync::{Arc, OnceLock};
-use std::time::Duration;
 use std::vec;
 
 use apollo_batcher_types::batcher_types::{
@@ -30,9 +29,9 @@ use rstest::rstest;
 use starknet_api::block::{BlockHash, BlockNumber};
 use test_utils::{
     block_info,
-    build_proposal_setup,
     generate_invoke_tx,
     success_cende_ammbassador,
+    BatcherSetupParams,
     ContextRecipe,
     ETH_TO_FRI_RATE,
     INTERNAL_TX_BATCH,
@@ -374,7 +373,15 @@ async fn interrupt_active_proposal() {
 async fn build_proposal() {
     let before: u64 =
         chrono::Utc::now().timestamp().try_into().expect("Timestamp conversion failed");
-    let (fin_receiver, _, mut network) = build_proposal_setup(success_cende_ammbassador()).await;
+    let mut batcher = MockBatcherClient::new();
+    let batcher_setup_params = BatcherSetupParams::default();
+    batcher_setup_params.setup_proposal_flow(&mut batcher);
+    let context_recipe = ContextRecipe::with_batcher(batcher);
+    let (mut context, mut network) = context_recipe.build_context();
+
+    let init = ProposalInit::default();
+    let fin_receiver = context.build_proposal(init, TIMEOUT).await;
+
     // Test proposal parts.
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
     assert_eq!(receiver.next().await.unwrap(), ProposalPart::Init(ProposalInit::default()));
@@ -408,7 +415,16 @@ async fn build_proposal_cende_failure() {
         .times(1)
         .return_once(|_height| tokio::spawn(ready(false)));
 
-    let (fin_receiver, _, _network) = build_proposal_setup(mock_cende_context).await;
+    let mut batcher = MockBatcherClient::new();
+    let batcher_setup_params = BatcherSetupParams::default();
+    batcher_setup_params.setup_proposal_flow(&mut batcher);
+    let mut context_recipe = ContextRecipe::default();
+    context_recipe.context_deps.batcher = Arc::new(batcher);
+    context_recipe.context_deps.cende_ambassador = Arc::new(mock_cende_context);
+    let (mut context, _network) = context_recipe.build_context();
+
+    let init = ProposalInit::default();
+    let fin_receiver = context.build_proposal(init, TIMEOUT).await;
 
     assert_eq!(fin_receiver.await, Err(Canceled));
 }
@@ -421,7 +437,16 @@ async fn build_proposal_cende_incomplete() {
         .times(1)
         .return_once(|_height| tokio::spawn(pending()));
 
-    let (fin_receiver, _, _network) = build_proposal_setup(mock_cende_context).await;
+    let mut batcher = MockBatcherClient::new();
+    let batcher_setup_params = BatcherSetupParams::default();
+    batcher_setup_params.setup_proposal_flow(&mut batcher);
+    let mut context_recipe = ContextRecipe::default();
+    context_recipe.context_deps.batcher = Arc::new(batcher);
+    context_recipe.context_deps.cende_ambassador = Arc::new(mock_cende_context);
+    let (mut context, _network) = context_recipe.build_context();
+
+    let init = ProposalInit::default();
+    let fin_receiver = context.build_proposal(init, TIMEOUT).await;
 
     assert_eq!(fin_receiver.await, Err(Canceled));
 }
@@ -465,8 +490,15 @@ async fn batcher_not_ready(#[case] proposer: bool) {
 #[tokio::test]
 async fn propose_then_repropose() {
     // Build proposal.
-    let (fin_receiver, mut context, mut network) =
-        build_proposal_setup(success_cende_ammbassador()).await;
+    let mut batcher = MockBatcherClient::new();
+    let batcher_setup_params = BatcherSetupParams::default();
+    batcher_setup_params.setup_proposal_flow(&mut batcher);
+    let context_recipe = ContextRecipe::with_batcher(batcher);
+    let (mut context, mut network) = context_recipe.build_context();
+
+    let init = ProposalInit::default();
+    let fin_receiver = context.build_proposal(init, TIMEOUT).await;
+
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
     // Receive the proposal parts.
     let _init = receiver.next().await.unwrap();
