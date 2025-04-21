@@ -16,9 +16,11 @@ use crate::service::{DeploymentName, ExternalSecret, Service, ServiceName};
 #[cfg(test)]
 pub(crate) const FIX_BINARY_NAME: &str = "deployment_generator";
 
-const DEPLOYMENT_IMAGE: &str =
+pub(crate) const DEPLOYMENT_IMAGE_FOR_PRE_INTEGRATION: &str =
     "ghcr.io/starkware-libs/sequencer/sequencer:\
      04-10-chore_apollo_deployments_3_nodes_integration_deployments-1a9c48e";
+pub(crate) const DEPLOYMENT_IMAGE_FOR_TESTING: &str =
+    "ghcr.io/starkware-libs/sequencer/sequencer:dev";
 const DEPLOYMENT_CONFIG_DIR_NAME: &str = "deployment_configs/";
 
 pub struct DeploymentAndPreset {
@@ -50,7 +52,7 @@ impl DeploymentAndPreset {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Deployment {
     chain_id: ChainId,
-    image: &'static str,
+    image: String,
     application_config_subdir: PathBuf,
     #[serde(skip_serializing)]
     deployment_name: DeploymentName,
@@ -68,6 +70,7 @@ impl Deployment {
         environment: Environment,
         instance_name: &str,
         external_secret: Option<ExternalSecret>,
+        image: &str,
     ) -> Self {
         let service_names = deployment_name.all_service_names();
         let services = service_names
@@ -76,7 +79,7 @@ impl Deployment {
             .collect();
         Self {
             chain_id,
-            image: DEPLOYMENT_IMAGE,
+            image: image.to_string(),
             application_config_subdir: deployment_name
                 .add_path_suffix(environment.application_config_dir_path(), instance_name),
             deployment_name,

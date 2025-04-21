@@ -4,7 +4,12 @@ use apollo_infra::component_definitions::{LocalServerConfig, RemoteClientConfig}
 use starknet_api::core::ChainId;
 use strum_macros::{Display, EnumString};
 
-use crate::deployment::{Deployment, DeploymentAndPreset};
+use crate::deployment::{
+    Deployment,
+    DeploymentAndPreset,
+    DEPLOYMENT_IMAGE_FOR_PRE_INTEGRATION,
+    DEPLOYMENT_IMAGE_FOR_TESTING,
+};
 use crate::service::{DeploymentName, ExternalSecret};
 
 #[cfg(test)]
@@ -47,6 +52,7 @@ fn integration_hybrid_deployment_node_0() -> DeploymentAndPreset {
             Environment::SepoliaIntegration,
             "integration_hybrid_node_0",
             Some(ExternalSecret::new("node-0-integration-secrets")),
+            DEPLOYMENT_IMAGE_FOR_PRE_INTEGRATION,
         ),
         INTEGRATION_BASE_APP_CONFIG_PATH_NODE_0,
     )
@@ -60,6 +66,7 @@ fn integration_hybrid_deployment_node_1() -> DeploymentAndPreset {
             Environment::SepoliaIntegration,
             "integration_hybrid_node_1",
             Some(ExternalSecret::new("node-1-integration-secrets")),
+            DEPLOYMENT_IMAGE_FOR_PRE_INTEGRATION,
         ),
         INTEGRATION_BASE_APP_CONFIG_PATH_NODE_1,
     )
@@ -73,6 +80,7 @@ fn integration_hybrid_deployment_node_2() -> DeploymentAndPreset {
             Environment::SepoliaIntegration,
             "integration_hybrid_node_2",
             Some(ExternalSecret::new("node-2-integration-secrets")),
+            DEPLOYMENT_IMAGE_FOR_PRE_INTEGRATION,
         ),
         INTEGRATION_BASE_APP_CONFIG_PATH_NODE_2,
     )
@@ -86,6 +94,7 @@ fn integration_consolidated_deployment() -> DeploymentAndPreset {
             Environment::SepoliaIntegration,
             "integration_consolidated",
             Some(ExternalSecret::new("node-1-integration-secrets")),
+            DEPLOYMENT_IMAGE_FOR_PRE_INTEGRATION,
         ),
         INTEGRATION_BASE_APP_CONFIG_PATH_NODE_0,
     )
@@ -100,6 +109,7 @@ fn system_test_distributed_deployment() -> DeploymentAndPreset {
             Environment::Testing,
             "deployment_test_distributed",
             None,
+            DEPLOYMENT_IMAGE_FOR_TESTING,
         ),
         SYSTEM_TEST_BASE_APP_CONFIG_PATH,
     )
@@ -113,6 +123,7 @@ fn system_test_consolidated_deployment() -> DeploymentAndPreset {
             Environment::Testing,
             "deployment_test_consolidated",
             None,
+            DEPLOYMENT_IMAGE_FOR_TESTING,
         ),
         SYSTEM_TEST_BASE_APP_CONFIG_PATH,
     )
