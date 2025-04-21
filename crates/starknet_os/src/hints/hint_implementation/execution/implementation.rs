@@ -391,48 +391,6 @@ pub(crate) fn set_fp_plus_4_to_tx_nonce<S: StateReader>(
     todo!()
 }
 
-pub(crate) fn enter_scope_node<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
-) -> OsHintResult {
-    todo!()
-}
-
-pub(crate) fn enter_scope_new_node<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
-) -> OsHintResult {
-    todo!()
-}
-
-pub(crate) fn enter_scope_next_node_bit_0<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
-) -> OsHintResult {
-    todo!()
-}
-
-pub(crate) fn enter_scope_next_node_bit_1<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
-) -> OsHintResult {
-    todo!()
-}
-
-pub(crate) fn enter_scope_left_child<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
-) -> OsHintResult {
-    todo!()
-}
-
-pub(crate) fn enter_scope_right_child<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
-) -> OsHintResult {
-    todo!()
-}
-
-pub(crate) fn enter_scope_descend_edge<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
-) -> OsHintResult {
-    todo!()
-}
-
 fn write_syscall_result_helper<S: StateReader>(
     HintArgs { hint_processor, vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_, '_, S>,
     ids_type: Ids,
