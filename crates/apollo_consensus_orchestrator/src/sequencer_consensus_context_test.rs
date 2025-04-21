@@ -32,7 +32,6 @@ use test_utils::{
     block_info,
     build_proposal_setup,
     generate_invoke_tx,
-    setup_with_custom_mocks,
     success_cende_ammbassador,
     ContextRecipe,
     ETH_TO_FRI_RATE,
@@ -57,7 +56,7 @@ async fn cancelled_proposal_aborts() {
 
     batcher.expect_start_height().times(1).return_once(|_| Ok(()));
     let context_recipe = ContextRecipe::with_batcher(batcher);
-    let mut context = setup_with_custom_mocks(context_recipe.context_deps);
+    let (mut context, _network_deps) = context_recipe.build_context();
 
     let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await;
 
@@ -105,7 +104,7 @@ async fn validate_proposal_success() {
         },
     );
     let context_recipe = ContextRecipe::with_batcher(batcher);
-    let mut context = setup_with_custom_mocks(context_recipe.context_deps);
+    let (mut context, _network_deps) = context_recipe.build_context();
 
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
@@ -137,7 +136,7 @@ async fn dont_send_block_info() {
         .withf(|input| input.height == BlockNumber(0))
         .return_once(|_| Ok(()));
     let context_recipe = ContextRecipe::with_batcher(batcher);
-    let mut context = setup_with_custom_mocks(context_recipe.context_deps);
+    let (mut context, _network_deps) = context_recipe.build_context();
 
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
@@ -176,8 +175,8 @@ async fn repropose() {
             })
         },
     );
-    let ContextRecipe { context_deps, mut network_deps } = ContextRecipe::with_batcher(batcher);
-    let mut context = setup_with_custom_mocks(context_deps);
+    let context_recipe = ContextRecipe::with_batcher(batcher);
+    let (mut context, mut network_deps) = context_recipe.build_context();
 
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
@@ -246,7 +245,7 @@ async fn proposals_from_different_rounds() {
         },
     );
     let context_recipe = ContextRecipe::with_batcher(batcher);
-    let mut context = setup_with_custom_mocks(context_recipe.context_deps);
+    let (mut context, _network_deps) = context_recipe.build_context();
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
     context.set_height_and_round(BlockNumber(0), 1).await;
@@ -332,7 +331,7 @@ async fn interrupt_active_proposal() {
             })
         });
     let context_recipe = ContextRecipe::with_batcher(batcher);
-    let mut context = setup_with_custom_mocks(context_recipe.context_deps);
+    let (mut context, _network_deps) = context_recipe.build_context();
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
 
@@ -446,7 +445,7 @@ async fn batcher_not_ready(#[case] proposer: bool) {
             .returning(move |_| Err(BatcherClientError::BatcherError(BatcherError::NotReady)));
     }
     let context_recipe = ContextRecipe::with_batcher(batcher);
-    let mut context = setup_with_custom_mocks(context_recipe.context_deps);
+    let (mut context, _network_deps) = context_recipe.build_context();
     context.set_height_and_round(BlockNumber::default(), Round::default()).await;
 
     if proposer {
@@ -502,7 +501,7 @@ async fn eth_to_fri_rate_out_of_range() {
         .withf(|input| input.height == BlockNumber(0))
         .return_once(|_| Ok(()));
     let context_recipe = ContextRecipe::with_batcher(batcher);
-    let mut context = setup_with_custom_mocks(context_recipe.context_deps);
+    let (mut context, _network_deps) = context_recipe.build_context();
     context.set_height_and_round(BlockNumber(0), 0).await;
     let (mut content_sender, content_receiver) = mpsc::channel(context.config.proposal_buffer_size);
     // Send a block info with an eth_to_fri_rate that is outside the margin of error.
@@ -578,7 +577,7 @@ async fn decision_reached_sends_correct_values() {
     context_recipe.context_deps.cende_ambassador = Arc::new(cende_ammbassador);
     context_recipe.context_deps.state_sync_client = Arc::new(mock_sync_client);
     context_recipe.context_deps.clock = Arc::new(clock);
-    let mut context = setup_with_custom_mocks(context_recipe.context_deps);
+    let (mut context, _network_deps) = context_recipe.build_context();
 
     // This sets up the required state for the test, prior to running the code being tested.
     let _fin = context.build_proposal(ProposalInit::default(), TIMEOUT).await.await;

@@ -119,20 +119,6 @@ pub struct NetworkDependencies {
     pub outbound_proposal_receiver: mpsc::Receiver<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
 }
 
-pub fn setup_with_custom_mocks(
-    context_deps: SequencerConsensusContextDeps,
-) -> SequencerConsensusContext {
-    SequencerConsensusContext::new(
-        ContextConfig {
-            proposal_buffer_size: CHANNEL_SIZE,
-            num_validators: NUM_VALIDATORS,
-            chain_id: CHAIN_ID,
-            ..Default::default()
-        },
-        context_deps,
-    )
-}
-
 // Setup for test of the `build_proposal` function.
 pub async fn build_proposal_setup(
     mock_cende_context: MockCendeContext,
@@ -168,9 +154,7 @@ pub async fn build_proposal_setup(
     let mut context_recipe = ContextRecipe::with_batcher(batcher);
     context_recipe.context_deps.cende_ambassador = Arc::new(mock_cende_context);
 
-    let ContextRecipe { context_deps, network_deps } = context_recipe;
-
-    let mut context = setup_with_custom_mocks(context_deps);
+    let (mut context, network_deps) = context_recipe.build_context();
     let init = ProposalInit::default();
 
     (context.build_proposal(init, TIMEOUT).await, context, network_deps)
@@ -233,9 +217,20 @@ impl Default for ContextRecipe {
 }
 
 impl ContextRecipe {
-    pub fn build_context(self) -> SequencerConsensusContext {
+    pub fn build_context(self) -> (SequencerConsensusContext, NetworkDependencies) {
         // Consume self assuming there isn't a need for two identical context instances
-        setup_with_custom_mocks(self.context_deps)
+        (
+            SequencerConsensusContext::new(
+                ContextConfig {
+                    proposal_buffer_size: CHANNEL_SIZE,
+                    num_validators: NUM_VALIDATORS,
+                    chain_id: CHAIN_ID,
+                    ..Default::default()
+                },
+                self.context_deps,
+            ),
+            self.network_deps,
+        )
     }
 
     pub fn with_batcher(batcher: MockBatcherClient) -> Self {
