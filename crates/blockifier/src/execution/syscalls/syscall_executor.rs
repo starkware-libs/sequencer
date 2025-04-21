@@ -1,5 +1,7 @@
+use cairo_lang_casm::hints::StarknetHint;
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::hint_errors::HintError;
+use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::execution_resources::GasAmount;
 use starknet_types_core::felt::Felt;
@@ -58,6 +60,10 @@ use crate::execution::syscalls::{
 use crate::utils::u64_from_usize;
 
 pub trait SyscallExecutor {
+    fn read_next_syscall_selector(&mut self, vm: &mut VirtualMachine) -> SyscallResult<Felt>;
+
+    fn increment_syscall_count(&mut self, selector: &SyscallSelector);
+
     fn get_gas_cost_from_selector(
         &self,
         selector: &SyscallSelector,
@@ -407,4 +413,28 @@ where
     response.write(vm, syscall_executor.get_mut_syscall_ptr())?;
 
     Ok(())
+}
+
+/// Infers and executes the next syscall.
+/// Must comply with the API of a hint function, as defined by the `HintProcessor`.
+pub fn execute_next_syscall<T: SyscallExecutor>(
+    syscall_executor: &mut T,
+    vm: &mut VirtualMachine,
+    hint: &StarknetHint,
+) -> HintExecutionResult {
+    let StarknetHint::SystemCall { .. } = hint else {
+        return Err(HintError::Internal(VirtualMachineError::Other(anyhow::anyhow!(
+            "Test functions are unsupported on starknet."
+        ))));
+    };
+
+    let selector = SyscallSelector::try_from(syscall_executor.read_next_syscall_selector(vm)?)?;
+
+    // Keccak resource usage depends on the input length, so we increment the syscall count
+    // in the syscall execution callback.
+    if selector != SyscallSelector::Keccak {
+        syscall_executor.increment_syscall_count(&selector);
+    }
+
+    execute_syscall_from_selector(syscall_executor, vm, selector)
 }

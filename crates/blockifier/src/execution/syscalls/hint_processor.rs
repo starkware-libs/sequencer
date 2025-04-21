@@ -1,7 +1,7 @@
 use std::any::Any;
 use std::collections::HashMap;
 
-use cairo_lang_casm::hints::{Hint, StarknetHint};
+use cairo_lang_casm::hints::Hint;
 use cairo_lang_runner::casm_run::execute_core_hint_base;
 use cairo_vm::hint_processor::hint_processor_definition::{HintProcessorLogic, HintReference};
 use cairo_vm::serde::deserialize_program::ApTracking;
@@ -61,10 +61,7 @@ use crate::execution::syscalls::secp::{
     SecpNewResponse,
 };
 use crate::execution::syscalls::syscall_base::SyscallHandlerBase;
-use crate::execution::syscalls::syscall_executor::{
-    execute_syscall_from_selector,
-    SyscallExecutor,
-};
+use crate::execution::syscalls::syscall_executor::{execute_next_syscall, SyscallExecutor};
 use crate::execution::syscalls::{
     CallContractRequest,
     CallContractResponse,
@@ -320,30 +317,6 @@ impl<'a> SyscallHintProcessor<'a> {
         self.base.context.gas_costs()
     }
 
-    /// Infers and executes the next syscall.
-    /// Must comply with the API of a hint function, as defined by the `HintProcessor`.
-    pub fn execute_next_syscall(
-        &mut self,
-        vm: &mut VirtualMachine,
-        hint: &StarknetHint,
-    ) -> HintExecutionResult {
-        let StarknetHint::SystemCall { .. } = hint else {
-            return Err(HintError::Internal(VirtualMachineError::Other(anyhow::anyhow!(
-                "Test functions are unsupported on starknet."
-            ))));
-        };
-
-        let selector = SyscallSelector::try_from(self.read_next_syscall_selector(vm)?)?;
-
-        // Keccak resource usage depends on the input length, so we increment the syscall count
-        // in the syscall execution callback.
-        if selector != SyscallSelector::Keccak {
-            self.increment_syscall_count(&selector);
-        }
-
-        execute_syscall_from_selector(self, vm, selector)
-    }
-
     pub fn get_or_allocate_execution_info_segment(
         &mut self,
         vm: &mut VirtualMachine,
@@ -378,17 +351,9 @@ impl<'a> SyscallHintProcessor<'a> {
         self.allocate_data_segment(vm, &flat_resource_bounds)
     }
 
-    fn read_next_syscall_selector(&mut self, vm: &mut VirtualMachine) -> SyscallResult<Felt> {
-        Ok(felt_from_ptr(vm, &mut self.syscall_ptr)?)
-    }
-
     pub fn increment_syscall_count_by(&mut self, selector: &SyscallSelector, n: usize) {
         let syscall_usage = self.syscalls_usage.entry(*selector).or_default();
         syscall_usage.call_count += n;
-    }
-
-    fn increment_syscall_count(&mut self, selector: &SyscallSelector) {
-        self.increment_syscall_count_by(selector, 1);
     }
 
     pub fn increment_linear_factor_by(&mut self, selector: &SyscallSelector, n: usize) {
@@ -521,6 +486,14 @@ impl<'a> SyscallHintProcessor<'a> {
 }
 
 impl SyscallExecutor for SyscallHintProcessor<'_> {
+    fn read_next_syscall_selector(&mut self, vm: &mut VirtualMachine) -> SyscallResult<Felt> {
+        Ok(felt_from_ptr(vm, &mut self.syscall_ptr)?)
+    }
+
+    fn increment_syscall_count(&mut self, selector: &SyscallSelector) {
+        self.increment_syscall_count_by(selector, 1);
+    }
+
     fn get_gas_cost_from_selector(
         &self,
         selector: &SyscallSelector,
@@ -962,7 +935,7 @@ impl HintProcessorLogic for SyscallHintProcessor<'_> {
             Hint::Core(hint) => {
                 execute_core_hint_base(vm, exec_scopes, hint, no_temporary_segments)
             }
-            Hint::Starknet(hint) => self.execute_next_syscall(vm, hint),
+            Hint::Starknet(hint) => execute_next_syscall(self, vm, hint),
             Hint::External(_) => {
                 panic!("starknet should never accept classes with external hints!")
             }
