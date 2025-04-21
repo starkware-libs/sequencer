@@ -83,6 +83,10 @@ impl GasAmount {
     pub fn checked_factor_mul(self, factor: u64) -> Option<Self> {
         self.0.checked_mul(factor).map(Self)
     }
+
+    pub fn checked_factor_div(self, factor: u64) -> Option<Self> {
+        self.0.checked_div(factor).map(Self)
+    }
 }
 
 #[cfg_attr(
