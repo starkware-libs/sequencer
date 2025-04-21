@@ -42,6 +42,7 @@ use crate::hints::vars::{CairoStruct, Ids, Scope};
 use crate::vm_utils::{
     get_address_of_nested_fields,
     get_field_offset,
+    get_size_of_cairo_struct,
     insert_value_to_nested_field,
     insert_values_to_fields,
 };
@@ -233,10 +234,8 @@ pub(crate) fn build_descent_map<S: StateReader>(
     let update_ptr_address =
         get_ptr_from_var_name(Ids::UpdatePtr.into(), vm, ids_data, ap_tracking)?;
 
-    // TODO(Rotem): Implement a `get_size_of_cairo_struct` function when upgrading to Cairo VM 2.0.0
-    // which adds a `size` field to `Identifier`.
-    // https://github.com/lambdaclass/cairo-vm/blob/main/vm/src/serde/deserialize_program.rs#L105
-    let dict_access_size = 3;
+    let dict_access_size =
+        get_size_of_cairo_struct(CairoStruct::DictAccess, hint_processor.os_program)?;
 
     let key_offset = get_field_offset(CairoStruct::DictAccess, "key", hint_processor.os_program)?;
     let new_value_offset =

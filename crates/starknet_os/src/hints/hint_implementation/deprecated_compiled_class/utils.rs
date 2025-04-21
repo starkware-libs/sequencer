@@ -153,8 +153,7 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for EntryPointV0 {
 }
 
 impl<IG: IdentifierGetter> CairoSized<IG> for EntryPointV0 {
-    fn size(_identifier_getter: &IG) -> usize {
-        // TODO(Rotem): Fetch from IG after we upgrade the VM.
-        2
+    fn cairo_struct() -> CairoStruct {
+        CairoStruct::DeprecatedContractEntryPoint
     }
 }
