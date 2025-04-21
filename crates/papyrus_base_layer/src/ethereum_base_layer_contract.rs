@@ -106,12 +106,15 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         block_range: RangeInclusive<u64>,
         events: &'a [&'a str],
     ) -> EthereumBaseLayerResult<Vec<L1Event>> {
-        let filter = EthEventFilter::new().select(block_range).events(events);
+        let filter = EthEventFilter::new().select(block_range.clone()).events(events);
 
         let matching_logs = self.contract.provider().get_logs(&filter).await?;
         let received_tx_hashes: Vec<_> =
             matching_logs.iter().map(|log| log.transaction_hash).collect();
-        debug!("Got events with transaction hash: {:?}", received_tx_hashes);
+        debug!(
+            "Got events of blocks in range {:?} with transaction hash: {:?}",
+            block_range, received_tx_hashes
+        );
         matching_logs.into_iter().map(L1Event::try_from).collect()
     }
 
