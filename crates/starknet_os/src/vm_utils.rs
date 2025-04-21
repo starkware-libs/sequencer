@@ -27,6 +27,8 @@ pub enum VmUtilsError {
     IdentifierHasNoMember(Box<(Identifier, String)>),
     #[error("The identifier {0:?} has no members.")]
     IdentifierHasNoMembers(Box<Identifier>),
+    #[error("The identifier {0:?} has no size.")]
+    IdentifierHasNoSize(Box<Identifier>),
     #[error(transparent)]
     Math(#[from] MathError),
     #[error(transparent)]
@@ -57,7 +59,7 @@ pub(crate) trait LoadCairoObject<IG: IdentifierGetter> {
 pub(crate) trait CairoSized<IG: IdentifierGetter>: LoadCairoObject<IG> {
     /// Returns the size of the cairo object.
     // TODO(Nimrod): Figure out how to compare the size to the actual size on cairo.
-    fn size(identifier_getter: &IG) -> usize;
+    fn size(identifier_getter: &IG) -> VmUtilsResult<usize>;
 }
 
 pub(crate) trait IdentifierGetter {
@@ -230,7 +232,7 @@ impl<IG: IdentifierGetter, T: LoadCairoObject<IG> + CairoSized<IG>> LoadCairoObj
         let mut next_address = address;
         for t in self.iter() {
             t.load_into(vm, identifier_getter, next_address, constants)?;
-            next_address += T::size(identifier_getter);
+            next_address += T::size(identifier_getter)?;
         }
         Ok(())
     }
@@ -246,4 +248,20 @@ pub(crate) fn get_field_offset<IG: IdentifierGetter>(
     let base_struct = identifier_getter.get_identifier(var_type.into())?;
     let field_member = fetch_field_member(base_struct, field)?;
     Ok(field_member.offset)
+}
+
+/// Returns the size of a cairo struct. If it's a pointer, it returns the size of the base struct.
+pub(crate) fn get_size_of_cairo_struct<IG: IdentifierGetter>(
+    cairo_type: CairoStruct,
+    identifier_getter: &IG,
+) -> VmUtilsResult<usize> {
+    let cairo_type_str: &str = cairo_type.into();
+    let var_type_str = match cairo_type_str.strip_suffix("*") {
+        Some(actual_cairo_type) => actual_cairo_type,
+        None => cairo_type_str,
+    };
+
+    let base_struct = identifier_getter.get_identifier(var_type_str)?;
+
+    base_struct.size.ok_or_else(|| VmUtilsError::IdentifierHasNoSize(Box::new(base_struct.clone())))
 }

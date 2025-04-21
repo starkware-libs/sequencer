@@ -25,6 +25,7 @@ use crate::hint_processor::execution_helper::OsExecutionHelper;
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::vars::{CairoStruct, Ids};
 use crate::vm_utils::{
+    get_size_of_cairo_struct,
     insert_values_to_fields,
     CairoSized,
     IdentifierGetter,
@@ -57,8 +58,8 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for ResourceAsFelts {
 }
 
 impl<IG: IdentifierGetter> CairoSized<IG> for ResourceAsFelts {
-    fn size(_identifier_getter: &IG) -> usize {
-        3
+    fn size(identifier_getter: &IG) -> VmUtilsResult<usize> {
+        get_size_of_cairo_struct(CairoStruct::ResourceBounds, identifier_getter)
     }
 }
 

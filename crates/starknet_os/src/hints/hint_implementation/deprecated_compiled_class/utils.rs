@@ -13,6 +13,7 @@ use crate::hints::class_hash::hinted_class_hash::{
 };
 use crate::hints::vars::{CairoStruct, Const};
 use crate::vm_utils::{
+    get_size_of_cairo_struct,
     insert_values_to_fields,
     CairoSized,
     IdentifierGetter,
@@ -153,8 +154,7 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for EntryPointV0 {
 }
 
 impl<IG: IdentifierGetter> CairoSized<IG> for EntryPointV0 {
-    fn size(_identifier_getter: &IG) -> usize {
-        // TODO(Rotem): Fetch from IG after we upgrade the VM.
-        2
+    fn size(identifier_getter: &IG) -> VmUtilsResult<usize> {
+        get_size_of_cairo_struct(CairoStruct::DeprecatedContractEntryPoint, identifier_getter)
     }
 }

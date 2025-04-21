@@ -13,6 +13,7 @@ use starknet_types_core::hash::{Poseidon, StarkHash};
 use crate::hints::error::OsHintError;
 use crate::hints::vars::{CairoStruct, Const};
 use crate::vm_utils::{
+    get_size_of_cairo_struct,
     insert_values_to_fields,
     CairoSized,
     IdentifierGetter,
@@ -61,9 +62,8 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for CasmContractEntryPoint {
 }
 
 impl<IG: IdentifierGetter> CairoSized<IG> for CasmContractEntryPoint {
-    fn size(_identifier_getter: &IG) -> usize {
-        // TODO(Nimrod): Fetch from IG after we upgrade the VM.
-        4
+    fn size(identifier_getter: &IG) -> VmUtilsResult<usize> {
+        get_size_of_cairo_struct(CairoStruct::CompiledClassEntryPoint, identifier_getter)
     }
 }
 
@@ -163,9 +163,8 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for CompiledClassFact<'_> {
 }
 
 impl<IG: IdentifierGetter> CairoSized<IG> for CompiledClassFact<'_> {
-    fn size(_identifier_getter: &IG) -> usize {
-        // TODO(Nimrod): Fetch from IG after we upgrade the VM.
-        2
+    fn size(identifier_getter: &IG) -> VmUtilsResult<usize> {
+        get_size_of_cairo_struct(CairoStruct::CompiledClassFact, identifier_getter)
     }
 }
 
