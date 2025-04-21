@@ -1,9 +1,11 @@
 use time::macros::format_description;
 use tokio::sync::OnceCell;
 use tracing::metadata::LevelFilter;
+use tracing::Dispatch;
 use tracing_subscriber::fmt::time::UtcTime;
+use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::prelude::*;
-use tracing_subscriber::{fmt, EnvFilter};
+use tracing_subscriber::{fmt, EnvFilter, Registry};
 
 const DEFAULT_LEVEL: LevelFilter = LevelFilter::INFO;
 // Define a OnceCell to ensure the configuration is initialized only once
@@ -91,4 +93,18 @@ macro_rules! infra_error {
     ($($arg:tt)*) => {{
         tracing::error!(PID = *$crate::trace_util::PID, $($arg)*);
     }};
+}
+
+pub fn with_json_logger<F: FnOnce()>(f: F) {
+    let json_layer = fmt::layer()
+        .json()
+        .with_target(false)
+        .with_current_span(false)
+        .with_span_events(fmt::format::FmtSpan::NONE)
+        .with_writer(std::io::stdout);
+
+    let subscriber = Registry::default().with(json_layer);
+    let dispatcher = Dispatch::new(subscriber);
+
+    tracing::dispatcher::with_default(&dispatcher, f);
 }
