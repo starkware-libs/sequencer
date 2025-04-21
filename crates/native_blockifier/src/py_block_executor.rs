@@ -215,12 +215,15 @@ impl PyBlockExecutor {
         PyCasmHashComputationData,
     )> {
         log::debug!("Finalizing execution...");
+
+        let tx_executor =
+            self.tx_executor.take().expect("Transaction executor should be initialized");
         let BlockExecutionSummary {
             state_diff,
             compressed_state_diff,
             bouncer_weights,
             casm_hash_computation_data,
-        } = self.tx_executor().finalize()?;
+        } = tx_executor.finalize()?;
         let py_state_diff = PyStateDiff::from(state_diff);
         let py_compressed_state_diff = compressed_state_diff.map(PyStateDiff::from);
         let py_casm_hash_computation_data = casm_hash_computation_data.into();

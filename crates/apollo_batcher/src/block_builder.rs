@@ -146,7 +146,7 @@ pub struct BlockBuilderExecutionParams {
 
 pub struct BlockBuilder {
     // TODO(Yael 14/10/2024): make the executor thread safe and delete this mutex.
-    executor: Arc<Mutex<dyn TransactionExecutorTrait>>,
+    executor: Arc<Mutex<Option<Box<dyn TransactionExecutorTrait>>>>,
     tx_provider: Box<dyn TransactionProvider>,
     output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>>,
     abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
@@ -172,7 +172,9 @@ impl BlockBuilder {
         tx_polling_interval_millis: u64,
         execution_params: BlockBuilderExecutionParams,
     ) -> Self {
-        let executor = Arc::new(Mutex::new(executor));
+        let executor: Arc<Mutex<Option<Box<dyn TransactionExecutorTrait>>>> =
+            Arc::new(Mutex::new(Some(Box::new(executor))));
+
         Self {
             executor,
             tx_provider,
@@ -244,6 +246,8 @@ impl BlockBuilderTrait for BlockBuilder {
                 executor
                     .try_lock() // Acquire the lock in a sync manner.
                     .expect("Only a single task should use the executor.")
+                    .as_mut()
+                    .expect("Executor should be initialized")
                     .add_txs_to_block(executor_input_chunk.as_slice())
             })
             .await
@@ -259,12 +263,19 @@ impl BlockBuilderTrait for BlockBuilder {
             )
             .await?;
         }
+        let boxed_executor: Box<dyn TransactionExecutorTrait> =
+            self.executor.lock().await.take().expect("Executor should be initialized");
+
+        // Now we can consume it
+        let summary = boxed_executor.close_block()?; // ✅ Consumes self!
+
         let BlockExecutionSummary {
             state_diff,
             compressed_state_diff,
             bouncer_weights,
             casm_hash_computation_data,
-        } = self.executor.lock().await.close_block()?;
+        } = summary; // Destructure separately
+
         Ok(BlockExecutionArtifacts {
             execution_data,
             commitment_state_diff: state_diff,

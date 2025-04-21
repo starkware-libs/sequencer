@@ -15,7 +15,7 @@ pub trait TransactionExecutorTrait: Send {
         &mut self,
         txs: &[BlockifierTransaction],
     ) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>>;
-    fn close_block(&mut self) -> TransactionExecutorResult<BlockExecutionSummary>;
+    fn close_block(self: Box<Self>) -> TransactionExecutorResult<BlockExecutionSummary>;
 }
 
 impl<S: StateReader + Send + Sync> TransactionExecutorTrait for TransactionExecutor<S> {
@@ -31,7 +31,7 @@ impl<S: StateReader + Send + Sync> TransactionExecutorTrait for TransactionExecu
     }
     /// Finalizes the block creation and returns the commitment state diff, visited
     /// segments mapping and bouncer.
-    fn close_block(&mut self) -> TransactionExecutorResult<BlockExecutionSummary> {
+    fn close_block(self: Box<Self>) -> TransactionExecutorResult<BlockExecutionSummary> {
         self.finalize()
     }
 }
