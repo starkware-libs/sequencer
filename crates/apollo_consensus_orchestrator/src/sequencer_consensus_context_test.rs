@@ -9,6 +9,7 @@ use apollo_batcher_types::batcher_types::{
     GetProposalContent,
     GetProposalContentResponse,
     ProposalCommitment,
+    ProposalId,
     ProposalStatus,
     ProposeBlockInput,
     SendProposalContent,
