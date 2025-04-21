@@ -4,7 +4,6 @@ use std::vec::IntoIter;
 use blockifier::state::state_api::{State, StateReader};
 use cairo_vm::any_box;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
-    get_constant_from_var_name,
     get_integer_from_var_name,
     get_ptr_from_var_name,
     insert_value_from_var_name,
@@ -20,6 +19,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::HintArgs;
+use crate::hints::utils::get_constant_from_complete_var_name;
 use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
 use crate::syscall_handler_utils::SyscallHandlerType;
 use crate::vm_utils::{get_address_of_nested_fields, LoadCairoObject};
@@ -346,7 +346,7 @@ pub(crate) fn is_remaining_gas_lt_initial_budget<S: StateReader>(
     let remaining_gas =
         get_integer_from_var_name(Ids::RemainingGas.into(), vm, ids_data, ap_tracking)?;
     let initial_budget =
-        get_constant_from_var_name(Const::EntryPointInitialBudget.into(), constants)?;
+        get_constant_from_complete_var_name(Const::EntryPointInitialBudget.into(), constants)?;
     let remaining_gas_lt_initial_budget: Felt = (&remaining_gas < initial_budget).into();
     Ok(insert_value_into_ap(vm, remaining_gas_lt_initial_budget)?)
 }
@@ -522,7 +522,7 @@ pub(crate) fn write_old_block_to_storage<S: StateReader>(
     let execution_helper = &mut hint_processor.get_mut_current_execution_helper()?;
 
     let block_hash_contract_address =
-        get_constant_from_var_name(Const::BlockHashContractAddress.into(), constants)?;
+        get_constant_from_complete_var_name(Const::BlockHashContractAddress.into(), constants)?;
     let old_block_number =
         get_integer_from_var_name(Ids::OldBlockNumber.into(), vm, ids_data, ap_tracking)?;
     let old_block_hash =
@@ -603,7 +603,7 @@ pub(crate) fn get_old_block_number_and_hash<S: StateReader>(
     let os_input = &hint_processor.get_current_execution_helper()?.os_block_input;
     let (old_block_number, old_block_hash) =
         os_input.old_block_number_and_hash.ok_or(OsHintError::BlockNumberTooSmall {
-            stored_block_hash_buffer: *get_constant_from_var_name(
+            stored_block_hash_buffer: *get_constant_from_complete_var_name(
                 Const::StoredBlockHashBuffer.into(),
                 constants,
             )?,

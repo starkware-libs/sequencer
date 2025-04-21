@@ -5,4 +5,5 @@ pub mod error;
 pub mod hint_implementation;
 pub(crate) mod nondet_offsets;
 pub mod types;
+pub(crate) mod utils;
 pub mod vars;

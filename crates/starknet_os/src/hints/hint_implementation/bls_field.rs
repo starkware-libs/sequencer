@@ -1,13 +1,11 @@
 use blockifier::state::state_api::StateReader;
-use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
-    get_constant_from_var_name,
-    insert_value_from_var_name,
-};
+use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_from_var_name;
 use num_bigint::BigUint;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::OsHintResult;
 use crate::hints::types::HintArgs;
+use crate::hints::utils::get_constant_from_complete_var_name;
 use crate::hints::vars::{CairoStruct, Const, Ids};
 use crate::vm_utils::get_address_of_nested_fields;
 
@@ -40,7 +38,7 @@ pub(crate) fn compute_ids_low<S: StateReader>(
             hint_processor.os_program,
         )?)?
         .into_owned();
-    let base = get_constant_from_var_name(Const::Base.into(), constants)?;
+    let base = get_constant_from_complete_var_name(Const::Base.into(), constants)?;
     let mask = BigUint::from(u128::MAX);
 
     let low = (d0 + d1 * base).to_biguint() & mask;
