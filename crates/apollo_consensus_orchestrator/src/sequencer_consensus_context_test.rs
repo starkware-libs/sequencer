@@ -24,7 +24,11 @@ use apollo_class_manager_types::transaction_converter::{
 };
 use apollo_class_manager_types::EmptyClassManagerClient;
 use apollo_consensus::types::{ConsensusContext, Round};
-use apollo_l1_gas_price_types::errors::EthToStrkOracleClientError;
+use apollo_l1_gas_price_types::errors::{
+    EthToStrkOracleClientError,
+    L1GasPriceClientError,
+    L1GasPriceProviderError,
+};
 use apollo_l1_gas_price_types::{
     MockEthToStrkOracleClientTrait,
     MockL1GasPriceProviderClient,
@@ -143,8 +147,6 @@ fn default_context_dependencies() -> (SequencerConsensusContextDeps, NetworkDepe
     let BroadcastTopicChannels { broadcast_topic_client: votes_topic_client, .. } =
         subscriber_channels;
 
-    let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
-    eth_to_strk_oracle_client.expect_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
     let sequencer_deps = SequencerConsensusContextDeps {
         class_manager_client: Arc::new(EmptyClassManagerClient),
         state_sync_client: Arc::new(MockStateSyncClient::new()),
@@ -152,7 +154,7 @@ fn default_context_dependencies() -> (SequencerConsensusContextDeps, NetworkDepe
         outbound_proposal_sender,
         vote_broadcast_client: votes_topic_client,
         cende_ambassador: Arc::new(success_cende_ammbassador()),
-        eth_to_strk_oracle_client: Arc::new(eth_to_strk_oracle_client),
+        eth_to_strk_oracle_client: Arc::new(dummy_eth_to_strk_provider()),
         l1_gas_price_provider: Arc::new(dummy_gas_price_provider()),
         clock: Arc::new(DefaultClock::default()),
     };
@@ -261,6 +263,12 @@ fn dummy_gas_price_provider() -> MockL1GasPriceProviderClient {
     }));
 
     l1_gas_price_provider
+}
+
+fn dummy_eth_to_strk_provider() -> MockEthToStrkOracleClientTrait {
+    let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
+    eth_to_strk_oracle_client.expect_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
+    eth_to_strk_oracle_client
 }
 
 #[tokio::test]
@@ -709,48 +717,42 @@ async fn decision_reached_sends_correct_values() {
         .assert_eq(&metrics, VersionedConstants::latest_constants().min_gas_price.0);
 }
 
+#[rstest]
+#[case::l1_price_failure(true)]
+#[case::eth_to_str_rate_failure(false)]
 #[tokio::test]
-async fn oracle_fails_on_startup() {
+async fn oracle_fails_on_startup(#[case] l1_oracle_failure: bool) {
     let mut batcher = MockBatcherClient::new();
-    let proposal_id = Arc::new(OnceLock::new());
-    let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_propose_block().times(1).returning(move |input: ProposeBlockInput| {
-        proposal_id_clone.set(input.proposal_id).unwrap();
-        Ok(())
-    });
-    batcher
-        .expect_start_height()
-        .times(1)
-        .withf(|input| input.height == BlockNumber(0))
-        .return_once(|_| Ok(()));
-    let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_get_proposal_content().times(1).returning(move |input| {
-        assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-        Ok(GetProposalContentResponse {
-            content: GetProposalContent::Txs(INTERNAL_TX_BATCH.clone()),
-        })
-    });
-    let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_get_proposal_content().times(1).returning(move |input| {
-        assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-        Ok(GetProposalContentResponse {
-            content: GetProposalContent::Finished(ProposalCommitment {
-                state_diff_commitment: STATE_DIFF_COMMITMENT,
-            }),
-        })
-    });
+    setup_batcher_for_build(&mut batcher, BlockNumber(0)).await;
 
-    let mut eth_to_strk_oracle_client: MockEthToStrkOracleClientTrait =
-        MockEthToStrkOracleClientTrait::new();
-    eth_to_strk_oracle_client
-        .expect_eth_to_fri_rate()
-        .return_once(|_| Err(EthToStrkOracleClientError::MissingFieldError("")));
+    let (l1_prices_oracle_client, eth_to_strk_oracle_client) = {
+        if l1_oracle_failure {
+            let mut l1_prices_oracle_client = MockL1GasPriceProviderClient::new();
+            l1_prices_oracle_client.expect_get_price_info().times(1).return_const(Err(
+                L1GasPriceClientError::L1GasPriceProviderError(
+                    // random error, these parameters don't mean anything
+                    L1GasPriceProviderError::UnexpectedHeightError { expected: 0, found: 1 },
+                ),
+            ));
+            let eth_to_strk_orcale_client = dummy_eth_to_strk_provider();
+            (l1_prices_oracle_client, eth_to_strk_orcale_client)
+        } else {
+            let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
+            eth_to_strk_oracle_client
+                .expect_eth_to_fri_rate()
+                .times(1)
+                .return_once(|_| Err(EthToStrkOracleClientError::MissingFieldError("")));
+            let l1_prices_oracle_client = dummy_gas_price_provider();
+            (l1_prices_oracle_client, eth_to_strk_oracle_client)
+        }
+    };
 
     let (default_dependencies, mut network) = default_context_dependencies();
 
     let context_dependencies = SequencerConsensusContextDeps {
         batcher: Arc::new(batcher),
         eth_to_strk_oracle_client: Arc::new(eth_to_strk_oracle_client),
+        l1_gas_price_provider: Arc::new(l1_prices_oracle_client),
         ..default_dependencies
     };
 
@@ -759,8 +761,6 @@ async fn oracle_fails_on_startup() {
     let init = ProposalInit::default();
 
     let fin_receiver = context.build_proposal(init, TIMEOUT).await;
-
-    // finisehd build_proposal_setup-like segment
 
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
 
@@ -791,108 +791,62 @@ async fn oracle_fails_on_startup() {
     assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
 }
 
+#[rstest]
+#[case::l1_price_failure(true)]
+#[case::eth_to_str_rate_failure(false)]
 #[tokio::test]
-async fn oracle_fails_on_second_block() {
+async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
     // Validate block number 0, call decision_reached to save the previous block info (block 0), and
     // attempt to build_proposal on block number 1.
     let mut batcher = MockBatcherClient::new();
-    let proposal_id: Arc<OnceLock<ProposalId>> = Arc::new(OnceLock::new());
-
-    // set batcher expectations for validation on block 0
-    let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_validate_block().times(1).returning(move |input: ValidateBlockInput| {
-        proposal_id_clone.set(input.proposal_id).unwrap();
-        Ok(())
-    });
-    batcher
-        .expect_start_height()
-        .times(1)
-        .withf(|input| input.height == BlockNumber(0))
-        .return_once(|_| Ok(()));
-    let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_send_proposal_content().times(1).returning(
-        move |input: SendProposalContentInput| {
-            assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-            let SendProposalContent::Txs(txs) = input.content else {
-                panic!("Expected SendProposalContent::Txs, got {:?}", input.content);
-            };
-            assert_eq!(txs, *INTERNAL_TX_BATCH);
-            Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
-        },
-    );
-    let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_send_proposal_content().times(1).returning(
-        move |input: SendProposalContentInput| {
-            assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-            assert!(matches!(input.content, SendProposalContent::Finish));
-            Ok(SendProposalContentResponse {
-                response: ProposalStatus::Finished(ProposalCommitment {
-                    state_diff_commitment: STATE_DIFF_COMMITMENT,
-                }),
-            })
-        },
-    );
+    setup_batcher_for_validate(&mut batcher, BlockNumber(0)).await;
+    setup_batcher_for_build(&mut batcher, BlockNumber(1)).await;
 
     // set up batcher decision_reached
-    let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher
-        .expect_decision_reached()
-        .times(1)
-        .withf(move |input| input.proposal_id == *proposal_id_clone.get().unwrap())
-        .return_once(|_| {
-            Ok(DecisionReachedResponse {
-                state_diff: ThinStateDiff::default(),
-                l2_gas_used: GasAmount::default(),
-                central_objects: CentralObjects::default(),
-            })
-        });
-
-    // set batcher expectations for proposal on block 1
-    let proposal_id: Arc<OnceLock<ProposalId>> = Arc::new(OnceLock::new());
-    let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_propose_block().times(1).return_once(move |input: ProposeBlockInput| {
-        proposal_id_clone.set(input.proposal_id).unwrap();
-        Ok(())
-    });
-    batcher
-        .expect_start_height()
-        .times(1)
-        .withf(|input| input.height == BlockNumber(1))
-        .return_once(|_| Ok(()));
-    let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_get_proposal_content().times(1).returning(move |input| {
-        assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-        Ok(GetProposalContentResponse {
-            content: GetProposalContent::Txs(INTERNAL_TX_BATCH.clone()),
-        })
-    });
-    let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_get_proposal_content().times(1).returning(move |input| {
-        assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-        Ok(GetProposalContentResponse {
-            content: GetProposalContent::Finished(ProposalCommitment {
-                state_diff_commitment: STATE_DIFF_COMMITMENT,
-            }),
+    batcher.expect_decision_reached().times(1).return_once(|_| {
+        Ok(DecisionReachedResponse {
+            state_diff: ThinStateDiff::default(),
+            l2_gas_used: GasAmount::default(),
+            central_objects: CentralObjects::default(),
         })
     });
 
-    // set the oracles to succeed on first block and fail on second
-    let mut eth_to_strk_oracle_client: MockEthToStrkOracleClientTrait =
-        MockEthToStrkOracleClientTrait::new();
-    eth_to_strk_oracle_client
-        .expect_eth_to_fri_rate()
-        .times(1)
-        .return_once(|_| Ok(ETH_TO_FRI_RATE));
-    eth_to_strk_oracle_client
-        .expect_eth_to_fri_rate()
-        .times(1)
-        .return_once(|_| Err(EthToStrkOracleClientError::MissingFieldError("")));
-
+    // required for decision reached flow
     let mut state_sync_client = MockStateSyncClient::new();
     state_sync_client.expect_add_new_block().times(1).return_once(|_| Ok(()));
-
     let mut cende_ambassador = success_cende_ammbassador();
     cende_ambassador.expect_prepare_blob_for_next_height().times(1).return_once(|_| Ok(()));
+
+    // set the oracle to succeed on first block and fail on second
+    let (l1_prices_oracle_client, eth_to_strk_oracle_client) = {
+        if l1_oracle_failure {
+            let mut l1_prices_oracle_client = MockL1GasPriceProviderClient::new();
+            l1_prices_oracle_client.expect_get_price_info().times(1).return_const(Ok(PriceInfo {
+                base_fee_per_gas: GasPrice(TEMP_ETH_GAS_FEE_IN_WEI),
+                blob_fee: GasPrice(TEMP_ETH_BLOB_GAS_FEE_IN_WEI),
+            }));
+            l1_prices_oracle_client.expect_get_price_info().times(1).return_const(Err(
+                L1GasPriceClientError::L1GasPriceProviderError(
+                    // random error, these parameters don't mean anything
+                    L1GasPriceProviderError::UnexpectedHeightError { expected: 0, found: 1 },
+                ),
+            ));
+            let eth_to_strk_orcale_client = dummy_eth_to_strk_provider();
+            (l1_prices_oracle_client, eth_to_strk_orcale_client)
+        } else {
+            let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
+            eth_to_strk_oracle_client
+                .expect_eth_to_fri_rate()
+                .times(1)
+                .return_once(|_| Ok(ETH_TO_FRI_RATE));
+            eth_to_strk_oracle_client
+                .expect_eth_to_fri_rate()
+                .times(1)
+                .return_once(|_| Err(EthToStrkOracleClientError::MissingFieldError("")));
+            let l1_prices_oracle_client = dummy_gas_price_provider();
+            (l1_prices_oracle_client, eth_to_strk_oracle_client)
+        }
+    };
 
     let (default_dependencies, mut network) = default_context_dependencies();
 
@@ -900,6 +854,7 @@ async fn oracle_fails_on_second_block() {
         batcher: Arc::new(batcher),
         cende_ambassador: Arc::new(cende_ambassador),
         eth_to_strk_oracle_client: Arc::new(eth_to_strk_oracle_client),
+        l1_gas_price_provider: Arc::new(l1_prices_oracle_client),
         state_sync_client: Arc::new(state_sync_client),
         ..default_dependencies
     };
