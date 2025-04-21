@@ -67,16 +67,16 @@ where
     let target_height_marker = revert_up_to_and_including;
 
     if storage_height_marker <= target_height_marker {
-        panic!(
+        info!(
             "{component_name}'s storage height marker {storage_height_marker} is not larger than \
              the target height marker {target_height_marker}. No reverts are needed."
         );
+    } else {
+        info!(
+            "Reverting {component_name}'s storage from height marker {storage_height_marker} to \
+             target height marker {target_height_marker}"
+        );
     }
-
-    info!(
-        "Reverting {component_name}'s storage from height marker {storage_height_marker} to \
-         target height marker {target_height_marker}"
-    );
 
     while storage_height_marker > target_height_marker {
         storage_height_marker = storage_height_marker.prev().expect(
