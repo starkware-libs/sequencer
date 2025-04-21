@@ -130,12 +130,12 @@ impl ImplicitArg {
 }
 
 pub struct EntryPointRunnerConfig {
-    trace_enabled: bool,
-    verify_secure: bool,
-    layout: LayoutName,
-    proof_mode: bool,
+    pub trace_enabled: bool,
+    pub verify_secure: bool,
+    pub layout: LayoutName,
+    pub proof_mode: bool,
     // If true, the entrypoint will be prefixed with __main__.
-    add_main_prefix_to_entrypoint: bool,
+    pub add_main_prefix_to_entrypoint: bool,
 }
 
 impl Default for EntryPointRunnerConfig {
