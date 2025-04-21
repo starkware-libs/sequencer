@@ -24,7 +24,7 @@ use crate::execution::execution_utils::{
     ReadOnlySegment,
 };
 
-pub(crate) mod deprecated_syscall_executor;
+pub mod deprecated_syscall_executor;
 #[cfg(test)]
 #[path = "deprecated_syscalls_test.rs"]
 pub mod deprecated_syscalls_test;
@@ -204,8 +204,8 @@ pub type CallContractResponse = SingleSegmentResponse;
 
 // DelegateCall and DelegateCallL1Handler syscalls.
 
-pub(crate) type DelegateCallRequest = CallContractRequest;
-pub(crate) type DelegateCallResponse = CallContractResponse;
+pub type DelegateCallRequest = CallContractRequest;
+pub type DelegateCallResponse = CallContractResponse;
 
 // Deploy syscall.
 
@@ -273,11 +273,11 @@ impl SyscallRequest for EmitEventRequest {
     }
 }
 
-pub(crate) type EmitEventResponse = EmptyResponse;
+pub type EmitEventResponse = EmptyResponse;
 
 // GetBlockNumber syscall.
 
-pub(crate) type GetBlockNumberRequest = EmptyRequest;
+pub type GetBlockNumberRequest = EmptyRequest;
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct GetBlockNumberResponse {
@@ -293,7 +293,7 @@ impl SyscallResponse for GetBlockNumberResponse {
 
 // GetBlockTimestamp syscall.
 
-pub(crate) type GetBlockTimestampRequest = EmptyRequest;
+pub type GetBlockTimestampRequest = EmptyRequest;
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct GetBlockTimestampResponse {
@@ -309,12 +309,12 @@ impl SyscallResponse for GetBlockTimestampResponse {
 
 // GetCallerAddress syscall.
 
-pub(crate) type GetCallerAddressRequest = EmptyRequest;
-pub(crate) type GetCallerAddressResponse = GetContractAddressResponse;
+pub type GetCallerAddressRequest = EmptyRequest;
+pub type GetCallerAddressResponse = GetContractAddressResponse;
 
 // GetContractAddress syscall.
 
-pub(crate) type GetContractAddressRequest = EmptyRequest;
+pub type GetContractAddressRequest = EmptyRequest;
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct GetContractAddressResponse {
@@ -330,12 +330,12 @@ impl SyscallResponse for GetContractAddressResponse {
 
 // GetSequencerAddress syscall.
 
-pub(crate) type GetSequencerAddressRequest = EmptyRequest;
-pub(crate) type GetSequencerAddressResponse = GetContractAddressResponse;
+pub type GetSequencerAddressRequest = EmptyRequest;
+pub type GetSequencerAddressResponse = GetContractAddressResponse;
 
 // GetTxInfo syscall.
 
-pub(crate) type GetTxInfoRequest = EmptyRequest;
+pub type GetTxInfoRequest = EmptyRequest;
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct GetTxInfoResponse {
@@ -351,8 +351,8 @@ impl SyscallResponse for GetTxInfoResponse {
 
 // GetTxSignature syscall.
 
-pub(crate) type GetTxSignatureRequest = EmptyRequest;
-pub(crate) type GetTxSignatureResponse = SingleSegmentResponse;
+pub type GetTxSignatureRequest = EmptyRequest;
+pub type GetTxSignatureResponse = SingleSegmentResponse;
 
 // LibraryCall and LibraryCallL1Handler syscalls.
 
@@ -375,7 +375,7 @@ impl SyscallRequest for LibraryCallRequest {
     }
 }
 
-pub(crate) type LibraryCallResponse = CallContractResponse;
+pub type LibraryCallResponse = CallContractResponse;
 
 // ReplaceClass syscall.
 
@@ -417,7 +417,7 @@ impl SyscallRequest for SendMessageToL1Request {
     }
 }
 
-pub(crate) type SendMessageToL1Response = EmptyResponse;
+pub type SendMessageToL1Response = EmptyResponse;
 
 // StorageRead syscall.
 
