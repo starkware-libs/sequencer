@@ -269,7 +269,6 @@ pub struct SequencerConsensusContextDeps {
 impl SequencerConsensusContext {
     #[allow(clippy::too_many_arguments)]
     pub fn new(config: ContextConfig, context_deps: SequencerConsensusContextDeps) -> Self {
-        register_metrics();
         let chain_id = config.chain_id.clone();
         let num_validators = config.num_validators;
         let l1_da_mode = if config.l1_da_mode {
@@ -306,6 +305,10 @@ impl SequencerConsensusContext {
             clock: context_deps.clock,
             previous_block_info: None,
         }
+    }
+    pub fn startup(&self) {
+        info!("Starting sequencer consensus context");
+        register_metrics();
     }
 }
 

@@ -164,6 +164,7 @@ impl ConsensusManager {
                 clock: Arc::new(DefaultClock::default()),
             },
         );
+        context.startup();
 
         let network_task =
             tokio::spawn(network_manager.run().instrument(info_span!("[Consensus network]")));
