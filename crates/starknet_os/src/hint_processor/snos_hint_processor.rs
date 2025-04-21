@@ -1,3 +1,4 @@
+use blockifier::context::ChainInfo;
 use blockifier::state::state_api::StateReader;
 #[cfg(any(feature = "testing", test))]
 use blockifier::test_utils::dict_state_reader::DictStateReader;
@@ -96,6 +97,7 @@ pub struct SnosHintProcessor<'a, S: StateReader> {
     pub(crate) deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
     pub(crate) compiled_classes: HashMap<ClassHash, CasmContractClass>,
     pub(crate) state_update_pointers: Option<StateUpdatePointers>,
+    pub(crate) chain_info: ChainInfo,
     _deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
     builtin_hint_processor: BuiltinHintProcessor,
     // The type of commitment tree next in line for hashing. Used to determine which HashBuiltin
@@ -146,6 +148,7 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
             builtin_hint_processor: BuiltinHintProcessor::new_empty(),
             deprecated_compiled_classes: os_hints.os_input.deprecated_compiled_classes,
             compiled_classes: os_hints.os_input.compiled_classes,
+            chain_info: os_hints.os_input.chain_info,
             state_update_pointers: None,
             commitment_type: CommitmentType::State,
             serialize_data_availability_create_pages: false,
