@@ -15,6 +15,7 @@ use apollo_gateway_types::gateway_types::{
     SUPPORTED_TRANSACTION_VERSIONS,
 };
 use apollo_infra::component_definitions::ComponentStarter;
+use apollo_infra::trace_util::with_json_logger;
 use apollo_infra_utils::type_name::short_type_name;
 use axum::extract::State;
 use axum::http::HeaderMap;
@@ -182,11 +183,13 @@ async fn add_tx_inner(
 fn record_added_transactions(add_tx_result: &HttpServerResult<GatewayOutput>, region: &str) {
     if let Ok(gateway_output) = add_tx_result {
         // TODO(Arni): Reconsider the tracing level for this log.
-        info!(
-            transaction_hash = %gateway_output.transaction_hash(),
-            region = %region,
-            "Recorded transaction"
-        );
+        with_json_logger(|| {
+            info!(
+                transaction_hash = %gateway_output.transaction_hash(),
+                region = %region,
+                "Recorded transaction"
+            );
+        });
         ADDED_TRANSACTIONS_SUCCESS.increment(1);
     } else {
         ADDED_TRANSACTIONS_FAILURE.increment(1);
