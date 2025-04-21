@@ -1845,6 +1845,8 @@ define_hint_extension_enum!(
         indoc! {r#"
     from starkware.starknet.core.os.contract_class.compiled_class_hash import (
         create_bytecode_segment_structure,
+    )
+    from starkware.starknet.core.os.contract_class.compiled_class_hash_cairo_hints import (
         get_compiled_class_struct,
     )
 
