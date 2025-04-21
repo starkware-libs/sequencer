@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use std::future::ready;
 use std::sync::{Arc, LazyLock, OnceLock};
 use std::time::Duration;
@@ -6,7 +7,13 @@ use apollo_batcher_types::batcher_types::{
     GetProposalContent,
     GetProposalContentResponse,
     ProposalCommitment,
+    ProposalId,
+    ProposalStatus,
     ProposeBlockInput,
+    SendProposalContent,
+    SendProposalContentInput,
+    SendProposalContentResponse,
+    ValidateBlockInput,
 };
 use apollo_batcher_types::communication::MockBatcherClient;
 use apollo_class_manager_types::transaction_converter::{
@@ -216,4 +223,112 @@ pub fn dummy_gas_price_provider() -> MockL1GasPriceProviderClient {
     });
 
     l1_gas_price_provider
+}
+
+pub struct ContextRecipe {
+    pub context_deps: SequencerConsensusContextDeps,
+    pub network_deps: NetworkDependencies,
+}
+
+impl Default for ContextRecipe {
+    fn default() -> Self {
+        let (context_deps, network_deps) = default_context_dependencies();
+        Self { context_deps, network_deps }
+    }
+}
+
+impl ContextRecipe {
+    pub fn build_context(self) -> SequencerConsensusContext {
+        // Consume self assuming there isn't a need for two identical context instances
+        setup_with_custom_mocks(self.context_deps)
+    }
+
+    pub fn with_batcher(batcher: MockBatcherClient) -> Self {
+        let (mut context_deps, network_deps) = default_context_dependencies();
+        context_deps.batcher = Arc::new(batcher);
+        Self { context_deps, network_deps }
+    }
+}
+
+pub struct BatcherSetupParams {
+    pub proposal_id: Arc<OnceLock<ProposalId>>,
+    pub height: BlockNumber,
+    pub txs: Vec<InternalConsensusTransaction>,
+    pub state_diff_commitment: StateDiffCommitment,
+}
+
+impl Default for BatcherSetupParams {
+    fn default() -> Self {
+        Self {
+            proposal_id: Arc::new(OnceLock::new()),
+            height: BlockNumber(0),
+            txs: INTERNAL_TX_BATCH.to_vec(),
+            state_diff_commitment: STATE_DIFF_COMMITMENT,
+        }
+    }
+}
+
+impl BatcherSetupParams {
+    pub fn setup_proposal_flow(self, batcher: &mut MockBatcherClient) {
+        let proposal_id_clone = self.proposal_id.clone();
+        batcher.expect_propose_block().times(1).returning(move |input: ProposeBlockInput| {
+            proposal_id_clone.set(input.proposal_id).unwrap();
+            Ok(())
+        });
+        batcher
+            .expect_start_height()
+            .times(1)
+            .withf(move |input| input.height == self.height)
+            .return_once(|_| Ok(()));
+        let proposal_id_clone = Arc::clone(&self.proposal_id);
+        batcher.expect_get_proposal_content().times(1).returning(move |input| {
+            assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
+            Ok(GetProposalContentResponse { content: GetProposalContent::Txs(self.txs.to_owned()) })
+        });
+        let proposal_id_clone = Arc::clone(&self.proposal_id);
+        batcher.expect_get_proposal_content().times(1).returning(move |input| {
+            assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
+            Ok(GetProposalContentResponse {
+                content: GetProposalContent::Finished(ProposalCommitment {
+                    state_diff_commitment: self.state_diff_commitment,
+                }),
+            })
+        });
+    }
+
+    pub fn setup_validation_flow(self, batcher: &mut MockBatcherClient) {
+        let proposal_id_clone = self.proposal_id.clone();
+        batcher.expect_validate_block().times(1).returning(move |input: ValidateBlockInput| {
+            proposal_id_clone.set(input.proposal_id).unwrap();
+            Ok(())
+        });
+        batcher
+            .expect_start_height()
+            .times(1)
+            .withf(move |input| input.height == self.height)
+            .return_once(|_| Ok(()));
+        let proposal_id_clone = Arc::clone(&self.proposal_id);
+        batcher.expect_send_proposal_content().times(1).returning(
+            move |input: SendProposalContentInput| {
+                assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
+                let SendProposalContent::Txs(txs) = input.content else {
+                    panic!("Expected SendProposalContent::Txs, got {:?}", input.content);
+                };
+                assert_eq!(txs, *self.txs);
+                Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
+            },
+        );
+        let proposal_id_clone = Arc::clone(&self.proposal_id);
+        batcher.expect_send_proposal_content().times(1).returning(
+            move |input: SendProposalContentInput| {
+                assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
+                assert!(matches!(input.content, SendProposalContent::Finish));
+                Ok(SendProposalContentResponse {
+                    response: ProposalStatus::Finished(ProposalCommitment {
+                        state_diff_commitment: self.state_diff_commitment,
+                    }),
+                })
+            },
+        );
+    }
 }
