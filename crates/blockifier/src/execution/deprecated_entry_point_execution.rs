@@ -15,6 +15,7 @@ use super::call_info::StorageAccessTracker;
 use super::execution_utils::SEGMENT_ARENA_BUILTIN_SIZE;
 use crate::execution::call_info::{CallExecution, CallInfo};
 use crate::execution::contract_class::{CompiledClassV0, TrackedResource};
+use crate::execution::deprecated_syscalls::deprecated_syscall_executor::DeprecatedSyscallExecutor;
 use crate::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallHintProcessor;
 use crate::execution::entry_point::{
     EntryPointExecutionContext,

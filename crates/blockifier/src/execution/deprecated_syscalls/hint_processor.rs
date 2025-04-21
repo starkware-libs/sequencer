@@ -5,9 +5,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_def
     BuiltinHintProcessor,
     HintProcessorData,
 };
-use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::get_ptr_from_var_name;
-use cairo_vm::hint_processor::hint_processor_definition::{HintProcessorLogic, HintReference};
-use cairo_vm::serde::deserialize_program::ApTracking;
+use cairo_vm::hint_processor::hint_processor_definition::HintProcessorLogic;
 use cairo_vm::types::errors::math_errors::MathError;
 use cairo_vm::types::exec_scope::ExecutionScopes;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
@@ -40,7 +38,7 @@ use crate::execution::common_hints::{
     HintExecutionResult,
 };
 use crate::execution::deprecated_syscalls::deprecated_syscall_executor::{
-    execute_deprecated_syscall_from_selector,
+    execute_next_deprecated_syscall,
     DeprecatedSyscallExecutor,
 };
 use crate::execution::deprecated_syscalls::{
@@ -267,34 +265,6 @@ impl<'a> DeprecatedSyscallHintProcessor<'a> {
         Ok(())
     }
 
-    pub fn verify_syscall_ptr(&self, actual_ptr: Relocatable) -> DeprecatedSyscallResult<()> {
-        if actual_ptr != self.syscall_ptr {
-            return Err(DeprecatedSyscallExecutionError::BadSyscallPointer {
-                expected_ptr: self.syscall_ptr,
-                actual_ptr,
-            });
-        }
-
-        Ok(())
-    }
-
-    /// Infers and executes the next syscall.
-    /// Must comply with the API of a hint function, as defined by the `HintProcessor`.
-    pub fn execute_next_syscall(
-        &mut self,
-        vm: &mut VirtualMachine,
-        ids_data: &HashMap<String, HintReference>,
-        ap_tracking: &ApTracking,
-    ) -> HintExecutionResult {
-        let initial_syscall_ptr = get_ptr_from_var_name("syscall_ptr", vm, ids_data, ap_tracking)?;
-        self.verify_syscall_ptr(initial_syscall_ptr)?;
-
-        let selector = DeprecatedSyscallSelector::try_from(self.read_next_syscall_selector(vm)?)?;
-        self.increment_syscall_count(&selector);
-
-        execute_deprecated_syscall_from_selector(self, vm, selector)
-    }
-
     pub fn get_or_allocate_tx_signature_segment(
         &mut self,
         vm: &mut VirtualMachine,
@@ -347,17 +317,6 @@ impl<'a> DeprecatedSyscallHintProcessor<'a> {
                 Ok(tx_info_start_ptr)
             }
         }
-    }
-
-    fn read_next_syscall_selector(
-        &mut self,
-        vm: &mut VirtualMachine,
-    ) -> DeprecatedSyscallResult<Felt> {
-        Ok(felt_from_ptr(vm, &mut self.syscall_ptr)?)
-    }
-
-    fn increment_syscall_count(&mut self, selector: &DeprecatedSyscallSelector) {
-        self.syscalls_usage.entry(*selector).or_default().increment_call_count();
     }
 
     fn allocate_tx_signature_segment(
@@ -475,7 +434,7 @@ impl HintProcessorLogic for DeprecatedSyscallHintProcessor<'_> {
     ) -> HintExecutionResult {
         let hint = hint_data.downcast_ref::<HintProcessorData>().ok_or(HintError::WrongHintData)?;
         if hint_code::SYSCALL_HINTS.contains(hint.code.as_str()) {
-            return self.execute_next_syscall(vm, &hint.ids_data, &hint.ap_tracking);
+            return execute_next_deprecated_syscall(self, vm, &hint.ids_data, &hint.ap_tracking);
         }
 
         self.builtin_hint_processor.execute_hint(vm, exec_scopes, hint_data, constants)
@@ -483,6 +442,21 @@ impl HintProcessorLogic for DeprecatedSyscallHintProcessor<'_> {
 }
 
 impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
+    fn verify_syscall_ptr(&self, actual_ptr: Relocatable) -> DeprecatedSyscallResult<()> {
+        if actual_ptr != self.syscall_ptr {
+            return Err(DeprecatedSyscallExecutionError::BadSyscallPointer {
+                expected_ptr: self.syscall_ptr,
+                actual_ptr,
+            });
+        }
+
+        Ok(())
+    }
+
+    fn increment_syscall_count(&mut self, selector: &DeprecatedSyscallSelector) {
+        self.syscalls_usage.entry(*selector).or_default().increment_call_count();
+    }
+
     fn get_mut_syscall_ptr(&mut self) -> &mut Relocatable {
         &mut self.syscall_ptr
     }
