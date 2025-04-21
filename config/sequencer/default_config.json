@@ -264,6 +264,11 @@
     "privacy": "Public",
     "value": 10
   },
+  "class_manager_config.class_manager_config.max_compiled_contract_class_object_size": {
+    "description": "Limitation of compiled contract class object size.",
+    "privacy": "Public",
+    "value": 4089446
+  },
   "class_manager_config.class_storage_config.class_hash_storage_config.enforce_file_exists": {
     "description": "Whether to enforce that the above path exists.",
     "privacy": "Public",
