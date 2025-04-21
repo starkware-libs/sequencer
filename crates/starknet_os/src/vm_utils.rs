@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::get_relocatable_from_var_name;
 use cairo_vm::hint_processor::hint_processor_definition::HintReference;
-use cairo_vm::serde::deserialize_program::{ApTracking, Identifier};
+use cairo_vm::serde::deserialize_program::{ApTracking, Identifier, Member};
 use cairo_vm::types::errors::math_errors::MathError;
 use cairo_vm::types::program::Program;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
@@ -25,6 +25,8 @@ pub enum VmUtilsError {
     HintedClassHash(#[from] HintedClassHashError),
     #[error("The identifier {0:?} has no full name.")]
     IdentifierHasNoFullName(Box<Identifier>),
+    #[error("The identifier {:?} has no member {} or it is of incorrect type", .0.0, .0.1)]
+    IdentifierHasNoMember(Box<(Identifier, String)>),
     #[error("The identifier {0:?} has no members.")]
     IdentifierHasNoMembers(Box<Identifier>),
     #[error(transparent)]
@@ -129,6 +131,17 @@ fn deref_type_and_address_if_ptr<'a>(
     })
 }
 
+fn fetch_field_member<'a>(base_struct: &'a Identifier, field: &str) -> VmUtilsResult<&'a Member> {
+    base_struct
+        .members
+        .as_ref()
+        .ok_or_else(|| VmUtilsError::IdentifierHasNoMembers(Box::new(base_struct.clone())))?
+        .get(&field.to_string())
+        .ok_or_else(|| {
+            VmUtilsError::IdentifierHasNoMember(Box::from((base_struct.clone(), field.to_string())))
+        })
+}
+
 /// Helper function to fetch the address of nested fields.
 /// Implicitly dereferences the type if it is a pointer.
 /// For the last field, it returns the address of the field.
@@ -144,22 +157,7 @@ fn fetch_nested_fields_address<IG: IdentifierGetter>(
         None => return Ok(base_address),
     };
 
-    let base_struct_name = base_struct
-        .full_name
-        .as_ref()
-        .ok_or_else(|| VmUtilsError::IdentifierHasNoFullName(Box::new(base_struct.clone())))?;
-
-    let field_member = base_struct
-        .members
-        .as_ref()
-        .ok_or_else(|| VmUtilsError::IdentifierHasNoMembers(Box::new(base_struct.clone())))?
-        .get(&field.to_string())
-        .ok_or_else(|| {
-            HintError::IdentifierHasNoMember(Box::from((
-                base_struct_name.to_string(),
-                field.to_string(),
-            )))
-        })?;
+    let field_member = fetch_field_member(base_struct, field)?;
 
     let address_with_offset = (base_address + field_member.offset)?;
 
