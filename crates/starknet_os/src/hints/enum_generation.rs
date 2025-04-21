@@ -1,7 +1,10 @@
 #[macro_export]
 macro_rules! define_hint_enum_base {
     ($enum_name:ident, $(($hint_name:ident, $hint_str:expr)),+ $(,)?) => {
-        #[cfg_attr(any(test, feature = "testing"), derive(Default, strum_macros::EnumIter))]
+        #[cfg_attr(
+            any(test, feature = "testing"),
+            derive(Default, Serialize, strum_macros::EnumIter)
+        )]
         #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
         pub enum $enum_name {
             // Make first variant the default variant for testing (iteration) purposes.
@@ -41,7 +44,12 @@ macro_rules! define_hint_enum {
         impl HintImplementation for $enum_name {
             fn execute_hint<S: StateReader>(&self, hint_args: HintArgs<'_, '_, S>) -> OsHintResult {
                 match self {
-                    $(Self::$hint_name => $implementation::<S>(hint_args),)+
+                    $(Self::$hint_name => {
+                        #[cfg(feature="testing")]
+                        hint_args.hint_processor.unused_hints.remove(&Self::$hint_name.into());
+                        $implementation::<S>(hint_args)
+                    })+
+
                 }
             }
         }
@@ -60,7 +68,14 @@ macro_rules! define_hint_extension_enum {
                 hint_extension_args: HintArgs<'_, '_, S>,
             ) -> OsHintExtensionResult {
                 match self {
-                    $(Self::$hint_name => $implementation::<S>(hint_extension_args),)+
+                    $(Self::$hint_name => {
+                        #[cfg(feature="testing")]
+                        hint_extension_args
+                            .hint_processor
+                            .unused_hints
+                            .remove(&Self::$hint_name.into());
+                        $implementation::<S>(hint_extension_args)
+                    })+
                 }
             }
         }

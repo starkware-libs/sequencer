@@ -1,3 +1,6 @@
+#[cfg(feature = "testing")]
+use std::collections::HashSet;
+
 use blockifier::context::ChainInfo;
 use blockifier::state::state_api::StateReader;
 #[cfg(any(feature = "testing", test))]
@@ -107,6 +110,9 @@ pub struct SnosHintProcessor<'a, S: StateReader> {
     da_segment: Option<Vec<Felt>>,
     // Indicates wether to create pages or not when serializing data-availability.
     pub(crate) serialize_data_availability_create_pages: bool,
+    // For testing, track hint coverage.
+    #[cfg(feature = "testing")]
+    pub unused_hints: HashSet<AllHints>,
 }
 
 impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
@@ -152,6 +158,8 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
             state_update_pointers: None,
             commitment_type: CommitmentType::State,
             serialize_data_availability_create_pages: false,
+            #[cfg(feature = "testing")]
+            unused_hints: AllHints::all_iter().collect(),
         })
     }
 

@@ -84,7 +84,12 @@ pub fn run_os<S: StateReader>(
     // Parse the Cairo VM output.
     let cairo_pie = cairo_runner.get_cairo_pie().map_err(StarknetOsError::RunnerError)?;
 
-    Ok(StarknetOsRunnerOutput { os_output, cairo_pie })
+    Ok(StarknetOsRunnerOutput {
+        os_output,
+        cairo_pie,
+        #[cfg(feature = "testing")]
+        unused_hints: snos_hint_processor.unused_hints,
+    })
 }
 
 /// Run the OS with a "stateless" state reader - panics if the state is accessed for data that was
