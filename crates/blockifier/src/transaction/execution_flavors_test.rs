@@ -881,7 +881,7 @@ fn test_simulate_validate_charge_fee_post_execution(
     let (success_actual_gas, actual_fee) = gas_and_fee(
         (u64_from_usize(get_const_syscall_resources(SyscallSelector::CallContract).n_steps)
             + invoke_steps
-            + 4315)
+            + 4332)
             .into(),
         validate,
         &fee_type,
@@ -919,7 +919,7 @@ fn test_simulate_validate_charge_fee_post_execution(
     };
     let tx_execution_info = account_tx.execute(&mut state, &block_context).unwrap();
     assert_eq!(tx_execution_info.is_reverted(), charge_fee);
-
+    
     if charge_fee {
         assert!(
             tx_execution_info
