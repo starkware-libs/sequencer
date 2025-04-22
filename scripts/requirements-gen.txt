@@ -1,0 +1,13 @@
+# Base requirements definition for sequencer python venv.
+# Actual requirements are installed from requirements.txt - to update it, run:
+# ```bash
+# python -m venv reqs_venv
+# . reqs_venv/bin/activate
+# pip install -r scripts/requirements-gen.txt
+# pip freeze > scripts/requirements.txt
+# deactivate
+# rm -r reqs_venv
+# ```
+cairo-lang==0.13.5
+sympy==1.12.0 # pypy3.9 issue.
+GitPython
