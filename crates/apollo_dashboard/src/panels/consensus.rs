@@ -27,10 +27,13 @@ use apollo_consensus_manager::metrics::{
 use apollo_consensus_orchestrator::metrics::{
     CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER,
     CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY,
+    CENDE_WRITE_BLOB_FAILURE,
+    CENDE_WRITE_BLOB_SUCCESS,
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY,
     CONSENSUS_L2_GAS_PRICE,
     CONSENSUS_NUM_BATCHES_IN_PROPOSAL,
     CONSENSUS_NUM_TXS_IN_PROPOSAL,
+    LABEL_CENDE_FAILURE_REASON,
 };
 use const_format::formatcp;
 
@@ -101,5 +104,13 @@ pub(crate) const PANEL_CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY: Panel = Panel::new(
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_name(),
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_description(),
     formatcp!("avg_over_time({}[2m])", CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_name()),
+    PanelType::Stat,
+);
+pub(crate) const PANEL_CENDE_WRITE_BLOB_SUCCESS: Panel =
+    Panel::from_counter(CENDE_WRITE_BLOB_SUCCESS, PanelType::Graph);
+pub(crate) const PANEL_CENDE_WRITE_BLOB_FAILURE: Panel = Panel::new(
+    CENDE_WRITE_BLOB_FAILURE.get_name(),
+    CENDE_WRITE_BLOB_FAILURE.get_description(),
+    formatcp!("sum  by ({}) ({})", LABEL_CENDE_FAILURE_REASON, CENDE_WRITE_BLOB_FAILURE.get_name()),
     PanelType::Stat,
 );

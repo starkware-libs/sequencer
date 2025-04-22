@@ -27,6 +27,8 @@ serde_json = { workspace = true, features = ["arbitrary_precision"] }
 shared_execution_objects.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
+strum.workspace = true
+strum_macros.workspace = true
 apollo_batcher_types.workspace = true
 apollo_class_manager_types.workspace = true
 apollo_consensus.workspace = true
