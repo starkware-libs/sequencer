@@ -23,6 +23,8 @@ pub enum L1GasPriceClientError {
 #[derive(Debug, Error)]
 pub enum EthToStrkOracleClientError {
     #[error(transparent)]
+    JoinError(#[from] tokio::task::JoinError),
+    #[error(transparent)]
     RequestError(#[from] reqwest::Error),
     #[error(transparent)]
     ParseError(#[from] serde_json::Error),
@@ -30,4 +32,6 @@ pub enum EthToStrkOracleClientError {
     MissingFieldError(&'static str),
     #[error("Invalid decimals value: expected {0}, got {1}")]
     InvalidDecimalsError(u64, u64),
+    #[error("Query not yet resolved: timestamp={0}")]
+    QueryNotReadyError(u64),
 }
