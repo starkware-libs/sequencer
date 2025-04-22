@@ -4,5 +4,4 @@
 
 pub(crate) const CAIRO_NATIVE_BINARY_NAME: &str = "starknet-native-compile";
 
-#[allow(dead_code)]
-pub(crate) const REQUIRED_CAIRO_NATIVE_VERSION: &str = "0.4.0";
+pub const REQUIRED_CAIRO_NATIVE_VERSION: &str = "0.4.0";

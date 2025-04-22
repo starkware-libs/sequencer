@@ -4,6 +4,4 @@
 
 pub(crate) const CAIRO_LANG_BINARY_NAME: &str = "starknet-sierra-compile";
 
-#[allow(dead_code)]
-pub(crate) const REQUIRED_CAIRO_LANG_VERSION: &str = "2.11.2";
-// TODO(Elin): test version alignment with Cargo.
+pub const REQUIRED_CAIRO_LANG_VERSION: &str = "2.11.2";
