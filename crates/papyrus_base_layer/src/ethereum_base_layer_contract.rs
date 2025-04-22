@@ -106,7 +106,10 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         block_range: RangeInclusive<u64>,
         events: &'a [&'a str],
     ) -> EthereumBaseLayerResult<Vec<L1Event>> {
-        let filter = EthEventFilter::new().select(block_range.clone()).events(events);
+        let filter = EthEventFilter::new()
+            .select(block_range.clone())
+            .events(events)
+            .address(self.config.starknet_contract_address);
 
         let matching_logs = self.contract.provider().get_logs(&filter).await?;
         let received_tx_hashes: Vec<_> =

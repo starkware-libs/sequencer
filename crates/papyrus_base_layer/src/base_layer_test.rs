@@ -2,7 +2,7 @@ use assert_matches::assert_matches;
 use mempool_test_utils::in_ci;
 use pretty_assertions::assert_eq;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
-use starknet_api::felt;
+use starknet_api::{contract_address, felt};
 
 use crate::constants::{EventIdentifier, LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER};
 use crate::ethereum_base_layer_contract::{EthereumBaseLayerConfig, EthereumBaseLayerContract};
@@ -125,12 +125,7 @@ async fn events_from_other_contract() {
 
     let events = this_contract.events(0..=100, EVENT_IDENTIFIERS).await.unwrap();
     // TODO(Arni): Fix this test. Make it so just one event is returned.
-    assert_eq!(
-        events.len(),
-        2,
-        "Expected both events to be present even though one of them was sent to a different \
-         contract."
-    );
-    let _tx = assert_matches!(events.first().unwrap(), L1Event::LogMessageToL2 { tx, .. } => tx);
-    // assert_eq!(tx.contract_address, starknet_api::contract_address!(l2_contract_address));
+    assert_eq!(events.len(), 1, "Expected only events from this contract.");
+    let tx = assert_matches!(events.first().unwrap(), L1Event::LogMessageToL2 { tx, .. } => tx);
+    assert_eq!(tx.contract_address, contract_address!(l2_contract_address));
 }
