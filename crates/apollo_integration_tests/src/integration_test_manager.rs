@@ -281,7 +281,7 @@ impl IntegrationTestManager {
                 // Set the L1 gas price scraper's lag time to zero, to be able to use the
                 // anvil transactions we send in make_block_history_on_anvil.
                 exec.base_app_config.modify_config(|config| {
-                    config.l1_gas_price_provider_config.lag_margin_seconds = 0
+                    config.l1_gas_price_provider_config.lag_interval_seconds = 0
                 });
                 exec.base_app_config.dump_config_file(&exec.node_config_path);
             }

@@ -157,7 +157,7 @@ impl ConsensusManager {
                 eth_to_strk_oracle_client: Arc::new(EthToStrkOracleClient::new(
                     self.config.eth_to_strk_oracle_config.base_url.clone(),
                     self.config.eth_to_strk_oracle_config.headers.clone(),
-                    self.config.eth_to_strk_oracle_config.lag_margin_seconds,
+                    self.config.eth_to_strk_oracle_config.lag_interval_seconds,
                 )),
                 l1_gas_price_provider: self.l1_gas_price_provider.clone(),
                 clock: Arc::new(DefaultClock::default()),

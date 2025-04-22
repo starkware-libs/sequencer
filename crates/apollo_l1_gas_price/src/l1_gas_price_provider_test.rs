@@ -32,7 +32,7 @@ fn make_provider() -> (L1GasPriceProvider, Vec<PriceSample>) {
 #[test]
 fn gas_price_provider_mean_prices() {
     let (provider, samples) = make_provider();
-    let lag = provider.config.lag_margin_seconds;
+    let lag = provider.config.lag_interval_seconds;
     let num_samples: u128 = provider.config.number_of_blocks_for_mean.into();
     // Timestamp for sample[3] is used to define the interval of samples 1 to 3.
     let final_timestamp = samples[3].timestamp;
@@ -55,7 +55,7 @@ fn gas_price_provider_mean_prices() {
 #[test]
 fn gas_price_provider_adding_samples() {
     let (mut provider, samples) = make_provider();
-    let lag = provider.config.lag_margin_seconds;
+    let lag = provider.config.lag_interval_seconds;
     // Timestamp for sample[3] is used to define the interval of samples 1 to 3.
     let final_timestamp = samples[3].timestamp;
 
@@ -85,7 +85,7 @@ fn gas_price_provider_adding_samples() {
 #[test]
 fn gas_price_provider_timestamp_changes_mean() {
     let (provider, samples) = make_provider();
-    let lag = provider.config.lag_margin_seconds;
+    let lag = provider.config.lag_interval_seconds;
     // Timestamp for sample[3] is used to define the interval of samples 1 to 3.
     let final_timestamp = samples[3].timestamp;
 
