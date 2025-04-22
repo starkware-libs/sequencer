@@ -52,7 +52,7 @@ pub fn run_os<S: StateReader>(
 
     // Create syscall handlers.
     let syscall_handler = SyscallHintProcessor::new();
-    let deprecated_syscall_handler = DeprecatedSyscallHintProcessor {};
+    let deprecated_syscall_handler = DeprecatedSyscallHintProcessor::new();
 
     // Create the hint processor.
     let mut snos_hint_processor = SnosHintProcessor::new(

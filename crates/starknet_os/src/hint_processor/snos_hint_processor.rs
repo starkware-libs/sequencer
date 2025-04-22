@@ -104,7 +104,7 @@ pub struct SnosHintProcessor<'a, S: StateReader> {
     pub(crate) compiled_classes: HashMap<ClassHash, CasmContractClass>,
     pub(crate) state_update_pointers: Option<StateUpdatePointers>,
     pub(crate) chain_info: OsChainInfo,
-    _deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
+    pub(crate) deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
     builtin_hint_processor: BuiltinHintProcessor,
     // The type of commitment tree next in line for hashing. Used to determine which HashBuiltin
     // type is to be used.
@@ -157,7 +157,7 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
             execution_helpers_manager: ExecutionHelpersManager::new(execution_helpers),
             os_hints_config,
             syscall_hint_processor,
-            _deprecated_syscall_hint_processor: deprecated_syscall_hint_processor,
+            deprecated_syscall_hint_processor,
             da_segment: None,
             builtin_hint_processor: BuiltinHintProcessor::new_empty(),
             deprecated_compiled_classes,
@@ -277,7 +277,7 @@ impl<'a> SnosHintProcessor<'a, DictStateReader> {
         let state_inputs = vec![os_state_input.unwrap_or_default()];
         let os_hints_config = os_hints_config.unwrap_or_default();
         let syscall_handler = SyscallHintProcessor::new();
-        let deprecated_syscall_handler = DeprecatedSyscallHintProcessor {};
+        let deprecated_syscall_handler = DeprecatedSyscallHintProcessor::new();
 
         SnosHintProcessor::new(
             os_program,
@@ -319,4 +319,18 @@ impl SyscallHintProcessor {
     }
 }
 
-pub struct DeprecatedSyscallHintProcessor;
+pub struct DeprecatedSyscallHintProcessor {
+    syscall_ptr: Option<Relocatable>,
+}
+
+// TODO(Dori): remove this #[allow] after the constructor is no longer trivial.
+#[allow(clippy::new_without_default)]
+impl DeprecatedSyscallHintProcessor {
+    pub fn new() -> Self {
+        Self { syscall_ptr: None }
+    }
+
+    pub fn set_syscall_ptr(&mut self, syscall_ptr: Relocatable) {
+        self.syscall_ptr = Some(syscall_ptr);
+    }
+}
