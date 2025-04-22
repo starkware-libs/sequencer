@@ -8,7 +8,7 @@ use starknet_types_core::felt::Felt;
 use crate::execution::contract_class::RunnableCompiledClass;
 use crate::state::cached_state::StorageEntry;
 use crate::state::errors::StateError;
-use crate::state::global_cache::CachedClass;
+use crate::state::global_cache::CompiledClasses;
 use crate::state::state_api::{StateReader, StateResult};
 use crate::state::state_reader_and_contract_manager::FetchCompiliedClasses;
 use crate::test_utils::contracts::FeatureContractData;
@@ -89,21 +89,21 @@ impl StateReader for DictStateReader {
 }
 
 impl FetchCompiliedClasses for DictStateReader {
-    fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CachedClass> {
+    fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CompiledClasses> {
         match self.get_compiled_class(class_hash)? {
-            RunnableCompiledClass::V0(class) => Ok(CachedClass::V0(class)),
+            RunnableCompiledClass::V0(class) => Ok(CompiledClasses::V0(class)),
             RunnableCompiledClass::V1(class) => {
                 let sierra_class = self
                     .class_hash_to_sierra
                     .get(&class_hash)
                     .cloned()
                     .expect("Missing Sierra class");
-                Ok(CachedClass::V1(class, Arc::new(sierra_class)))
+                Ok(CompiledClasses::V1(class, Arc::new(sierra_class)))
             }
             #[cfg(feature = "cairo_native")]
             RunnableCompiledClass::V1Native(_) => {
-                // Native classes should not reach this point as the cached_class is used for cairo
-                // native compilation.
+                // Native classes should not reach this point as the compiled_class is used for
+                // cairo native compilation.
                 panic!("Native classes are not supported here")
             }
         }
