@@ -259,7 +259,7 @@ impl IntegrationTestManager {
     ) -> Self {
         let tx_generator = create_integration_test_tx_generator();
 
-        let (mut sequencers_setup, node_indices) = get_sequencer_setup_configs(
+        let (sequencers_setup, node_indices) = get_sequencer_setup_configs(
             &tx_generator,
             num_of_consolidated_nodes,
             num_of_distributed_nodes,
@@ -282,17 +282,6 @@ impl IntegrationTestManager {
             .unwrap();
         make_block_history_on_anvil(&anvil, base_layer_config.clone(), num_blocks_needed_on_l1)
             .await;
-
-        for seq in sequencers_setup.iter_mut() {
-            for exec in seq.executables.iter_mut() {
-                // Set the L1 gas price scraper's lag time to zero, to be able to use the
-                // anvil transactions we send in make_block_history_on_anvil.
-                exec.base_app_config.modify_config(|config| {
-                    config.l1_gas_price_provider_config.lag_margin_seconds = 0
-                });
-                exec.base_app_config.dump_config_file(&exec.node_config_path);
-            }
-        }
 
         let idle_nodes = create_map(sequencers_setup, |node| node.get_node_index());
         let running_nodes = HashMap::new();
