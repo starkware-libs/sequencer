@@ -160,12 +160,8 @@ async fn events_from_other_contract() {
         println!("Block {block_number}: {block:?}");
     }
     // TODO(Arni): Fix this test. Make it so just one event is returned.
-    assert_eq!(
-        events.len(),
-        2,
-        "Expected both events to be present even though one of them was sent to a different \
-         contract."
-    );
+    assert_eq!(events.len(), 1, "Expected only events from this contract.");
+
     let tx = assert_matches!(events.remove(0), L1Event::LogMessageToL2 { tx, .. } => tx);
     assert_eq!(tx, this_l1_handler);
 }
