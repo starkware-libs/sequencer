@@ -2,6 +2,7 @@ pub mod batcher;
 pub mod class_manager;
 pub mod consensus;
 pub mod gateway;
+pub mod http_server;
 pub mod l1_gas_price;
 pub mod l1_provider;
 pub mod mempool;
