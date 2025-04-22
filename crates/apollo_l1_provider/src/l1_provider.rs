@@ -118,6 +118,7 @@ impl L1Provider {
     pub fn commit_block(
         &mut self,
         committed_txs: &[TransactionHash],
+        rejected_txs: &HashSet<TransactionHash>,
         height: BlockNumber,
     ) -> L1ProviderResult<()> {
         if self.state.is_bootstrapping() {
@@ -126,7 +127,7 @@ impl L1Provider {
         }
 
         self.validate_height(height)?;
-        self.apply_commit_block(committed_txs);
+        self.apply_commit_block(committed_txs, rejected_txs);
 
         self.state = self.state.transition_to_pending();
         Ok(())
@@ -165,7 +166,7 @@ impl L1Provider {
                     })?
                 }
             }
-            Equal => self.apply_commit_block(committed_txs),
+            Equal => self.apply_commit_block(committed_txs, &HashSet::new()),
             // We're still syncing, backlog it, it'll get applied later.
             Greater => {
                 self.state
@@ -198,7 +199,7 @@ impl L1Provider {
                 backlog.iter().map(|commit_block| commit_block.height).collect::<Vec<_>>()
             );
             for commit_block in backlog {
-                self.apply_commit_block(&commit_block.committed_txs);
+                self.apply_commit_block(&commit_block.committed_txs, &HashSet::new());
             }
 
             // Drops bootstrapper and all of its assets.
@@ -245,8 +246,15 @@ impl L1Provider {
         Ok(())
     }
 
-    fn apply_commit_block(&mut self, committed_txs: &[TransactionHash]) {
-        self.tx_manager.commit_txs(committed_txs);
+    fn apply_commit_block(
+        &mut self,
+        consumed_txs: &[TransactionHash],
+        rejected_txs: &HashSet<TransactionHash>,
+    ) {
+        let (rejected_and_consumed, committed_txs): (Vec<_>, Vec<_>) =
+            consumed_txs.iter().copied().partition(|tx| rejected_txs.contains(tx));
+        self.tx_manager.commit_txs(&committed_txs, &rejected_and_consumed);
+
         self.current_height = self.current_height.unchecked_next();
     }
 }

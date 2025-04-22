@@ -92,6 +92,11 @@ impl L1ProviderContentBuilder {
         self
     }
 
+    pub fn with_rejected(mut self, txs: impl IntoIterator<Item = L1HandlerTransaction>) -> Self {
+        self.tx_manager_content_builder = self.tx_manager_content_builder.with_rejected(txs);
+        self
+    }
+
     pub fn with_height(mut self, height: BlockNumber) -> Self {
         self.current_height = Some(height);
         self
@@ -120,6 +125,7 @@ impl L1ProviderContentBuilder {
 #[derive(Debug, Default)]
 struct TransactionManagerContent {
     pub txs: Option<Vec<L1HandlerTransaction>>,
+    pub rejected: Option<Vec<L1HandlerTransaction>>,
     pub committed: Option<HashSet<TransactionHash>>,
 }
 
@@ -129,12 +135,19 @@ impl TransactionManagerContent {
         if let Some(txs) = &self.txs {
             assert_eq!(
                 txs,
-                &tx_manager.txs.txs.values().map(|tx| tx.transaction.clone()).collect_vec()
+                &tx_manager.uncommitted.txs.values().map(|tx| tx.transaction.clone()).collect_vec()
             );
         }
 
         if let Some(committed) = &self.committed {
             assert_eq!(committed, &tx_manager.committed);
+        }
+
+        if let Some(rejected) = &self.rejected {
+            assert_eq!(
+                rejected,
+                &tx_manager.rejected.txs.values().map(|tx| tx.transaction.clone()).collect_vec()
+            );
         }
     }
 }
@@ -143,8 +156,9 @@ impl From<TransactionManagerContent> for TransactionManager {
     fn from(mut content: TransactionManagerContent) -> TransactionManager {
         let txs: Vec<_> = mem::take(&mut content.txs).unwrap_or_default();
         TransactionManager {
-            txs: SoftDeleteIndexMap::from(txs),
+            uncommitted: SoftDeleteIndexMap::from(txs),
             committed: content.committed.unwrap_or_default(),
+            rejected: SoftDeleteIndexMap::default(),
         }
     }
 }
@@ -152,12 +166,18 @@ impl From<TransactionManagerContent> for TransactionManager {
 #[derive(Debug, Default)]
 struct TransactionManagerContentBuilder {
     txs: Option<Vec<L1HandlerTransaction>>,
+    rejected: Option<Vec<L1HandlerTransaction>>,
     committed: Option<HashSet<TransactionHash>>,
 }
 
 impl TransactionManagerContentBuilder {
     fn with_txs(mut self, txs: impl IntoIterator<Item = L1HandlerTransaction>) -> Self {
         self.txs = Some(txs.into_iter().collect());
+        self
+    }
+
+    fn with_rejected(mut self, rejected: impl IntoIterator<Item = L1HandlerTransaction>) -> Self {
+        self.rejected = Some(rejected.into_iter().collect());
         self
     }
 
@@ -171,7 +191,11 @@ impl TransactionManagerContentBuilder {
             return None;
         }
 
-        Some(TransactionManagerContent { txs: self.txs, committed: self.committed })
+        Some(TransactionManagerContent {
+            txs: self.txs,
+            committed: self.committed,
+            rejected: self.rejected,
+        })
     }
 
     fn is_default(&self) -> bool {
@@ -194,7 +218,7 @@ impl FakeL1ProviderClient {
     pub async fn flush_messages(&self, l1_provider: &mut L1Provider) {
         let commit_blocks = self.commit_blocks_received.lock().unwrap().drain(..).collect_vec();
         for CommitBlockBacklog { height, committed_txs } in commit_blocks {
-            l1_provider.commit_block(&committed_txs, height).unwrap();
+            l1_provider.commit_block(&committed_txs, &HashSet::new(), height).unwrap();
         }
 
         // TODO(gilad): flush other buffers if necessary.
@@ -233,6 +257,7 @@ impl L1ProviderClient for FakeL1ProviderClient {
     async fn commit_block(
         &self,
         l1_handler_tx_hashes: Vec<TransactionHash>,
+        _rejected_l1_handler_tx_hashes: HashSet<TransactionHash>,
         height: BlockNumber,
     ) -> L1ProviderClientResult<()> {
         self.commit_blocks_received
