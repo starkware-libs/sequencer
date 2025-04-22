@@ -255,7 +255,7 @@
   "recorder_url": "http://127.0.0.1:53261/",
   "revert_config.revert_up_to_and_including": 18446744073709551615,
   "revert_config.should_revert": false,
-  "starknet_url": "https://integration-sepolia.starknet.io/",
+  "starknet_url": "https://feeder.integration-sepolia.starknet.io/",
   "state_sync_config.central_sync_client_config.#is_none": false,
   "state_sync_config.central_sync_client_config.central_source_config.class_cache_size": 128,
   "state_sync_config.central_sync_client_config.central_source_config.concurrent_requests": 10,
