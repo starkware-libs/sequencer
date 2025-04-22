@@ -1,4 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
+use std::num::NonZeroUsize;
+use std::sync::RwLock;
 
 use apollo_config::converters::{deserialize_optional_map, serialize_optional_map};
 use apollo_config::dumping::{ser_param, SerializeConfig};
@@ -6,6 +8,7 @@ use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_l1_gas_price_types::errors::EthToStrkOracleClientError;
 use apollo_l1_gas_price_types::EthToStrkOracleClientTrait;
 use async_trait::async_trait;
+use lru::LruCache;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -16,7 +19,9 @@ use url::Url;
 #[path = "eth_to_strk_oracle_test.rs"]
 pub mod eth_to_strk_oracle_test;
 
+// TODO(Asmaa): Move to config.
 pub const ETH_TO_STRK_QUANTIZATION: u64 = 18;
+pub const MAX_CACHE_SIZE: NonZeroUsize = NonZeroUsize::new(100).expect("Invalid cache size");
 
 fn hashmap_to_headermap(hash_map: Option<HashMap<String, String>>) -> HeaderMap {
     let mut header_map = HeaderMap::new();
@@ -87,6 +92,7 @@ pub struct EthToStrkOracleClient {
     headers: HeaderMap,
     lag_interval_seconds: u64,
     client: reqwest::Client,
+    cached_prices: RwLock<LruCache<u64, u128>>,
 }
 
 impl EthToStrkOracleClient {
@@ -104,6 +110,7 @@ impl EthToStrkOracleClient {
             headers: hashmap_to_headermap(headers),
             lag_interval_seconds,
             client: reqwest::Client::new(),
+            cached_prices: RwLock::new(LruCache::new(MAX_CACHE_SIZE)),
         }
     }
 }
@@ -111,10 +118,18 @@ impl EthToStrkOracleClient {
 #[async_trait]
 impl EthToStrkOracleClientTrait for EthToStrkOracleClient {
     /// The HTTP response must include the following fields:
-    /// - `"price"`: a hexadecimal string representing the price.
-    /// - `"decimals"`: a `u64` value, must be equal to `ETH_TO_STRK_QUANTIZATION`.
+    /// - `price`: a hexadecimal string representing the price.
+    /// - `decimals`: a `u64` value, must be equal to `ETH_TO_STRK_QUANTIZATION`.
     async fn eth_to_fri_rate(&self, timestamp: u64) -> Result<u128, EthToStrkOracleClientError> {
-        let adjusted_timestamp = timestamp - self.lag_interval_seconds;
+        let quantized_timestamp =
+            (timestamp - self.lag_interval_seconds) / self.lag_interval_seconds;
+        if let Some(rate) =
+            self.cached_prices.read().expect("Lock poisoned").peek(&quantized_timestamp)
+        {
+            return Ok(*rate);
+        }
+
+        let adjusted_timestamp = quantized_timestamp * self.lag_interval_seconds;
         let url = format!("{}{}", self.base_url, adjusted_timestamp);
         let response = self.client.get(&url).headers(self.headers.clone()).send().await?;
         let body = response.text().await?;
@@ -138,6 +153,8 @@ impl EthToStrkOracleClientTrait for EthToStrkOracleClient {
                 decimals,
             ));
         }
+
+        self.cached_prices.write().expect("Lock poisoned").push(quantized_timestamp, rate);
         debug!("Conversion rate for timestamp {timestamp} is {rate}");
         Ok(rate)
     }
