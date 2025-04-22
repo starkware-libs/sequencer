@@ -285,6 +285,14 @@ where
     ))
 }
 
+pub fn hex_to_tip<'de, D>(deserializer: D) -> Result<Tip, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s: String = Deserialize::deserialize(deserializer)?;
+    Ok(Tip(u64::from_str_radix(s.trim_start_matches("0x"), 16).map_err(serde::de::Error::custom)?))
+}
+
 pub struct ResourceAsFelts {
     pub resource_name: Felt,
     pub max_amount: Felt,
