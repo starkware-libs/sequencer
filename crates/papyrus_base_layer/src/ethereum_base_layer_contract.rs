@@ -25,7 +25,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::hash::StarkHash;
 use starknet_api::StarknetApiError;
-use tracing::{debug, error};
+use tracing::{debug, error, instrument};
 use url::Url;
 use validator::Validate;
 
@@ -65,6 +65,8 @@ impl EthereumBaseLayerContract {
 #[async_trait]
 impl BaseLayerContract for EthereumBaseLayerContract {
     type Error = EthereumBaseLayerError;
+
+    #[instrument(skip(self))]
     async fn get_proved_block_at(
         &self,
         l1_block: L1BlockNumber,
@@ -91,6 +93,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
 
     /// Returns the latest proved block on Ethereum, where finality determines how many
     /// blocks back (0 = latest).
+    #[instrument(skip(self))]
     async fn latest_proved_block(
         &self,
         finality: u64,
@@ -101,6 +104,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         self.get_proved_block_at(ethereum_block_number).await.map(Some)
     }
 
+    #[instrument(skip(self))]
     async fn events<'a>(
         &'a self,
         block_range: RangeInclusive<u64>,
@@ -118,6 +122,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         matching_logs.into_iter().map(L1Event::try_from).collect()
     }
 
+    #[instrument(skip(self))]
     async fn latest_l1_block_number(
         &self,
         finality: u64,
@@ -125,6 +130,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         Ok(self.contract.provider().get_block_number().await?.checked_sub(finality))
     }
 
+    #[instrument(skip(self))]
     async fn latest_l1_block(
         &self,
         finality: u64,
@@ -136,6 +142,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         self.l1_block_at(block_number).await
     }
 
+    #[instrument(skip(self))]
     async fn l1_block_at(
         &self,
         block_number: L1BlockNumber,
@@ -153,11 +160,13 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         }))
     }
 
+    #[instrument(skip(self), ret)]
     // Query the Ethereum base layer for the timestamp, gas price, and data gas price of a block.
     async fn get_price_sample(
         &self,
         block_number: L1BlockNumber,
     ) -> EthereumBaseLayerResult<Option<PriceSample>> {
+        debug!("Getting price sample for block {block_number}");
         let block = self
             .contract
             .provider()
@@ -167,20 +176,27 @@ impl BaseLayerContract for EthereumBaseLayerContract {
             )
             .await?;
         let Some(block) = block else {
+            debug!("No block found for block number {block_number}");
             return Ok(None);
         };
+        debug!("Got block with header: {:?}", block.header);
 
         let Some(base_fee_per_gas) = block.header.base_fee_per_gas else {
+            debug!("No base fee per gas found for block number {block_number}");
             return Ok(None);
         };
         let blob_fee = match block.header.excess_blob_gas {
             Some(excess_blob_gas) if self.config.prague_blob_gas_calc => {
                 // Pectra update.
-                eip7840::BlobParams::prague().calc_blob_fee(excess_blob_gas)
+                let res = eip7840::BlobParams::prague().calc_blob_fee(excess_blob_gas);
+                debug!("Using prague blob gas calculation, result: {res}");
+                res
             }
             Some(excess_blob_gas) => {
                 // EIP 4844 - original blob pricing.
-                eip7840::BlobParams::cancun().calc_blob_fee(excess_blob_gas)
+                let res = eip7840::BlobParams::cancun().calc_blob_fee(excess_blob_gas);
+                debug!("Using eip 4844 blob gas calculation, result: {res}");
+                res
             }
             None => 0,
         };
