@@ -392,3 +392,58 @@ fn commit_block_rejected_transactions() {
         .build();
     expected_l1_provider.assert_eq(&l1_provider);
 }
+
+#[test]
+fn validate_rejected_transaction() {
+    // Setup.
+    let tx1 = tx_hash!(1);
+    let tx2 = tx_hash!(2);
+    let tx3 = tx_hash!(3);
+    let first_block_number = BlockNumber(0);
+    let second_block_number = BlockNumber(1);
+
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_txs([l1_handler(1), l1_handler(2), l1_handler(3)])
+        .with_height(first_block_number)
+        .with_state(ProviderState::Propose)
+        .build_into_l1_provider();
+
+    // Commit block with rejected transactions.
+    let consumed_txs = [tx1, tx2];
+    let rejected_txs = HashSet::from([tx1]);
+    l1_provider.commit_block(&consumed_txs, &rejected_txs, first_block_number).unwrap();
+
+    // Set the state to Validate for the validation tests.
+    l1_provider.state = ProviderState::Validate;
+
+    // Test: validate rejected transaction.
+    assert_eq!(
+        l1_provider.validate(tx1, second_block_number).unwrap(),
+        ValidationStatus::Validated
+    );
+
+    // Test: validate non-rejected transaction.
+    assert_eq!(
+        l1_provider.validate(tx2, second_block_number).unwrap(),
+        ValidationStatus::Invalid(InvalidValidationStatus::AlreadyIncludedOnL2)
+    );
+
+    // Test: validate uncommitted transaction.
+    assert_eq!(
+        l1_provider.validate(tx3, second_block_number).unwrap(),
+        ValidationStatus::Validated
+    );
+
+    // Test: validate former validated rejected transaction.
+    assert_eq!(
+        l1_provider.validate(tx1, second_block_number).unwrap(),
+        ValidationStatus::Invalid(InvalidValidationStatus::AlreadyIncludedInProposedBlock)
+    );
+
+    // Test: validate rollback rejected transaction.
+    l1_provider.start_block(second_block_number, ValidateSession).unwrap();
+    assert_eq!(
+        l1_provider.validate(tx1, second_block_number).unwrap(),
+        ValidationStatus::Validated
+    );
+}

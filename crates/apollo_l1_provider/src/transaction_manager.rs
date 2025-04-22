@@ -35,19 +35,24 @@ impl TransactionManager {
         if self.committed.contains(&tx_hash) {
             return ValidationStatus::Invalid(InvalidValidationStatus::AlreadyIncludedOnL2);
         }
-
-        if self.uncommited.soft_remove(tx_hash).is_some() {
+        if self.uncommited.soft_remove(tx_hash).is_some()
+            || self.rejected.soft_remove(tx_hash).is_some()
+        {
             ValidationStatus::Validated
-        } else if self.uncommited.is_staged(&tx_hash) {
+        } else if self.uncommited.is_staged(&tx_hash) || self.rejected.is_staged(&tx_hash) {
             ValidationStatus::Invalid(InvalidValidationStatus::AlreadyIncludedInProposedBlock)
         } else {
             ValidationStatus::Invalid(InvalidValidationStatus::ConsumedOnL1OrUnknown)
         }
     }
 
-    pub fn commit_txs(&mut self, committed_txs: &[TransactionHash]) {
+    pub fn commit_txs(
+        &mut self,
+        consumed_txs: &[TransactionHash],
+        committed_txs: &[TransactionHash],
+    ) {
         // Committed L1 transactions are dropped here, do we need to them for anything?
-        self.uncommited.commit(committed_txs);
+        self.uncommited.commit(consumed_txs);
         // Add all committed tx hashes to the committed buffer, regardless of if they're known or
         // not, in case we haven't scraped them yet and another node did.
         self.committed.extend(committed_txs)

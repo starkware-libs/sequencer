@@ -117,18 +117,18 @@ impl L1Provider {
     #[instrument(skip(self), err)]
     pub fn commit_block(
         &mut self,
-        committed_txs: &[TransactionHash],
+        consumed_txs: &[TransactionHash],
         rejected_txs: &HashSet<TransactionHash>,
         height: BlockNumber,
     ) -> L1ProviderResult<()> {
         if self.state.is_bootstrapping() {
             // Once bootstrap completes it will transition to Pending state by itself.
-            return self.bootstrap(committed_txs, height);
+            return self.bootstrap(consumed_txs, height);
         }
 
         self.validate_height(height)?;
-        self.apply_rejected_txs(rejected_txs, committed_txs);
-        self.apply_commit_block(committed_txs);
+        self.apply_rejected_txs(consumed_txs, rejected_txs);
+        self.apply_commit_block(consumed_txs, rejected_txs);
 
         self.state = self.state.transition_to_pending();
         Ok(())
@@ -167,7 +167,7 @@ impl L1Provider {
                     })?
                 }
             }
-            Equal => self.apply_commit_block(committed_txs),
+            Equal => self.apply_commit_block(committed_txs, &HashSet::new()),
             // We're still syncing, backlog it, it'll get applied later.
             Greater => {
                 self.state
@@ -200,7 +200,7 @@ impl L1Provider {
                 backlog.iter().map(|commit_block| commit_block.height).collect::<Vec<_>>()
             );
             for commit_block in backlog {
-                self.apply_commit_block(&commit_block.committed_txs);
+                self.apply_commit_block(&commit_block.committed_txs, &HashSet::new());
             }
 
             // Drops bootstrapper and all of its assets.
@@ -247,18 +247,24 @@ impl L1Provider {
         Ok(())
     }
 
-    fn apply_commit_block(&mut self, consumed_txs: &[TransactionHash]) {
-        self.tx_manager.commit_txs(consumed_txs);
+    fn apply_commit_block(
+        &mut self,
+        consumed_l1_txs: &[TransactionHash],
+        rejected_l1_txs: &HashSet<TransactionHash>,
+    ) {
+        let commited_l1_txs: Vec<_> =
+            consumed_l1_txs.iter().filter(|tx| !rejected_l1_txs.contains(tx)).cloned().collect();
+        self.tx_manager.commit_txs(consumed_l1_txs, &commited_l1_txs);
         self.current_height = self.current_height.unchecked_next();
     }
 
     fn apply_rejected_txs(
         &mut self,
-        rejected_txs: &HashSet<TransactionHash>,
         consumed_l1_txs: &[TransactionHash],
+        rejected_l1_txs: &HashSet<TransactionHash>,
     ) {
         let rejected_and_consumed: Vec<_> =
-            rejected_txs.iter().filter(|tx| consumed_l1_txs.contains(tx)).cloned().collect();
+            rejected_l1_txs.iter().filter(|tx| consumed_l1_txs.contains(tx)).cloned().collect();
         self.tx_manager.store_rejected_txs(&rejected_and_consumed);
     }
 }
