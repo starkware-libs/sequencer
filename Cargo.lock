@@ -1409,6 +1409,7 @@ dependencies = [
  "starknet_api",
  "thiserror 1.0.69",
  "tokio",
+ "tokio-util",
  "tracing",
  "url",
  "validator",
@@ -1429,6 +1430,7 @@ dependencies = [
  "starknet_api",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
+ "tokio",
  "tracing",
 ]
 

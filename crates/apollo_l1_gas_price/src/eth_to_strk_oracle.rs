@@ -10,9 +10,11 @@ use apollo_l1_gas_price_types::EthToStrkOracleClientTrait;
 use async_trait::async_trait;
 use lru::LruCache;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+use reqwest::Response;
 use serde::{Deserialize, Serialize};
 use serde_json;
-use tracing::{debug, info};
+use tokio_util::task::AbortOnDropHandle;
+use tracing::{debug, info, instrument};
 use url::Url;
 
 #[cfg(test)]
@@ -22,6 +24,11 @@ pub mod eth_to_strk_oracle_test;
 // TODO(Asmaa): Move to config.
 pub const ETH_TO_STRK_QUANTIZATION: u64 = 18;
 const MAX_CACHE_SIZE: NonZeroUsize = NonZeroUsize::new(100).expect("Invalid cache size");
+
+pub enum Query {
+    Resolved(u128),
+    Unresolved(AbortOnDropHandle<Result<Response, reqwest::Error>>),
+}
 
 fn hashmap_to_headermap(hash_map: Option<HashMap<String, String>>) -> HeaderMap {
     let mut header_map = HeaderMap::new();
@@ -92,7 +99,7 @@ pub struct EthToStrkOracleClient {
     headers: HeaderMap,
     lag_interval_seconds: u64,
     client: reqwest::Client,
-    cached_prices: Mutex<LruCache<u64, u128>>,
+    cached_prices: Mutex<LruCache<u64, Query>>,
 }
 
 impl EthToStrkOracleClient {
@@ -113,31 +120,31 @@ impl EthToStrkOracleClient {
             cached_prices: Mutex::new(LruCache::new(MAX_CACHE_SIZE)),
         }
     }
-}
 
-#[async_trait]
-impl EthToStrkOracleClientTrait for EthToStrkOracleClient {
-    /// The HTTP response must include the following fields:
-    /// - `price`: a hexadecimal string representing the price.
-    /// - `decimals`: a `u64` value, must be equal to `ETH_TO_STRK_QUANTIZATION`.
-    async fn eth_to_fri_rate(&self, timestamp: u64) -> Result<u128, EthToStrkOracleClientError> {
-        let quantized_timestamp = (timestamp - self.lag_interval_seconds)
-            .checked_div(self.lag_interval_seconds)
-            .expect("lag_interval_seconds should be non-zero");
-        if let Some(rate) = self
+    fn spawn_query(
+        &self,
+        quantized_timestamp: u64,
+    ) -> AbortOnDropHandle<Result<Response, reqwest::Error>> {
+        let adjusted_timestamp = quantized_timestamp * self.lag_interval_seconds;
+        let url = format!("{}{}", self.base_url, adjusted_timestamp);
+        let request = self.client.get(&url).headers(self.headers.clone()).send();
+        AbortOnDropHandle::new(tokio::spawn(request))
+    }
+
+    async fn resolve_query(
+        &self,
+        quantized_timestamp: u64,
+    ) -> Result<u128, EthToStrkOracleClientError> {
+        let Some(Query::Unresolved(handle)) = self
             .cached_prices
             .lock()
             .expect("Lock on cached prices was poisoned due to a previous panic")
-            .peek(&quantized_timestamp)
-        {
-            return Ok(*rate);
-        }
-
-        let adjusted_timestamp = quantized_timestamp * self.lag_interval_seconds;
-        let url = format!("{}{}", self.base_url, adjusted_timestamp);
-        let response = self.client.get(&url).headers(self.headers.clone()).send().await?;
-        let body = response.text().await?;
-
+            .pop(&quantized_timestamp)
+        else {
+            panic!("Entry must exist")
+        };
+        assert!(handle.is_finished(), "Should only be called once the query completes");
+        let body = handle.await??.text().await?;
         let json: serde_json::Value = serde_json::from_str(&body)?;
         let price = json
             .get("price")
@@ -157,11 +164,50 @@ impl EthToStrkOracleClientTrait for EthToStrkOracleClient {
                 decimals,
             ));
         }
+        Ok(rate)
+    }
+}
 
+#[async_trait]
+impl EthToStrkOracleClientTrait for EthToStrkOracleClient {
+    /// The HTTP response must include the following fields:
+    /// - `price`: a hexadecimal string representing the price.
+    /// - `decimals`: a `u64` value, must be equal to `ETH_TO_STRK_QUANTIZATION`.
+    #[instrument(skip(self), err)]
+    async fn eth_to_fri_rate(&self, timestamp: u64) -> Result<u128, EthToStrkOracleClientError> {
+        let quantized_timestamp = (timestamp - self.lag_interval_seconds)
+            .checked_div(self.lag_interval_seconds)
+            .expect("lag_interval_seconds should be non-zero");
+
+        // Scope is to make sure the MutexGuard is dropped before the await.
+        {
+            let mut cached_prices = self.cached_prices.lock().expect("Lock poisoned");
+            let Some(query) = cached_prices.get_mut(&quantized_timestamp) else {
+                cached_prices.push(
+                    quantized_timestamp,
+                    Query::Unresolved(self.spawn_query(quantized_timestamp)),
+                );
+                return Err(EthToStrkOracleClientError::QueryNotReadyError(timestamp));
+            };
+
+            match query {
+                Query::Resolved(rate) => {
+                    debug!("Cached conversion rate for timestamp {timestamp} is {rate}");
+                    return Ok(*rate);
+                }
+                Query::Unresolved(handle) => {
+                    if !handle.is_finished() {
+                        return Err(EthToStrkOracleClientError::QueryNotReadyError(timestamp));
+                    }
+                }
+            };
+        }
+
+        let rate = self.resolve_query(quantized_timestamp).await?;
         self.cached_prices
             .lock()
             .expect("Lock on cached prices was poisoned due to a previous panic")
-            .push(quantized_timestamp, rate);
+            .push(quantized_timestamp, Query::Resolved(rate));
         debug!("Conversion rate for timestamp {timestamp} is {rate}");
         Ok(rate)
     }

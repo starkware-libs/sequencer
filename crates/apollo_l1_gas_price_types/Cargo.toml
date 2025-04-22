@@ -17,6 +17,7 @@ serde_json.workspace = true
 starknet_api.workspace = true
 strum_macros.workspace = true
 thiserror.workspace = true
+tokio.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
