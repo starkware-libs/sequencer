@@ -24,7 +24,7 @@ use crate::execution::execution_utils::{
     ReadOnlySegment,
 };
 
-mod deprecated_syscall_executor;
+pub(crate) mod deprecated_syscall_executor;
 #[cfg(test)]
 #[path = "deprecated_syscalls_test.rs"]
 pub mod deprecated_syscalls_test;

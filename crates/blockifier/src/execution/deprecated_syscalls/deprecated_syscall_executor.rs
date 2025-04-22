@@ -1,6 +1,12 @@
+use std::collections::HashMap;
+
+use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::get_ptr_from_var_name;
+use cairo_vm::hint_processor::hint_processor_definition::HintReference;
+use cairo_vm::serde::deserialize_program::ApTracking;
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::hint_errors::HintError;
 use cairo_vm::vm::vm_core::VirtualMachine;
+use starknet_types_core::felt::Felt;
 
 use crate::execution::common_hints::HintExecutionResult;
 use crate::execution::deprecated_syscalls::{
@@ -41,8 +47,20 @@ use crate::execution::deprecated_syscalls::{
     SyscallRequest,
     SyscallResponse,
 };
+use crate::execution::execution_utils::felt_from_ptr;
 
 pub trait DeprecatedSyscallExecutor {
+    fn read_next_syscall_selector(
+        &mut self,
+        vm: &mut VirtualMachine,
+    ) -> DeprecatedSyscallResult<Felt> {
+        Ok(felt_from_ptr(vm, self.get_mut_syscall_ptr())?)
+    }
+
+    fn increment_syscall_count(&mut self, selector: &DeprecatedSyscallSelector);
+
+    fn verify_syscall_ptr(&self, actual_ptr: Relocatable) -> DeprecatedSyscallResult<()>;
+
     fn get_mut_syscall_ptr(&mut self) -> &mut Relocatable;
 
     fn call_contract(
@@ -255,4 +273,23 @@ where
     response.write(vm, deprecated_syscall_executor.get_mut_syscall_ptr())?;
 
     Ok(())
+}
+
+/// Infers and executes the next syscall.
+/// Must comply with the API of a hint function, as defined by the `HintProcessor`.
+pub fn execute_next_deprecated_syscall<T: DeprecatedSyscallExecutor>(
+    deprecated_syscall_executor: &mut T,
+    vm: &mut VirtualMachine,
+    ids_data: &HashMap<String, HintReference>,
+    ap_tracking: &ApTracking,
+) -> HintExecutionResult {
+    let initial_syscall_ptr = get_ptr_from_var_name("syscall_ptr", vm, ids_data, ap_tracking)?;
+    deprecated_syscall_executor.verify_syscall_ptr(initial_syscall_ptr)?;
+
+    let selector = DeprecatedSyscallSelector::try_from(
+        deprecated_syscall_executor.read_next_syscall_selector(vm)?,
+    )?;
+    deprecated_syscall_executor.increment_syscall_count(&selector);
+
+    execute_deprecated_syscall_from_selector(deprecated_syscall_executor, vm, selector)
 }
