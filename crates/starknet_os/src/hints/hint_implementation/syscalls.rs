@@ -3,7 +3,8 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::get_ptr_from_v
 
 use crate::hints::error::OsHintResult;
 use crate::hints::types::HintArgs;
-use crate::hints::vars::Ids;
+use crate::hints::vars::{Ids, Scope};
+use crate::syscall_handler_utils::SyscallHandlerType;
 
 pub(crate) fn call_contract<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> OsHintResult {
     todo!()
@@ -96,13 +97,16 @@ pub(crate) fn storage_write<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>
 }
 
 pub(crate) fn set_syscall_ptr<S: StateReader>(
-    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+    HintArgs { hint_processor, vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    hint_processor.syscall_hint_processor.set_syscall_ptr(get_ptr_from_var_name(
-        Ids::SyscallPtr.into(),
-        vm,
-        ids_data,
-        ap_tracking,
-    )?);
+    let syscall_ptr = get_ptr_from_var_name(Ids::SyscallPtr.into(), vm, ids_data, ap_tracking)?;
+    match exec_scopes.get::<SyscallHandlerType>(Scope::SyscallHandlerType.into())? {
+        SyscallHandlerType::SyscallHandler => {
+            hint_processor.syscall_hint_processor.set_syscall_ptr(syscall_ptr);
+        }
+        SyscallHandlerType::DeprecatedSyscallHandler => {
+            hint_processor.deprecated_syscall_hint_processor.set_syscall_ptr(syscall_ptr);
+        }
+    }
     Ok(())
 }
