@@ -158,9 +158,16 @@ fn test_invalid_number() {
 
 #[test]
 fn test_old_json_parsing() {
+    // TODO(Dori): Only test RawVersionedConstants deserialization.
     for file in all_jsons_in_dir().map(Result::unwrap) {
         serde_json::from_reader::<_, VersionedConstants>(&std::fs::File::open(&file).unwrap())
             .unwrap_or_else(|_| panic!("Versioned constants JSON file {file:#?} is malformed"));
+    }
+    for file in all_jsons_in_dir().map(Result::unwrap) {
+        serde_json::from_reader::<_, RawVersionedConstants>(&std::fs::File::open(&file).unwrap())
+            .unwrap_or_else(|error| {
+                panic!("Versioned constants JSON file {file:#?} is malformed: {error}.")
+            });
     }
 }
 
