@@ -67,11 +67,19 @@ fn get_class_definition_at() {
     assert!(statetxn.get_deprecated_class_definition_at(state0, &dc0).unwrap().is_none());
     assert!(statetxn.get_deprecated_class_definition_at(state1, &dc0).unwrap().is_some());
     assert!(statetxn.get_deprecated_class_definition_at(state2, &dc0).unwrap().is_some());
+    assert_eq!(
+        statetxn.get_deprecated_class_definition_block_number(&dc0).unwrap(),
+        Some(BlockNumber(0))
+    );
 
     // Class1.
     assert!(statetxn.get_deprecated_class_definition_at(state0, &dc1).unwrap().is_none());
     assert!(statetxn.get_deprecated_class_definition_at(state1, &dc1).unwrap().is_some());
     assert!(statetxn.get_deprecated_class_definition_at(state2, &dc1).unwrap().is_some());
+    assert_eq!(
+        statetxn.get_deprecated_class_definition_block_number(&dc0).unwrap(),
+        Some(BlockNumber(0))
+    );
 
     // New Classes Test
     drop(txn);
@@ -288,6 +296,10 @@ fn test_get_class_after_append_thin_state_diff() {
         state_reader.get_class_definition_block_number(&CLASS_HASH).unwrap(),
         Some(BlockNumber(0))
     );
+    assert_eq!(
+        state_reader.get_deprecated_class_definition_block_number(&DEPRECATED_CLASS_HASH).unwrap(),
+        Some(BlockNumber(0)),
+    );
     assert!(state_reader.get_class_definition_at(state_number, &CLASS_HASH).unwrap().is_none());
     assert!(
         state_reader
@@ -407,35 +419,43 @@ fn revert_doesnt_delete_previously_declared_classes() {
         .commit()
         .unwrap();
 
+    let txn = reader.begin_ro_txn().unwrap();
+    let state_reader = txn.get_state_reader().unwrap();
+    assert_eq!(
+        state_reader.get_deprecated_class_definition_block_number(&cl0).unwrap(),
+        Some(BlockNumber(0))
+    );
+
     // Assert that reverting diff 1 doesn't delete declared class from diff 0.
     let (txn, _) = writer.begin_rw_txn().unwrap().revert_state_diff(BlockNumber(1)).unwrap();
     txn.commit().unwrap();
-    let declared_class = reader
-        .begin_ro_txn()
-        .unwrap()
-        .get_state_reader()
-        .unwrap()
+    let txn = reader.begin_ro_txn().unwrap();
+    let state_reader = txn.get_state_reader().unwrap();
+    let declared_class = state_reader
         .get_deprecated_class_definition_at(
             StateNumber::unchecked_right_after_block(BlockNumber(0)),
             &cl0,
         )
         .unwrap();
     assert!(declared_class.is_some());
+    assert_eq!(
+        state_reader.get_deprecated_class_definition_block_number(&cl0).unwrap(),
+        Some(BlockNumber(0))
+    );
 
     // Assert that reverting diff 0 deletes the declared class.
     let (txn, _) = writer.begin_rw_txn().unwrap().revert_state_diff(BlockNumber(0)).unwrap();
     txn.commit().unwrap();
-    let declared_class = reader
-        .begin_ro_txn()
-        .unwrap()
-        .get_state_reader()
-        .unwrap()
+    let txn = reader.begin_ro_txn().unwrap();
+    let state_reader = txn.get_state_reader().unwrap();
+    let declared_class = state_reader
         .get_deprecated_class_definition_at(
             StateNumber::unchecked_right_after_block(BlockNumber(0)),
             &cl0,
         )
         .unwrap();
     assert!(declared_class.is_none());
+    assert_eq!(state_reader.get_deprecated_class_definition_block_number(&cl0).unwrap(), None);
 }
 
 #[test]
@@ -528,6 +548,7 @@ fn revert_state() {
     txn.commit().unwrap();
 
     let expected_deleted_class_hashes = vec![class2];
+    let expected_deleted_deprecated_class_hashes = vec![class1];
     let expected_deleted_deprecated_classes =
         IndexMap::from([(class1, DeprecatedContractClass::default())]);
     let expected_deleted_classes = IndexMap::from([(class2, SierraContractClass::default())]);
@@ -545,10 +566,11 @@ fn revert_state() {
     )]);
     assert_matches!(
         deleted_data,
-        Some((thin_state_diff, class_hashes, class_definitions, deprecated_class_definitions, compiled_classes))
+        Some((thin_state_diff, class_hashes, class_definitions, deprecated_class_hashes, deprecated_class_definitions, compiled_classes))
         if thin_state_diff == state_diff1
         && class_hashes == expected_deleted_class_hashes
         && class_definitions == expected_deleted_classes
+        && deprecated_class_hashes == expected_deleted_deprecated_class_hashes
         && deprecated_class_definitions == expected_deleted_deprecated_classes
         && compiled_classes == expected_deleted_compiled_classes
     );
@@ -830,6 +852,10 @@ fn declare_revert_declare_without_classes_scenario() {
             .unwrap()
             .is_none()
     );
+    assert_eq!(
+        state_reader.get_deprecated_class_definition_block_number(&deprecated_class_hash).unwrap(),
+        Some(BlockNumber(0))
+    );
 
     // Revert the block and assert that the classes are no longer declared.
     let (txn, _) = writer.begin_rw_txn().unwrap().revert_state_diff(BlockNumber(0)).unwrap();
@@ -838,7 +864,10 @@ fn declare_revert_declare_without_classes_scenario() {
     let state_reader = txn.get_state_reader().unwrap();
     assert!(state_reader.get_class_definition_block_number(&class_hash).unwrap().is_none());
     assert!(
-        state_reader.get_class_definition_block_number(&deprecated_class_hash).unwrap().is_none()
+        state_reader
+            .get_deprecated_class_definition_block_number(&deprecated_class_hash)
+            .unwrap()
+            .is_none()
     );
 
     // Re-declaring reverted classes should be possible.
@@ -864,5 +893,9 @@ fn declare_revert_declare_without_classes_scenario() {
             .get_deprecated_class_definition_at(state_number, &deprecated_class_hash)
             .unwrap()
             .is_none()
+    );
+    assert_eq!(
+        state_reader.get_deprecated_class_definition_block_number(&deprecated_class_hash).unwrap(),
+        Some(BlockNumber(0))
     );
 }
