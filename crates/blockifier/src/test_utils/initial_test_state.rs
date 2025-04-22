@@ -11,7 +11,7 @@ use crate::blockifier::config::ContractClassManagerConfig;
 use crate::context::ChainInfo;
 use crate::state::cached_state::CachedState;
 use crate::state::contract_class_manager::ContractClassManager;
-use crate::state::state_reader_and_contract_manager::StateReaderAndContractManger;
+use crate::state::state_reader_and_contract_manager::StateReaderAndContractManager;
 use crate::test_utils::contracts::FeatureContractData;
 use crate::test_utils::dict_state_reader::DictStateReader;
 
@@ -103,7 +103,7 @@ pub fn test_state_with_contract_manager(
     chain_info: &ChainInfo,
     initial_balances: Fee,
     contract_instances: &[(FeatureContract, u16)],
-) -> CachedState<StateReaderAndContractManger<DictStateReader>> {
+) -> CachedState<StateReaderAndContractManager<DictStateReader>> {
     let contract_instances_vec: Vec<(FeatureContractData, u16)> = contract_instances
         .iter()
         .map(|(feature_contract, i)| ((*feature_contract).into(), *i))
@@ -132,7 +132,7 @@ pub fn test_state_inner_with_contract_manager(
     initial_balances: Fee,
     contract_instances: &[(FeatureContractData, u16)],
     erc20_version: CairoVersion,
-) -> CachedState<StateReaderAndContractManger<DictStateReader>> {
+) -> CachedState<StateReaderAndContractManager<DictStateReader>> {
     let mut reader = DictStateReader::default();
     setup_test_state(chain_info, initial_balances, contract_instances, erc20_version, &mut reader);
 
@@ -145,7 +145,7 @@ pub fn test_state_inner_with_contract_manager(
         run_cairo_native,
         wait_on_native_compilation,
     ));
-    let reader = StateReaderAndContractManger {
+    let reader = StateReaderAndContractManager {
         state_reader: reader.clone(),
         contract_class_manager: manager,
     };

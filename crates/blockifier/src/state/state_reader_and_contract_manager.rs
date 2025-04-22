@@ -12,12 +12,12 @@ pub trait FetchCompiliedClasses: StateReader {
     fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CachedClass>;
 }
 
-pub struct StateReaderAndContractManger<S: FetchCompiliedClasses> {
+pub struct StateReaderAndContractManager<S: FetchCompiliedClasses> {
     pub state_reader: S,
     pub contract_class_manager: ContractClassManager,
 }
 
-impl<S: FetchCompiliedClasses> StateReaderAndContractManger<S> {
+impl<S: FetchCompiliedClasses> StateReaderAndContractManager<S> {
     fn get_compiled_from_class_manager(
         &self,
         class_hash: ClassHash,
@@ -54,7 +54,7 @@ impl<S: FetchCompiliedClasses> StateReaderAndContractManger<S> {
     }
 }
 
-impl<S: FetchCompiliedClasses> StateReader for StateReaderAndContractManger<S> {
+impl<S: FetchCompiliedClasses> StateReader for StateReaderAndContractManager<S> {
     fn get_storage_at(
         &self,
         contract_address: starknet_api::core::ContractAddress,
