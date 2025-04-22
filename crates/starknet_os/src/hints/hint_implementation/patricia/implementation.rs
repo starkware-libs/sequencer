@@ -9,7 +9,10 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     insert_value_from_var_name,
     insert_value_into_ap,
 };
+use cairo_vm::hint_processor::hint_processor_definition::HintReference;
+use cairo_vm::serde::deserialize_program::ApTracking;
 use cairo_vm::types::exec_scope::ExecutionScopes;
+use cairo_vm::vm::vm_core::VirtualMachine;
 use num_bigint::BigUint;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
@@ -345,16 +348,36 @@ pub(crate) fn enter_scope_new_node<S: StateReader>(
     enter_scope_specific_node(new_node, exec_scopes)
 }
 
-pub(crate) fn enter_scope_next_node_bit_0<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+fn enter_scope_next_node_bit(
+    is_left: bool,
+    vm: &mut VirtualMachine,
+    exec_scopes: &mut ExecutionScopes,
+    ids_data: &HashMap<String, HintReference>,
+    ap_tracking: &ApTracking,
 ) -> OsHintResult {
-    todo!()
+    let ids_bit = get_integer_from_var_name(Ids::Bit.into(), vm, ids_data, ap_tracking)?;
+    let left_bit = Felt::from(is_left);
+
+    let new_node = match ids_bit {
+        x if x == left_bit => exec_scopes.get(Scope::LeftChild.into())?,
+        x if x == Felt::ONE - left_bit => exec_scopes.get(Scope::RightChild.into())?,
+        _ => {
+            return Err(OsHintError::ExpectedBit { id: Ids::Bit, felt: ids_bit });
+        }
+    };
+    enter_scope_specific_node(new_node, exec_scopes)
+}
+
+pub(crate) fn enter_scope_next_node_bit_0<S: StateReader>(
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+) -> OsHintResult {
+    enter_scope_next_node_bit(true, vm, exec_scopes, ids_data, ap_tracking)
 }
 
 pub(crate) fn enter_scope_next_node_bit_1<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    enter_scope_next_node_bit(false, vm, exec_scopes, ids_data, ap_tracking)
 }
 
 pub(crate) fn enter_scope_left_child<S: StateReader>(
