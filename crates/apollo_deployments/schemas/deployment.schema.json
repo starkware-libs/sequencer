@@ -1,0 +1,10 @@
+[
+  "base_layer_config.node_url",
+  "base_layer_config.starknet_contract_address",
+  "chain_id",
+  "consensus_manager_config.eth_to_strk_oracle_config.base_url",
+  "eth_fee_token_address",
+  "recorder_url",
+  "starknet_url",
+  "strk_fee_token_address"
+]

@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+// use serde_json::from_str;
 use apollo_infra_utils::dumping::serialize_to_file;
 #[cfg(test)]
 use apollo_infra_utils::dumping::serialize_to_file_test;
@@ -8,6 +9,7 @@ use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
 use apollo_node::config::config_utils::{get_deployment_from_config_path, BaseAppConfigOverride};
 use indexmap::IndexMap;
 use serde::Serialize;
+// use std::collections::{HashMap, HashSet};
 use serde_json::Value;
 use starknet_api::core::ChainId;
 
@@ -225,3 +227,33 @@ fn copy_file_and_get_basename(config_file_path_str: &str, target_dir: &Path) -> 
     // Return the copied file base name.
     file_name.to_string_lossy().into_owned()
 }
+
+// fn merge_config_files(file_paths : Vec<String>) -> std::io::Result<()> {
+
+//     let mut unified_map = HashMap::new();
+//     let mut duplicates = HashSet::new();
+
+//     for path in file_paths {
+//         let contents = fs::read_to_string(&path)?;
+//         let parsed: HashMap<String, Value> = from_str(&contents)
+//             .unwrap_or_else(|_| {panic!("{}",format!("Invalid JSON in file: {}", path))});
+
+//         for (key, value) in parsed {
+//             if unified_map.contains_key(&key) {
+//                 duplicates.insert(key);
+//             } else {
+//                 unified_map.insert(key, value);
+//             }
+//         }
+//     }
+
+//     if !duplicates.is_empty() {
+//         panic!(
+//             "Duplicate keys found across files:\n{}",
+//             duplicates.into_iter().collect::<Vec<_>>().join(", ")
+//         );
+//     }
+
+//     println!("Unified map:\n{:#?}", unified_map);
+//     Ok(())
+// }
