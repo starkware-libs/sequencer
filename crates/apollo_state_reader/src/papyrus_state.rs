@@ -11,7 +11,7 @@ use blockifier::execution::contract_class::{
     RunnableCompiledClass,
 };
 use blockifier::state::errors::{couple_casm_and_sierra, StateError};
-use blockifier::state::global_cache::CachedClass;
+use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::state::state_reader_and_contract_manager::FetchCompiliedClasses;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
@@ -103,7 +103,7 @@ impl PapyrusReader {
 
     /// Returns a V1 contract with Sierra if V1 contract is found, or a V0 contract without Sierra
     /// if a V1 contract is not found, or an `Error` otherwise.
-    fn get_compiled_class_from_db(&self, class_hash: ClassHash) -> StateResult<CachedClass> {
+    fn get_compiled_class_from_db(&self, class_hash: ClassHash) -> StateResult<CompiledClasses> {
         let state_number = StateNumber(self.latest_block);
         let class_declaration_block_number = self
             .reader()?
@@ -117,7 +117,7 @@ impl PapyrusReader {
             // Cairo 1.
             let (casm_compiled_class, sierra) = self.read_casm_and_sierra(class_hash)?;
             let sierra_version = SierraVersion::extract_from_program(&sierra.sierra_program)?;
-            return Ok(CachedClass::V1(
+            return Ok(CompiledClasses::V1(
                 CompiledClassV1::try_from((casm_compiled_class, sierra_version))?,
                 Arc::new(sierra),
             ));
@@ -127,7 +127,7 @@ impl PapyrusReader {
         let v0_compiled_class = self.read_deprecated_casm(class_hash)?;
         match v0_compiled_class {
             Some(starknet_api_contract_class) => {
-                Ok(CachedClass::V0(CompiledClassV0::try_from(starknet_api_contract_class)?))
+                Ok(CompiledClasses::V0(CompiledClassV0::try_from(starknet_api_contract_class)?))
             }
             None => Err(StateError::UndeclaredClassHash(class_hash)),
         }
@@ -223,7 +223,7 @@ impl StateReader for PapyrusReader {
 }
 
 impl FetchCompiliedClasses for PapyrusReader {
-    fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CachedClass> {
+    fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CompiledClasses> {
         self.get_compiled_class_from_db(class_hash)
     }
 }

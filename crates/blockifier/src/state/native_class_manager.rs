@@ -19,7 +19,7 @@ use crate::blockifier::config::{
 };
 use crate::execution::contract_class::{CompiledClassV1, RunnableCompiledClass};
 use crate::execution::native::contract_class::NativeCompiledClassV1;
-use crate::state::global_cache::{CachedCairoNative, CachedClass, RawClassCache};
+use crate::state::global_cache::{CachedCairoNative, CompiledClasses, RawClassCache};
 
 #[cfg(test)]
 #[path = "native_class_manager_test.rs"]
@@ -112,7 +112,7 @@ impl NativeClassManager {
         let cached_class = self.cache.get(class_hash)?;
 
         let cached_class = match cached_class {
-            CachedClass::V1(_, _) => {
+            CompiledClasses::V1(_, _) => {
                 // TODO(Yoni): make sure `wait_on_native_compilation` cannot be set to true while
                 // `run_cairo_native` is false.
                 assert!(
@@ -121,10 +121,10 @@ impl NativeClassManager {
                 );
                 cached_class
             }
-            CachedClass::V1Native(CachedCairoNative::Compiled(native))
+            CompiledClasses::V1Native(CachedCairoNative::Compiled(native))
                 if !self.run_class_with_cairo_native(class_hash) =>
             {
-                CachedClass::V1(native.casm(), Arc::new(SierraContractClass::default()))
+                CompiledClasses::V1(native.casm(), Arc::new(SierraContractClass::default()))
             }
             _ => cached_class,
         };
@@ -136,10 +136,10 @@ impl NativeClassManager {
     /// For Cairo 1 classes:
     /// * if Native mode is enabled, triggers compilation to Native that will eventually be cached.
     /// * If `wait_on_native_compilation` is true, caches the Native variant immediately.
-    pub fn set_and_compile(&self, class_hash: ClassHash, compiled_class: CachedClass) {
+    pub fn set_and_compile(&self, class_hash: ClassHash, compiled_class: CompiledClasses) {
         match compiled_class {
-            CachedClass::V0(_) => self.cache.set(class_hash, compiled_class),
-            CachedClass::V1(compiled_class_v1, sierra_contract_class) => {
+            CompiledClasses::V0(_) => self.cache.set(class_hash, compiled_class),
+            CompiledClasses::V1(compiled_class_v1, sierra_contract_class) => {
                 // TODO(Yoni): instead of these two flag, use an enum.
                 if self.wait_on_native_compilation() {
                     assert!(self.run_cairo_native(), "Native compilation is disabled.");
@@ -160,7 +160,7 @@ impl NativeClassManager {
                 // Cache the V1 class.
                 self.cache.set(
                     class_hash,
-                    CachedClass::V1(compiled_class_v1.clone(), sierra_contract_class.clone()),
+                    CompiledClasses::V1(compiled_class_v1.clone(), sierra_contract_class.clone()),
                 );
                 if self.run_cairo_native() {
                     // Send a non-blocking compilation request.
@@ -174,7 +174,7 @@ impl NativeClassManager {
                 }
             }
             // TODO(Yoni): consider panic since this flow should not be reachable.
-            CachedClass::V1Native(_) => self.cache.set(class_hash, compiled_class),
+            CompiledClasses::V1Native(_) => self.cache.set(class_hash, compiled_class),
         }
     }
 
@@ -259,7 +259,7 @@ fn process_compilation_request(
     panic_on_compilation_failure: bool,
 ) -> Result<(), CompilationUtilError> {
     let (class_hash, sierra, casm) = compilation_request;
-    if let Some(CachedClass::V1Native(_)) = cache.get(&class_hash) {
+    if let Some(CompiledClasses::V1Native(_)) = cache.get(&class_hash) {
         // The contract class is already compiled to native - skip the compilation.
         return Ok(());
     }
@@ -277,14 +277,16 @@ fn process_compilation_request(
             let native_compiled_class = NativeCompiledClassV1::new(executor, casm);
             cache.set(
                 class_hash,
-                CachedClass::V1Native(CachedCairoNative::Compiled(native_compiled_class)),
+                CompiledClasses::V1Native(CachedCairoNative::Compiled(native_compiled_class)),
             );
             log::debug!("Compilation succeeded");
             Ok(())
         }
         Err(err) => {
-            cache
-                .set(class_hash, CachedClass::V1Native(CachedCairoNative::CompilationFailed(casm)));
+            cache.set(
+                class_hash,
+                CompiledClasses::V1Native(CachedCairoNative::CompilationFailed(casm)),
+            );
             log::debug!("Error compiling contract class: {}", err);
             if panic_on_compilation_failure {
                 panic!("Compilation failed");

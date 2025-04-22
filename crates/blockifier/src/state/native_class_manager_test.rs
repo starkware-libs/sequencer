@@ -14,7 +14,7 @@ use crate::blockifier::config::{CairoNativeRunConfig, NativeClassesWhitelist};
 use crate::execution::contract_class::{CompiledClassV1, RunnableCompiledClass};
 use crate::state::global_cache::{
     CachedCairoNative,
-    CachedClass,
+    CompiledClasses,
     RawClassCache,
     GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST,
 };
@@ -114,35 +114,35 @@ fn test_set_and_compile(
     let request = if should_pass { create_test_request() } else { create_faulty_request() };
     let class_hash = request.0;
     let (_class_hash, sierra, casm) = request.clone();
-    let cached_class = CachedClass::V1(casm, sierra);
+    let compiled_class = CompiledClasses::V1(casm, sierra);
 
-    manager.set_and_compile(class_hash, cached_class);
+    manager.set_and_compile(class_hash, compiled_class);
     if !run_cairo_native {
-        assert_matches!(manager.cache.get(&class_hash).unwrap(), CachedClass::V1(_, _));
+        assert_matches!(manager.cache.get(&class_hash).unwrap(), CompiledClasses::V1(_, _));
         return;
     }
 
     if !wait_on_native_compilation {
-        assert_matches!(manager.cache.get(&class_hash).unwrap(), CachedClass::V1(_, _));
+        assert_matches!(manager.cache.get(&class_hash).unwrap(), CompiledClasses::V1(_, _));
         let seconds_to_sleep = 2;
         let max_n_retries = DEFAULT_MAX_CPU_TIME / seconds_to_sleep + 1;
         for _ in 0..max_n_retries {
             sleep(std::time::Duration::from_secs(seconds_to_sleep));
-            if matches!(manager.cache.get(&class_hash), Some(CachedClass::V1Native(_))) {
+            if matches!(manager.cache.get(&class_hash), Some(CompiledClasses::V1Native(_))) {
                 break;
             }
         }
     }
 
     match manager.cache.get(&class_hash).unwrap() {
-        CachedClass::V1Native(CachedCairoNative::Compiled(_)) => {
+        CompiledClasses::V1Native(CachedCairoNative::Compiled(_)) => {
             assert!(should_pass, "Compilation should have passed.");
         }
-        CachedClass::V1Native(CachedCairoNative::CompilationFailed(_)) => {
+        CompiledClasses::V1Native(CachedCairoNative::CompilationFailed(_)) => {
             assert!(!should_pass, "Compilation should have failed.");
         }
-        CachedClass::V1(_, _) | CachedClass::V0(_) => {
-            panic!("Unexpected cached class.");
+        CompiledClasses::V1(_, _) | CompiledClasses::V0(_) => {
+            panic!("Unexpected compiled class.");
         }
     }
 }
@@ -225,13 +225,13 @@ fn test_process_compilation_request(
         );
         assert_matches!(
             manager.cache.get(&request.0).unwrap(),
-            CachedClass::V1Native(CachedCairoNative::Compiled(_))
+            CompiledClasses::V1Native(CachedCairoNative::Compiled(_))
         );
     } else {
         assert_matches!(res.unwrap_err(), CompilationUtilError::CompilationError(_));
         assert_matches!(
             manager.cache.get(&request.0).unwrap(),
-            CachedClass::V1Native(CachedCairoNative::CompilationFailed(_))
+            CompiledClasses::V1Native(CachedCairoNative::CompilationFailed(_))
         );
     }
 }
@@ -256,7 +256,7 @@ fn test_native_classes_whitelist(
 
     let (class_hash, sierra, casm) = create_test_request();
 
-    manager.set_and_compile(class_hash, CachedClass::V1(casm, sierra));
+    manager.set_and_compile(class_hash, CompiledClasses::V1(casm, sierra));
 
     match allow_run_native {
         true => assert_matches!(
