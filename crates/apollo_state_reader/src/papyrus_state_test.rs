@@ -14,7 +14,7 @@ use blockifier::state::contract_class_manager::ContractClassManager;
 #[cfg(feature = "cairo_native")]
 use blockifier::state::global_cache::{CachedCairoNative, CachedClass};
 use blockifier::state::state_api::StateReader;
-use blockifier::state::state_reader_and_contract_manager::StateReaderAndContractManger;
+use blockifier::state::state_reader_and_contract_manager::StateReaderAndContractManager;
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::test_utils::trivial_external_entry_point_new;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
@@ -86,7 +86,7 @@ fn test_entry_point_with_papyrus_state() -> apollo_storage::StorageResult<()> {
 fn build_apollo_state_reader_and_declare_contract(
     contract: FeatureContract,
     contract_manager_config: ContractClassManagerConfig,
-) -> StateReaderAndContractManger<PapyrusReader> {
+) -> StateReaderAndContractManager<PapyrusReader> {
     let class_hash = contract.get_class_hash();
     let ((storage_reader, mut storage_writer), _) = apollo_storage::test_utils::get_test_storage();
     let test_compiled_class_hash = contract.get_compiled_class_hash();
@@ -131,7 +131,7 @@ fn build_apollo_state_reader_and_declare_contract(
 
     let papyrus_reader = PapyrusReader::new(storage_reader, BlockNumber(1));
 
-    StateReaderAndContractManger {
+    StateReaderAndContractManager {
         state_reader: papyrus_reader,
         contract_class_manager: ContractClassManager::start(contract_manager_config),
     }
@@ -206,7 +206,7 @@ fn test_get_compiled_class_when_native_is_cached() {
     let test_class_hash = test_contract.get_class_hash();
     let contract_manager_config = ContractClassManagerConfig::create_for_testing(true, true);
     let papyrus_reader = PapyrusReader::new(storage_reader, BlockNumber::default());
-    let state_reader = StateReaderAndContractManger {
+    let state_reader = StateReaderAndContractManager {
         state_reader: papyrus_reader,
         contract_class_manager: ContractClassManager::start(contract_manager_config),
     };

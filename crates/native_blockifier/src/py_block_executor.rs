@@ -13,7 +13,7 @@ use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
 use blockifier::state::contract_class_manager::ContractClassManager;
-use blockifier::state::state_reader_and_contract_manager::StateReaderAndContractManger;
+use blockifier::state::state_reader_and_contract_manager::StateReaderAndContractManager;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction;
 use pyo3::prelude::*;
@@ -63,7 +63,7 @@ pub struct PyBlockExecutor {
     pub tx_executor_config: TransactionExecutorConfig,
     pub chain_info: ChainInfo,
     pub versioned_constants: VersionedConstants,
-    pub tx_executor: Option<TransactionExecutor<StateReaderAndContractManger<PapyrusReader>>>,
+    pub tx_executor: Option<TransactionExecutor<StateReaderAndContractManager<PapyrusReader>>>,
     /// `Send` trait is required for `pyclass` compatibility as Python objects must be threadsafe.
     pub storage: Box<dyn Storage + Send>,
     pub contract_class_manager: ContractClassManager,
@@ -349,19 +349,19 @@ impl PyBlockExecutor {
 impl PyBlockExecutor {
     pub fn tx_executor(
         &mut self,
-    ) -> &mut TransactionExecutor<StateReaderAndContractManger<PapyrusReader>> {
+    ) -> &mut TransactionExecutor<StateReaderAndContractManager<PapyrusReader>> {
         self.tx_executor.as_mut().expect("Transaction executor should be initialized")
     }
 
     fn get_aligned_reader(
         &self,
         next_block_number: BlockNumber,
-    ) -> StateReaderAndContractManger<PapyrusReader> {
+    ) -> StateReaderAndContractManager<PapyrusReader> {
         // Full-node storage must be aligned to the Python storage before initializing a reader.
         self.storage.validate_aligned(next_block_number.0);
         let papyrus_reader = PapyrusReader::new(self.storage.reader().clone(), next_block_number);
 
-        StateReaderAndContractManger {
+        StateReaderAndContractManager {
             state_reader: papyrus_reader,
             contract_class_manager: self.contract_class_manager.clone(),
         }
