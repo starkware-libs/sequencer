@@ -129,7 +129,7 @@ impl TransactionManagerContent {
         if let Some(txs) = &self.txs {
             assert_eq!(
                 txs,
-                &tx_manager.txs.txs.values().map(|tx| tx.transaction.clone()).collect_vec()
+                &tx_manager.uncommitted.txs.values().map(|tx| tx.transaction.clone()).collect_vec()
             );
         }
 
@@ -143,8 +143,9 @@ impl From<TransactionManagerContent> for TransactionManager {
     fn from(mut content: TransactionManagerContent) -> TransactionManager {
         let txs: Vec<_> = mem::take(&mut content.txs).unwrap_or_default();
         TransactionManager {
-            txs: SoftDeleteIndexMap::from(txs),
+            uncommitted: SoftDeleteIndexMap::from(txs),
             committed: content.committed.unwrap_or_default(),
+            rejected: SoftDeleteIndexMap::default(),
         }
     }
 }
@@ -194,7 +195,7 @@ impl FakeL1ProviderClient {
     pub async fn flush_messages(&self, l1_provider: &mut L1Provider) {
         let commit_blocks = self.commit_blocks_received.lock().unwrap().drain(..).collect_vec();
         for CommitBlockBacklog { height, committed_txs } in commit_blocks {
-            l1_provider.commit_block(&committed_txs, height).unwrap();
+            l1_provider.commit_block(&committed_txs, &HashSet::new(), height).unwrap();
         }
 
         // TODO(gilad): flush other buffers if necessary.
@@ -233,6 +234,7 @@ impl L1ProviderClient for FakeL1ProviderClient {
     async fn commit_block(
         &self,
         l1_handler_tx_hashes: Vec<TransactionHash>,
+        _rejected_l1_handler_tx_hashes: HashSet<TransactionHash>,
         height: BlockNumber,
     ) -> L1ProviderClientResult<()> {
         self.commit_blocks_received
