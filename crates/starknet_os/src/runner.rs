@@ -99,6 +99,6 @@ pub fn run_os_stateless(
     layout: LayoutName,
     os_hints: OsHints,
 ) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
-    let n_blocks = os_hints.os_input.os_block_and_state_input.len();
+    let n_blocks = os_hints.os_input.os_block_inputs.len();
     run_os(compiled_os, layout, os_hints, vec![PanickingStateReader; n_blocks])
 }

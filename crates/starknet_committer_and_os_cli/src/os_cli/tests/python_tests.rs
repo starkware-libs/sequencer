@@ -292,7 +292,7 @@ fn run_dummy_cairo_function(input: &str) -> OsPythonTestResult {
 /// Deserialize the input string into an `Input` struct.
 fn input_deserialization(input_str: &str) -> OsPythonTestResult {
     let input = serde_json::from_str::<Input>(input_str)?;
-    validate_input(&input.os_hints.os_input.os_block_and_state_input);
+    validate_input(&input.os_hints.os_input);
     Ok("Deserialization successful".to_string())
 }
 
