@@ -29,8 +29,12 @@ impl ComponentRequestHandler<L1ProviderRequest, L1ProviderResponse> for L1Provid
             L1ProviderRequest::AddEvents(events) => {
                 L1ProviderResponse::AddEvents(self.add_events(events))
             }
-            L1ProviderRequest::CommitBlock { l1_handler_tx_hashes, height } => {
-                L1ProviderResponse::CommitBlock(self.commit_block(&l1_handler_tx_hashes, height))
+            L1ProviderRequest::CommitBlock { l1_handler_tx_hashes, rejected_tx_hashes, height } => {
+                L1ProviderResponse::CommitBlock(self.commit_block(
+                    &l1_handler_tx_hashes,
+                    &rejected_tx_hashes,
+                    height,
+                ))
             }
             L1ProviderRequest::GetTransactions { n_txs, height } => {
                 L1ProviderResponse::GetTransactions(self.get_txs(n_txs, height))

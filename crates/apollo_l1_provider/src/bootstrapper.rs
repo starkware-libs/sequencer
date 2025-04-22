@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -177,7 +178,7 @@ async fn l2_sync_task(
             Ok(Some(block)) => {
                 // FIXME: block.transaction_hashes should be `block.l1_transaction_hashes`!
                 l1_provider_client
-                    .commit_block(block.transaction_hashes, current_height)
+                    .commit_block(block.transaction_hashes, HashSet::new(), current_height)
                     .await
                     .unwrap();
                 current_height = current_height.unchecked_next();
