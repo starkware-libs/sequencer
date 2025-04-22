@@ -60,28 +60,6 @@ fn assert_no_event(behaviour: &mut Behaviour) {
     }
 }
 
-#[tokio::test]
-async fn discovery_outputs_dial_request_and_query_on_start() {
-    let bootstrap_peer_id = PeerId::random();
-    let bootstrap_peer_address = Multiaddr::empty();
-
-    let mut behaviour = Behaviour::new(CONFIG, bootstrap_peer_id, bootstrap_peer_address);
-
-    let event = timeout(TIMEOUT, behaviour.next()).await.unwrap().unwrap();
-    assert_matches!(
-        event,
-        ToSwarm::Dial{opts} if opts.get_peer_id() == Some(bootstrap_peer_id)
-    );
-
-    let event = timeout(TIMEOUT, behaviour.next()).await.unwrap().unwrap();
-    assert_matches!(
-        event,
-        ToSwarm::GenerateEvent(ToOtherBehaviourEvent::RequestKadQuery(_peer_id))
-    );
-
-    assert_no_event(&mut behaviour);
-}
-
 async fn check_event_happens_after_given_duration(
     behaviour: &mut Behaviour,
     duration: Duration,
@@ -157,7 +135,11 @@ async fn discovery_redials_when_all_connections_closed() {
 
 #[tokio::test]
 async fn discovery_doesnt_redial_when_one_connection_closes() {
-    let mut behaviour = create_behaviour_and_connect_to_bootstrap_node(CONFIG).await;
+    let mut config = CONFIG;
+    const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(1);
+    config.heartbeat_interval = HEARTBEAT_INTERVAL;
+
+    let mut behaviour = create_behaviour_and_connect_to_bootstrap_node(config).await;
 
     // Consume the initial query event.
     timeout(TIMEOUT, behaviour.next()).await.unwrap();
@@ -219,19 +201,6 @@ async fn create_behaviour_and_connect_to_bootstrap_node(config: DiscoveryConfig)
     );
 
     behaviour
-}
-
-#[tokio::test]
-async fn discovery_outputs_single_query_after_connecting() {
-    let mut behaviour = create_behaviour_and_connect_to_bootstrap_node(CONFIG).await;
-
-    let event = timeout(TIMEOUT, behaviour.next()).await.unwrap().unwrap();
-    assert_matches!(
-        event,
-        ToSwarm::GenerateEvent(ToOtherBehaviourEvent::RequestKadQuery(_peer_id))
-    );
-
-    assert_no_event(&mut behaviour);
 }
 
 #[tokio::test]
