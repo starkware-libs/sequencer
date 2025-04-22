@@ -41,7 +41,7 @@ fn load_and_process_base_application_config_files_schema() {
         let load_result = SequencerNodeConfig::load_and_process(vec![
             "command_name_placeholder".to_string(),
             "--config_file".to_string(),
-            deployment_preset.get_base_app_config_file_path().to_string(),
+            deployment_preset.get_base_app_config_file_path().to_string_lossy().to_string(),
         ]);
         println!("{:?}", load_result);
         assert!(load_result.is_ok());
@@ -56,9 +56,9 @@ fn application_config_files_exist() {
         let deployment_preset = deployment_fn();
         deployment_preset.get_deployment().assert_application_configs_exist();
 
-        deployment_preset
-            .get_deployment()
-            .test_dump_application_config_files(deployment_preset.get_base_app_config_file_path());
+        deployment_preset.get_deployment().test_dump_application_config_files(
+            deployment_preset.get_base_app_config_file_path().to_str().unwrap(),
+        );
     }
 }
 

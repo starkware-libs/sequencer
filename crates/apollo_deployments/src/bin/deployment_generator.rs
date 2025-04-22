@@ -10,8 +10,8 @@ fn main() {
             deployment_preset.get_dump_file_path().to_str().unwrap(),
         );
 
-        deployment_preset
-            .get_deployment()
-            .dump_application_config_files(deployment_preset.get_base_app_config_file_path());
+        deployment_preset.get_deployment().dump_application_config_files(
+            deployment_preset.get_base_app_config_file_path().to_str().unwrap(),
+        );
     }
 }
