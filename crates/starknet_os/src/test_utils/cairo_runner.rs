@@ -221,7 +221,6 @@ fn perform_basic_validations_on_implicit_args(
     implicit_args: &[ImplicitArg],
     program: &Program,
     entrypoint: &str,
-    ordered_builtins: &[BuiltinName],
 ) -> Cairo0EntryPointRunnerResult<()> {
     let mut expected_implicit_args: Vec<(String, Member)> = program
         .get_identifier(&format!("{}.ImplicitArgs", entrypoint))
@@ -267,29 +266,39 @@ fn perform_basic_validations_on_implicit_args(
             }
         }
     }
-    if !is_subsequence(&actual_builtins, ordered_builtins) {
-        Err(ImplicitArgError::WrongBuiltinOrder {
-            correct_order: ordered_builtins.to_vec(),
-            actual_order: actual_builtins,
-        })?;
-    }
     Ok(())
 }
 
-// This is a hack to add the entrypoint's builtins:
-// Create a program with all the builtins, and only use the relevant builtins for the
-// entrypoint.
+fn extract_builtins_from_implicit_args(
+    implicit_args: &[ImplicitArg],
+) -> Cairo0EntryPointRunnerResult<Vec<BuiltinName>> {
+    let all_builtins_ordered = get_all_builtins_ordered()?;
+    let program_builtins = implicit_args.iter().filter_map(|arg| {
+        if let ImplicitArg::Builtin(builtin) = arg { Some(*builtin) } else { None }
+    });
+    let program_builtins: Vec<BuiltinName> = program_builtins.collect();
+    if !is_subsequence(&program_builtins, &all_builtins_ordered) {
+        Err(ImplicitArgError::WrongBuiltinOrder {
+            correct_order: all_builtins_ordered.to_vec(),
+            actual_order: program_builtins.clone(),
+        })?;
+    }
+    Ok(program_builtins)
+}
+
+// This is a hack to inject the entrypoint's builtins into the program.
 // TODO(Amos): Add builtins properly once the VM allows loading an entrypoint's builtins.
 // In addition, pass program as struct and add hint processor as param.
 fn inject_builtins(
     program_str: &str,
-    ordered_builtins: &[BuiltinName],
+    implicit_args: &[ImplicitArg],
 ) -> Cairo0EntryPointRunnerResult<Program> {
+    let program_builtins = extract_builtins_from_implicit_args(implicit_args)?;
     let mut program_dict: HashMap<String, Value> =
         serde_json::from_str(program_str).map_err(Cairo0EntryPointRunnerError::ProgramSerde)?;
     program_dict.insert(
         "builtins".to_string(),
-        Value::from_iter(ordered_builtins.iter().map(|b| b.to_str())),
+        Value::from_iter(program_builtins.iter().map(|b| b.to_str())),
     );
     let program_str_with_builtins =
         serde_json::to_string(&program_dict).map_err(Cairo0EntryPointRunnerError::ProgramSerde)?;
@@ -299,27 +308,24 @@ fn inject_builtins(
 fn convert_implicit_args_to_cairo_args(
     implicit_args: &[ImplicitArg],
     vm: &VirtualMachine,
-    ordered_builtins: &[BuiltinName],
 ) -> Vec<CairoArg> {
-    let all_builtins_initial_stacks: Vec<Vec<MaybeRelocatable>> = vm
-        .get_builtin_runners()
-        .iter()
-        .map(|builtin_runner| builtin_runner.initial_stack())
-        .collect();
-    let all_builtin_map: HashMap<_, _> =
-        ordered_builtins.iter().zip(all_builtins_initial_stacks).collect();
+    let mut initial_stacks_iterator =
+        vm.get_builtin_runners().iter().map(|builtin_runner| builtin_runner.initial_stack());
     implicit_args
         .iter()
         .flat_map(|arg| match arg {
-            ImplicitArg::Builtin(builtin) => {
-                all_builtin_map[builtin].iter().map(|b| b.clone().into()).collect()
-            }
+            ImplicitArg::Builtin(builtin) => initial_stacks_iterator
+                .next()
+                .unwrap_or_else(|| panic!("No builtin runner found for builtin {builtin}."))
+                .iter()
+                .map(|b| b.clone().into())
+                .collect(),
             ImplicitArg::NonBuiltin(endpoint_arg) => EndpointArg::to_cairo_arg_vec(endpoint_arg),
         })
         .collect()
 }
 
-fn get_ordered_builtins() -> Result<Vec<BuiltinName>, BuiltinMismatchError> {
+fn get_all_builtins_ordered() -> Result<Vec<BuiltinName>, BuiltinMismatchError> {
     let ordered_builtins = vec![
         BuiltinName::output,
         BuiltinName::pedersen,
@@ -428,24 +434,21 @@ fn load_endpoint_arg_from_address(
 
 /// Push the number of used instances of a builtin to the implicit return values.
 fn push_n_used_instances(
-    builtin_name: &BuiltinName,
-    builtin_name_to_runner: &HashMap<&BuiltinName, &BuiltinRunner>,
+    builtin_runner: &BuiltinRunner,
     implicit_return_values: &mut Vec<EndpointArg>,
     vm: &VirtualMachine,
 ) -> Result<(), LoadReturnValueError> {
-    let n_used_instances =
-        builtin_name_to_runner.get(builtin_name).unwrap().get_used_instances(&vm.segments)?;
+    let n_used_instances = builtin_runner.get_used_instances(&vm.segments)?;
     implicit_return_values.push(EndpointArg::Value(ValueArg::Single(Felt::from(n_used_instances))));
     Ok(())
 }
 
 /// Push the program's output into the implicit return values.
 fn push_program_output(
-    builtin_name_to_runner: &HashMap<&BuiltinName, &BuiltinRunner>,
+    output_builtin_runner: &BuiltinRunner,
     implicit_return_values: &mut Vec<EndpointArg>,
     vm: &VirtualMachine,
 ) -> Result<(), LoadReturnValueError> {
-    let output_builtin_runner = builtin_name_to_runner.get(&BuiltinName::output).unwrap();
     let output_builtin_segment = output_builtin_runner.base();
     let ptr_to_segment =
         Relocatable { segment_index: isize::try_from(output_builtin_segment).unwrap(), offset: 0 };
@@ -475,22 +478,23 @@ fn get_return_values(
     let mut current_address = return_values_address;
 
     let mut implicit_return_values: Vec<EndpointArg> = vec![];
-    let ordered_builtin_names = get_ordered_builtins()?;
-    let builtin_name_to_runner: HashMap<&BuiltinName, &BuiltinRunner> =
-        ordered_builtin_names.iter().zip(vm.get_builtin_runners().iter()).collect();
+    let mut builtin_runner_iterator = vm.get_builtin_runners().iter();
     for (i, implicit_arg) in implicit_return_values_structures.iter().enumerate() {
         debug!("Loading implicit return value {}. Value: {:?}", i, implicit_arg);
         match implicit_arg {
             ImplicitArg::Builtin(builtin) => {
                 match builtin {
                     BuiltinName::output => push_program_output(
-                        &builtin_name_to_runner,
+                        builtin_runner_iterator.next().unwrap_or_else(|| {
+                            panic!("No builtin runner found for builtin {builtin}.")
+                        }),
                         &mut implicit_return_values,
                         vm,
                     )?,
                     _ => push_n_used_instances(
-                        builtin,
-                        &builtin_name_to_runner,
+                        builtin_runner_iterator.next().unwrap_or_else(|| {
+                            panic!("No builtin runner found for builtin {builtin}.")
+                        }),
                         &mut implicit_return_values,
                         vm,
                     )?,
@@ -538,8 +542,10 @@ pub fn run_cairo_0_entry_point(
         info!("Adding __main__ prefix to entrypoint.");
         entrypoint = format!("__main__.{entrypoint}");
     }
-    let ordered_builtins = get_ordered_builtins()?;
-    let program = inject_builtins(program_str, &ordered_builtins)?;
+
+    let program = inject_builtins(program_str, implicit_args)?;
+    info!("Successfully injected builtins into program.");
+
     let (state_reader, os_block_input, os_hints_config) = (None, None, None);
     let mut hint_processor =
         SnosHintProcessor::new_for_testing(state_reader, &program, os_hints_config, os_block_input)
@@ -548,12 +554,7 @@ pub fn run_cairo_0_entry_point(
 
     // TODO(Amos): Perform complete validations.
     perform_basic_validations_on_explicit_args(explicit_args, &program, &entrypoint)?;
-    perform_basic_validations_on_implicit_args(
-        implicit_args,
-        &program,
-        &entrypoint,
-        &ordered_builtins,
-    )?;
+    perform_basic_validations_on_implicit_args(implicit_args, &program, &entrypoint)?;
     info!("Performed basic validations on explicit & implicit args.");
 
     let mut cairo_runner = CairoRunner::new(
@@ -567,8 +568,6 @@ pub fn run_cairo_0_entry_point(
         cairo_runner.exec_scopes.insert_value(&key, value);
     }
     let allow_missing_builtins = true;
-    // TODO(Amos): Check if using `initialize_program_builtins` removes the need for injecting
-    // builtins and allowing missing builtins.
     cairo_runner.initialize_builtins(allow_missing_builtins).unwrap();
     let program_base: Option<Relocatable> = None;
     cairo_runner.initialize_segments(program_base);
@@ -576,8 +575,7 @@ pub fn run_cairo_0_entry_point(
 
     let explicit_cairo_args: Vec<CairoArg> =
         explicit_args.iter().flat_map(EndpointArg::to_cairo_arg_vec).collect();
-    let implicit_cairo_args =
-        convert_implicit_args_to_cairo_args(implicit_args, &cairo_runner.vm, &ordered_builtins);
+    let implicit_cairo_args = convert_implicit_args_to_cairo_args(implicit_args, &cairo_runner.vm);
     let entrypoint_args: Vec<&CairoArg> =
         implicit_cairo_args.iter().chain(explicit_cairo_args.iter()).collect();
     info!("Converted explicit & implicit args to Cairo args.");
