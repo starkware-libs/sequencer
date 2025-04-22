@@ -9,6 +9,7 @@ use crate::block::{
     BlockTimestamp,
     GasPrice,
     GasPricePerToken,
+    StarknetVersion,
 };
 use crate::block_hash::block_hash_calculator::{
     calculate_block_commitments,
@@ -131,6 +132,28 @@ fn test_block_hash_regression(
     assert_eq!(
         BlockHash(expected_hash),
         calculate_block_hash(block_header, block_commitments).unwrap()
+    );
+}
+
+#[test]
+fn test_tx_commitment_with_an_empty_signature() {
+    let transactions_data = vec![TransactionHashingData {
+        transaction_signature: TransactionSignature(vec![]),
+        transaction_output: get_transaction_output(),
+        transaction_hash: tx_hash!(1),
+    }];
+    let block_commitments = calculate_block_commitments(
+        &transactions_data,
+        &get_state_diff(),
+        L1DataAvailabilityMode::Blob,
+        &StarknetVersion::V0_13_2,
+    );
+    let actual_tx_commitment = block_commitments.transaction_commitment;
+    let expected_tx_commitment_hash_when_signature_vec_of_zero =
+        felt!("0x30259cdf52543aa0866b46a839c5e089184408a97945b4ffa8dcae78177dfde");
+    assert_eq!(
+        TransactionCommitment(expected_tx_commitment_hash_when_signature_vec_of_zero),
+        actual_tx_commitment
     );
 }
 
