@@ -567,7 +567,10 @@ impl Batcher {
         STORAGE_HEIGHT.increment(1);
         let mempool_result = self
             .mempool_client
-            .commit_block(CommitBlockArgs { address_to_nonce, rejected_tx_hashes })
+            .commit_block(CommitBlockArgs {
+                address_to_nonce,
+                rejected_tx_hashes: rejected_tx_hashes.clone(),
+            })
             .await;
 
         if let Err(mempool_err) = mempool_result {
@@ -575,9 +578,18 @@ impl Batcher {
             // TODO(AlonH): Should we rollback the state diff and return an error?
         };
 
+        let rejected_consumed_tx_hashed = rejected_tx_hashes
+            .iter()
+            .filter(|tx_hash| consumed_l1_handler_tx_hashes.contains(tx_hash))
+            .collect();
+
         let l1_provider_result = self
             .l1_provider_client
-            .commit_block(consumed_l1_handler_tx_hashes.iter().copied().collect(), height)
+            .commit_block(
+                consumed_l1_handler_tx_hashes.iter().copied().collect(),
+                rejected_consumed_tx_hashed,
+                height,
+            )
             .await;
         l1_provider_result.unwrap_or_else(|err| match err {
             L1ProviderClientError::L1ProviderError(L1ProviderError::UnexpectedHeight {

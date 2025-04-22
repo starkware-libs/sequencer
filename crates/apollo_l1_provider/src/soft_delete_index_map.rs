@@ -59,6 +59,10 @@ impl SoftDeleteIndexMap {
         Some(&entry.transaction)
     }
 
+    pub fn get_transaction(&self, tx_hash: &TransactionHash) -> Option<&L1HandlerTransaction> {
+        self.txs.get(tx_hash).map(|entry| &entry.transaction)
+    }
+
     /// Commits given transactions by removing them entirely and returning the removed transactions.
     /// Uncommitted staged transactions are rolled back to unstaged first.
     // Performance note: This operation is linear time with both the number
