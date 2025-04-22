@@ -12,7 +12,7 @@ use blockifier::retdata;
 use blockifier::state::cached_state::CachedState;
 use blockifier::state::contract_class_manager::ContractClassManager;
 #[cfg(feature = "cairo_native")]
-use blockifier::state::global_cache::{CachedCairoNative, CachedClass};
+use blockifier::state::global_cache::{CachedCairoNative, CompiledClasses};
 use blockifier::state::state_api::StateReader;
 use blockifier::state::state_reader_and_contract_manager::StateReaderAndContractManager;
 use blockifier::test_utils::contracts::FeatureContractTrait;
@@ -215,7 +215,7 @@ fn test_get_compiled_class_when_native_is_cached() {
     {
         state_reader.contract_class_manager.set_and_compile(
             test_class_hash,
-            CachedClass::V1Native(CachedCairoNative::Compiled(native_compiled_class)),
+            CompiledClasses::V1Native(CachedCairoNative::Compiled(native_compiled_class)),
         );
     } else {
         panic!("Expected NativeCompiledClassV1");

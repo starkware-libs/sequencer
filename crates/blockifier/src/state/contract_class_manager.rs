@@ -11,7 +11,7 @@ pub mod trivial_class_manager {
 
     use crate::blockifier::config::ContractClassManagerConfig;
     use crate::execution::contract_class::RunnableCompiledClass;
-    use crate::state::global_cache::{CachedClass, RawClassCache};
+    use crate::state::global_cache::{CompiledClasses, RawClassCache};
 
     #[derive(Clone)]
     pub struct TrivialClassManager {
@@ -32,7 +32,7 @@ pub mod trivial_class_manager {
             Some(self.cache.get(class_hash)?.to_runnable())
         }
 
-        pub fn set_and_compile(&self, class_hash: ClassHash, compiled_class: CachedClass) {
+        pub fn set_and_compile(&self, class_hash: ClassHash, compiled_class: CompiledClasses) {
             self.cache.set(class_hash, compiled_class);
         }
 
