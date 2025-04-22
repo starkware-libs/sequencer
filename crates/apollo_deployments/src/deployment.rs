@@ -23,17 +23,17 @@ pub(crate) const DEPLOYMENT_IMAGE_FOR_TESTING: &str =
     "ghcr.io/starkware-libs/sequencer/sequencer:dev";
 const DEPLOYMENT_CONFIG_DIR_NAME: &str = "deployment_configs/";
 
+// TODO(Tsabary): this struct has become a wrapper for `Deployment`, should be removed.
 pub struct DeploymentAndPreset {
     deployment: Deployment,
     // TODO(Tsabary): consider using PathBuf instead.
     dump_file_path: PathBuf,
-    base_app_config_file_path: &'static str,
 }
 
 impl DeploymentAndPreset {
-    pub fn new(deployment: Deployment, base_app_config_file_path: &'static str) -> Self {
+    pub fn new(deployment: Deployment) -> Self {
         let dump_file_path = deployment.deployment_file_path();
-        Self { deployment, dump_file_path, base_app_config_file_path }
+        Self { deployment, dump_file_path }
     }
 
     pub fn get_deployment(&self) -> &Deployment {
@@ -44,8 +44,8 @@ impl DeploymentAndPreset {
         self.dump_file_path.clone()
     }
 
-    pub fn get_base_app_config_file_path(&self) -> &'static str {
-        self.base_app_config_file_path
+    pub fn get_base_app_config_file_path(&self) -> PathBuf {
+        self.deployment.get_base_app_config_file_path()
     }
 }
 
@@ -61,6 +61,8 @@ pub struct Deployment {
     services: Vec<Service>,
     #[serde(skip_serializing)]
     instance_name: String,
+    #[serde(skip_serializing)]
+    base_app_config_file_path: PathBuf,
 }
 
 impl Deployment {
@@ -71,6 +73,7 @@ impl Deployment {
         instance_name: &str,
         external_secret: Option<ExternalSecret>,
         image: &str,
+        base_app_config_file_path: PathBuf,
     ) -> Self {
         let service_names = deployment_name.all_service_names();
         let services = service_names
@@ -86,6 +89,7 @@ impl Deployment {
             environment,
             services,
             instance_name: instance_name.to_string(),
+            base_app_config_file_path,
         }
     }
 
@@ -93,6 +97,11 @@ impl Deployment {
         &self.deployment_name
     }
 
+    pub fn get_base_app_config_file_path(&self) -> PathBuf {
+        self.base_app_config_file_path.clone()
+    }
+
+    // TODO(Tsabary): use self.get_base_app_config_file_path() instead where possible.
     pub fn application_config_values(
         &self,
         base_app_config_file_path: &str,
