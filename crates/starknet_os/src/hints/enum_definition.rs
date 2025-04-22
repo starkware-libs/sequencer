@@ -1,6 +1,8 @@
 use blockifier::state::state_api::StateReader;
 use indoc::indoc;
 #[cfg(any(test, feature = "testing"))]
+use serde::Serialize;
+#[cfg(any(test, feature = "testing"))]
 use strum::IntoEnumIterator;
 
 use crate::hints::error::{OsHintError, OsHintExtensionResult, OsHintResult};
@@ -233,7 +235,7 @@ pub mod test;
 
 macro_rules! all_hints_enum {
     ($($inner_enum:ident),+) => {
-        #[cfg_attr(any(test, feature = "testing"), derive(strum_macros::EnumIter))]
+        #[cfg_attr(any(test, feature = "testing"),derive(Serialize, strum_macros::EnumIter))]
         #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
         pub enum AllHints {
             $($inner_enum($inner_enum)),+
