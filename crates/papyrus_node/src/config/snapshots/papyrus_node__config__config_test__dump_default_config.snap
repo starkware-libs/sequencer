@@ -199,7 +199,7 @@ expression: dumped_default_config
   "context.max_l1_data_gas_price_wei": {
     "description": "The maximum L1 data gas price in wei.",
     "value": {
-      "$serde_json::private::Number": "150000000000"
+      "$serde_json::private::Number": "1000000000000000000"
     },
     "privacy": "Public"
   },
@@ -213,7 +213,7 @@ expression: dumped_default_config
   "context.min_l1_data_gas_price_wei": {
     "description": "The minimum L1 data gas price in wei.",
     "value": {
-      "$serde_json::private::Number": "1000000000"
+      "$serde_json::private::Number": "1"
     },
     "privacy": "Public"
   },

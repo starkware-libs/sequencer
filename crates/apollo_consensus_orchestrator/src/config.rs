@@ -10,6 +10,7 @@ use starknet_api::core::{ChainId, ContractAddress};
 use validator::Validate;
 
 const GWEI_FACTOR: u128 = 1_000_000_000;
+const ETH_FACTOR: u128 = 1_000_000_000_000_000_000;
 
 /// Configuration for the Context struct.
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
@@ -153,8 +154,8 @@ impl Default for ContextConfig {
             validate_proposal_margin_millis: Duration::from_millis(10_000),
             min_l1_gas_price_wei: GWEI_FACTOR,
             max_l1_gas_price_wei: 200 * GWEI_FACTOR,
-            min_l1_data_gas_price_wei: GWEI_FACTOR,
-            max_l1_data_gas_price_wei: 150 * GWEI_FACTOR,
+            min_l1_data_gas_price_wei: 1,
+            max_l1_data_gas_price_wei: ETH_FACTOR,
             l1_data_gas_price_multiplier_ppt: 135,
         }
     }
