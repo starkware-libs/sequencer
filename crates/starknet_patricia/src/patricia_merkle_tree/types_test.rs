@@ -4,7 +4,7 @@ use rand::Rng;
 use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
-use crate::patricia_merkle_tree::external_test_utils::get_random_u256;
+use crate::patricia_merkle_tree::external_test_utils::get_random_u256_inclusive;
 use crate::patricia_merkle_tree::internal_test_utils::random;
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
 use crate::patricia_merkle_tree::types::NodeIndex;
@@ -61,8 +61,11 @@ fn test_get_lca(#[case] node_index: U256, #[case] other: U256, #[case] expected:
 
 #[rstest]
 fn test_get_lca_big(mut random: ThreadRng) {
-    let lca =
-        NodeIndex::new(get_random_u256(&mut random, U256::ZERO, (NodeIndex::MAX >> 1).into()));
+    let lca = NodeIndex::new(get_random_u256_inclusive(
+        &mut random,
+        U256::ZERO,
+        (NodeIndex::MAX >> 1).into(),
+    ));
 
     let left_child = lca << 1;
     let right_child = left_child + 1;

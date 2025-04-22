@@ -4,7 +4,7 @@ use rand::Rng;
 use rstest::rstest;
 
 use super::split_leaves;
-use crate::patricia_merkle_tree::external_test_utils::get_random_u256;
+use crate::patricia_merkle_tree::external_test_utils::get_random_u256_inclusive;
 use crate::patricia_merkle_tree::internal_test_utils::{
     as_fully_indexed,
     random,
@@ -25,7 +25,7 @@ fn create_increasing_random_array<R: Rng>(
     let mut ret: Vec<U256> = Vec::with_capacity(size);
     let mut low = start;
     for i in 0..size {
-        ret.push(get_random_u256(rng, low, low + jump));
+        ret.push(get_random_u256_inclusive(rng, low, low + jump));
         low = ret[i] + 1;
     }
     ret

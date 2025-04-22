@@ -8,7 +8,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::generate_trie_config;
 use crate::hash::hash_trait::HashOutput;
-use crate::patricia_merkle_tree::external_test_utils::get_random_u256;
+use crate::patricia_merkle_tree::external_test_utils::get_random_u256_inclusive;
 use crate::patricia_merkle_tree::filled_tree::tree::FilledTreeImpl;
 use crate::patricia_merkle_tree::node_data::errors::{LeafError, LeafResult};
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, NodeData, PathToBottom};
@@ -122,8 +122,8 @@ pub(crate) fn small_tree_index_to_full(index: U256, height: SubTreeHeight) -> No
 #[case(U256::ONE, U256::ONE << 128)]
 #[case((U256::ONE<<128)-U256::ONE, U256::ONE << 128)]
 #[case(U256::ONE<<128, (U256::ONE << 128)+U256::ONE)]
-fn test_get_random_u256(mut random: ThreadRng, #[case] low: U256, #[case] high: U256) {
-    let r = get_random_u256(&mut random, low, high);
+fn test_get_random_u256_inclusive(mut random: ThreadRng, #[case] low: U256, #[case] high: U256) {
+    let r = get_random_u256_inclusive(&mut random, low, high);
     assert!(low <= r && r < high);
 }
 
