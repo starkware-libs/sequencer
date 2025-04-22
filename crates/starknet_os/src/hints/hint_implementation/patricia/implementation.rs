@@ -1,4 +1,7 @@
+use std::collections::HashMap;
+
 use blockifier::state::state_api::StateReader;
+use cairo_vm::any_box;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
     get_ptr_from_var_name,
@@ -6,6 +9,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     insert_value_from_var_name,
     insert_value_into_ap,
 };
+use cairo_vm::types::exec_scope::ExecutionScopes;
 use num_bigint::BigUint;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
@@ -299,10 +303,26 @@ pub(crate) fn build_descent_map<S: StateReader>(
     Ok(())
 }
 
+fn enter_scope_specific_node(node: UpdateTree, exec_scopes: &mut ExecutionScopes) -> OsHintResult {
+    // TODO(Rotem): `preimage_map` and `descent_map` are computed once and remain constant.
+    // Consider adding them as fields to the `SnosHintProcessor` struct.
+    let preimage_map: PreimageMap = exec_scopes.get(Scope::Preimage.into())?;
+    let descent_map: DescentMap = exec_scopes.get(Scope::DescentMap.into())?;
+    let new_scope = HashMap::from([
+        (Scope::Node.into(), any_box!(node)),
+        (Scope::Preimage.into(), any_box!(preimage_map)),
+        (Scope::DescentMap.into(), any_box!(descent_map)),
+    ]);
+    exec_scopes.enter_scope(new_scope);
+
+    Ok(())
+}
+
 pub(crate) fn enter_scope_node<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let node: UpdateTree = exec_scopes.get(Scope::Node.into())?;
+    enter_scope_specific_node(node, exec_scopes)
 }
 
 pub(crate) fn enter_scope_new_node<S: StateReader>(
