@@ -118,6 +118,7 @@ impl L1Provider {
     pub fn commit_block(
         &mut self,
         committed_txs: &[TransactionHash],
+        rejected_txs: &HashSet<TransactionHash>,
         height: BlockNumber,
     ) -> L1ProviderResult<()> {
         if self.state.is_bootstrapping() {
@@ -126,6 +127,7 @@ impl L1Provider {
         }
 
         self.validate_height(height)?;
+        self.apply_rejected_txs(rejected_txs, committed_txs);
         self.apply_commit_block(committed_txs);
 
         self.state = self.state.transition_to_pending();
@@ -245,9 +247,19 @@ impl L1Provider {
         Ok(())
     }
 
-    fn apply_commit_block(&mut self, committed_txs: &[TransactionHash]) {
-        self.tx_manager.commit_txs(committed_txs);
+    fn apply_commit_block(&mut self, consumed_txs: &[TransactionHash]) {
+        self.tx_manager.commit_txs(consumed_txs);
         self.current_height = self.current_height.unchecked_next();
+    }
+
+    fn apply_rejected_txs(
+        &mut self,
+        rejected_txs: &HashSet<TransactionHash>,
+        consumed_l1_txs: &[TransactionHash],
+    ) {
+        let rejected_and_consumed: Vec<_> =
+            rejected_txs.iter().filter(|tx| consumed_l1_txs.contains(tx)).cloned().collect();
+        self.tx_manager.store_rejected_txs(&rejected_and_consumed);
     }
 }
 
