@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use ethnum::U256;
-use rand::Rng;
+use rand::{Rng, RngCore};
 use serde_json::json;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, DbValue};
@@ -34,35 +34,37 @@ pub fn u256_try_into_felt(value: &U256) -> Result<Felt, TypesError<U256>> {
 
 /// Generates a random U256 number between low and high (exclusive).
 /// Panics if low > high
-pub fn get_random_u256<R: Rng>(rng: &mut R, low: U256, high: U256) -> U256 {
-    assert!(low < high);
-    let high_of_low = low.high();
-    let high_of_high = high.high();
-
+pub fn get_random_u256<R: Rng + RngCore>(rng: &mut R, low: U256, high: U256) -> U256 {
+    assert!(low < high, "low must be < high");
     let delta = high - low;
-    if delta <= u128::MAX {
-        let delta = u128::try_from(delta).expect("Failed to convert delta to u128");
-        return low + rng.gen_range(0..delta);
+
+    // --- fast path for <= 128‑bit ranges ---
+    if delta <= U256::from(u128::MAX) {
+        // It's safe to cast because delta ≤ 2^128−1.
+        let delta128 = delta.as_u128();
+        return low + U256::from(rng.gen_range(0..delta128));
     }
 
-    // Randomize the high 128 bits in the extracted range, and the low 128 bits in their entire
-    // domain until the result is in range.
-    // As high-low>u128::MAX, the expected number of samples until the loops breaks is bound from
-    // above by 3 (as either:
-    //  1. high_of_high > high_of_low + 1, and there is a 1/3 chance to get a valid result for high
-    //  bits in (high_of_low, high_of_high).
-    //  2. high_of_high == high_of_low + 1, and every possible low 128 bits value is valid either
-    // when the high bits equal high_of_high, or when they equal high_of_low).
-    let mut randomize = || {
-        U256::from_words(rng.gen_range(*high_of_low..=*high_of_high), rng.gen_range(0..=u128::MAX))
-    };
-    let mut result = randomize();
-    while result < low || result >= high {
-        result = randomize();
+    // how many bits are needed to cover [0..delta)
+    let nbits = 256usize - usize::try_from(delta.leading_zeros()).unwrap();
+
+    // build mask = (1<<nbits)−1
+    let mask = if nbits == 256 { U256::MAX } else { (U256::ONE << nbits) - U256::ONE };
+
+    loop {
+        // sample 256 random bits
+        let mut buf = [0u8; 32];
+        rng.fill_bytes(&mut buf);
+        let rnd = U256::from_be_bytes(buf) & mask;
+
+        // accept if in range [0..delta)
+        // acceptance probability = delta / 2^nbits
+        // (so on average you’ll loop 2^nbits/delta times)
+        if rnd < delta {
+            return low + rnd;
+        }
     }
-    result
 }
-
 pub async fn tree_computation_flow<L, TH>(
     leaf_modifications: LeafModifications<L>,
     storage: &MapStorage,
