@@ -382,8 +382,43 @@ pub(crate) fn load_edge<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn load_bottom<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> OsHintResult {
-    todo!()
+pub(crate) fn load_bottom<S: StateReader>(
+    HintArgs { hint_processor, vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_, '_, S>,
+) -> OsHintResult {
+    let bottom_hash = HashOutput(
+        vm.get_integer(get_address_of_nested_fields(
+            ids_data,
+            Ids::Edge,
+            CairoStruct::NodeEdge,
+            vm,
+            ap_tracking,
+            &["bottom"],
+            hint_processor.os_program,
+        )?)?
+        .into_owned(),
+    );
+    let preimage_map: &PreimageMap = exec_scopes.get_ref(Scope::Preimage.into())?;
+
+    let preimage =
+        preimage_map.get(&bottom_hash).ok_or(OsHintError::MissingPreimage(bottom_hash))?;
+    let binary_data = preimage.get_binary()?;
+
+    let hash_ptr_address =
+        get_relocatable_from_var_name(Ids::HashPtr.into(), vm, ids_data, ap_tracking)?;
+    let nested_fields_and_values =
+        [("x", binary_data.left_hash.0.into()), ("y", binary_data.right_hash.0.into())];
+    insert_values_to_fields(
+        hash_ptr_address,
+        hint_processor.commitment_type.hash_builtin_struct(),
+        vm,
+        nested_fields_and_values.as_slice(),
+        hint_processor.os_program,
+    )?;
+
+    // TODO(Rotem): If and when hash verification skipping is supported, take
+    // `__patricia_skip_validation_runner` into account.
+
+    Ok(())
 }
 
 pub(crate) fn decode_node<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> OsHintResult {
