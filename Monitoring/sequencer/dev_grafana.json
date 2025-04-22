@@ -411,6 +411,22 @@
         "extra_params": {}
       }
     ],
+    "ConsensusGasPrice": [
+      {
+        "title": "consensus_l1_gas_price_provider_error",
+        "description": "Number of times the context got an error when querying the L1 gas price provider",
+        "type": "stat",
+        "expr": "consensus_l1_gas_price_provider_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+        "extra_params": {}
+      },
+      {
+        "title": "consensus_eth_to_strk_oracle_error",
+        "description": "Number of times the context got an error when querying the ETH to STRK oracle",
+        "type": "stat",
+        "expr": "consensus_eth_to_strk_oracle_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+        "extra_params": {}
+      }
+    ],
     "StateSyncP2p": [
       {
         "title": "apollo_p2p_sync_num_connected_peers",
