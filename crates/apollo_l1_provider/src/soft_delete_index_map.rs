@@ -59,28 +59,8 @@ impl SoftDeleteIndexMap {
         Some(&entry.transaction)
     }
 
-    /// Commits given transactions by removing them entirely and returning the removed transactions.
-    /// Uncommitted staged transactions are rolled back to unstaged first.
-    // Performance note: This operation is linear time with both the number
-    // of known transactions and the number of committed transactions. This is assumed to be
-    // good enough while l1-handler numbers remain low, but if this changes and we need log(n)
-    // removals (amortized), replace indexmap with this (basically a BTreeIndexMap):
-    // BTreeMap<u32, TransactionEntry>, Hashmap<TransactionHash, u32> and a counter: u32, such that
-    // every new tx is inserted to the map with key counter++ and the counter is not reduced
-    // when removing entries. Once the counter reaches u32::MAX/2 we recreate the DS in Theta(n).
-    pub fn commit(&mut self, tx_hashes: &[TransactionHash]) -> Vec<L1HandlerTransaction> {
-        self.rollback_staging();
-        let tx_hashes: HashSet<_> = tx_hashes.iter().copied().collect();
-        if tx_hashes.is_empty() {
-            return Vec::new();
-        }
-
-        // NOTE: this takes Theta(|self.txs|), see docstring.
-        let (committed, not_committed): (Vec<_>, Vec<_>) =
-            self.txs.drain(..).partition(|(hash, _)| tx_hashes.contains(hash));
-        self.txs.extend(not_committed);
-
-        committed.into_iter().map(|(_, entry)| entry.transaction).collect()
+    pub fn get_transaction(&self, tx_hash: &TransactionHash) -> Option<&L1HandlerTransaction> {
+        self.txs.get(tx_hash).map(|entry| &entry.transaction)
     }
 
     /// Rolls back all staged transactions, converting them to unstaged.
