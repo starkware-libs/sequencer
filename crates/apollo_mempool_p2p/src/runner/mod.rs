@@ -64,11 +64,7 @@ impl ComponentStarter for MempoolP2pRunner {
                 _ = &mut self.network_future => {
                     panic!("MempoolP2pRunner failed - network stopped unexpectedly");
                 }
-                _ = transaction_batch_broadcast_interval.tick() => {
-                    if (self._mempool_p2p_propagator_client.broadcast_queued_transactions().await).is_err() {
-                        warn!("MempoolP2pPropagatorClient denied BroadcastQueuedTransactions request");
-                    };
-                }
+
                 Some(result) = gateway_futures.next() => {
                     match result {
                         Ok(_) => {}
@@ -112,6 +108,11 @@ impl ComponentStarter for MempoolP2pRunner {
                             }
                         }
                     }
+                }
+                _ = transaction_batch_broadcast_interval.tick() => {
+                    if (self._mempool_p2p_propagator_client.broadcast_queued_transactions().await).is_err() {
+                        warn!("MempoolP2pPropagatorClient denied BroadcastQueuedTransactions request");
+                    };
                 }
             }
         }

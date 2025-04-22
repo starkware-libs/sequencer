@@ -107,10 +107,17 @@ async fn incoming_p2p_tx_reaches_gateway_client() {
             Ok(GatewayOutput::Invoke(InvokeGatewayOutput::new(TransactionHash::default())))
         },
     );
+
+    let mut mock_mempool_p2p_propagator_client = MockMempoolP2pPropagatorClient::new();
+    mock_mempool_p2p_propagator_client
+        .expect_broadcast_queued_transactions()
+        .times(0..=1)
+        .return_const(Ok(()));
+
     let (mut mempool_p2p_runner, mock_network) = setup(
         network_future,
         Arc::new(mock_gateway_client),
-        Arc::new(MockMempoolP2pPropagatorClient::new()),
+        Arc::new(mock_mempool_p2p_propagator_client),
         MAX_TRANSACTION_BATCH_RATE,
     );
 
@@ -163,10 +170,16 @@ async fn incoming_p2p_tx_fails_on_gateway_client() {
         }))
     });
 
+    let mut mock_mempool_p2p_propagator_client = MockMempoolP2pPropagatorClient::new();
+    mock_mempool_p2p_propagator_client
+        .expect_broadcast_queued_transactions()
+        .times(0..=1)
+        .return_const(Ok(()));
+
     let (mut mempool_p2p_runner, mock_network) = setup(
         network_future,
         Arc::new(mock_gateway_client),
-        Arc::new(MockMempoolP2pPropagatorClient::new()),
+        Arc::new(mock_mempool_p2p_propagator_client),
         MAX_TRANSACTION_BATCH_RATE,
     );
 
