@@ -123,6 +123,7 @@ define_string_enum! {
         (BuiltinCosts),
         (BuiltinParams),
         (BuiltinPtrs),
+        (ChildBit),
         (CompiledClass),
         (CompiledClassFact),
         (CompiledClassFacts),
