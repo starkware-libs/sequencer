@@ -135,6 +135,28 @@ fn test_block_hash_regression(
 }
 
 #[test]
+fn test_transaction_commitment_when_signature_is_empty() {
+    let transactions_data = vec![TransactionHashingData {
+        transaction_signature: TransactionSignature(vec![]),
+        transaction_output: get_transaction_output(),
+        transaction_hash: tx_hash!(1),
+    }];
+    let block_commitments = calculate_block_commitments(
+        &transactions_data,
+        &get_state_diff(),
+        L1DataAvailabilityMode::Blob,
+        &BlockHashVersion::V0_13_2.into(),
+    );
+    let transaction_commitment = block_commitments.transaction_commitment;
+    assert_eq!(
+        transaction_commitment,
+        TransactionCommitment(felt!(
+            "0x30259cdf52543aa0866b46a839c5e089184408a97945b4ffa8dcae78177dfde"
+        ))
+    );
+}
+
+#[test]
 fn l2_gas_price_pre_v0_13_4() {
     let block_header = {
         |l2_gas_price: u8| BlockHeaderWithoutHash {
