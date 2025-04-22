@@ -47,7 +47,7 @@ impl Stream for Behaviour {
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         match Pin::into_inner(self).poll(cx) {
             Poll::Pending => Poll::Pending,
-            Poll::Ready(event) => Poll::Ready(Some(event)),
+            Poll::Ready(event) => Poll::Ready(Some(event.map_in(|e| e.left().unwrap()))),
         }
     }
 }
