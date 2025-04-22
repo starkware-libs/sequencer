@@ -388,7 +388,7 @@ impl<'de> Deserialize<'de> for VersionedConstants {
                 secp256r1_new: versioned_constants
                     .get_syscall_gas_cost(&SyscallSelector::Secp256r1New),
                 keccak: versioned_constants.get_syscall_gas_cost(&SyscallSelector::Keccak),
-                keccak_round_cost: versioned_constants
+                keccak_round: versioned_constants
                     .get_syscall_gas_cost(&SyscallSelector::KeccakRound),
                 sha256_process_block: versioned_constants
                     .get_syscall_gas_cost(&SyscallSelector::Sha256ProcessBlock),
@@ -654,6 +654,7 @@ impl SyscallGasCost {
 
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[derive(Debug, Default, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct SyscallGasCosts {
     pub call_contract: SyscallGasCost,
     pub deploy: SyscallGasCost,
@@ -677,7 +678,7 @@ pub struct SyscallGasCosts {
     pub secp256r1_mul: SyscallGasCost,
     pub secp256r1_new: SyscallGasCost,
     pub keccak: SyscallGasCost,
-    pub keccak_round_cost: SyscallGasCost,
+    pub keccak_round: SyscallGasCost,
     pub meta_tx_v0: SyscallGasCost,
     pub sha256_process_block: SyscallGasCost,
 }
@@ -694,7 +695,7 @@ impl SyscallGasCosts {
             SyscallSelector::GetBlockHash => self.get_block_hash,
             SyscallSelector::GetExecutionInfo => self.get_execution_info,
             SyscallSelector::GetClassHashAt => self.get_class_hash_at,
-            SyscallSelector::KeccakRound => self.keccak_round_cost,
+            SyscallSelector::KeccakRound => self.keccak_round,
             SyscallSelector::Keccak => self.keccak,
             SyscallSelector::Sha256ProcessBlock => self.sha256_process_block,
             SyscallSelector::LibraryCall => self.library_call,
