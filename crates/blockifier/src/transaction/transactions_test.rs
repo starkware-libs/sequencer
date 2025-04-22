@@ -119,9 +119,10 @@ use crate::fee::resources::{
 use crate::state::cached_state::{CachedState, StateChangesCount, TransactionalState};
 use crate::state::errors::StateError;
 use crate::state::state_api::{State, StateReader};
+use crate::state::state_reader_and_contract_manager::StateReaderAndContractManger;
 use crate::test_utils::contracts::FeatureContractTrait;
 use crate::test_utils::dict_state_reader::DictStateReader;
-use crate::test_utils::initial_test_state::{fund_account, test_state};
+use crate::test_utils::initial_test_state::{fund_account, test_state_with_contract_manager};
 use crate::test_utils::l1_handler::l1handler_tx;
 use crate::test_utils::prices::Prices;
 use crate::test_utils::test_templates::{cairo_version, two_cairo_versions};
@@ -405,7 +406,7 @@ fn get_expected_cairo_resources(
 /// and the sequencer (in both fee types) are as expected (assuming the initial sequencer balances
 /// are zero).
 fn validate_final_balances(
-    state: &mut CachedState<DictStateReader>,
+    state: &mut CachedState<StateReaderAndContractManger<DictStateReader>>,
     chain_info: &ChainInfo,
     expected_actual_fee: Fee,
     erc20_account_balance_key: StorageKey,
@@ -504,7 +505,11 @@ fn test_invoke_tx(
     let account_contract = FeatureContract::AccountWithoutValidations(account_cairo_version);
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
     let chain_info = &block_context.chain_info;
-    let state = &mut test_state(chain_info, BALANCE, &[(account_contract, 1), (test_contract, 1)]);
+    let state = &mut test_state_with_contract_manager(
+        chain_info,
+        BALANCE,
+        &[(account_contract, 1), (test_contract, 1)],
+    );
     let test_contract_address = test_contract.get_instance_address(0);
     let account_contract_address = account_contract.get_instance_address(0);
     let calldata = create_trivial_calldata(test_contract_address);
@@ -1435,7 +1440,7 @@ fn test_actual_fee_gt_resource_bounds(
     let gas_prices = &block_context.block_info.gas_prices.strk_gas_prices;
     let account_contract = FeatureContract::AccountWithoutValidations(account_cairo_version);
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
-    let state = &mut test_state(
+    let state = &mut test_state_with_contract_manager(
         &block_context.chain_info,
         BALANCE,
         &[(account_contract, 2), (test_contract, 1)],
@@ -1658,7 +1663,7 @@ fn test_declare_tx(
     let empty_contract = FeatureContract::Empty(empty_contract_version);
     let account = FeatureContract::AccountWithoutValidations(account_cairo_version);
     let chain_info = &block_context.chain_info;
-    let state = &mut test_state(chain_info, BALANCE, &[(account, 1)]);
+    let state = &mut test_state_with_contract_manager(chain_info, BALANCE, &[(account, 1)]);
     let class_hash = empty_contract.get_class_hash();
     let compiled_class_hash = empty_contract.get_compiled_class_hash();
     let class_info = calculate_class_info_for_testing(empty_contract.get_class());
@@ -1894,7 +1899,7 @@ fn test_deploy_account_tx(
     let mut nonce_manager = NonceManager::default();
     let account = FeatureContract::AccountWithoutValidations(cairo_version);
     let account_class_hash = account.get_class_hash();
-    let state = &mut test_state(chain_info, BALANCE, &[(account, 1)]);
+    let state = &mut test_state_with_contract_manager(chain_info, BALANCE, &[(account, 1)]);
     let deploy_account = AccountTransaction::new_with_default_flags(
         create_executable_deploy_account_tx_and_update_nonce(
             deploy_account_tx_args! {
@@ -1916,7 +1921,12 @@ fn test_deploy_account_tx(
     // can pay for the transaction execution.
     let deployed_account_balance_key = get_fee_token_var_address(deployed_account_address);
 
-    fund_account(chain_info, deploy_account.tx.contract_address(), BALANCE, &mut state.state);
+    fund_account(
+        chain_info,
+        deploy_account.tx.contract_address(),
+        BALANCE,
+        &mut state.state.state_reader,
+    );
 
     let fee_type = &deploy_account.fee_type();
     let tx_context = &block_context.to_tx_context(&deploy_account);
@@ -2094,7 +2104,7 @@ fn test_fail_deploy_account_undeclared_class_hash(
 ) {
     let block_context = &block_context;
     let chain_info = &block_context.chain_info;
-    let state = &mut test_state(chain_info, BALANCE, &[]);
+    let state = &mut test_state_with_contract_manager(chain_info, BALANCE, &[]);
     let undeclared_hash = class_hash!("0xdeadbeef");
     let deploy_account = AccountTransaction::new_with_default_flags(executable_deploy_account_tx(
         deploy_account_tx_args! {
@@ -2180,7 +2190,11 @@ fn test_validate_accounts_tx(
     let faulty_account = FeatureContract::FaultyAccount(cairo_version);
     let sender_address = faulty_account.get_instance_address(0);
     let class_hash = faulty_account.get_class_hash();
-    let state = &mut test_state(&block_context.chain_info, account_balance, &[(faulty_account, 1)]);
+    let state = &mut test_state_with_contract_manager(
+        &block_context.chain_info,
+        account_balance,
+        &[(faulty_account, 1)],
+    );
     let salt_manager = &mut SaltManager::default();
 
     let default_args = FaultyAccountTxCreatorArgs {
@@ -2390,7 +2404,7 @@ fn test_valid_flag(
     let block_context = &block_context;
     let account_contract = FeatureContract::AccountWithoutValidations(account_cairo_version);
     let test_contract = FeatureContract::TestContract(test_contract_cairo_version);
-    let state = &mut test_state(
+    let state = &mut test_state_with_contract_manager(
         &block_context.chain_info,
         BALANCE,
         &[(account_contract, 1), (test_contract, 1)],
@@ -2510,7 +2524,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let block_context = &BlockContext::create_for_account_testing_with_kzg(use_kzg_da);
     let chain_info = &block_context.chain_info;
-    let state = &mut test_state(chain_info, BALANCE, &[(test_contract, 1)]);
+    let state = &mut test_state_with_contract_manager(chain_info, BALANCE, &[(test_contract, 1)]);
     let contract_address = test_contract.get_instance_address(0);
     let versioned_constants = &block_context.versioned_constants;
     let tx = l1handler_tx(Fee(1), contract_address);
@@ -2684,7 +2698,7 @@ fn test_l1_handler_resource_bounds(#[case] resource: Resource, #[case] new_bound
 
     let mut block_context = BlockContext::create_for_account_testing_with_kzg(use_kzg_da);
     let chain_info = block_context.chain_info.clone();
-    let mut state = test_state(&chain_info, BALANCE, &[(test_contract, 1)]);
+    let mut state = test_state_with_contract_manager(&chain_info, BALANCE, &[(test_contract, 1)]);
     let contract_address = test_contract.get_instance_address(0);
 
     // Modify the resource bound for the tested resource.
@@ -2874,7 +2888,11 @@ fn test_invoke_max_sierra_gas_validate_execute(
     let account_contract = FeatureContract::AccountWithoutValidations(account_cairo_version);
     let test_contract = FeatureContract::TestContract(contract_cairo_version);
     let chain_info = &block_context.chain_info;
-    let state = &mut test_state(chain_info, BALANCE, &[(account_contract, 1), (test_contract, 1)]);
+    let state = &mut test_state_with_contract_manager(
+        chain_info,
+        BALANCE,
+        &[(account_contract, 1), (test_contract, 1)],
+    );
     let test_contract_address = test_contract.get_instance_address(0);
     let account_contract_address = account_contract.get_instance_address(0);
     let calldata = create_calldata(test_contract_address, "recurse", &[felt!(10_u8)]);
@@ -2990,7 +3008,7 @@ fn test_deploy_max_sierra_gas_validate_execute(
     let chain_info = &block_context.chain_info;
     let account = FeatureContract::AccountWithoutValidations(cairo_version);
     let account_class_hash = account.get_class_hash();
-    let state = &mut test_state(chain_info, BALANCE, &[(account, 1)]);
+    let state = &mut test_state_with_contract_manager(chain_info, BALANCE, &[(account, 1)]);
     let deploy_account = AccountTransaction::new_with_default_flags(executable_deploy_account_tx(
         deploy_account_tx_args! {
             class_hash: account_class_hash,
@@ -3008,7 +3026,12 @@ fn test_deploy_max_sierra_gas_validate_execute(
 
     // Update the balance of the about to be deployed account contract in the erc20 contract, so it
     // can pay for the transaction execution.
-    fund_account(chain_info, deploy_account.tx.contract_address(), BALANCE, &mut state.state);
+    fund_account(
+        chain_info,
+        deploy_account.tx.contract_address(),
+        BALANCE,
+        &mut state.state.state_reader,
+    );
 
     let account_tracked_resource = account
         .get_runnable_class()
