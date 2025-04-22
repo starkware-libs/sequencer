@@ -833,6 +833,7 @@ async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<Consens
         Ok(prices) => prices,
         Err(e) => {
             warn!("Failed to get L1 gas prices, replacing with minimum values: {e:?}");
+            CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR.increment(1);
             PriceInfo {
                 base_fee_per_gas: args.min_l1_gas_price_wei,
                 blob_fee: args.min_l1_data_gas_price_wei,
