@@ -1,5 +1,6 @@
 pub mod errors;
 
+use std::collections::HashSet;
 use std::fmt::Display;
 use std::sync::Arc;
 
@@ -40,11 +41,24 @@ pub enum InvalidValidationStatus {
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum L1ProviderRequest {
     AddEvents(Vec<Event>),
-    CommitBlock { l1_handler_tx_hashes: Vec<TransactionHash>, height: BlockNumber },
-    GetTransactions { n_txs: usize, height: BlockNumber },
+    CommitBlock {
+        l1_handler_tx_hashes: Vec<TransactionHash>,
+        rejected_tx_hashes: HashSet<TransactionHash>,
+        height: BlockNumber,
+    },
+    GetTransactions {
+        n_txs: usize,
+        height: BlockNumber,
+    },
     Initialize(Vec<Event>),
-    StartBlock { state: SessionState, height: BlockNumber },
-    Validate { tx_hash: TransactionHash, height: BlockNumber },
+    StartBlock {
+        state: SessionState,
+        height: BlockNumber,
+    },
+    Validate {
+        tx_hash: TransactionHash,
+        height: BlockNumber,
+    },
 }
 impl_debug_for_infra_requests_and_responses!(L1ProviderRequest);
 
@@ -85,6 +99,7 @@ pub trait L1ProviderClient: Send + Sync {
     async fn commit_block(
         &self,
         l1_handler_tx_hashes: Vec<TransactionHash>,
+        rejected_tx_hashes: HashSet<TransactionHash>,
         height: BlockNumber,
     ) -> L1ProviderClientResult<()>;
 
@@ -147,9 +162,11 @@ where
     async fn commit_block(
         &self,
         l1_handler_tx_hashes: Vec<TransactionHash>,
+        rejected_tx_hashes: HashSet<TransactionHash>,
         height: BlockNumber,
     ) -> L1ProviderClientResult<()> {
-        let request = L1ProviderRequest::CommitBlock { l1_handler_tx_hashes, height };
+        let request: L1ProviderRequest =
+            L1ProviderRequest::CommitBlock { l1_handler_tx_hashes, rejected_tx_hashes, height };
         handle_all_response_variants!(
             L1ProviderResponse,
             CommitBlock,
