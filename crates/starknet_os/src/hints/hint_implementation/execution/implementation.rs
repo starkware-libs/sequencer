@@ -4,7 +4,6 @@ use std::vec::IntoIter;
 use blockifier::state::state_api::{State, StateReader};
 use cairo_vm::any_box;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
-    get_constant_from_var_name,
     get_integer_from_var_name,
     get_ptr_from_var_name,
     insert_value_from_var_name,
@@ -345,8 +344,7 @@ pub(crate) fn is_remaining_gas_lt_initial_budget<S: StateReader>(
 ) -> OsHintResult {
     let remaining_gas =
         get_integer_from_var_name(Ids::RemainingGas.into(), vm, ids_data, ap_tracking)?;
-    let initial_budget =
-        get_constant_from_var_name(Const::EntryPointInitialBudget.into(), constants)?;
+    let initial_budget = Const::EntryPointInitialBudget.fetch(constants)?;
     let remaining_gas_lt_initial_budget: Felt = (&remaining_gas < initial_budget).into();
     Ok(insert_value_into_ap(vm, remaining_gas_lt_initial_budget)?)
 }
@@ -521,8 +519,7 @@ pub(crate) fn write_old_block_to_storage<S: StateReader>(
 ) -> OsHintResult {
     let execution_helper = &mut hint_processor.get_mut_current_execution_helper()?;
 
-    let block_hash_contract_address =
-        get_constant_from_var_name(Const::BlockHashContractAddress.into(), constants)?;
+    let block_hash_contract_address = Const::BlockHashContractAddress.fetch(constants)?;
     let old_block_number =
         get_integer_from_var_name(Ids::OldBlockNumber.into(), vm, ids_data, ap_tracking)?;
     let old_block_hash =
@@ -603,10 +600,7 @@ pub(crate) fn get_old_block_number_and_hash<S: StateReader>(
     let os_input = &hint_processor.get_current_execution_helper()?.os_block_input;
     let (old_block_number, old_block_hash) =
         os_input.old_block_number_and_hash.ok_or(OsHintError::BlockNumberTooSmall {
-            stored_block_hash_buffer: *get_constant_from_var_name(
-                Const::StoredBlockHashBuffer.into(),
-                constants,
-            )?,
+            stored_block_hash_buffer: *Const::StoredBlockHashBuffer.fetch(constants)?,
         })?;
 
     let ids_old_block_number = BlockNumber(

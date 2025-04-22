@@ -1,8 +1,5 @@
 use blockifier::state::state_api::StateReader;
-use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
-    get_constant_from_var_name,
-    insert_value_from_var_name,
-};
+use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_from_var_name;
 use num_bigint::BigUint;
 use starknet_types_core::felt::Felt;
 
@@ -40,7 +37,7 @@ pub(crate) fn compute_ids_low<S: StateReader>(
             hint_processor.os_program,
         )?)?
         .into_owned();
-    let base = get_constant_from_var_name(Const::Base.into(), constants)?;
+    let base = Const::Base.fetch(constants)?;
     let mask = BigUint::from(u128::MAX);
 
     let low = (d0 + d1 * base).to_biguint() & mask;
