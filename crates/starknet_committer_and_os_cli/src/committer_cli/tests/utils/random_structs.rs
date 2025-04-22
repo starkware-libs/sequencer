@@ -20,7 +20,7 @@ use starknet_committer::patricia_merkle_tree::types::{
 use starknet_patricia::felt::u256_from_felt;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::external_test_utils::{
-    get_random_u256,
+    get_random_u256_inclusive,
     u256_try_into_felt,
 };
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
@@ -47,8 +47,12 @@ pub trait DummyRandomValue {
 
 impl RandomValue for Felt {
     fn random<R: Rng>(rng: &mut R, _max: Option<U256>) -> Self {
-        u256_try_into_felt(&get_random_u256(rng, U256::ONE, u256_from_felt(&Felt::MAX) + 1))
-            .expect("Failed to create a random Felt")
+        u256_try_into_felt(&get_random_u256_inclusive(
+            rng,
+            U256::ONE,
+            u256_from_felt(&Felt::MAX) + 1,
+        ))
+        .expect("Failed to create a random Felt")
     }
 }
 
@@ -120,7 +124,7 @@ impl RandomValue for EdgePath {
             None => EdgePath::MAX.0,
         };
 
-        Self(get_random_u256(rng, U256::ONE, max_value + 1))
+        Self(get_random_u256_inclusive(rng, U256::ONE, max_value + 1))
     }
 }
 
@@ -162,7 +166,7 @@ impl RandomValue for NodeIndex {
             None => U256::from(NodeIndex::MAX),
         };
 
-        Self::new(get_random_u256(rng, U256::ONE, max_value + 1))
+        Self::new(get_random_u256_inclusive(rng, U256::ONE, max_value + 1))
     }
 }
 

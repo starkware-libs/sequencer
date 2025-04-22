@@ -22,6 +22,7 @@ rstest.workspace = true
 async-recursion.workspace = true
 derive_more.workspace = true
 ethnum.workspace = true
+num-bigint = { workspace = true, features = ["rand"] }
 rand.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
