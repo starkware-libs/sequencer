@@ -914,8 +914,8 @@
     "privacy": "Private",
     "value": ""
   },
-  "consensus_manager_config.eth_to_strk_oracle_config.lag_margin_seconds": {
-    "description": "The time margin (in seconds) to adjust the timestamp before querying the conversion rate. Ensures a stable timestamp from providers. Should be configured in alignment with relevant query parameters in `base_url`, if required.",
+  "consensus_manager_config.eth_to_strk_oracle_config.lag_interval_seconds": {
+    "description": "The size of inteval (seconds) that the eth to strk rate is taken on. The lag refers to the fact that the interval `[T, T+k)` contains the conversion rate for queries in the interval `[T+k, T+2k)`. Should be configured in alignment with relevant query parameters in `base_url`, if required.",
     "privacy": "Private",
     "value": 0
   },
@@ -1154,7 +1154,7 @@
     "privacy": "Public",
     "value": 8080
   },
-  "l1_gas_price_provider_config.lag_margin_seconds": {
+  "l1_gas_price_provider_config.lag_interval_seconds": {
     "description": "Difference between the time of the block from L1 used to calculate the gas price and the time of the L2 block this price is used in",
     "privacy": "Public",
     "value": 60
