@@ -1399,6 +1399,7 @@ dependencies = [
  "apollo_l1_gas_price_types",
  "apollo_metrics",
  "async-trait",
+ "lru 0.12.5",
  "mockall",
  "mockito 1.6.1",
  "papyrus_base_layer",
