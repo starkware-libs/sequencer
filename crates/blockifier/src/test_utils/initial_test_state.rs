@@ -40,7 +40,7 @@ pub fn fund_account(
 /// * "Declares" the input list of contracts.
 /// * "Deploys" the requested number of instances of each input contract.
 /// * Makes each input account contract privileged.
-fn setup_test_state(
+pub fn setup_test_state(
     chain_info: &ChainInfo,
     initial_balances: Fee,
     contract_instances: &[(FeatureContractData, u16)],
