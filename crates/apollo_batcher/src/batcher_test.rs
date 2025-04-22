@@ -839,8 +839,8 @@ async fn add_sync_block() {
         .l1_provider_client
         .expect_commit_block()
         .times(1)
-        .with(eq(transaction_hashes.clone()), eq(INITIAL_HEIGHT))
-        .returning(|_, _| Ok(()));
+        .with(eq(transaction_hashes.clone()), eq(HashSet::new()), eq(INITIAL_HEIGHT))
+        .returning(|_, _, _| Ok(()));
 
     let mut batcher = create_batcher(mock_dependencies).await;
 
@@ -979,8 +979,8 @@ async fn decision_reached() {
         .l1_provider_client
         .expect_commit_block()
         .times(1)
-        .with(eq(vec![]), eq(INITIAL_HEIGHT))
-        .returning(|_, _| Ok(()));
+        .with(eq(vec![]), eq(HashSet::new()), eq(INITIAL_HEIGHT))
+        .returning(|_, _, _| Ok(()));
 
     mock_dependencies
         .storage_writer
@@ -1036,7 +1036,7 @@ async fn test_execution_info_order_is_kept() {
     let mut mock_dependencies = MockDependencies::default();
     mock_dependencies.l1_provider_client.expect_start_block().returning(|_, _| Ok(()));
     mock_dependencies.mempool_client.expect_commit_block().returning(|_| Ok(()));
-    mock_dependencies.l1_provider_client.expect_commit_block().returning(|_, _| Ok(()));
+    mock_dependencies.l1_provider_client.expect_commit_block().returning(|_, _, _| Ok(()));
     mock_dependencies.storage_writer.expect_commit_proposal().returning(|_, _| Ok(()));
 
     let block_builder_result = BlockExecutionArtifacts::create_for_testing();

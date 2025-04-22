@@ -36,6 +36,7 @@ itertools.workspace = true
 mempool_test_utils.workspace = true
 papyrus_base_layer = { workspace = true, features = ["testing"] }
 pretty_assertions.workspace = true
+rstest.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 
