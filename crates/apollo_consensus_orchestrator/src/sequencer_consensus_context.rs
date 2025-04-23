@@ -86,6 +86,8 @@ use crate::config::ContextConfig;
 use crate::fee_market::{calculate_next_base_gas_price, FeeMarketInfo};
 use crate::metrics::{
     register_metrics,
+    CONSENSUS_L1_DATA_GAS_MISMATCH,
+    CONSENSUS_L1_GAS_MISMATCH,
     CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR,
     CONSENSUS_L2_GAS_PRICE,
     CONSENSUS_NUM_BATCHES_IN_PROPOSAL,
@@ -1215,6 +1217,12 @@ async fn is_block_info_valid(
             "Invalid L1 gas price proposed.",
         );
         return false;
+    }
+    if l1_gas_price_fri_proposed != l1_gas_price_fri {
+        CONSENSUS_L1_GAS_MISMATCH.increment(1);
+    }
+    if l1_data_gas_price_fri_proposed != l1_data_gas_price_fri {
+        CONSENSUS_L1_DATA_GAS_MISMATCH.increment(1);
     }
     true
 }

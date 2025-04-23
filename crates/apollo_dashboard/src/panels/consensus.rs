@@ -30,6 +30,8 @@ use apollo_consensus_orchestrator::metrics::{
     CENDE_WRITE_BLOB_FAILURE,
     CENDE_WRITE_BLOB_SUCCESS,
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY,
+    CONSENSUS_L1_DATA_GAS_MISMATCH,
+    CONSENSUS_L1_GAS_MISMATCH,
     CONSENSUS_L2_GAS_PRICE,
     CONSENSUS_NUM_BATCHES_IN_PROPOSAL,
     CONSENSUS_NUM_TXS_IN_PROPOSAL,
@@ -114,3 +116,7 @@ pub(crate) const PANEL_CENDE_WRITE_BLOB_FAILURE: Panel = Panel::new(
     formatcp!("sum  by ({}) ({})", LABEL_CENDE_FAILURE_REASON, CENDE_WRITE_BLOB_FAILURE.get_name()),
     PanelType::Stat,
 );
+pub(crate) const PANEL_CONSENSUS_L1_DATA_GAS_MISMATCH: Panel =
+    Panel::from_counter(CONSENSUS_L1_DATA_GAS_MISMATCH, PanelType::Stat);
+pub(crate) const PANEL_CONSENSUS_L1_GAS_MISMATCH: Panel =
+    Panel::from_counter(CONSENSUS_L1_GAS_MISMATCH, PanelType::Stat);
