@@ -14,7 +14,7 @@ use apollo_protobuf::converters::ProtobufConversionError;
 use futures::channel::mpsc;
 use futures::never::Never;
 use futures::StreamExt;
-use tracing::{instrument, warn};
+use tracing::{info, instrument, warn};
 
 #[cfg(test)]
 #[path = "stream_handler_test.rs"]
@@ -206,11 +206,14 @@ where
         outbound_stream: Option<(StreamId, mpsc::Receiver<StreamContent>)>,
     ) -> Result<(), StreamHandlerError> {
         let Some((stream_id, receiver)) = outbound_stream else {
+            warn!("Outbound stream channel closed before stream could be initiated");
             return Err(StreamHandlerError::OutboundChannelClosed);
         };
         if self.outbound_stream_receivers.insert(stream_id.clone(), receiver).is_some() {
+            warn!(%stream_id, "Stream ID reused — rejecting new outbound stream");
             return Err(StreamHandlerError::StreamIdReused(format!("{stream_id}")));
         }
+        info!(%stream_id, "Outbound stream started");
         Ok(())
     }
 
@@ -299,6 +302,7 @@ where
         };
         self.outbound_sender.broadcast_message(message).await.expect("Send should succeed");
         self.outbound_stream_number.remove(&stream_id);
+        info!(%stream_id, "Outbound stream finished");
     }
 
     // Handle a message that was received from the network.
@@ -323,7 +327,7 @@ where
 
         let peer_id = metadata.originator_id.clone();
         let stream_id = message.stream_id.clone();
-        let key = (peer_id, stream_id);
+        let key = (peer_id.clone(), stream_id.clone());
 
         let data = match self.inbound_stream_data.entry(key.clone()) {
             // If data exists, remove it (it will be returned to hash map at end of function).
@@ -331,6 +335,7 @@ where
             Vacant(_) => {
                 // If we received a message for a stream that we have not seen before,
                 // we need to create a new receiver for it.
+                info!(peer = ?peer_id, ?stream_id, "Inbound stream started");
                 StreamData::new()
             }
         };
@@ -350,7 +355,7 @@ where
     ) -> Option<StreamData<StreamContent, StreamId>> {
         let peer_id = metadata.originator_id;
         let stream_id = message.stream_id.clone();
-        let key = (peer_id, stream_id);
+        let key = (peer_id.clone(), stream_id.clone());
         let message_id = message.message_id;
 
         if data.max_message_id_received < message_id {
@@ -400,6 +405,7 @@ where
                     || receiver_dropped
                 {
                     data.sender.close_channel();
+                    info!(peer = ?peer_id, ?stream_id, "Inbound stream finished");
                     return None;
                 }
             }
