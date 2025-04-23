@@ -8,7 +8,8 @@
       "controller": "StatefulSet",
       "config_paths": [
         "batcher.json",
-        "deployment_config_override.json"
+        "deployment_config_override.json",
+        "instance_config_override.json"
       ],
       "ingress": null,
       "autoscale": false,
@@ -32,7 +33,8 @@
       "controller": "StatefulSet",
       "config_paths": [
         "class_manager.json",
-        "deployment_config_override.json"
+        "deployment_config_override.json",
+        "instance_config_override.json"
       ],
       "ingress": null,
       "autoscale": false,
@@ -56,7 +58,8 @@
       "controller": "StatefulSet",
       "config_paths": [
         "consensus_manager.json",
-        "deployment_config_override.json"
+        "deployment_config_override.json",
+        "instance_config_override.json"
       ],
       "ingress": null,
       "autoscale": false,
@@ -80,7 +83,8 @@
       "controller": "StatefulSet",
       "config_paths": [
         "http_server.json",
-        "deployment_config_override.json"
+        "deployment_config_override.json",
+        "instance_config_override.json"
       ],
       "ingress": {
         "domain": "sw-dev.io",
@@ -115,7 +119,8 @@
       "controller": "StatefulSet",
       "config_paths": [
         "gateway.json",
-        "deployment_config_override.json"
+        "deployment_config_override.json",
+        "instance_config_override.json"
       ],
       "ingress": null,
       "autoscale": false,
@@ -139,7 +144,8 @@
       "controller": "StatefulSet",
       "config_paths": [
         "l1.json",
-        "deployment_config_override.json"
+        "deployment_config_override.json",
+        "instance_config_override.json"
       ],
       "ingress": null,
       "autoscale": false,
@@ -163,7 +169,8 @@
       "controller": "StatefulSet",
       "config_paths": [
         "mempool.json",
-        "deployment_config_override.json"
+        "deployment_config_override.json",
+        "instance_config_override.json"
       ],
       "ingress": null,
       "autoscale": false,
@@ -187,7 +194,8 @@
       "controller": "StatefulSet",
       "config_paths": [
         "sierra_compiler.json",
-        "deployment_config_override.json"
+        "deployment_config_override.json",
+        "instance_config_override.json"
       ],
       "ingress": null,
       "autoscale": false,
@@ -211,7 +219,8 @@
       "controller": "StatefulSet",
       "config_paths": [
         "state_sync.json",
-        "deployment_config_override.json"
+        "deployment_config_override.json",
+        "instance_config_override.json"
       ],
       "ingress": null,
       "autoscale": false,

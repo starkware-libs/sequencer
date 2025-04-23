@@ -8,7 +8,8 @@
       "controller": "StatefulSet",
       "config_paths": [
         "core.json",
-        "deployment_config_override.json"
+        "deployment_config_override.json",
+        "instance_config_override.json"
       ],
       "ingress": null,
       "autoscale": false,
@@ -34,7 +35,8 @@
       "controller": "Deployment",
       "config_paths": [
         "http_server.json",
-        "deployment_config_override.json"
+        "deployment_config_override.json",
+        "instance_config_override.json"
       ],
       "ingress": {
         "domain": "sw-dev.io",
@@ -73,7 +75,8 @@
       "controller": "Deployment",
       "config_paths": [
         "gateway.json",
-        "deployment_config_override.json"
+        "deployment_config_override.json",
+        "instance_config_override.json"
       ],
       "ingress": null,
       "autoscale": true,
@@ -99,7 +102,8 @@
       "controller": "Deployment",
       "config_paths": [
         "mempool.json",
-        "deployment_config_override.json"
+        "deployment_config_override.json",
+        "instance_config_override.json"
       ],
       "ingress": null,
       "autoscale": false,
@@ -125,7 +129,8 @@
       "controller": "Deployment",
       "config_paths": [
         "sierra_compiler.json",
-        "deployment_config_override.json"
+        "deployment_config_override.json",
+        "instance_config_override.json"
       ],
       "ingress": null,
       "autoscale": true,

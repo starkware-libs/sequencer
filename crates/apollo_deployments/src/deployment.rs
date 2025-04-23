@@ -23,6 +23,9 @@ pub(crate) const DEPLOYMENT_IMAGE_FOR_TESTING: &str =
     "ghcr.io/starkware-libs/sequencer/sequencer:dev";
 const DEPLOYMENT_CONFIG_DIR_NAME: &str = "deployment_configs/";
 
+const DEPLOYMENT_FILE_NAME: &str = "deployment_config_override.json";
+const INSTANCE_FILE_NAME: &str = "instance_config_override.json";
+
 // TODO(Tsabary): this struct has become a wrapper for `Deployment`, should be removed.
 pub struct DeploymentAndPreset {
     deployment: Deployment,
@@ -185,23 +188,36 @@ impl Deployment {
     }
 }
 
+// TODO(Tsabary): test no conflicts between config entries defined in each of the override types.
+// TODO(Tsabary): modify the loading test of the base app config to include the overrides as well.
+// TODO(Tsabary): delete duplicates from the base app config, and add a test that there are no
+// conflicts between all the override config entries and the values in the base app config.
+
 #[derive(Debug, Serialize)]
 pub struct ConfigOverride {
     deployment_config_override: &'static DeploymentConfigOverride,
+    instance_config_override: &'static InstanceConfigOverride,
 }
 
 impl ConfigOverride {
-    pub const fn new(deployment_config_override: &'static DeploymentConfigOverride) -> Self {
-        Self { deployment_config_override }
+    pub const fn new(
+        deployment_config_override: &'static DeploymentConfigOverride,
+        instance_config_override: &'static InstanceConfigOverride,
+    ) -> Self {
+        Self { deployment_config_override, instance_config_override }
     }
 
     pub fn create(&self, application_config_subdir: &Path) -> Vec<String> {
-        let deployment_file_name = "deployment_config_override.json";
         serialize_to_file(
             to_value(self.deployment_config_override).unwrap(),
-            application_config_subdir.join(deployment_file_name).to_str().unwrap(),
+            application_config_subdir.join(DEPLOYMENT_FILE_NAME).to_str().unwrap(),
         );
-        vec![deployment_file_name.to_string()]
+
+        serialize_to_file(
+            to_value(self.instance_config_override).unwrap(),
+            application_config_subdir.join(INSTANCE_FILE_NAME).to_str().unwrap(),
+        );
+        vec![DEPLOYMENT_FILE_NAME.to_string(), INSTANCE_FILE_NAME.to_string()]
     }
 }
 
@@ -229,6 +245,49 @@ impl DeploymentConfigOverride {
             eth_fee_token_address,
             starknet_url,
             strk_fee_token_address,
+        }
+    }
+}
+
+// TODO(Tsabary): re-verify all config diffs.
+
+#[derive(Debug, Serialize)]
+pub struct InstanceConfigOverride {
+    #[serde(rename = "consensus_manager_config.network_config.bootstrap_peer_multiaddr")]
+    consensus_bootstrap_peer_multiaddr: &'static str,
+    #[serde(rename = "consensus_manager_config.network_config.bootstrap_peer_multiaddr.#is_none")]
+    consensus_bootstrap_peer_multiaddr_is_none: &'static str,
+    // TODO(Tsabary): network secret keys should be defined as secrets.
+    #[serde(rename = "consensus_manager_config.network_config.secret_key")]
+    consensus_secret_key: &'static str,
+    #[serde(rename = "mempool_p2p_config.network_config.bootstrap_peer_multiaddr")]
+    mempool_bootstrap_peer_multiaddr: &'static str,
+    #[serde(rename = "mempool_p2p_config.network_config.bootstrap_peer_multiaddr.#is_none")]
+    mempool_bootstrap_peer_multiaddr_is_none: &'static str,
+    // TODO(Tsabary): network secret keys should be defined as secrets.
+    #[serde(rename = "mempool_p2p_config.network_config.secret_key")]
+    mempool_secret_key: &'static str,
+    validator_id: &'static str,
+}
+
+impl InstanceConfigOverride {
+    pub const fn new(
+        consensus_bootstrap_peer_multiaddr: &'static str,
+        consensus_bootstrap_peer_multiaddr_is_none: &'static str,
+        consensus_secret_key: &'static str,
+        mempool_bootstrap_peer_multiaddr: &'static str,
+        mempool_bootstrap_peer_multiaddr_is_none: &'static str,
+        mempool_secret_key: &'static str,
+        validator_id: &'static str,
+    ) -> Self {
+        Self {
+            consensus_bootstrap_peer_multiaddr,
+            consensus_bootstrap_peer_multiaddr_is_none,
+            consensus_secret_key,
+            mempool_bootstrap_peer_multiaddr,
+            mempool_bootstrap_peer_multiaddr_is_none,
+            mempool_secret_key,
+            validator_id,
         }
     }
 }
