@@ -154,10 +154,10 @@ impl BaseLayerContract for EthereumBaseLayerContract {
     }
 
     // Query the Ethereum base layer for the timestamp, gas price, and data gas price of a block.
-    async fn get_price_sample(
+    async fn get_price_sample_and_block_reference(
         &self,
         block_number: L1BlockNumber,
-    ) -> EthereumBaseLayerResult<Option<PriceSample>> {
+    ) -> EthereumBaseLayerResult<Option<(PriceSample, L1BlockReference)>> {
         let block = self
             .contract
             .provider()
@@ -184,12 +184,14 @@ impl BaseLayerContract for EthereumBaseLayerContract {
             }
             None => 0,
         };
-
-        Ok(Some(PriceSample {
+        let price_sample = PriceSample {
             timestamp: block.header.timestamp,
             base_fee_per_gas: base_fee_per_gas.into(),
             blob_fee,
-        }))
+        };
+        let block_reference =
+            L1BlockReference { number: block.header.number, hash: block.header.hash.0 };
+        Ok(Some((price_sample, block_reference)))
     }
 }
 
