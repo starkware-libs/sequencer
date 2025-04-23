@@ -381,15 +381,17 @@ pub(crate) fn enter_scope_next_node_bit_1<S: StateReader>(
 }
 
 pub(crate) fn enter_scope_left_child<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let left_child: UpdateTree = exec_scopes.get(Scope::LeftChild.into())?;
+    enter_scope_specific_node(left_child, exec_scopes)
 }
 
 pub(crate) fn enter_scope_right_child<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let right_child: UpdateTree = exec_scopes.get(Scope::LeftChild.into())?;
+    enter_scope_specific_node(right_child, exec_scopes)
 }
 
 pub(crate) fn enter_scope_descend_edge<S: StateReader>(
