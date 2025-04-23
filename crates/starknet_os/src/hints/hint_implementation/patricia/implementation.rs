@@ -326,9 +326,23 @@ pub(crate) fn enter_scope_node<S: StateReader>(
 }
 
 pub(crate) fn enter_scope_new_node<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let case: DecodeNodeCase = exec_scopes.get(Scope::Case.into())?;
+
+    let (new_node, case_not_left) = match case {
+        DecodeNodeCase::Left => (exec_scopes.get(Scope::LeftChild.into())?, Felt::ZERO),
+        DecodeNodeCase::Right => (exec_scopes.get(Scope::RightChild.into())?, Felt::ONE),
+        DecodeNodeCase::Both => {
+            return Err(OsHintError::AssertionFailed {
+                message: "Expected case not to be 'both'.".to_string(),
+            });
+        }
+    };
+
+    insert_value_from_var_name(Ids::ChildBit.into(), case_not_left, vm, ids_data, ap_tracking)?;
+
+    enter_scope_specific_node(new_node, exec_scopes)
 }
 
 pub(crate) fn enter_scope_next_node_bit_0<S: StateReader>(
