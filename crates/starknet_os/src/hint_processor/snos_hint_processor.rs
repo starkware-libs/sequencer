@@ -5,7 +5,7 @@ use blockifier::execution::syscalls::syscall_executor::execute_next_syscall;
 use blockifier::state::state_api::StateReader;
 #[cfg(any(feature = "testing", test))]
 use blockifier::test_utils::dict_state_reader::DictStateReader;
-use cairo_lang_casm::hints::Hint;
+use cairo_lang_casm::hints::Hint as Cairo1Hint;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::{
     BuiltinHintProcessor,
@@ -261,15 +261,15 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<'_, S> {
         }
 
         // Cairo1 syscall or Cairo1 core hint.
-        match hint_data.downcast_ref::<Hint>().ok_or(HintError::WrongHintData)? {
-            Hint::Core(_hint) => {
+        match hint_data.downcast_ref::<Cairo1Hint>().ok_or(HintError::WrongHintData)? {
+            Cairo1Hint::Core(_hint) => {
                 todo!()
             }
-            Hint::Starknet(hint) => {
+            Cairo1Hint::Starknet(hint) => {
                 execute_next_syscall(self, vm, hint)?;
                 Ok(HintExtension::default())
             }
-            Hint::External(_) => {
+            Cairo1Hint::External(_) => {
                 panic!("starknet should never accept classes with external hints!")
             }
         }
