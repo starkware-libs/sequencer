@@ -12,19 +12,13 @@ use crate::hints::hint_implementation::kzg::utils::{
     polynomial_coefficients_to_blob,
     serialize_blob,
     split_commitment,
+    BLS_PRIME,
     FIELD_ELEMENTS_PER_BLOB,
 };
 
 static BLOB_SUBGROUP_GENERATOR: LazyLock<BigUint> = LazyLock::new(|| {
     BigUint::from_str_radix(
         "39033254847818212395286706435128746857159659164139250548781411570340225835782",
-        10,
-    )
-    .unwrap()
-});
-static BLS_PRIME: LazyLock<BigUint> = LazyLock::new(|| {
-    BigUint::from_str_radix(
-        "52435875175126190479447740508185965837690552500527637822603658699938581184513",
         10,
     )
     .unwrap()
