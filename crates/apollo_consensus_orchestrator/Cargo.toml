@@ -7,10 +7,17 @@ license-file.workspace = true
 description = "Implements the consensus context and orchestrates the node's components accordingly"
 
 [dependencies]
+apollo_batcher_types.workspace = true
+apollo_class_manager_types.workspace = true
 apollo_config.workspace = true
+apollo_consensus.workspace = true
+apollo_infra_utils.workspace = true
+apollo_l1_gas_price_types.workspace = true
+apollo_metrics.workspace = true
 apollo_network.workspace = true
 apollo_proc_macros.workspace = true
 apollo_protobuf.workspace = true
+apollo_state_sync_types.workspace = true
 async-trait.workspace = true
 blockifier.workspace = true
 cairo-lang-starknet-classes.workspace = true
@@ -29,13 +36,6 @@ starknet-types-core.workspace = true
 starknet_api.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
-apollo_batcher_types.workspace = true
-apollo_class_manager_types.workspace = true
-apollo_consensus.workspace = true
-apollo_infra_utils.workspace = true
-apollo_l1_gas_price_types.workspace = true
-apollo_metrics.workspace = true
-apollo_state_sync_types.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true, features = ["rt"] }
@@ -44,8 +44,14 @@ url = { workspace = true, features = ["serde"] }
 validator.workspace = true
 
 [dev-dependencies]
+apollo_batcher.workspace = true
+apollo_batcher_types = { workspace = true, features = ["testing"] }
+apollo_class_manager_types = { workspace = true, features = ["testing"] }
+apollo_infra_utils = { workspace = true, features = ["testing"] }
+apollo_l1_gas_price_types = { workspace = true, features = ["testing"] }
 apollo_metrics = { workspace = true, features = ["testing"] }
 apollo_network = { workspace = true, features = ["testing"] }
+apollo_state_sync_types = { workspace = true, features = ["testing"] }
 apollo_storage = { workspace = true, features = ["testing"] }
 apollo_test_utils.workspace = true
 cairo-lang-casm.workspace = true
@@ -58,12 +64,6 @@ mockito.workspace = true
 num-bigint.workspace = true
 rstest.workspace = true
 serde_json.workspace = true
-apollo_batcher.workspace = true
-apollo_batcher_types = { workspace = true, features = ["testing"] }
-apollo_class_manager_types = { workspace = true, features = ["testing"] }
-apollo_infra_utils = { workspace = true, features = ["testing"] }
-apollo_l1_gas_price_types = { workspace = true, features = ["testing"] }
-apollo_state_sync_types = { workspace = true, features = ["testing"] }
 
 [lints]
 workspace = true
