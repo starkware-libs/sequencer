@@ -239,7 +239,7 @@ async fn send_broadcast_queued_transactions_request_after_transaction_batch_rate
     // tokio::time::advance thanks to the auto-advance feature of tokio::time::pause).
     // The auto-advance feature will instantly push the clock to the next awaited future, in this
     // case pushing it exactly to when a batch should be closed.
-    tokio::time::sleep(transaction_batch_rate_millis).await;
+    tokio::time::sleep(Duration::from_secs(60)).await;
 
     assert!(broadcast_queued_tx_indicator_receiver.try_recv().unwrap().is_some());
 
