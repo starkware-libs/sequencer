@@ -16,6 +16,8 @@ use starknet_api::block::{BlockTimestamp, GasPrice};
 use strum_macros::AsRefStr;
 use tracing::instrument;
 
+pub const DEFAULT_ETH_TO_FRI_RATE: u128 = 10_u128.pow(19);
+
 pub type SharedL1GasPriceClient = Arc<dyn L1GasPriceProviderClient>;
 pub type L1GasPriceProviderResult<T> = Result<T, L1GasPriceProviderError>;
 pub type L1GasPriceProviderClientResult<T> = Result<T, L1GasPriceClientError>;
