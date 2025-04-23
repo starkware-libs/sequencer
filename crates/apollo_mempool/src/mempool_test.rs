@@ -14,7 +14,7 @@ use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
-use starknet_api::block::{GasPrice, NonzeroGasPrice};
+use starknet_api::block::GasPrice;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::test_utils::declare::{internal_rpc_declare_tx, DeclareTxArgs};
 use starknet_api::transaction::TransactionHash;
@@ -68,7 +68,7 @@ impl MempoolTestContent {
 struct MempoolTestContentBuilder {
     config: MempoolConfig,
     content: MempoolTestContent,
-    gas_price_threshold: NonzeroGasPrice,
+    gas_price_threshold: GasPrice,
 }
 
 impl MempoolTestContentBuilder {
@@ -76,7 +76,7 @@ impl MempoolTestContentBuilder {
         Self {
             config: MempoolConfig { enable_fee_escalation: false, ..Default::default() },
             content: MempoolTestContent::default(),
-            gas_price_threshold: NonzeroGasPrice::default(),
+            gas_price_threshold: GasPrice::default(),
         }
     }
 
@@ -105,7 +105,7 @@ impl MempoolTestContentBuilder {
     }
 
     fn with_gas_price_threshold(mut self, gas_price_threshold: u128) -> Self {
-        self.gas_price_threshold = NonzeroGasPrice::new_unchecked(gas_price_threshold.into());
+        self.gas_price_threshold = gas_price_threshold.into();
         self
     }
 
@@ -839,7 +839,7 @@ fn test_update_gas_price_threshold_increases_threshold() {
         .build_full_mempool();
 
     // Test.
-    mempool.update_gas_price(NonzeroGasPrice::new_unchecked(GasPrice(101)));
+    mempool.update_gas_price(GasPrice(101));
 
     // Assert.
     let expected_mempool_content = MempoolTestContentBuilder::new()
@@ -864,7 +864,7 @@ fn test_update_gas_price_threshold_decreases_threshold() {
         .build_full_mempool();
 
     // Test.
-    mempool.update_gas_price(NonzeroGasPrice::new_unchecked(GasPrice(90)));
+    mempool.update_gas_price(GasPrice(90));
 
     // Assert.
     let expected_mempool_content = MempoolTestContentBuilder::new()
@@ -1096,7 +1096,7 @@ fn metrics_correctness() {
     // Create a mempool.
     let fake_clock = Arc::new(FakeClock::default());
     let mut mempool = Mempool::new(MempoolConfig::default(), fake_clock.clone());
-    mempool.update_gas_price(NonzeroGasPrice::new_unchecked(GasPrice(100)));
+    mempool.update_gas_price(GasPrice(100));
 
     // Add the following transactions:
     //
