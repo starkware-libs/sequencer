@@ -31,6 +31,7 @@ validator.workspace = true
 
 [dev-dependencies]
 alloy = { workspace = true, features = ["node-bindings"] }
+assert_matches.workspace = true
 colored.workspace = true
 ethers-core.workspace = true
 pretty_assertions.workspace = true

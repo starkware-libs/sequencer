@@ -29,6 +29,7 @@ const MINIMAL_GANACHE_VERSION: u8 = 7;
 // https://docs.rs/ethers-core/latest/ethers_core/utils/struct.Anvil.html#method.new.
 const DEFAULT_ANVIL_PORT: u16 = 8545;
 // This address is commonly used as the L1 address of the Starknet core contract.
+// TODO(Arni): Replace with constant with use of `AnvilInstance::address(&self)`.
 pub const DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS: &str = "0x5fbdb2315678afecb367f032d93f642f64180aa3";
 pub const DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX: usize = 3;
 
