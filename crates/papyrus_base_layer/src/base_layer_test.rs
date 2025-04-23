@@ -1,4 +1,3 @@
-use mempool_test_utils::in_ci;
 use pretty_assertions::assert_eq;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::felt;
@@ -10,6 +9,12 @@ use crate::test_utils::{
     get_test_ethereum_node,
 };
 use crate::BaseLayerContract;
+
+// TODO(Gilad): Use everywhere instead of relying on the confusing `#[ignore]` api to mark slow
+// tests.
+pub fn in_ci() -> bool {
+    std::env::var("CI").is_ok()
+}
 
 #[tokio::test]
 // Note: the test requires ganache-cli installed, otherwise it is ignored.

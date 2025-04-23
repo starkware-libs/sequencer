@@ -8,6 +8,7 @@ use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_trivial_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
+use papyrus_base_layer::ethereum_base_layer_contract::L1ToL2MessageArgs;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
@@ -165,11 +166,6 @@ pub fn generate_deploy_account_with_salt(
 pub type AccountId = usize;
 
 type SharedNonceManager = Rc<RefCell<NonceManager>>;
-
-pub struct L1ToL2MessageArgs {
-    pub tx: L1HandlerTransaction,
-    pub l1_tx_nonce: u64,
-}
 
 struct L1HandlerTransactionGenerator {
     // The L1 nonce for the next created L1 handler transaction.
