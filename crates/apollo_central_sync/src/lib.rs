@@ -22,6 +22,7 @@ use apollo_state_sync_metrics::metrics::{
     CENTRAL_SYNC_BASE_LAYER_MARKER,
     CENTRAL_SYNC_CENTRAL_BLOCK_MARKER,
     STATE_SYNC_BODY_MARKER,
+    STATE_SYNC_CLASS_MANAGER_MARKER,
     STATE_SYNC_COMPILED_CLASS_MARKER,
     STATE_SYNC_HEADER_LATENCY_SEC,
     STATE_SYNC_HEADER_MARKER,
@@ -577,6 +578,7 @@ impl<
                     .begin_rw_txn()?
                     .update_class_manager_block_marker(&block_number.unchecked_next())?
                     .commit()?;
+                STATE_SYNC_CLASS_MANAGER_MARKER.set_lossy(block_number.unchecked_next().0);
             }
             let mut txn = writer.begin_rw_txn()?;
             txn = txn.append_state_diff(block_number, thin_state_diff)?;
