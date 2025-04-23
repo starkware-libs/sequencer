@@ -59,6 +59,7 @@ impl ComponentStarter for MempoolP2pRunner {
         let mut transaction_batch_broadcast_interval =
             tokio::time::interval(self.transaction_batch_rate_millis);
         transaction_batch_broadcast_interval.set_missed_tick_behavior(Delay);
+        transaction_batch_broadcast_interval.tick().await; // The first tick is ready immediately so we consume it.
         loop {
             tokio::select! {
                 _ = &mut self.network_future => {
