@@ -1,4 +1,3 @@
-use std::fs;
 use std::path::{Path, PathBuf};
 
 use apollo_infra_utils::dumping::serialize_to_file;
@@ -77,19 +76,15 @@ impl Deployment {
         external_secret: Option<ExternalSecret>,
         image: &str,
         base_app_config_file_path: PathBuf,
-        additional_config_paths: Vec<&str>,
+        config_override: ConfigOverride,
     ) -> Self {
         let service_names = deployment_name.all_service_names();
 
         let application_config_subdir = deployment_name
             .add_path_suffix(environment.application_config_dir_path(), instance_name);
 
-        let additional_config_filenames: Vec<String> = additional_config_paths
-            .iter()
-            .map(|additional_config_path| {
-                copy_file_and_get_basename(additional_config_path, &application_config_subdir)
-            })
-            .collect();
+        let additional_config_filenames: Vec<String> =
+            config_override.create(&application_config_subdir);
 
         let services = service_names
             .iter()
@@ -190,38 +185,51 @@ impl Deployment {
     }
 }
 
-// TODO(Tsabary): change arg to PathBuf.
-fn copy_file_and_get_basename(config_file_path_str: &str, target_dir: &Path) -> String {
-    assert!(config_file_path_str.ends_with(".json"), "Config file path should end with .json");
+#[derive(Debug, Serialize)]
+pub struct ConfigOverride {
+    deployment_config_override: &'static DeploymentConfigOverride,
+}
 
-    let config_file_path = PathBuf::from(config_file_path_str);
-    assert!(
-        config_file_path.exists(),
-        "{}",
-        format!("Config file path does not exist: {:?}", config_file_path)
-    );
-    assert!(
-        config_file_path.is_file(),
-        "{}",
-        format!("Config file path is not a file: {:?}", config_file_path)
-    );
-    assert!(
-        config_file_path.is_dir(),
-        "{}",
-        format!("Config file path is a directory: {:?}", config_file_path)
-    );
+impl ConfigOverride {
+    pub const fn new(deployment_config_override: &'static DeploymentConfigOverride) -> Self {
+        Self { deployment_config_override }
+    }
 
-    // Extract the file name from the original path.
-    let file_name = config_file_path.file_name().expect("Should be a valid file path");
+    pub fn create(&self, _application_config_subdir: &Path) -> Vec<String> {
+        // TODO(Tsabary): fill these.
 
-    // Create the new target path: target_dir / file_name.
-    let destination = target_dir.join(file_name);
+        vec![]
+    }
+}
 
-    // Copy the file to the new location.
-    fs::copy(&config_file_path, &destination).unwrap_or_else(|_| {
-        panic!("Failed to copy file {:?} to {:?}", config_file_path, target_dir)
-    });
+#[derive(Debug, Serialize)]
+pub struct DeploymentConfigOverride {
+    #[serde(rename = "base_layer_config.starknet_contract_address")]
+    starknet_contract_address: &'static str,
+    chain_id: &'static str,
+    #[serde(rename = "consensus_manager_config.eth_to_strk_oracle_config.base_url")]
+    base_url: &'static str,
+    eth_fee_token_address: &'static str,
+    starknet_url: &'static str,
+    strk_fee_token_address: &'static str,
+}
 
-    // Return the copied file base name.
-    file_name.to_string_lossy().into_owned()
+impl DeploymentConfigOverride {
+    pub const fn new(
+        starknet_contract_address: &'static str,
+        chain_id: &'static str,
+        base_url: &'static str,
+        eth_fee_token_address: &'static str,
+        starknet_url: &'static str,
+        strk_fee_token_address: &'static str,
+    ) -> Self {
+        Self {
+            starknet_contract_address,
+            chain_id,
+            base_url,
+            eth_fee_token_address,
+            starknet_url,
+            strk_fee_token_address,
+        }
+    }
 }

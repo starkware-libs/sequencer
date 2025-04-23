@@ -5,8 +5,10 @@ use starknet_api::core::ChainId;
 use strum_macros::{Display, EnumString};
 
 use crate::deployment::{
+    ConfigOverride,
     Deployment,
     DeploymentAndPreset,
+    DeploymentConfigOverride,
     DEPLOYMENT_IMAGE_FOR_PRE_INTEGRATION,
     DEPLOYMENT_IMAGE_FOR_TESTING,
 };
@@ -30,6 +32,31 @@ const INTEGRATION_BASE_APP_CONFIG_PATH_NODE_2: &str =
 
 pub(crate) const CONFIG_BASE_DIR: &str = "config/sequencer/";
 const APP_CONFIGS_DIR_NAME: &str = "app_configs/";
+
+const INTEGRATION_DEPLOYMENT_CONFIG_OVERRIDE: DeploymentConfigOverride =
+    DeploymentConfigOverride::new(
+        "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+        "SEPOLIA_INTEGRATION",
+        "http://127.0.0.1:53262/eth_to_strk_oracle?timestamp=",
+        "0x1001",
+        "https://integration-sepolia.starknet.io/",
+        "0x1002",
+    );
+
+const TESTING_DEPLOYMENT_CONFIG_OVERRIDE : DeploymentConfigOverride =
+    DeploymentConfigOverride::new(
+        "0x25705641952b47763cAeA331f7058c6595cf4Acf",
+        "CHAIN_ID_SUBDIR",
+        "https://api.dev.pragma.build/node/v1/data/eth/strk?interval=15min&aggregation=median&timestamp=",
+        "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
+        "https://feeder.integration-sepolia.starknet.io/",
+        "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d",
+);
+
+const INTEGRATION_CONFIG_OVERRIDE: ConfigOverride =
+    ConfigOverride::new(&INTEGRATION_DEPLOYMENT_CONFIG_OVERRIDE);
+const TESTING_CONFIG_OVERRIDE: ConfigOverride =
+    ConfigOverride::new(&TESTING_DEPLOYMENT_CONFIG_OVERRIDE);
 
 type DeploymentFn = fn() -> DeploymentAndPreset;
 
@@ -55,7 +82,7 @@ fn integration_hybrid_deployment_node_0() -> DeploymentAndPreset {
         Some(ExternalSecret::new("node-0-integration-secrets")),
         DEPLOYMENT_IMAGE_FOR_PRE_INTEGRATION,
         PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH_NODE_0),
-        vec![],
+        INTEGRATION_CONFIG_OVERRIDE,
     ))
 }
 
@@ -68,7 +95,7 @@ fn integration_hybrid_deployment_node_1() -> DeploymentAndPreset {
         Some(ExternalSecret::new("node-1-integration-secrets")),
         DEPLOYMENT_IMAGE_FOR_PRE_INTEGRATION,
         PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH_NODE_1),
-        vec![],
+        INTEGRATION_CONFIG_OVERRIDE,
     ))
 }
 
@@ -81,7 +108,7 @@ fn integration_hybrid_deployment_node_2() -> DeploymentAndPreset {
         Some(ExternalSecret::new("node-2-integration-secrets")),
         DEPLOYMENT_IMAGE_FOR_PRE_INTEGRATION,
         PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH_NODE_2),
-        vec![],
+        INTEGRATION_CONFIG_OVERRIDE,
     ))
 }
 
@@ -94,7 +121,7 @@ fn integration_consolidated_deployment() -> DeploymentAndPreset {
         Some(ExternalSecret::new("node-1-integration-secrets")),
         DEPLOYMENT_IMAGE_FOR_PRE_INTEGRATION,
         PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH_NODE_0),
-        vec![],
+        INTEGRATION_CONFIG_OVERRIDE,
     ))
 }
 
@@ -108,7 +135,7 @@ fn system_test_distributed_deployment() -> DeploymentAndPreset {
         None,
         DEPLOYMENT_IMAGE_FOR_TESTING,
         PathBuf::from(SYSTEM_TEST_BASE_APP_CONFIG_PATH),
-        vec![],
+        TESTING_CONFIG_OVERRIDE,
     ))
 }
 
@@ -121,7 +148,7 @@ fn system_test_consolidated_deployment() -> DeploymentAndPreset {
         None,
         DEPLOYMENT_IMAGE_FOR_TESTING,
         PathBuf::from(SYSTEM_TEST_BASE_APP_CONFIG_PATH),
-        vec![],
+        TESTING_CONFIG_OVERRIDE,
     ))
 }
 
