@@ -35,7 +35,7 @@ pub fn calculate_next_base_gas_price(
     // Setting target to 50% of max block size balances price changes and prevents spikes.
     assert_eq!(
         gas_target,
-        versioned_constants.max_block_size / 2,
+        versioned_constants.max_block_size.checked_factor_div(2).expect("Failed to divide by 2"),
         "Gas target must be 50% of max block size to balance price changes."
     );
     // A minimum gas price prevents precision loss. Additionally, a minimum gas price helps avoid
