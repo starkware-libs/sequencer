@@ -71,19 +71,10 @@ pub trait BaseLayerContract {
         event_identifiers: &'a [&'a str],
     ) -> Result<Vec<L1Event>, Self::Error>;
 
-    async fn get_price_sample(
+    async fn get_block_header(
         &self,
         block_number: L1BlockNumber,
-    ) -> Result<Option<PriceSample>, Self::Error>;
-}
-
-/// A struct that holds together the data on the base layer's gas prices, for a given timestamp.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct PriceSample {
-    pub timestamp: u64,
-    // Fee is stored as u128 for compatibility with any base layer.
-    pub base_fee_per_gas: u128,
-    pub blob_fee: u128,
+    ) -> Result<Option<L1BlockHeader>, Self::Error>;
 }
 
 /// Reference to an L1 block, extend as needed.
@@ -91,6 +82,17 @@ pub struct PriceSample {
 pub struct L1BlockReference {
     pub number: L1BlockNumber,
     pub hash: L1BlockHash,
+}
+
+/// A struct with some of the fields of the L1 block header. Extend as needed.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct L1BlockHeader {
+    pub number: L1BlockNumber,
+    pub hash: L1BlockHash,
+    pub parent_hash: L1BlockHash,
+    pub timestamp: u64,
+    pub base_fee_per_gas: u128,
+    pub blob_fee: u128,
 }
 
 /// Wraps Starknet L1 events with Starknet API types.

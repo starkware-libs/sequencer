@@ -150,8 +150,8 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
     ) -> L1GasPriceScraperResult<L1BlockNumber, B> {
         info!("Scraping gas prices starting from block {block_number}");
         loop {
-            let sample = match self.base_layer.get_price_sample(block_number).await {
-                Ok(Some(sample)) => sample,
+            let header = match self.base_layer.get_block_header(block_number).await {
+                Ok(Some(header)) => header,
                 Ok(None) => return Ok(block_number),
                 Err(e) => {
                     warn!("BaseLayerError during scraping: {e:?}");
@@ -159,11 +159,12 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
                     return Ok(block_number);
                 }
             };
-            let timestamp = BlockTimestamp(sample.timestamp);
+            let timestamp = BlockTimestamp(header.timestamp);
             let price_info = PriceInfo {
-                base_fee_per_gas: GasPrice(sample.base_fee_per_gas),
-                blob_fee: GasPrice(sample.blob_fee),
+                base_fee_per_gas: GasPrice(header.base_fee_per_gas),
+                blob_fee: GasPrice(header.blob_fee),
             };
+
             self.l1_gas_price_provider
                 .add_price_info(GasPriceData { block_number, timestamp, price_info })
                 .await
