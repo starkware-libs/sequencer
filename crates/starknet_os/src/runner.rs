@@ -43,8 +43,10 @@ pub fn run_os<S: StateReader>(
     let mut cairo_runner = CairoRunner::new(
         &os_program,
         cairo_run_config.layout,
+        cairo_run_config.dynamic_layout_params,
         cairo_run_config.proof_mode,
         cairo_run_config.trace_enabled,
+        cairo_run_config.disable_trace_padding,
     )?;
 
     // Init the Cairo VM.
