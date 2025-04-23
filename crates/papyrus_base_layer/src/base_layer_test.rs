@@ -1,10 +1,18 @@
+use alloy::providers::Provider;
+use alloy::rpc::types::BlockTransactionsKind;
 use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
-use starknet_api::felt;
+use starknet_api::core::EntryPointSelector;
+use starknet_api::transaction::L1HandlerTransaction;
+use starknet_api::{calldata, contract_address, felt};
 
 use crate::constants::{EventIdentifier, LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER};
-use crate::ethereum_base_layer_contract::{EthereumBaseLayerConfig, EthereumBaseLayerContract};
+use crate::ethereum_base_layer_contract::{
+    EthereumBaseLayerConfig,
+    EthereumBaseLayerContract,
+    L1ToL2MessageArgs,
+};
 use crate::test_utils::{
     anvil_instance_from_config,
     ethereum_base_layer_config_for_anvil,
@@ -79,9 +87,6 @@ async fn get_gas_price_and_timestamps() {
 
 #[tokio::test]
 async fn events_from_other_contract() {
-    if !in_ci() {
-        return;
-    }
     const EVENT_IDENTIFIERS: &[EventIdentifier] = &[LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER];
 
     let this_config = ethereum_base_layer_config_for_anvil(None);
@@ -111,25 +116,49 @@ async fn events_from_other_contract() {
         EthereumBaseLayerConfig { starknet_contract_address: other_address, ..this_config };
     let other_contract = EthereumBaseLayerContract::new(other_config);
 
-    let l2_contract_address = "0x12";
-    let l2_entry_point = "0x34";
-    let message_to_this_contract = this_contract.contract.sendMessageToL2(
-        l2_contract_address.parse().unwrap(),
-        l2_entry_point.parse().unwrap(),
-        vec![],
-    );
-    message_to_this_contract.send().await.unwrap().get_receipt().await.unwrap();
+    let this_l1_handler = L1HandlerTransaction {
+        contract_address: contract_address!("0x12"),
+        entry_point_selector: EntryPointSelector(felt!("0x34")),
+        calldata: calldata!(felt!("0x1"), felt!("0x2")),
+        ..Default::default()
+    };
+    let this_receipt = this_contract
+        .contract
+        .send_message_to_l2(&L1ToL2MessageArgs {
+            tx: this_l1_handler.clone(),
+            ..Default::default()
+        })
+        .await;
+    assert!(this_receipt.status());
+    let this_block_number = this_receipt.block_number.unwrap();
 
-    let other_l2_contract_address = "0x56";
-    let other_l2_entry_point = "0x78";
-    let message_to_other_contract = other_contract.contract.sendMessageToL2(
-        other_l2_contract_address.parse().unwrap(),
-        other_l2_entry_point.parse().unwrap(),
-        vec![],
-    );
-    message_to_other_contract.send().await.unwrap().get_receipt().await.unwrap();
+    let other_l1_handler = L1HandlerTransaction {
+        contract_address: contract_address!("0x56"),
+        entry_point_selector: EntryPointSelector(felt!("0x78")),
+        calldata: calldata!(felt!("0x1"), felt!("0x2")),
+        ..Default::default()
+    };
+    let other_receipt = other_contract
+        .contract
+        .send_message_to_l2(&L1ToL2MessageArgs { tx: other_l1_handler, l1_tx_nonce: 1 })
+        .await;
+    assert!(other_receipt.status());
+    let other_block_number = other_receipt.block_number.unwrap();
 
-    let events = this_contract.events(0..=100, EVENT_IDENTIFIERS).await.unwrap();
+    let min_block_number = this_block_number.min(other_block_number).saturating_sub(1);
+    let max_block_number = this_block_number.max(other_block_number).saturating_add(1);
+    let mut events =
+        this_contract.events(min_block_number..=max_block_number, EVENT_IDENTIFIERS).await.unwrap();
+
+    for block_number in min_block_number..=max_block_number {
+        let block_id = block_number.into();
+        let block = this_contract
+            .contract
+            .provider()
+            .get_block(block_id, BlockTransactionsKind::Full)
+            .await;
+        println!("Block {block_number}: {block:?}");
+    }
     // TODO(Arni): Fix this test. Make it so just one event is returned.
     assert_eq!(
         events.len(),
@@ -137,6 +166,6 @@ async fn events_from_other_contract() {
         "Expected both events to be present even though one of them was sent to a different \
          contract."
     );
-    let _tx = assert_matches!(events.first().unwrap(), L1Event::LogMessageToL2 { tx, .. } => tx);
-    // assert_eq!(tx.contract_address, starknet_api::contract_address!(l2_contract_address));
+    let tx = assert_matches!(events.remove(0), L1Event::LogMessageToL2 { tx, .. } => tx);
+    assert_eq!(tx, this_l1_handler);
 }
