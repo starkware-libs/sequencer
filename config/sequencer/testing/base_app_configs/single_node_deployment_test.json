@@ -214,6 +214,7 @@
   "l1_gas_price_scraper_config.finality": 0,
   "l1_gas_price_scraper_config.number_of_blocks_for_mean": 300,
   "l1_gas_price_scraper_config.polling_interval": 1,
+  "l1_gas_price_scraper_config.base_layer_timeout_millis": 100, 
   "l1_gas_price_scraper_config.starting_block": 0,
   "l1_gas_price_scraper_config.starting_block.#is_none": true,
   "l1_provider_config.bootstrap_catch_up_height_override": 0,

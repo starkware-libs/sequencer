@@ -3,7 +3,10 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use apollo_config::converters::deserialize_float_seconds_to_duration;
+use apollo_config::converters::{
+    deserialize_float_seconds_to_duration,
+    deserialize_milliseconds_to_duration,
+};
 use apollo_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use apollo_config::validators::validate_ascii;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -16,6 +19,7 @@ use papyrus_base_layer::{BaseLayerContract, L1BlockNumber};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
 use thiserror::Error;
+use tokio::time::error::Elapsed;
 use tracing::{error, info, warn};
 use validator::Validate;
 
@@ -38,6 +42,8 @@ pub enum L1GasPriceScraperError<T: BaseLayerContract + Send + Sync> {
     BaseLayerError(T::Error),
     #[error("Could not update gas price provider: {0}")]
     GasPriceClientError(L1GasPriceClientError),
+    #[error("Timeout waiting for L1 client: {0}")]
+    TimeoutError(Elapsed),
     // Leaky abstraction, these errors should not propagate here.
     #[error(transparent)]
     NetworkError(ClientError),
@@ -58,6 +64,8 @@ pub struct L1GasPriceScraperConfig {
     pub finality: u64,
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
     pub polling_interval: Duration,
+    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    pub base_layer_timeout_millis: Duration,
     pub number_of_blocks_for_mean: u64,
 }
 
@@ -68,6 +76,7 @@ impl Default for L1GasPriceScraperConfig {
             chain_id: ChainId::Other("0x0".to_string()),
             finality: 0,
             polling_interval: Duration::from_secs(1),
+            base_layer_timeout_millis: Duration::from_millis(100),
             number_of_blocks_for_mean: 300,
         }
     }
@@ -92,6 +101,12 @@ impl SerializeConfig for L1GasPriceScraperConfig {
                 "polling_interval",
                 &self.polling_interval.as_secs(),
                 "The duration (seconds) between each scraping attempt of L1",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "base_layer_timeout_millis",
+                &self.base_layer_timeout_millis.as_millis(),
+                "The timeout (milliseconds) for a query of the L1 base layer",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -143,7 +158,14 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
     ) -> L1GasPriceScraperResult<L1BlockNumber, B> {
         info!("Scraping gas prices starting from block {block_num}");
         loop {
-            let sample = match self.base_layer.get_price_sample(block_num).await {
+            let maybe_sample = tokio::time::timeout(
+                self.config.base_layer_timeout_millis,
+                self.base_layer.get_price_sample(block_num),
+            )
+            .await
+            .map_err(L1GasPriceScraperError::TimeoutError)?;
+
+            let sample = match maybe_sample {
                 Ok(Some(sample)) => sample,
                 Ok(None) => return Ok(block_num),
                 Err(e) => {
