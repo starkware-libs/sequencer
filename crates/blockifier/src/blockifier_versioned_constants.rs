@@ -431,26 +431,7 @@ impl VersionedConstants {
 
     /// Calculates the syscall gas cost from the OS resources.
     fn get_syscall_gas_cost(&self, syscall_selector: &SyscallSelector) -> SyscallGasCost {
-        let gas_costs = &self.os_constants.gas_costs;
-        let vm_resources = &self
-            .os_resources
-            .execute_syscalls
-            .get(syscall_selector)
-            .expect("Fetching the execution resources of a syscall should not fail.");
-
-        assert!(
-            vm_resources.calldata_factor.scaling_factor == 1,
-            "The scaling factor of the syscall should be 1, but it is {}",
-            vm_resources.calldata_factor.scaling_factor
-        );
-
-        let mut base_gas_cost = get_gas_cost_from_vm_resources(&vm_resources.constant, gas_costs);
-
-        // The minimum total cost is `syscall_base_gas_cost`, which is pre-charged by the compiler.
-        base_gas_cost = std::cmp::max(gas_costs.base.syscall_base_gas_cost, base_gas_cost);
-        let linear_gas_cost =
-            get_gas_cost_from_vm_resources(&vm_resources.calldata_factor.resources, gas_costs);
-        SyscallGasCost { base: base_gas_cost, linear_factor: linear_gas_cost }
+        self.os_resources.get_syscall_gas_cost(syscall_selector, &self.os_constants)
     }
 }
 
@@ -738,6 +719,33 @@ impl OsResources {
         }
         &(&self.compute_os_kzg_commitment_info * data_segment_length)
             + &poseidon_hash_many_cost(data_segment_length)
+    }
+
+    /// Calculates the syscall gas cost from the base OS constant gas costs.
+    pub(crate) fn get_syscall_gas_cost(
+        &self,
+        syscall_selector: &SyscallSelector,
+        os_constants: &OsConstants,
+    ) -> SyscallGasCost {
+        let gas_costs = &os_constants.gas_costs;
+        let vm_resources = &self
+            .execute_syscalls
+            .get(syscall_selector)
+            .expect("Fetching the execution resources of a syscall should not fail.");
+
+        assert!(
+            vm_resources.calldata_factor.scaling_factor == 1,
+            "The scaling factor of the syscall should be 1, but it is {}",
+            vm_resources.calldata_factor.scaling_factor
+        );
+
+        let mut base_gas_cost = get_gas_cost_from_vm_resources(&vm_resources.constant, gas_costs);
+
+        // The minimum total cost is `syscall_base_gas_cost`, which is pre-charged by the compiler.
+        base_gas_cost = std::cmp::max(gas_costs.base.syscall_base_gas_cost, base_gas_cost);
+        let linear_gas_cost =
+            get_gas_cost_from_vm_resources(&vm_resources.calldata_factor.resources, gas_costs);
+        SyscallGasCost { base: base_gas_cost, linear_factor: linear_gas_cost }
     }
 }
 
