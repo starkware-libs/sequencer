@@ -11,7 +11,7 @@ static TRACING_INITIALIZED: OnceCell<()> = OnceCell::const_new();
 
 pub static PID: std::sync::LazyLock<u32> = std::sync::LazyLock::new(std::process::id);
 
-pub async fn configure_tracing() {
+pub async fn configure_tracing(using_gcp: bool) {
     TRACING_INITIALIZED
         .get_or_init(|| async {
             // Use default time formatting with subsecond precision limited to three digits.
@@ -45,7 +45,13 @@ pub async fn configure_tracing() {
             // This sets a single subscriber to all of the threads. We may want to implement
             // different subscriber for some threads and use set_global_default instead
             // of init.
-            tracing_subscriber::registry().with(fmt_layer).with(level_filter_layer).init();
+            let reg = tracing_subscriber::registry().with(fmt_layer).with(level_filter_layer);
+            if using_gcp {
+                let stackdriver = tracing_stackdriver::layer();
+                reg.with(stackdriver).init();
+            } else {
+                reg.init();
+            }
             tracing::info!("Tracing has been successfully initialized.");
         })
         .await;

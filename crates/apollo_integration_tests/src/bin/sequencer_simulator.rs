@@ -113,7 +113,7 @@ struct Args {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    configure_tracing().await;
+    configure_tracing(false).await;
 
     let args = Args::parse();
 

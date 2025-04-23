@@ -10,6 +10,7 @@ use apollo_compile_to_casm::config::SierraCompilationConfig;
 use apollo_config::dumping::{
     append_sub_config_name,
     generate_struct_pointer,
+    ser_param,
     ser_pointer_target_param,
     set_pointing_param_paths,
     ConfigPointers,
@@ -17,7 +18,7 @@ use apollo_config::dumping::{
     SerializeConfig,
 };
 use apollo_config::loading::load_and_process_config;
-use apollo_config::{ConfigError, ParamPath, SerializedParam};
+use apollo_config::{ConfigError, ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_consensus_manager::config::ConsensusManagerConfig;
 use apollo_gateway::config::GatewayConfig;
 use apollo_http_server::config::HttpServerConfig;
@@ -188,6 +189,8 @@ pub struct SequencerNodeConfig {
     pub monitoring_endpoint_config: MonitoringEndpointConfig,
     #[validate]
     pub state_sync_config: StateSyncConfig,
+    // TODO(yair): consider setting this to true by default.
+    pub format_logs_for_gcp: bool,
 }
 
 impl SerializeConfig for SequencerNodeConfig {
@@ -224,7 +227,15 @@ impl SerializeConfig for SequencerNodeConfig {
             ),
         ];
 
-        sub_configs.into_iter().flatten().collect()
+        let mut conf: BTreeMap<String, SerializedParam> =
+            sub_configs.into_iter().flatten().collect();
+        conf.append(&mut BTreeMap::from([ser_param(
+            "format_logs_for_gcp",
+            &self.format_logs_for_gcp,
+            "Whether to format the logs to be GCP friendly",
+            ParamPrivacyInput::Public,
+        )]));
+        conf
     }
 }
 

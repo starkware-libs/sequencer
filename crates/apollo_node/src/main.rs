@@ -19,12 +19,12 @@ fn set_exit_process_on_panic() {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    configure_tracing().await;
-
     set_exit_process_on_panic();
 
     let config =
         load_and_validate_config(args().collect()).expect("Failed to load and validate config");
+
+    configure_tracing(config.format_logs_for_gcp).await;
 
     // Clients are currently unused, but should not be dropped.
     let (_clients, servers) = create_node_modules(&config).await;
