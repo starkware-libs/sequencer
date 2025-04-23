@@ -141,7 +141,7 @@ pub struct EntryPointRunnerConfig {
 impl Default for EntryPointRunnerConfig {
     fn default() -> Self {
         Self {
-            trace_enabled: true,
+            trace_enabled: false,
             verify_secure: true,
             layout: LayoutName::plain,
             proof_mode: false,
