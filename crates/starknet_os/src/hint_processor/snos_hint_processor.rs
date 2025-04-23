@@ -213,8 +213,8 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<'_, S> {
         hint_data: &Box<dyn Any>,
         constants: &HashMap<String, Felt>,
     ) -> VmHintExtensionResult {
-        // OS hint, aggregator hint, Cairo0 syscall or Cairo0 core hint.
         if let Some(hint_processor_data) = hint_data.downcast_ref::<HintProcessorData>() {
+            // AllHints (OS hint, aggregator hint, Cairo0 syscall) or Cairo0 core hint.
             let hint_args = HintArgs {
                 hint_processor: self,
                 vm,
@@ -234,8 +234,8 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<'_, S> {
                         aggregator_hint.execute_hint(hint_args)?;
                         Ok(HintExtension::default())
                     }
-                    AllHints::SyscallHint(syscall_hint) => {
-                        syscall_hint.execute_hint(hint_args)?;
+                    AllHints::DeprecatedSyscallHint(deprecated_syscall_hint) => {
+                        deprecated_syscall_hint.execute_hint(hint_args)?;
                         Ok(HintExtension::default())
                     }
                     AllHints::HintExtension(hint_extension) => {
