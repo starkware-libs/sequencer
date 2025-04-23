@@ -33,7 +33,6 @@ validator.workspace = true
 alloy = { workspace = true, features = ["node-bindings"] }
 colored.workspace = true
 ethers-core.workspace = true
-mempool_test_utils.workspace = true
 pretty_assertions.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }

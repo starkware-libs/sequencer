@@ -28,11 +28,11 @@ use blockifier::context::ChainInfo;
 use futures::StreamExt;
 use mempool_test_utils::starknet_api_test_utils::{
     AccountTransactionGenerator,
-    L1ToL2MessageArgs,
     MultiAccountTransactionGenerator,
 };
 use papyrus_base_layer::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
+    L1ToL2MessageArgs,
     StarknetL1Contract,
 };
 use papyrus_base_layer::test_utils::{
@@ -57,7 +57,6 @@ use crate::utils::{
     create_mempool_p2p_configs,
     create_node_config,
     create_state_sync_configs,
-    send_message_to_l2,
     set_validator_id,
     spawn_local_eth_to_strk_oracle,
     spawn_local_success_recorder,
@@ -174,7 +173,7 @@ impl FlowTestSetup {
 
     pub async fn send_messages_to_l2(&self, l1_to_l2_messages_args: &[L1ToL2MessageArgs]) {
         for l1_to_l2_message_args in l1_to_l2_messages_args {
-            send_message_to_l2(l1_to_l2_message_args, &self.starknet_l1_contract).await;
+            self.starknet_l1_contract.send_message_to_l2(l1_to_l2_message_args).await;
         }
     }
 }
