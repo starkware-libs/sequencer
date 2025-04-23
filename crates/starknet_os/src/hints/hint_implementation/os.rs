@@ -40,8 +40,8 @@ pub(crate) fn initialize_state_changes<S: StateReader>(
     for contract_address in writes_accessed_addresses {
         let nonce = cached_state.get_nonce_at(contract_address)?;
         let class_hash = cached_state.get_class_hash_at(contract_address)?;
-        let state_entry_base = vm.add_memory_segment();
         let storage_ptr = vm.add_memory_segment();
+        let state_entry_base = vm.add_memory_segment();
         insert_values_to_fields(
             state_entry_base,
             CairoStruct::StateEntry,
