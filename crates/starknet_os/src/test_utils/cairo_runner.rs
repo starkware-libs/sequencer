@@ -59,6 +59,12 @@ impl From<i32> for EndpointArg {
     }
 }
 
+impl From<u128> for EndpointArg {
+    fn from(value: u128) -> Self {
+        Self::from(Felt::from(value))
+    }
+}
+
 impl From<Felt> for EndpointArg {
     fn from(value: Felt) -> Self {
         Self::Value(ValueArg::Single(value))
