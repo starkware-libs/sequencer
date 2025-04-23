@@ -17,7 +17,12 @@ use starknet_types_core::felt::Felt;
 use tracing::info;
 
 use crate::os_cli::tests::types::OsPythonTestResult;
-use crate::os_cli::tests::utils::{seeded_random_prng, test_cairo_function, DEFAULT_PRIME};
+use crate::os_cli::tests::utils::{
+    pack_bigint3,
+    seeded_random_prng,
+    test_cairo_function,
+    DEFAULT_PRIME,
+};
 
 // TODO(Amos): This test is incomplete. Add the rest of the test cases and remove this todo.
 pub(crate) fn test_bls_field(input: &str) -> OsPythonTestResult {
@@ -25,6 +30,7 @@ pub(crate) fn test_bls_field(input: &str) -> OsPythonTestResult {
     test_felt_to_bigint3(input)?;
     // TODO(Amos): uncomment once VM is upgraded to v2.0.0.
     // test_horner_eval(input)?;
+    // test_reduced_mul_random(input)?;
     Ok("".to_string())
 }
 
@@ -155,5 +161,41 @@ fn test_horner_eval(input: &str) -> OsPythonTestResult {
             HashMap::new(),
         )?;
     }
+    Ok("".to_string())
+}
+
+#[allow(dead_code)]
+fn test_reduced_mul_random(input: &str) -> OsPythonTestResult {
+    let mut rng = seeded_random_prng();
+    let limb_limit = 2_i128.pow(104);
+    let mut a_split = [Felt::from(0); 3];
+    let mut b_split = [Felt::from(0); 3];
+    for i in 0..3 {
+        a_split[i] = rng.gen_range(-limb_limit..limb_limit).into();
+        b_split[i] = rng.gen_range(-limb_limit..limb_limit).into();
+    }
+
+    let explicit_args = [
+        EndpointArg::Value(ValueArg::Array(a_split.to_vec())),
+        EndpointArg::Value(ValueArg::Array(a_split.to_vec())),
+    ];
+    let implicit_args = [ImplicitArg::Builtin(BuiltinName::range_check)];
+    let expected_implicit_args: [EndpointArg; 1] = [11.into()];
+    let expected_result = split_bigint3(
+        (pack_bigint3(&a_split) * pack_bigint3(&b_split)) % BLS_PRIME.to_bigint().unwrap(),
+    )
+    .unwrap();
+    let expected_explicit_args = [EndpointArg::Value(ValueArg::Array(expected_result.to_vec()))];
+    test_cairo_function(
+        &get_entrypoint_runner_config(),
+        input,
+        "starkware.starknet.core.os.data_availability.bls_field.reduced_mul",
+        &explicit_args,
+        &implicit_args,
+        &expected_explicit_args,
+        &expected_implicit_args,
+        HashMap::new(),
+    )?;
+
     Ok("".to_string())
 }
