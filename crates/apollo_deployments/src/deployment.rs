@@ -1,4 +1,5 @@
-use std::path::PathBuf;
+use std::fs;
+use std::path::{Path, PathBuf};
 
 use apollo_infra_utils::dumping::serialize_to_file;
 #[cfg(test)]
@@ -65,6 +66,8 @@ pub struct Deployment {
     base_app_config_file_path: PathBuf,
 }
 
+// TODO(Tsabary): reduce number of args.
+#[allow(clippy::too_many_arguments)]
 impl Deployment {
     pub fn new(
         chain_id: ChainId,
@@ -74,17 +77,34 @@ impl Deployment {
         external_secret: Option<ExternalSecret>,
         image: &str,
         base_app_config_file_path: PathBuf,
+        additional_config_paths: Vec<&str>,
     ) -> Self {
         let service_names = deployment_name.all_service_names();
+
+        let application_config_subdir = deployment_name
+            .add_path_suffix(environment.application_config_dir_path(), instance_name);
+
+        let additional_config_filenames: Vec<String> = additional_config_paths
+            .iter()
+            .map(|additional_config_path| {
+                copy_file_and_get_basename(additional_config_path, &application_config_subdir)
+            })
+            .collect();
+
         let services = service_names
             .iter()
-            .map(|service_name| service_name.create_service(&environment, &external_secret))
+            .map(|service_name| {
+                service_name.create_service(
+                    &environment,
+                    &external_secret,
+                    additional_config_filenames.clone(),
+                )
+            })
             .collect();
         Self {
             chain_id,
             image: image.to_string(),
-            application_config_subdir: deployment_name
-                .add_path_suffix(environment.application_config_dir_path(), instance_name),
+            application_config_subdir,
             deployment_name,
             environment,
             services,
@@ -168,4 +188,40 @@ impl Deployment {
             );
         }
     }
+}
+
+// TODO(Tsabary): change arg to PathBuf.
+fn copy_file_and_get_basename(config_file_path_str: &str, target_dir: &Path) -> String {
+    assert!(config_file_path_str.ends_with(".json"), "Config file path should end with .json");
+
+    let config_file_path = PathBuf::from(config_file_path_str);
+    assert!(
+        config_file_path.exists(),
+        "{}",
+        format!("Config file path does not exist: {:?}", config_file_path)
+    );
+    assert!(
+        config_file_path.is_file(),
+        "{}",
+        format!("Config file path is not a file: {:?}", config_file_path)
+    );
+    assert!(
+        config_file_path.is_dir(),
+        "{}",
+        format!("Config file path is a directory: {:?}", config_file_path)
+    );
+
+    // Extract the file name from the original path.
+    let file_name = config_file_path.file_name().expect("Should be a valid file path");
+
+    // Create the new target path: target_dir / file_name.
+    let destination = target_dir.join(file_name);
+
+    // Copy the file to the new location.
+    fs::copy(&config_file_path, &destination).unwrap_or_else(|_| {
+        panic!("Failed to copy file {:?} to {:?}", config_file_path, target_dir)
+    });
+
+    // Return the copied file base name.
+    file_name.to_string_lossy().into_owned()
 }
