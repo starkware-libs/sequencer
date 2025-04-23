@@ -25,7 +25,7 @@ use tracing::{debug, error, instrument};
 use url::Url;
 use validator::Validate;
 
-use crate::{BaseLayerContract, L1BlockNumber, L1BlockReference, L1Event, PriceSample};
+use crate::{BaseLayerContract, L1BlockHeader, L1BlockNumber, L1BlockReference, L1Event};
 
 pub type EthereumBaseLayerResult<T> = Result<T, EthereumBaseLayerError>;
 
@@ -210,12 +210,12 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         }))
     }
 
-    /// Query the Ethereum base layer for the timestamp, gas price, and data gas price of a block.
+    /// Query the Ethereum base layer for the header of a block.
     #[instrument(skip(self), err)]
-    async fn get_price_sample(
+    async fn get_block_header(
         &self,
         block_number: L1BlockNumber,
-    ) -> EthereumBaseLayerResult<Option<PriceSample>> {
+    ) -> EthereumBaseLayerResult<Option<L1BlockHeader>> {
         let block = tokio::time::timeout(
             self.config.timeout_millis,
             self.contract.provider().get_block_by_number(block_number.into()),
@@ -224,8 +224,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         let Some(block) = block else {
             return Ok(None);
         };
-
-        let Some(base_fee_per_gas) = block.header.base_fee_per_gas else {
+        let Some(base_fee) = block.header.base_fee_per_gas else {
             return Ok(None);
         };
         let blob_fee = match block.header.excess_blob_gas {
@@ -240,9 +239,12 @@ impl BaseLayerContract for EthereumBaseLayerContract {
             None => 0,
         };
 
-        Ok(Some(PriceSample {
+        Ok(Some(L1BlockHeader {
+            number: block.header.number,
+            hash: block.header.hash.0,
+            parent_hash: block.header.parent_hash.0,
             timestamp: block.header.timestamp,
-            base_fee_per_gas: base_fee_per_gas.into(),
+            base_fee_per_gas: base_fee.into(),
             blob_fee,
         }))
     }
