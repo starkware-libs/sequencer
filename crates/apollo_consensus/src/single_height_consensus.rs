@@ -208,6 +208,8 @@ impl SingleHeightConsensus {
         let leader_fn = |round: Round| -> ValidatorId { context.proposer(self.height, round) };
         let events = self.state_machine.start(&leader_fn);
         let ret = self.handle_state_machine_events(context, events).await;
+        // Defensive programming. We don't expect the height and round to have changed from the
+        // start of this method.
         context.set_height_and_round(self.height, self.state_machine.round()).await;
         ret
     }
