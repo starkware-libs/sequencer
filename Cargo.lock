@@ -9258,6 +9258,7 @@ version = "0.0.0"
 dependencies = [
  "alloy",
  "apollo_config",
+ "assert_matches",
  "async-trait",
  "colored 3.0.0",
  "ethers",
