@@ -112,11 +112,14 @@ impl Service {
         toleration: Option<String>,
         resources: Resources,
         external_secret: Option<ExternalSecret>,
-        additional_config_filenames: Vec<String>,
+        mut additional_config_filenames: Vec<String>,
     ) -> Self {
         // Configs are loaded by order such that a config may override previous ones.
-        let mut config_paths: Vec<String> = additional_config_filenames.clone();
-        config_paths.push(name.get_config_file_path());
+        // We first list the base config, and then follow with the overrides.
+        // TODO(Tsabary): the service override is currently engrained in the base config, need to
+        // resolve that.
+        let mut config_paths: Vec<String> = vec![name.get_config_file_path()];
+        config_paths.append(&mut additional_config_filenames);
 
         Self {
             name,

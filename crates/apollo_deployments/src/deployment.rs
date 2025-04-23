@@ -7,7 +7,7 @@ use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
 use apollo_node::config::config_utils::{get_deployment_from_config_path, BaseAppConfigOverride};
 use indexmap::IndexMap;
 use serde::Serialize;
-use serde_json::Value;
+use serde_json::{to_value, Value};
 use starknet_api::core::ChainId;
 
 use crate::deployment_definitions::{Environment, CONFIG_BASE_DIR};
@@ -195,10 +195,13 @@ impl ConfigOverride {
         Self { deployment_config_override }
     }
 
-    pub fn create(&self, _application_config_subdir: &Path) -> Vec<String> {
-        // TODO(Tsabary): fill these.
-
-        vec![]
+    pub fn create(&self, application_config_subdir: &Path) -> Vec<String> {
+        let deployment_file_name = "deployment_config_override.json";
+        serialize_to_file(
+            to_value(self.deployment_config_override).unwrap(),
+            application_config_subdir.join(deployment_file_name).to_str().unwrap(),
+        );
+        vec![deployment_file_name.to_string()]
     }
 }
 
@@ -207,8 +210,6 @@ pub struct DeploymentConfigOverride {
     #[serde(rename = "base_layer_config.starknet_contract_address")]
     starknet_contract_address: &'static str,
     chain_id: &'static str,
-    #[serde(rename = "consensus_manager_config.eth_to_strk_oracle_config.base_url")]
-    base_url: &'static str,
     eth_fee_token_address: &'static str,
     starknet_url: &'static str,
     strk_fee_token_address: &'static str,
@@ -218,7 +219,6 @@ impl DeploymentConfigOverride {
     pub const fn new(
         starknet_contract_address: &'static str,
         chain_id: &'static str,
-        base_url: &'static str,
         eth_fee_token_address: &'static str,
         starknet_url: &'static str,
         strk_fee_token_address: &'static str,
@@ -226,7 +226,6 @@ impl DeploymentConfigOverride {
         Self {
             starknet_contract_address,
             chain_id,
-            base_url,
             eth_fee_token_address,
             starknet_url,
             strk_fee_token_address,
