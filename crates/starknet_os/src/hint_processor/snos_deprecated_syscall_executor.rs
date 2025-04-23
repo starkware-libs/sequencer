@@ -1,4 +1,5 @@
 use blockifier::execution::deprecated_syscalls::deprecated_syscall_executor::DeprecatedSyscallExecutor;
+use blockifier::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallExecutionError;
 use blockifier::execution::deprecated_syscalls::{
     CallContractRequest,
     CallContractResponse,
@@ -47,7 +48,15 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor {
     }
 
     fn verify_syscall_ptr(&self, actual_ptr: Relocatable) -> DeprecatedSyscallResult<()> {
-        todo!()
+        let expected_ptr = self.syscall_ptr.expect("Syscall must be set at this point.");
+        if actual_ptr != expected_ptr {
+            return Err(DeprecatedSyscallExecutionError::BadSyscallPointer {
+                expected_ptr,
+                actual_ptr,
+            });
+        }
+
+        Ok(())
     }
 
     fn get_mut_syscall_ptr(&mut self) -> &mut Relocatable {
