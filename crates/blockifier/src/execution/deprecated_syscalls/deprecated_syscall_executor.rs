@@ -172,7 +172,7 @@ pub trait DeprecatedSyscallExecutor {
     ) -> DeprecatedSyscallResult<StorageWriteResponse>;
 }
 
-pub(crate) fn execute_deprecated_syscall_from_selector<T: DeprecatedSyscallExecutor>(
+pub fn execute_deprecated_syscall_from_selector<T: DeprecatedSyscallExecutor>(
     deprecated_syscall_executor: &mut T,
     vm: &mut VirtualMachine,
     selector: DeprecatedSyscallSelector,
