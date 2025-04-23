@@ -54,8 +54,6 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use mempool_test_utils::starknet_api_test_utils::{
     AccountId,
-    AccountTransactionGenerator,
-    Contract,
     L1ToL2MessageArgs,
     MultiAccountTransactionGenerator,
 };
@@ -406,46 +404,6 @@ pub fn create_flow_test_tx_generator() -> MultiAccountTransactionGenerator {
     tx_generator
 }
 
-pub fn create_multiple_account_txs(
-    tx_generator: &mut MultiAccountTransactionGenerator,
-) -> Vec<RpcTransaction> {
-    // Create RPC transactions.
-    let account0_invoke_nonce1 =
-        tx_generator.account_with_id_mut(ACCOUNT_ID_0).generate_invoke_with_tip(2);
-    let account0_invoke_nonce2 =
-        tx_generator.account_with_id_mut(ACCOUNT_ID_0).generate_invoke_with_tip(3);
-    let account1_invoke_nonce1 =
-        tx_generator.account_with_id_mut(ACCOUNT_ID_1).generate_invoke_with_tip(4);
-
-    vec![account0_invoke_nonce1, account0_invoke_nonce2, account1_invoke_nonce1]
-}
-
-/// Creates and sends more transactions than can fit in a block.
-pub fn create_many_invoke_txs(
-    tx_generator: &mut MultiAccountTransactionGenerator,
-) -> Vec<RpcTransaction> {
-    const N_TXS: usize = 15;
-    create_invoke_txs(tx_generator, ACCOUNT_ID_1, N_TXS)
-}
-
-pub fn create_funding_txs(
-    tx_generator: &mut MultiAccountTransactionGenerator,
-) -> Vec<RpcTransaction> {
-    // TODO(yair): Register the undeployed account here instead of in the test setup
-    // once funding is implemented.
-    let undeployed_account = tx_generator.account_with_id(UNDEPLOYED_ACCOUNT_ID).account;
-    assert!(tx_generator.undeployed_accounts().contains(&undeployed_account));
-    fund_new_account(tx_generator.account_with_id_mut(ACCOUNT_ID_0), &undeployed_account)
-}
-
-fn fund_new_account(
-    funding_account: &mut AccountTransactionGenerator,
-    recipient: &Contract,
-) -> Vec<RpcTransaction> {
-    let funding_tx = funding_account.generate_transfer(recipient);
-    vec![funding_tx]
-}
-
 /// Generates a deploy account transaction followed by an invoke transaction from the same account.
 /// The first invoke_tx can be inserted to the first block right after the deploy_tx due to
 /// the skip_validate feature. This feature allows the gateway to accept this transaction although
@@ -469,13 +427,6 @@ pub fn create_invoke_txs(
     (0..n_txs)
         .map(|_| tx_generator.account_with_id_mut(account_id).generate_invoke_with_tip(1))
         .collect()
-}
-
-pub fn create_l1_to_l2_message_args(
-    tx_generator: &mut MultiAccountTransactionGenerator,
-) -> Vec<L1ToL2MessageArgs> {
-    const N_TXS: usize = 1;
-    create_l1_to_l2_messages_args(tx_generator, N_TXS)
 }
 
 pub fn create_l1_to_l2_messages_args(
@@ -564,27 +515,6 @@ where
     let rpc_txs = create_rpc_txs_fn(tx_generator);
     tx_hashes.extend(send_rpc_txs(rpc_txs, send_rpc_tx_fn).await);
     test_tx_hashes_fn(&tx_hashes)
-}
-
-pub fn test_multiple_account_txs(tx_hashes: &[TransactionHash]) -> Vec<TransactionHash> {
-    // Return the transaction hashes in the order they should be given by the mempool:
-    // Transactions from the same account are ordered by nonce; otherwise, higher tips are given
-    // priority.
-    assert!(
-        tx_hashes.len() == 3,
-        "Unexpected number of transactions sent in the test scenario. Found {} transactions",
-        tx_hashes.len()
-    );
-    vec![tx_hashes[2], tx_hashes[0], tx_hashes[1]]
-}
-
-pub fn test_many_invoke_txs(tx_hashes: &[TransactionHash]) -> Vec<TransactionHash> {
-    assert!(
-        tx_hashes.len() == 15,
-        "Unexpected number of transactions sent in the test scenario. Found {} transactions",
-        tx_hashes.len()
-    );
-    tx_hashes.to_vec()
 }
 
 /// Returns a list of the transaction hashes, in the order they are expected to be in the mempool.
