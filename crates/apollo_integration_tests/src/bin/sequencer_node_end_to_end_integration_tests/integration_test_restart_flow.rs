@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
+use apollo_deployments::deployments::consolidated::ConsolidatedNodeServiceName;
+use apollo_deployments::deployments::hybrid::HybridNodeServiceName;
 use apollo_infra_utils::test_utils::TestIdentifier;
 use apollo_integration_tests::integration_test_manager::{
     IntegrationTestManager,
@@ -8,6 +10,7 @@ use apollo_integration_tests::integration_test_manager::{
 };
 use apollo_integration_tests::integration_test_utils::integration_test_setup;
 use apollo_integration_tests::utils::{ConsensusTxs, N_TXS_IN_FIRST_BLOCK, TPS};
+use strum::IntoEnumIterator;
 use tokio::join;
 use tokio::time::sleep;
 use tracing::info;
@@ -20,13 +23,13 @@ async fn main() {
     const TOTAL_DURATION: u64 = PHASE_DURATION.as_secs() * TOTAL_PHASES;
     const TOTAL_INVOKE_TXS: u64 = TPS * TOTAL_DURATION;
     /// The number of consolidated local sequencers that participate in the test.
-    const N_CONSOLIDATED_SEQUENCERS: usize = 5;
+    const N_CONSOLIDATED_SEQUENCERS: usize = 3;
     /// The number of distributed remote sequencers that participate in the test.
-    const N_DISTRIBUTED_SEQUENCERS: usize = 0;
-    // The indices of the nodes that we will be shutting down. Node 0 is skipped because we use it
-    // to verify the metrics.
-    const NODE_1: usize = 1;
-    const NODE_2: usize = 2;
+    const N_DISTRIBUTED_SEQUENCERS: usize = 2;
+    // The indices of the nodes that we will be shutting down.
+    // The test restarts a hybrid node and shuts down a non-consolidated (hybrid/distributed) node.
+    const RESTART_NODE: usize = N_CONSOLIDATED_SEQUENCERS;
+    const SHUTDOWN_NODE: usize = RESTART_NODE + 1;
 
     // Get the sequencer configurations.
     let mut integration_test_manager = IntegrationTestManager::new(
@@ -36,6 +39,27 @@ async fn main() {
         TestIdentifier::RestartFlowIntegrationTest,
     )
     .await;
+
+    // Assert that RESTART_NODE is a hybrid node.
+    assert_eq!(
+        integration_test_manager
+            .get_idle_nodes()
+            .get(&RESTART_NODE)
+            .unwrap()
+            .get_executables()
+            .len(),
+        HybridNodeServiceName::iter().count()
+    );
+    // Assert that SHUTDOWN_NODE is not a consolidated node.
+    assert_ne!(
+        integration_test_manager
+            .get_idle_nodes()
+            .get(&SHUTDOWN_NODE)
+            .unwrap()
+            .get_executables()
+            .len(),
+        ConsolidatedNodeServiceName::iter().count()
+    );
 
     let mut node_indices = integration_test_manager.get_node_indices();
 
@@ -72,8 +96,8 @@ async fn main() {
         )
         .await;
 
-        integration_test_manager.shutdown_nodes([NODE_1].into());
-        info!("Awaiting transactions while node {NODE_1} is down");
+        integration_test_manager.shutdown_nodes([RESTART_NODE].into());
+        info!("Awaiting transactions while node {RESTART_NODE} is down");
         sleep(PHASE_DURATION).await;
         verify_running_nodes_received_more_txs(
             &mut nodes_accepted_txs_mapping,
@@ -81,12 +105,12 @@ async fn main() {
         )
         .await;
 
-        // We want node 1 to rejoin the network while its building blocks to check the catch-up
-        // mechanism.
-        integration_test_manager.run_nodes([NODE_1].into()).await;
+        // We want the restarted node to rejoin the network while its building blocks to check the
+        // catch-up mechanism.
+        integration_test_manager.run_nodes([RESTART_NODE].into()).await;
         info!(
-            "Awaiting transactions after node {NODE_1} was restarted and before node {NODE_2} is \
-             shut down"
+            "Awaiting transactions after node {RESTART_NODE} was restarted and before node \
+             {SHUTDOWN_NODE} is shut down"
         );
         sleep(PHASE_DURATION).await;
         verify_running_nodes_received_more_txs(
@@ -95,13 +119,16 @@ async fn main() {
         )
         .await;
 
-        // Shutdown second node to test that the first node has joined consensus (the network can't
-        // reach consensus without the first node if the second node is down).
-        integration_test_manager.shutdown_nodes([NODE_2].into());
+        // Shutdown a second node to test that the restarted node has joined consensus (the network
+        // can't reach consensus without the restarted node if the second node is down).
+        integration_test_manager.shutdown_nodes([SHUTDOWN_NODE].into());
         // Shutting down a node that's already down results in an error so we remove it from the set
         // here.
-        node_indices.remove(&NODE_2);
-        info!("Awaiting transactions while node {NODE_1} is up and node {NODE_2} is down");
+        node_indices.remove(&SHUTDOWN_NODE);
+        info!(
+            "Awaiting transactions while node {RESTART_NODE} is up and node {SHUTDOWN_NODE} is \
+             down"
+        );
         sleep(PHASE_DURATION).await;
         verify_running_nodes_received_more_txs(
             &mut nodes_accepted_txs_mapping,
