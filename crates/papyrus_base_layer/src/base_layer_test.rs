@@ -75,13 +75,15 @@ async fn get_gas_price_and_timestamps() {
     });
 
     let block_number = 30;
-    let price_sample = contract.get_price_sample(block_number).await.unwrap().unwrap();
+    let (price_sample, block_reference) =
+        contract.get_price_sample_and_block_reference(block_number).await.unwrap().unwrap();
 
     // TODO(guyn): Figure out how these numbers are calculated, instead of just printing and testing
     // against what we got.
     assert_eq!(price_sample.timestamp, 1676992456);
     assert_eq!(price_sample.base_fee_per_gas, 20168195);
     assert_eq!(price_sample.blob_fee, 0);
+    assert_eq!(block_reference.number, block_number);
 }
 
 #[tokio::test]

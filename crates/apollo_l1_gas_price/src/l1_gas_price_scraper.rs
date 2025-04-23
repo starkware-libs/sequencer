@@ -143,16 +143,17 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
     ) -> L1GasPriceScraperResult<L1BlockNumber, B> {
         info!("Scraping gas prices starting from block {block_num}");
         loop {
-            let sample = match self.base_layer.get_price_sample(block_num).await {
-                Ok(Some(sample)) => sample,
-                Ok(None) => return Ok(block_num),
-                Err(e) => {
-                    warn!("BaseLayerError during scraping: {e:?}");
-                    L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT.increment(1);
-                    return Ok(block_num);
-                }
-            };
-
+            let (sample, _reference) =
+                match self.base_layer.get_price_sample_and_block_reference(block_num).await {
+                    Ok(Some((sample, reference))) => (sample, reference),
+                    Ok(None) => return Ok(block_num),
+                    Err(e) => {
+                        warn!("BaseLayerError during scraping: {e:?}");
+                        L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT.increment(1);
+                        return Ok(block_num);
+                    }
+                };
+            // TODO(guyn): here we will check that _reference is consistent with last block.
             self.l1_gas_price_provider
                 .add_price_info(block_num, sample)
                 .await

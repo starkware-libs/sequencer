@@ -69,10 +69,10 @@ pub trait BaseLayerContract {
         event_identifiers: &'a [&'a str],
     ) -> Result<Vec<L1Event>, Self::Error>;
 
-    async fn get_price_sample(
+    async fn get_price_sample_and_block_reference(
         &self,
         block_number: L1BlockNumber,
-    ) -> Result<Option<PriceSample>, Self::Error>;
+    ) -> Result<Option<(PriceSample, L1BlockReference)>, Self::Error>;
 }
 
 /// A struct that holds together the data on the base layer's gas prices, for a given timestamp.

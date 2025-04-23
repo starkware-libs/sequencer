@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use apollo_l1_gas_price_types::MockL1GasPriceProviderClient;
-use papyrus_base_layer::{MockBaseLayerContract, PriceSample};
+use papyrus_base_layer::{L1BlockReference, MockBaseLayerContract, PriceSample};
 
 use crate::l1_gas_price_scraper::{L1GasPriceScraper, L1GasPriceScraperConfig};
 
@@ -14,15 +14,11 @@ fn setup_scraper(
     expected_number_of_blocks: usize,
 ) -> L1GasPriceScraper<MockBaseLayerContract> {
     let mut mock_contract = MockBaseLayerContract::new();
-    mock_contract.expect_get_price_sample().returning(move |block_number| {
+    mock_contract.expect_get_price_sample_and_block_reference().returning(move |block_number| {
         if block_number >= end_block {
             Ok(None)
         } else {
-            Ok(Some(PriceSample {
-                timestamp: block_number * BLOCK_TIME,
-                base_fee_per_gas: u128::from(block_number) * GAS_PRICE,
-                blob_fee: u128::from(block_number) * DATA_PRICE,
-            }))
+            Ok(Some(price_sample_and_block_reference_from_block_number(block_number)))
         }
     });
 
@@ -44,6 +40,25 @@ fn setup_scraper(
     )
 }
 
+fn price_sample_and_block_reference_from_block_number(
+    block_number: u64,
+) -> (PriceSample, L1BlockReference) {
+    let price_sample = PriceSample {
+        timestamp: block_number * BLOCK_TIME,
+        base_fee_per_gas: u128::from(block_number) * GAS_PRICE,
+        blob_fee: u128::from(block_number) * DATA_PRICE,
+    };
+    let mut hash = [0u8; 32];
+    let bytes = block_number.to_be_bytes();
+    hash[24..].copy_from_slice(&bytes);
+    let block_reference = L1BlockReference {
+        number: block_number,
+        // This is just a placeholder for real block hashes.
+        hash,
+    };
+    (price_sample, block_reference)
+}
+
 #[tokio::test]
 async fn run_l1_gas_price_scraper_single_block() {
     const START_BLOCK: u64 = 0;
@@ -63,31 +78,23 @@ async fn run_l1_gas_price_scraper_two_blocks() {
     let mut mock_contract = MockBaseLayerContract::new();
     // Note the order of the expectation is important! Can only scrape the first blocks first.
     mock_contract
-        .expect_get_price_sample()
+        .expect_get_price_sample_and_block_reference()
         .times(usize::try_from(END_BLOCK1 - START_BLOCK + 1).unwrap())
         .returning(move |block_number| {
             if block_number >= END_BLOCK1 {
                 Ok(None)
             } else {
-                Ok(Some(PriceSample {
-                    timestamp: block_number * BLOCK_TIME,
-                    base_fee_per_gas: u128::from(block_number) * GAS_PRICE,
-                    blob_fee: u128::from(block_number) * DATA_PRICE,
-                }))
+                Ok(Some(price_sample_and_block_reference_from_block_number(block_number)))
             }
         });
     mock_contract
-        .expect_get_price_sample()
+        .expect_get_price_sample_and_block_reference()
         .times(usize::try_from(END_BLOCK2 - END_BLOCK1 + 1).unwrap())
         .returning(move |block_number| {
             if block_number >= END_BLOCK2 {
                 Ok(None)
             } else {
-                Ok(Some(PriceSample {
-                    timestamp: block_number * BLOCK_TIME,
-                    base_fee_per_gas: u128::from(block_number) * GAS_PRICE,
-                    blob_fee: u128::from(block_number) * DATA_PRICE,
-                }))
+                Ok(Some(price_sample_and_block_reference_from_block_number(block_number)))
             }
         });
 
