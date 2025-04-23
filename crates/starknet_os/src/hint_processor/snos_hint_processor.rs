@@ -43,6 +43,7 @@ use crate::io::os_input::{
 type VmHintResultType<T> = Result<T, VmHintError>;
 type VmHintResult = VmHintResultType<()>;
 type VmHintExtensionResult = VmHintResultType<HintExtension>;
+type Cairo1Hint = Hint;
 
 pub(crate) struct ExecutionHelpersManager<'a, S: StateReader> {
     execution_helpers: Vec<OsExecutionHelper<'a, S>>,
@@ -261,15 +262,15 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<'_, S> {
         }
 
         // Cairo1 syscall or Cairo1 core hint.
-        match hint_data.downcast_ref::<Hint>().ok_or(HintError::WrongHintData)? {
-            Hint::Core(_hint) => {
+        match hint_data.downcast_ref::<Cairo1Hint>().ok_or(HintError::WrongHintData)? {
+            Cairo1Hint::Core(_hint) => {
                 todo!()
             }
-            Hint::Starknet(hint) => {
+            Cairo1Hint::Starknet(hint) => {
                 execute_next_syscall(self, vm, hint)?;
                 Ok(HintExtension::default())
             }
-            Hint::External(_) => {
+            Cairo1Hint::External(_) => {
                 panic!("starknet should never accept classes with external hints!")
             }
         }
