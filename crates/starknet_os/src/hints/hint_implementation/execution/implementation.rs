@@ -401,7 +401,7 @@ fn write_syscall_result_helper<S: StateReader>(
     let key = StorageKey(PatriciaKey::try_from(
         vm.get_integer(get_address_of_nested_fields(
             ids_data,
-            ids_type.clone(),
+            ids_type,
             struct_type,
             vm,
             ap_tracking,
