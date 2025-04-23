@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use blockifier::execution::hint_code::SYSCALL_HINTS;
 use strum::IntoEnumIterator;
 
-use crate::hints::enum_definition::{AllHints, SyscallHint};
+use crate::hints::enum_definition::{AllHints, DeprecatedSyscallHint};
 use crate::hints::types::HintEnum;
 
 #[test]
@@ -25,7 +25,7 @@ fn test_from_str_for_all_hints() {
 #[test]
 fn test_syscall_compatibility_with_blockifier() {
     let syscall_hint_strings =
-        SyscallHint::iter().map(|hint| hint.to_str()).collect::<HashSet<_>>();
+        DeprecatedSyscallHint::iter().map(|hint| hint.to_str()).collect::<HashSet<_>>();
     let blockifier_syscall_strings: HashSet<_> = SYSCALL_HINTS.iter().cloned().collect();
     assert_eq!(
         blockifier_syscall_strings, syscall_hint_strings,
