@@ -4,6 +4,7 @@ use std::time::Duration;
 use std::vec;
 
 use apollo_batcher_types::batcher_types::{
+    CentralObjects,
     DecisionReachedResponse,
     GetProposalContent,
     GetProposalContentResponse,
@@ -23,10 +24,16 @@ use apollo_class_manager_types::transaction_converter::{
 };
 use apollo_class_manager_types::EmptyClassManagerClient;
 use apollo_consensus::types::{ConsensusContext, Round};
+use apollo_l1_gas_price_types::errors::{
+    EthToStrkOracleClientError,
+    L1GasPriceClientError,
+    L1GasPriceProviderError,
+};
 use apollo_l1_gas_price_types::{
     MockEthToStrkOracleClientTrait,
     MockL1GasPriceProviderClient,
     PriceInfo,
+    DEFAULT_ETH_TO_FRI_RATE,
 };
 use apollo_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
@@ -62,8 +69,10 @@ use starknet_api::block::{
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
 use starknet_api::core::{ChainId, Nonce, StateDiffCommitment};
 use starknet_api::data_availability::L1DataAvailabilityMode;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::felt;
 use starknet_api::hash::PoseidonHash;
+use starknet_api::state::ThinStateDiff;
 use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
 use starknet_types_core::felt::Felt;
 
@@ -138,8 +147,6 @@ fn default_context_dependencies() -> (SequencerConsensusContextDeps, NetworkDepe
     let BroadcastTopicChannels { broadcast_topic_client: votes_topic_client, .. } =
         subscriber_channels;
 
-    let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
-    eth_to_strk_oracle_client.expect_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
     let sequencer_deps = SequencerConsensusContextDeps {
         class_manager_client: Arc::new(EmptyClassManagerClient),
         state_sync_client: Arc::new(MockStateSyncClient::new()),
@@ -147,7 +154,7 @@ fn default_context_dependencies() -> (SequencerConsensusContextDeps, NetworkDepe
         outbound_proposal_sender,
         vote_broadcast_client: votes_topic_client,
         cende_ambassador: Arc::new(success_cende_ammbassador()),
-        eth_to_strk_oracle_client: Arc::new(eth_to_strk_oracle_client),
+        eth_to_strk_oracle_client: Arc::new(dummy_eth_to_strk_oracle_client()),
         l1_gas_price_provider: Arc::new(dummy_gas_price_provider()),
         clock: Arc::new(DefaultClock::default()),
     };
@@ -256,6 +263,12 @@ fn dummy_gas_price_provider() -> MockL1GasPriceProviderClient {
     }));
 
     l1_gas_price_provider
+}
+
+fn dummy_eth_to_strk_oracle_client() -> MockEthToStrkOracleClientTrait {
+    let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
+    eth_to_strk_oracle_client.expect_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
+    eth_to_strk_oracle_client
 }
 
 #[tokio::test]
@@ -773,4 +786,222 @@ async fn decision_reached_sends_correct_values() {
     let metrics = recorder.handle().render();
     CONSENSUS_L2_GAS_PRICE
         .assert_eq(&metrics, VersionedConstants::latest_constants().min_gas_price.0);
+}
+
+#[rstest]
+#[case::l1_price_oracle_failure(true)]
+#[case::eth_to_strk_rate_oracle_failure(false)]
+#[tokio::test]
+async fn oracle_fails_on_startup(#[case] l1_oracle_failure: bool) {
+    let mut batcher = MockBatcherClient::new();
+    setup_batcher_for_build(&mut batcher, BlockNumber(0)).await;
+
+    let (l1_prices_oracle_client, eth_to_strk_oracle_client) = {
+        if l1_oracle_failure {
+            let mut l1_prices_oracle_client = MockL1GasPriceProviderClient::new();
+            l1_prices_oracle_client.expect_get_price_info().times(1).return_const(Err(
+                L1GasPriceClientError::L1GasPriceProviderError(
+                    // random error, these parameters don't mean anything
+                    L1GasPriceProviderError::UnexpectedHeightError { expected: 0, found: 1 },
+                ),
+            ));
+            let eth_to_strk_orcale_client = dummy_eth_to_strk_oracle_client();
+            (l1_prices_oracle_client, eth_to_strk_orcale_client)
+        } else {
+            let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
+            eth_to_strk_oracle_client
+                .expect_eth_to_fri_rate()
+                .times(1)
+                .return_once(|_| Err(EthToStrkOracleClientError::MissingFieldError("")));
+            let l1_prices_oracle_client = dummy_gas_price_provider();
+            (l1_prices_oracle_client, eth_to_strk_oracle_client)
+        }
+    };
+
+    let (default_dependencies, mut network) = default_context_dependencies();
+
+    let context_dependencies = SequencerConsensusContextDeps {
+        batcher: Arc::new(batcher),
+        eth_to_strk_oracle_client: Arc::new(eth_to_strk_oracle_client),
+        l1_gas_price_provider: Arc::new(l1_prices_oracle_client),
+        ..default_dependencies
+    };
+
+    let mut context = setup_with_custom_mocks(context_dependencies);
+
+    let init = ProposalInit::default();
+
+    let fin_receiver = context.build_proposal(init, TIMEOUT).await;
+
+    let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
+
+    assert_eq!(receiver.next().await.unwrap(), ProposalPart::Init(ProposalInit::default()));
+    let block_info = receiver.next().await.unwrap();
+    let ProposalPart::BlockInfo(info) = block_info else {
+        panic!("Expected ProposalPart::BlockInfo");
+    };
+
+    let default_context_config = ContextConfig::default();
+    assert_eq!(info.eth_to_fri_rate, DEFAULT_ETH_TO_FRI_RATE);
+    // Despite the l1_gas_price_provider being set up not to fail, we still expect the default
+    // values because eth_to_strk_rate_oracle_client failed.
+    assert_eq!(info.l1_gas_price_wei.0, default_context_config.min_l1_gas_price_wei);
+    assert_eq!(info.l1_data_gas_price_wei.0, default_context_config.min_l1_data_gas_price_wei);
+
+    assert_eq!(
+        receiver.next().await.unwrap(),
+        ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() })
+    );
+    assert_eq!(
+        receiver.next().await.unwrap(),
+        ProposalPart::Fin(ProposalFin {
+            proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+        })
+    );
+    assert!(receiver.next().await.is_none());
+    assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
+}
+
+#[rstest]
+#[case::l1_price_oracle_failure(true)]
+#[case::eth_to_strk_rate_oracle_failure(false)]
+#[tokio::test]
+async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
+    // Validate block number 0, call decision_reached to save the previous block info (block 0), and
+    // attempt to build_proposal on block number 1.
+    let mut batcher = MockBatcherClient::new();
+    setup_batcher_for_validate(&mut batcher, BlockNumber(0)).await;
+    setup_batcher_for_build(&mut batcher, BlockNumber(1)).await;
+
+    // set up batcher decision_reached
+    batcher.expect_decision_reached().times(1).return_once(|_| {
+        Ok(DecisionReachedResponse {
+            state_diff: ThinStateDiff::default(),
+            l2_gas_used: GasAmount::default(),
+            central_objects: CentralObjects::default(),
+        })
+    });
+
+    // required for decision reached flow
+    let mut state_sync_client = MockStateSyncClient::new();
+    state_sync_client.expect_add_new_block().times(1).return_once(|_| Ok(()));
+    let mut cende_ambassador = success_cende_ammbassador();
+    cende_ambassador.expect_prepare_blob_for_next_height().times(1).return_once(|_| Ok(()));
+
+    // set the oracle to succeed on first block and fail on second
+    let (l1_prices_oracle_client, eth_to_strk_oracle_client) = {
+        if l1_oracle_failure {
+            let mut l1_prices_oracle_client = MockL1GasPriceProviderClient::new();
+            l1_prices_oracle_client.expect_get_price_info().times(1).return_const(Ok(PriceInfo {
+                base_fee_per_gas: GasPrice(TEMP_ETH_GAS_FEE_IN_WEI),
+                blob_fee: GasPrice(TEMP_ETH_BLOB_GAS_FEE_IN_WEI),
+            }));
+            l1_prices_oracle_client.expect_get_price_info().times(1).return_const(Err(
+                L1GasPriceClientError::L1GasPriceProviderError(
+                    // random error, these parameters don't mean anything
+                    L1GasPriceProviderError::UnexpectedHeightError { expected: 0, found: 1 },
+                ),
+            ));
+            let eth_to_strk_orcale_client = dummy_eth_to_strk_oracle_client();
+            (l1_prices_oracle_client, eth_to_strk_orcale_client)
+        } else {
+            let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
+            eth_to_strk_oracle_client
+                .expect_eth_to_fri_rate()
+                .times(1)
+                .return_once(|_| Ok(ETH_TO_FRI_RATE));
+            eth_to_strk_oracle_client
+                .expect_eth_to_fri_rate()
+                .times(1)
+                .return_once(|_| Err(EthToStrkOracleClientError::MissingFieldError("")));
+            let l1_prices_oracle_client = dummy_gas_price_provider();
+            (l1_prices_oracle_client, eth_to_strk_oracle_client)
+        }
+    };
+
+    let (default_dependencies, mut network) = default_context_dependencies();
+
+    let context_dependencies = SequencerConsensusContextDeps {
+        batcher: Arc::new(batcher),
+        cende_ambassador: Arc::new(cende_ambassador),
+        eth_to_strk_oracle_client: Arc::new(eth_to_strk_oracle_client),
+        l1_gas_price_provider: Arc::new(l1_prices_oracle_client),
+        state_sync_client: Arc::new(state_sync_client),
+        ..default_dependencies
+    };
+
+    let mut context = setup_with_custom_mocks(context_dependencies);
+
+    // Validate block number 0.
+
+    // Initialize the context for a specific height, starting with round 0.
+    context.set_height_and_round(BlockNumber(0), 0).await;
+
+    let (mut content_sender, content_receiver) = mpsc::channel(context.config.proposal_buffer_size);
+    content_sender.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
+    content_sender
+        .send(ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() }))
+        .await
+        .unwrap();
+    content_sender
+        .send(ProposalPart::Fin(ProposalFin {
+            proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+        }))
+        .await
+        .unwrap();
+    let fin_receiver =
+        context.validate_proposal(ProposalInit::default(), TIMEOUT, content_receiver).await;
+    content_sender.close_channel();
+    let block_hash = fin_receiver.await.unwrap().0;
+    assert_eq!(block_hash, STATE_DIFF_COMMITMENT.0.0);
+
+    // Decision reached
+
+    context
+        .decision_reached(
+            BlockHash(block_hash),
+            vec![Vote { block_hash: Some(BlockHash(block_hash)), ..Default::default() }],
+        )
+        .await
+        .unwrap();
+
+    // Build proposal for block number 1.
+    let init = ProposalInit { height: BlockNumber(1), ..Default::default() };
+
+    let fin_receiver = context.build_proposal(init, TIMEOUT).await;
+
+    let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
+
+    assert_eq!(
+        receiver.next().await.unwrap(),
+        ProposalPart::Init(ProposalInit { height: BlockNumber(1), ..Default::default() })
+    );
+    let info = receiver.next().await.unwrap();
+    let ProposalPart::BlockInfo(info) = info else {
+        panic!("Expected ProposalPart::BlockInfo");
+    };
+
+    let previous_block_info = block_info(BlockNumber(0));
+    // The l1_data_gas_price the proposer sends contains a discount we need to adjust for here.
+    let ContextConfig { l1_data_gas_price_multiplier_ppt: default_data_gas_multiplier, .. } =
+        ContextConfig::default();
+    let expected_l1_data_gas_price =
+        GasPrice(previous_block_info.l1_data_gas_price_wei.0 * default_data_gas_multiplier / 1000);
+
+    assert_eq!(info.eth_to_fri_rate, previous_block_info.eth_to_fri_rate);
+    assert_eq!(info.l1_gas_price_wei, previous_block_info.l1_gas_price_wei);
+    assert_eq!(info.l1_data_gas_price_wei, expected_l1_data_gas_price);
+
+    assert_eq!(
+        receiver.next().await.unwrap(),
+        ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() })
+    );
+    assert_eq!(
+        receiver.next().await.unwrap(),
+        ProposalPart::Fin(ProposalFin {
+            proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+        })
+    );
+    assert!(receiver.next().await.is_none());
+    assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
 }
