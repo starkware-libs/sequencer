@@ -421,6 +421,22 @@ pub(crate) fn load_bottom<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn decode_node<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> OsHintResult {
-    todo!()
+pub(crate) fn decode_node<S: StateReader>(
+    HintArgs { vm, exec_scopes, .. }: HintArgs<'_, '_, S>,
+) -> OsHintResult {
+    let node: UpdateTree = exec_scopes.get(Scope::Node.into())?;
+    let UpdateTree::InnerNode(inner_node) = node else {
+        return Err(OsHintError::ExpectedInnerNode);
+    };
+
+    let case = inner_node.case();
+    let (left_child, right_child) = inner_node.get_children();
+
+    exec_scopes.insert_value(Scope::LeftChild.into(), left_child.clone());
+    exec_scopes.insert_value(Scope::RightChild.into(), right_child.clone());
+    exec_scopes.insert_value(Scope::Case.into(), case.clone());
+
+    insert_value_into_ap(vm, Felt::from(case != DecodeNodeCase::Both))?;
+
+    Ok(())
 }
