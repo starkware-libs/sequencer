@@ -21,7 +21,7 @@ tempfile.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-vm.workspace = true
 # Should be moved under `testing` feature, when it exists.
-num-bigint.workspace = true
+num-bigint = { workspace = true, features = ["rand"] }
 clap = { workspace = true, features = ["cargo", "derive"] }
 derive_more.workspace = true
 ethnum.workspace = true

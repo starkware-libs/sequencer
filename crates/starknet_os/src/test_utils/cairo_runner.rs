@@ -12,6 +12,7 @@ use cairo_vm::vm::runners::builtin_runner::BuiltinRunner;
 use cairo_vm::vm::runners::cairo_runner::{CairoArg, CairoRunner};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use log::{debug, info};
+use num_bigint::BigInt;
 use serde_json::Value;
 use starknet_types_core::felt::Felt;
 
@@ -59,9 +60,21 @@ impl From<i32> for EndpointArg {
     }
 }
 
+impl From<u128> for EndpointArg {
+    fn from(value: u128) -> Self {
+        Self::from(Felt::from(value))
+    }
+}
+
 impl From<Felt> for EndpointArg {
     fn from(value: Felt) -> Self {
         Self::Value(ValueArg::Single(value))
+    }
+}
+
+impl From<&BigInt> for EndpointArg {
+    fn from(value: &BigInt) -> Self {
+        Self::from(Felt::from(value))
     }
 }
 
