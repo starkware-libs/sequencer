@@ -30,13 +30,7 @@ use crate::hints::enum_definition::AllHints;
 use crate::hints::error::OsHintError;
 use crate::hints::hint_implementation::state::CommitmentType;
 use crate::hints::types::{HintArgs, HintEnum, HintExtensionImplementation, HintImplementation};
-use crate::io::os_input::{
-    CachedStateInput,
-    OsBlockInput,
-    OsChainInfo,
-    OsHintsConfig,
-    OsInputError,
-};
+use crate::io::os_input::{CachedStateInput, OsBlockInput, OsHintsConfig, OsInputError};
 
 type VmHintResultType<T> = Result<T, VmHintError>;
 type VmHintResult = VmHintResultType<()>;
@@ -103,7 +97,6 @@ pub struct SnosHintProcessor<'a, S: StateReader> {
     pub(crate) deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
     pub(crate) compiled_classes: HashMap<ClassHash, CasmContractClass>,
     pub(crate) state_update_pointers: Option<StateUpdatePointers>,
-    pub(crate) chain_info: OsChainInfo,
     pub(crate) deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
     builtin_hint_processor: BuiltinHintProcessor,
     // The type of commitment tree next in line for hashing. Used to determine which HashBuiltin
@@ -127,7 +120,6 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
         cached_state_inputs: Vec<CachedStateInput>,
         deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
         compiled_classes: HashMap<ClassHash, CasmContractClass>,
-        chain_info: OsChainInfo,
         state_readers: Vec<S>,
         syscall_hint_processor: SyscallHintProcessor,
         deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
@@ -162,7 +154,6 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
             builtin_hint_processor: BuiltinHintProcessor::new_empty(),
             deprecated_compiled_classes,
             compiled_classes,
-            chain_info,
             state_update_pointers: None,
             commitment_type: CommitmentType::State,
             serialize_data_availability_create_pages: false,
@@ -286,7 +277,6 @@ impl<'a> SnosHintProcessor<'a, DictStateReader> {
             state_inputs,
             HashMap::new(), // deprecated_compiled_classes.
             HashMap::new(), // compiled_classes.
-            OsChainInfo::default(),
             vec![state_reader],
             syscall_handler,
             deprecated_syscall_handler,
