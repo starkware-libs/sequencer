@@ -30,6 +30,7 @@ use crate::hints::hint_implementation::patricia::utils::{
     DecodeNodeCase,
     DescentMap,
     DescentStart,
+    InnerNode,
     LayerIndex,
     Path,
     Preimage,
@@ -366,9 +367,31 @@ pub(crate) fn enter_scope_right_child<S: StateReader>(
 }
 
 pub(crate) fn enter_scope_descend_edge<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let mut new_node: UpdateTree = exec_scopes.get(Scope::Node.into())?;
+    let length: u8 = Ids::Length.fetch_as(vm, ids_data, ap_tracking)?;
+
+    // We aim to traverse downward through the node until we reach the end of the descent.
+    // In this implementation, the node is of type `UpdateTree`, which is not represented as a
+    // tuple. This simplifies traversal: we don't need to track the path explicitly, as we can
+    // unwrap the `UpdateTree` structure `length` times.
+    // It is guaranteed that none of the nodes along this path are of type `both`,
+    // since such a node would break the definition of a valid descent (see `get_descents` for
+    // details).
+    for i in (0..length).rev() {
+        let UpdateTree::InnerNode(inner_node) = new_node else {
+            return Err(OsHintError::ExpectedInnerNode);
+        };
+
+        new_node = match inner_node {
+            InnerNode::Left(left) => *left,
+            InnerNode::Right(right) => *right,
+            InnerNode::Both(_, _) => return Err(OsHintError::ExpectedSingleChild(i)),
+        }
+    }
+
+    enter_scope_specific_node(new_node, exec_scopes)
 }
 
 pub(crate) fn load_edge<S: StateReader>(

@@ -47,6 +47,10 @@ pub enum OsHintError {
     ExpectedBit { id: Ids, felt: Felt },
     #[error("Expected an InnerNode.")]
     ExpectedInnerNode,
+    #[error(
+        "Expected a single child, found both children at height {0} relative to the bottom node."
+    )]
+    ExpectedSingleChild(u8),
     #[error(transparent)]
     Fft(#[from] FftError),
     #[error(transparent)]
