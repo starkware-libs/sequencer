@@ -569,7 +569,7 @@ pub enum RawOsResourcesError {
 }
 
 // TODO(Dori): Remove `Deserialize` derive here.
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
 // Serde trick for adding validations via a customr deserializer, without forgoing the derive.
 // See: https://github.com/serde-rs/serde/issues/1220.
 #[serde(remote = "Self")]
@@ -660,6 +660,24 @@ impl OsResources {
 
         Ok(())
     }
+
+    #[allow(dead_code)]
+    fn from_raw(raw_os_resources: &RawOsResources) -> Self {
+        Self {
+            execute_syscalls: raw_os_resources
+                .execute_syscalls
+                .iter()
+                .map(|(k, v)| (*k, ResourcesParams::from(v)))
+                .collect(),
+            execute_txs_inner: raw_os_resources
+                .execute_txs_inner
+                .iter()
+                .map(|(k, v)| (*k, ResourcesParams::from(v)))
+                .collect(),
+            compute_os_kzg_commitment_info: raw_os_resources.compute_os_kzg_commitment_info.clone(),
+        }
+    }
+
     /// Calculates the additional resources needed for the OS to run the given transaction;
     /// i.e., the resources of the Starknet OS function `execute_transactions_inner`.
     /// Also adds the resources needed for the fee transfer execution, performed in the end·
@@ -1637,7 +1655,7 @@ impl TryFrom<CallDataFactorRaw> for CallDataFactor {
 
 // TODO(Dori): Consider deleting this, and simply using `VariableResourceParams` and
 //   `RawResourcesParams`.
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(try_from = "ResourceParamsRaw")]
 pub struct ResourcesParams {
     pub constant: ExecutionResources,
@@ -1701,6 +1719,13 @@ impl From<&VariableResourceParams> for RawResourcesParams {
                 Self { constant: constant.clone(), calldata_factor: Default::default() }
             }
         }
+    }
+}
+
+impl From<&VariableResourceParams> for ResourcesParams {
+    fn from(value: &VariableResourceParams) -> Self {
+        let raw_params = RawResourcesParams::from(value);
+        Self { constant: raw_params.constant, calldata_factor: raw_params.calldata_factor }
     }
 }
 
