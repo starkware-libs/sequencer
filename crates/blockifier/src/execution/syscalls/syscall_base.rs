@@ -3,6 +3,7 @@ use std::collections::{hash_map, HashMap};
 use std::convert::From;
 use std::sync::Arc;
 
+use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
@@ -13,6 +14,7 @@ use starknet_api::core::{
     Nonce,
 };
 use starknet_api::state::StorageKey;
+use starknet_api::transaction::constants::EXECUTE_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, Fee, TransactionSignature};
 use starknet_api::transaction::{
     signed_tx_version,
@@ -25,6 +27,7 @@ use starknet_api::transaction::{
 use starknet_types_core::felt::Felt;
 
 use super::exceeds_event_size_limit;
+use super::hint_processor::INVALID_ARGUMENT;
 use crate::abi::constants;
 use crate::context::TransactionContext;
 use crate::execution::call_info::{
@@ -256,6 +259,11 @@ impl<'state> SyscallHandlerBase<'state> {
         if self.context.execution_mode == ExecutionMode::Validate {
             self.reject_selector_in_validate_mode("meta_tx_v0")?;
         }
+        if entry_point_selector != selector_from_name(EXECUTE_ENTRY_POINT_NAME) {
+            return Err(SyscallExecutionError::Revert {
+                error_data: vec![Felt::from_hex(INVALID_ARGUMENT).unwrap()],
+            });
+        }
         let entry_point = CallEntryPoint {
             class_hash: None,
             code_address: Some(contract_address),
@@ -285,6 +293,8 @@ impl<'state> SyscallHandlerBase<'state> {
             &signed_tx_version(&TransactionVersion::ZERO, &TransactionOptions { only_query }),
         )?;
 
+        let class_hash = self.state.get_class_hash_at(contract_address)?;
+
         // Replace `tx_context`.
         let new_tx_info = TransactionInfo::Deprecated(DeprecatedTransactionInfo {
             common_fields: CommonAccountFields {
@@ -301,7 +311,6 @@ impl<'state> SyscallHandlerBase<'state> {
             block_context: old_tx_context.block_context.clone(),
             tx_info: new_tx_info,
         });
-        let class_hash = self.state.get_class_hash_at(contract_address)?;
 
         // No error should be propagated until we restore the old `tx_context`.
         let result =
