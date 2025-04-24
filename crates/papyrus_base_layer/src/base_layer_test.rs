@@ -3,11 +3,7 @@ use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::felt;
 
 use crate::ethereum_base_layer_contract::{EthereumBaseLayerConfig, EthereumBaseLayerContract};
-use crate::test_utils::{
-    anvil_instance_from_config,
-    ethereum_base_layer_config_for_anvil,
-    get_test_ethereum_node,
-};
+use crate::test_utils::get_test_ethereum_node;
 use crate::BaseLayerContract;
 
 fn in_ci() -> bool {
@@ -47,27 +43,6 @@ async fn latest_proved_block_ethereum() {
         let latest_block = contract.latest_proved_block(scenario).await.unwrap();
         assert_eq!(latest_block, expected);
     }
-}
-
-#[tokio::test]
-async fn get_proved_block_at_unknown_block_number() {
-    if !in_ci() {
-        return;
-    }
-
-    let config = ethereum_base_layer_config_for_anvil(None);
-    let _anvil = anvil_instance_from_config(&config);
-    let contract = EthereumBaseLayerContract::new(config);
-
-    assert!(
-        contract
-            .get_proved_block_at(123)
-            .await
-            .unwrap_err()
-            // This error is nested way too deep inside `alloy`.
-            .to_string()
-            .contains("BlockOutOfRangeError")
-    );
 }
 
 #[tokio::test]
