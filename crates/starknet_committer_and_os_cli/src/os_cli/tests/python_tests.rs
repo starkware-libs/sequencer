@@ -621,7 +621,10 @@ fn run_os_flow_test(input: &str) -> OsPythonTestResult {
         fs::read(Path::new(&compiled_os_path)).expect("Failed to read compiled_os file");
     let StarknetOsRunnerOutput { os_output, cairo_pie, .. } =
         run_os_stateless(&compiled_os, layout, os_hints)?;
-    cairo_pie.write_zip_file(Path::new(&cairo_pie_zip_path)).expect("Failed to write cairo pie.");
+    let merge_extra_segments = true;
+    cairo_pie
+        .write_zip_file(Path::new(&cairo_pie_zip_path), merge_extra_segments)
+        .expect("Failed to write cairo pie.");
     let output = OsCliOutput { os_output };
     Ok(serde_json::to_string(&output)?)
 }
