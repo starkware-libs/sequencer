@@ -16,6 +16,17 @@ pub type StateSyncResult<T> = Result<T, StateSyncError>;
 pub struct SyncBlock {
     pub state_diff: ThinStateDiff,
     // TODO(Matan): decide if we want block hash, parent block hash and full classes here.
-    pub transaction_hashes: Vec<TransactionHash>,
+    pub account_transaction_hashes: Vec<TransactionHash>,
+    pub l1_transaction_hashes: Vec<TransactionHash>,
     pub block_header_without_hash: BlockHeaderWithoutHash,
+}
+
+impl SyncBlock {
+    pub fn get_all_transaction_hashes(&self) -> Vec<TransactionHash> {
+        self.account_transaction_hashes
+            .iter()
+            .chain(self.l1_transaction_hashes.iter())
+            .cloned()
+            .collect()
+    }
 }

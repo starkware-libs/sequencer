@@ -98,14 +98,16 @@ impl BlockDataStreamBuilder<FullTransaction> for TransactionStreamFactory {
         storage_reader.begin_ro_txn()?.get_body_marker()
     }
 
-    // TODO(Eitan): Use real transactions once SyncBlock contains data required by full nodes
+    // TODO(Eitan): Use real transactions once SyncBlock contains data required by full nodes.
+    // TODO(Lev): Separate transaction hashes in BlockBody to account and L1 transaction hashes.
     fn convert_sync_block_to_block_data(
         block_number: BlockNumber,
         sync_block: SyncBlock,
     ) -> (BlockBody, BlockNumber) {
-        let num_transactions = sync_block.transaction_hashes.len();
+        let num_transactions =
+            sync_block.account_transaction_hashes.len() + sync_block.l1_transaction_hashes.len();
         let block_body = BlockBody {
-            transaction_hashes: sync_block.transaction_hashes,
+            transaction_hashes: sync_block.get_all_transaction_hashes(),
             transaction_outputs: std::iter::repeat_with(|| {
                 TransactionOutput::Invoke(Default::default())
             })

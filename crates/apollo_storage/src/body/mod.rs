@@ -128,6 +128,12 @@ pub trait BodyStorageReader {
         block_number: BlockNumber,
     ) -> StorageResult<Option<Vec<TransactionHash>>>;
 
+    /// Returns the transactions with hash of the block with the given number.
+    fn get_block_transactions_with_hash(
+        &self,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<Vec<(Transaction, TransactionHash)>>>;
+
     /// Returns the transaction outputs of the block with the given number.
     fn get_block_transaction_outputs(
         &self,
@@ -231,6 +237,14 @@ impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
     ) -> StorageResult<Option<Vec<TransactionHash>>> {
         let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
         self.get_transaction_hashes_in_block(block_number, transaction_metadata_table)
+    }
+
+    fn get_block_transactions_with_hash(
+        &self,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<Vec<(Transaction, TransactionHash)>>> {
+        let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
+        self.get_transactions_and_hashes_in_block(block_number, transaction_metadata_table)
     }
 
     fn get_block_transaction_outputs(
@@ -337,6 +351,22 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
             block_number,
             transaction_metadata_table,
             |tx_metadata, _file_handlers| Ok(tx_metadata.tx_hash),
+        )
+    }
+
+    fn get_transactions_and_hashes_in_block(
+        &self,
+        block_number: BlockNumber,
+        transaction_metadata_table: TransactionMetadataTable<'env>,
+    ) -> StorageResult<Option<Vec<(Transaction, TransactionHash)>>> {
+        self.get_vector_of_transaction_objects(
+            block_number,
+            transaction_metadata_table,
+            |tx_metadata, file_handlers| {
+                let transaction =
+                    file_handlers.get_transaction_unchecked(tx_metadata.tx_location)?;
+                Ok((transaction, tx_metadata.tx_hash))
+            },
         )
     }
 }
