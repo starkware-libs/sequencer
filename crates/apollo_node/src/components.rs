@@ -245,6 +245,7 @@ pub async fn create_node_components(
             let mut l1_provider_builder = L1ProviderBuilder::new(
                 config.l1_provider_config,
                 clients.get_l1_provider_shared_client().unwrap(),
+                clients.get_batcher_shared_client().unwrap(),
                 clients.get_state_sync_shared_client().unwrap(),
             );
             match &l1_scraper {
