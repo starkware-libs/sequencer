@@ -45,21 +45,7 @@ use crate::execution::execution_utils::{
     ReadOnlySegment,
     ReadOnlySegments,
 };
-use crate::execution::syscalls::secp::{
-    Secp256r1NewRequest,
-    Secp256r1NewResponse,
-    SecpAddRequest,
-    SecpAddResponse,
-    SecpGetPointFromXRequest,
-    SecpGetPointFromXResponse,
-    SecpGetXyRequest,
-    SecpGetXyResponse,
-    SecpHintProcessor,
-    SecpMulRequest,
-    SecpMulResponse,
-    SecpNewRequest,
-    SecpNewResponse,
-};
+use crate::execution::syscalls::secp::SecpHintProcessor;
 use crate::execution::syscalls::syscall_base::SyscallHandlerBase;
 use crate::execution::syscalls::syscall_executor::{execute_next_syscall, SyscallExecutor};
 use crate::execution::syscalls::{
@@ -486,6 +472,14 @@ impl<'a> SyscallHintProcessor<'a> {
 }
 
 impl SyscallExecutor for SyscallHintProcessor<'_> {
+    fn get_secpk1_hint_processor(&mut self) -> &mut SecpHintProcessor<ark_secp256k1::Config> {
+        &mut self.secp256k1_hint_processor
+    }
+
+    fn get_secpr1_hint_processor(&mut self) -> &mut SecpHintProcessor<ark_secp256r1::Config> {
+        &mut self.secp256r1_hint_processor
+    }
+
     fn increment_syscall_count(&mut self, selector: &SyscallSelector) {
         self.increment_syscall_count_by(selector, 1);
     }
@@ -764,96 +758,6 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
     ) -> SyscallResult<ReplaceClassResponse> {
         syscall_handler.base.replace_class(request.class_hash)?;
         Ok(ReplaceClassResponse {})
-    }
-
-    fn secp256k1_add(
-        request: SecpAddRequest,
-        _vm: &mut VirtualMachine,
-        syscall_handler: &mut Self,
-        _remaining_gas: &mut u64,
-    ) -> SyscallResult<SecpAddResponse> {
-        syscall_handler.secp256k1_hint_processor.secp_add(request)
-    }
-
-    fn secp256k1_get_point_from_x(
-        request: SecpGetPointFromXRequest,
-        _vm: &mut VirtualMachine,
-        syscall_handler: &mut Self,
-        _remaining_gas: &mut u64,
-    ) -> SyscallResult<SecpGetPointFromXResponse> {
-        syscall_handler.secp256k1_hint_processor.secp_get_point_from_x(request)
-    }
-
-    fn secp256k1_get_xy(
-        request: SecpGetXyRequest,
-        _vm: &mut VirtualMachine,
-        syscall_handler: &mut Self,
-        _remaining_gas: &mut u64,
-    ) -> SyscallResult<SecpGetXyResponse> {
-        syscall_handler.secp256k1_hint_processor.secp_get_xy(request)
-    }
-
-    fn secp256k1_mul(
-        request: SecpMulRequest,
-        _vm: &mut VirtualMachine,
-        syscall_handler: &mut Self,
-        _remaining_gas: &mut u64,
-    ) -> SyscallResult<SecpMulResponse> {
-        syscall_handler.secp256k1_hint_processor.secp_mul(request)
-    }
-
-    fn secp256k1_new(
-        request: SecpNewRequest,
-        _vm: &mut VirtualMachine,
-        syscall_handler: &mut Self,
-        _remaining_gas: &mut u64,
-    ) -> SyscallResult<SecpNewResponse> {
-        syscall_handler.secp256k1_hint_processor.secp_new(request)
-    }
-
-    fn secp256r1_add(
-        request: SecpAddRequest,
-        _vm: &mut VirtualMachine,
-        syscall_handler: &mut Self,
-        _remaining_gas: &mut u64,
-    ) -> SyscallResult<SecpAddResponse> {
-        syscall_handler.secp256r1_hint_processor.secp_add(request)
-    }
-
-    fn secp256r1_get_point_from_x(
-        request: SecpGetPointFromXRequest,
-        _vm: &mut VirtualMachine,
-        syscall_handler: &mut Self,
-        _remaining_gas: &mut u64,
-    ) -> SyscallResult<SecpGetPointFromXResponse> {
-        syscall_handler.secp256r1_hint_processor.secp_get_point_from_x(request)
-    }
-
-    fn secp256r1_get_xy(
-        request: SecpGetXyRequest,
-        _vm: &mut VirtualMachine,
-        syscall_handler: &mut Self,
-        _remaining_gas: &mut u64,
-    ) -> SyscallResult<SecpGetXyResponse> {
-        syscall_handler.secp256r1_hint_processor.secp_get_xy(request)
-    }
-
-    fn secp256r1_mul(
-        request: SecpMulRequest,
-        _vm: &mut VirtualMachine,
-        syscall_handler: &mut Self,
-        _remaining_gas: &mut u64,
-    ) -> SyscallResult<SecpMulResponse> {
-        syscall_handler.secp256r1_hint_processor.secp_mul(request)
-    }
-
-    fn secp256r1_new(
-        request: Secp256r1NewRequest,
-        _vm: &mut VirtualMachine,
-        syscall_handler: &mut Self,
-        _remaining_gas: &mut u64,
-    ) -> SyscallResult<Secp256r1NewResponse> {
-        syscall_handler.secp256r1_hint_processor.secp_new(request)
     }
 
     fn send_message_to_l1(
