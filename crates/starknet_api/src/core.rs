@@ -40,24 +40,25 @@ pub enum ChainId {
     Other(String),
 }
 
-impl Serialize for ChainId {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_str(&self.to_string())
-    }
-}
+// impl Serialize for ChainId {
+//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+//     where
+//         S: Serializer,
+//     {
+//         serializer.serialize_str(&self.to_string())
+//     }
+// }
 
-impl<'de> Deserialize<'de> for ChainId {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
-        Ok(ChainId::from(s))
-    }
-}
+// impl<'de> Deserialize<'de> for ChainId {
+//     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+//     where
+//         D: Deserializer<'de>,
+//     {
+//         let s = String::deserialize(deserializer)?;
+//         Ok(ChainId::from(s))
+//     }
+// }
+
 impl From<String> for ChainId {
     fn from(s: String) -> Self {
         match s.as_ref() {
