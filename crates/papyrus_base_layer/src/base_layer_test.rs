@@ -155,13 +155,6 @@ async fn events_from_other_contract() {
     let mut events =
         this_contract.events(min_block_number..=max_block_number, EVENT_IDENTIFIERS).await.unwrap();
 
-    // TODO(Arni): Fix this test. Make it so just one event is returned.
-    assert_eq!(
-        events.len(),
-        2,
-        "Expected both events to be present even though one of them was sent to a different \
-         contract."
-    );
+    assert_eq!(events.len(), 1, "Expected only events from this contract.");
     assert_matches!(events.remove(0), L1Event::LogMessageToL2 { tx, .. } if tx == this_l1_handler);
-    assert_matches!(events.remove(0), L1Event::LogMessageToL2 { tx, .. } if tx == other_l1_handler);
 }
