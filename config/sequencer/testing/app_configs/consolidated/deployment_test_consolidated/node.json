@@ -2,6 +2,7 @@
   "base_layer_config.node_url": "http://localhost:53260/",
   "base_layer_config.prague_blob_gas_calc": true,
   "base_layer_config.starknet_contract_address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+  "base_layer_config.timeout_millis": 1000,
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.l1_gas": 2500000,
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.message_segment_length": 3700,
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.n_events": 5000,
