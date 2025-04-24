@@ -98,7 +98,7 @@ pub struct OsBlockInput {
     // field. This field is needed by the blockifier, but not used in the OS, so it is expected
     // (and verified) to be initialized with an illegal value, to avoid using it accidentally.
     pub transactions: Vec<Transaction>,
-    pub _tx_execution_infos: Vec<CentralTransactionExecutionInfo>,
+    pub tx_execution_infos: Vec<CentralTransactionExecutionInfo>,
     // A mapping from Cairo 1 declared class hashes to the hashes of the contract class components.
     pub(crate) declared_class_hash_to_component_hashes:
         HashMap<ClassHash, ContractClassComponentHashes>,
