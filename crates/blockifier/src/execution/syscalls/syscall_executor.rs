@@ -8,6 +8,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::blockifier_versioned_constants::{GasCostsError, SyscallGasCost};
 use crate::execution::common_hints::HintExecutionResult;
+use crate::execution::execution_utils::felt_from_ptr;
 use crate::execution::syscalls::hint_processor::{SyscallExecutionError, OUT_OF_GAS_ERROR};
 use crate::execution::syscalls::secp::{
     SecpAddRequest,
@@ -60,7 +61,9 @@ use crate::execution::syscalls::{
 use crate::utils::u64_from_usize;
 
 pub trait SyscallExecutor {
-    fn read_next_syscall_selector(&mut self, vm: &mut VirtualMachine) -> SyscallResult<Felt>;
+    fn read_next_syscall_selector(&mut self, vm: &mut VirtualMachine) -> SyscallResult<Felt> {
+        Ok(felt_from_ptr(vm, self.get_mut_syscall_ptr())?)
+    }
 
     fn increment_syscall_count(&mut self, selector: &SyscallSelector);
 
