@@ -1,6 +1,7 @@
 #[cfg(feature = "testing")]
 use std::collections::HashSet;
 
+use blockifier::execution::syscalls::secp::SecpHintProcessor;
 use blockifier::execution::syscalls::syscall_executor::execute_next_syscall;
 use blockifier::state::state_api::StateReader;
 #[cfg(any(feature = "testing", test))]
@@ -300,17 +301,27 @@ impl<'a> SnosHintProcessor<'a, DictStateReader> {
 /// Default implementation (required for the VM to use the type as a hint processor).
 impl<S: StateReader> ResourceTracker for SnosHintProcessor<'_, S> {}
 
+#[allow(dead_code)]
 pub struct SyscallHintProcessor {
     // Sha256 segments.
     sha256_segment: Option<Relocatable>,
     syscall_ptr: Option<Relocatable>,
+
+    // Secp hint processors.
+    pub(crate) secp256k1_hint_processor: SecpHintProcessor<ark_secp256k1::Config>,
+    pub(crate) secp256r1_hint_processor: SecpHintProcessor<ark_secp256r1::Config>,
 }
 
 // TODO(Dori): remove this #[allow] after the constructor is no longer trivial.
 #[allow(clippy::new_without_default)]
 impl SyscallHintProcessor {
     pub fn new() -> Self {
-        Self { sha256_segment: None, syscall_ptr: None }
+        Self {
+            sha256_segment: None,
+            syscall_ptr: None,
+            secp256k1_hint_processor: SecpHintProcessor::default(),
+            secp256r1_hint_processor: SecpHintProcessor::default(),
+        }
     }
 
     pub fn set_sha256_segment(&mut self, sha256_segment: Relocatable) {
