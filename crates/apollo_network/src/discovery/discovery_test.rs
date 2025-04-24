@@ -114,17 +114,17 @@ async fn discovery_redials_on_dial_failure() {
 
 #[tokio::test]
 async fn discovery_redials_when_all_connections_closed() {
-    let mut behaviour =
-        create_behaviour_and_connect_to_bootstrap_node(CONFIG_WITH_LARGE_HEARTBEAT).await;
+    let (mut behaviour, bootstrap_peer_id, bootstrap_peer_address) =
+        create_behaviour_and_connect_to_bootstrap_node(CONFIG).await;
 
     // Consume the initial query event.
     timeout(TIMEOUT, behaviour.next()).await.unwrap();
 
     behaviour.on_swarm_event(FromSwarm::ConnectionClosed(ConnectionClosed {
-        peer_id: behaviour.bootstrap_peer_id(),
+        peer_id: bootstrap_peer_id,
         connection_id: ConnectionId::new_unchecked(0),
         endpoint: &ConnectedPoint::Dialer {
-            address: behaviour.bootstrap_peer_address().clone(),
+            address: bootstrap_peer_address.clone(),
             role_override: Endpoint::Dialer,
         },
         remaining_established: 0,
@@ -133,23 +133,23 @@ async fn discovery_redials_when_all_connections_closed() {
     let event = timeout(TIMEOUT, behaviour.next()).await.unwrap().unwrap();
     assert_matches!(
         event,
-        ToSwarm::Dial{opts} if opts.get_peer_id() == Some(behaviour.bootstrap_peer_id())
+        ToSwarm::Dial{opts} if opts.get_peer_id() == Some(bootstrap_peer_id)
     );
 }
 
 #[tokio::test]
 async fn discovery_doesnt_redial_when_one_connection_closes() {
-    let mut behaviour =
+    let (mut behaviour, bootstrap_peer_id, bootstrap_peer_address) =
         create_behaviour_and_connect_to_bootstrap_node(CONFIG_WITH_LARGE_HEARTBEAT).await;
 
     // Consume the initial query event.
     timeout(TIMEOUT, behaviour.next()).await.unwrap();
 
     behaviour.on_swarm_event(FromSwarm::ConnectionEstablished(ConnectionEstablished {
-        peer_id: behaviour.bootstrap_peer_id(),
+        peer_id: bootstrap_peer_id,
         connection_id: ConnectionId::new_unchecked(1),
         endpoint: &ConnectedPoint::Dialer {
-            address: behaviour.bootstrap_peer_address().clone(),
+            address: bootstrap_peer_address.clone(),
             role_override: Endpoint::Dialer,
         },
         failed_addresses: &[],
@@ -157,10 +157,10 @@ async fn discovery_doesnt_redial_when_one_connection_closes() {
     }));
 
     behaviour.on_swarm_event(FromSwarm::ConnectionClosed(ConnectionClosed {
-        peer_id: behaviour.bootstrap_peer_id(),
+        peer_id: bootstrap_peer_id,
         connection_id: ConnectionId::new_unchecked(0),
         endpoint: &ConnectedPoint::Dialer {
-            address: behaviour.bootstrap_peer_address().clone(),
+            address: bootstrap_peer_address.clone(),
             role_override: Endpoint::Dialer,
         },
         remaining_established: 1,
@@ -169,7 +169,9 @@ async fn discovery_doesnt_redial_when_one_connection_closes() {
     assert_no_event(&mut behaviour);
 }
 
-async fn create_behaviour_and_connect_to_bootstrap_node(config: DiscoveryConfig) -> Behaviour {
+async fn create_behaviour_and_connect_to_bootstrap_node(
+    config: DiscoveryConfig,
+) -> (Behaviour, PeerId, Multiaddr) {
     let bootstrap_peer_id = PeerId::random();
     let bootstrap_peer_address = Multiaddr::empty();
 
@@ -198,10 +200,10 @@ async fn create_behaviour_and_connect_to_bootstrap_node(config: DiscoveryConfig)
                 peer_id,
                 listen_addresses,
             }
-        ) if peer_id == bootstrap_peer_id && listen_addresses == vec![bootstrap_peer_address]
+        ) if peer_id == bootstrap_peer_id && listen_addresses == vec![bootstrap_peer_address.clone()]
     );
 
-    behaviour
+    (behaviour, bootstrap_peer_id, bootstrap_peer_address)
 }
 
 #[tokio::test]
@@ -210,7 +212,7 @@ async fn discovery_sleeps_between_queries() {
     const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(1);
     config.heartbeat_interval = HEARTBEAT_INTERVAL;
 
-    let mut behaviour = create_behaviour_and_connect_to_bootstrap_node(config).await;
+    let (mut behaviour, _, _) = create_behaviour_and_connect_to_bootstrap_node(config).await;
 
     // Consume the initial query event.
     timeout(TIMEOUT, behaviour.next()).await.unwrap();
