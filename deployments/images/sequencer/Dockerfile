@@ -18,7 +18,7 @@ WORKDIR /app
 COPY --from=planner /app/recipe.json recipe.json
 RUN cargo chef cook --recipe-path recipe.json
 COPY . .
-RUN cargo build
+RUN cargo build --features cairo_native
 
 FROM ubuntu:24.04 AS final_stage
 
