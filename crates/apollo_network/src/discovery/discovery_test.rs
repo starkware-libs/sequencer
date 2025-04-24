@@ -115,7 +115,7 @@ async fn discovery_redials_on_dial_failure() {
 #[tokio::test]
 async fn discovery_redials_when_all_connections_closed() {
     let (mut behaviour, bootstrap_peer_id, bootstrap_peer_address) =
-        create_behaviour_and_connect_to_bootstrap_node(CONFIG).await;
+        create_behaviour_and_connect_to_bootstrap_node(CONFIG_WITH_LARGE_HEARTBEAT).await;
 
     // Consume the initial query event.
     timeout(TIMEOUT, behaviour.next()).await.unwrap();
