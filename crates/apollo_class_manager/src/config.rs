@@ -3,64 +3,37 @@ use std::path::PathBuf;
 
 use apollo_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_storage::db::DbConfig;
+use apollo_storage::StorageConfig;
 use serde::{Deserialize, Serialize};
+use starknet_api::core::ChainId;
 use validator::Validate;
 
 use crate::class_storage::CachedClassStorageConfig;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-pub struct ClassHashStorageConfig {
-    pub path_prefix: PathBuf,
-    pub enforce_file_exists: bool,
-    pub max_size: usize,
-}
-
-impl Default for ClassHashStorageConfig {
-    fn default() -> Self {
-        Self {
-            path_prefix: "/data/class_hash_storage".into(),
-            enforce_file_exists: false,
-            max_size: 1 << 20, // 1MB.
-        }
-    }
-}
-
-impl SerializeConfig for ClassHashStorageConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from([
-            ser_param(
-                "path_prefix",
-                &self.path_prefix,
-                "Prefix of the path of class hash storage directory.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "enforce_file_exists",
-                &self.enforce_file_exists,
-                "Whether to enforce that the above path exists.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_size",
-                &self.max_size,
-                "The maximum size of the class hash storage in bytes.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct FsClassStorageConfig {
     pub persistent_root: PathBuf,
-    pub class_hash_storage_config: ClassHashStorageConfig,
+    pub storage_config: StorageConfig,
 }
 
 impl Default for FsClassStorageConfig {
     fn default() -> Self {
         Self {
             persistent_root: "/data/classes".into(),
-            class_hash_storage_config: Default::default(),
+            storage_config: StorageConfig {
+                db_config: DbConfig {
+                    path_prefix: PathBuf::from("/data/class_hash_storage"),
+                    chain_id: ChainId::Other("UnusedChainID".to_string()),
+                    ..Default::default()
+                },
+                scope: apollo_storage::StorageScope::StateOnly,
+                mmap_file_config: apollo_storage::mmap_file::MmapFileConfig {
+                    max_size: 1 << 30,        // 1GB.
+                    growth_step: 1 << 20,     // 1MB.
+                    max_object_size: 1 << 10, // 1KB; a class hash is 32B.
+                },
+            },
         }
     }
 }
@@ -73,10 +46,7 @@ impl SerializeConfig for FsClassStorageConfig {
             "Path to the node's class storage directory.",
             ParamPrivacyInput::Public,
         )]);
-        dump.append(&mut append_sub_config_name(
-            self.class_hash_storage_config.dump(),
-            "class_hash_storage_config",
-        ));
+        dump.append(&mut append_sub_config_name(self.storage_config.dump(), "storage_config"));
         dump
     }
 }

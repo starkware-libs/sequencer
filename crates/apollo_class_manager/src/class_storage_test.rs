@@ -1,4 +1,6 @@
 use apollo_compile_to_casm_types::{RawClass, RawExecutableClass};
+use apollo_storage::db::DbConfig;
+use apollo_storage::StorageConfig;
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::felt;
 use starknet_api::state::SierraContractClass;
@@ -6,7 +8,6 @@ use starknet_api::state::SierraContractClass;
 use crate::class_storage::{
     create_tmp_dir,
     ClassHashStorage,
-    ClassHashStorageConfig,
     ClassStorage,
     FsClassStorage,
     FsClassStorageError,
@@ -17,10 +18,13 @@ use crate::class_storage::{
 #[cfg(test)]
 impl ClassHashStorage {
     pub fn new_for_testing(path_prefix: &tempfile::TempDir) -> Self {
-        let config = ClassHashStorageConfig {
-            path_prefix: path_prefix.path().to_path_buf(),
-            enforce_file_exists: false,
-            max_size: 1 << 20, // 1MB.
+        let config = StorageConfig {
+            db_config: DbConfig {
+                path_prefix: path_prefix.path().to_path_buf(),
+                enforce_file_exists: false,
+                ..Default::default()
+            },
+            ..Default::default()
         };
         Self::new(config).unwrap()
     }

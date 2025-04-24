@@ -9,14 +9,14 @@ use apollo_compile_to_casm_types::{RawClass, RawClassError, RawExecutableClass};
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_storage::class_hash::{ClassHashStorageReader, ClassHashStorageWriter};
+use apollo_storage::StorageConfig;
 use serde::{Deserialize, Serialize};
 use starknet_api::class_cache::GlobalContractCache;
 use starknet_api::contract_class::ContractClass;
-use starknet_api::core::ChainId;
 use thiserror::Error;
 use tracing::instrument;
 
-use crate::config::{ClassHashStorageConfig, FsClassStorageConfig};
+use crate::config::FsClassStorageConfig;
 use crate::metrics::{increment_n_classes, record_class_size, CairoClassType, ClassObjectType};
 
 #[cfg(test)]
@@ -280,25 +280,8 @@ pub struct ClassHashStorage {
 }
 
 impl ClassHashStorage {
-    pub fn new(config: ClassHashStorageConfig) -> ClassHashStorageResult<Self> {
-        let storage_config = apollo_storage::StorageConfig {
-            db_config: apollo_storage::db::DbConfig {
-                path_prefix: config.path_prefix,
-                chain_id: ChainId::Other("UnusedChainID".to_string()),
-                enforce_file_exists: config.enforce_file_exists,
-                max_size: config.max_size,
-                growth_step: 1 << 20, // 1MB.
-                ..Default::default()
-            },
-            scope: apollo_storage::StorageScope::StateOnly,
-            mmap_file_config: apollo_storage::mmap_file::MmapFileConfig {
-                max_size: 1 << 30,        // 1GB.
-                growth_step: 1 << 20,     // 1MB.
-                max_object_size: 1 << 10, // 1KB; a class hash is 32B.
-            },
-        };
+    pub fn new(storage_config: StorageConfig) -> ClassHashStorageResult<Self> {
         let (reader, writer) = apollo_storage::open_storage(storage_config)?;
-
         Ok(Self { reader, writer: Arc::new(Mutex::new(writer)) })
     }
 
@@ -351,7 +334,7 @@ pub enum FsClassStorageError {
 
 impl FsClassStorage {
     pub fn new(config: FsClassStorageConfig) -> FsClassStorageResult<Self> {
-        let class_hash_storage = ClassHashStorage::new(config.class_hash_storage_config)?;
+        let class_hash_storage = ClassHashStorage::new(config.storage_config)?;
         Ok(Self { persistent_root: config.persistent_root, class_hash_storage })
     }
 
