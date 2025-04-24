@@ -131,6 +131,7 @@ use crate::hints::hint_implementation::os::{
     init_state_update_pointer,
     initialize_class_hashes,
     initialize_state_changes,
+    log_remaining_blocks,
     set_ap_to_new_block_hash,
     set_ap_to_prev_block_hash,
     starknet_os_input,
@@ -1722,6 +1723,11 @@ initial_dict = {
         InitializeClassHashes,
         initialize_class_hashes,
         "initial_dict = block_input.class_hash_to_compiled_class_hash"
+    ),
+    (
+        LogRemainingBlocks,
+        log_remaining_blocks,
+        indoc! {r#"print(f"execute_blocks: {ids.n_blocks} blocks remaining.")"#}
     ),
     (
         CreateBlockAdditionalHints,

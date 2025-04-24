@@ -108,6 +108,12 @@ pub(crate) fn get_n_blocks<S: StateReader>(
     insert_nondet_hint_value(vm, AllHints::OsHint(OsHint::GetBlocksNumber), n_blocks)
 }
 
+pub(crate) fn log_remaining_blocks<S: StateReader>(
+    HintArgs { .. }: HintArgs<'_, '_, S>,
+) -> OsHintResult {
+    todo!()
+}
+
 pub(crate) fn create_block_additional_hints<S: StateReader>(
     HintArgs { hint_processor, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
