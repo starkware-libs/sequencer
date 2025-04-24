@@ -486,6 +486,10 @@ impl<'a> SyscallHintProcessor<'a> {
 }
 
 impl SyscallExecutor for SyscallHintProcessor<'_> {
+    fn read_next_syscall_selector(&mut self, vm: &mut VirtualMachine) -> SyscallResult<Felt> {
+        Ok(felt_from_ptr(vm, &mut self.syscall_ptr)?)
+    }
+
     fn increment_syscall_count(&mut self, selector: &SyscallSelector) {
         self.increment_syscall_count_by(selector, 1);
     }
