@@ -8,7 +8,8 @@
       "controller": "StatefulSet",
       "config_paths": [
         "node.json",
-        "deployment_config_override.json"
+        "deployment_config_override.json",
+        "instance_config_override.json"
       ],
       "ingress": null,
       "autoscale": false,

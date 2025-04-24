@@ -9,6 +9,7 @@ use crate::deployment::{
     Deployment,
     DeploymentAndPreset,
     DeploymentConfigOverride,
+    InstanceConfigOverride,
     DEPLOYMENT_IMAGE_FOR_PRE_INTEGRATION,
     DEPLOYMENT_IMAGE_FOR_TESTING,
 };
@@ -50,10 +51,71 @@ const TESTING_DEPLOYMENT_CONFIG_OVERRIDE: DeploymentConfigOverride = DeploymentC
     "0x1002",
 );
 
-const INTEGRATION_CONFIG_OVERRIDE: ConfigOverride =
-    ConfigOverride::new(&INTEGRATION_DEPLOYMENT_CONFIG_OVERRIDE);
+const SEPOLIA_INTEGRATION_NODE_0_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverride =
+    InstanceConfigOverride::new(
+        "",
+        "true",
+        "0x0101010101010101010101010101010101010101010101010101010101010101",
+        "",
+        "true",
+        "0x0101010101010101010101010101010101010101010101010101010101010101",
+        "0x1",
+    );
+
+// TODO(Tsabary): need to properly edit the peer addresses using the correct cluster, namespace, and
+// port values.
+const SEPOLIA_INTEGRATION_NODE_1_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverride =
+    InstanceConfigOverride::new(
+        "/dns/sequencer-core-service.sequencer0-preintegration.svc.cluster.local/tcp/53080/p2p/\
+         12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
+        "false",
+        "0x0101010101010101010101010101010101010101010101010101010101010102",
+        "/dns/sequencer-mempool-service.sequencer0-preintegration.svc.cluster.local/tcp/53200/p2p/\
+         12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
+        "false",
+        "0x0101010101010101010101010101010101010101010101010101010101010102",
+        "0x2",
+    );
+
+// TODO(Tsabary): need to properly edit the peer addresses using the correct cluster, namespace, and
+// port values.
+const SEPOLIA_INTEGRATION_NODE_2_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverride =
+    InstanceConfigOverride::new(
+        "/dns/sequencer-core-service.sequencer0-preintegration.svc.cluster.local/tcp/53080/p2p/\
+         12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
+        "false",
+        "0x0101010101010101010101010101010101010101010101010101010101010103",
+        "/dns/sequencer-mempool-service.sequencer0-preintegration.svc.cluster.local/tcp/53200/p2p/\
+         12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
+        "false",
+        "0x0101010101010101010101010101010101010101010101010101010101010103",
+        "0x3",
+    );
+
+const TESTING_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverride = InstanceConfigOverride::new(
+    "",
+    "true",
+    "0x0101010101010101010101010101010101010101010101010101010101010101",
+    "",
+    "true",
+    "0x0101010101010101010101010101010101010101010101010101010101010101",
+    "0x64",
+);
+
+const SEPOLIA_INTEGRATION_NODE_0_CONFIG_OVERRIDE: ConfigOverride = ConfigOverride::new(
+    &INTEGRATION_DEPLOYMENT_CONFIG_OVERRIDE,
+    &SEPOLIA_INTEGRATION_NODE_0_INSTANCE_CONFIG_OVERRIDE,
+);
+const SEPOLIA_INTEGRATION_NODE_1_CONFIG_OVERRIDE: ConfigOverride = ConfigOverride::new(
+    &INTEGRATION_DEPLOYMENT_CONFIG_OVERRIDE,
+    &SEPOLIA_INTEGRATION_NODE_1_INSTANCE_CONFIG_OVERRIDE,
+);
+const SEPOLIA_INTEGRATION_NODE_2_CONFIG_OVERRIDE: ConfigOverride = ConfigOverride::new(
+    &INTEGRATION_DEPLOYMENT_CONFIG_OVERRIDE,
+    &SEPOLIA_INTEGRATION_NODE_2_INSTANCE_CONFIG_OVERRIDE,
+);
 const TESTING_CONFIG_OVERRIDE: ConfigOverride =
-    ConfigOverride::new(&TESTING_DEPLOYMENT_CONFIG_OVERRIDE);
+    ConfigOverride::new(&TESTING_DEPLOYMENT_CONFIG_OVERRIDE, &TESTING_INSTANCE_CONFIG_OVERRIDE);
 
 type DeploymentFn = fn() -> DeploymentAndPreset;
 
@@ -62,7 +124,6 @@ type DeploymentFn = fn() -> DeploymentAndPreset;
 pub const DEPLOYMENTS: &[DeploymentFn] = &[
     system_test_distributed_deployment,
     system_test_consolidated_deployment,
-    integration_consolidated_deployment,
     integration_hybrid_deployment_node_0,
     integration_hybrid_deployment_node_1,
     integration_hybrid_deployment_node_2,
@@ -79,7 +140,7 @@ fn integration_hybrid_deployment_node_0() -> DeploymentAndPreset {
         Some(ExternalSecret::new("node-0-integration-secrets")),
         DEPLOYMENT_IMAGE_FOR_PRE_INTEGRATION,
         PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH_NODE_0),
-        INTEGRATION_CONFIG_OVERRIDE,
+        SEPOLIA_INTEGRATION_NODE_0_CONFIG_OVERRIDE,
     ))
 }
 
@@ -92,7 +153,7 @@ fn integration_hybrid_deployment_node_1() -> DeploymentAndPreset {
         Some(ExternalSecret::new("node-1-integration-secrets")),
         DEPLOYMENT_IMAGE_FOR_PRE_INTEGRATION,
         PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH_NODE_1),
-        INTEGRATION_CONFIG_OVERRIDE,
+        SEPOLIA_INTEGRATION_NODE_1_CONFIG_OVERRIDE,
     ))
 }
 
@@ -105,20 +166,7 @@ fn integration_hybrid_deployment_node_2() -> DeploymentAndPreset {
         Some(ExternalSecret::new("node-2-integration-secrets")),
         DEPLOYMENT_IMAGE_FOR_PRE_INTEGRATION,
         PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH_NODE_2),
-        INTEGRATION_CONFIG_OVERRIDE,
-    ))
-}
-
-fn integration_consolidated_deployment() -> DeploymentAndPreset {
-    DeploymentAndPreset::new(Deployment::new(
-        ChainId::IntegrationSepolia,
-        DeploymentName::ConsolidatedNode,
-        Environment::SepoliaIntegration,
-        "integration_consolidated",
-        Some(ExternalSecret::new("node-1-integration-secrets")),
-        DEPLOYMENT_IMAGE_FOR_PRE_INTEGRATION,
-        PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH_NODE_0),
-        INTEGRATION_CONFIG_OVERRIDE,
+        SEPOLIA_INTEGRATION_NODE_2_CONFIG_OVERRIDE,
     ))
 }
 
