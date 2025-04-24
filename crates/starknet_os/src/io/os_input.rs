@@ -1,10 +1,17 @@
 use std::collections::HashMap;
 
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber};
-use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
+use starknet_api::core::{
+    deserialize_chain_id_from_hex,
+    ChainId,
+    ClassHash,
+    CompiledClassHash,
+    ContractAddress,
+    Nonce,
+};
 use starknet_api::deprecated_contract_class::ContractClass;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::state::StorageKey;
@@ -69,8 +76,10 @@ pub struct StarknetOsInput {
 }
 
 // TODO(Meshi): Remove Once the blockifier ChainInfo do not support deprecated fee token.
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct OsChainInfo {
+    #[cfg_attr(feature = "deserialize", serde(deserialize_with = "deserialize_chain_id_from_hex"))]
     pub(crate) chain_id: ChainId,
     pub(crate) strk_fee_token_address: ContractAddress,
 }

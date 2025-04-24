@@ -7,6 +7,7 @@ use std::sync::LazyLock;
 
 use num_traits::ToPrimitive;
 use primitive_types::H160;
+use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use size_of::SizeOf;
 use starknet_types_core::felt::{Felt, NonZeroFelt};
@@ -83,6 +84,22 @@ impl ChainId {
     pub fn as_hex(&self) -> String {
         format!("0x{}", hex::encode(self.to_string()))
     }
+}
+
+pub fn deserialize_chain_id_from_hex<'de, D>(deserializer: D) -> Result<ChainId, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let hex_str = String::deserialize(deserializer)?;
+    let chain_id_str =
+        std::str::from_utf8(&hex::decode(hex_str.trim_start_matches("0x")).map_err(|e| {
+            D::Error::custom(format!("Failed to decode the hex string {hex_str}. Error: {:?}", e))
+        })?)
+        .map_err(|e| {
+            D::Error::custom(format!("Failed to convert to UTF-8 string. Error: {:?}", e))
+        })?
+        .to_string();
+    Ok(ChainId::from(chain_id_str))
 }
 
 /// The address of a contract, used for example in [StateDiff](`crate::state::StateDiff`),
