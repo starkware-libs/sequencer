@@ -32,6 +32,10 @@ const DEFAULT_ANVIL_PORT: u16 = 8545;
 pub const DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS: &str = "0x5fbdb2315678afecb367f032d93f642f64180aa3";
 pub const DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX: usize = 3;
 
+// ***
+// DEPRECATED: Use the anvil constructor, this constructor is deprecated as it uses ganache.
+// ***
+//
 // Returns a Ganache instance, preset with a Starknet core contract and some state updates:
 // Starknet contract address: 0xe2aF2c1AE11fE13aFDb7598D0836398108a4db0A
 //     Ethereum block number   starknet block number   starknet block hash
@@ -41,8 +45,10 @@ pub const DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX: usize = 3;
 // The blockchain is at Ethereum block number 31.
 // Note: Requires Ganache@7.4.3 installed.
 // TODO(Gilad): `Ganache` and `ethers` have both been deprecated. Also, `ethers`s' replacement,
-// `alloy`, no longer supports `Ganache`. Once we decide on a Ganache replacement, fix this test and
-// fully remove `ethers`.
+// `alloy`, no longer supports `Ganache`. Once we fully support anvil, remove this util, `ganache`
+// and `ethers``.
+#[deprecated(note = "Ganache is dead and will be removed soon, use Anvil instead, unless you \
+                     need something we don't support on anvil yet.")]
 pub fn get_test_ethereum_node() -> (TestEthereumNodeHandle, EthereumContractAddress) {
     const SN_CONTRACT_ADDR: &str = "0xe2aF2c1AE11fE13aFDb7598D0836398108a4db0A";
     // Verify correct Ganache version.
