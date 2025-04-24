@@ -301,7 +301,6 @@ impl<'a> SnosHintProcessor<'a, DictStateReader> {
 /// Default implementation (required for the VM to use the type as a hint processor).
 impl<S: StateReader> ResourceTracker for SnosHintProcessor<'_, S> {}
 
-#[allow(dead_code)]
 pub struct SyscallHintProcessor {
     // Sha256 segments.
     sha256_segment: Option<Relocatable>,
