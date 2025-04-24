@@ -2,6 +2,7 @@ use std::cmp::Ordering::{Equal, Greater, Less};
 use std::collections::HashSet;
 use std::sync::Arc;
 
+use apollo_batcher_types::communication::SharedBatcherClient;
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_l1_provider_types::errors::L1ProviderError;
 use apollo_l1_provider_types::{
@@ -256,6 +257,7 @@ impl ComponentStarter for L1Provider {}
 pub struct L1ProviderBuilder {
     pub config: L1ProviderConfig,
     pub l1_provider_client: SharedL1ProviderClient,
+    pub batcher_client: SharedBatcherClient,
     pub state_sync_client: SharedStateSyncClient,
     startup_height: Option<BlockNumber>,
     catchup_height: Option<BlockNumber>,
@@ -265,11 +267,13 @@ impl L1ProviderBuilder {
     pub fn new(
         config: L1ProviderConfig,
         l1_provider_client: SharedL1ProviderClient,
+        batcher_client: SharedBatcherClient,
         state_sync_client: SharedStateSyncClient,
     ) -> Self {
         Self {
             config,
             l1_provider_client,
+            batcher_client,
             state_sync_client,
             startup_height: None,
             catchup_height: None,
@@ -322,6 +326,7 @@ impl L1ProviderBuilder {
 
         let bootstrapper = Bootstrapper::new(
             self.l1_provider_client,
+            self.batcher_client,
             self.state_sync_client,
             self.config.startup_sync_sleep_retry_interval_seconds,
             catchup_height,

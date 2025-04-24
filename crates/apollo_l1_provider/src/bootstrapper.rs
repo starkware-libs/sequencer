@@ -2,6 +2,7 @@ use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
+use apollo_batcher_types::communication::SharedBatcherClient;
 use apollo_l1_provider_types::SharedL1ProviderClient;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use starknet_api::block::BlockNumber;
@@ -22,6 +23,7 @@ pub struct Bootstrapper {
     pub sync_retry_interval: Duration,
     pub commit_block_backlog: Vec<CommitBlockBacklog>,
     pub l1_provider_client: SharedL1ProviderClient,
+    pub batcher_client: SharedBatcherClient,
     pub sync_client: SharedStateSyncClient,
     // Keep track of sync task for health checks and logging status.
     pub sync_task_handle: SyncTaskHandle,
@@ -35,6 +37,7 @@ impl Bootstrapper {
 
     pub fn new(
         l1_provider_client: SharedL1ProviderClient,
+        batcher_client: SharedBatcherClient,
         sync_client: SharedStateSyncClient,
         sync_retry_interval: Duration,
         catch_up_height: LazyCatchUpHeight,
@@ -43,6 +46,7 @@ impl Bootstrapper {
             sync_retry_interval,
             commit_block_backlog: Default::default(),
             l1_provider_client,
+            batcher_client,
             sync_client,
             sync_task_handle: SyncTaskHandle::NotStartedYet,
             n_sync_health_check_failures: Default::default(),
@@ -87,6 +91,7 @@ impl Bootstrapper {
         // tokio runtime.
         let sync_task_handle = tokio::spawn(l2_sync_task(
             self.l1_provider_client.clone(),
+            self.batcher_client.clone(),
             self.sync_client.clone(),
             current_provider_height,
             self.catch_up_height.clone(),
@@ -144,27 +149,34 @@ impl std::fmt::Debug for Bootstrapper {
     }
 }
 
+// TODO(noamsp): fix catch up height to use batcher height and not the latest block number in
+// storage.
 async fn l2_sync_task(
     l1_provider_client: SharedL1ProviderClient,
+    batcher_client: SharedBatcherClient,
     sync_client: SharedStateSyncClient,
     mut current_height: BlockNumber,
     catch_up_height: LazyCatchUpHeight,
     retry_interval: Duration,
 ) {
-    // Currently infra doesn't support starting up the provider only after sync is ready.
-    info!("Try fetching sync height to initialize catch up point");
+    info!("Try fetching batcher height to initialize catch up point");
     while !catch_up_height.initialized() {
-        let Some(sync_height) = sync_client
-            .get_latest_block_number()
+        let Some(batcher_latest_block_number) = batcher_client
+            .get_height()
             .await
-            .expect("network error handling not supported yet")
+            .expect("Unexpected error while fetching batcher height")
+            .height
+            .prev()
         else {
-            debug!("Sync state not ready yet, trying again later");
+            debug!("Batcher not ready yet, trying again later");
             tokio::time::sleep(retry_interval).await;
             continue;
         };
-        info!("Catch up height set: {sync_height}");
-        catch_up_height.set(sync_height).expect("This is the only write-point, cannot fail")
+
+        info!("Catch up height set: {batcher_latest_block_number}");
+        catch_up_height
+            .set(batcher_latest_block_number)
+            .expect("This is the only write-point, cannot fail")
     }
     let catch_up_height = *catch_up_height.get().expect("Initialized above");
 
