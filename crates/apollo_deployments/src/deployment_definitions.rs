@@ -49,10 +49,10 @@ const TESTING_DEPLOYMENT_CONFIG_OVERRIDE: DeploymentConfigOverride = DeploymentC
 const SEPOLIA_INTEGRATION_NODE_0_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverride =
     InstanceConfigOverride::new(
         "",
-        "true",
+        true,
         "0x0101010101010101010101010101010101010101010101010101010101010101",
         "",
-        "true",
+        true,
         "0x0101010101010101010101010101010101010101010101010101010101010101",
         "0x1",
     );
@@ -63,11 +63,11 @@ const SEPOLIA_INTEGRATION_NODE_1_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverrid
     InstanceConfigOverride::new(
         "/dns/sequencer-core-service.sequencer0-preintegration.svc.cluster.local/tcp/53080/p2p/\
          12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
-        "false",
+        false,
         "0x0101010101010101010101010101010101010101010101010101010101010102",
         "/dns/sequencer-mempool-service.sequencer0-preintegration.svc.cluster.local/tcp/53200/p2p/\
          12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
-        "false",
+        false,
         "0x0101010101010101010101010101010101010101010101010101010101010102",
         "0x2",
     );
@@ -78,11 +78,11 @@ const SEPOLIA_INTEGRATION_NODE_2_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverrid
     InstanceConfigOverride::new(
         "/dns/sequencer-core-service.sequencer0-preintegration.svc.cluster.local/tcp/53080/p2p/\
          12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
-        "false",
+        false,
         "0x0101010101010101010101010101010101010101010101010101010101010103",
         "/dns/sequencer-mempool-service.sequencer0-preintegration.svc.cluster.local/tcp/53200/p2p/\
          12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
-        "false",
+        false,
         "0x0101010101010101010101010101010101010101010101010101010101010103",
         "0x3",
     );
@@ -93,21 +93,21 @@ const SEPOLIA_INTEGRATION_NODE_3_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverrid
     InstanceConfigOverride::new(
         "/dns/sequencer-core-service.sequencer0-preintegration.svc.cluster.local/tcp/53080/p2p/\
          12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
-        "false",
+        false,
         "0x0101010101010101010101010101010101010101010101010101010101010104",
         "/dns/sequencer-mempool-service.sequencer0-preintegration.svc.cluster.local/tcp/53200/p2p/\
          12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
-        "false",
+        false,
         "0x0101010101010101010101010101010101010101010101010101010101010104",
         "0x4",
     );
 
 const TESTING_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverride = InstanceConfigOverride::new(
     "",
-    "true",
+    true,
     "0x0101010101010101010101010101010101010101010101010101010101010101",
     "",
-    "true",
+    true,
     "0x0101010101010101010101010101010101010101010101010101010101010101",
     "0x64",
 );
