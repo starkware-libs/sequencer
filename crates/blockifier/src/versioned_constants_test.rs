@@ -173,8 +173,8 @@ fn test_old_json_parsing() {
             panic!("Versioned constants JSON file {file:#?} is malformed: {error}.")
         });
         assert_eq!(
-            GasCosts::from_raw(&raw_vc.os_constants, &raw_vc.os_resources),
-            vc.os_constants.gas_costs
+            OsConstants::from_raw(&raw_vc.os_constants, &raw_vc.os_resources),
+            *vc.os_constants
         );
     }
 }

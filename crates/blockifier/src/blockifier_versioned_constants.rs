@@ -974,7 +974,6 @@ pub struct GasCosts {
 }
 
 impl GasCosts {
-    #[allow(dead_code)]
     fn from_raw(os_constants: &RawOsConstants, os_resources: &RawOsResources) -> Self {
         let step_gas_cost = os_constants.step_gas_cost;
 
@@ -1108,7 +1107,7 @@ impl GasCosts {
 // conversion into actual values.
 // TODO(Dori): Remove `Deserialize` derive here.
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, PartialEq)]
 #[serde(try_from = "OsConstantsRawJson")]
 pub struct OsConstants {
     pub gas_costs: GasCosts,
@@ -1126,7 +1125,7 @@ pub struct OsConstants {
 impl OsConstants {
     // List of os constants to be ignored
     // during the creation of the struct containing the base gas costs.
-
+    // TODO(Dori): Delete this when VC is deserialized from `RawVersionedConstants`.
     const ADDITIONAL_FIELDS: [&'static str; 32] = [
         "builtin_gas_costs",
         "constructor_entry_point_selector",
@@ -1161,6 +1160,22 @@ impl OsConstants {
         "validate_rounding_consts",
         "validated",
     ];
+
+    #[allow(dead_code)]
+    fn from_raw(raw_constants: &RawOsConstants, raw_resources: &RawOsResources) -> Self {
+        Self {
+            gas_costs: GasCosts::from_raw(raw_constants, raw_resources),
+            validate_rounding_consts: raw_constants.validate_rounding_consts,
+            os_contract_addresses: raw_constants.os_contract_addresses,
+            validate_max_sierra_gas: raw_constants.validate_max_sierra_gas,
+            execute_max_sierra_gas: raw_constants.execute_max_sierra_gas,
+            v1_bound_accounts_cairo0: raw_constants.v1_bound_accounts_cairo0.clone(),
+            v1_bound_accounts_cairo1: raw_constants.v1_bound_accounts_cairo1.clone(),
+            v1_bound_accounts_max_tip: raw_constants.v1_bound_accounts_max_tip,
+            l1_handler_max_amount_bounds: raw_constants.l1_handler_max_amount_bounds,
+            data_gas_accounts: raw_constants.data_gas_accounts.clone(),
+        }
+    }
 }
 
 // TODO(Dori): Convert from `RawOsConstants`.
@@ -1226,7 +1241,7 @@ impl TryFrom<OsConstantsRawJson> for OsConstants {
         Ok(os_constants)
     }
 }
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq)]
 pub struct OsContractAddresses {
     block_hash_contract_address: u8,
     alias_contract_address: u8,
@@ -1653,8 +1668,7 @@ impl From<&VariableResourceParams> for RawResourcesParams {
     }
 }
 
-#[cfg_attr(any(test, feature = "testing"), derive(Copy))]
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
 pub struct ValidateRoundingConsts {
     // Flooring factor for block number in validate mode.
     pub validate_block_number_rounding: u64,
