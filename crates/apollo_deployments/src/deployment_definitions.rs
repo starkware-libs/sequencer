@@ -88,6 +88,21 @@ const SEPOLIA_INTEGRATION_NODE_2_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverrid
         "0x3",
     );
 
+// TODO(Tsabary): need to properly edit the peer addresses using the correct cluster, namespace, and
+// port values.
+const SEPOLIA_INTEGRATION_NODE_3_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverride =
+    InstanceConfigOverride::new(
+        "/dns/sequencer-core-service.sequencer0-preintegration.svc.cluster.local/tcp/53080/p2p/\
+         12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
+        "false",
+        "0x0101010101010101010101010101010101010101010101010101010101010104",
+        "/dns/sequencer-mempool-service.sequencer0-preintegration.svc.cluster.local/tcp/53200/p2p/\
+         12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
+        "false",
+        "0x0101010101010101010101010101010101010101010101010101010101010104",
+        "0x4",
+    );
+
 const TESTING_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverride = InstanceConfigOverride::new(
     "",
     "true",
@@ -110,6 +125,10 @@ const SEPOLIA_INTEGRATION_NODE_2_CONFIG_OVERRIDE: ConfigOverride = ConfigOverrid
     &INTEGRATION_DEPLOYMENT_CONFIG_OVERRIDE,
     &SEPOLIA_INTEGRATION_NODE_2_INSTANCE_CONFIG_OVERRIDE,
 );
+const SEPOLIA_INTEGRATION_NODE_3_CONFIG_OVERRIDE: ConfigOverride = ConfigOverride::new(
+    &INTEGRATION_DEPLOYMENT_CONFIG_OVERRIDE,
+    &SEPOLIA_INTEGRATION_NODE_3_INSTANCE_CONFIG_OVERRIDE,
+);
 const TESTING_CONFIG_OVERRIDE: ConfigOverride =
     ConfigOverride::new(&TESTING_DEPLOYMENT_CONFIG_OVERRIDE, &TESTING_INSTANCE_CONFIG_OVERRIDE);
 
@@ -123,6 +142,7 @@ pub const DEPLOYMENTS: &[DeploymentFn] = &[
     integration_hybrid_deployment_node_0,
     integration_hybrid_deployment_node_1,
     integration_hybrid_deployment_node_2,
+    integration_hybrid_deployment_node_3,
 ];
 
 // Integration deployments
@@ -163,6 +183,19 @@ fn integration_hybrid_deployment_node_2() -> DeploymentAndPreset {
         DEPLOYMENT_IMAGE_FOR_PRE_INTEGRATION,
         PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH),
         SEPOLIA_INTEGRATION_NODE_2_CONFIG_OVERRIDE,
+    ))
+}
+
+fn integration_hybrid_deployment_node_3() -> DeploymentAndPreset {
+    DeploymentAndPreset::new(Deployment::new(
+        ChainId::IntegrationSepolia,
+        DeploymentName::HybridNode,
+        Environment::SepoliaIntegration,
+        "integration_hybrid_node_3",
+        Some(ExternalSecret::new("node-3-integration-secrets")),
+        DEPLOYMENT_IMAGE_FOR_PRE_INTEGRATION,
+        PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH),
+        SEPOLIA_INTEGRATION_NODE_3_CONFIG_OVERRIDE,
     ))
 }
 
