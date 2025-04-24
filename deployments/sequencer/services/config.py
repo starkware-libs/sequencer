@@ -30,9 +30,6 @@ class DeploymentConfig:
     def get_chain_id(self):
         return self._deployment_config_data.get("chain_id")
 
-    def get_image(self):
-        return self._deployment_config_data.get("image")
-
     def get_application_config_subdir(self):
         return self._deployment_config_data.get("application_config_subdir")
 

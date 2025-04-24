@@ -2,7 +2,6 @@
   "type": "object",
   "properties": {
     "chain_id": { "type": "string" },
-    "image": { "type": "string" },
     "application_config_subdir": { "type": "string" },
     "services": {
       "type": "array",

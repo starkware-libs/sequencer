@@ -9,8 +9,6 @@ use crate::deployment::{
     Deployment,
     DeploymentConfigOverride,
     InstanceConfigOverride,
-    DEPLOYMENT_IMAGE_FOR_PRE_INTEGRATION,
-    DEPLOYMENT_IMAGE_FOR_TESTING,
 };
 use crate::service::{DeploymentName, ExternalSecret};
 
@@ -153,7 +151,6 @@ fn integration_hybrid_deployment_node_0() -> Deployment {
         Environment::SepoliaIntegration,
         "integration_hybrid_node_0",
         Some(ExternalSecret::new("node-0-integration-secrets")),
-        DEPLOYMENT_IMAGE_FOR_PRE_INTEGRATION,
         PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH),
         SEPOLIA_INTEGRATION_NODE_0_CONFIG_OVERRIDE,
     )
@@ -166,7 +163,6 @@ fn integration_hybrid_deployment_node_1() -> Deployment {
         Environment::SepoliaIntegration,
         "integration_hybrid_node_1",
         Some(ExternalSecret::new("node-1-integration-secrets")),
-        DEPLOYMENT_IMAGE_FOR_PRE_INTEGRATION,
         PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH),
         SEPOLIA_INTEGRATION_NODE_1_CONFIG_OVERRIDE,
     )
@@ -179,7 +175,6 @@ fn integration_hybrid_deployment_node_2() -> Deployment {
         Environment::SepoliaIntegration,
         "integration_hybrid_node_2",
         Some(ExternalSecret::new("node-2-integration-secrets")),
-        DEPLOYMENT_IMAGE_FOR_PRE_INTEGRATION,
         PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH),
         SEPOLIA_INTEGRATION_NODE_2_CONFIG_OVERRIDE,
     )
@@ -192,7 +187,6 @@ fn integration_hybrid_deployment_node_3() -> Deployment {
         Environment::SepoliaIntegration,
         "integration_hybrid_node_3",
         Some(ExternalSecret::new("node-3-integration-secrets")),
-        DEPLOYMENT_IMAGE_FOR_PRE_INTEGRATION,
         PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH),
         SEPOLIA_INTEGRATION_NODE_3_CONFIG_OVERRIDE,
     )
@@ -206,7 +200,6 @@ fn system_test_distributed_deployment() -> Deployment {
         Environment::Testing,
         "deployment_test_distributed",
         None,
-        DEPLOYMENT_IMAGE_FOR_TESTING,
         PathBuf::from(SYSTEM_TEST_BASE_APP_CONFIG_PATH),
         TESTING_CONFIG_OVERRIDE,
     )
@@ -219,7 +212,6 @@ fn system_test_consolidated_deployment() -> Deployment {
         Environment::Testing,
         "deployment_test_consolidated",
         None,
-        DEPLOYMENT_IMAGE_FOR_TESTING,
         PathBuf::from(SYSTEM_TEST_BASE_APP_CONFIG_PATH),
         TESTING_CONFIG_OVERRIDE,
     )

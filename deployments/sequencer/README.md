@@ -62,7 +62,7 @@ You can use any method you like to install the required tools.
 #### Examples:
 ```bash
     cd deployments/sequencer
-    cdk8s synth --app "pipenv run python main.py --namespace <k8s namespace> --deployment-config-file <path to deployment config>"
+    cdk8s synth --app "pipenv run python main.py --namespace <k8s namespace> --deployment-config-file <path to deployment config> --deployment-image-tag <apollo node image tag>"
 ```
 
 ### Deploy sequencer

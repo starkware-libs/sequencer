@@ -55,7 +55,7 @@ def main():
 
     preset = config.DeploymentConfig(args.deployment_config_file)
     services = preset.get_services()
-    image = preset.get_image()
+    image = f"ghcr.io/starkware-libs/sequencer/sequencer:{args.deployment_image_tag}"
     application_config_subdir = preset.get_application_config_subdir()
 
     for svc in services:
@@ -81,7 +81,9 @@ def main():
         )
 
     if args.create_monitoring:
-        dashboard_hash = helpers.generate_random_hash(from_string=f"{args.cluster}-{args.namespace}")
+        dashboard_hash = helpers.generate_random_hash(
+            from_string=f"{args.cluster}-{args.namespace}"
+        )
         SequencerMonitoring(
             scope=app,
             name=helpers.sanitize_name(f"sequencer-monitoring-{dashboard_hash}"),

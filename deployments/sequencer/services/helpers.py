@@ -19,6 +19,13 @@ def argument_parser():
         action="store_true",
         help="Create monitoring resources.",
     )
+    parser.add_argument(
+        "--deployment-image-tag",
+        required=False,
+        type=str,
+        default="dev",
+        help="Apollo node binary image name, to be fetched from ghcr. Defaults to 'dev'.",
+    )
 
     return parser.parse_args()
 
