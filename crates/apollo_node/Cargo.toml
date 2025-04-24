@@ -6,6 +6,7 @@ repository.workspace = true
 license.workspace = true
 
 [features]
+cairo_native = ["apollo_batcher/cairo_native"]
 testing = ["tokio-util"]
 
 [lints]
