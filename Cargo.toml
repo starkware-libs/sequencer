@@ -81,7 +81,7 @@ license = "Apache-2.0"
 license-file = "LICENSE"
 
 [workspace.dependencies]
-alloy = "0.9"
+alloy = "0.12"
 anyhow = "1.0.44"
 apollo_batcher.path = "crates/apollo_batcher"
 apollo_batcher_types.path = "crates/apollo_batcher_types"
