@@ -20,12 +20,6 @@ use crate::test_utils::{
 };
 use crate::{BaseLayerContract, L1Event};
 
-// TODO(Gilad): Use everywhere instead of relying on the confusing `#[ignore]` api to mark slow
-// tests.
-pub fn in_ci() -> bool {
-    std::env::var("CI").is_ok()
-}
-
 fn in_ci() -> bool {
     std::env::var("CI").is_ok()
 }
