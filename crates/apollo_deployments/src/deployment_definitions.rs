@@ -24,12 +24,8 @@ mod deployment_definitions_test;
 const SYSTEM_TEST_BASE_APP_CONFIG_PATH: &str =
     "config/sequencer/testing/base_app_configs/single_node_deployment_test.json";
 
-const INTEGRATION_BASE_APP_CONFIG_PATH_NODE_0: &str =
-    "config/sequencer/sepolia_integration/base_app_configs/node_0.json";
-const INTEGRATION_BASE_APP_CONFIG_PATH_NODE_1: &str =
-    "config/sequencer/sepolia_integration/base_app_configs/node_1.json";
-const INTEGRATION_BASE_APP_CONFIG_PATH_NODE_2: &str =
-    "config/sequencer/sepolia_integration/base_app_configs/node_2.json";
+const INTEGRATION_BASE_APP_CONFIG_PATH: &str =
+    "config/sequencer/sepolia_integration/base_app_configs/node.json";
 
 pub(crate) const CONFIG_BASE_DIR: &str = "config/sequencer/";
 const APP_CONFIGS_DIR_NAME: &str = "app_configs/";
@@ -139,7 +135,7 @@ fn integration_hybrid_deployment_node_0() -> DeploymentAndPreset {
         "integration_hybrid_node_0",
         Some(ExternalSecret::new("node-0-integration-secrets")),
         DEPLOYMENT_IMAGE_FOR_PRE_INTEGRATION,
-        PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH_NODE_0),
+        PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH),
         SEPOLIA_INTEGRATION_NODE_0_CONFIG_OVERRIDE,
     ))
 }
@@ -152,7 +148,7 @@ fn integration_hybrid_deployment_node_1() -> DeploymentAndPreset {
         "integration_hybrid_node_1",
         Some(ExternalSecret::new("node-1-integration-secrets")),
         DEPLOYMENT_IMAGE_FOR_PRE_INTEGRATION,
-        PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH_NODE_1),
+        PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH),
         SEPOLIA_INTEGRATION_NODE_1_CONFIG_OVERRIDE,
     ))
 }
@@ -165,7 +161,7 @@ fn integration_hybrid_deployment_node_2() -> DeploymentAndPreset {
         "integration_hybrid_node_2",
         Some(ExternalSecret::new("node-2-integration-secrets")),
         DEPLOYMENT_IMAGE_FOR_PRE_INTEGRATION,
-        PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH_NODE_2),
+        PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH),
         SEPOLIA_INTEGRATION_NODE_2_CONFIG_OVERRIDE,
     ))
 }
