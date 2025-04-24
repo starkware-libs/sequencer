@@ -172,11 +172,7 @@ fn test_old_json_parsing() {
         .unwrap_or_else(|error| {
             panic!("Versioned constants JSON file {file:#?} is malformed: {error}.")
         });
-        assert_eq!(
-            OsConstants::from_raw(&raw_vc.os_constants, &raw_vc.os_resources),
-            *vc.os_constants
-        );
-        assert_eq!(OsResources::from_raw(&raw_vc.os_resources), *vc.os_resources);
+        assert_eq!(VersionedConstants::from(raw_vc.clone()), vc);
     }
 }
 

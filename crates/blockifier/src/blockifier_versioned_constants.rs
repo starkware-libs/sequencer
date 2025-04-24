@@ -182,14 +182,14 @@ impl Default for CompilerVersion {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
 pub struct VmResourceCosts {
     pub n_steps: ResourceCost,
     #[serde(deserialize_with = "builtin_map_from_string_map")]
     pub builtins: HashMap<BuiltinName, ResourceCost>,
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
 pub struct AllocationCost {
     pub blob_cost: GasVector,
     pub gas_cost: GasVector,
@@ -222,7 +222,7 @@ fn builtin_map_from_string_map<'de, D: Deserializer<'de>>(
 /// Additional constants in the JSON file, not used by Blockifier but included for transparency, are
 /// automatically ignored during deserialization.
 /// Instances of this struct for specific Starknet versions can be selected by using the above enum.
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 #[serde(remote = "Self")]
 pub struct VersionedConstants {
@@ -265,7 +265,36 @@ pub struct VersionedConstants {
 
     // Just to make sure the value exists, but don't use the actual values.
     #[allow(dead_code)]
-    gateway: serde::de::IgnoredAny,
+    gateway: VersionedConstantsGatewayLimits,
+}
+
+impl From<RawVersionedConstants> for VersionedConstants {
+    fn from(raw_vc: RawVersionedConstants) -> Self {
+        let os_constants = OsConstants::from_raw(&raw_vc.os_constants, &raw_vc.os_resources);
+        let os_resources = OsResources::from_raw(&raw_vc.os_resources);
+        Self {
+            tx_event_limits: raw_vc.tx_event_limits,
+            invoke_tx_max_n_steps: raw_vc.invoke_tx_max_n_steps,
+            deprecated_l2_resource_gas_costs: raw_vc.deprecated_l2_resource_gas_costs,
+            archival_data_gas_costs: raw_vc.archival_data_gas_costs,
+            max_recursion_depth: raw_vc.max_recursion_depth,
+            validate_max_n_steps: raw_vc.validate_max_n_steps,
+            min_sierra_version_for_sierra_gas: raw_vc.min_sierra_version_for_sierra_gas,
+            segment_arena_cells: raw_vc.segment_arena_cells,
+            disable_cairo0_redeclaration: raw_vc.disable_cairo0_redeclaration,
+            enable_stateful_compression: raw_vc.enable_stateful_compression,
+            comprehensive_state_diff: raw_vc.comprehensive_state_diff,
+            ignore_inner_event_resources: raw_vc.ignore_inner_event_resources,
+            disable_deploy_in_validation_mode: raw_vc.disable_deploy_in_validation_mode,
+            enable_reverts: raw_vc.enable_reverts,
+            os_constants: Arc::new(os_constants),
+            vm_resource_fee_cost: Arc::new(raw_vc.vm_resource_fee_cost),
+            enable_tip: raw_vc.enable_tip,
+            allocation_cost: raw_vc.allocation_cost,
+            os_resources: Arc::new(os_resources),
+            gateway: raw_vc.gateway,
+        }
+    }
 }
 
 impl VersionedConstants {
@@ -546,7 +575,7 @@ impl CairoNativeStackConfig {
     }
 }
 
-#[derive(Deserialize, Debug, Clone, Default)]
+#[derive(Deserialize, Debug, Clone, Default, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct VersionedConstantsGatewayLimits {
     pub max_calldata_length: usize,
@@ -663,7 +692,6 @@ impl OsResources {
         Ok(())
     }
 
-    #[allow(dead_code)]
     fn from_raw(raw_os_resources: &RawOsResources) -> Self {
         Self {
             execute_syscalls: raw_os_resources
@@ -1257,7 +1285,6 @@ impl OsConstants {
         "validated",
     ];
 
-    #[allow(dead_code)]
     fn from_raw(raw_constants: &RawOsConstants, raw_resources: &RawOsResources) -> Self {
         Self {
             gas_costs: GasCosts::from_raw(raw_constants, raw_resources),
