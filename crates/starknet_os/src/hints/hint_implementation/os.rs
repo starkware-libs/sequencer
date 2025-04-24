@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 use blockifier::state::state_api::StateReader;
-use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_into_ap;
+use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
+    get_integer_from_var_name,
+    insert_value_into_ap,
+};
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use starknet_types_core::felt::Felt;
 
@@ -10,7 +13,7 @@ use crate::hints::enum_definition::{AllHints, OsHint};
 use crate::hints::error::OsHintResult;
 use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;
-use crate::hints::vars::{CairoStruct, Scope};
+use crate::hints::vars::{CairoStruct, Ids, Scope};
 use crate::vm_utils::insert_values_to_fields;
 
 pub(crate) fn initialize_class_hashes<S: StateReader>(
@@ -109,9 +112,11 @@ pub(crate) fn get_n_blocks<S: StateReader>(
 }
 
 pub(crate) fn log_remaining_blocks<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let n_blocks = get_integer_from_var_name(Ids::NTxs.into(), vm, ids_data, ap_tracking)?;
+    log::debug!("execute_blocks: {n_blocks} blocks remaining.");
+    Ok(())
 }
 
 pub(crate) fn create_block_additional_hints<S: StateReader>(
