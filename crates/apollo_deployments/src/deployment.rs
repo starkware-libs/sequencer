@@ -26,32 +26,6 @@ const DEPLOYMENT_CONFIG_DIR_NAME: &str = "deployment_configs/";
 const DEPLOYMENT_FILE_NAME: &str = "deployment_config_override.json";
 const INSTANCE_FILE_NAME: &str = "instance_config_override.json";
 
-// TODO(Tsabary): this struct has become a wrapper for `Deployment`, should be removed.
-pub struct DeploymentAndPreset {
-    deployment: Deployment,
-    // TODO(Tsabary): consider using PathBuf instead.
-    dump_file_path: PathBuf,
-}
-
-impl DeploymentAndPreset {
-    pub fn new(deployment: Deployment) -> Self {
-        let dump_file_path = deployment.deployment_file_path();
-        Self { deployment, dump_file_path }
-    }
-
-    pub fn get_deployment(&self) -> &Deployment {
-        &self.deployment
-    }
-
-    pub fn get_dump_file_path(&self) -> PathBuf {
-        self.dump_file_path.clone()
-    }
-
-    pub fn get_base_app_config_file_path(&self) -> PathBuf {
-        self.deployment.get_base_app_config_file_path()
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Deployment {
     chain_id: ChainId,
