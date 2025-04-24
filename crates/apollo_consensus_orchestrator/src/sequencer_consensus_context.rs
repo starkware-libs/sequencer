@@ -94,7 +94,7 @@ use crate::metrics::{
     CONSENSUS_NUM_TXS_IN_PROPOSAL,
 };
 use crate::orchestrator_versioned_constants::VersionedConstants;
-use crate::utils::get_oracle_rate_and_prices;
+use crate::utils::get_separate_oracle_rate_and_prices;
 
 // Contains parameters required for validating block info.
 #[derive(Clone, Debug)]
@@ -919,7 +919,7 @@ async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<Consens
     let batcher_timeout = chrono::Duration::from_std(args.batcher_timeout)
         .expect("Can't convert timeout to chrono::Duration");
     let timestamp = args.clock.now_as_timestamp();
-    let (eth_to_fri_rate, mut l1_prices) = get_oracle_rate_and_prices(
+    let (eth_to_fri_rate, mut l1_prices) = get_separate_oracle_rate_and_prices(
         args.eth_to_strk_oracle_client.clone(),
         args.l1_gas_price_provider_client.clone(),
         timestamp,
@@ -1199,7 +1199,7 @@ async fn is_block_info_valid(
         warn!("Invalid BlockInfo. local_timestamp={now}");
         return false;
     }
-    let (eth_to_fri_rate, mut l1_gas_prices) = get_oracle_rate_and_prices(
+    let (eth_to_fri_rate, mut l1_gas_prices) = get_separate_oracle_rate_and_prices(
         eth_to_strk_oracle_client,
         l1_gas_price_provider,
         block_info_proposed.timestamp,
