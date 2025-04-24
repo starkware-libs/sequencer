@@ -9,7 +9,6 @@ use apollo_l1_provider_types::{Event, L1ProviderClient, MockL1ProviderClient};
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use itertools::Itertools;
-use mempool_test_utils::starknet_api_test_utils::DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;
 use papyrus_base_layer::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
     EthereumBaseLayerContract,
@@ -73,7 +72,7 @@ async fn txs_happy_flow() {
     }
 
     let base_layer_config = ethereum_base_layer_config_for_anvil(None);
-    let _anvil = anvil_instance_from_config(&base_layer_config);
+    let anvil = anvil_instance_from_config(&base_layer_config);
     // Setup.
     let (mut scraper, fake_client) = scraper(base_layer_config).await;
 
@@ -99,13 +98,15 @@ async fn txs_happy_flow() {
     }
 
     const EXPECTED_VERSION: TransactionVersion = TransactionVersion(StarkHash::ZERO);
+    let default_anvil_l1_account_address: StarkHash =
+        StarkHash::from_bytes_be_slice(anvil.addresses()[0].as_slice());
     let expected_internal_l1_tx = L1HandlerTransaction {
         version: EXPECTED_VERSION,
         nonce: Nonce(StarkHash::ZERO),
         contract_address: contract_address!(l2_contract_address),
         entry_point_selector: EntryPointSelector(StarkHash::from_hex_unchecked(l2_entry_point)),
         calldata: Calldata(
-            vec![DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS, StarkHash::ONE, StarkHash::from(2)].into(),
+            vec![default_anvil_l1_account_address, StarkHash::ONE, StarkHash::from(2)].into(),
         ),
     };
     let tx = ExecutableL1HandlerTransaction {
@@ -120,7 +121,7 @@ async fn txs_happy_flow() {
     let expected_internal_l1_tx_2 = L1HandlerTransaction {
         nonce: Nonce(StarkHash::ONE),
         calldata: Calldata(
-            vec![DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS, StarkHash::from(3), StarkHash::from(4)].into(),
+            vec![default_anvil_l1_account_address, StarkHash::from(3), StarkHash::from(4)].into(),
         ),
         ..tx.tx
     };
