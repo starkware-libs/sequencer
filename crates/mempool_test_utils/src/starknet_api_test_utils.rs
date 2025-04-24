@@ -9,6 +9,7 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_trivial_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use papyrus_base_layer::ethereum_base_layer_contract::L1ToL2MessageArgs;
+use papyrus_base_layer::test_utils::DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
@@ -53,12 +54,6 @@ pub const VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
 #[allow(clippy::as_conversions)]
 pub const VALID_ACCOUNT_BALANCE: Fee =
     Fee(VALID_L2_GAS_MAX_AMOUNT as u128 * VALID_L2_GAS_MAX_PRICE_PER_UNIT * 1000);
-
-// Default funded account, there are more fixed funded accounts,
-// see https://github.com/foundry-rs/foundry/tree/master/crates/anvil.
-// This address is the sender address of messages sent to L2 by Anvil.
-pub const DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS: StarkHash =
-    StarkHash::from_hex_unchecked("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
 
 // Utils.
 

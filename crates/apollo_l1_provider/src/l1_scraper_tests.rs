@@ -9,7 +9,6 @@ use apollo_l1_provider_types::{Event, L1ProviderClient, MockL1ProviderClient};
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use itertools::Itertools;
-use mempool_test_utils::starknet_api_test_utils::DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;
 use papyrus_base_layer::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
     EthereumBaseLayerContract,
@@ -18,6 +17,7 @@ use papyrus_base_layer::ethereum_base_layer_contract::{
 use papyrus_base_layer::test_utils::{
     anvil_instance_from_config,
     ethereum_base_layer_config_for_anvil,
+    DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS,
 };
 use papyrus_base_layer::MockBaseLayerContract;
 use starknet_api::block::BlockNumber;
