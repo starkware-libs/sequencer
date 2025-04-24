@@ -1633,6 +1633,7 @@ dependencies = [
  "mockall",
  "pretty_assertions",
  "replace_with",
+ "rstest",
  "serde",
  "starknet_api",
  "thiserror 1.0.69",
