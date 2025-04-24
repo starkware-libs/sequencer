@@ -16,10 +16,10 @@ use crate::deployment_definitions::{Environment, DEPLOYMENTS};
 #[test]
 fn deployment_files_are_up_to_date() {
     for deployment_fn in DEPLOYMENTS {
-        let deployment_preset = deployment_fn();
+        let deployment = deployment_fn();
         serialize_to_file_test(
-            deployment_preset.get_deployment(),
-            deployment_preset.get_dump_file_path().to_str().unwrap(),
+            &deployment,
+            deployment.deployment_file_path().to_str().unwrap(),
             FIX_BINARY_NAME,
         );
 
@@ -36,12 +36,12 @@ fn load_and_process_base_application_config_files_schema() {
     env::set_current_dir(resolve_project_relative_path("").unwrap())
         .expect("Couldn't set working dir.");
     for deployment_fn in DEPLOYMENTS {
-        let deployment_preset = deployment_fn();
+        let deployment = deployment_fn();
         // TODO(Tsabary): "--config_file" should be a constant.
         let load_result = SequencerNodeConfig::load_and_process(vec![
             "command_name_placeholder".to_string(),
             "--config_file".to_string(),
-            deployment_preset.get_base_app_config_file_path().to_string_lossy().to_string(),
+            deployment.get_base_app_config_file_path().to_string_lossy().to_string(),
         ]);
         println!("{:?}", load_result);
         assert!(load_result.is_ok());
@@ -53,11 +53,11 @@ fn application_config_files_exist() {
     env::set_current_dir(resolve_project_relative_path("").unwrap())
         .expect("Couldn't set working dir.");
     for deployment_fn in DEPLOYMENTS {
-        let deployment_preset = deployment_fn();
-        deployment_preset.get_deployment().assert_application_configs_exist();
+        let deployment = deployment_fn();
+        deployment.assert_application_configs_exist();
 
-        deployment_preset.get_deployment().test_dump_application_config_files(
-            deployment_preset.get_base_app_config_file_path().to_str().unwrap(),
+        deployment.test_dump_application_config_files(
+            deployment.get_base_app_config_file_path().to_str().unwrap(),
         );
     }
 }
@@ -67,8 +67,8 @@ fn application_config_files_exist() {
 #[test]
 fn l1_components_state_consistency() {
     for deployment_fn in DEPLOYMENTS {
-        let deployment_preset = deployment_fn();
-        let deployment_name = deployment_preset.get_deployment().get_deployment_name();
+        let deployment = deployment_fn();
+        let deployment_name = deployment.get_deployment_name();
         let component_configs = deployment_name.get_component_configs(None, &Environment::Testing);
 
         let l1_gas_price_provider_indicator = component_configs.values().any(|component_config| {

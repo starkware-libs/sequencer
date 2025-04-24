@@ -7,7 +7,6 @@ use strum_macros::{Display, EnumString};
 use crate::deployment::{
     ConfigOverride,
     Deployment,
-    DeploymentAndPreset,
     DeploymentConfigOverride,
     InstanceConfigOverride,
     DEPLOYMENT_IMAGE_FOR_PRE_INTEGRATION,
@@ -132,7 +131,7 @@ const SEPOLIA_INTEGRATION_NODE_3_CONFIG_OVERRIDE: ConfigOverride = ConfigOverrid
 const TESTING_CONFIG_OVERRIDE: ConfigOverride =
     ConfigOverride::new(&TESTING_DEPLOYMENT_CONFIG_OVERRIDE, &TESTING_INSTANCE_CONFIG_OVERRIDE);
 
-type DeploymentFn = fn() -> DeploymentAndPreset;
+type DeploymentFn = fn() -> Deployment;
 
 // TODO(Tsabary): create deployment instances per per deployment.
 
@@ -147,8 +146,8 @@ pub const DEPLOYMENTS: &[DeploymentFn] = &[
 
 // Integration deployments
 
-fn integration_hybrid_deployment_node_0() -> DeploymentAndPreset {
-    DeploymentAndPreset::new(Deployment::new(
+fn integration_hybrid_deployment_node_0() -> Deployment {
+    Deployment::new(
         ChainId::IntegrationSepolia,
         DeploymentName::HybridNode,
         Environment::SepoliaIntegration,
@@ -157,11 +156,11 @@ fn integration_hybrid_deployment_node_0() -> DeploymentAndPreset {
         DEPLOYMENT_IMAGE_FOR_PRE_INTEGRATION,
         PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH),
         SEPOLIA_INTEGRATION_NODE_0_CONFIG_OVERRIDE,
-    ))
+    )
 }
 
-fn integration_hybrid_deployment_node_1() -> DeploymentAndPreset {
-    DeploymentAndPreset::new(Deployment::new(
+fn integration_hybrid_deployment_node_1() -> Deployment {
+    Deployment::new(
         ChainId::IntegrationSepolia,
         DeploymentName::HybridNode,
         Environment::SepoliaIntegration,
@@ -170,11 +169,11 @@ fn integration_hybrid_deployment_node_1() -> DeploymentAndPreset {
         DEPLOYMENT_IMAGE_FOR_PRE_INTEGRATION,
         PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH),
         SEPOLIA_INTEGRATION_NODE_1_CONFIG_OVERRIDE,
-    ))
+    )
 }
 
-fn integration_hybrid_deployment_node_2() -> DeploymentAndPreset {
-    DeploymentAndPreset::new(Deployment::new(
+fn integration_hybrid_deployment_node_2() -> Deployment {
+    Deployment::new(
         ChainId::IntegrationSepolia,
         DeploymentName::HybridNode,
         Environment::SepoliaIntegration,
@@ -183,11 +182,11 @@ fn integration_hybrid_deployment_node_2() -> DeploymentAndPreset {
         DEPLOYMENT_IMAGE_FOR_PRE_INTEGRATION,
         PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH),
         SEPOLIA_INTEGRATION_NODE_2_CONFIG_OVERRIDE,
-    ))
+    )
 }
 
-fn integration_hybrid_deployment_node_3() -> DeploymentAndPreset {
-    DeploymentAndPreset::new(Deployment::new(
+fn integration_hybrid_deployment_node_3() -> Deployment {
+    Deployment::new(
         ChainId::IntegrationSepolia,
         DeploymentName::HybridNode,
         Environment::SepoliaIntegration,
@@ -196,12 +195,12 @@ fn integration_hybrid_deployment_node_3() -> DeploymentAndPreset {
         DEPLOYMENT_IMAGE_FOR_PRE_INTEGRATION,
         PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH),
         SEPOLIA_INTEGRATION_NODE_3_CONFIG_OVERRIDE,
-    ))
+    )
 }
 
 // System test deployments
-fn system_test_distributed_deployment() -> DeploymentAndPreset {
-    DeploymentAndPreset::new(Deployment::new(
+fn system_test_distributed_deployment() -> Deployment {
+    Deployment::new(
         ChainId::IntegrationSepolia,
         DeploymentName::DistributedNode,
         Environment::Testing,
@@ -210,11 +209,11 @@ fn system_test_distributed_deployment() -> DeploymentAndPreset {
         DEPLOYMENT_IMAGE_FOR_TESTING,
         PathBuf::from(SYSTEM_TEST_BASE_APP_CONFIG_PATH),
         TESTING_CONFIG_OVERRIDE,
-    ))
+    )
 }
 
-fn system_test_consolidated_deployment() -> DeploymentAndPreset {
-    DeploymentAndPreset::new(Deployment::new(
+fn system_test_consolidated_deployment() -> Deployment {
+    Deployment::new(
         ChainId::IntegrationSepolia,
         DeploymentName::ConsolidatedNode,
         Environment::Testing,
@@ -223,7 +222,7 @@ fn system_test_consolidated_deployment() -> DeploymentAndPreset {
         DEPLOYMENT_IMAGE_FOR_TESTING,
         PathBuf::from(SYSTEM_TEST_BASE_APP_CONFIG_PATH),
         TESTING_CONFIG_OVERRIDE,
-    ))
+    )
 }
 
 #[derive(EnumString, Clone, Display, PartialEq, Debug)]
