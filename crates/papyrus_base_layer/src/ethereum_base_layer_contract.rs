@@ -5,18 +5,11 @@ use std::ops::RangeInclusive;
 use alloy::dyn_abi::SolType;
 use alloy::eips::eip7840;
 use alloy::primitives::Address as EthereumContractAddress;
-use alloy::providers::network::Ethereum;
 use alloy::providers::{Provider, ProviderBuilder, RootProvider};
 use alloy::rpc::json_rpc::RpcError;
-use alloy::rpc::types::eth::{
-    BlockId,
-    BlockNumberOrTag,
-    BlockTransactionsKind,
-    Filter as EthEventFilter,
-};
+use alloy::rpc::types::eth::Filter as EthEventFilter;
 use alloy::sol;
 use alloy::sol_types::sol_data;
-use alloy::transports::http::{Client, Http};
 use alloy::transports::TransportErrorKind;
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -43,8 +36,7 @@ sol!(
 
 /// An interface that plays the role of the starknet L1 contract. It is able to create messages to
 /// L2 from this contract, which appear on the corresponding base layer.
-pub type StarknetL1Contract =
-    Starknet::StarknetInstance<Http<Client>, RootProvider<Http<Client>>, Ethereum>;
+pub type StarknetL1Contract = Starknet::StarknetInstance<(), RootProvider>;
 
 #[derive(Clone, Debug)]
 pub struct EthereumBaseLayerContract {
@@ -54,9 +46,9 @@ pub struct EthereumBaseLayerContract {
 
 impl EthereumBaseLayerContract {
     pub fn new(config: EthereumBaseLayerConfig) -> Self {
-        let l1_client = ProviderBuilder::new().on_http(config.node_url.clone());
-        // This type is generated from `sol!` macro, and the `new` method assumes it is already
+        // This type is generated from `sol!` macro, and the `default` method assumes it is already
         // deployed at L1, and wraps it with a type.
+        let l1_client = ProviderBuilder::default().on_http(config.node_url.clone());
         let contract = Starknet::new(config.starknet_contract_address, l1_client);
         Self { contract, config }
     }
@@ -134,12 +126,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         &self,
         block_number: L1BlockNumber,
     ) -> EthereumBaseLayerResult<Option<L1BlockReference>> {
-        let only_block_header: BlockTransactionsKind = BlockTransactionsKind::default();
-        let block = self
-            .contract
-            .provider()
-            .get_block(BlockId::Number(block_number.into()), only_block_header)
-            .await?;
+        let block = self.contract.provider().get_block_by_number(block_number.into()).await?;
 
         Ok(block.map(|block| L1BlockReference {
             number: block.header.number,
@@ -152,14 +139,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         &self,
         block_number: L1BlockNumber,
     ) -> EthereumBaseLayerResult<Option<PriceSample>> {
-        let block = self
-            .contract
-            .provider()
-            .get_block(
-                BlockId::Number(BlockNumberOrTag::Number(block_number)),
-                BlockTransactionsKind::Hashes,
-            )
-            .await?;
+        let block = self.contract.provider().get_block_by_number(block_number.into()).await?;
         let Some(block) = block else {
             return Ok(None);
         };
