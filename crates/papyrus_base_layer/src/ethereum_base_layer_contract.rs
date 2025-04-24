@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::future::IntoFuture;
 use std::ops::RangeInclusive;
+use std::time::Duration;
 
 use alloy::dyn_abi::SolType;
 use alloy::eips::eip7840;
@@ -18,6 +19,7 @@ use alloy::sol;
 use alloy::sol_types::sol_data;
 use alloy::transports::http::{Client, Http};
 use alloy::transports::TransportErrorKind;
+use apollo_config::converters::deserialize_milliseconds_to_duration;
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
@@ -25,7 +27,8 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::hash::StarkHash;
 use starknet_api::StarknetApiError;
-use tracing::{debug, error};
+use tokio::time::error::Elapsed;
+use tracing::{debug, error, instrument};
 use url::Url;
 use validator::Validate;
 
@@ -65,6 +68,8 @@ impl EthereumBaseLayerContract {
 #[async_trait]
 impl BaseLayerContract for EthereumBaseLayerContract {
     type Error = EthereumBaseLayerError;
+
+    #[instrument(skip(self), err)]
     async fn get_proved_block_at(
         &self,
         l1_block: L1BlockNumber,
@@ -91,6 +96,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
 
     /// Returns the latest proved block on Ethereum, where finality determines how many
     /// blocks back (0 = latest).
+    #[instrument(skip(self), err)]
     async fn latest_proved_block(
         &self,
         finality: u64,
@@ -101,14 +107,18 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         self.get_proved_block_at(ethereum_block_number).await.map(Some)
     }
 
+    #[instrument(skip(self), err)]
     async fn events<'a>(
         &'a self,
         block_range: RangeInclusive<u64>,
         events: &'a [&'a str],
     ) -> EthereumBaseLayerResult<Vec<L1Event>> {
         let filter = EthEventFilter::new().select(block_range.clone()).events(events);
-
-        let matching_logs = self.contract.provider().get_logs(&filter).await?;
+        let matching_logs = tokio::time::timeout(
+            self.config.timeout_millis,
+            self.contract.provider().get_logs(&filter),
+        )
+        .await??;
         let received_tx_hashes: Vec<_> =
             matching_logs.iter().map(|log| log.transaction_hash).collect();
         debug!(
@@ -118,13 +128,20 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         matching_logs.into_iter().map(L1Event::try_from).collect()
     }
 
+    #[instrument(skip(self), err)]
     async fn latest_l1_block_number(
         &self,
         finality: u64,
     ) -> EthereumBaseLayerResult<Option<L1BlockNumber>> {
-        Ok(self.contract.provider().get_block_number().await?.checked_sub(finality))
+        let block_number = tokio::time::timeout(
+            self.config.timeout_millis,
+            self.contract.provider().get_block_number(),
+        )
+        .await??;
+        Ok(block_number.checked_sub(finality))
     }
 
+    #[instrument(skip(self), err)]
     async fn latest_l1_block(
         &self,
         finality: u64,
@@ -136,16 +153,19 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         self.l1_block_at(block_number).await
     }
 
+    #[instrument(skip(self), err)]
     async fn l1_block_at(
         &self,
         block_number: L1BlockNumber,
     ) -> EthereumBaseLayerResult<Option<L1BlockReference>> {
         let only_block_header: BlockTransactionsKind = BlockTransactionsKind::default();
-        let block = self
-            .contract
-            .provider()
-            .get_block(BlockId::Number(block_number.into()), only_block_header)
-            .await?;
+        let block = tokio::time::timeout(
+            self.config.timeout_millis,
+            self.contract
+                .provider()
+                .get_block(BlockId::Number(block_number.into()), only_block_header),
+        )
+        .await??;
 
         Ok(block.map(|block| L1BlockReference {
             number: block.header.number,
@@ -153,19 +173,20 @@ impl BaseLayerContract for EthereumBaseLayerContract {
         }))
     }
 
-    // Query the Ethereum base layer for the timestamp, gas price, and data gas price of a block.
+    /// Query the Ethereum base layer for the timestamp, gas price, and data gas price of a block.
+    #[instrument(skip(self), err)]
     async fn get_price_sample(
         &self,
         block_number: L1BlockNumber,
     ) -> EthereumBaseLayerResult<Option<PriceSample>> {
-        let block = self
-            .contract
-            .provider()
-            .get_block(
+        let block = tokio::time::timeout(
+            self.config.timeout_millis,
+            self.contract.provider().get_block(
                 BlockId::Number(BlockNumberOrTag::Number(block_number)),
                 BlockTransactionsKind::Hashes,
-            )
-            .await?;
+            ),
+        )
+        .await??;
         let Some(block) = block else {
             return Ok(None);
         };
@@ -199,6 +220,8 @@ pub enum EthereumBaseLayerError {
     Contract(#[from] alloy::contract::Error),
     #[error("{0}")]
     FeeOutOfRange(alloy::primitives::ruint::FromUintError<u128>),
+    #[error("L1 provider response timed out.")]
+    ProviderTimeout(#[from] Elapsed),
     #[error(transparent)]
     RpcError(#[from] RpcError<TransportErrorKind>),
     #[error("{0}")]
@@ -229,6 +252,8 @@ pub struct EthereumBaseLayerConfig {
     pub node_url: Url,
     pub starknet_contract_address: EthereumContractAddress,
     pub prague_blob_gas_calc: bool,
+    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    pub timeout_millis: Duration,
 }
 
 impl SerializeConfig for EthereumBaseLayerConfig {
@@ -252,6 +277,13 @@ impl SerializeConfig for EthereumBaseLayerConfig {
                 "If true use the blob gas calculcation from the Pectra upgrade. If false use the EIP 4844 calculation.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "timeout_millis",
+                &self.timeout_millis.as_millis(),
+                "The timeout (milliseconds) for a query of the L1 base layer",
+                ParamPrivacyInput::Public,
+            ),
+
         ])
     }
 }
@@ -265,6 +297,7 @@ impl Default for EthereumBaseLayerConfig {
             node_url: "https://mainnet.infura.io/v3/<your_api_key>".parse().unwrap(),
             starknet_contract_address,
             prague_blob_gas_calc: true,
+            timeout_millis: Duration::from_millis(1000),
         }
     }
 }
