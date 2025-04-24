@@ -65,7 +65,11 @@ pub trait SyscallExecutor {
         Ok(felt_from_ptr(vm, self.get_mut_syscall_ptr())?)
     }
 
-    fn increment_syscall_count(&mut self, selector: &SyscallSelector);
+    fn increment_syscall_count_by(&mut self, selector: &SyscallSelector, count: usize);
+
+    fn increment_syscall_count(&mut self, selector: &SyscallSelector) {
+        self.increment_syscall_count_by(selector, 1);
+    }
 
     fn get_gas_cost_from_selector(
         &self,

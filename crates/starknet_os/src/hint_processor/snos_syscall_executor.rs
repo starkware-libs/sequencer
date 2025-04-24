@@ -53,7 +53,7 @@ use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 
 #[allow(unused_variables)]
 impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
-    fn increment_syscall_count(&mut self, selector: &SyscallSelector) {
+    fn increment_syscall_count_by(&mut self, selector: &SyscallSelector, count: usize) {
         todo!()
     }
 
