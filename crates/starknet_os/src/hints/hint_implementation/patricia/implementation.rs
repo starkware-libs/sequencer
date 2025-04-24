@@ -93,9 +93,7 @@ pub(crate) fn set_bit<S: StateReader>(
         hint_processor.os_program,
     )?;
     let edge_path = vm.get_integer(edge_path_addr)?.into_owned();
-    let new_length = u8::try_from(
-        get_integer_from_var_name(Ids::NewLength.into(), vm, ids_data, ap_tracking)?.to_biguint(),
-    )?;
+    let new_length: u8 = Ids::NewLength.fetch_as(vm, ids_data, ap_tracking)?;
 
     let bit = (edge_path.to_biguint() >> new_length) & BigUint::from(1u64);
     let bit_felt = Felt::from(&bit);
@@ -109,23 +107,13 @@ pub(crate) fn set_ap_to_descend<S: StateReader>(
 ) -> OsHintResult {
     let descent_map: &DescentMap = exec_scopes.get_ref(Scope::DescentMap.into())?;
 
-    let height = {
-        let ids_height = get_integer_from_var_name(Ids::Height.into(), vm, ids_data, ap_tracking)?;
-        SubTreeHeight(u8::try_from(ids_height).map_err(|error| OsHintError::IdsConversion {
-            variant: Ids::Height,
-            felt: ids_height,
-            ty: "u8".to_string(),
-            reason: error.to_string(),
-        })?)
-    };
-    let path_to_upper_node = {
-        let ids_path = get_integer_from_var_name(Ids::Path.into(), vm, ids_data, ap_tracking)?;
-        // The path is from the root to the current node, so we can calculate its length.
-        Path(PathToBottom::new(
-            ids_path.into(),
-            EdgePathLength::new(SubTreeHeight::ACTUAL_HEIGHT.0 - height.0)?,
-        )?)
-    };
+    let height = SubTreeHeight(Ids::Height.fetch_as(vm, ids_data, ap_tracking)?);
+
+    // The path is from the root to the current node, so we can calculate its length.
+    let path_to_upper_node = Path(PathToBottom::new(
+        Ids::Path.fetch_as(vm, ids_data, ap_tracking)?,
+        EdgePathLength::new(SubTreeHeight::ACTUAL_HEIGHT.0 - height.0)?,
+    )?);
     let descent_start = DescentStart { height, path_to_upper_node };
 
     let case_descent = match descent_map.get(&descent_start) {
@@ -239,16 +227,7 @@ pub(crate) fn prepare_preimage_validation_non_deterministic_hashes<S: StateReade
 pub(crate) fn build_descent_map<S: StateReader>(
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, hint_processor, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    let n_updates = {
-        let ids_n_updates =
-            get_integer_from_var_name(Ids::NUpdates.into(), vm, ids_data, ap_tracking)?;
-        usize::try_from(ids_n_updates).map_err(|error| OsHintError::IdsConversion {
-            variant: Ids::NUpdates,
-            felt: ids_n_updates,
-            ty: "usize".to_string(),
-            reason: error.to_string(),
-        })?
-    };
+    let n_updates: usize = Ids::NUpdates.fetch_as(vm, ids_data, ap_tracking)?;
 
     let update_ptr_address =
         get_relocatable_from_var_name(Ids::UpdatePtr.into(), vm, ids_data, ap_tracking)?;
@@ -274,15 +253,7 @@ pub(crate) fn build_descent_map<S: StateReader>(
         ));
     }
 
-    let height = {
-        let ids_height = get_integer_from_var_name(Ids::Height.into(), vm, ids_data, ap_tracking)?;
-        SubTreeHeight(u8::try_from(ids_height).map_err(|error| OsHintError::IdsConversion {
-            variant: Ids::Height,
-            felt: ids_height,
-            ty: "u8".to_string(),
-            reason: error.to_string(),
-        })?)
-    };
+    let height = SubTreeHeight(Ids::Height.fetch_as(vm, ids_data, ap_tracking)?);
     let node = build_update_tree(height, modifications)?;
 
     let preimage_map: &PreimageMap = exec_scopes.get_ref(Scope::Preimage.into())?;
