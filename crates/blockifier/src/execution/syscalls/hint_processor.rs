@@ -479,12 +479,8 @@ impl<'a> SyscallHintProcessor<'a> {
 }
 
 impl SyscallExecutor for SyscallHintProcessor<'_> {
-    fn base_keccak(
-        &mut self,
-        data: &[u64],
-        remaining_gas: &mut u64,
-    ) -> SyscallResult<([u64; 4], usize)> {
-        self.base.keccak(data, remaining_gas)
+    fn get_keccak_round_cost_base_syscall_cost(&self) -> u64 {
+        self.gas_costs().syscalls.keccak_round.base_syscall_cost()
     }
 
     fn increment_syscall_count_by(&mut self, selector: &SyscallSelector, n: usize) {
