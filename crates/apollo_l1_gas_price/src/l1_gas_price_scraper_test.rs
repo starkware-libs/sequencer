@@ -124,3 +124,5 @@ async fn run_l1_gas_price_scraper_multiple_blocks() {
     // Should update prices from 5 to 10 (not inclusive) and on 10 get a None from base layer.
     scraper.update_prices(START_BLOCK).await.unwrap();
 }
+
+// TODO(guyn): test scraper with a provider timeout

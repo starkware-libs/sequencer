@@ -14,6 +14,11 @@
     "privacy": "Public",
     "value": "0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4"
   },
+  "base_layer.timeout_millis": {
+    "description": "The timeout (milliseconds) for a query of the L1 base layer",
+    "privacy": "Public",
+    "value": 1000
+  },
   "central.class_cache_size": {
     "description": "Size of class cache, must be a positive integer.",
     "privacy": "Public",
