@@ -28,6 +28,7 @@ use starknet_types_core::felt::Felt;
 use crate::errors::{NativeBlockifierError, NativeBlockifierResult};
 use crate::py_objects::{
     PyBouncerConfig,
+    PyCasmHashComputationData,
     PyConcurrencyConfig,
     PyContractClassManagerConfig,
     PyVersionedConstantsOverrides,
@@ -208,13 +209,22 @@ impl PyBlockExecutor {
     /// Returns the state diff, the stateful-compressed state diff and the block weights.
     pub fn finalize(
         &mut self,
-    ) -> NativeBlockifierResult<(PyStateDiff, Option<PyStateDiff>, Py<PyBytes>)> {
+    ) -> NativeBlockifierResult<(
+        PyStateDiff,
+        Option<PyStateDiff>,
+        Py<PyBytes>,
+        PyCasmHashComputationData,
+    )> {
         log::debug!("Finalizing execution...");
-        // TODO(Aviv): Extract `casm_hash_computation_data`.
-        let BlockExecutionSummary { state_diff, compressed_state_diff, bouncer_weights, .. } =
-            self.tx_executor().finalize()?;
+        let BlockExecutionSummary {
+            state_diff,
+            compressed_state_diff,
+            bouncer_weights,
+            casm_hash_computation_data,
+        } = self.tx_executor().finalize()?;
         let py_state_diff = PyStateDiff::from(state_diff);
         let py_compressed_state_diff = compressed_state_diff.map(PyStateDiff::from);
+        let py_casm_hash_computation_data = casm_hash_computation_data.into();
 
         let serialized_block_weights =
             serde_json::to_vec(&bouncer_weights).expect("Failed serializing bouncer weights.");
@@ -223,7 +233,12 @@ impl PyBlockExecutor {
 
         log::debug!("Finalized execution.");
 
-        Ok((py_state_diff, py_compressed_state_diff, raw_block_weights))
+        Ok((
+            py_state_diff,
+            py_compressed_state_diff,
+            raw_block_weights,
+            py_casm_hash_computation_data,
+        ))
     }
 
     // Storage Alignment API.
