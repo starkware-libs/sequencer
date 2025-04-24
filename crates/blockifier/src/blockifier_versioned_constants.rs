@@ -641,6 +641,7 @@ fn validate_builtins_known<'a, B: Iterator<Item = &'a BuiltinName>>(
 }
 
 impl OsResources {
+    // TODO(Dori): Delete this once this struct no longer implements `Deserialize`.
     pub fn validate(&self) -> Result<(), RawOsResourcesError> {
         validate_all_tx_types(&self.execute_txs_inner)?;
         validate_all_selectors(&self.execute_syscalls)?;
@@ -798,10 +799,65 @@ impl<'de> Deserialize<'de> for OsResources {
 
 #[derive(Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
+// Serde trick for adding validations via a customr deserializer, without forgoing the derive.
+// See: https://github.com/serde-rs/serde/issues/1220.
+#[serde(remote = "Self")]
 pub struct RawOsResources {
     pub execute_syscalls: HashMap<SyscallSelector, VariableResourceParams>,
     pub execute_txs_inner: HashMap<TransactionType, VariableResourceParams>,
     pub compute_os_kzg_commitment_info: ExecutionResources,
+}
+
+impl RawOsResources {
+    pub fn validate(&self) -> Result<(), RawOsResourcesError> {
+        validate_all_tx_types(&self.execute_txs_inner)?;
+        validate_all_selectors(&self.execute_syscalls)?;
+
+        // Extract all `ExecutionResources` objects from the resource params.
+        fn resources_params_exec_resources(
+            resources_params: &VariableResourceParams,
+        ) -> Vec<&ExecutionResources> {
+            match resources_params {
+                VariableResourceParams::Constant(constant) => vec![constant],
+                VariableResourceParams::WithFactor(RawResourcesParams {
+                    constant,
+                    calldata_factor:
+                        VariableCallDataFactor::Scaled(RawCallDataFactor { resources, .. }),
+                })
+                | VariableResourceParams::WithFactor(RawResourcesParams {
+                    constant,
+                    calldata_factor: VariableCallDataFactor::Unscaled(resources),
+                }) => {
+                    vec![constant, resources]
+                }
+            }
+        }
+
+        let execution_resources = self
+            .execute_txs_inner
+            .values()
+            .flat_map(resources_params_exec_resources)
+            .chain(self.execute_syscalls.values().flat_map(resources_params_exec_resources))
+            .chain(std::iter::once(&self.compute_os_kzg_commitment_info));
+        let builtin_names =
+            execution_resources.flat_map(|resources| resources.builtin_instance_counter.keys());
+        validate_builtins_known(builtin_names)?;
+
+        Ok(())
+    }
+}
+
+impl<'de> Deserialize<'de> for RawOsResources {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let raw_os_resources = Self::deserialize(deserializer)?;
+        raw_os_resources
+            .validate()
+            .map_err(|error| DeserializationError::custom(format!("ValidationError: {error}")))?;
+        Ok(raw_os_resources)
+    }
 }
 
 #[derive(Deserialize, Debug, Clone, PartialEq)]
