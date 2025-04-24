@@ -592,34 +592,58 @@ pub struct OsResources {
     compute_os_kzg_commitment_info: ExecutionResources,
 }
 
+fn validate_all_tx_types<V>(
+    tx_type_map: &HashMap<TransactionType, V>,
+) -> Result<(), RawOsResourcesError> {
+    for tx_type in TransactionType::iter() {
+        if !tx_type_map.contains_key(&tx_type) {
+            return Err(RawOsResourcesError::MissingTxType(tx_type));
+        }
+    }
+    Ok(())
+}
+
+fn validate_all_selectors<V>(
+    selector_map: &HashMap<SyscallSelector, V>,
+) -> Result<(), RawOsResourcesError> {
+    for syscall_handler in SyscallSelector::iter() {
+        if !selector_map.contains_key(&syscall_handler) {
+            return Err(RawOsResourcesError::MissingSelector(syscall_handler));
+        }
+    }
+    Ok(())
+}
+
+fn validate_builtins_known<'a, B: Iterator<Item = &'a BuiltinName>>(
+    builtin_names: B,
+) -> Result<(), RawOsResourcesError> {
+    let known_builtin_names: HashSet<&str> = [
+        BuiltinName::output,
+        BuiltinName::pedersen,
+        BuiltinName::range_check,
+        BuiltinName::ecdsa,
+        BuiltinName::bitwise,
+        BuiltinName::ec_op,
+        BuiltinName::keccak,
+        BuiltinName::poseidon,
+        BuiltinName::segment_arena,
+    ]
+    .iter()
+    .map(|builtin| builtin.to_str_with_suffix())
+    .collect();
+
+    for builtin_name in builtin_names {
+        if !(known_builtin_names.contains(builtin_name.to_str_with_suffix())) {
+            return Err(RawOsResourcesError::UnknownResource(builtin_name.to_string()));
+        }
+    }
+    Ok(())
+}
+
 impl OsResources {
     pub fn validate(&self) -> Result<(), RawOsResourcesError> {
-        for tx_type in TransactionType::iter() {
-            if !self.execute_txs_inner.contains_key(&tx_type) {
-                return Err(RawOsResourcesError::MissingTxType(tx_type));
-            }
-        }
-
-        for syscall_handler in SyscallSelector::iter() {
-            if !self.execute_syscalls.contains_key(&syscall_handler) {
-                return Err(RawOsResourcesError::MissingSelector(syscall_handler));
-            }
-        }
-
-        let known_builtin_names: HashSet<&str> = [
-            BuiltinName::output,
-            BuiltinName::pedersen,
-            BuiltinName::range_check,
-            BuiltinName::ecdsa,
-            BuiltinName::bitwise,
-            BuiltinName::ec_op,
-            BuiltinName::keccak,
-            BuiltinName::poseidon,
-            BuiltinName::segment_arena,
-        ]
-        .iter()
-        .map(|builtin| builtin.to_str_with_suffix())
-        .collect();
+        validate_all_tx_types(&self.execute_txs_inner)?;
+        validate_all_selectors(&self.execute_syscalls)?;
 
         let execution_resources = self
             .execute_txs_inner
@@ -633,11 +657,7 @@ impl OsResources {
             .chain(std::iter::once(&self.compute_os_kzg_commitment_info));
         let builtin_names =
             execution_resources.flat_map(|resources| resources.builtin_instance_counter.keys());
-        for builtin_name in builtin_names {
-            if !(known_builtin_names.contains(builtin_name.to_str_with_suffix())) {
-                return Err(RawOsResourcesError::UnknownResource(builtin_name.to_string()));
-            }
-        }
+        validate_builtins_known(builtin_names)?;
 
         Ok(())
     }
