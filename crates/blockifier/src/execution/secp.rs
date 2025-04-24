@@ -46,12 +46,9 @@ where
     let modulus = Curve::BaseField::MODULUS.into();
 
     if bounds.iter().any(|p| **p >= modulus) {
-        let error = match Felt::from_hex(INVALID_ARGUMENT) {
-            Ok(err) => SyscallExecutionError::Revert { error_data: vec![err] },
-            Err(err) => SyscallExecutionError::from(err),
-        };
-
-        return Err(error);
+        return Err(SyscallExecutionError::Revert {
+            error_data: vec![Felt::from_hex(INVALID_ARGUMENT).unwrap()],
+        });
     }
 
     Ok(())
