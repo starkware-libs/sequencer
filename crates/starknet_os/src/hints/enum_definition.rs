@@ -273,10 +273,10 @@ macro_rules! all_hints_enum {
     }
 }
 
-all_hints_enum!(SyscallHint, OsHint, HintExtension, AggregatorHint);
+all_hints_enum!(DeprecatedSyscallHint, OsHint, HintExtension, AggregatorHint);
 
 define_hint_enum!(
-    SyscallHint,
+    DeprecatedSyscallHint,
     (
         CallContract,
         call_contract,
