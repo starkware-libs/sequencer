@@ -26,6 +26,10 @@ pub fn in_ci() -> bool {
     std::env::var("CI").is_ok()
 }
 
+fn in_ci() -> bool {
+    std::env::var("CI").is_ok()
+}
+
 #[tokio::test]
 // Note: the test requires ganache-cli installed, otherwise it is ignored.
 async fn latest_proved_block_ethereum() {
