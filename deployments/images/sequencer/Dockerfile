@@ -18,7 +18,8 @@ WORKDIR /app
 COPY --from=planner /app/recipe.json recipe.json
 RUN cargo chef cook --recipe-path recipe.json
 COPY . .
-RUN cargo build
+# TODO(Itay): Change this to only build the node instead of the entire project.
+RUN cargo build --features cairo_native
 
 FROM ubuntu:24.04 AS final_stage
 
