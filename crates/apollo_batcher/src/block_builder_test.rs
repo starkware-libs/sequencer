@@ -87,6 +87,7 @@ fn block_execution_artifacts(
         bouncer_weights: BouncerWeights { l1_gas: 100, ..BouncerWeights::empty() },
         // Each mock transaction uses 1 L2 gas so the total amount should be the number of txs.
         l2_gas_used,
+        casm_hash_computation_data: CasmHashComputationData::default(),
     }
 }
 
@@ -329,7 +330,7 @@ fn transaction_failed_test_expectations() -> TestExpectations {
             state_diff: expected_block_artifacts_copy.commitment_state_diff,
             compressed_state_diff: None,
             bouncer_weights: expected_block_artifacts_copy.bouncer_weights,
-            casm_hash_computation_data: CasmHashComputationData::default(),
+            casm_hash_computation_data: expected_block_artifacts_copy.casm_hash_computation_data,
         })
     });
 
@@ -364,7 +365,7 @@ fn set_close_block_expectations(
             state_diff: output_block_artifacts.commitment_state_diff,
             compressed_state_diff: None,
             bouncer_weights: output_block_artifacts.bouncer_weights,
-            casm_hash_computation_data: CasmHashComputationData::default(),
+            casm_hash_computation_data: output_block_artifacts.casm_hash_computation_data,
         })
     });
     output_block_artifacts_copy
