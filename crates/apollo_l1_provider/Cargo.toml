@@ -9,6 +9,7 @@ license.workspace = true
 testing = ["pretty_assertions", "starknet_api/testing"]
 
 [dependencies]
+apollo_batcher_types.workspace = true
 apollo_config.workspace = true
 apollo_infra.workspace = true
 apollo_l1_provider_types.workspace = true
@@ -29,6 +30,7 @@ validator.workspace = true
 
 [dev-dependencies]
 alloy.workspace = true
+apollo_batcher_types = { workspace = true, features = ["testing"] }
 apollo_l1_provider_types = { workspace = true, features = ["testing"] }
 apollo_state_sync_types = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
