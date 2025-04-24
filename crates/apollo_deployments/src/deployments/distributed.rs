@@ -114,6 +114,7 @@ impl GetComponentConfigs for DistributedNodeServiceName {
                     l1_gas_price_provider.local(),
                     l1_provider.local(),
                     state_sync.remote(),
+                    batcher.remote(),
                 ),
                 DistributedNodeServiceName::Mempool => get_mempool_component_config(
                     mempool.local(),
@@ -583,13 +584,16 @@ fn get_l1_component_config(
     l1_gas_price_provider_local_config: ReactiveComponentExecutionConfig,
     l1_provider_local_config: ReactiveComponentExecutionConfig,
     state_sync_remote_config: ReactiveComponentExecutionConfig,
+    batcher_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
+
     config.l1_gas_price_provider = l1_gas_price_provider_local_config;
     config.l1_gas_price_scraper = ActiveComponentExecutionConfig::enabled();
     config.l1_provider = l1_provider_local_config;
     config.l1_scraper = ActiveComponentExecutionConfig::enabled();
     config.state_sync = state_sync_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
+    config.batcher = batcher_remote_config;
     config
 }
