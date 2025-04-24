@@ -310,7 +310,7 @@ impl SyscallHintProcessor {
 }
 
 pub struct DeprecatedSyscallHintProcessor {
-    syscall_ptr: Option<Relocatable>,
+    pub(crate) syscall_ptr: Option<Relocatable>,
 }
 
 // TODO(Dori): remove this #[allow] after the constructor is no longer trivial.

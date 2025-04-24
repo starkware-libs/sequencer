@@ -51,7 +51,7 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor {
     }
 
     fn get_mut_syscall_ptr(&mut self) -> &mut Relocatable {
-        todo!()
+        self.syscall_ptr.as_mut().expect("Syscall pointer must be set when executing syscall.")
     }
 
     fn call_contract(
