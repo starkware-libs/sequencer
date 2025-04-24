@@ -25,7 +25,7 @@ pub struct L1GasPriceProviderConfig {
     pub number_of_blocks_for_mean: u64,
     // Use seconds not Duration since seconds is the basic quanta of time for both Starknet and
     // Ethereum.
-    pub lag_margin_seconds: u64,
+    pub lag_interval_seconds: u64,
     pub storage_limit: usize,
 }
 
@@ -34,7 +34,7 @@ impl Default for L1GasPriceProviderConfig {
         const MEAN_NUMBER_OF_BLOCKS: u64 = 300;
         Self {
             number_of_blocks_for_mean: MEAN_NUMBER_OF_BLOCKS,
-            lag_margin_seconds: 60,
+            lag_interval_seconds: 60,
             storage_limit: usize::try_from(10 * MEAN_NUMBER_OF_BLOCKS).unwrap(),
         }
     }
@@ -50,8 +50,8 @@ impl SerializeConfig for L1GasPriceProviderConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "lag_margin_seconds",
-                &self.lag_margin_seconds,
+                "lag_interval_seconds",
+                &self.lag_interval_seconds,
                 "Difference between the time of the block from L1 used to calculate the gas price \
                  and the time of the L2 block this price is used in",
                 ParamPrivacyInput::Public,
@@ -129,16 +129,15 @@ impl L1GasPriceProvider {
 
     pub fn get_price_info(&self, timestamp: BlockTimestamp) -> L1GasPriceProviderResult<PriceInfo> {
         // This index is for the last block in the mean (inclusive).
-        let index_last_timestamp_rev =
-            self.price_samples_by_block.iter().rev().position(|data| {
-                data.sample.timestamp <= timestamp.0 - self.config.lag_margin_seconds
-            });
+        let index_last_timestamp_rev = self.price_samples_by_block.iter().rev().position(|data| {
+            data.sample.timestamp <= timestamp.0 - self.config.lag_interval_seconds
+        });
 
         // Could not find a block with the requested timestamp and lag.
         let Some(last_index_rev) = index_last_timestamp_rev else {
             return Err(L1GasPriceProviderError::MissingDataError {
                 timestamp: timestamp.0,
-                lag: self.config.lag_margin_seconds,
+                lag: self.config.lag_interval_seconds,
             });
         };
         // Convert the index to the forward direction.
