@@ -562,25 +562,27 @@ impl Batcher {
         );
         trace!("Rejected transactions: {:#?}, State diff: {:#?}.", rejected_tx_hashes, state_diff);
 
-        // Commit the proposal to the storage and notify the mempool.
+        // Commit the proposal to the storage.
         self.storage_writer.commit_proposal(height, state_diff).map_err(|err| {
             error!("Failed to commit proposal to storage: {}", err);
             BatcherError::InternalError
         })?;
         STORAGE_HEIGHT.increment(1);
-        let mempool_result = self
-            .mempool_client
-            .commit_block(CommitBlockArgs { address_to_nonce, rejected_tx_hashes })
-            .await;
 
-        if let Err(mempool_err) = mempool_result {
-            error!("Failed to commit block to mempool: {}", mempool_err);
-            // TODO(AlonH): Should we rollback the state diff and return an error?
-        };
+        // Notify the L1 provider of the new block.
+        let rejected_l1_handler_tx_hashes = rejected_tx_hashes
+            .iter()
+            .copied()
+            .filter(|tx_hash| consumed_l1_handler_tx_hashes.contains(tx_hash))
+            .collect();
 
         let l1_provider_result = self
             .l1_provider_client
-            .commit_block(consumed_l1_handler_tx_hashes.iter().copied().collect(), height)
+            .commit_block(
+                consumed_l1_handler_tx_hashes.iter().copied().collect(),
+                rejected_l1_handler_tx_hashes,
+                height,
+            )
             .await;
         l1_provider_result.unwrap_or_else(|err| match err {
             L1ProviderClientError::L1ProviderError(L1ProviderError::UnexpectedHeight {
@@ -597,6 +599,17 @@ impl Batcher {
                 panic!("Unexpected error while committing block in L1 provider: {:?}", other_err)
             }
         });
+
+        // Notify the mempool of the new block.
+        let mempool_result = self
+            .mempool_client
+            .commit_block(CommitBlockArgs { address_to_nonce, rejected_tx_hashes })
+            .await;
+
+        if let Err(mempool_err) = mempool_result {
+            error!("Failed to commit block to mempool: {}", mempool_err);
+            // TODO(AlonH): Should we rollback the state diff and return an error?
+        };
 
         Ok(())
     }

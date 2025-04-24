@@ -1444,6 +1444,7 @@ dependencies = [
  "mempool_test_utils",
  "papyrus_base_layer",
  "pretty_assertions",
+ "rstest",
  "serde",
  "starknet-types-core",
  "starknet_api",
