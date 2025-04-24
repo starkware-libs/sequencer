@@ -230,14 +230,14 @@ pub struct InstanceConfigOverride {
     #[serde(rename = "consensus_manager_config.network_config.bootstrap_peer_multiaddr")]
     consensus_bootstrap_peer_multiaddr: &'static str,
     #[serde(rename = "consensus_manager_config.network_config.bootstrap_peer_multiaddr.#is_none")]
-    consensus_bootstrap_peer_multiaddr_is_none: &'static str,
+    consensus_bootstrap_peer_multiaddr_is_none: bool,
     // TODO(Tsabary): network secret keys should be defined as secrets.
     #[serde(rename = "consensus_manager_config.network_config.secret_key")]
     consensus_secret_key: &'static str,
     #[serde(rename = "mempool_p2p_config.network_config.bootstrap_peer_multiaddr")]
     mempool_bootstrap_peer_multiaddr: &'static str,
     #[serde(rename = "mempool_p2p_config.network_config.bootstrap_peer_multiaddr.#is_none")]
-    mempool_bootstrap_peer_multiaddr_is_none: &'static str,
+    mempool_bootstrap_peer_multiaddr_is_none: bool,
     // TODO(Tsabary): network secret keys should be defined as secrets.
     #[serde(rename = "mempool_p2p_config.network_config.secret_key")]
     mempool_secret_key: &'static str,
@@ -247,10 +247,10 @@ pub struct InstanceConfigOverride {
 impl InstanceConfigOverride {
     pub const fn new(
         consensus_bootstrap_peer_multiaddr: &'static str,
-        consensus_bootstrap_peer_multiaddr_is_none: &'static str,
+        consensus_bootstrap_peer_multiaddr_is_none: bool,
         consensus_secret_key: &'static str,
         mempool_bootstrap_peer_multiaddr: &'static str,
-        mempool_bootstrap_peer_multiaddr_is_none: &'static str,
+        mempool_bootstrap_peer_multiaddr_is_none: bool,
         mempool_secret_key: &'static str,
         validator_id: &'static str,
     ) -> Self {
