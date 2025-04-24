@@ -56,9 +56,7 @@ fn application_config_files_exist() {
         let deployment = deployment_fn();
         deployment.assert_application_configs_exist();
 
-        deployment.test_dump_application_config_files(
-            deployment.get_base_app_config_file_path().to_str().unwrap(),
-        );
+        deployment.test_dump_application_config_files();
     }
 }
 

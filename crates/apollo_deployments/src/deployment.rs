@@ -93,12 +93,9 @@ impl Deployment {
         self.base_app_config_file_path.clone()
     }
 
-    // TODO(Tsabary): use self.get_base_app_config_file_path() instead where possible.
-    pub fn application_config_values(
-        &self,
-        base_app_config_file_path: &str,
-    ) -> IndexMap<ServiceName, Value> {
-        let deployment_base_app_config = get_deployment_from_config_path(base_app_config_file_path);
+    pub fn application_config_values(&self) -> IndexMap<ServiceName, Value> {
+        let deployment_base_app_config =
+            get_deployment_from_config_path(self.get_base_app_config_file_path().to_str().unwrap());
         let component_configs = self.deployment_name.get_component_configs(None, &self.environment);
 
         let mut result = IndexMap::new();
@@ -118,8 +115,8 @@ impl Deployment {
         result
     }
 
-    pub fn dump_application_config_files(&self, base_app_config_file_path: &str) {
-        let app_configs = self.application_config_values(base_app_config_file_path);
+    pub fn dump_application_config_files(&self) {
+        let app_configs = self.application_config_values();
         for (service, value) in app_configs.into_iter() {
             let config_path = &self.application_config_subdir.join(service.get_config_file_path());
             serialize_to_file(
@@ -149,8 +146,8 @@ impl Deployment {
     }
 
     #[cfg(test)]
-    pub fn test_dump_application_config_files(&self, base_app_config_file_path: &str) {
-        let app_configs = self.application_config_values(base_app_config_file_path);
+    pub fn test_dump_application_config_files(&self) {
+        let app_configs = self.application_config_values();
         for (service, value) in app_configs.into_iter() {
             let config_path = &self.application_config_subdir.join(service.get_config_file_path());
             serialize_to_file_test(
