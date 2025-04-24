@@ -739,12 +739,19 @@ impl OsResources {
             vm_resources.calldata_factor.scaling_factor
         );
 
-        let mut base_gas_cost = get_gas_cost_from_vm_resources(&vm_resources.constant, gas_costs);
+        let mut base_gas_cost = get_gas_cost_from_vm_resources(
+            &vm_resources.constant,
+            &gas_costs.base,
+            &gas_costs.builtins,
+        );
 
         // The minimum total cost is `syscall_base_gas_cost`, which is pre-charged by the compiler.
         base_gas_cost = std::cmp::max(gas_costs.base.syscall_base_gas_cost, base_gas_cost);
-        let linear_gas_cost =
-            get_gas_cost_from_vm_resources(&vm_resources.calldata_factor.resources, gas_costs);
+        let linear_gas_cost = get_gas_cost_from_vm_resources(
+            &vm_resources.calldata_factor.resources,
+            &gas_costs.base,
+            &gas_costs.builtins,
+        );
         SyscallGasCost { base: base_gas_cost, linear_factor: linear_gas_cost }
     }
 }

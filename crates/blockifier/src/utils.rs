@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 
-use crate::blockifier_versioned_constants::GasCosts;
+use crate::blockifier_versioned_constants::{BaseGasCosts, BuiltinGasCosts};
 use crate::transaction::errors::NumericConversionError;
 
 #[cfg(test)]
@@ -66,7 +66,8 @@ pub fn u64_from_usize(val: usize) -> u64 {
 
 pub fn get_gas_cost_from_vm_resources(
     execution_resources: &ExecutionResources,
-    gas_costs: &GasCosts,
+    base_costs: &BaseGasCosts,
+    builtin_costs: &BuiltinGasCosts,
 ) -> u64 {
     let n_steps = u64_from_usize(execution_resources.n_steps);
     let n_memory_holes = u64_from_usize(execution_resources.n_memory_holes);
@@ -74,15 +75,14 @@ pub fn get_gas_cost_from_vm_resources(
         .builtin_instance_counter
         .iter()
         .map(|(builtin, amount)| {
-            let builtin_cost = gas_costs
-                .builtins
+            let builtin_cost = builtin_costs
                 .get_builtin_gas_cost(builtin)
                 .unwrap_or_else(|err| panic!("Failed to get gas cost: {}", err));
             builtin_cost * u64_from_usize(*amount)
         })
         .sum();
 
-    n_steps * gas_costs.base.step_gas_cost
-        + n_memory_holes * gas_costs.base.memory_hole_gas_cost
+    n_steps * base_costs.step_gas_cost
+        + n_memory_holes * base_costs.memory_hole_gas_cost
         + total_builtin_gas_cost
 }
