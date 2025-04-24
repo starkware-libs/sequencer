@@ -7,7 +7,8 @@
       "name": "Node",
       "controller": "StatefulSet",
       "config_paths": [
-        "node.json"
+        "node.json",
+        "deployment_config_override.json"
       ],
       "ingress": null,
       "autoscale": false,

@@ -7,7 +7,8 @@
       "name": "Batcher",
       "controller": "StatefulSet",
       "config_paths": [
-        "batcher.json"
+        "batcher.json",
+        "deployment_config_override.json"
       ],
       "ingress": null,
       "autoscale": false,
@@ -30,7 +31,8 @@
       "name": "ClassManager",
       "controller": "StatefulSet",
       "config_paths": [
-        "class_manager.json"
+        "class_manager.json",
+        "deployment_config_override.json"
       ],
       "ingress": null,
       "autoscale": false,
@@ -53,7 +55,8 @@
       "name": "ConsensusManager",
       "controller": "StatefulSet",
       "config_paths": [
-        "consensus_manager.json"
+        "consensus_manager.json",
+        "deployment_config_override.json"
       ],
       "ingress": null,
       "autoscale": false,
@@ -76,7 +79,8 @@
       "name": "HttpServer",
       "controller": "StatefulSet",
       "config_paths": [
-        "http_server.json"
+        "http_server.json",
+        "deployment_config_override.json"
       ],
       "ingress": {
         "domain": "sw-dev.io",
@@ -110,7 +114,8 @@
       "name": "Gateway",
       "controller": "StatefulSet",
       "config_paths": [
-        "gateway.json"
+        "gateway.json",
+        "deployment_config_override.json"
       ],
       "ingress": null,
       "autoscale": false,
@@ -133,7 +138,8 @@
       "name": "L1",
       "controller": "StatefulSet",
       "config_paths": [
-        "l1.json"
+        "l1.json",
+        "deployment_config_override.json"
       ],
       "ingress": null,
       "autoscale": false,
@@ -156,7 +162,8 @@
       "name": "Mempool",
       "controller": "StatefulSet",
       "config_paths": [
-        "mempool.json"
+        "mempool.json",
+        "deployment_config_override.json"
       ],
       "ingress": null,
       "autoscale": false,
@@ -179,7 +186,8 @@
       "name": "SierraCompiler",
       "controller": "StatefulSet",
       "config_paths": [
-        "sierra_compiler.json"
+        "sierra_compiler.json",
+        "deployment_config_override.json"
       ],
       "ingress": null,
       "autoscale": false,
@@ -202,7 +210,8 @@
       "name": "StateSync",
       "controller": "StatefulSet",
       "config_paths": [
-        "state_sync.json"
+        "state_sync.json",
+        "deployment_config_override.json"
       ],
       "ingress": null,
       "autoscale": false,

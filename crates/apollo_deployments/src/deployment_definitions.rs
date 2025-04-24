@@ -35,22 +35,19 @@ const APP_CONFIGS_DIR_NAME: &str = "app_configs/";
 
 const INTEGRATION_DEPLOYMENT_CONFIG_OVERRIDE: DeploymentConfigOverride =
     DeploymentConfigOverride::new(
-        "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+        "0xA43812F9C610851daF67c5FA36606Ea8c8Fa7caE",
         "SEPOLIA_INTEGRATION",
-        "http://127.0.0.1:53262/eth_to_strk_oracle?timestamp=",
-        "0x1001",
-        "https://integration-sepolia.starknet.io/",
-        "0x1002",
-    );
-
-const TESTING_DEPLOYMENT_CONFIG_OVERRIDE : DeploymentConfigOverride =
-    DeploymentConfigOverride::new(
-        "0x25705641952b47763cAeA331f7058c6595cf4Acf",
-        "CHAIN_ID_SUBDIR",
-        "https://api.dev.pragma.build/node/v1/data/eth/strk?interval=15min&aggregation=median&timestamp=",
         "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
         "https://feeder.integration-sepolia.starknet.io/",
         "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d",
+    );
+
+const TESTING_DEPLOYMENT_CONFIG_OVERRIDE: DeploymentConfigOverride = DeploymentConfigOverride::new(
+    "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+    "CHAIN_ID_SUBDIR",
+    "0x1001",
+    "https://integration-sepolia.starknet.io/",
+    "0x1002",
 );
 
 const INTEGRATION_CONFIG_OVERRIDE: ConfigOverride =
