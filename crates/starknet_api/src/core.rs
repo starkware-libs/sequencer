@@ -58,9 +58,12 @@ impl<'de> Deserialize<'de> for ChainId {
         Ok(ChainId::from(s))
     }
 }
+
 impl From<String> for ChainId {
     fn from(s: String) -> Self {
-        match s.as_ref() {
+        let s_ref: &str = s.as_ref();
+        // Allow leading null bytes.
+        match s_ref.trim_start_matches('\0') {
             "SN_MAIN" => ChainId::Mainnet,
             "SN_SEPOLIA" => ChainId::Sepolia,
             "SN_INTEGRATION_SEPOLIA" => ChainId::IntegrationSepolia,
@@ -68,6 +71,7 @@ impl From<String> for ChainId {
         }
     }
 }
+
 impl std::fmt::Display for ChainId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

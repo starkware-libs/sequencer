@@ -115,6 +115,16 @@ fn test_ascii_as_felt() {
 }
 
 #[test]
+fn test_string_conversion_chain_id() {
+    let mainnet_string = "SN_MAIN";
+    let mainnet_string_with_leading_zeros = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0SN_MAIN";
+    let mainnet_id: ChainId = ChainId::from(mainnet_string_with_leading_zeros.to_string());
+    let mainnet_id_with_leading_zeros: ChainId = ChainId::from(mainnet_string.to_string());
+    assert_eq!(mainnet_id, mainnet_id_with_leading_zeros);
+    assert_eq!(mainnet_id, ChainId::Mainnet);
+}
+
+#[test]
 fn test_value_too_large_for_type() {
     // Happy flow.
     let n = 1991_u128;
