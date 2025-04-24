@@ -1,7 +1,14 @@
 {
   "base_layer_config.node_url": "http://localhost:53260/",
   "base_layer_config.prague_blob_gas_calc": true,
+<<<<<<< HEAD:config/sequencer/sepolia_integration/base_app_configs/node_1.json
   "base_layer_config.starknet_contract_address": "0xd72d41c2c28c867846e21759B00555F25026c8C6",
+||||||| parent of ad94732f9 (feat(papyrus_base_layer): add timeout to calls to provider):config/sequencer/sepolia_integration/app_configs/hybrid/integration_hybrid_node_3/http_server.json
+  "base_layer_config.starknet_contract_address": "0x25705641952b47763cAeA331f7058c6595cf4Acf",
+=======
+  "base_layer_config.starknet_contract_address": "0x25705641952b47763cAeA331f7058c6595cf4Acf",
+  "base_layer_config.timeout_millis": 1000,
+>>>>>>> ad94732f9 (feat(papyrus_base_layer): add timeout to calls to provider):config/sequencer/sepolia_integration/app_configs/hybrid/integration_hybrid_node_3/http_server.json
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.l1_gas": 2500000,
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.message_segment_length": 3700,
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.n_events": 5000,

@@ -14,6 +14,11 @@
     "privacy": "Public",
     "value": "0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4"
   },
+  "base_layer_config.timeout_millis": {
+    "description": "The timeout (milliseconds) for a query of the L1 base layer",
+    "privacy": "Public",
+    "value": 1000
+  },
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.l1_gas": {
     "description": "An upper bound on the total l1_gas used in a block.",
     "privacy": "Public",
