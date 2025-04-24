@@ -560,6 +560,16 @@ pub struct EventLimits {
     pub max_n_emitted_events: usize,
 }
 
+#[derive(Error, Debug)]
+pub enum RawOsResourcesError {
+    #[error("os_resources.execute_syscalls are missing a selector: {0:?}")]
+    MissingSelector(SyscallSelector),
+    #[error("os_resources.execute_tx_inner is missing transaction_type: {0:?}")]
+    MissingTxType(TransactionType),
+    #[error("unknown os resource {0}")]
+    UnknownResource(String),
+}
+
 // TODO(Dori): Remove `Deserialize` derive here.
 #[derive(Clone, Debug, Default, Deserialize)]
 // Serde trick for adding validations via a customr deserializer, without forgoing the derive.
@@ -583,24 +593,16 @@ pub struct OsResources {
 }
 
 impl OsResources {
-    pub fn validate<'de, D: Deserializer<'de>>(
-        &self,
-    ) -> Result<(), <D as Deserializer<'de>>::Error> {
+    pub fn validate(&self) -> Result<(), RawOsResourcesError> {
         for tx_type in TransactionType::iter() {
             if !self.execute_txs_inner.contains_key(&tx_type) {
-                return Err(DeserializationError::custom(format!(
-                    "ValidationError: os_resources.execute_tx_inner is missing transaction_type: \
-                     {tx_type:?}"
-                )));
+                return Err(RawOsResourcesError::MissingTxType(tx_type));
             }
         }
 
         for syscall_handler in SyscallSelector::iter() {
             if !self.execute_syscalls.contains_key(&syscall_handler) {
-                return Err(DeserializationError::custom(format!(
-                    "ValidationError: os_resources.execute_syscalls are missing syscall handler: \
-                     {syscall_handler:?}"
-                )));
+                return Err(RawOsResourcesError::MissingSelector(syscall_handler));
             }
         }
 
@@ -633,9 +635,7 @@ impl OsResources {
             execution_resources.flat_map(|resources| resources.builtin_instance_counter.keys());
         for builtin_name in builtin_names {
             if !(known_builtin_names.contains(builtin_name.to_str_with_suffix())) {
-                return Err(DeserializationError::custom(format!(
-                    "ValidationError: unknown os resource {builtin_name}"
-                )));
+                return Err(RawOsResourcesError::UnknownResource(builtin_name.to_string()));
             }
         }
 
@@ -768,7 +768,9 @@ impl<'de> Deserialize<'de> for OsResources {
         // Validations.
 
         #[cfg(not(test))]
-        os_resources.validate::<D>()?;
+        os_resources
+            .validate()
+            .map_err(|error| DeserializationError::custom(format!("ValidationError: {error}")))?;
 
         Ok(os_resources)
     }
