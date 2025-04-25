@@ -1,4 +1,5 @@
 /// Auto-generate getters for listed versioned constants versions.
+/// Optionally provide an intermediate struct for deserialization.
 #[macro_export]
 macro_rules! define_versioned_constants {
     ($struct_name:ident, $error_type:ident, $(($variant:ident, $path_to_json:expr)),* $(,)?) => {
@@ -6,14 +7,55 @@ macro_rules! define_versioned_constants {
         // For internal use only; for access to a static instance use the `StarknetVersion` enum.
         paste::paste! {
             $(
-                pub(crate) const [<VERSIONED_CONSTANTS_ $variant:upper _JSON>]: &str =
-                    include_str!($path_to_json);
                 /// Static instance of the versioned constants for the Starknet version.
                 pub static [<VERSIONED_CONSTANTS_ $variant:upper>]: std::sync::LazyLock<$struct_name> =
                     std::sync::LazyLock::new(|| {
                         serde_json::from_str([<VERSIONED_CONSTANTS_ $variant:upper _JSON>])
                             .expect(&format!("Versioned constants {} is malformed.", $path_to_json))
                 });
+            )*
+        }
+
+        $crate::define_versioned_constants_inner!(
+            $struct_name, $error_type, $(($variant, $path_to_json)),*
+        );
+    };
+
+    (
+        $struct_name:ident,
+        $intermediate_struct_name:ident,
+        $error_type:ident,
+        $(($variant:ident, $path_to_json:expr)),* $(,)?
+    ) => {
+        // Static (lazy) instances of the versioned constants.
+        // For internal use only; for access to a static instance use the `StarknetVersion` enum.
+        paste::paste! {
+            $(
+                /// Static instance of the versioned constants for the Starknet version.
+                pub static [<VERSIONED_CONSTANTS_ $variant:upper>]: std::sync::LazyLock<$struct_name> =
+                    std::sync::LazyLock::new(|| {
+                        serde_json::from_str::<$intermediate_struct_name>(
+                            [<VERSIONED_CONSTANTS_ $variant:upper _JSON>]
+                        )
+                        .expect(&format!("Versioned constants {} is malformed.", $path_to_json))
+                        .into()
+                });
+            )*
+        }
+
+        $crate::define_versioned_constants_inner!(
+            $struct_name, $error_type, $(($variant, $path_to_json)),*
+        );
+    };
+}
+
+#[macro_export]
+macro_rules! define_versioned_constants_inner {
+    ($struct_name:ident, $error_type:ident, $(($variant:ident, $path_to_json:expr)),* $(,)?) => {
+        paste::paste! {
+            $(
+                pub(crate) const [<VERSIONED_CONSTANTS_ $variant:upper _JSON>]: &str =
+                    include_str!($path_to_json);
             )*
         }
 
