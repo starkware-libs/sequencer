@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
+use cached::proc_macro::cached;
 use glob::{glob, Paths};
 use indexmap::IndexMap;
 use pretty_assertions::assert_eq;
@@ -42,8 +43,10 @@ fn test_versioned_constants_overrides() {
     assert_eq!(result.tx_event_limits.max_n_emitted_events, updated_max_n_events);
 }
 
-#[test]
-fn test_string_inside_composed_field() {
+#[rstest]
+fn test_string_inside_composed_field(
+    #[values(StarknetVersion::LATEST, StarknetVersion::V0_13_0)] version: StarknetVersion,
+) {
     let json_data = r#"
     {
         "step_gas_cost": 2,
@@ -52,69 +55,75 @@ fn test_string_inside_composed_field() {
         }
     }"#;
 
-    check_constants_serde_error(
-        json_data,
-        "Value \"meow\" used to create value for key 'entry_point_initial_budget' is out of range \
-         and cannot be cast into u64",
+    check_constants_serde_error(version, json_data, "invalid type: string \"meow\", expected u64");
+}
+
+#[cached]
+fn get_raw_os_constants_dict(version: StarknetVersion) -> IndexMap<String, Value> {
+    let raw_vc_string = VersionedConstants::json_str(&version).unwrap();
+    let raw_vc: RawVersionedConstants = serde_json::from_str(raw_vc_string).unwrap();
+    serde_json::from_value(raw_vc.os_constants.serialize(serde_json::value::Serializer).unwrap())
+        .unwrap()
+}
+
+fn check_constants_serde_error(
+    version: StarknetVersion,
+    json_data: &str,
+    expected_error_message: &str,
+) {
+    let mut os_constants_raw = get_raw_os_constants_dict(version);
+
+    let json_data_raw: IndexMap<String, Value> = serde_json::from_str(json_data).unwrap();
+    for (key, value) in json_data_raw.into_iter() {
+        os_constants_raw.insert(key, value);
+    }
+    let json_data = &serde_json::to_string(&os_constants_raw).unwrap();
+
+    let error_str = serde_json::from_str::<RawOsConstants>(json_data).unwrap_err().to_string();
+    assert!(
+        error_str.contains(expected_error_message),
+        "Expected error '{error_str}' to contain '{expected_error_message}'"
     );
 }
 
-fn check_constants_serde_error(json_data: &str, expected_error_message: &str) {
-    let mut json_data_raw: IndexMap<String, Value> = serde_json::from_str(json_data).unwrap();
-    json_data_raw.insert("validate_block_number_rounding".into(), 0.into());
-    json_data_raw.insert("validate_timestamp_rounding".into(), 0.into());
-    json_data_raw.insert(
-        "os_contract_addresses".into(),
-        serde_json::to_value(OsContractAddresses::default()).unwrap(),
-    );
-    json_data_raw.insert("v1_bound_accounts_cairo0".into(), serde_json::Value::Array(vec![]));
-    json_data_raw.insert("v1_bound_accounts_cairo1".into(), serde_json::Value::Array(vec![]));
-    json_data_raw.insert("v1_bound_accounts_max_tip".into(), "0x0".into());
-    json_data_raw.insert(
-        "l1_handler_max_amount_bounds".into(),
-        serde_json::to_value(GasVector::default()).unwrap(),
-    );
-    json_data_raw.insert("data_gas_accounts".into(), serde_json::Value::Array(vec![]));
-
-    let json_data = &serde_json::to_string(&json_data_raw).unwrap();
-
-    let error = serde_json::from_str::<RawOsConstants>(json_data).unwrap_err();
-    assert_eq!(error.to_string(), expected_error_message);
-}
-
-#[test]
-fn test_missing_key() {
+#[rstest]
+fn test_missing_key(
+    #[values(StarknetVersion::LATEST, StarknetVersion::V0_13_0)] version: StarknetVersion,
+) {
     let json_data = r#"
     {
         "entry_point_initial_budget": {
             "TEN LI GAZ!": 2
         }
     }"#;
-    check_constants_serde_error(
-        json_data,
-        "Unknown key 'TEN LI GAZ!' used to create value for 'entry_point_initial_budget'",
-    );
+    check_constants_serde_error(version, json_data, "unknown field `TEN LI GAZ!");
 }
 
-#[test]
-fn test_unhandled_value_type() {
+#[rstest]
+fn test_unhandled_value_type(
+    #[values(StarknetVersion::LATEST, StarknetVersion::V0_13_0)] version: StarknetVersion,
+) {
     let json_data = r#"
     {
         "step_gas_cost": []
     }"#;
-    check_constants_serde_error(json_data, "Unhandled value type: []");
+    check_constants_serde_error(version, json_data, "invalid type: sequence, expected u64");
 }
 
-#[test]
-fn test_invalid_number() {
+#[rstest]
+fn test_invalid_number(
+    #[values(StarknetVersion::LATEST, StarknetVersion::V0_13_0)] version: StarknetVersion,
+) {
     check_constants_serde_error(
+        version,
         r#"{"step_gas_cost": 42.5}"#,
-        "Value 42.5 for key 'step_gas_cost' is out of range and cannot be cast into u64",
+        "invalid type: floating point `42.5`, expected u64",
     );
 
     check_constants_serde_error(
+        version,
         r#"{"step_gas_cost": -2}"#,
-        "Value -2 for key 'step_gas_cost' is out of range and cannot be cast into u64",
+        "invalid value: integer `-2`, expected u64",
     );
 
     let json_data = r#"
@@ -125,9 +134,9 @@ fn test_invalid_number() {
         }
     }"#;
     check_constants_serde_error(
+        version,
         json_data,
-        "Value 42.5 used to create value for key 'entry_point_initial_budget' is out of range and \
-         cannot be cast into u64",
+        "invalid type: floating point `42.5`, expected u64",
     );
 }
 

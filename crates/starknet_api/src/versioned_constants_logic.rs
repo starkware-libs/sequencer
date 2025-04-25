@@ -61,9 +61,11 @@ macro_rules! define_versioned_constants_inner {
 
         impl $struct_name {
             /// Gets the path to the JSON file for the specified Starknet version.
-            pub fn path_to_json(version: &starknet_api::block::StarknetVersion) -> Result<&'static str, $error_type> {
+            pub fn json_str(version: &starknet_api::block::StarknetVersion) -> Result<&'static str, $error_type> {
                 match version {
-                    $(starknet_api::block::StarknetVersion::$variant => Ok($path_to_json),)*
+                    $(starknet_api::block::StarknetVersion::$variant => paste::paste! {
+                        Ok([<VERSIONED_CONSTANTS_ $variant:upper _JSON>])
+                    },)*
                     _ => Err($error_type::InvalidStarknetVersion(*version)),
                 }
             }
@@ -91,14 +93,8 @@ macro_rules! define_versioned_constants_inner {
         /// Gets a string of the constants of the latest version of Starknet.
         pub static VERSIONED_CONSTANTS_LATEST_JSON: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
             let latest_variant = StarknetVersion::LATEST;
-            let path_to_json: std::path::PathBuf = [
-                apollo_infra_utils::compile_time_cargo_manifest_dir!(),
-                "src".into(),
-                $struct_name::path_to_json(&latest_variant)
-                    .expect("Latest variant should have a path to json.").into()
-            ].iter().collect();
-            std::fs::read_to_string(path_to_json.clone())
-                .expect(&format!("Failed to read file {}.", path_to_json.display()))
+            $struct_name::json_str(&latest_variant)
+                .expect("Latest version should support VC.").to_string()
         });
     };
 }
