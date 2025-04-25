@@ -862,18 +862,31 @@ impl RawOsResources {
             .values()
             .flat_map(|resources_params| match resources_params {
                 VariableResourceParams::Constant(constant) => vec![constant],
-                VariableResourceParams::WithFactor(resources_params) => {
-                    vec![&resources_params.constant, &resources_params.calldata_factor.resources]
+                VariableResourceParams::WithFactor(RawResourcesParams {
+                    constant,
+                    calldata_factor:
+                        VariableCallDataFactor::Scaled(RawCallDataFactor { resources, .. }),
+                })
+                | VariableResourceParams::WithFactor(RawResourcesParams {
+                    constant,
+                    calldata_factor: VariableCallDataFactor::Unscaled(resources),
+                }) => {
+                    vec![constant, resources]
                 }
             })
             .chain(self.execute_syscalls.values().flat_map(
                 |resources_params| match resources_params {
                     VariableResourceParams::Constant(constant) => vec![constant],
-                    VariableResourceParams::WithFactor(resources_params) => {
-                        vec![
-                            &resources_params.constant,
-                            &resources_params.calldata_factor.resources,
-                        ]
+                    VariableResourceParams::WithFactor(RawResourcesParams {
+                        constant,
+                        calldata_factor:
+                            VariableCallDataFactor::Scaled(RawCallDataFactor { resources, .. }),
+                    })
+                    | VariableResourceParams::WithFactor(RawResourcesParams {
+                        constant,
+                        calldata_factor: VariableCallDataFactor::Unscaled(resources),
+                    }) => {
+                        vec![constant, resources]
                     }
                 },
             ))
@@ -1193,19 +1206,22 @@ impl GasCosts {
             .expect("Fetching the execution resources of a syscall should not fail.")
             .into();
 
-        assert!(
-            vm_resources.calldata_factor.scaling_factor == 1,
-            "The scaling factor of the syscall should be 1, but it is {}",
-            vm_resources.calldata_factor.scaling_factor
-        );
-
         let mut base_gas =
             get_gas_cost_from_vm_resources(&vm_resources.constant, base_costs, builtin_costs);
 
         // The minimum total cost is `syscall_base_gas_cost`, which is pre-charged by the compiler.
         base_gas = std::cmp::max(base_costs.syscall_base_gas_cost, base_gas);
         let linear_gas_cost = get_gas_cost_from_vm_resources(
-            &vm_resources.calldata_factor.resources,
+            &match vm_resources.calldata_factor {
+                VariableCallDataFactor::Scaled(RawCallDataFactor { resources, scaling_factor }) => {
+                    assert!(
+                        scaling_factor == 1,
+                        "The scaling factor of the syscall should be 1, but it is {scaling_factor}"
+                    );
+                    resources
+                }
+                VariableCallDataFactor::Unscaled(resources) => resources,
+            },
             base_costs,
             builtin_costs,
         );
@@ -1725,12 +1741,57 @@ impl TryFrom<ResourceParamsRaw> for ResourcesParams {
     }
 }
 
+#[cfg_attr(any(test, feature = "testing"), derive(PartialEq))]
 #[derive(Clone, Debug, Deserialize)]
 pub struct RawResourcesParams {
     pub constant: ExecutionResources,
-    pub calldata_factor: CallDataFactor,
+    pub calldata_factor: VariableCallDataFactor,
 }
 
+// TODO(Dori): Delete this and use `CallDataFactor` once `CallDataFactor` no longer implements
+// `Deserialize`.
+#[derive(Clone, Debug, Deserialize, Serialize, Eq, PartialEq)]
+pub struct RawCallDataFactor {
+    pub resources: ExecutionResources,
+    pub scaling_factor: usize,
+}
+
+impl Default for RawCallDataFactor {
+    fn default() -> Self {
+        Self { resources: ExecutionResources::default(), scaling_factor: 1 }
+    }
+}
+
+impl From<RawCallDataFactor> for CallDataFactor {
+    fn from(value: RawCallDataFactor) -> Self {
+        Self { resources: value.resources, scaling_factor: value.scaling_factor }
+    }
+}
+
+#[cfg_attr(any(test, feature = "testing"), derive(PartialEq))]
+#[derive(Deserialize, Debug, Clone)]
+#[serde(untagged)]
+pub enum VariableCallDataFactor {
+    Scaled(RawCallDataFactor),
+    Unscaled(ExecutionResources),
+}
+
+impl Default for VariableCallDataFactor {
+    fn default() -> Self {
+        Self::Scaled(RawCallDataFactor::default())
+    }
+}
+
+impl From<VariableCallDataFactor> for RawCallDataFactor {
+    fn from(value: VariableCallDataFactor) -> Self {
+        match value {
+            VariableCallDataFactor::Scaled(calldata_factor) => calldata_factor,
+            VariableCallDataFactor::Unscaled(resources) => Self { resources, scaling_factor: 1 },
+        }
+    }
+}
+
+#[cfg_attr(any(test, feature = "testing"), derive(PartialEq))]
 #[derive(Deserialize, Debug, Clone)]
 #[serde(untagged)]
 pub enum VariableResourceParams {
@@ -1752,7 +1813,10 @@ impl From<&VariableResourceParams> for RawResourcesParams {
 impl From<&VariableResourceParams> for ResourcesParams {
     fn from(value: &VariableResourceParams) -> Self {
         let raw_params = RawResourcesParams::from(value);
-        Self { constant: raw_params.constant, calldata_factor: raw_params.calldata_factor }
+        Self {
+            constant: raw_params.constant,
+            calldata_factor: RawCallDataFactor::from(raw_params.calldata_factor).into(),
+        }
     }
 }
 
