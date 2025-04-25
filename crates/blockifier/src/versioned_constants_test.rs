@@ -2,8 +2,10 @@ use std::path::PathBuf;
 
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
 use glob::{glob, Paths};
+use indexmap::IndexMap;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
+use serde_json::Value;
 use starknet_api::block::StarknetVersion;
 
 use super::*;
@@ -76,7 +78,7 @@ fn check_constants_serde_error(json_data: &str, expected_error_message: &str) {
 
     let json_data = &serde_json::to_string(&json_data_raw).unwrap();
 
-    let error = serde_json::from_str::<OsConstants>(json_data).unwrap_err();
+    let error = serde_json::from_str::<RawOsConstants>(json_data).unwrap_err();
     assert_eq!(error.to_string(), expected_error_message);
 }
 
@@ -131,20 +133,11 @@ fn test_invalid_number() {
 
 #[test]
 fn test_old_json_parsing() {
-    // TODO(Dori): Only test RawVersionedConstants deserialization.
     for file in all_jsons_in_dir().map(Result::unwrap) {
-        let vc =
-            serde_json::from_reader::<_, VersionedConstants>(&std::fs::File::open(&file).unwrap())
-                .unwrap_or_else(|error| {
-                    panic!("Versioned constants JSON file {file:#?} is malformed: {error}")
-                });
-        let raw_vc = serde_json::from_reader::<_, RawVersionedConstants>(
-            &std::fs::File::open(&file).unwrap(),
-        )
-        .unwrap_or_else(|error| {
-            panic!("Versioned constants JSON file {file:#?} is malformed: {error}.")
-        });
-        assert_eq!(VersionedConstants::from(raw_vc.clone()), vc);
+        serde_json::from_reader::<_, RawVersionedConstants>(&std::fs::File::open(&file).unwrap())
+            .unwrap_or_else(|error| {
+                panic!("Versioned constants JSON file {file:#?} is malformed: {error}.")
+            });
     }
 }
 
@@ -252,7 +245,7 @@ fn verify_v1_bound_and_data_gas_accounts_disjoint() {
         }
     }
     "#,
-    VariableResourceParams::WithFactor(RawResourcesParams {
+    VariableResourceParams::WithFactor(ResourcesParams {
         constant: ExecutionResources {
             n_steps: 4,
             builtin_instance_counter: HashMap::from([(BuiltinName::pedersen, 5)]),
@@ -287,13 +280,13 @@ fn verify_v1_bound_and_data_gas_accounts_disjoint() {
         }
     }
     "#,
-    VariableResourceParams::WithFactor(RawResourcesParams {
+    VariableResourceParams::WithFactor(ResourcesParams {
         constant: ExecutionResources {
             n_steps: 10,
             builtin_instance_counter: HashMap::from([(BuiltinName::pedersen, 11)]),
             n_memory_holes: 12,
         },
-        calldata_factor: VariableCallDataFactor::Scaled(RawCallDataFactor {
+        calldata_factor: VariableCallDataFactor::Scaled(CallDataFactor {
             resources: ExecutionResources {
                 n_steps: 13,
                 builtin_instance_counter: HashMap::from([(BuiltinName::pedersen, 14)]),
