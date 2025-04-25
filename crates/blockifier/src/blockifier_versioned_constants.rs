@@ -38,6 +38,7 @@ pub mod test;
 
 define_versioned_constants!(
     VersionedConstants,
+    RawVersionedConstants,
     VersionedConstantsError,
     (V0_13_0, "../resources/blockifier_versioned_constants_0_13_0.json"),
     (V0_13_1, "../resources/blockifier_versioned_constants_0_13_1.json"),
