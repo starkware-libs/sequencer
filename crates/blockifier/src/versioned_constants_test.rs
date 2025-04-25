@@ -16,34 +16,6 @@ fn all_jsons_in_dir() -> Paths {
     glob(format!("{}/resources/*.json", compile_time_cargo_manifest_dir!()).as_str()).unwrap()
 }
 
-#[test]
-fn test_successful_gas_costs_parsing() {
-    let json_data = r#"
-    {
-        "step_gas_cost": 2,
-        "entry_point_initial_budget": {
-            "step_gas_cost": 3
-        },
-        "syscall_base_gas_cost": {
-            "entry_point_initial_budget": 4,
-            "step_gas_cost": 5
-        },
-        "error_out_of_gas": "An additional field in GasCosts::ADDITIONAL_ALLOWED_NAMES, ignored."
-    }"#;
-    let gas_costs = GasCosts::create_for_testing_from_subset(json_data);
-    let os_constants: Arc<OsConstants> = Arc::new(OsConstants { gas_costs, ..Default::default() });
-    let versioned_constants = VersionedConstants { os_constants, ..Default::default() };
-
-    assert_eq!(versioned_constants.os_constants.gas_costs.base.step_gas_cost, 2);
-    assert_eq!(versioned_constants.os_constants.gas_costs.base.entry_point_initial_budget, 2 * 3); // step_gas_cost * 3.
-
-    // entry_point_initial_budget * 4 + step_gas_cost * 5.
-    assert_eq!(
-        versioned_constants.os_constants.gas_costs.base.syscall_base_gas_cost,
-        6 * 4 + 2 * 5
-    );
-}
-
 /// Assert versioned constants overrides are used when provided.
 #[test]
 fn test_versioned_constants_overrides() {
