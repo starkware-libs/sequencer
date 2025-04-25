@@ -2,7 +2,6 @@ use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::core::EntryPointSelector;
-use starknet_api::hash::StarkHash;
 use starknet_api::transaction::L1HandlerTransaction;
 use starknet_api::{calldata, contract_address, felt};
 
@@ -17,6 +16,7 @@ use crate::test_utils::{
     anvil_instance_from_config,
     ethereum_base_layer_config_for_anvil,
     get_test_ethereum_node,
+    DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS,
 };
 use crate::{BaseLayerContract, L1Event};
 
@@ -120,9 +120,6 @@ async fn events_from_other_contract() {
         "The two contracts should be different."
     );
 
-    // TODO(Arni): This constant is defined somewhere else. Move it to a share location and use it.
-    pub const DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS: StarkHash =
-        StarkHash::from_hex_unchecked("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
     let this_l1_handler = L1HandlerTransaction {
         contract_address: contract_address!("0x12"),
         entry_point_selector: EntryPointSelector(felt!("0x34")),
