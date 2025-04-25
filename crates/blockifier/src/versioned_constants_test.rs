@@ -212,15 +212,15 @@ fn test_syscall_gas_cost_calculation() {
     let versioned_constants = VersionedConstants::latest_constants().clone();
 
     assert_eq!(
-        versioned_constants.get_syscall_gas_cost(&SyscallSelector::CallContract).base,
+        versioned_constants.os_constants.gas_costs.syscalls.call_contract.base,
         EXPECTED_CALL_CONTRACT_GAS_COST
     );
     assert_eq!(
-        versioned_constants.get_syscall_gas_cost(&SyscallSelector::Secp256k1Mul).base,
+        versioned_constants.os_constants.gas_costs.syscalls.secp256k1_mul.base,
         EXPECTED_SECP256K1MUL_GAS_COST
     );
     assert_eq!(
-        versioned_constants.get_syscall_gas_cost(&SyscallSelector::Sha256ProcessBlock).base,
+        versioned_constants.os_constants.gas_costs.syscalls.sha256_process_block.base,
         EXPECTED_SHA256PROCESSBLOCK_GAS_COST
     );
 }
