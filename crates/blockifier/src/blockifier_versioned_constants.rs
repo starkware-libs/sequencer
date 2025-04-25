@@ -83,6 +83,7 @@ pub struct RawVersionedConstants {
     pub os_resources: RawOsResources,
 }
 
+#[cfg_attr(any(test, feature = "testing"), derive(Serialize))]
 #[derive(Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct RawOsConstants {
@@ -157,6 +158,7 @@ pub struct RawOsConstants {
     pub data_gas_accounts: Vec<ClassHash>,
 }
 
+#[cfg_attr(any(test, feature = "testing"), derive(Serialize))]
 #[derive(Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct RawStepGasCost {
@@ -217,7 +219,8 @@ fn builtin_map_from_string_map<'de, D: Deserializer<'de>>(
 /// Additional constants in the JSON file, not used by Blockifier but included for transparency, are
 /// automatically ignored during deserialization.
 /// Instances of this struct for specific Starknet versions can be selected by using the above enum.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[cfg_attr(any(test, feature = "testing"), derive(PartialEq))]
+#[derive(Clone, Debug, Default)]
 pub struct VersionedConstants {
     // Limits.
     pub tx_event_limits: EventLimits,
@@ -520,7 +523,8 @@ pub enum RawOsResourcesError {
     UnknownResource(String),
 }
 
-#[derive(Clone, Debug, Default, PartialEq)]
+#[cfg_attr(any(test, feature = "testing"), derive(PartialEq))]
+#[derive(Clone, Debug, Default)]
 pub struct OsResources {
     // Mapping from every syscall to its execution resources in the OS (e.g., amount of Cairo
     // steps).
@@ -760,6 +764,7 @@ impl<'de> Deserialize<'de> for RawOsResources {
     }
 }
 
+#[cfg_attr(any(test, feature = "testing"), derive(Serialize))]
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 #[serde(untagged)]
 pub enum RawSyscallGasCost {
@@ -767,6 +772,7 @@ pub enum RawSyscallGasCost {
     Structured(RawStructuredSyscallGasCost),
 }
 
+#[cfg_attr(any(test, feature = "testing"), derive(Serialize))]
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 pub struct RawStructuredSyscallGasCost {
     #[serde(default)]
@@ -894,7 +900,7 @@ pub struct BaseGasCosts {
     pub syscall_base_gas_cost: u64,
 }
 
-#[cfg_attr(any(test, feature = "testing"), derive(Copy))]
+#[cfg_attr(any(test, feature = "testing"), derive(Copy, Serialize))]
 #[derive(Clone, Debug, Default, Deserialize, PartialEq)]
 pub struct BuiltinGasCosts {
     // Range check has a hard-coded cost higher than its proof percentage to avoid the overhead of
@@ -1194,7 +1200,8 @@ impl From<&VariableCallDataFactor> for CallDataFactor {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[cfg_attr(any(test, feature = "testing"), derive(PartialEq))]
+#[derive(Clone, Debug, Deserialize)]
 pub struct ResourcesParams {
     pub constant: ExecutionResources,
     pub calldata_factor: VariableCallDataFactor,
@@ -1219,7 +1226,7 @@ impl From<&VariableResourceParams> for ResourcesParams {
     }
 }
 
-#[cfg_attr(any(test, feature = "testing"), derive(Copy))]
+#[cfg_attr(any(test, feature = "testing"), derive(Copy, Serialize))]
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 pub struct ValidateRoundingConsts {
     // Flooring factor for block number in validate mode.
