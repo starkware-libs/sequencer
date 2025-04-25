@@ -10,7 +10,6 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::contract_class::ContractClass as SierraContractClass;
 #[cfg(feature = "cairo_native")]
 use cairo_native::executor::AotContractExecutor;
-use serde_json::Value;
 use starknet_api::block::BlockInfo;
 use starknet_api::contract_address;
 #[cfg(feature = "cairo_native")]
@@ -25,12 +24,7 @@ use starknet_api::test_utils::{
 };
 
 use crate::blockifier::config::{CairoNativeRunConfig, ContractClassManagerConfig};
-use crate::blockifier_versioned_constants::{
-    GasCosts,
-    OsConstants,
-    VersionedConstants,
-    VERSIONED_CONSTANTS_LATEST_JSON,
-};
+use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::bouncer::{BouncerConfig, BouncerWeights};
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
@@ -47,7 +41,6 @@ use crate::execution::entry_point::{
 use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::state::contract_class_manager::ContractClassManager;
 use crate::state::state_api::State;
-use crate::test_utils::update_json_value;
 use crate::transaction::objects::{
     CurrentTransactionInfo,
     DeprecatedTransactionInfo,
@@ -140,21 +133,6 @@ impl CallInfo {
 impl VersionedConstants {
     pub fn create_for_testing() -> Self {
         Self::latest_constants().clone()
-    }
-}
-
-impl GasCosts {
-    pub fn create_for_testing_from_subset(subset_of_os_constants: &str) -> Self {
-        let subset_of_os_constants: Value = serde_json::from_str(subset_of_os_constants).unwrap();
-        let mut os_constants: Value =
-            serde_json::from_str::<Value>(VERSIONED_CONSTANTS_LATEST_JSON.as_str())
-                .unwrap()
-                .get("os_constants")
-                .unwrap()
-                .clone();
-        update_json_value(&mut os_constants, subset_of_os_constants);
-        let os_constants: OsConstants = serde_json::from_value(os_constants).unwrap();
-        os_constants.gas_costs
     }
 }
 
