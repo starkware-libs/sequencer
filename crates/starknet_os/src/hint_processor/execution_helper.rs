@@ -94,6 +94,17 @@ pub struct TransactionExecutionInfoReference<'a> {
 }
 
 impl<'a> TransactionExecutionInfoReference<'a> {
+    pub fn new(
+        tx_execution_info: &'a CentralTransactionExecutionInfo,
+        tx_type: TransactionType,
+    ) -> Self {
+        Self {
+            tx_execution_info,
+            call_info_iter: tx_execution_info.call_info_iter(tx_type),
+            call_info_tracker: None,
+        }
+    }
+
     pub fn enter_call(
         &mut self,
         execution_info_ptr: Relocatable,
@@ -140,14 +151,19 @@ impl<'a> TransactionExecutionIter<'a> {
         Self { tx_execution_info_iter: tx_execution_infos.iter(), tx_execution_info_ref: None }
     }
 
-    pub fn next_tx(&mut self, tx_type: TransactionType) -> Option<()> {
-        self.tx_execution_info_iter.next().map(|tx_execution_info| {
-            self.tx_execution_info_ref = Some(TransactionExecutionInfoReference {
-                tx_execution_info,
-                call_info_iter: tx_execution_info.call_info_iter(tx_type),
-                call_info_tracker: None,
+    pub fn start_tx(&mut self, tx_type: TransactionType) -> Result<(), ExecutionHelperError> {
+        if self.tx_execution_info_ref.is_some() {
+            return Err(ExecutionHelperError::ContextOverwrite {
+                context: "transaction execution info".to_string(),
             });
-        })
+        }
+        let next_tx_execution_info = self
+            .tx_execution_info_iter
+            .next()
+            .ok_or(ExecutionHelperError::MissingTxExecutionInfo)?;
+        self.tx_execution_info_ref =
+            Some(TransactionExecutionInfoReference::new(next_tx_execution_info, tx_type));
+        Ok(())
     }
 
     pub fn end_tx(&mut self) -> Result<(), ExecutionHelperError> {
