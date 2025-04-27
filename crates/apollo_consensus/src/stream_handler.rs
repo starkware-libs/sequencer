@@ -18,6 +18,14 @@ use futures::StreamExt;
 use lru::LruCache;
 use tracing::{info, instrument, warn};
 
+use crate::metrics::{
+    CONSENSUS_INBOUND_STREAM_EVICTED,
+    CONSENSUS_INBOUND_STREAM_FINISHED,
+    CONSENSUS_INBOUND_STREAM_STARTED,
+    CONSENSUS_OUTBOUND_STREAM_FINISHED,
+    CONSENSUS_OUTBOUND_STREAM_STARTED,
+};
+
 #[cfg(test)]
 #[path = "stream_handler_test.rs"]
 mod stream_handler_test;
@@ -219,6 +227,7 @@ where
             warn!(%stream_id, "Outbound stream ID reused.");
             return Err(StreamHandlerError::StreamIdReused(format!("{stream_id}")));
         }
+        CONSENSUS_OUTBOUND_STREAM_STARTED.increment(1);
         info!(%stream_id, "Outbound stream started.");
         Ok(())
     }
@@ -308,6 +317,7 @@ where
         };
         self.outbound_sender.broadcast_message(message).await.expect("Send should succeed");
         self.outbound_stream_number.remove(&stream_id);
+        CONSENSUS_OUTBOUND_STREAM_FINISHED.increment(1);
         info!(%stream_id, "Outbound stream finished.");
     }
 
@@ -340,11 +350,13 @@ where
             Some(data) => data,
             None => {
                 info!(?peer_id, ?stream_id, "Inbound stream started");
+                CONSENSUS_INBOUND_STREAM_STARTED.increment(1);
                 StreamData::new()
             }
         };
         if let Some(data) = self.handle_message_inner(message, metadata, data) {
             if let Some((evicted_key, _)) = self.inbound_stream_data.push(key, data) {
+                CONSENSUS_INBOUND_STREAM_EVICTED.increment(1);
                 warn!(?evicted_key, "Evicted inbound stream due to capacity");
             }
         }
@@ -411,6 +423,7 @@ where
                     || receiver_dropped
                 {
                     data.sender.close_channel();
+                    CONSENSUS_INBOUND_STREAM_FINISHED.increment(1);
                     info!(?peer_id, ?stream_id, "Inbound stream finished.");
                     return None;
                 }
