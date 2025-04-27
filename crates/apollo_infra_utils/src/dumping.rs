@@ -1,5 +1,4 @@
 #[cfg(any(feature = "testing", test))]
-use std::env;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::PathBuf;
@@ -18,9 +17,7 @@ use crate::test_utils::assert_json_eq;
 
 #[cfg(any(feature = "testing", test))]
 pub fn serialize_to_file_test<T: Serialize>(data: T, file_path: &str, fix_binary_name: &str) {
-    env::set_current_dir(resolve_project_relative_path("").unwrap())
-        .expect("Couldn't set working dir.");
-
+    let file_path = resolve_project_relative_path(file_path).unwrap().join(file_path);
     let loaded_data: Value = from_reader(File::open(file_path).unwrap()).unwrap();
 
     let serialized_data =
