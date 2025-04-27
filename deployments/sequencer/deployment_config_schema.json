@@ -114,5 +114,5 @@
       }
     }
   },
-  "required": ["chain_id", "services", "image", "application_config_subdir"]
+  "required": ["chain_id", "services", "application_config_subdir"]
 }
