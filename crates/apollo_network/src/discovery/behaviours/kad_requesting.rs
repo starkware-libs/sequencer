@@ -70,7 +70,7 @@ impl NetworkBehaviour for KadRequestingBehaviour {
             )));
         }
 
-        configure_context_to_wake_at_instant(cx, self.time_for_next_kad_query);
+        configure_context_to_wake_at_instant(cx.waker().clone(), self.time_for_next_kad_query);
         Poll::Pending
     }
 }

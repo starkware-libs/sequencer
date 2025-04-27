@@ -138,7 +138,10 @@ impl NetworkBehaviour for BootstrappingBehaviour {
         if should_dial {
             // TODO(Andrew): also wake if should_dial is false and we got connected to or
             // disconnected from the bootstrap peer
-            configure_context_to_wake_at_instant(cx, self.time_for_next_bootstrap_dial);
+            configure_context_to_wake_at_instant(
+                cx.waker().clone(),
+                self.time_for_next_bootstrap_dial,
+            );
         }
         Poll::Pending
     }
