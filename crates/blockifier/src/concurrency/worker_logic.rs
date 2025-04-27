@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
@@ -33,6 +34,37 @@ pub struct ExecutionTaskOutput {
     pub result: TransactionExecutionResult<TransactionExecutionInfo>,
 }
 
+#[derive(Default)]
+pub struct ConcurrencyMetrics {
+    abort_counter: AtomicUsize,
+    abort_in_commit_counter: AtomicUsize,
+    execute_counter: AtomicUsize,
+    validate_counter: AtomicUsize,
+}
+
+impl ConcurrencyMetrics {
+    pub fn count_abort(&self) {
+        self.abort_counter.fetch_add(1, Ordering::Relaxed);
+    }
+    pub fn count_abort_in_commit(&self) {
+        self.abort_in_commit_counter.fetch_add(1, Ordering::Relaxed);
+    }
+    pub fn count_execute(&self) {
+        self.execute_counter.fetch_add(1, Ordering::Relaxed);
+    }
+    pub fn count_validate(&self) {
+        self.validate_counter.fetch_add(1, Ordering::Relaxed);
+    }
+    pub fn get_metrics(&self) -> (usize, usize, usize, usize) {
+        (
+            self.abort_counter.load(Ordering::Relaxed),
+            self.abort_in_commit_counter.load(Ordering::Relaxed),
+            self.execute_counter.load(Ordering::Relaxed),
+            self.validate_counter.load(Ordering::Relaxed),
+        )
+    }
+}
+
 pub struct WorkerExecutor<'a, S: StateReader> {
     pub scheduler: Scheduler,
     pub state: ThreadSafeVersionedState<S>,
@@ -40,7 +72,9 @@ pub struct WorkerExecutor<'a, S: StateReader> {
     pub execution_outputs: Box<[Mutex<Option<ExecutionTaskOutput>>]>,
     pub block_context: &'a BlockContext,
     pub bouncer: Mutex<&'a mut Bouncer>,
+    pub metrics: ConcurrencyMetrics,
 }
+
 impl<'a, S: StateReader> WorkerExecutor<'a, S> {
     pub fn new(
         state: ThreadSafeVersionedState<S>,
@@ -51,8 +85,17 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
         let scheduler = Scheduler::new(chunk.len());
         let execution_outputs =
             std::iter::repeat_with(|| Mutex::new(None)).take(chunk.len()).collect();
+        let metrics = ConcurrencyMetrics::default();
 
-        WorkerExecutor { scheduler, state, chunk, execution_outputs, block_context, bouncer }
+        WorkerExecutor {
+            scheduler,
+            state,
+            chunk,
+            execution_outputs,
+            block_context,
+            bouncer,
+            metrics,
+        }
     }
 
     // TODO(barak, 01/08/2024): Remove the `new` method or move it to test utils.
@@ -67,6 +110,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
         let scheduler = Scheduler::new(chunk.len());
         let execution_outputs =
             std::iter::repeat_with(|| Mutex::new(None)).take(chunk.len()).collect();
+        let metrics = ConcurrencyMetrics::default();
 
         WorkerExecutor {
             scheduler,
@@ -75,6 +119,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
             execution_outputs,
             block_context,
             bouncer,
+            metrics,
         }
     }
 
@@ -112,6 +157,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
     }
 
     fn execute(&self, tx_index: TxIndex) {
+        self.metrics.count_execute();
         self.execute_tx(tx_index);
         self.scheduler.finish_execution(tx_index)
     }
@@ -153,6 +199,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
     }
 
     fn validate(&self, tx_index: TxIndex) -> Task {
+        self.metrics.count_validate();
         let tx_versioned_state = self.state.pin_version(tx_index);
         let execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
         let execution_output = execution_output.as_ref().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR);
@@ -161,6 +208,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
 
         let aborted = !reads_valid && self.scheduler.try_validation_abort(tx_index);
         if aborted {
+            self.metrics.count_abort();
             tx_versioned_state
                 .delete_writes(&execution_output.state_diff, &execution_output.contract_classes);
             self.scheduler.finish_abort(tx_index)
@@ -192,6 +240,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
         // First, re-validate the transaction.
         if !reads_valid {
             // Revalidate failed: re-execute the transaction.
+            self.metrics.count_abort_in_commit();
             tx_versioned_state.delete_writes(
                 &execution_output_ref.state_diff,
                 &execution_output_ref.contract_classes,
