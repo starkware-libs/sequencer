@@ -1,6 +1,3 @@
-use std::env;
-use std::path::Path;
-
 use apollo_compilation_utils::errors::CompilationUtilError;
 use apollo_compilation_utils::test_utils::contract_class_from_file;
 use apollo_infra_utils::path::resolve_project_relative_path;
@@ -22,9 +19,8 @@ fn compiler() -> SierraToCasmCompiler {
 }
 
 fn get_test_contract() -> CairoLangContractClass {
-    env::set_current_dir(resolve_project_relative_path(TEST_FILES_FOLDER).unwrap())
-        .expect("Failed to set current dir.");
-    let sierra_path = Path::new(FAULTY_ACCOUNT_CLASS_FILE);
+    let sierra_path =
+        resolve_project_relative_path(TEST_FILES_FOLDER).unwrap().join(FAULTY_ACCOUNT_CLASS_FILE);
     contract_class_from_file(sierra_path)
 }
 
