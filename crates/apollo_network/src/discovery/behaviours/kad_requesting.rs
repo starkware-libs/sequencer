@@ -13,12 +13,13 @@ use libp2p::swarm::{
 use libp2p::{Multiaddr, PeerId};
 use tokio::time::{Duration, Instant};
 
-use super::configure_context_to_wake_at_instant;
+use super::TimeWakerManager;
 use crate::discovery::ToOtherBehaviourEvent;
 
 pub struct KadRequestingBehaviour {
     heartbeat_interval: Duration,
     time_for_next_kad_query: Instant,
+    waker_manager: TimeWakerManager,
 }
 
 impl NetworkBehaviour for KadRequestingBehaviour {
@@ -62,6 +63,7 @@ impl NetworkBehaviour for KadRequestingBehaviour {
     {
         // remember instant
         let now = Instant::now();
+        self.waker_manager.add_waker(cx.waker());
 
         if self.time_for_next_kad_query <= now {
             self.time_for_next_kad_query = now + self.heartbeat_interval;
@@ -70,13 +72,17 @@ impl NetworkBehaviour for KadRequestingBehaviour {
             )));
         }
 
-        configure_context_to_wake_at_instant(cx, self.time_for_next_kad_query);
+        self.waker_manager.wake_at(self.time_for_next_kad_query);
         Poll::Pending
     }
 }
 
 impl KadRequestingBehaviour {
     pub fn new(heartbeat_interval: Duration) -> Self {
-        Self { heartbeat_interval, time_for_next_kad_query: Instant::now() }
+        Self {
+            heartbeat_interval,
+            time_for_next_kad_query: Instant::now(),
+            waker_manager: Default::default(),
+        }
     }
 }
