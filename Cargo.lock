@@ -1367,6 +1367,7 @@ dependencies = [
  "cairo-lang-starknet-classes",
  "clap",
  "futures",
+ "hex",
  "indexmap 2.9.0",
  "mempool_test_utils",
  "metrics 0.24.1",
