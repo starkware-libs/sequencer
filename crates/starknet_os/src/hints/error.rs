@@ -10,7 +10,7 @@ use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use num_bigint::{BigUint, TryFromBigIntError};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress};
-use starknet_api::executable_transaction::Transaction;
+use starknet_api::executable_transaction::{Transaction, TransactionType};
 use starknet_api::StarknetApiError;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::errors::{
@@ -101,7 +101,7 @@ pub enum OsHintError {
     #[error(transparent)]
     TryFromBigUint(#[from] TryFromBigIntError<BigUint>),
     #[error("Unexpected tx type: {0:?}.")]
-    UnexpectedTxType(Transaction),
+    UnexpectedTxType(TransactionType),
     #[error("Unknown hint string: {0}")]
     UnknownHint(String),
     #[error(transparent)]
