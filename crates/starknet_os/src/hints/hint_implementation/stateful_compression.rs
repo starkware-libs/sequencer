@@ -4,16 +4,19 @@ use blockifier::state::state_api::{State, StateReader};
 use cairo_vm::any_box;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
+    get_ptr_from_var_name,
     get_relocatable_from_var_name,
     insert_value_from_var_name,
     insert_value_into_ap,
 };
+use starknet_api::core::ContractAddress;
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::state_update_pointers::get_contract_state_entry_and_storage_ptr;
 use crate::hints::error::OsHintResult;
 use crate::hints::types::HintArgs;
-use crate::hints::vars::{Const, Ids, Scope};
+use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
+use crate::vm_utils::get_field_offset;
 
 pub(crate) fn enter_scope_with_aliases<S: StateReader>(
     HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
@@ -99,9 +102,38 @@ pub(crate) fn contract_address_le_max_for_compression<S: StateReader>(
 }
 
 pub(crate) fn guess_contract_addr_storage_ptr<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let key_offset = get_field_offset(CairoStruct::DictAccess, "key", hint_processor.os_program)?;
+    let state_changes_ptr =
+        get_ptr_from_var_name(Ids::StateChanges.into(), vm, ids_data, ap_tracking)?;
+    let contract_address = ContractAddress(
+        vm.get_integer((state_changes_ptr + key_offset)?)?.into_owned().try_into()?,
+    );
+    let (state_entry, storage_ptr) =
+        if let Some(state_update_pointers) = &mut hint_processor.state_update_pointers {
+            state_update_pointers.get_contract_state_entry_and_storage_ptr(contract_address, vm)
+        } else {
+            // Allocate memory segments in the same order.
+            let (seg1, seg2) = (vm.add_memory_segment(), vm.add_memory_segment());
+            (seg2, seg1)
+        };
+    insert_value_from_var_name(
+        Ids::SquashedPrevState.into(),
+        state_entry,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    insert_value_from_var_name(
+        Ids::SquashedStoragePtr.into(),
+        storage_ptr,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+
+    Ok(())
 }
 
 pub(crate) fn update_contract_addr_to_storage_ptr<S: StateReader>(
