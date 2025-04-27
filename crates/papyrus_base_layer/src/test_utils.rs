@@ -32,13 +32,13 @@ const DEFAULT_ANVIL_PORT: u16 = 8545;
 // This address is commonly used as the L1 address of the Starknet core contract.
 // TODO(Arni): Replace with constant with use of `AnvilInstance::address(&self)`.
 pub const DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS: &str = "0x5fbdb2315678afecb367f032d93f642f64180aa3";
-pub const DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX: usize = 3;
 
 // Default funded account, there are more fixed funded accounts,
-// see https://github.com/foundry-rs/foundry/tree/master/crates/anvil.
 // This address is the sender address of messages sent to L2 by Anvil.
+// Given an `AnvilInstance`, this address can be retrieved by calling `anvil.addresses()[0]`.
 pub const DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS: StarkHash =
     StarkHash::from_hex_unchecked("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
+pub const DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX: usize = 3;
 
 // Returns a Ganache instance, preset with a Starknet core contract and some state updates:
 // Starknet contract address: 0xe2aF2c1AE11fE13aFDb7598D0836398108a4db0A
