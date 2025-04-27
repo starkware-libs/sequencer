@@ -486,6 +486,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
     ) -> SyscallResult<([u64; 4], usize)> {
         self.base.keccak(data, remaining_gas)
     }
+
     fn increment_syscall_count_by(&mut self, selector: &SyscallSelector, n: usize) {
         let syscall_usage = self.syscalls_usage.entry(*selector).or_default();
         syscall_usage.call_count += n;
