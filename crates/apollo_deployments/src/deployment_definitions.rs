@@ -29,11 +29,11 @@ const APP_CONFIGS_DIR_NAME: &str = "app_configs/";
 
 const INTEGRATION_DEPLOYMENT_CONFIG_OVERRIDE: DeploymentConfigOverride =
     DeploymentConfigOverride::new(
-        "0xA43812F9C610851daF67c5FA36606Ea8c8Fa7caE",
-        "SEPOLIA_INTEGRATION",
-        "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
-        "https://feeder.integration-sepolia.starknet.io/",
-        "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d",
+        "0xa23a6BA7DA61988D2420dAE9F10eE964552459d5",
+        "SN_GOERLI",
+        "0x7c07a3eec8ff611328722c3fc3e5d2e4ef2f60740c0bf86c756606036b74c16",
+        "fgw-sn-test-sepolia-3-sepolia.gateway-proxy.sw-dev.io",
+        "0x54a93d918d62b2fb62b25e77d9cb693bd277ab7e6fa236e53af263f1adb40e4",
     );
 
 const TESTING_DEPLOYMENT_CONFIG_OVERRIDE: DeploymentConfigOverride = DeploymentConfigOverride::new(
@@ -59,11 +59,11 @@ const SEPOLIA_INTEGRATION_NODE_0_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverrid
 // port values.
 const SEPOLIA_INTEGRATION_NODE_1_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverride =
     InstanceConfigOverride::new(
-        "/dns/sequencer-core-service.sequencer0-preintegration.svc.cluster.local/tcp/53080/p2p/\
+        "/dns/sequencer-core-service.sequencer-test-3-node-0.svc.cluster.local/tcp/53080/p2p/\
          12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
         false,
         "0x0101010101010101010101010101010101010101010101010101010101010102",
-        "/dns/sequencer-mempool-service.sequencer0-preintegration.svc.cluster.local/tcp/53200/p2p/\
+        "/dns/sequencer-mempool-service.sequencer-test-3-node-0.svc.cluster.local/tcp/53200/p2p/\
          12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
         false,
         "0x0101010101010101010101010101010101010101010101010101010101010102",
@@ -74,11 +74,11 @@ const SEPOLIA_INTEGRATION_NODE_1_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverrid
 // port values.
 const SEPOLIA_INTEGRATION_NODE_2_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverride =
     InstanceConfigOverride::new(
-        "/dns/sequencer-core-service.sequencer0-preintegration.svc.cluster.local/tcp/53080/p2p/\
+        "/dns/sequencer-core-service.sequencer-test-3-node-0.svc.cluster.local/tcp/53080/p2p/\
          12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
         false,
         "0x0101010101010101010101010101010101010101010101010101010101010103",
-        "/dns/sequencer-mempool-service.sequencer0-preintegration.svc.cluster.local/tcp/53200/p2p/\
+        "/dns/sequencer-mempool-service.sequencer-test-3-node-0.svc.cluster.local/tcp/53200/p2p/\
          12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
         false,
         "0x0101010101010101010101010101010101010101010101010101010101010103",
@@ -89,11 +89,11 @@ const SEPOLIA_INTEGRATION_NODE_2_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverrid
 // port values.
 const SEPOLIA_INTEGRATION_NODE_3_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverride =
     InstanceConfigOverride::new(
-        "/dns/sequencer-core-service.sequencer0-preintegration.svc.cluster.local/tcp/53080/p2p/\
+        "/dns/sequencer-core-service.sequencer-test-3-node-0.svc.cluster.local/tcp/53080/p2p/\
          12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
         false,
         "0x0101010101010101010101010101010101010101010101010101010101010104",
-        "/dns/sequencer-mempool-service.sequencer0-preintegration.svc.cluster.local/tcp/53200/p2p/\
+        "/dns/sequencer-mempool-service.sequencer-test-3-node-0.svc.cluster.local/tcp/53200/p2p/\
          12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
         false,
         "0x0101010101010101010101010101010101010101010101010101010101010104",

@@ -205,7 +205,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         String::from("sw-dev.io"),
                         false,
                         vec![IngressRule::new(String::from("/gateway"), 8080, None)],
-                        vec!["sn-test-sepolia-2-sepolia.gateway-proxy.sw-dev.io".into()],
+                        vec!["sn-test-sepolia-3-sepolia.gateway-proxy.sw-dev.io".into()],
                     )),
                     false,
                     1,
