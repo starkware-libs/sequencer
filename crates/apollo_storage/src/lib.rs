@@ -157,9 +157,9 @@ use crate::version::{VersionStorageReader, VersionStorageWriter};
 
 // For more details on the storage version, see the module documentation.
 /// The current version of the storage state code.
-pub const STORAGE_VERSION_STATE: Version = Version { major: 5, minor: 0 };
+pub const STORAGE_VERSION_STATE: Version = Version { major: 6, minor: 0 };
 /// The current version of the storage blocks code.
-pub const STORAGE_VERSION_BLOCKS: Version = Version { major: 5, minor: 0 };
+pub const STORAGE_VERSION_BLOCKS: Version = Version { major: 6, minor: 0 };
 
 /// Opens a storage and returns a [`StorageReader`] and a [`StorageWriter`].
 pub fn open_storage(
