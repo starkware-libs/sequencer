@@ -53,7 +53,7 @@ struct CommitHistory {
 
 impl CommitHistory {
     fn new(capacity: usize) -> Self {
-        CommitHistory { commits: std::iter::repeat(AddressToNonce::new()).take(capacity).collect() }
+        CommitHistory { commits: std::iter::repeat_n(AddressToNonce::new(), capacity).collect() }
     }
 
     fn push(&mut self, commit: AddressToNonce) -> AddressToNonce {
