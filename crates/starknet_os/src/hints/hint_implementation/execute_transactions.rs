@@ -57,7 +57,7 @@ pub(crate) fn set_component_hashes<S: StateReader>(
     let class_hash = if let Transaction::Account(AccountTransaction::Declare(declare_tx)) = tx {
         declare_tx.class_hash()
     } else {
-        return Err(OsHintError::UnexpectedTxType(tx));
+        return Err(OsHintError::UnexpectedTxType(tx.tx_type()));
     };
     let current_execution_helper = hint_processor.get_current_execution_helper()?;
     let component_hashes =

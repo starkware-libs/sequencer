@@ -68,7 +68,7 @@ pub(crate) fn load_resource_bounds<S: StateReader>(
     let tx = exec_scopes.get::<Transaction>(Scope::Tx.into())?;
     let resource_bounds = match tx {
         Transaction::Account(account_tx) => account_tx.resource_bounds(),
-        Transaction::L1Handler(_) => return Err(OsHintError::UnexpectedTxType(tx)),
+        Transaction::L1Handler(_) => return Err(OsHintError::UnexpectedTxType(tx.tx_type())),
     };
     if let ValidResourceBounds::L1Gas(_) = resource_bounds {
         return Err(OsHintError::AssertionFailed {
