@@ -15,6 +15,7 @@ use crate::deployment_definitions::{Environment, DEPLOYMENTS};
 /// cargo run --bin deployment_generator -q
 #[test]
 fn deployment_files_are_up_to_date() {
+    // test
     for deployment_fn in DEPLOYMENTS {
         let deployment = deployment_fn();
         serialize_to_file_test(
