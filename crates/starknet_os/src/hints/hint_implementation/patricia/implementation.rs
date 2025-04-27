@@ -400,7 +400,7 @@ pub(crate) fn load_edge<S: StateReader>(
         ],
         hint_processor.os_program,
     )?;
-    let hash_ptr = get_relocatable_from_var_name(Ids::HashPtr.into(), vm, ids_data, ap_tracking)?;
+    let hash_ptr = get_ptr_from_var_name(Ids::HashPtr.into(), vm, ids_data, ap_tracking)?;
     insert_value_to_nested_field(
         hash_ptr,
         hint_processor.commitment_type.hash_builtin_struct(),
