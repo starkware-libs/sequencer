@@ -9,9 +9,7 @@ import time
 from grafana10_objects import empty_dashboard, row_object
 
 
-def create_grafana_panel(
-    panel: dict, panel_id: int, y_position: int, x_position: int
-) -> dict:
+def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position: int) -> dict:
     grafana_panel = {
         "id": panel_id,
         "type": panel["type"],
@@ -54,6 +52,11 @@ def get_next_position(x_position, y_position):
     return x_position, y_position
 
 
+def dashboard_file_name(out_dir: str, dashboard_name: str) -> str:
+    file_name = dashboard_name.replace(" ", "_").lower()
+    return f"{out_dir}/{file_name}.json"
+
+
 def create_dashboard(dashboard_name: str, dev_dashboard: json) -> dict:
     dashboard = empty_dashboard.copy()
     panel_id = 1
@@ -73,9 +76,7 @@ def create_dashboard(dashboard_name: str, dev_dashboard: json) -> dict:
         dashboard["panels"].append(row_panel)
 
         for panel in panels:
-            grafana_panel = create_grafana_panel(
-                panel, panel_id, y_position, x_position
-            )
+            grafana_panel = create_grafana_panel(panel, panel_id, y_position, x_position)
             row_panel["panels"].append(grafana_panel)
             panel_id += 1
             x_position, y_position = get_next_position(x_position, y_position)
@@ -96,9 +97,7 @@ def upload_dashboards_local(dashboard: dict) -> None:
                 print(f"Failed to upload dashboard. {res.json()}")
                 break
             print("Dashboard uploaded successfully.")
-            print(
-                f"you can view the dashboard at: http://localhost:3000{res.json()['url']}"
-            )
+            print(f"you can view the dashboard at: http://localhost:3000{res.json()['url']}")
             break
         except requests.exceptions.ConnectionError:
             print("Grafana is not ready yet. Retrying...")
@@ -122,13 +121,9 @@ def builder(dev_json_file, out_dir, upload, debug) -> None:
 
     # Logging
     if debug:
-        logging.basicConfig(
-            level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
-        )
+        logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
     else:
-        logging.basicConfig(
-            level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-        )
+        logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
     start_time = datetime.datetime.now()
     logging.info(
         f'Starting to build grafana dashboard, time is {start_time.strftime("%Y-%m-%d %H:%M:%S")}'
@@ -153,12 +148,12 @@ def builder(dev_json_file, out_dir, upload, debug) -> None:
     # Write the grafana dashboard
     os.makedirs(out_dir, exist_ok=True)
     for dashboard_name, dashboard in dashboards:
-        with open(f"{out_dir}/{dashboard_name}.json", "w") as f:
+        with open(dashboard_file_name(out_dir, dashboard_name), "w") as f:
             json.dump(dashboard, f, indent=4)
         if upload:
             upload_dashboards_local(dashboard=dashboard)
     logging.info(
-        f'Done building grafana dashabord, time is {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}'
+        f'Done building grafana dashboard, time is {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}'
     )
 
 
