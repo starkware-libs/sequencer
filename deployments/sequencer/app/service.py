@@ -50,6 +50,7 @@ class ServiceApp(Construct):
         }
         self.service_topology = service_topology
         self.node_config = service_topology.config.get_config()
+        self.monitoring_endpoint_port = self._get_config_attr("monitoring_endpoint_config.port")
 
         self.config_map = k8s.KubeConfigMap(
             self,
@@ -119,8 +120,10 @@ class ServiceApp(Construct):
                 selector=PodMonitoringSpecSelector(match_labels=self.labels),
                 endpoints=[
                     PodMonitoringSpecEndpoints(
-                        port=PodMonitoringSpecEndpointsPort.from_number(8082),
-                        interval="30s",
+                        port=PodMonitoringSpecEndpointsPort.from_number(
+                            self.monitoring_endpoint_port
+                        ),
+                        interval="10s",
                         path=const.MONITORING_METRICS_ENDPOINT,
                     )
                 ],
@@ -140,9 +143,7 @@ class ServiceApp(Construct):
                         labels=self.labels,
                         annotations={
                             "prometheus.io/path": const.MONITORING_METRICS_ENDPOINT,
-                            "prometheus.io/port": str(
-                                self._get_config_attr("monitoring_endpoint_config.port")
-                            ),
+                            "prometheus.io/port": str(self.monitoring_endpoint_port),
                             "prometheus.io/scrape": "true",
                         },
                     ),
@@ -187,9 +188,7 @@ class ServiceApp(Construct):
                         labels=self.labels,
                         annotations={
                             "prometheus.io/path": const.MONITORING_METRICS_ENDPOINT,
-                            "prometheus.io/port": str(
-                                self._get_config_attr("monitoring_endpoint_config.port")
-                            ),
+                            "prometheus.io/port": str(self.monitoring_endpoint_port),
                             "prometheus.io/scrape": "true",
                         },
                     ),
@@ -356,12 +355,11 @@ class ServiceApp(Construct):
         timeout_seconds: int = const.PROBE_TIMEOUT_SECONDS,
         path: str = const.PROBE_MONITORING_ALIVE_PATH,
     ) -> k8s.Probe:
-        port = self._get_config_attr("monitoring_endpoint_config.port")
 
         return k8s.Probe(
             http_get=k8s.HttpGetAction(
                 path=path,
-                port=k8s.IntOrString.from_number(port),
+                port=k8s.IntOrString.from_number(self.monitoring_endpoint_port),
             ),
             period_seconds=period_seconds,
             failure_threshold=failure_threshold,
@@ -536,7 +534,7 @@ class ServiceApp(Construct):
                 ),
                 timeout_sec=const.BACKEND_CONFIG_TIMEOUT_SECONDS,
                 health_check=BackendConfigSpecHealthCheck(
-                    port=self._get_config_attr("monitoring_endpoint_config.port"),
+                    port=self.monitoring_endpoint_port,
                     request_path=const.MONITORING_METRICS_ENDPOINT,
                     check_interval_sec=const.BACKEND_CONFIG_HEALTH_CHECK_INTERVAL_SECONDS,
                     timeout_sec=const.BACKEND_CONFIG_HEALTH_CHECK_TIMEOUT_SECONDS,
