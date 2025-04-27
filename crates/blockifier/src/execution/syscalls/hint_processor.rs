@@ -351,11 +351,6 @@ impl<'a> SyscallHintProcessor<'a> {
         self.allocate_data_segment(vm, &flat_resource_bounds)
     }
 
-    pub fn increment_syscall_count_by(&mut self, selector: &SyscallSelector, n: usize) {
-        let syscall_usage = self.syscalls_usage.entry(*selector).or_default();
-        syscall_usage.call_count += n;
-    }
-
     pub fn increment_linear_factor_by(&mut self, selector: &SyscallSelector, n: usize) {
         let syscall_usage = self
             .syscalls_usage
@@ -486,8 +481,9 @@ impl<'a> SyscallHintProcessor<'a> {
 }
 
 impl SyscallExecutor for SyscallHintProcessor<'_> {
-    fn increment_syscall_count(&mut self, selector: &SyscallSelector) {
-        self.increment_syscall_count_by(selector, 1);
+    fn increment_syscall_count_by(&mut self, selector: &SyscallSelector, n: usize) {
+        let syscall_usage = self.syscalls_usage.entry(*selector).or_default();
+        syscall_usage.call_count += n;
     }
 
     fn get_gas_cost_from_selector(
