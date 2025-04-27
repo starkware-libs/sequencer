@@ -20,6 +20,11 @@ define_metrics!(
         MetricCounter { CONSENSUS_REPROPOSALS, "consensus_reproposals", "The number of reproposals sent", init=0},
         MetricCounter { CONSENSUS_NEW_VALUE_LOCKS, "consensus_new_value_locks", "The number of times consensus has attained a lock on a new value", init=0},
         MetricCounter { CONSENSUS_HELD_LOCKS, "consensus_held_locks", "The number of times consensus progressed to a new round while holding a lock", init=0},
+        MetricCounter { CONSENSUS_OUTBOUND_STREAM_STARTED, "consensus_outbound_stream_started", "The total number of outbound streams started", init=0 },
+        MetricCounter { CONSENSUS_OUTBOUND_STREAM_FINISHED, "consensus_outbound_stream_finished", "The total number of outbound streams finished", init=0 },
+        MetricCounter { CONSENSUS_INBOUND_STREAM_STARTED, "consensus_inbound_stream_started", "The total number of inbound streams started", init=0 },
+        MetricCounter { CONSENSUS_INBOUND_STREAM_EVICTED, "consensus_inbound_stream_evicted", "The total number of inbound streams evicted due to cache capacity", init=0 },
+        MetricCounter { CONSENSUS_INBOUND_STREAM_FINISHED, "consensus_inbound_stream_finished", "The total number of inbound streams finished", init=0 },
         LabeledMetricCounter { CONSENSUS_TIMEOUTS, "consensus_timeouts", "The number of times consensus has timed out", init=0, labels = CONSENSUS_TIMEOUT_LABELS },
     },
 );
@@ -55,5 +60,10 @@ pub(crate) fn register_metrics() {
     CONSENSUS_NEW_VALUE_LOCKS.register();
     CONSENSUS_HELD_LOCKS.register();
     CONSENSUS_REPROPOSALS.register();
+    CONSENSUS_INBOUND_STREAM_STARTED.register();
+    CONSENSUS_INBOUND_STREAM_EVICTED.register();
+    CONSENSUS_INBOUND_STREAM_FINISHED.register();
+    CONSENSUS_OUTBOUND_STREAM_STARTED.register();
+    CONSENSUS_OUTBOUND_STREAM_FINISHED.register();
     CONSENSUS_TIMEOUTS.register();
 }

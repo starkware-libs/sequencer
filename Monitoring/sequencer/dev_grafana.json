@@ -158,6 +158,41 @@
         "extra_params": {}
       },
       {
+        "title": "consensus_inbound_stream_started",
+        "description": "The total number of inbound streams started",
+        "type": "stat",
+        "expr": "consensus_inbound_stream_started",
+        "extra_params": {}
+      },
+      {
+        "title": "consensus_inbound_stream_evicted",
+        "description": "The total number of inbound streams evicted due to cache capacity",
+        "type": "stat",
+        "expr": "consensus_inbound_stream_evicted",
+        "extra_params": {}
+      },
+      {
+        "title": "consensus_inbound_stream_finished",
+        "description": "The total number of inbound streams finished",
+        "type": "stat",
+        "expr": "consensus_inbound_stream_finished",
+        "extra_params": {}
+      },
+      {
+        "title": "consensus_outbound_stream_started",
+        "description": "The total number of outbound streams started",
+        "type": "stat",
+        "expr": "consensus_outbound_stream_started",
+        "extra_params": {}
+      },
+      {
+        "title": "consensus_outbound_stream_finished",
+        "description": "The total number of outbound streams finished",
+        "type": "stat",
+        "expr": "consensus_outbound_stream_finished",
+        "extra_params": {}
+      },
+      {
         "title": "consensus_l2_gas_price",
         "description": "The L2 gas price calculated in an accepted proposal",
         "type": "stat",
