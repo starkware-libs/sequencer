@@ -12021,6 +12021,8 @@ dependencies = [
  "ark-bls12-381",
  "ark-ff 0.4.2",
  "ark-poly 0.4.2",
+ "ark-secp256k1 0.4.0",
+ "ark-secp256r1 0.4.0",
  "assert_matches",
  "blockifier",
  "c-kzg",
