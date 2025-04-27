@@ -16,11 +16,6 @@ use crate::service::{DeploymentName, ExternalSecret, Service, ServiceName};
 #[cfg(test)]
 pub(crate) const FIX_BINARY_NAME: &str = "deployment_generator";
 
-pub(crate) const DEPLOYMENT_IMAGE_FOR_PRE_INTEGRATION: &str =
-    "ghcr.io/starkware-libs/sequencer/sequencer:\
-     04-10-chore_apollo_deployments_3_nodes_integration_deployments-1a9c48e";
-pub(crate) const DEPLOYMENT_IMAGE_FOR_TESTING: &str =
-    "ghcr.io/starkware-libs/sequencer/sequencer:dev";
 const DEPLOYMENT_CONFIG_DIR_NAME: &str = "deployment_configs/";
 
 const DEPLOYMENT_FILE_NAME: &str = "deployment_config_override.json";
@@ -29,7 +24,6 @@ const INSTANCE_FILE_NAME: &str = "instance_config_override.json";
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Deployment {
     chain_id: ChainId,
-    image: String,
     application_config_subdir: PathBuf,
     #[serde(skip_serializing)]
     deployment_name: DeploymentName,
@@ -51,7 +45,6 @@ impl Deployment {
         environment: Environment,
         instance_name: &str,
         external_secret: Option<ExternalSecret>,
-        image: &str,
         base_app_config_file_path: PathBuf,
         config_override: ConfigOverride,
     ) -> Self {
@@ -75,7 +68,6 @@ impl Deployment {
             .collect();
         Self {
             chain_id,
-            image: image.to_string(),
             application_config_subdir,
             deployment_name,
             environment,
