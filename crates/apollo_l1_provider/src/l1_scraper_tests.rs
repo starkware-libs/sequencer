@@ -3,6 +3,8 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use alloy::primitives::U256;
+use apollo_batcher_types::batcher_types::GetHeightResponse;
+use apollo_batcher_types::communication::MockBatcherClient;
 use apollo_infra::trace_util::configure_tracing;
 use apollo_l1_provider_types::errors::L1ProviderError;
 use apollo_l1_provider_types::{Event, L1ProviderClient, MockL1ProviderClient};
@@ -167,15 +169,24 @@ async fn bootstrap_e2e() {
     sync_client
         .expect_get_block()
         .returning(move |input| Ok(sync_response_clone.lock().unwrap().remove(&input)));
-    sync_client.expect_get_latest_block_number().returning(move || Ok(Some(CATCH_UP_HEIGHT)));
+
+    let mut batcher_client = MockBatcherClient::default();
+    batcher_client
+        .expect_get_height()
+        .returning(move || Ok(GetHeightResponse { height: CATCH_UP_HEIGHT.unchecked_next() }));
+
     let config = L1ProviderConfig {
         startup_sync_sleep_retry_interval_seconds: Duration::from_millis(10),
         ..Default::default()
     };
-    let mut l1_provider =
-        L1ProviderBuilder::new(config, l1_provider_client.clone(), Arc::new(sync_client))
-            .startup_height(STARTUP_HEIGHT)
-            .build();
+    let mut l1_provider = L1ProviderBuilder::new(
+        config,
+        l1_provider_client.clone(),
+        Arc::new(batcher_client),
+        Arc::new(sync_client),
+    )
+    .startup_height(STARTUP_HEIGHT)
+    .build();
 
     // Test.
 
@@ -273,7 +284,7 @@ async fn bootstrap_e2e() {
 }
 
 #[tokio::test]
-async fn bootstrap_delayed_sync_state_with_trivial_catch_up() {
+async fn bootstrap_delayed_batcher_and_sync_state_with_trivial_catch_up() {
     if !in_ci() {
         return;
     }
@@ -284,27 +295,30 @@ async fn bootstrap_delayed_sync_state_with_trivial_catch_up() {
     let l1_provider_client = Arc::new(FakeL1ProviderClient::default());
     const STARTUP_HEIGHT: BlockNumber = BlockNumber(3);
 
-    let mut sync_client = MockStateSyncClient::default();
-    // Mock sync response for an arbitrary number of calls to get_latest_block_number.
-    // Later in the test we modify it to become something else.
-    let sync_height_response = Arc::new(Mutex::new(None));
-    let sync_response_clone = sync_height_response.clone();
-    sync_client
-        .expect_get_latest_block_number()
-        .returning(move || Ok(*sync_response_clone.lock().unwrap()));
+    let mut batcher_client = MockBatcherClient::default();
+    let batcher_response_height = Arc::new(Mutex::new(BlockNumber(0)));
+    let batcher_response_height_clone = batcher_response_height.clone();
+    batcher_client.expect_get_height().returning(move || {
+        Ok(GetHeightResponse { height: *batcher_response_height_clone.lock().unwrap() })
+    });
 
+    let sync_client = MockStateSyncClient::default();
     let config = L1ProviderConfig {
         startup_sync_sleep_retry_interval_seconds: Duration::from_millis(10),
         ..Default::default()
     };
-    let mut l1_provider =
-        L1ProviderBuilder::new(config, l1_provider_client.clone(), Arc::new(sync_client))
-            .startup_height(STARTUP_HEIGHT)
-            .build();
+    let mut l1_provider = L1ProviderBuilder::new(
+        config,
+        l1_provider_client.clone(),
+        Arc::new(batcher_client),
+        Arc::new(sync_client),
+    )
+    .startup_height(STARTUP_HEIGHT)
+    .build();
 
     // Test.
 
-    // Start the sync sequence, should busy-wait until the sync height is sent.
+    // Start the sync sequence, should busy-wait until the batcher height is sent.
     let scraped_l1_handler_txs = []; // No txs to scrape in this test.
     l1_provider.initialize(scraped_l1_handler_txs.into()).await.unwrap();
 
@@ -329,11 +343,10 @@ async fn bootstrap_delayed_sync_state_with_trivial_catch_up() {
     assert_eq!(l1_provider.current_height, start_height_plus_2);
     // Should still be bootstrapping, since catchup height isn't determined yet.
     // Technically we could end bootstrapping at this point, but its simpler to let it
-    // terminate gracefully once the the sync is ready.
+    // terminate gracefully once the batcher and sync are ready.
     assert!(l1_provider.state.is_bootstrapping());
 
-    *sync_height_response.lock().unwrap() = Some(BlockNumber(2));
-
+    *batcher_response_height.lock().unwrap() = STARTUP_HEIGHT;
     // Let the sync task continue, it should short circuit.
     tokio::time::sleep(config.startup_sync_sleep_retry_interval_seconds).await;
     // Assert height is unchanged from last time, no commit block was called from the sync task.
@@ -357,48 +370,52 @@ async fn bootstrap_delayed_sync_state_with_sync_behind_batcher() {
 
     let l1_provider_client = Arc::new(FakeL1ProviderClient::default());
     let startup_height = BlockNumber(1);
-    let sync_height = BlockNumber(3);
+    let batcher_height = BlockNumber(4);
 
     let mut sync_client = MockStateSyncClient::default();
-    // Mock sync response for an arbitrary number of calls to get_latest_block_number.
+    // Mock sync response for an arbitrary number of calls to get block.
     // Later in the test we modify it to become something else.
-    let sync_height_response = Arc::new(Mutex::new(None));
-    let sync_response_clone = sync_height_response.clone();
+    let sync_block_response = Arc::new(Mutex::new(HashMap::<BlockNumber, SyncBlock>::new()));
+    let sync_response_clone = sync_block_response.clone();
     sync_client
-        .expect_get_latest_block_number()
-        .returning(move || Ok(*sync_response_clone.lock().unwrap()));
-    sync_client.expect_get_block().returning(|_| Ok(Some(SyncBlock::default())));
+        .expect_get_block()
+        .returning(move |input| Ok(sync_response_clone.lock().unwrap().remove(&input)));
+
+    let mut batcher_client = MockBatcherClient::default();
+    batcher_client
+        .expect_get_height()
+        .returning(move || Ok(GetHeightResponse { height: batcher_height }));
 
     let config = L1ProviderConfig {
         startup_sync_sleep_retry_interval_seconds: Duration::from_millis(10),
         ..Default::default()
     };
-    let mut l1_provider =
-        L1ProviderBuilder::new(config, l1_provider_client.clone(), Arc::new(sync_client))
-            .startup_height(startup_height)
-            .build();
+    let mut l1_provider = L1ProviderBuilder::new(
+        config,
+        l1_provider_client.clone(),
+        Arc::new(batcher_client),
+        Arc::new(sync_client),
+    )
+    .startup_height(startup_height)
+    .build();
 
     // Test.
 
-    // Start the sync sequence, should busy-wait until the sync height is sent.
+    // Start the sync sequence, should busy-wait until the sync blocks are sent.
     let scraped_l1_handler_txs = []; // No txs to scrape in this test.
     l1_provider.initialize(scraped_l1_handler_txs.into()).await.unwrap();
 
     // **Commit** a few blocks. These should get backlogged since they are post-sync-height.
-    // Sleeps are sprinkled in to give the async task a couple shots at attempting to get the sync
-    // height (see DEBUG log).
+    // Sleeps are sprinkled in to give the async task time to get the batcher height and have a
+    // couple shots at attempting to get the sync blocks (see DEBUG log).
     let no_txs_committed = []; // Not testing txs in this test.
     l1_provider_client
-        .commit_block(no_txs_committed.to_vec(), HashSet::new(), sync_height.unchecked_next())
+        .commit_block(no_txs_committed.to_vec(), HashSet::new(), batcher_height)
         .await
         .unwrap();
     tokio::time::sleep(config.startup_sync_sleep_retry_interval_seconds).await;
     l1_provider_client
-        .commit_block(
-            no_txs_committed.to_vec(),
-            HashSet::new(),
-            sync_height.unchecked_next().unchecked_next(),
-        )
+        .commit_block(no_txs_committed.to_vec(), HashSet::new(), batcher_height.unchecked_next())
         .await
         .unwrap();
 
@@ -408,24 +425,29 @@ async fn bootstrap_delayed_sync_state_with_sync_behind_batcher() {
 
     // Assert commit blocks are backlogged (didn't affect start height).
     assert_eq!(l1_provider.current_height, startup_height);
-    // Should still be bootstrapping, since catchup height isn't determined yet.
+    // Should still be bootstrapping, since sync hasn't caught up to the batcher height yet.
     assert!(l1_provider.state.is_bootstrapping());
 
     // Simulate the state sync service finally being ready, and give the async task enough time to
     // pick this up and sync up the provider.
-    *sync_height_response.lock().unwrap() = Some(sync_height);
+    sync_block_response.lock().unwrap().insert(startup_height, SyncBlock::default());
+    sync_block_response
+        .lock()
+        .unwrap()
+        .insert(startup_height.unchecked_next(), SyncBlock::default());
+    sync_block_response
+        .lock()
+        .unwrap()
+        .insert(startup_height.unchecked_next().unchecked_next(), SyncBlock::default());
     tokio::time::sleep(config.startup_sync_sleep_retry_interval_seconds).await;
     // Forward all messages buffered in the client to the provider.
     l1_provider_client.flush_messages(&mut l1_provider).await;
 
     // Two things happened here: the async task sent 2 commit blocks it got from the sync_client,
-    // which bumped the provider height to sync_height+1, then the backlog was applied which bumped
-    // it twice again.
-    assert_eq!(
-        l1_provider.current_height,
-        sync_height.unchecked_next().unchecked_next().unchecked_next()
-    );
-    // Sync height was reached, bootstrapping was completed.
+    // which bumped the provider height to batcher_height, then the backlog was applied which
+    // bumped it twice again.
+    assert_eq!(l1_provider.current_height, batcher_height.unchecked_next().unchecked_next());
+    // Batcher height was reached, bootstrapping was completed.
     assert!(!l1_provider.state.is_bootstrapping());
 }
 
@@ -435,15 +457,20 @@ async fn test_stuck_sync() {
     configure_tracing().await;
     const STARTUP_HEIGHT: BlockNumber = BlockNumber(1);
 
-    let mut sync_client = MockStateSyncClient::default();
-    sync_client.expect_get_latest_block_number().once().returning(|| panic!("CRASH the sync task"));
+    let mut batcher_client = MockBatcherClient::default();
+    batcher_client.expect_get_height().once().returning(|| panic!("CRASH the sync task"));
 
+    let sync_client = MockStateSyncClient::default();
     let l1_provider_client = Arc::new(FakeL1ProviderClient::default());
     let config = Default::default();
-    let mut l1_provider =
-        L1ProviderBuilder::new(config, l1_provider_client.clone(), Arc::new(sync_client))
-            .startup_height(STARTUP_HEIGHT)
-            .build();
+    let mut l1_provider = L1ProviderBuilder::new(
+        config,
+        l1_provider_client.clone(),
+        Arc::new(batcher_client),
+        Arc::new(sync_client),
+    )
+    .startup_height(STARTUP_HEIGHT)
+    .build();
 
     // Test.
 

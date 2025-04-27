@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 
+use apollo_batcher_types::communication::MockBatcherClient;
 use apollo_l1_provider_types::errors::L1ProviderError;
 use apollo_l1_provider_types::SessionState::{
     self,
@@ -56,16 +57,17 @@ macro_rules! bootstrapper {
                     height: BlockNumber($height),
                     committed_txs: vec![$(tx_hash!($tx)),*]
                 }),*
-                ].into_iter().collect(),
-                catch_up_height: Arc::new(BlockNumber($catch).into()),
-                l1_provider_client: Arc::new(FakeL1ProviderClient::default()),
-                sync_client: Arc::new(MockStateSyncClient::default()),
-                sync_task_handle: SyncTaskHandle::default(),
-                n_sync_health_check_failures: Default::default(),
-                sync_retry_interval: Duration::from_millis(10)
-            }
-        }};
-    }
+            ].into_iter().collect(),
+            catch_up_height: Arc::new(BlockNumber($catch).into()),
+            l1_provider_client: Arc::new(FakeL1ProviderClient::default()),
+            batcher_client: Arc::new(MockBatcherClient::default()),
+            sync_client: Arc::new(MockStateSyncClient::default()),
+            sync_task_handle: SyncTaskHandle::default(),
+            n_sync_health_check_failures: Default::default(),
+            sync_retry_interval: Duration::from_millis(10)
+        }
+    }};
+}
 
 fn l1_handler_event(tx_hash: TransactionHash) -> Event {
     Event::L1HandlerTransaction(executable_l1_handler_tx(L1HandlerTxArgs {
