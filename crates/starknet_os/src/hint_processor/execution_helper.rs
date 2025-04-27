@@ -151,6 +151,14 @@ impl<'a> TransactionExecutionIter<'a> {
         })
     }
 
+    pub fn end_tx(&mut self) -> Result<(), ExecutionHelperError> {
+        if self.get_mut_tx_execution_info_ref()?.call_info_iter.next().is_some() {
+            return Err(ExecutionHelperError::UnexhaustedCallInfoIterator);
+        }
+        self.tx_execution_info_ref = None;
+        Ok(())
+    }
+
     pub fn get_tx_execution_info_ref(
         &self,
     ) -> Result<&TransactionExecutionInfoReference<'a>, ExecutionHelperError> {
@@ -290,6 +298,8 @@ pub enum ExecutionHelperError {
     NoCurrentExecutionHelper,
     #[error("Exit call info before exhausting data iterators {iters:?}.")]
     UnexhaustedCallInfoDataIterators { iters: Vec<String> },
+    #[error("Exit transaction before exhausting call info iterator.")]
+    UnexhaustedCallInfoIterator,
     #[error("Unexpected tx type: {0:?}.")]
     UnexpectedTxType(TransactionType),
 }
