@@ -14,18 +14,18 @@ def argument_parser():
         "--deployment-config-file", required=True, type=str, help="Path to deployment config file."
     )
     parser.add_argument(
-        "--create-monitoring",
-        required=False,
-        action="store_true",
-        help="Create monitoring resources.",
-    )
-    parser.add_argument(
         "--deployment-image-tag",
         required=False,
         type=str,
         default="dev",
         help="Apollo node binary image name, to be fetched from ghcr. Defaults to 'dev'.",
     )
+    parser.add_argument(
+        "--monitoring-dashboard-file",
+        required=False,
+        type=str,
+        help="Path to Grafana dashboard JSON file.",
+    ),
 
     return parser.parse_args()
 
