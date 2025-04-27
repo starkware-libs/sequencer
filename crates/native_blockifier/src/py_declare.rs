@@ -37,7 +37,7 @@ impl TryFrom<PyDeclareTransactionV0V1> for DeclareTransactionV0V1 {
     fn try_from(tx: PyDeclareTransactionV0V1) -> Result<Self, Self::Error> {
         Ok(Self {
             max_fee: Fee(tx.max_fee),
-            signature: TransactionSignature(from_py_felts(tx.signature)),
+            signature: TransactionSignature(from_py_felts(tx.signature).into()),
             nonce: Nonce(tx.nonce.0),
             class_hash: ClassHash(tx.class_hash.0),
             sender_address: ContractAddress::try_from(tx.sender_address.0)?,
@@ -60,7 +60,7 @@ impl TryFrom<PyDeclareTransactionV2> for DeclareTransactionV2 {
     fn try_from(tx: PyDeclareTransactionV2) -> Result<Self, Self::Error> {
         Ok(Self {
             max_fee: Fee(tx.max_fee),
-            signature: TransactionSignature(from_py_felts(tx.signature)),
+            signature: TransactionSignature(from_py_felts(tx.signature).into()),
             nonce: Nonce(tx.nonce.0),
             class_hash: ClassHash(tx.class_hash.0),
             compiled_class_hash: CompiledClassHash(tx.compiled_class_hash.0),
@@ -90,7 +90,7 @@ impl TryFrom<PyDeclareTransactionV3> for DeclareTransactionV3 {
         Ok(Self {
             resource_bounds: tx.resource_bounds.try_into()?,
             tip: Tip(tx.tip),
-            signature: TransactionSignature(from_py_felts(tx.signature)),
+            signature: TransactionSignature(from_py_felts(tx.signature).into()),
             nonce: Nonce(tx.nonce.0),
             class_hash: ClassHash(tx.class_hash.0),
             compiled_class_hash: CompiledClassHash(tx.compiled_class_hash.0),

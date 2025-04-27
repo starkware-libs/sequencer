@@ -34,7 +34,7 @@ fn create_declare_tx() -> RpcTransaction {
         DeclareTxArgs {
             resource_bounds: ValidResourceBounds::AllResources(create_resource_bounds_for_testing()),
             tip: Tip(1),
-            signature: TransactionSignature(vec![felt!("0x1"), felt!("0x2")]),
+            signature: TransactionSignature(vec![felt!("0x1"), felt!("0x2")].into()),
             sender_address: contract_address!("0x3"),
             nonce: nonce!(1),
             paymaster_data: PaymasterData(vec![felt!("0x0")]),
@@ -55,7 +55,7 @@ fn create_deploy_account_tx() -> RpcTransaction {
         class_hash: class_hash!("0x2"),
         constructor_calldata: calldata![felt!("0x1")],
         nonce: nonce!(1),
-        signature: TransactionSignature(vec![felt!("0x1")]),
+        signature: TransactionSignature(vec![felt!("0x1")].into()),
         nonce_data_availability_mode: DataAvailabilityMode::L2,
         fee_data_availability_mode: DataAvailabilityMode::L1,
         paymaster_data: PaymasterData(vec![felt!("0x2"), felt!("0x0")]),

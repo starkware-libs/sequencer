@@ -101,7 +101,7 @@ pub fn declare_tx() -> RpcTransaction {
 
     rpc_declare_tx(
         declare_tx_args!(
-            signature: TransactionSignature(vec![Felt::ZERO]),
+            signature: TransactionSignature(vec![Felt::ZERO].into()),
             sender_address: account_address,
             resource_bounds: test_valid_resource_bounds(),
             nonce,
@@ -484,7 +484,7 @@ impl AccountTransactionGenerator {
     pub fn generate_declare(&mut self) -> RpcTransaction {
         let nonce = self.next_nonce();
         let declare_args = declare_tx_args!(
-            signature: TransactionSignature(vec![Felt::ZERO]),
+            signature: TransactionSignature(vec![Felt::ZERO].into()),
             sender_address: self.sender_address(),
             resource_bounds: test_valid_resource_bounds(),
             nonce,
@@ -542,7 +542,7 @@ impl AccountTransactionGenerator {
 /// Generate a declare transaction for initial bootstrapping phase (no fees).
 pub fn generate_bootstrap_declare() -> RpcTransaction {
     let bootstrap_declare_args = declare_tx_args!(
-        signature: TransactionSignature(vec![]),
+        signature: TransactionSignature::default(),
         sender_address: DeclareTransaction::bootstrap_address(),
         resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
         nonce: Nonce(Felt::ZERO),

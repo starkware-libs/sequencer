@@ -501,7 +501,7 @@ fn execute_fail_validation(
         signature: TransactionSignature(vec![
             Felt::from(INVALID),
             Felt::ZERO
-        ]),
+        ].into()),
         sender_address: faulty_account_address,
         calldata: create_calldata(faulty_account_address, "foo", &[]),
         version,

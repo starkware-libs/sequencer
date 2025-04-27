@@ -454,7 +454,7 @@ auto_storage_serde! {
         Invoke(InvokeTransactionOutput) = 3,
         L1Handler(L1HandlerTransactionOutput) = 4,
     }
-    pub struct TransactionSignature(pub Vec<Felt>);
+    pub struct TransactionSignature(pub Arc<Vec<Felt>>);
     pub struct TransactionVersion(pub Felt);
     pub enum ValidResourceBounds {
         L1Gas(ResourceBounds) = 0,

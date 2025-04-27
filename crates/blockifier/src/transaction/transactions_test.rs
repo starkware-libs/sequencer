@@ -830,7 +830,7 @@ fn test_invoke_tx_advanced_operations(
 
     // Invoke add_signature_to_counters function.
     let signature_values = [Felt::from(200_u64), Felt::from(300_u64)];
-    let signature = TransactionSignature(signature_values.into());
+    let signature = TransactionSignature(signature_values.to_vec().into());
 
     let account_tx = invoke_tx_with_default_flags(invoke_tx_args! {
         signature,

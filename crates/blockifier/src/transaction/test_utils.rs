@@ -254,7 +254,7 @@ pub fn create_account_tx_for_validate_test(
     if let Some(additional_data) = additional_data {
         signature_vector.extend(additional_data);
     }
-    let signature = TransactionSignature(signature_vector);
+    let signature = TransactionSignature(signature_vector.into());
     let execution_flags =
         ExecutionFlags { validate, charge_fee, only_query, strict_nonce_check: true };
     match tx_type {
