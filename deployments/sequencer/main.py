@@ -48,8 +48,8 @@ def main():
     args = helpers.argument_parser()
 
     assert not (
-        args.create_monitoring and not args.cluster
-    ), "Error: --cluster is required when --create-monitoring is provided."
+        args.monitoring_dashboard_file and not args.cluster
+    ), "Error: --cluster is required when --monitoring-dashboard-file is provided."
 
     app = App(yaml_output_type=YamlOutputType.FOLDER_PER_CHART_FILE_PER_RESOURCE)
 
@@ -58,12 +58,15 @@ def main():
     image = f"ghcr.io/starkware-libs/sequencer/sequencer:{args.deployment_image_tag}"
     application_config_subdir = preset.get_application_config_subdir()
 
+    if args.monitoring_dashboard_file:
+        create_monitoring = True
+
     for svc in services:
         SequencerNode(
             scope=app,
             name=helpers.sanitize_name(f'sequencer-{svc["name"]}'),
             namespace=helpers.sanitize_name(args.namespace),
-            monitoring=args.create_monitoring,
+            monitoring=create_monitoring,
             service_topology=topology.ServiceTopology(
                 config=config.SequencerConfig(
                     config_subdir=application_config_subdir, config_paths=svc["config_paths"]
@@ -80,7 +83,7 @@ def main():
             ),
         )
 
-    if args.create_monitoring:
+    if args.monitoring_dashboard_file:
         dashboard_hash = helpers.generate_random_hash(
             from_string=f"{args.cluster}-{args.namespace}"
         )
@@ -89,7 +92,7 @@ def main():
             name=helpers.sanitize_name(f"sequencer-monitoring-{dashboard_hash}"),
             cluster=args.cluster,
             namespace=helpers.sanitize_name(args.namespace),
-            grafana_dashboard=monitoring.GrafanaDashboard("sequencer_node_dashboard.json"),
+            grafana_dashboard=monitoring.GrafanaDashboard(args.monitoring_dashboard_file),
         )
 
     app.synth()
