@@ -19,7 +19,7 @@ use tracing::info;
 async fn main() {
     integration_test_setup("restart").await;
     const TOTAL_PHASES: u64 = 4;
-    const PHASE_DURATION: Duration = Duration::from_secs(45);
+    const PHASE_DURATION: Duration = Duration::from_secs(60);
     const TOTAL_DURATION: u64 = PHASE_DURATION.as_secs() * TOTAL_PHASES;
     const TOTAL_INVOKE_TXS: u64 = TPS * TOTAL_DURATION;
     /// The number of consolidated local sequencers that participate in the test.
