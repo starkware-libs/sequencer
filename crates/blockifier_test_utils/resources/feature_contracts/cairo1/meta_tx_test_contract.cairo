@@ -13,15 +13,15 @@ struct CallData {
     nonce: felt252,
 }
 
-#[starknet::contract]
+#[starknet::contract(account)]
 mod MetaTxTestContract {
-    use starknet::storage::MutableVecTrait;
     use starknet::ContractAddress;
+    use starknet::storage::MutableVecTrait;
     use super::CallData;
 
     #[storage]
     struct Storage {
-        call_data: starknet::storage::Vec::<CallData>,
+        call_data: starknet::storage::Vec<CallData>,
     }
 
     #[generate_trait]
@@ -48,8 +48,12 @@ mod MetaTxTestContract {
         }
     }
 
+    // `__validate__` must be implemented if `__execute__` is.
     #[external(v0)]
-    fn foo(ref self: ContractState, argument: felt252) {
+    fn __validate__(ref self: ContractState, argument: felt252) {}
+
+    #[external(v0)]
+    fn __execute__(ref self: ContractState, argument: felt252) {
         self.add_call_info(:argument);
     }
 

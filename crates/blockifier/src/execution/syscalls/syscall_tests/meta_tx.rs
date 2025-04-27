@@ -9,6 +9,7 @@ use starknet_api::abi::abi_utils::{selector_from_name, starknet_keccak};
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::test_utils::CHAIN_ID_FOR_TESTS;
+use starknet_api::transaction::constants::EXECUTE_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::{
     signed_tx_version,
@@ -102,7 +103,7 @@ fn test_meta_tx_v0(
         max_fee: Fee(0),
         signature: Default::default(),
         contract_address,
-        entry_point_selector: selector_from_name("foo"),
+        entry_point_selector: selector_from_name(EXECUTE_ENTRY_POINT_NAME),
         calldata: calldata!(argument),
     }
     .calculate_transaction_hash(
@@ -114,7 +115,7 @@ fn test_meta_tx_v0(
     let calldata = Calldata(
         vec![
             contract_address.into(),
-            selector_from_name("foo").0,
+            selector_from_name(EXECUTE_ENTRY_POINT_NAME).0,
             // Inner calldata.
             1.into(),
             argument,
