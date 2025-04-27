@@ -252,12 +252,6 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
     n_composed_nodes: usize,
     chain_id: &ChainId,
 ) -> Vec<ConsensusManagerConfig> {
-    // TODO(Matan, Dan): set reasonable default timeouts.
-    let mut timeouts = TimeoutsConfig::default();
-    timeouts.precommit_timeout *= 3;
-    timeouts.prevote_timeout *= 3;
-    timeouts.proposal_timeout *= 3;
-
     let num_validators = u64::try_from(n_composed_nodes).unwrap();
 
     network_configs
@@ -269,7 +263,6 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
             consensus_config: ConsensusConfig {
                 // TODO(Matan, Dan): Set the right amount
                 startup_delay: Duration::from_secs(15),
-                timeouts: timeouts.clone(),
                 ..Default::default()
             },
             context_config: ContextConfig {
