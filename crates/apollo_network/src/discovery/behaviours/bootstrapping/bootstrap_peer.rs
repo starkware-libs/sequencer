@@ -1,5 +1,6 @@
 use std::task::{Context, Poll};
 
+use futures::FutureExt;
 use libp2p::core::Endpoint;
 use libp2p::swarm::behaviour::ConnectionEstablished;
 use libp2p::swarm::dial_opts::{DialOpts, PeerCondition};
@@ -19,7 +20,7 @@ use libp2p::{Multiaddr, PeerId};
 use tokio::time::Instant;
 use tokio_retry::strategy::ExponentialBackoff;
 
-use crate::discovery::behaviours::configure_context_to_wake_at_instant;
+use crate::discovery::behaviours::{EventWakerManager, TimeWakerManager};
 use crate::discovery::{RetryConfig, ToOtherBehaviourEvent};
 
 pub struct BootstrappingBehaviour {
@@ -31,6 +32,8 @@ pub struct BootstrappingBehaviour {
     is_bootstrap_in_kad_routing_table: bool,
     bootstrap_dial_retry_strategy: ExponentialBackoff,
     time_for_next_bootstrap_dial: Instant,
+    time_waker: TimeWakerManager,
+    event_waker: EventWakerManager,
 }
 
 impl NetworkBehaviour for BootstrappingBehaviour {
@@ -58,6 +61,7 @@ impl NetworkBehaviour for BootstrappingBehaviour {
     }
 
     fn on_swarm_event(&mut self, event: FromSwarm<'_>) {
+        let now = tokio::time::Instant::now();
         match event {
             FromSwarm::DialFailure(DialFailure { peer_id: Some(peer_id), .. })
                 if peer_id == self.bootstrap_peer_id =>
@@ -65,11 +69,12 @@ impl NetworkBehaviour for BootstrappingBehaviour {
                 self.is_dialing_to_bootstrap_peer = false;
                 // For the case that the reason for failure is consistent (e.g the bootstrap peer
                 // is down), we sleep before redialing
-                self.time_for_next_bootstrap_dial = tokio::time::Instant::now()
-                    + self
-                        .bootstrap_dial_retry_strategy
-                        .next()
-                        .expect("Dial sleep strategy ended even though it's an infinite iterator.");
+                let delta_duration = self
+                    .bootstrap_dial_retry_strategy
+                    .next()
+                    .expect("Dial sleep strategy ended even though it's an infinite iterator.");
+                self.time_for_next_bootstrap_dial = now + delta_duration;
+                self.event_waker.wake();
             }
             FromSwarm::ConnectionEstablished(ConnectionEstablished { peer_id, .. })
                 if peer_id == self.bootstrap_peer_id =>
@@ -77,6 +82,7 @@ impl NetworkBehaviour for BootstrappingBehaviour {
                 self.is_connected_to_bootstrap_peer = true;
                 self.is_dialing_to_bootstrap_peer = false;
                 self.bootstrap_dial_retry_strategy = self.bootstrap_dial_retry_config.strategy();
+                self.event_waker.wake();
             }
             FromSwarm::ConnectionClosed(ConnectionClosed {
                 peer_id,
@@ -86,6 +92,8 @@ impl NetworkBehaviour for BootstrappingBehaviour {
                 self.is_connected_to_bootstrap_peer = false;
                 self.is_dialing_to_bootstrap_peer = false;
                 self.is_bootstrap_in_kad_routing_table = false;
+                self.time_for_next_bootstrap_dial = now;
+                self.event_waker.wake()
             }
             FromSwarm::AddressChange(AddressChange { peer_id, .. })
                 if peer_id == self.bootstrap_peer_id =>
@@ -136,10 +144,11 @@ impl NetworkBehaviour for BootstrappingBehaviour {
         }
 
         if should_dial {
-            // TODO(Andrew): also wake if should_dial is false and we got connected to or
-            // disconnected from the bootstrap peer
-            configure_context_to_wake_at_instant(cx, self.time_for_next_bootstrap_dial);
+            let next_wake_up = self.time_for_next_bootstrap_dial;
+            self.time_waker.wake_at(cx, next_wake_up);
         }
+        let _ = self.time_waker.poll_unpin(cx);
+        self.event_waker.add_waker(cx.waker());
         Poll::Pending
     }
 }
@@ -160,6 +169,8 @@ impl BootstrappingBehaviour {
             is_bootstrap_in_kad_routing_table: false,
             bootstrap_dial_retry_strategy,
             time_for_next_bootstrap_dial: tokio::time::Instant::now(),
+            time_waker: Default::default(),
+            event_waker: Default::default(),
         }
     }
 
