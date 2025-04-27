@@ -18,6 +18,8 @@ use libp2p::{Multiaddr, PeerId};
 use crate::discovery::{RetryConfig, ToOtherBehaviourEvent};
 
 pub mod bootstrap_peer;
+#[cfg(test)]
+mod bootstrap_test;
 
 pub struct BootstrappingBehaviour {
     peers: SelectAll<BootstrapPeer>,
