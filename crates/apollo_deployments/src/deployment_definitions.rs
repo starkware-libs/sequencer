@@ -29,11 +29,11 @@ const APP_CONFIGS_DIR_NAME: &str = "app_configs/";
 
 const SEPOLIA_INTEGRATION_DEPLOYMENT_CONFIG_OVERRIDE: DeploymentConfigOverride =
     DeploymentConfigOverride::new(
-        "0x4737c0c1B4D5b1A687B42610DdabEE781152359c",
-        "SN_INTEGRATION_SEPOLIA",
-        "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
-        "https://feeder.integration-sepolia.starknet.io/",
-        "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d",
+        "0xa23a6BA7DA61988D2420dAE9F10eE964552459d5",
+        "SN_GOERLI",
+        "0x7c07a3eec8ff611328722c3fc3e5d2e4ef2f60740c0bf86c756606036b74c16",
+        "https://fgw-sn-test-sepolia-3-sepolia.gateway-proxy.sw-dev.io",
+        "0x54a93d918d62b2fb62b25e77d9cb693bd277ab7e6fa236e53af263f1adb40e4",
     );
 
 const TESTING_DEPLOYMENT_CONFIG_OVERRIDE: DeploymentConfigOverride = DeploymentConfigOverride::new(
@@ -57,12 +57,12 @@ const SEPOLIA_INTEGRATION_NODE_0_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverrid
 
 const SEPOLIA_INTEGRATION_NODE_1_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverride =
     InstanceConfigOverride::new(
-        "/dns/sequencer-core-service.apollo-sepolia-integration-0.svc.cluster.local/tcp/53080/p2p/\
+        "/dns/sequencer-core-service.sequencer-test-3-node-0.svc.cluster.local/tcp/53080/p2p/\
          12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
         false,
         "0x0101010101010101010101010101010101010101010101010101010101010102",
-        "/dns/sequencer-mempool-service.apollo-sepolia-integration-0.svc.cluster.local/tcp/53200/\
-         p2p/12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
+        "/dns/sequencer-mempool-service.sequencer-test-3-node-0.svc.cluster.local/tcp/53200/p2p/\
+         12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
         false,
         "0x0101010101010101010101010101010101010101010101010101010101010102",
         "0x2",
@@ -70,12 +70,12 @@ const SEPOLIA_INTEGRATION_NODE_1_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverrid
 
 const SEPOLIA_INTEGRATION_NODE_2_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverride =
     InstanceConfigOverride::new(
-        "/dns/sequencer-core-service.apollo-sepolia-integration-0.svc.cluster.local/tcp/53080/p2p/\
+        "/dns/sequencer-core-service.sequencer-test-3-node-0.svc.cluster.local/tcp/53080/p2p/\
          12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
         false,
         "0x0101010101010101010101010101010101010101010101010101010101010103",
-        "/dns/sequencer-mempool-service.apollo-sepolia-integration-0.svc.cluster.local/tcp/53200/\
-         p2p/12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
+        "/dns/sequencer-mempool-service.sequencer-test-3-node-0.svc.cluster.local/tcp/53200/p2p/\
+         12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
         false,
         "0x0101010101010101010101010101010101010101010101010101010101010103",
         "0x3",
@@ -83,12 +83,12 @@ const SEPOLIA_INTEGRATION_NODE_2_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverrid
 
 const SEPOLIA_INTEGRATION_NODE_3_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverride =
     InstanceConfigOverride::new(
-        "/dns/sequencer-core-service.apollo-sepolia-integration-0.svc.cluster.local/tcp/53080/p2p/\
+        "/dns/sequencer-core-service.sequencer-test-3-node-0.svc.cluster.local/tcp/53080/p2p/\
          12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
         false,
         "0x0101010101010101010101010101010101010101010101010101010101010104",
-        "/dns/sequencer-mempool-service.apollo-sepolia-integration-0.svc.cluster.local/tcp/53200/\
-         p2p/12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
+        "/dns/sequencer-mempool-service.sequencer-test-3-node-0.svc.cluster.local/tcp/53200/p2p/\
+         12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
         false,
         "0x0101010101010101010101010101010101010101010101010101010101010104",
         "0x4",
@@ -124,9 +124,9 @@ const TESTING_CONFIG_OVERRIDE: ConfigOverride =
     ConfigOverride::new(&TESTING_DEPLOYMENT_CONFIG_OVERRIDE, &TESTING_INSTANCE_CONFIG_OVERRIDE);
 
 const SEPOLIA_INTEGRATION_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str =
-    "integration-sepolia.starknet.io";
+    "sn-test-sepolia-3-sepolia.gateway-proxy.sw-dev.io";
 
-const SEPOLIA_INTEGRATION_INGRESS_DOMAIN: &str = "starknet.io";
+const SEPOLIA_INTEGRATION_INGRESS_DOMAIN: &str = "sw-dev.io";
 const TESTING_INGRESS_DOMAIN: &str = "sw-dev.io";
 
 type DeploymentFn = fn() -> Deployment;
@@ -150,7 +150,7 @@ fn sepolia_integration_hybrid_deployment_node_0() -> Deployment {
         DeploymentName::HybridNode,
         Environment::SepoliaIntegration,
         "integration_hybrid_node_0",
-        Some(ExternalSecret::new("apollo-sepolia-integration-0")),
+        Some(ExternalSecret::new("sequencer-test-3-node-0")),
         PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH),
         SEPOLIA_INTEGRATION_NODE_0_CONFIG_OVERRIDE,
         SEPOLIA_INTEGRATION_INGRESS_DOMAIN.to_string(),
@@ -164,7 +164,7 @@ fn sepolia_integration_hybrid_deployment_node_1() -> Deployment {
         DeploymentName::HybridNode,
         Environment::SepoliaIntegration,
         "integration_hybrid_node_1",
-        Some(ExternalSecret::new("apollo-sepolia-integration-1")),
+        Some(ExternalSecret::new("sequencer-test-3-node-1")),
         PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH),
         SEPOLIA_INTEGRATION_NODE_1_CONFIG_OVERRIDE,
         SEPOLIA_INTEGRATION_INGRESS_DOMAIN.to_string(),
@@ -178,7 +178,7 @@ fn sepolia_integration_hybrid_deployment_node_2() -> Deployment {
         DeploymentName::HybridNode,
         Environment::SepoliaIntegration,
         "integration_hybrid_node_2",
-        Some(ExternalSecret::new("apollo-sepolia-integration-2")),
+        Some(ExternalSecret::new("sequencer-test-3-node-2")),
         PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH),
         SEPOLIA_INTEGRATION_NODE_2_CONFIG_OVERRIDE,
         SEPOLIA_INTEGRATION_INGRESS_DOMAIN.to_string(),
@@ -192,7 +192,7 @@ fn sepolia_integration_hybrid_deployment_node_3() -> Deployment {
         DeploymentName::HybridNode,
         Environment::SepoliaIntegration,
         "integration_hybrid_node_3",
-        Some(ExternalSecret::new("apollo-sepolia-integration-3")),
+        Some(ExternalSecret::new("sequencer-test-3-node-3")),
         PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH),
         SEPOLIA_INTEGRATION_NODE_3_CONFIG_OVERRIDE,
         SEPOLIA_INTEGRATION_INGRESS_DOMAIN.to_string(),
