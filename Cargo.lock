@@ -1406,6 +1406,7 @@ dependencies = [
  "apollo_metrics",
  "async-trait",
  "futures",
+ "hex",
  "lru 0.12.5",
  "mockall",
  "mockito 1.6.1",

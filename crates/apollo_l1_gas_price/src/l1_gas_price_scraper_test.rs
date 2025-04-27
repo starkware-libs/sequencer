@@ -1,14 +1,43 @@
 use std::sync::Arc;
 
 use apollo_l1_gas_price_types::{GasPriceData, MockL1GasPriceProviderClient};
-use papyrus_base_layer::{L1BlockHeader, MockBaseLayerContract};
+use papyrus_base_layer::{L1BlockHash, L1BlockHeader, MockBaseLayerContract};
 use starknet_api::block::GasPrice;
 
-use crate::l1_gas_price_scraper::{L1GasPriceScraper, L1GasPriceScraperConfig};
+use crate::l1_gas_price_scraper::{
+    L1GasPriceScraper,
+    L1GasPriceScraperConfig,
+    L1GasPriceScraperError,
+};
 
 const BLOCK_TIME: u64 = 2;
 const GAS_PRICE: u128 = 42;
 const DATA_PRICE: u128 = 137;
+
+fn u64_to_block_hash(value: u64) -> L1BlockHash {
+    let mut result = [0u8; 32];
+    let bytes = value.to_be_bytes();
+    result[24..].copy_from_slice(&bytes);
+    result
+}
+
+fn create_l1_block_header(block_number: u64) -> L1BlockHeader {
+    L1BlockHeader {
+        number: block_number,
+        timestamp: block_number * BLOCK_TIME,
+        base_fee_per_gas: u128::from(block_number) * GAS_PRICE,
+        blob_fee: u128::from(block_number) * DATA_PRICE,
+        hash: u64_to_block_hash(block_number),
+        parent_hash: u64_to_block_hash(block_number.saturating_sub(1)),
+        // If needed, add ..Default::default() here.
+    }
+}
+
+fn check_gas_prices(data: &GasPriceData) -> bool {
+    data.timestamp.0 == data.block_number * BLOCK_TIME
+        && data.price_info.base_fee_per_gas == GasPrice(u128::from(data.block_number) * GAS_PRICE)
+        && data.price_info.blob_fee == GasPrice(u128::from(data.block_number) * DATA_PRICE)
+}
 
 fn setup_scraper(
     end_block: u64,
@@ -19,24 +48,14 @@ fn setup_scraper(
         if block_number >= end_block {
             Ok(None)
         } else {
-            Ok(Some(L1BlockHeader {
-                timestamp: block_number * BLOCK_TIME,
-                base_fee_per_gas: u128::from(block_number) * GAS_PRICE,
-                blob_fee: u128::from(block_number) * DATA_PRICE,
-                ..Default::default()
-            }))
+            Ok(Some(create_l1_block_header(block_number)))
         }
     });
 
     let mut mock_provider = MockL1GasPriceProviderClient::new();
     mock_provider
         .expect_add_price_info()
-        .withf(|data: &GasPriceData| {
-            data.timestamp.0 == data.block_number * BLOCK_TIME
-                && data.price_info.base_fee_per_gas
-                    == GasPrice(u128::from(data.block_number) * GAS_PRICE)
-                && data.price_info.blob_fee == GasPrice(u128::from(data.block_number) * DATA_PRICE)
-        })
+        .withf(check_gas_prices)
         .times(expected_number_of_blocks)
         .returning(|_| Ok(()));
 
@@ -72,12 +91,7 @@ async fn run_l1_gas_price_scraper_two_blocks() {
             if block_number >= END_BLOCK1 {
                 Ok(None)
             } else {
-                Ok(Some(L1BlockHeader {
-                    timestamp: block_number * BLOCK_TIME,
-                    base_fee_per_gas: u128::from(block_number) * GAS_PRICE,
-                    blob_fee: u128::from(block_number) * DATA_PRICE,
-                    ..Default::default()
-                }))
+                Ok(Some(create_l1_block_header(block_number)))
             }
         });
     mock_contract
@@ -87,24 +101,13 @@ async fn run_l1_gas_price_scraper_two_blocks() {
             if block_number >= END_BLOCK2 {
                 Ok(None)
             } else {
-                Ok(Some(L1BlockHeader {
-                    timestamp: block_number * BLOCK_TIME,
-                    base_fee_per_gas: u128::from(block_number) * GAS_PRICE,
-                    blob_fee: u128::from(block_number) * DATA_PRICE,
-                    ..Default::default()
-                }))
+                Ok(Some(create_l1_block_header(block_number)))
             }
         });
-
     let mut mock_provider = MockL1GasPriceProviderClient::new();
     mock_provider
         .expect_add_price_info()
-        .withf(|data: &GasPriceData| {
-            data.timestamp.0 == data.block_number * BLOCK_TIME
-                && data.price_info.base_fee_per_gas
-                    == GasPrice(u128::from(data.block_number) * GAS_PRICE)
-                && data.price_info.blob_fee == GasPrice(u128::from(data.block_number) * DATA_PRICE)
-        })
+        .withf(check_gas_prices)
         .times(usize::try_from(END_BLOCK2 - START_BLOCK).unwrap())
         .returning(|_| Ok(()));
 
@@ -129,6 +132,58 @@ async fn run_l1_gas_price_scraper_multiple_blocks() {
 
     // Should update prices from 5 to 10 (not inclusive) and on 10 get a None from base layer.
     scraper.update_prices(START_BLOCK).await.unwrap();
+}
+
+#[tokio::test]
+async fn l1_reorg_gas_price_scraper_error() {
+    const START_BLOCK: u64 = 0;
+    const END_BLOCK1: u64 = 2;
+    const END_BLOCK2: u64 = 4;
+    // Explicitly making the mocks here, so we can customize them for the test.
+    let mut mock_contract = MockBaseLayerContract::new();
+    // Note the order of the expectation is important! Can only scrape the first blocks first.
+    mock_contract
+        .expect_get_block_header()
+        .times(usize::try_from(END_BLOCK1 - START_BLOCK + 1).unwrap())
+        .returning(move |block_number| {
+            if block_number >= END_BLOCK1 {
+                Ok(None)
+            } else {
+                Ok(Some(create_l1_block_header(block_number)))
+            }
+        });
+    // The second block is a reorg, so we need to return a different hash.
+    mock_contract
+        .expect_get_block_header()
+        .times(usize::try_from(END_BLOCK2 - END_BLOCK1).unwrap())
+        .returning(move |block_number| {
+            if block_number >= END_BLOCK2 {
+                Ok(None)
+            } else {
+                let mut header = create_l1_block_header(block_number);
+                // Simulate a reorg by making the parent hash the same as the current hash.
+                header.hash = header.parent_hash;
+                Ok(Some(header))
+            }
+        });
+    let mut mock_provider = MockL1GasPriceProviderClient::new();
+    mock_provider
+        .expect_add_price_info()
+        .withf(check_gas_prices)
+        .times(usize::try_from(END_BLOCK2 - START_BLOCK - 1).unwrap())
+        .returning(|_| Ok(()));
+
+    let mut scraper = L1GasPriceScraper::new(
+        L1GasPriceScraperConfig::default(),
+        Arc::new(mock_provider),
+        mock_contract,
+    );
+    // The first call should succeed.
+    let result = scraper.update_prices(START_BLOCK).await;
+    assert!(result.is_ok());
+    // The second call should fail with a reorg error.
+    let result = scraper.update_prices(END_BLOCK1).await;
+    assert!(matches!(result, Err(L1GasPriceScraperError::L1ReorgDetected { .. })));
 }
 
 // TODO(guyn): test scraper with a provider timeout
