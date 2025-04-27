@@ -98,9 +98,6 @@ define_string_enum! {
         (Preimage),
         (RightChild),
         (SyscallHandlerType),
-        (Transactions),
-        (Tx),
-        (TxType),
         (UseKzgDa),
     }
 }
