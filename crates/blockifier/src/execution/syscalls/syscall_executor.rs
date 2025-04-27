@@ -65,6 +65,7 @@ pub trait SyscallExecutor {
     fn read_next_syscall_selector(&mut self, vm: &mut VirtualMachine) -> SyscallResult<Felt> {
         Ok(felt_from_ptr(vm, self.get_mut_syscall_ptr())?)
     }
+
     fn base_keccak(
         &mut self,
         data: &[u64],

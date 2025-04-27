@@ -60,6 +60,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
     ) -> SyscallResult<([u64; 4], usize)> {
         todo!()
     }
+
     fn increment_syscall_count_by(&mut self, selector: &SyscallSelector, count: usize) {
         todo!()
     }
