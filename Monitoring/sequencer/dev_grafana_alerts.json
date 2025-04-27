@@ -23,8 +23,8 @@
           "type": "query"
         }
       ],
-      "for": "10s",
-      "intervalSec": 10
+      "for": "1s",
+      "intervalSec": 1
     },
     {
       "name": "gateway_add_tx_rate_drop",

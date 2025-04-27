@@ -12,7 +12,7 @@ use apollo_infra::component_definitions::ComponentStarter;
 use apollo_l1_gas_price_types::errors::L1GasPriceClientError;
 use apollo_l1_gas_price_types::{GasPriceData, L1GasPriceProviderClient, PriceInfo};
 use async_trait::async_trait;
-use papyrus_base_layer::{BaseLayerContract, L1BlockNumber};
+use papyrus_base_layer::{BaseLayerContract, L1BlockHeader, L1BlockNumber};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockTimestamp, GasPrice};
 use starknet_api::core::ChainId;
@@ -35,6 +35,8 @@ pub enum L1GasPriceScraperError<T: BaseLayerContract + Send + Sync> {
     BaseLayerError(T::Error),
     #[error("Could not update gas price provider: {0}")]
     GasPriceClientError(L1GasPriceClientError),
+    #[error("L1 reorg detected: {reason}. Restart both the L1 gas price provider and scraper.")]
+    L1ReorgDetected { reason: String },
     // Leaky abstraction, these errors should not propagate here.
     #[error(transparent)]
     NetworkError(ClientError),
@@ -123,6 +125,7 @@ pub struct L1GasPriceScraper<B: BaseLayerContract> {
     pub config: L1GasPriceScraperConfig,
     pub base_layer: B,
     pub l1_gas_price_provider: SharedL1GasPriceProvider,
+    pub last_l1_header: Option<L1BlockHeader>,
 }
 
 impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
@@ -131,7 +134,7 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
         l1_gas_price_provider: SharedL1GasPriceProvider,
         base_layer: B,
     ) -> Self {
-        Self { config, l1_gas_price_provider, base_layer }
+        Self { config, l1_gas_price_provider, base_layer, last_l1_header: None }
     }
 
     /// Run the scraper, starting from the given L1 `block_number`, indefinitely.
@@ -165,6 +168,10 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
                 blob_fee: GasPrice(header.blob_fee),
             };
 
+            self.assert_no_l1_reorgs(&header).await?;
+            // Save this block header to use for next iteration.
+            self.last_l1_header = Some(header);
+
             self.l1_gas_price_provider
                 .add_price_info(GasPriceData { block_number, timestamp, price_info })
                 .await
@@ -172,6 +179,29 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
 
             block_number += 1;
         }
+    }
+    async fn assert_no_l1_reorgs(
+        &self,
+        new_header: &L1BlockHeader,
+    ) -> L1GasPriceScraperResult<(), B> {
+        // If no last block was processed, we don't need to check for reorgs.
+        let Some(ref last_header) = self.last_l1_header else {
+            return Ok(());
+        };
+
+        if new_header.parent_hash != last_header.hash {
+            return Err(L1GasPriceScraperError::L1ReorgDetected {
+                reason: format!(
+                    "Last processed L1 block hash, {}, for block number {}, is different from the \
+                     hash stored, {}",
+                    hex::encode(new_header.parent_hash),
+                    last_header.number,
+                    hex::encode(last_header.hash),
+                ),
+            });
+        }
+
+        Ok(())
     }
 }
 

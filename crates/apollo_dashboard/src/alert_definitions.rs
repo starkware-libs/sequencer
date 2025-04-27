@@ -31,8 +31,8 @@ const CONSENSUS_BLOCK_NUMBER_STUCK: Alert = Alert {
         comparison_value: 1.0,
         logical_op: AlertLogicalOp::And,
     }],
-    pending_duration: "10s",
-    evaluation_interval_sec: 10,
+    pending_duration: "1s",
+    evaluation_interval_sec: 1,
 };
 
 const GATEWAY_ADD_TX_RATE_DROP: Alert = Alert {
