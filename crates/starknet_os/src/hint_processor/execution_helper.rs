@@ -10,7 +10,7 @@ use cairo_vm::types::relocatable::Relocatable;
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress};
-use starknet_api::executable_transaction::TransactionType;
+use starknet_api::executable_transaction::{AccountTransaction, Transaction, TransactionType};
 use starknet_types_core::felt::Felt;
 
 use crate::errors::StarknetOsError;
@@ -23,6 +23,8 @@ pub struct OsExecutionHelper<'a, S: StateReader> {
     pub(crate) os_block_input: &'a OsBlockInput,
     pub(crate) os_logger: OsLogger,
     pub(crate) tx_execution_iter: TransactionExecutionIter<'a>,
+    #[allow(dead_code)]
+    pub(crate) tx_tracker: TransactionTracker<'a>,
 }
 
 impl<'a, S: StateReader> OsExecutionHelper<'a, S> {
@@ -37,6 +39,7 @@ impl<'a, S: StateReader> OsExecutionHelper<'a, S> {
             os_block_input,
             os_logger: OsLogger::new(debug_mode),
             tx_execution_iter: TransactionExecutionIter::new(&os_block_input.tx_execution_infos),
+            tx_tracker: TransactionTracker::new(&os_block_input.transactions),
         })
     }
 
@@ -80,6 +83,7 @@ impl<'a> OsExecutionHelper<'a, DictStateReader> {
             os_block_input,
             os_logger: OsLogger::new(true),
             tx_execution_iter: TransactionExecutionIter::new(&os_block_input.tx_execution_infos),
+            tx_tracker: TransactionTracker::new(&os_block_input.transactions),
         }
     }
 }
@@ -191,6 +195,38 @@ impl<'a> CallInfoTracker<'a> {
     }
 }
 
+pub struct TransactionTracker<'a> {
+    txs_iter: Iter<'a, Transaction>,
+    pub tx_ref: Option<&'a Transaction>,
+}
+
+impl<'a> TransactionTracker<'a> {
+    pub fn new(txs: &'a [Transaction]) -> Self {
+        Self { txs_iter: txs.iter(), tx_ref: None }
+    }
+
+    pub fn load_next_tx(&mut self) -> Result<&'a Transaction, ExecutionHelperError> {
+        let next_tx = self
+            .txs_iter
+            .next()
+            .ok_or(ExecutionHelperError::EndOfIterator { item_type: "transaction".to_string() })?;
+        self.tx_ref = Some(next_tx);
+        Ok(next_tx)
+    }
+
+    pub fn get_tx(&self) -> Result<&'a Transaction, ExecutionHelperError> {
+        self.tx_ref.ok_or(ExecutionHelperError::MissingTx)
+    }
+
+    pub fn get_account_tx(&self) -> Result<&'a AccountTransaction, ExecutionHelperError> {
+        let tx = self.get_tx()?;
+        match tx {
+            Transaction::Account(account_transaction) => Ok(account_transaction),
+            Transaction::L1Handler(_) => Err(ExecutionHelperError::UnexpectedTxType(tx.tx_type())),
+        }
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum ExecutionHelperError {
     #[error("Attempted to overwrite an active context: {context}")]
@@ -199,8 +235,12 @@ pub enum ExecutionHelperError {
     EndOfIterator { item_type: String },
     #[error("No call info found.")]
     MissingCallInfo,
+    #[error("No transaction found.")]
+    MissingTx,
     #[error("No transaction execution info found.")]
     MissingTxExecutionInfo,
     #[error("Called a block execution-helper before it was initialized.")]
     NoCurrentExecutionHelper,
+    #[error("Unexpected tx type: {0:?}.")]
+    UnexpectedTxType(TransactionType),
 }
