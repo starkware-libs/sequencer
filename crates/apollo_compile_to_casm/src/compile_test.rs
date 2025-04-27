@@ -3,10 +3,18 @@ use std::path::Path;
 
 use apollo_compilation_utils::errors::CompilationUtilError;
 use apollo_compilation_utils::test_utils::contract_class_from_file;
+use apollo_infra_utils::cairo_compiler_version::cairo1_compiler_version;
 use apollo_infra_utils::path::resolve_project_relative_path;
 use assert_matches::assert_matches;
+use cairo_lang_starknet_classes::allowed_libfuncs::{
+    lookup_allowed_libfuncs_list,
+    AllowedLibfuncs,
+    ListSelector,
+    BUILTIN_AUDITED_LIBFUNCS_LIST,
+};
 use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;
 use mempool_test_utils::{FAULTY_ACCOUNT_CLASS_FILE, TEST_FILES_FOLDER};
+use pretty_assertions::assert_eq;
 use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::state::SierraContractClass;
 
@@ -102,4 +110,34 @@ fn test_sierra_compiler() {
     // Assert.
     assert_eq!(executable_class, expected_executable_class);
     assert_eq!(executable_class_hash, expected_executable_class.compiled_class_hash());
+}
+
+#[test]
+fn allowed_libfuncs_aligned_to_audited() {
+    let libfuncs_list_selector = ListSelector::ListName(BUILTIN_AUDITED_LIBFUNCS_LIST.to_string());
+    let expected = lookup_allowed_libfuncs_list(libfuncs_list_selector).unwrap().allowed_libfuncs;
+
+    let actual = include_str!("allowed_libfuncs.json").to_string();
+    let actual = serde_json::from_str::<AllowedLibfuncs>(&actual).unwrap().allowed_libfuncs;
+
+    // Audited libfuncs are usually added as versions progress, but can also be deprecated;
+    // test both directions.
+    let missing: Vec<_> = expected.difference(&actual).map(ToString::to_string).collect();
+    let extra: Vec<_> = actual.difference(&expected).map(ToString::to_string).collect();
+
+    // Only run the assertion if version >= 2.12.0-dev.1.
+    // For older versions, just return, effectively skipping the test.
+    let cairo_version = cairo1_compiler_version();
+    if cairo_version.starts_with("2.12.0-dev.1") {
+        assert_eq!(
+            (missing, extra),
+            (Vec::<String>::new(), Vec::<String>::new()),
+            "Audited libfuncs mismatch: (missing, extra)"
+        );
+
+        panic!(
+            "Please remove the conditional (but leave the assertion!),
+            so version alignment is always tested."
+        );
+    }
 }
