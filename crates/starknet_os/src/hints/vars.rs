@@ -165,6 +165,7 @@ define_string_enum! {
         (Low),
         (MaxGas),
         (NBlobs),
+        (NBlocks),
         (NBuiltins),
         (NCompiledClassFacts),
         (NSelectedBuiltins),
