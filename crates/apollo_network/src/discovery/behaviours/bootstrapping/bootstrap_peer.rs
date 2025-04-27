@@ -19,7 +19,7 @@ use libp2p::{Multiaddr, PeerId};
 use tokio::time::Instant;
 use tokio_retry::strategy::ExponentialBackoff;
 
-use super::configure_context_to_wake_at_instant;
+use crate::discovery::behaviours::configure_context_to_wake_at_instant;
 use crate::discovery::{RetryConfig, ToOtherBehaviourEvent};
 
 pub struct BootstrappingBehaviour {
