@@ -1,5 +1,4 @@
 use std::collections::{HashMap, HashSet};
-use std::vec::IntoIter;
 
 use blockifier::state::state_api::{State, StateReader};
 use cairo_vm::any_box;
@@ -12,7 +11,6 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
-use starknet_api::executable_transaction::Transaction;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::ValidResourceBounds;
 use starknet_types_core::felt::Felt;
@@ -24,52 +22,47 @@ use crate::syscall_handler_utils::SyscallHandlerType;
 use crate::vm_utils::{get_address_of_nested_fields, LoadCairoObject};
 
 pub(crate) fn load_next_tx<S: StateReader>(
-    HintArgs { hint_processor, exec_scopes, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    let mut txs_iter: IntoIter<Transaction> = exec_scopes.get(Scope::Transactions.into())?;
-    let tx = txs_iter.next().ok_or(OsHintError::EndOfIterator { item_type: "txs".to_string() })?;
-    let tx_type = tx.tx_type().tx_type_as_felt();
-    exec_scopes.insert_value(Scope::TxType.into(), tx_type);
-    insert_value_from_var_name(Ids::TxType.into(), tx_type, vm, ids_data, ap_tracking)?;
+    let execution_helper =
+        hint_processor.execution_helpers_manager.get_mut_current_execution_helper()?;
+    let tx = execution_helper.tx_tracker.load_next_tx()?;
+    insert_value_from_var_name(
+        Ids::TxType.into(),
+        tx.tx_type().tx_type_as_felt(),
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
 
     // Log enter tx.
     let range_check_ptr =
         get_ptr_from_var_name(Ids::RangeCheckPtr.into(), vm, ids_data, ap_tracking)?;
-    hint_processor
-        .execution_helpers_manager
-        .get_mut_current_execution_helper()?
-        .os_logger
-        .enter_tx(
-            tx.tx_type(),
-            tx.tx_hash(),
-            // TODO(Dori): when `vm.current_step` has a public getter, use it instead of the dummy
-            //   value ([PR](https://github.com/lambdaclass/cairo-vm/pull/2031)).
-            7,
-            range_check_ptr,
-            ids_data,
-            vm,
-            ap_tracking,
-            hint_processor.os_program,
-        )?;
+    execution_helper.os_logger.enter_tx(
+        tx.tx_type(),
+        tx.tx_hash(),
+        // TODO(Dori): when `vm.current_step` has a public getter, use it instead of the dummy
+        //   value ([PR](https://github.com/lambdaclass/cairo-vm/pull/2031)).
+        7,
+        range_check_ptr,
+        ids_data,
+        vm,
+        ap_tracking,
+        hint_processor.os_program,
+    )?;
 
-    exec_scopes.insert_value(Scope::Transactions.into(), txs_iter);
-    exec_scopes.insert_value(Scope::Tx.into(), tx);
     Ok(())
 }
 
 pub(crate) fn load_resource_bounds<S: StateReader>(
-    HintArgs { exec_scopes, vm, ids_data, ap_tracking, hint_processor, constants }: HintArgs<
-        '_,
-        '_,
-        S,
-    >,
+    HintArgs { vm, ids_data, ap_tracking, hint_processor, constants, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     // Guess the resource bounds.
-    let tx = exec_scopes.get::<Transaction>(Scope::Tx.into())?;
-    let resource_bounds = match tx {
-        Transaction::Account(account_tx) => account_tx.resource_bounds(),
-        Transaction::L1Handler(_) => return Err(OsHintError::UnexpectedTxType(tx.tx_type())),
-    };
+    let resource_bounds = hint_processor
+        .get_current_execution_helper()?
+        .tx_tracker
+        .get_account_tx()?
+        .resource_bounds();
     if let ValidResourceBounds::L1Gas(_) = resource_bounds {
         return Err(OsHintError::AssertionFailed {
             message: "Only transactions with 3 resource bounds are supported. Got 1 resource \
@@ -119,12 +112,12 @@ pub(crate) fn prepare_constructor_execution<S: StateReader>(
 }
 
 pub(crate) fn assert_transaction_hash<S: StateReader>(
-    HintArgs { exec_scopes, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+    HintArgs { vm, ids_data, ap_tracking, hint_processor, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let stored_transaction_hash =
         get_integer_from_var_name(Ids::TransactionHash.into(), vm, ids_data, ap_tracking)?;
-    let tx = exec_scopes.get::<Transaction>(Scope::Tx.into())?;
-    let calculated_tx_hash = tx.tx_hash().0;
+    let calculated_tx_hash =
+        hint_processor.get_current_execution_helper()?.tx_tracker.get_tx()?.tx_hash().0;
 
     if calculated_tx_hash == stored_transaction_hash {
         Ok(())
@@ -219,22 +212,18 @@ pub(crate) fn is_deprecated<S: StateReader>(
 }
 
 pub(crate) fn enter_syscall_scopes<S: StateReader>(
-    HintArgs { exec_scopes, hint_processor, .. }: HintArgs<'_, '_, S>,
+    HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     // Unlike the Python implementation, there is no need to add `syscall_handler`,
     // `deprecated_syscall_handler`, and `execution_helper` as scope variables
     // since they are accessible via the hint processor.
     let deprecated_class_hashes: HashSet<ClassHash> =
         exec_scopes.get(Scope::DeprecatedClassHashes.into())?;
-    let current_execution_helper = hint_processor.get_current_execution_helper()?;
-    let transactions_iter =
-        current_execution_helper.os_block_input.transactions.clone().into_iter();
     let dict_manager = exec_scopes.get_dict_manager()?;
 
     let new_scope = HashMap::from([
         (Scope::DictManager.into(), any_box!(dict_manager)),
         (Scope::DeprecatedClassHashes.into(), any_box!(deprecated_class_hashes)),
-        (Scope::Transactions.into(), any_box!(transactions_iter)),
     ]);
     exec_scopes.enter_scope(new_scope);
 
