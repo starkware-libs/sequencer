@@ -230,7 +230,7 @@ pub(crate) fn build_descent_map<S: StateReader>(
     let n_updates: usize = Ids::NUpdates.fetch_as(vm, ids_data, ap_tracking)?;
 
     let update_ptr_address =
-        get_relocatable_from_var_name(Ids::UpdatePtr.into(), vm, ids_data, ap_tracking)?;
+        get_ptr_from_var_name(Ids::UpdatePtr.into(), vm, ids_data, ap_tracking)?;
 
     // TODO(Rotem): Implement a `get_size_of_cairo_struct` function when upgrading to Cairo VM 2.0.0
     // which adds a `size` field to `Identifier`.
