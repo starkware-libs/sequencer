@@ -104,8 +104,6 @@ fn load_http_headers() {
 // Regression test which checks that the default config dumping hasn't changed.
 fn test_dump_default_config() {
     let mut default_config = NodeConfig::default();
-    env::set_current_dir(resolve_project_relative_path("").unwrap())
-        .expect("Couldn't set working dir.");
     let dumped_default_config = default_config.dump();
     insta::assert_json_snapshot!(dumped_default_config);
 
@@ -148,10 +146,9 @@ fn test_update_dumped_config_by_command() {
 #[cfg(feature = "rpc")]
 #[test]
 fn default_config_file_is_up_to_date() {
-    env::set_current_dir(resolve_project_relative_path("").unwrap())
-        .expect("Couldn't set working dir.");
+    let config_path = resolve_project_relative_path("").unwrap().join(DEFAULT_CONFIG_PATH);
     let from_default_config_file: serde_json::Value =
-        serde_json::from_reader(File::open(DEFAULT_CONFIG_PATH).unwrap()).unwrap();
+        serde_json::from_reader(File::open(config_path).unwrap()).unwrap();
 
     // Create a temporary file and dump the default config to it.
     let mut tmp_file_path = env::temp_dir();

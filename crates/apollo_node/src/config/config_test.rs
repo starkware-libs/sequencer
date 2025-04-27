@@ -91,10 +91,9 @@ fn valid_component_execution_config(
 /// cargo run --bin sequencer_dump_config -q
 #[test]
 fn default_config_file_is_up_to_date() {
-    env::set_current_dir(resolve_project_relative_path("").unwrap())
-        .expect("Couldn't set working dir.");
+    let config_path = resolve_project_relative_path("").unwrap().join(DEFAULT_CONFIG_PATH);
     let from_default_config_file: serde_json::Value =
-        serde_json::from_reader(File::open(DEFAULT_CONFIG_PATH).unwrap()).unwrap();
+        serde_json::from_reader(File::open(config_path).unwrap()).unwrap();
 
     // Create a temporary file and dump the default config to it.
     let mut tmp_file_path = env::temp_dir();
