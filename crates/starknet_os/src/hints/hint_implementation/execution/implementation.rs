@@ -243,10 +243,11 @@ pub(crate) fn enter_syscall_scopes<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn end_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> OsHintResult {
-    // TODO(lior): No longer equivalent to moonsong impl; PTAL the new implementation of
-    //   end_tx().
-    todo!()
+pub(crate) fn end_tx<S: StateReader>(
+    HintArgs { hint_processor, .. }: HintArgs<'_, '_, S>,
+) -> OsHintResult {
+    hint_processor.get_mut_current_execution_helper()?.tx_execution_iter.end_tx()?;
+    Ok(())
 }
 
 pub(crate) fn enter_call<S: StateReader>(
