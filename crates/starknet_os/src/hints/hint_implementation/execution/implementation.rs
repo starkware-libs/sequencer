@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use blockifier::state::state_api::{State, StateReader};
 use cairo_vm::any_box;
@@ -195,11 +195,7 @@ pub(crate) fn check_is_deprecated<S: StateReader>(
 
     exec_scopes.insert_value(
         Scope::IsDeprecated.into(),
-        Felt::from(
-            exec_scopes
-                .get::<HashSet<ClassHash>>(Scope::DeprecatedClassHashes.into())?
-                .contains(&class_hash),
-        ),
+        Felt::from(hint_processor.compiled_classes.contains_key(&class_hash)),
     );
 
     Ok(())
@@ -215,16 +211,11 @@ pub(crate) fn enter_syscall_scopes<S: StateReader>(
     HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     // Unlike the Python implementation, there is no need to add `syscall_handler`,
-    // `deprecated_syscall_handler`, and `execution_helper` as scope variables
-    // since they are accessible via the hint processor.
-    let deprecated_class_hashes: HashSet<ClassHash> =
-        exec_scopes.get(Scope::DeprecatedClassHashes.into())?;
+    // `deprecated_syscall_handler`, `deprecated_class_hashes` and `execution_helper` as scope
+    // variables since they are accessible via the hint processor.
     let dict_manager = exec_scopes.get_dict_manager()?;
 
-    let new_scope = HashMap::from([
-        (Scope::DictManager.into(), any_box!(dict_manager)),
-        (Scope::DeprecatedClassHashes.into(), any_box!(deprecated_class_hashes)),
-    ]);
+    let new_scope = HashMap::from([(Scope::DictManager.into(), any_box!(dict_manager))]);
     exec_scopes.enter_scope(new_scope);
 
     Ok(())
