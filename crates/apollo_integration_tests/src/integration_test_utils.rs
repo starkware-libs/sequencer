@@ -2,6 +2,8 @@ use apollo_infra::trace_util::configure_tracing;
 use apollo_node::test_utils::node_runner::get_node_executable_path;
 use tracing::{info, warn};
 
+// This is a change just to trigger a build and test. DO NOT MERGE THIS.
+
 pub async fn integration_test_setup(test_specifier: &str) {
     configure_tracing().await;
     info!("Running sequencer node end to end {test_specifier} flow integration test setup.");
