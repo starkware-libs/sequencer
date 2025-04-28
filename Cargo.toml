@@ -94,14 +94,14 @@ byteorder = "1.4.3"
 bytes = "1"
 cached = "0.44.0"
 cairo-felt = "0.9.1"
-cairo-lang-casm = "2.12.0-dev.0"
-cairo-lang-runner = "2.12.0-dev.0"
-cairo-lang-sierra = "2.12.0-dev.0"
-cairo-lang-sierra-to-casm = "2.12.0-dev.0"
-cairo-lang-starknet-classes = "2.12.0-dev.0"
-cairo-lang-utils = "2.12.0-dev.0"
-cairo-native = { git = "https://github.com/lambdaclass/cairo_native", rev = "c03e59ada0a0e210b96b51d7df186e2a6aec0fd1" }
-sierra-emu = { git = "https://github.com/lambdaclass/sierra-emu", rev = "a210166cf9b7de6a5d5906b1f3321eff08db9fa0" }
+cairo-lang-casm = "2.12.0-dev.1"
+cairo-lang-runner = "2.12.0-dev.1"
+cairo-lang-sierra = "2.12.0-dev.1"
+cairo-lang-sierra-to-casm = "2.12.0-dev.1"
+cairo-lang-starknet-classes = "2.12.0-dev.1"
+cairo-lang-utils = "2.12.0-dev.1"
+cairo-native = { git = "https://github.com/lambdaclass/cairo_native", rev = "b641c6755785a2a12f2c3dd22d697baaddbc97de" }
+sierra-emu = { git = "https://github.com/lambdaclass/cairo_native", rev = "b641c6755785a2a12f2c3dd22d697baaddbc97de" }
 cairo-vm = "2.0.1"
 camelpaste = "0.1.0"
 chrono = "0.4.26"
