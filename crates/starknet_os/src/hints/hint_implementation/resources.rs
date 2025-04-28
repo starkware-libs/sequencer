@@ -5,7 +5,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
 };
 use starknet_types_core::felt::Felt;
 
-use crate::hints::error::OsHintResult;
+use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::HintArgs;
 use crate::hints::vars::Ids;
 
@@ -20,9 +20,29 @@ pub(crate) fn remaining_gas_gt_max<S: StateReader>(
 }
 
 pub(crate) fn debug_expected_initial_gas<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let current_execution_helper =
+        hint_processor.execution_helpers_manager.get_current_execution_helper()?;
+    if current_execution_helper.os_logger.debug {
+        let call_info = current_execution_helper
+            .tx_execution_iter
+            .get_tx_execution_info_ref()?
+            .get_call_info_tracker()?
+            .call_info;
+        let expected_initial_gas = Felt::from(call_info.call.initial_gas);
+        let call_initial_gas =
+            get_integer_from_var_name(Ids::RemainingGas.into(), vm, ids_data, ap_tracking)?;
+        if expected_initial_gas != call_initial_gas {
+            return Err(OsHintError::AssertionFailed {
+                message: format!(
+                    "Expected remaining_gas {expected_initial_gas}. Got: {call_initial_gas}. call \
+                     info: {call_info:?}.",
+                ),
+            });
+        }
+    }
+    Ok(())
 }
 
 pub(crate) fn is_sierra_gas_mode<S: StateReader>(
