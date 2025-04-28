@@ -1,5 +1,5 @@
 use std::pin::Pin;
-use std::task::{Context, Poll, Waker};
+use std::task::{Context, Poll};
 
 use futures::Stream;
 use libp2p::swarm::behaviour::ConnectionEstablished;
@@ -18,7 +18,7 @@ use tokio::time::Instant;
 use tokio_retry::strategy::ExponentialBackoff;
 use tracing::debug;
 
-use crate::discovery::behaviours::configure_context_to_wake_at_instant;
+use crate::discovery::behaviours::TimeWakerManager;
 use crate::discovery::{RetryConfig, ToOtherBehaviourEvent};
 
 pub struct BootstrapPeer {
@@ -30,7 +30,7 @@ pub struct BootstrapPeer {
     is_bootstrap_in_kad_routing_table: bool,
     bootstrap_dial_retry_strategy: ExponentialBackoff,
     time_for_next_bootstrap_dial: Instant,
-    last_waker: Option<Waker>,
+    waker_manager: TimeWakerManager,
 }
 
 impl BootstrapPeer {
@@ -49,10 +49,7 @@ impl BootstrapPeer {
                     .expect("Dial sleep strategy ended even though it's an infinite iterator.");
                 // println!("Delta duration: {}", delta_duration.as_secs_f32());
                 self.time_for_next_bootstrap_dial = now + delta_duration;
-                if let Some(waker) = &self.last_waker {
-                    // waker.wake_by_ref();
-                    configure_context_to_wake_at_instant(waker.clone(), now);
-                }
+                self.waker_manager.wake_at(now);
             }
             FromSwarm::ConnectionEstablished(ConnectionEstablished { peer_id, .. })
                 if peer_id == self.bootstrap_peer_id =>
@@ -61,10 +58,7 @@ impl BootstrapPeer {
                 self.is_dialing_to_bootstrap_peer = false;
                 // recreating the strategy since we've succeeded in the dial
                 self.bootstrap_dial_retry_strategy = self.bootstrap_dial_retry_config.strategy();
-                if let Some(waker) = &self.last_waker {
-                    // waker.wake_by_ref();
-                    configure_context_to_wake_at_instant(waker.clone(), now);
-                }
+                self.waker_manager.wake_at(now);
             }
             FromSwarm::ConnectionClosed(ConnectionClosed {
                 peer_id,
@@ -75,12 +69,7 @@ impl BootstrapPeer {
                 self.is_dialing_to_bootstrap_peer = false;
                 self.is_bootstrap_in_kad_routing_table = false;
                 self.time_for_next_bootstrap_dial = now;
-                if let Some(waker) = &self.last_waker {
-                    configure_context_to_wake_at_instant(
-                        waker.clone(),
-                        self.time_for_next_bootstrap_dial,
-                    );
-                }
+                self.waker_manager.wake_at(self.time_for_next_bootstrap_dial);
             }
             FromSwarm::AddressChange(AddressChange { peer_id, old, new, .. })
                 if peer_id == self.bootstrap_peer_id =>
@@ -106,7 +95,7 @@ impl BootstrapPeer {
             is_bootstrap_in_kad_routing_table: false,
             bootstrap_dial_retry_strategy,
             time_for_next_bootstrap_dial: tokio::time::Instant::now(),
-            last_waker: None,
+            waker_manager: Default::default(),
         }
     }
 }
@@ -119,7 +108,7 @@ impl Stream for BootstrapPeer {
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let now = tokio::time::Instant::now();
-        self.last_waker = Some(cx.waker().clone());
+        self.waker_manager.set_waker(cx.waker().clone());
 
         if self.is_connected_to_bootstrap_peer && !self.is_bootstrap_in_kad_routing_table {
             self.is_bootstrap_in_kad_routing_table = true;
@@ -146,12 +135,8 @@ impl Stream for BootstrapPeer {
         }
 
         if should_dial {
-            // TODO(Andrew): also wake if should_dial is false and we got connected to or
-            // disconnected from the bootstrap peer
-            configure_context_to_wake_at_instant(
-                self.last_waker.as_ref().unwrap().clone(),
-                self.time_for_next_bootstrap_dial,
-            );
+            let next_dial_owned = self.time_for_next_bootstrap_dial;
+            self.waker_manager.wake_at(next_dial_owned);
         }
         Poll::Pending
     }
