@@ -6,7 +6,7 @@ import os
 import requests
 import time
 
-from grafana10_objects import empty_dashboard, row_object
+from grafana10_objects import empty_dashboard, row_object, templating_object
 
 
 def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position: int) -> dict:
@@ -59,10 +59,12 @@ def dashboard_file_name(out_dir: str, dashboard_name: str) -> str:
 
 def create_dashboard(dashboard_name: str, dev_dashboard: json) -> dict:
     dashboard = empty_dashboard.copy()
+    templating = templating_object.copy()
     panel_id = 1
     x_position = 0
     y_position = 0
     dashboard["title"] = dashboard_name
+    dashboard["templating"] = templating
 
     for row_title, panels in dev_dashboard.items():
         row_panel = row_object.copy()
