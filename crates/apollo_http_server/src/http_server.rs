@@ -183,9 +183,9 @@ fn record_added_transactions(add_tx_result: &HttpServerResult<GatewayOutput>, re
     if let Ok(gateway_output) = add_tx_result {
         // TODO(Arni): Reconsider the tracing level for this log.
         info!(
-            "Recorded transaction with hash: {} from region: {}",
-            gateway_output.transaction_hash(),
-            region
+            transaction_hash = %gateway_output.transaction_hash(),
+            region = %region,
+            "Recorded transaction"
         );
         ADDED_TRANSACTIONS_SUCCESS.increment(1);
     } else {

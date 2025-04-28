@@ -135,14 +135,14 @@ async fn record_region_test(#[case] index: u16, #[case] tx: impl GatewayTransact
     // Send a transaction to the server, without a region.
     http_client.add_tx(tx.clone()).await;
     assert!(logs_contain(
-        format!("Recorded transaction with hash: {} from region: {}", tx_hash_1, "N/A").as_str()
+        format!("Recorded transaction transaction_hash={} region={}", tx_hash_1, "N/A").as_str()
     ));
 
     // Send transaction to the server, with a region.
     let region = "test";
     http_client.add_tx_with_headers(tx, [(CLIENT_REGION_HEADER, region)]).await;
     assert!(logs_contain(
-        format!("Recorded transaction with hash: {} from region: {}", tx_hash_2, region).as_str()
+        format!("Recorded transaction transaction_hash={} region={}", tx_hash_2, region).as_str()
     ));
 }
 
@@ -166,7 +166,7 @@ async fn record_region_gateway_failing_tx(#[case] index: u16, #[case] tx: impl G
 
     // Send a transaction to the server.
     http_client.add_tx(tx).await;
-    assert!(!logs_contain("Recorded transaction with hash: "));
+    assert!(!logs_contain("Recorded transaction transaction_hash="));
 }
 
 #[rstest]
