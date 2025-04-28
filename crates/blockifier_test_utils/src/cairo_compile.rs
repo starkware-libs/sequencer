@@ -10,8 +10,6 @@ use apollo_infra_utils::path::{project_path, resolve_project_relative_path};
 use tempfile::NamedTempFile;
 use tracing::info;
 
-use crate::contracts::TagAndToolchain;
-
 static CAIRO0_PIP_REQUIREMENTS_FILE: LazyLock<PathBuf> =
     LazyLock::new(|| resolve_project_relative_path("scripts/requirements.txt").unwrap());
 const CAIRO1_REPO_RELATIVE_PATH_OVERRIDE_ENV_VAR: &str = "CAIRO1_REPO_RELATIVE_PATH";
@@ -89,8 +87,7 @@ fn cairo1_package_exists(version: &String) -> bool {
 
 /// Verifies that the Cairo1 package (of the given version) is available.
 /// Attempts to download it if not.
-#[allow(dead_code)]
-async fn verify_cairo1_package(version: &String) {
+pub async fn verify_cairo1_package(version: &String) {
     if !cairo1_package_exists(version) {
         download_cairo_package(version).await;
     }
@@ -133,24 +130,13 @@ pub fn cairo0_compile(
 pub fn cairo1_compile(
     path: String,
     git_tag_override: Option<String>,
-    cargo_nightly_arg: Option<String>,
+    _cargo_nightly_arg: Option<String>,
 ) -> CompilationArtifacts {
-    verify_cairo1_compiler_deps(git_tag_override);
+    let (tag, _cairo_repo_path) = get_tag_and_repo_file_path(git_tag_override);
+    let version = tag.strip_prefix("v").unwrap().to_string();
+    assert!(cairo1_package_exists(&version));
 
-    let cairo1_compiler_path = local_cairo1_compiler_repo_path();
-
-    // Command args common to both compilation phases.
-    let mut base_compile_args = vec![
-        "run".into(),
-        format!("--manifest-path={}/Cargo.toml", cairo1_compiler_path.to_string_lossy()),
-        "--bin".into(),
-    ];
-    // Add additional cargo arg if provided. Should be first arg (base command is `cargo`).
-    if let Some(nightly_version) = cargo_nightly_arg {
-        base_compile_args.insert(0, format!("+nightly-{nightly_version}"));
-    }
-
-    let sierra_output = starknet_compile(path, &base_compile_args);
+    let sierra_output = starknet_compile(path, &version);
 
     let mut temp_file = NamedTempFile::new().unwrap();
     temp_file.write_all(&sierra_output).unwrap();
@@ -158,40 +144,26 @@ pub fn cairo1_compile(
 
     // Sierra -> CASM.
     let casm_output =
-        starknet_sierra_compile(temp_path_str.to_str().unwrap().to_string(), &base_compile_args);
+        starknet_sierra_compile(temp_path_str.to_str().unwrap().to_string(), &version);
 
     CompilationArtifacts::Cairo1 { casm: casm_output, sierra: sierra_output }
 }
 
-/// Compiles Cairo1 Contract into their Sierra version using the compiler version set in the
-/// Cargo.toml
-pub fn starknet_compile(path: String, base_compile_args: &[String]) -> Vec<u8> {
-    // Cairo -> Sierra.
-    let mut starknet_compile_commmand = Command::new("cargo");
-    starknet_compile_commmand.args(base_compile_args.to_owned());
-    starknet_compile_commmand.args([
-        "starknet-compile",
-        "--",
-        "--single-file",
-        &path,
-        "--allowed-libfuncs-list-name",
-        "all",
-    ]);
+/// Compiles Cairo1 contracts into their Sierra version using the given compiler version.
+/// Assumes the relevant compiler version was already downloaded.
+pub fn starknet_compile(path: String, version: &String) -> Vec<u8> {
+    let mut starknet_compile_commmand = Command::new(starknet_compile_binary_path(version));
+    starknet_compile_commmand.args(["--single-file", &path, "--allowed-libfuncs-list-name", "all"]);
     let sierra_output = run_and_verify_output(&mut starknet_compile_commmand);
 
     sierra_output.stdout
 }
 
-/// Compiles Sierra code into CASM.
-fn starknet_sierra_compile(path: String, base_compile_args: &[String]) -> Vec<u8> {
-    let mut sierra_compile_command = Command::new("cargo");
-    sierra_compile_command.args(base_compile_args);
-    sierra_compile_command.args([
-        "starknet-sierra-compile",
-        &path,
-        "--allowed-libfuncs-list-name",
-        "all",
-    ]);
+/// Compiles Sierra code into CASM using the given compiler version.
+/// Assumes the relevant compiler version was already downloaded.
+fn starknet_sierra_compile(path: String, version: &String) -> Vec<u8> {
+    let mut sierra_compile_command = Command::new(starknet_sierra_compile_binary_path(version));
+    sierra_compile_command.args([&path, "--allowed-libfuncs-list-name", "all"]);
     let casm_output = run_and_verify_output(&mut sierra_compile_command);
     casm_output.stdout
 }
@@ -243,37 +215,4 @@ fn get_tag_and_repo_file_path(git_tag_override: Option<String>) -> (String, Path
     );
 
     (tag, cairo_repo_path)
-}
-
-pub fn prepare_group_tag_compiler_deps(tag_and_toolchain: &TagAndToolchain) {
-    let (optional_tag, optional_toolchain) = tag_and_toolchain;
-
-    // Checkout the required version in the compiler repo.
-    let (tag, cairo_repo_path) = get_tag_and_repo_file_path(optional_tag.clone());
-    run_and_verify_output(Command::new("git").args([
-        "-C",
-        cairo_repo_path.to_str().unwrap(),
-        "checkout",
-        &tag,
-    ]));
-
-    // Install the toolchain, if specified.
-    if let Some(toolchain) = optional_toolchain {
-        run_and_verify_output(
-            Command::new("rustup").args(["install", &format!("nightly-{toolchain}")]),
-        );
-    }
-}
-
-fn verify_cairo1_compiler_deps(git_tag_override: Option<String>) {
-    let (tag, cairo_repo_path) = get_tag_and_repo_file_path(git_tag_override);
-
-    // Verify that the checked out tag is as expected.
-    run_and_verify_output(Command::new("git").args([
-        "-C",
-        cairo_repo_path.to_str().unwrap(),
-        "rev-parse",
-        "--verify",
-        &tag,
-    ]));
 }
