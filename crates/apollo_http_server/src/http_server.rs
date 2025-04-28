@@ -85,11 +85,11 @@ impl HttpServer {
             // and is_ready.
             .route(
                 "/gateway/is_alive",
-                get(|| futures::future::ready("Gateway is alive!".to_owned()))
+                get(|| futures::future::ready("Gateway is alive".to_owned()))
             )
             .route(
                 "/gateway/is_ready",
-                get(|| futures::future::ready("Gateway is ready!".to_owned()))
+                get(|| futures::future::ready("Gateway is ready".to_owned()))
             )
     }
 }
