@@ -36,12 +36,15 @@ impl NodeRunner {
     }
 }
 
-pub fn spawn_run_node(node_config_path: PathBuf, node_runner: NodeRunner) -> AbortOnDropHandle<()> {
+pub fn spawn_run_node(
+    node_config_paths: Vec<PathBuf>,
+    node_runner: NodeRunner,
+) -> AbortOnDropHandle<()> {
     AbortOnDropHandle::new(task::spawn(async move {
         info!("Running the node from its spawned task.");
         // Obtain handles, as the processes and task are terminated when their handles are dropped.
         let (mut node_handle, _annotator_handle, _pipe_task) =
-            spawn_node_child_process(node_config_path, node_runner.clone()).await;
+            spawn_node_child_process(node_config_paths, node_runner.clone()).await;
         let _node_run_result = node_handle.
             wait(). // Runs the node until completion, should be running indefinitely.
             await; // Awaits the completion of the node.
@@ -51,16 +54,23 @@ pub fn spawn_run_node(node_config_path: PathBuf, node_runner: NodeRunner) -> Abo
 
 #[instrument(skip(node_runner))]
 async fn spawn_node_child_process(
-    node_config_path: PathBuf,
+    node_config_paths: Vec<PathBuf>,
     node_runner: NodeRunner,
 ) -> (Child, Child, AbortOnDropHandle<()>) {
     info!("Getting the node executable.");
     let node_executable = get_node_executable_path();
 
+    let config_file_args: Vec<String> = node_config_paths
+        .into_iter()
+        .flat_map(|path| {
+            let path_str = path.to_str().expect("Invalid path").to_string();
+            vec!["--config_file".to_string(), path_str]
+        })
+        .collect();
+
     info!("Running the node from: {}", node_executable);
     let mut node_process: Child = create_shell_command(node_executable.as_str())
-        .arg("--config_file")
-        .arg(node_config_path.to_str().unwrap())
+        .args(config_file_args)
         .stderr(Stdio::inherit())
         .stdout(Stdio::piped())
         .kill_on_drop(true) // Required for stopping when the handle is dropped.

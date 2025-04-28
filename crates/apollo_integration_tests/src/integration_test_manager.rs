@@ -191,7 +191,7 @@ impl NodeSetup {
             .map(|executable| {
                 info!("Running {}.", executable.node_execution_id);
                 spawn_run_node(
-                    executable.node_config_path.clone(),
+                    vec![executable.node_config_path.clone()],
                     executable.node_execution_id.into(),
                 )
             })
