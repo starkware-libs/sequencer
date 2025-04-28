@@ -16,6 +16,7 @@ use starknet_api::transaction::fields::ValidResourceBounds;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintResult};
+use crate::hints::hint_implementation::execution::utils::get_account_deployment_data;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
 use crate::syscall_handler_utils::SyscallHandlerType;
@@ -332,15 +333,22 @@ pub(crate) fn tx_fee_data_availability_mode<S: StateReader>(
 }
 
 pub(crate) fn tx_account_deployment_data_len<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let account_deployment_data =
+        get_account_deployment_data(hint_processor.get_current_execution_helper()?)?;
+    insert_value_into_ap(vm, account_deployment_data.0.len())?;
+    Ok(())
 }
 
 pub(crate) fn tx_account_deployment_data<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let account_deployment_data =
+        get_account_deployment_data(hint_processor.get_current_execution_helper()?)?;
+    let account_deployment_data_base = vm.gen_arg(&account_deployment_data)?;
+    insert_value_into_ap(vm, account_deployment_data_base)?;
+    Ok(())
 }
 
 pub(crate) fn gen_signature_arg<S: StateReader>(
