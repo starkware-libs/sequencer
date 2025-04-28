@@ -3,13 +3,15 @@ use std::collections::HashMap;
 use blockifier::state::state_api::StateReader;
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::vm_core::VirtualMachine;
-use starknet_api::executable_transaction::AccountTransaction;
+use starknet_api::executable_transaction::{AccountTransaction, Transaction};
 use starknet_api::transaction::fields::{
     valid_resource_bounds_as_felts,
     AccountDeploymentData,
+    Calldata,
     ResourceAsFelts,
     ValidResourceBounds,
 };
+use starknet_api::transaction::InvokeTransaction;
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::execution_helper::OsExecutionHelper;
@@ -75,5 +77,22 @@ pub(crate) fn get_account_deployment_data<S: StateReader>(
         AccountTransaction::Declare(declare) => Ok(declare.account_deployment_data()),
         AccountTransaction::Invoke(invoke) => Ok(invoke.account_deployment_data()),
         AccountTransaction::DeployAccount(_) => Err(OsHintError::UnexpectedTxType(tx.tx_type())),
+    }
+}
+
+pub(crate) fn get_calldata<'a, S: StateReader>(
+    execution_helper: &OsExecutionHelper<'a, S>,
+) -> Result<&'a Calldata, OsHintError> {
+    let tx = execution_helper.tx_tracker.get_tx()?;
+    match tx {
+        Transaction::L1Handler(l1_handler) => Ok(&l1_handler.tx.calldata),
+        Transaction::Account(AccountTransaction::Invoke(invoke)) => {
+            Ok(match &invoke.tx {
+                InvokeTransaction::V0(invoke_tx_v0) => &invoke_tx_v0.calldata,
+                InvokeTransaction::V1(invoke_tx_v1) => &invoke_tx_v1.calldata,
+                InvokeTransaction::V3(invoke_tx_v3) => &invoke_tx_v3.calldata,
+            })
+        },
+        _ => Err(OsHintError::UnexpectedTxType(tx.tx_type())),
     }
 }
