@@ -1,3 +1,4 @@
+use std::array;
 use std::collections::HashMap;
 
 use cairo_vm::types::builtin_name::BuiltinName;
@@ -34,6 +35,7 @@ pub(crate) fn test_bls_field(input: &str) -> OsPythonTestResult {
     // TODO(Amos): Uncomment once WRITE_DIVMOD_SEGMENT cairo-vm implementation is fixed (and
     // accepts negative values).
     // test_reduced_mul_random(input)?;
+    // test_reduced_mul_parameterized(input)?;
     Ok("".to_string())
 }
 
@@ -43,6 +45,31 @@ fn get_entrypoint_runner_config() -> EntryPointRunnerConfig {
         add_main_prefix_to_entrypoint: false,
         ..Default::default()
     }
+}
+
+fn run_reduced_mul_test(input: &str, a_split: &[Felt], b_split: &[Felt]) -> OsPythonTestResult {
+    let explicit_args = [
+        EndpointArg::Value(ValueArg::Array(a_split.to_vec())),
+        EndpointArg::Value(ValueArg::Array(b_split.to_vec())),
+    ];
+    let implicit_args = [ImplicitArg::Builtin(BuiltinName::range_check)];
+    let expected_implicit_args: [EndpointArg; 1] = [11.into()];
+    let expected_result = split_bigint3(
+        (pack_bigint3(a_split) * pack_bigint3(b_split)) % BLS_PRIME.to_bigint().unwrap(),
+    )
+    .unwrap();
+    let expected_explicit_args = [EndpointArg::Value(ValueArg::Array(expected_result.to_vec()))];
+    test_cairo_function(
+        &get_entrypoint_runner_config(),
+        input,
+        "starkware.starknet.core.os.data_availability.bls_field.reduced_mul",
+        &explicit_args,
+        &implicit_args,
+        &expected_explicit_args,
+        &expected_implicit_args,
+        HashMap::new(),
+    )?;
+    Ok("".to_string())
 }
 
 fn test_bigint3_to_uint256(input: &str) -> OsPythonTestResult {
@@ -204,27 +231,22 @@ fn test_reduced_mul_random(input: &str) -> OsPythonTestResult {
     let b_split =
         (0..3).map(|_| rng.gen_range(-limb_limit + 1..limb_limit).into()).collect::<Vec<Felt>>();
 
-    let explicit_args = [
-        EndpointArg::Value(ValueArg::Array(a_split.clone())),
-        EndpointArg::Value(ValueArg::Array(b_split.clone())),
+    run_reduced_mul_test(input, &a_split, &b_split)
+}
+
+#[allow(dead_code)]
+fn test_reduced_mul_parameterized(input: &str) -> OsPythonTestResult {
+    let max_value = Felt::from(2_i128.pow(104) - 1);
+    let min_value = Felt::from(-2_i128.pow(104) - 1);
+    let values: [([Felt; 3], [Felt; 3]); 4] = [
+        (array::from_fn(|_| max_value), array::from_fn(|_| max_value)),
+        (array::from_fn(|_| min_value), array::from_fn(|_| min_value)),
+        ([-Felt::ONE, Felt::ZERO, Felt::ZERO], [Felt::ONE, Felt::ZERO, Felt::ZERO]),
+        ([Felt::ONE, Felt::from(2), Felt::from(3)], [Felt::ZERO, Felt::ZERO, Felt::ZERO]),
     ];
-    let implicit_args = [ImplicitArg::Builtin(BuiltinName::range_check)];
-    let expected_implicit_args: [EndpointArg; 1] = [11.into()];
-    let expected_result = split_bigint3(
-        (pack_bigint3(&a_split) * pack_bigint3(&b_split)) % BLS_PRIME.to_bigint().unwrap(),
-    )
-    .unwrap();
-    let expected_explicit_args = [EndpointArg::Value(ValueArg::Array(expected_result.to_vec()))];
-    test_cairo_function(
-        &get_entrypoint_runner_config(),
-        input,
-        "starkware.starknet.core.os.data_availability.bls_field.reduced_mul",
-        &explicit_args,
-        &implicit_args,
-        &expected_explicit_args,
-        &expected_implicit_args,
-        HashMap::new(),
-    )?;
+    for (a_split, b_split) in values {
+        run_reduced_mul_test(input, &a_split, &b_split)?;
+    }
 
     Ok("".to_string())
 }
