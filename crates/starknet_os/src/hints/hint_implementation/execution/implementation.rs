@@ -303,8 +303,17 @@ pub(crate) fn tx_version<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -
     todo!()
 }
 
-pub(crate) fn tx_tip<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> OsHintResult {
-    todo!()
+pub(crate) fn tx_tip<S: StateReader>(
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
+) -> OsHintResult {
+    let tip = hint_processor
+        .execution_helpers_manager
+        .get_current_execution_helper()?
+        .tx_tracker
+        .get_account_tx()?
+        .tip();
+    insert_value_into_ap(vm, Felt::from(tip))?;
+    Ok(())
 }
 
 pub(crate) fn tx_paymaster_data_len<S: StateReader>(
