@@ -18,7 +18,12 @@ use starknet_types_core::felt::Felt;
 use tracing::info;
 
 use crate::os_cli::tests::types::{OsPythonTestResult, OsSpecificTestError};
-use crate::os_cli::tests::utils::{seeded_random_prng, test_cairo_function, DEFAULT_PRIME};
+use crate::os_cli::tests::utils::{
+    pack_bigint3,
+    seeded_random_prng,
+    test_cairo_function,
+    DEFAULT_PRIME,
+};
 use crate::shared_utils::types::PythonTestError;
 
 // TODO(Amos): This test is incomplete. Add the rest of the test cases and remove this todo.
@@ -26,6 +31,9 @@ pub(crate) fn test_bls_field(input: &str) -> OsPythonTestResult {
     test_bigint3_to_uint256(input)?;
     test_felt_to_bigint3(input)?;
     test_horner_eval(input)?;
+    // TODO(Amos): Uncomment once WRITE_DIVMOD_SEGMENT cairo-vm implementation is fixed (and
+    // accepts negative values).
+    // test_reduced_mul_random(input)?;
     Ok("".to_string())
 }
 
@@ -182,6 +190,41 @@ fn test_horner_eval(input: &str) -> OsPythonTestResult {
              Expected result: {expected_result}"
         );
     }
+
+    Ok("".to_string())
+}
+
+#[allow(dead_code)]
+fn test_reduced_mul_random(input: &str) -> OsPythonTestResult {
+    // Generate a,b in (-limb_limit, limb_limit).
+    let mut rng = seeded_random_prng();
+    let limb_limit = 2_i128.pow(104);
+    let a_split =
+        (0..3).map(|_| rng.gen_range(-limb_limit + 1..limb_limit).into()).collect::<Vec<Felt>>();
+    let b_split =
+        (0..3).map(|_| rng.gen_range(-limb_limit + 1..limb_limit).into()).collect::<Vec<Felt>>();
+
+    let explicit_args = [
+        EndpointArg::Value(ValueArg::Array(a_split.clone())),
+        EndpointArg::Value(ValueArg::Array(b_split.clone())),
+    ];
+    let implicit_args = [ImplicitArg::Builtin(BuiltinName::range_check)];
+    let expected_implicit_args: [EndpointArg; 1] = [11.into()];
+    let expected_result = split_bigint3(
+        (pack_bigint3(&a_split) * pack_bigint3(&b_split)) % BLS_PRIME.to_bigint().unwrap(),
+    )
+    .unwrap();
+    let expected_explicit_args = [EndpointArg::Value(ValueArg::Array(expected_result.to_vec()))];
+    test_cairo_function(
+        &get_entrypoint_runner_config(),
+        input,
+        "starkware.starknet.core.os.data_availability.bls_field.reduced_mul",
+        &explicit_args,
+        &implicit_args,
+        &expected_explicit_args,
+        &expected_implicit_args,
+        HashMap::new(),
+    )?;
 
     Ok("".to_string())
 }
