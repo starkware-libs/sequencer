@@ -25,7 +25,7 @@ pub(crate) const PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_TYPE: Panel = Panel::new
     formatcp!(
         "sum  by ({}) ({}) ",
         GATEWAY_LABEL_NAME_TX_TYPE,
-        GATEWAY_TRANSACTIONS_RECEIVED.get_name()
+        GATEWAY_TRANSACTIONS_RECEIVED.get_name_with_filter()
     ),
     PanelType::Stat,
 );
@@ -46,28 +46,35 @@ pub(crate) const PANEL_GATEWAY_LOCAL_QUEUE_DEPTH: Panel =
 pub(crate) const PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_SOURCE: Panel = Panel::new(
     GATEWAY_TRANSACTIONS_RECEIVED.get_name(),
     GATEWAY_TRANSACTIONS_RECEIVED.get_description(),
-    formatcp!("sum  by ({}) ({}) ", LABEL_NAME_SOURCE, GATEWAY_TRANSACTIONS_RECEIVED.get_name()),
+    formatcp!(
+        "sum  by ({}) ({}) ",
+        LABEL_NAME_SOURCE,
+        GATEWAY_TRANSACTIONS_RECEIVED.get_name_with_filter()
+    ),
     PanelType::Stat,
 );
 
 pub(crate) const PANEL_GATEWAY_TRANSACTIONS_RECEIVED_RATE: Panel = Panel::new(
     "gateway_transactions_received_rate (TPS)",
     "The rate of transactions received by the gateway during the last 20 minutes",
-    formatcp!("sum(rate({}[20m])) or vector(0)", GATEWAY_TRANSACTIONS_RECEIVED.get_name()),
+    formatcp!(
+        "sum(rate({}[20m])) or vector(0)",
+        GATEWAY_TRANSACTIONS_RECEIVED.get_name_with_filter()
+    ),
     PanelType::Graph,
 );
 
 pub(crate) const PANEL_GATEWAY_ADD_TX_LATENCY: Panel = Panel::new(
     GATEWAY_ADD_TX_LATENCY.get_name(),
     GATEWAY_ADD_TX_LATENCY.get_description(),
-    formatcp!("avg_over_time({}[2m])", GATEWAY_ADD_TX_LATENCY.get_name()),
+    formatcp!("avg_over_time({}[2m])", GATEWAY_ADD_TX_LATENCY.get_name_with_filter()),
     PanelType::Graph,
 );
 
 pub(crate) const PANEL_GATEWAY_VALIDATE_TX_LATENCY: Panel = Panel::new(
     GATEWAY_VALIDATE_TX_LATENCY.get_name(),
     GATEWAY_VALIDATE_TX_LATENCY.get_description(),
-    formatcp!("avg_over_time({}[2m])", GATEWAY_VALIDATE_TX_LATENCY.get_name()),
+    formatcp!("avg_over_time({}[2m])", GATEWAY_VALIDATE_TX_LATENCY.get_name_with_filter()),
     PanelType::Graph,
 );
 
@@ -77,7 +84,7 @@ pub(crate) const PANEL_GATEWAY_TRANSACTIONS_FAILED: Panel = Panel::new(
     formatcp!(
         "sum  by ({}) ({})",
         GATEWAY_LABEL_NAME_TX_TYPE,
-        GATEWAY_TRANSACTIONS_FAILED.get_name()
+        GATEWAY_TRANSACTIONS_FAILED.get_name_with_filter()
     ),
     PanelType::Stat,
 );
@@ -88,7 +95,7 @@ pub(crate) const PANEL_GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL: Panel = Panel::new(
     formatcp!(
         "sum  by ({}) ({})",
         GATEWAY_LABEL_NAME_TX_TYPE,
-        GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL.get_name()
+        GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL.get_name_with_filter()
     ),
     PanelType::Stat,
 );

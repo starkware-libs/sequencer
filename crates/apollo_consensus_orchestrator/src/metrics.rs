@@ -17,7 +17,7 @@ define_metrics!(
         MetricHistogram { CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY, "cende_prepare_blob_for_next_height_latency", "The time it takes to prepare the blob for the next height, i.e create the blob object." },
         // TODO(dvir): consider to differ the case when the blob was already written, that will prevent using the `sequencer_latency_histogram` attribute.
         // TODO(dvir): add a counter for successful blob writes and failed blob writes.
-        MetricHistogram { CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY, "cende_write_prev_height_blob_latency", "Be careful with this metric, if the blob was already written by another request, the latency is much lower since wirting to Aerospike is not needed." },
+        MetricHistogram { CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY, "cende_write_prev_height_blob_latency", "Be careful with this metric, if the blob was already written by another request, the latency is much lower since writing to Aerospike is not needed." },
         MetricCounter { CENDE_WRITE_BLOB_SUCCESS , "cende_write_blob_success", "The number of successful blob writes to Aerospike", init = 0 },
         LabeledMetricCounter { CENDE_WRITE_BLOB_FAILURE , "cende_write_blob_failure", "The number of failed blob writes to Aerospike", init = 0, labels = CENDE_WRITE_BLOB_FAILURE_REASON },
     }
