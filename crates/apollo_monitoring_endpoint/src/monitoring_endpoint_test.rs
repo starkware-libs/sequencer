@@ -143,6 +143,7 @@ fn create_hash_map(i: u32, j: u32) -> HashMap<ContractAddress, Nonce> {
 
 fn expected_mempool_snapshot() -> MempoolSnapshot {
     let expected_chronological_hashes = (1..10).map(|i| tx_hash!(i)).collect::<Vec<_>>();
+    let expected_delayed_declares = (10..15).map(|i| tx_hash!(i)).collect::<Vec<_>>();
     let expected_transaction_queue = TransactionQueueSnapshot {
         gas_price_threshold: GasPrice(1),
         priority_queue: (1..5).map(|i| tx_hash!(i)).collect::<Vec<_>>(),
@@ -152,6 +153,7 @@ fn expected_mempool_snapshot() -> MempoolSnapshot {
         MempoolStateSnapshot { committed: create_hash_map(1, 3), staged: create_hash_map(5, 7) };
     MempoolSnapshot {
         transactions: expected_chronological_hashes,
+        delayed_declares: expected_delayed_declares,
         transaction_queue: expected_transaction_queue,
         mempool_state,
     }
