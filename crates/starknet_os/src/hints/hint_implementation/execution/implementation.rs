@@ -408,9 +408,16 @@ pub(crate) fn initial_ge_required_gas<S: StateReader>(
 }
 
 pub(crate) fn set_ap_to_tx_nonce<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let nonce = hint_processor
+        .execution_helpers_manager
+        .get_current_execution_helper()?
+        .tx_tracker
+        .get_account_tx()?
+        .nonce();
+    insert_value_into_ap(vm, nonce.0)?;
+    Ok(())
 }
 
 pub(crate) fn set_fp_plus_4_to_tx_nonce<S: StateReader>(
