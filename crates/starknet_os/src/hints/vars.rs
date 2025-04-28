@@ -143,6 +143,7 @@ define_string_enum! {
         (DictPtr),
         (Edge),
         (ElmBound),
+        (EntryPointReturnValues),
         (Evals),
         (ExecutionContext),
         (FinalContractStateRoot),
@@ -345,6 +346,10 @@ define_string_enum! {
         ),
         (DictAccess, "starkware.cairo.common.dict_access.DictAccess"),
         (DictAccessPtr, "starkware.cairo.common.dict_access.DictAccess*"),
+        (
+            EntryPointReturnValuesPtr,
+            "starkware.starknet.core.os.execution.execute_entry_point.EntryPointReturnValues*"
+        ),
         (
             ExecutionContext,
             "starkware.starknet.core.os.execution.execute_entry_point.ExecutionContext"

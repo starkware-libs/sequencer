@@ -354,7 +354,7 @@ pub(crate) fn is_reverted<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) 
 }
 
 pub(crate) fn check_execution<S: StateReader>(
-    HintArgs { hint_processor, .. }: HintArgs<'_, '_, S>,
+    HintArgs { vm, hint_processor, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let current_execution_helper =
         hint_processor.execution_helpers_manager.get_mut_current_execution_helper()?;
@@ -362,7 +362,16 @@ pub(crate) fn check_execution<S: StateReader>(
         // TODO(yoav): Implement debug mode validations.
     }
 
-    // TODO(yoav): Validate and discard syscall ptr.
+    let syscall_ptr_end = get_address_of_nested_fields(
+        ids_data,
+        Ids::EntryPointReturnValues,
+        CairoStruct::EntryPointReturnValuesPtr,
+        vm,
+        ap_tracking,
+        &["syscall_ptr"],
+        hint_processor.os_program,
+    )?;
+    hint_processor.syscall_hint_processor.validate_and_discard_syscall_ptr(&syscall_ptr_end)?;
     current_execution_helper.tx_execution_iter.get_mut_tx_execution_info_ref()?.exit_call_info()?;
     Ok(())
 }
