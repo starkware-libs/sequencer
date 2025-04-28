@@ -10,7 +10,11 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
 };
 use starknet_types_core::felt::Felt;
 
-use crate::hint_processor::state_update_pointers::get_contract_state_entry_and_storage_ptr;
+use crate::hint_processor::state_update_pointers::{
+    get_contract_state_entry_and_storage_ptr,
+    StateEntryPtr,
+    StoragePtr,
+};
 use crate::hints::error::OsHintResult;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{Const, Ids, Scope};
@@ -121,14 +125,14 @@ pub(crate) fn guess_aliases_contract_storage_ptr<S: StateReader>(
     );
     insert_value_from_var_name(
         Ids::PrevAliasesStateEntry.into(),
-        state_entry_ptr,
+        state_entry_ptr.0,
         vm,
         ids_data,
         ap_tracking,
     )?;
     insert_value_from_var_name(
         Ids::SquashedAliasesStorageStart.into(),
-        storage_ptr,
+        storage_ptr.0,
         vm,
         ids_data,
         ap_tracking,
@@ -155,8 +159,8 @@ pub(crate) fn update_aliases_contract_to_storage_ptr<S: StateReader>(
         )?;
         state_update_pointers.set_contract_state_entry_and_storage_ptr(
             aliases_contract_address,
-            aliases_state_entry_ptr,
-            aliases_storage_ptr,
+            StateEntryPtr(aliases_state_entry_ptr),
+            StoragePtr(aliases_storage_ptr),
         );
     }
     Ok(())
