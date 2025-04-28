@@ -8,6 +8,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     insert_value_from_var_name,
     insert_value_into_ap,
 };
+use starknet_api::core::ContractAddress;
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::state_update_pointers::{
@@ -17,7 +18,8 @@ use crate::hint_processor::state_update_pointers::{
 };
 use crate::hints::error::OsHintResult;
 use crate::hints::types::HintArgs;
-use crate::hints::vars::{Const, Ids, Scope};
+use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
+use crate::vm_utils::get_address_of_nested_fields;
 
 pub(crate) fn enter_scope_with_aliases<S: StateReader>(
     HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
@@ -103,9 +105,39 @@ pub(crate) fn contract_address_le_max_for_compression<S: StateReader>(
 }
 
 pub(crate) fn guess_contract_addr_storage_ptr<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let key_address = get_address_of_nested_fields(
+        ids_data,
+        Ids::StateChanges,
+        CairoStruct::DictAccessPtr,
+        vm,
+        ap_tracking,
+        &["key"],
+        hint_processor.os_program,
+    )?;
+    let contract_address = ContractAddress(vm.get_integer(key_address)?.into_owned().try_into()?);
+    let (state_entry, storage_ptr) = get_contract_state_entry_and_storage_ptr(
+        &mut hint_processor.state_update_pointers,
+        vm,
+        contract_address,
+    );
+    insert_value_from_var_name(
+        Ids::SquashedPrevState.into(),
+        state_entry.0,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    insert_value_from_var_name(
+        Ids::SquashedStoragePtr.into(),
+        storage_ptr.0,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+
+    Ok(())
 }
 
 pub(crate) fn update_contract_addr_to_storage_ptr<S: StateReader>(

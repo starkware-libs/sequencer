@@ -202,6 +202,9 @@ define_string_enum! {
         (SquashedAliasesStorageStart),
         (SquashedDict),
         (SquashedDictEnd),
+        (SquashedPrevState),
+        (SquashedStoragePtr),
+        (StateChanges),
         (StateEntry),
         (StateUpdatesStart),
         (SyscallPtr),
@@ -342,6 +345,7 @@ define_string_enum! {
             DeprecatedContractEntryPoint"
         ),
         (DictAccess, "starkware.cairo.common.dict_access.DictAccess"),
+        (DictAccessPtr, "starkware.cairo.common.dict_access.DictAccess*"),
         (
             ExecutionContext,
             "starkware.starknet.core.os.execution.execute_entry_point.ExecutionContext"
