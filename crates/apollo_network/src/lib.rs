@@ -6,6 +6,7 @@ mod discovery;
 #[cfg(test)]
 mod e2e_broadcast_test;
 pub mod gossipsub_impl;
+pub mod misconduct_score;
 mod mixed_behaviour;
 pub mod network_manager;
 mod peer_manager;
