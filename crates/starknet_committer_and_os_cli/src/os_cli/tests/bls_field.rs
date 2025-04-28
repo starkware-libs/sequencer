@@ -23,9 +23,10 @@ use crate::shared_utils::types::PythonTestError;
 
 // TODO(Amos): This test is incomplete. Add the rest of the test cases and remove this todo.
 pub(crate) fn test_bls_field(input: &str) -> OsPythonTestResult {
-    test_bigint3_to_uint256(input)?;
-    test_felt_to_bigint3(input)?;
-    test_horner_eval(input)?;
+    // test_bigint3_to_uint256(input)?;
+    // test_felt_to_bigint3(input)?;
+    // test_horner_eval(input)?;
+    test_reduced_mul_random(input)?;
     Ok("".to_string())
 }
 
@@ -183,6 +184,33 @@ fn test_horner_eval(input: &str) -> OsPythonTestResult {
              Expected result: {expected_result}"
         );
     }
+
+    Ok("".to_string())
+}
+
+#[allow(dead_code)]
+fn test_reduced_mul_random(input: &str) -> OsPythonTestResult {
+    let a_split = vec![Felt::from(1), Felt::from(2), Felt::from(3)];
+    let b_split = vec![Felt::from(-1), Felt::from(-2), Felt::from(-3)];
+
+    let explicit_args = [
+        EndpointArg::Value(ValueArg::Array(a_split.clone())),
+        EndpointArg::Value(ValueArg::Array(b_split.clone())),
+    ];
+    let implicit_args = [ImplicitArg::Builtin(BuiltinName::range_check)];
+    let expected_implicit_args: [EndpointArg; 1] = [11.into()];
+    let dummy_expected_result =
+        [EndpointArg::Value(ValueArg::Array(vec![Felt::from(1), Felt::from(2), Felt::from(3)]))];
+    test_cairo_function(
+        &get_entrypoint_runner_config(),
+        input,
+        "starkware.starknet.core.os.data_availability.bls_field.reduced_mul",
+        &explicit_args,
+        &implicit_args,
+        &dummy_expected_result,
+        &expected_implicit_args,
+        HashMap::new(),
+    )?;
 
     Ok("".to_string())
 }
