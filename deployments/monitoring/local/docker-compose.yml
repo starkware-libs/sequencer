@@ -66,13 +66,11 @@ services:
     depends_on:
       sequencer_node_setup:
         condition: service_completed_successfully
-    image: ubuntu:24.04
-    entrypoint: "/bin/bash -c"
+    build:
+      context: ${SEQUENCER_ROOT_DIR}
+      dockerfile: ${SEQUENCER_ROOT_DIR}/deployments/images/sequencer/config_injector.Dockerfile
     command: |
-      "DEBIAN_FRONTEND=noninteractive \
-      apt update && \
-      apt install -y jq moreutils && \
-      cp /tmp/node_config.json ${SEQUENCER_CONFIG_PATH} \
+      "cp /tmp/node_config.json ${SEQUENCER_CONFIG_PATH} \
       echo 'Injecting config changes...' && \
       jq '.\"recorder_url\" = \"http://dummy_recorder:8080\"' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
       jq '.\"consensus_manager_config.eth_to_strk_oracle_config.base_url\" = \"http://dummy_eth_to_strk_oracle:9000/eth_to_strk_oracle?timestamp=\"' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
