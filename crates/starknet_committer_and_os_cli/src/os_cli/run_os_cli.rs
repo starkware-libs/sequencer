@@ -1,5 +1,8 @@
+use std::collections::HashSet;
+
 use clap::{Parser, Subcommand};
 use serde::Serialize;
+use starknet_os::hints::enum_definition::AllHints;
 use starknet_types_core::felt::Felt;
 use tracing::info;
 use tracing::level_filters::LevelFilter;
@@ -43,4 +46,5 @@ pub async fn run_os_cli(
 #[derive(Serialize)]
 pub(crate) struct OsCliOutput {
     pub(crate) os_output: Vec<Felt>,
+    pub unused_hints: HashSet<AllHints>,
 }
