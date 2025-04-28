@@ -23,7 +23,6 @@ pub struct OsExecutionHelper<'a, S: StateReader> {
     pub(crate) os_block_input: &'a OsBlockInput,
     pub(crate) os_logger: OsLogger,
     pub(crate) tx_execution_iter: TransactionExecutionIter<'a>,
-    #[allow(dead_code)]
     pub(crate) tx_tracker: TransactionTracker<'a>,
 }
 
