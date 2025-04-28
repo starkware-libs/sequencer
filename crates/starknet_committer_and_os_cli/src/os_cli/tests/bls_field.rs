@@ -3,6 +3,7 @@ use std::collections::HashMap;
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
+use cairo_vm::types::program::Program;
 use ethnum::U256;
 use num_bigint::{BigInt, BigUint, RandBigInt, RandomBits, Sign, ToBigInt};
 use rand::Rng;
@@ -27,7 +28,6 @@ use crate::os_cli::tests::utils::{
 };
 use crate::shared_utils::types::PythonTestError;
 
-// TODO(Amos): This test is incomplete. Add the rest of the test cases and remove this todo.
 pub(crate) fn test_bls_field(input: &str) -> OsPythonTestResult {
     test_bigint3_to_uint256(input)?;
     test_felt_to_bigint3(input)?;
@@ -36,6 +36,7 @@ pub(crate) fn test_bls_field(input: &str) -> OsPythonTestResult {
     // accepts negative values).
     // test_reduced_mul_random(input)?;
     // test_reduced_mul_parameterized(input)?;
+    test_bls_prime_value(input)?;
     Ok("".to_string())
 }
 
@@ -248,5 +249,23 @@ fn test_reduced_mul_parameterized(input: &str) -> OsPythonTestResult {
         run_reduced_mul_test(input, &a_split, &b_split)?;
     }
 
+    Ok("".to_string())
+}
+
+fn test_bls_prime_value(input: &str) -> OsPythonTestResult {
+    let entrypoint = None;
+    let program = Program::from_bytes(input.as_bytes(), entrypoint).unwrap();
+    let actual_split_bls_prime: [Felt; 3] = array::from_fn(|i| {
+        *program
+            .constants
+            .get(&format!("starkware.starknet.core.os.data_availability.bls_field.P{}", i))
+            .unwrap()
+    });
+    let expected_split_bls_prime = split_bigint3(BLS_PRIME.to_bigint().unwrap()).unwrap();
+    assert_eq!(
+        expected_split_bls_prime, actual_split_bls_prime,
+        "Expected BLS prime value to be {expected_split_bls_prime:?}, got \
+         {actual_split_bls_prime:?}"
+    );
     Ok("".to_string())
 }
