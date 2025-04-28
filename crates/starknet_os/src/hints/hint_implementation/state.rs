@@ -2,7 +2,6 @@ use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
     get_ptr_from_var_name,
-    get_relocatable_from_var_name,
     insert_value_from_var_name,
 };
 use starknet_api::core::ContractAddress;
@@ -193,7 +192,7 @@ pub(crate) fn update_classes_ptr<S: StateReader>(
 ) -> OsHintResult {
     if let Some(state_update_pointers) = &mut hint_processor.state_update_pointers {
         let classes_changes_end =
-            get_relocatable_from_var_name(Ids::SquashedDictEnd.into(), vm, ids_data, ap_tracking)?;
+            get_ptr_from_var_name(Ids::SquashedDictEnd.into(), vm, ids_data, ap_tracking)?;
         state_update_pointers.set_classes_ptr(classes_changes_end);
     }
     Ok(())
