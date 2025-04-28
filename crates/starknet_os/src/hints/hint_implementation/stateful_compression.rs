@@ -4,6 +4,7 @@ use blockifier::state::state_api::{State, StateReader};
 use cairo_vm::any_box;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
+    get_ptr_from_var_name,
     get_relocatable_from_var_name,
     insert_value_from_var_name,
     insert_value_into_ap,
@@ -141,9 +142,33 @@ pub(crate) fn guess_contract_addr_storage_ptr<S: StateReader>(
 }
 
 pub(crate) fn update_contract_addr_to_storage_ptr<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    if let Some(state_update_pointers) = &mut hint_processor.state_update_pointers {
+        let key_address = get_address_of_nested_fields(
+            ids_data,
+            Ids::StateChanges,
+            CairoStruct::DictAccessPtr,
+            vm,
+            ap_tracking,
+            &["key"],
+            hint_processor.os_program,
+        )?;
+        let contract_address =
+            ContractAddress(vm.get_integer(key_address)?.into_owned().try_into()?);
+        let squashed_new_state =
+            get_ptr_from_var_name(Ids::SquashedNewState.into(), vm, ids_data, ap_tracking)?;
+        let squashed_storage_ptr_end =
+            get_ptr_from_var_name(Ids::SquashedStoragePtrEnd.into(), vm, ids_data, ap_tracking)?;
+
+        state_update_pointers.set_contract_state_entry_and_storage_ptr(
+            contract_address,
+            StateEntryPtr(squashed_new_state),
+            StoragePtr(squashed_storage_ptr_end),
+        );
+    }
+
+    Ok(())
 }
 
 pub(crate) fn guess_aliases_contract_storage_ptr<S: StateReader>(
