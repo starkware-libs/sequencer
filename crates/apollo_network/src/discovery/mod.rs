@@ -1,4 +1,4 @@
-pub mod behaviours;
+mod behaviours;
 #[cfg(test)]
 mod discovery_test;
 #[cfg(test)]
