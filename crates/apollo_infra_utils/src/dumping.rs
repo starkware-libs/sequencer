@@ -37,7 +37,7 @@ pub fn serialize_to_file_test<T: Serialize>(data: T, file_path: &str, fix_binary
 pub fn serialize_to_file<T: Serialize>(data: T, file_path: &str) {
     // Create file writer.
     let file = File::create(file_path)
-        .unwrap_or_else(|_| panic!("Failed generating data file: {:?}", file_path));
+        .unwrap_or_else(|err| panic!("Failed generating data file: {:?}: {}", file_path, err));
 
     let mut writer = BufWriter::new(file);
 

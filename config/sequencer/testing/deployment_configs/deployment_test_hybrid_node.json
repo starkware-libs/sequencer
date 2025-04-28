@@ -1,0 +1,142 @@
+{
+  "chain_id": "SN_GOERLI",
+  "application_config_subdir": "config/sequencer/testing/app_configs/hybrid/deployment_test_hybrid_node/",
+  "services": [
+    {
+      "name": "Core",
+      "controller": "StatefulSet",
+      "config_paths": [
+        "core.json",
+        "deployment_config_override.json",
+        "instance_config_override.json"
+      ],
+      "ingress": null,
+      "autoscale": false,
+      "replicas": 1,
+      "storage": null,
+      "toleration": null,
+      "resources": {
+        "requests": {
+          "cpu": 1,
+          "memory": 2
+        },
+        "limits": {
+          "cpu": 4,
+          "memory": 8
+        }
+      },
+      "external_secret": null
+    },
+    {
+      "name": "HttpServer",
+      "controller": "StatefulSet",
+      "config_paths": [
+        "http_server.json",
+        "deployment_config_override.json",
+        "instance_config_override.json"
+      ],
+      "ingress": {
+        "domain": "sw-dev.io",
+        "internal": true,
+        "rules": [
+          {
+            "path": "/gateway",
+            "port": 8080,
+            "backend": null
+          }
+        ],
+        "alternative_names": []
+      },
+      "autoscale": false,
+      "replicas": 1,
+      "storage": null,
+      "toleration": null,
+      "resources": {
+        "requests": {
+          "cpu": 1,
+          "memory": 2
+        },
+        "limits": {
+          "cpu": 4,
+          "memory": 8
+        }
+      },
+      "external_secret": null
+    },
+    {
+      "name": "Gateway",
+      "controller": "StatefulSet",
+      "config_paths": [
+        "gateway.json",
+        "deployment_config_override.json",
+        "instance_config_override.json"
+      ],
+      "ingress": null,
+      "autoscale": false,
+      "replicas": 1,
+      "storage": null,
+      "toleration": null,
+      "resources": {
+        "requests": {
+          "cpu": 1,
+          "memory": 2
+        },
+        "limits": {
+          "cpu": 4,
+          "memory": 8
+        }
+      },
+      "external_secret": null
+    },
+    {
+      "name": "Mempool",
+      "controller": "StatefulSet",
+      "config_paths": [
+        "mempool.json",
+        "deployment_config_override.json",
+        "instance_config_override.json"
+      ],
+      "ingress": null,
+      "autoscale": false,
+      "replicas": 1,
+      "storage": null,
+      "toleration": null,
+      "resources": {
+        "requests": {
+          "cpu": 1,
+          "memory": 2
+        },
+        "limits": {
+          "cpu": 4,
+          "memory": 8
+        }
+      },
+      "external_secret": null
+    },
+    {
+      "name": "SierraCompiler",
+      "controller": "StatefulSet",
+      "config_paths": [
+        "sierra_compiler.json",
+        "deployment_config_override.json",
+        "instance_config_override.json"
+      ],
+      "ingress": null,
+      "autoscale": false,
+      "replicas": 1,
+      "storage": null,
+      "toleration": null,
+      "resources": {
+        "requests": {
+          "cpu": 1,
+          "memory": 2
+        },
+        "limits": {
+          "cpu": 4,
+          "memory": 8
+        }
+      },
+      "external_secret": null
+    }
+  ]
+}
