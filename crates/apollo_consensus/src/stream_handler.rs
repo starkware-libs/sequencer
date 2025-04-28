@@ -5,6 +5,7 @@ use std::collections::hash_map::Entry::{Occupied, Vacant};
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
+use std::num::NonZeroUsize;
 
 use apollo_network::network_manager::{BroadcastTopicClientTrait, ReceivedBroadcastedMessage};
 use apollo_network::utils::StreamMap;
@@ -14,6 +15,7 @@ use apollo_protobuf::converters::ProtobufConversionError;
 use futures::channel::mpsc;
 use futures::never::Never;
 use futures::StreamExt;
+use lru::LruCache;
 use tracing::{info, instrument, warn};
 
 #[cfg(test)]
@@ -26,6 +28,8 @@ type MessageId = u64;
 /// Channel size for stream messages.
 // TODO(guy): make this configurable.
 pub const CHANNEL_BUFFER_LENGTH: usize = 100;
+/// The maximum number of streams that can be open at the same time.
+pub const MAX_STREAMS: NonZeroUsize = NonZeroUsize::new(10).unwrap();
 
 /// Errors which cause the stream handler to stop functioning.
 #[derive(thiserror::Error, PartialEq, Debug)]
@@ -127,10 +131,10 @@ where
     inbound_channel_sender: mpsc::Sender<mpsc::Receiver<StreamContent>>,
     // This receives messages from the network.
     inbound_receiver: InboundReceiverT,
-    // A map from (peer_id, stream_id) to a struct that contains all the information
+    // An LRU cache mapping (peer_id, stream_id) to a struct that contains all the information
     // about the stream. This includes both the message buffer and some metadata
     // (like the latest message ID).
-    inbound_stream_data: HashMap<(PeerId, StreamId), StreamData<StreamContent, StreamId>>,
+    inbound_stream_data: LruCache<(PeerId, StreamId), StreamData<StreamContent, StreamId>>,
     // Whenever application wants to start a new stream, it must send out a
     // (stream_id, Receiver) pair. Each receiver gets messages that should
     // be sent out to the network.
@@ -159,10 +163,12 @@ where
         outbound_channel_receiver: mpsc::Receiver<(StreamId, mpsc::Receiver<StreamContent>)>,
         outbound_sender: OutboundSenderT,
     ) -> Self {
+        let cache = LruCache::new(MAX_STREAMS);
+
         Self {
             inbound_channel_sender,
             inbound_receiver,
-            inbound_stream_data: HashMap::new(),
+            inbound_stream_data: cache,
             outbound_channel_receiver,
             outbound_sender,
             outbound_stream_receivers: StreamMap::new(BTreeMap::new()),
@@ -329,23 +335,23 @@ where
         let stream_id = message.stream_id.clone();
         let key = (peer_id.clone(), stream_id.clone());
 
-        let data = match self.inbound_stream_data.entry(key.clone()) {
-            // If data exists, remove it (it will be returned to hash map at end of function).
-            Occupied(entry) => entry.remove_entry().1,
-            Vacant(_) => {
-                // If we received a message for a stream that we have not seen before,
-                // we need to create a new receiver for it.
-                info!(?peer_id, ?stream_id, "Inbound stream started.");
+        // Try to get the stream data from the cache.
+        let data = match self.inbound_stream_data.pop(&key) {
+            Some(data) => data,
+            None => {
+                info!(?peer_id, ?stream_id, "Inbound stream started");
                 StreamData::new()
             }
         };
         if let Some(data) = self.handle_message_inner(message, metadata, data) {
-            self.inbound_stream_data.insert(key, data);
+            if let Some((evicted_key, _)) = self.inbound_stream_data.push(key, data) {
+                warn!(?evicted_key, "Evicted inbound stream due to capacity");
+            }
         }
         Ok(())
     }
 
-    /// Returns the StreamData struct if it should be put back into the hash map. None if the data
+    /// Returns the StreamData struct if it should be put back into the LRU cache. None if the data
     /// should be dropped.
     fn handle_message_inner(
         &mut self,
