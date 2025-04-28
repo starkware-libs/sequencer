@@ -14,6 +14,7 @@ use crate::deployment_definitions::sepolia_integration::{
 use crate::deployment_definitions::testing::{
     system_test_consolidated_deployment,
     system_test_distributed_deployment,
+    system_test_hybrid_deployment,
 };
 use crate::deployment_definitions::testing_env_2::{
     testing_env_2_hybrid_deployment_node_0,
@@ -49,6 +50,7 @@ type DeploymentFn = fn() -> Deployment;
 
 pub const DEPLOYMENTS: &[DeploymentFn] = &[
     system_test_distributed_deployment,
+    system_test_hybrid_deployment,
     system_test_consolidated_deployment,
     sepolia_integration_hybrid_deployment_node_0,
     sepolia_integration_hybrid_deployment_node_1,
