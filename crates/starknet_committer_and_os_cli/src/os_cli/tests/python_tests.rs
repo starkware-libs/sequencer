@@ -611,7 +611,7 @@ else:
     value = (-y) % SECP256R1.prime"#,
     ])
 }
-
+// TODO(Nimrod): Remove this python test and run the os directly with `parse_and_run_os`.
 /// Runs the OS with the given input and returns the deserialized output.
 fn run_os_flow_test(input: &str) -> OsPythonTestResult {
     let Input { layout, compiled_os_path, os_hints, cairo_pie_zip_path } =
@@ -621,7 +621,7 @@ fn run_os_flow_test(input: &str) -> OsPythonTestResult {
         fs::read(Path::new(&compiled_os_path)).expect("Failed to read compiled_os file");
     let StarknetOsRunnerOutput { os_output, cairo_pie, unused_hints } =
         run_os_stateless(&compiled_os, layout, os_hints)?;
-    let merge_extra_segments = true;
+    let merge_extra_segments = false;
     cairo_pie
         .write_zip_file(Path::new(&cairo_pie_zip_path), merge_extra_segments)
         .expect("Failed to write cairo pie.");
