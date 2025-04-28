@@ -721,6 +721,7 @@ impl OsResources {
             + &poseidon_hash_many_cost(data_segment_length)
     }
 
+    // TODO(Dori): Delete this once serde is done via `RawVersionedConstants`.
     /// Calculates the syscall gas cost from the base OS constant gas costs.
     pub(crate) fn get_syscall_gas_cost(
         &self,
@@ -781,14 +782,14 @@ pub struct RawOsResources {
     pub compute_os_kzg_commitment_info: ExecutionResources,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, PartialEq)]
 #[serde(untagged, deny_unknown_fields)]
 pub enum RawSyscallGasCost {
     Flat(u64),
     Structured(RawStructuredDeprecatedSyscallGasCost),
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct RawStructuredDeprecatedSyscallGasCost {
     #[serde(default)]
@@ -910,7 +911,7 @@ impl SyscallGasCosts {
 
 // TODO(Dori): Remove `Deserialize` derive here.
 #[cfg_attr(any(test, feature = "testing"), derive(Clone, Copy))]
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, PartialEq)]
 pub struct BaseGasCosts {
     pub step_gas_cost: u64,
     pub memory_hole_gas_cost: u64,
@@ -922,8 +923,7 @@ pub struct BaseGasCosts {
     pub syscall_base_gas_cost: u64,
 }
 
-#[cfg_attr(any(test, feature = "testing"), derive(Copy))]
-#[derive(Clone, Debug, Default, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq)]
 pub struct BuiltinGasCosts {
     // Range check has a hard-coded cost higher than its proof percentage to avoid the overhead of
     // retrieving its price from the table.
@@ -966,11 +966,141 @@ impl BuiltinGasCosts {
 /// Gas cost constants. For more documentation see in core/os/constants.cairo.
 // TODO(Dori): Remove `Deserialize` derive here.
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, PartialEq)]
 pub struct GasCosts {
     pub base: BaseGasCosts,
     pub builtins: BuiltinGasCosts,
     pub syscalls: SyscallGasCosts,
+}
+
+impl GasCosts {
+    #[allow(dead_code)]
+    fn from_raw(os_constants: &RawOsConstants, os_resources: &RawOsResources) -> Self {
+        let step_gas_cost = os_constants.step_gas_cost;
+
+        // Explicitly destructure initial costs, to make sure all inner costs are accounted for.
+        let RawStepGasCost { step_gas_cost: default_initial_gas_cost_in_steps } =
+            os_constants.default_initial_gas_cost;
+        let RawStepGasCost { step_gas_cost: entry_point_initial_budget_in_steps } =
+            os_constants.entry_point_initial_budget;
+        let RawStepGasCost { step_gas_cost: syscall_base_gas_cost_in_steps } =
+            os_constants.syscall_base_gas_cost;
+        let base_costs = BaseGasCosts {
+            step_gas_cost,
+            memory_hole_gas_cost: os_constants.memory_hole_gas_cost.0,
+            default_initial_gas_cost: step_gas_cost * default_initial_gas_cost_in_steps.0,
+            entry_point_initial_budget: step_gas_cost * entry_point_initial_budget_in_steps.0,
+            syscall_base_gas_cost: step_gas_cost * syscall_base_gas_cost_in_steps.0,
+        };
+
+        let summarize = |selector: SyscallSelector| match os_constants.syscall_gas_costs {
+            Some(ref syscall_gas_costs) => Self::old_syscall_gas_cost_summary(
+                &base_costs,
+                selector,
+                syscall_gas_costs,
+                &os_constants.builtin_gas_costs,
+            ),
+            None => Self::new_syscall_gas_cost_summary(
+                &base_costs,
+                selector,
+                &os_constants.builtin_gas_costs,
+                os_resources,
+            ),
+        };
+
+        let syscalls = SyscallGasCosts {
+            call_contract: summarize(SyscallSelector::CallContract),
+            deploy: summarize(SyscallSelector::Deploy),
+            get_block_hash: summarize(SyscallSelector::GetBlockHash),
+            get_execution_info: summarize(SyscallSelector::GetExecutionInfo),
+            library_call: summarize(SyscallSelector::LibraryCall),
+            replace_class: summarize(SyscallSelector::ReplaceClass),
+            storage_read: summarize(SyscallSelector::StorageRead),
+            storage_write: summarize(SyscallSelector::StorageWrite),
+            get_class_hash_at: summarize(SyscallSelector::GetClassHashAt),
+            emit_event: summarize(SyscallSelector::EmitEvent),
+            send_message_to_l1: summarize(SyscallSelector::SendMessageToL1),
+            secp256k1_add: summarize(SyscallSelector::Secp256k1Add),
+            secp256k1_get_point_from_x: summarize(SyscallSelector::Secp256k1GetPointFromX),
+            secp256k1_get_xy: summarize(SyscallSelector::Secp256k1GetXy),
+            secp256k1_mul: summarize(SyscallSelector::Secp256k1Mul),
+            secp256k1_new: summarize(SyscallSelector::Secp256k1New),
+            secp256r1_add: summarize(SyscallSelector::Secp256r1Add),
+            secp256r1_get_point_from_x: summarize(SyscallSelector::Secp256r1GetPointFromX),
+            secp256r1_get_xy: summarize(SyscallSelector::Secp256r1GetXy),
+            secp256r1_mul: summarize(SyscallSelector::Secp256r1Mul),
+            secp256r1_new: summarize(SyscallSelector::Secp256r1New),
+            keccak: summarize(SyscallSelector::Keccak),
+            keccak_round: summarize(SyscallSelector::KeccakRound),
+            meta_tx_v0: summarize(SyscallSelector::MetaTxV0),
+            sha256_process_block: summarize(SyscallSelector::Sha256ProcessBlock),
+        };
+
+        Self { syscalls, base: base_costs, builtins: os_constants.builtin_gas_costs }
+    }
+
+    fn old_syscall_gas_cost_summary(
+        base_costs: &BaseGasCosts,
+        selector: SyscallSelector,
+        syscall_gas_costs: &SyscallGasCostsMap,
+        builtin_costs: &BuiltinGasCosts,
+    ) -> SyscallGasCost {
+        let raw_cost = syscall_gas_costs.get(&selector).unwrap_or_else(|| {
+            panic!("{selector:?} missing from syscall_gas_costs map. Map: {:?}", syscall_gas_costs)
+        });
+        SyscallGasCost::new_from_base_cost(match raw_cost {
+            RawSyscallGasCost::Flat(flat_cost) => *flat_cost,
+            RawSyscallGasCost::Structured(RawStructuredDeprecatedSyscallGasCost {
+                step_gas_cost,
+                range_check,
+                bitwise,
+                syscall_base_gas_cost,
+                memory_hole_gas_cost,
+            }) => {
+                step_gas_cost * base_costs.step_gas_cost
+                    + range_check * builtin_costs.range_check
+                    + bitwise * builtin_costs.bitwise
+                    + syscall_base_gas_cost * base_costs.syscall_base_gas_cost
+                    + memory_hole_gas_cost * base_costs.memory_hole_gas_cost
+            }
+        })
+    }
+
+    fn new_syscall_gas_cost_summary(
+        base_costs: &BaseGasCosts,
+        selector: SyscallSelector,
+        builtin_costs: &BuiltinGasCosts,
+        os_resources: &RawOsResources,
+    ) -> SyscallGasCost {
+        let vm_resources: RawResourcesParams = os_resources
+            .execute_syscalls
+            .get(&selector)
+            .expect("Fetching the execution resources of a syscall should not fail.")
+            .into();
+
+        let mut base_gas =
+            get_gas_cost_from_vm_resources(&vm_resources.constant, base_costs, builtin_costs);
+
+        // The minimum total cost is `syscall_base_gas_cost`, which is pre-charged by the compiler.
+        base_gas = std::cmp::max(base_costs.syscall_base_gas_cost, base_gas);
+        let linear_gas_cost = get_gas_cost_from_vm_resources(
+            &match vm_resources.calldata_factor {
+                VariableCallDataFactor::Scaled(RawCallDataFactor { resources, scaling_factor }) => {
+                    assert!(
+                        scaling_factor == 1,
+                        "The scaling factor of the syscall should be 1, but it is {scaling_factor}"
+                    );
+                    resources
+                }
+                VariableCallDataFactor::Unscaled(resources) => resources,
+            },
+            base_costs,
+            builtin_costs,
+        );
+
+        // Sum up the two methods to get the final cost.
+        SyscallGasCost { base: base_gas, linear_factor: linear_gas_cost }
+    }
 }
 
 // Below, serde first deserializes the json into a regular IndexMap wrapped by the newtype
@@ -1510,6 +1640,17 @@ impl Default for VariableCallDataFactor {
 pub enum VariableResourceParams {
     Constant(ExecutionResources),
     WithFactor(RawResourcesParams),
+}
+
+impl From<&VariableResourceParams> for RawResourcesParams {
+    fn from(value: &VariableResourceParams) -> Self {
+        match value {
+            VariableResourceParams::WithFactor(raw_params) => raw_params.clone(),
+            VariableResourceParams::Constant(constant) => {
+                Self { constant: constant.clone(), calldata_factor: Default::default() }
+            }
+        }
+    }
 }
 
 #[cfg_attr(any(test, feature = "testing"), derive(Copy))]
