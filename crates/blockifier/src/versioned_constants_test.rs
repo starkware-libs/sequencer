@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
 use glob::{glob, Paths};
 use pretty_assertions::assert_eq;
+use rstest::rstest;
 use starknet_api::block::StarknetVersion;
 
 use super::*;
@@ -158,9 +159,16 @@ fn test_invalid_number() {
 
 #[test]
 fn test_old_json_parsing() {
+    // TODO(Dori): Only test RawVersionedConstants deserialization.
     for file in all_jsons_in_dir().map(Result::unwrap) {
         serde_json::from_reader::<_, VersionedConstants>(&std::fs::File::open(&file).unwrap())
             .unwrap_or_else(|_| panic!("Versioned constants JSON file {file:#?} is malformed"));
+    }
+    for file in all_jsons_in_dir().map(Result::unwrap) {
+        serde_json::from_reader::<_, RawVersionedConstants>(&std::fs::File::open(&file).unwrap())
+            .unwrap_or_else(|error| {
+                panic!("Versioned constants JSON file {file:#?} is malformed: {error}.")
+            });
     }
 }
 
@@ -231,4 +239,97 @@ fn verify_v1_bound_and_data_gas_accounts_disjoint() {
     let v1_bound_accounts_set: HashSet<_> =
         versioned_constants.os_constants.v1_bound_accounts_cairo1.iter().collect();
     assert!(data_gas_accounts_set.is_disjoint(&v1_bound_accounts_set));
+}
+
+#[rstest]
+#[case::constant(r#"
+    {
+        "n_steps": 1,
+        "builtin_instance_counter": {
+            "pedersen_builtin": 2
+        },
+        "n_memory_holes": 3
+    }
+    "#,
+    VariableResourceParams::Constant(ExecutionResources {
+        n_steps: 1,
+        builtin_instance_counter: HashMap::from([(BuiltinName::pedersen, 2)]),
+        n_memory_holes: 3,
+    })
+)]
+#[case::variable_unscaled(
+    r#"
+    {
+        "constant": {
+            "n_steps": 4,
+            "builtin_instance_counter": {
+                "pedersen_builtin": 5
+            },
+            "n_memory_holes": 6
+        },
+        "calldata_factor": {
+            "n_steps": 7,
+            "builtin_instance_counter": {
+                "pedersen_builtin": 8
+            },
+            "n_memory_holes": 9
+        }
+    }
+    "#,
+    VariableResourceParams::WithFactor(RawResourcesParams {
+        constant: ExecutionResources {
+            n_steps: 4,
+            builtin_instance_counter: HashMap::from([(BuiltinName::pedersen, 5)]),
+            n_memory_holes: 6,
+        },
+        calldata_factor: VariableCallDataFactor::Unscaled(ExecutionResources {
+            n_steps: 7,
+            builtin_instance_counter: HashMap::from([(BuiltinName::pedersen, 8)]),
+            n_memory_holes: 9,
+        }),
+    })
+)]
+#[case::variable_scaled(
+    r#"
+    {
+        "constant": {
+            "n_steps": 10,
+            "builtin_instance_counter": {
+                "pedersen_builtin": 11
+            },
+            "n_memory_holes": 12
+        },
+        "calldata_factor": {
+            "resources": {
+                "n_steps": 13,
+                "builtin_instance_counter": {
+                    "pedersen_builtin": 14
+                },
+                "n_memory_holes": 15
+            },
+            "scaling_factor": 16
+        }
+    }
+    "#,
+    VariableResourceParams::WithFactor(RawResourcesParams {
+        constant: ExecutionResources {
+            n_steps: 10,
+            builtin_instance_counter: HashMap::from([(BuiltinName::pedersen, 11)]),
+            n_memory_holes: 12,
+        },
+        calldata_factor: VariableCallDataFactor::Scaled(RawCallDataFactor {
+            resources: ExecutionResources {
+                n_steps: 13,
+                builtin_instance_counter: HashMap::from([(BuiltinName::pedersen, 14)]),
+                n_memory_holes: 15,
+            },
+            scaling_factor: 16,
+        }),
+    })
+)]
+fn test_variable_resource_params_deserialize(
+    #[case] json_data: &str,
+    #[case] expected: VariableResourceParams,
+) {
+    assert_eq!(expected, serde_json::from_str(json_data).unwrap());
 }

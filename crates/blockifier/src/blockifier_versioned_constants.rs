@@ -16,11 +16,11 @@ use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{Map, Number, Value};
 use starknet_api::block::{GasPrice, StarknetVersion};
 use starknet_api::contract_class::SierraVersion;
-use starknet_api::core::{ClassHash, ContractAddress};
+use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::define_versioned_constants;
 use starknet_api::executable_transaction::TransactionType;
 use starknet_api::execution_resources::{GasAmount, GasVector};
-use starknet_api::transaction::fields::{GasVectorComputationMode, Tip};
+use starknet_api::transaction::fields::{hex_to_tip, GasVectorComputationMode, Tip};
 use strum::IntoEnumIterator;
 use thiserror::Error;
 
@@ -49,6 +49,122 @@ define_versioned_constants!(
     (V0_13_5, "../resources/blockifier_versioned_constants_0_13_5.json"),
     (V0_14_0, "../resources/blockifier_versioned_constants_0_14_0.json"),
 );
+
+pub type SyscallGasCostsMap = HashMap<SyscallSelector, RawSyscallGasCost>;
+
+/// Representation of the JSON data of versioned constants. Used as an intermediate struct for
+/// serde.
+#[derive(Deserialize, Debug, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct RawVersionedConstants {
+    // Limits.
+    pub tx_event_limits: EventLimits,
+    pub gateway: VersionedConstantsGatewayLimits,
+    pub invoke_tx_max_n_steps: u32,
+    pub validate_max_n_steps: u32,
+    pub max_recursion_depth: usize,
+
+    // Costs.
+    pub deprecated_l2_resource_gas_costs: ArchivalDataGasCosts,
+    pub archival_data_gas_costs: ArchivalDataGasCosts,
+    pub allocation_cost: AllocationCost,
+    pub vm_resource_fee_cost: VmResourceCosts,
+
+    // Feature flags.
+    pub disable_cairo0_redeclaration: bool,
+    pub enable_stateful_compression: bool,
+    pub comprehensive_state_diff: bool,
+    pub ignore_inner_event_resources: bool,
+    pub disable_deploy_in_validation_mode: bool,
+    pub enable_reverts: bool,
+    pub min_sierra_version_for_sierra_gas: SierraVersion,
+    pub enable_tip: bool,
+    pub segment_arena_cells: bool,
+
+    // OS.
+    pub os_constants: RawOsConstants,
+    pub os_resources: RawOsResources,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct RawOsConstants {
+    // Selectors.
+    pub constructor_entry_point_selector: EntryPointSelector,
+    pub default_entry_point_selector: EntryPointSelector,
+    pub execute_entry_point_selector: EntryPointSelector,
+    pub transfer_entry_point_selector: EntryPointSelector,
+    pub validate_declare_entry_point_selector: EntryPointSelector,
+    pub validate_deploy_entry_point_selector: EntryPointSelector,
+    pub validate_entry_point_selector: EntryPointSelector,
+
+    // Entry point type identifiers (in the OS).
+    pub entry_point_type_constructor: u8,
+    pub entry_point_type_external: u8,
+    pub entry_point_type_l1_handler: u8,
+
+    // Validation.
+    pub validate_rounding_consts: ValidateRoundingConsts,
+    pub validated: String,
+
+    // Execution limits.
+    pub execute_max_sierra_gas: GasAmount,
+    pub validate_max_sierra_gas: GasAmount,
+
+    // Error strings.
+    pub error_block_number_out_of_range: String,
+    pub error_invalid_input_len: String,
+    pub error_invalid_argument: String,
+    pub error_out_of_gas: String,
+    pub error_entry_point_failed: String,
+    pub error_entry_point_not_found: String,
+
+    // Resource bounds names.
+    pub l1_gas: String,
+    pub l2_gas: String,
+    pub l1_data_gas: String,
+
+    // Resource bounds indices.
+    pub l1_gas_index: usize,
+    pub l1_data_gas_index: usize,
+    pub l2_gas_index: usize,
+
+    // Costs.
+    pub memory_hole_gas_cost: GasAmount,
+    pub builtin_gas_costs: BuiltinGasCosts,
+    pub step_gas_cost: u64,
+    pub syscall_base_gas_cost: RawStepGasCost,
+    // Deprecated field for computation of syscall gas costs in old blocks.
+    // New VCs set this to null.
+    pub syscall_gas_costs: Option<SyscallGasCostsMap>,
+
+    // Initial costs.
+    pub entry_point_initial_budget: RawStepGasCost,
+    pub default_initial_gas_cost: RawStepGasCost,
+
+    // L1 handler.
+    pub l1_handler_version: u8,
+    pub l1_handler_max_amount_bounds: GasVector,
+
+    // Miscellaneous.
+    pub nop_entry_point_offset: i8,
+    pub os_contract_addresses: OsContractAddresses,
+    pub sierra_array_len_bound: u64,
+    pub stored_block_hash_buffer: u8,
+
+    // Deprecated contract logic support.
+    pub v1_bound_accounts_cairo0: Vec<ClassHash>,
+    pub v1_bound_accounts_cairo1: Vec<ClassHash>,
+    #[serde(deserialize_with = "hex_to_tip")]
+    pub v1_bound_accounts_max_tip: Tip,
+    pub data_gas_accounts: Vec<ClassHash>,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct RawStepGasCost {
+    pub step_gas_cost: GasAmount,
+}
 
 pub type ResourceCost = Ratio<u64>;
 
@@ -100,6 +216,8 @@ fn builtin_map_from_string_map<'de, D: Deserializer<'de>>(
         .ok_or(D::Error::custom("Invalid builtin name"))
 }
 
+// TODO(Dori): Remove deserialization and implement `From<RawVersionedConstants>`.
+//   Any post-deserialization computations can be implemented in the conversion.
 /// Contains constants for the Blockifier that may vary between versions.
 /// Additional constants in the JSON file, not used by Blockifier but included for transparency, are
 /// automatically ignored during deserialization.
@@ -447,6 +565,13 @@ impl CairoNativeStackConfig {
     }
 }
 
+#[derive(Deserialize, Debug, Clone, Default)]
+#[serde(deny_unknown_fields)]
+pub struct VersionedConstantsGatewayLimits {
+    pub max_calldata_length: usize,
+    pub max_contract_bytecode_size: usize,
+}
+
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq)]
 pub struct EventLimits {
     pub max_data_length: usize,
@@ -454,6 +579,7 @@ pub struct EventLimits {
     pub max_n_emitted_events: usize,
 }
 
+// TODO(Dori): Remove `Deserialize` derive here.
 #[derive(Clone, Debug, Default, Deserialize)]
 // Serde trick for adding validations via a customr deserializer, without forgoing the derive.
 // See: https://github.com/serde-rs/serde/issues/1220.
@@ -615,6 +741,7 @@ impl OsResources {
     }
 }
 
+// TODO(Dori): Remove `Deserialize` impl here.
 impl<'de> Deserialize<'de> for OsResources {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -631,6 +758,37 @@ impl<'de> Deserialize<'de> for OsResources {
     }
 }
 
+#[derive(Deserialize, Debug, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct RawOsResources {
+    pub execute_syscalls: HashMap<SyscallSelector, VariableResourceParams>,
+    pub execute_txs_inner: HashMap<TransactionType, VariableResourceParams>,
+    pub compute_os_kzg_commitment_info: ExecutionResources,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(untagged, deny_unknown_fields)]
+pub enum RawSyscallGasCost {
+    Flat(u64),
+    Structured(RawStructuredDeprecatedSyscallGasCost),
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct RawStructuredDeprecatedSyscallGasCost {
+    #[serde(default)]
+    pub step_gas_cost: u64,
+    #[serde(default)]
+    pub range_check: u64,
+    #[serde(default)]
+    pub bitwise: u64,
+    #[serde(default)]
+    pub syscall_base_gas_cost: u64,
+    #[serde(default)]
+    pub memory_hole_gas_cost: u64,
+}
+
+// TODO(Dori): Remove `Deserialize` derive here.
 #[derive(Deserialize, PartialEq, Debug, Clone, Copy, Serialize, Default)]
 pub struct SyscallGasCost {
     base: u64,
@@ -652,6 +810,9 @@ impl SyscallGasCost {
     }
 }
 
+// TODO(Dori): Consider removing this in favor of the HashMap representation of the syscall gas
+//   costs.
+// TODO(Dori): Remove `Deserialize` derive here.
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[derive(Debug, Default, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields, rename_all = "PascalCase")]
@@ -732,6 +893,7 @@ impl SyscallGasCosts {
     }
 }
 
+// TODO(Dori): Remove `Deserialize` derive here.
 #[cfg_attr(any(test, feature = "testing"), derive(Clone, Copy))]
 #[derive(Debug, Default, Deserialize)]
 pub struct BaseGasCosts {
@@ -745,8 +907,8 @@ pub struct BaseGasCosts {
     pub syscall_base_gas_cost: u64,
 }
 
-#[cfg_attr(any(test, feature = "testing"), derive(Clone, Copy))]
-#[derive(Debug, Default, Deserialize)]
+#[cfg_attr(any(test, feature = "testing"), derive(Copy))]
+#[derive(Clone, Debug, Default, Deserialize)]
 pub struct BuiltinGasCosts {
     // Range check has a hard-coded cost higher than its proof percentage to avoid the overhead of
     // retrieving its price from the table.
@@ -787,6 +949,7 @@ impl BuiltinGasCosts {
 }
 
 /// Gas cost constants. For more documentation see in core/os/constants.cairo.
+// TODO(Dori): Remove `Deserialize` derive here.
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[derive(Debug, Default, Deserialize)]
 pub struct GasCosts {
@@ -798,8 +961,7 @@ pub struct GasCosts {
 // Below, serde first deserializes the json into a regular IndexMap wrapped by the newtype
 // `OsConstantsRawJson`, then calls the `try_from` of the newtype, which handles the
 // conversion into actual values.
-// TODO(Dori): consider encoding the * and + operations inside the json file, instead of hardcoded
-// below in the `try_from`.
+// TODO(Dori): Remove `Deserialize` derive here.
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[derive(Debug, Default, Deserialize)]
 #[serde(try_from = "OsConstantsRawJson")]
@@ -856,6 +1018,7 @@ impl OsConstants {
     ];
 }
 
+// TODO(Dori): Convert from `RawOsConstants`.
 impl TryFrom<&OsConstantsRawJson> for GasCosts {
     type Error = OsConstantsSerdeError;
 
@@ -945,6 +1108,7 @@ impl Default for OsContractAddresses {
     }
 }
 
+// TODO(Dori): Consider deleting this, and simply using `RawOsConstants`.
 // Intermediate representation of the JSON file in order to make the deserialization easier, using a
 // regular try_from.
 #[derive(Debug, Deserialize)]
@@ -1188,6 +1352,7 @@ pub enum GasCostsError {
     VirtualBuiltin,
 }
 
+// TODO(Dori): Delete this struct.
 #[derive(Clone, Debug, Deserialize, Serialize, Eq, PartialEq)]
 #[serde(try_from = "CallDataFactorRaw")]
 pub struct CallDataFactor {
@@ -1207,6 +1372,7 @@ impl CallDataFactor {
     }
 }
 
+// TODO(Dori): Consider deleting this, and simply using `VariableResourceParams`.
 #[derive(Clone, Debug, Default, Deserialize)]
 struct CallDataFactorRaw {
     #[serde(flatten)]
@@ -1242,6 +1408,8 @@ impl TryFrom<CallDataFactorRaw> for CallDataFactor {
     }
 }
 
+// TODO(Dori): Consider deleting this, and simply using `VariableResourceParams` and
+//   `RawResourcesParams`.
 #[derive(Clone, Debug, Deserialize)]
 #[serde(try_from = "ResourceParamsRaw")]
 pub struct ResourcesParams {
@@ -1249,6 +1417,7 @@ pub struct ResourcesParams {
     pub calldata_factor: CallDataFactor,
 }
 
+// TODO(Dori): Consider deleting this, and simply using `VariableResourceParams`.
 #[derive(Clone, Debug, Default, Deserialize)]
 struct ResourceParamsRaw {
     #[serde(flatten)]
@@ -1282,6 +1451,50 @@ impl TryFrom<ResourceParamsRaw> for ResourcesParams {
             calldata_factor: serde_json::from_value(calldata_factor)?,
         })
     }
+}
+
+#[cfg_attr(any(test, feature = "testing"), derive(PartialEq))]
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RawResourcesParams {
+    pub constant: ExecutionResources,
+    pub calldata_factor: VariableCallDataFactor,
+}
+// TODO(Dori): Delete this and use `CallDataFactor` once `CallDataFactor` no longer implements
+// `Deserialize`.
+#[derive(Clone, Debug, Deserialize, Serialize, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct RawCallDataFactor {
+    pub resources: ExecutionResources,
+    pub scaling_factor: usize,
+}
+
+impl Default for RawCallDataFactor {
+    fn default() -> Self {
+        Self { resources: ExecutionResources::default(), scaling_factor: 1 }
+    }
+}
+
+#[cfg_attr(any(test, feature = "testing"), derive(PartialEq))]
+#[derive(Deserialize, Debug, Clone)]
+#[serde(untagged, deny_unknown_fields)]
+pub enum VariableCallDataFactor {
+    Scaled(RawCallDataFactor),
+    Unscaled(ExecutionResources),
+}
+
+impl Default for VariableCallDataFactor {
+    fn default() -> Self {
+        Self::Scaled(RawCallDataFactor::default())
+    }
+}
+
+#[cfg_attr(any(test, feature = "testing"), derive(PartialEq))]
+#[derive(Deserialize, Debug, Clone)]
+#[serde(untagged, deny_unknown_fields)]
+pub enum VariableResourceParams {
+    Constant(ExecutionResources),
+    WithFactor(RawResourcesParams),
 }
 
 #[cfg_attr(any(test, feature = "testing"), derive(Copy))]
