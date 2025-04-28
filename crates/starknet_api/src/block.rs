@@ -33,6 +33,8 @@ use crate::StarknetApiError;
 pub const TEMP_ETH_GAS_FEE_IN_WEI: u128 = u128::pow(10, 9); // 1 GWei.
 pub const TEMP_ETH_BLOB_GAS_FEE_IN_WEI: u128 = u128::pow(10, 8); // 0.1 GWei.
 
+pub const ETH_TO_WEI: u128 = u128::pow(10, 18);
+
 /// A block.
 #[derive(Debug, Default, Clone, Eq, PartialEq, Deserialize, Serialize)]
 pub struct Block {
@@ -342,6 +344,23 @@ pub struct GasPricePerToken {
 )]
 #[serde(from = "PrefixedBytesAsHex<16_usize>", into = "PrefixedBytesAsHex<16_usize>")]
 pub struct GasPrice(pub u128);
+
+impl GasPrice {
+    pub fn wei_to_fri(self, eth_to_fri_rate: u128) -> GasPrice {
+        // We use integer division since wei * eth_to_fri_rate is expected to be high enough to not
+        // cause too much precision loss.
+        self.checked_mul_u128(eth_to_fri_rate)
+            .expect("Gas price is too high.")
+            .checked_div(ETH_TO_WEI)
+            .expect("ETH to FRI rate must be non-zero")
+    }
+    pub fn fri_to_wei(self, eth_to_fri_rate: u128) -> GasPrice {
+        self.checked_mul_u128(ETH_TO_WEI)
+            .expect("Gas price is too high")
+            .checked_div(eth_to_fri_rate)
+            .expect("FRI to ETH rate must be non-zero")
+    }
+}
 
 macro_rules! impl_from_uint_for_gas_price {
     ($($uint:ty),*) => {
