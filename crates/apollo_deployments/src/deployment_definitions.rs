@@ -135,6 +135,7 @@ type DeploymentFn = fn() -> Deployment;
 
 pub const DEPLOYMENTS: &[DeploymentFn] = &[
     system_test_distributed_deployment,
+    system_test_hybrid_deployment_node,
     system_test_consolidated_deployment,
     integration_hybrid_deployment_node_0,
     integration_hybrid_deployment_node_1,
@@ -199,6 +200,18 @@ fn system_test_distributed_deployment() -> Deployment {
         DeploymentName::DistributedNode,
         Environment::Testing,
         "deployment_test_distributed",
+        None,
+        PathBuf::from(SYSTEM_TEST_BASE_APP_CONFIG_PATH),
+        TESTING_CONFIG_OVERRIDE,
+    )
+}
+
+fn system_test_hybrid_deployment_node() -> Deployment {
+    Deployment::new(
+        ChainId::IntegrationSepolia,
+        DeploymentName::HybridNode,
+        Environment::Testing,
+        "deployment_test_hybrid_node",
         None,
         PathBuf::from(SYSTEM_TEST_BASE_APP_CONFIG_PATH),
         TESTING_CONFIG_OVERRIDE,
