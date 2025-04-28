@@ -153,6 +153,7 @@ fn integration_hybrid_deployment_node_0() -> Deployment {
         Some(ExternalSecret::new("node-0-integration-secrets")),
         PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH),
         SEPOLIA_INTEGRATION_NODE_0_CONFIG_OVERRIDE,
+        Some(vec!["sn-test-sepolia-2-sepolia.gateway-proxy.sw-dev.io".into()]),
     )
 }
 
@@ -165,6 +166,7 @@ fn integration_hybrid_deployment_node_1() -> Deployment {
         Some(ExternalSecret::new("node-1-integration-secrets")),
         PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH),
         SEPOLIA_INTEGRATION_NODE_1_CONFIG_OVERRIDE,
+        Some(vec!["sn-test-sepolia-2-sepolia.gateway-proxy.sw-dev.io".into()]),
     )
 }
 
@@ -177,6 +179,7 @@ fn integration_hybrid_deployment_node_2() -> Deployment {
         Some(ExternalSecret::new("node-2-integration-secrets")),
         PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH),
         SEPOLIA_INTEGRATION_NODE_2_CONFIG_OVERRIDE,
+        Some(vec!["sn-test-sepolia-2-sepolia.gateway-proxy.sw-dev.io".into()]),
     )
 }
 
@@ -189,6 +192,7 @@ fn integration_hybrid_deployment_node_3() -> Deployment {
         Some(ExternalSecret::new("node-3-integration-secrets")),
         PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH),
         SEPOLIA_INTEGRATION_NODE_3_CONFIG_OVERRIDE,
+        Some(vec!["sn-test-sepolia-2-sepolia.gateway-proxy.sw-dev.io".into()]),
     )
 }
 
@@ -202,6 +206,7 @@ fn system_test_distributed_deployment() -> Deployment {
         None,
         PathBuf::from(SYSTEM_TEST_BASE_APP_CONFIG_PATH),
         TESTING_CONFIG_OVERRIDE,
+        None,
     )
 }
 
@@ -214,6 +219,7 @@ fn system_test_consolidated_deployment() -> Deployment {
         None,
         PathBuf::from(SYSTEM_TEST_BASE_APP_CONFIG_PATH),
         TESTING_CONFIG_OVERRIDE,
+        None,
     )
 }
 
