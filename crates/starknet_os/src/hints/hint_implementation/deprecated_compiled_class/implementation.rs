@@ -1,6 +1,6 @@
 use std::any::Any;
 use std::collections::hash_map::IntoIter;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_from_var_name;
@@ -25,11 +25,6 @@ pub(crate) fn load_deprecated_class_facts<S: StateReader>(
     HintArgs { hint_processor, vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let deprecated_compiled_classes = &hint_processor.deprecated_compiled_classes;
-    // TODO(Rotem): see if we can avoid cloning here.
-    let deprecated_class_hashes: HashSet<ClassHash> =
-        HashSet::from_iter(deprecated_compiled_classes.keys().cloned());
-    exec_scopes.insert_value(Scope::DeprecatedClassHashes.into(), deprecated_class_hashes);
-
     insert_value_from_var_name(
         Ids::NCompiledClassFacts.into(),
         deprecated_compiled_classes.len(),
