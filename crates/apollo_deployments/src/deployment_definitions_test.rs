@@ -38,13 +38,17 @@ fn load_and_process_base_application_config_files_schema() {
     for deployment_fn in DEPLOYMENTS {
         let deployment = deployment_fn();
         // TODO(Tsabary): "--config_file" should be a constant.
-        let load_result = SequencerNodeConfig::load_and_process(vec![
-            "command_name_placeholder".to_string(),
-            "--config_file".to_string(),
-            deployment.get_base_app_config_file_path().to_string_lossy().to_string(),
-        ]);
-        println!("{:?}", load_result);
-        assert!(load_result.is_ok());
+        for service_config_paths in deployment.get_config_file_paths().into_iter() {
+            let config_file_args: Vec<String> = service_config_paths
+                .into_iter()
+                .flat_map(|path| vec!["--config_file".to_string(), path])
+                .collect();
+
+            let mut new_vec: Vec<String> = vec!["command_name_placeholder".to_string()];
+            new_vec.extend(config_file_args);
+            let load_result = SequencerNodeConfig::load_and_process(new_vec);
+            assert!(load_result.is_ok());
+        }
     }
 }
 

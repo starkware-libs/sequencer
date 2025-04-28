@@ -120,6 +120,19 @@ impl Deployment {
         }
     }
 
+    pub fn get_config_file_paths(&self) -> Vec<Vec<String>> {
+        self.services
+            .iter()
+            .map(|service| {
+                service
+                    .get_config_paths()
+                    .into_iter()
+                    .map(|s| format!("{}{}", self.application_config_subdir.to_string_lossy(), s))
+                    .collect::<Vec<_>>()
+            })
+            .collect()
+    }
+
     pub fn deployment_file_path(&self) -> PathBuf {
         PathBuf::from(CONFIG_BASE_DIR)
             .join(self.environment.to_string())
