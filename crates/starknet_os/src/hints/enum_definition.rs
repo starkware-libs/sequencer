@@ -649,8 +649,8 @@ vm_enter_scope(dict(
         GuessContractAddrStoragePtr,
         guess_contract_addr_storage_ptr,
         r#"if state_update_pointers is None:
-    ids.squashed_storage_ptr = segments.add()
     ids.squashed_prev_state = segments.add()
+    ids.squashed_storage_ptr = segments.add()
 else:
     ids.squashed_prev_state, ids.squashed_storage_ptr = (
         state_update_pointers.get_contract_state_entry_and_storage_ptr(
@@ -673,8 +673,8 @@ else:
         GuessAliasesContractStoragePtr,
         guess_aliases_contract_storage_ptr,
         r#"if state_update_pointers is None:
-    ids.squashed_aliases_storage_start = segments.add()
     ids.prev_aliases_state_entry = segments.add()
+    ids.squashed_aliases_storage_start = segments.add()
 else:
     ids.prev_aliases_state_entry, ids.squashed_aliases_storage_start = (
         state_update_pointers.get_contract_state_entry_and_storage_ptr(
