@@ -25,6 +25,7 @@ members = [
   "crates/apollo_infra",
   "crates/apollo_infra_utils",
   "crates/apollo_integration_tests",
+  "crates/apollo_l1_endpoint_health_monitor",
   "crates/apollo_l1_gas_price",
   "crates/apollo_l1_gas_price_types",
   "crates/apollo_l1_provider",
