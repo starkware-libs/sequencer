@@ -14,6 +14,23 @@ use crate::sqmr::{Bytes, InboundSessionId, OutboundSessionId, SessionId};
 
 pub type Event = SwarmEvent<<mixed_behaviour::MixedBehaviour as NetworkBehaviour>::ToSwarm>;
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum PeerEvaluation {
+    WasReported,
+    Malicious,
+    Custom(f64),
+}
+
+impl PeerEvaluation {
+    pub fn get_misconduct_score(&self) -> f64 {
+        match &self {
+            PeerEvaluation::WasReported => MALICIOUS,
+            PeerEvaluation::Malicious => MALICIOUS,
+            PeerEvaluation::Custom(x) => *x,
+        }
+    }
+}
+
 pub trait SwarmTrait: Stream<Item = Event> + Unpin {
     fn send_response(
         &mut self,
@@ -44,7 +61,7 @@ pub trait SwarmTrait: Stream<Item = Event> + Unpin {
     fn broadcast_message(&mut self, message: Bytes, topic_hash: TopicHash);
 
     // TODO(Shahak): change this to report_peer and add an argument for the score.
-    fn report_peer_as_malicious(&mut self, peer_id: PeerId);
+    fn report_peer_evaluation(&mut self, peer_id: PeerId, evaluation: PeerEvaluation);
 
     fn add_new_supported_inbound_protocol(&mut self, protocol_name: StreamProtocol);
 
@@ -110,11 +127,12 @@ impl SwarmTrait for Swarm<mixed_behaviour::MixedBehaviour> {
         }
     }
 
-    fn report_peer_as_malicious(&mut self, peer_id: PeerId) {
+    fn report_peer_evaluation(&mut self, peer_id: PeerId, evaluation: PeerEvaluation) {
+        let misconduct_score = evaluation.get_misconduct_score();
         let _ = self
             .behaviour_mut()
             .peer_manager
-            .report_peer(peer_id, ReputationModifier::Misconduct { misconduct_score: MALICIOUS });
+            .report_peer(peer_id, ReputationModifier::Misconduct { misconduct_score });
     }
 
     fn add_new_supported_inbound_protocol(&mut self, protocol: StreamProtocol) {

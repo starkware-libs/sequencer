@@ -20,7 +20,7 @@ use tokio::select;
 use tokio::sync::Mutex;
 use tokio::time::sleep;
 
-use super::swarm_trait::{Event, SwarmTrait};
+use super::swarm_trait::{Event, PeerEvaluation, SwarmTrait};
 use super::{BroadcastTopicChannels, GenericNetworkManager};
 use crate::gossipsub_impl::{self, Topic};
 use crate::mixed_behaviour;
@@ -178,7 +178,7 @@ impl SwarmTrait for MockSwarm {
         }
     }
 
-    fn report_peer_as_malicious(&mut self, peer_id: PeerId) {
+    fn report_peer_evaluation(&mut self, peer_id: PeerId, _: PeerEvaluation) {
         for sender in &self.reported_peer_senders {
             sender.unbounded_send(peer_id).unwrap();
         }

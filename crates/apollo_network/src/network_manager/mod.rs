@@ -24,6 +24,7 @@ use libp2p::swarm::SwarmEvent;
 use libp2p::{noise, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder};
 use metrics::NetworkMetrics;
 use sqmr::Bytes;
+use swarm_trait::PeerEvaluation;
 use tracing::{debug, error, trace, warn};
 
 use self::swarm_trait::SwarmTrait;
@@ -84,8 +85,8 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                         topic_hash,
                     );
                 }
-                Some(Some(peer_id)) = self.reported_peer_receivers.next() => self.swarm.report_peer_as_malicious(peer_id),
-                Some(peer_id) = self.reported_peers_receiver.next() => self.swarm.report_peer_as_malicious(peer_id),
+                Some(Some(peer_id)) = self.reported_peer_receivers.next() => self.swarm.report_peer_evaluation(peer_id, PeerEvaluation::WasReported),
+                Some(peer_id) = self.reported_peers_receiver.next() => self.swarm.report_peer_evaluation(peer_id, PeerEvaluation::WasReported),
                 Some(broadcasted_message_metadata) = self.continue_propagation_receiver.next() => {
                     self.swarm.continue_propagation(broadcasted_message_metadata);
                 }
