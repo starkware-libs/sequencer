@@ -5,28 +5,28 @@
         "title": "batcher_proposal_started",
         "description": "Counter of proposals started",
         "type": "stat",
-        "expr": "batcher_proposal_started",
+        "expr": "batcher_proposal_started{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "batcher_proposal_succeeded",
         "description": "Counter of successful proposals",
         "type": "stat",
-        "expr": "batcher_proposal_succeeded",
+        "expr": "batcher_proposal_succeeded{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "batcher_proposal_failed",
         "description": "Counter of failed proposals",
         "type": "stat",
-        "expr": "batcher_proposal_failed",
+        "expr": "batcher_proposal_failed{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "batcher_batched_transactions",
         "description": "Counter of batched transactions across all forks",
         "type": "stat",
-        "expr": "batcher_batched_transactions",
+        "expr": "batcher_batched_transactions{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       }
     ],
@@ -35,182 +35,182 @@
         "title": "consensus_block_number",
         "description": "The block number consensus is working to decide",
         "type": "stat",
-        "expr": "consensus_block_number",
+        "expr": "consensus_block_number{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "consensus_round",
         "description": "The round of the state machine",
         "type": "stat",
-        "expr": "consensus_round",
+        "expr": "consensus_round{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "consensus_max_cached_block_number",
         "description": "How many blocks after current are cached",
         "type": "stat",
-        "expr": "consensus_max_cached_block_number",
+        "expr": "consensus_max_cached_block_number{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "consensus_cached_votes",
         "description": "How many votes are cached when starting to work on a new block number",
         "type": "stat",
-        "expr": "consensus_cached_votes",
+        "expr": "consensus_cached_votes{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "consensus_decisions_reached_by_consensus",
         "description": "The total number of decisions reached by way of consensus",
         "type": "stat",
-        "expr": "consensus_decisions_reached_by_consensus",
+        "expr": "consensus_decisions_reached_by_consensus{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "consensus_decisions_reached_by_sync",
         "description": "The total number of decisions reached by way of sync",
         "type": "stat",
-        "expr": "consensus_decisions_reached_by_sync",
+        "expr": "consensus_decisions_reached_by_sync{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "consensus_proposals_received",
         "description": "The total number of proposals received",
         "type": "stat",
-        "expr": "consensus_proposals_received",
+        "expr": "consensus_proposals_received{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "consensus_proposals_valid_init",
         "description": "The total number of proposals received with a valid init",
         "type": "stat",
-        "expr": "consensus_proposals_valid_init",
+        "expr": "consensus_proposals_valid_init{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "consensus_proposals_validated",
         "description": "The total number of complete, valid proposals received",
         "type": "stat",
-        "expr": "consensus_proposals_validated",
+        "expr": "consensus_proposals_validated{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "consensus_proposals_invalid",
         "description": "The total number of proposals that failed validation",
         "type": "stat",
-        "expr": "consensus_proposals_invalid",
+        "expr": "consensus_proposals_invalid{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "consensus_build_proposal_total",
         "description": "The total number of proposals built",
         "type": "stat",
-        "expr": "consensus_build_proposal_total",
+        "expr": "consensus_build_proposal_total{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "consensus_build_proposal_failed",
         "description": "The number of proposals that failed to be built",
         "type": "stat",
-        "expr": "consensus_build_proposal_failed",
+        "expr": "consensus_build_proposal_failed{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "consensus_reproposals",
         "description": "The number of reproposals sent",
         "type": "stat",
-        "expr": "consensus_reproposals",
+        "expr": "consensus_reproposals{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "consensus_new_value_locks",
         "description": "The number of times consensus has attained a lock on a new value",
         "type": "stat",
-        "expr": "consensus_new_value_locks",
+        "expr": "consensus_new_value_locks{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "consensus_held_locks",
         "description": "The number of times consensus progressed to a new round while holding a lock",
         "type": "stat",
-        "expr": "consensus_held_locks",
+        "expr": "consensus_held_locks{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "consensus_timeouts",
         "description": "The number of times consensus has timed out",
         "type": "stat",
-        "expr": "sum  by (timeout_reason) (consensus_timeouts)",
+        "expr": "sum  by (timeout_reason) (consensus_timeouts{cluster=~\".*\", namespace=~\".*\"})",
         "extra_params": {}
       },
       {
         "title": "consensus_num_batches_in_proposal",
         "description": "The number of transaction batches in a valid proposal received",
         "type": "stat",
-        "expr": "consensus_num_batches_in_proposal",
+        "expr": "consensus_num_batches_in_proposal{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "consensus_num_txs_in_proposal",
         "description": "The total number of individual transactions in a valid proposal received",
         "type": "stat",
-        "expr": "consensus_num_txs_in_proposal",
+        "expr": "consensus_num_txs_in_proposal{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "consensus_l2_gas_price",
         "description": "The L2 gas price calculated in an accepted proposal",
         "type": "stat",
-        "expr": "consensus_l2_gas_price",
+        "expr": "consensus_l2_gas_price{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "cende_last_prepared_blob_block_number",
         "description": "The blob block number that cende knows. That means the sequencer can be the proposer only if the current height is greater by one than this value.",
         "type": "stat",
-        "expr": "cende_last_prepared_blob_block_number",
+        "expr": "cende_last_prepared_blob_block_number{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "cende_prepare_blob_for_next_height_latency",
         "description": "The time it takes to prepare the blob for the next height, i.e create the blob object.",
         "type": "stat",
-        "expr": "avg_over_time(cende_prepare_blob_for_next_height_latency[2m])",
+        "expr": "avg_over_time(cende_prepare_blob_for_next_height_latency{cluster=~\".*\", namespace=~\".*\"}[2m])",
         "extra_params": {}
       },
       {
         "title": "cende_write_prev_height_blob_latency",
-        "description": "Be careful with this metric, if the blob was already written by another request, the latency is much lower since wirting to Aerospike is not needed.",
+        "description": "Be careful with this metric, if the blob was already written by another request, the latency is much lower since writing to Aerospike is not needed.",
         "type": "stat",
-        "expr": "avg_over_time(cende_write_prev_height_blob_latency[2m])",
+        "expr": "avg_over_time(cende_write_prev_height_blob_latency{cluster=~\".*\", namespace=~\".*\"}[2m])",
         "extra_params": {}
       },
       {
         "title": "cende_write_blob_success",
         "description": "The number of successful blob writes to Aerospike",
         "type": "graph",
-        "expr": "cende_write_blob_success",
+        "expr": "cende_write_blob_success{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "cende_write_blob_failure",
         "description": "The number of failed blob writes to Aerospike",
         "type": "stat",
-        "expr": "sum  by (cende_write_failure_reason) (cende_write_blob_failure)",
+        "expr": "sum  by (cende_write_failure_reason) (cende_write_blob_failure{cluster=~\".*\", namespace=~\".*\"})",
         "extra_params": {}
       },
       {
         "title": "consensus_l1_data_gas_mismatch",
         "description": "The number of times the L1 data gas in a proposal does not match the value expected by this validator",
         "type": "stat",
-        "expr": "consensus_l1_data_gas_mismatch",
+        "expr": "consensus_l1_data_gas_mismatch{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "consensus_l1_gas_mismatch",
         "description": "The number of times the L1 gas in a proposal does not match the value expected by this validator",
         "type": "stat",
-        "expr": "consensus_l1_gas_mismatch",
+        "expr": "consensus_l1_gas_mismatch{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       }
     ],
@@ -219,7 +219,7 @@
         "title": "http_server_added_transactions_total",
         "description": "Total number of transactions added",
         "type": "stat",
-        "expr": "http_server_added_transactions_total",
+        "expr": "http_server_added_transactions_total{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       }
     ],
@@ -228,14 +228,14 @@
         "title": "apollo_state_sync_processed_transactions",
         "description": "The number of transactions processed by the state sync component",
         "type": "stat",
-        "expr": "apollo_state_sync_processed_transactions",
+        "expr": "apollo_state_sync_processed_transactions{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "apollo_state_sync_reverted_transactions",
         "description": "The number of transactions reverted by the state sync component",
         "type": "stat",
-        "expr": "apollo_state_sync_reverted_transactions",
+        "expr": "apollo_state_sync_reverted_transactions{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       }
     ],
@@ -244,28 +244,28 @@
         "title": "apollo_mempool_p2p_num_connected_peers",
         "description": "The number of connected peers to the mempool p2p component",
         "type": "stat",
-        "expr": "apollo_mempool_p2p_num_connected_peers",
+        "expr": "apollo_mempool_p2p_num_connected_peers{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "apollo_mempool_p2p_num_sent_messages",
         "description": "The number of messages sent by the mempool p2p component",
         "type": "stat",
-        "expr": "apollo_mempool_p2p_num_sent_messages",
+        "expr": "apollo_mempool_p2p_num_sent_messages{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "apollo_mempool_p2p_num_received_messages",
         "description": "The number of messages received by the mempool p2p component",
         "type": "stat",
-        "expr": "apollo_mempool_p2p_num_received_messages",
+        "expr": "apollo_mempool_p2p_num_received_messages{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "apollo_mempool_p2p_broadcasted_transaction_batch_size",
         "description": "The number of transactions in batches broadcast by the mempool p2p component",
         "type": "stat",
-        "expr": "apollo_mempool_p2p_broadcasted_transaction_batch_size",
+        "expr": "apollo_mempool_p2p_broadcasted_transaction_batch_size{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       }
     ],
@@ -274,35 +274,35 @@
         "title": "apollo_consensus_num_connected_peers",
         "description": "The number of connected peers to the consensus p2p component",
         "type": "stat",
-        "expr": "apollo_consensus_num_connected_peers",
+        "expr": "apollo_consensus_num_connected_peers{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "apollo_consensus_votes_num_sent_messages",
         "description": "The number of messages sent by the consensus p2p component over the Votes topic",
         "type": "stat",
-        "expr": "apollo_consensus_votes_num_sent_messages",
+        "expr": "apollo_consensus_votes_num_sent_messages{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "apollo_consensus_votes_num_received_messages",
         "description": "The number of messages received by the consensus p2p component over the Votes topic",
         "type": "stat",
-        "expr": "apollo_consensus_votes_num_received_messages",
+        "expr": "apollo_consensus_votes_num_received_messages{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "apollo_consensus_proposals_num_sent_messages",
         "description": "The number of messages sent by the consensus p2p component over the Proposals topic",
         "type": "stat",
-        "expr": "apollo_consensus_proposals_num_sent_messages",
+        "expr": "apollo_consensus_proposals_num_sent_messages{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "apollo_consensus_proposals_num_received_messages",
         "description": "The number of messages received by the consensus p2p component over the Proposals topic",
         "type": "stat",
-        "expr": "apollo_consensus_proposals_num_received_messages",
+        "expr": "apollo_consensus_proposals_num_received_messages{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       }
     ],
@@ -311,21 +311,21 @@
         "title": "apollo_p2p_sync_num_connected_peers",
         "description": "The number of connected peers to the p2p sync component",
         "type": "stat",
-        "expr": "apollo_p2p_sync_num_connected_peers",
+        "expr": "apollo_p2p_sync_num_connected_peers{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "apollo_p2p_sync_num_active_inbound_sessions",
         "description": "The number of inbound sessions to the p2p sync component",
         "type": "stat",
-        "expr": "apollo_p2p_sync_num_active_inbound_sessions",
+        "expr": "apollo_p2p_sync_num_active_inbound_sessions{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "apollo_p2p_sync_num_active_outbound_sessions",
         "description": "The number of outbound sessions to the p2p sync component",
         "type": "stat",
-        "expr": "apollo_p2p_sync_num_active_outbound_sessions",
+        "expr": "apollo_p2p_sync_num_active_outbound_sessions{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       }
     ],
@@ -334,49 +334,49 @@
         "title": "gateway_transactions_received",
         "description": "Counter of transactions received",
         "type": "stat",
-        "expr": "sum  by (tx_type) (gateway_transactions_received) ",
+        "expr": "sum  by (tx_type) (gateway_transactions_received{cluster=~\".*\", namespace=~\".*\"}) ",
         "extra_params": {}
       },
       {
         "title": "gateway_transactions_received",
         "description": "Counter of transactions received",
         "type": "stat",
-        "expr": "sum  by (source) (gateway_transactions_received) ",
+        "expr": "sum  by (source) (gateway_transactions_received{cluster=~\".*\", namespace=~\".*\"}) ",
         "extra_params": {}
       },
       {
         "title": "gateway_transactions_received_rate (TPS)",
         "description": "The rate of transactions received by the gateway during the last 20 minutes",
         "type": "graph",
-        "expr": "sum(rate(gateway_transactions_received[20m])) or vector(0)",
+        "expr": "sum(rate(gateway_transactions_received{cluster=~\".*\", namespace=~\".*\"}[20m])) or vector(0)",
         "extra_params": {}
       },
       {
         "title": "gateway_add_tx_latency",
         "description": "Latency of gateway add_tx function in secs",
         "type": "graph",
-        "expr": "avg_over_time(gateway_add_tx_latency[2m])",
+        "expr": "avg_over_time(gateway_add_tx_latency{cluster=~\".*\", namespace=~\".*\"}[2m])",
         "extra_params": {}
       },
       {
         "title": "gateway_validate_tx_latency",
         "description": "Latency of gateway validate function in secs",
         "type": "graph",
-        "expr": "avg_over_time(gateway_validate_tx_latency[2m])",
+        "expr": "avg_over_time(gateway_validate_tx_latency{cluster=~\".*\", namespace=~\".*\"}[2m])",
         "extra_params": {}
       },
       {
         "title": "gateway_transactions_failed",
         "description": "Counter of failed transactions",
         "type": "stat",
-        "expr": "sum  by (tx_type) (gateway_transactions_failed)",
+        "expr": "sum  by (tx_type) (gateway_transactions_failed{cluster=~\".*\", namespace=~\".*\"})",
         "extra_params": {}
       },
       {
         "title": "gateway_transactions_sent_to_mempool",
         "description": "Counter of transactions sent to the mempool",
         "type": "stat",
-        "expr": "sum  by (tx_type) (gateway_transactions_sent_to_mempool)",
+        "expr": "sum  by (tx_type) (gateway_transactions_sent_to_mempool{cluster=~\".*\", namespace=~\".*\"})",
         "extra_params": {}
       }
     ],
@@ -392,70 +392,70 @@
         "title": "mempool_transactions_received_rate (TPS)",
         "description": "The rate of transactions received by the mempool during the last 20 minutes",
         "type": "graph",
-        "expr": "sum(rate(mempool_transactions_received[20m])) or vector(0)",
+        "expr": "sum(rate(mempool_transactions_received{cluster=~\".*\", namespace=~\".*\"}[20m])) or vector(0)",
         "extra_params": {}
       },
       {
         "title": "mempool_transactions_dropped",
         "description": "Counter of transactions dropped from the mempool",
         "type": "stat",
-        "expr": "sum  by (drop_reason) (mempool_transactions_dropped)",
+        "expr": "sum  by (drop_reason) (mempool_transactions_dropped{cluster=~\".*\", namespace=~\".*\"})",
         "extra_params": {}
       },
       {
         "title": "mempool_txs_committed",
         "description": "The number of transactions that were committed to block",
         "type": "stat",
-        "expr": "mempool_txs_committed",
+        "expr": "mempool_txs_committed{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "mempool_pool_size",
         "description": "The average size of the pool",
         "type": "graph",
-        "expr": "avg_over_time(mempool_pool_size[2m])",
+        "expr": "avg_over_time(mempool_pool_size{cluster=~\".*\", namespace=~\".*\"}[2m])",
         "extra_params": {}
       },
       {
         "title": "mempool_priority_queue_size",
         "description": "The average size of the priority queue",
         "type": "graph",
-        "expr": "avg_over_time(mempool_priority_queue_size[2m])",
+        "expr": "avg_over_time(mempool_priority_queue_size{cluster=~\".*\", namespace=~\".*\"}[2m])",
         "extra_params": {}
       },
       {
         "title": "mempool_pending_queue_size",
         "description": "The average size of the pending queue",
         "type": "graph",
-        "expr": "avg_over_time(mempool_pending_queue_size[2m])",
+        "expr": "avg_over_time(mempool_pending_queue_size{cluster=~\".*\", namespace=~\".*\"}[2m])",
         "extra_params": {}
       },
       {
         "title": "mempool_total_size_bytes",
         "description": "The average total transaction size in bytes over time in the mempool",
         "type": "graph",
-        "expr": "avg_over_time(mempool_total_size_bytes[2m])",
+        "expr": "avg_over_time(mempool_total_size_bytes{cluster=~\".*\", namespace=~\".*\"}[2m])",
         "extra_params": {}
       },
       {
         "title": "mempool_get_txs_size",
         "description": "The average size of the get_txs",
         "type": "graph",
-        "expr": "avg_over_time(mempool_get_txs_size[2m])",
+        "expr": "avg_over_time(mempool_get_txs_size{cluster=~\".*\", namespace=~\".*\"}[2m])",
         "extra_params": {}
       },
       {
         "title": "mempool_delayed_declare_size",
         "description": "The average number of delayed declare transactions",
         "type": "graph",
-        "expr": "avg_over_time(mempool_delayed_declare_size[2m])",
+        "expr": "avg_over_time(mempool_delayed_declare_size{cluster=~\".*\", namespace=~\".*\"}[2m])",
         "extra_params": {}
       },
       {
         "title": "mempool_transaction_time_spent",
         "description": "The time (secs) that a transaction spent in the mempool",
         "type": "graph",
-        "expr": "avg_over_time(mempool_transaction_time_spent[2m])",
+        "expr": "avg_over_time(mempool_transaction_time_spent{cluster=~\".*\", namespace=~\".*\"}[2m])",
         "extra_params": {}
       }
     ],
@@ -480,42 +480,42 @@
         "title": "batcher_local_msgs_received",
         "description": "Counter of messages received by batcher local server",
         "type": "stat",
-        "expr": "batcher_local_msgs_received",
+        "expr": "batcher_local_msgs_received{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "batcher_local_msgs_processed",
         "description": "Counter of messages processed by batcher local server",
         "type": "stat",
-        "expr": "batcher_local_msgs_processed",
+        "expr": "batcher_local_msgs_processed{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "batcher_local_queue_depth",
         "description": "The depth of the batcher's local message queue",
         "type": "stat",
-        "expr": "batcher_local_queue_depth",
+        "expr": "batcher_local_queue_depth{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "batcher_remote_msgs_received",
         "description": "Counter of messages received by batcher remote server",
         "type": "stat",
-        "expr": "batcher_remote_msgs_received",
+        "expr": "batcher_remote_msgs_received{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "batcher_remote_valid_msgs_received",
         "description": "Counter of valid messages received by batcher remote server",
         "type": "stat",
-        "expr": "batcher_remote_valid_msgs_received",
+        "expr": "batcher_remote_valid_msgs_received{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "batcher_remote_msgs_processed",
         "description": "Counter of messages processed by batcher remote server",
         "type": "stat",
-        "expr": "batcher_remote_msgs_processed",
+        "expr": "batcher_remote_msgs_processed{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       }
     ],
@@ -524,42 +524,42 @@
         "title": "gateway_local_msgs_received",
         "description": "Counter of messages received by gateway local server",
         "type": "stat",
-        "expr": "gateway_local_msgs_received",
+        "expr": "gateway_local_msgs_received{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "gateway_local_msgs_processed",
         "description": "Counter of messages processed by gateway local server",
         "type": "stat",
-        "expr": "gateway_local_msgs_processed",
+        "expr": "gateway_local_msgs_processed{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "gateway_local_queue_depth",
         "description": "The depth of the gateway's local message queue",
         "type": "stat",
-        "expr": "gateway_local_queue_depth",
+        "expr": "gateway_local_queue_depth{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "gateway_remote_msgs_received",
         "description": "Counter of messages received by gateway remote server",
         "type": "stat",
-        "expr": "gateway_remote_msgs_received",
+        "expr": "gateway_remote_msgs_received{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "gateway_remote_valid_msgs_received",
         "description": "Counter of valid messages received by gateway remote server",
         "type": "stat",
-        "expr": "gateway_remote_valid_msgs_received",
+        "expr": "gateway_remote_valid_msgs_received{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "gateway_remote_msgs_processed",
         "description": "Counter of messages processed by gateway remote server",
         "type": "stat",
-        "expr": "gateway_remote_msgs_processed",
+        "expr": "gateway_remote_msgs_processed{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       }
     ],
@@ -568,42 +568,42 @@
         "title": "class_manager_local_msgs_received",
         "description": "Counter of messages received by class manager local server",
         "type": "stat",
-        "expr": "class_manager_local_msgs_received",
+        "expr": "class_manager_local_msgs_received{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "class_manager_local_msgs_processed",
         "description": "Counter of messages processed by class manager local server",
         "type": "stat",
-        "expr": "class_manager_local_msgs_processed",
+        "expr": "class_manager_local_msgs_processed{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "class_manager_local_queue_depth",
         "description": "The depth of the class manager's local message queue",
         "type": "stat",
-        "expr": "class_manager_local_queue_depth",
+        "expr": "class_manager_local_queue_depth{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "class_manager_remote_msgs_received",
         "description": "Counter of messages received by class manager remote server",
         "type": "stat",
-        "expr": "class_manager_remote_msgs_received",
+        "expr": "class_manager_remote_msgs_received{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "class_manager_remote_valid_msgs_received",
         "description": "Counter of valid messages received by class manager remote server",
         "type": "stat",
-        "expr": "class_manager_remote_valid_msgs_received",
+        "expr": "class_manager_remote_valid_msgs_received{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "class_manager_remote_msgs_processed",
         "description": "Counter of messages processed by class manager remote server",
         "type": "stat",
-        "expr": "class_manager_remote_msgs_processed",
+        "expr": "class_manager_remote_msgs_processed{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       }
     ],
@@ -612,42 +612,42 @@
         "title": "l1_provider_local_msgs_received",
         "description": "Counter of messages received by L1 provider local server",
         "type": "stat",
-        "expr": "l1_provider_local_msgs_received",
+        "expr": "l1_provider_local_msgs_received{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "l1_provider_local_msgs_processed",
         "description": "Counter of messages processed by L1 provider local server",
         "type": "stat",
-        "expr": "l1_provider_local_msgs_processed",
+        "expr": "l1_provider_local_msgs_processed{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "l1_provider_local_queue_depth",
         "description": "The depth of the L1 provider's local message queue",
         "type": "stat",
-        "expr": "l1_provider_local_queue_depth",
+        "expr": "l1_provider_local_queue_depth{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "l1_provider_remote_msgs_received",
         "description": "Counter of messages received by L1 provider remote server",
         "type": "stat",
-        "expr": "l1_provider_remote_msgs_received",
+        "expr": "l1_provider_remote_msgs_received{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "l1_provider_remote_valid_msgs_received",
         "description": "Counter of valid messages received by L1 provider remote server",
         "type": "stat",
-        "expr": "l1_provider_remote_valid_msgs_received",
+        "expr": "l1_provider_remote_valid_msgs_received{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "l1_provider_remote_msgs_processed",
         "description": "Counter of messages processed by L1 provider remote server",
         "type": "stat",
-        "expr": "l1_provider_remote_msgs_processed",
+        "expr": "l1_provider_remote_msgs_processed{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       }
     ],
@@ -656,42 +656,42 @@
         "title": "l1_gas_price_provider_local_msgs_received",
         "description": "Counter of messages received by L1 gas price provider local server",
         "type": "stat",
-        "expr": "l1_gas_price_provider_local_msgs_received",
+        "expr": "l1_gas_price_provider_local_msgs_received{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "l1_gas_price_provider_local_msgs_processed",
         "description": "Counter of messages processed by L1 gas price provider local server",
         "type": "stat",
-        "expr": "l1_gas_price_provider_local_msgs_processed",
+        "expr": "l1_gas_price_provider_local_msgs_processed{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "l1_gas_price_provider_local_queue_depth",
         "description": "The depth of the L1 gas price provider's local message queue",
         "type": "stat",
-        "expr": "l1_gas_price_provider_local_queue_depth",
+        "expr": "l1_gas_price_provider_local_queue_depth{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "l1_gas_price_provider_remote_msgs_received",
         "description": "Counter of messages received by L1 gas price provider remote server",
         "type": "stat",
-        "expr": "l1_gas_price_provider_remote_msgs_received",
+        "expr": "l1_gas_price_provider_remote_msgs_received{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "l1_gas_price_provider_remote_valid_msgs_received",
         "description": "Counter of valid messages received by L1 gas price provider remote server",
         "type": "stat",
-        "expr": "l1_gas_price_provider_remote_valid_msgs_received",
+        "expr": "l1_gas_price_provider_remote_valid_msgs_received{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "l1_gas_price_provider_remote_msgs_processed",
         "description": "Counter of messages processed by L1 gas price provider remote server",
         "type": "stat",
-        "expr": "l1_gas_price_provider_remote_msgs_processed",
+        "expr": "l1_gas_price_provider_remote_msgs_processed{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       }
     ],
@@ -700,42 +700,42 @@
         "title": "mempool_local_msgs_received",
         "description": "Counter of messages received by mempool local server",
         "type": "stat",
-        "expr": "mempool_local_msgs_received",
+        "expr": "mempool_local_msgs_received{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "mempool_local_msgs_processed",
         "description": "Counter of messages processed by mempool local server",
         "type": "stat",
-        "expr": "mempool_local_msgs_processed",
+        "expr": "mempool_local_msgs_processed{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "mempool_local_queue_depth",
         "description": "The depth of the mempool's local message queue",
         "type": "stat",
-        "expr": "mempool_local_queue_depth",
+        "expr": "mempool_local_queue_depth{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "mempool_remote_msgs_received",
         "description": "Counter of messages received by mempool remote server",
         "type": "stat",
-        "expr": "mempool_remote_msgs_received",
+        "expr": "mempool_remote_msgs_received{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "mempool_remote_valid_msgs_received",
         "description": "Counter of valid messages received by mempool remote server",
         "type": "stat",
-        "expr": "mempool_remote_valid_msgs_received",
+        "expr": "mempool_remote_valid_msgs_received{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "mempool_remote_msgs_processed",
         "description": "Counter of messages processed by mempool remote server",
         "type": "stat",
-        "expr": "mempool_remote_msgs_processed",
+        "expr": "mempool_remote_msgs_processed{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       }
     ],
@@ -744,42 +744,42 @@
         "title": "mempool_p2p_propagator_local_msgs_received",
         "description": "Counter of messages received by mempool p2p local server",
         "type": "stat",
-        "expr": "mempool_p2p_propagator_local_msgs_received",
+        "expr": "mempool_p2p_propagator_local_msgs_received{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "mempool_p2p_propagator_local_msgs_processed",
         "description": "Counter of messages processed by mempool p2p local server",
         "type": "stat",
-        "expr": "mempool_p2p_propagator_local_msgs_processed",
+        "expr": "mempool_p2p_propagator_local_msgs_processed{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "mempool_p2p_propagator_local_queue_depth",
         "description": "The depth of the mempool p2p's local message queue",
         "type": "stat",
-        "expr": "mempool_p2p_propagator_local_queue_depth",
+        "expr": "mempool_p2p_propagator_local_queue_depth{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "mempool_p2p_propagator_remote_msgs_received",
         "description": "Counter of messages received by mempool p2p remote server",
         "type": "stat",
-        "expr": "mempool_p2p_propagator_remote_msgs_received",
+        "expr": "mempool_p2p_propagator_remote_msgs_received{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "mempool_p2p_propagator_remote_valid_msgs_received",
         "description": "Counter of valid messages received by mempool p2p remote server",
         "type": "stat",
-        "expr": "mempool_p2p_propagator_remote_valid_msgs_received",
+        "expr": "mempool_p2p_propagator_remote_valid_msgs_received{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "mempool_p2p_propagator_remote_msgs_processed",
         "description": "Counter of messages processed by mempool p2p remote server",
         "type": "stat",
-        "expr": "mempool_p2p_propagator_remote_msgs_processed",
+        "expr": "mempool_p2p_propagator_remote_msgs_processed{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       }
     ],
@@ -788,42 +788,42 @@
         "title": "sierra_compiler_local_msgs_received",
         "description": "Counter of messages received by sierra compiler local server",
         "type": "stat",
-        "expr": "sierra_compiler_local_msgs_received",
+        "expr": "sierra_compiler_local_msgs_received{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "sierra_compiler_local_msgs_processed",
         "description": "Counter of messages processed by sierra compiler local server",
         "type": "stat",
-        "expr": "sierra_compiler_local_msgs_processed",
+        "expr": "sierra_compiler_local_msgs_processed{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "sierra_compiler_local_queue_depth",
         "description": "The depth of the sierra compiler's local message queue",
         "type": "stat",
-        "expr": "sierra_compiler_local_queue_depth",
+        "expr": "sierra_compiler_local_queue_depth{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "sierra_compiler_remote_msgs_received",
         "description": "Counter of messages received by state sync remote server",
         "type": "stat",
-        "expr": "sierra_compiler_remote_msgs_received",
+        "expr": "sierra_compiler_remote_msgs_received{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "sierra_compiler_remote_valid_msgs_received",
         "description": "Counter of valid messages received by state sync remote server",
         "type": "stat",
-        "expr": "sierra_compiler_remote_valid_msgs_received",
+        "expr": "sierra_compiler_remote_valid_msgs_received{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "sierra_compiler_remote_msgs_processed",
         "description": "Counter of messages processed by state sync remote server",
         "type": "stat",
-        "expr": "sierra_compiler_remote_msgs_processed",
+        "expr": "sierra_compiler_remote_msgs_processed{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       }
     ],
@@ -841,42 +841,42 @@
         "title": "state_sync_local_msgs_received",
         "description": "Counter of messages received by state sync local server",
         "type": "stat",
-        "expr": "state_sync_local_msgs_received",
+        "expr": "state_sync_local_msgs_received{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "state_sync_local_msgs_processed",
         "description": "Counter of messages processed by state sync local server",
         "type": "stat",
-        "expr": "state_sync_local_msgs_processed",
+        "expr": "state_sync_local_msgs_processed{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "state_sync_local_queue_depth",
         "description": "The depth of the state sync's local message queue",
         "type": "stat",
-        "expr": "state_sync_local_queue_depth",
+        "expr": "state_sync_local_queue_depth{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "state_sync_remote_msgs_received",
         "description": "Counter of messages received by state sync remote server",
         "type": "stat",
-        "expr": "state_sync_remote_msgs_received",
+        "expr": "state_sync_remote_msgs_received{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "state_sync_remote_valid_msgs_received",
         "description": "Counter of valid messages received by state sync remote server",
         "type": "stat",
-        "expr": "state_sync_remote_valid_msgs_received",
+        "expr": "state_sync_remote_valid_msgs_received{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       },
       {
         "title": "state_sync_remote_msgs_processed",
         "description": "Counter of messages processed by state sync remote server",
         "type": "stat",
-        "expr": "state_sync_remote_msgs_processed",
+        "expr": "state_sync_remote_msgs_processed{cluster=~\".*\", namespace=~\".*\"}",
         "extra_params": {}
       }
     ]
