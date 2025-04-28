@@ -39,6 +39,7 @@ pub type MempoolResult<T> = Result<T, MempoolError>;
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct MempoolSnapshot {
     pub transactions: Vec<TransactionHash>,
+    pub delayed_declares: Vec<TransactionHash>,
     pub transaction_queue: TransactionQueueSnapshot,
     pub mempool_state: MempoolStateSnapshot,
 }

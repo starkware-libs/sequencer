@@ -627,6 +627,12 @@ impl Mempool {
     pub fn mempool_snapshot(&self) -> MempoolResult<MempoolSnapshot> {
         Ok(MempoolSnapshot {
             transactions: self.tx_pool.chronological_txs_hashes(),
+            delayed_declares: self
+                .delayed_declares
+                .elements
+                .iter()
+                .map(|(_, args)| args.tx.tx_hash)
+                .collect(),
             transaction_queue: self.tx_queue.queue_snapshot(),
             mempool_state: self.state.state_snapshot(),
         })
