@@ -61,12 +61,8 @@ pub(crate) fn set_state_updates_start<S: StateReader>(
     // Set `use_kzg_da` in globals since it will be used in `process_data_availability`
     exec_scopes.insert_value(Scope::UseKzgDa.into(), use_kzg_da_felt);
 
-    // Recompute `compress_state_updates` until this issue is fixed in our VM version:
-    // https://github.com/lambdaclass/cairo-vm/issues/1897
-    // TODO(Rotem): fix code when we update to VM 2.0.0 (fix should be available in one of the RCs).
-
-    let full_output = get_integer_from_var_name(Ids::FullOutput.into(), vm, ids_data, ap_tracking)?;
-    let compress_state_updates = Felt::ONE - full_output;
+    let compress_state_updates =
+        get_integer_from_var_name(Ids::CompressStateUpdates.into(), vm, ids_data, ap_tracking)?;
 
     let use_kzg_da = match use_kzg_da_felt {
         x if x == Felt::ONE => Ok(true),
@@ -77,7 +73,10 @@ pub(crate) fn set_state_updates_start<S: StateReader>(
     let use_compress_state_updates = match compress_state_updates {
         x if x == Felt::ONE => Ok(true),
         x if x == Felt::ZERO => Ok(false),
-        _ => Err(OsHintError::BooleanIdExpected { id: Ids::FullOutput, felt: full_output }),
+        _ => Err(OsHintError::BooleanIdExpected {
+            id: Ids::CompressStateUpdates,
+            felt: compress_state_updates,
+        }),
     }?;
 
     if use_kzg_da || use_compress_state_updates {

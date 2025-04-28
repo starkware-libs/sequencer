@@ -134,6 +134,7 @@ define_string_enum! {
         (CompiledClassFacts),
         (CompressedDst),
         (CompressedStart),
+        (CompressStateUpdates),
         (ContractAddress),
         (ContractClassComponentHashes),
         (ContractStateChanges),
