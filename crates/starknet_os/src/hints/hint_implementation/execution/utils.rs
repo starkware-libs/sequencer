@@ -1,14 +1,19 @@
 use std::collections::HashMap;
 
+use blockifier::state::state_api::StateReader;
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::vm_core::VirtualMachine;
+use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::transaction::fields::{
     valid_resource_bounds_as_felts,
+    AccountDeploymentData,
     ResourceAsFelts,
     ValidResourceBounds,
 };
 use starknet_types_core::felt::Felt;
 
+use crate::hint_processor::execution_helper::OsExecutionHelper;
+use crate::hints::error::OsHintError;
 use crate::hints::vars::CairoStruct;
 use crate::vm_utils::{
     insert_values_to_fields,
@@ -59,5 +64,16 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for ValidResourceBounds {
         valid_resource_bounds_as_felts(self, false)
             .map_err(VmUtilsError::ResourceBoundsParsing)?
             .load_into(vm, identifier_getter, address, constants)
+    }
+}
+
+pub(crate) fn get_account_deployment_data<S: StateReader>(
+    execution_helper: &OsExecutionHelper<'_, S>,
+) -> Result<AccountDeploymentData, OsHintError> {
+    let tx = execution_helper.tx_tracker.get_account_tx()?;
+    match tx {
+        AccountTransaction::Declare(declare) => Ok(declare.account_deployment_data()),
+        AccountTransaction::Invoke(invoke) => Ok(invoke.account_deployment_data()),
+        AccountTransaction::DeployAccount(_) => Err(OsHintError::UnexpectedTxType(tx.tx_type())),
     }
 }
