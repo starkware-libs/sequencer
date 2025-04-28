@@ -1,6 +1,7 @@
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
+    get_ptr_from_var_name,
     get_relocatable_from_var_name,
     insert_value_from_var_name,
 };
@@ -158,7 +159,7 @@ pub(crate) fn update_state_ptr<S: StateReader>(
     HintArgs { hint_processor, ids_data, ap_tracking, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     if let Some(state_update_pointers) = &mut hint_processor.state_update_pointers {
-        let contract_state_changes_end = get_relocatable_from_var_name(
+        let contract_state_changes_end = get_ptr_from_var_name(
             Ids::FinalSquashedContractStateChangesEnd.into(),
             vm,
             ids_data,
