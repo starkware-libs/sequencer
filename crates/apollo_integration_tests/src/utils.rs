@@ -175,6 +175,7 @@ pub fn create_node_config(
     base_layer_config: EthereumBaseLayerConfig,
     block_max_capacity_sierra_gas: GasAmount,
     validator_id: ValidatorId,
+    allow_bootstrap_txs: bool,
 ) -> (SequencerNodeConfig, ConfigPointersMap) {
     let recorder_url = consensus_manager_config.cende_config.recorder_url.clone();
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
@@ -183,14 +184,17 @@ pub fn create_node_config(
         chain_info.clone(),
         block_max_capacity_sierra_gas,
     );
-    let gateway_config = create_gateway_config(chain_info.clone());
+    let validate_non_zero_resource_bounds = !allow_bootstrap_txs;
+    let gateway_config =
+        create_gateway_config(chain_info.clone(), validate_non_zero_resource_bounds);
     let l1_scraper_config =
         L1ScraperConfig { chain_id: chain_info.chain_id.clone(), ..Default::default() };
     let l1_provider_config = L1ProviderConfig {
         provider_startup_height_override: Some(BlockNumber(1)),
         ..Default::default()
     };
-    let mempool_config = create_mempool_config();
+    let override_gas_price_threshold_check = allow_bootstrap_txs;
+    let mempool_config = create_mempool_config(override_gas_price_threshold_check);
     let http_server_config =
         create_http_server_config(available_ports.get_next_local_host_socket());
     let class_manager_config =
@@ -513,9 +517,12 @@ where
     tx_hashes
 }
 
-pub fn create_gateway_config(chain_info: ChainInfo) -> GatewayConfig {
+pub fn create_gateway_config(
+    chain_info: ChainInfo,
+    validate_non_zero_resource_bounds: bool,
+) -> GatewayConfig {
     let stateless_tx_validator_config = StatelessTransactionValidatorConfig {
-        validate_non_zero_resource_bounds: true,
+        validate_non_zero_resource_bounds,
         max_calldata_length: 10,
         max_signature_length: 2,
         ..Default::default()
@@ -557,8 +564,12 @@ pub fn create_batcher_config(
     }
 }
 
-pub fn create_mempool_config() -> MempoolConfig {
-    MempoolConfig { transaction_ttl: Duration::from_secs(5 * 60), ..Default::default() }
+pub fn create_mempool_config(override_gas_price_threshold_check: bool) -> MempoolConfig {
+    MempoolConfig {
+        transaction_ttl: Duration::from_secs(5 * 60),
+        override_gas_price_threshold_check,
+        ..Default::default()
+    }
 }
 
 pub fn create_class_manager_config(

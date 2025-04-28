@@ -898,6 +898,7 @@ pub async fn get_sequencer_setup_configs(
         );
 
         // Derive the configuration for the sequencer node.
+        let allow_bootstrap_txs = false;
         let (config, config_pointers_map) = create_node_config(
             &mut config_available_ports,
             chain_info,
@@ -910,6 +911,7 @@ pub async fn get_sequencer_setup_configs(
             base_layer_config.clone(),
             BLOCK_MAX_CAPACITY_N_STEPS,
             validator_id,
+            allow_bootstrap_txs,
         );
         let base_app_config = DeploymentBaseAppConfig::new(
             config.clone(),

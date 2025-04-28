@@ -16,6 +16,7 @@ async fn many_txs() {
         create_many_txs_scenario(),
         GasAmount(17500000),
         true,
+        false,
     )
     .await
 }

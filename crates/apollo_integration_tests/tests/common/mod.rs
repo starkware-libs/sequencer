@@ -1,3 +1,8 @@
+// Each test module is compiled as a separate crate, and all can declare the common module.
+// This means that any peace of code in this module that is not used by *all* test modules will be
+// identified as unused code by clippy (for one of the crates).
+#![allow(dead_code)]
+
 use std::time::Duration;
 
 use apollo_infra::trace_util::configure_tracing;
@@ -24,6 +29,7 @@ pub async fn end_to_end_flow(
     test_blocks_scenarios: Vec<TestScenario>,
     block_max_capacity_sierra_gas: GasAmount,
     expecting_full_blocks: bool,
+    allow_bootstrap_txs: bool,
 ) {
     configure_tracing().await;
 
@@ -37,6 +43,7 @@ pub async fn end_to_end_flow(
         &tx_generator,
         test_identifier.into(),
         block_max_capacity_sierra_gas,
+        allow_bootstrap_txs,
     )
     .await;
 
@@ -138,4 +145,9 @@ fn assert_full_blocks_flow(recorder: &PrometheusRecorder, expecting_full_blocks:
 
 async fn wait_for_sequencer_node(sequencer: &FlowSequencerSetup) {
     sequencer.monitoring_client.await_alive(5000, 50).await.expect("Node should be alive.");
+}
+
+pub fn test_single_tx(tx_hashes: &[TransactionHash]) -> Vec<TransactionHash> {
+    assert_eq!(tx_hashes.len(), 1, "Expected a single transaction");
+    tx_hashes.to_vec()
 }

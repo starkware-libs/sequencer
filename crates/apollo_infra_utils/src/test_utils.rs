@@ -25,6 +25,7 @@ const _: () = {
 // TODO(Nadin): Come up with a better name for this enum.
 pub enum TestIdentifier {
     EndToEndFlowTest,
+    EndToEndFlowTestBootstrapDeclare,
     EndToEndFlowTestManyTxs,
     InfraUnitTests,
     PositiveFlowIntegrationTest,
