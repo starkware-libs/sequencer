@@ -24,7 +24,7 @@ pub fn run_cairo_function_and_check_result(
     expected_implicit_retdata: &[EndpointArg],
     hint_locals: HashMap<String, Box<dyn Any>>,
 ) -> Cairo0EntryPointRunnerResult<()> {
-    let (actual_implicit_retdata, actual_explicit_retdata) = run_cairo_0_entry_point(
+    let (actual_implicit_retdata, actual_explicit_retdata, _) = run_cairo_0_entry_point(
         runner_config,
         program_str,
         function_name,

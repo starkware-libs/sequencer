@@ -541,7 +541,8 @@ fn get_return_values(
     Ok((implicit_return_values, explicit_return_values))
 }
 
-/// Runs a Cairo program's entrypoint and returns the explicit and implicit return values.
+/// Runs a Cairo program's entrypoint and returns the explicit & implicit return values. It also
+/// returns the cairo runner, to allow tests to perform additional validations.
 /// Hint locals are added to the outermost exec scope.
 /// If the endpoint used builtins, the respective returned (implicit) arg is the builtin instance
 /// usage, unless the builtin is the output builtin, in which case the arg is the output.
@@ -553,7 +554,7 @@ pub fn run_cairo_0_entry_point(
     implicit_args: &[ImplicitArg],
     expected_explicit_return_values: &[EndpointArg],
     hint_locals: HashMap<String, Box<dyn Any>>,
-) -> Cairo0EntryPointRunnerResult<(Vec<EndpointArg>, Vec<EndpointArg>)> {
+) -> Cairo0EntryPointRunnerResult<(Vec<EndpointArg>, Vec<EndpointArg>, CairoRunner)> {
     let mut entrypoint = entrypoint.to_string();
     if runner_config.add_main_prefix_to_entrypoint {
         info!("Adding __main__ prefix to entrypoint.");
@@ -622,6 +623,7 @@ pub fn run_cairo_0_entry_point(
         )
         .map_err(Cairo0EntryPointRunnerError::RunCairoEndpoint)?;
     info!("Successfully finished running entrypoint {}", entrypoint);
-
-    Ok(get_return_values(implicit_args, expected_explicit_return_values, &cairo_runner.vm)?)
+    let (implicit_return_values, explicit_return_values) =
+        get_return_values(implicit_args, expected_explicit_return_values, &cairo_runner.vm)?;
+    Ok((implicit_return_values, explicit_return_values, cairo_runner))
 }

@@ -124,7 +124,7 @@ fn test_horner_eval(input: &str) -> OsPythonTestResult {
         )));
         let implicit_args = [ImplicitArg::Builtin(BuiltinName::range_check)];
 
-        let (_, explicit_retdata) = run_cairo_0_entry_point(
+        let (_, explicit_retdata, _) = run_cairo_0_entry_point(
             &entrypoint_runner_config,
             input,
             "starkware.starknet.core.os.data_availability.bls_field.horner_eval",
