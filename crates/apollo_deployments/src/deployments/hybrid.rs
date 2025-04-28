@@ -116,6 +116,7 @@ impl ServiceNameInner for HybridNodeServiceName {
         environment: &Environment,
         external_secret: &Option<ExternalSecret>,
         additional_config_filenames: Vec<String>,
+        ingress_alternative_names: Option<Vec<String>>,
     ) -> Service {
         match environment {
             Environment::Testing => match self {
@@ -138,7 +139,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         String::from("sw-dev.io"),
                         true,
                         vec![IngressRule::new(String::from("/gateway"), 8080, None)],
-                        vec![],
+                        ingress_alternative_names.unwrap_or_default(),
                     )),
                     false,
                     1,
@@ -205,7 +206,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         String::from("sw-dev.io"),
                         false,
                         vec![IngressRule::new(String::from("/gateway"), 8080, None)],
-                        vec!["sn-test-sepolia-2-sepolia.gateway-proxy.sw-dev.io".into()],
+                        ingress_alternative_names.unwrap_or_default(),
                     )),
                     false,
                     1,

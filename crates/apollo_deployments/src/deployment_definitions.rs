@@ -129,6 +129,9 @@ const SEPOLIA_INTEGRATION_NODE_3_CONFIG_OVERRIDE: ConfigOverride = ConfigOverrid
 const TESTING_CONFIG_OVERRIDE: ConfigOverride =
     ConfigOverride::new(&TESTING_DEPLOYMENT_CONFIG_OVERRIDE, &TESTING_INSTANCE_CONFIG_OVERRIDE);
 
+const INTEGRATION_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str =
+    "sn-test-sepolia-2-sepolia.gateway-proxy.sw-dev.io";
+
 type DeploymentFn = fn() -> Deployment;
 
 // TODO(Tsabary): create deployment instances per per deployment.
@@ -153,6 +156,7 @@ fn integration_hybrid_deployment_node_0() -> Deployment {
         Some(ExternalSecret::new("node-0-integration-secrets")),
         PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH),
         SEPOLIA_INTEGRATION_NODE_0_CONFIG_OVERRIDE,
+        Some(vec![INTEGRATION_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
     )
 }
 
@@ -165,6 +169,7 @@ fn integration_hybrid_deployment_node_1() -> Deployment {
         Some(ExternalSecret::new("node-1-integration-secrets")),
         PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH),
         SEPOLIA_INTEGRATION_NODE_1_CONFIG_OVERRIDE,
+        Some(vec![INTEGRATION_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
     )
 }
 
@@ -177,6 +182,7 @@ fn integration_hybrid_deployment_node_2() -> Deployment {
         Some(ExternalSecret::new("node-2-integration-secrets")),
         PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH),
         SEPOLIA_INTEGRATION_NODE_2_CONFIG_OVERRIDE,
+        Some(vec![INTEGRATION_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
     )
 }
 
@@ -189,6 +195,7 @@ fn integration_hybrid_deployment_node_3() -> Deployment {
         Some(ExternalSecret::new("node-3-integration-secrets")),
         PathBuf::from(INTEGRATION_BASE_APP_CONFIG_PATH),
         SEPOLIA_INTEGRATION_NODE_3_CONFIG_OVERRIDE,
+        Some(vec![INTEGRATION_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
     )
 }
 
@@ -202,6 +209,7 @@ fn system_test_distributed_deployment() -> Deployment {
         None,
         PathBuf::from(SYSTEM_TEST_BASE_APP_CONFIG_PATH),
         TESTING_CONFIG_OVERRIDE,
+        None,
     )
 }
 
@@ -214,6 +222,7 @@ fn system_test_consolidated_deployment() -> Deployment {
         None,
         PathBuf::from(SYSTEM_TEST_BASE_APP_CONFIG_PATH),
         TESTING_CONFIG_OVERRIDE,
+        None,
     )
 }
 
