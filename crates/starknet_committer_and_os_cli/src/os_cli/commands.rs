@@ -77,11 +77,11 @@ pub fn parse_and_run_os(input_path: String, output_path: String) {
     let compiled_os =
         fs::read(Path::new(&compiled_os_path)).expect("Failed to read compiled_os file");
 
-    let StarknetOsRunnerOutput { os_output, cairo_pie, .. } =
+    let StarknetOsRunnerOutput { os_output, cairo_pie, unused_hints } =
         run_os_stateless(&compiled_os, layout, os_hints)
             .unwrap_or_else(|err| panic!("OS run failed. Error: {}", err));
     serialize_os_runner_output(
-        &OsCliOutput { os_output },
+        &OsCliOutput { os_output, unused_hints },
         output_path,
         &cairo_pie,
         cairo_pie_zip_path,
