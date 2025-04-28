@@ -45,6 +45,7 @@ pub enum MetricScope {
 pub struct MetricCounter {
     scope: MetricScope,
     name: &'static str,
+    name_with_filter: &'static str,
     description: &'static str,
     initial_value: u64,
 }
@@ -53,14 +54,19 @@ impl MetricCounter {
     pub const fn new(
         scope: MetricScope,
         name: &'static str,
+        name_with_filter: &'static str,
         description: &'static str,
         initial_value: u64,
     ) -> Self {
-        Self { scope, name, description, initial_value }
+        Self { scope, name, name_with_filter, description, initial_value }
     }
 
     pub const fn get_name(&self) -> &'static str {
         self.name
+    }
+
+    pub const fn get_name_with_filter(&self) -> &'static str {
+        self.name_with_filter
     }
 
     pub const fn get_scope(&self) -> MetricScope {
@@ -96,6 +102,7 @@ impl MetricCounter {
 pub struct LabeledMetricCounter {
     scope: MetricScope,
     name: &'static str,
+    name_with_filter: &'static str,
     description: &'static str,
     initial_value: u64,
     label_permutations: &'static [&'static [(&'static str, &'static str)]],
@@ -105,15 +112,20 @@ impl LabeledMetricCounter {
     pub const fn new(
         scope: MetricScope,
         name: &'static str,
+        name_with_filter: &'static str,
         description: &'static str,
         initial_value: u64,
         label_permutations: &'static [&'static [(&'static str, &'static str)]],
     ) -> Self {
-        Self { scope, name, description, initial_value, label_permutations }
+        Self { scope, name, name_with_filter, description, initial_value, label_permutations }
     }
 
     pub const fn get_name(&self) -> &'static str {
         self.name
+    }
+
+    pub const fn get_name_with_filter(&self) -> &'static str {
+        self.name_with_filter
     }
 
     pub const fn get_scope(&self) -> MetricScope {
@@ -160,16 +172,26 @@ impl LabeledMetricCounter {
 pub struct MetricGauge {
     scope: MetricScope,
     name: &'static str,
+    name_with_filter: &'static str,
     description: &'static str,
 }
 
 impl MetricGauge {
-    pub const fn new(scope: MetricScope, name: &'static str, description: &'static str) -> Self {
-        Self { scope, name, description }
+    pub const fn new(
+        scope: MetricScope,
+        name: &'static str,
+        name_with_filter: &'static str,
+        description: &'static str,
+    ) -> Self {
+        Self { scope, name, name_with_filter, description }
     }
 
     pub const fn get_name(&self) -> &'static str {
         self.name
+    }
+
+    pub const fn get_name_with_filter(&self) -> &'static str {
+        self.name_with_filter
     }
 
     pub const fn get_scope(&self) -> MetricScope {
@@ -242,6 +264,7 @@ into_f64!(u64, usize, i64);
 pub struct LabeledMetricGauge {
     scope: MetricScope,
     name: &'static str,
+    name_with_filter: &'static str,
     description: &'static str,
     label_permutations: &'static [&'static [(&'static str, &'static str)]],
 }
@@ -250,14 +273,19 @@ impl LabeledMetricGauge {
     pub const fn new(
         scope: MetricScope,
         name: &'static str,
+        name_with_filter: &'static str,
         description: &'static str,
         label_permutations: &'static [&'static [(&'static str, &'static str)]],
     ) -> Self {
-        Self { scope, name, description, label_permutations }
+        Self { scope, name, name_with_filter, description, label_permutations }
     }
 
     pub const fn get_name(&self) -> &'static str {
         self.name
+    }
+
+    pub const fn get_name_with_filter(&self) -> &'static str {
+        self.name_with_filter
     }
 
     pub const fn get_scope(&self) -> MetricScope {
@@ -312,6 +340,7 @@ impl LabeledMetricGauge {
 pub struct MetricHistogram {
     scope: MetricScope,
     name: &'static str,
+    name_with_filter: &'static str,
     description: &'static str,
 }
 
@@ -329,12 +358,21 @@ impl PartialEq for HistogramValue {
 }
 
 impl MetricHistogram {
-    pub const fn new(scope: MetricScope, name: &'static str, description: &'static str) -> Self {
-        Self { scope, name, description }
+    pub const fn new(
+        scope: MetricScope,
+        name: &'static str,
+        name_with_filter: &'static str,
+        description: &'static str,
+    ) -> Self {
+        Self { scope, name, name_with_filter, description }
     }
 
     pub const fn get_name(&self) -> &'static str {
         self.name
+    }
+
+    pub const fn get_name_with_filter(&self) -> &'static str {
+        self.name_with_filter
     }
 
     pub const fn get_scope(&self) -> MetricScope {
@@ -374,6 +412,7 @@ impl MetricHistogram {
 pub struct LabeledMetricHistogram {
     scope: MetricScope,
     name: &'static str,
+    name_with_filter: &'static str,
     description: &'static str,
     label_permutations: &'static [&'static [(&'static str, &'static str)]],
 }
@@ -382,14 +421,19 @@ impl LabeledMetricHistogram {
     pub const fn new(
         scope: MetricScope,
         name: &'static str,
+        name_with_filter: &'static str,
         description: &'static str,
         label_permutations: &'static [&'static [(&'static str, &'static str)]],
     ) -> Self {
-        Self { scope, name, description, label_permutations }
+        Self { scope, name, name_with_filter, description, label_permutations }
     }
 
     pub const fn get_name(&self) -> &'static str {
         self.name
+    }
+
+    pub const fn get_name_with_filter(&self) -> &'static str {
+        self.name_with_filter
     }
 
     pub const fn get_scope(&self) -> MetricScope {

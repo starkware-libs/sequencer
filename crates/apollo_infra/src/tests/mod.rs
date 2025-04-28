@@ -26,6 +26,7 @@ pub(crate) type ResultB = ClientResult<ValueB>;
 const TEST_MSGS_RECEIVED: MetricCounter = MetricCounter::new(
     MetricScope::Infra,
     "test_msgs_received",
+    "test_msgs_received_filter",
     "Test messages received counter",
     0,
 );
@@ -33,12 +34,17 @@ const TEST_MSGS_RECEIVED: MetricCounter = MetricCounter::new(
 const TEST_MSGS_PROCESSED: MetricCounter = MetricCounter::new(
     MetricScope::Infra,
     "test_msgs_processed",
+    "test_msgs_processed_filter",
     "Test messages processed counter",
     0,
 );
 
-const TEST_QUEUE_DEPTH: MetricGauge =
-    MetricGauge::new(MetricScope::Infra, "queue_queue_depth", "Test channel queue depth gauge");
+const TEST_QUEUE_DEPTH: MetricGauge = MetricGauge::new(
+    MetricScope::Infra,
+    "queue_queue_depth",
+    "queue_queue_depth_filter",
+    "Test channel queue depth gauge",
+);
 
 pub(crate) const TEST_LOCAL_SERVER_METRICS: LocalServerMetrics =
     LocalServerMetrics::new(&TEST_MSGS_RECEIVED, &TEST_MSGS_PROCESSED, &TEST_QUEUE_DEPTH);
@@ -46,6 +52,7 @@ pub(crate) const TEST_LOCAL_SERVER_METRICS: LocalServerMetrics =
 const REMOTE_TEST_MSGS_RECEIVED: MetricCounter = MetricCounter::new(
     MetricScope::Infra,
     "remote_test_msgs_received",
+    "remote_test_msgs_received_filter",
     "Remote test messages received counter",
     0,
 );
@@ -53,6 +60,7 @@ const REMOTE_TEST_MSGS_RECEIVED: MetricCounter = MetricCounter::new(
 const REMOTE_VALID_TEST_MSGS_RECEIVED: MetricCounter = MetricCounter::new(
     MetricScope::Infra,
     "remote_valid_test_msgs_received",
+    "remote_valid_test_msgs_received_filter",
     "Valid remote test messages received counter",
     0,
 );
@@ -60,6 +68,7 @@ const REMOTE_VALID_TEST_MSGS_RECEIVED: MetricCounter = MetricCounter::new(
 const REMOTE_TEST_MSGS_PROCESSED: MetricCounter = MetricCounter::new(
     MetricScope::Infra,
     "remote_test_msgs_processed",
+    "remote_test_msgs_processed_filter",
     "Remote test messages processed counter",
     0,
 );
