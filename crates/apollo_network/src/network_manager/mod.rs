@@ -689,8 +689,11 @@ impl NetworkManager {
             is_quic,
         } = config;
 
-        // TODO(shahak): Add quic transport.
-        let listen_address_str = format!("/ip4/0.0.0.0/tcp/{port}");
+        let listen_address_str = if is_quic {
+            format!("/ip4/127.0.0.1/udp/{port}/quic-v1")
+        } else {
+            format!("/ip4/0.0.0.0/tcp/{port}")
+        };
         let listen_address = Multiaddr::from_str(&listen_address_str)
             .unwrap_or_else(|_| panic!("Unable to parse address {}", listen_address_str));
         debug!("Creating swarm with listen address: {:?}", listen_address);
