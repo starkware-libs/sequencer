@@ -85,10 +85,14 @@ impl TransactionManager {
         self.committed.extend(committed_txs)
     }
 
-    /// Adds a transaction to the transaction manager, return false iff the transaction already
-    /// existed.
+    /// Adds a transaction to the transaction manager, return true if the transaction was added.
+    /// If the transaction is occupied or already committed, it will not be added, and false will be
+    /// returned.
     pub fn add_tx(&mut self, tx: L1HandlerTransaction) -> bool {
-        self.committed.contains(&tx.tx_hash) || self.uncommitted.insert(tx)
+        if self.committed.contains(&tx.tx_hash) || self.rejected.txs.contains_key(&tx.tx_hash) {
+            return false;
+        }
+        self.uncommitted.insert(tx)
     }
 
     pub fn committed_includes(&self, tx_hashes: &[TransactionHash]) -> bool {
