@@ -349,6 +349,11 @@ expression: dumped_default_config
     },
     "privacy": "Public"
   },
+  "network.is_quic": {
+    "description": "Toggle using the QUIC protocol for swarm communication. If false then TCP will be used instead.",
+    "value": true,
+    "privacy": "Public"
+  },
   "network.peer_manager_config.malicious_timeout_seconds": {
     "description": "The duration in seconds a peer is blacklisted after being marked as malicious.",
     "value": {

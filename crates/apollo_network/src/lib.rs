@@ -46,6 +46,7 @@ pub struct NetworkConfig {
     pub session_timeout: Duration,
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub idle_connection_timeout: Duration,
+    pub is_quic: bool,
     pub bootstrap_peer_multiaddr: Option<Multiaddr>,
     #[validate(custom = "validate_vec_u256")]
     #[serde(deserialize_with = "deserialize_optional_vec_u8")]
@@ -78,6 +79,12 @@ impl SerializeConfig for NetworkConfig {
                 &self.idle_connection_timeout.as_secs(),
                 "Amount of time in seconds that a connection with no active sessions will stay \
                  alive.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "is_quic",
+                &self.is_quic,
+                "Toggle using the QUIC protocol for swarm communication. If false then TCP will be used instead.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -145,6 +152,7 @@ impl Default for NetworkConfig {
             peer_manager_config: PeerManagerConfig::default(),
             broadcasted_message_metadata_buffer_size: 100000,
             reported_peer_ids_buffer_size: 100000,
+            is_quic: true,
         }
     }
 }
