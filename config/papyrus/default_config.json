@@ -289,6 +289,11 @@
     "privacy": "Public",
     "value": 120
   },
+  "network.is_quic": {
+    "description": "Toggle using the QUIC protocol of swarm communication. I false then TCP will be used instead.",
+    "privacy": "Public",
+    "value": true
+  },
   "network.peer_manager_config.malicious_timeout_seconds": {
     "description": "The duration in seconds a peer is blacklisted after being marked as malicious.",
     "privacy": "Public",

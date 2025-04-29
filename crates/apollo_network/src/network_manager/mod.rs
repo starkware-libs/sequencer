@@ -686,6 +686,7 @@ impl NetworkManager {
             peer_manager_config,
             broadcasted_message_metadata_buffer_size,
             reported_peer_ids_buffer_size,
+            is_quic: _,
         } = config;
 
         // TODO(shahak): Add quic transport.
