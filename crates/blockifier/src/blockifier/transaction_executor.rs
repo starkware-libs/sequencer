@@ -273,6 +273,7 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
         }
     }
 
+    // execute chunk
     fn execute_chunk(
         &mut self,
         chunk: &[Transaction],
