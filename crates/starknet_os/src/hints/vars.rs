@@ -158,6 +158,7 @@ define_string_enum! {
         (InitialContractStateRoot),
         (InitialRoot),
         (IsLeaf),
+        (Key),
         (KzgCommitments),
         (Length),
         (Low),
@@ -265,6 +266,7 @@ define_string_enum! {
             "starkware.starknet.core.os.constants.ENTRY_POINT_INITIAL_BUDGET"
         ),
         (InitialAvailableAlias, "starkware.starknet.core.os.state.aliases.INITIAL_AVAILABLE_ALIAS"),
+        (MinValueForAliasAlloc, "starkware.starknet.core.os.state.aliases.MIN_VALUE_FOR_ALIAS_ALLOC"),
         (
             MaxNonCompressedContractAddress,
             "starkware.starknet.core.os.state.aliases.MAX_NON_COMPRESSED_CONTRACT_ADDRESS"
