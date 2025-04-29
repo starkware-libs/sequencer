@@ -36,15 +36,15 @@ where
         let lhs = self.get_point_by_id(request.lhs_id)?;
         let rhs = self.get_point_by_id(request.rhs_id)?;
         let result = *lhs + *rhs;
-        let ec_point_id = self.allocate_point(result.into());
-        Ok(SecpOpRespone { ec_point_id })
+        let ec_point_ptr = self.allocate_point(result.into())?;
+        Ok(SecpOpRespone { ec_point_ptr })
     }
 
     pub fn secp_mul(&mut self, request: SecpMulRequest) -> SyscallResult<SecpMulResponse> {
         let ec_point = self.get_point_by_id(request.ec_point_id)?;
         let result = *ec_point * Curve::ScalarField::from(request.multiplier);
-        let ec_point_id = self.allocate_point(result.into());
-        Ok(SecpOpRespone { ec_point_id })
+        let ec_point_ptr = self.allocate_point(result.into())?;
+        Ok(SecpOpRespone { ec_point_ptr })
     }
 
     pub fn secp_get_point_from_x(
@@ -53,7 +53,10 @@ where
     ) -> SyscallResult<SecpGetPointFromXResponse> {
         let affine = crate::execution::secp::get_point_from_x(request.x, request.y_parity)?;
         Ok(SecpGetPointFromXResponse {
-            optional_ec_point_id: affine.map(|ec_point| self.allocate_point(ec_point)),
+            optional_ec_point_ptr: affine
+                .map(|ec_point| self.allocate_point(ec_point))
+                // move from Option<Result> to Result<Option>
+                .transpose()?,
         })
     }
 
@@ -72,16 +75,24 @@ where
             self.points_segment_base = Some(vm.add_memory_segment());
         }
         let affine = new_affine::<Curve>(request.x, request.y)?;
+
         Ok(SecpNewResponse {
-            optional_ec_point_id: affine.map(|ec_point| self.allocate_point(ec_point)),
+            optional_ec_point_ptr: affine
+                .map(|ec_point| self.allocate_point(ec_point))
+                // move from Option<Result> to Result<Option>
+                .transpose()?,
         })
     }
 
-    fn allocate_point(&mut self, ec_point: short_weierstrass::Affine<Curve>) -> usize {
+    fn allocate_point(
+        &mut self,
+        ec_point: short_weierstrass::Affine<Curve>,
+    ) -> SyscallResult<Relocatable> {
         let points = &mut self.points;
         let id = points.len();
         points.push(ec_point);
-        id
+
+        Ok((self.points_segment_base.expect("segments should be already initialized.") + 6 * id)?)
     }
 
     fn get_point_by_id(
@@ -106,7 +117,7 @@ pub struct EcPointCoordinates {
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct SecpOpRespone {
-    pub ec_point_id: usize,
+    pub ec_point_ptr: Relocatable,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -115,12 +126,12 @@ pub struct SecpOptionalEcPointResponse {
     // The first felt is a indicates if it is `Some` (0) or `None` (1).
     // The second felt is only valid if the first felt is `Some` and contains the ID of the point.
     // The ID allocated by the Secp hint processor.
-    pub optional_ec_point_id: Option<usize>,
+    pub optional_ec_point_ptr: Option<Relocatable>,
 }
 
 impl SyscallResponse for SecpOptionalEcPointResponse {
     fn write(self, vm: &mut VirtualMachine, ptr: &mut Relocatable) -> WriteResponseResult {
-        match self.optional_ec_point_id {
+        match self.optional_ec_point_ptr {
             Some(id) => {
                 // Cairo 1 representation of Some(id).
                 write_maybe_relocatable(vm, ptr, 0)?;
@@ -138,7 +149,7 @@ impl SyscallResponse for SecpOptionalEcPointResponse {
 
 impl SyscallResponse for SecpOpRespone {
     fn write(self, vm: &mut VirtualMachine, ptr: &mut Relocatable) -> WriteResponseResult {
-        write_maybe_relocatable(vm, ptr, self.ec_point_id)?;
+        write_maybe_relocatable(vm, ptr, self.ec_point_ptr)?;
         Ok(())
     }
 }
