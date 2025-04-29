@@ -164,12 +164,14 @@ impl ServiceName {
         environment: &Environment,
         external_secret: &Option<ExternalSecret>,
         additional_config_filenames: Vec<String>,
+        domain: String,
         ingress_alternative_names: Option<Vec<String>>,
     ) -> Service {
         self.as_inner().create_service(
             environment,
             external_secret,
             additional_config_filenames,
+            domain,
             ingress_alternative_names,
         )
     }
@@ -189,6 +191,7 @@ pub(crate) trait ServiceNameInner: Display {
         environment: &Environment,
         external_secret: &Option<ExternalSecret>,
         additional_config_filenames: Vec<String>,
+        domain: String,
         ingress_alternative_names: Option<Vec<String>>,
     ) -> Service;
 }
