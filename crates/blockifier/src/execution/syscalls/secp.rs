@@ -36,14 +36,14 @@ where
         let lhs = self.get_point_by_id(request.lhs_id)?;
         let rhs = self.get_point_by_id(request.rhs_id)?;
         let result = *lhs + *rhs;
-        let ec_point_ptr = self.allocate_point(result.into())?;
+        let ec_point_ptr = self.allocate_point(result.into());
         Ok(SecpOpRespone { ec_point_ptr })
     }
 
     pub fn secp_mul(&mut self, request: SecpMulRequest) -> SyscallResult<SecpMulResponse> {
         let ec_point = self.get_point_by_id(request.ec_point_id)?;
         let result = *ec_point * Curve::ScalarField::from(request.multiplier);
-        let ec_point_ptr = self.allocate_point(result.into())?;
+        let ec_point_ptr = self.allocate_point(result.into());
         Ok(SecpOpRespone { ec_point_ptr })
     }
 
@@ -53,10 +53,7 @@ where
     ) -> SyscallResult<SecpGetPointFromXResponse> {
         let affine = crate::execution::secp::get_point_from_x(request.x, request.y_parity)?;
         Ok(SecpGetPointFromXResponse {
-            optional_ec_point_ptr: affine
-                .map(|ec_point| self.allocate_point(ec_point))
-                // move from Option<Result> to Result<Option>
-                .transpose()?,
+            optional_ec_point_ptr: affine.map(|ec_point| self.allocate_point(ec_point)),
         })
     }
 
@@ -77,22 +74,18 @@ where
         let affine = new_affine::<Curve>(request.x, request.y)?;
 
         Ok(SecpNewResponse {
-            optional_ec_point_ptr: affine
-                .map(|ec_point| self.allocate_point(ec_point))
-                // move from Option<Result> to Result<Option>
-                .transpose()?,
+            optional_ec_point_ptr: affine.map(|ec_point| self.allocate_point(ec_point)),
         })
     }
 
-    fn allocate_point(
-        &mut self,
-        ec_point: short_weierstrass::Affine<Curve>,
-    ) -> SyscallResult<Relocatable> {
+    fn allocate_point(&mut self, ec_point: short_weierstrass::Affine<Curve>) -> Relocatable {
         let points = &mut self.points;
         let id = points.len();
         points.push(ec_point);
 
-        Ok((self.points_segment_base.expect("segments should be already initialized.") + 6 * id)?)
+        // TODO!(Aner): replace unwrap with Result.
+        (self.points_segment_base.expect("segments should be already initialized.") + 6 * id)
+            .unwrap()
     }
 
     fn get_point_by_id(
