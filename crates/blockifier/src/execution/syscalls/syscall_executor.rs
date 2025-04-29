@@ -3,6 +3,7 @@ use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::hint_errors::HintError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::vm_core::VirtualMachine;
+use num_traits::ToPrimitive;
 use starknet_api::execution_resources::GasAmount;
 use starknet_types_core::felt::Felt;
 
@@ -64,6 +65,12 @@ pub trait SyscallExecutor {
     fn read_next_syscall_selector(&mut self, vm: &mut VirtualMachine) -> SyscallResult<Felt> {
         Ok(felt_from_ptr(vm, self.get_mut_syscall_ptr())?)
     }
+
+    fn base_keccak(
+        &mut self,
+        data: &[u64],
+        remaining_gas: &mut u64,
+    ) -> SyscallResult<([u64; 4], usize)>;
 
     fn increment_syscall_count_by(&mut self, selector: &SyscallSelector, count: usize);
 
@@ -129,7 +136,31 @@ pub trait SyscallExecutor {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
-    ) -> SyscallResult<KeccakResponse>;
+    ) -> SyscallResult<KeccakResponse> {
+        let input_length = (request.input_end - request.input_start)?;
+
+        let data = vm.get_integer_range(request.input_start, input_length)?;
+        let data_u64: &[u64] = &data
+            .iter()
+            .map(|felt| {
+                felt.to_u64().ok_or_else(|| SyscallExecutionError::InvalidSyscallInput {
+                    input: **felt,
+                    info: "Invalid input for the keccak syscall.".to_string(),
+                })
+            })
+            .collect::<Result<Vec<u64>, _>>()?;
+
+        let (state, n_rounds) = syscall_handler.base_keccak(data_u64, remaining_gas)?;
+
+        // For the keccak system call we want to count the number of rounds rather than the number
+        // of syscall invocations.
+        syscall_handler.increment_syscall_count_by(&SyscallSelector::Keccak, n_rounds);
+
+        Ok(KeccakResponse {
+            result_low: (Felt::from(state[1]) * Felt::TWO.pow(64_u128)) + Felt::from(state[0]),
+            result_high: (Felt::from(state[3]) * Felt::TWO.pow(64_u128)) + Felt::from(state[2]),
+        })
+    }
 
     fn library_call(
         request: LibraryCallRequest,

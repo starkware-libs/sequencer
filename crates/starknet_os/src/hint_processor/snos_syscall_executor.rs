@@ -53,6 +53,14 @@ use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 
 #[allow(unused_variables)]
 impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
+    fn base_keccak(
+        &mut self,
+        data: &[u64],
+        remaining_gas: &mut u64,
+    ) -> SyscallResult<([u64; 4], usize)> {
+        todo!()
+    }
+
     fn increment_syscall_count_by(&mut self, selector: &SyscallSelector, count: usize) {
         todo!()
     }

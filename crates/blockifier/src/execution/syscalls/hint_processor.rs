@@ -75,8 +75,6 @@ use crate::execution::syscalls::{
     GetClassHashAtResponse,
     GetExecutionInfoRequest,
     GetExecutionInfoResponse,
-    KeccakRequest,
-    KeccakResponse,
     LibraryCallRequest,
     LibraryCallResponse,
     MetaTxV0Request,
@@ -481,6 +479,14 @@ impl<'a> SyscallHintProcessor<'a> {
 }
 
 impl SyscallExecutor for SyscallHintProcessor<'_> {
+    fn base_keccak(
+        &mut self,
+        data: &[u64],
+        remaining_gas: &mut u64,
+    ) -> SyscallResult<([u64; 4], usize)> {
+        self.base.keccak(data, remaining_gas)
+    }
+
     fn increment_syscall_count_by(&mut self, selector: &SyscallSelector, n: usize) {
         let syscall_usage = self.syscalls_usage.entry(*selector).or_default();
         syscall_usage.call_count += n;
@@ -614,37 +620,6 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         let execution_info_ptr = syscall_handler.get_or_allocate_execution_info_segment(vm)?;
 
         Ok(GetExecutionInfoResponse { execution_info_ptr })
-    }
-
-    fn keccak(
-        request: KeccakRequest,
-        vm: &mut VirtualMachine,
-        syscall_handler: &mut Self,
-        remaining_gas: &mut u64,
-    ) -> SyscallResult<KeccakResponse> {
-        let input_length = (request.input_end - request.input_start)?;
-
-        let data = vm.get_integer_range(request.input_start, input_length)?;
-        let data_u64: &[u64] = &data
-            .iter()
-            .map(|felt| {
-                felt.to_u64().ok_or_else(|| SyscallExecutionError::InvalidSyscallInput {
-                    input: **felt,
-                    info: "Invalid input for the keccak syscall.".to_string(),
-                })
-            })
-            .collect::<Result<Vec<u64>, _>>()?;
-
-        let (state, n_rounds) = syscall_handler.base.keccak(data_u64, remaining_gas)?;
-
-        // For the keccak system call we want to count the number of rounds rather than the number
-        // of syscall invocations.
-        syscall_handler.increment_syscall_count_by(&SyscallSelector::Keccak, n_rounds);
-
-        Ok(KeccakResponse {
-            result_low: (Felt::from(state[1]) * Felt::TWO.pow(64_u128)) + Felt::from(state[0]),
-            result_high: (Felt::from(state[3]) * Felt::TWO.pow(64_u128)) + Felt::from(state[2]),
-        })
     }
 
     fn library_call(
