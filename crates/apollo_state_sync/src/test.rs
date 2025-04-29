@@ -8,10 +8,12 @@ use apollo_storage::state::StateStorageWriter;
 use apollo_storage::test_utils::get_test_storage;
 use apollo_storage::StorageWriter;
 use apollo_test_utils::{get_rng, get_test_block, get_test_state_diff, GetTestInstance};
+use assert_matches::assert_matches;
 use futures::channel::mpsc::channel;
 use indexmap::IndexMap;
 use rand_chacha::rand_core::RngCore;
 use starknet_api::block::{Block, BlockHeader, BlockNumber};
+use starknet_api::compiled_class_hash;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::state::{StorageKey, ThinStateDiff};
 use starknet_types_core::felt::Felt;
@@ -305,4 +307,88 @@ async fn test_contract_not_found() {
     };
 
     assert_eq!(get_class_hash_at_result, Err(StateSyncError::ContractNotFound(address)));
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum ClassDeclarationOption {
+    None,
+    DeployedContracts,
+    DeclaredClasses,
+    DeprecatedDeclaredClasses,
+}
+
+#[rstest::rstest]
+#[tokio::test]
+async fn test_is_class_declared_at(
+    #[values(
+        ClassDeclarationOption::None,
+        ClassDeclarationOption::DeployedContracts,
+        ClassDeclarationOption::DeclaredClasses,
+        ClassDeclarationOption::DeprecatedDeclaredClasses
+    )]
+    deployment_option: ClassDeclarationOption,
+) {
+    use starknet_api::felt;
+
+    let (mut state_sync, mut storage_writer) = setup();
+
+    let contract_class_hash = ClassHash(felt!("0x123"));
+    let compiled_class_hash = compiled_class_hash!(0x321);
+    let header = BlockHeader::default();
+
+    let response = state_sync
+        .handle_request(StateSyncRequest::IsClassDeclaredAt(
+            header.block_header_without_hash.block_number,
+            contract_class_hash,
+        ))
+        .await;
+    let StateSyncResponse::IsClassDeclaredAt(Ok(false)) = response else {
+        panic!("Expected StateSyncResponse::IsClassDeclaredAt::Ok(false), but got {:?}", response);
+    };
+
+    let mut diff = ThinStateDiff::default();
+    match deployment_option {
+        ClassDeclarationOption::None => {}
+        ClassDeclarationOption::DeployedContracts => {
+            let mut rng = get_rng();
+            let address = ContractAddress::from(rng.next_u64());
+            let key = StorageKey::from(rng.next_u64());
+            let expected_value = Felt::from(rng.next_u64());
+            diff.storage_diffs.insert(address, IndexMap::from([(key, expected_value)]));
+            diff.deployed_contracts.insert(address, contract_class_hash);
+        }
+        ClassDeclarationOption::DeclaredClasses => {
+            diff.declared_classes.insert(contract_class_hash, compiled_class_hash);
+        }
+        ClassDeclarationOption::DeprecatedDeclaredClasses => {
+            diff.deprecated_declared_classes.push(contract_class_hash);
+        }
+    }
+
+    storage_writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_header(header.block_header_without_hash.block_number, &header)
+        .unwrap()
+        .append_state_diff(header.block_header_without_hash.block_number, diff.clone())
+        .unwrap()
+        .append_body(header.block_header_without_hash.block_number, Default::default())
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    let response = state_sync
+        .handle_request(StateSyncRequest::IsClassDeclaredAt(
+            header.block_header_without_hash.block_number,
+            contract_class_hash,
+        ))
+        .await;
+
+    let is_declared = assert_matches!(response, StateSyncResponse::IsClassDeclaredAt(Ok(x)) => x);
+    let expected_is_declared = [
+        ClassDeclarationOption::DeclaredClasses,
+        ClassDeclarationOption::DeprecatedDeclaredClasses,
+    ]
+    .contains(&deployment_option);
+    assert_eq!(expected_is_declared, is_declared);
 }
