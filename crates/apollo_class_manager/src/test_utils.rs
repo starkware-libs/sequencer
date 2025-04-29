@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use tempfile::TempDir;
 
 use crate::class_storage::{ClassHashStorage, FsClassStorage};
-use crate::config::{ClassHashStorageConfig, FsClassStorageConfig};
+use crate::config::FsClassStorageConfig;
 
 pub type FileHandles = (TempDir, TempDir);
 
@@ -17,14 +17,10 @@ impl Default for FsClassStorageBuilderForTesting {
         let class_hash_storage_handle = tempfile::tempdir().unwrap();
         let persistent_root_handle = tempfile::tempdir().unwrap();
         let persistent_root = persistent_root_handle.path().to_path_buf();
-        let config = FsClassStorageConfig {
-            persistent_root,
-            class_hash_storage_config: ClassHashStorageConfig {
-                path_prefix: class_hash_storage_handle.path().to_path_buf(),
-                enforce_file_exists: false,
-                max_size: 1 << 20, // 1MB.
-            },
-        };
+        let mut config = FsClassStorageConfig { persistent_root, ..Default::default() };
+        config.storage_config.db_config.path_prefix =
+            class_hash_storage_handle.path().to_path_buf();
+
         Self { config, handles: Some((class_hash_storage_handle, persistent_root_handle)) }
     }
 }
@@ -35,7 +31,7 @@ impl FsClassStorageBuilderForTesting {
         class_hash_storage_path_prefix: PathBuf,
         persistent_path: PathBuf,
     ) -> Self {
-        self.config.class_hash_storage_config.path_prefix = class_hash_storage_path_prefix;
+        self.config.storage_config.db_config.path_prefix = class_hash_storage_path_prefix;
         self.config.persistent_root = persistent_path;
         self.handles = None;
         self
@@ -43,8 +39,7 @@ impl FsClassStorageBuilderForTesting {
 
     pub fn build(self) -> (FsClassStorage, FsClassStorageConfig, Option<FileHandles>) {
         let Self { config, handles } = self;
-        let class_hash_storage =
-            ClassHashStorage::new(config.class_hash_storage_config.clone()).unwrap();
+        let class_hash_storage = ClassHashStorage::new(config.storage_config.clone()).unwrap();
         let fs_class_storage =
             FsClassStorage { persistent_root: config.persistent_root.clone(), class_hash_storage };
         (fs_class_storage, config, handles)

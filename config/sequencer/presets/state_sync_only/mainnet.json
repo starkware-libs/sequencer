@@ -2,7 +2,7 @@
     "base_layer_config.node_url": "http://unused",
     "base_layer_config.starknet_contract_address": "0x0000000000000000000000000000000000000000",
     "chain_id": "SN_MAIN",
-    "class_manager_config.class_storage_config.class_hash_storage_config.path_prefix": "/data/class_manager/class_hash_storage",
+    "class_manager_config.class_storage_config.storage_config.db_config.path_prefix": "/data/class_manager/class_hash_storage",
     "class_manager_config.class_storage_config.persistent_root": "/data/class_manager/classes",
     "components.batcher.execution_mode": "Disabled",
     "components.consensus_manager.execution_mode": "Disabled",
