@@ -176,6 +176,7 @@ fn test_old_json_parsing() {
             OsConstants::from_raw(&raw_vc.os_constants, &raw_vc.os_resources),
             *vc.os_constants
         );
+        assert_eq!(OsResources::from_raw(&raw_vc.os_resources), *vc.os_resources);
     }
 }
 
