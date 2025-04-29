@@ -1021,6 +1021,9 @@ async fn get_proposal_content(
                 let proposal_commitment = BlockHash(id.state_diff_commitment.0.0);
                 let num_txs: usize = content.iter().map(|batch| batch.len()).sum();
                 info!(?proposal_commitment, num_txs = num_txs, "Finished building proposal",);
+                if num_txs == 0 {
+                    warn!("Built an empty proposal.");
+                }
 
                 // If the blob writing operation to Aerospike doesn't return a success status, we
                 // can't finish the proposal.
@@ -1373,6 +1376,9 @@ async fn handle_proposal_part(
                 num_txs,
                 "Finished validating proposal."
             );
+            if num_txs == 0 {
+                warn!("Validated empty proposal.");
+            }
             HandledProposalPart::Finished(batcher_block_id, ProposalFin { proposal_commitment: id })
         }
         Some(ProposalPart::Transactions(TransactionBatch { transactions: txs })) => {
