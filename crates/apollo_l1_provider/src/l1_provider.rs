@@ -223,7 +223,7 @@ impl L1Provider {
             match event {
                 Event::L1HandlerTransaction(l1_handler_tx) => {
                     let tx_hash = l1_handler_tx.tx_hash;
-                    let is_known_or_committed = self.tx_manager.add_tx(l1_handler_tx);
+                    let is_known_or_committed = !self.tx_manager.add_tx(l1_handler_tx);
                     if is_known_or_committed {
                         debug!(
                             "Unexpected L1 Handler transaction with hash: {tx_hash}, already \
