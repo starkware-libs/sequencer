@@ -1009,6 +1009,11 @@
     "privacy": "Public",
     "value": 120
   },
+  "consensus_manager_config.network_config.is_quic": {
+    "description": "Toggle using the QUIC protocol for swarm communication. If false then TCP will be used instead.",
+    "privacy": "Public",
+    "value": true
+  },
   "consensus_manager_config.network_config.peer_manager_config.malicious_timeout_seconds": {
     "description": "The duration in seconds a peer is blacklisted after being marked as malicious.",
     "privacy": "Public",
@@ -1384,6 +1389,11 @@
     "privacy": "Public",
     "value": 120
   },
+  "mempool_p2p_config.network_config.is_quic": {
+    "description": "Toggle using the QUIC protocol for swarm communication. If false then TCP will be used instead.",
+    "privacy": "Public",
+    "value": true
+  },
   "mempool_p2p_config.network_config.peer_manager_config.malicious_timeout_seconds": {
     "description": "The duration in seconds a peer is blacklisted after being marked as malicious.",
     "privacy": "Public",
@@ -1623,6 +1633,11 @@
     "description": "Amount of time in seconds that a connection with no active sessions will stay alive.",
     "privacy": "Public",
     "value": 120
+  },
+  "state_sync_config.network_config.is_quic": {
+    "description": "Toggle using the QUIC protocol for swarm communication. If false then TCP will be used instead.",
+    "privacy": "Public",
+    "value": true
   },
   "state_sync_config.network_config.peer_manager_config.malicious_timeout_seconds": {
     "description": "The duration in seconds a peer is blacklisted after being marked as malicious.",
