@@ -56,18 +56,21 @@ use crate::serde_utils::SerdeWrapper;
 /// const REMOTE_MESSAGES_RECEIVED: MetricCounter = MetricCounter::new(
 ///     MetricScope::Infra,
 ///     "remote_received_messages_counter",
+///     "remote_received_messages_counter_filter",
 ///     "Received remote messages counter",
 ///     0,
 /// );
 /// const REMOTE_VALID_MESSAGES_RECEIVED: MetricCounter = MetricCounter::new(
 ///     MetricScope::Infra,
 ///     "remote_valid_received_messages_counter",
+///     "remote_valid_received_messages_counter_filter",
 ///     "Received remote valid messages counter",
 ///     0,
 /// );
 /// const REMOTE_MESSAGES_PROCESSED: MetricCounter = MetricCounter::new(
 ///     MetricScope::Infra,
 ///     "remote_processed_messages_counter",
+///     "remote_processed_messages_counter_filter",
 ///     "Processed messages counter",
 ///     0,
 /// );
