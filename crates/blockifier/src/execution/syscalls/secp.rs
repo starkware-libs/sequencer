@@ -21,12 +21,17 @@ use crate::execution::syscalls::{
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct SecpHintProcessor<Curve: SWCurveConfig> {
     points: Vec<short_weierstrass::Affine<Curve>>,
+    points_segment_base: Option<Relocatable>,
 }
 
 impl<Curve: SWCurveConfig> SecpHintProcessor<Curve>
 where
     Curve::BaseField: PrimeField,
 {
+    pub fn new() -> Self {
+        Self { points: Vec::default(), points_segment_base: None }
+    }
+
     pub fn secp_add(&mut self, request: SecpAddRequest) -> SyscallResult<SecpAddResponse> {
         let lhs = self.get_point_by_id(request.lhs_id)?;
         let rhs = self.get_point_by_id(request.rhs_id)?;
@@ -58,7 +63,14 @@ where
         Ok(SecpGetXyResponse { x: ec_point.x.into(), y: ec_point.y.into() })
     }
 
-    pub fn secp_new(&mut self, request: SecpNewRequest) -> SyscallResult<SecpNewResponse> {
+    pub fn secp_new(
+        &mut self,
+        vm: &mut VirtualMachine,
+        request: SecpNewRequest,
+    ) -> SyscallResult<SecpNewResponse> {
+        if self.points_segment_base.is_none() {
+            self.points_segment_base = Some(vm.add_memory_segment());
+        }
         let affine = new_affine::<Curve>(request.x, request.y)?;
         Ok(SecpNewResponse {
             optional_ec_point_id: affine.map(|ec_point| self.allocate_point(ec_point)),
