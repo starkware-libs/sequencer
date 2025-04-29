@@ -33,9 +33,11 @@ pub(crate) fn enter_scope_with_aliases<S: StateReader>(
 }
 
 pub(crate) fn key_lt_min_alias_alloc_value<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { ids_data, ap_tracking, vm, constants, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let key = get_integer_from_var_name(Ids::Key.into(), vm, ids_data, ap_tracking)?;
+    let min_value_for_alias_alloc = *Const::MinValueForAliasAlloc.fetch(constants)?;
+    Ok(insert_value_into_ap(vm, Felt::from(key < min_value_for_alias_alloc))?)
 }
 
 pub(crate) fn assert_key_big_enough_for_alias<S: StateReader>(
