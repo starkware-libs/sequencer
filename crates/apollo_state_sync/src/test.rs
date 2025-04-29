@@ -13,6 +13,7 @@ use indexmap::IndexMap;
 use rand_chacha::rand_core::RngCore;
 use starknet_api::block::{Block, BlockHeader, BlockNumber};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
+use starknet_api::hash::StarkHash;
 use starknet_api::state::{StorageKey, ThinStateDiff};
 use starknet_types_core::felt::Felt;
 
@@ -305,4 +306,53 @@ async fn test_contract_not_found() {
     };
 
     assert_eq!(get_class_hash_at_result, Err(StateSyncError::ContractNotFound(address)));
+}
+
+#[tokio::test]
+async fn test_is_class_declared_at_with_cairo_0_class() {
+    let (mut state_sync, mut storage_writer) = setup();
+
+    let cairo0_contract_class_hash = ClassHash(StarkHash::ONE);
+    let header = BlockHeader::default();
+
+    let response = state_sync
+        .handle_request(StateSyncRequest::IsClassDeclaredAt(
+            header.block_header_without_hash.block_number,
+            cairo0_contract_class_hash,
+        ))
+        .await;
+    let StateSyncResponse::IsClassDeclaredAt(Ok(false)) = response else {
+        panic!("Expected StateSyncResponse::IsClassDeclaredAt::Ok(false), but got {:?}", response);
+    };
+
+    let mut rng = get_rng();
+    let address = ContractAddress::from(rng.next_u64());
+    let key = StorageKey::from(rng.next_u64());
+    let expected_value = Felt::from(rng.next_u64());
+    let mut diff = ThinStateDiff::from(get_test_state_diff());
+
+    diff.storage_diffs.insert(address, IndexMap::from([(key, expected_value)]));
+    diff.deployed_contracts.insert(address, cairo0_contract_class_hash);
+
+    storage_writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_header(header.block_header_without_hash.block_number, &header)
+        .unwrap()
+        .append_state_diff(header.block_header_without_hash.block_number, diff.clone())
+        .unwrap()
+        .append_body(header.block_header_without_hash.block_number, Default::default())
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    let response = state_sync
+        .handle_request(StateSyncRequest::IsClassDeclaredAt(
+            header.block_header_without_hash.block_number,
+            cairo0_contract_class_hash,
+        ))
+        .await;
+    let StateSyncResponse::IsClassDeclaredAt(Ok(true)) = response else {
+        panic!("Expected StateSyncResponse::IsClassDeclaredAt::Ok(true), but got {:?}", response);
+    };
 }
