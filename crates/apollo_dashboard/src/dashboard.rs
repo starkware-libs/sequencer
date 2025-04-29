@@ -37,15 +37,30 @@ impl Panel {
     }
 
     pub const fn from_counter(metric: MetricCounter, panel_type: PanelType) -> Self {
-        Self::new(metric.get_name(), metric.get_description(), metric.get_name(), panel_type)
+        Self::new(
+            metric.get_name(),
+            metric.get_description(),
+            metric.get_name_with_filter(),
+            panel_type,
+        )
     }
 
     pub const fn from_gauge(metric: MetricGauge, panel_type: PanelType) -> Self {
-        Self::new(metric.get_name(), metric.get_description(), metric.get_name(), panel_type)
+        Self::new(
+            metric.get_name(),
+            metric.get_description(),
+            metric.get_name_with_filter(),
+            panel_type,
+        )
     }
 
     pub const fn from_hist(metric: MetricHistogram, panel_type: PanelType) -> Self {
-        Self::new(metric.get_name(), metric.get_description(), metric.get_name(), panel_type)
+        Self::new(
+            metric.get_name(),
+            metric.get_description(),
+            metric.get_name_with_filter(),
+            panel_type,
+        )
     }
 }
 

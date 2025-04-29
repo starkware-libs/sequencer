@@ -10,8 +10,12 @@ use strum_macros::EnumVariantNames;
 use crate::generate_permutation_labels;
 use crate::metrics::{HistogramValue, LabeledMetricHistogram, MetricHistogram, MetricScope};
 
-const HISTOGRAM_TEST_METRIC: MetricHistogram =
-    MetricHistogram::new(MetricScope::Infra, "histogram_test_metric", "Histogram test metrics");
+const HISTOGRAM_TEST_METRIC: MetricHistogram = MetricHistogram::new(
+    MetricScope::Infra,
+    "histogram_test_metric",
+    "histogram_test_metric_filter",
+    "Histogram test metrics",
+);
 
 const LABEL_TYPE_NAME: &str = "label";
 const VALUE_TYPE_NAME: &str = "value";
@@ -39,6 +43,7 @@ const SINGLE_KEY_VALUE_PAIR_LABELED_HISTOGRAM_METRIC: LabeledMetricHistogram =
     LabeledMetricHistogram::new(
         MetricScope::Infra,
         "labeled_histogram_test_metric",
+        "labeled_histogram_test_metric_filter",
         "Labeled histogram test metrics",
         SINGLE_KEY_VALUE_PAIR_LABELS,
     );
@@ -53,6 +58,7 @@ const TWO_KEY_VALUE_PAIR_LABELED_HISTOGRAM_METRIC: LabeledMetricHistogram =
     LabeledMetricHistogram::new(
         MetricScope::Infra,
         "multi_labeled_histogram_test_metric",
+        "multi_labeled_histogram_test_metric_filter",
         "Multi labeled histogram test metrics",
         TWO_KEY_VALUE_PAIR_LABELS,
     );
