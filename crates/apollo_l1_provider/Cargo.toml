@@ -40,6 +40,7 @@ pretty_assertions.workspace = true
 rstest.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
+tracing-test.workspace = true
 
 [lints]
 workspace = true

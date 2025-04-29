@@ -19,6 +19,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::test_utils::l1_handler::{executable_l1_handler_tx, L1HandlerTxArgs};
 use starknet_api::transaction::TransactionHash;
 use starknet_api::tx_hash;
+use tracing_test::traced_test;
 
 use crate::bootstrapper::{Bootstrapper, CommitBlockBacklog, SyncTaskHandle};
 use crate::test_utils::{l1_handler, FakeL1ProviderClient, L1ProviderContentBuilder};
@@ -153,6 +154,7 @@ fn process_events_happy_flow() {
     }
 }
 
+#[traced_test]
 #[test]
 fn process_events_committed_txs() {
     // Setup.
@@ -165,13 +167,27 @@ fn process_events_committed_txs() {
     let expected_l1_provider = l1_provider.clone();
 
     // Test.
-    // Unconsumed transaction, should fail silently.
+    // Uncommitted transaction, should fail silently.
     l1_provider.add_events(vec![l1_handler_event(tx_hash!(1))]).unwrap();
     assert_eq!(l1_provider, expected_l1_provider);
+    assert!(logs_contain(
+        format!(
+            "Unexpected L1 Handler transaction with hash: {}, already known or committed.",
+            tx_hash!(1)
+        )
+        .as_str()
+    ));
 
     // Committed transaction, should fail silently.
     l1_provider.add_events(vec![l1_handler_event(tx_hash!(2))]).unwrap();
     assert_eq!(l1_provider, expected_l1_provider);
+    assert!(logs_contain(
+        format!(
+            "Unexpected L1 Handler transaction with hash: {}, already known or committed.",
+            tx_hash!(2)
+        )
+        .as_str()
+    ));
 }
 
 #[test]
@@ -448,4 +464,28 @@ fn validate_rejected_transaction_accepted_after_rollback() {
 
     // Test: Validate already proposed rejected transaction.
     assert_eq!(l1_provider.validate(tx1, BlockNumber(1)).unwrap(), ValidationStatus::Validated);
+}
+
+#[test]
+fn add_new_transaction_not_added_if_rejected() {
+    // Setup.
+    let rejected_tx_id: TransactionHash = tx_hash!(1);
+    let mut l1_provider = setup_rejected_transactions();
+
+    // Add a new transaction that is already in the rejected set.
+    l1_provider.add_events(vec![l1_handler_event(rejected_tx_id)]).unwrap();
+
+    // Ensure that the rejected transaction is not re-added to the provider.
+    let expected_l1_provider = L1ProviderContentBuilder::new()
+        .with_txs([l1_handler(3)])
+        .with_rejected([l1_handler(1)])
+        .with_committed([tx_hash!(2)])
+        .with_height(BlockNumber(1))
+        .build();
+    expected_l1_provider.assert_eq(&l1_provider);
+
+    // Ensure that the rejected transaction is not re-added to the provider, even if it is staged.
+    l1_provider.validate(rejected_tx_id, BlockNumber(1)).unwrap();
+    l1_provider.add_events(vec![l1_handler_event(rejected_tx_id)]).unwrap();
+    expected_l1_provider.assert_eq(&l1_provider);
 }
