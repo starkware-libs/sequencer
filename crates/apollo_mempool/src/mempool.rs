@@ -440,6 +440,9 @@ impl Mempool {
         debug!("Aligned mempool to committed nonces.");
 
         // Remove rejected transactions from the mempool.
+        if !rejected_tx_hashes.is_empty() {
+            debug!("Removed rejected transactions from mempool: {:?}", rejected_tx_hashes);
+        }
         metric_count_rejected_txs(rejected_tx_hashes.len());
         for tx_hash in rejected_tx_hashes {
             if let Ok(tx) = self.tx_pool.remove(tx_hash) {
@@ -451,7 +454,6 @@ impl Mempool {
             // TODO(clean_accounts): remove address with no transactions left after a block cycle /
             // TTL.
         }
-        debug!("Removed rejected transactions known to mempool.");
 
         self.update_state_metrics();
     }
