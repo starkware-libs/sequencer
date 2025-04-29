@@ -66,9 +66,18 @@ pub(crate) fn read_alias_from_key<S: StateReader>(
 }
 
 pub(crate) fn write_next_alias_from_key<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { hint_processor, ids_data, ap_tracking, vm, constants, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let key = get_integer_from_var_name(Ids::Key.into(), vm, ids_data, ap_tracking)?;
+    let next_available_alias =
+        get_integer_from_var_name(Ids::NextAvailableAlias.into(), vm, ids_data, ap_tracking)?;
+    let execution_helper = hint_processor.get_mut_current_execution_helper()?;
+    let aliases_contract_address = Const::get_alias_contract_address(constants)?;
+    Ok(execution_helper.cached_state.set_storage_at(
+        aliases_contract_address,
+        key.try_into()?,
+        next_available_alias,
+    )?)
 }
 
 pub(crate) fn read_alias_counter<S: StateReader>(
