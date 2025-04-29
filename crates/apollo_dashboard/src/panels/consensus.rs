@@ -88,7 +88,11 @@ pub(crate) const PANEL_CONSENSUS_HELD_LOCKS: Panel =
 pub(crate) const PANEL_CONSENSUS_TIMEOUTS_BY_TYPE: Panel = Panel::new(
     CONSENSUS_TIMEOUTS.get_name(),
     CONSENSUS_TIMEOUTS.get_description(),
-    formatcp!("sum  by ({}) ({})", LABEL_NAME_TIMEOUT_REASON, CONSENSUS_TIMEOUTS.get_name()),
+    formatcp!(
+        "sum  by ({}) ({})",
+        LABEL_NAME_TIMEOUT_REASON,
+        CONSENSUS_TIMEOUTS.get_name_with_filter()
+    ),
     PanelType::Stat,
 );
 pub(crate) const PANEL_CONSENSUS_NUM_BATCHES_IN_PROPOSAL: Panel =
@@ -114,13 +118,16 @@ pub(crate) const PANEL_CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER: Panel =
 pub(crate) const PANEL_CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY: Panel = Panel::new(
     CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY.get_name(),
     CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY.get_description(),
-    formatcp!("avg_over_time({}[2m])", CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY.get_name()),
+    formatcp!(
+        "avg_over_time({}[2m])",
+        CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY.get_name_with_filter()
+    ),
     PanelType::Stat,
 );
 pub(crate) const PANEL_CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY: Panel = Panel::new(
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_name(),
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_description(),
-    formatcp!("avg_over_time({}[2m])", CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_name()),
+    formatcp!("avg_over_time({}[2m])", CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_name_with_filter()),
     PanelType::Stat,
 );
 pub(crate) const PANEL_CENDE_WRITE_BLOB_SUCCESS: Panel =
@@ -128,7 +135,11 @@ pub(crate) const PANEL_CENDE_WRITE_BLOB_SUCCESS: Panel =
 pub(crate) const PANEL_CENDE_WRITE_BLOB_FAILURE: Panel = Panel::new(
     CENDE_WRITE_BLOB_FAILURE.get_name(),
     CENDE_WRITE_BLOB_FAILURE.get_description(),
-    formatcp!("sum  by ({}) ({})", LABEL_CENDE_FAILURE_REASON, CENDE_WRITE_BLOB_FAILURE.get_name()),
+    formatcp!(
+        "sum  by ({}) ({})",
+        LABEL_CENDE_FAILURE_REASON,
+        CENDE_WRITE_BLOB_FAILURE.get_name_with_filter()
+    ),
     PanelType::Stat,
 );
 pub(crate) const PANEL_CONSENSUS_L1_DATA_GAS_MISMATCH: Panel =
