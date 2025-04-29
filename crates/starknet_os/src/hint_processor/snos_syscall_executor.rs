@@ -44,14 +44,6 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         todo!()
     }
 
-    fn base_keccak(
-        &mut self,
-        data: &[u64],
-        remaining_gas: &mut u64,
-    ) -> SyscallResult<([u64; 4], usize)> {
-        todo!()
-    }
-
     fn get_secpk1_hint_processor(&mut self) -> &mut SecpHintProcessor<ark_secp256k1::Config> {
         &mut self.syscall_hint_processor.secp256k1_hint_processor
     }

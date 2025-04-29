@@ -39,6 +39,7 @@ use crate::execution::native::utils::{calculate_resource_bounds, default_tx_v2_i
 use crate::execution::secp;
 use crate::execution::syscalls::hint_processor::{SyscallExecutionError, OUT_OF_GAS_ERROR};
 use crate::execution::syscalls::syscall_base::SyscallHandlerBase;
+use crate::execution::syscalls::syscall_executor::base_keccak;
 use crate::state::state_api::State;
 use crate::transaction::objects::TransactionInfo;
 use crate::utils::u64_from_usize;
@@ -570,7 +571,11 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
             self.gas_costs().syscalls.keccak.base_syscall_cost(),
         )?;
 
-        match self.base.keccak(input, remaining_gas) {
+        match base_keccak(
+            self.gas_costs().syscalls.keccak_round.base_syscall_cost(),
+            input,
+            remaining_gas,
+        ) {
             Ok((state, _n_rounds)) => Ok(U256 {
                 hi: u128::from(state[2]) | (u128::from(state[3]) << 64),
                 lo: u128::from(state[0]) | (u128::from(state[1]) << 64),
