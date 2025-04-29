@@ -47,6 +47,7 @@ impl Deployment {
         external_secret: Option<ExternalSecret>,
         base_app_config_file_path: PathBuf,
         config_override: ConfigOverride,
+        domain: String,
         ingress_alternative_names: Option<Vec<String>>,
     ) -> Self {
         let service_names = deployment_name.all_service_names();
@@ -64,6 +65,7 @@ impl Deployment {
                     &environment,
                     &external_secret,
                     additional_config_filenames.clone(),
+                    domain.clone(),
                     ingress_alternative_names.clone(),
                 )
             })
