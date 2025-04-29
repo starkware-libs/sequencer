@@ -165,7 +165,7 @@ fn process_events_committed_txs() {
     let expected_l1_provider = l1_provider.clone();
 
     // Test.
-    // Unconsumed transaction, should fail silently.
+    // Uncommitted transaction, should fail silently.
     l1_provider.add_events(vec![l1_handler_event(tx_hash!(1))]).unwrap();
     assert_eq!(l1_provider, expected_l1_provider);
 
@@ -448,4 +448,28 @@ fn validate_rejected_transaction_accepted_after_rollback() {
 
     // Test: Validate already proposed rejected transaction.
     assert_eq!(l1_provider.validate(tx1, BlockNumber(1)).unwrap(), ValidationStatus::Validated);
+}
+
+#[test]
+fn add_new_transaction_not_added_if_rejected() {
+    // Setup.
+    let rejected_tx_id: TransactionHash = tx_hash!(1);
+    let mut l1_provider = setup_rejected_transactions();
+
+    // Add a new transaction that is already in the rejected set.
+    l1_provider.add_events(vec![l1_handler_event(rejected_tx_id)]).unwrap();
+
+    // Ensure that the rejected transaction is not re-added to the provider.
+    let expected_l1_provider = L1ProviderContentBuilder::new()
+        .with_txs([l1_handler(3)])
+        .with_rejected([l1_handler(1)])
+        .with_committed([tx_hash!(2)])
+        .with_height(BlockNumber(1))
+        .build();
+    expected_l1_provider.assert_eq(&l1_provider);
+
+    // Ensure that the rejected transaction is not re-added to the provider, even if it is staged.
+    l1_provider.validate(rejected_tx_id, BlockNumber(1)).unwrap();
+    l1_provider.add_events(vec![l1_handler_event(rejected_tx_id)]).unwrap();
+    expected_l1_provider.assert_eq(&l1_provider);
 }
