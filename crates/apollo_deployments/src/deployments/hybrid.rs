@@ -116,6 +116,7 @@ impl ServiceNameInner for HybridNodeServiceName {
         environment: &Environment,
         external_secret: &Option<ExternalSecret>,
         additional_config_filenames: Vec<String>,
+        domain: String,
         ingress_alternative_names: Option<Vec<String>>,
     ) -> Service {
         match environment {
@@ -136,7 +137,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                     Into::<ServiceName>::into(*self),
                     Controller::StatefulSet,
                     Some(Ingress::new(
-                        String::from("sw-dev.io"),
+                        domain,
                         true,
                         vec![IngressRule::new(String::from("/gateway"), 8080, None)],
                         ingress_alternative_names.unwrap_or_default(),
@@ -193,7 +194,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                     None,
                     false,
                     1,
-                    Some(500),
+                    Some(1000),
                     Some("sequencer".into()),
                     Resources::new(Resource::new(2, 4), Resource::new(4, 8)),
                     external_secret.clone(),
@@ -203,7 +204,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                     Into::<ServiceName>::into(*self),
                     Controller::Deployment,
                     Some(Ingress::new(
-                        String::from("sw-dev.io"),
+                        domain,
                         false,
                         vec![IngressRule::new(String::from("/gateway"), 8080, None)],
                         ingress_alternative_names.unwrap_or_default(),
