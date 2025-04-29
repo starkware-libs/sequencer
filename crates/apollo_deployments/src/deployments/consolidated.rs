@@ -54,6 +54,7 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
         environment: &Environment,
         external_secret: &Option<ExternalSecret>,
         additional_config_filenames: Vec<String>,
+        domain: String,
         ingress_alternative_names: Option<Vec<String>>,
     ) -> Service {
         match environment {
@@ -76,7 +77,7 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
                     Into::<ServiceName>::into(*self),
                     Controller::StatefulSet,
                     Some(Ingress::new(
-                        String::from("sw-dev.io"),
+                        domain,
                         false,
                         vec![IngressRule::new(String::from("/gateway"), 8080, None)],
                         ingress_alternative_names.unwrap_or_default(),

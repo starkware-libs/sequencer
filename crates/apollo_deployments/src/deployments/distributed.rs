@@ -142,6 +142,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
         environment: &Environment,
         external_secret: &Option<ExternalSecret>,
         additional_config_filenames: Vec<String>,
+        domain: String,
         ingress_alternative_names: Option<Vec<String>>,
     ) -> Service {
         match environment {
@@ -186,7 +187,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     Into::<ServiceName>::into(*self),
                     Controller::StatefulSet,
                     Some(Ingress::new(
-                        String::from("sw-dev.io"),
+                        domain,
                         true,
                         vec![IngressRule::new(String::from("/gateway"), 8080, None)],
                         ingress_alternative_names.unwrap_or_default(),
@@ -301,7 +302,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     Into::<ServiceName>::into(*self),
                     Controller::StatefulSet,
                     Some(Ingress::new(
-                        String::from("sw-dev.io"),
+                        domain,
                         true,
                         vec![IngressRule::new(String::from("/gateway"), 8080, None)],
                         ingress_alternative_names.unwrap_or_default(),
