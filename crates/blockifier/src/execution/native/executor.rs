@@ -1,3 +1,7 @@
+use std::fs::{self, File};
+use std::io::Write;
+use std::path::PathBuf;
+use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 
 use cairo_lang_sierra::program::Program;
@@ -17,6 +21,9 @@ use super::syscall_handler::NativeSyscallHandler;
 pub enum ContractExecutor {
     Aot(AotContractExecutor),
     Emu((Arc<Program>, ContractEntryPoints, VersionId)),
+    // must use a different variant as we need `Program` for trace feature
+    #[cfg(feature = "with-trace-dump")]
+    AotTrace((AotContractExecutor, Program)),
 }
 
 impl From<AotContractExecutor> for ContractExecutor {
@@ -60,7 +67,26 @@ impl ContractExecutor {
                 let args = args.to_owned();
                 virtual_machine.call_contract(selector, gas, args, builtin_costs);
 
-                let result = virtual_machine.run(&mut syscall_handler).unwrap();
+                let result = if cfg!(feature = "with-trace-dump") {
+                    static COUNTER: AtomicU64 = AtomicU64::new(0);
+                    let counter = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+
+                    let trace = virtual_machine.run_with_trace(&mut syscall_handler);
+
+                    let trace_path = PathBuf::from(format!("traces/emu/{counter}.json"));
+                    let trace_parent_path = trace_path.parent().unwrap();
+                    fs::create_dir_all(trace_parent_path).unwrap();
+                    let trace_file = File::create(&trace_path).unwrap();
+                    serde_json::to_writer_pretty(trace_file, &trace).unwrap();
+
+                    let sierra_path = PathBuf::from(format!("traces/{counter}.sierra"));
+                    let mut sierra_file = File::create(&sierra_path).unwrap();
+                    write!(sierra_file, "{}", program).unwrap();
+
+                    sierra_emu::ContractExecutionResult::from_trace(&trace).unwrap()
+                } else {
+                    virtual_machine.run(&mut syscall_handler).unwrap()
+                };
 
                 Ok(ContractExecutionResult {
                     remaining_gas: result.remaining_gas,
@@ -68,6 +94,53 @@ impl ContractExecutor {
                     return_values: result.return_values,
                     error_msg: result.error_msg,
                 })
+            }
+            #[cfg(feature = "with-trace-dump")]
+            ContractExecutor::AotTrace((executor, program)) => {
+                use cairo_lang_sierra::program_registry::ProgramRegistry;
+                use cairo_native::metadata::trace_dump::trace_dump_runtime::{
+                    TraceDump,
+                    TRACE_DUMP,
+                };
+                use cairo_native::metadata::trace_dump::TraceBinding;
+
+                static COUNTER: AtomicU64 = AtomicU64::new(0);
+                let counter = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+
+                TRACE_DUMP
+                    .lock()
+                    .unwrap()
+                    .insert(counter, TraceDump::new(ProgramRegistry::new(&program).unwrap()));
+
+                let trace_id = unsafe {
+                    let trace_id_ptr =
+                        executor.find_symbol_ptr(TraceBinding::TraceId.symbol()).unwrap();
+                    trace_id_ptr.cast::<u64>().as_mut().unwrap()
+                };
+
+                let old_trace_id = *trace_id;
+                *trace_id = counter;
+
+                let result = executor.run(selector, args, gas, builtin_costs, syscall_handler);
+
+                // Retreive trace dump for current execution
+                let trace = TRACE_DUMP
+                    .lock()
+                    .unwrap()
+                    .remove(&u64::try_from(counter).unwrap())
+                    .unwrap()
+                    .trace;
+
+                // Save trace dump to file
+                let trace_path = PathBuf::from(format!("traces/native/{counter}.json"));
+                let trace_parent_path = trace_path.parent().unwrap();
+                fs::create_dir_all(trace_parent_path).unwrap();
+                let trace_file = File::create(&trace_path).unwrap();
+                serde_json::to_writer_pretty(trace_file, &trace).unwrap();
+
+                *trace_id = old_trace_id;
+
+                result
             }
         }
     }
