@@ -22,7 +22,7 @@ macro_rules! define_metrics {
                     pub const $name: $type = <$type>::new(
                         $crate::metrics::MetricScope::$scope,
                         $key,
-                        concat!($key, "{cluster=~\".*\", namespace=~\".*\"}"),
+                        concat!($key, "{cluster=~\"$cluster\", namespace=~\"$namespace\"}"),
                         $desc
                         $(, $init)? // Only expands if `init = ...` is provided
                         $(, $labels)? // Only expands if `labels = ...` is provided
