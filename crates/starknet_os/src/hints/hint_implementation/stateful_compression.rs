@@ -16,7 +16,7 @@ use crate::hint_processor::state_update_pointers::{
     StateEntryPtr,
     StoragePtr,
 };
-use crate::hints::error::OsHintResult;
+use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
 use crate::vm_utils::get_address_of_nested_fields;
@@ -41,9 +41,17 @@ pub(crate) fn key_lt_min_alias_alloc_value<S: StateReader>(
 }
 
 pub(crate) fn assert_key_big_enough_for_alias<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { ids_data, ap_tracking, vm, constants, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let key = get_integer_from_var_name(Ids::Key.into(), vm, ids_data, ap_tracking)?;
+    let min_value_for_alias_alloc = *Const::MinValueForAliasAlloc.fetch(constants)?;
+    if key < min_value_for_alias_alloc {
+        Err(OsHintError::AssertionFailed {
+            message: format!("Key {key} is too small for alias allocation."),
+        })
+    } else {
+        Ok(())
+    }
 }
 
 pub(crate) fn read_alias_from_key<S: StateReader>(
