@@ -11999,6 +11999,7 @@ dependencies = [
 name = "starknet_committer_and_os_cli"
 version = "0.0.0"
 dependencies = [
+ "apollo_starknet_os_program",
  "assert_matches",
  "cairo-lang-starknet-classes",
  "cairo-vm",

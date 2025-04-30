@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::Path;
 
+use apollo_starknet_os_program::CAIRO_FILES_MAP;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
@@ -100,4 +101,8 @@ pub(crate) fn serialize_os_runner_output(
     cairo_pie
         .write_zip_file(Path::new(&cairo_pie_zip_path), merge_extra_segments)
         .unwrap_or_else(|err| panic!("Failed to write cairo pie. Error: {}", err));
+}
+
+pub(crate) fn dump_source_files(output_path: String) {
+    write_to_file(&output_path, &*CAIRO_FILES_MAP);
 }

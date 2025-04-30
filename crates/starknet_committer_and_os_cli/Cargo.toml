@@ -18,6 +18,8 @@ tempfile.workspace = true
 
 # TODO(Amos): Add `testing` feature and move Python test dependencies under it.
 [dependencies]
+# The 'dump_source_files' feature should be moved under `testing` feature, when it exists.
+apollo_starknet_os_program = { workspace = true, features = ["dump_source_files"] }
 cairo-lang-starknet-classes.workspace = true
 cairo-vm = { workspace = true, features = [
   "cairo-0-data-availability-hints",
@@ -39,7 +41,7 @@ serde_repr.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_committer.workspace = true
-# Should be moved under `testing` feature, when it exists.
+# The 'testing' feature should be moved under `testing` feature, when it exists.
 starknet_os = { workspace = true, features = ["deserialize", "testing"] }
 starknet_patricia = { workspace = true, features = ["testing"] }
 starknet_patricia_storage.workspace = true
