@@ -23,12 +23,61 @@ empty_dashboard = {
     "style": "dark",
     "tags": [],
     "templating": {"list": []},
-    "time": {"from": "now-6h", "to": "now"},
+    "time": {"from": "now-5m", "to": "now"},
     "timepicker": {},
     "timezone": "",
     "title": "New dashboard",
     "version": 0,
     "weekStart": "",
+}
+
+templating_object = {
+    "list": [
+        {
+            "allValue": "",
+            "current": {"selected": True, "text": [], "value": []},
+            "datasource": {"type": "prometheus", "uid": "Prometheus"},
+            "definition": "label_values(batcher_proposal_started,namespace)",
+            "hide": 0,
+            "includeAll": True,
+            "multi": True,
+            "name": "namespace",
+            "title": "Namespace",
+            "options": [],
+            "query": {
+                "qryType": 1,
+                "query": "label_values(batcher_proposal_started,namespace)",
+                "refId": "PrometheusVariableQueryEditor-VariableQuery",
+            },
+            "refresh": 1,
+            "regex": "",
+            "skipUrlSync": False,
+            "sort": 0,
+            "type": "query",
+        },
+        {
+            "allValue": "",
+            "current": {"selected": True, "text": [], "value": []},
+            "datasource": {"type": "prometheus", "uid": "Prometheus"},
+            "definition": "label_values(batcher_proposal_started,cluster)",
+            "hide": 0,
+            "includeAll": True,
+            "multi": True,
+            "name": "cluster",
+            "title": "Cluster",
+            "options": [],
+            "query": {
+                "qryType": 1,
+                "query": "label_values(batcher_proposal_started,cluster)",
+                "refId": "PrometheusVariableQueryEditor-VariableQuery",
+            },
+            "refresh": 1,
+            "regex": "",
+            "skipUrlSync": False,
+            "sort": 0,
+            "type": "query",
+        }
+    ]
 }
 
 row_object = {
