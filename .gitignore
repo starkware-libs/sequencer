@@ -12,7 +12,7 @@ CLI_TARGET/
 *.pdb
 
 *.egg-info
-build
+/build
 dist
 target
 */.vscode/*
@@ -29,6 +29,9 @@ tmp_venv/*
 __pycache__/
 .idea/
 **/.venv
+
+# Native blockifier artifacts.
+/crates/native_blockifier/build
 
 # Python artifacts.
 scripts/__pycache__
