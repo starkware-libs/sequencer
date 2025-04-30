@@ -361,15 +361,6 @@ pub fn create_deploy_entry_point(
     }
 }
 
-pub fn update_json_value(base: &mut serde_json::Value, update: serde_json::Value) {
-    match (base, update) {
-        (serde_json::Value::Object(base_map), serde_json::Value::Object(update_map)) => {
-            base_map.extend(update_map);
-        }
-        _ => panic!("Both base and update should be of type serde_json::Value::Object."),
-    }
-}
-
 pub fn gas_vector_from_vm_usage(
     vm_usage_in_l1_gas: GasAmount,
     computation_mode: &GasVectorComputationMode,
