@@ -1,4 +1,6 @@
 #[cfg(any(test, feature = "testing"))]
+use std::io::Write;
+#[cfg(any(test, feature = "testing"))]
 use std::path::PathBuf;
 use std::process::Command;
 #[cfg(any(test, feature = "testing"))]
@@ -79,4 +81,24 @@ pub fn verify_cairo0_compiler_deps() {
          venv sequencer_venv\n. sequencer_venv/bin/activate\npip install -r {:?}",
         PIP_REQUIREMENTS_FILE.to_str().expect("Path to requirements.txt is valid unicode.")
     );
+}
+
+/// Runs the Cairo0 formatter on the input source code.
+#[cfg(any(test, feature = "testing"))]
+pub fn cairo0_format(unformatted: &String) -> String {
+    verify_cairo0_compiler_deps();
+
+    // Dump string to temporary file.
+    let mut temp_file = tempfile::NamedTempFile::new().unwrap();
+    temp_file.write_all(unformatted.as_bytes()).unwrap();
+
+    // Run formatter.
+    let mut command = Command::new("cairo-format");
+    command.arg(temp_file.path().to_str().unwrap());
+    let format_output = command.output().unwrap();
+    let stderr_output = String::from_utf8(format_output.stderr).unwrap();
+    assert!(format_output.status.success(), "{stderr_output}");
+
+    // Return formatted file.
+    String::from_utf8_lossy(format_output.stdout.as_slice()).to_string()
 }
