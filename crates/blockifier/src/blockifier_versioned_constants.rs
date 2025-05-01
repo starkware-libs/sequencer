@@ -7,13 +7,11 @@ use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-use indexmap::{IndexMap, IndexSet};
 use num_rational::Ratio;
 use num_traits::Inv;
 use semver::Version;
 use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer, Serialize};
-use serde_json::{Map, Number, Value};
 use starknet_api::block::{GasPrice, StarknetVersion};
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
@@ -87,6 +85,7 @@ pub struct RawVersionedConstants {
     pub os_resources: RawOsResources,
 }
 
+#[cfg_attr(any(test, feature = "testing"), derive(Serialize))]
 #[derive(Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct RawOsConstants {
@@ -161,6 +160,7 @@ pub struct RawOsConstants {
     pub data_gas_accounts: Vec<ClassHash>,
 }
 
+#[cfg_attr(any(test, feature = "testing"), derive(Serialize))]
 #[derive(Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct RawStepGasCost {
@@ -217,15 +217,12 @@ fn builtin_map_from_string_map<'de, D: Deserializer<'de>>(
         .ok_or(D::Error::custom("Invalid builtin name"))
 }
 
-// TODO(Dori): Remove deserialization and implement `From<RawVersionedConstants>`.
-//   Any post-deserialization computations can be implemented in the conversion.
 /// Contains constants for the Blockifier that may vary between versions.
 /// Additional constants in the JSON file, not used by Blockifier but included for transparency, are
 /// automatically ignored during deserialization.
 /// Instances of this struct for specific Starknet versions can be selected by using the above enum.
-#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
-#[serde(deny_unknown_fields)]
-#[serde(remote = "Self")]
+#[cfg_attr(any(test, feature = "testing"), derive(PartialEq))]
+#[derive(Clone, Debug, Default)]
 pub struct VersionedConstants {
     // Limits.
     pub tx_event_limits: EventLimits,
@@ -300,7 +297,8 @@ impl From<RawVersionedConstants> for VersionedConstants {
 
 impl VersionedConstants {
     pub fn from_path(path: &Path) -> VersionedConstantsResult<Self> {
-        Ok(serde_json::from_reader(std::fs::File::open(path)?)?)
+        let raw_vc: RawVersionedConstants = serde_json::from_reader(std::fs::File::open(path)?)?;
+        Ok(raw_vc.into())
     }
 
     /// Converts from L1 gas price to L2 gas price with **upward rounding**, based on the
@@ -458,79 +456,6 @@ impl VersionedConstants {
             GasVectorComputationMode::NoL2Gas => &self.deprecated_l2_resource_gas_costs,
         }
     }
-
-    /// Calculates the syscall gas cost from the OS resources.
-    fn get_syscall_gas_cost(&self, syscall_selector: &SyscallSelector) -> SyscallGasCost {
-        self.os_resources.get_syscall_gas_cost(syscall_selector, &self.os_constants)
-    }
-}
-
-impl<'de> Deserialize<'de> for VersionedConstants {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let mut versioned_constants = Self::deserialize(deserializer)?;
-
-        let syscall_gas_costs = &(versioned_constants.os_constants.gas_costs.syscalls);
-        if syscall_gas_costs == &SyscallGasCosts::default() {
-            let syscalls = SyscallGasCosts {
-                call_contract: versioned_constants
-                    .get_syscall_gas_cost(&SyscallSelector::CallContract),
-                deploy: versioned_constants.get_syscall_gas_cost(&SyscallSelector::Deploy),
-                get_block_hash: versioned_constants
-                    .get_syscall_gas_cost(&SyscallSelector::GetBlockHash),
-                get_execution_info: versioned_constants
-                    .get_syscall_gas_cost(&SyscallSelector::GetExecutionInfo),
-                library_call: versioned_constants
-                    .get_syscall_gas_cost(&SyscallSelector::LibraryCall),
-                meta_tx_v0: versioned_constants.get_syscall_gas_cost(&SyscallSelector::MetaTxV0),
-                replace_class: versioned_constants
-                    .get_syscall_gas_cost(&SyscallSelector::ReplaceClass),
-                storage_read: versioned_constants
-                    .get_syscall_gas_cost(&SyscallSelector::StorageRead),
-                storage_write: versioned_constants
-                    .get_syscall_gas_cost(&SyscallSelector::StorageWrite),
-                get_class_hash_at: versioned_constants
-                    .get_syscall_gas_cost(&SyscallSelector::GetClassHashAt),
-                emit_event: versioned_constants.get_syscall_gas_cost(&SyscallSelector::EmitEvent),
-                send_message_to_l1: versioned_constants
-                    .get_syscall_gas_cost(&SyscallSelector::SendMessageToL1),
-                secp256k1_add: versioned_constants
-                    .get_syscall_gas_cost(&SyscallSelector::Secp256k1Add),
-                secp256k1_get_point_from_x: versioned_constants
-                    .get_syscall_gas_cost(&SyscallSelector::Secp256k1GetPointFromX),
-                secp256k1_get_xy: versioned_constants
-                    .get_syscall_gas_cost(&SyscallSelector::Secp256k1GetXy),
-                secp256k1_mul: versioned_constants
-                    .get_syscall_gas_cost(&SyscallSelector::Secp256k1Mul),
-                secp256k1_new: versioned_constants
-                    .get_syscall_gas_cost(&SyscallSelector::Secp256k1New),
-                secp256r1_add: versioned_constants
-                    .get_syscall_gas_cost(&SyscallSelector::Secp256r1Add),
-                secp256r1_get_point_from_x: versioned_constants
-                    .get_syscall_gas_cost(&SyscallSelector::Secp256r1GetPointFromX),
-                secp256r1_get_xy: versioned_constants
-                    .get_syscall_gas_cost(&SyscallSelector::Secp256r1GetXy),
-                secp256r1_mul: versioned_constants
-                    .get_syscall_gas_cost(&SyscallSelector::Secp256r1Mul),
-                secp256r1_new: versioned_constants
-                    .get_syscall_gas_cost(&SyscallSelector::Secp256r1New),
-                keccak: versioned_constants.get_syscall_gas_cost(&SyscallSelector::Keccak),
-                keccak_round: versioned_constants
-                    .get_syscall_gas_cost(&SyscallSelector::KeccakRound),
-                sha256_process_block: versioned_constants
-                    .get_syscall_gas_cost(&SyscallSelector::Sha256ProcessBlock),
-            };
-
-            Arc::get_mut(&mut versioned_constants.os_constants)
-                .expect("Failed to get mutable reference")
-                .gas_costs
-                .syscalls = syscalls;
-        }
-
-        Ok(versioned_constants)
-    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
@@ -600,11 +525,8 @@ pub enum RawOsResourcesError {
     UnknownResource(String),
 }
 
-// TODO(Dori): Remove `Deserialize` derive here.
-#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
-// Serde trick for adding validations via a customr deserializer, without forgoing the derive.
-// See: https://github.com/serde-rs/serde/issues/1220.
-#[serde(remote = "Self")]
+#[cfg_attr(any(test, feature = "testing"), derive(PartialEq))]
+#[derive(Clone, Debug, Default)]
 pub struct OsResources {
     // Mapping from every syscall to its execution resources in the OS (e.g., amount of Cairo
     // steps).
@@ -671,28 +593,6 @@ fn validate_builtins_known<'a, B: Iterator<Item = &'a BuiltinName>>(
 }
 
 impl OsResources {
-    // TODO(Dori): Delete this once this struct no longer implements `Deserialize`.
-    pub fn validate(&self) -> Result<(), RawOsResourcesError> {
-        validate_all_tx_types(&self.execute_txs_inner)?;
-        validate_all_selectors(&self.execute_syscalls)?;
-
-        let execution_resources = self
-            .execute_txs_inner
-            .values()
-            .flat_map(|resources_params| {
-                [&resources_params.constant, &resources_params.calldata_factor.resources]
-            })
-            .chain(self.execute_syscalls.values().flat_map(|resources_params| {
-                [&resources_params.constant, &resources_params.calldata_factor.resources]
-            }))
-            .chain(std::iter::once(&self.compute_os_kzg_commitment_info));
-        let builtin_names =
-            execution_resources.flat_map(|resources| resources.builtin_instance_counter.keys());
-        validate_builtins_known(builtin_names)?;
-
-        Ok(())
-    }
-
     fn from_raw(raw_os_resources: &RawOsResources) -> Self {
         Self {
             execute_syscalls: raw_os_resources
@@ -753,10 +653,9 @@ impl OsResources {
                 self.execute_syscalls.get(syscall_selector).unwrap_or_else(|| {
                     panic!("OS resources of syscall '{syscall_selector:?}' are unknown.")
                 });
+            let calldata_factor = CallDataFactor::from(&syscall_resources.calldata_factor);
             os_additional_resources += &(&(&syscall_resources.constant * syscall_usage.call_count)
-                + &syscall_resources
-                    .calldata_factor
-                    .calculate_resources(syscall_usage.linear_factor));
+                + &calldata_factor.calculate_resources(syscall_usage.linear_factor));
         }
 
         os_additional_resources
@@ -775,7 +674,8 @@ impl OsResources {
     ) -> ExecutionResources {
         let resources_vector = self.resources_params_for_tx_type(tx_type);
         &resources_vector.constant
-            + &resources_vector.calldata_factor.calculate_resources(calldata_length)
+            + &CallDataFactor::from(&resources_vector.calldata_factor)
+                .calculate_resources(calldata_length)
     }
 
     fn os_kzg_da_resources(&self, data_segment_length: usize) -> ExecutionResources {
@@ -787,60 +687,6 @@ impl OsResources {
         }
         &(&self.compute_os_kzg_commitment_info * data_segment_length)
             + &poseidon_hash_many_cost(data_segment_length)
-    }
-
-    // TODO(Dori): Delete this once serde is done via `RawVersionedConstants`.
-    /// Calculates the syscall gas cost from the base OS constant gas costs.
-    pub(crate) fn get_syscall_gas_cost(
-        &self,
-        syscall_selector: &SyscallSelector,
-        os_constants: &OsConstants,
-    ) -> SyscallGasCost {
-        let gas_costs = &os_constants.gas_costs;
-        let vm_resources = &self
-            .execute_syscalls
-            .get(syscall_selector)
-            .expect("Fetching the execution resources of a syscall should not fail.");
-
-        assert!(
-            vm_resources.calldata_factor.scaling_factor == 1,
-            "The scaling factor of the syscall should be 1, but it is {}",
-            vm_resources.calldata_factor.scaling_factor
-        );
-
-        let mut base_gas_cost = get_gas_cost_from_vm_resources(
-            &vm_resources.constant,
-            &gas_costs.base,
-            &gas_costs.builtins,
-        );
-
-        // The minimum total cost is `syscall_base_gas_cost`, which is pre-charged by the compiler.
-        base_gas_cost = std::cmp::max(gas_costs.base.syscall_base_gas_cost, base_gas_cost);
-        let linear_gas_cost = get_gas_cost_from_vm_resources(
-            &vm_resources.calldata_factor.resources,
-            &gas_costs.base,
-            &gas_costs.builtins,
-        );
-        SyscallGasCost { base: base_gas_cost, linear_factor: linear_gas_cost }
-    }
-}
-
-// TODO(Dori): Remove `Deserialize` impl here.
-impl<'de> Deserialize<'de> for OsResources {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let os_resources = Self::deserialize(deserializer)?;
-
-        // Validations.
-
-        #[cfg(not(test))]
-        os_resources
-            .validate()
-            .map_err(|error| DeserializationError::custom(format!("ValidationError: {error}")))?;
-
-        Ok(os_resources)
     }
 }
 
@@ -866,12 +712,12 @@ impl RawOsResources {
         ) -> Vec<&ExecutionResources> {
             match resources_params {
                 VariableResourceParams::Constant(constant) => vec![constant],
-                VariableResourceParams::WithFactor(RawResourcesParams {
+                VariableResourceParams::WithFactor(ResourcesParams {
                     constant,
                     calldata_factor:
-                        VariableCallDataFactor::Scaled(RawCallDataFactor { resources, .. }),
+                        VariableCallDataFactor::Scaled(CallDataFactor { resources, .. }),
                 })
-                | VariableResourceParams::WithFactor(RawResourcesParams {
+                | VariableResourceParams::WithFactor(ResourcesParams {
                     constant,
                     calldata_factor: VariableCallDataFactor::Unscaled(resources),
                 }) => {
@@ -907,6 +753,7 @@ impl<'de> Deserialize<'de> for RawOsResources {
     }
 }
 
+#[cfg_attr(any(test, feature = "testing"), derive(Serialize))]
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 #[serde(untagged, deny_unknown_fields)]
 pub enum RawSyscallGasCost {
@@ -914,6 +761,7 @@ pub enum RawSyscallGasCost {
     Structured(RawStructuredDeprecatedSyscallGasCost),
 }
 
+#[cfg_attr(any(test, feature = "testing"), derive(Serialize))]
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct RawStructuredDeprecatedSyscallGasCost {
@@ -929,8 +777,7 @@ pub struct RawStructuredDeprecatedSyscallGasCost {
     pub memory_hole_gas_cost: u64,
 }
 
-// TODO(Dori): Remove `Deserialize` derive here.
-#[derive(Deserialize, PartialEq, Debug, Clone, Copy, Serialize, Default)]
+#[derive(PartialEq, Debug, Clone, Copy, Serialize, Default)]
 pub struct SyscallGasCost {
     base: u64,
     linear_factor: u64,
@@ -951,12 +798,8 @@ impl SyscallGasCost {
     }
 }
 
-// TODO(Dori): Consider removing this in favor of the HashMap representation of the syscall gas
-//   costs.
-// TODO(Dori): Remove `Deserialize` derive here.
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
-#[derive(Debug, Default, Deserialize, PartialEq)]
-#[serde(deny_unknown_fields, rename_all = "PascalCase")]
+#[derive(Debug, Default, PartialEq)]
 pub struct SyscallGasCosts {
     pub call_contract: SyscallGasCost,
     pub deploy: SyscallGasCost,
@@ -1034,9 +877,8 @@ impl SyscallGasCosts {
     }
 }
 
-// TODO(Dori): Remove `Deserialize` derive here.
 #[cfg_attr(any(test, feature = "testing"), derive(Clone, Copy))]
-#[derive(Debug, Default, Deserialize, PartialEq)]
+#[derive(Debug, Default, PartialEq)]
 pub struct BaseGasCosts {
     pub step_gas_cost: u64,
     pub memory_hole_gas_cost: u64,
@@ -1048,6 +890,7 @@ pub struct BaseGasCosts {
     pub syscall_base_gas_cost: u64,
 }
 
+#[cfg_attr(any(test, feature = "testing"), derive(Serialize))]
 #[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq)]
 pub struct BuiltinGasCosts {
     // Range check has a hard-coded cost higher than its proof percentage to avoid the overhead of
@@ -1089,9 +932,8 @@ impl BuiltinGasCosts {
 }
 
 /// Gas cost constants. For more documentation see in core/os/constants.cairo.
-// TODO(Dori): Remove `Deserialize` derive here.
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
-#[derive(Debug, Default, Deserialize, PartialEq)]
+#[derive(Debug, Default, PartialEq)]
 pub struct GasCosts {
     pub base: BaseGasCosts,
     pub builtins: BuiltinGasCosts,
@@ -1196,7 +1038,7 @@ impl GasCosts {
         builtin_costs: &BuiltinGasCosts,
         os_resources: &RawOsResources,
     ) -> SyscallGasCost {
-        let vm_resources: RawResourcesParams = os_resources
+        let vm_resources: ResourcesParams = os_resources
             .execute_syscalls
             .get(&selector)
             .expect("Fetching the execution resources of a syscall should not fail.")
@@ -1209,7 +1051,7 @@ impl GasCosts {
         base_gas = std::cmp::max(base_costs.syscall_base_gas_cost, base_gas);
         let linear_gas_cost = get_gas_cost_from_vm_resources(
             &match vm_resources.calldata_factor {
-                VariableCallDataFactor::Scaled(RawCallDataFactor { resources, scaling_factor }) => {
+                VariableCallDataFactor::Scaled(CallDataFactor { resources, scaling_factor }) => {
                     assert!(
                         scaling_factor == 1,
                         "The scaling factor of the syscall should be 1, but it is {scaling_factor}"
@@ -1227,13 +1069,8 @@ impl GasCosts {
     }
 }
 
-// Below, serde first deserializes the json into a regular IndexMap wrapped by the newtype
-// `OsConstantsRawJson`, then calls the `try_from` of the newtype, which handles the
-// conversion into actual values.
-// TODO(Dori): Remove `Deserialize` derive here.
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
-#[derive(Debug, Default, Deserialize, PartialEq)]
-#[serde(try_from = "OsConstantsRawJson")]
+#[derive(Debug, Default, PartialEq)]
 pub struct OsConstants {
     pub gas_costs: GasCosts,
     pub validate_rounding_consts: ValidateRoundingConsts,
@@ -1248,44 +1085,6 @@ pub struct OsConstants {
 }
 
 impl OsConstants {
-    // List of os constants to be ignored
-    // during the creation of the struct containing the base gas costs.
-    // TODO(Dori): Delete this when VC is deserialized from `RawVersionedConstants`.
-    const ADDITIONAL_FIELDS: [&'static str; 32] = [
-        "builtin_gas_costs",
-        "constructor_entry_point_selector",
-        "default_entry_point_selector",
-        "entry_point_type_constructor",
-        "entry_point_type_external",
-        "entry_point_type_l1_handler",
-        "error_block_number_out_of_range",
-        "error_invalid_input_len",
-        "error_invalid_argument",
-        "error_entry_point_failed",
-        "error_entry_point_not_found",
-        "error_out_of_gas",
-        "execute_entry_point_selector",
-        "execute_max_sierra_gas",
-        "l1_gas",
-        "l1_gas_index",
-        "l1_handler_version",
-        "l2_gas",
-        "l2_gas_index",
-        "l1_data_gas",
-        "l1_data_gas_index",
-        "nop_entry_point_offset",
-        "sierra_array_len_bound",
-        "stored_block_hash_buffer",
-        "syscall_gas_costs",
-        "transfer_entry_point_selector",
-        "validate_declare_entry_point_selector",
-        "validate_deploy_entry_point_selector",
-        "validate_entry_point_selector",
-        "validate_max_sierra_gas",
-        "validate_rounding_consts",
-        "validated",
-    ];
-
     fn from_raw(raw_constants: &RawOsConstants, raw_resources: &RawOsResources) -> Self {
         Self {
             gas_costs: GasCosts::from_raw(raw_constants, raw_resources),
@@ -1302,69 +1101,6 @@ impl OsConstants {
     }
 }
 
-// TODO(Dori): Convert from `RawOsConstants`.
-impl TryFrom<&OsConstantsRawJson> for GasCosts {
-    type Error = OsConstantsSerdeError;
-
-    fn try_from(raw_json_data: &OsConstantsRawJson) -> Result<Self, Self::Error> {
-        let base_value: Value = serde_json::to_value(&raw_json_data.parse_base()?)?;
-        let base: BaseGasCosts = serde_json::from_value(base_value)?;
-        let builtins_value: Value = serde_json::to_value(&raw_json_data.parse_builtin()?)?;
-        let builtins: BuiltinGasCosts = serde_json::from_value(builtins_value)?;
-        if (raw_json_data.raw_json_file_as_dict).contains_key("syscall_gas_costs") {
-            let syscalls_value: Value =
-                serde_json::to_value(&raw_json_data.parse_syscalls(&base, &builtins)?)?;
-            let syscalls: SyscallGasCosts = serde_json::from_value(syscalls_value)?;
-            Ok(GasCosts { base, builtins, syscalls })
-        } else {
-            Ok(GasCosts { base, builtins, syscalls: SyscallGasCosts::default() })
-        }
-    }
-}
-
-impl TryFrom<OsConstantsRawJson> for OsConstants {
-    type Error = OsConstantsSerdeError;
-
-    fn try_from(raw_json_data: OsConstantsRawJson) -> Result<Self, Self::Error> {
-        let gas_costs = GasCosts::try_from(&raw_json_data)?;
-        let validate_rounding_consts = raw_json_data.validate_rounding_consts;
-        let os_contract_addresses = raw_json_data.os_contract_addresses;
-        let key = "validate_max_sierra_gas";
-        let validate_max_sierra_gas = GasAmount(serde_json::from_value(
-            raw_json_data
-                .raw_json_file_as_dict
-                .get(key)
-                .ok_or_else(|| OsConstantsSerdeError::KeyNotFoundInFile(key.to_string()))?
-                .clone(),
-        )?);
-        let key = "execute_max_sierra_gas";
-        let execute_max_sierra_gas = GasAmount(serde_json::from_value(
-            raw_json_data
-                .raw_json_file_as_dict
-                .get(key)
-                .ok_or_else(|| OsConstantsSerdeError::KeyNotFoundInFile(key.to_string()))?
-                .clone(),
-        )?);
-        let v1_bound_accounts_cairo0 = raw_json_data.v1_bound_accounts_cairo0;
-        let v1_bound_accounts_cairo1 = raw_json_data.v1_bound_accounts_cairo1;
-        let v1_bound_accounts_max_tip = raw_json_data.v1_bound_accounts_max_tip;
-        let data_gas_accounts = raw_json_data.data_gas_accounts;
-        let l1_handler_max_amount_bounds = raw_json_data.l1_handler_max_amount_bounds;
-        let os_constants = OsConstants {
-            gas_costs,
-            validate_rounding_consts,
-            os_contract_addresses,
-            validate_max_sierra_gas,
-            execute_max_sierra_gas,
-            v1_bound_accounts_cairo0,
-            v1_bound_accounts_cairo1,
-            v1_bound_accounts_max_tip,
-            data_gas_accounts,
-            l1_handler_max_amount_bounds,
-        };
-        Ok(os_constants)
-    }
-}
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq)]
 pub struct OsContractAddresses {
     block_hash_contract_address: u8,
@@ -1392,203 +1128,6 @@ impl Default for OsContractAddresses {
     }
 }
 
-// TODO(Dori): Consider deleting this, and simply using `RawOsConstants`.
-// Intermediate representation of the JSON file in order to make the deserialization easier, using a
-// regular try_from.
-#[derive(Debug, Deserialize)]
-struct OsConstantsRawJson {
-    #[serde(flatten)]
-    raw_json_file_as_dict: IndexMap<String, Value>,
-    #[serde(default)]
-    validate_rounding_consts: ValidateRoundingConsts,
-    os_contract_addresses: OsContractAddresses,
-    v1_bound_accounts_cairo0: Vec<ClassHash>,
-    v1_bound_accounts_cairo1: Vec<ClassHash>,
-    v1_bound_accounts_max_tip: Tip,
-    data_gas_accounts: Vec<ClassHash>,
-    l1_handler_max_amount_bounds: GasVector,
-}
-
-impl OsConstantsRawJson {
-    fn parse_base(&self) -> Result<IndexMap<String, u64>, OsConstantsSerdeError> {
-        let mut base = IndexMap::new();
-        let additional_fields: IndexSet<_> =
-            OsConstants::ADDITIONAL_FIELDS.iter().copied().collect();
-        for (key, value) in &self.raw_json_file_as_dict {
-            if additional_fields.contains(key.as_str()) {
-                // Ignore additional constants.
-                continue;
-            }
-
-            self.recursive_add_to_base(key, value, &mut base)?;
-        }
-
-        Ok(base)
-    }
-
-    fn parse_syscalls(
-        &self,
-        base: &BaseGasCosts,
-        builtins: &BuiltinGasCosts,
-    ) -> Result<IndexMap<String, SyscallGasCost>, OsConstantsSerdeError> {
-        let mut gas_costs = IndexMap::new();
-        let key = "syscall_gas_costs";
-        let syscalls: IndexMap<String, Value> = serde_json::from_value(
-            (self
-                .raw_json_file_as_dict
-                .get(key)
-                .ok_or_else(|| OsConstantsSerdeError::KeyNotFoundInFile(key.to_string()))?)
-            .clone(),
-        )?;
-        for (key, value) in syscalls {
-            self.add_to_syscalls(&key, &value, &mut gas_costs, base, builtins)?;
-        }
-        Ok(gas_costs)
-    }
-
-    fn parse_builtin(&self) -> Result<IndexMap<String, u64>, OsConstantsSerdeError> {
-        let mut gas_costs = IndexMap::new();
-        let key = "builtin_gas_costs";
-        let builtins: IndexMap<String, Value> = serde_json::from_value(
-            (self
-                .raw_json_file_as_dict
-                .get(key)
-                .ok_or_else(|| OsConstantsSerdeError::KeyNotFoundInFile(key.to_string()))?)
-            .clone(),
-        )?;
-        for (key, value) in builtins {
-            match value {
-                Value::Number(n) => {
-                    let cost = n.as_u64().ok_or_else(|| OsConstantsSerdeError::OutOfRange {
-                        key: key.to_string(),
-                        value: n.clone(),
-                    })?;
-                    gas_costs.insert(key.to_string(), cost);
-                }
-                _ => return Err(OsConstantsSerdeError::UnhandledValueType(value.clone())),
-            }
-        }
-        Ok(gas_costs)
-    }
-
-    /// Recursively adds a key to gas costs, calculating its value after processing any nested keys.
-    // Invariant: there is no circular dependency between key definitions.
-    fn recursive_add_to_base(
-        &self,
-        key: &str,
-        value: &Value,
-        gas_costs: &mut IndexMap<String, u64>,
-    ) -> Result<(), OsConstantsSerdeError> {
-        if gas_costs.contains_key(key) {
-            return Ok(());
-        }
-
-        match value {
-            Value::Number(n) => {
-                let value = n.as_u64().ok_or_else(|| OsConstantsSerdeError::OutOfRange {
-                    key: key.to_string(),
-                    value: n.clone(),
-                })?;
-                gas_costs.insert(key.to_string(), value);
-            }
-            Value::Object(obj) => {
-                // Converts:
-                // `k_1: {k_2: factor_1, k_3: factor_2}`
-                // into:
-                // k_1 = k_2 * factor_1 + k_3 * factor_2
-                let mut value = 0;
-                for (inner_key, factor) in obj {
-                    let inner_value =
-                        &self.raw_json_file_as_dict.get(inner_key).ok_or_else(|| {
-                            OsConstantsSerdeError::KeyNotFound {
-                                key: key.to_string(),
-                                inner_key: inner_key.clone(),
-                            }
-                        })?;
-                    self.recursive_add_to_base(inner_key, inner_value, gas_costs)?;
-                    let inner_key_value = gas_costs.get(inner_key).ok_or_else(|| {
-                        OsConstantsSerdeError::KeyNotFound {
-                            key: key.to_string(),
-                            inner_key: inner_key.to_string(),
-                        }
-                    })?;
-                    let factor =
-                        factor.as_u64().ok_or_else(|| OsConstantsSerdeError::OutOfRangeFactor {
-                            key: key.to_string(),
-                            value: factor.clone(),
-                        })?;
-                    value += inner_key_value * factor;
-                }
-                gas_costs.insert(key.to_string(), value);
-            }
-            Value::String(_) => {
-                panic!(
-                    "String values should have been previously filtered out in the whitelist \
-                     check and should not be depended on"
-                )
-            }
-            _ => return Err(OsConstantsSerdeError::UnhandledValueType(value.clone())),
-        }
-
-        Ok(())
-    }
-
-    fn add_to_syscalls(
-        &self,
-        key: &str,
-        value: &Value,
-        syscalls: &mut IndexMap<String, SyscallGasCost>,
-        base: &BaseGasCosts,
-        builtins: &BuiltinGasCosts,
-    ) -> Result<(), OsConstantsSerdeError> {
-        let mut cost = 0;
-        match value {
-            Value::Object(obj) => {
-                for (inner_key, factor) in obj {
-                    let inner_value = match inner_key.as_str() {
-                        "step_gas_cost" => base.step_gas_cost,
-                        "memory_hole_gas_cost" => base.memory_hole_gas_cost,
-                        "default_initial_gas_cost" => base.default_initial_gas_cost,
-                        "entry_point_initial_budget" => base.entry_point_initial_budget,
-                        "syscall_base_gas_cost" => base.syscall_base_gas_cost,
-                        "range_check" => builtins.range_check,
-                        "keccak" => builtins.keccak,
-                        "pedersen" => builtins.pedersen,
-                        "bitwise" => builtins.bitwise,
-                        "ecop" => builtins.ecop,
-                        "poseidon" => builtins.poseidon,
-                        "add_mod" => builtins.add_mod,
-                        "mul_mod" => builtins.mul_mod,
-                        "ecdsa" => builtins.ecdsa,
-                        _ => {
-                            return Err(OsConstantsSerdeError::KeyNotFound {
-                                key: key.to_string(),
-                                inner_key: inner_key.clone(),
-                            });
-                        }
-                    };
-                    let factor =
-                        factor.as_u64().ok_or_else(|| OsConstantsSerdeError::OutOfRangeFactor {
-                            key: key.to_string(),
-                            value: factor.clone(),
-                        })?;
-                    cost += inner_value * factor;
-                }
-                syscalls.insert(key.to_string(), SyscallGasCost::new_from_base_cost(cost));
-            }
-            Value::Number(n) => {
-                cost = n.as_u64().ok_or_else(|| OsConstantsSerdeError::OutOfRange {
-                    key: key.to_string(),
-                    value: n.clone(),
-                })?;
-                syscalls.insert(key.to_string(), SyscallGasCost::new_from_base_cost(cost));
-            }
-            _ => return Err(OsConstantsSerdeError::UnhandledValueType(value.clone())),
-        }
-        Ok(())
-    }
-}
-
 #[derive(Debug, Error)]
 pub enum VersionedConstantsError {
     #[error(transparent)]
@@ -1604,29 +1143,6 @@ pub enum VersionedConstantsError {
 pub type VersionedConstantsResult<T> = Result<T, VersionedConstantsError>;
 
 #[derive(Debug, Error)]
-pub enum OsConstantsSerdeError {
-    #[error("Value cannot be cast into u64: {0}")]
-    InvalidFactorFormat(Value),
-    #[error("Unknown key '{inner_key}' used to create value for '{key}'")]
-    KeyNotFound { key: String, inner_key: String },
-    #[error("Key'{0}' is not found")]
-    KeyNotFoundInFile(String),
-    #[error("Value {value} for key '{key}' is out of range and cannot be cast into u64")]
-    OutOfRange { key: String, value: Number },
-    #[error(
-        "Value {value} used to create value for key '{key}' is out of range and cannot be cast \
-         into u64"
-    )]
-    OutOfRangeFactor { key: String, value: Value },
-    #[error(transparent)]
-    ParseError(#[from] serde_json::Error),
-    #[error("Unhandled value type: {0}")]
-    UnhandledValueType(Value),
-    #[error("Validation failed: {0}")]
-    ValidationError(String),
-}
-
-#[derive(Debug, Error)]
 pub enum GasCostsError {
     #[error("used syscall: {:?} is not supported in a Cairo 0 contract.", selector)]
     DeprecatedSyscall { selector: SyscallSelector },
@@ -1636,9 +1152,8 @@ pub enum GasCostsError {
     VirtualBuiltin,
 }
 
-// TODO(Dori): Delete this struct.
 #[derive(Clone, Debug, Deserialize, Serialize, Eq, PartialEq)]
-#[serde(try_from = "CallDataFactorRaw")]
+#[serde(deny_unknown_fields)]
 pub struct CallDataFactor {
     pub resources: ExecutionResources,
     pub scaling_factor: usize,
@@ -1656,129 +1171,24 @@ impl CallDataFactor {
     }
 }
 
-// TODO(Dori): Consider deleting this, and simply using `VariableResourceParams`.
-#[derive(Clone, Debug, Default, Deserialize)]
-struct CallDataFactorRaw {
-    #[serde(flatten)]
-    raw_calldata_factor_as_dict: Map<String, Value>,
-}
-
-impl TryFrom<CallDataFactorRaw> for CallDataFactor {
-    type Error = VersionedConstantsError;
-
-    fn try_from(mut json_data: CallDataFactorRaw) -> VersionedConstantsResult<Self> {
-        let resources_value = json_data.raw_calldata_factor_as_dict.remove("resources");
-        let scaling_factor_value = json_data.raw_calldata_factor_as_dict.remove("scaling_factor");
-
-        let (resources, scaling_factor) = match (resources_value, scaling_factor_value) {
-            (Some(resources), Some(scaling_factor)) => (resources, scaling_factor),
-            (Some(_), None) => {
-                return Err(serde_json::Error::custom(
-                    "Malformed JSON: If `resources` is present, then so should `scaling_factor`",
-                ))?;
-            }
-            (None, _) => {
-                // If `resources` is not found, use the entire map for `resources` and 1 as a
-                // `scaling_factor`
-                let entire_value = std::mem::take(&mut json_data.raw_calldata_factor_as_dict);
-                (Value::Object(entire_value), Value::Number(1.into()))
-            }
-        };
-
-        Ok(Self {
-            resources: serde_json::from_value(resources)?,
-            scaling_factor: serde_json::from_value(scaling_factor)?,
-        })
-    }
-}
-
-// TODO(Dori): Consider deleting this, and simply using `VariableResourceParams` and
-//   `RawResourcesParams`.
-#[derive(Clone, Debug, Deserialize, PartialEq)]
-#[serde(try_from = "ResourceParamsRaw")]
-pub struct ResourcesParams {
-    pub constant: ExecutionResources,
-    pub calldata_factor: CallDataFactor,
-}
-
-// TODO(Dori): Consider deleting this, and simply using `VariableResourceParams`.
-#[derive(Clone, Debug, Default, Deserialize)]
-struct ResourceParamsRaw {
-    #[serde(flatten)]
-    raw_resource_params_as_dict: Map<String, Value>,
-}
-
-impl TryFrom<ResourceParamsRaw> for ResourcesParams {
-    type Error = VersionedConstantsError;
-
-    fn try_from(mut json_data: ResourceParamsRaw) -> VersionedConstantsResult<Self> {
-        let constant_value = json_data.raw_resource_params_as_dict.remove("constant");
-        let calldata_factor_value = json_data.raw_resource_params_as_dict.remove("calldata_factor");
-
-        let (constant, calldata_factor) = match (constant_value, calldata_factor_value) {
-            (Some(constant), Some(calldata_factor)) => (constant, calldata_factor),
-            (Some(_), None) => {
-                return Err(serde_json::Error::custom(
-                    "Malformed JSON: If `constant` is present, then so should `calldata_factor`",
-                ))?;
-            }
-            (None, _) => {
-                // If `constant` is not found, use the entire map for `constant` and default
-                // `calldata_factor`
-                let entire_value = std::mem::take(&mut json_data.raw_resource_params_as_dict);
-                (Value::Object(entire_value), serde_json::to_value(CallDataFactor::default())?)
-            }
-        };
-
-        Ok(Self {
-            constant: serde_json::from_value(constant)?,
-            calldata_factor: serde_json::from_value(calldata_factor)?,
-        })
-    }
-}
-
-#[cfg_attr(any(test, feature = "testing"), derive(PartialEq))]
-#[derive(Clone, Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct RawResourcesParams {
-    pub constant: ExecutionResources,
-    pub calldata_factor: VariableCallDataFactor,
-}
-// TODO(Dori): Delete this and use `CallDataFactor` once `CallDataFactor` no longer implements
-// `Deserialize`.
-#[derive(Clone, Debug, Deserialize, Serialize, Eq, PartialEq)]
-#[serde(deny_unknown_fields)]
-pub struct RawCallDataFactor {
-    pub resources: ExecutionResources,
-    pub scaling_factor: usize,
-}
-
-impl Default for RawCallDataFactor {
-    fn default() -> Self {
-        Self { resources: ExecutionResources::default(), scaling_factor: 1 }
-    }
-}
-
 #[cfg_attr(any(test, feature = "testing"), derive(PartialEq))]
 #[derive(Deserialize, Debug, Clone)]
 #[serde(untagged, deny_unknown_fields)]
 pub enum VariableCallDataFactor {
-    Scaled(RawCallDataFactor),
+    Scaled(CallDataFactor),
     Unscaled(ExecutionResources),
 }
 
 impl Default for VariableCallDataFactor {
     fn default() -> Self {
-        Self::Scaled(RawCallDataFactor::default())
+        Self::Scaled(CallDataFactor::default())
     }
 }
 
 impl From<&VariableCallDataFactor> for CallDataFactor {
     fn from(value: &VariableCallDataFactor) -> Self {
         match value {
-            VariableCallDataFactor::Scaled(RawCallDataFactor { resources, scaling_factor }) => {
-                Self { resources: resources.clone(), scaling_factor: *scaling_factor }
-            }
+            VariableCallDataFactor::Scaled(calldata_factor) => calldata_factor.clone(),
             VariableCallDataFactor::Unscaled(resources) => {
                 Self { resources: resources.clone(), scaling_factor: 1 }
             }
@@ -1787,14 +1197,22 @@ impl From<&VariableCallDataFactor> for CallDataFactor {
 }
 
 #[cfg_attr(any(test, feature = "testing"), derive(PartialEq))]
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ResourcesParams {
+    pub constant: ExecutionResources,
+    pub calldata_factor: VariableCallDataFactor,
+}
+
+#[cfg_attr(any(test, feature = "testing"), derive(PartialEq))]
 #[derive(Deserialize, Debug, Clone)]
 #[serde(untagged, deny_unknown_fields)]
 pub enum VariableResourceParams {
     Constant(ExecutionResources),
-    WithFactor(RawResourcesParams),
+    WithFactor(ResourcesParams),
 }
 
-impl From<&VariableResourceParams> for RawResourcesParams {
+impl From<&VariableResourceParams> for ResourcesParams {
     fn from(value: &VariableResourceParams) -> Self {
         match value {
             VariableResourceParams::WithFactor(raw_params) => raw_params.clone(),
@@ -1805,16 +1223,7 @@ impl From<&VariableResourceParams> for RawResourcesParams {
     }
 }
 
-impl From<&VariableResourceParams> for ResourcesParams {
-    fn from(value: &VariableResourceParams) -> Self {
-        let raw_params = RawResourcesParams::from(value);
-        Self {
-            constant: raw_params.constant,
-            calldata_factor: CallDataFactor::from(&raw_params.calldata_factor),
-        }
-    }
-}
-
+#[cfg_attr(any(test, feature = "testing"), derive(Serialize))]
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
 pub struct ValidateRoundingConsts {
     // Flooring factor for block number in validate mode.
