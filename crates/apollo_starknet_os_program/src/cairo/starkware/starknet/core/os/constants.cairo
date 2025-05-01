@@ -160,7 +160,10 @@ const V1_BOUND_ACCOUNTS_CAIRO0_2 = (
 const V1_BOUND_ACCOUNTS_CAIRO0_3 = (
     0x033434ad846cdd5f23eb73ff09fe6fddd568284a0fb7d1be20ee482f044dabe2
 );
-const V1_BOUND_ACCOUNTS_CAIRO0_LEN = 4;
+const V1_BOUND_ACCOUNTS_CAIRO0_4 = (
+    0x041cb0280ebadaa75f996d8d92c6f265f6d040bb3ba442e5f86a554f1765244e
+);
+const V1_BOUND_ACCOUNTS_CAIRO0_LEN = 5;
 
 // List of Cairo1 account contracts that require the transaction version to be 1.
 const V1_BOUND_ACCOUNTS_CAIRO1_0 = (
