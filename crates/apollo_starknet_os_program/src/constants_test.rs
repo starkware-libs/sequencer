@@ -1,4 +1,7 @@
+use std::path::PathBuf;
+
 use apollo_infra_utils::cairo0_compiler::{cairo0_format, verify_cairo0_compiler_deps};
+use apollo_infra_utils::compile_time_cargo_manifest_dir;
 use blockifier::blockifier_versioned_constants::{OsConstants, VersionedConstants};
 use blockifier::execution::syscalls::SyscallSelector;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
@@ -220,8 +223,22 @@ fn generate_constants_file() -> String {
     cairo0_format(&unformatted)
 }
 
+/// Test that the generated constants file matches the expected contents.
+/// To fix this test, run:
+/// ```bash
+/// FIX_OS_CONSTANTS=1 cargo test -p apollo_starknet_os_program test_os_constants
+/// ```
 #[test]
 fn test_os_constants() {
     verify_cairo0_compiler_deps();
-    assert_eq!(CONSTANTS_CONTENTS, generate_constants_file());
+    let generated = generate_constants_file();
+    let fix = std::env::var("FIX_OS_CONSTANTS").is_ok();
+    if fix {
+        // Write the generated contents to the file.
+        let path = PathBuf::from(compile_time_cargo_manifest_dir!())
+            .join("src/cairo/starkware/starknet/core/os/constants.cairo");
+        std::fs::write(path, &generated).expect("Failed to write generated constants file.");
+    } else {
+        assert_eq!(CONSTANTS_CONTENTS, generated);
+    }
 }
