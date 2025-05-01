@@ -4,6 +4,9 @@ use std::sync::LazyLock;
 
 use cairo_vm::types::program::Program;
 
+#[cfg(test)]
+mod constants_test;
+
 #[cfg(feature = "dump_source_files")]
 pub static CAIRO_FILES_MAP: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
     serde_json::from_str(include_str!(concat!(env!("OUT_DIR"), "/cairo_files_map.json")))
