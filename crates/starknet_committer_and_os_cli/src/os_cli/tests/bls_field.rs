@@ -31,13 +31,19 @@ use crate::shared_utils::types::PythonTestError;
 const REDUCED_MUL_LIMB_BOUND: i128 = 2_i128.pow(104);
 
 pub(crate) fn test_bls_field(input: &str) -> OsPythonTestResult {
+    info!("Testing `test_bigint3_to_uint256`...");
     test_bigint3_to_uint256(input)?;
+    info!("Testing `test_felt_to_bigint3`...");
     test_felt_to_bigint3(input)?;
+    info!("Testing `test_horner_eval`...");
     test_horner_eval(input)?;
     // TODO(Amos): Uncomment once WRITE_DIVMOD_SEGMENT cairo-vm implementation is fixed (and
     // accepts negative values).
+    // info!("Testing `test_reduced_mul_random`...");
     // test_reduced_mul_random(input)?;
+    // info!("Testing `test_reduced_mul_parameterized`...");
     // test_reduced_mul_parameterized(input)?;
+    info!("Testing `test_bls_prime_value`...");
     test_bls_prime_value(input)?;
     Ok("".to_string())
 }
@@ -249,6 +255,7 @@ fn test_reduced_mul_parameterized(input: &str) -> OsPythonTestResult {
         ([Felt::ONE, Felt::from(2), Felt::from(3)], [Felt::ZERO, Felt::ZERO, Felt::ZERO]),
     ];
     for (a_split, b_split) in values {
+        info!("Testing `reduced_mul` with a = {a_split:?}, b = {b_split:?}");
         run_reduced_mul_test(input, &a_split, &b_split)?;
     }
 
