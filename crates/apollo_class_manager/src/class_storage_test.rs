@@ -1,5 +1,5 @@
 use apollo_compile_to_casm_types::{RawClass, RawExecutableClass};
-use starknet_api::core::{ClassHash, CompiledClassHash};
+use starknet_api::core::{ChainId, ClassHash, CompiledClassHash};
 use starknet_api::felt;
 use starknet_api::state::SierraContractClass;
 
@@ -20,7 +20,8 @@ impl ClassHashStorage {
         let config = ClassHashStorageConfig {
             path_prefix: path_prefix.path().to_path_buf(),
             enforce_file_exists: false,
-            max_size: 1 << 20, // 1MB.
+            max_size: 1 << 35, // 32GB.
+            chain_id: ChainId::Other("UnusedChainID".to_string()),
         };
         Self::new(config).unwrap()
     }

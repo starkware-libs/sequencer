@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use starknet_api::core::ChainId;
 use tempfile::TempDir;
 
 use crate::class_storage::{ClassHashStorage, FsClassStorage};
@@ -22,7 +23,8 @@ impl Default for FsClassStorageBuilderForTesting {
             class_hash_storage_config: ClassHashStorageConfig {
                 path_prefix: class_hash_storage_handle.path().to_path_buf(),
                 enforce_file_exists: false,
-                max_size: 1 << 20, // 1MB.
+                max_size: 1 << 35, // 32GB.
+                chain_id: ChainId::Other("UnusedChainID".to_string()),
             },
         };
         Self { config, handles: Some((class_hash_storage_handle, persistent_root_handle)) }
