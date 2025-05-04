@@ -190,6 +190,8 @@
   "consensus_manager_config.network_config.secret_key": "0x0101010101010101010101010101010101010101010101010101010101010101",
   "consensus_manager_config.network_config.session_timeout": 120,
   "consensus_manager_config.proposals_topic": "consensus_proposals",
+  "consensus_manager_config.stream_handler_config.channel_buffer_capacity": 1000,
+  "consensus_manager_config.stream_handler_config.max_streams": 100,
   "consensus_manager_config.votes_topic": "consensus_votes",
   "eth_fee_token_address": "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
   "gateway_config.block_declare": false,

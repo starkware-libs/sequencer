@@ -145,3 +145,37 @@ impl Default for TimeoutsConfig {
         }
     }
 }
+
+/// Configuration for the `StreamHandler`.
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+pub struct StreamHandlerConfig {
+    /// The capacity of the channel buffer for stream messages.
+    pub channel_buffer_capacity: usize,
+    /// The maximum number of streams that can be open at the same time.
+    pub max_streams: usize,
+}
+
+impl Default for StreamHandlerConfig {
+    fn default() -> Self {
+        Self { channel_buffer_capacity: 1000, max_streams: 100 }
+    }
+}
+
+impl SerializeConfig for StreamHandlerConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_param(
+                "channel_buffer_capacity",
+                &self.channel_buffer_capacity,
+                "The capacity of the channel buffer for stream messages.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_streams",
+                &self.max_streams,
+                "The maximum number of streams that can be open at the same time.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}

@@ -1024,6 +1024,16 @@
     "pointer_target": "revert_config.should_revert",
     "privacy": "Public"
   },
+  "consensus_manager_config.stream_handler_config.channel_buffer_capacity": {
+    "description": "The capacity of the channel buffer for stream messages.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "consensus_manager_config.stream_handler_config.max_streams": {
+    "description": "The maximum number of streams that can be open at the same time.",
+    "privacy": "Public",
+    "value": 100
+  },
   "consensus_manager_config.votes_topic": {
     "description": "The topic for consensus votes.",
     "privacy": "Public",

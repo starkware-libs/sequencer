@@ -10,8 +10,10 @@ use futures::channel::mpsc::{self, Receiver, SendError, Sender};
 use futures::{FutureExt, SinkExt, StreamExt};
 use prost::DecodeError;
 
-use crate::stream_handler::{StreamHandler, MAX_STREAMS};
-const CHANNEL_SIZE: usize = 100;
+use crate::config::StreamHandlerConfig;
+use crate::stream_handler::StreamHandler;
+const CHANNEL_CAPACITY: usize = 100;
+const MAX_STREAMS: usize = 10;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct TestStreamId(u64);
@@ -89,12 +91,17 @@ fn setup() -> (
     Sender<(TestStreamId, Receiver<ProposalPart>)>,
     Receiver<StreamMessage>,
 ) {
-    let (inbound_internal_sender, streamhandler_to_client_receiver) = mpsc::channel(CHANNEL_SIZE);
-    let (network_to_streamhandler_sender, inbound_network_receiver) = mpsc::channel(CHANNEL_SIZE);
-    let (outbound_internal_sender, outbound_internal_receiver) = mpsc::channel(CHANNEL_SIZE);
-    let (outbound_network_sender, outbound_network_receiver) = mpsc::channel(CHANNEL_SIZE);
+    let (inbound_internal_sender, streamhandler_to_client_receiver) =
+        mpsc::channel(CHANNEL_CAPACITY);
+    let (network_to_streamhandler_sender, inbound_network_receiver) =
+        mpsc::channel(CHANNEL_CAPACITY);
+    let (outbound_internal_sender, outbound_internal_receiver) = mpsc::channel(CHANNEL_CAPACITY);
+    let (outbound_network_sender, outbound_network_receiver) = mpsc::channel(CHANNEL_CAPACITY);
     let outbound_network_sender = FakeBroadcastClient { sender: outbound_network_sender };
+    let config =
+        StreamHandlerConfig { channel_buffer_capacity: CHANNEL_CAPACITY, max_streams: MAX_STREAMS };
     let stream_handler = StreamHandler::new(
+        config,
         inbound_internal_sender,
         inbound_network_receiver,
         outbound_internal_receiver,
@@ -149,7 +156,7 @@ async fn outbound_single() {
     ) = setup();
 
     // Create a new stream to send.
-    let (mut sender, stream_receiver) = mpsc::channel(CHANNEL_SIZE);
+    let (mut sender, stream_receiver) = mpsc::channel(CHANNEL_CAPACITY);
     client_to_streamhandler_sender.send((TestStreamId(stream_id), stream_receiver)).await.unwrap();
     stream_handler.handle_next_msg().await.unwrap();
 
@@ -190,7 +197,7 @@ async fn outbound_multiple() {
     // Client opens up multiple outbound streams.
     let mut stream_senders = Vec::new();
     for stream_id in 0..num_streams {
-        let (sender, stream_receiver) = mpsc::channel(CHANNEL_SIZE);
+        let (sender, stream_receiver) = mpsc::channel(CHANNEL_CAPACITY);
         stream_senders.push(sender);
         client_to_streamhandler_sender
             .send((TestStreamId(stream_id), stream_receiver))
@@ -268,7 +275,7 @@ async fn inbound_in_order() {
 
 #[tokio::test]
 async fn lru_cache_for_inbound_streams() {
-    let num_streams = MAX_STREAMS.get() + 1;
+    let num_streams = MAX_STREAMS + 1;
     let (
         mut stream_handler,
         mut network_to_streamhandler_sender,
