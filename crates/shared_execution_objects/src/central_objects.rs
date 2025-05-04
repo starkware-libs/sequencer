@@ -71,4 +71,8 @@ impl CentralTransactionExecutionInfo {
         };
         CallInfoIter::new(ordered_call_infos.into_iter().filter_map(|call| call.as_ref()).collect())
     }
+
+    pub fn is_reverted(&self) -> bool {
+        self.revert_error.is_some()
+    }
 }
