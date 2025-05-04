@@ -17,7 +17,10 @@ use starknet_api::transaction::fields::ValidResourceBounds;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintResult};
-use crate::hints::hint_implementation::execution::utils::get_account_deployment_data;
+use crate::hints::hint_implementation::execution::utils::{
+    get_account_deployment_data,
+    get_calldata,
+};
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
 use crate::syscall_handler_utils::SyscallHandlerType;
@@ -297,13 +300,22 @@ pub(crate) fn contract_address<S: StateReader>(
 }
 
 pub(crate) fn tx_calldata_len<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let calldata =
+        get_calldata(hint_processor.execution_helpers_manager.get_current_execution_helper()?)?;
+    insert_value_into_ap(vm, calldata.0.len())?;
+    Ok(())
 }
 
-pub(crate) fn tx_calldata<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> OsHintResult {
-    todo!()
+pub(crate) fn tx_calldata<S: StateReader>(
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
+) -> OsHintResult {
+    let calldata =
+        get_calldata(hint_processor.execution_helpers_manager.get_current_execution_helper()?)?;
+    let calldata_base = vm.gen_arg(calldata)?;
+    insert_value_into_ap(vm, calldata_base)?;
+    Ok(())
 }
 
 pub(crate) fn tx_entry_point_selector<S: StateReader>(
