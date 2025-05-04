@@ -20,6 +20,7 @@ use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::execution::utils::{
     get_account_deployment_data,
     get_calldata,
+    set_state_entry,
 };
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
@@ -155,9 +156,12 @@ pub(crate) fn enter_scope_syscall_handler<S: StateReader>(
 }
 
 pub(crate) fn get_contract_address_state_entry<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { exec_scopes, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let contract_address =
+        get_integer_from_var_name(Ids::ContractAddress.into(), vm, ids_data, ap_tracking)?;
+    set_state_entry(&contract_address, vm, exec_scopes, ids_data, ap_tracking)?;
+    Ok(())
 }
 
 pub(crate) fn set_state_entry_to_account_contract_address<S: StateReader>(
@@ -174,14 +178,7 @@ pub(crate) fn set_state_entry_to_account_contract_address<S: StateReader>(
             hint_processor.os_program,
         )?)?
         .into_owned();
-    let state_changes_ptr =
-        get_ptr_from_var_name(Ids::ContractStateChanges.into(), vm, ids_data, ap_tracking)?;
-    let dict_manager = exec_scopes.get_dict_manager()?;
-    let mut dict_manager_borrowed = dict_manager.borrow_mut();
-    let state_entry = dict_manager_borrowed
-        .get_tracker_mut(state_changes_ptr)?
-        .get_value(&account_contract_address.into())?;
-    insert_value_from_var_name(Ids::StateEntry.into(), state_entry, vm, ids_data, ap_tracking)?;
+    set_state_entry(&account_contract_address, vm, exec_scopes, ids_data, ap_tracking)?;
     Ok(())
 }
 

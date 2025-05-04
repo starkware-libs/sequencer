@@ -1,6 +1,13 @@
 use std::collections::HashMap;
 
 use blockifier::state::state_api::StateReader;
+use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
+    get_ptr_from_var_name,
+    insert_value_from_var_name,
+};
+use cairo_vm::hint_processor::hint_processor_definition::HintReference;
+use cairo_vm::serde::deserialize_program::ApTracking;
+use cairo_vm::types::exec_scope::ExecutionScopes;
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::executable_transaction::{AccountTransaction, Transaction};
@@ -15,8 +22,8 @@ use starknet_api::transaction::InvokeTransaction;
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::execution_helper::OsExecutionHelper;
-use crate::hints::error::OsHintError;
-use crate::hints::vars::CairoStruct;
+use crate::hints::error::{OsHintError, OsHintResult};
+use crate::hints::vars::{CairoStruct, Ids};
 use crate::vm_utils::{
     insert_values_to_fields,
     CairoSized,
@@ -93,4 +100,21 @@ pub(crate) fn get_calldata<'a, S: StateReader>(
         }),
         _ => Err(OsHintError::UnexpectedTxType(tx.tx_type())),
     }
+}
+
+pub(crate) fn set_state_entry<'a>(
+    key: &Felt,
+    vm: &'a mut VirtualMachine,
+    exec_scopes: &'a mut ExecutionScopes,
+    ids_data: &'a HashMap<String, HintReference>,
+    ap_tracking: &'a ApTracking,
+) -> OsHintResult {
+    let state_changes_ptr =
+        get_ptr_from_var_name(Ids::ContractStateChanges.into(), vm, ids_data, ap_tracking)?;
+    let dict_manager = exec_scopes.get_dict_manager()?;
+    let mut dict_manager_borrowed = dict_manager.borrow_mut();
+    let state_entry =
+        dict_manager_borrowed.get_tracker_mut(state_changes_ptr)?.get_value(&key.into())?;
+    insert_value_from_var_name(Ids::StateEntry.into(), state_entry, vm, ids_data, ap_tracking)?;
+    Ok(())
 }
