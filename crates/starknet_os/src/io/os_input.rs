@@ -44,12 +44,25 @@ impl Default for CommitmentInfo {
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[derive(Clone, Debug)]
 pub struct ContractClassComponentHashes {
-    _contract_class_version: Felt,
-    _external_functions_hash: HashOutput,
-    _l1_handlers_hash: HashOutput,
-    _constructors_hash: HashOutput,
-    _abi_hash: HashOutput,
-    _sierra_program_hash: HashOutput,
+    contract_class_version: Felt,
+    external_functions_hash: HashOutput,
+    l1_handlers_hash: HashOutput,
+    constructors_hash: HashOutput,
+    abi_hash: HashOutput,
+    sierra_program_hash: HashOutput,
+}
+
+impl ContractClassComponentHashes {
+    pub(crate) fn flatten(&self) -> Vec<Felt> {
+        vec![
+            self.contract_class_version,
+            self.external_functions_hash.0,
+            self.l1_handlers_hash.0,
+            self.constructors_hash.0,
+            self.abi_hash.0,
+            self.sierra_program_hash.0,
+        ]
+    }
 }
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
