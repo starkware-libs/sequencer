@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use apollo_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use apollo_consensus::config::ConsensusConfig;
+use apollo_consensus::config::{ConsensusConfig, StreamHandlerConfig};
 use apollo_consensus_orchestrator::cende::CendeConfig;
 use apollo_consensus_orchestrator::config::ContextConfig;
 use apollo_l1_gas_price::eth_to_strk_oracle::EthToStrkOracleConfig;
@@ -18,6 +18,7 @@ pub struct ConsensusManagerConfig {
     pub consensus_config: ConsensusConfig,
     pub context_config: ContextConfig,
     pub eth_to_strk_oracle_config: EthToStrkOracleConfig,
+    pub stream_handler_config: StreamHandlerConfig,
     #[validate]
     pub network_config: NetworkConfig,
     pub cende_config: CendeConfig,
@@ -62,6 +63,10 @@ impl SerializeConfig for ConsensusManagerConfig {
             self.eth_to_strk_oracle_config.dump(),
             "eth_to_strk_oracle_config",
         ));
+        config.extend(append_sub_config_name(
+            self.stream_handler_config.dump(),
+            "stream_handler_config",
+        ));
         config.extend(append_sub_config_name(self.cende_config.dump(), "cende_config"));
         config.extend(append_sub_config_name(self.network_config.dump(), "network_config"));
         config.extend(append_sub_config_name(self.revert_config.dump(), "revert_config"));
@@ -75,6 +80,7 @@ impl Default for ConsensusManagerConfig {
             consensus_config: ConsensusConfig::default(),
             context_config: ContextConfig::default(),
             eth_to_strk_oracle_config: EthToStrkOracleConfig::default(),
+            stream_handler_config: StreamHandlerConfig::default(),
             cende_config: CendeConfig::default(),
             network_config: NetworkConfig::default(),
             revert_config: RevertConfig::default(),

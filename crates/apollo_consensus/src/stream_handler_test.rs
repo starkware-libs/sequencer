@@ -1,5 +1,6 @@
 use std::collections::BTreeSet;
 use std::fmt::Display;
+use std::num::NonZeroUsize;
 
 use apollo_network::network_manager::{BroadcastTopicClientTrait, ReceivedBroadcastedMessage};
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
@@ -10,8 +11,10 @@ use futures::channel::mpsc::{self, Receiver, SendError, Sender};
 use futures::{FutureExt, SinkExt, StreamExt};
 use prost::DecodeError;
 
-use crate::stream_handler::{StreamHandler, MAX_STREAMS};
+use crate::config::StreamHandlerConfig;
+use crate::stream_handler::StreamHandler;
 const CHANNEL_SIZE: usize = 100;
+const MAX_STREAMS: NonZeroUsize = NonZeroUsize::new(10).unwrap();
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct TestStreamId(u64);
@@ -94,7 +97,10 @@ fn setup() -> (
     let (outbound_internal_sender, outbound_internal_receiver) = mpsc::channel(CHANNEL_SIZE);
     let (outbound_network_sender, outbound_network_receiver) = mpsc::channel(CHANNEL_SIZE);
     let outbound_network_sender = FakeBroadcastClient { sender: outbound_network_sender };
+    let config =
+        StreamHandlerConfig { channel_buffer_length: CHANNEL_SIZE, max_streams: MAX_STREAMS };
     let stream_handler = StreamHandler::new(
+        config,
         inbound_internal_sender,
         inbound_network_receiver,
         outbound_internal_receiver,

@@ -3,6 +3,7 @@
 //! such as the validator ID, the network topic of the consensus, and the starting block height.
 
 use std::collections::BTreeMap;
+use std::num::NonZeroUsize;
 use std::time::Duration;
 
 use apollo_config::converters::{
@@ -143,5 +144,38 @@ impl Default for TimeoutsConfig {
             prevote_timeout: Duration::from_secs_f64(1.0),
             precommit_timeout: Duration::from_secs_f64(1.0),
         }
+    }
+}
+
+/// Configuration for the `StreamHandler`.
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
+pub struct StreamHandlerConfig {
+    /// The size of the channel for stream messages.
+    pub channel_buffer_length: usize,
+    /// The maximum number of streams that can be open at the same time.
+    pub max_streams: NonZeroUsize,
+}
+impl Default for StreamHandlerConfig {
+    fn default() -> Self {
+        Self { channel_buffer_length: 100, max_streams: NonZeroUsize::new(10).unwrap() }
+    }
+}
+
+impl SerializeConfig for StreamHandlerConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_param(
+                "channel_buffer_length",
+                &self.channel_buffer_length,
+                "The size of the channel for stream messages.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_streams",
+                &self.max_streams.get(),
+                "The maximum number of streams that can be open at the same time.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
     }
 }
