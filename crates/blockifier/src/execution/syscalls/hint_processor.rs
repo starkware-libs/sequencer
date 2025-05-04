@@ -748,11 +748,11 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
 
     fn secp256k1_get_point_from_x(
         request: SecpGetPointFromXRequest,
-        _vm: &mut VirtualMachine,
+        vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
     ) -> SyscallResult<SecpGetPointFromXResponse> {
-        syscall_handler.secp256k1_hint_processor.secp_get_point_from_x(request)
+        syscall_handler.secp256k1_hint_processor.secp_get_point_from_x(vm, request)
     }
 
     fn secp256k1_get_xy(
@@ -793,11 +793,11 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
 
     fn secp256r1_get_point_from_x(
         request: SecpGetPointFromXRequest,
-        _vm: &mut VirtualMachine,
+        vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
     ) -> SyscallResult<SecpGetPointFromXResponse> {
-        syscall_handler.secp256r1_hint_processor.secp_get_point_from_x(request)
+        syscall_handler.secp256r1_hint_processor.secp_get_point_from_x(vm, request)
     }
 
     fn secp256r1_get_xy(
