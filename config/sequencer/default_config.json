@@ -274,6 +274,11 @@
     "privacy": "Public",
     "value": 4089446
   },
+  "class_manager_config.class_storage_config.class_hash_storage_config.chain_id": {
+    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "pointer_target": "chain_id",
+    "privacy": "Public"
+  },
   "class_manager_config.class_storage_config.class_hash_storage_config.enforce_file_exists": {
     "description": "Whether to enforce that the above path exists.",
     "privacy": "Public",
@@ -282,7 +287,7 @@
   "class_manager_config.class_storage_config.class_hash_storage_config.max_size": {
     "description": "The maximum size of the class hash storage in bytes.",
     "privacy": "Public",
-    "value": 1048576
+    "value": 1099511627776
   },
   "class_manager_config.class_storage_config.class_hash_storage_config.path_prefix": {
     "description": "Prefix of the path of class hash storage directory.",
