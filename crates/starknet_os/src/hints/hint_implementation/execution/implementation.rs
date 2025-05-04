@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+use std::cmp::min;
 use std::collections::HashMap;
 
 use blockifier::execution::contract_class::TrackedResource;
@@ -9,6 +11,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     insert_value_from_var_name,
     insert_value_into_ap,
 };
+use cairo_vm::hint_processor::hint_processor_utils::felt_to_usize;
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
@@ -809,6 +812,26 @@ pub(crate) fn get_old_block_number_and_hash<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn fetch_result<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> OsHintResult {
-    todo!()
+pub(crate) fn fetch_result<S: StateReader>(
+    HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_, '_, S>,
+) -> OsHintResult {
+    // Fetch the result, up to 100 elements.
+    let retdata = get_ptr_from_var_name(Ids::Retdata.into(), vm, ids_data, ap_tracking)?;
+    let retdata_size = felt_to_usize(&get_integer_from_var_name(
+        Ids::RetdataSize.into(),
+        vm,
+        ids_data,
+        ap_tracking,
+    )?)?;
+    let result = vm.get_range(retdata, min(retdata_size, 100_usize));
+
+    // validated is the string "VALID" translated to a felt.
+    let validated = MaybeRelocatable::from(Const::Validated.fetch(constants)?);
+
+    if retdata_size != 1 || result[0] != Some(Cow::Borrowed(&validated)) {
+        log::info!("Invalid return value from __validate__:");
+        log::info!("  Size: {retdata_size}");
+        log::info!("  Result (at most 100 elements): {:?}", result);
+    }
+    Ok(())
 }

@@ -197,6 +197,8 @@ define_string_enum! {
         (ReturnBuiltinPtrs),
         (Request),
         (Res),
+        (Retdata),
+        (RetdataSize),
         (SelectedEncodings),
         (SelectedPtrs),
         (Sha256Ptr, "sha256_ptr"),
@@ -280,6 +282,7 @@ define_string_enum! {
         ),
         (MerkleHeight, "starkware.starknet.core.os.state.commitment.MERKLE_HEIGHT"),
         (StoredBlockHashBuffer, "starkware.starknet.core.os.constants.STORED_BLOCK_HASH_BUFFER"),
+        (Validated, "starkware.starknet.core.os.constants.VALIDATED"),
     }
 }
 
