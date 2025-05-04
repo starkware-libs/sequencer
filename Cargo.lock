@@ -1395,6 +1395,23 @@ name = "apollo_l1_endpoint_monitor"
 version = "0.0.0"
 
 [[package]]
+name = "apollo_l1_endpoint_monitor_types"
+version = "0.0.0"
+dependencies = [
+ "alloy",
+ "apollo_config",
+ "apollo_infra",
+ "apollo_proc_macros",
+ "async-trait",
+ "mockall",
+ "serde",
+ "strum_macros 0.25.3",
+ "thiserror 1.0.69",
+ "tokio",
+ "url",
+]
+
+[[package]]
 name = "apollo_l1_gas_price"
 version = "0.0.0"
 dependencies = [
