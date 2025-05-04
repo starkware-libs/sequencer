@@ -5,7 +5,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     insert_value_from_var_name,
     insert_value_into_ap,
 };
-use cairo_vm::types::relocatable::Relocatable;
+use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_types_core::felt::Felt;
 
@@ -62,14 +62,17 @@ pub(crate) fn set_component_hashes<S: StateReader>(
     };
     let component_hashes =
         &current_execution_helper.os_block_input.declared_class_hash_to_component_hashes;
-    let class_component_hashes = vm.gen_arg(
-        component_hashes
-            .get(&class_hash)
-            .ok_or_else(|| OsHintError::MissingComponentHashes(class_hash))?,
-    )?;
+    let class_component_hashes: Vec<_> = component_hashes
+        .get(&class_hash)
+        .ok_or_else(|| OsHintError::MissingComponentHashes(class_hash))?
+        .flatten()
+        .into_iter()
+        .map(MaybeRelocatable::from)
+        .collect();
+    let class_component_hashes_base = vm.gen_arg(&class_component_hashes)?;
     Ok(insert_value_from_var_name(
         Ids::ContractClassComponentHashes.into(),
-        class_component_hashes,
+        class_component_hashes_base,
         vm,
         ids_data,
         ap_tracking,
