@@ -93,10 +93,10 @@ pub struct EthereumBaseLayerContract {
 
 impl EthereumBaseLayerContract {
     pub fn new(config: EthereumBaseLayerConfig) -> Self {
-        // This type is generated from `sol!` macro, and the `default` method assumes it is already
-        // deployed at L1, and wraps it with a type.
-        let l1_client = ProviderBuilder::default().on_http(config.node_url.clone());
-        let contract = Starknet::new(config.starknet_contract_address, l1_client);
+        let current_node_url = config.node_url.clone();
+        let contract =
+            build_contract_instance(config.starknet_contract_address, current_node_url.clone());
+
         Self { contract, config }
     }
 }
@@ -334,4 +334,14 @@ impl Default for EthereumBaseLayerConfig {
             timeout_millis: Duration::from_millis(1000),
         }
     }
+}
+
+fn build_contract_instance(
+    starknet_contract_address: EthereumContractAddress,
+    node_url: Url,
+) -> StarknetL1Contract {
+    let l1_client = ProviderBuilder::default().on_http(node_url);
+    // This type is generated from `sol!` macro, and the `new` method assumes it is already
+    // deployed at L1, and wraps it with a type.
+    Starknet::new(starknet_contract_address, l1_client)
 }
