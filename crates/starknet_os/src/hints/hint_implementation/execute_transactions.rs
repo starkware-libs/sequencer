@@ -88,9 +88,16 @@ pub(crate) fn segments_add_temp<S: StateReader>(
 }
 
 pub(crate) fn set_ap_to_actual_fee<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let actual_fee = hint_processor
+        .get_current_execution_helper()?
+        .tx_execution_iter
+        .get_tx_execution_info_ref()?
+        .tx_execution_info
+        .actual_fee;
+    insert_value_into_ap(vm, Felt::from(actual_fee))?;
+    Ok(())
 }
 
 pub(crate) fn skip_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> OsHintResult {
