@@ -319,9 +319,16 @@ pub(crate) fn tx_tip<S: StateReader>(
 }
 
 pub(crate) fn tx_paymaster_data_len<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let account_tx = hint_processor
+        .execution_helpers_manager
+        .get_current_execution_helper()?
+        .tx_tracker
+        .get_account_tx()?;
+    let paymaster_data_len = account_tx.paymaster_data().0.len();
+    insert_value_into_ap(vm, paymaster_data_len)?;
+    Ok(())
 }
 
 pub(crate) fn tx_paymaster_data<S: StateReader>(
