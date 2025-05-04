@@ -442,8 +442,19 @@ pub(crate) fn gen_signature_arg<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn is_reverted<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> OsHintResult {
-    todo!()
+pub(crate) fn is_reverted<S: StateReader>(
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
+) -> OsHintResult {
+    let is_reverted = hint_processor
+        .execution_helpers_manager
+        .get_current_execution_helper()?
+        .tx_execution_iter
+        .get_tx_execution_info_ref()?
+        .tx_execution_info
+        .revert_error
+        .is_some();
+    insert_value_into_ap(vm, Felt::from(is_reverted))?;
+    Ok(())
 }
 
 pub(crate) fn check_execution<S: StateReader>(
