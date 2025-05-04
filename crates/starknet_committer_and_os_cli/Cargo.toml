@@ -22,6 +22,8 @@ cairo-lang-starknet-classes.workspace = true
 cairo-vm.workspace = true
 # Should be moved under `testing` feature, when it exists.
 num-bigint = { workspace = true, features = ["rand"] }
+# Should be moved under `testing` feature, when it exists.
+num-integer.workspace = true
 clap = { workspace = true, features = ["cargo", "derive"] }
 derive_more.workspace = true
 ethnum.workspace = true
