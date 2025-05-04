@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentClient;
 use apollo_infra::impl_debug_for_infra_requests_and_responses;
@@ -10,6 +12,7 @@ use url::Url;
 
 pub type L1EndpointMonitorResult<T> = Result<T, L1EndpointMonitorError>;
 pub type L1EndpointMonitorClientResult<T> = Result<T, L1EndpointMonitorClientError>;
+pub type SharedL1EndpointMonitorClient = Arc<dyn L1EndpointMonitorClient>;
 
 #[async_trait]
 impl<ComponentClientType> L1EndpointMonitorClient for ComponentClientType

@@ -1393,6 +1393,13 @@ dependencies = [
 [[package]]
 name = "apollo_l1_endpoint_monitor"
 version = "0.0.0"
+dependencies = [
+ "apollo_infra",
+ "apollo_l1_endpoint_monitor_types",
+ "async-trait",
+ "tracing",
+ "url",
+]
 
 [[package]]
 name = "apollo_l1_endpoint_monitor_types"
