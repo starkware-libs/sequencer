@@ -391,4 +391,11 @@ impl Transaction {
             Self::L1Handler(_) => TransactionType::L1Handler,
         }
     }
+
+    pub fn version(&self) -> TransactionVersion {
+        match self {
+            Self::Account(account_tx) => account_tx.version(),
+            Self::L1Handler(l1_handler_tx) => l1_handler_tx.tx.version,
+        }
+    }
 }

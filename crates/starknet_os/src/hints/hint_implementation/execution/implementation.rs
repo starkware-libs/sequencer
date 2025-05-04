@@ -293,8 +293,12 @@ pub(crate) fn tx_entry_point_selector<S: StateReader>(
     todo!()
 }
 
-pub(crate) fn tx_version<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> OsHintResult {
-    todo!()
+pub(crate) fn tx_version<S: StateReader>(
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
+) -> OsHintResult {
+    let version = hint_processor.get_current_execution_helper()?.tx_tracker.get_tx()?.version();
+    insert_value_into_ap(vm, version.0)?;
+    Ok(())
 }
 
 pub(crate) fn tx_tip<S: StateReader>(
