@@ -82,13 +82,24 @@ async fn verify_feature_contracts_compatibility(fix: bool, cairo_version: CairoV
             }
         }
         CairoVersion::Cairo1(RunnableCairo1::Casm) => {
-            for (version, feature_contracts) in
+            // Prepare cairo packages.
+            let mut download_task_set = tokio::task::JoinSet::new();
+            for (version, _feature_contracts) in
                 FeatureContract::cairo1_feature_contracts_by_version()
             {
-                verify_cairo1_package(&version).await;
-
-                let mut task_set = tokio::task::JoinSet::new();
-
+                download_task_set.spawn(async move { verify_cairo1_package(&version).await });
+            }
+            info!(
+                "Verifying Cairo1 packages for versions {:?}.",
+                FeatureContract::cairo1_feature_contracts_by_version().keys()
+            );
+            download_task_set.join_all().await;
+            info!("Cairo1 packages verified.");
+            // Verify feature contracts.
+            let mut task_set = tokio::task::JoinSet::new();
+            for (_version, feature_contracts) in
+                FeatureContract::cairo1_feature_contracts_by_version()
+            {
                 for contract in feature_contracts
                     .into_iter()
                     .filter(|contract| contract.cairo_version() == cairo_version)
@@ -97,10 +108,10 @@ async fn verify_feature_contracts_compatibility(fix: bool, cairo_version: CairoV
                     task_set
                         .spawn(verify_feature_contracts_compatibility_logic_async(contract, fix));
                 }
-                info!("Done spawning tasks for {version:?}. Awaiting them...");
-                task_set.join_all().await;
-                info!("Done awaiting tasks for {version:?}.");
             }
+            info!("Done spawning tasks for contract compilation. Awaiting them...");
+            task_set.join_all().await;
+            info!("Done awaiting tasks for contract compilation.");
         }
         #[cfg(feature = "cairo_native")]
         CairoVersion::Cairo1(RunnableCairo1::Native) => {
