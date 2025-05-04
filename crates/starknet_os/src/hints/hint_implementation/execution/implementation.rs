@@ -12,10 +12,10 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
-use starknet_api::executable_transaction::AccountTransaction;
+use starknet_api::executable_transaction::{AccountTransaction, Transaction};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::ValidResourceBounds;
-use starknet_api::transaction::DeployAccountTransaction;
+use starknet_api::transaction::{DeployAccountTransaction, InvokeTransaction};
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintResult};
@@ -364,9 +364,30 @@ pub(crate) fn tx_calldata<S: StateReader>(
 }
 
 pub(crate) fn tx_entry_point_selector<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let tx = hint_processor
+        .execution_helpers_manager
+        .get_current_execution_helper()?
+        .tx_tracker
+        .get_tx()?;
+    let entry_point_selector = match tx {
+        Transaction::Account(AccountTransaction::Invoke(invoke)) => match &invoke.tx {
+            InvokeTransaction::V0(invoke_v0) => invoke_v0.entry_point_selector,
+            InvokeTransaction::V1(_) => {
+                return Err(OsHintError::AssertionFailed { message: "v1 invoke tx".to_string() });
+            }
+            InvokeTransaction::V3(_) => {
+                return Err(OsHintError::AssertionFailed { message: "v3 invoke tx".to_string() });
+            }
+        },
+        Transaction::L1Handler(l1_handler) => l1_handler.tx.entry_point_selector,
+        _ => {
+            return Err(OsHintError::UnexpectedTxType(tx.tx_type()));
+        }
+    };
+    insert_value_into_ap(vm, entry_point_selector.0)?;
+    Ok(())
 }
 
 pub(crate) fn tx_version<S: StateReader>(
