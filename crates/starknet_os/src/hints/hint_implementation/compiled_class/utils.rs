@@ -152,10 +152,8 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for CompiledClassFact<'_> {
     ) -> VmUtilsResult<()> {
         let compiled_class_address = vm.add_memory_segment();
         self.compiled_class.load_into(vm, identifier_getter, compiled_class_address, constants)?;
-        let nested_fields_and_value = [
-            ("class_hash", self.class_hash.0.into()),
-            ("compiled_class", compiled_class_address.into()),
-        ];
+        let nested_fields_and_value =
+            [("hash", self.class_hash.0.into()), ("compiled_class", compiled_class_address.into())];
         insert_values_to_fields(
             address,
             CairoStruct::CompiledClassFact,
