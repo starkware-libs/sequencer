@@ -21,6 +21,8 @@ use crate::execution::syscalls::{
     WriteResponseResult,
 };
 
+const EC_POINT_SEGMENT_SIZE: usize = 6;
+
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct SecpHintProcessor<Curve: SWCurveConfig> {
     points: Vec<short_weierstrass::Affine<Curve>>,
@@ -94,7 +96,7 @@ where
         let points = &mut self.points;
         let id = points.len();
         points.push(ec_point);
-        Ok((self.get_initialized_segments_base()? + 6 * id)?)
+        Ok((self.get_initialized_segments_base()? + EC_POINT_SEGMENT_SIZE * id)?)
     }
 
     fn conditionally_initialize_points_segment_base(&mut self, vm: &mut VirtualMachine) {
@@ -115,7 +117,8 @@ where
         &self,
         ec_point_ptr: Relocatable,
     ) -> SyscallResult<&short_weierstrass::Affine<Curve>> {
-        let ec_point_id = (ec_point_ptr - self.get_initialized_segments_base()?)? / 6;
+        let ec_point_id =
+            (ec_point_ptr - self.get_initialized_segments_base()?)? / EC_POINT_SEGMENT_SIZE;
         self.points.get(ec_point_id).ok_or_else(|| SyscallExecutionError::InvalidSyscallInput {
             input: ec_point_id.into(),
             info: "Invalid Secp point ID".to_string(),
