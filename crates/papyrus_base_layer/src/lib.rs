@@ -74,6 +74,12 @@ pub trait BaseLayerContract {
         &self,
         block_number: L1BlockNumber,
     ) -> Result<Option<PriceSample>, Self::Error>;
+
+    /// Ensures that the underlying L1 node is operational, hot-swapping it to configured backup
+    /// node if necessary. If no L1 node is operational, return an error.
+    async fn ensure_operational(&mut self) -> Result<(), Self::Error> {
+        todo!("Implement in subsequent commits");
+    }
 }
 
 /// A struct that holds together the data on the base layer's gas prices, for a given timestamp.
