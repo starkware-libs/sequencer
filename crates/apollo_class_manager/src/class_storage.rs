@@ -12,7 +12,6 @@ use apollo_storage::class_hash::{ClassHashStorageReader, ClassHashStorageWriter}
 use serde::{Deserialize, Serialize};
 use starknet_api::class_cache::GlobalContractCache;
 use starknet_api::contract_class::ContractClass;
-use starknet_api::core::ChainId;
 use thiserror::Error;
 use tracing::instrument;
 
@@ -284,11 +283,11 @@ impl ClassHashStorage {
         let storage_config = apollo_storage::StorageConfig {
             db_config: apollo_storage::db::DbConfig {
                 path_prefix: config.path_prefix,
-                chain_id: ChainId::Other("UnusedChainID".to_string()),
                 enforce_file_exists: config.enforce_file_exists,
+                chain_id: config.chain_id,
+                min_size: 1 << 20, // 1MB
                 max_size: config.max_size,
-                growth_step: 1 << 20, // 1MB.
-                ..Default::default()
+                growth_step: 1 << 32, // 4GB
             },
             scope: apollo_storage::StorageScope::StateOnly,
             mmap_file_config: apollo_storage::mmap_file::MmapFileConfig {

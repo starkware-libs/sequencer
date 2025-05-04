@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use apollo_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
+use starknet_api::core::ChainId;
 use validator::Validate;
 
 use crate::class_storage::CachedClassStorageConfig;
@@ -13,6 +14,7 @@ pub struct ClassHashStorageConfig {
     pub path_prefix: PathBuf,
     pub enforce_file_exists: bool,
     pub max_size: usize,
+    pub chain_id: ChainId,
 }
 
 impl Default for ClassHashStorageConfig {
@@ -20,7 +22,8 @@ impl Default for ClassHashStorageConfig {
         Self {
             path_prefix: "/data/class_hash_storage".into(),
             enforce_file_exists: false,
-            max_size: 1 << 20, // 1MB.
+            max_size: 1 << 40, // 1TB.
+            chain_id: ChainId::Mainnet,
         }
     }
 }
@@ -44,6 +47,12 @@ impl SerializeConfig for ClassHashStorageConfig {
                 "max_size",
                 &self.max_size,
                 "The maximum size of the class hash storage in bytes.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "chain_id",
+                &self.chain_id,
+                "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
                 ParamPrivacyInput::Public,
             ),
         ])
