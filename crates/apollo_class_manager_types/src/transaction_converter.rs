@@ -22,7 +22,7 @@ use starknet_api::rpc_transaction::{
 };
 use starknet_api::state::SierraContractClass;
 use starknet_api::transaction::fields::Fee;
-use starknet_api::transaction::{CalculateContractAddress, TransactionHasher, TransactionVersion};
+use starknet_api::transaction::CalculateContractAddress;
 use starknet_api::{executable_transaction, transaction, StarknetApiError};
 use thiserror::Error;
 
@@ -259,12 +259,11 @@ impl TransactionConverter {
         &self,
         tx: transaction::L1HandlerTransaction,
     ) -> TransactionConverterResult<executable_transaction::L1HandlerTransaction> {
-        let tx_hash = tx.calculate_transaction_hash(&self.chain_id, &TransactionVersion::ZERO)?;
-        Ok(executable_transaction::L1HandlerTransaction {
+        Ok(executable_transaction::L1HandlerTransaction::create(
             tx,
-            tx_hash,
+            &self.chain_id,
             // TODO(Gilad): Change this once we put real value in paid_fee_on_l1.
-            paid_fee_on_l1: Fee(1),
-        })
+            Fee(1),
+        )?)
     }
 }
