@@ -158,9 +158,28 @@ pub(crate) fn get_contract_address_state_entry<S: StateReader>(
 }
 
 pub(crate) fn set_state_entry_to_account_contract_address<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { exec_scopes, vm, ids_data, ap_tracking, hint_processor, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let account_contract_address = vm
+        .get_integer(get_address_of_nested_fields(
+            ids_data,
+            Ids::TxInfo,
+            CairoStruct::TxInfoPtr,
+            vm,
+            ap_tracking,
+            &["account_contract_address"],
+            hint_processor.os_program,
+        )?)?
+        .into_owned();
+    let state_changes_ptr =
+        get_ptr_from_var_name(Ids::ContractStateChanges.into(), vm, ids_data, ap_tracking)?;
+    let dict_manager = exec_scopes.get_dict_manager()?;
+    let mut dict_manager_borrowed = dict_manager.borrow_mut();
+    let state_entry = dict_manager_borrowed
+        .get_tracker_mut(state_changes_ptr)?
+        .get_value(&account_contract_address.into())?;
+    insert_value_from_var_name(Ids::StateEntry.into(), state_entry, vm, ids_data, ap_tracking)?;
+    Ok(())
 }
 
 pub(crate) fn get_block_hash_contract_address_state_entry_and_set_new_state_entry<

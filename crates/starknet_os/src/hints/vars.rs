@@ -211,6 +211,7 @@ define_string_enum! {
         (StateUpdatesStart),
         (SyscallPtr),
         (TransactionHash),
+        (TxInfo),
         (TxType),
         (UpdatePtr),
         (UseKzgDa),
@@ -369,5 +370,6 @@ define_string_enum! {
         (StorageReadPtr, "starkware.starknet.common.syscalls.StorageRead*"),
         (StorageReadRequestPtr, "starkware.starknet.core.os.storage.StorageReadRequest*"),
         (StorageWritePtr, "starkware.starknet.common.syscalls.StorageWriteRequest*"),
+        (TxInfoPtr, "starkware.starknet.common.new_syscalls.TxInfo*"),
     }
 }
