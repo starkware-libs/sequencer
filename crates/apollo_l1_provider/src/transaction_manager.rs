@@ -48,36 +48,44 @@ impl TransactionManager {
         }
     }
 
-    /// Commits given transactions by removing them entirely and returning the removed
-    /// transactions. Uncommitted staged transactions are rolled back to unstaged first.
-    /// Performance note: This operation is linear time with both the number
-    /// of known transactions and the number of committed transactions. This is assumed to be
-    /// good enough while l1-handler numbers remain low, but if this changes and we need log(n)
-    /// removals (amortized), replace indexmap with this (basically a BTreeIndexMap):
-    /// BTreeMap<u32, TransactionEntry>, Hashmap<TransactionHash, u32> and a counter: u32, such
-    /// that every new tx is inserted to the map with key counter++ and the counter is
-    /// not reduced when removing entries. Once the counter reaches u32::MAX/2 we
-    /// recreate the DS in Theta(n).
+    /// This function does the following:
+    /// 1) Rolls back the uncommitted and rejected staging pools.
+    /// 2) Moves all newly committed transactions from the uncommitted pool to the committed pool.
+    /// 3) Moves all newly rejected transactions from the uncommitted pool to the rejected pool.
+    ///
+    /// # Performance
+    /// This function has linear complexity in the number of known transactions and the
+    /// number of transactions being committed. This is acceptable while the number of
+    /// L1 handler transactions remains low. If higher performance becomes necessary (e.g.,
+    /// requiring amortized log(n) operations), consider replacing `IndexMap` with a
+    /// structure like: `BTreeMap<u32, TransactionEntry>'.
     pub fn commit_txs(
         &mut self,
         committed_txs: &[TransactionHash],
         rejected_txs: &[TransactionHash],
     ) {
+        // When committing transactions, we don't need to have staged transactions.
         self.uncommitted.rollback_staging();
         self.rejected.rollback_staging();
 
         let mut uncommitted = IndexMap::new();
         let mut rejected = IndexMap::new();
 
-        // Navigate transaction to rejected or uncommited.
+        // Iterate over the uncommitted transactions and check if they are committed or rejected.
         for (hash, entry) in self.uncommitted.txs.drain(..) {
+            // Each rejected transaction is added to the rejected pool.
             if rejected_txs.contains(&hash) {
                 rejected.insert(hash, entry);
             } else if !committed_txs.contains(&hash) {
+                // If a transaction is not committed or rejected, it is added back to the
+                // uncommitted pool.
                 uncommitted.insert(hash, entry);
             }
         }
+
         self.rejected.txs.extend(rejected);
+
+        // Assign the remaining uncommitted txs to the uncommitted pool, which was was drained.
         self.uncommitted.txs = uncommitted;
 
         // Add all committed tx hashes to the committed buffer, regardless of if they're known or
