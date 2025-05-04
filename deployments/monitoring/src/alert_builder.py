@@ -7,6 +7,7 @@ import datetime
 import json
 import os
 
+from typing import Optional
 from tenacity import retry, stop_after_attempt, wait_fixed, before_sleep_log
 from grafana_client import GrafanaApi
 from grafana_client.client import (
@@ -157,7 +158,7 @@ def get_all_folders(client: GrafanaApi) -> list[dict[str, any]]:
     return client.folder.get_all_folders()
 
 
-def get_folder_uid(client: GrafanaApi, title: str) -> str:
+def get_folder_uid(client: GrafanaApi, title: str) -> Optional[str]:
     """
     Returns the UID of the folder if it exists, otherwise None.
     """
