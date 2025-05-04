@@ -358,9 +358,16 @@ pub(crate) fn tx_paymaster_data<S: StateReader>(
 }
 
 pub(crate) fn tx_nonce_data_availability_mode<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let account_tx = hint_processor
+        .execution_helpers_manager
+        .get_current_execution_helper()?
+        .tx_tracker
+        .get_account_tx()?;
+    let da_mode_as_felt = Felt::from(account_tx.nonce_data_availability_mode());
+    insert_value_into_ap(vm, da_mode_as_felt)?;
+    Ok(())
 }
 
 pub(crate) fn tx_fee_data_availability_mode<S: StateReader>(
