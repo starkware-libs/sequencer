@@ -383,9 +383,21 @@ pub(crate) fn tx_calldata<S: StateReader>(
 }
 
 pub(crate) fn tx_entry_point_selector<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let tx = hint_processor
+        .execution_helpers_manager
+        .get_current_execution_helper()?
+        .tx_tracker
+        .get_tx()?;
+    let entry_point_selector = match tx {
+        Transaction::L1Handler(l1_handler) => l1_handler.tx.entry_point_selector,
+        _ => {
+            return Err(OsHintError::UnexpectedTxType(tx.tx_type()));
+        }
+    };
+    insert_value_into_ap(vm, entry_point_selector.0)?;
+    Ok(())
 }
 
 pub(crate) fn tx_version<S: StateReader>(
