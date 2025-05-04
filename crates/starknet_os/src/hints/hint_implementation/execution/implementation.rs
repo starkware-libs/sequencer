@@ -12,8 +12,10 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
+use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::ValidResourceBounds;
+use starknet_api::transaction::DeployAccountTransaction;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintResult};
@@ -111,9 +113,55 @@ pub(crate) fn exit_tx<S: StateReader>(
 }
 
 pub(crate) fn prepare_constructor_execution<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let account_tx = hint_processor
+        .execution_helpers_manager
+        .get_mut_current_execution_helper()?
+        .tx_tracker
+        .get_account_tx()?;
+    let AccountTransaction::DeployAccount(deploy_account_tx) = account_tx else {
+        return Err(OsHintError::UnexpectedTxType(account_tx.tx_type()));
+    };
+
+    insert_value_from_var_name(
+        Ids::ContractAddressSalt.into(),
+        deploy_account_tx.contract_address_salt().0,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    insert_value_from_var_name(
+        Ids::ClassHash.into(),
+        deploy_account_tx.class_hash().0,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+
+    let constructor_calldata = match &deploy_account_tx.tx {
+        DeployAccountTransaction::V1(v1_tx) => &v1_tx.constructor_calldata,
+        DeployAccountTransaction::V3(v3_tx) => &v3_tx.constructor_calldata,
+    };
+    insert_value_from_var_name(
+        Ids::ConstructorCalldataSize.into(),
+        constructor_calldata.0.len(),
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    let constructor_calldata_base = vm.add_memory_segment();
+    let constructor_calldata_as_relocatable: Vec<MaybeRelocatable> =
+        constructor_calldata.0.iter().map(MaybeRelocatable::from).collect();
+    vm.load_data(constructor_calldata_base, &constructor_calldata_as_relocatable)?;
+    insert_value_from_var_name(
+        Ids::ConstructorCalldata.into(),
+        constructor_calldata_base,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    Ok(())
 }
 
 pub(crate) fn assert_transaction_hash<S: StateReader>(
