@@ -1,11 +1,10 @@
-use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
 
 use apollo_infra_utils::cairo_compiler_version::cairo1_compiler_version;
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
 use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;
-use itertools::Itertools;
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress};
 use starknet_api::state::SierraContractClass;
@@ -83,7 +82,6 @@ const LEGACY_CONTRACT_COMPILER_VERSION: &str = "2.1.0";
 const CAIRO_STEPS_TEST_CONTRACT_COMPILER_VERSION: &str = "2.7.0";
 
 pub type CairoVersionString = String;
-pub type VersionToContractsMapping = HashMap<CairoVersionString, Vec<FeatureContract>>;
 
 /// Enum representing all feature contracts.
 /// The contracts that are implemented in both Cairo versions include a version field.
@@ -404,11 +402,19 @@ impl FeatureContract {
         Self::all_contracts().filter(|contract| !matches!(contract, Self::ERC20(_)))
     }
 
-    pub fn cairo1_feature_contracts_by_version() -> VersionToContractsMapping {
+    pub fn all_cairo1_casm_feature_contracts() -> impl Iterator<Item = Self> {
+        Self::all_feature_contracts().filter(|contract| {
+            matches!(contract.cairo_version(), CairoVersion::Cairo1(RunnableCairo1::Casm))
+        })
+    }
+
+    pub fn all_cairo1_casm_compiler_versions() -> HashSet<CairoVersionString> {
         Self::all_feature_contracts()
-            .filter(|contract| contract.cairo_version() != CairoVersion::Cairo0)
-            .map(|contract| (contract.fixed_version(), contract))
-            .into_group_map()
+            .filter(|contract| {
+                contract.cairo_version() == CairoVersion::Cairo1(RunnableCairo1::Casm)
+            })
+            .map(|contract| contract.fixed_version())
+            .collect()
     }
 }
 

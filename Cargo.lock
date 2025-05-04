@@ -3254,7 +3254,6 @@ version = "0.0.0"
 dependencies = [
  "apollo_infra_utils",
  "cairo-lang-starknet-classes",
- "itertools 0.12.1",
  "pretty_assertions",
  "rstest",
  "serde_json",
