@@ -363,9 +363,31 @@ pub(crate) fn tx_account_deployment_data<S: StateReader>(
 }
 
 pub(crate) fn gen_signature_arg<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { hint_processor, ids_data, ap_tracking, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let account_tx = hint_processor
+        .execution_helpers_manager
+        .get_current_execution_helper()?
+        .tx_tracker
+        .get_account_tx()?;
+    let signature: Vec<_> = account_tx.signature().0.iter().map(MaybeRelocatable::from).collect();
+    let signature_start = vm.gen_arg(&signature)?;
+    insert_value_from_var_name(
+        Ids::SignatureStart.into(),
+        signature_start,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    insert_value_from_var_name(
+        Ids::SignatureLen.into(),
+        signature.len(),
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+
+    Ok(())
 }
 
 pub(crate) fn is_reverted<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> OsHintResult {
