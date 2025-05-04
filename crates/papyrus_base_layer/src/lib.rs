@@ -24,6 +24,7 @@ pub mod test_utils;
 mod base_layer_test;
 
 pub type L1BlockNumber = u64;
+pub type L1BlockHash = [u8; 32];
 
 #[cfg(any(feature = "testing", test))]
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
@@ -88,7 +89,7 @@ pub struct PriceSample {
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct L1BlockReference {
     pub number: L1BlockNumber,
-    pub hash: [u8; 32],
+    pub hash: L1BlockHash,
 }
 
 /// Wraps Starknet L1 events with Starknet API types.

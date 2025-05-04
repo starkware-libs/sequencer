@@ -10,6 +10,7 @@ use apollo_l1_provider_types::errors::L1ProviderError;
 use apollo_l1_provider_types::{Event, L1ProviderClient, MockL1ProviderClient};
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
+use assert_matches::assert_matches;
 use itertools::Itertools;
 use papyrus_base_layer::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
@@ -21,7 +22,8 @@ use papyrus_base_layer::test_utils::{
     ethereum_base_layer_config_for_anvil,
     DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS,
 };
-use papyrus_base_layer::MockBaseLayerContract;
+use papyrus_base_layer::{L1BlockReference, MockBaseLayerContract};
+use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
 use starknet_api::contract_address;
 use starknet_api::core::{EntryPointSelector, Nonce};
@@ -485,10 +487,11 @@ async fn test_stuck_sync() {
     }
 }
 
+#[rstest]
 #[tokio::test]
 /// If the provider crashes, the scraper should detect this and trigger a self restart by returning
 /// an appropriate error.
-async fn provider_crash_should_crash_scraper() {
+async fn provider_crash_should_crash_scraper(mut dummy_base_layer: MockBaseLayerContract) {
     // Setup.
     let mut l1_provider_client = MockL1ProviderClient::default();
     l1_provider_client.expect_add_events().once().returning(|_| {
@@ -496,16 +499,12 @@ async fn provider_crash_should_crash_scraper() {
             L1ProviderError::Uninitialized,
         ))
     });
-    let mut base_layer = MockBaseLayerContract::new();
-    base_layer.expect_latest_l1_block_number().return_once(|_| Ok(Some(Default::default())));
-    base_layer.expect_l1_block_at().returning(|_| Ok(Some(Default::default())));
-    base_layer.expect_latest_l1_block().return_once(|_| Ok(Some(Default::default())));
-    base_layer.expect_events().return_once(|_, _| Ok(Default::default()));
+    dummy_base_layer.expect_l1_block_at().returning(|_| Ok(Some(Default::default())));
 
     let mut scraper = L1Scraper::new(
         L1ScraperConfig::default(),
         Arc::new(l1_provider_client),
-        base_layer,
+        dummy_base_layer,
         event_identifiers_to_track(),
     )
     .await
@@ -513,6 +512,87 @@ async fn provider_crash_should_crash_scraper() {
 
     // Test.
     assert_eq!(scraper.send_events_to_l1_provider().await, Err(L1ScraperError::NeedsRestart));
+}
+
+#[fixture]
+fn dummy_base_layer() -> MockBaseLayerContract {
+    let mut base_layer = MockBaseLayerContract::new();
+    base_layer.expect_latest_l1_block_number().return_once(|_| Ok(Some(Default::default())));
+    base_layer.expect_latest_l1_block().return_once(|_| Ok(Some(Default::default())));
+    base_layer.expect_events().return_once(|_, _| Ok(Default::default()));
+    base_layer
+}
+
+#[rstest]
+#[tokio::test]
+async fn l1_reorg_block_hash(mut dummy_base_layer: MockBaseLayerContract) {
+    // Setup.
+    let mut l1_provider_client = MockL1ProviderClient::default();
+
+    let l1_block_at_response = Arc::new(Mutex::new(Some(Default::default())));
+    let l1_block_at_response_clone = l1_block_at_response.clone();
+    dummy_base_layer
+        .expect_l1_block_at()
+        .returning(move |_| Ok(*l1_block_at_response_clone.lock().unwrap()));
+
+    l1_provider_client.expect_add_events().times(1).returning(|_| Ok(()));
+    let mut scraper = L1Scraper::new(
+        L1ScraperConfig::default(),
+        Arc::new(l1_provider_client),
+        dummy_base_layer,
+        event_identifiers_to_track(),
+    )
+    .await
+    .unwrap();
+
+    // Test.
+    // Can send messages to the provider.
+    assert_eq!(scraper.send_events_to_l1_provider().await, Ok(()));
+
+    // Simulate an L1 fork: last block hash changed due to reorg.
+    let l1_block_hash_after_l1_reorg = [123; 32];
+    *l1_block_at_response.lock().unwrap() =
+        Some(L1BlockReference { hash: l1_block_hash_after_l1_reorg, ..Default::default() });
+
+    assert_matches!(
+        scraper.send_events_to_l1_provider().await,
+        Err(L1ScraperError::L1ReorgDetected { .. })
+    );
+}
+
+#[rstest]
+#[tokio::test]
+async fn l1_reorg_block_number(mut dummy_base_layer: MockBaseLayerContract) {
+    // Setup.
+    let mut l1_provider_client = MockL1ProviderClient::default();
+    l1_provider_client.expect_add_events().returning(|_| Ok(()));
+
+    let l1_block_at_response = Arc::new(Mutex::new(Some(Default::default())));
+    let l1_block_at_response_clone = l1_block_at_response.clone();
+    dummy_base_layer
+        .expect_l1_block_at()
+        .returning(move |_| Ok(*l1_block_at_response_clone.lock().unwrap()));
+
+    let mut scraper = L1Scraper::new(
+        L1ScraperConfig::default(),
+        Arc::new(l1_provider_client),
+        dummy_base_layer,
+        event_identifiers_to_track(),
+    )
+    .await
+    .unwrap();
+
+    // Test.
+    // can send messages to the provider.
+    assert_eq!(scraper.send_events_to_l1_provider().await, Ok(()));
+
+    // Simulate an L1 revert: the last processed l1 block no longer exists.
+    *l1_block_at_response.lock().unwrap() = None;
+
+    assert_matches!(
+        scraper.send_events_to_l1_provider().await,
+        Err(L1ScraperError::L1ReorgDetected { .. })
+    );
 }
 
 #[test]
