@@ -1,12 +1,14 @@
 use std::collections::HashMap;
 
 use starknet_os::test_utils::cairo_runner::EntryPointRunnerConfig;
+use tracing::info;
 
 use crate::os_cli::tests::types::OsPythonTestResult;
 use crate::os_cli::tests::utils::test_cairo_function;
 
 // TODO(Amos): This test is incomplete. Add the rest of the test cases and remove this todo.
 pub(crate) fn aliases_test(input: &str) -> OsPythonTestResult {
+    info!("Testing `test_constants`...");
     test_constants(input)?;
     Ok("".to_string())
 }
