@@ -272,6 +272,41 @@
         "type": "stat",
         "expr": "apollo_state_sync_reverted_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
         "extra_params": {}
+      },
+      {
+        "title": "apollo_central_sync_central_block_marker",
+        "description": "The first block number that doesn't exist yet",
+        "type": "stat",
+        "expr": "apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+        "extra_params": {}
+      },
+      {
+        "title": "apollo_state_sync_body_marker",
+        "description": "The first block number for which the state sync component does not have a body",
+        "type": "stat",
+        "expr": "apollo_state_sync_body_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+        "extra_params": {}
+      },
+      {
+        "title": "apollo_state_sync_class_manager_marker",
+        "description": "The first block number for which the state sync component does not guarantee all of the corresponding classes are stored in the class manager component",
+        "type": "stat",
+        "expr": "apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+        "extra_params": {}
+      },
+      {
+        "title": "apollo_state_sync_header_marker",
+        "description": "The first block number for which the state sync component does not have a header",
+        "type": "stat",
+        "expr": "apollo_state_sync_header_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+        "extra_params": {}
+      },
+      {
+        "title": "apollo_state_sync_state_marker",
+        "description": "The first block number for which the state sync component does not have a state body",
+        "type": "stat",
+        "expr": "apollo_state_sync_state_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+        "extra_params": {}
       }
     ],
     "MempoolP2p": [
