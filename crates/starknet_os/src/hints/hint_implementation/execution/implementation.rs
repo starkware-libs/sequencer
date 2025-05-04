@@ -325,9 +325,18 @@ pub(crate) fn tx_paymaster_data_len<S: StateReader>(
 }
 
 pub(crate) fn tx_paymaster_data<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let account_tx = hint_processor
+        .execution_helpers_manager
+        .get_current_execution_helper()?
+        .tx_tracker
+        .get_account_tx()?;
+    let paymaster_data: Vec<_> =
+        account_tx.paymaster_data().0.into_iter().map(MaybeRelocatable::from).collect();
+    let paymaster_data_base = vm.gen_arg(&paymaster_data)?;
+    insert_value_into_ap(vm, paymaster_data_base)?;
+    Ok(())
 }
 
 pub(crate) fn tx_nonce_data_availability_mode<S: StateReader>(
