@@ -12,7 +12,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
-use starknet_api::executable_transaction::AccountTransaction;
+use starknet_api::executable_transaction::{AccountTransaction, Transaction};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::ValidResourceBounds;
 use starknet_api::transaction::DeployAccountTransaction;
@@ -339,9 +339,21 @@ pub(crate) fn exit_call<S: StateReader>(
 }
 
 pub(crate) fn contract_address<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let tx = hint_processor.get_current_execution_helper()?.tx_tracker.get_tx()?;
+    let contract_address = match tx {
+        Transaction::Account(account_tx) => account_tx.sender_address(),
+        Transaction::L1Handler(l1_handler) => l1_handler.tx.contract_address,
+    };
+    insert_value_from_var_name(
+        Ids::ContractAddress.into(),
+        **contract_address,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    Ok(())
 }
 
 pub(crate) fn tx_calldata_len<S: StateReader>(
