@@ -197,6 +197,8 @@ define_string_enum! {
         (SelectedPtrs),
         (Sha256Ptr, "sha256_ptr"),
         (Siblings),
+        (SignatureLen),
+        (SignatureStart),
         (SquashedAliasesStorageEnd),
         (SquashedAliasesStorageStart),
         (SquashedDict),
