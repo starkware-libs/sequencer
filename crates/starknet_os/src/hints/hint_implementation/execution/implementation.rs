@@ -18,7 +18,7 @@ use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
 use starknet_api::executable_transaction::{AccountTransaction, Transaction};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::ValidResourceBounds;
-use starknet_api::transaction::DeployAccountTransaction;
+use starknet_api::transaction::{DeployAccountTransaction, TransactionVersion};
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintResult};
@@ -727,9 +727,70 @@ pub(crate) fn write_syscall_result<S: StateReader>(hint_args: HintArgs<'_, '_, S
 }
 
 pub(crate) fn declare_tx_fields<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { hint_processor, vm, ap_tracking, ids_data, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let account_tx = hint_processor
+        .execution_helpers_manager
+        .get_mut_current_execution_helper()?
+        .tx_tracker
+        .get_account_tx()?;
+
+    // A declare transaction is expected.
+    let AccountTransaction::Declare(declare_tx) = account_tx else {
+        return Err(OsHintError::UnexpectedTxType(account_tx.tx_type()));
+    };
+    if declare_tx.version() != TransactionVersion::THREE {
+        return Err(OsHintError::AssertionFailed {
+            message: format!("Unsupported declare version: {:?}.", declare_tx.version()),
+        });
+    }
+    insert_value_from_var_name(
+        Ids::SenderAddress.into(),
+        declare_tx.sender_address().0.key(),
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    let account_deployment_data: Vec<_> = get_account_deployment_data(
+        hint_processor.execution_helpers_manager.get_current_execution_helper()?,
+    )?
+    .0
+    .iter()
+    .map(MaybeRelocatable::from)
+    .collect();
+
+    insert_value_from_var_name(
+        Ids::AccountDeploymentDataSize.into(),
+        account_deployment_data.len(),
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    let account_deployment_data_base = vm.gen_arg(&account_deployment_data)?;
+    insert_value_from_var_name(
+        Ids::AccountDeploymentData.into(),
+        account_deployment_data_base,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    let class_hash_base = vm.gen_arg(&vec![MaybeRelocatable::from(declare_tx.class_hash().0)])?;
+    insert_value_from_var_name(
+        Ids::ClassHashPtr.into(),
+        class_hash_base,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    insert_value_from_var_name(
+        Ids::CompiledClassHash.into(),
+        declare_tx.compiled_class_hash().0,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+
+    Ok(())
 }
 
 pub(crate) fn write_old_block_to_storage<S: StateReader>(
