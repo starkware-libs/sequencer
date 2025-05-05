@@ -258,6 +258,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         }
 
         // Loop over incoming proposals, messages, and self generated events.
+        let mut sync_poll_deadline = tokio::time::Instant::now() + sync_retry_interval;
         loop {
             self.report_max_cached_block_number_metric(height);
             let shc_return = tokio::select! {
@@ -271,7 +272,10 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 Some(shc_event) = shc_events.next() => {
                     shc.handle_event(context, shc_event).await?
                 },
-                _ = tokio::time::sleep(sync_retry_interval) => {
+                // Using sleep_until to make sure that we won't restart the sleep due to other
+                // events occuring.
+                _ = tokio::time::sleep_until(sync_poll_deadline) => {
+                    sync_poll_deadline += sync_retry_interval;
                     if context.try_sync(height).await {
                         return Ok(RunHeightRes::Sync);
                     }
