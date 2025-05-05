@@ -1,15 +1,13 @@
 use alloy::primitives::U64;
 use alloy::providers::{Provider, ProviderBuilder};
+use apollo_l1_endpoint_monitor_types::{L1EndpointMonitorError, L1EndpointMonitorResult};
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 use tracing::{error, warn};
 use url::Url;
 
 #[cfg(test)]
 #[path = "l1_endpoint_monitor_tests.rs"]
 pub mod l1_endpoint_monitor_tests;
-
-type L1EndpointMonitorResult<T> = Result<T, L1EndpointMonitorError>;
 
 /// The JSON-RPC method used to check L1 endpoint health.
 // Note: is this fast enough? Alternatively, we can just check connectivity, but we already hit
@@ -71,10 +69,4 @@ impl L1EndpointMonitor {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct L1EndpointMonitorConfig {
     pub ordered_l1_endpoint_urls: Vec<Url>,
-}
-
-#[derive(Debug, Clone, Error, Serialize, Deserialize, PartialEq, Eq)]
-pub enum L1EndpointMonitorError {
-    #[error("All L1 endpoints are non-operational")]
-    NoActiveL1Endpoint,
 }

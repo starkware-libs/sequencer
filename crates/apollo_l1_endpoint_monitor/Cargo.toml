@@ -7,8 +7,8 @@ license.workspace = true
 
 [dependencies]
 alloy.workspace = true
+apollo_l1_endpoint_monitor_types.workspace = true
 serde.workspace = true
-thiserror.workspace = true
 tracing.workspace = true
 url = { workspace = true, features = ["serde"] }
 
