@@ -1384,7 +1384,10 @@ async fn handle_proposal_part(
                     ));
                 }
             };
-            debug!("Converted transactions to internal representation.");
+            debug!(
+                "Converted transactions to internal representation. hashes={:?}",
+                txs.iter().map(|tx| tx.tx_hash()).collect::<Vec<TransactionHash>>()
+            );
 
             content.push(txs.clone());
             let input =
