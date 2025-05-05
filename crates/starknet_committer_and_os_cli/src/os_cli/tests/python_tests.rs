@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 // TODO(Amos): When available in the VM crate, use an existing set, instead of using each hint
 //   const explicitly.
 use cairo_vm::hint_processor::builtin_hint_processor::hint_code::HINT_CODES;
+use cairo_vm::hint_processor::builtin_hint_processor::kzg_da::WRITE_DIVMOD_SEGMENT;
 use cairo_vm::hint_processor::builtin_hint_processor::secp::cairo0_hints::CAIRO0_HINT_CODES;
 use starknet_os::hints::enum_definition::{AggregatorHint, HintExtension, OsHint};
 use starknet_os::hints::types::HintEnum;
@@ -105,21 +106,9 @@ fn input_deserialization(input_str: &str) -> OsPythonTestResult {
 
 fn vm_hints() -> HashSet<&'static str> {
     let mut vm_hints = HashSet::from([
-        // TODO(Amos): Load These hints from the cairo VM once the workspace version is upgraded to
-        // v2.0.0.
-        r#"from starkware.starknet.core.os.data_availability.bls_utils import BLS_PRIME, pack, split
-
-a = pack(ids.a, PRIME)
-b = pack(ids.b, PRIME)
-
-q, r = divmod(a * b, BLS_PRIME)
-
-# By the assumption: |a|, |b| < 2**104 * ((2**86) ** 2 + 2**86 + 1) < 2**276.001.
-# Therefore |q| <= |ab| / BLS_PRIME < 2**299.
-# Hence the absolute value of the high limb of split(q) < 2**127.
-segments.write_arg(ids.q.address_, split(q))
-segments.write_arg(ids.res.address_, split(r))"#,
-        // This hint was modified to reflect changes in the Python crate.
+        // TODO(Amos): Use VM hints once they match the updated hints in the Python repo.
+        WRITE_DIVMOD_SEGMENT,
+        // This hint was modified to reflect changes in the Python repo.
         r#"from starkware.cairo.common.cairo_secp.secp256r1_utils import SECP256R1_ALPHA, SECP256R1_P
 from starkware.cairo.common.cairo_secp.secp_utils import pack
 from starkware.python.math_utils import ec_double_slope
@@ -128,7 +117,7 @@ from starkware.python.math_utils import ec_double_slope
 x = pack(ids.point.x, PRIME)
 y = pack(ids.point.y, PRIME)
 value = slope = ec_double_slope(point=(x, y), alpha=SECP256R1_ALPHA, p=SECP256R1_P)"#,
-        // This hint was modified to reflect changes in the Python crate.
+        // This hint was modified to reflect changes in the Python repo.
         r#"from starkware.cairo.common.cairo_secp.secp256r1_utils import SECP256R1_P
 from starkware.cairo.common.cairo_secp.secp_utils import pack
 
@@ -137,7 +126,7 @@ x = pack(ids.point.x, PRIME)
 y = pack(ids.point.y, PRIME)
 
 value = new_x = (pow(slope, 2, SECP256R1_P) - 2 * x) % SECP256R1_P"#,
-        // This hint was modified to reflect changes in the Python crate.
+        // This hint was modified to reflect changes in the Python repo.
         r#"from starkware.cairo.common.cairo_secp.secp_utils import SECP256R1, pack
 from starkware.python.math_utils import y_squared_from_x
 
