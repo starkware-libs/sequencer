@@ -187,7 +187,9 @@ impl ServiceNameInner for HybridNodeServiceName {
                     additional_config_filenames,
                 ),
             },
-            Environment::SepoliaIntegration => match self {
+            Environment::SepoliaIntegration
+            | Environment::TestingEnvTwo
+            | Environment::TestingEnvThree => match self {
                 HybridNodeServiceName::Core => Service::new(
                     Into::<ServiceName>::into(*self),
                     Controller::StatefulSet,

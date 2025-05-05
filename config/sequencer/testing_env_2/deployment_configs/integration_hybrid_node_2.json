@@ -1,6 +1,6 @@
 {
   "chain_id": "SN_INTEGRATION_SEPOLIA",
-  "application_config_subdir": "config/sequencer/sepolia_integration/app_configs/hybrid/integration_hybrid_node_2/",
+  "application_config_subdir": "config/sequencer/testing_env_2/app_configs/hybrid/integration_hybrid_node_2/",
   "services": [
     {
       "name": "Core",
@@ -38,7 +38,7 @@
         "instance_config_override.json"
       ],
       "ingress": {
-        "domain": "starknet.io",
+        "domain": "sw-dev.io",
         "internal": false,
         "rules": [
           {

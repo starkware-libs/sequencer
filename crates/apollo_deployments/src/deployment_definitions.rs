@@ -24,8 +24,10 @@ const SYSTEM_TEST_BASE_APP_CONFIG_PATH: &str =
 const INTEGRATION_BASE_APP_CONFIG_PATH: &str =
     "config/sequencer/sepolia_integration/base_app_configs/node.json";
 
-const TESTING_ENV_2_BASE_APP_CONFIG_PATH: &str = INTEGRATION_BASE_APP_CONFIG_PATH;
-const TESTING_ENV_3_BASE_APP_CONFIG_PATH: &str = INTEGRATION_BASE_APP_CONFIG_PATH;
+const TESTING_ENV_2_BASE_APP_CONFIG_PATH: &str =
+    "config/sequencer/testing_env_2/base_app_configs/node.json";
+const TESTING_ENV_3_BASE_APP_CONFIG_PATH: &str =
+    "config/sequencer/testing_env_3/base_app_configs/node.json";
 
 pub(crate) const CONFIG_BASE_DIR: &str = "config/sequencer/";
 const APP_CONFIGS_DIR_NAME: &str = "app_configs/";
@@ -374,7 +376,7 @@ fn testing_env_2_hybrid_deployment_node_0() -> Deployment {
     Deployment::new(
         ChainId::IntegrationSepolia,
         DeploymentName::HybridNode,
-        Environment::SepoliaIntegration,
+        Environment::TestingEnvTwo,
         "integration_hybrid_node_0",
         Some(ExternalSecret::new("apollo-sepolia-integration-0")),
         PathBuf::from(TESTING_ENV_2_BASE_APP_CONFIG_PATH),
@@ -388,7 +390,7 @@ fn testing_env_2_hybrid_deployment_node_1() -> Deployment {
     Deployment::new(
         ChainId::IntegrationSepolia,
         DeploymentName::HybridNode,
-        Environment::SepoliaIntegration,
+        Environment::TestingEnvTwo,
         "integration_hybrid_node_1",
         Some(ExternalSecret::new("apollo-sepolia-integration-1")),
         PathBuf::from(TESTING_ENV_2_BASE_APP_CONFIG_PATH),
@@ -402,7 +404,7 @@ fn testing_env_2_hybrid_deployment_node_2() -> Deployment {
     Deployment::new(
         ChainId::IntegrationSepolia,
         DeploymentName::HybridNode,
-        Environment::SepoliaIntegration,
+        Environment::TestingEnvTwo,
         "integration_hybrid_node_2",
         Some(ExternalSecret::new("apollo-sepolia-integration-2")),
         PathBuf::from(TESTING_ENV_2_BASE_APP_CONFIG_PATH),
@@ -416,7 +418,7 @@ fn testing_env_2_hybrid_deployment_node_3() -> Deployment {
     Deployment::new(
         ChainId::IntegrationSepolia,
         DeploymentName::HybridNode,
-        Environment::SepoliaIntegration,
+        Environment::TestingEnvTwo,
         "integration_hybrid_node_3",
         Some(ExternalSecret::new("apollo-sepolia-integration-3")),
         PathBuf::from(TESTING_ENV_2_BASE_APP_CONFIG_PATH),
@@ -430,7 +432,7 @@ fn testing_env_3_hybrid_deployment_node_0() -> Deployment {
     Deployment::new(
         ChainId::IntegrationSepolia,
         DeploymentName::HybridNode,
-        Environment::SepoliaIntegration,
+        Environment::TestingEnvThree,
         "integration_hybrid_node_0",
         Some(ExternalSecret::new("sequencer-test-3-node-0")),
         PathBuf::from(TESTING_ENV_3_BASE_APP_CONFIG_PATH),
@@ -444,7 +446,7 @@ fn testing_env_3_hybrid_deployment_node_1() -> Deployment {
     Deployment::new(
         ChainId::IntegrationSepolia,
         DeploymentName::HybridNode,
-        Environment::SepoliaIntegration,
+        Environment::TestingEnvThree,
         "integration_hybrid_node_1",
         Some(ExternalSecret::new("sequencer-test-3-node-1")),
         PathBuf::from(TESTING_ENV_3_BASE_APP_CONFIG_PATH),
@@ -458,7 +460,7 @@ fn testing_env_3_hybrid_deployment_node_2() -> Deployment {
     Deployment::new(
         ChainId::IntegrationSepolia,
         DeploymentName::HybridNode,
-        Environment::SepoliaIntegration,
+        Environment::TestingEnvThree,
         "integration_hybrid_node_2",
         Some(ExternalSecret::new("sequencer-test-3-node-2")),
         PathBuf::from(TESTING_ENV_3_BASE_APP_CONFIG_PATH),
@@ -472,7 +474,7 @@ fn testing_env_3_hybrid_deployment_node_3() -> Deployment {
     Deployment::new(
         ChainId::IntegrationSepolia,
         DeploymentName::HybridNode,
-        Environment::SepoliaIntegration,
+        Environment::TestingEnvThree,
         "integration_hybrid_node_3",
         Some(ExternalSecret::new("sequencer-test-3-node-3")),
         PathBuf::from(TESTING_ENV_3_BASE_APP_CONFIG_PATH),
@@ -517,6 +519,10 @@ pub enum Environment {
     Testing,
     SepoliaIntegration,
     SepoliaTestnet,
+    #[strum(serialize = "testing_env_2")]
+    TestingEnvTwo,
+    #[strum(serialize = "testing_env_3")]
+    TestingEnvThree,
     Mainnet,
 }
 
@@ -529,6 +535,12 @@ impl Environment {
         match self {
             Environment::Testing => EnvironmentComponentConfigModifications::testing(),
             Environment::SepoliaIntegration => {
+                EnvironmentComponentConfigModifications::sepolia_integration()
+            }
+            Environment::TestingEnvTwo => {
+                EnvironmentComponentConfigModifications::sepolia_integration()
+            }
+            Environment::TestingEnvThree => {
                 EnvironmentComponentConfigModifications::sepolia_integration()
             }
             Environment::SepoliaTestnet => unimplemented!("SepoliaTestnet is not implemented yet"),
