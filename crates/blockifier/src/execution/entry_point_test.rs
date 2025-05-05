@@ -1,6 +1,7 @@
 use std::collections::HashSet;
+use std::sync::Arc;
 
-use blockifier_test_utils::cairo_versions::CairoVersion;
+use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_vm::types::builtin_name::BuiltinName;
 use num_bigint::BigInt;
@@ -12,9 +13,10 @@ use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::{calldata, felt, storage_key};
 
 use crate::blockifier_versioned_constants::VersionedConstants;
-use crate::context::ChainInfo;
+use crate::context::{BlockContext, ChainInfo};
 use crate::execution::call_info::{CallExecution, CallInfo};
-use crate::execution::entry_point::CallEntryPoint;
+use crate::execution::entry_point::{call_view_entry_point, CallEntryPoint};
+use crate::execution::syscalls::hint_processor::ENTRYPOINT_NOT_FOUND_ERROR;
 use crate::retdata;
 use crate::state::cached_state::CachedState;
 use crate::test_utils::dict_state_reader::DictStateReader;
@@ -535,4 +537,47 @@ fn test_old_cairo1_entry_point_segment_arena() {
         // version. Do not manually fix this then when upgrading them - it might be a bug.
         2
     );
+}
+
+#[test]
+fn test_call_view_entry_point() {
+    let block_context = BlockContext::create_for_account_testing();
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let state = test_state(&block_context.chain_info, Fee(0), &[(test_contract, 1)]);
+
+    let call_info = call_view_entry_point(
+        state,
+        Arc::new(block_context),
+        test_contract.get_instance_address(0),
+        "assert_eq",
+        Calldata(
+            vec![
+                felt!(3_u32), // x.
+                felt!(3_u32), // y.
+            ]
+            .into(),
+        ),
+    );
+
+    let actual_result = call_info.unwrap().execution.retdata;
+    let expected_result = format!("0x{}", hex::encode("success"));
+
+    assert_eq!(actual_result.0, vec![felt!(expected_result.as_str())]);
+}
+
+#[test]
+fn test_call_view_entry_point_non_existing_function() {
+    let block_context = BlockContext::create_for_account_testing();
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let state = test_state(&block_context.chain_info, Fee(0), &[(test_contract, 1)]);
+
+    let call_info = call_view_entry_point(
+        state,
+        Arc::new(block_context),
+        test_contract.get_instance_address(0),
+        "this_function_must_not_exist",
+        Calldata(vec![].into()),
+    );
+
+    assert_eq!(call_info.unwrap().execution.retdata.0, vec![felt!(ENTRYPOINT_NOT_FOUND_ERROR)]);
 }
