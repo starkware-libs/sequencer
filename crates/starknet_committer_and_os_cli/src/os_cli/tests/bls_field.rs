@@ -6,6 +6,7 @@ use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::program::Program;
 use ethnum::U256;
 use num_bigint::{BigInt, BigUint, RandBigInt, RandomBits, Sign, ToBigInt};
+use num_integer::Integer;
 use rand::Rng;
 use starknet_os::hints::hint_implementation::kzg::utils::{split_bigint3, BASE, BLS_PRIME};
 use starknet_os::test_utils::cairo_runner::{
@@ -64,7 +65,7 @@ fn run_reduced_mul_test(input: &str, a_split: &[Felt], b_split: &[Felt]) -> OsPy
     let implicit_args = [ImplicitArg::Builtin(BuiltinName::range_check)];
     let expected_implicit_args: [EndpointArg; 1] = [11.into()];
     let expected_result = split_bigint3(
-        (pack_bigint3(a_split) * pack_bigint3(b_split)) % BLS_PRIME.to_bigint().unwrap(),
+        (pack_bigint3(a_split) * pack_bigint3(b_split)).mod_floor(&BLS_PRIME.to_bigint().unwrap()),
     )
     .unwrap();
     let expected_explicit_args = [EndpointArg::Value(ValueArg::Array(expected_result.to_vec()))];
@@ -210,7 +211,7 @@ fn test_horner_eval(input: &str) -> OsPythonTestResult {
                 * BASE.to_biguint().unwrap()
             + BigUint::from_bytes_be(&split_actual_result[2].to_bytes_be())
                 * BASE.to_biguint().unwrap().pow(2))
-            % BLS_PRIME.clone();
+        .mod_floor(&BLS_PRIME.clone());
 
         // Calculate expected result.
         info!("Calculating expected result.");
