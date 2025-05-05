@@ -43,10 +43,10 @@ const SEPOLIA_INTEGRATION_DEPLOYMENT_CONFIG_OVERRIDE: DeploymentConfigOverride =
 
 const TESTING_ENV_2_DEPLOYMENT_CONFIG_OVERRIDE: DeploymentConfigOverride =
     DeploymentConfigOverride::new(
-        "0x4737c0c1B4D5b1A687B42610DdabEE781152359c",
-        "SN_INTEGRATION_SEPOLIA",
+        "0xA43812F9C610851daF67c5FA36606Ea8c8Fa7caE",
+        "SN_GOERLI",
         "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
-        "https://feeder.integration-sepolia.starknet.io/",
+        "https://fgw-sn-test-sepolia-2-sepolia.gateway-proxy.sw-dev.io",
         "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d",
     );
 const TESTING_ENV_3_DEPLOYMENT_CONFIG_OVERRIDE: DeploymentConfigOverride =
@@ -129,12 +129,12 @@ const TESTING_ENV_2_NODE_0_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverride =
 
 const TESTING_ENV_2_NODE_1_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverride =
     InstanceConfigOverride::new(
-        "/dns/sequencer-core-service.apollo-sepolia-integration-0.svc.cluster.local/tcp/53080/p2p/\
+        "/dns/sequencer-core-service.sequencer-test-sepolia-0.svc.cluster.local/tcp/53080/p2p/\
          12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
         false,
         "0x0101010101010101010101010101010101010101010101010101010101010102",
-        "/dns/sequencer-mempool-service.apollo-sepolia-integration-0.svc.cluster.local/tcp/53200/\
-         p2p/12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
+        "/dns/sequencer-mempool-service.sequencer-test-sepolia-0.svc.cluster.local/tcp/53200/p2p/\
+         12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
         false,
         "0x0101010101010101010101010101010101010101010101010101010101010102",
         "0x2",
@@ -142,12 +142,12 @@ const TESTING_ENV_2_NODE_1_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverride =
 
 const TESTING_ENV_2_NODE_2_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverride =
     InstanceConfigOverride::new(
-        "/dns/sequencer-core-service.apollo-sepolia-integration-0.svc.cluster.local/tcp/53080/p2p/\
+        "/dns/sequencer-core-service.sequencer-test-sepolia-0.svc.cluster.local/tcp/53080/p2p/\
          12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
         false,
         "0x0101010101010101010101010101010101010101010101010101010101010103",
-        "/dns/sequencer-mempool-service.apollo-sepolia-integration-0.svc.cluster.local/tcp/53200/\
-         p2p/12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
+        "/dns/sequencer-mempool-service.sequencer-test-sepolia-0.svc.cluster.local/tcp/53200/p2p/\
+         12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
         false,
         "0x0101010101010101010101010101010101010101010101010101010101010103",
         "0x3",
@@ -155,12 +155,12 @@ const TESTING_ENV_2_NODE_2_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverride =
 
 const TESTING_ENV_2_NODE_3_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverride =
     InstanceConfigOverride::new(
-        "/dns/sequencer-core-service.apollo-sepolia-integration-0.svc.cluster.local/tcp/53080/p2p/\
+        "/dns/sequencer-core-service.sequencer-test-sepolia-0.svc.cluster.local/tcp/53080/p2p/\
          12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
         false,
         "0x0101010101010101010101010101010101010101010101010101010101010104",
-        "/dns/sequencer-mempool-service.apollo-sepolia-integration-0.svc.cluster.local/tcp/53200/\
-         p2p/12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
+        "/dns/sequencer-mempool-service.sequencer-test-sepolia-0.svc.cluster.local/tcp/53200/p2p/\
+         12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
         false,
         "0x0101010101010101010101010101010101010101010101010101010101010104",
         "0x4",
@@ -283,7 +283,8 @@ const TESTING_CONFIG_OVERRIDE: ConfigOverride =
 const SEPOLIA_INTEGRATION_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str =
     "integration-sepolia.starknet.io";
 
-const TESTING_ENV_2_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str = "integration-sepolia.starknet.io";
+const TESTING_ENV_2_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str =
+    "sn-test-sepolia-2-sepolia.gateway-proxy.sw-dev.io";
 const TESTING_ENV_3_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str =
     "sn-test-sepolia-3-sepolia.gateway-proxy.sw-dev.io";
 
@@ -378,7 +379,7 @@ fn testing_env_2_hybrid_deployment_node_0() -> Deployment {
         DeploymentName::HybridNode,
         Environment::TestingEnvTwo,
         "integration_hybrid_node_0",
-        Some(ExternalSecret::new("apollo-sepolia-integration-0")),
+        Some(ExternalSecret::new("sequencer-test-sepolia-0")),
         PathBuf::from(TESTING_ENV_2_BASE_APP_CONFIG_PATH),
         TESTING_ENV_2_NODE_0_CONFIG_OVERRIDE,
         TESTING_ENV_2_INGRESS_DOMAIN.to_string(),
@@ -392,7 +393,7 @@ fn testing_env_2_hybrid_deployment_node_1() -> Deployment {
         DeploymentName::HybridNode,
         Environment::TestingEnvTwo,
         "integration_hybrid_node_1",
-        Some(ExternalSecret::new("apollo-sepolia-integration-1")),
+        Some(ExternalSecret::new("sequencer-test-sepolia-1")),
         PathBuf::from(TESTING_ENV_2_BASE_APP_CONFIG_PATH),
         TESTING_ENV_2_NODE_1_CONFIG_OVERRIDE,
         TESTING_ENV_2_INGRESS_DOMAIN.to_string(),
@@ -406,7 +407,7 @@ fn testing_env_2_hybrid_deployment_node_2() -> Deployment {
         DeploymentName::HybridNode,
         Environment::TestingEnvTwo,
         "integration_hybrid_node_2",
-        Some(ExternalSecret::new("apollo-sepolia-integration-2")),
+        Some(ExternalSecret::new("sequencer-test-sepolia-2")),
         PathBuf::from(TESTING_ENV_2_BASE_APP_CONFIG_PATH),
         TESTING_ENV_2_NODE_2_CONFIG_OVERRIDE,
         TESTING_ENV_2_INGRESS_DOMAIN.to_string(),
@@ -420,7 +421,7 @@ fn testing_env_2_hybrid_deployment_node_3() -> Deployment {
         DeploymentName::HybridNode,
         Environment::TestingEnvTwo,
         "integration_hybrid_node_3",
-        Some(ExternalSecret::new("apollo-sepolia-integration-3")),
+        Some(ExternalSecret::new("sequencer-test-sepolia-3")),
         PathBuf::from(TESTING_ENV_2_BASE_APP_CONFIG_PATH),
         TESTING_ENV_2_NODE_3_CONFIG_OVERRIDE,
         TESTING_ENV_2_INGRESS_DOMAIN.to_string(),
