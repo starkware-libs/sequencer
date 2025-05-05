@@ -477,8 +477,7 @@ impl<
         // parent hash to the current hash.
         self.verify_parent_block_hash(block_number, &block)?;
 
-        debug!("Storing block.");
-        trace!("Block data: {block:#?}, signature: {signature:?}");
+        debug!("Storing block. Block data: {block:#?}, signature: {signature:?}");
         let num_txs =
             block.body.transactions.len().try_into().expect("Failed to convert usize to u64");
         let timestamp = block.header.block_header_without_hash.timestamp;
@@ -526,8 +525,7 @@ impl<
         deployed_contract_class_definitions: IndexMap<ClassHash, DeprecatedContractClass>,
     ) -> StateSyncResult {
         // TODO(dan): verifications - verify state diff against stored header.
-        debug!("Storing state diff.");
-        trace!("StateDiff data: {state_diff:#?}");
+        debug!("Storing state diff. StateDiff data: {state_diff:#?}");
 
         // TODO(shahak): split the state diff stream to 2 separate streams for blocks and for
         // classes.
@@ -852,7 +850,7 @@ fn stream_new_blocks<
                 // Only if the node have the last block and state (without casms), sync pending data.
                 if collect_pending_data && reader.begin_ro_txn()?.get_state_marker()? == header_marker{
                     // Here is the only place we update the pending data.
-                    debug!("Start polling for pending data.");
+                    debug!("Start polling for pending data of block {:?}.", header_marker);
                     sync_pending_data(
                         reader.clone(),
                         central_source.clone(),
@@ -863,7 +861,7 @@ fn stream_new_blocks<
                     ).await?;
                 }
                 else{
-                    debug!("Blocks syncing reached the last known block, waiting for blockchain to advance.");
+                    debug!("Blocks syncing reached the last known block {:?}, waiting for blockchain to advance.", header_marker.prev());
                     tokio::time::sleep(block_propagation_sleep_duration).await;
                 };
                 continue;
@@ -894,7 +892,7 @@ fn stream_new_state_diffs<TCentralSource: CentralSourceTrait + Sync + Send>(
             let last_block_number = txn.get_header_marker()?;
             drop(txn);
             if state_marker == last_block_number {
-                debug!("State updates syncing reached the last downloaded block, waiting for more blocks.");
+                debug!("State updates syncing reached the last downloaded block {:?}, waiting for more blocks.", state_marker.prev());
                 tokio::time::sleep(block_propagation_sleep_duration).await;
                 continue;
             }
@@ -993,8 +991,8 @@ fn stream_new_compiled_classes<TCentralSource: CentralSourceTrait + Sync + Send>
 
             if from == state_marker {
                 debug!(
-                    "Compiled classes syncing reached the last downloaded state update, waiting \
-                     for more state updates."
+                    "Compiled classes syncing reached the last downloaded state update{:?}, waiting \
+                     for more state updates.", state_marker.prev()
                 );
                 tokio::time::sleep(block_propagation_sleep_duration).await;
                 continue;
@@ -1090,7 +1088,8 @@ fn check_sync_progress(
             let compiler_backward_compatibility_marker = txn.get_compiler_backward_compatibility_marker()?;
             let is_casm_stuck = casm_marker == new_casm_marker && (new_casm_marker < compiler_backward_compatibility_marker || store_sierras_and_casms);
             if header_marker==new_header_marker || state_marker==new_state_marker || is_casm_stuck {
-                debug!("No progress in the sync. Return NoProgress event.");
+                debug!("No progress in the sync. Return NoProgress event. Header marker: {header_marker}, \
+                       State marker: {state_marker}, Casm marker: {casm_marker}.");
                 yield SyncEvent::NoProgress;
             }
             header_marker=new_header_marker;
