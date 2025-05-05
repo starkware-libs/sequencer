@@ -195,6 +195,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_code::{
     VM_EXIT_SCOPE,
     XS_SAFE_DIV,
 };
+use cairo_vm::hint_processor::builtin_hint_processor::secp::cairo0_hints::CAIRO0_HINT_CODES;
 use starknet_os::hints::enum_definition::{AggregatorHint, HintExtension, OsHint};
 use starknet_os::hints::types::HintEnum;
 use starknet_os::test_utils::cairo_runner::EntryPointRunnerConfig;
@@ -295,7 +296,7 @@ fn input_deserialization(input_str: &str) -> OsPythonTestResult {
 }
 
 fn vm_hints() -> HashSet<&'static str> {
-    HashSet::from([
+    let mut vm_hints = HashSet::from([
         ADD_SEGMENT,
         VM_ENTER_SCOPE,
         VM_EXIT_SCOPE,
@@ -489,59 +490,6 @@ fn vm_hints() -> HashSet<&'static str> {
         EXCESS_BALANCE,
         // TODO(Amos): Load These hints from the cairo VM once the workspace version is upgraded to
         // v2.0.0.
-        r#"from starkware.cairo.common.cairo_secp.secp256r1_utils import SECP256R1_P
-from starkware.cairo.common.cairo_secp.secp_utils import pack
-
-q, r = divmod(pack(ids.val, PRIME), SECP256R1_P)
-assert r == 0, f"verify_zero: Invalid input {ids.val.d0, ids.val.d1, ids.val.d2}."
-ids.q = q % PRIME"#,
-        r#"from starkware.cairo.common.cairo_secp.secp256r1_utils import SECP256R1_P
-from starkware.cairo.common.cairo_secp.secp_utils import pack
-
-slope = pack(ids.slope, SECP256R1_P)
-x = pack(ids.point.x, SECP256R1_P)
-y = pack(ids.point.y, SECP256R1_P)
-
-value = new_x = (pow(slope, 2, SECP256R1_P) - 2 * x) % SECP256R1_P"#,
-        r#"from starkware.cairo.common.cairo_secp.secp256r1_utils import SECP256R1_P
-from starkware.cairo.common.cairo_secp.secp_utils import pack
-
-x = pack(ids.x, PRIME) % SECP256R1_P"#,
-        r#"from starkware.cairo.common.cairo_secp.secp256r1_utils import SECP256R1_P
-from starkware.cairo.common.cairo_secp.secp_utils import pack
-value = pack(ids.x, PRIME) % SECP256R1_P"#,
-        r#"from starkware.cairo.common.cairo_secp.secp_utils import SECP256R1, pack
-from starkware.python.math_utils import y_squared_from_x
-
-y_square_int = y_squared_from_x(
-    x=pack(ids.x, SECP256R1.prime),
-    alpha=SECP256R1.alpha,
-    beta=SECP256R1.beta,
-    field_prime=SECP256R1.prime,
-)
-
-# Note that (y_square_int ** ((SECP256R1.prime + 1) / 4)) ** 2 =
-#   = y_square_int ** ((SECP256R1.prime + 1) / 2) =
-#   = y_square_int ** ((SECP256R1.prime - 1) / 2 + 1) =
-#   = y_square_int * y_square_int ** ((SECP256R1.prime - 1) / 2) = y_square_int * {+/-}1.
-y = pow(y_square_int, (SECP256R1.prime + 1) // 4, SECP256R1.prime)
-
-# We need to decide whether to take y or prime - y.
-if ids.v % 2 == y % 2:
-    value = y
-else:
-    value = (-y) % SECP256R1.prime"#,
-        r#"from starkware.cairo.common.math_utils import as_int
-
-# Correctness check.
-value = as_int(ids.value, PRIME) % PRIME
-assert value < ids.UPPER_BOUND, f'{value} is outside of the range [0, 2**165).'
-
-# Calculation for the assertion.
-ids.high, ids.low = divmod(ids.value, ids.SHIFT)"#,
-        r#"from starkware.python.math_utils import div_mod
-
-value = div_mod(1, x, SECP256R1_P)"#,
         r#"from starkware.starknet.core.os.data_availability.bls_utils import BLS_PRIME, pack, split
 
 a = pack(ids.a, PRIME)
@@ -554,13 +502,6 @@ q, r = divmod(a * b, BLS_PRIME)
 # Hence the absolute value of the high limb of split(q) < 2**127.
 segments.write_arg(ids.q.address_, split(q))
 segments.write_arg(ids.res.address_, split(r))"#,
-        r#"ids.is_on_curve = (y * y) % SECP256R1.prime == y_square_int"#,
-        r#"memory[fp + 0] = to_felt_or_relocatable(nibbles.pop())"#,
-        r#"num = (ids.scalar.high << 128) + ids.scalar.low
-nibbles = [(num >> i) & 0xf for i in range(0, 256, 4)]
-ids.first_nibble = nibbles.pop()
-ids.last_nibble = nibbles[0]"#,
-        r#"value = new_y = (slope * (x - new_x) - y) % SECP256R1_P"#,
         // This hint was modified to reflect changes in the Python crate.
         r#"from starkware.cairo.common.cairo_secp.secp256r1_utils import SECP256R1_ALPHA, SECP256R1_P
 from starkware.cairo.common.cairo_secp.secp_utils import pack
@@ -601,5 +542,7 @@ if ids.v % 2 == y % 2:
     value = y
 else:
     value = (-y) % SECP256R1.prime"#,
-    ])
+    ]);
+    vm_hints.extend(CAIRO0_HINT_CODES.iter().map(|hint| hint.1));
+    vm_hints
 }
