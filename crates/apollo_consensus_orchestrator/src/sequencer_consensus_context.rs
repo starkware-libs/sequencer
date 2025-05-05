@@ -1351,9 +1351,7 @@ async fn handle_proposal_part(
             });
             let response_id = match response.response {
                 ProposalStatus::Finished(id) => id,
-                ProposalStatus::InvalidProposal => {
-                    return HandledProposalPart::Failed("Invalid proposal".to_string());
-                }
+                ProposalStatus::InvalidProposal => return HandledProposalPart::Invalid,
                 status => panic!("Unexpected status: for {proposal_id:?}, {status:?}"),
             };
             let batcher_block_id = BlockHash(response_id.state_diff_commitment.0.0);
