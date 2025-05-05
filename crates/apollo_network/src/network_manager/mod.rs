@@ -489,8 +489,8 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                 self.sqmr_outbound_report_receivers_awaiting_assignment.remove(&outbound_session_id)
             {
                 debug!(
-                    "Outbound session failed before peer assignment. Ignoring incoming reports \
-                     for the session."
+                    "Outbound session {outbound_session_id:?} failed before peer assignment. \
+                     Ignoring incoming reports for the session."
                 );
             }
         }
@@ -505,8 +505,8 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                 self.sqmr_outbound_report_receivers_awaiting_assignment.remove(&outbound_session_id)
             {
                 warn!(
-                    "Outbound session finished with no messages in it. Ignoring incoming reports \
-                     for the session."
+                    "Outbound session {outbound_session_id:?} finished with no messages in it. \
+                     Ignoring incoming reports for the session."
                 );
             }
         }
