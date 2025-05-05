@@ -73,6 +73,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.REPO_NAME }}/sequencer
           tags: |
+            type=raw,enable=${{ startsWith(github.ref, 'refs/tags/') && 'true' || 'false' }},value={{tag}}
             type=semver,pattern={{raw}}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
