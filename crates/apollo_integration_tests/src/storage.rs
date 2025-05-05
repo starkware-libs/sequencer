@@ -134,11 +134,14 @@ pub fn get_integration_test_storage(
                 custom_storage_exec_paths
                     .get_state_sync_exec_path()
                     .join(STATE_SYNC_DB_PATH_SUFFIX);
-            storage_config.class_manager_storage_config.class_hash_storage_config.path_prefix =
-                custom_storage_exec_paths
-                    .get_class_manager_exec_path()
-                    .join(CLASS_MANAGER_DB_PATH_SUFFIX)
-                    .join(CLASS_HASH_STORAGE_DB_PATH_SUFFIX);
+            storage_config
+                .class_manager_storage_config
+                .class_hash_storage_config
+                .class_hash_db_config
+                .path_prefix = custom_storage_exec_paths
+                .get_class_manager_exec_path()
+                .join(CLASS_MANAGER_DB_PATH_SUFFIX)
+                .join(CLASS_HASH_STORAGE_DB_PATH_SUFFIX);
             storage_config.class_manager_storage_config.persistent_root = custom_storage_exec_paths
                 .get_class_manager_exec_path()
                 .join(CLASS_MANAGER_DB_PATH_SUFFIX)

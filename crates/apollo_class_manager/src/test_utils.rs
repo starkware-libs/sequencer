@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use tempfile::TempDir;
 
 use crate::class_storage::{ClassHashStorage, FsClassStorage};
-use crate::config::{ClassHashStorageConfig, FsClassStorageConfig};
+use crate::config::{ClassHashDbConfig, ClassHashStorageConfig, FsClassStorageConfig};
 
 pub type FileHandles = (TempDir, TempDir);
 
@@ -20,9 +20,14 @@ impl Default for FsClassStorageBuilderForTesting {
         let config = FsClassStorageConfig {
             persistent_root,
             class_hash_storage_config: ClassHashStorageConfig {
-                path_prefix: class_hash_storage_handle.path().to_path_buf(),
-                enforce_file_exists: false,
-                max_size: 1 << 20, // 1MB.
+                class_hash_db_config: ClassHashDbConfig {
+                    path_prefix: class_hash_storage_handle.path().to_path_buf(),
+                    enforce_file_exists: false,
+                    max_size: 1 << 30,    // 1GB.
+                    min_size: 1 << 10,    // 1KB.
+                    growth_step: 1 << 26, // 64MB.
+                },
+                ..Default::default()
             },
         };
         Self { config, handles: Some((class_hash_storage_handle, persistent_root_handle)) }
@@ -35,7 +40,8 @@ impl FsClassStorageBuilderForTesting {
         class_hash_storage_path_prefix: PathBuf,
         persistent_path: PathBuf,
     ) -> Self {
-        self.config.class_hash_storage_config.path_prefix = class_hash_storage_path_prefix;
+        self.config.class_hash_storage_config.class_hash_db_config.path_prefix =
+            class_hash_storage_path_prefix;
         self.config.persistent_root = persistent_path;
         self.handles = None;
         self
