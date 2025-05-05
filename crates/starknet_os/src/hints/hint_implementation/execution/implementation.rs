@@ -371,9 +371,13 @@ pub(crate) fn tx_calldata_len<S: StateReader>(
 pub(crate) fn tx_calldata<S: StateReader>(
     HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    let calldata =
-        get_calldata(hint_processor.execution_helpers_manager.get_current_execution_helper()?)?;
-    let calldata_base = vm.gen_arg(calldata)?;
+    let calldata: Vec<_> =
+        get_calldata(hint_processor.execution_helpers_manager.get_current_execution_helper()?)?
+            .0
+            .iter()
+            .map(MaybeRelocatable::from)
+            .collect();
+    let calldata_base = vm.gen_arg(&calldata)?;
     insert_value_into_ap(vm, calldata_base)?;
     Ok(())
 }
@@ -471,8 +475,12 @@ pub(crate) fn tx_account_deployment_data_len<S: StateReader>(
 pub(crate) fn tx_account_deployment_data<S: StateReader>(
     HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    let account_deployment_data =
-        get_account_deployment_data(hint_processor.get_current_execution_helper()?)?;
+    let account_deployment_data: Vec<_> =
+        get_account_deployment_data(hint_processor.get_current_execution_helper()?)?
+            .0
+            .iter()
+            .map(MaybeRelocatable::from)
+            .collect();
     let account_deployment_data_base = vm.gen_arg(&account_deployment_data)?;
     insert_value_into_ap(vm, account_deployment_data_base)?;
     Ok(())
