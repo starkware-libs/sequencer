@@ -2,7 +2,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use apollo_mempool_p2p_types::communication::MockMempoolP2pPropagatorClient;
+use apollo_infra::component_client::ClientError;
+use apollo_mempool_p2p_types::communication::{
+    MempoolP2pPropagatorClientError,
+    MockMempoolP2pPropagatorClient,
+};
 use apollo_mempool_types::communication::AddTransactionArgsWrapper;
 use apollo_mempool_types::errors::MempoolError;
 use apollo_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
@@ -1367,4 +1371,31 @@ fn test_get_mempool_snapshot() {
     let expected_chronological_hashes = (1..10).rev().map(|i| tx_hash!(i)).collect::<Vec<_>>();
 
     assert_eq!(mempool_snapshot.transactions, expected_chronological_hashes);
+}
+
+#[rstest]
+#[tokio::test]
+async fn add_tx_tolerates_p2p_propagation_error(mempool: Mempool) {
+    let tx_args = add_tx_input!(tx_hash: 99, address: "0xabc", tx_nonce: 1, account_nonce: 1);
+    let tx_args_wrapper =
+        AddTransactionArgsWrapper { args: tx_args.clone(), p2p_message_metadata: None };
+
+    // Mock P2P to simulate failure with client error.
+    let mut mock_p2p = MockMempoolP2pPropagatorClient::new();
+    mock_p2p.expect_add_transaction().times(1).with(predicate::eq(tx_args.tx.clone())).returning(
+        |_| {
+            Err(MempoolP2pPropagatorClientError::ClientError(ClientError::CommunicationFailure(
+                "".to_string(),
+            )))
+        },
+    );
+    let mut mempool_wrapper = MempoolCommunicationWrapper::new(mempool, Arc::new(mock_p2p));
+
+    let result = mempool_wrapper.add_tx(tx_args_wrapper).await;
+
+    assert!(
+        result.is_ok(),
+        "Expected add_tx to succeed even if P2P propagation fails, but got error: {:?}",
+        result
+    );
 }
