@@ -3,7 +3,8 @@ use std::net::{IpAddr, Ipv4Addr, ToSocketAddrs};
 
 use apollo_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use apollo_infra::component_definitions::{LocalServerConfig, RemoteClientConfig};
+use apollo_infra::component_client::RemoteClientConfig;
+use apollo_infra::component_definitions::LocalServerConfig;
 use serde::{Deserialize, Serialize};
 use tracing::error;
 use validator::{Validate, ValidationError};

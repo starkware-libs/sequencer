@@ -19,12 +19,12 @@ use crate::component_client::{
     ClientError,
     ClientResult,
     LocalComponentClient,
+    RemoteClientConfig,
     RemoteComponentClient,
 };
 use crate::component_definitions::{
     ComponentClient,
     ComponentRequestAndResponseSender,
-    RemoteClientConfig,
     ServerError,
     APPLICATION_OCTET_STREAM,
 };

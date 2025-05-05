@@ -1,24 +1,78 @@
+use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::time::Duration;
 
+use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
 use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
 use hyper::{Body, Client, Request as HyperRequest, Response as HyperResponse, StatusCode, Uri};
 use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 use tracing::{debug, error};
+use validator::Validate;
 
 use super::definitions::{ClientError, ClientResult};
-use crate::component_definitions::{
-    ComponentClient,
-    RemoteClientConfig,
-    ServerError,
-    APPLICATION_OCTET_STREAM,
-};
+use crate::component_definitions::{ComponentClient, ServerError, APPLICATION_OCTET_STREAM};
 use crate::serde_utils::SerdeWrapper;
+
+const DEFAULT_RETRIES: usize = 3;
+const DEFAULT_IDLE_CONNECTIONS: usize = usize::MAX;
+const DEFAULT_IDLE_TIMEOUT: u64 = 90;
+const DEFAULT_RETRY_INTERVAL: u64 = 3;
+
+#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
+pub struct RemoteClientConfig {
+    pub retries: usize,
+    pub idle_connections: usize,
+    pub idle_timeout: u64,
+    pub retry_interval: u64,
+}
+
+impl Default for RemoteClientConfig {
+    fn default() -> Self {
+        Self {
+            retries: DEFAULT_RETRIES,
+            idle_connections: DEFAULT_IDLE_CONNECTIONS,
+            idle_timeout: DEFAULT_IDLE_TIMEOUT,
+            retry_interval: DEFAULT_RETRY_INTERVAL,
+        }
+    }
+}
+
+impl SerializeConfig for RemoteClientConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_param(
+                "retries",
+                &self.retries,
+                "The max number of retries for sending a message.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "idle_connections",
+                &self.idle_connections,
+                "The maximum number of idle connections to keep alive.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "idle_timeout",
+                &self.idle_timeout,
+                "The duration in seconds to keep an idle connection open before closing.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "retry_interval",
+                &self.retry_interval,
+                "The duration in seconds to wait between remote connection retries.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}
 
 /// The `RemoteComponentClient` struct is a generic client for sending component requests and
 /// receiving responses asynchronously through HTTP connection.
