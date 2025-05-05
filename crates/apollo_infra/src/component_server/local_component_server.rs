@@ -1,19 +1,48 @@
+use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 
+use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra_utils::type_name::short_type_name;
 use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::Semaphore;
 use tracing::{debug, error, info, warn};
+use validator::Validate;
 
 use crate::component_definitions::{
     ComponentRequestAndResponseSender,
     ComponentRequestHandler,
     ComponentStarter,
+    DEFAULT_CHANNEL_BUFFER_SIZE,
 };
 use crate::component_server::ComponentServerStarter;
 use crate::metrics::LocalServerMetrics;
+
+// The communication configuration of the local component.
+#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
+pub struct LocalServerConfig {
+    pub channel_buffer_size: usize,
+}
+
+impl SerializeConfig for LocalServerConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([ser_param(
+            "channel_buffer_size",
+            &self.channel_buffer_size,
+            "The communication channel buffer size.",
+            ParamPrivacyInput::Public,
+        )])
+    }
+}
+
+impl Default for LocalServerConfig {
+    fn default() -> Self {
+        Self { channel_buffer_size: DEFAULT_CHANNEL_BUFFER_SIZE }
+    }
+}
 
 /// The `LocalComponentServer` struct is a generic server that handles requests and responses for a
 /// specified component. It receives requests, processes them using the provided component, and
