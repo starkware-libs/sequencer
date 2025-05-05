@@ -1391,7 +1391,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "apollo_l1_endpoint_health_monitor"
+name = "apollo_l1_endpoint_monitor"
 version = "0.0.0"
 
 [[package]]

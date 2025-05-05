@@ -41,7 +41,7 @@ const Configuration = {
             'apollo_infra',
             'apollo_infra_utils',
             'apollo_integration_tests',
-            'apollo_l1_endpoint_health_monitor',
+            'apollo_l1_endpoint_monitor',
             'apollo_l1_gas_price',
             'apollo_l1_gas_price_types',
             'apollo_l1_provider',
