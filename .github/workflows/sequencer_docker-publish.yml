@@ -3,24 +3,28 @@ name: Sequencer-Docker-Publish
 on:
   workflow_dispatch:
   push:
-    branches: [main]
-    tags: ["v*.*.*"]
+    branches:
+      - main
+      - v*.*.*-integration # e.g. v0.14.0-integration
+    tags:
+      - "v*.*.*"
+      - "APOLLO-*"
     paths:
-      - '.github/workflows/sequencer_docker-publish.yml'
-      - 'crates/**'
-      - 'scripts/dependencies.sh'
-      - 'scripts/install_build_tools.sh'
-      - 'deployments/images/base/Dockerfile'
-      - 'deployments/images/sequencer/Dockerfile'
+      - ".github/workflows/sequencer_docker-publish.yml"
+      - "crates/**"
+      - "scripts/dependencies.sh"
+      - "scripts/install_build_tools.sh"
+      - "deployments/images/base/Dockerfile"
+      - "deployments/images/sequencer/Dockerfile"
 
   pull_request:
     paths:
-      - '.github/workflows/sequencer_docker-publish.yml'
-      - 'crates/**'
-      - 'scripts/dependencies.sh'
-      - 'scripts/install_build_tools.sh'
-      - 'deployments/images/base/Dockerfile'
-      - 'deployments/images/sequencer/Dockerfile'
+      - ".github/workflows/sequencer_docker-publish.yml"
+      - "crates/**"
+      - "scripts/dependencies.sh"
+      - "scripts/install_build_tools.sh"
+      - "deployments/images/base/Dockerfile"
+      - "deployments/images/sequencer/Dockerfile"
 
 permissions:
   contents: read
