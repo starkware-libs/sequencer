@@ -18,6 +18,7 @@ use futures::StreamExt;
 use lru::LruCache;
 use tracing::{info, instrument, warn};
 
+use crate::config::StreamHandlerConfig;
 use crate::metrics::{
     CONSENSUS_INBOUND_STREAM_EVICTED,
     CONSENSUS_INBOUND_STREAM_FINISHED,
@@ -32,12 +33,6 @@ mod stream_handler_test;
 
 type PeerId = OpaquePeerId;
 type MessageId = u64;
-
-/// Channel size for stream messages.
-// TODO(guy): make this configurable.
-pub const CHANNEL_BUFFER_LENGTH: usize = 100;
-/// The maximum number of streams that can be open at the same time.
-pub const MAX_STREAMS: NonZeroUsize = NonZeroUsize::new(10).unwrap();
 
 /// Errors which cause the stream handler to stop functioning.
 #[derive(thiserror::Error, PartialEq, Debug)]
@@ -110,8 +105,8 @@ struct StreamData<StreamContent: StreamContentTrait, StreamId: StreamIdTrait> {
 impl<StreamContent: StreamContentTrait, StreamId: StreamIdTrait>
     StreamData<StreamContent, StreamId>
 {
-    fn new() -> Self {
-        let (sender, receiver) = mpsc::channel(CHANNEL_BUFFER_LENGTH);
+    fn new(channel_buffer_capacity: usize) -> Self {
+        let (sender, receiver) = mpsc::channel(channel_buffer_capacity);
         StreamData {
             next_message_id: 0,
             fin_message_id: None,
@@ -134,6 +129,7 @@ where
         + StreamExt<Item = ReceivedBroadcastedMessage<StreamMessage<StreamContent, StreamId>>>,
     OutboundSenderT: BroadcastTopicClientTrait<StreamMessage<StreamContent, StreamId>>,
 {
+    config: StreamHandlerConfig,
     // For each stream ID from the network, send the application a Receiver
     // that will receive the messages in order. This allows sending such Receivers.
     inbound_channel_sender: mpsc::Sender<mpsc::Receiver<StreamContent>>,
@@ -166,14 +162,18 @@ where
 {
     /// Create a new StreamHandler.
     pub fn new(
+        config: StreamHandlerConfig,
         inbound_channel_sender: mpsc::Sender<mpsc::Receiver<StreamContent>>,
         inbound_receiver: InboundReceiverT,
         outbound_channel_receiver: mpsc::Receiver<(StreamId, mpsc::Receiver<StreamContent>)>,
         outbound_sender: OutboundSenderT,
     ) -> Self {
-        let cache = LruCache::new(MAX_STREAMS);
+        let cache = LruCache::new(
+            NonZeroUsize::new(config.max_streams).expect("max_streams must be non-zero"),
+        );
 
         Self {
+            config,
             inbound_channel_sender,
             inbound_receiver,
             inbound_stream_data: cache,
@@ -351,7 +351,7 @@ where
             None => {
                 info!(?peer_id, ?stream_id, "Inbound stream started");
                 CONSENSUS_INBOUND_STREAM_STARTED.increment(1);
-                StreamData::new()
+                StreamData::new(self.config.channel_buffer_capacity)
             }
         };
         if let Some(data) = self.handle_message_inner(message, metadata, data) {

@@ -8,7 +8,7 @@ use std::sync::Arc;
 use apollo_batcher_types::batcher_types::RevertBlockInput;
 use apollo_batcher_types::communication::SharedBatcherClient;
 use apollo_class_manager_types::SharedClassManagerClient;
-use apollo_consensus::stream_handler::{StreamHandler, CHANNEL_BUFFER_LENGTH};
+use apollo_consensus::stream_handler::StreamHandler;
 use apollo_consensus::types::ConsensusError;
 use apollo_consensus_orchestrator::cende::CendeAmbassador;
 use apollo_consensus_orchestrator::sequencer_consensus_context::{
@@ -116,10 +116,11 @@ impl ConsensusManager {
         } = proposals_broadcast_channels;
 
         let (inbound_internal_sender, inbound_internal_receiver) =
-            mpsc::channel(CHANNEL_BUFFER_LENGTH);
+            mpsc::channel(self.config.stream_handler_config.channel_buffer_capacity);
         let (outbound_internal_sender, outbound_internal_receiver) =
-            mpsc::channel(CHANNEL_BUFFER_LENGTH);
+            mpsc::channel(self.config.stream_handler_config.channel_buffer_capacity);
         let stream_handler = StreamHandler::new(
+            self.config.stream_handler_config.clone(),
             inbound_internal_sender,
             inbound_network_receiver,
             outbound_internal_receiver,
