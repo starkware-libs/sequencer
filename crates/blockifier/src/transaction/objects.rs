@@ -2,15 +2,17 @@ use std::collections::HashMap;
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-use starknet_api::block::{BlockInfo, FeeType};
+use starknet_api::block::{BlockInfo, FeeType, GasPrice};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
-use starknet_api::execution_resources::GasVector;
+use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
+    AllResourceBounds,
     Fee,
     GasVectorComputationMode,
     PaymasterData,
+    ResourceBounds,
     Tip,
     TransactionSignature,
     ValidResourceBounds,
@@ -57,6 +59,35 @@ pub enum TransactionInfo {
 }
 
 impl TransactionInfo {
+    pub fn new_dummy(l2_gas_amount: GasAmount) -> Self {
+        let dummy_l1_resource_bounds =
+            ResourceBounds { max_amount: GasAmount(0), max_price_per_unit: GasPrice(1) };
+
+        Self::Current(CurrentTransactionInfo {
+            common_fields: CommonAccountFields {
+                transaction_hash: TransactionHash::default(),
+                version: TransactionVersion::THREE,
+                signature: TransactionSignature::default(),
+                nonce: Nonce::default(),
+                sender_address: ContractAddress::default(),
+                only_query: false,
+            },
+            resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds {
+                l1_gas: dummy_l1_resource_bounds,
+                l2_gas: ResourceBounds {
+                    max_amount: l2_gas_amount,
+                    max_price_per_unit: GasPrice(1),
+                },
+                l1_data_gas: dummy_l1_resource_bounds,
+            }),
+            tip: Tip::default(),
+            nonce_data_availability_mode: DataAvailabilityMode::L2,
+            fee_data_availability_mode: DataAvailabilityMode::L2,
+            paymaster_data: PaymasterData::default(),
+            account_deployment_data: AccountDeploymentData::default(),
+        })
+    }
+
     implement_getters!(
         (transaction_hash, TransactionHash),
         (version, TransactionVersion),

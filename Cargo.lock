@@ -3181,6 +3181,7 @@ dependencies = [
  "criterion",
  "derive_more 0.99.18",
  "glob",
+ "hex",
  "indexmap 2.9.0",
  "itertools 0.12.1",
  "keccak",
