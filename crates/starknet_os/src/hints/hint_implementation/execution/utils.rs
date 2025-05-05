@@ -42,7 +42,7 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for ResourceAsFelts {
         _constants: &HashMap<String, Felt>,
     ) -> VmUtilsResult<()> {
         let resource_bounds_list = vec![
-            ("resource_name", self.resource_name.into()),
+            ("resource", self.resource_name.into()),
             ("max_amount", self.max_amount.into()),
             ("max_price_per_unit", self.max_price_per_unit.into()),
         ];
