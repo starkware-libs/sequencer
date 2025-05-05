@@ -1,8 +1,5 @@
-use std::collections::BTreeMap;
 use std::fmt::{Debug, Formatter, Result};
 
-use apollo_config::dumping::{ser_param, SerializeConfig};
-use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra_utils::type_name::short_type_name;
 use async_trait::async_trait;
 use serde::de::DeserializeOwned;
@@ -10,12 +7,11 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tracing::{error, info};
-use validator::Validate;
 
 use crate::component_client::ClientResult;
 
 pub const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";
-const DEFAULT_CHANNEL_BUFFER_SIZE: usize = 32;
+pub(crate) const DEFAULT_CHANNEL_BUFFER_SIZE: usize = 32;
 
 #[async_trait]
 pub trait ComponentRequestHandler<Request, Response> {
@@ -95,27 +91,4 @@ where
 pub enum ServerError {
     #[error("Could not deserialize client request: {0}")]
     RequestDeserializationFailure(String),
-}
-
-// The communication configuration of the local component.
-#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
-pub struct LocalServerConfig {
-    pub channel_buffer_size: usize,
-}
-
-impl SerializeConfig for LocalServerConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([ser_param(
-            "channel_buffer_size",
-            &self.channel_buffer_size,
-            "The communication channel buffer size.",
-            ParamPrivacyInput::Public,
-        )])
-    }
-}
-
-impl Default for LocalServerConfig {
-    fn default() -> Self {
-        Self { channel_buffer_size: DEFAULT_CHANNEL_BUFFER_SIZE }
-    }
 }
