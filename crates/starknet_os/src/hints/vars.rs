@@ -118,6 +118,8 @@ impl From<Scope> for String {
 define_string_enum! {
     #[derive(Copy, Debug, Clone)]
     pub enum Ids {
+        (AccountDeploymentData),
+        (AccountDeploymentDataSize),
         (AliasesEntry),
         (Bit),
         (BucketIndex),
@@ -126,9 +128,11 @@ define_string_enum! {
         (BuiltinPtrs),
         (ChildBit),
         (ClassHash),
+        (ClassHashPtr),
         (CompiledClass),
         (CompiledClassFact),
         (CompiledClassFacts),
+        (CompiledClassHash),
         (CompressedDst),
         (CompressedStart),
         (CompressStateUpdates),
@@ -199,6 +203,7 @@ define_string_enum! {
         (Res),
         (SelectedEncodings),
         (SelectedPtrs),
+        (SenderAddress),
         (Sha256Ptr, "sha256_ptr"),
         (Siblings),
         (SignatureLen),
