@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
-use apollo_infra::component_definitions::{LocalServerConfig, RemoteClientConfig};
+use apollo_infra::component_client::RemoteClientConfig;
+use apollo_infra::component_definitions::LocalServerConfig;
 use starknet_api::core::ChainId;
 use strum_macros::{Display, EnumString};
 
