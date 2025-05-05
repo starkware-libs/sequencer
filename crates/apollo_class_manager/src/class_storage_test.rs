@@ -11,6 +11,7 @@ use crate::class_storage::{
     FsClassStorage,
     FsClassStorageError,
 };
+use crate::config::ClassHashDbConfig;
 
 // TODO(Elin): consider creating an empty Casm instead of vec (doesn't implement default).
 
@@ -18,9 +19,14 @@ use crate::class_storage::{
 impl ClassHashStorage {
     pub fn new_for_testing(path_prefix: &tempfile::TempDir) -> Self {
         let config = ClassHashStorageConfig {
-            path_prefix: path_prefix.path().to_path_buf(),
-            enforce_file_exists: false,
-            max_size: 1 << 20, // 1MB.
+            class_hash_db_config: ClassHashDbConfig {
+                path_prefix: path_prefix.path().to_path_buf(),
+                enforce_file_exists: false,
+                max_size: 1 << 30,    // 1GB.
+                min_size: 1 << 10,    // 1KB.
+                growth_step: 1 << 26, // 64MB.
+            },
+            ..Default::default()
         };
         Self::new(config).unwrap()
     }
