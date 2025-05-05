@@ -27,7 +27,11 @@ c-kzg.workspace = true
 cairo-lang-casm.workspace = true
 cairo-lang-runner.workspace = true
 cairo-lang-starknet-classes.workspace = true
-cairo-vm = { workspace = true, features = ["cairo-0-data-availability-hints", "extensive_hints"] }
+cairo-vm = { workspace = true, features = [
+  "cairo-0-data-availability-hints",
+  "cairo-0-secp-hints",
+  "extensive_hints",
+] }
 derive_more.workspace = true
 indexmap.workspace = true
 indoc.workspace = true
