@@ -14,15 +14,15 @@
       "autoscale": false,
       "replicas": 1,
       "storage": 1000,
-      "toleration": "sequencer",
+      "toleration": "apollo-core-service",
       "resources": {
         "requests": {
           "cpu": 2,
           "memory": 4
         },
         "limits": {
-          "cpu": 4,
-          "memory": 8
+          "cpu": 7,
+          "memory": 14
         }
       },
       "external_secret": {
@@ -54,7 +54,7 @@
       "autoscale": false,
       "replicas": 1,
       "storage": null,
-      "toleration": null,
+      "toleration": "apollo-general-service",
       "resources": {
         "requests": {
           "cpu": 1,
@@ -81,7 +81,7 @@
       "autoscale": true,
       "replicas": 2,
       "storage": null,
-      "toleration": null,
+      "toleration": "apollo-general-service",
       "resources": {
         "requests": {
           "cpu": 1,
@@ -108,7 +108,7 @@
       "autoscale": false,
       "replicas": 1,
       "storage": null,
-      "toleration": null,
+      "toleration": "apollo-general-service",
       "resources": {
         "requests": {
           "cpu": 1,
@@ -135,7 +135,7 @@
       "autoscale": true,
       "replicas": 2,
       "storage": null,
-      "toleration": null,
+      "toleration": "apollo-general-service",
       "resources": {
         "requests": {
           "cpu": 1,
