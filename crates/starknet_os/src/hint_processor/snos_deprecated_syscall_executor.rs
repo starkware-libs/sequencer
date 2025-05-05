@@ -38,6 +38,7 @@ use blockifier::execution::deprecated_syscalls::{
 };
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::vm_core::VirtualMachine;
+use starknet_types_core::felt::FromStrError;
 
 use super::snos_hint_processor::DeprecatedSyscallHintProcessor;
 
@@ -47,7 +48,11 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor {
         todo!()
     }
 
-    fn verify_syscall_ptr(&self, actual_ptr: Relocatable) -> DeprecatedSyscallResult<()> {
+    fn verify_syscall_ptr(
+        &self,
+        vm: &mut VirtualMachine,
+        actual_ptr: Relocatable,
+    ) -> DeprecatedSyscallResult<()> {
         let expected_ptr = self.syscall_ptr.expect("Syscall must be set at this point.");
         if actual_ptr != expected_ptr {
             return Err(DeprecatedSyscallExecutionError::BadSyscallPointer {
@@ -55,6 +60,11 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor {
                 actual_ptr,
             });
         }
+        if !self.syscall_matches_name(vm.get_integer(actual_ptr)?.into_owned()) {
+            // TODO(Aner): Create a new error type for this case.
+            // TODO(Aner): Add a test for this case.
+            return Err(DeprecatedSyscallExecutionError::FromStr(FromStrError {}));
+        };
 
         Ok(())
     }

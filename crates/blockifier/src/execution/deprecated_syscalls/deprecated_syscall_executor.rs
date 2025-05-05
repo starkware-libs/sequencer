@@ -59,7 +59,11 @@ pub trait DeprecatedSyscallExecutor {
 
     fn increment_syscall_count(&mut self, selector: &DeprecatedSyscallSelector);
 
-    fn verify_syscall_ptr(&self, actual_ptr: Relocatable) -> DeprecatedSyscallResult<()>;
+    fn verify_syscall_ptr(
+        &self,
+        vm: &mut VirtualMachine,
+        actual_ptr: Relocatable,
+    ) -> DeprecatedSyscallResult<()>;
 
     fn get_mut_syscall_ptr(&mut self) -> &mut Relocatable;
 
@@ -284,11 +288,9 @@ pub fn execute_next_deprecated_syscall<T: DeprecatedSyscallExecutor>(
     ap_tracking: &ApTracking,
 ) -> HintExecutionResult {
     let initial_syscall_ptr = get_ptr_from_var_name("syscall_ptr", vm, ids_data, ap_tracking)?;
-    deprecated_syscall_executor.verify_syscall_ptr(initial_syscall_ptr)?;
+    deprecated_syscall_executor.verify_syscall_ptr(vm, initial_syscall_ptr)?;
 
-    let selector = DeprecatedSyscallSelector::try_from(
-        deprecated_syscall_executor.read_next_syscall_selector(vm)?,
-    )?;
+    let selector = deprecated_syscall_executor.read_next_syscall_selector(vm)?.try_into()?;
     deprecated_syscall_executor.increment_syscall_count(&selector);
 
     execute_deprecated_syscall_from_selector(deprecated_syscall_executor, vm, selector)

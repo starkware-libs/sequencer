@@ -333,7 +333,7 @@ pub fn validate_run(
     }
 
     // Validate syscall segment end.
-    syscall_handler.verify_syscall_ptr(syscall_end_ptr).map_err(|_| {
+    syscall_handler.verify_syscall_ptr(&mut runner.vm, syscall_end_ptr).map_err(|_| {
         PostExecutionError::SecurityValidationError("Syscall segment end".to_string())
     })?;
 

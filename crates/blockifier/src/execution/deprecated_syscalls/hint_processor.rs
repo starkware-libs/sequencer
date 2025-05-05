@@ -442,7 +442,11 @@ impl HintProcessorLogic for DeprecatedSyscallHintProcessor<'_> {
 }
 
 impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
-    fn verify_syscall_ptr(&self, actual_ptr: Relocatable) -> DeprecatedSyscallResult<()> {
+    fn verify_syscall_ptr(
+        &self,
+        _vm: &mut VirtualMachine,
+        actual_ptr: Relocatable,
+    ) -> DeprecatedSyscallResult<()> {
         if actual_ptr != self.syscall_ptr {
             return Err(DeprecatedSyscallExecutionError::BadSyscallPointer {
                 expected_ptr: self.syscall_ptr,

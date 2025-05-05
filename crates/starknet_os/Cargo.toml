@@ -32,6 +32,7 @@ cairo-vm = { workspace = true, features = [
   "cairo-0-secp-hints",
   "extensive_hints",
 ] }
+convert_case = "0.8.0"
 derive_more.workspace = true
 indexmap.workspace = true
 indoc.workspace = true

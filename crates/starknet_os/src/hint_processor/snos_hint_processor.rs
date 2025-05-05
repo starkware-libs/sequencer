@@ -351,16 +351,35 @@ impl SyscallHintProcessor {
 
 pub struct DeprecatedSyscallHintProcessor {
     pub(crate) syscall_ptr: Option<Relocatable>,
+    pub(crate) syscall_name: Option<String>,
 }
 
 // TODO(Dori): remove this #[allow] after the constructor is no longer trivial.
 #[allow(clippy::new_without_default)]
 impl DeprecatedSyscallHintProcessor {
     pub fn new() -> Self {
-        Self { syscall_ptr: None }
+        Self { syscall_ptr: None, syscall_name: None }
     }
 
     pub fn set_syscall_ptr(&mut self, syscall_ptr: Relocatable) {
         self.syscall_ptr = Some(syscall_ptr);
+    }
+
+    pub fn set_syscall_name(&mut self, syscall_name: String) {
+        self.syscall_name = Some(syscall_name);
+    }
+
+    // TODO(Aner): test this function.
+    pub(crate) fn syscall_matches_name(&self, syscall_raw_selector: Felt) -> bool {
+        if let Some(syscall_name) = &self.syscall_name {
+            // Remove leading zero bytes from selector.
+            let selector_bytes = syscall_raw_selector.to_bytes_be();
+            let first_non_zero =
+                selector_bytes.iter().position(|&byte| byte != b'\0').unwrap_or(32);
+
+            syscall_name.as_bytes() == &selector_bytes[first_non_zero..]
+        } else {
+            false
+        }
     }
 }

@@ -1,6 +1,7 @@
 use blockifier::execution::deprecated_syscalls::deprecated_syscall_executor::execute_next_deprecated_syscall;
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::get_ptr_from_var_name;
+use convert_case::{Case, Casing};
 
 use crate::hints::error::OsHintResult;
 use crate::hints::types::HintArgs;
@@ -34,8 +35,9 @@ macro_rules! create_syscall_func {
                     SyscallHandlerType::DeprecatedSyscallHandler
                 );
                 let syscall_hint_processor = &mut hint_processor.deprecated_syscall_hint_processor;
-                // TODO(Aner): need to verify that the correct syscall is being called (i.e.,
-                //   syscall_ptr matches the fn name). E.g., set syscall_ptr from fn name.
+                syscall_hint_processor.set_syscall_name(
+                    stringify!($name).to_string().to_case(Case::Pascal)
+                );
                 syscall_hint_processor.set_syscall_ptr(
                     get_ptr_from_var_name(Ids::SyscallPtr.into(), vm, ids_data, ap_tracking)?
                 );

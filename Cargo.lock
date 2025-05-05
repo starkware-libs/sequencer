@@ -12040,6 +12040,7 @@ dependencies = [
  "cairo-lang-runner",
  "cairo-lang-starknet-classes",
  "cairo-vm",
+ "convert_case 0.8.0",
  "derive_more 0.99.18",
  "indexmap 2.9.0",
  "indoc 2.0.5",
