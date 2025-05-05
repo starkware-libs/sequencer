@@ -14,12 +14,8 @@ use validator::Validate;
 
 use crate::component_client::ClientResult;
 
-pub const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";
+pub(crate) const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";
 const DEFAULT_CHANNEL_BUFFER_SIZE: usize = 32;
-const DEFAULT_RETRIES: usize = 3;
-const DEFAULT_IDLE_CONNECTIONS: usize = usize::MAX;
-const DEFAULT_IDLE_TIMEOUT: u64 = 90;
-const DEFAULT_RETRY_INTERVAL: u64 = 3;
 
 #[async_trait]
 pub trait ComponentRequestHandler<Request, Response> {
@@ -121,56 +117,5 @@ impl SerializeConfig for LocalServerConfig {
 impl Default for LocalServerConfig {
     fn default() -> Self {
         Self { channel_buffer_size: DEFAULT_CHANNEL_BUFFER_SIZE }
-    }
-}
-
-// TODO(Nadin): Move the RemoteClientConfig and RemoteServerConfig to relevant modules.
-#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
-pub struct RemoteClientConfig {
-    pub retries: usize,
-    pub idle_connections: usize,
-    pub idle_timeout: u64,
-    pub retry_interval: u64,
-}
-
-impl Default for RemoteClientConfig {
-    fn default() -> Self {
-        Self {
-            retries: DEFAULT_RETRIES,
-            idle_connections: DEFAULT_IDLE_CONNECTIONS,
-            idle_timeout: DEFAULT_IDLE_TIMEOUT,
-            retry_interval: DEFAULT_RETRY_INTERVAL,
-        }
-    }
-}
-
-impl SerializeConfig for RemoteClientConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "retries",
-                &self.retries,
-                "The max number of retries for sending a message.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "idle_connections",
-                &self.idle_connections,
-                "The maximum number of idle connections to keep alive.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "idle_timeout",
-                &self.idle_timeout,
-                "The duration in seconds to keep an idle connection open before closing.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "retry_interval",
-                &self.retry_interval,
-                "The duration in seconds to wait between remote connection retries.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
     }
 }
