@@ -15,6 +15,7 @@ use async_trait::async_trait;
 use starknet_api::block::GasPrice;
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
+use tracing::warn;
 
 use crate::config::MempoolConfig;
 use crate::mempool::Mempool;
@@ -77,7 +78,12 @@ impl MempoolCommunicationWrapper {
     ) -> MempoolResult<()> {
         self.mempool.add_tx(args_wrapper.args.clone())?;
         // TODO(AlonH): Verify that only transactions that were added to the mempool are sent.
-        self.send_tx_to_p2p(args_wrapper.p2p_message_metadata, args_wrapper.args.tx).await
+        if let Err(p2p_client_err) =
+            self.send_tx_to_p2p(args_wrapper.p2p_message_metadata, args_wrapper.args.tx).await
+        {
+            warn!("Failed to send transaction to P2P: {:?}", p2p_client_err);
+        }
+        Ok(())
     }
 
     fn commit_block(&mut self, args: CommitBlockArgs) -> MempoolResult<()> {
