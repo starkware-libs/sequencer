@@ -1,3 +1,8 @@
+use alloy::consensus::Header;
+use alloy::primitives::B256;
+use alloy::providers::mock::Asserter;
+use alloy::providers::{Provider, ProviderBuilder};
+use alloy::rpc::types::{Block, BlockTransactions, Header as AlloyRpcHeader};
 use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
@@ -15,7 +20,6 @@ use crate::ethereum_base_layer_contract::{
 use crate::test_utils::{
     anvil_instance_from_config,
     ethereum_base_layer_config_for_anvil,
-    get_test_ethereum_node,
     DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS,
 };
 use crate::{BaseLayerContract, L1Event};
@@ -26,14 +30,25 @@ pub fn in_ci() -> bool {
     std::env::var("CI").is_ok()
 }
 
+fn base_layer_with_mocked_provider() -> (EthereumBaseLayerContract, Asserter) {
+    // See alloy docs, functions as a queue of mocked responses, success or failure.
+    let asserter = Asserter::new();
+
+    let provider = ProviderBuilder::new().on_mocked_client(asserter.clone()).root().clone();
+    let contract = Starknet::new(Default::default(), provider);
+    let base_layer = EthereumBaseLayerContract { contract, config: Default::default() };
+
+    (base_layer, asserter)
+}
+
 #[tokio::test]
 // Note: the test requires ganache-cli installed, otherwise it is ignored.
 async fn latest_proved_block_ethereum() {
     if !in_ci() {
         return;
     }
-
-    let (node_handle, starknet_contract_address) = get_test_ethereum_node();
+    #[allow(deprecated)] // Legacy code, will be removed soon, don't add new instances if this.
+    let (node_handle, starknet_contract_address) = crate::test_utils::get_test_ethereum_node();
     let contract = EthereumBaseLayerContract::new(EthereumBaseLayerConfig {
         node_url: node_handle.0.endpoint().parse().unwrap(),
         starknet_contract_address,
@@ -66,22 +81,40 @@ async fn get_gas_price_and_timestamps() {
     if !in_ci() {
         return;
     }
+    // Setup.
+    let (mut base_layer, asserter) = base_layer_with_mocked_provider();
 
-    let (node_handle, starknet_contract_address) = get_test_ethereum_node();
-    let contract = EthereumBaseLayerContract::new(EthereumBaseLayerConfig {
-        node_url: node_handle.0.endpoint().parse().unwrap(),
-        starknet_contract_address,
+    // Selected in order to make the blob calc below non trivial.
+    const BLOB_GAS: u128 = 10000000;
+
+    let header = Header {
+        base_fee_per_gas: Some(5),
+        excess_blob_gas: Some(BLOB_GAS.try_into().unwrap()),
         ..Default::default()
-    });
+    };
 
-    let block_number = 30;
-    let price_sample = contract.get_price_sample(block_number).await.unwrap().unwrap();
+    // Test pectra blob.
 
-    // TODO(guyn): Figure out how these numbers are calculated, instead of just printing and testing
-    // against what we got.
-    assert_eq!(price_sample.timestamp, 1676992456);
-    assert_eq!(price_sample.base_fee_per_gas, 20168195);
-    assert_eq!(price_sample.blob_fee, 0);
+    let mocked_block_response =
+        &Some(Block::new(AlloyRpcHeader::new(header), BlockTransactions::<B256>::default()));
+    asserter.push_success(mocked_block_response);
+    let price_sample = base_layer.get_price_sample(0).await.unwrap().unwrap();
+
+    assert_eq!(price_sample.base_fee_per_gas, 5);
+
+    // See eip4844::fake_exponential().
+    // Roughly e ** (BLOB_GAS / eip7691::BLOB_GASPRICE_UPDATE_FRACTION_PECTRA)
+    let expected_pectra_blob_calc = 7;
+    assert_eq!(price_sample.blob_fee, expected_pectra_blob_calc);
+
+    // Test legacy blob
+
+    asserter.push_success(mocked_block_response);
+    base_layer.config.prague_blob_gas_calc = false;
+    let price_sample = base_layer.get_price_sample(0).await.unwrap().unwrap();
+    // Roughly e ** (BLOB_GAS / eip4844::BLOB_GASPRICE_UPDATE_FRACTION)
+    let expected_original_blob_calc = 19;
+    assert_eq!(price_sample.blob_fee, expected_original_blob_calc);
 }
 
 #[tokio::test]
