@@ -1,0 +1,154 @@
+{
+  "chain_id": "SN_INTEGRATION_SEPOLIA",
+  "application_config_subdir": "config/sequencer/testing_env_3/app_configs/hybrid/integration_hybrid_node_1/",
+  "services": [
+    {
+      "name": "Core",
+      "controller": "StatefulSet",
+      "config_paths": [
+        "core.json",
+        "deployment_config_override.json",
+        "instance_config_override.json"
+      ],
+      "ingress": null,
+      "autoscale": false,
+      "replicas": 1,
+      "storage": 1000,
+      "toleration": "sequencer",
+      "resources": {
+        "requests": {
+          "cpu": 2,
+          "memory": 4
+        },
+        "limits": {
+          "cpu": 4,
+          "memory": 8
+        }
+      },
+      "external_secret": {
+        "gcsm_key": "sequencer-test-3-node-1"
+      }
+    },
+    {
+      "name": "HttpServer",
+      "controller": "Deployment",
+      "config_paths": [
+        "http_server.json",
+        "deployment_config_override.json",
+        "instance_config_override.json"
+      ],
+      "ingress": {
+        "domain": "sw-dev.io",
+        "internal": false,
+        "rules": [
+          {
+            "path": "/gateway",
+            "port": 8080,
+            "backend": null
+          }
+        ],
+        "alternative_names": [
+          "sn-test-sepolia-3-sepolia.gateway-proxy.sw-dev.io"
+        ]
+      },
+      "autoscale": false,
+      "replicas": 1,
+      "storage": null,
+      "toleration": null,
+      "resources": {
+        "requests": {
+          "cpu": 1,
+          "memory": 2
+        },
+        "limits": {
+          "cpu": 4,
+          "memory": 8
+        }
+      },
+      "external_secret": {
+        "gcsm_key": "sequencer-test-3-node-1"
+      }
+    },
+    {
+      "name": "Gateway",
+      "controller": "Deployment",
+      "config_paths": [
+        "gateway.json",
+        "deployment_config_override.json",
+        "instance_config_override.json"
+      ],
+      "ingress": null,
+      "autoscale": true,
+      "replicas": 2,
+      "storage": null,
+      "toleration": null,
+      "resources": {
+        "requests": {
+          "cpu": 1,
+          "memory": 2
+        },
+        "limits": {
+          "cpu": 2,
+          "memory": 4
+        }
+      },
+      "external_secret": {
+        "gcsm_key": "sequencer-test-3-node-1"
+      }
+    },
+    {
+      "name": "Mempool",
+      "controller": "Deployment",
+      "config_paths": [
+        "mempool.json",
+        "deployment_config_override.json",
+        "instance_config_override.json"
+      ],
+      "ingress": null,
+      "autoscale": false,
+      "replicas": 1,
+      "storage": null,
+      "toleration": null,
+      "resources": {
+        "requests": {
+          "cpu": 1,
+          "memory": 2
+        },
+        "limits": {
+          "cpu": 2,
+          "memory": 4
+        }
+      },
+      "external_secret": {
+        "gcsm_key": "sequencer-test-3-node-1"
+      }
+    },
+    {
+      "name": "SierraCompiler",
+      "controller": "Deployment",
+      "config_paths": [
+        "sierra_compiler.json",
+        "deployment_config_override.json",
+        "instance_config_override.json"
+      ],
+      "ingress": null,
+      "autoscale": true,
+      "replicas": 2,
+      "storage": null,
+      "toleration": null,
+      "resources": {
+        "requests": {
+          "cpu": 1,
+          "memory": 2
+        },
+        "limits": {
+          "cpu": 2,
+          "memory": 4
+        }
+      },
+      "external_secret": {
+        "gcsm_key": "sequencer-test-3-node-1"
+      }
+    }
+  ]
+}
