@@ -13,7 +13,9 @@ tracing.workspace = true
 url = { workspace = true, features = ["serde"] }
 
 [dev-dependencies]
+alloy = { workspace = true, features = ["node-bindings"] }
 mockito.workspace = true
+papyrus_base_layer = { workspace = true, features = ["testing"] }
 tokio.workspace = true
 
 [lints]
