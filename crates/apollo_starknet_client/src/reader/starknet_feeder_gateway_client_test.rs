@@ -696,3 +696,77 @@ async fn get_sequencer_public_key() {
     mock_key.assert();
     assert_eq!(pub_key, expected_sequencer_pub_key);
 }
+
+use std::time::Duration;
+
+use reqwest::blocking::Client;
+use serde::Deserialize;
+
+#[derive(Debug, Deserialize)]
+struct BlockResponse {
+    // block_number: u64,
+    l2_gas_consumed: u64,
+    next_l2_gas_price: Option<String>,
+}
+
+#[test]
+fn track_l2_gas_price_changes() {
+    let client =
+        Client::builder().timeout(Duration::from_secs(10)).build().expect("Failed to build client");
+    let mut previous_price = Some(100000);
+
+    // for block_number in (32069..=42069).rev() {
+        // 44153 44128
+    for block_number in (101487-200..=101487-10).rev().step_by(1) {
+        let res = client
+            .get(
+                // "https://preintegration-sepolia-2.gateway-proxy.sw-dev.io/feeder_gateway/get_block",
+                "https://feeder.integration-sepolia.starknet.io/feeder_gateway/get_block"
+            )
+            .query(&[
+                ("blockNumber", block_number.to_string()),
+                ("withFeeMarketInfo", "true".to_string()),
+            ])
+            .send();
+
+        match res {
+            Ok(response) => {
+                if response.status().is_success() {
+                    match response.json::<BlockResponse>() {
+                        Ok(parsed) => {
+                            let price_dec = parsed.next_l2_gas_price.as_deref().and_then(|hex| {
+                                u64::from_str_radix(hex.trim_start_matches("0x"), 16).ok()
+                            });
+
+                            if price_dec != previous_price {
+                                // println!(
+                                //     "we found a diffrence, prev {:?}, now {:?}",
+                                //     previous_price, price_dec
+                                // );
+                                previous_price = price_dec;
+                            }
+                            println!(
+                                "Block: {}, l2_gas_consumed: {:?}, next_l2_gas_price: {:?}",
+                                block_number, parsed.l2_gas_consumed, price_dec
+                            );
+                        }
+                        Err(err) => {
+                            eprintln!("Failed to parse JSON for block {}: {}", block_number, err)
+                        }
+                    }
+                } else {
+                    eprintln!(
+                        "Non-success status for block {}: {}",
+                        block_number,
+                        response.status()
+                    );
+                }
+            }
+            Err(err) => eprintln!("Request failed for block {}: {}", block_number, err),
+        }
+
+        std::thread::sleep(Duration::from_millis(50)); // Respectful polling
+    }
+    println!("done");
+    assert_eq!(1, 2);
+}
