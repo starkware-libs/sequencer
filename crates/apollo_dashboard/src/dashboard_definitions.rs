@@ -1,7 +1,4 @@
-use apollo_compile_to_casm::metrics::COMPILATION_DURATION;
-use const_format::formatcp;
-
-use crate::dashboard::{Dashboard, Panel, PanelType, Row};
+use crate::dashboard::{Dashboard, Row};
 use crate::panels::batcher::{
     PANEL_BATCHED_TRANSACTIONS,
     PANEL_BATCHER_LOCAL_MSGS_PROCESSED,
@@ -126,6 +123,7 @@ use crate::panels::mempool_p2p::{
     PANEL_MEMPOOL_P2P_REMOTE_VALID_MSGS_RECEIVED,
 };
 use crate::panels::sierra_compiler::{
+    PANEL_COMPILATION_DURATION,
     PANEL_SIERRA_COMPILER_LOCAL_MSGS_PROCESSED,
     PANEL_SIERRA_COMPILER_LOCAL_MSGS_RECEIVED,
     PANEL_SIERRA_COMPILER_LOCAL_QUEUE_DEPTH,
@@ -161,13 +159,6 @@ use crate::panels::state_sync::{
 mod dashboard_definitions_test;
 
 pub const DEV_JSON_PATH: &str = "Monitoring/sequencer/dev_grafana.json";
-
-const PANEL_COMPILATION_DURATION: Panel = Panel::new(
-    COMPILATION_DURATION.get_name(),
-    COMPILATION_DURATION.get_description(),
-    formatcp!("avg_over_time({}[2m])", COMPILATION_DURATION.get_name()),
-    PanelType::Graph,
-);
 
 const MEMPOOL_P2P_ROW: Row = Row::new(
     "MempoolP2p",
