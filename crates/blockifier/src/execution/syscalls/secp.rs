@@ -96,7 +96,7 @@ where
         let points = &mut self.points;
         let id = points.len();
         points.push(ec_point);
-        Ok((self.get_initialized_segments_base()? + EC_POINT_SEGMENT_SIZE * id)?)
+        Ok((self.get_initialized_segments_base() + EC_POINT_SEGMENT_SIZE * id)?)
     }
 
     fn conditionally_initialize_points_segment_base(&mut self, vm: &mut VirtualMachine) {
@@ -105,11 +105,8 @@ where
         }
     }
 
-    fn get_initialized_segments_base(&self) -> SyscallResult<Relocatable> {
-        self.points_segment_base.ok_or_else(|| SyscallExecutionError::InvalidSyscallInput {
-            input: 0.into(),
-            info: "Secp points segment base not initialized".to_string(),
-        })
+    fn get_initialized_segments_base(&self) -> Relocatable {
+        self.points_segment_base.expect("Segments_base should be initialized at this point.")
     }
 
     fn get_point_by_ptr(
@@ -117,7 +114,7 @@ where
         ec_point_ptr: Relocatable,
     ) -> SyscallResult<&short_weierstrass::Affine<Curve>> {
         let ec_point_id =
-            (ec_point_ptr - self.get_initialized_segments_base()?)? / EC_POINT_SEGMENT_SIZE;
+            (ec_point_ptr - self.get_initialized_segments_base())? / EC_POINT_SEGMENT_SIZE;
         self.points.get(ec_point_id).ok_or_else(|| SyscallExecutionError::InvalidSyscallInput {
             input: ec_point_id.into(),
             info: "Invalid Secp point ID".to_string(),
