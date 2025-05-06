@@ -11,13 +11,17 @@ use tokio::sync::mpsc::{channel, Receiver};
 use tokio::sync::Semaphore;
 use tokio::task::{self, JoinSet};
 
-use crate::component_client::{ClientResult, LocalComponentClient, RemoteComponentClient};
+use crate::component_client::{
+    ClientResult,
+    LocalComponentClient,
+    RemoteClientConfig,
+    RemoteComponentClient,
+};
 use crate::component_definitions::{
     ComponentClient,
     ComponentRequestAndResponseSender,
     ComponentRequestHandler,
     ComponentStarter,
-    RemoteClientConfig,
 };
 use crate::component_server::{
     ComponentServerStarter,

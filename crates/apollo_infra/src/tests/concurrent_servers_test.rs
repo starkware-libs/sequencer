@@ -9,13 +9,17 @@ use tokio::sync::Semaphore;
 use tokio::task;
 use tokio::time::timeout;
 
-use crate::component_client::{ClientResult, LocalComponentClient, RemoteComponentClient};
+use crate::component_client::{
+    ClientResult,
+    LocalComponentClient,
+    RemoteClientConfig,
+    RemoteComponentClient,
+};
 use crate::component_definitions::{
     ComponentClient,
     ComponentRequestAndResponseSender,
     ComponentRequestHandler,
     ComponentStarter,
-    RemoteClientConfig,
 };
 use crate::component_server::{
     ComponentServerStarter,
