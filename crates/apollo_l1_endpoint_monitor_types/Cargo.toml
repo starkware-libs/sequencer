@@ -1,26 +1,28 @@
 [package]
-name = "apollo_l1_endpoint_monitor"
+name = "apollo_l1_endpoint_monitor_types"
 version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license.workspace = true
 
+[features]
+testing = ["mockall"]
+
 [dependencies]
 alloy.workspace = true
 apollo_config.workspace = true
 apollo_infra.workspace = true
-apollo_l1_endpoint_monitor_types.workspace = true
+apollo_proc_macros.workspace = true
 async-trait.workspace = true
+mockall = { workspace = true, optional = true }
 serde.workspace = true
+strum_macros.workspace = true
 thiserror.workspace = true
-tracing.workspace = true
+tokio.workspace = true
 url = { workspace = true, features = ["serde"] }
 
 [dev-dependencies]
-alloy = { workspace = true, features = ["node-bindings"] }
-mockito.workspace = true
-papyrus_base_layer = { workspace = true, features = ["testing"] }
-tokio.workspace = true
+mockall.workspace = true
 
 [lints]
 workspace = true
