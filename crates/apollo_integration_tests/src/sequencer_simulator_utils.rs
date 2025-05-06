@@ -12,13 +12,14 @@ use crate::integration_test_manager::nonce_to_usize;
 use crate::monitoring_utils;
 use crate::utils::{send_consensus_txs, TestScenario};
 
+// TODO(Arni): Add the Starknet L1 contract handler.
 pub struct SequencerSimulator {
     monitoring_client: MonitoringClient,
     http_client: HttpTestClient,
 }
 
 impl SequencerSimulator {
-    pub fn new(
+    pub async fn create(
         http_url: String,
         http_port: u16,
         monitoring_url: String,
