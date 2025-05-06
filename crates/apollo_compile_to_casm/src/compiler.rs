@@ -45,7 +45,17 @@ impl SierraToCasmCompiler {
             additional_args,
             resource_limits,
         )?;
-        Ok(serde_json::from_slice::<CasmContractClass>(&stdout)?)
+
+        if let Some(pos) = stdout.iter().position(|&b| b == b'{') {
+            // Extract the JSON representation of `CasmContractClass` by removing leading non-JSON
+            // compiler output.
+            Ok(serde_json::from_slice::<CasmContractClass>(&stdout[pos..])?)
+        } else {
+            Err(CompilationUtilError::UnexpectedError(format!(
+                "Failed to find the start of the JSON output in the compilation output: {:?}",
+                stdout
+            )))
+        }
     }
 }
 
