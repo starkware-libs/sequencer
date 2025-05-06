@@ -4,3 +4,4 @@ pub mod stateful_validator;
 pub mod transaction_executor;
 #[cfg(test)]
 pub mod transfers_flow_test;
+// Dummy comment to trigger integration tests.
