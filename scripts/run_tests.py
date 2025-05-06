@@ -70,7 +70,7 @@ class BaseCommand(Enum):
             print(f"Composing sequencer integration test commands.")
 
             def build_cmds(with_feature: bool) -> List[List[str]]:
-                feature_flag = ["--features", "cairo_native"] if with_feature else []
+                feature_flag = ["--features", "cairo_native"] if (with_feature and is_nightly) else []
                 # Commands to build the node and all the test binaries.
                 build_cmds = [
                     ["cargo", "build", "--bin", binary_name] + feature_flag
