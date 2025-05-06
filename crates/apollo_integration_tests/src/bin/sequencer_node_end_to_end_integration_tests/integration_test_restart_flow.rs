@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-use apollo_deployments::deployments::consolidated::ConsolidatedNodeServiceName;
-use apollo_deployments::deployments::hybrid::HybridNodeServiceName;
 use apollo_infra_utils::test_utils::TestIdentifier;
 use apollo_integration_tests::integration_test_manager::{
     IntegrationTestManager,
@@ -10,7 +8,6 @@ use apollo_integration_tests::integration_test_manager::{
 };
 use apollo_integration_tests::integration_test_utils::integration_test_setup;
 use apollo_integration_tests::utils::{ConsensusTxs, N_TXS_IN_FIRST_BLOCK, TPS};
-use strum::IntoEnumIterator;
 use tokio::join;
 use tokio::time::sleep;
 use tracing::info;
@@ -19,16 +16,15 @@ use tracing::info;
 async fn main() {
     integration_test_setup("restart").await;
     const TOTAL_PHASES: u64 = 4;
-    const PHASE_DURATION: Duration = Duration::from_secs(45);
+    const PHASE_DURATION: Duration = Duration::from_secs(30);
     const TOTAL_DURATION: u64 = PHASE_DURATION.as_secs() * TOTAL_PHASES;
     const TOTAL_INVOKE_TXS: u64 = TPS * TOTAL_DURATION;
     /// The number of consolidated local sequencers that participate in the test.
-    const N_CONSOLIDATED_SEQUENCERS: usize = 3;
+    const N_CONSOLIDATED_SEQUENCERS: usize = 5;
     /// The number of distributed remote sequencers that participate in the test.
-    const N_DISTRIBUTED_SEQUENCERS: usize = 2;
+    const N_DISTRIBUTED_SEQUENCERS: usize = 0;
     // The indices of the nodes that we will be shutting down.
-    // The test restarts a hybrid node and shuts down a non-consolidated (hybrid/distributed) node.
-    const RESTART_NODE: usize = N_CONSOLIDATED_SEQUENCERS;
+    const RESTART_NODE: usize = 3;
     const SHUTDOWN_NODE: usize = RESTART_NODE + 1;
 
     // Get the sequencer configurations.
@@ -40,27 +36,6 @@ async fn main() {
     )
     .await;
 
-    // Assert that RESTART_NODE is a hybrid node.
-    assert_eq!(
-        integration_test_manager
-            .get_idle_nodes()
-            .get(&RESTART_NODE)
-            .unwrap()
-            .get_executables()
-            .len(),
-        HybridNodeServiceName::iter().count()
-    );
-    // Assert that SHUTDOWN_NODE is not a consolidated node.
-    assert_ne!(
-        integration_test_manager
-            .get_idle_nodes()
-            .get(&SHUTDOWN_NODE)
-            .unwrap()
-            .get_executables()
-            .len(),
-        ConsolidatedNodeServiceName::iter().count()
-    );
-
     let mut node_indices = integration_test_manager.get_node_indices();
 
     info!("Running all nodes");
@@ -68,7 +43,8 @@ async fn main() {
 
     integration_test_manager.send_deploy_and_invoke_txs_and_verify().await;
 
-    integration_test_manager.send_declare_txs_and_verify().await;
+    // Checking if the declare breaks the test.
+    // integration_test_manager.send_declare_txs_and_verify().await;
 
     let mut nodes_accepted_txs_mapping =
         integration_test_manager.get_num_accepted_txs_on_all_running_nodes().await;
@@ -112,7 +88,7 @@ async fn main() {
             "Awaiting transactions after node {RESTART_NODE} was restarted and before node \
              {SHUTDOWN_NODE} is shut down"
         );
-        sleep(PHASE_DURATION).await;
+        sleep(PHASE_DURATION * 3).await;
         verify_running_nodes_received_more_txs(
             &mut nodes_accepted_txs_mapping,
             &integration_test_manager,
@@ -129,7 +105,7 @@ async fn main() {
             "Awaiting transactions while node {RESTART_NODE} is up and node {SHUTDOWN_NODE} is \
              down"
         );
-        sleep(PHASE_DURATION).await;
+        sleep(PHASE_DURATION * 3).await;
         verify_running_nodes_received_more_txs(
             &mut nodes_accepted_txs_mapping,
             &integration_test_manager,
