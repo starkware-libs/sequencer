@@ -20,7 +20,8 @@ pub async fn configure_tracing() {
             );
             let timer = UtcTime::new(time_format);
 
-            let fmt_layer = fmt::layer().compact().with_target(true).with_timer(timer);
+            // let fmt_layer = fmt::layer().compact().with_target(true).with_timer(timer);
+            let fmt_layer = fmt::layer().with_timer(timer);
             let level_filter_layer =
                 EnvFilter::builder().with_default_directive(DEFAULT_LEVEL.into()).from_env_lossy();
 

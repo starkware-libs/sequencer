@@ -1,11 +1,11 @@
 {
   "chain_id": "SN_INTEGRATION_SEPOLIA",
-  "image": "ghcr.io/starkware-libs/sequencer/sequencer:dev",
-  "application_config_subdir": "config/sequencer/presets/consolidated_node/application_configs/",
+  "image": "ghcr.io/starkware-libs/sequencer/sequencer:elin-sequencer-utils-log-enter-exit-span-5f8fd18",
+  "application_config_subdir": "/tmp/setup/configs/node_0/executable_0/",
   "services": [
     {
       "name": "Node",
-      "config_path": "node.json",
+      "config_path": "node_integration_test_config_changes_with_preset.json",
       "ingress": false,
       "autoscale": false,
       "replicas": 1,

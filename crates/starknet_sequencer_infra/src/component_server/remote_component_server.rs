@@ -169,6 +169,7 @@ where
         local_client: LocalComponentClient<Request, Response>,
         metrics: Arc<RemoteServerMetrics>,
     ) -> Result<HyperResponse<Body>, hyper::Error> {
+        debug!("Received HTTP request: {:?}", http_request.headers());
         debug!("Received HTTP request: {:?}", http_request);
         let body_bytes = to_bytes(http_request.into_body()).await?;
         debug!("Extracted {} bytes from HTTP request body", body_bytes.len());

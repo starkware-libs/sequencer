@@ -5,6 +5,7 @@ use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::felt;
 use starknet_api::state::SierraContractClass;
 use starknet_class_manager_types::ClassHashes;
+use starknet_sequencer_infra::trace_util::configure_tracing;
 use starknet_sierra_multicompile_types::{MockSierraCompilerClient, RawClass, RawExecutableClass};
 
 use crate::class_manager::ClassManager;
@@ -32,6 +33,7 @@ impl ClassManager<FsClassStorage> {
 
 #[tokio::test]
 async fn class_manager() {
+    configure_tracing().await;
     // Setup.
 
     // Prepare mock compiler.

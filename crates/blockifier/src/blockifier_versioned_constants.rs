@@ -310,7 +310,7 @@ impl VersionedConstants {
     }
 
     /// Calculates the syscall gas cost from the OS resources.
-    pub fn get_syscall_gas_cost(&self, syscall_selector: &SyscallSelector) -> SyscallGasCost {
+    fn get_syscall_gas_cost(&self, syscall_selector: &SyscallSelector) -> SyscallGasCost {
         let gas_costs = &self.os_constants.gas_costs;
         let vm_resources = &self
             .os_resources
