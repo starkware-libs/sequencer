@@ -1,11 +1,5 @@
 use apollo_compile_to_casm::metrics::COMPILATION_DURATION;
 use apollo_http_server::metrics::ADDED_TRANSACTIONS_TOTAL;
-use blockifier::metrics::{
-    CLASS_CACHE_HITS,
-    CLASS_CACHE_MISSES,
-    NATIVE_CLASS_RETURNED,
-    STATE_READER_METRIC_RATE_DURATION,
-};
 use const_format::formatcp;
 
 use crate::dashboard::{Dashboard, Panel, PanelType, Row};
@@ -139,6 +133,10 @@ use crate::panels::sierra_compiler::{
     PANEL_SIERRA_COMPILER_REMOTE_MSGS_RECEIVED,
     PANEL_SIERRA_COMPILER_REMOTE_VALID_MSGS_RECEIVED,
 };
+use crate::panels::state_reader::{
+    PANEL_BLOCKIFIER_STATE_READER_CLASS_CACHE_MISS_RATIO,
+    PANEL_BLOCKIFIER_STATE_READER_NATIVE_CLASS_RETURNED_RATIO,
+};
 use crate::panels::state_sync::{
     PANEL_CENTRAL_SYNC_CENTRAL_BLOCK_MARKER,
     PANEL_P2P_SYNC_NUM_ACTIVE_INBOUND_SESSIONS,
@@ -166,35 +164,6 @@ pub const DEV_JSON_PATH: &str = "Monitoring/sequencer/dev_grafana.json";
 
 const PANEL_ADDED_TRANSACTIONS_TOTAL: Panel =
     Panel::from_counter(ADDED_TRANSACTIONS_TOTAL, PanelType::Stat);
-
-const PANEL_BLOCKIFIER_STATE_READER_CLASS_CACHE_MISS_RATIO: Panel = Panel::new(
-    "class_cache_miss_ratio",
-    "The ratio of cache misses when requesting compiled classes from the Blockifier State Reader",
-    formatcp!(
-        "100 * (rate({}[{}]) / (rate({}[{}]) + rate({}[{}])))",
-        CLASS_CACHE_MISSES.get_name(),
-        STATE_READER_METRIC_RATE_DURATION,
-        CLASS_CACHE_MISSES.get_name(),
-        STATE_READER_METRIC_RATE_DURATION,
-        CLASS_CACHE_HITS.get_name(),
-        STATE_READER_METRIC_RATE_DURATION
-    ),
-    PanelType::Graph,
-);
-const PANEL_BLOCKIFIER_STATE_READER_NATIVE_CLASS_RETURNED_RATIO: Panel = Panel::new(
-    "native_class_returned_ratio",
-    "The ratio of Native classes returned by the Blockifier State Reader",
-    formatcp!(
-        "100 * (rate({}[{}]) / (rate({}[{}]) + rate({}[{}])))",
-        NATIVE_CLASS_RETURNED.get_name(),
-        STATE_READER_METRIC_RATE_DURATION,
-        CLASS_CACHE_HITS.get_name(),
-        STATE_READER_METRIC_RATE_DURATION,
-        CLASS_CACHE_MISSES.get_name(),
-        STATE_READER_METRIC_RATE_DURATION,
-    ),
-    PanelType::Graph,
-);
 
 const PANEL_COMPILATION_DURATION: Panel = Panel::new(
     COMPILATION_DURATION.get_name(),
