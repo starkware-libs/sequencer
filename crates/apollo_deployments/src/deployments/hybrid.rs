@@ -187,7 +187,9 @@ impl ServiceNameInner for HybridNodeServiceName {
                     additional_config_filenames,
                 ),
             },
-            Environment::SepoliaIntegration => match self {
+            Environment::SepoliaIntegration
+            | Environment::TestingEnvTwo
+            | Environment::TestingEnvThree => match self {
                 HybridNodeServiceName::Core => Service::new(
                     Into::<ServiceName>::into(*self),
                     Controller::StatefulSet,
@@ -195,8 +197,8 @@ impl ServiceNameInner for HybridNodeServiceName {
                     false,
                     1,
                     Some(1000),
-                    Some("sequencer".into()),
-                    Resources::new(Resource::new(2, 4), Resource::new(4, 8)),
+                    Some("apollo-core-service".into()),
+                    Resources::new(Resource::new(2, 4), Resource::new(7, 14)),
                     external_secret.clone(),
                     additional_config_filenames,
                 ),
@@ -212,7 +214,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                     false,
                     1,
                     None,
-                    None,
+                    Some("apollo-general-service".into()),
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
@@ -224,7 +226,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                     true,
                     2,
                     None,
-                    None,
+                    Some("apollo-general-service".into()),
                     Resources::new(Resource::new(1, 2), Resource::new(2, 4)),
                     external_secret.clone(),
                     additional_config_filenames,
@@ -236,7 +238,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                     false,
                     1,
                     None,
-                    None,
+                    Some("apollo-general-service".into()),
                     Resources::new(Resource::new(1, 2), Resource::new(2, 4)),
                     external_secret.clone(),
                     additional_config_filenames,
@@ -248,7 +250,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                     true,
                     2,
                     None,
-                    None,
+                    Some("apollo-general-service".into()),
                     Resources::new(Resource::new(1, 2), Resource::new(2, 4)),
                     external_secret.clone(),
                     additional_config_filenames,
