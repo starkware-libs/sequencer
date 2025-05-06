@@ -15,12 +15,12 @@ use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::state::SierraContractClass;
 
 use crate::compiler::SierraToCasmCompiler;
-use crate::config::{SierraCompilationConfig, DEFAULT_MAX_BYTECODE_SIZE};
+use crate::config::{SierraCompilationConfig, DEFAULT_MAX_BYTECODE_SIZE, DEFAULT_MAX_MEMORY_USAGE};
 use crate::{RawClass, SierraCompiler};
 
 const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompilationConfig {
     max_bytecode_size: DEFAULT_MAX_BYTECODE_SIZE,
-    max_memory_usage: None,
+    max_memory_usage: Some(DEFAULT_MAX_MEMORY_USAGE),
 };
 
 fn compiler() -> SierraToCasmCompiler {
@@ -70,7 +70,7 @@ fn test_max_bytecode_size() {
     // Positive flow.
     let compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
         max_bytecode_size: expected_casm_bytecode_length,
-        max_memory_usage: None,
+        max_memory_usage: Some(DEFAULT_MAX_MEMORY_USAGE),
     });
     let casm_contract_class = compiler
         .compile(contract_class.clone())
@@ -80,7 +80,7 @@ fn test_max_bytecode_size() {
     // Negative flow.
     let compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
         max_bytecode_size: expected_casm_bytecode_length - 1,
-        max_memory_usage: None,
+        max_memory_usage: Some(DEFAULT_MAX_MEMORY_USAGE),
     });
     let result = compiler.compile(contract_class);
     assert_matches!(result, Err(CompilationUtilError::CompilationError(string))
@@ -129,3 +129,6 @@ fn allowed_libfuncs_aligned_to_audited() {
         "Audited libfuncs mismatch: (missing, extra)"
     );
 }
+
+// TODO(Noamsp): Add a test to ensure that applying resource limits doesn't corrupt the
+// compilation process output.
