@@ -9,6 +9,6 @@
 # deactivate
 # rm -r reqs_venv
 # ```
-cairo-lang==0.13.5
+cairo-lang==0.14.0a1
 sympy==1.12.0 # pypy3.9 issue.
 GitPython
