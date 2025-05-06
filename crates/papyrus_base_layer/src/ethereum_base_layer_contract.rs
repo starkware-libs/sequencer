@@ -42,6 +42,7 @@ sol!(
 pub type StarknetL1Contract = Starknet::StarknetInstance<(), RootProvider>;
 
 #[cfg(any(feature = "testing", test))]
+#[derive(Debug)]
 pub struct L1ToL2MessageArgs {
     pub tx: starknet_api::transaction::L1HandlerTransaction,
     pub l1_tx_nonce: u64,
