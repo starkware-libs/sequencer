@@ -448,10 +448,10 @@ async fn get_block_transaction_count() {
     // Ask for pending block
     let pending_transaction_count = 3;
     let mut rng = get_rng();
-    pending_data.write().await.block.transactions_mutable().extend(
-        iter::repeat(ClientTransaction::get_test_instance(&mut rng))
-            .take(pending_transaction_count),
-    );
+    pending_data.write().await.block.transactions_mutable().extend(std::iter::repeat_n(
+        ClientTransaction::get_test_instance(&mut rng),
+        pending_transaction_count,
+    ));
     let res = module.call::<_, usize>(method_name, [BlockId::Tag(Tag::Pending)]).await.unwrap();
     assert_eq!(res, pending_transaction_count);
 
