@@ -534,14 +534,14 @@
         "title": "class_cache_miss_ratio",
         "description": "The ratio of cache misses when requesting compiled classes from the Blockifier State Reader",
         "type": "graph",
-        "expr": "100 * (rate(class_cache_misses[5m]) / (rate(class_cache_misses[5m]) + rate(class_cache_hits[5m])))",
+        "expr": "100 * (rate(class_cache_misses{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) / (rate(class_cache_misses{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) + rate(class_cache_hits{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
         "extra_params": {}
       },
       {
         "title": "native_class_returned_ratio",
         "description": "The ratio of Native classes returned by the Blockifier State Reader",
         "type": "graph",
-        "expr": "100 * (rate(native_class_returned[5m]) / (rate(class_cache_hits[5m]) + rate(class_cache_misses[5m])))",
+        "expr": "100 * (rate(native_class_returned{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) / (rate(class_cache_hits{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) + rate(class_cache_misses{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
         "extra_params": {}
       }
     ],
