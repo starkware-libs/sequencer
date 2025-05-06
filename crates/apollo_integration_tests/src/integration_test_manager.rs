@@ -81,9 +81,9 @@ use crate::utils::{
 
 pub const DEFAULT_SENDER_ACCOUNT: AccountId = 0;
 const BLOCK_MAX_CAPACITY_N_STEPS: GasAmount = GasAmount(30000000);
-pub const BLOCK_TO_WAIT_FOR_DEPLOY_AND_INVOKE: BlockNumber = BlockNumber(2);
+pub const BLOCK_TO_WAIT_FOR_DEPLOY_AND_INVOKE: BlockNumber = BlockNumber(4);
 pub const BLOCK_TO_WAIT_FOR_DECLARE: BlockNumber =
-    BlockNumber(BLOCK_TO_WAIT_FOR_DEPLOY_AND_INVOKE.0 + 5);
+    BlockNumber(BLOCK_TO_WAIT_FOR_DEPLOY_AND_INVOKE.0 + 10);
 
 pub const HTTP_PORT_ARG: &str = "http-port";
 pub const MONITORING_PORT_ARG: &str = "monitoring-port";

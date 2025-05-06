@@ -7,7 +7,7 @@ use tracing::info;
 #[tokio::main]
 async fn main() {
     integration_test_setup("positive").await;
-    const BLOCK_TO_WAIT_FOR: BlockNumber = BlockNumber(15);
+    const BLOCK_TO_WAIT_FOR: BlockNumber = BlockNumber(30);
     const N_INVOKE_TXS: usize = 50;
     const N_L1_HANDLER_TXS: usize = 2;
     /// The number of consolidated local sequencers that participate in the test.

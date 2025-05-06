@@ -19,7 +19,7 @@ use tracing::info;
 async fn main() {
     integration_test_setup("restart").await;
     const TOTAL_PHASES: u64 = 4;
-    const PHASE_DURATION: Duration = Duration::from_secs(45);
+    const PHASE_DURATION: Duration = Duration::from_secs(30);
     const TOTAL_DURATION: u64 = PHASE_DURATION.as_secs() * TOTAL_PHASES;
     const TOTAL_INVOKE_TXS: u64 = TPS * TOTAL_DURATION;
     /// The number of consolidated local sequencers that participate in the test.
@@ -112,7 +112,7 @@ async fn main() {
             "Awaiting transactions after node {RESTART_NODE} was restarted and before node \
              {SHUTDOWN_NODE} is shut down"
         );
-        sleep(PHASE_DURATION).await;
+        sleep(PHASE_DURATION * 3).await;
         verify_running_nodes_received_more_txs(
             &mut nodes_accepted_txs_mapping,
             &integration_test_manager,
@@ -129,7 +129,7 @@ async fn main() {
             "Awaiting transactions while node {RESTART_NODE} is up and node {SHUTDOWN_NODE} is \
              down"
         );
-        sleep(PHASE_DURATION).await;
+        sleep(PHASE_DURATION * 3).await;
         verify_running_nodes_received_more_txs(
             &mut nodes_accepted_txs_mapping,
             &integration_test_manager,
