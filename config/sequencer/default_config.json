@@ -337,7 +337,7 @@
   "compiler_config.max_memory_usage.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
-    "value": true
+    "value": false
   },
   "components.batcher.execution_mode": {
     "description": "The component execution mode.",

@@ -19,7 +19,10 @@ pub struct SierraCompilationConfig {
 
 impl Default for SierraCompilationConfig {
     fn default() -> Self {
-        Self { max_bytecode_size: DEFAULT_MAX_BYTECODE_SIZE, max_memory_usage: None }
+        Self {
+            max_bytecode_size: DEFAULT_MAX_BYTECODE_SIZE,
+            max_memory_usage: Some(DEFAULT_MAX_MEMORY_USAGE),
+        }
     }
 }
 
