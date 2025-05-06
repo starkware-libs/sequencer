@@ -5,7 +5,7 @@ use thiserror::Error;
 
 #[derive(Clone, Debug, Error, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MempoolError {
-    #[error("Duplicate transaction, sender address: {address}, nonce: {:?}", nonce)]
+    #[error("Duplicate nonce, sender address: {address}, nonce: {:?}", nonce)]
     DuplicateNonce { address: ContractAddress, nonce: Nonce },
     #[error("Duplicate transaction, with hash: {tx_hash}")]
     DuplicateTransaction { tx_hash: TransactionHash },
