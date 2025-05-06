@@ -650,14 +650,11 @@ fn test_recursion_depth_exceeded(
     // 2. The base case for recursion occurs at depth 0, not at depth 1.
 
     // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion works.
-    // TODO(Dori): Debug why, with cairo-native v0.5.0-rc.3 and VM v2.0.1, we need to lower the max
-    // recursion depth. Running `cargo test -p blockifier  --features cairo_native` fails without
-    // this change.
-    block_context.versioned_constants.max_recursion_depth -= 1;
-    #[cfg(not(feature = "cairo_native"))]
-    {
-        block_context.versioned_constants.max_recursion_depth += 1;
-    }
+    // This test is highly sensitive to the recursion depth; set the limit to a low value to avoid
+    // breaking this test in unusual ways (rust version upgrade, VM feature activation and cairo
+    // native feature are all known examples of changes that can cause this test to overflow the
+    // stack).
+    block_context.versioned_constants.max_recursion_depth = 25;
     let max_inner_recursion_depth: u8 = (block_context.versioned_constants.max_recursion_depth - 2)
         .try_into()
         .expect("Failed to convert usize to u8.");
