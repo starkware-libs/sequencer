@@ -58,7 +58,7 @@
   "class_manager_config.class_storage_config.persistent_root": "/data/node_0/executable_0/class_manager/classes",
   "compiler_config.max_bytecode_size": 81920,
   "compiler_config.max_memory_usage": 5368709120,
-  "compiler_config.max_memory_usage.#is_none": true,
+  "compiler_config.max_memory_usage.#is_none": false,
   "components.batcher.execution_mode": "LocalExecutionWithRemoteDisabled",
   "components.batcher.ip": "0.0.0.0",
   "components.batcher.local_server_config.channel_buffer_size": 32,
