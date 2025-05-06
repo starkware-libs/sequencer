@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 // TODO(Amos): When available in the VM crate, use an existing set, instead of using each hint
 //   const explicitly.
@@ -7,14 +7,12 @@ use cairo_vm::hint_processor::builtin_hint_processor::kzg_da::WRITE_DIVMOD_SEGME
 use cairo_vm::hint_processor::builtin_hint_processor::secp::cairo0_hints::CAIRO0_HINT_CODES;
 use starknet_os::hints::enum_definition::{AggregatorHint, HintExtension, OsHint};
 use starknet_os::hints::types::HintEnum;
-use starknet_os::test_utils::cairo_runner::EntryPointRunnerConfig;
 use strum::IntoEnumIterator;
 
 use crate::os_cli::commands::{validate_input, Input};
 use crate::os_cli::tests::aliases::aliases_test;
 use crate::os_cli::tests::bls_field::test_bls_field;
 use crate::os_cli::tests::types::{OsPythonTestError, OsPythonTestResult, OsSpecificTestError};
-use crate::os_cli::tests::utils::test_cairo_function;
 use crate::shared_utils::types::{PythonTestError, PythonTestRunner};
 
 // Enum representing different Python tests.
@@ -23,7 +21,6 @@ pub enum OsPythonTestRunner {
     BlsFieldTest,
     CompareOsHints,
     InputDeserialization,
-    RunDummyFunction,
 }
 
 // Implements conversion from a string to the test runner.
@@ -36,7 +33,6 @@ impl TryFrom<String> for OsPythonTestRunner {
             "bls_field_test" => Ok(Self::BlsFieldTest),
             "compare_os_hints" => Ok(Self::CompareOsHints),
             "input_deserialization" => Ok(Self::InputDeserialization),
-            "run_dummy_function" => Ok(Self::RunDummyFunction),
             _ => Err(PythonTestError::UnknownTestName(value)),
         }
     }
@@ -50,7 +46,6 @@ impl PythonTestRunner for OsPythonTestRunner {
             Self::BlsFieldTest => test_bls_field(Self::non_optional_input(input)?),
             Self::CompareOsHints => compare_os_hints(Self::non_optional_input(input)?),
             Self::InputDeserialization => input_deserialization(Self::non_optional_input(input)?),
-            Self::RunDummyFunction => run_dummy_cairo_function(Self::non_optional_input(input)?),
         }
     }
 }
@@ -79,22 +74,6 @@ fn compare_os_hints(input: &str) -> OsPythonTestResult {
         rust_os_hints.difference(&python_os_hints).cloned().collect();
     only_in_rust.sort();
     Ok(serde_json::to_string(&(only_in_python, only_in_rust))?)
-}
-
-// TODO(Amos): Delete this test, as the cairo runner now has it's own separate test.
-fn run_dummy_cairo_function(input: &str) -> OsPythonTestResult {
-    let param_1 = 123;
-    let param_2 = 456;
-    test_cairo_function(
-        &EntryPointRunnerConfig::default(),
-        input,
-        "dummy_function",
-        &[param_1.into(), param_2.into()],
-        &[],
-        &[(789 + param_1).into(), param_1.into(), param_2.into()],
-        &[],
-        HashMap::new(),
-    )
 }
 
 /// Deserialize the input string into an `Input` struct.
