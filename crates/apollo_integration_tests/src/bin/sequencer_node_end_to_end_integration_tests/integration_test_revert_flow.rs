@@ -13,9 +13,9 @@ use tracing::info;
 #[tokio::main]
 async fn main() {
     integration_test_setup("revert").await;
-    const BLOCK_TO_REVERT_FROM: BlockNumber = BlockNumber(15);
+    const BLOCK_TO_REVERT_FROM: BlockNumber = BlockNumber(30);
     const REVERT_UP_TO_AND_INCLUDING: BlockNumber = BlockNumber(1);
-    const BLOCK_TO_WAIT_FOR_AFTER_REVERT: BlockNumber = BlockNumber(20);
+    const BLOCK_TO_WAIT_FOR_AFTER_REVERT: BlockNumber = BlockNumber(40);
     // can't use static assertion as comparison is non const.
     assert!(REVERT_UP_TO_AND_INCLUDING < BLOCK_TO_REVERT_FROM);
     assert!(BLOCK_TO_REVERT_FROM < BLOCK_TO_WAIT_FOR_AFTER_REVERT);
