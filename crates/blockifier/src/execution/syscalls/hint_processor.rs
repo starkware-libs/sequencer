@@ -135,8 +135,6 @@ pub enum SyscallExecutionError {
         selector: EntryPointSelector,
         error: Box<SyscallExecutionError>,
     },
-    #[error("Invalid syscall input: {input:?}; {info}")]
-    InvalidSyscallInput { input: Felt, info: String },
     #[error("Invalid syscall selector: {0:?}.")]
     InvalidSyscallSelector(Felt),
     #[error("Unauthorized syscall {syscall_name} in execution mode {execution_mode}.")]
@@ -833,7 +831,7 @@ pub fn felt_to_bool(felt: Felt, error_info: &str) -> SyscallResult<bool> {
     } else if felt == Felt::ONE {
         Ok(true)
     } else {
-        Err(SyscallExecutionError::InvalidSyscallInput { input: felt, info: error_info.into() })
+        Err(SyscallExecutorBaseError::InvalidSyscallInput { input: felt, info: error_info.into() })?
     }
 }
 
