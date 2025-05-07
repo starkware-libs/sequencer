@@ -71,6 +71,7 @@ class RunTestsCheck(Check):
             commit_id=self.from_commit_hash,
             base_command=self.command,
             include_dependencies=False,
+            is_nightly=False,
         )
 
 
