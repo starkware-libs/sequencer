@@ -93,6 +93,7 @@ define_string_enum! {
         (InitialDict),
         (IsDeprecated),
         (LeftChild),
+        (NSelectedBuiltins),
         (Node),
         (Preimage),
         (RightChild),
