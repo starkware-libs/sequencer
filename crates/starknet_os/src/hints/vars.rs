@@ -122,6 +122,7 @@ define_string_enum! {
         (AccountDeploymentData),
         (AccountDeploymentDataSize),
         (AliasesEntry),
+        (AllEncodings),
         (Bit),
         (BucketIndex),
         (BuiltinCosts),
