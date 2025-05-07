@@ -201,6 +201,16 @@ pub struct CallInfoTracker<'a> {
     pub deprecated_tx_info_ptr: Relocatable,
 }
 
+macro_rules! next_iterator_method {
+    ($fn_name:ident, $field:ident, $return_type:ty) => {
+        pub fn $fn_name(&mut self) -> Result<&$return_type, ExecutionHelperError> {
+            self.$field.next().ok_or(ExecutionHelperError::EndOfIterator {
+                item_type: stringify!($field).to_string(),
+            })
+        }
+    };
+}
+
 impl<'a> CallInfoTracker<'a> {
     pub fn new(
         call_info: &'a CallInfo,
@@ -267,6 +277,13 @@ impl<'a> CallInfoTracker<'a> {
         }
         Ok(())
     }
+
+    next_iterator_method!(next_execute_code_read, execute_code_read_iterator, Felt);
+    next_iterator_method!(
+        next_execute_code_class_hash_read,
+        execute_code_class_hash_read_iterator,
+        ClassHash
+    );
 }
 
 fn check_exhausted<I>(iterator: &mut I, name: &str, unexhausteds: &mut Vec<String>)
