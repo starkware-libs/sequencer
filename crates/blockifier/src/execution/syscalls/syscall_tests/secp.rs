@@ -1,3 +1,4 @@
+use apollo_infra_utils::register_magic_constants;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use starknet_api::abi::abi_utils::selector_from_name;
@@ -13,6 +14,7 @@ use crate::test_utils::{trivial_external_entry_point_new, BALANCE};
 #[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native; "Native"))]
 #[test_case(RunnableCairo1::Casm; "VM")]
 fn test_secp256k1(runnable_version: RunnableCairo1) {
+    let mut magic = register_magic_constants!(format!("{runnable_version:?}"));
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
@@ -24,9 +26,9 @@ fn test_secp256k1(runnable_version: RunnableCairo1) {
         ..trivial_external_entry_point_new(test_contract)
     };
 
-    pretty_assertions::assert_eq!(
+    magic.assert_eq(
+        "test_secp256k1",
         entry_point_call.execute_directly(&mut state).unwrap().execution,
-        CallExecution { gas_consumed: 17010359, ..Default::default() }
     );
 }
 
