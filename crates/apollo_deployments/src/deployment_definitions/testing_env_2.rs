@@ -3,10 +3,10 @@ use std::path::PathBuf;
 use starknet_api::core::ChainId;
 
 use crate::deployment::{
+    create_hybrid_instance_config_override,
     ConfigOverride,
     Deployment,
     DeploymentConfigOverride,
-    InstanceConfigOverride,
 };
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
 use crate::service::{DeploymentName, ExternalSecret};
@@ -20,82 +20,30 @@ const TESTING_ENV_2_DEPLOYMENT_CONFIG_OVERRIDE: DeploymentConfigOverride =
         "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d",
     );
 
-fn testing_env_2_node_0_instance_config_override() -> InstanceConfigOverride {
-    InstanceConfigOverride::new(
-        "",
-        true,
-        "0x0101010101010101010101010101010101010101010101010101010101010101",
-        "",
-        true,
-        "0x0101010101010101010101010101010101010101010101010101010101010101",
-        "0x1",
-    )
-}
-
-fn testing_env_2_node_1_instance_config_override() -> InstanceConfigOverride {
-    InstanceConfigOverride::new(
-        "/dns/sequencer-core-service.sequencer-test-sepolia-0.svc.cluster.local/tcp/53080/p2p/\
-         12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
-        false,
-        "0x0101010101010101010101010101010101010101010101010101010101010102",
-        "/dns/sequencer-mempool-service.sequencer-test-sepolia-0.svc.cluster.local/tcp/53200/p2p/\
-         12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
-        false,
-        "0x0101010101010101010101010101010101010101010101010101010101010102",
-        "0x2",
-    )
-}
-
-fn testing_env_2_node_2_instance_config_override() -> InstanceConfigOverride {
-    InstanceConfigOverride::new(
-        "/dns/sequencer-core-service.sequencer-test-sepolia-0.svc.cluster.local/tcp/53080/p2p/\
-         12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
-        false,
-        "0x0101010101010101010101010101010101010101010101010101010101010103",
-        "/dns/sequencer-mempool-service.sequencer-test-sepolia-0.svc.cluster.local/tcp/53200/p2p/\
-         12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
-        false,
-        "0x0101010101010101010101010101010101010101010101010101010101010103",
-        "0x3",
-    )
-}
-
-fn testing_env_2_node_3_instance_config_override() -> InstanceConfigOverride {
-    InstanceConfigOverride::new(
-        "/dns/sequencer-core-service.sequencer-test-sepolia-0.svc.cluster.local/tcp/53080/p2p/\
-         12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
-        false,
-        "0x0101010101010101010101010101010101010101010101010101010101010104",
-        "/dns/sequencer-mempool-service.sequencer-test-sepolia-0.svc.cluster.local/tcp/53200/p2p/\
-         12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
-        false,
-        "0x0101010101010101010101010101010101010101010101010101010101010104",
-        "0x4",
-    )
-}
+const FIRST_NODE_NAMESPACE: &str = "sequencer-test-sepolia-0";
 
 fn testing_env_2_node_0_config_override() -> ConfigOverride {
     ConfigOverride::new(
         TESTING_ENV_2_DEPLOYMENT_CONFIG_OVERRIDE,
-        testing_env_2_node_0_instance_config_override(),
+        create_hybrid_instance_config_override(1, FIRST_NODE_NAMESPACE),
     )
 }
 fn testing_env_2_node_1_config_override() -> ConfigOverride {
     ConfigOverride::new(
         TESTING_ENV_2_DEPLOYMENT_CONFIG_OVERRIDE,
-        testing_env_2_node_1_instance_config_override(),
+        create_hybrid_instance_config_override(2, FIRST_NODE_NAMESPACE),
     )
 }
 fn testing_env_2_node_2_config_override() -> ConfigOverride {
     ConfigOverride::new(
         TESTING_ENV_2_DEPLOYMENT_CONFIG_OVERRIDE,
-        testing_env_2_node_2_instance_config_override(),
+        create_hybrid_instance_config_override(3, FIRST_NODE_NAMESPACE),
     )
 }
 fn testing_env_2_node_3_config_override() -> ConfigOverride {
     ConfigOverride::new(
         TESTING_ENV_2_DEPLOYMENT_CONFIG_OVERRIDE,
-        testing_env_2_node_3_instance_config_override(),
+        create_hybrid_instance_config_override(4, FIRST_NODE_NAMESPACE),
     )
 }
 
