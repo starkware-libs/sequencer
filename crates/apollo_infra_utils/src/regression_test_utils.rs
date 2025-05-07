@@ -8,8 +8,8 @@ use std::sync::{LazyLock, Mutex};
 use serde::Serialize;
 use serde_json::Value;
 
-/// Global registry for magic constants files. Used to keep track of the "magic number" files that
-/// are generated / used by regression tests.
+/// Global registry (lock) for magic constants files. Used to keep track of the "magic number" files
+/// that are generated / used by regression tests, and control access to them.
 #[derive(Default)]
 struct MagicConstantsRegistry(pub Mutex<HashSet<String>>);
 
@@ -45,8 +45,7 @@ impl MagicConstants {
     /// Main function to assert the equality of a value with the one in the file.
     /// If you have a test that uses a magic constant, you should use this function to assert the
     /// equality of the value.
-    /// For example, `assert_eq!(computed_value, 7)` should be replaced with
-    /// `magic.assert_eq("MY_VALUE", computed_value)`.
+    /// See docstring of `register_magic_constants!` macro for more details.
     #[track_caller]
     pub fn assert_eq<V: Serialize>(&mut self, value_name: &'static str, value: V) {
         if is_magic_fix_mode() {
@@ -66,10 +65,12 @@ impl MagicConstants {
     }
 }
 
+/// TAKES THE LOCK.
 /// In fix mode, automatically dump the values to the file on drop (when test ends).
 impl Drop for MagicConstants {
     fn drop(&mut self) {
         if is_magic_fix_mode() {
+            let _lock = MAGIC_CONSTANTS_REGISTRY.0.lock().unwrap();
             std::fs::write(&self.path, serde_json::to_string_pretty(&self.values).unwrap())
                 .unwrap_or_else(|error| {
                     panic!("Failed to write magic constants contents to {}: {}", self.path, error)
@@ -92,6 +93,7 @@ macro_rules! function_name {
     }};
 }
 
+/// TAKES THE LOCK, if clean mode is active.
 /// If we are in CLEAN mode, and this is the first registration of a file in the current
 /// directory, we need to delete all files in the directory (and possibly create the
 /// directory) to keep the regression files "clean" (in case a file / test function was
@@ -128,36 +130,21 @@ fn clean_if_first_registration(current_dir: &Path, magic_subdir: &PathBuf) {
     }
 }
 
-/// Given the directory, the function name and the unique string provided in the macro, registers
-/// the JSON file (panics if already registered) and returns the path to the file.
-fn register_and_return_path(
-    directory: &Path,
-    function_name: &str,
-    unique_string: String,
-) -> String {
-    let bad_chars = regex::Regex::new(r"[:()\[\]]").unwrap();
-    let magic_filename =
-        bad_chars.replace_all(&format!("{function_name}_{unique_string}.json"), "_").to_string();
-    let path = directory.join(magic_filename).to_str().unwrap().to_string();
-    if !MAGIC_CONSTANTS_REGISTRY.0.lock().unwrap().insert(path.clone()) {
-        panic!("Magic constants file already registered: {path}");
-    }
-    path
-}
-
+/// TAKES THE LOCK.
 /// Given the absolute path to the magic constants directory, and the identifiers required to
 /// generate the specific JSON filename, loads and returns the `MagicConstants` object.
 /// If the file does not exist, it is created with an empty dict (regardless of run mode).
-fn load_magic_constants(
-    directory: &Path,
-    function_name: &str,
-    unique_string: String,
-) -> MagicConstants {
-    let absolute_path = register_and_return_path(directory, function_name, unique_string);
+fn load_magic_constants(directory: &Path, function_name: &str, suffix: String) -> MagicConstants {
+    let mut locked = MAGIC_CONSTANTS_REGISTRY.0.lock().unwrap();
+
+    // Compute the absolute path, and register it.
+    let bad_chars = regex::Regex::new(r"[:()\[\]]").unwrap();
+    let magic_filename =
+        bad_chars.replace_all(&format!("{function_name}_{suffix}.json"), "_").to_string();
+    let absolute_path = directory.join(magic_filename).to_str().unwrap().to_string();
+    locked.insert(absolute_path.clone());
 
     // If the file doesn't exist, create it with an empty object.
-    // This should be done in the macro context, and not in a function call, as the path to the
-    // file is relative to the current directory.
     if !PathBuf::from(&absolute_path).exists() {
         std::fs::File::create(&absolute_path).unwrap_or_else(|error| {
             panic!("Failed to create magic constants file at {absolute_path}: {error}.")
@@ -176,13 +163,13 @@ fn load_magic_constants(
     MagicConstants::new(absolute_path, values)
 }
 
+/// TAKES THE LOCK.
+/// For documentation, see `register_magic_constants!` macro.
 pub fn register_magic_constants_logic(
     current_dir: &PathBuf,
     function_name: &str,
     unique_string: String,
 ) -> MagicConstants {
-    // Both `canonicalize` and `function_name!` must be called in the macro context, to resolve
-    // the caller relative path / function name correctly.
     let directory = current_dir.join("magic_constants");
     clean_if_first_registration(current_dir, &directory);
     load_magic_constants(&directory, function_name, unique_string)
@@ -190,9 +177,10 @@ pub fn register_magic_constants_logic(
 
 /// Main logic of this module. Used to register and initialize the magic constants for a specific
 /// test.
-/// Each registration corresponds to a unique JSON file in the `magic_constants` directory of the
-/// calling crate.
-/// If the same file is registered twice, it will panic.
+/// Each registration corresponds to a JSON file in the `magic_constants` directory of the calling
+/// crate.
+/// The same file will notbe generated twice - the filename is always unique per test function,
+/// however, parametrized tests may use the same filename for different test cases.
 ///
 /// For example, the old way of doing things looks something like this:
 /// ```rust
@@ -206,7 +194,7 @@ pub fn register_magic_constants_logic(
 /// assert using the `MagicConstants` object:
 /// ```rust
 /// fn test_something() {
-///     let mut magic = register_magic_constants!("");
+///     let mut magic = register_magic_constants!();
 ///     let computation_result = 3 + 4;
 ///     magic.assert_eq("MY_VALUE", computation_result);
 /// }
@@ -220,31 +208,50 @@ pub fn register_magic_constants_logic(
 /// This will create a JSON file in the `magic_constants` directory of the calling crate, with the
 /// dict `{ "MY_VALUE": 7 }`.
 ///
-/// Note that the registration of the "magic" constants must generate unique filenames, which is
-/// non-trivial in parametrized tests; the argument to the `register_magic_constants!` macro must
-/// be unique for each test case. For example:
+/// For parametrized tests, you can provide an argument to the macro to generate a unique name for
+/// the different cases. For example:
 /// ```rust
 /// fn test_something(#[values(1, 2)] value: u32) {
-///     let mut magic = register_magic_constants!(format!("value_{value}"));
+///     let mut magic = register_magic_constants!("{value}");
 ///     let computation_result = value + 6;
 ///     magic.assert_eq("MY_VALUE", computation_result);
 /// }
 /// ```
 ///
 /// This will generate two separate files in the `magic_constants` directory, one per test case.
-/// The expected values in each test case may be identical, or different, but the filenames must be
+/// The expected values in each test case may be identical, or different, but the filenames will be
 /// unique.
-/// If `register_magic_constants!` is called with the same argument in two different test cases, one
-/// of the test cases will panic.
+///
+/// On the other hand, if you want to use the same file for different test cases (useful if you want
+/// to assert that the different parameters result in the same regression values), you can use the
+/// same file name for different test cases:
+/// ```rust
+/// fn test_something(#[values(1, 2)] value: u32) {
+///     let mut magic = register_magic_constants!();
+///     let computation_result = value + 6;
+///     magic.assert_eq("MY_VALUE", computation_result);
+/// }
+/// ```
+///
+/// If you want fine-grained control over the values that must be identical, you can use the key
+/// parameter in the `assert_eq` function. For example, if the regression value depends on `x` but
+/// not on `y`, you can do the following:
+/// ```rust
+/// fn test_something(#[values(1, 2)] x: u32, #[values(3, 4)] y: u32) {
+///     let mut magic = register_magic_constants!();
+///     let computation_result = x + 6;
+///     magic.assert_eq(format!("MY_VALUE_FOR_X_{x}"), computation_result);
+/// }
+/// ```
 ///
 /// The macro behaves differently depending on the mode:
 /// 1. If vanilla `cargo test` is run (no fix / clean modes), it will load the values from the file.
 ///    If the file does not exist, it will panic.
-/// 2. If we are in fix mode, but not clean mode, a new file will be created (with an empty object).
+/// 2. If we are in fix mode, but not clean mode, new files will be created (with an empty object).
 ///    Note that this will not delete any existing files, unless the name is identical. See
 ///    `is_magic_fix_mode` for how to activate this mode.
 /// 3. If we are in clean mode, all files in the `magic_constants` directory of the calling crate
-///    will be deleted before new files are registered. This is useful if the auto-generated file
+///    will be deleted before new files are generated. This is useful if the auto-generated file
 ///    name has changed (making the old file obsolete). See `is_magic_clean_fix_mode` for how to
 ///    activate this mode. Some things to note on the clean mode:
 ///    * The directory is cleaned only on the first registration of a "magic" file in the calling
