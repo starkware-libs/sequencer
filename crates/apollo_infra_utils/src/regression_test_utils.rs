@@ -93,7 +93,7 @@ macro_rules! function_name {
 /// directory, we need to delete all files in the directory (and possibly create the
 /// directory) to keep the regression files "clean" (in case a file / test function was
 /// renamed, we don't want to keep dangling JSON artifacts).
-pub fn clean_if_first_registration(current_dir: PathBuf, magic_subdir: &PathBuf) {
+fn clean_if_first_registration(current_dir: &PathBuf, magic_subdir: &PathBuf) {
     if !is_magic_clean_fix_mode() {
         return;
     }
@@ -145,7 +145,7 @@ fn register_and_return_path(
 /// Given the absolute path to the magic constants directory, and the identifiers required to
 /// generate the specific JSON filename, loads and returns the `MagicConstants` object.
 /// If the file does not exist, it is created with an empty dict (regardless of run mode).
-pub fn load_magic_constants(
+fn load_magic_constants(
     directory: &PathBuf,
     function_name: &str,
     unique_string: String,
@@ -171,6 +171,18 @@ pub fn load_magic_constants(
     let json: serde_json::Value = serde_json::from_reader(reader).unwrap();
     let values = BTreeMap::from_iter(json.as_object().unwrap().clone().into_iter());
     MagicConstants::new(absolute_path, values)
+}
+
+pub fn register_magic_constants_logic(
+    current_dir: &PathBuf,
+    function_name: &str,
+    unique_string: String,
+) -> MagicConstants {
+    // Both `canonicalize` and `function_name!` must be called in the macro context, to resolve
+    // the caller relative path / function name correctly.
+    let directory = current_dir.join("magic_constants");
+    clean_if_first_registration(current_dir, &directory);
+    load_magic_constants(&directory, function_name, unique_string)
 }
 
 /// Main logic of this module. Used to register and initialize the magic constants for a specific
@@ -247,22 +259,15 @@ pub fn load_magic_constants(
 #[macro_export]
 macro_rules! register_magic_constants {
     ($unique_name:expr) => {{
-        let directory = std::path::PathBuf::from("magic_constants");
+        // Both `canonicalize` and `function_name!` must be called in the macro context, to resolve
+        // the caller relative path / function name correctly.
         let current_dir = std::fs::canonicalize(".").unwrap_or_else(|error| {
             panic!("Failed to get absolute path to current location: {error}.")
         });
-
-        $crate::regression_test_utils::clean_if_first_registration(current_dir, &directory);
-
-        // Both `canonicalize` and `function_name!` must be called in the macro context, to resolve
-        // the caller relative path / function name correctly.
-        let directory = std::fs::canonicalize(&directory).unwrap_or_else(|error| {
-            panic!("Failed to get absolute path for magic constants directory: {error}.")
-        });
         let function_name = $crate::function_name!();
 
-        $crate::regression_test_utils::load_magic_constants(
-            &directory,
+        $crate::regression_test_utils::register_magic_constants_logic(
+            &current_dir,
             function_name,
             $unique_name.to_string(),
         )
