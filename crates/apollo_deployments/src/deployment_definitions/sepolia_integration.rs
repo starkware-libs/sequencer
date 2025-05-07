@@ -11,38 +11,39 @@ use crate::deployment::{
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
 use crate::service::{DeploymentName, ExternalSecret};
 
-const SEPOLIA_INTEGRATION_DEPLOYMENT_CONFIG_OVERRIDE: DeploymentConfigOverride =
+fn sepolia_integration_deployment_config_override() -> DeploymentConfigOverride {
     DeploymentConfigOverride::new(
         "0x4737c0c1B4D5b1A687B42610DdabEE781152359c",
         "SN_INTEGRATION_SEPOLIA",
         "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
         "https://feeder.integration-sepolia.starknet.io/",
         "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d",
-    );
+    )
+}
 
 const FIRST_NODE_NAMESPACE: &str = "apollo-sepolia-integration-0";
 
 fn sepolia_integration_node_0_config_override() -> ConfigOverride {
     ConfigOverride::new(
-        SEPOLIA_INTEGRATION_DEPLOYMENT_CONFIG_OVERRIDE,
+        sepolia_integration_deployment_config_override(),
         create_hybrid_instance_config_override(1, FIRST_NODE_NAMESPACE),
     )
 }
 fn sepolia_integration_node_1_config_override() -> ConfigOverride {
     ConfigOverride::new(
-        SEPOLIA_INTEGRATION_DEPLOYMENT_CONFIG_OVERRIDE,
+        sepolia_integration_deployment_config_override(),
         create_hybrid_instance_config_override(2, FIRST_NODE_NAMESPACE),
     )
 }
 fn sepolia_integration_node_2_config_override() -> ConfigOverride {
     ConfigOverride::new(
-        SEPOLIA_INTEGRATION_DEPLOYMENT_CONFIG_OVERRIDE,
+        sepolia_integration_deployment_config_override(),
         create_hybrid_instance_config_override(3, FIRST_NODE_NAMESPACE),
     )
 }
 fn sepolia_integration_node_3_config_override() -> ConfigOverride {
     ConfigOverride::new(
-        SEPOLIA_INTEGRATION_DEPLOYMENT_CONFIG_OVERRIDE,
+        sepolia_integration_deployment_config_override(),
         create_hybrid_instance_config_override(4, FIRST_NODE_NAMESPACE),
     )
 }
