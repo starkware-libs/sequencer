@@ -70,22 +70,30 @@ const SEPOLIA_INTEGRATION_NODE_3_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverrid
         "0x4",
     );
 
-const SEPOLIA_INTEGRATION_NODE_0_CONFIG_OVERRIDE: ConfigOverride = ConfigOverride::new(
-    SEPOLIA_INTEGRATION_DEPLOYMENT_CONFIG_OVERRIDE,
-    SEPOLIA_INTEGRATION_NODE_0_INSTANCE_CONFIG_OVERRIDE,
-);
-const SEPOLIA_INTEGRATION_NODE_1_CONFIG_OVERRIDE: ConfigOverride = ConfigOverride::new(
-    SEPOLIA_INTEGRATION_DEPLOYMENT_CONFIG_OVERRIDE,
-    SEPOLIA_INTEGRATION_NODE_1_INSTANCE_CONFIG_OVERRIDE,
-);
-const SEPOLIA_INTEGRATION_NODE_2_CONFIG_OVERRIDE: ConfigOverride = ConfigOverride::new(
-    SEPOLIA_INTEGRATION_DEPLOYMENT_CONFIG_OVERRIDE,
-    SEPOLIA_INTEGRATION_NODE_2_INSTANCE_CONFIG_OVERRIDE,
-);
-const SEPOLIA_INTEGRATION_NODE_3_CONFIG_OVERRIDE: ConfigOverride = ConfigOverride::new(
-    SEPOLIA_INTEGRATION_DEPLOYMENT_CONFIG_OVERRIDE,
-    SEPOLIA_INTEGRATION_NODE_3_INSTANCE_CONFIG_OVERRIDE,
-);
+fn sepolia_integration_node_0_config_override() -> ConfigOverride {
+    ConfigOverride::new(
+        SEPOLIA_INTEGRATION_DEPLOYMENT_CONFIG_OVERRIDE,
+        SEPOLIA_INTEGRATION_NODE_0_INSTANCE_CONFIG_OVERRIDE,
+    )
+}
+fn sepolia_integration_node_1_config_override() -> ConfigOverride {
+    ConfigOverride::new(
+        SEPOLIA_INTEGRATION_DEPLOYMENT_CONFIG_OVERRIDE,
+        SEPOLIA_INTEGRATION_NODE_1_INSTANCE_CONFIG_OVERRIDE,
+    )
+}
+fn sepolia_integration_node_2_config_override() -> ConfigOverride {
+    ConfigOverride::new(
+        SEPOLIA_INTEGRATION_DEPLOYMENT_CONFIG_OVERRIDE,
+        SEPOLIA_INTEGRATION_NODE_2_INSTANCE_CONFIG_OVERRIDE,
+    )
+}
+fn sepolia_integration_node_3_config_override() -> ConfigOverride {
+    ConfigOverride::new(
+        SEPOLIA_INTEGRATION_DEPLOYMENT_CONFIG_OVERRIDE,
+        SEPOLIA_INTEGRATION_NODE_3_INSTANCE_CONFIG_OVERRIDE,
+    )
+}
 
 const SEPOLIA_INTEGRATION_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str =
     "integration-sepolia.starknet.io";
@@ -102,7 +110,7 @@ pub(crate) fn sepolia_integration_hybrid_deployment_node_0() -> Deployment {
         "integration_hybrid_node_0",
         Some(ExternalSecret::new("apollo-sepolia-integration-0")),
         PathBuf::from(BASE_APP_CONFIG_PATH),
-        SEPOLIA_INTEGRATION_NODE_0_CONFIG_OVERRIDE,
+        sepolia_integration_node_0_config_override(),
         SEPOLIA_INTEGRATION_INGRESS_DOMAIN.to_string(),
         Some(vec![SEPOLIA_INTEGRATION_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
     )
@@ -116,7 +124,7 @@ pub(crate) fn sepolia_integration_hybrid_deployment_node_1() -> Deployment {
         "integration_hybrid_node_1",
         Some(ExternalSecret::new("apollo-sepolia-integration-1")),
         PathBuf::from(BASE_APP_CONFIG_PATH),
-        SEPOLIA_INTEGRATION_NODE_1_CONFIG_OVERRIDE,
+        sepolia_integration_node_1_config_override(),
         SEPOLIA_INTEGRATION_INGRESS_DOMAIN.to_string(),
         Some(vec![SEPOLIA_INTEGRATION_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
     )
@@ -130,7 +138,7 @@ pub(crate) fn sepolia_integration_hybrid_deployment_node_2() -> Deployment {
         "integration_hybrid_node_2",
         Some(ExternalSecret::new("apollo-sepolia-integration-2")),
         PathBuf::from(BASE_APP_CONFIG_PATH),
-        SEPOLIA_INTEGRATION_NODE_2_CONFIG_OVERRIDE,
+        sepolia_integration_node_2_config_override(),
         SEPOLIA_INTEGRATION_INGRESS_DOMAIN.to_string(),
         Some(vec![SEPOLIA_INTEGRATION_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
     )
@@ -144,7 +152,7 @@ pub(crate) fn sepolia_integration_hybrid_deployment_node_3() -> Deployment {
         "integration_hybrid_node_3",
         Some(ExternalSecret::new("apollo-sepolia-integration-3")),
         PathBuf::from(BASE_APP_CONFIG_PATH),
-        SEPOLIA_INTEGRATION_NODE_3_CONFIG_OVERRIDE,
+        sepolia_integration_node_3_config_override(),
         SEPOLIA_INTEGRATION_INGRESS_DOMAIN.to_string(),
         Some(vec![SEPOLIA_INTEGRATION_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
     )
