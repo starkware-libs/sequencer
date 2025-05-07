@@ -124,7 +124,7 @@ fn block_info(height: BlockNumber) -> ConsensusBlockInfo {
         timestamp: chrono::Utc::now().timestamp().try_into().expect("Timestamp conversion failed"),
         builder: Default::default(),
         l1_da_mode: L1DataAvailabilityMode::Blob,
-        l2_gas_price_fri: GasPrice(100000),
+        l2_gas_price_fri: VersionedConstants::latest_constants().min_gas_price,
         l1_gas_price_wei: GasPrice(TEMP_ETH_GAS_FEE_IN_WEI),
         l1_data_gas_price_wei: GasPrice(
             TEMP_ETH_BLOB_GAS_FEE_IN_WEI * context_config.l1_data_gas_price_multiplier_ppt / 1000,
