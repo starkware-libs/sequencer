@@ -70,22 +70,30 @@ const TESTING_ENV_2_NODE_3_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverride =
         "0x4",
     );
 
-const TESTING_ENV_2_NODE_0_CONFIG_OVERRIDE: ConfigOverride = ConfigOverride::new(
-    TESTING_ENV_2_DEPLOYMENT_CONFIG_OVERRIDE,
-    TESTING_ENV_2_NODE_0_INSTANCE_CONFIG_OVERRIDE,
-);
-const TESTING_ENV_2_NODE_1_CONFIG_OVERRIDE: ConfigOverride = ConfigOverride::new(
-    TESTING_ENV_2_DEPLOYMENT_CONFIG_OVERRIDE,
-    TESTING_ENV_2_NODE_1_INSTANCE_CONFIG_OVERRIDE,
-);
-const TESTING_ENV_2_NODE_2_CONFIG_OVERRIDE: ConfigOverride = ConfigOverride::new(
-    TESTING_ENV_2_DEPLOYMENT_CONFIG_OVERRIDE,
-    TESTING_ENV_2_NODE_2_INSTANCE_CONFIG_OVERRIDE,
-);
-const TESTING_ENV_2_NODE_3_CONFIG_OVERRIDE: ConfigOverride = ConfigOverride::new(
-    TESTING_ENV_2_DEPLOYMENT_CONFIG_OVERRIDE,
-    TESTING_ENV_2_NODE_3_INSTANCE_CONFIG_OVERRIDE,
-);
+fn testing_env_2_node_0_config_override() -> ConfigOverride {
+    ConfigOverride::new(
+        TESTING_ENV_2_DEPLOYMENT_CONFIG_OVERRIDE,
+        TESTING_ENV_2_NODE_0_INSTANCE_CONFIG_OVERRIDE,
+    )
+}
+fn testing_env_2_node_1_config_override() -> ConfigOverride {
+    ConfigOverride::new(
+        TESTING_ENV_2_DEPLOYMENT_CONFIG_OVERRIDE,
+        TESTING_ENV_2_NODE_1_INSTANCE_CONFIG_OVERRIDE,
+    )
+}
+fn testing_env_2_node_2_config_override() -> ConfigOverride {
+    ConfigOverride::new(
+        TESTING_ENV_2_DEPLOYMENT_CONFIG_OVERRIDE,
+        TESTING_ENV_2_NODE_2_INSTANCE_CONFIG_OVERRIDE,
+    )
+}
+fn testing_env_2_node_3_config_override() -> ConfigOverride {
+    ConfigOverride::new(
+        TESTING_ENV_2_DEPLOYMENT_CONFIG_OVERRIDE,
+        TESTING_ENV_2_NODE_3_INSTANCE_CONFIG_OVERRIDE,
+    )
+}
 
 const TESTING_ENV_2_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str =
     "sn-test-sepolia-2-sepolia.gateway-proxy.sw-dev.io";
@@ -99,7 +107,7 @@ pub(crate) fn testing_env_2_hybrid_deployment_node_0() -> Deployment {
         "integration_hybrid_node_0",
         Some(ExternalSecret::new("sequencer-test-sepolia-0")),
         PathBuf::from(BASE_APP_CONFIG_PATH),
-        TESTING_ENV_2_NODE_0_CONFIG_OVERRIDE,
+        testing_env_2_node_0_config_override(),
         TESTING_ENV_2_INGRESS_DOMAIN.to_string(),
         Some(vec![TESTING_ENV_2_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
     )
@@ -113,7 +121,7 @@ pub(crate) fn testing_env_2_hybrid_deployment_node_1() -> Deployment {
         "integration_hybrid_node_1",
         Some(ExternalSecret::new("sequencer-test-sepolia-1")),
         PathBuf::from(BASE_APP_CONFIG_PATH),
-        TESTING_ENV_2_NODE_1_CONFIG_OVERRIDE,
+        testing_env_2_node_1_config_override(),
         TESTING_ENV_2_INGRESS_DOMAIN.to_string(),
         Some(vec![TESTING_ENV_2_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
     )
@@ -127,7 +135,7 @@ pub(crate) fn testing_env_2_hybrid_deployment_node_2() -> Deployment {
         "integration_hybrid_node_2",
         Some(ExternalSecret::new("sequencer-test-sepolia-2")),
         PathBuf::from(BASE_APP_CONFIG_PATH),
-        TESTING_ENV_2_NODE_2_CONFIG_OVERRIDE,
+        testing_env_2_node_2_config_override(),
         TESTING_ENV_2_INGRESS_DOMAIN.to_string(),
         Some(vec![TESTING_ENV_2_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
     )
@@ -141,7 +149,7 @@ pub(crate) fn testing_env_2_hybrid_deployment_node_3() -> Deployment {
         "integration_hybrid_node_3",
         Some(ExternalSecret::new("sequencer-test-sepolia-3")),
         PathBuf::from(BASE_APP_CONFIG_PATH),
-        TESTING_ENV_2_NODE_3_CONFIG_OVERRIDE,
+        testing_env_2_node_3_config_override(),
         TESTING_ENV_2_INGRESS_DOMAIN.to_string(),
         Some(vec![TESTING_ENV_2_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
     )
