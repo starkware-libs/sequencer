@@ -11,8 +11,12 @@ pub static MAGIC_CONSTANTS_REGISTRY: LazyLock<MagicConstantsRegistry> =
 #[derive(Default)]
 pub struct MagicConstantsRegistry(pub Mutex<HashSet<String>>);
 
+pub fn is_magic_clean_fix_mode() -> bool {
+    std::env::var("MAGIC_CLEAN_FIX").is_ok()
+}
+
 pub fn is_magic_fix_mode() -> bool {
-    std::env::var("MAGIC_FIX").is_ok()
+    is_magic_clean_fix_mode() || std::env::var("MAGIC_FIX").is_ok()
 }
 
 pub struct MagicConstants {
@@ -90,11 +94,11 @@ macro_rules! register_magic_constants {
     ($unique_name:expr) => {{
         let directory = std::path::PathBuf::from("magic_constants");
 
-        // If we are in fix mode, and this is the first registration of a file in the current
+        // If we are in CLEAN mode, and this is the first registration of a file in the current
         // directory, we need to delete all files in the directory (and possibly create the
         // directory) to keep the regression files "clean" (in case a file / test function was
         // renamed, we don't want to keep dangling JSON artifacts).
-        if $crate::regression_test_utils::is_magic_fix_mode() {
+        if $crate::regression_test_utils::is_magic_clean_fix_mode() {
             let locked_set =
                 $crate::regression_test_utils::MAGIC_CONSTANTS_REGISTRY.0.lock().unwrap();
             let mut found = false;
