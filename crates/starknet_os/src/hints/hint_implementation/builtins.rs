@@ -10,6 +10,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
 };
 use cairo_vm::hint_processor::hint_processor_utils::felt_to_usize;
 use cairo_vm::types::relocatable::MaybeRelocatable;
+use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::HintArgs;
@@ -27,8 +28,28 @@ pub(crate) fn selected_builtins<S: StateReader>(
     Ok(())
 }
 
-pub(crate) fn select_builtin<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> OsHintResult {
-    todo!()
+pub(crate) fn select_builtin<S: StateReader>(
+    HintArgs { exec_scopes, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+) -> OsHintResult {
+    let n_selected_builtins: Felt = exec_scopes.get(Scope::NSelectedBuiltins.into())?;
+    let selected_encodings_ptr =
+        get_ptr_from_var_name(Ids::SelectedEncodings.into(), vm, ids_data, ap_tracking)?;
+    let all_encodings_ptr =
+        get_ptr_from_var_name(Ids::AllEncodings.into(), vm, ids_data, ap_tracking)?;
+    let select_builtin = n_selected_builtins > Felt::ZERO
+        && vm.get_integer(selected_encodings_ptr)? == vm.get_integer(all_encodings_ptr)?;
+    if select_builtin {
+        exec_scopes.insert_value(Scope::NSelectedBuiltins.into(), n_selected_builtins - Felt::ONE);
+    }
+    insert_value_from_var_name(
+        Ids::NSelectedBuiltins.into(),
+        Felt::from(select_builtin),
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+
+    Ok(())
 }
 
 /// Update subsets of the pointer at 'builtin_ptrs' with the pointers at 'selected_ptrs' according
