@@ -7,50 +7,7 @@ use serde_json::Value;
 
 /// Utilities for regression tests with "magic" values: values that are tested against computed
 /// values, and are stored in JSON files.
-///
-/// For example, the old way of doing things looks something like this:
-/// ```rust
-/// #[test]
-/// fn test_something() {
-///     let computation_result = 3 + 4;
-///     assert_eq!(computation_result, 7);
-/// }
-/// ```
-///
-/// To use the new method, you need to add the `register_magic_constants!` macro to the test, and
-/// assert using the `MagicConstants` object:
-/// ```rust
-/// #[test]
-/// fn test_something() {
-///     let mut magic = register_magic_constants!("");
-///     let computation_result = 3 + 4;
-///     magic.assert_eq("MY_VALUE", computation_result);
-/// }
-/// ```
-///
-/// Then, generate the JSON file with the default values by running:
-/// ```bash
-/// MAGIC_FIX=1 cargo test -p <MY_CRATE> test_something
-/// ```
-///
-/// This will create a JSON file in the `magic_constants` directory of the calling crate, with the
-/// dict `{ "MY_VALUE": 7 }`.
-///
-/// Note that the registration of the "magic" constants must generate unique filenames, which is
-/// non-trivial in parametrized tests; the argument to the `register_magic_constants!` macro must
-/// be unique for each test case. For example:
-/// ```rust
-/// #[rstest]
-/// fn test_something(#[values(1, 2)] value: u32) {
-///     let mut magic = register_magic_constants!(format!("value_{value}"));
-///     let computation_result = value + 6;
-///     magic.assert_eq("MY_VALUE", computation_result);
-/// }
-/// ```
-///
-/// This will generate two separate files in the `magic_constants` directory, one per test case.
-/// The expected values in each test case may be identical, or different, but the filenames must be
-/// unique.
+/// See the `register_magic_constants!` macro docstring for more details and examples.
 
 /// Global registry for magic constants files. Used to keep track of the "magic number" files that
 /// are generated / used by regression tests.
@@ -202,19 +159,67 @@ pub fn load_magic_constants(absolute_path: &PathBuf) -> MagicConstants {
 /// calling crate.
 /// If the same file is registered twice, it will panic.
 ///
+/// For example, the old way of doing things looks something like this:
+/// ```rust
+/// #[test]
+/// fn test_something() {
+///     let computation_result = 3 + 4;
+///     assert_eq!(computation_result, 7);
+/// }
+/// ```
+///
+/// To use the new method, you need to add the `register_magic_constants!` macro to the test, and
+/// assert using the `MagicConstants` object:
+/// ```rust
+/// #[test]
+/// fn test_something() {
+///     let mut magic = register_magic_constants!("");
+///     let computation_result = 3 + 4;
+///     magic.assert_eq("MY_VALUE", computation_result);
+/// }
+/// ```
+///
+/// Then, generate the JSON file with the computed values by running:
+/// ```bash
+/// MAGIC_FIX=1 cargo test -p <MY_CRATE> test_something
+/// ```
+///
+/// This will create a JSON file in the `magic_constants` directory of the calling crate, with the
+/// dict `{ "MY_VALUE": 7 }`.
+///
+/// Note that the registration of the "magic" constants must generate unique filenames, which is
+/// non-trivial in parametrized tests; the argument to the `register_magic_constants!` macro must
+/// be unique for each test case. For example:
+/// ```rust
+/// #[rstest]
+/// fn test_something(#[values(1, 2)] value: u32) {
+///     let mut magic = register_magic_constants!(format!("value_{value}"));
+///     let computation_result = value + 6;
+///     magic.assert_eq("MY_VALUE", computation_result);
+/// }
+/// ```
+///
+/// This will generate two separate files in the `magic_constants` directory, one per test case.
+/// The expected values in each test case may be identical, or different, but the filenames must be
+/// unique.
+/// If `register_magic_constants!` is called with the same argument in two different test cases, one
+/// of the test cases will panic.
+///
 /// The macro behaves differently depending on the mode:
 /// 1. If vanilla `cargo test` is run (no fix / clean modes), it will load the values from the file.
 ///    If the file does not exist, it will panic.
 /// 2. If we are in fix mode, but not clean mode, a new file will be created (with an empty object).
-///    Note that this will not delete any existing files, unless the name is identical.
+///    Note that this will not delete any existing files, unless the name is identical. See
+///    `is_magic_fix_mode` for how to activate this mode.
 /// 3. If we are in clean mode, all files in the `magic_constants` directory of the calling crate
 ///    will be deleted before new files are registered. This is useful if the auto-generated file
-///    name has changed (making the old file obsolete).
+///    name has changed (making the old file obsolete). See `is_magic_clean_fix_mode` for how to
+///    activate this mode. Some things to note on the clean mode:
 ///    * The directory is cleaned only on the first registration of a "magic" file in the calling
 ///      crate.
 ///    * The directory is created if it does not exist.
-///    * Note that if you run clean mode on a specific test, you will delete all "magic" files of
-///      all tests of this crate, regardless of whether or not the respective test was run. To avoid
+///    * If you run clean mode on a specific test, you will delete all "magic" files of all tests of
+///      the respective crate, regardless of whether or not the respective test was run. To avoid
 ///      this, never run clean mode on a single test; only on entire crates.
 ///    * If specific tests are run only when specific features are enabled, you should run the clean
 ///      mode with the same features enabled. Otherwise, the files will be deleted, but not
