@@ -219,13 +219,10 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         let block_hash = execution_helper
             .tx_execution_iter
             .get_mut_tx_execution_info_ref()
-            .as_mut()
             .unwrap()
-            .call_info_tracker
-            .as_mut()
+            .get_mut_call_info_tracker()
             .unwrap()
-            .execute_code_block_hash_read_iterator
-            .next()
+            .next_execute_code_block_hash_read()
             .unwrap();
 
         Ok(GetBlockHashResponse { block_hash: *block_hash })
