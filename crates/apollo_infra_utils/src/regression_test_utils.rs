@@ -6,7 +6,7 @@ use serde::Serialize;
 use serde_json::Value;
 
 pub static MAGIC_CONSTANTS_REGISTRY: LazyLock<MagicConstantsRegistry> =
-    LazyLock::new(|| MagicConstantsRegistry::default());
+    LazyLock::new(MagicConstantsRegistry::default);
 
 #[derive(Default)]
 pub struct MagicConstantsRegistry(pub Mutex<HashSet<String>>);
