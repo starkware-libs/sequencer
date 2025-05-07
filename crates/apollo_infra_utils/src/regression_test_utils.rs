@@ -55,20 +55,20 @@ use serde_json::Value;
 /// Global registry for magic constants files. Used to keep track of the "magic number" files that
 /// are generated / used by regression tests.
 #[derive(Default)]
-pub struct MagicConstantsRegistry(pub Mutex<HashSet<String>>);
+struct MagicConstantsRegistry(pub Mutex<HashSet<String>>);
 
-pub static MAGIC_CONSTANTS_REGISTRY: LazyLock<MagicConstantsRegistry> =
+static MAGIC_CONSTANTS_REGISTRY: LazyLock<MagicConstantsRegistry> =
     LazyLock::new(MagicConstantsRegistry::default);
 
 /// Check if we are in "clean" mode. In this mode, we delete all files in the magic constants
 /// directory before creating a new one. This is used to keep the regression files "clean" (in case
 /// a file / test function was renamed, we don't want to keep dangling JSON artifacts).
-pub fn is_magic_clean_fix_mode() -> bool {
+fn is_magic_clean_fix_mode() -> bool {
     std::env::var("MAGIC_CLEAN_FIX").is_ok()
 }
 
 /// Check if we are in "fix" mode. In this mode, we create a new file with the default values.
-pub fn is_magic_fix_mode() -> bool {
+fn is_magic_fix_mode() -> bool {
     is_magic_clean_fix_mode() || std::env::var("MAGIC_FIX").is_ok()
 }
 
@@ -82,7 +82,7 @@ pub struct MagicConstants {
 
 impl MagicConstants {
     /// Should not be called explicitly; use the `register_magic_constants!` macro instead.
-    pub fn new(path: String, values: BTreeMap<String, Value>) -> Self {
+    fn new(path: String, values: BTreeMap<String, Value>) -> Self {
         Self { path, values }
     }
 
