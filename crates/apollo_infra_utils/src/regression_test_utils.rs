@@ -1,13 +1,12 @@
+/// Utilities for regression tests with "magic" values: values that are tested against computed
+/// values, and are stored in JSON files.
+/// See the `register_magic_constants!` macro docstring for more details and examples.
 use std::collections::{BTreeMap, HashSet};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, Mutex};
 
 use serde::Serialize;
 use serde_json::Value;
-
-/// Utilities for regression tests with "magic" values: values that are tested against computed
-/// values, and are stored in JSON files.
-/// See the `register_magic_constants!` macro docstring for more details and examples.
 
 /// Global registry for magic constants files. Used to keep track of the "magic number" files that
 /// are generated / used by regression tests.
@@ -93,7 +92,7 @@ macro_rules! function_name {
 /// directory, we need to delete all files in the directory (and possibly create the
 /// directory) to keep the regression files "clean" (in case a file / test function was
 /// renamed, we don't want to keep dangling JSON artifacts).
-fn clean_if_first_registration(current_dir: &PathBuf, magic_subdir: &PathBuf) {
+fn clean_if_first_registration(current_dir: &Path, magic_subdir: &PathBuf) {
     if !is_magic_clean_fix_mode() {
         return;
     }
@@ -128,7 +127,7 @@ fn clean_if_first_registration(current_dir: &PathBuf, magic_subdir: &PathBuf) {
 /// Given the directory, the function name and the unique string provided in the macro, registers
 /// the JSON file (panics if already registered) and returns the path to the file.
 fn register_and_return_path(
-    directory: &PathBuf,
+    directory: &Path,
     function_name: &str,
     unique_string: String,
 ) -> String {
@@ -146,11 +145,11 @@ fn register_and_return_path(
 /// generate the specific JSON filename, loads and returns the `MagicConstants` object.
 /// If the file does not exist, it is created with an empty dict (regardless of run mode).
 fn load_magic_constants(
-    directory: &PathBuf,
+    directory: &Path,
     function_name: &str,
     unique_string: String,
 ) -> MagicConstants {
-    let absolute_path = register_and_return_path(&directory, function_name, unique_string);
+    let absolute_path = register_and_return_path(directory, function_name, unique_string);
 
     // If the file doesn't exist, create it with an empty object.
     // This should be done in the macro context, and not in a function call, as the path to the
@@ -169,7 +168,7 @@ fn load_magic_constants(
     });
     let reader = std::io::BufReader::new(file);
     let json: serde_json::Value = serde_json::from_reader(reader).unwrap();
-    let values = BTreeMap::from_iter(json.as_object().unwrap().clone().into_iter());
+    let values = BTreeMap::from_iter(json.as_object().unwrap().clone());
     MagicConstants::new(absolute_path, values)
 }
 
@@ -193,7 +192,6 @@ pub fn register_magic_constants_logic(
 ///
 /// For example, the old way of doing things looks something like this:
 /// ```rust
-/// #[test]
 /// fn test_something() {
 ///     let computation_result = 3 + 4;
 ///     assert_eq!(computation_result, 7);
@@ -203,7 +201,6 @@ pub fn register_magic_constants_logic(
 /// To use the new method, you need to add the `register_magic_constants!` macro to the test, and
 /// assert using the `MagicConstants` object:
 /// ```rust
-/// #[test]
 /// fn test_something() {
 ///     let mut magic = register_magic_constants!("");
 ///     let computation_result = 3 + 4;
@@ -223,7 +220,6 @@ pub fn register_magic_constants_logic(
 /// non-trivial in parametrized tests; the argument to the `register_magic_constants!` macro must
 /// be unique for each test case. For example:
 /// ```rust
-/// #[rstest]
 /// fn test_something(#[values(1, 2)] value: u32) {
 ///     let mut magic = register_magic_constants!(format!("value_{value}"));
 ///     let computation_result = value + 6;
