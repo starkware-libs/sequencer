@@ -27,7 +27,7 @@ mod TestContract {
         CircuitInputs, AddInputResultTrait
     };
     use core::hash::HashStateTrait;
-    use core::pedersen::PedersenTrait; 
+    use core::pedersen::PedersenTrait;
     use core::poseidon::PoseidonTrait;
 
     #[storage]
@@ -100,7 +100,9 @@ mod TestContract {
     }
 
     #[external(v0)]
-    fn test_revert_helper(ref self: ContractState, replacement_class_hash: ClassHash, to_panic: bool) {
+    fn test_revert_helper(
+        ref self: ContractState, replacement_class_hash: ClassHash, to_panic: bool
+    ) {
         let dummy_span = array![0].span();
         syscalls::emit_event_syscall(dummy_span, dummy_span).unwrap_syscall();
         syscalls::replace_class_syscall(replacement_class_hash).unwrap_syscall();
@@ -131,11 +133,9 @@ mod TestContract {
     ) {
         // Step 1: Call the contract to set the storage variable to 10.
         syscalls::call_contract_syscall(
-            contract_address,
-            selector!("write_10_to_my_storage_var"),
-            array![].span(),
+            contract_address, selector!("write_10_to_my_storage_var"), array![].span(),
         )
-        .unwrap_syscall();
+            .unwrap_syscall();
 
         // Step 2: Prepare the call to `test_revert_helper` with `to_panic = true`.
         let to_panic = true;
@@ -143,17 +143,12 @@ mod TestContract {
 
         // Step 3: Call `test_revert_helper` and handle the expected panic.
         match syscalls::call_contract_syscall(
-            contract_address,
-            selector!("test_revert_helper"),
-            call_data.span(),
+            contract_address, selector!("test_revert_helper"), call_data.span(),
         ) {
             Result::Ok(_) => panic(array!['should_panic']),
             Result::Err(_revert_reason) => {
                 // Verify that the changes made by the second call are reverted.
-                assert(
-                    self.my_storage_var.read() == 10,
-                    'Wrong_storage_value.',
-                );
+                assert(self.my_storage_var.read() == 10, 'Wrong_storage_value.',);
             }
         }
     }
@@ -165,10 +160,9 @@ mod TestContract {
         entry_point_selector: felt252,
         calldata: Array::<felt252>,
     ) {
-        syscalls::call_contract_syscall(
-        contract_address, entry_point_selector, calldata.span()
-        ).unwrap_syscall();
-       panic(array!['execute_and_revert']);
+        syscalls::call_contract_syscall(contract_address, entry_point_selector, calldata.span())
+            .unwrap_syscall();
+        panic(array!['execute_and_revert']);
     }
 
 
@@ -380,6 +374,31 @@ mod TestContract {
         let (msg_hash, signature, _expected_public_key_x, _expected_public_key_y, eth_address) =
             get_message_and_secp256k1_signature();
         verify_eth_signature(:msg_hash, :signature, :eth_address);
+    }
+
+    #[external(v0)]
+    fn test_secp256k1_point_from_x(ref self: ContractState) { // Test a point not on the curve.
+        assert(
+            starknet::secp256k1::secp256k1_get_point_from_x_syscall(x: 0, y_parity: true)
+                .unwrap_syscall()
+                .is_none(),
+            'Should be none'
+        );
+
+        //Test a point on the curve.
+        let x = 0xF728B4FA42485E3A0A5D2F346BAA9455E3E70682C2094CAC629F6FBED82C07CD;
+        let p0 = starknet::secp256k1::secp256k1_get_point_from_x_syscall(x: x, y_parity: true)
+            .unwrap_syscall()
+            .unwrap();
+        let p1 = starknet::secp256k1::secp256k1_get_point_from_x_syscall(x: x, y_parity: false)
+            .unwrap_syscall()
+            .unwrap();
+
+        let expected_y = 0x8E182CA967F38E1BD6A49583F43F187608E031AB54FC0C4A8F0DC94FAD0D0611;
+        let (x_coord, y_coord) = starknet::secp256k1::secp256k1_get_xy_syscall(p0).unwrap_syscall();
+        assert(x_coord == x && y_coord == expected_y, 'Unexpected coordinates');
+        let (x_coord, y_coord) = starknet::secp256k1::secp256k1_get_xy_syscall(p1).unwrap_syscall();
+        assert(x_coord == x && y_coord != expected_y, 'Unexpected coordinates');
     }
 
     /// Returns a golden valid message hash and its signature, for testing.
@@ -713,11 +732,13 @@ mod TestContract {
                 let inner_error = *error_span.pop_back().unwrap();
                 if entry_point_selector == selector!("bad_selector") {
                     assert(inner_error == 'ENTRYPOINT_NOT_FOUND', 'Unexpected error');
-                } else if entry_point_selector == selector!("test_revert_helper")  {
+                } else if entry_point_selector == selector!("test_revert_helper") {
                     assert(inner_error == 'test_revert_helper', 'Unexpected error');
-                }
-                else {
-                    assert(entry_point_selector == selector!("middle_revert_contract"), 'Wrong Entry Point');
+                } else {
+                    assert(
+                        entry_point_selector == selector!("middle_revert_contract"),
+                        'Wrong Entry Point'
+                    );
                     assert(inner_error == 'execute_and_revert', 'Wrong_error');
                 }
             },
@@ -736,8 +757,7 @@ mod TestContract {
     }
 
     #[external(v0)]
-    fn empty_function(ref self: ContractState) {
-    }
+    fn empty_function(ref self: ContractState) {}
 
     #[external(v0)]
     fn test_bitwise(ref self: ContractState) {
@@ -746,29 +766,30 @@ mod TestContract {
         let _z = x & y;
     }
 
-    #[external(v0)]  
-    fn test_pedersen (ref self: ContractState) {
+    #[external(v0)]
+    fn test_pedersen(ref self: ContractState) {
         let mut state = PedersenTrait::new(0);
         state = state.update(1);
         let _hash = state.finalize();
     }
 
     #[external(v0)]
-    fn test_poseidon (ref self: ContractState) {
+    fn test_poseidon(ref self: ContractState) {
         let mut state = PoseidonTrait::new();
         state = state.update(1);
         let _hash = state.finalize();
     }
 
     #[external(v0)]
-    fn test_ecop (ref self: ContractState) {
+    fn test_ecop(ref self: ContractState) {
         let m: felt252 = 2;
-        let a: felt252 = 336742005567258698661916498343089167447076063081786685068305785816009957563;
-        let b: felt252 = 1706004133033694959518200210163451614294041810778629639790706933324248611779;
-        let p : ec::NonZeroEcPoint = (ec::ec_point_try_new_nz(a, b)).unwrap();
+        let a: felt252 =
+            336742005567258698661916498343089167447076063081786685068305785816009957563;
+        let b: felt252 =
+            1706004133033694959518200210163451614294041810778629639790706933324248611779;
+        let p: ec::NonZeroEcPoint = (ec::ec_point_try_new_nz(a, b)).unwrap();
         let mut s: ec::EcState = ec::ec_state_init();
         ec::ec_state_add_mul(ref s, m, p);
     }
 }
-
 
