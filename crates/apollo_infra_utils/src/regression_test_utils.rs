@@ -33,13 +33,13 @@ fn is_magic_fix_mode() -> bool {
 /// value, as long as it's serializable.
 pub struct MagicConstants {
     path: String,
-    values: BTreeMap<String, Value>,
+    values: Mutex<BTreeMap<String, Value>>,
 }
 
 impl MagicConstants {
     /// Should not be called explicitly; use the `register_magic_constants!` macro instead.
     fn new(path: String, values: BTreeMap<String, Value>) -> Self {
-        Self { path, values }
+        Self { path, values: Mutex::new(values) }
     }
 
     /// Main function to assert the equality of a value with the one in the file.
@@ -51,9 +51,13 @@ impl MagicConstants {
     pub fn assert_eq<V: Serialize>(&mut self, value_name: &'static str, value: V) {
         if is_magic_fix_mode() {
             // In fix mode, we just set the value in the file.
-            self.values.insert(value_name.to_string(), serde_json::to_value(value).unwrap());
+            self.values
+                .lock()
+                .unwrap()
+                .insert(value_name.to_string(), serde_json::to_value(value).unwrap());
         } else {
-            let expected = self.values.get(value_name).unwrap_or_else(|| {
+            let locked = self.values.lock().unwrap();
+            let expected = locked.get(value_name).unwrap_or_else(|| {
                 panic!("Magic constant {value_name} not found in file {}.", self.path)
             });
             let actual: Value = serde_json::to_value(value).unwrap();
@@ -254,7 +258,10 @@ pub fn register_magic_constants_logic(
 ///      recreated.
 #[macro_export]
 macro_rules! register_magic_constants {
-    ($unique_name:expr) => {{
+    () => {
+        $crate::register_magic_constants!("")
+    };
+    ($unique_name:literal $($(,$format_val:expr)+)?) => {{
         // Both `canonicalize` and `function_name!` must be called in the macro context, to resolve
         // the caller relative path / function name correctly.
         let current_dir = std::fs::canonicalize(".").unwrap_or_else(|error| {
@@ -265,7 +272,7 @@ macro_rules! register_magic_constants {
         $crate::regression_test_utils::register_magic_constants_logic(
             &current_dir,
             function_name,
-            $unique_name.to_string(),
+            format!($unique_name $($(, $format_val)+)?),
         )
     }};
 }
