@@ -603,7 +603,8 @@ pub fn create_state_sync_configs(
             storage_config: state_sync_storage_config.clone(),
             network_config: Some(network_config),
             rpc_config: RpcConfig {
-                server_address: format!("127.0.0.1:{}", rpc_ports.remove(0)),
+                ip: [127, 0, 0, 1].into(),
+                port: rpc_ports.remove(0),
                 ..Default::default()
             },
             ..Default::default()

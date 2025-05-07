@@ -399,6 +399,11 @@
     "privacy": "Public",
     "value": "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d"
   },
+  "rpc.ip": {
+    "description": "The JSON RPC server ip.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
   "rpc.max_events_chunk_size": {
     "description": "Maximum chunk size supported by the node in get_events requests.",
     "privacy": "Public",
@@ -409,10 +414,10 @@
     "privacy": "Public",
     "value": 100
   },
-  "rpc.server_address": {
-    "description": "IP:PORT of the node`s JSON-RPC server.",
+  "rpc.port": {
+    "description": "The JSON RPC server port.",
     "privacy": "Public",
-    "value": "0.0.0.0:8090"
+    "value": 8090
   },
   "rpc.starknet_url": {
     "description": "URL for communicating with Starknet in write_api methods.",

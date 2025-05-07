@@ -1744,6 +1744,11 @@
     "pointer_target": "strk_fee_token_address",
     "privacy": "Public"
   },
+  "state_sync_config.rpc_config.ip": {
+    "description": "The JSON RPC server ip.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
   "state_sync_config.rpc_config.max_events_chunk_size": {
     "description": "Maximum chunk size supported by the node in get_events requests.",
     "privacy": "Public",
@@ -1754,10 +1759,10 @@
     "privacy": "Public",
     "value": 100
   },
-  "state_sync_config.rpc_config.server_address": {
-    "description": "IP:PORT of the node`s JSON-RPC server.",
+  "state_sync_config.rpc_config.port": {
+    "description": "The JSON RPC server port.",
     "privacy": "Public",
-    "value": "0.0.0.0:8090"
+    "value": 8090
   },
   "state_sync_config.rpc_config.starknet_url": {
     "description": "URL for communicating with Starknet in write_api methods.",

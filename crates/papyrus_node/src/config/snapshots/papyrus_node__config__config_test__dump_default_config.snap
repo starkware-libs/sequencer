@@ -491,6 +491,11 @@ expression: dumped_default_config
     "value": "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d",
     "privacy": "Public"
   },
+  "rpc.ip": {
+    "description": "The JSON RPC server ip.",
+    "value": "0.0.0.0",
+    "privacy": "Public"
+  },
   "rpc.max_events_chunk_size": {
     "description": "Maximum chunk size supported by the node in get_events requests.",
     "value": {
@@ -505,9 +510,11 @@ expression: dumped_default_config
     },
     "privacy": "Public"
   },
-  "rpc.server_address": {
-    "description": "IP:PORT of the node`s JSON-RPC server.",
-    "value": "0.0.0.0:8090",
+  "rpc.port": {
+    "description": "The JSON RPC server port.",
+    "value": {
+      "$serde_json::private::Number": "8090"
+    },
     "privacy": "Public"
   },
   "rpc.starknet_url": {
