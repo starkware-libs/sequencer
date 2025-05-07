@@ -19,18 +19,20 @@ const TESTING_DEPLOYMENT_CONFIG_OVERRIDE: DeploymentConfigOverride = DeploymentC
     "0x1002",
 );
 
-const TESTING_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverride = InstanceConfigOverride::new(
-    "",
-    true,
-    "0x0101010101010101010101010101010101010101010101010101010101010101",
-    "",
-    true,
-    "0x0101010101010101010101010101010101010101010101010101010101010101",
-    "0x64",
-);
+fn testing_instance_config_override() -> InstanceConfigOverride {
+    InstanceConfigOverride::new(
+        "",
+        true,
+        "0x0101010101010101010101010101010101010101010101010101010101010101",
+        "",
+        true,
+        "0x0101010101010101010101010101010101010101010101010101010101010101",
+        "0x64",
+    )
+}
 
 fn testing_config_override() -> ConfigOverride {
-    ConfigOverride::new(TESTING_DEPLOYMENT_CONFIG_OVERRIDE, TESTING_INSTANCE_CONFIG_OVERRIDE)
+    ConfigOverride::new(TESTING_DEPLOYMENT_CONFIG_OVERRIDE, testing_instance_config_override())
 }
 
 const TESTING_INGRESS_DOMAIN: &str = "sw-dev.io";
