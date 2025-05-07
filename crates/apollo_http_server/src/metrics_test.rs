@@ -62,7 +62,7 @@ async fn add_tx_metrics_test(#[case] index: u16, #[case] tx: impl GatewayTransac
     let http_client = add_tx_http_client(mock_gateway_client, 14 + index).await;
 
     // Send transactions to the server.
-    for _ in std::iter::repeat(()).take(SUCCESS_TXS_TO_SEND + FAILURE_TXS_TO_SEND) {
+    for _ in std::iter::repeat_n((), SUCCESS_TXS_TO_SEND + FAILURE_TXS_TO_SEND) {
         http_client.add_tx(tx.clone()).await;
     }
 
