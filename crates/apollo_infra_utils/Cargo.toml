@@ -30,6 +30,7 @@ cached.workspace = true
 colored.workspace = true
 nix.workspace = true
 pretty_assertions.workspace = true
+regex.workspace = true
 rstest.workspace = true
 socket2.workspace = true
 tokio = { workspace = true, features = ["macros", "rt", "signal", "sync"] }

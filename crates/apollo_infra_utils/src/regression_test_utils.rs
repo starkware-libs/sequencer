@@ -141,11 +141,11 @@ macro_rules! register_magic_constants {
         });
 
         // Register the path.
-        let path = directory
-            .join(format!("{}_{}.json", $crate::function_name!(), $unique_name))
-            .to_str()
-            .unwrap()
+        let bad_chars = regex::Regex::new(r"[:()\[\]]").unwrap();
+        let magic_filename = bad_chars
+            .replace_all(&format!("{}_{}.json", $crate::function_name!(), $unique_name), "_")
             .to_string();
+        let path = directory.join(magic_filename).to_str().unwrap().to_string();
         if !$crate::regression_test_utils::MAGIC_CONSTANTS_REGISTRY
             .0
             .lock()
