@@ -68,8 +68,51 @@ macro_rules! function_name {
 #[macro_export]
 macro_rules! register_magic_constants {
     ($unique_name:expr) => {{
+        let directory = std::fs::canonicalize("./magic_constants").unwrap_or_else(|error| {
+            panic!("Failed to get absolute path for magic constants directory: {error}.")
+        });
+
+        // If we are in fix mode, and this is the first registration of a file in the current
+        // directory, we need to delete all files in the directory (and possibly create the
+        // directory) to keep the regression files "clean" (in case a file / test function was
+        // renamed, we don't want to keep dangling JSON artifacts).
+        if $crate::regression_test_utils::is_magic_fix_mode() {
+            let locked_set =
+                $crate::regression_test_utils::MAGIC_CONSTANTS_REGISTRY.0.lock().unwrap();
+            let mut found = false;
+            for registered_path in locked_set.iter() {
+                if registered_path.starts_with(directory.to_str().unwrap()) {
+                    found = true;
+                    break;
+                }
+            }
+            if !found {
+                // This is the first registration of a file in the current directory, so we need to
+                // delete all files in the directory.
+                // Create the directory if it doesn't exist.
+                if directory.exists() {
+                    for entry in std::fs::read_dir(&directory).unwrap() {
+                        let entry = entry.unwrap();
+                        let path = entry.path();
+                        if path.is_file() {
+                            std::fs::remove_file(&path).unwrap_or_else(|error| {
+                                panic!(
+                                    "Failed to remove magic constants file at {path:?}: {error}."
+                                )
+                            });
+                        }
+                    }
+                } else {
+                    std::fs::create_dir_all(&directory).unwrap_or_else(|error| {
+                        panic!(
+                            "Failed to create magic constants directory at {directory:?}: {error}."
+                        )
+                    });
+                }
+            }
+        }
+
         // Register the path.
-        let directory = std::path::PathBuf::from("magic_constants");
         let path = directory
             .join(format!("{}_{}.json", $crate::function_name!(), $unique_name))
             .to_str()
@@ -92,14 +135,6 @@ macro_rules! register_magic_constants {
         let mut values = std::collections::HashMap::new();
         if $crate::regression_test_utils::is_magic_fix_mode() {
             // In fix mode, we create a new file with the default values.
-            // Note that if the directory does not exist - we need to lock the registry before
-            // creating it, to prevent races.
-            if !directory.exists() {
-                let _lock = $crate::regression_test_utils::MAGIC_CONSTANTS_REGISTRY.0.lock();
-                std::fs::create_dir_all(&directory).unwrap_or_else(|error| {
-                    panic!("Failed to create magic constants directory at {directory:?}: {error}.")
-                });
-            }
             let file = std::fs::File::create(&path).unwrap_or_else(|error| {
                 panic!("Failed to create magic constants file at {path}: {error}.")
             });
