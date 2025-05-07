@@ -48,6 +48,20 @@ pub(crate) fn system_test_distributed_deployment() -> Deployment {
     )
 }
 
+pub(crate) fn system_test_hybrid_deployment() -> Deployment {
+    Deployment::new(
+        ChainId::IntegrationSepolia,
+        DeploymentName::HybridNode,
+        Environment::Testing,
+        "deployment_test_hybrid",
+        None,
+        PathBuf::from(BASE_APP_CONFIG_PATH),
+        TESTING_CONFIG_OVERRIDE,
+        TESTING_INGRESS_DOMAIN.to_string(),
+        None,
+    )
+}
+
 pub(crate) fn system_test_consolidated_deployment() -> Deployment {
     Deployment::new(
         ChainId::IntegrationSepolia,
