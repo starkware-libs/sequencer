@@ -10,6 +10,7 @@ use crate::abi::sierra_types::{SierraType, SierraU256};
 use crate::execution::execution_utils::{felt_from_ptr, write_maybe_relocatable, write_u256};
 use crate::execution::secp::new_affine;
 use crate::execution::syscalls::hint_processor::felt_to_bool;
+use crate::execution::syscalls::syscall_executor::SyscallExecutorBaseError;
 use crate::execution::syscalls::{
     SyscallExecutionError,
     SyscallRequest,
@@ -77,10 +78,10 @@ where
         ec_point_id: Felt,
     ) -> SyscallResult<&short_weierstrass::Affine<Curve>> {
         ec_point_id.to_usize().and_then(|id| self.points.get(id)).ok_or_else(|| {
-            SyscallExecutionError::InvalidSyscallInput {
+            SyscallExecutionError::from(SyscallExecutorBaseError::InvalidSyscallInput {
                 input: ec_point_id,
                 info: "Invalid Secp point ID".to_string(),
-            }
+            })
         })
     }
 }

@@ -66,7 +66,7 @@ use crate::utils::u64_from_usize;
 
 pub trait SyscallExecutor {
     fn read_next_syscall_selector(&mut self, vm: &mut VirtualMachine) -> SyscallResult<Felt> {
-        Ok(felt_from_ptr(vm, self.get_mut_syscall_ptr())?)
+        Ok(felt_from_ptr(vm, self.get_mut_syscall_ptr()).map_err(SyscallExecutorBaseError::from)?)
     }
 
     fn base_keccak(
@@ -146,10 +146,13 @@ pub trait SyscallExecutor {
         let data_u64: &[u64] = &data
             .iter()
             .map(|felt| {
-                felt.to_u64().ok_or_else(|| SyscallExecutionError::InvalidSyscallInput {
-                    input: **felt,
-                    info: "Invalid input for the keccak syscall.".to_string(),
-                })
+                {
+                    felt.to_u64().ok_or_else(|| SyscallExecutorBaseError::InvalidSyscallInput {
+                        input: **felt,
+                        info: "Invalid input for the keccak syscall.".to_string(),
+                    })
+                }
+                .map_err(SyscallExecutorBaseError::from)
             })
             .collect::<Result<Vec<u64>, _>>()?;
 
@@ -486,6 +489,8 @@ pub enum SyscallExecutorBaseError {
     DeprecatedSyscallExecutionError(#[from] DeprecatedSyscallExecutionError),
     #[error(transparent)]
     HintError(#[from] HintError),
+    #[error("Invalid syscall input: {input:?}; {info}")]
+    InvalidSyscallInput { input: Felt, info: String },
     #[error(transparent)]
     MathError(#[from] MathError),
     #[error(transparent)]
