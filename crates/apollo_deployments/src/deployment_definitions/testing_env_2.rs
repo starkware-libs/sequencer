@@ -11,38 +11,39 @@ use crate::deployment::{
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
 use crate::service::{DeploymentName, ExternalSecret};
 
-const TESTING_ENV_2_DEPLOYMENT_CONFIG_OVERRIDE: DeploymentConfigOverride =
+fn testing_env_2_deployment_config_override() -> DeploymentConfigOverride {
     DeploymentConfigOverride::new(
         "0xA43812F9C610851daF67c5FA36606Ea8c8Fa7caE",
         "SN_GOERLI",
         "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
         "https://fgw-sn-test-sepolia-2-sepolia.gateway-proxy.sw-dev.io",
         "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d",
-    );
+    )
+}
 
 const FIRST_NODE_NAMESPACE: &str = "sequencer-test-sepolia-0";
 
 fn testing_env_2_node_0_config_override() -> ConfigOverride {
     ConfigOverride::new(
-        TESTING_ENV_2_DEPLOYMENT_CONFIG_OVERRIDE,
+        testing_env_2_deployment_config_override(),
         create_hybrid_instance_config_override(1, FIRST_NODE_NAMESPACE),
     )
 }
 fn testing_env_2_node_1_config_override() -> ConfigOverride {
     ConfigOverride::new(
-        TESTING_ENV_2_DEPLOYMENT_CONFIG_OVERRIDE,
+        testing_env_2_deployment_config_override(),
         create_hybrid_instance_config_override(2, FIRST_NODE_NAMESPACE),
     )
 }
 fn testing_env_2_node_2_config_override() -> ConfigOverride {
     ConfigOverride::new(
-        TESTING_ENV_2_DEPLOYMENT_CONFIG_OVERRIDE,
+        testing_env_2_deployment_config_override(),
         create_hybrid_instance_config_override(3, FIRST_NODE_NAMESPACE),
     )
 }
 fn testing_env_2_node_3_config_override() -> ConfigOverride {
     ConfigOverride::new(
-        TESTING_ENV_2_DEPLOYMENT_CONFIG_OVERRIDE,
+        testing_env_2_deployment_config_override(),
         create_hybrid_instance_config_override(4, FIRST_NODE_NAMESPACE),
     )
 }
