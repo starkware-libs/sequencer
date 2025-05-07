@@ -1,3 +1,4 @@
+use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier_versioned_constants::{GasCostsError, SyscallGasCost};
 use blockifier::execution::syscalls::secp::{
     SecpAddRequest,
@@ -47,6 +48,8 @@ use blockifier::execution::syscalls::{
 use blockifier::state::state_api::StateReader;
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::vm_core::VirtualMachine;
+use starknet_api::block::BlockHash;
+use starknet_api::core::BLOCK_HASH_TABLE_ADDRESS;
 use starknet_api::execution_resources::GasAmount;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
@@ -117,7 +120,19 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<GetBlockHashResponse> {
-        todo!()
+        let block_number = request.block_number;
+        let execution_helper = syscall_handler.get_mut_current_execution_helper()?;
+        if execution_helper.os_block_input.block_info.block_number.0 - block_number.0
+            < STORED_BLOCK_HASH_BUFFER
+        {
+            return Err(());
+        }
+        let block_hash = BlockHash(
+            execution_helper
+                .cached_state
+                .get_storage_at(BLOCK_HASH_TABLE_ADDRESS, block_number.0.into())?,
+        );
+        Ok(GetBlockHashResponse { block_hash })
     }
 
     fn get_class_hash_at(
