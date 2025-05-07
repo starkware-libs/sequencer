@@ -8,6 +8,10 @@ use std::sync::{LazyLock, Mutex};
 use serde::Serialize;
 use serde_json::Value;
 
+#[cfg(test)]
+#[path = "regression_test_utils_test.rs"]
+mod regression_test_utils_test;
+
 /// Global registry (lock) for magic constants files. Used to keep track of the "magic number" files
 /// that are generated / used by regression tests, and control access to them.
 #[derive(Default)]
@@ -47,7 +51,7 @@ impl MagicConstants {
     /// equality of the value.
     /// See docstring of `register_magic_constants!` macro for more details.
     #[track_caller]
-    pub fn assert_eq<V: Serialize>(&mut self, value_name: &'static str, value: V) {
+    pub fn assert_eq<V: Serialize>(&mut self, value_name: &str, value: V) {
         if is_magic_fix_mode() {
             // In fix mode, we just set the value in the file.
             self.values
@@ -67,10 +71,22 @@ impl MagicConstants {
 
 /// TAKES THE LOCK.
 /// In fix mode, automatically dump the values to the file on drop (when test ends).
+/// Checks if the file exists first - if it does, the existing values are loaded and the current
+/// dict is updated, before dumping the contents.
 impl Drop for MagicConstants {
     fn drop(&mut self) {
         if is_magic_fix_mode() {
             let _lock = MAGIC_CONSTANTS_REGISTRY.0.lock().unwrap();
+            if PathBuf::from(&self.path).exists() {
+                // If the file exists, we need to load the existing values and update them.
+                let file = std::fs::File::open(&self.path).unwrap_or_else(|error| {
+                    panic!("Failed to open magic constants file at {}: {}", self.path, error)
+                });
+                let reader = std::io::BufReader::new(file);
+                let json: serde_json::Value = serde_json::from_reader(reader).unwrap();
+                let values = BTreeMap::from_iter(json.as_object().unwrap().clone());
+                self.values.lock().unwrap().extend(values);
+            }
             std::fs::write(&self.path, serde_json::to_string_pretty(&self.values).unwrap())
                 .unwrap_or_else(|error| {
                     panic!("Failed to write magic constants contents to {}: {}", self.path, error)
@@ -145,6 +161,11 @@ fn load_magic_constants(directory: &Path, function_name: &str) -> MagicConstants
 
     // If the file doesn't exist, create it with an empty object.
     if !PathBuf::from(&absolute_path).exists() {
+        if !directory.exists() {
+            std::fs::create_dir_all(directory).unwrap_or_else(|error| {
+                panic!("Failed to create magic constants directory at {directory:?}: {error}.")
+            });
+        }
         std::fs::File::create(&absolute_path).unwrap_or_else(|error| {
             panic!("Failed to create magic constants file at {absolute_path}: {error}.")
         });
