@@ -134,13 +134,12 @@ fn clean_if_first_registration(current_dir: &Path, magic_subdir: &PathBuf) {
 /// Given the absolute path to the magic constants directory, and the identifiers required to
 /// generate the specific JSON filename, loads and returns the `MagicConstants` object.
 /// If the file does not exist, it is created with an empty dict (regardless of run mode).
-fn load_magic_constants(directory: &Path, function_name: &str, suffix: String) -> MagicConstants {
+fn load_magic_constants(directory: &Path, function_name: &str) -> MagicConstants {
     let mut locked = MAGIC_CONSTANTS_REGISTRY.0.lock().unwrap();
 
     // Compute the absolute path, and register it.
     let bad_chars = regex::Regex::new(r"[:()\[\]]").unwrap();
-    let magic_filename =
-        bad_chars.replace_all(&format!("{function_name}_{suffix}.json"), "_").to_string();
+    let magic_filename = bad_chars.replace_all(&format!("{function_name}.json"), "_").to_string();
     let absolute_path = directory.join(magic_filename).to_str().unwrap().to_string();
     locked.insert(absolute_path.clone());
 
@@ -168,11 +167,10 @@ fn load_magic_constants(directory: &Path, function_name: &str, suffix: String) -
 pub fn register_magic_constants_logic(
     current_dir: &PathBuf,
     function_name: &str,
-    unique_string: String,
 ) -> MagicConstants {
     let directory = current_dir.join("magic_constants");
     clean_if_first_registration(current_dir, &directory);
-    load_magic_constants(&directory, function_name, unique_string)
+    load_magic_constants(&directory, function_name)
 }
 
 /// Main logic of this module. Used to register and initialize the magic constants for a specific
@@ -208,34 +206,23 @@ pub fn register_magic_constants_logic(
 /// This will create a JSON file in the `magic_constants` directory of the calling crate, with the
 /// dict `{ "MY_VALUE": 7 }`.
 ///
-/// For parametrized tests, you can provide an argument to the macro to generate a unique name for
-/// the different cases. For example:
-/// ```rust
-/// fn test_something(#[values(1, 2)] value: u32) {
-///     let mut magic = register_magic_constants!("{value}");
-///     let computation_result = value + 6;
-///     magic.assert_eq("MY_VALUE", computation_result);
-/// }
-/// ```
-///
-/// This will generate two separate files in the `magic_constants` directory, one per test case.
-/// The expected values in each test case may be identical, or different, but the filenames will be
-/// unique.
-///
-/// On the other hand, if you want to use the same file for different test cases (useful if you want
-/// to assert that the different parameters result in the same regression values), you can use the
-/// same file name for different test cases:
+/// For parametrized tests, you can make the key include the parameter(s) to generate different
+/// expected values for the different cases. For example:
 /// ```rust
 /// fn test_something(#[values(1, 2)] value: u32) {
 ///     let mut magic = register_magic_constants!();
 ///     let computation_result = value + 6;
-///     magic.assert_eq("MY_VALUE", computation_result);
+///     magic.assert_eq(format!("MY_VALUE_{value}"), computation_result);
 /// }
 /// ```
 ///
-/// If you want fine-grained control over the values that must be identical, you can use the key
-/// parameter in the `assert_eq` function. For example, if the regression value depends on `x` but
-/// not on `y`, you can do the following:
+/// This will generate two separate keys in the JSON file, one per test case.
+/// The expected values in each test case may be identical, or different, but the keys will be
+/// unique.
+///
+/// On the other hand, if you want to assert that the different parameters result in the same
+/// regression values, you can use the same key for different test cases. For example, if the
+/// regression value depends on `x` but not on `y`, you can do the following:
 /// ```rust
 /// fn test_something(#[values(1, 2)] x: u32, #[values(3, 4)] y: u32) {
 ///     let mut magic = register_magic_constants!();
@@ -265,10 +252,7 @@ pub fn register_magic_constants_logic(
 ///      recreated.
 #[macro_export]
 macro_rules! register_magic_constants {
-    () => {
-        $crate::register_magic_constants!("")
-    };
-    ($unique_name:literal $($(,$format_val:expr)+)?) => {{
+    () => {{
         // Both `canonicalize` and `function_name!` must be called in the macro context, to resolve
         // the caller relative path / function name correctly.
         let current_dir = std::fs::canonicalize(".").unwrap_or_else(|error| {
@@ -276,10 +260,6 @@ macro_rules! register_magic_constants {
         });
         let function_name = $crate::function_name!();
 
-        $crate::regression_test_utils::register_magic_constants_logic(
-            &current_dir,
-            function_name,
-            format!($unique_name $($(, $format_val)+)?),
-        )
+        $crate::regression_test_utils::register_magic_constants_logic(&current_dir, function_name)
     }};
 }
