@@ -4,6 +4,7 @@ use rstest::rstest;
 #[case(1)]
 #[case(2)]
 fn test_dur(#[case] dur: i32) {
-    let _x = crate::register_magic_constants!(format!("{dur}"));
-    assert!(dur < 3);
+    let mut magic = crate::register_magic_constants!(format!("{dur}"));
+    magic.assert_eq("TWICE", dur * 2);
+    magic.assert_eq("THRICE", dur * 3);
 }

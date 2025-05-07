@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::{LazyLock, Mutex};
 
+use serde::Serialize;
 use serde_json::Value;
 
 pub static MAGIC_CONSTANTS_REGISTRY: LazyLock<MagicConstantsRegistry> =
@@ -8,6 +9,10 @@ pub static MAGIC_CONSTANTS_REGISTRY: LazyLock<MagicConstantsRegistry> =
 
 #[derive(Default)]
 pub struct MagicConstantsRegistry(pub Mutex<HashSet<String>>);
+
+pub fn is_magic_fix_mode() -> bool {
+    std::env::var("MAGIC_FIX").is_ok()
+}
 
 pub struct MagicConstants {
     path: String,
@@ -17,6 +22,32 @@ pub struct MagicConstants {
 impl MagicConstants {
     pub fn new(path: String, values: HashMap<String, Value>) -> Self {
         Self { path, values }
+    }
+
+    #[track_caller]
+    pub fn assert_eq<V: Serialize>(&mut self, value_name: &'static str, value: V) {
+        if is_magic_fix_mode() {
+            // In fix mode, we just set the value in the file.
+            self.values.insert(value_name.to_string(), serde_json::to_value(value).unwrap());
+        } else {
+            let expected = self.values.get(value_name).unwrap_or_else(|| {
+                panic!("Magic constant {value_name} not found in file {}.", self.path)
+            });
+            let actual: Value = serde_json::to_value(value).unwrap();
+            assert_eq!(expected, &actual);
+        }
+    }
+}
+
+impl Drop for MagicConstants {
+    // In fix mode: dump the values to the file on drop.
+    fn drop(&mut self) {
+        if is_magic_fix_mode() {
+            std::fs::write(&self.path, serde_json::to_string_pretty(&self.values).unwrap())
+                .unwrap_or_else(|error| {
+                    panic!("Failed to write magic constants contents to {}: {}", self.path, error)
+                });
+        }
     }
 }
 
@@ -37,8 +68,6 @@ macro_rules! function_name {
 #[macro_export]
 macro_rules! register_magic_constants {
     ($unique_name:expr) => {{
-        let fix_mode = std::env::var("MAGIC_FIX").is_ok();
-
         // Register the path.
         let directory = std::path::PathBuf::from("magic_constants");
         let path = directory
@@ -61,7 +90,7 @@ macro_rules! register_magic_constants {
 
         // Load / recreate the file, depending on the mode.
         let mut values = std::collections::HashMap::new();
-        if fix_mode {
+        if $crate::regression_test_utils::is_magic_fix_mode() {
             // In fix mode, we create a new file with the default values.
             // Note that if the directory does not exist - we need to lock the registry before
             // creating it, to prevent races.
