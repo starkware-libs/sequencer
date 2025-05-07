@@ -483,7 +483,7 @@ pub struct GasPriceVector {
     pub l2_gas_price: NonzeroGasPrice,
 }
 
-#[derive(Clone, Copy, Debug, Hash, EnumIter, Eq, PartialEq)]
+#[derive(Clone, Copy, Hash, EnumIter, Eq, PartialEq)]
 pub enum FeeType {
     Strk,
     Eth,
