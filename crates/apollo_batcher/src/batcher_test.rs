@@ -168,12 +168,12 @@ fn abort_signal_sender() -> AbortSignalSender {
 
 async fn batcher_propose_and_commit_block(
     mock_dependencies: MockDependencies,
-) -> DecisionReachedResponse {
+) -> Result<DecisionReachedResponse, BatcherError> {
     let mut batcher = create_batcher(mock_dependencies).await;
     batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
     batcher.propose_block(propose_block_input(PROPOSAL_ID)).await.unwrap();
     batcher.await_active_proposal().await;
-    batcher.decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID }).await.unwrap()
+    batcher.decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID }).await
 }
 
 fn mock_create_builder_for_validate_block(
@@ -1000,7 +1000,8 @@ async fn decision_reached() {
         Ok(BlockExecutionArtifacts::create_for_testing()),
     );
 
-    let decision_reached_response = batcher_propose_and_commit_block(mock_dependencies).await;
+    let decision_reached_response =
+        batcher_propose_and_commit_block(mock_dependencies).await.unwrap();
 
     verify_decision_reached_response(&decision_reached_response, &expected_artifacts);
 
@@ -1054,7 +1055,8 @@ async fn test_execution_info_order_is_kept() {
         Ok(block_builder_result.clone()),
     );
 
-    let decision_reached_response = batcher_propose_and_commit_block(mock_dependencies).await;
+    let decision_reached_response =
+        batcher_propose_and_commit_block(mock_dependencies).await.unwrap();
 
     // Verify that the execution_infos are in the same order as returned from the block_builder.
     let expected_execution_infos: Vec<TransactionExecutionInfo> =
@@ -1096,4 +1098,44 @@ fn validate_batcher_config_failure() {
             .to_string()
             .contains("input_stream_content_buffer_size must be at least tx_chunk_size")
     );
+}
+
+#[rstest]
+#[case::communication_failure(
+    L1ProviderClientError::ClientError(ClientError::CommunicationFailure("L1 commit failed".to_string()))
+)]
+#[case::unexpected_height(
+    L1ProviderClientError::L1ProviderError(L1ProviderError::UnexpectedHeight {
+        expected_height: INITIAL_HEIGHT,
+        got: INITIAL_HEIGHT,
+    })
+)]
+#[tokio::test]
+async fn decision_reached_return_error_when_l1_commit_block_fails(
+    #[case] l1_error: L1ProviderClientError,
+) {
+    // Setup mocks
+    let mut mock_dependencies = MockDependencies::default();
+
+    mock_dependencies.l1_provider_client.expect_start_block().returning(|_, _| Ok(()));
+
+    mock_dependencies
+        .l1_provider_client
+        .expect_commit_block()
+        .times(1)
+        .returning(move |_, _, _| Err(l1_error.clone()));
+
+    mock_dependencies.storage_writer.expect_commit_proposal().returning(|_, _| Ok(()));
+
+    mock_dependencies.storage_writer.expect_revert_block().returning(|_| ());
+
+    // let expected_artifacts = BlockExecutionArtifacts::create_for_testing();
+    mock_create_builder_for_propose_block(
+        &mut mock_dependencies.block_builder_factory,
+        vec![],
+        Ok(BlockExecutionArtifacts::create_for_testing()),
+    );
+
+    let result = batcher_propose_and_commit_block(mock_dependencies).await;
+    assert!(result.is_err());
 }

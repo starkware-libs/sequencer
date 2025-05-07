@@ -585,21 +585,33 @@ impl Batcher {
                 height,
             )
             .await;
-        l1_provider_result.unwrap_or_else(|err| match err {
-            L1ProviderClientError::L1ProviderError(L1ProviderError::UnexpectedHeight {
-                expected_height,
-                got,
-            }) => {
-                error!(
-                    "Unexpected height while committing block in L1 provider: expected={:?}, \
-                     got={:?}",
-                    expected_height, got
-                );
+
+        // Return error if the commit to the L1 provider failed.
+        if let Err(err) = l1_provider_result {
+            match err {
+                L1ProviderClientError::L1ProviderError(L1ProviderError::UnexpectedHeight {
+                    expected_height,
+                    got,
+                }) => {
+                    error!(
+                        "Unexpected height while committing block in L1 provider: expected={:?}, \
+                         got={:?}",
+                        expected_height, got
+                    );
+                }
+                other_err => {
+                    error!(
+                        "Unexpected error while committing block in L1 provider: {:?}",
+                        other_err
+                    );
+                }
             }
-            other_err => {
-                panic!("Unexpected error while committing block in L1 provider: {:?}", other_err)
-            }
-        });
+            // Rollback the state diff in the storage.
+            self.storage_writer.revert_block(height);
+            STORAGE_HEIGHT.decrement(1);
+            REVERTED_BLOCKS.increment(1);
+            return Err(BatcherError::InternalError);
+        }
 
         // Notify the mempool of the new block.
         let mempool_result = self
