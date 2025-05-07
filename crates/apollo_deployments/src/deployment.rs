@@ -175,26 +175,26 @@ impl Deployment {
 
 #[derive(Debug, Serialize)]
 pub struct ConfigOverride {
-    deployment_config_override: &'static DeploymentConfigOverride,
-    instance_config_override: &'static InstanceConfigOverride,
+    deployment_config_override: DeploymentConfigOverride,
+    instance_config_override: InstanceConfigOverride,
 }
 
 impl ConfigOverride {
     pub const fn new(
-        deployment_config_override: &'static DeploymentConfigOverride,
-        instance_config_override: &'static InstanceConfigOverride,
+        deployment_config_override: DeploymentConfigOverride,
+        instance_config_override: InstanceConfigOverride,
     ) -> Self {
         Self { deployment_config_override, instance_config_override }
     }
 
     pub fn create(&self, application_config_subdir: &Path) -> Vec<String> {
         serialize_to_file(
-            to_value(self.deployment_config_override).unwrap(),
+            to_value(&self.deployment_config_override).unwrap(),
             application_config_subdir.join(DEPLOYMENT_FILE_NAME).to_str().unwrap(),
         );
 
         serialize_to_file(
-            to_value(self.instance_config_override).unwrap(),
+            to_value(&self.instance_config_override).unwrap(),
             application_config_subdir.join(INSTANCE_FILE_NAME).to_str().unwrap(),
         );
         vec![DEPLOYMENT_FILE_NAME.to_string(), INSTANCE_FILE_NAME.to_string()]
