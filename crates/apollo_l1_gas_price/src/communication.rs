@@ -29,8 +29,8 @@ impl ComponentRequestHandler<L1GasPriceRequest, L1GasPriceResponse> for L1GasPri
             L1GasPriceRequest::GetGasPrice(timestamp) => {
                 L1GasPriceResponse::GetGasPrice(self.get_price_info(timestamp))
             }
-            L1GasPriceRequest::AddGasPrice(height, sample) => {
-                L1GasPriceResponse::AddGasPrice(self.add_price_info(height, sample))
+            L1GasPriceRequest::AddGasPrice(height, timestamp, price_info) => {
+                L1GasPriceResponse::AddGasPrice(self.add_price_info(height, timestamp, price_info))
             }
         }
     }

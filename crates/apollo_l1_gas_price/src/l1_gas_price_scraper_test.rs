@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use apollo_l1_gas_price_types::MockL1GasPriceProviderClient;
 use papyrus_base_layer::{MockBaseLayerContract, PriceSample};
+use starknet_api::block::GasPrice;
 
 use crate::l1_gas_price_scraper::{L1GasPriceScraper, L1GasPriceScraperConfig};
 
@@ -29,13 +30,13 @@ fn setup_scraper(
     let mut mock_provider = MockL1GasPriceProviderClient::new();
     mock_provider
         .expect_add_price_info()
-        .withf(|&block_number, price_sample| {
-            price_sample.timestamp == block_number * BLOCK_TIME
-                && price_sample.base_fee_per_gas == u128::from(block_number) * GAS_PRICE
-                && price_sample.blob_fee == u128::from(block_number) * DATA_PRICE
+        .withf(|&block_number, timestamp, price_info| {
+            timestamp.0 == block_number * BLOCK_TIME
+                && price_info.base_fee_per_gas == GasPrice(u128::from(block_number) * GAS_PRICE)
+                && price_info.blob_fee == GasPrice(u128::from(block_number) * DATA_PRICE)
         })
         .times(expected_number_of_blocks)
-        .returning(|_, _| Ok(()));
+        .returning(|_, _, _| Ok(()));
 
     L1GasPriceScraper::new(
         L1GasPriceScraperConfig::default(),
@@ -94,13 +95,13 @@ async fn run_l1_gas_price_scraper_two_blocks() {
     let mut mock_provider = MockL1GasPriceProviderClient::new();
     mock_provider
         .expect_add_price_info()
-        .withf(|&block_number, price_sample| {
-            price_sample.timestamp == block_number * BLOCK_TIME
-                && price_sample.base_fee_per_gas == u128::from(block_number) * GAS_PRICE
-                && price_sample.blob_fee == u128::from(block_number) * DATA_PRICE
+        .withf(|&block_number, timestamp, price_info| {
+            timestamp.0 == block_number * BLOCK_TIME
+                && price_info.base_fee_per_gas == GasPrice(u128::from(block_number) * GAS_PRICE)
+                && price_info.blob_fee == GasPrice(u128::from(block_number) * DATA_PRICE)
         })
         .times(usize::try_from(END_BLOCK2 - START_BLOCK).unwrap())
-        .returning(|_, _| Ok(()));
+        .returning(|_, _, _| Ok(()));
 
     let mut scraper = L1GasPriceScraper::new(
         L1GasPriceScraperConfig::default(),

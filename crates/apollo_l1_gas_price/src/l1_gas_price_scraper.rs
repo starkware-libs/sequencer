@@ -10,10 +10,11 @@ use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_l1_gas_price_types::errors::L1GasPriceClientError;
-use apollo_l1_gas_price_types::L1GasPriceProviderClient;
+use apollo_l1_gas_price_types::{L1GasPriceProviderClient, PriceInfo};
 use async_trait::async_trait;
 use papyrus_base_layer::{BaseLayerContract, L1BlockNumber};
 use serde::{Deserialize, Serialize};
+use starknet_api::block::{BlockTimestamp, GasPrice};
 use starknet_api::core::ChainId;
 use thiserror::Error;
 use tracing::{error, info, warn};
@@ -152,9 +153,13 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
                     return Ok(block_num);
                 }
             };
-
+            let timestamp = BlockTimestamp(sample.timestamp);
+            let price_info = PriceInfo {
+                base_fee_per_gas: GasPrice(sample.base_fee_per_gas),
+                blob_fee: GasPrice(sample.blob_fee),
+            };
             self.l1_gas_price_provider
-                .add_price_info(block_num, sample)
+                .add_price_info(block_num, timestamp, price_info)
                 .await
                 .map_err(L1GasPriceScraperError::GasPriceClientError)?;
 
