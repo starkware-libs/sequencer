@@ -127,7 +127,7 @@ pub fn clean_if_first_registration(current_dir: PathBuf, magic_subdir: &PathBuf)
 
 /// Given the directory, the function name and the unique string provided in the macro, registers
 /// the JSON file (panics if already registered) and returns the path to the file.
-pub fn register_and_return_path(
+fn register_and_return_path(
     directory: &PathBuf,
     function_name: &str,
     unique_string: String,
@@ -142,15 +142,35 @@ pub fn register_and_return_path(
     path
 }
 
-pub fn load_magic_constants(absolute_path: &PathBuf) -> MagicConstants {
-    let file = std::fs::File::open(absolute_path).unwrap_or_else(|error| {
+/// Given the absolute path to the magic constants directory, and the identifiers required to
+/// generate the specific JSON filename, loads and returns the `MagicConstants` object.
+/// If the file does not exist, it is created with an empty dict (regardless of run mode).
+pub fn load_magic_constants(
+    directory: &PathBuf,
+    function_name: &str,
+    unique_string: String,
+) -> MagicConstants {
+    let absolute_path = register_and_return_path(&directory, function_name, unique_string);
+
+    // If the file doesn't exist, create it with an empty object.
+    // This should be done in the macro context, and not in a function call, as the path to the
+    // file is relative to the current directory.
+    if !PathBuf::from(&absolute_path).exists() {
+        std::fs::File::create(&absolute_path).unwrap_or_else(|error| {
+            panic!("Failed to create magic constants file at {absolute_path}: {error}.")
+        });
+        std::fs::write(&absolute_path, "{}").unwrap_or_else(|error| {
+            panic!("Failed to write empty dict to {absolute_path}: {error}.")
+        });
+    }
+
+    let file = std::fs::File::open(&absolute_path).unwrap_or_else(|error| {
         panic!("Failed to open magic constants file at {absolute_path:?}: {error}.")
     });
     let reader = std::io::BufReader::new(file);
     let json: serde_json::Value = serde_json::from_reader(reader).unwrap();
-    let values =
-        std::collections::BTreeMap::from_iter(json.as_object().unwrap().clone().into_iter());
-    MagicConstants::new(absolute_path.to_str().unwrap().to_string(), values)
+    let values = BTreeMap::from_iter(json.as_object().unwrap().clone().into_iter());
+    MagicConstants::new(absolute_path, values)
 }
 
 /// Main logic of this module. Used to register and initialize the magic constants for a specific
@@ -234,33 +254,17 @@ macro_rules! register_magic_constants {
 
         $crate::regression_test_utils::clean_if_first_registration(current_dir, &directory);
 
+        // Both `canonicalize` and `function_name!` must be called in the macro context, to resolve
+        // the caller relative path / function name correctly.
         let directory = std::fs::canonicalize(&directory).unwrap_or_else(|error| {
             panic!("Failed to get absolute path for magic constants directory: {error}.")
         });
         let function_name = $crate::function_name!();
 
-        // Register the path.
-        let path = $crate::regression_test_utils::register_and_return_path(
+        $crate::regression_test_utils::load_magic_constants(
             &directory,
             function_name,
             $unique_name.to_string(),
-        );
-
-        // If the file doesn't exist, create it with an empty object.
-        // This should be done in the macro context, and not in a function call, as the path to the
-        // file is relative to the current directory.
-        if !std::path::Path::new(&path).exists() {
-            std::fs::File::create(&path).unwrap_or_else(|error| {
-                panic!("Failed to create magic constants file at {path}: {error}.")
-            });
-            std::fs::write(&path, "{}")
-                .unwrap_or_else(|error| panic!("Failed to write empty dict to {path}: {error}."));
-        }
-
-        let absolute_path = std::fs::canonicalize(&path).unwrap_or_else(|error| {
-            panic!("Failed to get absolute path for magic constants file at {path}: {error}.")
-        });
-
-        $crate::regression_test_utils::load_magic_constants(&absolute_path)
+        )
     }};
 }
