@@ -13,7 +13,7 @@ cat ${benchmarks_list} |
     done
 
 # Prepare the results for posting comment.
-echo "Benchmark movements:" > ${benchmark_results}
+echo "Benchmark movements: " > ${benchmark_results}
 cat ${benchmarks_list} |
     while read line; do
         if grep -q "regressed" ${line}.txt; then
@@ -24,3 +24,6 @@ cat ${benchmarks_list} |
             cat ${line}.txt >> ${benchmark_results};
         fi;
     done
+if ! (grep -q "regressed" ${benchmark_results} || grep -q "improved" ${benchmark_results}); then
+    echo "No major performance changes detected." >> ${benchmark_results};
+fi
