@@ -288,7 +288,19 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<StorageReadResponse> {
-        todo!()
+        let execution_helper = syscall_handler.get_mut_current_execution_helper().unwrap();
+        let value = *execution_helper
+            .tx_execution_iter
+            .tx_execution_info_ref
+            .as_mut()
+            .unwrap()
+            .call_info_tracker
+            .as_mut()
+            .unwrap()
+            .execute_code_read_iterator
+            .next()
+            .unwrap();
+        Ok(StorageReadResponse { value })
     }
 
     fn storage_write(
