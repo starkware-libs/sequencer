@@ -21,6 +21,8 @@ const DEPLOYMENT_CONFIG_DIR_NAME: &str = "deployment_configs/";
 const DEPLOYMENT_FILE_NAME: &str = "deployment_config_override.json";
 const INSTANCE_FILE_NAME: &str = "instance_config_override.json";
 
+const MAX_NODE_ID: usize = 9; // Currently supporting up to 9 nodes, to avoid more complicated string manipulations.
+
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Deployment {
     chain_id: ChainId,
@@ -252,22 +254,73 @@ pub struct InstanceConfigOverride {
 
 impl InstanceConfigOverride {
     pub fn new(
-        consensus_bootstrap_peer_multiaddr: &'static str,
+        consensus_bootstrap_peer_multiaddr: String,
         consensus_bootstrap_peer_multiaddr_is_none: bool,
-        consensus_secret_key: &'static str,
-        mempool_bootstrap_peer_multiaddr: &'static str,
+        consensus_secret_key: String,
+        mempool_bootstrap_peer_multiaddr: String,
         mempool_bootstrap_peer_multiaddr_is_none: bool,
-        mempool_secret_key: &'static str,
-        validator_id: &'static str,
+        mempool_secret_key: String,
+        validator_id: String,
     ) -> Self {
         Self {
-            consensus_bootstrap_peer_multiaddr: consensus_bootstrap_peer_multiaddr.to_string(),
+            consensus_bootstrap_peer_multiaddr,
             consensus_bootstrap_peer_multiaddr_is_none,
-            consensus_secret_key: consensus_secret_key.to_string(),
-            mempool_bootstrap_peer_multiaddr: mempool_bootstrap_peer_multiaddr.to_string(),
+            consensus_secret_key,
+            mempool_bootstrap_peer_multiaddr,
             mempool_bootstrap_peer_multiaddr_is_none,
-            mempool_secret_key: mempool_secret_key.to_string(),
-            validator_id: validator_id.to_string(),
+            mempool_secret_key,
+            validator_id,
         }
+    }
+}
+
+pub(crate) fn create_hybrid_instance_config_override(
+    id: usize,
+    namespace: &'static str,
+) -> InstanceConfigOverride {
+    let accepted_node_id_range = 1..=MAX_NODE_ID;
+    assert!(
+        accepted_node_id_range.contains(&id),
+        "Node id {} is out of range {:?}",
+        id,
+        accepted_node_id_range
+    );
+
+    // TODO(Tsabary): these should be derived from the hybrid deployment module, and used
+    // consistently throughout the code.
+
+    const FIRST_NODE_ADDRESS: &str = "12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5";
+    const CORE_SERVICE_NAME: &str = "sequencer-core-service";
+    const CORE_SERVICE_PORT: u16 = 53080;
+
+    const MEMPOOL_SERVICE_NAME: &str = "sequencer-mempool-service";
+    const MEMPOOL_SERVICE_PORT: u16 = 53200;
+
+    if id == 1 {
+        InstanceConfigOverride::new(
+            "".to_string(),
+            true,
+            "0x0101010101010101010101010101010101010101010101010101010101010101".to_string(),
+            "".to_string(),
+            true,
+            "0x0101010101010101010101010101010101010101010101010101010101010101".to_string(),
+            "0x1".to_string(),
+        )
+    } else {
+        InstanceConfigOverride::new(
+            format!(
+                "/dns/{}.{}.svc.cluster.local/tcp/{}/p2p/{}",
+                CORE_SERVICE_NAME, namespace, CORE_SERVICE_PORT, FIRST_NODE_ADDRESS
+            ),
+            false,
+            format!("0x010101010101010101010101010101010101010101010101010101010101010{}", id),
+            format!(
+                "/dns/{}.{}.svc.cluster.local/tcp/{}/p2p/{}",
+                MEMPOOL_SERVICE_NAME, namespace, MEMPOOL_SERVICE_PORT, FIRST_NODE_ADDRESS
+            ),
+            false,
+            format!("0x010101010101010101010101010101010101010101010101010101010101010{}", id),
+            format!("0x{}", id),
+        )
     }
 }

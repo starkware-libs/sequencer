@@ -21,13 +21,13 @@ const TESTING_DEPLOYMENT_CONFIG_OVERRIDE: DeploymentConfigOverride = DeploymentC
 
 fn testing_instance_config_override() -> InstanceConfigOverride {
     InstanceConfigOverride::new(
-        "",
+        "".to_string(),
         true,
-        "0x0101010101010101010101010101010101010101010101010101010101010101",
-        "",
+        "0x0101010101010101010101010101010101010101010101010101010101010101".to_string(),
+        "".to_string(),
         true,
-        "0x0101010101010101010101010101010101010101010101010101010101010101",
-        "0x64",
+        "0x0101010101010101010101010101010101010101010101010101010101010101".to_string(),
+        "0x64".to_string(),
     )
 }
 
