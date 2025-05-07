@@ -1,5 +1,8 @@
+use std::collections::HashMap;
+
 use blockifier::state::state_api::StateReader;
 use cairo_lang_runner::short_string::as_cairo_short_string;
+use cairo_vm::any_box;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
     get_ptr_from_var_name,
@@ -10,13 +13,18 @@ use cairo_vm::types::relocatable::MaybeRelocatable;
 
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::HintArgs;
-use crate::hints::vars::{CairoStruct, Ids};
+use crate::hints::vars::{CairoStruct, Ids, Scope};
 use crate::vm_utils::get_address_of_nested_fields;
 
 pub(crate) fn selected_builtins<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { exec_scopes, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let n_selected_builtins =
+        get_integer_from_var_name(Ids::NSelectedBuiltins.into(), vm, ids_data, ap_tracking)?;
+    let new_scope =
+        HashMap::from([(Scope::NSelectedBuiltins.into(), any_box!(n_selected_builtins))]);
+    exec_scopes.enter_scope(new_scope);
+    Ok(())
 }
 
 pub(crate) fn select_builtin<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> OsHintResult {
