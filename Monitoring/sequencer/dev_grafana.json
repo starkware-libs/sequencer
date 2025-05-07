@@ -899,10 +899,10 @@
     ],
     "Compile sierra to casm": [
       {
-        "title": "compile_to_casm_compilation_duration",
+        "title": "compile_to_casm_compilation_duration{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
         "description": "Server-side compilation to casm duration in seconds",
         "type": "graph",
-        "expr": "avg_over_time(compile_to_casm_compilation_duration[2m])",
+        "expr": "avg_over_time(compile_to_casm_compilation_duration{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])",
         "extra_params": {}
       }
     ],
