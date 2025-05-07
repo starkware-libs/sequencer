@@ -8,11 +8,7 @@ class K8SServiceType(str, Enum):
     NODE_PORT = "NodePort"
 
 
-# k8s container ports
-HTTP_CONTAINER_PORT = 8080
-RPC_CONTAINER_PORT = 8081
-MONITORING_CONTAINER_PORT = 8082
-
+MONITORING_ENDPOINT_PORT = 8082
 MONITORING_METRICS_ENDPOINT = "/monitoring/metrics"
 PROBE_MONITORING_READY_PATH = "/monitoring/ready"
 PROBE_MONITORING_ALIVE_PATH = "/monitoring/alive"

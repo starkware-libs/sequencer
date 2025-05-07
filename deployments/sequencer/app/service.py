@@ -27,7 +27,7 @@ from imports.com.googleapis.monitoring import (
     PodMonitoringSpecEndpoints,
     PodMonitoringSpecEndpointsPort,
 )
-from services import topology, const
+from services import topology, const, helpers
 
 
 class ServiceApp(Construct):
@@ -50,7 +50,9 @@ class ServiceApp(Construct):
         }
         self.service_topology = service_topology
         self.node_config = service_topology.config.get_config()
-        self.monitoring_endpoint_port = self._get_config_attr("monitoring_endpoint_config.port")
+        assert const.MONITORING_ENDPOINT_PORT == self._get_config_attr(
+            "monitoring_endpoint_config.port"
+        ), f"Error: Monitoring endpoint port mismatch. Expected {const.MONITORING_ENDPOINT_PORT}, but got {self._get_config_attr('monitoring_endpoint_config.port')}"
 
         self.config_map = k8s.KubeConfigMap(
             self,
@@ -121,7 +123,7 @@ class ServiceApp(Construct):
                 endpoints=[
                     PodMonitoringSpecEndpoints(
                         port=PodMonitoringSpecEndpointsPort.from_number(
-                            self.monitoring_endpoint_port
+                            const.MONITORING_ENDPOINT_PORT
                         ),
                         interval="10s",
                         path=const.MONITORING_METRICS_ENDPOINT,
@@ -143,7 +145,7 @@ class ServiceApp(Construct):
                         labels=self.labels,
                         annotations={
                             "prometheus.io/path": const.MONITORING_METRICS_ENDPOINT,
-                            "prometheus.io/port": str(self.monitoring_endpoint_port),
+                            "prometheus.io/port": str(const.MONITORING_ENDPOINT_PORT),
                             "prometheus.io/scrape": "true",
                         },
                     ),
@@ -188,7 +190,7 @@ class ServiceApp(Construct):
                         labels=self.labels,
                         annotations={
                             "prometheus.io/path": const.MONITORING_METRICS_ENDPOINT,
-                            "prometheus.io/port": str(self.monitoring_endpoint_port),
+                            "prometheus.io/port": str(const.MONITORING_ENDPOINT_PORT),
                             "prometheus.io/scrape": "true",
                         },
                     ),
@@ -314,39 +316,77 @@ class ServiceApp(Construct):
     def _get_config_attr(self, attr: str) -> str | int:
         config_attr = self.node_config.get(attr)
         assert config_attr is not None, f'Config attribute "{attr}" is missing.'
-
         return config_attr
 
-    def _get_ports_subset_keys_from_config(self) -> typing.List[typing.Tuple[str, str]]:
-        ports = []
-        for k, v in self.node_config.items():
-            if k.endswith(".port") and v != 0:
-                if k.startswith("components."):
-                    port_name = k.split(".")[1].replace("_", "-")
-                else:
-                    port_name = k.split(".")[0].replace("_", "-")
-            else:
-                continue
-
-            ports.append((port_name, k))
-
-        return ports
+    @staticmethod
+    def _validate_ports(port_name, port_number) -> None:
+        assert (
+            not port_name == "monitoring-endpoint"
+        ), "monitoring-endpoint is reserved port name. Remove it from deployment_config ports section."
+        assert (
+            not port_number == const.MONITORING_ENDPOINT_PORT
+        ), f"port {port_number} is reserved port number. Remove it from deployment_config ports section."
+        assert (
+            helpers.validate_k8s_port_name(port_name),
+            f'Invalid port name "{port_name}" found in service ports. The name must be 1-63 characters long, start with a letter, and contain only lowercase letters, numbers, and dashes.',
+        )
+        assert (
+            1 <= port_number <= 65535
+        ), f"Port {port_number} is out of valid range. Ports must be between 1 and 65535."
 
     def _get_container_ports(self) -> typing.List[k8s.ContainerPort]:
-        return [
-            k8s.ContainerPort(container_port=self._get_config_attr(attr[1]))
-            for attr in self._get_ports_subset_keys_from_config()
-        ]
+        container_ports = []
+        seen_ports = set()
+        container_ports.append(
+            k8s.ContainerPort(
+                name="monitoring-endpoint",
+                container_port=const.MONITORING_ENDPOINT_PORT,
+            )
+        )
+        if self.service_topology.ports is not None:
+            for k, v in self.service_topology.ports.items():
+                self._validate_ports(port_name=k, port_number=v)
+                assert (
+                    v not in seen_ports
+                ), f"Duplicate port {v} found in service ports. Please ensure all ports are unique."
+
+                container_ports.append(
+                    k8s.ContainerPort(
+                        name=k,
+                        container_port=v,
+                    )
+                )
+                seen_ports.add(v)
+
+        return container_ports
 
     def _get_service_ports(self) -> typing.List[k8s.ServicePort]:
-        return [
+        service_ports = []
+        seen_ports = set()
+        service_ports.append(
             k8s.ServicePort(
-                name=attr[0],
-                port=self._get_config_attr(attr[1]),
-                target_port=k8s.IntOrString.from_number(self._get_config_attr(attr[1])),
+                name="monitoring-endpoint",
+                port=const.MONITORING_ENDPOINT_PORT,
+                target_port=k8s.IntOrString.from_number(const.MONITORING_ENDPOINT_PORT),
             )
-            for attr in self._get_ports_subset_keys_from_config()
-        ]
+        )
+        if self.service_topology.ports is not None:
+            for k, v in self.service_topology.ports.items():
+                self._validate_ports(port_name=k, port_number=v)
+                assert (
+                    v not in seen_ports
+                ), f"Duplicate port {v} found in service ports. Please ensure all ports are unique."
+
+                service_ports.append(
+                    k8s.ServicePort(
+                        name=k,
+                        port=v,
+                        target_port=k8s.IntOrString.from_number(v),
+                    )
+                )
+                seen_ports.add(v)
+
+        return service_ports
 
     def _get_http_probe(
         self,
@@ -359,7 +399,7 @@ class ServiceApp(Construct):
         return k8s.Probe(
             http_get=k8s.HttpGetAction(
                 path=path,
-                port=k8s.IntOrString.from_number(self.monitoring_endpoint_port),
+                port=k8s.IntOrString.from_number(const.MONITORING_ENDPOINT_PORT),
             ),
             period_seconds=period_seconds,
             failure_threshold=failure_threshold,
@@ -534,7 +574,7 @@ class ServiceApp(Construct):
                 ),
                 timeout_sec=const.BACKEND_CONFIG_TIMEOUT_SECONDS,
                 health_check=BackendConfigSpecHealthCheck(
-                    port=self.monitoring_endpoint_port,
+                    port=const.MONITORING_ENDPOINT_PORT,
                     request_path=const.MONITORING_METRICS_ENDPOINT,
                     check_interval_sec=const.BACKEND_CONFIG_HEALTH_CHECK_INTERVAL_SECONDS,
                     timeout_sec=const.BACKEND_CONFIG_HEALTH_CHECK_TIMEOUT_SECONDS,
@@ -593,4 +633,4 @@ class ServiceApp(Construct):
                     effect="NoSchedule",
                 ),
             ]
-        return None
+        return None  #
