@@ -10,10 +10,11 @@ use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_l1_gas_price_types::errors::L1GasPriceClientError;
-use apollo_l1_gas_price_types::L1GasPriceProviderClient;
+use apollo_l1_gas_price_types::{GasPriceData, L1GasPriceProviderClient, PriceInfo};
 use async_trait::async_trait;
 use papyrus_base_layer::{BaseLayerContract, L1BlockNumber};
 use serde::{Deserialize, Serialize};
+use starknet_api::block::{BlockTimestamp, GasPrice};
 use starknet_api::core::ChainId;
 use thiserror::Error;
 use tracing::{error, info, warn};
@@ -139,26 +140,30 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
     /// Returns the next `block_num` to be scraped.
     async fn update_prices(
         &mut self,
-        mut block_num: L1BlockNumber,
+        mut block_number: L1BlockNumber,
     ) -> L1GasPriceScraperResult<L1BlockNumber, B> {
-        info!("Scraping gas prices starting from block {block_num}");
+        info!("Scraping gas prices starting from block {block_number}");
         loop {
-            let sample = match self.base_layer.get_price_sample(block_num).await {
+            let sample = match self.base_layer.get_price_sample(block_number).await {
                 Ok(Some(sample)) => sample,
-                Ok(None) => return Ok(block_num),
+                Ok(None) => return Ok(block_number),
                 Err(e) => {
                     warn!("BaseLayerError during scraping: {e:?}");
                     L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT.increment(1);
-                    return Ok(block_num);
+                    return Ok(block_number);
                 }
             };
-
+            let timestamp = BlockTimestamp(sample.timestamp);
+            let price_info = PriceInfo {
+                base_fee_per_gas: GasPrice(sample.base_fee_per_gas),
+                blob_fee: GasPrice(sample.blob_fee),
+            };
             self.l1_gas_price_provider
-                .add_price_info(block_num, sample)
+                .add_price_info(GasPriceData { block_number, timestamp, price_info })
                 .await
                 .map_err(L1GasPriceScraperError::GasPriceClientError)?;
 
-            block_num += 1;
+            block_number += 1;
         }
     }
 }

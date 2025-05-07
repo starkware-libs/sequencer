@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use errors::{EthToStrkOracleClientError, L1GasPriceClientError, L1GasPriceProviderError};
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
-use papyrus_base_layer::{L1BlockNumber, PriceSample};
+use papyrus_base_layer::L1BlockNumber;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockTimestamp, GasPrice};
 use strum_macros::AsRefStr;
@@ -23,6 +23,13 @@ pub type L1GasPriceProviderResult<T> = Result<T, L1GasPriceProviderError>;
 pub type L1GasPriceProviderClientResult<T> = Result<T, L1GasPriceClientError>;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct GasPriceData {
+    pub block_number: L1BlockNumber,
+    pub timestamp: BlockTimestamp,
+    pub price_info: PriceInfo,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PriceInfo {
     pub base_fee_per_gas: GasPrice,
     pub blob_fee: GasPrice,
@@ -31,7 +38,7 @@ pub struct PriceInfo {
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum L1GasPriceRequest {
     GetGasPrice(BlockTimestamp),
-    AddGasPrice(L1BlockNumber, PriceSample),
+    AddGasPrice(GasPriceData),
 }
 impl_debug_for_infra_requests_and_responses!(L1GasPriceRequest);
 
@@ -47,11 +54,7 @@ impl_debug_for_infra_requests_and_responses!(L1GasPriceResponse);
 #[cfg_attr(any(feature = "testing", test), automock)]
 #[async_trait]
 pub trait L1GasPriceProviderClient: Send + Sync {
-    async fn add_price_info(
-        &self,
-        height: L1BlockNumber,
-        sample: PriceSample,
-    ) -> L1GasPriceProviderClientResult<()>;
+    async fn add_price_info(&self, new_data: GasPriceData) -> L1GasPriceProviderClientResult<()>;
 
     async fn get_price_info(
         &self,
@@ -72,12 +75,8 @@ where
     ComponentClientType: Send + Sync + ComponentClient<L1GasPriceRequest, L1GasPriceResponse>,
 {
     #[instrument(skip(self))]
-    async fn add_price_info(
-        &self,
-        height: L1BlockNumber,
-        sample: PriceSample,
-    ) -> L1GasPriceProviderClientResult<()> {
-        let request = L1GasPriceRequest::AddGasPrice(height, sample);
+    async fn add_price_info(&self, new_data: GasPriceData) -> L1GasPriceProviderClientResult<()> {
+        let request = L1GasPriceRequest::AddGasPrice(new_data);
         handle_all_response_variants!(
             L1GasPriceResponse,
             AddGasPrice,
