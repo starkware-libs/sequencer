@@ -155,10 +155,6 @@ macro_rules! register_magic_constants {
             panic!("Magic constants file already registered: {path}");
         }
 
-        // TODO(Dori): Cleanup the magic_constants directory, if this is the first registration of
-        //   a constants file in the current directory + we are in fix mode (to cleanup constants).
-        //   Note that the lock on the registry will need to be taken explicitly for this.
-
         // Load / recreate the file, depending on the mode.
         let mut values = std::collections::BTreeMap::new();
         if $crate::regression_test_utils::is_magic_fix_mode() {
