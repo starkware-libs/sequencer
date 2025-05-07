@@ -13,6 +13,7 @@ use crate::execution::execution_utils::{
 };
 use crate::execution::secp::new_affine;
 use crate::execution::syscalls::hint_processor::felt_to_bool;
+use crate::execution::syscalls::syscall_executor::SyscallExecutorBaseError;
 use crate::execution::syscalls::{
     SyscallExecutionError,
     SyscallRequest,
@@ -115,9 +116,11 @@ where
     ) -> SyscallResult<&short_weierstrass::Affine<Curve>> {
         let ec_point_id =
             (ec_point_ptr - self.get_initialized_segments_base())? / EC_POINT_SEGMENT_SIZE;
-        self.points.get(ec_point_id).ok_or_else(|| SyscallExecutionError::InvalidSyscallInput {
-            input: ec_point_id.into(),
-            info: "Invalid Secp point ID".to_string(),
+        self.points.get(ec_point_id).ok_or_else(|| {
+            SyscallExecutionError::from(SyscallExecutorBaseError::InvalidSyscallInput {
+                input: ec_point_id.into(),
+                info: "Invalid Secp point ID".to_string(),
+            })
         })
     }
 }

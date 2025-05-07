@@ -153,10 +153,12 @@ pub trait SyscallExecutor {
         let data_u64: &[u64] = &data
             .iter()
             .map(|felt| {
-                felt.to_u64().ok_or_else(|| SyscallExecutionError::InvalidSyscallInput {
-                    input: **felt,
-                    info: "Invalid input for the keccak syscall.".to_string(),
-                })
+                {
+                    felt.to_u64().ok_or_else(|| SyscallExecutorBaseError::InvalidSyscallInput {
+                        input: **felt,
+                        info: "Invalid input for the keccak syscall.".to_string(),
+                    })
+                }
             })
             .collect::<Result<Vec<u64>, _>>()?;
 
@@ -517,6 +519,8 @@ pub enum SyscallExecutorBaseError {
     DeprecatedSyscallExecution(#[from] DeprecatedSyscallExecutionError),
     #[error(transparent)]
     Hint(#[from] HintError),
+    #[error("Invalid syscall input: {input:?}; {info}")]
+    InvalidSyscallInput { input: Felt, info: String },
     #[error(transparent)]
     Math(#[from] MathError),
     #[error(transparent)]
