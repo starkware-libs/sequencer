@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashSet};
 use std::sync::{LazyLock, Mutex};
 
 use serde::Serialize;
@@ -16,11 +16,11 @@ pub fn is_magic_fix_mode() -> bool {
 
 pub struct MagicConstants {
     path: String,
-    values: HashMap<String, Value>,
+    values: BTreeMap<String, Value>,
 }
 
 impl MagicConstants {
-    pub fn new(path: String, values: HashMap<String, Value>) -> Self {
+    pub fn new(path: String, values: BTreeMap<String, Value>) -> Self {
         Self { path, values }
     }
 
@@ -132,7 +132,7 @@ macro_rules! register_magic_constants {
         //   Note that the lock on the registry will need to be taken explicitly for this.
 
         // Load / recreate the file, depending on the mode.
-        let mut values = std::collections::HashMap::new();
+        let mut values = std::collections::BTreeMap::new();
         if $crate::regression_test_utils::is_magic_fix_mode() {
             // In fix mode, we create a new file with the default values.
             let file = std::fs::File::create(&path).unwrap_or_else(|error| {
@@ -149,8 +149,9 @@ macro_rules! register_magic_constants {
             });
             let reader = std::io::BufReader::new(file);
             let json: serde_json::Value = serde_json::from_reader(reader).unwrap();
-            values =
-                std::collections::HashMap::from_iter(json.as_object().unwrap().clone().into_iter());
+            values = std::collections::BTreeMap::from_iter(
+                json.as_object().unwrap().clone().into_iter(),
+            );
         }
 
         let absolute_path = std::fs::canonicalize(&path).unwrap_or_else(|error| {
