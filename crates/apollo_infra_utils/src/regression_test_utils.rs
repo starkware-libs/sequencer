@@ -1,34 +1,95 @@
 use std::collections::{BTreeMap, HashSet};
 use std::sync::{LazyLock, Mutex};
 
-use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_json::Value;
+
+/// Utilities for regression tests with "magic" values: values that are tested against computed
+/// values, and are stored in JSON files.
+///
+/// For example, the old way of doing things looks something like this:
+/// ```rust
+/// #[test]
+/// fn test_something() {
+///     let computation_result = 3 + 4;
+///     assert_eq!(computation_result, 7);
+/// }
+/// ```
+///
+/// To use the new method, you need to add the `register_magic_constants!` macro to the test, and
+/// assert using the `MagicConstants` object:
+/// ```rust
+/// #[test]
+/// fn test_something() {
+///     let mut magic = register_magic_constants!("");
+///     let computation_result = 3 + 4;
+///     magic.assert_eq("MY_VALUE", computation_result);
+/// }
+/// ```
+///
+/// Then, generate the JSON file with the default values by running:
+/// ```bash
+/// MAGIC_FIX=1 cargo test -p <MY_CRATE> test_something
+/// ```
+///
+/// This will create a JSON file in the `magic_constants` directory of the calling crate, with the
+/// dict `{ "MY_VALUE": 7 }`.
+///
+/// Note that the registration of the "magic" constants must generate unique filenames, which is
+/// non-trivial in parametrized tests; the argument to the `register_magic_constants!` macro must
+/// be unique for each test case. For example:
+/// ```rust
+/// #[rstest]
+/// fn test_something(#[values(1, 2)] value: u32) {
+///     let mut magic = register_magic_constants!(format!("value_{value}"));
+///     let computation_result = value + 6;
+///     magic.assert_eq("MY_VALUE", computation_result);
+/// }
+/// ```
+///
+/// This will generate two separate files in the `magic_constants` directory, one per test case.
+/// The expected values in each test case may be identical, or different, but the filenames must be
+/// unique.
+
+/// Global registry for magic constants files. Used to keep track of the "magic number" files that
+/// are generated / used by regression tests.
+#[derive(Default)]
+pub struct MagicConstantsRegistry(pub Mutex<HashSet<String>>);
 
 pub static MAGIC_CONSTANTS_REGISTRY: LazyLock<MagicConstantsRegistry> =
     LazyLock::new(MagicConstantsRegistry::default);
 
-#[derive(Default)]
-pub struct MagicConstantsRegistry(pub Mutex<HashSet<String>>);
-
+/// Check if we are in "clean" mode. In this mode, we delete all files in the magic constants
+/// directory before creating a new one. This is used to keep the regression files "clean" (in case
+/// a file / test function was renamed, we don't want to keep dangling JSON artifacts).
 pub fn is_magic_clean_fix_mode() -> bool {
     std::env::var("MAGIC_CLEAN_FIX").is_ok()
 }
 
+/// Check if we are in "fix" mode. In this mode, we create a new file with the default values.
 pub fn is_magic_fix_mode() -> bool {
     is_magic_clean_fix_mode() || std::env::var("MAGIC_FIX").is_ok()
 }
 
+/// Struct to hold the magic constants values. The values are stored in a BTreeMap, to keep the key
+/// order deterministic. The values are generic serializable objects, so we can store any type of
+/// value, as long as it's serializable.
 pub struct MagicConstants {
     path: String,
     values: BTreeMap<String, Value>,
 }
 
 impl MagicConstants {
+    /// Should not be called explicitly; use the `register_magic_constants!` macro instead.
     pub fn new(path: String, values: BTreeMap<String, Value>) -> Self {
         Self { path, values }
     }
 
+    /// Main function to assert the equality of a value with the one in the file.
+    /// If you have a test that uses a magic constant, you should use this function to assert the
+    /// equality of the value.
+    /// For example, `assert_eq!(computed_value, 7)` should be replaced with
+    /// `magic.assert_eq("MY_VALUE", computed_value)`.
     #[track_caller]
     pub fn assert_eq<V: Serialize>(&mut self, value_name: &'static str, value: V) {
         if is_magic_fix_mode() {
@@ -42,29 +103,10 @@ impl MagicConstants {
             assert_eq!(expected, &actual);
         }
     }
-
-    /// Fetches the value. In fix mode, use the provided "default".
-    pub fn get<V: Default + DeserializeOwned>(
-        &self,
-        value_name: &'static str,
-        fix_mode_value: V,
-    ) -> V {
-        if is_magic_fix_mode() {
-            fix_mode_value
-        } else {
-            // In test mode, we return the value from the file.
-            self.values
-                .get(value_name)
-                .and_then(|value| serde_json::from_value(value.clone()).ok())
-                .unwrap_or_else(|| {
-                    panic!("Magic constant {value_name} not found in file {}.", self.path)
-                })
-        }
-    }
 }
 
+/// In fix mode, automatically dump the values to the file on drop (when test ends).
 impl Drop for MagicConstants {
-    // In fix mode: dump the values to the file on drop.
     fn drop(&mut self) {
         if is_magic_fix_mode() {
             std::fs::write(&self.path, serde_json::to_string_pretty(&self.values).unwrap())
@@ -89,6 +131,24 @@ macro_rules! function_name {
     }};
 }
 
+/// Main logic of this module. Used to register and initialize the magic constants for a specific
+/// test.
+/// Each registration corresponds to a unique JSON file in the `magic_constants` directory of the
+/// calling crate.
+/// If the same file is registered twice, it will panic.
+///
+/// The macro behaves differently depending on the mode:
+/// 1. If vanilla `cargo test` is run (no fix / clean modes), it will load the values from the file.
+///    If the file does not exist, it will panic.
+/// 2. If we are in fix mode, but not clean mode, a new file will be created (with an empty object).
+///    Note that this will not delete any existing files, unless the name is identical.
+/// 3. If we are in clean mode, all files in the `magic_constants` directory of the calling crate
+///    will be deleted before new files are registered. This is useful if the auto-generated file
+///    name has changed (making the old file obsolete). a. The directory is cleaned only on the
+///    first registration of a "magic" file in the calling crate. b. The directory is created if it
+///    does not exist. c. Note that if you run clean mode on a specific test, you will delete all
+///    "magic" files of all tests of this crate, regardless of whether or not the respective test
+///    was run. To avoid this, never run clean mode on a single test; only on entire crates.
 #[macro_export]
 macro_rules! register_magic_constants {
     ($unique_name:expr) => {{
