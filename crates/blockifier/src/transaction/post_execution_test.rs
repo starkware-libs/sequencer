@@ -1,3 +1,4 @@
+use apollo_infra_utils::register_magic_constants;
 use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use blockifier_test_utils::calldata::create_calldata;
@@ -90,14 +91,14 @@ fn test_revert_on_overdraft(
     #[case] fee_type: FeeType,
     #[values(CairoVersion::Cairo0)] cairo_version: CairoVersion,
 ) {
+    let mut magic =
+        register_magic_constants!(format!("tx_version_{version:?}_fee_type_{fee_type:?}"));
     block_context.versioned_constants.allocation_cost = AllocationCost::ZERO;
     let chain_info = &block_context.chain_info;
     let fee_token_address = chain_info.fee_token_addresses.get_by_fee_type(&fee_type);
     // An address to be written into to observe state changes.
     let storage_address = felt!(10_u8);
     let storage_key = StorageKey::try_from(storage_address).unwrap();
-    // Final storage value expected in the address at the end of this test.
-    let expected_final_value = felt!(77_u8);
     // An address to be used as recipient of a transfer.
     let recipient_int = 7_u8;
     let recipient = felt!(recipient_int);
@@ -145,7 +146,7 @@ fn test_revert_on_overdraft(
             calldata: calldata_for_write_and_transfer(
                 contract_address,
                 storage_address,
-                expected_final_value,
+                magic.get("EXPECTED_FINAL_VALUE", felt!(77_u8)),
                 recipient,
                 final_received_amount,
                 fee_token_address
@@ -203,7 +204,10 @@ fn test_revert_on_overdraft(
     assert_eq!(state.get_nonce_at(account_address).unwrap(), nonce_manager.next(account_address));
 
     // Verify the storage key/value were not updated in the last tx.
-    assert_eq!(state.get_storage_at(contract_address, storage_key).unwrap(), expected_final_value);
+    magic.assert_eq(
+        "EXPECTED_FINAL_VALUE",
+        state.get_storage_at(contract_address, storage_key).unwrap(),
+    );
 
     // Verify balances of both sender and recipient are as expected.
     assert_eq!(

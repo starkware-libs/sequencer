@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, HashSet};
 use std::sync::{LazyLock, Mutex};
 
+use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_json::Value;
 
@@ -37,6 +38,25 @@ impl MagicConstants {
             assert_eq!(expected, &actual);
         }
     }
+
+    /// Fetches the value. In fix mode, use the provided "default".
+    pub fn get<V: Default + DeserializeOwned>(
+        &self,
+        value_name: &'static str,
+        fix_mode_value: V,
+    ) -> V {
+        if is_magic_fix_mode() {
+            fix_mode_value
+        } else {
+            // In test mode, we return the value from the file.
+            self.values
+                .get(value_name)
+                .and_then(|value| serde_json::from_value(value.clone()).ok())
+                .unwrap_or_else(|| {
+                    panic!("Magic constant {value_name} not found in file {}.", self.path)
+                })
+        }
+    }
 }
 
 impl Drop for MagicConstants {
@@ -68,9 +88,7 @@ macro_rules! function_name {
 #[macro_export]
 macro_rules! register_magic_constants {
     ($unique_name:expr) => {{
-        let directory = std::fs::canonicalize("./magic_constants").unwrap_or_else(|error| {
-            panic!("Failed to get absolute path for magic constants directory: {error}.")
-        });
+        let directory = std::path::PathBuf::from("magic_constants");
 
         // If we are in fix mode, and this is the first registration of a file in the current
         // directory, we need to delete all files in the directory (and possibly create the
@@ -80,8 +98,11 @@ macro_rules! register_magic_constants {
             let locked_set =
                 $crate::regression_test_utils::MAGIC_CONSTANTS_REGISTRY.0.lock().unwrap();
             let mut found = false;
+            let current_dir = std::fs::canonicalize(".").unwrap_or_else(|error| {
+                panic!("Failed to get absolute path to current location: {error}.")
+            });
             for registered_path in locked_set.iter() {
-                if registered_path.starts_with(directory.to_str().unwrap()) {
+                if registered_path.starts_with(current_dir.to_str().unwrap()) {
                     found = true;
                     break;
                 }
@@ -111,6 +132,9 @@ macro_rules! register_magic_constants {
                 }
             }
         }
+        let directory = std::fs::canonicalize(&directory).unwrap_or_else(|error| {
+            panic!("Failed to get absolute path for magic constants directory: {error}.")
+        });
 
         // Register the path.
         let path = directory
