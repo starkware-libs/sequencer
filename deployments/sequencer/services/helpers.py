@@ -60,3 +60,8 @@ def generate_random_hash(length: int = 6, from_string: Optional[str] = None) -> 
         return hash_object.hexdigest()[:length]
     else:
         return "".join(random.choices(string.ascii_letters, k=length))
+
+
+def validate_k8s_port_name(port_name: str) -> bool:
+    pattern = r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+    return True if re.match(pattern, port_name) and 1 <= len(port_name) <= 63 else False

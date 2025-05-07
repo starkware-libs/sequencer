@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-import sys
-
 from constructs import Construct
 from cdk8s import App, Chart, YamlOutputType
 
@@ -73,6 +71,7 @@ def main():
                 controller=svc["controller"].lower(),
                 replicas=svc["replicas"],
                 autoscale=svc["autoscale"],
+                ports=svc["ports"],
                 ingress=svc["ingress"],
                 storage=svc["storage"],
                 toleration=svc["toleration"],

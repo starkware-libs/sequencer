@@ -1,6 +1,5 @@
 import dataclasses
-import typing
-
+from typing import Optional, List, Dict, Any
 
 from services.config import SequencerConfig
 
@@ -12,8 +11,9 @@ class ServiceTopology:
     controller: str
     replicas: int
     autoscale: bool
-    ingress: typing.Optional[dict[any, any]]
-    toleration: typing.Optional[str]
-    storage: typing.Optional[int]
-    resources: typing.Optional[dict[str, dict[str, int]]]
-    external_secret: typing.Optional[dict[str, str]]
+    ports: Optional[Dict[str, int]]
+    ingress: Optional[Dict[Any, Any]]
+    toleration: Optional[str]
+    storage: Optional[int]
+    resources: Optional[Dict[str, Dict[str, int]]]
+    external_secret: Optional[Dict[str, str]]
