@@ -209,11 +209,16 @@ pub fn load_magic_constants(absolute_path: &PathBuf) -> MagicConstants {
 ///    Note that this will not delete any existing files, unless the name is identical.
 /// 3. If we are in clean mode, all files in the `magic_constants` directory of the calling crate
 ///    will be deleted before new files are registered. This is useful if the auto-generated file
-///    name has changed (making the old file obsolete). a. The directory is cleaned only on the
-///    first registration of a "magic" file in the calling crate. b. The directory is created if it
-///    does not exist. c. Note that if you run clean mode on a specific test, you will delete all
-///    "magic" files of all tests of this crate, regardless of whether or not the respective test
-///    was run. To avoid this, never run clean mode on a single test; only on entire crates.
+///    name has changed (making the old file obsolete).
+///    * The directory is cleaned only on the first registration of a "magic" file in the calling
+///      crate.
+///    * The directory is created if it does not exist.
+///    * Note that if you run clean mode on a specific test, you will delete all "magic" files of
+///      all tests of this crate, regardless of whether or not the respective test was run. To avoid
+///      this, never run clean mode on a single test; only on entire crates.
+///    * If specific tests are run only when specific features are enabled, you should run the clean
+///      mode with the same features enabled. Otherwise, the files will be deleted, but not
+///      recreated.
 #[macro_export]
 macro_rules! register_magic_constants {
     ($unique_name:expr) => {{
