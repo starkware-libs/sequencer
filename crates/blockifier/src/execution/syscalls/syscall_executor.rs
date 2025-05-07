@@ -1,6 +1,8 @@
 use cairo_lang_casm::hints::StarknetHint;
+use cairo_vm::types::errors::math_errors::MathError;
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::hint_errors::HintError;
+use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_traits::ToPrimitive;
@@ -9,6 +11,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::blockifier_versioned_constants::{GasCostsError, SyscallGasCost};
 use crate::execution::common_hints::HintExecutionResult;
+use crate::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallExecutionError;
 use crate::execution::execution_utils::felt_from_ptr;
 use crate::execution::syscalls::common_syscall_logic::base_keccak;
 use crate::execution::syscalls::hint_processor::{SyscallExecutionError, OUT_OF_GAS_ERROR};
@@ -507,3 +510,19 @@ pub fn execute_next_syscall<T: SyscallExecutor>(
 
     execute_syscall_from_selector(syscall_executor, vm, selector)
 }
+
+#[derive(Debug, thiserror::Error)]
+pub enum SyscallExecutorBaseError {
+    #[error(transparent)]
+    DeprecatedSyscallExecution(#[from] DeprecatedSyscallExecutionError),
+    #[error(transparent)]
+    Hint(#[from] HintError),
+    #[error(transparent)]
+    Math(#[from] MathError),
+    #[error(transparent)]
+    Memory(#[from] MemoryError),
+    #[error(transparent)]
+    VirtualMachine(#[from] VirtualMachineError),
+}
+
+pub type SyscallBaseResult<T> = Result<T, SyscallExecutorBaseError>;
