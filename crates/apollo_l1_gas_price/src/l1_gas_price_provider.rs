@@ -7,7 +7,6 @@ use apollo_infra::component_definitions::ComponentStarter;
 use apollo_l1_gas_price_types::errors::L1GasPriceProviderError;
 use apollo_l1_gas_price_types::{GasPriceData, L1GasPriceProviderResult, PriceInfo};
 use async_trait::async_trait;
-use papyrus_base_layer::{L1BlockNumber, PriceSample};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockTimestamp, GasPrice};
 use tracing::{info, warn};
@@ -103,30 +102,30 @@ impl L1GasPriceProvider {
         Self { config, price_samples_by_block: RingBuffer::new(storage_limit) }
     }
 
-    pub fn add_price_info(
-        &mut self,
-        block_number: L1BlockNumber,
-        sample: PriceSample,
-    ) -> L1GasPriceProviderResult<()> {
+    pub fn add_price_info(&mut self, new_data: GasPriceData) -> L1GasPriceProviderResult<()> {
         if let Some(data) = self.price_samples_by_block.back() {
-            if block_number != data.block_number + 1 {
+            if new_data.block_number != data.block_number + 1 {
                 return Err(L1GasPriceProviderError::UnexpectedBlockNumberError {
                     expected: data.block_number + 1,
-                    found: block_number,
+                    found: new_data.block_number,
                 });
             }
         }
-        info!("Received price sample for L1 block {block_number}: {sample:?}");
-        self.price_samples_by_block.push(GasPriceData { block_number, sample });
+        info!(
+            "Received price sample for L1 block {}: timestamp {:?} prices: {:?}",
+            new_data.block_number, new_data.timestamp, new_data.price_info
+        );
+        self.price_samples_by_block.push(new_data);
         Ok(())
     }
 
     pub fn get_price_info(&self, timestamp: BlockTimestamp) -> L1GasPriceProviderResult<PriceInfo> {
         // This index is for the last block in the mean (inclusive).
-        let index_last_timestamp_rev =
-            self.price_samples_by_block.iter().rev().position(|data| {
-                data.sample.timestamp <= timestamp.0 - self.config.lag_margin_seconds
-            });
+        let index_last_timestamp_rev = self
+            .price_samples_by_block
+            .iter()
+            .rev()
+            .position(|data| data.timestamp.0 <= timestamp.0 - self.config.lag_margin_seconds);
 
         // Could not find a block with the requested timestamp and lag.
         let Some(last_index_rev) = index_last_timestamp_rev else {
@@ -165,7 +164,10 @@ impl L1GasPriceProvider {
             .skip(first_index)
             .take(actual_number_of_blocks)
             .fold((0, 0), |(sum_base, sum_blob), data| {
-                (sum_base + data.sample.base_fee_per_gas, sum_blob + data.sample.blob_fee)
+                (
+                    sum_base + data.price_info.base_fee_per_gas.0,
+                    sum_blob + data.price_info.blob_fee.0,
+                )
             });
         let actual_number_of_blocks =
             u128::try_from(actual_number_of_blocks).expect("Cannot convert to u128");
