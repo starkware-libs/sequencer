@@ -170,6 +170,15 @@ pub fn read_execution_retdata(
     Ok(Retdata(felt_range_from_ptr(&runner.vm, Relocatable::try_from(retdata_ptr)?, retdata_size)?))
 }
 
+pub fn relocatable_from_ptr(
+    vm: &VirtualMachine,
+    ptr: &mut Relocatable,
+) -> Result<Relocatable, VirtualMachineError> {
+    let value = vm.get_relocatable(*ptr)?;
+    *ptr = (*ptr + 1)?;
+    Ok(value)
+}
+
 pub fn felt_from_ptr(
     vm: &VirtualMachine,
     ptr: &mut Relocatable,

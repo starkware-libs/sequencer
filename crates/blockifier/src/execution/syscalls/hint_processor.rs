@@ -285,8 +285,8 @@ impl<'a> SyscallHintProcessor<'a> {
             syscall_ptr: initial_syscall_ptr,
             hints,
             execution_info_ptr: None,
-            secp256k1_hint_processor: SecpHintProcessor::default(),
-            secp256r1_hint_processor: SecpHintProcessor::default(),
+            secp256k1_hint_processor: SecpHintProcessor::new(),
+            secp256r1_hint_processor: SecpHintProcessor::new(),
             sha256_segment_end_ptr: None,
         }
     }
@@ -748,11 +748,11 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
 
     fn secp256k1_get_point_from_x(
         request: SecpGetPointFromXRequest,
-        _vm: &mut VirtualMachine,
+        vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
     ) -> SyscallResult<SecpGetPointFromXResponse> {
-        syscall_handler.secp256k1_hint_processor.secp_get_point_from_x(request)
+        syscall_handler.secp256k1_hint_processor.secp_get_point_from_x(vm, request)
     }
 
     fn secp256k1_get_xy(
@@ -775,11 +775,11 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
 
     fn secp256k1_new(
         request: SecpNewRequest,
-        _vm: &mut VirtualMachine,
+        vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
     ) -> SyscallResult<SecpNewResponse> {
-        syscall_handler.secp256k1_hint_processor.secp_new(request)
+        syscall_handler.secp256k1_hint_processor.secp_new(vm, request)
     }
 
     fn secp256r1_add(
@@ -793,11 +793,11 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
 
     fn secp256r1_get_point_from_x(
         request: SecpGetPointFromXRequest,
-        _vm: &mut VirtualMachine,
+        vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
     ) -> SyscallResult<SecpGetPointFromXResponse> {
-        syscall_handler.secp256r1_hint_processor.secp_get_point_from_x(request)
+        syscall_handler.secp256r1_hint_processor.secp_get_point_from_x(vm, request)
     }
 
     fn secp256r1_get_xy(
@@ -820,11 +820,11 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
 
     fn secp256r1_new(
         request: Secp256r1NewRequest,
-        _vm: &mut VirtualMachine,
+        vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
     ) -> SyscallResult<Secp256r1NewResponse> {
-        syscall_handler.secp256r1_hint_processor.secp_new(request)
+        syscall_handler.secp256r1_hint_processor.secp_new(vm, request)
     }
 
     fn send_message_to_l1(
