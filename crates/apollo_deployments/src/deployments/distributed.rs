@@ -16,6 +16,7 @@ use crate::service::{
     ExternalSecret,
     GetComponentConfigs,
     Ingress,
+    IngressParams,
     IngressRule,
     Resource,
     Resources,
@@ -143,8 +144,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
         environment: &Environment,
         external_secret: &Option<ExternalSecret>,
         additional_config_filenames: Vec<String>,
-        domain: String,
-        ingress_alternative_names: Option<Vec<String>>,
+        ingress_params: IngressParams,
     ) -> Service {
         match environment {
             Environment::Testing => match self {
@@ -181,10 +181,9 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::HttpServer => Service::new(
                     Into::<ServiceName>::into(*self),
                     Some(Ingress::new(
-                        domain,
+                        ingress_params,
                         true,
                         vec![IngressRule::new(String::from("/gateway"), 8080, None)],
-                        ingress_alternative_names.unwrap_or_default(),
                     )),
                     1,
                     None,
@@ -278,10 +277,9 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::HttpServer => Service::new(
                     Into::<ServiceName>::into(*self),
                     Some(Ingress::new(
-                        domain,
+                        ingress_params,
                         true,
                         vec![IngressRule::new(String::from("/gateway"), 8080, None)],
-                        ingress_alternative_names.unwrap_or_default(),
                     )),
                     1,
                     None,
