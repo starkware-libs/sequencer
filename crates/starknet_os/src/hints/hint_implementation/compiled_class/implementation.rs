@@ -4,7 +4,7 @@ use blockifier::state::state_api::StateReader;
 use cairo_vm::any_box;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
-    get_relocatable_from_var_name,
+    get_ptr_from_var_name,
     insert_value_from_var_name,
     insert_value_into_ap,
 };
@@ -211,7 +211,7 @@ pub(crate) fn load_class_inner<S: StateReader>(
         )?;
         let bytecode_ptr = vm.get_relocatable(bytecode_ptr_address)?;
         let builtin_costs =
-            get_relocatable_from_var_name(Ids::BuiltinCosts.into(), vm, ids_data, ap_tracking)?;
+            get_ptr_from_var_name(Ids::BuiltinCosts.into(), vm, ids_data, ap_tracking)?;
         let encoded_ret_opcode = 0x208b7fff7fff7ffe;
         let data = [encoded_ret_opcode.into(), builtin_costs.into()];
         vm.load_data((bytecode_ptr + class.bytecode.len())?, &data)?;
