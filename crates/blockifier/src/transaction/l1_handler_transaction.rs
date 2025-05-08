@@ -1,17 +1,24 @@
 use std::sync::Arc;
 
+use starknet_api::contract_class::EntryPointType;
+use starknet_api::core::ContractAddress;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::transaction::fields::{Fee, TransactionSignature};
+use starknet_api::transaction::fields::{Calldata, Fee, TransactionSignature};
 use starknet_api::transaction::TransactionVersion;
 
 use crate::context::BlockContext;
 use crate::execution::call_info::CallInfo;
-use crate::execution::entry_point::{EntryPointExecutionContext, SierraGasRevertTracker};
+use crate::execution::entry_point::{
+    CallEntryPoint,
+    CallType,
+    EntryPointExecutionContext,
+    SierraGasRevertTracker,
+};
 use crate::fee::fee_checks::FeeCheckReport;
 use crate::fee::receipt::TransactionReceipt;
 use crate::state::cached_state::TransactionalState;
-use crate::state::state_api::UpdatableState;
+use crate::state::state_api::{State, UpdatableState};
 use crate::transaction::errors::{TransactionExecutionError, TransactionFeeError};
 use crate::transaction::objects::{
     CommonAccountFields,
@@ -97,5 +104,39 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
             receipt,
             revert_error: None,
         })
+    }
+}
+
+impl<S: State> Executable<S> for L1HandlerTransaction {
+    fn run_execute(
+        &self,
+        state: &mut S,
+        context: &mut EntryPointExecutionContext,
+        remaining_gas: &mut u64,
+    ) -> TransactionExecutionResult<Option<CallInfo>> {
+        let tx = &self.tx;
+        let storage_address = tx.contract_address;
+        let class_hash = state.get_class_hash_at(storage_address)?;
+        let selector = tx.entry_point_selector;
+        let execute_call = CallEntryPoint {
+            entry_point_type: EntryPointType::L1Handler,
+            entry_point_selector: selector,
+            calldata: Calldata(Arc::clone(&tx.calldata.0)),
+            class_hash: None,
+            code_address: None,
+            storage_address,
+            caller_address: ContractAddress::default(),
+            call_type: CallType::Call,
+            initial_gas: *remaining_gas,
+        };
+
+        execute_call.non_reverting_execute(state, context, remaining_gas).map(Some).map_err(
+            |error| TransactionExecutionError::ExecutionError {
+                error,
+                class_hash,
+                storage_address,
+                selector,
+            },
+        )
     }
 }
