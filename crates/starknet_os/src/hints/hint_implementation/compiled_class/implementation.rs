@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use blockifier::state::state_api::StateReader;
 use cairo_vm::any_box;
@@ -52,7 +52,7 @@ pub(crate) fn assert_end_of_bytecode_segments<S: StateReader>(
 pub(crate) fn bytecode_segment_structure<S: StateReader>(
     HintArgs { hint_processor, exec_scopes, ids_data, ap_tracking, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    let bytecode_segment_structures: &HashMap<ClassHash, BytecodeSegmentNode> =
+    let bytecode_segment_structures: &BTreeMap<ClassHash, BytecodeSegmentNode> =
         exec_scopes.get_ref(Scope::BytecodeSegmentStructures.into())?;
 
     let class_hash_address = get_address_of_nested_fields(
@@ -148,7 +148,7 @@ pub(crate) fn set_ap_to_segment_hash<S: StateReader>(
 pub(crate) fn validate_compiled_class_facts_post_execution<S: StateReader>(
     HintArgs { hint_processor, exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    let mut bytecode_segment_structures = HashMap::new();
+    let mut bytecode_segment_structures = BTreeMap::new();
     for (compiled_hash, compiled_class) in hint_processor.compiled_classes.iter() {
         bytecode_segment_structures.insert(
             *compiled_hash,

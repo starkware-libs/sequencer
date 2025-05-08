@@ -577,7 +577,7 @@ define_hint_enum!(
         compiled_hash: create_bytecode_segment_structure(
             bytecode=compiled_class.bytecode,
             bytecode_segment_lengths=compiled_class.bytecode_segment_lengths,
-        ) for compiled_hash, compiled_class in os_input.compiled_classes.items()
+        ) for compiled_hash, compiled_class in sorted(os_input.compiled_classes.items())
     }
     bytecode_segment_access_oracle = BytecodeAccessOracle(is_pc_accessed_callback=is_accessed)
     vm_enter_scope({
@@ -760,7 +760,7 @@ else:
     __deprecated_class_hashes=set(os_input.deprecated_compiled_classes.keys())
     ids.n_compiled_class_facts = len(os_input.deprecated_compiled_classes)
     vm_enter_scope({
-        'compiled_class_facts': iter(os_input.deprecated_compiled_classes.items()),
+        'compiled_class_facts': iter(sorted(os_input.deprecated_compiled_classes.items())),
     })"##
         }
     ),
@@ -1849,9 +1849,9 @@ define_hint_extension_enum!(
     )
 
     ids.n_compiled_class_facts = len(os_input.compiled_classes)
-    ids.compiled_class_facts = (compiled_class_facts_end := segments.add())
+    ids.compiled_class_facts = segments.add()
     for i, (compiled_class_hash, compiled_class) in enumerate(
-        os_input.compiled_classes.items()
+        sorted(os_input.compiled_classes.items())
     ):
         # Load the compiled class.
         cairo_contract = get_compiled_class_struct(
