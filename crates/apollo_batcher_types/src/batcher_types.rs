@@ -129,6 +129,7 @@ pub struct StartHeightInput {
     pub height: BlockNumber,
 }
 
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DecisionReachedInput {
     pub proposal_id: ProposalId,
