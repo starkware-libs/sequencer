@@ -15,7 +15,7 @@ mod v0_8;
 mod version_config;
 
 use std::collections::BTreeMap;
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 
 use apollo_class_manager_types::SharedClassManagerClient;
@@ -71,7 +71,8 @@ pub const SERVER_MAX_BODY_SIZE: u32 = 10 * 1024 * 1024;
 pub struct RpcConfig {
     #[validate(custom = "validate_ascii")]
     pub chain_id: ChainId,
-    pub server_address: String,
+    pub ip: IpAddr,
+    pub port: u16,
     pub max_events_chunk_size: usize,
     pub max_events_keys: usize,
     // TODO(lev,shahak): remove once we remove papyrus.
@@ -85,7 +86,8 @@ impl Default for RpcConfig {
     fn default() -> Self {
         RpcConfig {
             chain_id: ChainId::Mainnet,
-            server_address: String::from("0.0.0.0:8090"),
+            ip: "0.0.0.0".parse().unwrap(),
+            port: 8090,
             max_events_chunk_size: 1000,
             max_events_keys: 100,
             collect_metrics: false,
@@ -110,10 +112,15 @@ impl SerializeConfig for RpcConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "server_address",
-                &self.server_address,
-                "IP:PORT of the node`s JSON-RPC server.",
-                ParamPrivacyInput::Public,
+                "ip",
+                &self.ip.to_string(), "The JSON RPC server ip.",
+                ParamPrivacyInput::Public
+            ),
+            ser_param(
+                "port",
+                &self.port,
+                "The JSON RPC server port.",
+                ParamPrivacyInput::Public
             ),
             ser_param(
                 "max_events_chunk_size",
@@ -237,15 +244,15 @@ pub async fn run_server(
         .max_request_body_size(SERVER_MAX_BODY_SIZE)
         .set_middleware(tower::ServiceBuilder::new().filter_async(proxy_rpc_request));
 
+    let server_address = SocketAddr::new(config.ip, config.port);
+
     if config.collect_metrics {
-        let server = server_builder
-            .set_logger(MetricLogger::new(&methods))
-            .build(&config.server_address)
-            .await?;
+        let server =
+            server_builder.set_logger(MetricLogger::new(&methods)).build(&server_address).await?;
         addr = server.local_addr()?;
         handle = server.start(methods);
     } else {
-        let server = server_builder.build(&config.server_address).await?;
+        let server = server_builder.build(&server_address).await?;
         addr = server.local_addr()?;
         handle = server.start(methods);
     }

@@ -572,8 +572,10 @@ impl IntegrationTestManager {
             .expect("http_server_index points to a non existing executable index")
             .get_config();
 
-        let url = config.state_sync_config.rpc_config.server_address.to_string();
-        url.parse::<SocketAddr>().expect("Invalid socket address format")
+        SocketAddr::from((
+            config.state_sync_config.rpc_config.ip,
+            config.state_sync_config.rpc_config.port,
+        ))
     }
 
     // Verify with JSON RPC server if the last block is the expected one.
