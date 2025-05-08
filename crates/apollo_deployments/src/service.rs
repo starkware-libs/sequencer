@@ -44,13 +44,22 @@ pub struct Ingress {
 }
 
 impl Ingress {
-    pub fn new(
-        domain: String,
-        internal: bool,
-        rules: Vec<IngressRule>,
-        alternative_names: Vec<String>,
-    ) -> Self {
+    pub fn new(ingress_params: IngressParams, internal: bool, rules: Vec<IngressRule>) -> Self {
+        let domain = ingress_params.domain;
+        let alternative_names = ingress_params.alternative_names.unwrap_or_default();
         Self { domain, internal, rules, alternative_names }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct IngressParams {
+    domain: String,
+    alternative_names: Option<Vec<String>>,
+}
+
+impl IngressParams {
+    pub fn new(domain: String, alternative_names: Option<Vec<String>>) -> Self {
+        Self { domain, alternative_names }
     }
 }
 
@@ -169,15 +178,13 @@ impl ServiceName {
         environment: &Environment,
         external_secret: &Option<ExternalSecret>,
         additional_config_filenames: Vec<String>,
-        domain: String,
-        ingress_alternative_names: Option<Vec<String>>,
+        ingress_params: IngressParams,
     ) -> Service {
         self.as_inner().create_service(
             environment,
             external_secret,
             additional_config_filenames,
-            domain,
-            ingress_alternative_names,
+            ingress_params,
         )
     }
 
@@ -208,8 +215,7 @@ pub(crate) trait ServiceNameInner: Display {
         environment: &Environment,
         external_secret: &Option<ExternalSecret>,
         additional_config_filenames: Vec<String>,
-        domain: String,
-        ingress_alternative_names: Option<Vec<String>>,
+        ingress_params: IngressParams,
     ) -> Service;
 
     fn get_controller(&self) -> Controller;
