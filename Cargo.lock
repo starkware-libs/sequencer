@@ -1593,6 +1593,7 @@ dependencies = [
  "apollo_config",
  "apollo_infra",
  "apollo_infra_utils",
+ "apollo_l1_provider_types",
  "apollo_mempool_types",
  "apollo_metrics",
  "axum",

@@ -44,7 +44,7 @@ async fn main() {
     let node_indices = integration_test_manager.get_node_indices();
 
     integration_test_manager.run_nodes(node_indices.clone()).await;
-
+    // tokio::time::sleep(tokio::time::Duration::from_millis(50000)).await;
     // Save a snapshot of the tx_generator so we can restore the state after reverting.
     let tx_generator_snapshot = integration_test_manager.tx_generator().snapshot();
 
