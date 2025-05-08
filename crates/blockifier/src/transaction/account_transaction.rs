@@ -4,9 +4,21 @@ use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::GasPriceVector;
 use starknet_api::calldata;
 use starknet_api::contract_class::EntryPointType;
-use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
+use starknet_api::core::{
+    ClassHash,
+    CompiledClassHash,
+    ContractAddress,
+    EntryPointSelector,
+    Nonce,
+};
 use starknet_api::data_availability::DataAvailabilityMode;
-use starknet_api::executable_transaction::{AccountTransaction as Transaction, TransactionType};
+use starknet_api::executable_transaction::{
+    AccountTransaction as Transaction,
+    DeclareTransaction,
+    DeployAccountTransaction,
+    InvokeTransaction,
+    TransactionType,
+};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::Resource::{L1DataGas, L1Gas, L2Gas};
 use starknet_api::transaction::fields::{
@@ -19,7 +31,13 @@ use starknet_api::transaction::fields::{
     TransactionSignature,
     ValidResourceBounds,
 };
-use starknet_api::transaction::{constants, TransactionHash, TransactionVersion};
+use starknet_api::transaction::{
+    constants,
+    DeclareTransactionV2,
+    DeclareTransactionV3,
+    TransactionHash,
+    TransactionVersion,
+};
 use starknet_types_core::felt::Felt;
 
 use super::errors::ResourceBoundsError;
@@ -30,9 +48,11 @@ use crate::execution::contract_class::RunnableCompiledClass;
 use crate::execution::entry_point::{
     CallEntryPoint,
     CallType,
+    ConstructorContext,
     EntryPointExecutionContext,
     SierraGasRevertTracker,
 };
+use crate::execution::execution_utils::execute_deployment;
 use crate::execution::stack_trace::{
     extract_trailing_cairo1_revert_trace,
     gen_tx_execution_error_trace,
@@ -49,6 +69,7 @@ use crate::fee::gas_usage::estimate_minimal_gas_vector;
 use crate::fee::receipt::TransactionReceipt;
 use crate::retdata;
 use crate::state::cached_state::{StateCache, TransactionalState};
+use crate::state::errors::StateError;
 use crate::state::state_api::{State, StateReader, UpdatableState};
 use crate::transaction::errors::{
     TransactionExecutionError,
@@ -517,6 +538,7 @@ impl AccountTransaction {
         fee_transfer_call_info
     }
 
+    // TODO(Arni): replace with an impl of [Executable]
     fn run_execute<S: State>(
         &self,
         state: &mut S,
@@ -957,5 +979,131 @@ pub fn is_cairo1(compiled_class: &RunnableCompiledClass) -> bool {
         RunnableCompiledClass::V1(_) => true,
         #[cfg(feature = "cairo_native")]
         RunnableCompiledClass::V1Native(_) => true,
+    }
+}
+
+impl<S: State> Executable<S> for DeclareTransaction {
+    fn run_execute(
+        &self,
+        state: &mut S,
+        context: &mut EntryPointExecutionContext,
+        _remaining_gas: &mut u64,
+    ) -> TransactionExecutionResult<Option<CallInfo>> {
+        let class_hash = self.class_hash();
+        match &self.tx {
+            starknet_api::transaction::DeclareTransaction::V0(_)
+            | starknet_api::transaction::DeclareTransaction::V1(_) => {
+                if context.tx_context.block_context.versioned_constants.disable_cairo0_redeclaration
+                {
+                    try_declare(self, state, class_hash, None)?
+                } else {
+                    // We allow redeclaration of the class for backward compatibility.
+                    // In the past, we allowed redeclaration of Cairo 0 contracts since there was
+                    // no class commitment (so no need to check if the class is already declared).
+                    state.set_contract_class(class_hash, self.contract_class().try_into()?)?;
+                }
+            }
+            starknet_api::transaction::DeclareTransaction::V2(DeclareTransactionV2 {
+                compiled_class_hash,
+                ..
+            })
+            | starknet_api::transaction::DeclareTransaction::V3(DeclareTransactionV3 {
+                compiled_class_hash,
+                ..
+            }) => try_declare(self, state, class_hash, Some(*compiled_class_hash))?,
+        }
+        Ok(None)
+    }
+}
+
+impl<S: State> Executable<S> for DeployAccountTransaction {
+    fn run_execute(
+        &self,
+        state: &mut S,
+        context: &mut EntryPointExecutionContext,
+        remaining_gas: &mut u64,
+    ) -> TransactionExecutionResult<Option<CallInfo>> {
+        let class_hash = self.class_hash();
+        let constructor_context = ConstructorContext {
+            class_hash,
+            code_address: None,
+            storage_address: self.contract_address(),
+            caller_address: ContractAddress::default(),
+        };
+        let call_info = execute_deployment(
+            state,
+            context,
+            constructor_context,
+            self.constructor_calldata(),
+            remaining_gas,
+        )?;
+
+        Ok(Some(call_info))
+    }
+}
+
+impl<S: State> Executable<S> for InvokeTransaction {
+    fn run_execute(
+        &self,
+        state: &mut S,
+        context: &mut EntryPointExecutionContext,
+        remaining_gas: &mut u64,
+    ) -> TransactionExecutionResult<Option<CallInfo>> {
+        let entry_point_selector = match &self.tx {
+            starknet_api::transaction::InvokeTransaction::V0(tx) => tx.entry_point_selector,
+            starknet_api::transaction::InvokeTransaction::V1(_)
+            | starknet_api::transaction::InvokeTransaction::V3(_) => {
+                selector_from_name(constants::EXECUTE_ENTRY_POINT_NAME)
+            }
+        };
+        let storage_address = context.tx_context.tx_info.sender_address();
+        let class_hash = state.get_class_hash_at(storage_address)?;
+        let execute_call = CallEntryPoint {
+            entry_point_type: EntryPointType::External,
+            entry_point_selector,
+            calldata: self.calldata(),
+            class_hash: None,
+            code_address: None,
+            storage_address,
+            caller_address: ContractAddress::default(),
+            call_type: CallType::Call,
+            initial_gas: *remaining_gas,
+        };
+
+        let call_info =
+            execute_call.non_reverting_execute(state, context, remaining_gas).map_err(|error| {
+                TransactionExecutionError::ExecutionError {
+                    error,
+                    class_hash,
+                    storage_address,
+                    selector: entry_point_selector,
+                }
+            })?;
+        Ok(Some(call_info))
+    }
+}
+
+/// Attempts to declare a contract class by setting the contract class in the state with the
+/// specified class hash.
+fn try_declare<S: State>(
+    tx: &DeclareTransaction,
+    state: &mut S,
+    class_hash: ClassHash,
+    compiled_class_hash: Option<CompiledClassHash>,
+) -> TransactionExecutionResult<()> {
+    match state.get_compiled_class(class_hash) {
+        Err(StateError::UndeclaredClassHash(_)) => {
+            // Class is undeclared; declare it.
+            state.set_contract_class(class_hash, tx.contract_class().try_into()?)?;
+            if let Some(compiled_class_hash) = compiled_class_hash {
+                state.set_compiled_class_hash(class_hash, compiled_class_hash)?;
+            }
+            Ok(())
+        }
+        Err(error) => Err(error)?,
+        Ok(_) => {
+            // Class is already declared, cannot redeclare.
+            Err(TransactionExecutionError::DeclareTransactionError { class_hash })
+        }
     }
 }
