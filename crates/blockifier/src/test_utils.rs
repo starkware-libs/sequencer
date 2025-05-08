@@ -78,6 +78,16 @@ impl Default for RunnableCairo1 {
     }
 }
 
+impl RunnableCairo1 {
+    pub fn is_cairo_native(&self) -> bool {
+        match self {
+            Self::Casm => false,
+            #[cfg(feature = "cairo_native")]
+            Self::Native => true,
+        }
+    }
+}
+
 // TODO(Aviv, 14/7/2024): Move from test utils module, and use it in ContractClassVersionMismatch
 // error.
 #[derive(Clone, Hash, PartialEq, Eq, Copy, Debug)]
@@ -110,6 +120,13 @@ impl CairoVersion {
         match self {
             Self::Cairo0 => true,
             Self::Cairo1(_) => false,
+        }
+    }
+
+    pub fn is_cairo_native(&self) -> bool {
+        match self {
+            Self::Cairo0 => false,
+            Self::Cairo1(runnable_cairo1) => runnable_cairo1.is_cairo_native(),
         }
     }
 }
@@ -157,6 +174,13 @@ impl CompilerBasedVersion {
             CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1(RunnableCairo1::Casm)),
         ];
         VERSIONS.iter()
+    }
+
+    pub fn is_cairo_native(&self) -> bool {
+        match self {
+            Self::CairoVersion(version) => version.is_cairo_native(),
+            Self::OldCairo1 => false,
+        }
     }
 }
 

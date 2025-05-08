@@ -48,6 +48,7 @@ fn test_send_message_to_l1(runnable_version: RunnableCairo1) {
         CallExecution {
             l2_to_l1_messages: vec![OrderedL2ToL1Message { order: 0, message }],
             gas_consumed: 30190,
+            cairo_native: runnable_version.is_cairo_native(),
             ..Default::default()
         }
     );
