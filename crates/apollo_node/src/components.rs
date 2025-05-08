@@ -196,6 +196,7 @@ pub async fn create_node_components(
                 config.monitoring_endpoint_config.clone(),
                 VERSION_FULL,
                 mempool_client,
+                None,
             ))
         }
         ActiveComponentExecutionMode::Disabled => None,

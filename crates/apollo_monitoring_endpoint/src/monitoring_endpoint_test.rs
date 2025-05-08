@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::net::IpAddr;
 use std::sync::Arc;
 
+use apollo_l1_provider_types::{L1ProviderSnapshot, MockL1ProviderClient, ProviderStateSnapshot};
 use apollo_mempool_types::communication::MockMempoolClient;
 use apollo_mempool_types::mempool_types::{
     MempoolSnapshot,
@@ -16,7 +17,7 @@ use hyper::Client;
 use metrics::{counter, describe_counter};
 use pretty_assertions::assert_eq;
 use serde_json::{from_slice, to_value, Value};
-use starknet_api::block::GasPrice;
+use starknet_api::block::{BlockNumber, GasPrice};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::{nonce, tx_hash};
 use tokio::spawn;
@@ -29,6 +30,7 @@ use crate::monitoring_endpoint::{
     create_monitoring_endpoint,
     MonitoringEndpoint,
     ALIVE,
+    L1_PROVIDER_SNAPSHOT,
     MEMPOOL_SNAPSHOT,
     METRICS,
     READY,
@@ -49,7 +51,7 @@ const CONFIG_WITHOUT_METRICS: MonitoringEndpointConfig = MonitoringEndpointConfi
 
 fn setup_monitoring_endpoint(config: Option<MonitoringEndpointConfig>) -> MonitoringEndpoint {
     let config = config.unwrap_or(CONFIG_WITHOUT_METRICS);
-    create_monitoring_endpoint(config, TEST_VERSION, None)
+    create_monitoring_endpoint(config, TEST_VERSION, None, None)
 }
 
 async fn request_app(app: Router, method: &str) -> Response {
@@ -131,6 +133,7 @@ fn setup_monitoring_endpoint_with_mempool_client() -> MonitoringEndpoint {
         CONFIG_WITHOUT_METRICS,
         TEST_VERSION,
         Some(shared_mock_mempool_client),
+        None,
     )
 }
 
@@ -178,5 +181,66 @@ async fn mempool_snapshot() {
 async fn mempool_not_present() {
     let app = setup_monitoring_endpoint(None).app();
     let response = request_app(app, MEMPOOL_SNAPSHOT).await;
+    assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
+}
+
+fn setup_monitoring_endpoint_with_l1_provider_client() -> MonitoringEndpoint {
+    let mut l1_provider_client = MockL1ProviderClient::new();
+    l1_provider_client
+        .expect_get_l1_provider_snapshot()
+        .returning(|| Ok(expected_l1_provider_snapshot()));
+    let shared_mock_l1_provider_client = Arc::new(l1_provider_client);
+
+    create_monitoring_endpoint(
+        CONFIG_WITHOUT_METRICS,
+        TEST_VERSION,
+        None,
+        Some(shared_mock_l1_provider_client),
+    )
+}
+
+fn expected_l1_provider_snapshot() -> L1ProviderSnapshot {
+    let expected_uncommitted_hashes = (1..10).map(|i| tx_hash!(i)).collect::<Vec<_>>();
+    let expected_uncommitted_staged_hashes = (1..2).map(|i| tx_hash!(i)).collect::<Vec<_>>();
+    let expected_rejected_hashes = (10..15).map(|i| tx_hash!(i)).collect::<Vec<_>>();
+    let expected_rejected_staged_hashes = (10..12).map(|i| tx_hash!(i)).collect::<Vec<_>>();
+    let expected_committed_hashes = (15..20).map(|i| tx_hash!(i)).collect::<Vec<_>>();
+    let l1_provider_state = ProviderStateSnapshot::Validate;
+    let current_height = BlockNumber(1);
+    L1ProviderSnapshot {
+        uncommitted_transactions: expected_uncommitted_hashes,
+        uncommitted_staged_transactions: expected_uncommitted_staged_hashes,
+        rejected_transactions: expected_rejected_hashes,
+        rejected_staged_transactions: expected_rejected_staged_hashes,
+        committed_transactions: expected_committed_hashes,
+        l1_provider_state,
+        current_height,
+    }
+}
+
+#[tokio::test]
+async fn l1_provider_snapshot() {
+    let app = setup_monitoring_endpoint_with_l1_provider_client().app();
+
+    let response = request_app(app, L1_PROVIDER_SNAPSHOT).await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let body_bytes = hyper::body::to_bytes(response.into_body()).await.unwrap();
+
+    let expected_json = to_value(expected_l1_provider_snapshot()).expect(
+        "Failed to serialize
+L1ProviderSnapshot",
+    );
+    let received_json: Value = from_slice(&body_bytes).expect(
+        "Failed to
+parse JSON string",
+    );
+
+    assert_eq!(expected_json, received_json);
+}
+
+#[tokio::test]
+async fn l1_provider_not_present() {
+    let app = setup_monitoring_endpoint(None).app();
+    let response = request_app(app, L1_PROVIDER_SNAPSHOT).await;
     assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
 }
