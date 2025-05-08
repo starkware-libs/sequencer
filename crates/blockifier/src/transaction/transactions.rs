@@ -8,9 +8,8 @@ use starknet_api::executable_transaction::{
     DeclareTransaction,
     DeployAccountTransaction,
     InvokeTransaction,
-    L1HandlerTransaction,
 };
-use starknet_api::transaction::fields::{AccountDeploymentData, Calldata};
+use starknet_api::transaction::fields::AccountDeploymentData;
 use starknet_api::transaction::{constants, DeclareTransactionV2, DeclareTransactionV3};
 
 use crate::context::{BlockContext, GasCounter, TransactionContext};
@@ -101,40 +100,6 @@ pub trait ValidatableTransaction {
         tx_context: Arc<TransactionContext>,
         remaining_gas: &mut GasCounter,
     ) -> TransactionExecutionResult<Option<CallInfo>>;
-}
-
-impl<S: State> Executable<S> for L1HandlerTransaction {
-    fn run_execute(
-        &self,
-        state: &mut S,
-        context: &mut EntryPointExecutionContext,
-        remaining_gas: &mut u64,
-    ) -> TransactionExecutionResult<Option<CallInfo>> {
-        let tx = &self.tx;
-        let storage_address = tx.contract_address;
-        let class_hash = state.get_class_hash_at(storage_address)?;
-        let selector = tx.entry_point_selector;
-        let execute_call = CallEntryPoint {
-            entry_point_type: EntryPointType::L1Handler,
-            entry_point_selector: selector,
-            calldata: Calldata(Arc::clone(&tx.calldata.0)),
-            class_hash: None,
-            code_address: None,
-            storage_address,
-            caller_address: ContractAddress::default(),
-            call_type: CallType::Call,
-            initial_gas: *remaining_gas,
-        };
-
-        execute_call.non_reverting_execute(state, context, remaining_gas).map(Some).map_err(
-            |error| TransactionExecutionError::ExecutionError {
-                error,
-                class_hash,
-                storage_address,
-                selector,
-            },
-        )
-    }
 }
 
 impl TransactionInfoCreatorInner for AccountTransaction {
