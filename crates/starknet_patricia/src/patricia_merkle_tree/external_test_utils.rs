@@ -101,6 +101,10 @@ where
     )
     .expect("Failed to create the updated skeleton tree");
 
+    for _ in 0..1000 {
+        print!("slowing down the test?");
+    }
+
     FilledTreeImpl::<L>::create_with_existing_leaves::<TH>(updated_skeleton, leaf_modifications)
         .await
         .expect("Failed to create the filled tree")
