@@ -62,7 +62,6 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
                 ConsolidatedNodeServiceName::Node => Service::new(
                     Into::<ServiceName>::into(*self),
                     None,
-                    false,
                     1,
                     Some(32),
                     None,
@@ -80,7 +79,6 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
                         vec![IngressRule::new(String::from("/gateway"), 8080, None)],
                         ingress_alternative_names.unwrap_or_default(),
                     )),
-                    false,
                     1,
                     Some(500),
                     Some("sequencer".into()),
@@ -96,6 +94,12 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
     fn get_controller(&self) -> Controller {
         match self {
             ConsolidatedNodeServiceName::Node => Controller::StatefulSet,
+        }
+    }
+
+    fn get_autoscale(&self) -> bool {
+        match self {
+            ConsolidatedNodeServiceName::Node => false,
         }
     }
 }
