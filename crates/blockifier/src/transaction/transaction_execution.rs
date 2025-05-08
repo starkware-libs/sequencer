@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use starknet_api::contract_class::ClassInfo;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::{
@@ -9,7 +7,6 @@ use starknet_api::executable_transaction::{
     InvokeTransaction,
     L1HandlerTransaction,
 };
-use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{
     CalculateContractAddress,
@@ -19,24 +16,19 @@ use starknet_api::transaction::{
 
 use crate::bouncer::verify_tx_weights_within_max_capacity;
 use crate::context::BlockContext;
-use crate::execution::call_info::CallInfo;
-use crate::execution::entry_point::{EntryPointExecutionContext, SierraGasRevertTracker};
-use crate::fee::fee_checks::FeeCheckReport;
-use crate::fee::receipt::TransactionReceipt;
 use crate::state::cached_state::TransactionalState;
 use crate::state::state_api::UpdatableState;
 use crate::transaction::account_transaction::{
     AccountTransaction,
     ExecutionFlags as AccountExecutionFlags,
 };
-use crate::transaction::errors::{TransactionExecutionError, TransactionFeeError};
 use crate::transaction::objects::{
     TransactionExecutionInfo,
     TransactionExecutionResult,
     TransactionInfo,
     TransactionInfoCreator,
 };
-use crate::transaction::transactions::{Executable, ExecutableTransaction};
+use crate::transaction::transactions::ExecutableTransaction;
 
 // TODO(Gilad): Move into transaction.rs, makes more sense to be defined there.
 #[derive(Clone, Debug, derive_more::From)]
@@ -131,60 +123,6 @@ impl TransactionInfoCreator for Transaction {
             Self::Account(account_tx) => account_tx.create_tx_info(),
             Self::L1Handler(l1_handler_tx) => l1_handler_tx.create_tx_info(),
         }
-    }
-}
-
-impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
-    fn execute_raw(
-        &self,
-        state: &mut TransactionalState<'_, U>,
-        block_context: &BlockContext,
-        _concurrency_mode: bool,
-    ) -> TransactionExecutionResult<TransactionExecutionInfo> {
-        let tx_context = Arc::new(block_context.to_tx_context(self));
-        let limit_steps_by_resources = false;
-        let l1_handler_bounds =
-            block_context.versioned_constants.os_constants.l1_handler_max_amount_bounds;
-
-        let mut remaining_gas = l1_handler_bounds.l2_gas.0;
-        let mut context = EntryPointExecutionContext::new_invoke(
-            tx_context.clone(),
-            limit_steps_by_resources,
-            SierraGasRevertTracker::new(GasAmount(remaining_gas)),
-        );
-        let execute_call_info = self.run_execute(state, &mut context, &mut remaining_gas)?;
-        let l1_handler_payload_size = self.payload_size();
-        let receipt = TransactionReceipt::from_l1_handler(
-            &tx_context,
-            l1_handler_payload_size,
-            CallInfo::summarize_many(execute_call_info.iter(), &block_context.versioned_constants),
-            &state.to_state_diff()?,
-        );
-
-        // Enforce resource bounds.
-        FeeCheckReport::check_all_gas_amounts_within_bounds(&l1_handler_bounds, &receipt.gas)?;
-
-        let paid_fee = self.paid_fee_on_l1;
-        // For now, assert only that any amount of fee was paid.
-        // The error message still indicates the required fee.
-        if paid_fee == Fee(0) {
-            return Err(TransactionExecutionError::TransactionFeeError(
-                TransactionFeeError::InsufficientFee { paid_fee, actual_fee: receipt.fee },
-            ));
-        }
-
-        Ok(TransactionExecutionInfo {
-            validate_call_info: None,
-            execute_call_info,
-            fee_transfer_call_info: None,
-            receipt: TransactionReceipt {
-                fee: Fee::default(),
-                da_gas: receipt.da_gas,
-                resources: receipt.resources,
-                gas: receipt.gas,
-            },
-            revert_error: None,
-        })
     }
 }
 
