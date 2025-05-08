@@ -16,7 +16,7 @@ use std::time::Duration;
 
 use apollo_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use apollo_l1_provider_types::SessionState;
+use apollo_l1_provider_types::{ProviderStateSnapshot, SessionState};
 use papyrus_base_layer::constants::{EventIdentifier, LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
@@ -72,6 +72,15 @@ impl ProviderState {
             "Transitioning from bootstrapping should be done manually by the L1Provider."
         );
         ProviderState::Pending
+    }
+
+    pub fn convert_state_to_snapshot(self: &ProviderState) -> ProviderStateSnapshot {
+        match self {
+            ProviderState::Pending => ProviderStateSnapshot::Pending,
+            ProviderState::Propose => ProviderStateSnapshot::Propose,
+            ProviderState::Bootstrap(_) => ProviderStateSnapshot::Bootstrap,
+            ProviderState::Validate => ProviderStateSnapshot::Validate,
+        }
     }
 }
 
