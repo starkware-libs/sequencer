@@ -22,6 +22,7 @@ use crate::service::{
     Service,
     ServiceName,
     ServiceNameInner,
+    Toleration,
 };
 
 const BASE_PORT: u16 = 55000; // TODO(Tsabary): arbitrary port, need to resolve.
@@ -126,10 +127,10 @@ impl ServiceNameInner for HybridNodeServiceName {
                     None,
                     1,
                     None,
-                    None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
+                    environment.clone(),
                 ),
                 HybridNodeServiceName::HttpServer => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -141,40 +142,40 @@ impl ServiceNameInner for HybridNodeServiceName {
                     )),
                     1,
                     None,
-                    None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
+                    environment.clone(),
                 ),
                 HybridNodeServiceName::Gateway => Service::new(
                     Into::<ServiceName>::into(*self),
                     None,
                     1,
                     None,
-                    None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
+                    environment.clone(),
                 ),
                 HybridNodeServiceName::Mempool => Service::new(
                     Into::<ServiceName>::into(*self),
                     None,
                     1,
                     None,
-                    None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
+                    environment.clone(),
                 ),
                 HybridNodeServiceName::SierraCompiler => Service::new(
                     Into::<ServiceName>::into(*self),
                     None,
                     1,
                     None,
-                    None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
+                    environment.clone(),
                 ),
             },
             Environment::SepoliaIntegration
@@ -185,10 +186,10 @@ impl ServiceNameInner for HybridNodeServiceName {
                     None,
                     1,
                     Some(1000),
-                    Some("apollo-core-service".into()),
                     Resources::new(Resource::new(2, 4), Resource::new(7, 14)),
                     external_secret.clone(),
                     additional_config_filenames,
+                    environment.clone(),
                 ),
                 HybridNodeServiceName::HttpServer => Service::new(
                     Into::<ServiceName>::into(*self),
@@ -200,40 +201,40 @@ impl ServiceNameInner for HybridNodeServiceName {
                     )),
                     1,
                     None,
-                    Some("apollo-general-service".into()),
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
+                    environment.clone(),
                 ),
                 HybridNodeServiceName::Gateway => Service::new(
                     Into::<ServiceName>::into(*self),
                     None,
                     2,
                     None,
-                    Some("apollo-general-service".into()),
                     Resources::new(Resource::new(1, 2), Resource::new(2, 4)),
                     external_secret.clone(),
                     additional_config_filenames,
+                    environment.clone(),
                 ),
                 HybridNodeServiceName::Mempool => Service::new(
                     Into::<ServiceName>::into(*self),
                     None,
                     1,
                     None,
-                    Some("apollo-general-service".into()),
                     Resources::new(Resource::new(1, 2), Resource::new(2, 4)),
                     external_secret.clone(),
                     additional_config_filenames,
+                    environment.clone(),
                 ),
                 HybridNodeServiceName::SierraCompiler => Service::new(
                     Into::<ServiceName>::into(*self),
                     None,
                     2,
                     None,
-                    Some("apollo-general-service".into()),
                     Resources::new(Resource::new(1, 2), Resource::new(2, 4)),
                     external_secret.clone(),
                     additional_config_filenames,
+                    environment.clone(),
                 ),
             },
             _ => unimplemented!(),
@@ -257,6 +258,22 @@ impl ServiceNameInner for HybridNodeServiceName {
             HybridNodeServiceName::Gateway => true,
             HybridNodeServiceName::Mempool => false,
             HybridNodeServiceName::SierraCompiler => true,
+        }
+    }
+
+    fn get_toleration(&self, environment: &Environment) -> Option<Toleration> {
+        match environment {
+            Environment::Testing => None,
+            Environment::SepoliaIntegration
+            | Environment::TestingEnvTwo
+            | Environment::TestingEnvThree => match self {
+                HybridNodeServiceName::Core => Some(Toleration::ApolloCoreService),
+                HybridNodeServiceName::HttpServer => Some(Toleration::ApolloGeneralService),
+                HybridNodeServiceName::Gateway => Some(Toleration::ApolloGeneralService),
+                HybridNodeServiceName::Mempool => Some(Toleration::ApolloGeneralService),
+                HybridNodeServiceName::SierraCompiler => Some(Toleration::ApolloGeneralService),
+            },
+            _ => unimplemented!(),
         }
     }
 }
