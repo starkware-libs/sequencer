@@ -20,7 +20,7 @@ const TESTING_ENV_3_DEPLOYMENT_CONFIG_OVERRIDE: DeploymentConfigOverride =
         "0x54a93d918d62b2fb62b25e77d9cb693bd277ab7e6fa236e53af263f1adb40e4",
     );
 
-const TESTING_ENV_3_NODE_0_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverride =
+fn testing_env_3_node_0_instance_config_override() -> InstanceConfigOverride {
     InstanceConfigOverride::new(
         "",
         true,
@@ -29,9 +29,10 @@ const TESTING_ENV_3_NODE_0_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverride =
         true,
         "0x0101010101010101010101010101010101010101010101010101010101010101",
         "0x1",
-    );
+    )
+}
 
-const TESTING_ENV_3_NODE_1_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverride =
+fn testing_env_3_node_1_instance_config_override() -> InstanceConfigOverride {
     InstanceConfigOverride::new(
         "/dns/sequencer-core-service.sequencer-test-3-node-0.svc.cluster.local/tcp/53080/p2p/\
          12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
@@ -42,9 +43,10 @@ const TESTING_ENV_3_NODE_1_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverride =
         false,
         "0x0101010101010101010101010101010101010101010101010101010101010102",
         "0x2",
-    );
+    )
+}
 
-const TESTING_ENV_3_NODE_2_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverride =
+fn testing_env_3_node_2_instance_config_override() -> InstanceConfigOverride {
     InstanceConfigOverride::new(
         "/dns/sequencer-core-service.sequencer-test-3-node-0.svc.cluster.local/tcp/53080/p2p/\
          12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
@@ -55,9 +57,10 @@ const TESTING_ENV_3_NODE_2_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverride =
         false,
         "0x0101010101010101010101010101010101010101010101010101010101010103",
         "0x3",
-    );
+    )
+}
 
-const TESTING_ENV_3_NODE_3_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverride =
+fn testing_env_3_node_3_instance_config_override() -> InstanceConfigOverride {
     InstanceConfigOverride::new(
         "/dns/sequencer-core-service.sequencer-test-3-node-0.svc.cluster.local/tcp/53080/p2p/\
          12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
@@ -68,30 +71,31 @@ const TESTING_ENV_3_NODE_3_INSTANCE_CONFIG_OVERRIDE: InstanceConfigOverride =
         false,
         "0x0101010101010101010101010101010101010101010101010101010101010104",
         "0x4",
-    );
+    )
+}
 
 fn testing_env_3_node_0_config_override() -> ConfigOverride {
     ConfigOverride::new(
         TESTING_ENV_3_DEPLOYMENT_CONFIG_OVERRIDE,
-        TESTING_ENV_3_NODE_0_INSTANCE_CONFIG_OVERRIDE,
+        testing_env_3_node_0_instance_config_override(),
     )
 }
 fn testing_env_3_node_1_config_override() -> ConfigOverride {
     ConfigOverride::new(
         TESTING_ENV_3_DEPLOYMENT_CONFIG_OVERRIDE,
-        TESTING_ENV_3_NODE_1_INSTANCE_CONFIG_OVERRIDE,
+        testing_env_3_node_1_instance_config_override(),
     )
 }
 fn testing_env_3_node_2_config_override() -> ConfigOverride {
     ConfigOverride::new(
         TESTING_ENV_3_DEPLOYMENT_CONFIG_OVERRIDE,
-        TESTING_ENV_3_NODE_2_INSTANCE_CONFIG_OVERRIDE,
+        testing_env_3_node_2_instance_config_override(),
     )
 }
 fn testing_env_3_node_3_config_override() -> ConfigOverride {
     ConfigOverride::new(
         TESTING_ENV_3_DEPLOYMENT_CONFIG_OVERRIDE,
-        TESTING_ENV_3_NODE_3_INSTANCE_CONFIG_OVERRIDE,
+        testing_env_3_node_3_instance_config_override(),
     )
 }
 

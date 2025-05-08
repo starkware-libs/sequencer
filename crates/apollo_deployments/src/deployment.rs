@@ -234,24 +234,24 @@ impl DeploymentConfigOverride {
 #[derive(Debug, Serialize)]
 pub struct InstanceConfigOverride {
     #[serde(rename = "consensus_manager_config.network_config.bootstrap_peer_multiaddr")]
-    consensus_bootstrap_peer_multiaddr: &'static str,
+    consensus_bootstrap_peer_multiaddr: String,
     #[serde(rename = "consensus_manager_config.network_config.bootstrap_peer_multiaddr.#is_none")]
     consensus_bootstrap_peer_multiaddr_is_none: bool,
     // TODO(Tsabary): network secret keys should be defined as secrets.
     #[serde(rename = "consensus_manager_config.network_config.secret_key")]
-    consensus_secret_key: &'static str,
+    consensus_secret_key: String,
     #[serde(rename = "mempool_p2p_config.network_config.bootstrap_peer_multiaddr")]
-    mempool_bootstrap_peer_multiaddr: &'static str,
+    mempool_bootstrap_peer_multiaddr: String,
     #[serde(rename = "mempool_p2p_config.network_config.bootstrap_peer_multiaddr.#is_none")]
     mempool_bootstrap_peer_multiaddr_is_none: bool,
     // TODO(Tsabary): network secret keys should be defined as secrets.
     #[serde(rename = "mempool_p2p_config.network_config.secret_key")]
-    mempool_secret_key: &'static str,
-    validator_id: &'static str,
+    mempool_secret_key: String,
+    validator_id: String,
 }
 
 impl InstanceConfigOverride {
-    pub const fn new(
+    pub fn new(
         consensus_bootstrap_peer_multiaddr: &'static str,
         consensus_bootstrap_peer_multiaddr_is_none: bool,
         consensus_secret_key: &'static str,
@@ -261,13 +261,13 @@ impl InstanceConfigOverride {
         validator_id: &'static str,
     ) -> Self {
         Self {
-            consensus_bootstrap_peer_multiaddr,
+            consensus_bootstrap_peer_multiaddr: consensus_bootstrap_peer_multiaddr.to_string(),
             consensus_bootstrap_peer_multiaddr_is_none,
-            consensus_secret_key,
-            mempool_bootstrap_peer_multiaddr,
+            consensus_secret_key: consensus_secret_key.to_string(),
+            mempool_bootstrap_peer_multiaddr: mempool_bootstrap_peer_multiaddr.to_string(),
             mempool_bootstrap_peer_multiaddr_is_none,
-            mempool_secret_key,
-            validator_id,
+            mempool_secret_key: mempool_secret_key.to_string(),
+            validator_id: validator_id.to_string(),
         }
     }
 }
