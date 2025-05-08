@@ -181,26 +181,6 @@ pub async fn create_node_components(
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
 
-    let monitoring_endpoint = match config.components.monitoring_endpoint.execution_mode {
-        ActiveComponentExecutionMode::Enabled => {
-            let mempool_client = if mempool.is_some() {
-                Some(
-                    clients
-                        .get_mempool_shared_client()
-                        .expect("Mempool Client should be available"),
-                )
-            } else {
-                None
-            };
-            Some(create_monitoring_endpoint(
-                config.monitoring_endpoint_config.clone(),
-                VERSION_FULL,
-                mempool_client,
-            ))
-        }
-        ActiveComponentExecutionMode::Disabled => None,
-    };
-
     let (state_sync, state_sync_runner) = match config.components.state_sync.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
@@ -314,6 +294,36 @@ pub async fn create_node_components(
             }
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
+    };
+
+    let monitoring_endpoint = match config.components.monitoring_endpoint.execution_mode {
+        ActiveComponentExecutionMode::Enabled => {
+            let mempool_client = if mempool.is_some() {
+                Some(
+                    clients
+                        .get_mempool_shared_client()
+                        .expect("Mempool Client should be available"),
+                )
+            } else {
+                None
+            };
+            // let l1_provider_client = if l1_provider.is_some() {
+            //     Some(
+            //         clients
+            //             .get_l1_provider_shared_client()
+            //             .expect("L1 Provider Client should be available"),
+            //     )
+            // } else {
+            //     None
+            // };
+            Some(create_monitoring_endpoint(
+                config.monitoring_endpoint_config.clone(),
+                VERSION_FULL,
+                mempool_client,
+                None,
+            ))
+        }
+        ActiveComponentExecutionMode::Disabled => None,
     };
 
     let l1_gas_price_provider = match config.components.l1_gas_price_provider.execution_mode {
