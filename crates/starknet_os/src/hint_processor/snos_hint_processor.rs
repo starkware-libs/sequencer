@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 #[cfg(feature = "testing")]
 use std::collections::HashSet;
 
@@ -97,8 +98,8 @@ pub struct SnosHintProcessor<'a, S: StateReader> {
     pub(crate) execution_helpers_manager: ExecutionHelpersManager<'a, S>,
     pub(crate) os_hints_config: OsHintsConfig,
     pub syscall_hint_processor: SyscallHintProcessor,
-    pub(crate) deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
-    pub(crate) compiled_classes: HashMap<ClassHash, CasmContractClass>,
+    pub(crate) deprecated_compiled_classes: BTreeMap<ClassHash, ContractClass>,
+    pub(crate) compiled_classes: BTreeMap<ClassHash, CasmContractClass>,
     pub(crate) state_update_pointers: Option<StateUpdatePointers>,
     pub(crate) deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
     builtin_hint_processor: BuiltinHintProcessor,
@@ -121,8 +122,8 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
         os_hints_config: OsHintsConfig,
         os_block_inputs: Vec<&'a OsBlockInput>,
         cached_state_inputs: Vec<CachedStateInput>,
-        deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
-        compiled_classes: HashMap<ClassHash, CasmContractClass>,
+        deprecated_compiled_classes: BTreeMap<ClassHash, ContractClass>,
+        compiled_classes: BTreeMap<ClassHash, CasmContractClass>,
         state_readers: Vec<S>,
         syscall_hint_processor: SyscallHintProcessor,
         deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
@@ -289,8 +290,8 @@ impl<'a> SnosHintProcessor<'a, DictStateReader> {
             os_hints_config,
             block_inputs,
             state_inputs,
-            HashMap::new(), // deprecated_compiled_classes.
-            HashMap::new(), // compiled_classes.
+            BTreeMap::new(),
+            BTreeMap::new(),
             vec![state_reader],
             syscall_handler,
             deprecated_syscall_handler,
