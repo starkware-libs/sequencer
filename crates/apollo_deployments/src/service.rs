@@ -37,20 +37,42 @@ pub enum Controller {
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Ingress {
-    domain: String,
+    #[serde(flatten)]
+    ingress_params: IngressParams,
     internal: bool,
     rules: Vec<IngressRule>,
-    alternative_names: Vec<String>,
 }
 
 impl Ingress {
-    pub fn new(
-        domain: String,
-        internal: bool,
-        rules: Vec<IngressRule>,
-        alternative_names: Vec<String>,
-    ) -> Self {
-        Self { domain, internal, rules, alternative_names }
+    pub fn new(ingress_params: IngressParams, internal: bool, rules: Vec<IngressRule>) -> Self {
+        Self { ingress_params, internal, rules }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct IngressParams {
+    domain: String,
+    #[serde(serialize_with = "serialize_none_as_empty_vec")]
+    alternative_names: Option<Vec<String>>,
+}
+
+fn serialize_none_as_empty_vec<S, T>(
+    value: &Option<Vec<T>>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+    T: Serialize,
+{
+    match value {
+        Some(v) => serializer.serialize_some(v),
+        None => serializer.serialize_some(&Vec::<T>::new()),
+    }
+}
+
+impl IngressParams {
+    pub fn new(domain: String, alternative_names: Option<Vec<String>>) -> Self {
+        Self { domain, alternative_names }
     }
 }
 
@@ -170,15 +192,13 @@ impl ServiceName {
         environment: &Environment,
         external_secret: &Option<ExternalSecret>,
         additional_config_filenames: Vec<String>,
-        domain: String,
-        ingress_alternative_names: Option<Vec<String>>,
+        ingress_params: IngressParams,
     ) -> Service {
         self.as_inner().create_service(
             environment,
             external_secret,
             additional_config_filenames,
-            domain,
-            ingress_alternative_names,
+            ingress_params,
         )
     }
 
@@ -209,8 +229,7 @@ pub(crate) trait ServiceNameInner: Display {
         environment: &Environment,
         external_secret: &Option<ExternalSecret>,
         additional_config_filenames: Vec<String>,
-        domain: String,
-        ingress_alternative_names: Option<Vec<String>>,
+        ingress_params: IngressParams,
     ) -> Service;
 
     fn get_controller(&self) -> Controller;

@@ -39,6 +39,9 @@
       ],
       "ingress": {
         "domain": "starknet.io",
+        "alternative_names": [
+          "integration-sepolia.starknet.io"
+        ],
         "internal": false,
         "rules": [
           {
@@ -46,9 +49,6 @@
             "port": 8080,
             "backend": null
           }
-        ],
-        "alternative_names": [
-          "integration-sepolia.starknet.io"
         ]
       },
       "autoscale": false,

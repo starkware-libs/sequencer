@@ -11,7 +11,7 @@ use serde_json::{to_value, Value};
 use starknet_api::core::ChainId;
 
 use crate::deployment_definitions::{Environment, CONFIG_BASE_DIR};
-use crate::service::{DeploymentName, ExternalSecret, Service, ServiceName};
+use crate::service::{DeploymentName, ExternalSecret, IngressParams, Service, ServiceName};
 
 #[cfg(test)]
 pub(crate) const FIX_BINARY_NAME: &str = "deployment_generator";
@@ -49,8 +49,7 @@ impl Deployment {
         external_secret: Option<ExternalSecret>,
         base_app_config_file_path: PathBuf,
         config_override: ConfigOverride,
-        domain: String,
-        ingress_alternative_names: Option<Vec<String>>,
+        ingress_params: IngressParams,
     ) -> Self {
         let service_names = deployment_name.all_service_names();
 
@@ -67,8 +66,7 @@ impl Deployment {
                     &environment,
                     &external_secret,
                     additional_config_filenames.clone(),
-                    domain.clone(),
-                    ingress_alternative_names.clone(),
+                    ingress_params.clone(),
                 )
             })
             .collect();

@@ -9,7 +9,7 @@ use crate::deployment::{
     DeploymentConfigOverride,
 };
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
-use crate::service::{DeploymentName, ExternalSecret};
+use crate::service::{DeploymentName, ExternalSecret, IngressParams};
 
 fn testing_env_2_deployment_config_override() -> DeploymentConfigOverride {
     DeploymentConfigOverride::new(
@@ -48,6 +48,13 @@ fn testing_env_2_node_3_config_override() -> ConfigOverride {
     )
 }
 
+fn get_ingress_params() -> IngressParams {
+    IngressParams::new(
+        TESTING_ENV_2_INGRESS_DOMAIN.to_string(),
+        Some(vec![TESTING_ENV_2_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
+    )
+}
+
 const TESTING_ENV_2_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str =
     "sn-test-sepolia-2-sepolia.gateway-proxy.sw-dev.io";
 const TESTING_ENV_2_INGRESS_DOMAIN: &str = "sw-dev.io";
@@ -61,8 +68,7 @@ pub(crate) fn testing_env_2_hybrid_deployment_node_0() -> Deployment {
         Some(ExternalSecret::new("sequencer-test-sepolia-0")),
         PathBuf::from(BASE_APP_CONFIG_PATH),
         testing_env_2_node_0_config_override(),
-        TESTING_ENV_2_INGRESS_DOMAIN.to_string(),
-        Some(vec![TESTING_ENV_2_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
+        get_ingress_params(),
     )
 }
 
@@ -75,8 +81,7 @@ pub(crate) fn testing_env_2_hybrid_deployment_node_1() -> Deployment {
         Some(ExternalSecret::new("sequencer-test-sepolia-1")),
         PathBuf::from(BASE_APP_CONFIG_PATH),
         testing_env_2_node_1_config_override(),
-        TESTING_ENV_2_INGRESS_DOMAIN.to_string(),
-        Some(vec![TESTING_ENV_2_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
+        get_ingress_params(),
     )
 }
 
@@ -89,8 +94,7 @@ pub(crate) fn testing_env_2_hybrid_deployment_node_2() -> Deployment {
         Some(ExternalSecret::new("sequencer-test-sepolia-2")),
         PathBuf::from(BASE_APP_CONFIG_PATH),
         testing_env_2_node_2_config_override(),
-        TESTING_ENV_2_INGRESS_DOMAIN.to_string(),
-        Some(vec![TESTING_ENV_2_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
+        get_ingress_params(),
     )
 }
 
@@ -103,7 +107,6 @@ pub(crate) fn testing_env_2_hybrid_deployment_node_3() -> Deployment {
         Some(ExternalSecret::new("sequencer-test-sepolia-3")),
         PathBuf::from(BASE_APP_CONFIG_PATH),
         testing_env_2_node_3_config_override(),
-        TESTING_ENV_2_INGRESS_DOMAIN.to_string(),
-        Some(vec![TESTING_ENV_2_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
+        get_ingress_params(),
     )
 }

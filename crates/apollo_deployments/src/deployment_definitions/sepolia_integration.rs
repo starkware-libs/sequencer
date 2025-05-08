@@ -9,7 +9,7 @@ use crate::deployment::{
     DeploymentConfigOverride,
 };
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
-use crate::service::{DeploymentName, ExternalSecret};
+use crate::service::{DeploymentName, ExternalSecret, IngressParams};
 
 fn sepolia_integration_deployment_config_override() -> DeploymentConfigOverride {
     DeploymentConfigOverride::new(
@@ -48,6 +48,13 @@ fn sepolia_integration_node_3_config_override() -> ConfigOverride {
     )
 }
 
+fn get_ingress_params() -> IngressParams {
+    IngressParams::new(
+        SEPOLIA_INTEGRATION_INGRESS_DOMAIN.to_string(),
+        Some(vec![SEPOLIA_INTEGRATION_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
+    )
+}
+
 const SEPOLIA_INTEGRATION_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str =
     "integration-sepolia.starknet.io";
 
@@ -64,8 +71,7 @@ pub(crate) fn sepolia_integration_hybrid_deployment_node_0() -> Deployment {
         Some(ExternalSecret::new("apollo-sepolia-integration-0")),
         PathBuf::from(BASE_APP_CONFIG_PATH),
         sepolia_integration_node_0_config_override(),
-        SEPOLIA_INTEGRATION_INGRESS_DOMAIN.to_string(),
-        Some(vec![SEPOLIA_INTEGRATION_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
+        get_ingress_params(),
     )
 }
 
@@ -78,8 +84,7 @@ pub(crate) fn sepolia_integration_hybrid_deployment_node_1() -> Deployment {
         Some(ExternalSecret::new("apollo-sepolia-integration-1")),
         PathBuf::from(BASE_APP_CONFIG_PATH),
         sepolia_integration_node_1_config_override(),
-        SEPOLIA_INTEGRATION_INGRESS_DOMAIN.to_string(),
-        Some(vec![SEPOLIA_INTEGRATION_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
+        get_ingress_params(),
     )
 }
 
@@ -92,8 +97,7 @@ pub(crate) fn sepolia_integration_hybrid_deployment_node_2() -> Deployment {
         Some(ExternalSecret::new("apollo-sepolia-integration-2")),
         PathBuf::from(BASE_APP_CONFIG_PATH),
         sepolia_integration_node_2_config_override(),
-        SEPOLIA_INTEGRATION_INGRESS_DOMAIN.to_string(),
-        Some(vec![SEPOLIA_INTEGRATION_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
+        get_ingress_params(),
     )
 }
 
@@ -106,7 +110,6 @@ pub(crate) fn sepolia_integration_hybrid_deployment_node_3() -> Deployment {
         Some(ExternalSecret::new("apollo-sepolia-integration-3")),
         PathBuf::from(BASE_APP_CONFIG_PATH),
         sepolia_integration_node_3_config_override(),
-        SEPOLIA_INTEGRATION_INGRESS_DOMAIN.to_string(),
-        Some(vec![SEPOLIA_INTEGRATION_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
+        get_ingress_params(),
     )
 }

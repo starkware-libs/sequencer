@@ -9,7 +9,7 @@ use crate::deployment::{
     DeploymentConfigOverride,
 };
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
-use crate::service::{DeploymentName, ExternalSecret};
+use crate::service::{DeploymentName, ExternalSecret, IngressParams};
 
 fn testing_env_3_deployment_config_override() -> DeploymentConfigOverride {
     DeploymentConfigOverride::new(
@@ -48,6 +48,13 @@ fn testing_env_3_node_3_config_override() -> ConfigOverride {
     )
 }
 
+fn get_ingress_params() -> IngressParams {
+    IngressParams::new(
+        TESTING_ENV_3_INGRESS_DOMAIN.to_string(),
+        Some(vec![TESTING_ENV_3_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
+    )
+}
+
 const TESTING_ENV_3_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str =
     "sn-test-sepolia-3-sepolia.gateway-proxy.sw-dev.io";
 
@@ -62,8 +69,7 @@ pub(crate) fn testing_env_3_hybrid_deployment_node_0() -> Deployment {
         Some(ExternalSecret::new("sequencer-test-3-node-0")),
         PathBuf::from(BASE_APP_CONFIG_PATH),
         testing_env_3_node_0_config_override(),
-        TESTING_ENV_3_INGRESS_DOMAIN.to_string(),
-        Some(vec![TESTING_ENV_3_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
+        get_ingress_params(),
     )
 }
 
@@ -76,8 +82,7 @@ pub(crate) fn testing_env_3_hybrid_deployment_node_1() -> Deployment {
         Some(ExternalSecret::new("sequencer-test-3-node-1")),
         PathBuf::from(BASE_APP_CONFIG_PATH),
         testing_env_3_node_1_config_override(),
-        TESTING_ENV_3_INGRESS_DOMAIN.to_string(),
-        Some(vec![TESTING_ENV_3_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
+        get_ingress_params(),
     )
 }
 
@@ -90,8 +95,7 @@ pub(crate) fn testing_env_3_hybrid_deployment_node_2() -> Deployment {
         Some(ExternalSecret::new("sequencer-test-3-node-2")),
         PathBuf::from(BASE_APP_CONFIG_PATH),
         testing_env_3_node_2_config_override(),
-        TESTING_ENV_3_INGRESS_DOMAIN.to_string(),
-        Some(vec![TESTING_ENV_3_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
+        get_ingress_params(),
     )
 }
 
@@ -104,7 +108,6 @@ pub(crate) fn testing_env_3_hybrid_deployment_node_3() -> Deployment {
         Some(ExternalSecret::new("sequencer-test-3-node-3")),
         PathBuf::from(BASE_APP_CONFIG_PATH),
         testing_env_3_node_3_config_override(),
-        TESTING_ENV_3_INGRESS_DOMAIN.to_string(),
-        Some(vec![TESTING_ENV_3_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
+        get_ingress_params(),
     )
 }
