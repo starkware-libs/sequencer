@@ -122,7 +122,7 @@
         "instance_config_override.json"
       ],
       "ingress": null,
-      "autoscale": false,
+      "autoscale": true,
       "replicas": 1,
       "storage": null,
       "toleration": null,
@@ -197,7 +197,7 @@
         "instance_config_override.json"
       ],
       "ingress": null,
-      "autoscale": false,
+      "autoscale": true,
       "replicas": 1,
       "storage": null,
       "toleration": null,
