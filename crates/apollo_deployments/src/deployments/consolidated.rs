@@ -61,7 +61,6 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
             Environment::Testing => match self {
                 ConsolidatedNodeServiceName::Node => Service::new(
                     Into::<ServiceName>::into(*self),
-                    Controller::StatefulSet,
                     None,
                     false,
                     1,
@@ -75,7 +74,6 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
             Environment::SepoliaIntegration => match self {
                 ConsolidatedNodeServiceName::Node => Service::new(
                     Into::<ServiceName>::into(*self),
-                    Controller::StatefulSet,
                     Some(Ingress::new(
                         domain,
                         false,
@@ -92,6 +90,12 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
                 ),
             },
             _ => unimplemented!(),
+        }
+    }
+
+    fn get_controller(&self) -> Controller {
+        match self {
+            ConsolidatedNodeServiceName::Node => Controller::StatefulSet,
         }
     }
 }
