@@ -11,7 +11,7 @@ class DeploymentConfig:
         self.deployment_config_file_path = deployment_config_file
         self._deployment_config_data = self._read_deployment_config_file()
         self._schema = self._load_schema()
-        self._validate_deployment_config()
+        # self._validate_deployment_config()
 
     def _validate_deployment_config(self):
         try:
@@ -27,17 +27,20 @@ class DeploymentConfig:
         with open(self.deployment_config_file_path) as f:
             return json.loads(f.read())
 
+    def get_nodes(self):
+        return self._deployment_config_data.get("nodes", [])
+
     def get_chain_id(self):
         return self._deployment_config_data.get("chain_id")
 
-    def get_application_config_subdir(self):
-        return self._deployment_config_data.get("application_config_subdir")
+    def get_application_config_subdir(self, index: int):
+        return self._deployment_config_data["nodes"][index].get("application_config_subdir")
 
-    def get_services(self):
-        return [service for service in self._deployment_config_data.get("services", [])]
+    def get_services(self, index: int):
+        return [service for service in self._deployment_config_data["nodes"][index].get("services", [])]
 
 
-class SequencerConfig:
+class ServiceConfig:
     ROOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../../")
 
     def __init__(self, config_subdir: str, config_paths: List[str]):

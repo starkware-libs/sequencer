@@ -46,54 +46,65 @@ class SequencerMonitoring(Chart):
 
 def main():
     args = helpers.argument_parser()
-
     assert not (
         args.monitoring_dashboard_file and not args.cluster
     ), "Error: --cluster is required when --monitoring-dashboard-file is provided."
 
-    app = App(yaml_output_type=YamlOutputType.FOLDER_PER_CHART_FILE_PER_RESOURCE)
-
-    preset = config.DeploymentConfig(args.deployment_config_file)
-    services = preset.get_services()
-    image = f"ghcr.io/starkware-libs/sequencer/sequencer:{args.deployment_image_tag}"
-    application_config_subdir = preset.get_application_config_subdir()
+    deployment_config = config.DeploymentConfig(args.deployment_config_file)
     create_monitoring = True if args.monitoring_dashboard_file else False
+    image = f"ghcr.io/starkware-libs/sequencer/sequencer:{args.deployment_image_tag}"
+    chain_id = deployment_config.get_chain_id()
+    nodes = deployment_config.get_nodes()
 
-    for svc in services:
-        SequencerNode(
-            scope=app,
-            name=helpers.sanitize_name(f'sequencer-{svc["name"]}'),
-            namespace=helpers.sanitize_name(args.namespace),
-            monitoring=create_monitoring,
-            service_topology=topology.ServiceTopology(
-                config=config.SequencerConfig(
-                    config_subdir=application_config_subdir, config_paths=svc["config_paths"]
-                ),
-                image=image,
-                controller=svc["controller"].lower(),
-                replicas=svc["replicas"],
-                autoscale=svc["autoscale"],
-                ingress=svc["ingress"],
-                storage=svc["storage"],
-                toleration=svc["toleration"],
-                resources=svc["resources"],
-                external_secret=svc["external_secret"],
-            ),
+    for index, node in enumerate(nodes):
+        app = App(
+            yaml_output_type=YamlOutputType.FOLDER_PER_CHART_FILE_PER_RESOURCE,
+            outdir=f'dist/{node["name"]}',
         )
+        services = deployment_config.get_services(index=index)
+        application_config_subdir = deployment_config.get_application_config_subdir(index=index)
+
+        for svc in services:
+            SequencerNode(
+                scope=app,
+                name=helpers.sanitize_name(f'sequencer-{svc["name"]}'),
+                namespace=helpers.sanitize_name(f"{args.namespace}-{index}"),
+                monitoring=create_monitoring,
+                service_topology=topology.ServiceTopology(
+                    config=config.ServiceConfig(
+                        config_subdir=application_config_subdir, config_paths=svc["config_paths"]
+                    ),
+                    image=image,
+                    controller=svc["controller"].lower(),
+                    replicas=svc["replicas"],
+                    autoscale=svc["autoscale"],
+                    ingress=svc["ingress"],
+                    storage=svc["storage"],
+                    toleration=svc["toleration"],
+                    resources=svc["resources"],
+                    external_secret=svc["external_secret"],
+                ),
+            )
+
+        app.synth()
 
     if args.monitoring_dashboard_file:
         dashboard_hash = helpers.generate_random_hash(
             from_string=f"{args.cluster}-{args.namespace}"
         )
+        monitoring_app = App(
+            yaml_output_type=YamlOutputType.FOLDER_PER_CHART_FILE_PER_RESOURCE,
+            outdir=f"dist/sequencer-monitoring-{dashboard_hash}",
+        )
         SequencerMonitoring(
-            scope=app,
+            scope=monitoring_app,
             name=helpers.sanitize_name(f"sequencer-monitoring-{dashboard_hash}"),
             cluster=args.cluster,
             namespace=helpers.sanitize_name(args.namespace),
             grafana_dashboard=monitoring.GrafanaDashboard(args.monitoring_dashboard_file),
         )
-
-    app.synth()
+        
+        monitoring_app.synth()
 
 
 if __name__ == "__main__":
