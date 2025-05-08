@@ -26,25 +26,25 @@ const FIRST_NODE_NAMESPACE: &str = "sequencer-test-sepolia-0";
 fn testing_env_2_node_0_config_override() -> ConfigOverride {
     ConfigOverride::new(
         testing_env_2_deployment_config_override(),
-        create_hybrid_instance_config_override(1, FIRST_NODE_NAMESPACE),
+        create_hybrid_instance_config_override(0, FIRST_NODE_NAMESPACE),
     )
 }
 fn testing_env_2_node_1_config_override() -> ConfigOverride {
     ConfigOverride::new(
         testing_env_2_deployment_config_override(),
-        create_hybrid_instance_config_override(2, FIRST_NODE_NAMESPACE),
+        create_hybrid_instance_config_override(1, FIRST_NODE_NAMESPACE),
     )
 }
 fn testing_env_2_node_2_config_override() -> ConfigOverride {
     ConfigOverride::new(
         testing_env_2_deployment_config_override(),
-        create_hybrid_instance_config_override(3, FIRST_NODE_NAMESPACE),
+        create_hybrid_instance_config_override(2, FIRST_NODE_NAMESPACE),
     )
 }
 fn testing_env_2_node_3_config_override() -> ConfigOverride {
     ConfigOverride::new(
         testing_env_2_deployment_config_override(),
-        create_hybrid_instance_config_override(4, FIRST_NODE_NAMESPACE),
+        create_hybrid_instance_config_override(3, FIRST_NODE_NAMESPACE),
     )
 }
 
