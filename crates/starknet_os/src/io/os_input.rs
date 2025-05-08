@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use serde::Serialize;
@@ -79,8 +79,8 @@ pub struct OsHints {
 pub struct StarknetOsInput {
     pub os_block_inputs: Vec<OsBlockInput>,
     pub cached_state_inputs: Vec<CachedStateInput>,
-    pub(crate) deprecated_compiled_classes: HashMap<ClassHash, ContractClass>,
-    pub(crate) compiled_classes: HashMap<ClassHash, CasmContractClass>,
+    pub(crate) deprecated_compiled_classes: BTreeMap<ClassHash, ContractClass>,
+    pub(crate) compiled_classes: BTreeMap<ClassHash, CasmContractClass>,
 }
 
 // TODO(Meshi): Remove Once the blockifier ChainInfo do not support deprecated fee token.
