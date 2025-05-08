@@ -100,11 +100,11 @@ impl Resources {
     }
 }
 
+// TODO(Tsabary): remove clippy::too_many_arguments
 impl Service {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         name: ServiceName,
-        controller: Controller,
         ingress: Option<Ingress>,
         autoscale: bool,
         replicas: usize,
@@ -121,6 +121,7 @@ impl Service {
         let mut config_paths: Vec<String> = vec![name.get_config_file_path()];
         config_paths.append(&mut additional_config_filenames);
 
+        let controller = name.get_controller();
         Self {
             name,
             config_paths,
@@ -183,6 +184,10 @@ impl ServiceName {
             ServiceName::DistributedNode(inner) => inner,
         }
     }
+
+    pub fn get_controller(&self) -> Controller {
+        self.as_inner().get_controller()
+    }
 }
 
 pub(crate) trait ServiceNameInner: Display {
@@ -194,6 +199,8 @@ pub(crate) trait ServiceNameInner: Display {
         domain: String,
         ingress_alternative_names: Option<Vec<String>>,
     ) -> Service;
+
+    fn get_controller(&self) -> Controller;
 }
 
 impl DeploymentName {
