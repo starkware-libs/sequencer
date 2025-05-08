@@ -1,6 +1,6 @@
 {
   "chain_id": "SN_INTEGRATION_SEPOLIA",
-  "application_config_subdir": "config/sequencer/sepolia_integration/app_configs/hybrid/integration_hybrid_node_1/",
+  "application_config_subdir": "config/sequencer/auto_generated/sepolia_integration/app_configs/hybrid/integration_hybrid_node_0/",
   "services": [
     {
       "name": "Core",
@@ -26,7 +26,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-sepolia-integration-1"
+        "gcsm_key": "apollo-sepolia-integration-0"
       }
     },
     {
@@ -66,7 +66,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-sepolia-integration-1"
+        "gcsm_key": "apollo-sepolia-integration-0"
       }
     },
     {
@@ -93,7 +93,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-sepolia-integration-1"
+        "gcsm_key": "apollo-sepolia-integration-0"
       }
     },
     {
@@ -120,7 +120,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-sepolia-integration-1"
+        "gcsm_key": "apollo-sepolia-integration-0"
       }
     },
     {
@@ -147,7 +147,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-sepolia-integration-1"
+        "gcsm_key": "apollo-sepolia-integration-0"
       }
     }
   ]

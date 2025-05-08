@@ -41,7 +41,7 @@ mod testing_env_3;
 // TODO(Tsabary): separate deployments to different modules.
 
 pub(crate) const BASE_APP_CONFIG_PATH: &str = "config/sequencer/base_app_config.json";
-pub(crate) const CONFIG_BASE_DIR: &str = "config/sequencer/";
+pub(crate) const CONFIG_BASE_DIR: &str = "config/sequencer/auto_generated/";
 const APP_CONFIGS_DIR_NAME: &str = "app_configs/";
 
 type DeploymentFn = fn() -> Deployment;
