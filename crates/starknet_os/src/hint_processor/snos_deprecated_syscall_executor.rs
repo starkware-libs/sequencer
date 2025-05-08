@@ -55,7 +55,6 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor {
                 actual_ptr,
             });
         }
-
         Ok(())
     }
 

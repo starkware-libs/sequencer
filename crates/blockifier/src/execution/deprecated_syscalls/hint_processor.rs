@@ -101,6 +101,11 @@ use crate::transaction::objects::TransactionInfo;
 
 #[derive(Debug, Error)]
 pub enum DeprecatedSyscallExecutionError {
+    #[error("Bad syscall selector; expected: {expected_selector:?}, got: {actual_selector:?}.")]
+    BadSyscallSelector {
+        expected_selector: DeprecatedSyscallSelector,
+        actual_selector: DeprecatedSyscallSelector,
+    },
     #[error("Bad syscall_ptr; expected: {expected_ptr:?}, got: {actual_ptr:?}.")]
     BadSyscallPointer { expected_ptr: Relocatable, actual_ptr: Relocatable },
     #[error(transparent)]
