@@ -10,18 +10,8 @@ use starknet_api::executable_transaction::{
     InvokeTransaction,
     L1HandlerTransaction,
 };
-use starknet_api::transaction::fields::{
-    AccountDeploymentData,
-    Calldata,
-    Fee,
-    TransactionSignature,
-};
-use starknet_api::transaction::{
-    constants,
-    DeclareTransactionV2,
-    DeclareTransactionV3,
-    TransactionVersion,
-};
+use starknet_api::transaction::fields::{AccountDeploymentData, Calldata};
+use starknet_api::transaction::{constants, DeclareTransactionV2, DeclareTransactionV3};
 
 use crate::context::{BlockContext, GasCounter, TransactionContext};
 use crate::execution::call_info::CallInfo;
@@ -40,11 +30,9 @@ use crate::transaction::objects::{
     CommonAccountFields,
     CurrentTransactionInfo,
     DeprecatedTransactionInfo,
-    HasRelatedFeeType,
     TransactionExecutionInfo,
     TransactionExecutionResult,
     TransactionInfo,
-    TransactionInfoCreator,
     TransactionInfoCreatorInner,
 };
 #[cfg(test)]
@@ -115,16 +103,6 @@ pub trait ValidatableTransaction {
     ) -> TransactionExecutionResult<Option<CallInfo>>;
 }
 
-impl HasRelatedFeeType for L1HandlerTransaction {
-    fn version(&self) -> TransactionVersion {
-        self.tx.version
-    }
-
-    fn is_l1_handler(&self) -> bool {
-        true
-    }
-}
-
 impl<S: State> Executable<S> for L1HandlerTransaction {
     fn run_execute(
         &self,
@@ -156,22 +134,6 @@ impl<S: State> Executable<S> for L1HandlerTransaction {
                 selector,
             },
         )
-    }
-}
-
-impl TransactionInfoCreator for L1HandlerTransaction {
-    fn create_tx_info(&self) -> TransactionInfo {
-        TransactionInfo::Deprecated(DeprecatedTransactionInfo {
-            common_fields: CommonAccountFields {
-                transaction_hash: self.tx_hash,
-                version: self.tx.version,
-                signature: TransactionSignature::default(),
-                nonce: self.tx.nonce,
-                sender_address: self.tx.contract_address,
-                only_query: false,
-            },
-            max_fee: Fee::default(),
-        })
     }
 }
 
