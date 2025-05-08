@@ -1,12 +1,12 @@
 {
   "chain_id": "SN_INTEGRATION_SEPOLIA",
-  "application_config_subdir": "config/sequencer/testing/app_configs/distributed/deployment_test_distributed/",
+  "application_config_subdir": "config/sequencer/auto_generated/testing/app_configs/distributed/deployment_test_distributed/",
   "services": [
     {
       "name": "Batcher",
       "controller": "StatefulSet",
       "config_paths": [
-        "../../../../base_app_config.json",
+        "../../../../../base_app_config.json",
         "deployment_config_override.json",
         "instance_config_override.json",
         "batcher.json"
@@ -32,7 +32,7 @@
       "name": "ClassManager",
       "controller": "StatefulSet",
       "config_paths": [
-        "../../../../base_app_config.json",
+        "../../../../../base_app_config.json",
         "deployment_config_override.json",
         "instance_config_override.json",
         "class_manager.json"
@@ -58,7 +58,7 @@
       "name": "ConsensusManager",
       "controller": "StatefulSet",
       "config_paths": [
-        "../../../../base_app_config.json",
+        "../../../../../base_app_config.json",
         "deployment_config_override.json",
         "instance_config_override.json",
         "consensus_manager.json"
@@ -84,7 +84,7 @@
       "name": "HttpServer",
       "controller": "StatefulSet",
       "config_paths": [
-        "../../../../base_app_config.json",
+        "../../../../../base_app_config.json",
         "deployment_config_override.json",
         "instance_config_override.json",
         "http_server.json"
@@ -121,7 +121,7 @@
       "name": "Gateway",
       "controller": "StatefulSet",
       "config_paths": [
-        "../../../../base_app_config.json",
+        "../../../../../base_app_config.json",
         "deployment_config_override.json",
         "instance_config_override.json",
         "gateway.json"
@@ -147,7 +147,7 @@
       "name": "L1",
       "controller": "StatefulSet",
       "config_paths": [
-        "../../../../base_app_config.json",
+        "../../../../../base_app_config.json",
         "deployment_config_override.json",
         "instance_config_override.json",
         "l1.json"
@@ -173,7 +173,7 @@
       "name": "Mempool",
       "controller": "StatefulSet",
       "config_paths": [
-        "../../../../base_app_config.json",
+        "../../../../../base_app_config.json",
         "deployment_config_override.json",
         "instance_config_override.json",
         "mempool.json"
@@ -199,7 +199,7 @@
       "name": "SierraCompiler",
       "controller": "StatefulSet",
       "config_paths": [
-        "../../../../base_app_config.json",
+        "../../../../../base_app_config.json",
         "deployment_config_override.json",
         "instance_config_override.json",
         "sierra_compiler.json"
@@ -225,7 +225,7 @@
       "name": "StateSync",
       "controller": "StatefulSet",
       "config_paths": [
-        "../../../../base_app_config.json",
+        "../../../../../base_app_config.json",
         "deployment_config_override.json",
         "instance_config_override.json",
         "state_sync.json"

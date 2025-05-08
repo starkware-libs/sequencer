@@ -1,12 +1,12 @@
 {
   "chain_id": "SN_INTEGRATION_SEPOLIA",
-  "application_config_subdir": "config/sequencer/testing_env_3/app_configs/hybrid/integration_hybrid_node_3/",
+  "application_config_subdir": "config/sequencer/auto_generated/testing_env_3/app_configs/hybrid/integration_hybrid_node_0/",
   "services": [
     {
       "name": "Core",
       "controller": "StatefulSet",
       "config_paths": [
-        "../../../../base_app_config.json",
+        "../../../../../base_app_config.json",
         "deployment_config_override.json",
         "instance_config_override.json",
         "core.json"
@@ -27,14 +27,14 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "sequencer-test-3-node-3"
+        "gcsm_key": "sequencer-test-3-node-0"
       }
     },
     {
       "name": "HttpServer",
       "controller": "Deployment",
       "config_paths": [
-        "../../../../base_app_config.json",
+        "../../../../../base_app_config.json",
         "deployment_config_override.json",
         "instance_config_override.json",
         "http_server.json"
@@ -68,14 +68,14 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "sequencer-test-3-node-3"
+        "gcsm_key": "sequencer-test-3-node-0"
       }
     },
     {
       "name": "Gateway",
       "controller": "Deployment",
       "config_paths": [
-        "../../../../base_app_config.json",
+        "../../../../../base_app_config.json",
         "deployment_config_override.json",
         "instance_config_override.json",
         "gateway.json"
@@ -96,14 +96,14 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "sequencer-test-3-node-3"
+        "gcsm_key": "sequencer-test-3-node-0"
       }
     },
     {
       "name": "Mempool",
       "controller": "Deployment",
       "config_paths": [
-        "../../../../base_app_config.json",
+        "../../../../../base_app_config.json",
         "deployment_config_override.json",
         "instance_config_override.json",
         "mempool.json"
@@ -124,14 +124,14 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "sequencer-test-3-node-3"
+        "gcsm_key": "sequencer-test-3-node-0"
       }
     },
     {
       "name": "SierraCompiler",
       "controller": "Deployment",
       "config_paths": [
-        "../../../../base_app_config.json",
+        "../../../../../base_app_config.json",
         "deployment_config_override.json",
         "instance_config_override.json",
         "sierra_compiler.json"
@@ -152,7 +152,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "sequencer-test-3-node-3"
+        "gcsm_key": "sequencer-test-3-node-0"
       }
     }
   ]

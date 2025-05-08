@@ -17,7 +17,7 @@ on:
 
 env:
   job_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-  deployment_config_path: ${{ github.workspace }}/config/sequencer/testing/deployment_configs/deployment_test_consolidated.json
+  deployment_config_path: ${{ github.workspace }}/config/sequencer/auto_generated/testing/deployment_configs/deployment_test_consolidated.json
   namespace: sequencer-consolidated-system-test-run-${{ github.run_number }}-attempt-${{ github.run_attempt }}
 
 permissions:

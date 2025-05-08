@@ -1,12 +1,12 @@
 {
   "chain_id": "SN_INTEGRATION_SEPOLIA",
-  "application_config_subdir": "config/sequencer/testing/app_configs/consolidated/deployment_test_consolidated/",
+  "application_config_subdir": "config/sequencer/auto_generated/testing/app_configs/consolidated/deployment_test_consolidated/",
   "services": [
     {
       "name": "Node",
       "controller": "StatefulSet",
       "config_paths": [
-        "../../../../base_app_config.json",
+        "../../../../../base_app_config.json",
         "deployment_config_override.json",
         "instance_config_override.json",
         "node.json"
