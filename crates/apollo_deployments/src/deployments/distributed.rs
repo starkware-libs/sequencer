@@ -149,7 +149,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
             Environment::Testing => match self {
                 DistributedNodeServiceName::Batcher => Service::new(
                     Into::<ServiceName>::into(*self),
-                    Controller::StatefulSet,
                     None,
                     false,
                     1,
@@ -161,7 +160,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 ),
                 DistributedNodeServiceName::ClassManager => Service::new(
                     Into::<ServiceName>::into(*self),
-                    Controller::StatefulSet,
                     None,
                     false,
                     1,
@@ -173,7 +171,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 ),
                 DistributedNodeServiceName::ConsensusManager => Service::new(
                     Into::<ServiceName>::into(*self),
-                    Controller::StatefulSet,
                     None,
                     false,
                     1,
@@ -185,7 +182,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 ),
                 DistributedNodeServiceName::HttpServer => Service::new(
                     Into::<ServiceName>::into(*self),
-                    Controller::StatefulSet,
                     Some(Ingress::new(
                         domain,
                         true,
@@ -202,7 +198,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 ),
                 DistributedNodeServiceName::Gateway => Service::new(
                     Into::<ServiceName>::into(*self),
-                    Controller::StatefulSet,
                     None,
                     false,
                     1,
@@ -214,7 +209,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 ),
                 DistributedNodeServiceName::L1 => Service::new(
                     Into::<ServiceName>::into(*self),
-                    Controller::StatefulSet,
                     None,
                     false,
                     1,
@@ -226,7 +220,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 ),
                 DistributedNodeServiceName::Mempool => Service::new(
                     Into::<ServiceName>::into(*self),
-                    Controller::StatefulSet,
                     None,
                     false,
                     1,
@@ -238,7 +231,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 ),
                 DistributedNodeServiceName::SierraCompiler => Service::new(
                     Into::<ServiceName>::into(*self),
-                    Controller::StatefulSet,
                     None,
                     false,
                     1,
@@ -250,7 +242,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 ),
                 DistributedNodeServiceName::StateSync => Service::new(
                     Into::<ServiceName>::into(*self),
-                    Controller::StatefulSet,
                     None,
                     false,
                     1,
@@ -264,7 +255,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
             Environment::SepoliaIntegration => match self {
                 DistributedNodeServiceName::Batcher => Service::new(
                     Into::<ServiceName>::into(*self),
-                    Controller::StatefulSet,
                     None,
                     false,
                     1,
@@ -276,7 +266,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 ),
                 DistributedNodeServiceName::ClassManager => Service::new(
                     Into::<ServiceName>::into(*self),
-                    Controller::StatefulSet,
                     None,
                     false,
                     1,
@@ -288,7 +277,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 ),
                 DistributedNodeServiceName::ConsensusManager => Service::new(
                     Into::<ServiceName>::into(*self),
-                    Controller::StatefulSet,
                     None,
                     false,
                     1,
@@ -300,7 +288,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 ),
                 DistributedNodeServiceName::HttpServer => Service::new(
                     Into::<ServiceName>::into(*self),
-                    Controller::StatefulSet,
                     Some(Ingress::new(
                         domain,
                         true,
@@ -317,7 +304,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 ),
                 DistributedNodeServiceName::Gateway => Service::new(
                     Into::<ServiceName>::into(*self),
-                    Controller::StatefulSet,
                     None,
                     false,
                     1,
@@ -329,7 +315,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 ),
                 DistributedNodeServiceName::L1 => Service::new(
                     Into::<ServiceName>::into(*self),
-                    Controller::StatefulSet,
                     None,
                     false,
                     1,
@@ -341,7 +326,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 ),
                 DistributedNodeServiceName::Mempool => Service::new(
                     Into::<ServiceName>::into(*self),
-                    Controller::StatefulSet,
                     None,
                     false,
                     1,
@@ -353,7 +337,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 ),
                 DistributedNodeServiceName::SierraCompiler => Service::new(
                     Into::<ServiceName>::into(*self),
-                    Controller::StatefulSet,
                     None,
                     false,
                     1,
@@ -365,7 +348,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 ),
                 DistributedNodeServiceName::StateSync => Service::new(
                     Into::<ServiceName>::into(*self),
-                    Controller::StatefulSet,
                     None,
                     false,
                     1,
@@ -377,6 +359,21 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 ),
             },
             _ => unimplemented!(),
+        }
+    }
+
+    // TODO(Tsabary/Idan): fix the controller type.
+    fn get_controller(&self) -> Controller {
+        match self {
+            DistributedNodeServiceName::Batcher => Controller::StatefulSet,
+            DistributedNodeServiceName::ClassManager => Controller::StatefulSet,
+            DistributedNodeServiceName::ConsensusManager => Controller::StatefulSet,
+            DistributedNodeServiceName::HttpServer => Controller::StatefulSet,
+            DistributedNodeServiceName::Gateway => Controller::StatefulSet,
+            DistributedNodeServiceName::L1 => Controller::StatefulSet,
+            DistributedNodeServiceName::Mempool => Controller::StatefulSet,
+            DistributedNodeServiceName::SierraCompiler => Controller::StatefulSet,
+            DistributedNodeServiceName::StateSync => Controller::StatefulSet,
         }
     }
 }
