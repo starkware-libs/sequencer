@@ -106,7 +106,6 @@ impl Service {
     pub fn new(
         name: ServiceName,
         ingress: Option<Ingress>,
-        autoscale: bool,
         replicas: usize,
         storage: Option<usize>,
         toleration: Option<String>,
@@ -122,6 +121,7 @@ impl Service {
         config_paths.append(&mut additional_config_filenames);
 
         let controller = name.get_controller();
+        let autoscale = name.get_autoscale();
         Self {
             name,
             config_paths,
@@ -188,6 +188,10 @@ impl ServiceName {
     pub fn get_controller(&self) -> Controller {
         self.as_inner().get_controller()
     }
+
+    pub fn get_autoscale(&self) -> bool {
+        self.as_inner().get_autoscale()
+    }
 }
 
 pub(crate) trait ServiceNameInner: Display {
@@ -201,6 +205,8 @@ pub(crate) trait ServiceNameInner: Display {
     ) -> Service;
 
     fn get_controller(&self) -> Controller;
+
+    fn get_autoscale(&self) -> bool;
 }
 
 impl DeploymentName {
