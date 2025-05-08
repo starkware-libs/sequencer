@@ -1,6 +1,9 @@
 use blockifier::execution::deprecated_syscalls::deprecated_syscall_executor::execute_next_deprecated_syscall;
+use blockifier::execution::deprecated_syscalls::DeprecatedSyscallSelector;
+use blockifier::execution::execution_utils::felt_from_ptr;
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::get_ptr_from_var_name;
+use paste::paste;
 
 use crate::hints::error::OsHintResult;
 use crate::hints::types::HintArgs;
@@ -27,17 +30,32 @@ macro_rules! create_syscall_func {
     ($($name:ident),+) => {
         $(
             pub(crate) fn $name<S: StateReader>(
-                HintArgs { hint_processor, vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_, '_, S>
+                HintArgs {
+                    hint_processor,
+                    vm,
+                    ids_data,
+                    ap_tracking,
+                    exec_scopes,
+                    ..
+                }: HintArgs<'_, '_, S>
             ) -> OsHintResult {
                 assert_eq!(
                     exec_scopes.get::<SyscallHandlerType>(Scope::SyscallHandlerType.into())?,
                     SyscallHandlerType::DeprecatedSyscallHandler
                 );
                 let syscall_hint_processor = &mut hint_processor.deprecated_syscall_hint_processor;
-                // TODO(Aner): need to verify that the correct syscall is being called (i.e.,
-                //   syscall_ptr matches the fn name). E.g., set syscall_ptr from fn name.
+                let mut syscall_ptr = get_ptr_from_var_name(
+                    Ids::SyscallPtr.into(), vm, ids_data, ap_tracking
+                )?;
+                let syscall_selector = DeprecatedSyscallSelector::try_from(
+                    felt_from_ptr(vm, &mut syscall_ptr)?
+                ).unwrap();
+                // TODO(Aner): should return an error instead of panic.
+                paste!{
+                        assert_eq!(syscall_selector, DeprecatedSyscallSelector::[<$name:camel>]);
+                }
                 syscall_hint_processor.set_syscall_ptr(
-                    get_ptr_from_var_name(Ids::SyscallPtr.into(), vm, ids_data, ap_tracking)?
+                    syscall_ptr,
                 );
                 Ok(
                     execute_next_deprecated_syscall(
