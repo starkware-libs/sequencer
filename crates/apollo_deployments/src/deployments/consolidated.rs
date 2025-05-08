@@ -20,6 +20,7 @@ use crate::service::{
     Service,
     ServiceName,
     ServiceNameInner,
+    Toleration,
 };
 
 #[derive(Clone, Copy, Debug, Display, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter)]
@@ -64,10 +65,10 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
                     None,
                     1,
                     Some(32),
-                    None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
+                    environment.clone(),
                 ),
             },
             Environment::SepoliaIntegration => match self {
@@ -81,10 +82,10 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
                     )),
                     1,
                     Some(500),
-                    Some("sequencer".into()),
                     Resources::new(Resource::new(2, 4), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
+                    environment.clone(),
                 ),
             },
             _ => unimplemented!(),
@@ -100,6 +101,15 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
     fn get_autoscale(&self) -> bool {
         match self {
             ConsolidatedNodeServiceName::Node => false,
+        }
+    }
+
+    fn get_toleration(&self, environment: &Environment) -> Option<Toleration> {
+        match environment {
+            Environment::Testing => None,
+            _ => match self {
+                ConsolidatedNodeServiceName::Node => Some(Toleration::ApolloCoreService),
+            },
         }
     }
 }
