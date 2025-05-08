@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use cairo_lang_starknet_classes::casm_contract_class::{CasmContractClass, CasmContractEntryPoint};
 use cairo_lang_starknet_classes::NestedIntList;
-use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
+use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::core::ClassHash;
 use starknet_api::hash::PoseidonHash;
@@ -77,6 +77,16 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for CasmContractClass {
     ) -> VmUtilsResult<()> {
         // Insert compiled class version field.
         let compiled_class_version = Const::CompiledClassVersion.fetch(constants)?;
+
+        // Insert external entry points.
+        let externals_list_base = vm.add_memory_segment();
+        self.entry_points_by_type.external.load_into(
+            vm,
+            identifier_getter,
+            externals_list_base,
+            constants,
+        )?;
+
         // Insert l1 handler entry points.
         let l1_handlers_list_base = vm.add_memory_segment();
         self.entry_points_by_type.l1_handler.load_into(
@@ -95,21 +105,9 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for CasmContractClass {
             constants,
         )?;
 
-        // Insert external entry points.
-        let externals_list_base = vm.add_memory_segment();
-        self.entry_points_by_type.external.load_into(
-            vm,
-            identifier_getter,
-            externals_list_base,
-            constants,
-        )?;
-
         // Insert the bytecode entirely.
         let bytecode_base = vm.add_memory_segment();
-        // TODO(Nimrod): See if we can transfer ownership here instead of cloning.
-
-        let bytecode: Vec<_> =
-            self.bytecode.iter().map(|x| MaybeRelocatable::from(Felt::from(&x.value))).collect();
+        let bytecode: Vec<_> = self.bytecode.iter().map(|x| Felt::from(&x.value).into()).collect();
         vm.load_data(bytecode_base, &bytecode)?;
 
         // Insert the fields.
