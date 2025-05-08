@@ -58,6 +58,7 @@ fn positive_flow(runnable_version: RunnableCairo1) {
         entry_point_call.clone().execute_directly(&mut state).unwrap().execution,
         CallExecution {
             gas_consumed: REQUIRED_GAS_GET_BLOCK_HASH_TEST,
+            cairo_native: runnable_version.is_cairo_native(),
             ..CallExecution::from_retdata(retdata![block_hash])
         }
     );

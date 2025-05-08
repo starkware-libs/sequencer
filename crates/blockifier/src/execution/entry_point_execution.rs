@@ -420,6 +420,7 @@ pub fn finalize_execution(
             retdata: call_result.retdata,
             events: syscall_handler_base.events,
             l2_to_l1_messages: syscall_handler_base.l2_to_l1_messages,
+            cairo_native: false,
             failed: call_result.failed,
             gas_consumed: call_result.gas_consumed,
         },

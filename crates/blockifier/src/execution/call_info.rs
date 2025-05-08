@@ -61,6 +61,7 @@ pub struct CallExecution {
     pub retdata: Retdata,
     pub events: Vec<OrderedEvent>,
     pub l2_to_l1_messages: Vec<OrderedL2ToL1Message>,
+    pub cairo_native: bool,
     pub failed: bool,
     pub gas_consumed: u64,
 }

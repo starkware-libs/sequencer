@@ -93,6 +93,7 @@ fn create_callinfo(
         execution: CallExecution {
             retdata: Retdata(call_result.return_values),
             events: syscall_handler.base.events,
+            cairo_native: true,
             l2_to_l1_messages: syscall_handler.base.l2_to_l1_messages,
             failed: call_result.failure_flag,
             gas_consumed,

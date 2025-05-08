@@ -26,6 +26,10 @@ fn test_sha256(runnable_version: RunnableCairo1) {
 
     pretty_assertions::assert_eq!(
         entry_point_call.execute_directly(&mut state).unwrap().execution,
-        CallExecution { gas_consumed: 870855, ..CallExecution::from_retdata(retdata![]) }
+        CallExecution {
+            gas_consumed: 870855,
+            cairo_native: runnable_version.is_cairo_native(),
+            ..CallExecution::from_retdata(retdata![])
+        }
     );
 }
