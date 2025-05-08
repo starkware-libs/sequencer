@@ -124,7 +124,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                 HybridNodeServiceName::Core => Service::new(
                     Into::<ServiceName>::into(*self),
                     None,
-                    false,
                     1,
                     None,
                     None,
@@ -140,7 +139,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                         vec![IngressRule::new(String::from("/gateway"), 8080, None)],
                         ingress_alternative_names.unwrap_or_default(),
                     )),
-                    false,
                     1,
                     None,
                     None,
@@ -151,7 +149,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                 HybridNodeServiceName::Gateway => Service::new(
                     Into::<ServiceName>::into(*self),
                     None,
-                    false,
                     1,
                     None,
                     None,
@@ -162,7 +159,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                 HybridNodeServiceName::Mempool => Service::new(
                     Into::<ServiceName>::into(*self),
                     None,
-                    false,
                     1,
                     None,
                     None,
@@ -173,7 +169,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                 HybridNodeServiceName::SierraCompiler => Service::new(
                     Into::<ServiceName>::into(*self),
                     None,
-                    false,
                     1,
                     None,
                     None,
@@ -188,7 +183,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                 HybridNodeServiceName::Core => Service::new(
                     Into::<ServiceName>::into(*self),
                     None,
-                    false,
                     1,
                     Some(1000),
                     Some("apollo-core-service".into()),
@@ -204,7 +198,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                         vec![IngressRule::new(String::from("/gateway"), 8080, None)],
                         ingress_alternative_names.unwrap_or_default(),
                     )),
-                    false,
                     1,
                     None,
                     Some("apollo-general-service".into()),
@@ -215,7 +208,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                 HybridNodeServiceName::Gateway => Service::new(
                     Into::<ServiceName>::into(*self),
                     None,
-                    true,
                     2,
                     None,
                     Some("apollo-general-service".into()),
@@ -226,7 +218,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                 HybridNodeServiceName::Mempool => Service::new(
                     Into::<ServiceName>::into(*self),
                     None,
-                    false,
                     1,
                     None,
                     Some("apollo-general-service".into()),
@@ -237,7 +228,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                 HybridNodeServiceName::SierraCompiler => Service::new(
                     Into::<ServiceName>::into(*self),
                     None,
-                    true,
                     2,
                     None,
                     Some("apollo-general-service".into()),
@@ -257,6 +247,16 @@ impl ServiceNameInner for HybridNodeServiceName {
             HybridNodeServiceName::Gateway => Controller::Deployment,
             HybridNodeServiceName::Mempool => Controller::Deployment,
             HybridNodeServiceName::SierraCompiler => Controller::Deployment,
+        }
+    }
+
+    fn get_autoscale(&self) -> bool {
+        match self {
+            HybridNodeServiceName::Core => false,
+            HybridNodeServiceName::HttpServer => false,
+            HybridNodeServiceName::Gateway => true,
+            HybridNodeServiceName::Mempool => false,
+            HybridNodeServiceName::SierraCompiler => true,
         }
     }
 }
