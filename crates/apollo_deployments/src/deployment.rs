@@ -206,27 +206,27 @@ impl ConfigOverride {
 #[derive(Debug, Serialize)]
 pub struct DeploymentConfigOverride {
     #[serde(rename = "base_layer_config.starknet_contract_address")]
-    starknet_contract_address: &'static str,
-    chain_id: &'static str,
-    eth_fee_token_address: &'static str,
-    starknet_url: &'static str,
-    strk_fee_token_address: &'static str,
+    starknet_contract_address: String,
+    chain_id: String,
+    eth_fee_token_address: String,
+    starknet_url: String,
+    strk_fee_token_address: String,
 }
 
 impl DeploymentConfigOverride {
-    pub const fn new(
-        starknet_contract_address: &'static str,
-        chain_id: &'static str,
-        eth_fee_token_address: &'static str,
-        starknet_url: &'static str,
-        strk_fee_token_address: &'static str,
+    pub fn new(
+        starknet_contract_address: impl ToString,
+        chain_id: impl ToString,
+        eth_fee_token_address: impl ToString,
+        starknet_url: impl ToString,
+        strk_fee_token_address: impl ToString,
     ) -> Self {
         Self {
-            starknet_contract_address,
-            chain_id,
-            eth_fee_token_address,
-            starknet_url,
-            strk_fee_token_address,
+            starknet_contract_address: starknet_contract_address.to_string(),
+            chain_id: chain_id.to_string(),
+            eth_fee_token_address: eth_fee_token_address.to_string(),
+            starknet_url: starknet_url.to_string(),
+            strk_fee_token_address: strk_fee_token_address.to_string(),
         }
     }
 }

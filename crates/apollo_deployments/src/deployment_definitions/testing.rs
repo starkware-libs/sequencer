@@ -11,13 +11,15 @@ use crate::deployment::{
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
 use crate::service::DeploymentName;
 
-const TESTING_DEPLOYMENT_CONFIG_OVERRIDE: DeploymentConfigOverride = DeploymentConfigOverride::new(
-    "0x5FbDB2315678afecb367f032d93F642f64180aa3",
-    "CHAIN_ID_SUBDIR",
-    "0x1001",
-    "https://integration-sepolia.starknet.io/",
-    "0x1002",
-);
+fn testing_deployment_config_override() -> DeploymentConfigOverride {
+    DeploymentConfigOverride::new(
+        "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+        "CHAIN_ID_SUBDIR",
+        "0x1001",
+        "https://integration-sepolia.starknet.io/",
+        "0x1002",
+    )
+}
 
 fn testing_instance_config_override() -> InstanceConfigOverride {
     InstanceConfigOverride::new(
@@ -32,7 +34,7 @@ fn testing_instance_config_override() -> InstanceConfigOverride {
 }
 
 fn testing_config_override() -> ConfigOverride {
-    ConfigOverride::new(TESTING_DEPLOYMENT_CONFIG_OVERRIDE, testing_instance_config_override())
+    ConfigOverride::new(testing_deployment_config_override(), testing_instance_config_override())
 }
 
 const TESTING_INGRESS_DOMAIN: &str = "sw-dev.io";
