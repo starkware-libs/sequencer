@@ -1,6 +1,6 @@
 {
   "chain_id": "SN_INTEGRATION_SEPOLIA",
-  "application_config_subdir": "config/sequencer/testing/app_configs/hybrid/deployment_test_hybrid/",
+  "application_config_subdir": "config/sequencer/auto_generated/sepolia_integration/app_configs/hybrid/integration_hybrid_node_2/",
   "services": [
     {
       "name": "Core",
@@ -13,31 +13,33 @@
       "ingress": null,
       "autoscale": false,
       "replicas": 1,
-      "storage": null,
-      "toleration": null,
+      "storage": 1000,
+      "toleration": "apollo-core-service",
       "resources": {
         "requests": {
-          "cpu": 1,
-          "memory": 2
+          "cpu": 2,
+          "memory": 4
         },
         "limits": {
-          "cpu": 4,
-          "memory": 8
+          "cpu": 7,
+          "memory": 14
         }
       },
-      "external_secret": null
+      "external_secret": {
+        "gcsm_key": "apollo-sepolia-integration-2"
+      }
     },
     {
       "name": "HttpServer",
-      "controller": "StatefulSet",
+      "controller": "Deployment",
       "config_paths": [
         "http_server.json",
         "deployment_config_override.json",
         "instance_config_override.json"
       ],
       "ingress": {
-        "domain": "sw-dev.io",
-        "internal": true,
+        "domain": "starknet.io",
+        "internal": false,
         "rules": [
           {
             "path": "/gateway",
@@ -45,12 +47,14 @@
             "backend": null
           }
         ],
-        "alternative_names": []
+        "alternative_names": [
+          "integration-sepolia.starknet.io"
+        ]
       },
       "autoscale": false,
       "replicas": 1,
       "storage": null,
-      "toleration": null,
+      "toleration": "apollo-general-service",
       "resources": {
         "requests": {
           "cpu": 1,
@@ -61,36 +65,40 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": {
+        "gcsm_key": "apollo-sepolia-integration-2"
+      }
     },
     {
       "name": "Gateway",
-      "controller": "StatefulSet",
+      "controller": "Deployment",
       "config_paths": [
         "gateway.json",
         "deployment_config_override.json",
         "instance_config_override.json"
       ],
       "ingress": null,
-      "autoscale": false,
-      "replicas": 1,
+      "autoscale": true,
+      "replicas": 2,
       "storage": null,
-      "toleration": null,
+      "toleration": "apollo-general-service",
       "resources": {
         "requests": {
           "cpu": 1,
           "memory": 2
         },
         "limits": {
-          "cpu": 4,
-          "memory": 8
+          "cpu": 2,
+          "memory": 4
         }
       },
-      "external_secret": null
+      "external_secret": {
+        "gcsm_key": "apollo-sepolia-integration-2"
+      }
     },
     {
       "name": "Mempool",
-      "controller": "StatefulSet",
+      "controller": "Deployment",
       "config_paths": [
         "mempool.json",
         "deployment_config_override.json",
@@ -100,43 +108,47 @@
       "autoscale": false,
       "replicas": 1,
       "storage": null,
-      "toleration": null,
+      "toleration": "apollo-general-service",
       "resources": {
         "requests": {
           "cpu": 1,
           "memory": 2
         },
         "limits": {
-          "cpu": 4,
-          "memory": 8
+          "cpu": 2,
+          "memory": 4
         }
       },
-      "external_secret": null
+      "external_secret": {
+        "gcsm_key": "apollo-sepolia-integration-2"
+      }
     },
     {
       "name": "SierraCompiler",
-      "controller": "StatefulSet",
+      "controller": "Deployment",
       "config_paths": [
         "sierra_compiler.json",
         "deployment_config_override.json",
         "instance_config_override.json"
       ],
       "ingress": null,
-      "autoscale": false,
-      "replicas": 1,
+      "autoscale": true,
+      "replicas": 2,
       "storage": null,
-      "toleration": null,
+      "toleration": "apollo-general-service",
       "resources": {
         "requests": {
           "cpu": 1,
           "memory": 2
         },
         "limits": {
-          "cpu": 4,
-          "memory": 8
+          "cpu": 2,
+          "memory": 4
         }
       },
-      "external_secret": null
+      "external_secret": {
+        "gcsm_key": "apollo-sepolia-integration-2"
+      }
     }
   ]
 }

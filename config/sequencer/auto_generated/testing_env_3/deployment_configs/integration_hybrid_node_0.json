@@ -1,6 +1,6 @@
 {
   "chain_id": "SN_INTEGRATION_SEPOLIA",
-  "application_config_subdir": "config/sequencer/testing_env_3/app_configs/hybrid/integration_hybrid_node_0/",
+  "application_config_subdir": "config/sequencer/auto_generated/testing_env_3/app_configs/hybrid/integration_hybrid_node_0/",
   "services": [
     {
       "name": "Core",

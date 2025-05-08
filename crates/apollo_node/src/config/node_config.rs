@@ -41,7 +41,7 @@ use crate::config::monitoring::MonitoringConfig;
 use crate::version::VERSION_FULL;
 
 // The path of the default configuration file, provided as part of the crate.
-pub const DEFAULT_CONFIG_PATH: &str = "config/sequencer/default_config.json";
+pub const DEFAULT_CONFIG_PATH: &str = "config/sequencer/auto_generated/default_config.json";
 pub const POINTER_TARGET_VALUE: &str = "PointerTarget";
 
 // Configuration parameters that share the same value across multiple components.
