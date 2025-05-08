@@ -1,3 +1,4 @@
+use blockifier::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallExecutionError;
 use blockifier::state::errors::StateError;
 use cairo_vm::hint_processor::hint_processor_definition::HintExtension;
 use cairo_vm::types::errors::math_errors::MathError;
@@ -39,6 +40,8 @@ pub enum OsHintError {
     BooleanIdExpected { id: Ids, felt: Felt },
     #[error("Failed to convert {variant:?} felt value {felt:?} to type {ty}: {reason:?}.")]
     ConstConversion { variant: Const, felt: Felt, ty: String, reason: String },
+    #[error(transparent)]
+    DeprecatedSyscallExecution(#[from] DeprecatedSyscallExecutionError),
     #[error("Tried to iterate past the end of {item_type}.")]
     EndOfIterator { item_type: String },
     #[error(transparent)]
