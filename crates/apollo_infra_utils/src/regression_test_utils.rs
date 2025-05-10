@@ -37,13 +37,13 @@ fn is_magic_fix_mode() -> bool {
 /// value, as long as it's serializable.
 pub struct MagicConstants {
     path: String,
-    values: Mutex<BTreeMap<String, Value>>,
+    values: BTreeMap<String, Value>,
 }
 
 impl MagicConstants {
     /// Should not be called explicitly; use the `register_magic_constants!` macro instead.
     fn new(path: String, values: BTreeMap<String, Value>) -> Self {
-        Self { path, values: Mutex::new(values) }
+        Self { path, values }
     }
 
     /// Main function to assert the equality of a value with the one in the file.
@@ -54,13 +54,9 @@ impl MagicConstants {
     pub fn assert_eq<V: Serialize>(&mut self, value_name: &str, value: V) {
         if is_magic_fix_mode() {
             // In fix mode, we just set the value in the file.
-            self.values
-                .lock()
-                .unwrap()
-                .insert(value_name.to_string(), serde_json::to_value(value).unwrap());
+            self.values.insert(value_name.to_string(), serde_json::to_value(value).unwrap());
         } else {
-            let locked = self.values.lock().unwrap();
-            let expected = locked.get(value_name).unwrap_or_else(|| {
+            let expected = self.values.get(value_name).unwrap_or_else(|| {
                 panic!("Magic constant {value_name} not found in file {}.", self.path)
             });
             let actual: Value = serde_json::to_value(value).unwrap();
@@ -85,7 +81,7 @@ impl Drop for MagicConstants {
                 let reader = std::io::BufReader::new(file);
                 let json: serde_json::Value = serde_json::from_reader(reader).unwrap();
                 let values = BTreeMap::from_iter(json.as_object().unwrap().clone());
-                self.values.lock().unwrap().extend(values);
+                self.values.extend(values);
             }
             std::fs::write(&self.path, serde_json::to_string_pretty(&self.values).unwrap())
                 .unwrap_or_else(|error| {
