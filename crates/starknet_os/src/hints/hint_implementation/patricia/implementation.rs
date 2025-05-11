@@ -205,7 +205,7 @@ pub(crate) fn prepare_preimage_validation_non_deterministic_hashes<S: StateReade
         preimage_map.get(&ids_node).ok_or(OsHintError::MissingPreimage(ids_node))?.get_binary()?;
 
     let hash_ptr_address =
-        get_relocatable_from_var_name(Ids::CurrentHash.into(), vm, ids_data, ap_tracking)?;
+        get_ptr_from_var_name(Ids::CurrentHash.into(), vm, ids_data, ap_tracking)?;
 
     let nested_fields_and_values =
         [("x", binary_data.left_hash.0.into()), ("y", binary_data.right_hash.0.into())];
