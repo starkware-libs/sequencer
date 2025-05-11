@@ -12,6 +12,8 @@ use crate::hash::StarkHash;
 use crate::serde_utils::PrefixedBytesAsHex;
 use crate::{StarknetApiError, StarknetApiResult};
 
+pub const HIGH_GAS_AMOUNT: u64 = 10000000000; // A high gas amount that should be enough for execution.
+
 /// A fee.
 #[cfg_attr(any(test, feature = "testing"), derive(derive_more::Add, derive_more::Deref))]
 #[derive(
@@ -400,9 +402,8 @@ impl ValidResourceBounds {
         }
     }
 
-    #[cfg(any(feature = "testing", test))]
-    pub fn create_for_testing_no_fee_enforcement() -> Self {
-        let default_l2_gas_amount = GasAmount(10000000000); // Sufficient to avoid out of gas errors.
+    pub fn new_unlimited_gas_no_fee_enforcement() -> Self {
+        let default_l2_gas_amount = GasAmount(HIGH_GAS_AMOUNT); // Sufficient to avoid out of gas errors.
         let default_resource =
             ResourceBounds { max_amount: GasAmount(0), max_price_per_unit: GasPrice(1) };
         Self::AllResources(AllResourceBounds {
@@ -413,6 +414,11 @@ impl ValidResourceBounds {
             },
             l1_data_gas: default_resource,
         })
+    }
+
+    #[cfg(any(feature = "testing", test))]
+    pub fn create_for_testing_no_fee_enforcement() -> Self {
+        Self::new_unlimited_gas_no_fee_enforcement()
     }
 
     /// Utility method to "zip" an amount vector and a price vector to get an AllResourceBounds.
