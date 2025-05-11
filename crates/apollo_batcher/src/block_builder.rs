@@ -9,7 +9,7 @@ use apollo_class_manager_types::transaction_converter::{
     TransactionConverterTrait,
 };
 use apollo_class_manager_types::SharedClassManagerClient;
-use apollo_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra_utils::tracing::LogCompatibleToStringExt;
 use apollo_state_reader::papyrus_state::{ClassReader, PapyrusReader};
@@ -406,9 +406,9 @@ impl Default for BlockBuilderConfig {
 
 impl SerializeConfig for BlockBuilderConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = append_sub_config_name(self.chain_info.dump(), "chain_info");
-        dump.append(&mut append_sub_config_name(self.execute_config.dump(), "execute_config"));
-        dump.append(&mut append_sub_config_name(self.bouncer_config.dump(), "bouncer_config"));
+        let mut dump = prepend_sub_config_name(self.chain_info.dump(), "chain_info");
+        dump.append(&mut prepend_sub_config_name(self.execute_config.dump(), "execute_config"));
+        dump.append(&mut prepend_sub_config_name(self.bouncer_config.dump(), "bouncer_config"));
         dump.append(&mut BTreeMap::from([ser_param(
             "tx_chunk_size",
             &self.tx_chunk_size,
@@ -422,7 +422,7 @@ impl SerializeConfig for BlockBuilderConfig {
              request returned no transactions.",
             ParamPrivacyInput::Public,
         )]));
-        dump.append(&mut append_sub_config_name(
+        dump.append(&mut prepend_sub_config_name(
             self.versioned_constants_overrides.dump(),
             "versioned_constants_overrides",
         ));

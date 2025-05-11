@@ -23,7 +23,7 @@ use apollo_config::converters::{
     serialize_optional_vec_u8,
 };
 use apollo_config::dumping::{
-    append_sub_config_name,
+    prepend_sub_config_name,
     ser_optional_param,
     ser_param,
     SerializeConfig,
@@ -121,9 +121,11 @@ impl SerializeConfig for NetworkConfig {
              instead",
             ParamPrivacyInput::Public,
         ));
-        config.extend(append_sub_config_name(self.discovery_config.dump(), "discovery_config"));
-        config
-            .extend(append_sub_config_name(self.peer_manager_config.dump(), "peer_manager_config"));
+        config.extend(prepend_sub_config_name(self.discovery_config.dump(), "discovery_config"));
+        config.extend(prepend_sub_config_name(
+            self.peer_manager_config.dump(),
+            "peer_manager_config",
+        ));
         config
     }
 }

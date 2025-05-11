@@ -8,8 +8,8 @@ use apollo_batcher::VersionedConstantsOverrides;
 use apollo_class_manager::config::FsClassManagerConfig;
 use apollo_compile_to_casm::config::SierraCompilationConfig;
 use apollo_config::dumping::{
-    append_sub_config_name,
     generate_struct_pointer,
+    prepend_sub_config_name,
     ser_pointer_target_param,
     set_pointing_param_paths,
     ConfigPointers,
@@ -193,32 +193,32 @@ pub struct SequencerNodeConfig {
 impl SerializeConfig for SequencerNodeConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let sub_configs = vec![
-            append_sub_config_name(self.components.dump(), "components"),
-            append_sub_config_name(self.monitoring_config.dump(), "monitoring_config"),
-            append_sub_config_name(self.base_layer_config.dump(), "base_layer_config"),
-            append_sub_config_name(self.batcher_config.dump(), "batcher_config"),
-            append_sub_config_name(self.class_manager_config.dump(), "class_manager_config"),
-            append_sub_config_name(
+            prepend_sub_config_name(self.components.dump(), "components"),
+            prepend_sub_config_name(self.monitoring_config.dump(), "monitoring_config"),
+            prepend_sub_config_name(self.base_layer_config.dump(), "base_layer_config"),
+            prepend_sub_config_name(self.batcher_config.dump(), "batcher_config"),
+            prepend_sub_config_name(self.class_manager_config.dump(), "class_manager_config"),
+            prepend_sub_config_name(
                 self.consensus_manager_config.dump(),
                 "consensus_manager_config",
             ),
-            append_sub_config_name(self.gateway_config.dump(), "gateway_config"),
-            append_sub_config_name(self.http_server_config.dump(), "http_server_config"),
-            append_sub_config_name(self.compiler_config.dump(), "compiler_config"),
-            append_sub_config_name(self.mempool_config.dump(), "mempool_config"),
-            append_sub_config_name(self.mempool_p2p_config.dump(), "mempool_p2p_config"),
-            append_sub_config_name(
+            prepend_sub_config_name(self.gateway_config.dump(), "gateway_config"),
+            prepend_sub_config_name(self.http_server_config.dump(), "http_server_config"),
+            prepend_sub_config_name(self.compiler_config.dump(), "compiler_config"),
+            prepend_sub_config_name(self.mempool_config.dump(), "mempool_config"),
+            prepend_sub_config_name(self.mempool_p2p_config.dump(), "mempool_p2p_config"),
+            prepend_sub_config_name(
                 self.monitoring_endpoint_config.dump(),
                 "monitoring_endpoint_config",
             ),
-            append_sub_config_name(self.state_sync_config.dump(), "state_sync_config"),
-            append_sub_config_name(self.l1_provider_config.dump(), "l1_provider_config"),
-            append_sub_config_name(self.l1_scraper_config.dump(), "l1_scraper_config"),
-            append_sub_config_name(
+            prepend_sub_config_name(self.state_sync_config.dump(), "state_sync_config"),
+            prepend_sub_config_name(self.l1_provider_config.dump(), "l1_provider_config"),
+            prepend_sub_config_name(self.l1_scraper_config.dump(), "l1_scraper_config"),
+            prepend_sub_config_name(
                 self.l1_gas_price_provider_config.dump(),
                 "l1_gas_price_provider_config",
             ),
-            append_sub_config_name(
+            prepend_sub_config_name(
                 self.l1_gas_price_scraper_config.dump(),
                 "l1_gas_price_scraper_config",
             ),

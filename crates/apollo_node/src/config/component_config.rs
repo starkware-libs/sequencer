@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use apollo_config::dumping::{append_sub_config_name, SerializeConfig};
+use apollo_config::dumping::{prepend_sub_config_name, SerializeConfig};
 use apollo_config::{ParamPath, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
@@ -49,20 +49,20 @@ pub struct ComponentConfig {
 impl SerializeConfig for ComponentConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let sub_configs = vec![
-            append_sub_config_name(self.batcher.dump(), "batcher"),
-            append_sub_config_name(self.class_manager.dump(), "class_manager"),
-            append_sub_config_name(self.consensus_manager.dump(), "consensus_manager"),
-            append_sub_config_name(self.gateway.dump(), "gateway"),
-            append_sub_config_name(self.http_server.dump(), "http_server"),
-            append_sub_config_name(self.mempool.dump(), "mempool"),
-            append_sub_config_name(self.l1_provider.dump(), "l1_provider"),
-            append_sub_config_name(self.l1_gas_price_provider.dump(), "l1_gas_price_provider"),
-            append_sub_config_name(self.l1_scraper.dump(), "l1_scraper"),
-            append_sub_config_name(self.l1_gas_price_scraper.dump(), "l1_gas_price_scraper"),
-            append_sub_config_name(self.mempool_p2p.dump(), "mempool_p2p"),
-            append_sub_config_name(self.monitoring_endpoint.dump(), "monitoring_endpoint"),
-            append_sub_config_name(self.sierra_compiler.dump(), "sierra_compiler"),
-            append_sub_config_name(self.state_sync.dump(), "state_sync"),
+            prepend_sub_config_name(self.batcher.dump(), "batcher"),
+            prepend_sub_config_name(self.class_manager.dump(), "class_manager"),
+            prepend_sub_config_name(self.consensus_manager.dump(), "consensus_manager"),
+            prepend_sub_config_name(self.gateway.dump(), "gateway"),
+            prepend_sub_config_name(self.http_server.dump(), "http_server"),
+            prepend_sub_config_name(self.mempool.dump(), "mempool"),
+            prepend_sub_config_name(self.l1_provider.dump(), "l1_provider"),
+            prepend_sub_config_name(self.l1_gas_price_provider.dump(), "l1_gas_price_provider"),
+            prepend_sub_config_name(self.l1_scraper.dump(), "l1_scraper"),
+            prepend_sub_config_name(self.l1_gas_price_scraper.dump(), "l1_gas_price_scraper"),
+            prepend_sub_config_name(self.mempool_p2p.dump(), "mempool_p2p"),
+            prepend_sub_config_name(self.monitoring_endpoint.dump(), "monitoring_endpoint"),
+            prepend_sub_config_name(self.sierra_compiler.dump(), "sierra_compiler"),
+            prepend_sub_config_name(self.state_sync.dump(), "state_sync"),
         ];
 
         sub_configs.into_iter().flatten().collect()

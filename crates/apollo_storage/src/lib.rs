@@ -107,7 +107,7 @@ use std::fmt::Debug;
 use std::fs;
 use std::sync::Arc;
 
-use apollo_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_proc_macros::latency_histogram;
 use body::events::EventIndex;
@@ -648,8 +648,8 @@ impl SerializeConfig for StorageConfig {
             ParamPrivacyInput::Public,
         )]);
         dumped_config
-            .extend(append_sub_config_name(self.mmap_file_config.dump(), "mmap_file_config"));
-        dumped_config.extend(append_sub_config_name(self.db_config.dump(), "db_config"));
+            .extend(prepend_sub_config_name(self.mmap_file_config.dump(), "mmap_file_config"));
+        dumped_config.extend(prepend_sub_config_name(self.db_config.dump(), "db_config"));
         dumped_config
     }
 }
