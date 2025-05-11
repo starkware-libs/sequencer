@@ -7,7 +7,7 @@ declare -A ORIGINAL_VARS
 
 
 log_debug() {
-  [[ $$PRESUBMIT_DEBUG_LEVEL -ge 1 ]] && echo "[DEBUG] $*"
+  [[ $PRESUBMIT_DEBUG_LEVEL -ge 1 ]] && echo "[DEBUG] $*"
 }
 
 install_yq() {
