@@ -28,20 +28,8 @@ impl TryFrom<Log> for L1Event {
             Starknet::StarknetEvents::LogMessageToL2(event) => {
                 let fee =
                     Fee(event.fee.try_into().map_err(EthereumBaseLayerError::FeeOutOfRange)?);
-                let mut event_data = EventData::try_from(event)?;
-                let payload_inner = Arc::get_mut(&mut event_data.payload.0).expect(
-                    "The event data is the only owner and was initialized in the previous line",
-                );
-                // Prepend the L1 sender address to the calldata.
-                payload_inner.insert(0, event_data.from_address.into());
-
-                let tx = L1HandlerTransaction {
-                    version: L1HandlerTransaction::VERSION,
-                    contract_address: event_data.to_address,
-                    entry_point_selector: event_data.entry_point_selector,
-                    nonce: event_data.nonce,
-                    calldata: event_data.payload,
-                };
+                let event_data = EventData::try_from(event)?;
+                let tx = L1HandlerTransaction::from(event_data);
                 Ok(L1Event::LogMessageToL2 { tx, fee, l1_tx_hash })
             }
             Starknet::StarknetEvents::ConsumedMessageToL2(event) => {
@@ -51,7 +39,9 @@ impl TryFrom<Log> for L1Event {
                 Ok(L1Event::MessageToL2Canceled(event.try_into()?))
             }
             Starknet::StarknetEvents::MessageToL2CancellationStarted(event) => {
-                Ok(L1Event::MessageToL2CancellationStarted(event.try_into()?))
+                Ok(L1Event::MessageToL2CancellationStarted {
+                    cancelled_tx: EventData::try_from(event)?.into(),
+                })
             }
             _ => Err(EthereumBaseLayerError::UnhandledL1Event(log)),
         }
