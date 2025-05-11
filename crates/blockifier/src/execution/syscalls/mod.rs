@@ -28,6 +28,7 @@ use crate::execution::execution_utils::{
 };
 use crate::execution::syscalls::syscall_base::SyscallResult;
 
+pub mod common_syscall_logic;
 pub mod hint_processor;
 pub mod secp;
 pub mod syscall_base;
