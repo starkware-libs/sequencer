@@ -142,14 +142,14 @@ impl MagicConstants {
     /// See docstring of `register_magic_constants!` macro for more details.
     #[track_caller]
     pub fn assert_eq<V: Serialize>(&mut self, value_name: &str, value: V) {
+        let actual: Value = serde_json::to_value(value).unwrap();
         if self.is_fix_or_clean() {
             // In fix mode, we just set the value in the file.
-            self.values.insert(value_name.to_string(), serde_json::to_value(value).unwrap());
+            self.values.insert(value_name.to_string(), actual);
         } else {
             let expected = self.values.get(value_name).unwrap_or_else(|| {
                 panic!("Magic constant {value_name} not found in file {}.", self.path)
             });
-            let actual: Value = serde_json::to_value(value).unwrap();
             assert_eq!(expected, &actual);
         }
     }
@@ -157,39 +157,38 @@ impl MagicConstants {
 
 /// TAKES THE LOCK.
 /// In fix mode, automatically dump the values to the file on drop (when test ends).
-/// Checks if the file exists first - if it does, the existing values are loaded and the current
-/// dict is updated, before dumping the contents.
+/// The existing values are loaded and the current dict is updated, before dumping the contents.
 impl Drop for MagicConstants {
     fn drop(&mut self) {
-        if self.is_fix_or_clean() {
-            // Lock the registry, to prevent races between different constants structs dropping and
-            // writing to the same file (different test cases in the same test function).
-            let _lock = MAGIC_CONSTANTS_REGISTRY.0.lock().unwrap();
-
-            // File should always exist; if not, the constants were not properly registered.
-            assert!(
-                PathBuf::from(&self.path).exists(),
-                "Magic constants file {} does not exist. Was it registered properly?",
-                self.path
-            );
-
-            // Load the existing values and update the current values.
-            // Required, as other test cases may have already dropped the constants struct and
-            // written new data to the file.
-            let file = std::fs::File::open(&self.path).unwrap_or_else(|error| {
-                panic!("Failed to open magic constants file at {}: {}", self.path, error)
-            });
-            let reader = std::io::BufReader::new(file);
-            let json: serde_json::Value = serde_json::from_reader(reader).unwrap();
-            let values = BTreeMap::from_iter(json.as_object().unwrap().clone());
-            self.values.extend(values);
-
-            // Write the updated values to the file.
-            std::fs::write(&self.path, serde_json::to_string_pretty(&self.values).unwrap())
-                .unwrap_or_else(|error| {
-                    panic!("Failed to write magic constants contents to {}: {}", self.path, error)
-                });
+        if !self.is_fix_or_clean() {
+            return;
         }
+        // Lock the registry, to prevent races between different constants structs dropping and
+        // writing to the same file (different test cases in the same test function).
+        let _lock = MAGIC_CONSTANTS_REGISTRY.0.lock().unwrap();
+
+        // File should always exist; if not, the constants were not properly registered.
+        assert!(
+            PathBuf::from(&self.path).exists(),
+            "Magic constants file {} does not exist. Was it registered properly?",
+            self.path
+        );
+
+        // Load the existing values and update the current values.
+        // Required, as other test cases may have already dropped the constants struct and
+        // written new data to the file.
+        let file = std::fs::File::open(&self.path).unwrap_or_else(|error| {
+            panic!("Failed to open magic constants file at {}: {}", self.path, error)
+        });
+        let reader = std::io::BufReader::new(file);
+        let json: serde_json::Value = serde_json::from_reader(reader).unwrap();
+        let mut values = BTreeMap::from_iter(json.as_object().unwrap());
+        values.extend(self.values.iter());
+
+        // Write the updated values to the file.
+        std::fs::write(&self.path, serde_json::to_string_pretty(&values).unwrap()).unwrap_or_else(
+            |error| panic!("Failed to write magic constants contents to {}: {}", self.path, error),
+        );
     }
 }
 
