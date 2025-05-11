@@ -1,5 +1,5 @@
 %lang starknet
-
+from starkware.cairo.common.cairo_blake2s.blake2s import encode_felt252_to_u32s
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bitwise import bitwise_xor
 from starkware.cairo.common.bool import FALSE
@@ -54,6 +54,18 @@ func with_arg(num: felt) {
 @external
 func return_result(num: felt) -> (result: felt) {
     return (result=num);
+}
+
+@external
+func encode_felts() -> (result: felt) {
+    alloc_locals;
+    let (local data: felt*) = alloc();
+    let (local packed: felt*) = alloc();
+    assert packed[0] = 0x83254989;
+    let len = encode_felt252_to_u32s(
+        packed_values_len=1, packed_values=packed, unpacked_u32s=data
+    );
+    assert len = 2;
 }
 
 @external
