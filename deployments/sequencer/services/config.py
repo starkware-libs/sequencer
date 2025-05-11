@@ -30,9 +30,6 @@ class DeploymentConfig:
     def get_nodes(self):
         return self._deployment_config_data.get("nodes", [])
 
-    def get_chain_id(self):
-        return self._deployment_config_data.get("chain_id")
-
     def get_application_config_subdir(self, index: int):
         return self._deployment_config_data["nodes"][index].get("application_config_subdir")
 

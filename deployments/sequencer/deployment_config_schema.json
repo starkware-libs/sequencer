@@ -1,7 +1,6 @@
 {
   "type": "object",
   "properties": {
-    "chain_id": { "type": "string" },
     "nodes": {
       "type": "array",
       "items": {
@@ -127,5 +126,5 @@
       }
     }
   },
-  "required": ["chain_id", "nodes"]
+  "required": ["nodes"]
 }
