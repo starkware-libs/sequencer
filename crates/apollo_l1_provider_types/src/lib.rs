@@ -11,11 +11,16 @@ use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
-use papyrus_base_layer::EventData;
+use papyrus_base_layer::{EventData, L1Event};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
-use starknet_api::executable_transaction::L1HandlerTransaction;
-use starknet_api::transaction::TransactionHash;
+use starknet_api::core::ChainId;
+use starknet_api::executable_transaction::{
+    L1HandlerTransaction as ExecutableL1HandlerTransaction,
+    L1HandlerTransaction,
+};
+use starknet_api::transaction::{TransactionHash, TransactionHasher};
+use starknet_api::StarknetApiError;
 use strum_macros::AsRefStr;
 use tracing::instrument;
 
@@ -206,6 +211,25 @@ pub enum Event {
     TransactionCanceled(EventData),
     TransactionCancellationStarted(TransactionHash),
     TransactionConsumed(EventData),
+}
+
+impl Event {
+    pub fn from_l1_event(chain_id: &ChainId, l1_event: L1Event) -> Result<Self, StarknetApiError> {
+        Ok(match l1_event {
+            L1Event::LogMessageToL2 { tx, fee, .. } => {
+                let tx = ExecutableL1HandlerTransaction::create(tx, chain_id, fee)?;
+                Self::L1HandlerTransaction(tx)
+            }
+            L1Event::MessageToL2CancellationStarted { cancelled_tx } => {
+                let tx_hash =
+                    cancelled_tx.calculate_transaction_hash(chain_id, &cancelled_tx.version)?;
+
+                Self::TransactionCancellationStarted(tx_hash)
+            }
+            L1Event::MessageToL2Canceled(event_data) => Self::TransactionCanceled(event_data),
+            L1Event::ConsumedMessageToL2(event_data) => Self::TransactionConsumed(event_data),
+        })
+    }
 }
 
 impl Display for Event {
