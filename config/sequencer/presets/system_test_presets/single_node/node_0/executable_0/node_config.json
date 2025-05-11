@@ -314,6 +314,7 @@
   "state_sync_config.p2p_sync_client_config.num_headers_per_query": 10000,
   "state_sync_config.p2p_sync_client_config.wait_period_for_new_data": 50,
   "state_sync_config.p2p_sync_client_config.wait_period_for_other_protocol": 50,
+  "state_sync_config.p2p_sync_server_config.buffer_size": 100000,
   "state_sync_config.rpc_config.apollo_gateway_retry_config.max_retries": 5,
   "state_sync_config.rpc_config.apollo_gateway_retry_config.retry_base_millis": 50,
   "state_sync_config.rpc_config.apollo_gateway_retry_config.retry_max_delay_millis": 1000,
