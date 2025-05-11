@@ -15,8 +15,6 @@ use blockifier::execution::syscalls::{
     GetClassHashAtResponse,
     GetExecutionInfoRequest,
     GetExecutionInfoResponse,
-    KeccakRequest,
-    KeccakResponse,
     LibraryCallRequest,
     LibraryCallResponse,
     MetaTxV0Request,
@@ -42,11 +40,7 @@ use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 
 #[allow(unused_variables)]
 impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
-    fn base_keccak(
-        &mut self,
-        data: &[u64],
-        remaining_gas: &mut u64,
-    ) -> SyscallResult<([u64; 4], usize)> {
+    fn get_keccak_round_cost_base_syscall_cost(&self) -> u64 {
         todo!()
     }
 
@@ -132,15 +126,6 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<GetExecutionInfoResponse> {
-        todo!()
-    }
-
-    fn keccak(
-        request: KeccakRequest,
-        vm: &mut VirtualMachine,
-        syscall_handler: &mut Self,
-        remaining_gas: &mut u64,
-    ) -> SyscallResult<KeccakResponse> {
         todo!()
     }
 

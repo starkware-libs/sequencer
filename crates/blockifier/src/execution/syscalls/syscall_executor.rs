@@ -10,7 +10,11 @@ use starknet_types_core::felt::Felt;
 use crate::blockifier_versioned_constants::{GasCostsError, SyscallGasCost};
 use crate::execution::common_hints::HintExecutionResult;
 use crate::execution::execution_utils::felt_from_ptr;
-use crate::execution::syscalls::hint_processor::{SyscallExecutionError, OUT_OF_GAS_ERROR};
+use crate::execution::syscalls::hint_processor::{
+    SyscallExecutionError,
+    INVALID_INPUT_LENGTH_ERROR,
+    OUT_OF_GAS_ERROR,
+};
 use crate::execution::syscalls::secp::{
     Secp256r1NewRequest,
     Secp256r1NewResponse,
@@ -26,7 +30,7 @@ use crate::execution::syscalls::secp::{
     SecpNewRequest,
     SecpNewResponse,
 };
-use crate::execution::syscalls::syscall_base::SyscallResult;
+use crate::execution::syscalls::syscall_base::{SyscallResult, KECCAK_FULL_RATE_IN_WORDS};
 use crate::execution::syscalls::{
     CallContractRequest,
     CallContractResponse,
@@ -69,11 +73,8 @@ pub trait SyscallExecutor {
         Ok(felt_from_ptr(vm, self.get_mut_syscall_ptr())?)
     }
 
-    fn base_keccak(
-        &mut self,
-        data: &[u64],
-        remaining_gas: &mut u64,
-    ) -> SyscallResult<([u64; 4], usize)>;
+    // TODO(Aner): replace function with inline after implementing fn get_gas_costs.
+    fn get_keccak_round_cost_base_syscall_cost(&self) -> u64;
 
     fn get_secpk1_hint_processor(&mut self) -> &mut SecpHintProcessor<ark_secp256k1::Config>;
 
@@ -85,6 +86,7 @@ pub trait SyscallExecutor {
         self.increment_syscall_count_by(selector, 1);
     }
 
+    // TODO(Aner): replace function with inline after implementing fn get_gas_costs.
     fn get_gas_cost_from_selector(
         &self,
         selector: &SyscallSelector,
@@ -92,6 +94,7 @@ pub trait SyscallExecutor {
 
     fn get_mut_syscall_ptr(&mut self) -> &mut Relocatable;
 
+    // TODO(Aner): replace function with inline after implementing fn get_gas_costs.
     fn get_syscall_base_gas_cost(&self) -> u64;
 
     fn update_revert_gas_with_next_remaining_gas(&mut self, next_remaining_gas: GasAmount);
@@ -157,7 +160,11 @@ pub trait SyscallExecutor {
             })
             .collect::<Result<Vec<u64>, _>>()?;
 
-        let (state, n_rounds) = syscall_handler.base_keccak(data_u64, remaining_gas)?;
+        let (state, n_rounds) = base_keccak(
+            syscall_handler.get_keccak_round_cost_base_syscall_cost(),
+            data_u64,
+            remaining_gas,
+        )?;
 
         // For the keccak system call we want to count the number of rounds rather than the number
         // of syscall invocations.
@@ -502,4 +509,45 @@ pub fn execute_next_syscall<T: SyscallExecutor>(
     }
 
     execute_syscall_from_selector(syscall_executor, vm, selector)
+}
+
+pub fn base_keccak(
+    keccak_round_cost_base_syscall_cost: u64,
+    input: &[u64],
+    remaining_gas: &mut u64,
+) -> SyscallResult<([u64; 4], usize)> {
+    let input_length = input.len();
+
+    let (n_rounds, remainder) = num_integer::div_rem(input_length, KECCAK_FULL_RATE_IN_WORDS);
+
+    if remainder != 0 {
+        return Err(SyscallExecutionError::Revert {
+            error_data: vec![
+                Felt::from_hex(INVALID_INPUT_LENGTH_ERROR)
+                    .expect("Failed to parse INVALID_INPUT_LENGTH_ERROR hex string"),
+            ],
+        });
+    }
+    // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion
+    // works.
+    let n_rounds_as_u64 = u64::try_from(n_rounds).expect("Failed to convert usize to u64.");
+    let gas_cost = n_rounds_as_u64 * keccak_round_cost_base_syscall_cost;
+
+    if gas_cost > *remaining_gas {
+        let out_of_gas_error =
+            Felt::from_hex(OUT_OF_GAS_ERROR).expect("Failed to parse OUT_OF_GAS_ERROR hex string");
+
+        return Err(SyscallExecutionError::Revert { error_data: vec![out_of_gas_error] });
+    }
+    *remaining_gas -= gas_cost;
+
+    let mut state = [0u64; 25];
+    for chunk in input.chunks(KECCAK_FULL_RATE_IN_WORDS) {
+        for (i, val) in chunk.iter().enumerate() {
+            state[i] ^= val;
+        }
+        keccak::f1600(&mut state)
+    }
+
+    Ok((state[..4].try_into().expect("Slice with incorrect length"), n_rounds))
 }
