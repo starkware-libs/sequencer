@@ -120,20 +120,9 @@ fn allowed_libfuncs_aligned_to_audited() {
     // test both directions.
     let missing: Vec<_> = expected.difference(&actual).map(ToString::to_string).collect();
     let extra: Vec<_> = actual.difference(&expected).map(ToString::to_string).collect();
-
-    // Only run the assertion if version >= 2.12.0-dev.1.
-    // For older versions, just return, effectively skipping the test.
-    let cairo_version = cairo1_compiler_version();
-    if cairo_version.starts_with("2.12.0-dev.1") {
-        assert_eq!(
-            (missing, extra),
-            (Vec::<String>::new(), Vec::<String>::new()),
-            "Audited libfuncs mismatch: (missing, extra)"
-        );
-
-        panic!(
-            "Please remove the conditional (but leave the assertion!),
-            so version alignment is always tested."
-        );
-    }
+    assert_eq!(
+        (missing, extra),
+        (Vec::<String>::new(), Vec::<String>::new()),
+        "Audited libfuncs mismatch: (missing, extra)"
+    );
 }
