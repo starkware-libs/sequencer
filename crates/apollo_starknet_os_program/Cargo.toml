@@ -5,6 +5,17 @@ edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
 description = "The source (Cairo) code of the Starknet OS."
+build = "build/main.rs"
+
+[features]
+dump_source_files = []
 
 [lints]
 workspace = true
+
+[dependencies]
+serde_json.workspace = true
+
+[build-dependencies]
+apollo_infra_utils.workspace = true
+serde_json.workspace = true
