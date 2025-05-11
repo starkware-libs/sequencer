@@ -222,7 +222,7 @@ pub(crate) fn load_class_inner<S: StateReader>(
             hint_extension.insert(abs_pc, hints.iter().map(|h| any_box!(h.clone())).collect());
         }
 
-        compiled_class_facts_ptr += CompiledClassFact::size(identifier_getter);
+        compiled_class_facts_ptr += CompiledClassFact::size(identifier_getter)?;
     }
 
     Ok(hint_extension)

@@ -57,8 +57,8 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for ResourceAsFelts {
 }
 
 impl<IG: IdentifierGetter> CairoSized<IG> for ResourceAsFelts {
-    fn size(_identifier_getter: &IG) -> usize {
-        3
+    fn cairo_struct() -> CairoStruct {
+        CairoStruct::ResourceBounds
     }
 }
 

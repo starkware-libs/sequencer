@@ -6,7 +6,13 @@ use cairo_vm::vm::vm_core::VirtualMachine;
 use rstest::rstest;
 use serde_json;
 
-use super::{fetch_nested_fields_address, IdentifierGetter, VmUtilsResult};
+use super::{
+    fetch_nested_fields_address,
+    get_size_of_cairo_struct,
+    IdentifierGetter,
+    VmUtilsResult,
+};
+use crate::hints::vars::CairoStruct;
 
 impl IdentifierGetter for HashMap<String, Identifier> {
     fn get_identifier(&self, identifier_name: &str) -> VmUtilsResult<&Identifier> {
@@ -102,3 +108,112 @@ fn get_address_of_nested_fields_without_ptrs(
 }
 
 // TODO(Nimrod): Add test cases with pointers.
+
+#[rstest]
+#[case::casm_contract_entry_point(4, CairoStruct::CompiledClassEntryPoint)]
+#[case::compiled_class_fact(2, CairoStruct::CompiledClassFact)]
+#[case::deprecated_contract_entry_point(2, CairoStruct::DeprecatedContractEntryPoint)]
+#[case::dict_access(3, CairoStruct::DictAccess)]
+#[case::resource_as_felts(3, CairoStruct::ResourceBounds)]
+fn size_of_cairo_structs(#[case] expected_size: usize, #[case] cairo_struct: CairoStruct) {
+    // TODO(Rotem): When the OS program is locally available, use it instead of defining this
+    // explicit JSON.
+    let identifiers_json = r#"
+    {
+    "starkware.starknet.core.os.contract_class.compiled_class.CompiledClassEntryPoint": {
+                "full_name": "starkware.starknet.core.os.contract_class.compiled_class.CompiledClassEntryPoint",
+                "members": {
+                    "selector": {
+                        "cairo_type": "felt",
+                        "offset": 0
+                    },
+                    "offset": {
+                        "cairo_type": "felt",
+                        "offset": 1
+                    },
+                    "n_builtins": {
+                        "cairo_type": "felt",
+                        "offset": 2
+                    },
+                        "builtin_list": {
+                        "cairo_type": "felt*",
+                        "offset": 3
+                    }
+                },
+                "size": 4,
+                "type": "struct"
+            },
+    "starkware.starknet.core.os.contract_class.compiled_class.CompiledClassFact": {
+                "full_name": "starkware.starknet.core.os.contract_class.compiled_class.CompiledClassFact",
+                "members": {
+                    "hash": {
+                        "cairo_type": "felt",
+                        "offset": 0
+                    },
+                    "compiled_class": {
+                        "cairo_type": "CompiledClass",
+                        "offset": 1
+                    }
+                },
+                "size": 2,
+                "type": "struct"
+            },
+    "starkware.starknet.core.os.contract_class.deprecated_compiled_class.DeprecatedContractEntryPoint": {
+                "full_name": "starkware.starknet.core.os.contract_class.deprecated_compiled_class.DeprecatedContractEntryPoint",
+                "members": {
+                    "selector": {
+                        "cairo_type": "felt",
+                        "offset": 0
+                    },
+                    "offset": {
+                        "cairo_type": "felt",
+                        "offset": 1
+                    }
+                },
+                "size": 2,
+                "type": "struct"
+            },
+    "starkware.cairo.common.dict_access.DictAccess": {
+                "full_name": "starkware.cairo.common.dict_access.DictAccess",
+                "members": {
+                    "key": {
+                        "cairo_type": "felt",
+                        "offset": 0
+                    },
+                    "new_value": {
+                        "cairo_type": "felt",
+                        "offset": 2
+                    },
+                    "prev_value": {
+                        "cairo_type": "felt",
+                        "offset": 1
+                    }
+                },
+                "size": 3,
+                "type": "struct"
+            },
+    "starkware.starknet.common.new_syscalls.ResourceBounds": {
+                "full_name": "starkware.starknet.common.new_syscalls.ResourceBounds",
+                "members": {
+                    "resource": {
+                        "cairo_type": "felt",
+                        "offset": 0
+                    },
+                    "max_amount": {
+                        "cairo_type": "felt",
+                        "offset": 1
+                    },
+                    "max_price_per_unit": {
+                        "cairo_type": "felt",
+                        "offset": 2
+                    }
+                },
+                "size": 3,
+                "type": "struct"
+            }
+    }"#;
+
+    let identifiers: HashMap<String, Identifier> = serde_json::from_str(identifiers_json).unwrap();
+    let size = get_size_of_cairo_struct(cairo_struct, &identifiers).unwrap();
+    assert_eq!(size, expected_size)
+}

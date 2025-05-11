@@ -61,9 +61,8 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for CasmContractEntryPoint {
 }
 
 impl<IG: IdentifierGetter> CairoSized<IG> for CasmContractEntryPoint {
-    fn size(_identifier_getter: &IG) -> usize {
-        // TODO(Nimrod): Fetch from IG after we upgrade the VM.
-        4
+    fn cairo_struct() -> CairoStruct {
+        CairoStruct::CompiledClassEntryPoint
     }
 }
 
@@ -163,9 +162,8 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for CompiledClassFact<'_> {
 }
 
 impl<IG: IdentifierGetter> CairoSized<IG> for CompiledClassFact<'_> {
-    fn size(_identifier_getter: &IG) -> usize {
-        // TODO(Nimrod): Fetch from IG after we upgrade the VM.
-        2
+    fn cairo_struct() -> CairoStruct {
+        CairoStruct::CompiledClassFact
     }
 }
 
