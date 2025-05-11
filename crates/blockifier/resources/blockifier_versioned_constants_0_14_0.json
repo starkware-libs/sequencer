@@ -106,7 +106,7 @@
         "l1_handler_max_amount_bounds": {
             "l1_gas": 40000,
             "l1_data_gas": 20000,
-            "l2_gas": 1000000
+            "l2_gas": 100000000
         },
         "sierra_array_len_bound": 4294967296,
         "step_gas_cost": 100,
