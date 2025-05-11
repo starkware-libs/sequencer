@@ -25,6 +25,7 @@
 //! ```
 
 use std::collections::HashMap;
+use std::str::FromStr;
 use std::time::Duration;
 
 use serde::de::Error;
@@ -130,6 +131,57 @@ where
             ))
         })?;
         vector.push(byte);
+    }
+    Ok(Some(vector))
+}
+
+/// Serializes a vector to string structure.
+/// Vector type is expected to be an object that can be string serializable without `DELIMITER`.
+pub fn serialize_optional_vec<T: ToString, const DELIMITER: char>(
+    vector: &Option<Vec<T>>,
+) -> String {
+    match vector {
+        None => "".to_owned(),
+        Some(vector) => {
+            format!(
+                "[{}]",
+                vector
+                    .iter()
+                    .map(|i| i.to_string())
+                    .collect::<Vec<String>>()
+                    .join(DELIMITER.to_string().as_str())
+            )
+        }
+    }
+}
+
+/// Deserializes a vector from string structure.
+/// The vector is expected to be a list of values separated by `DELIMITER`.
+pub fn deserialize_optional_vec<'de, D, T: FromStr, const DELIMITER: char>(
+    de: D,
+) -> Result<Option<Vec<T>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let raw_str: String = Deserialize::deserialize(de)?;
+    if raw_str.is_empty() {
+        return Ok(None);
+    }
+
+    if !raw_str.starts_with("[") || !raw_str.ends_with("]") {
+        return Err(D::Error::custom(
+            "Couldn't deserialize vector. Expected string starting with `[` and ending with `]`",
+        ));
+    }
+
+    let striped_str = &raw_str[1..(raw_str.len() - 1)];
+
+    let mut vector = Vec::new();
+    for i in striped_str.split(DELIMITER) {
+        let value = T::from_str(i).map_err(|_| {
+            D::Error::custom(format!("Couldn't deserialize vector. Failed to parse value: {}", i))
+        })?;
+        vector.push(value);
     }
     Ok(Some(vector))
 }

@@ -679,7 +679,7 @@ impl NetworkManager {
             port,
             session_timeout,
             idle_connection_timeout,
-            bootstrap_peer_multiaddr,
+            bootstrap_peers_multiaddrs,
             advertised_multiaddr,
             secret_key,
             chain_id,
@@ -711,7 +711,7 @@ impl NetworkManager {
         // .with_quic()
         .with_behaviour(|key| mixed_behaviour::MixedBehaviour::new(
                 key.clone(),
-                bootstrap_peer_multiaddr.map(|multiaddr| vec![multiaddr]),
+                bootstrap_peers_multiaddrs,
                 sqmr::Config { session_timeout },
                 chain_id,
                 node_version,

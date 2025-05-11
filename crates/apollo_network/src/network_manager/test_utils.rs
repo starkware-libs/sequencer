@@ -165,12 +165,12 @@ pub fn create_connected_network_configs(mut ports: Vec<u16>) -> Vec<NetworkConfi
     for port in ports.iter() {
         configs.push(NetworkConfig {
             port: *port,
-            bootstrap_peer_multiaddr: Some(
+            bootstrap_peers_multiaddrs: Some(vec![
                 Multiaddr::empty()
                     .with(Protocol::Ip4(Ipv4Addr::LOCALHOST))
                     .with(Protocol::Tcp(port0))
                     .with(Protocol::P2p(PeerId::from_public_key(&public_key0))),
-            ),
+            ]),
             ..Default::default()
         });
     }

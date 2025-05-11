@@ -974,15 +974,10 @@
     "privacy": "TemporaryValue",
     "value": true
   },
-  "consensus_manager_config.network_config.bootstrap_peer_multiaddr": {
-    "description": "The multiaddress of the peer node. It should include the peer's id. For more info: https://docs.libp2p.io/concepts/fundamentals/peers/",
+  "consensus_manager_config.network_config.bootstrap_peers_multiaddrs": {
+    "description": "The multiaddresses of the peer nodes. The should include the peers' ids. For more info: https://docs.libp2p.io/concepts/fundamentals/peers/",
     "privacy": "Public",
     "value": ""
-  },
-  "consensus_manager_config.network_config.bootstrap_peer_multiaddr.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
   },
   "consensus_manager_config.network_config.broadcasted_message_metadata_buffer_size": {
     "description": "The size of the buffer that holds the metadata of the broadcasted messages.",
@@ -1349,15 +1344,10 @@
     "privacy": "TemporaryValue",
     "value": true
   },
-  "mempool_p2p_config.network_config.bootstrap_peer_multiaddr": {
-    "description": "The multiaddress of the peer node. It should include the peer's id. For more info: https://docs.libp2p.io/concepts/fundamentals/peers/",
+  "mempool_p2p_config.network_config.bootstrap_peers_multiaddrs": {
+    "description": "The multiaddresses of the peer nodes. The should include the peers' ids. For more info: https://docs.libp2p.io/concepts/fundamentals/peers/",
     "privacy": "Public",
     "value": ""
-  },
-  "mempool_p2p_config.network_config.bootstrap_peer_multiaddr.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
   },
   "mempool_p2p_config.network_config.broadcasted_message_metadata_buffer_size": {
     "description": "The size of the buffer that holds the metadata of the broadcasted messages.",
@@ -1589,15 +1579,10 @@
     "privacy": "TemporaryValue",
     "value": true
   },
-  "state_sync_config.network_config.bootstrap_peer_multiaddr": {
-    "description": "The multiaddress of the peer node. It should include the peer's id. For more info: https://docs.libp2p.io/concepts/fundamentals/peers/",
+  "state_sync_config.network_config.bootstrap_peers_multiaddrs": {
+    "description": "The multiaddresses of the peer nodes. The should include the peers' ids. For more info: https://docs.libp2p.io/concepts/fundamentals/peers/",
     "privacy": "Public",
     "value": ""
-  },
-  "state_sync_config.network_config.bootstrap_peer_multiaddr.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
   },
   "state_sync_config.network_config.broadcasted_message_metadata_buffer_size": {
     "description": "The size of the buffer that holds the metadata of the broadcasted messages.",

@@ -233,9 +233,9 @@ impl DeploymentConfigOverride {
 
 #[derive(Debug, Serialize)]
 pub struct InstanceConfigOverride {
-    #[serde(rename = "consensus_manager_config.network_config.bootstrap_peer_multiaddr")]
+    #[serde(rename = "consensus_manager_config.network_config.bootstrap_peers_multiaddrs")]
     consensus_bootstrap_peer_multiaddr: String,
-    #[serde(rename = "consensus_manager_config.network_config.bootstrap_peer_multiaddr.#is_none")]
+    #[serde(rename = "consensus_manager_config.network_config.bootstrap_peers_multiaddrs.#is_none")]
     consensus_bootstrap_peer_multiaddr_is_none: bool,
     // TODO(Tsabary): network secret keys should be defined as secrets.
     #[serde(rename = "consensus_manager_config.network_config.secret_key")]

@@ -19,8 +19,10 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use apollo_config::converters::{
+    deserialize_optional_vec,
     deserialize_optional_vec_u8,
     deserialize_seconds_to_duration,
+    serialize_optional_vec,
     serialize_optional_vec_u8,
 };
 use apollo_config::dumping::{
@@ -34,9 +36,20 @@ use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use discovery::DiscoveryConfig;
 use libp2p::Multiaddr;
 use peer_manager::PeerManagerConfig;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use starknet_api::core::ChainId;
 use validator::Validate;
+
+fn serialize_multi_addrs(multi_addrs: &Option<Vec<Multiaddr>>) -> String {
+    serialize_optional_vec::<Multiaddr, ','>(multi_addrs)
+}
+
+fn deserialize_multi_addrs<'de, D>(de: D) -> Result<Option<Vec<Multiaddr>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    deserialize_optional_vec::<'de, D, Multiaddr, ','>(de)
+}
 
 // TODO(Shahak): add peer manager config to the network config
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Validate)]
@@ -46,7 +59,8 @@ pub struct NetworkConfig {
     pub session_timeout: Duration,
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub idle_connection_timeout: Duration,
-    pub bootstrap_peer_multiaddr: Option<Multiaddr>,
+    #[serde(deserialize_with = "deserialize_multi_addrs")]
+    pub bootstrap_peers_multiaddrs: Option<Vec<Multiaddr>>,
     #[validate(custom = "validate_vec_u256")]
     #[serde(deserialize_with = "deserialize_optional_vec_u8")]
     pub secret_key: Option<Vec<u8>>,
@@ -99,13 +113,12 @@ impl SerializeConfig for NetworkConfig {
                 ParamPrivacyInput::Public,
             ),
         ]);
-        config.extend(ser_optional_param(
-            &self.bootstrap_peer_multiaddr,
-            Multiaddr::empty(),
-            "bootstrap_peer_multiaddr",
-            "The multiaddress of the peer node. It should include the peer's id. For more info: https://docs.libp2p.io/concepts/fundamentals/peers/",
+        config.extend([ser_param(
+            "bootstrap_peers_multiaddrs",
+            &serialize_multi_addrs(&self.bootstrap_peers_multiaddrs),
+            "The multiaddresses of the peer nodes. The should include the peers' ids. For more info: https://docs.libp2p.io/concepts/fundamentals/peers/",
             ParamPrivacyInput::Public,
-        ));
+        )]);
         config.extend([ser_param(
             "secret_key",
             &serialize_optional_vec_u8(&self.secret_key),
@@ -137,7 +150,7 @@ impl Default for NetworkConfig {
             port: 10000,
             session_timeout: Duration::from_secs(120),
             idle_connection_timeout: Duration::from_secs(120),
-            bootstrap_peer_multiaddr: None,
+            bootstrap_peers_multiaddrs: None,
             secret_key: None,
             advertised_multiaddr: None,
             chain_id: ChainId::Mainnet,
