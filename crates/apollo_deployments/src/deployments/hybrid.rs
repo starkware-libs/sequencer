@@ -12,12 +12,12 @@ use strum_macros::{AsRefStr, EnumIter};
 
 use crate::deployment_definitions::{Environment, EnvironmentComponentConfigModifications};
 use crate::service::{
+    get_ingress,
     Controller,
     ExternalSecret,
     GetComponentConfigs,
     Ingress,
     IngressParams,
-    IngressRule,
     Resource,
     Resources,
     Service,
@@ -124,56 +124,52 @@ impl ServiceNameInner for HybridNodeServiceName {
             Environment::Testing => match self {
                 HybridNodeServiceName::Core => Service::new(
                     Into::<ServiceName>::into(*self),
-                    None,
                     1,
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
+                    ingress_params.clone(),
                     environment.clone(),
                 ),
                 HybridNodeServiceName::HttpServer => Service::new(
                     Into::<ServiceName>::into(*self),
-                    Some(Ingress::new(
-                        ingress_params,
-                        true,
-                        vec![IngressRule::new(String::from("/gateway"), 8080, None)],
-                    )),
                     1,
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
+                    ingress_params.clone(),
                     environment.clone(),
                 ),
                 HybridNodeServiceName::Gateway => Service::new(
                     Into::<ServiceName>::into(*self),
-                    None,
                     1,
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
+                    ingress_params.clone(),
                     environment.clone(),
                 ),
                 HybridNodeServiceName::Mempool => Service::new(
                     Into::<ServiceName>::into(*self),
-                    None,
                     1,
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
+                    ingress_params.clone(),
                     environment.clone(),
                 ),
                 HybridNodeServiceName::SierraCompiler => Service::new(
                     Into::<ServiceName>::into(*self),
-                    None,
                     1,
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
+                    ingress_params.clone(),
                     environment.clone(),
                 ),
             },
@@ -182,56 +178,52 @@ impl ServiceNameInner for HybridNodeServiceName {
             | Environment::TestingEnvThree => match self {
                 HybridNodeServiceName::Core => Service::new(
                     Into::<ServiceName>::into(*self),
-                    None,
                     1,
                     Some(1000),
                     Resources::new(Resource::new(2, 4), Resource::new(7, 14)),
                     external_secret.clone(),
                     additional_config_filenames,
+                    ingress_params.clone(),
                     environment.clone(),
                 ),
                 HybridNodeServiceName::HttpServer => Service::new(
                     Into::<ServiceName>::into(*self),
-                    Some(Ingress::new(
-                        ingress_params,
-                        false,
-                        vec![IngressRule::new(String::from("/gateway"), 8080, None)],
-                    )),
                     1,
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
+                    ingress_params.clone(),
                     environment.clone(),
                 ),
                 HybridNodeServiceName::Gateway => Service::new(
                     Into::<ServiceName>::into(*self),
-                    None,
                     2,
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(2, 4)),
                     external_secret.clone(),
                     additional_config_filenames,
+                    ingress_params.clone(),
                     environment.clone(),
                 ),
                 HybridNodeServiceName::Mempool => Service::new(
                     Into::<ServiceName>::into(*self),
-                    None,
                     1,
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(2, 4)),
                     external_secret.clone(),
                     additional_config_filenames,
+                    ingress_params.clone(),
                     environment.clone(),
                 ),
                 HybridNodeServiceName::SierraCompiler => Service::new(
                     Into::<ServiceName>::into(*self),
-                    None,
                     2,
                     None,
                     Resources::new(Resource::new(1, 2), Resource::new(2, 4)),
                     external_secret.clone(),
                     additional_config_filenames,
+                    ingress_params.clone(),
                     environment.clone(),
                 ),
             },
@@ -272,6 +264,30 @@ impl ServiceNameInner for HybridNodeServiceName {
                 HybridNodeServiceName::SierraCompiler => Some(Toleration::ApolloGeneralService),
             },
             _ => unimplemented!(),
+        }
+    }
+
+    fn get_ingress(
+        &self,
+        environment: &Environment,
+        ingress_params: IngressParams,
+    ) -> Option<Ingress> {
+        match self {
+            HybridNodeServiceName::Core => None,
+            HybridNodeServiceName::HttpServer => {
+                let internal = match environment {
+                    Environment::Testing => true,
+                    Environment::SepoliaIntegration
+                    | Environment::TestingEnvTwo
+                    | Environment::TestingEnvThree => false,
+                    _ => unimplemented!(),
+                };
+                get_ingress(ingress_params, internal)
+            }
+
+            HybridNodeServiceName::Gateway => None,
+            HybridNodeServiceName::Mempool => None,
+            HybridNodeServiceName::SierraCompiler => None,
         }
     }
 }
