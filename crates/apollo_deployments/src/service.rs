@@ -22,9 +22,11 @@ pub struct Service {
     autoscale: bool,
     replicas: usize,
     storage: Option<usize>,
-    toleration: Option<String>,
+    toleration: Option<Toleration>,
     resources: Resources,
     external_secret: Option<ExternalSecret>,
+    #[serde(skip_serializing)]
+    environment: Environment,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
@@ -108,10 +110,11 @@ impl Service {
         ingress: Option<Ingress>,
         replicas: usize,
         storage: Option<usize>,
-        toleration: Option<String>,
         resources: Resources,
         external_secret: Option<ExternalSecret>,
         mut additional_config_filenames: Vec<String>,
+        // TODO(Tsabary): consider if including the environment is necessary.
+        environment: Environment,
     ) -> Self {
         // Configs are loaded by order such that a config may override previous ones.
         // We first list the base config, and then follow with the overrides.
@@ -122,6 +125,7 @@ impl Service {
 
         let controller = name.get_controller();
         let autoscale = name.get_autoscale();
+        let toleration = name.get_toleration(&environment);
         Self {
             name,
             config_paths,
@@ -133,6 +137,7 @@ impl Service {
             toleration,
             resources,
             external_secret,
+            environment,
         }
     }
 
@@ -192,6 +197,10 @@ impl ServiceName {
     pub fn get_autoscale(&self) -> bool {
         self.as_inner().get_autoscale()
     }
+
+    pub fn get_toleration(&self, environment: &Environment) -> Option<Toleration> {
+        self.as_inner().get_toleration(environment)
+    }
 }
 
 pub(crate) trait ServiceNameInner: Display {
@@ -207,6 +216,8 @@ pub(crate) trait ServiceNameInner: Display {
     fn get_controller(&self) -> Controller;
 
     fn get_autoscale(&self) -> bool;
+
+    fn get_toleration(&self, environment: &Environment) -> Option<Toleration>;
 }
 
 impl DeploymentName {
@@ -283,4 +294,11 @@ impl Serialize for ServiceName {
             ServiceName::DistributedNode(inner) => inner.serialize(serializer),
         }
     }
+}
+
+#[derive(Serialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+pub enum Toleration {
+    ApolloCoreService,
+    ApolloGeneralService,
 }
