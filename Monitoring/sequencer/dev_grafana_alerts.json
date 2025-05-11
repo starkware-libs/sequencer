@@ -103,6 +103,32 @@
       ],
       "for": "1m",
       "intervalSec": 20
+    },
+    {
+      "name": "consensus_round_high_avg",
+      "title": "Consensus round high average",
+      "ruleGroup": "consensus",
+      "expr": "avg_over_time(consensus_round[1m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.2
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "1m",
+      "intervalSec": 20
     }
   ]
 }
