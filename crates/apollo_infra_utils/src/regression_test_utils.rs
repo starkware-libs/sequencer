@@ -37,8 +37,8 @@ impl MagicMode {
         }
     }
 
-    fn is_fix_or_clean() -> bool {
-        match Self::from_env() {
+    fn is_fix_or_clean(&self) -> bool {
+        match self {
             Self::Fix | Self::Clean => true,
             Self::Test => false,
         }
@@ -49,6 +49,7 @@ impl MagicMode {
 /// order deterministic. The values are generic serializable objects, so we can store any type of
 /// value, as long as it's serializable.
 pub struct MagicConstants {
+    mode: MagicMode,
     path: String,
     values: BTreeMap<String, Value>,
 }
@@ -67,6 +68,7 @@ impl MagicConstants {
     ///    file if it does not exist.
     /// 4. In any mode, loads and returns the contents of the file as a `MagicConstants` object.
     pub fn register_and_create(current_dir: &Path, function_name: &str) -> Self {
+        let mode = MagicMode::from_env();
         let magic_dir = current_dir.join("magic_constants");
         let absolute_path = magic_dir.join(Self::filename_from_function_name(function_name));
         let absolute_path_string = absolute_path.to_str().unwrap().to_string();
@@ -83,12 +85,12 @@ impl MagicConstants {
         // First registration of a file in the directory: cleanup / create the directory, depending
         // on mode.
         if is_first_dir_registration {
-            if matches!(MagicMode::from_env(), MagicMode::Clean) && magic_dir.exists() {
+            if matches!(mode, MagicMode::Clean) && magic_dir.exists() {
                 std::fs::remove_dir_all(&magic_dir).unwrap_or_else(|error| {
                     panic!("Failed to remove magic constants directory at {magic_dir:?}: {error}.")
                 });
             }
-            if MagicMode::is_fix_or_clean() && !magic_dir.exists() {
+            if mode.is_fix_or_clean() && !magic_dir.exists() {
                 std::fs::create_dir_all(&magic_dir).unwrap_or_else(|error| {
                     panic!("Failed to create magic constants directory at {magic_dir:?}: {error}.")
                 });
@@ -105,7 +107,7 @@ impl MagicConstants {
         if is_first_registration && !absolute_path.exists() {
             // In test mode, assert the file exists; otherwise, create it.
             assert!(
-                MagicMode::is_fix_or_clean(),
+                mode.is_fix_or_clean(),
                 "Magic constants file {absolute_path:?} does not exist. Please run the test in \
                  fix/clean mode to create it."
             );
@@ -121,7 +123,7 @@ impl MagicConstants {
         let reader = std::io::BufReader::new(file);
         let json: serde_json::Value = serde_json::from_reader(reader).unwrap();
         let values = BTreeMap::from_iter(json.as_object().unwrap().clone());
-        Self { path: absolute_path_string, values }
+        Self { path: absolute_path_string, values, mode }
     }
 
     /// Given the function name, generates a unique filename for the magic constants file.
@@ -130,13 +132,17 @@ impl MagicConstants {
         bad_chars.replace_all(&format!("{function_name}.json"), "_").to_string()
     }
 
+    fn is_fix_or_clean(&self) -> bool {
+        self.mode.is_fix_or_clean()
+    }
+
     /// Main function to assert the equality of a value with the one in the file.
     /// If you have a test that uses a magic constant, you should use this function to assert the
     /// equality of the value.
     /// See docstring of `register_magic_constants!` macro for more details.
     #[track_caller]
     pub fn assert_eq<V: Serialize>(&mut self, value_name: &str, value: V) {
-        if MagicMode::is_fix_or_clean() {
+        if self.is_fix_or_clean() {
             // In fix mode, we just set the value in the file.
             self.values.insert(value_name.to_string(), serde_json::to_value(value).unwrap());
         } else {
@@ -155,7 +161,7 @@ impl MagicConstants {
 /// dict is updated, before dumping the contents.
 impl Drop for MagicConstants {
     fn drop(&mut self) {
-        if MagicMode::is_fix_or_clean() {
+        if self.is_fix_or_clean() {
             // Lock the registry, to prevent races between different constants structs dropping and
             // writing to the same file (different test cases in the same test function).
             let _lock = MAGIC_CONSTANTS_REGISTRY.0.lock().unwrap();
