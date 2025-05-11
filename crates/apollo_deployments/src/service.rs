@@ -141,7 +141,6 @@ impl Service {
     pub fn new(
         name: ServiceName,
         replicas: usize,
-        storage: Option<usize>,
         resources: Resources,
         external_secret: Option<ExternalSecret>,
         mut additional_config_filenames: Vec<String>,
@@ -160,6 +159,7 @@ impl Service {
         let autoscale = name.get_autoscale();
         let toleration = name.get_toleration(&environment);
         let ingress = name.get_ingress(&environment, ingress_params);
+        let storage = name.get_storage(&environment);
         Self {
             name,
             config_paths,
@@ -241,6 +241,10 @@ impl ServiceName {
     ) -> Option<Ingress> {
         self.as_inner().get_ingress(environment, ingress_params)
     }
+
+    pub fn get_storage(&self, environment: &Environment) -> Option<usize> {
+        self.as_inner().get_storage(environment)
+    }
 }
 
 pub(crate) trait ServiceNameInner: Display {
@@ -263,6 +267,8 @@ pub(crate) trait ServiceNameInner: Display {
         environment: &Environment,
         ingress_params: IngressParams,
     ) -> Option<Ingress>;
+
+    fn get_storage(&self, environment: &Environment) -> Option<usize>;
 }
 
 impl DeploymentName {

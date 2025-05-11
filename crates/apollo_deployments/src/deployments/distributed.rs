@@ -28,6 +28,10 @@ use crate::service::{
 
 const BASE_PORT: u16 = 15000; // TODO(Tsabary): arbitrary port, need to resolve.
 
+const BATCHER_STORAGE: usize = 500;
+const CLASS_MANAGER_STORAGE: usize = 500;
+const STATE_SYNC_STORAGE: usize = 500;
+
 // TODO(Tsabary): define consts and functions whenever relevant.
 
 #[repr(u16)]
@@ -151,7 +155,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::Batcher => Service::new(
                     Into::<ServiceName>::into(*self),
                     1,
-                    Some(32),
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
@@ -161,7 +164,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::ClassManager => Service::new(
                     Into::<ServiceName>::into(*self),
                     1,
-                    Some(32),
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
@@ -171,7 +173,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::ConsensusManager => Service::new(
                     Into::<ServiceName>::into(*self),
                     1,
-                    None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
@@ -181,7 +182,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::HttpServer => Service::new(
                     Into::<ServiceName>::into(*self),
                     1,
-                    None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
@@ -191,7 +191,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::Gateway => Service::new(
                     Into::<ServiceName>::into(*self),
                     1,
-                    None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
@@ -201,7 +200,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::L1 => Service::new(
                     Into::<ServiceName>::into(*self),
                     1,
-                    None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
@@ -211,7 +209,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::Mempool => Service::new(
                     Into::<ServiceName>::into(*self),
                     1,
-                    None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
@@ -221,7 +218,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::SierraCompiler => Service::new(
                     Into::<ServiceName>::into(*self),
                     1,
-                    None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
@@ -231,7 +227,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::StateSync => Service::new(
                     Into::<ServiceName>::into(*self),
                     1,
-                    Some(32),
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
@@ -243,7 +238,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::Batcher => Service::new(
                     Into::<ServiceName>::into(*self),
                     1,
-                    Some(32),
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
@@ -253,7 +247,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::ClassManager => Service::new(
                     Into::<ServiceName>::into(*self),
                     1,
-                    Some(32),
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
@@ -263,7 +256,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::ConsensusManager => Service::new(
                     Into::<ServiceName>::into(*self),
                     1,
-                    None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
@@ -273,7 +265,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::HttpServer => Service::new(
                     Into::<ServiceName>::into(*self),
                     1,
-                    None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
@@ -283,7 +274,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::Gateway => Service::new(
                     Into::<ServiceName>::into(*self),
                     1,
-                    None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
@@ -293,7 +283,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::L1 => Service::new(
                     Into::<ServiceName>::into(*self),
                     1,
-                    None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
@@ -303,7 +292,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::Mempool => Service::new(
                     Into::<ServiceName>::into(*self),
                     1,
-                    None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
@@ -313,7 +301,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::SierraCompiler => Service::new(
                     Into::<ServiceName>::into(*self),
                     1,
-                    None,
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
@@ -323,7 +310,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::StateSync => Service::new(
                     Into::<ServiceName>::into(*self),
                     1,
-                    Some(32),
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
@@ -412,6 +398,26 @@ impl ServiceNameInner for DistributedNodeServiceName {
             DistributedNodeServiceName::Mempool => None,
             DistributedNodeServiceName::SierraCompiler => None,
             DistributedNodeServiceName::StateSync => None,
+        }
+    }
+
+    fn get_storage(&self, environment: &Environment) -> Option<usize> {
+        match environment {
+            Environment::Testing => None,
+            Environment::SepoliaIntegration
+            | Environment::TestingEnvTwo
+            | Environment::TestingEnvThree => match self {
+                DistributedNodeServiceName::Batcher => Some(BATCHER_STORAGE),
+                DistributedNodeServiceName::ClassManager => Some(CLASS_MANAGER_STORAGE),
+                DistributedNodeServiceName::ConsensusManager => None,
+                DistributedNodeServiceName::HttpServer => None,
+                DistributedNodeServiceName::Gateway => None,
+                DistributedNodeServiceName::L1 => None,
+                DistributedNodeServiceName::Mempool => None,
+                DistributedNodeServiceName::SierraCompiler => None,
+                DistributedNodeServiceName::StateSync => Some(STATE_SYNC_STORAGE),
+            },
+            _ => unimplemented!(),
         }
     }
 }
