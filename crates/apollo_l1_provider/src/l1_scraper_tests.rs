@@ -12,6 +12,7 @@ use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use assert_matches::assert_matches;
 use itertools::Itertools;
+use mockall::predicate::eq;
 use papyrus_base_layer::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
     EthereumBaseLayerContract,
@@ -21,7 +22,7 @@ use papyrus_base_layer::test_utils::{
     anvil_instance_from_config,
     ethereum_base_layer_config_for_anvil,
 };
-use papyrus_base_layer::{L1BlockReference, MockBaseLayerContract};
+use papyrus_base_layer::{L1BlockReference, L1Event, MockBaseLayerContract};
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
 use starknet_api::contract_address;
@@ -596,18 +597,53 @@ async fn l1_reorg_block_number(mut dummy_base_layer: MockBaseLayerContract) {
     );
 }
 
-#[test]
-#[ignore = "similar to backlog_happy_flow, only shorter, and sprinkle some start_block/get_txs \
-            attempts while its bootstrapping (and assert failure on height), then assert that they \
-            succeed after bootstrapping ends."]
-fn bootstrap_completion() {
-    todo!()
-}
-
+// Create an old CancellationStarted event, followed by a real event and a cancellation of a real
+// event. Then assert that the old cancellation was filtered out.
 #[tokio::test]
-#[ignore = "Not yet implemented: generate an l1 and an cancel event for that tx, also check an \
-            abort for a different tx"]
-async fn cancel_l1_handlers() {}
+async fn scraper_filters_out_old_cancellations_on_startup() {
+    // Setup.
+
+    let mut mock_base_layer = MockBaseLayerContract::new();
+    // Boilerplate
+    mock_base_layer.expect_latest_l1_block_number().return_once(|_| Ok(Some(Default::default())));
+    mock_base_layer.expect_latest_l1_block().return_once(|_| Ok(Some(Default::default())));
+    mock_base_layer.expect_l1_block_at().returning(|_| Ok(Some(Default::default())));
+
+    // Mock events from base_layer.
+    let old_tx = L1HandlerTransaction::default();
+    let new_tx =
+        L1HandlerTransaction { nonce: old_tx.nonce.try_increment().unwrap(), ..old_tx.clone() };
+    let send_message_to_l2 =
+        L1Event::LogMessageToL2 { tx: new_tx.clone(), fee: Fee(0), l1_tx_hash: None };
+    let new_cancellation = L1Event::MessageToL2CancellationStarted { cancelled_tx: new_tx };
+    let old_cancellation = L1Event::MessageToL2CancellationStarted { cancelled_tx: old_tx };
+    // The events don't contain the old tx itself, only its cancellation.
+    let events =
+        vec![send_message_to_l2.clone(), old_cancellation.clone(), new_cancellation.clone()];
+    mock_base_layer.expect_events().return_once(move |_, _| Ok(events));
+
+    let config = L1ScraperConfig::default();
+
+    // Test.
+
+    // Old cancellation is filtered out.
+    let expected = [send_message_to_l2, new_cancellation]
+        .map(|l1_event| Event::from_l1_event(&config.chain_id, l1_event).unwrap())
+        .to_vec();
+
+    let mut mock_l1_provider_client = MockL1ProviderClient::default();
+    mock_l1_provider_client.expect_initialize().with(eq(expected)).return_once(|_| Ok(()));
+    let mut scraper = L1Scraper::new(
+        config,
+        Arc::new(mock_l1_provider_client),
+        mock_base_layer,
+        event_identifiers_to_track(),
+    )
+    .await
+    .unwrap();
+
+    scraper.initialize().await.unwrap();
+}
 
 #[tokio::test]
 #[ignore = "Not yet implemented: check that when the scraper resets all txs from the last T time
