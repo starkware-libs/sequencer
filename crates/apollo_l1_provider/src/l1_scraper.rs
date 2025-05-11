@@ -1,5 +1,5 @@
 use std::any::type_name;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::time::Duration;
 
 use apollo_config::converters::deserialize_float_seconds_to_duration;
@@ -76,7 +76,9 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
 
     #[instrument(skip(self), err)]
     async fn initialize(&mut self) -> L1ScraperResult<(), B> {
-        let (latest_l1_block, events) = self.fetch_events().await?;
+        let (latest_l1_block, mut events) = self.fetch_events().await?;
+
+        self.prune(&mut events)?;
 
         // If this gets too high, send in batches.
         let initialize_result = self.l1_provider_client.initialize(events).await;
@@ -215,6 +217,43 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
             });
         }
 
+        Ok(())
+    }
+
+    /// Filter out all cancellation event whose event data doesn't match any LogMessageToL2 event
+    /// appearing before them (it should not be possible for them to appear before the
+    /// cancellation).
+    fn prune(&self, events: &mut Vec<Event>) -> L1ScraperResult<(), B> {
+        let mut seen_l1_handlers = HashSet::new();
+        let mut keep = Vec::with_capacity(events.len());
+
+        for event in events.drain(..) {
+            match event {
+                Event::L1HandlerTransaction(tx) => {
+                    let new_entry = seen_l1_handlers.insert(tx.tx_hash);
+                    assert!(
+                        new_entry,
+                        "L1Handlers txs are unique, and the scraper is designed to not have dups."
+                    );
+
+                    keep.push(Event::L1HandlerTransaction(tx));
+                }
+                Event::TransactionCancellationStarted(cancelled_l1_handler_tx_hash) => {
+                    // Only keep cancellations for txs available in the current batch.
+                    if seen_l1_handlers.contains(&cancelled_l1_handler_tx_hash) {
+                        keep.push(Event::TransactionCancellationStarted(
+                            cancelled_l1_handler_tx_hash,
+                        ));
+                    }
+                }
+                other => {
+                    // keep all other events
+                    keep.push(other);
+                }
+            }
+        }
+
+        *events = keep;
         Ok(())
     }
 }
