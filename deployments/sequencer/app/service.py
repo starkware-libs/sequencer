@@ -27,7 +27,7 @@ from imports.com.googleapis.monitoring import (
     PodMonitoringSpecEndpoints,
     PodMonitoringSpecEndpointsPort,
 )
-from services import topology, const
+from services import topology, const, helpers
 
 
 class ServiceApp(Construct):
@@ -51,6 +51,9 @@ class ServiceApp(Construct):
         self.service_topology = service_topology
         self.node_config = service_topology.config.get_config()
         self.monitoring_endpoint_port = self._get_config_attr("monitoring_endpoint_config.port")
+        assert const.MONITORING_ENDPOINT_PORT_NUMBER == self._get_config_attr(
+            "monitoring_endpoint_config.port"
+        ), f"Error: Monitoring endpoint port mismatch. Expected {const.MONITORING_ENDPOINT_PORT_NUMBER}, but got {self._get_config_attr('monitoring_endpoint_config.port')}"
 
         self.config_map = k8s.KubeConfigMap(
             self,
@@ -121,7 +124,7 @@ class ServiceApp(Construct):
                 endpoints=[
                     PodMonitoringSpecEndpoints(
                         port=PodMonitoringSpecEndpointsPort.from_number(
-                            self.monitoring_endpoint_port
+                            const.MONITORING_ENDPOINT_PORT_NUMBER,
                         ),
                         interval="10s",
                         path=const.MONITORING_METRICS_ENDPOINT,
@@ -143,7 +146,7 @@ class ServiceApp(Construct):
                         labels=self.labels,
                         annotations={
                             "prometheus.io/path": const.MONITORING_METRICS_ENDPOINT,
-                            "prometheus.io/port": str(self.monitoring_endpoint_port),
+                            "prometheus.io/port": str(const.MONITORING_ENDPOINT_PORT_NUMBER),
                             "prometheus.io/scrape": "true",
                         },
                     ),
@@ -188,7 +191,7 @@ class ServiceApp(Construct):
                         labels=self.labels,
                         annotations={
                             "prometheus.io/path": const.MONITORING_METRICS_ENDPOINT,
-                            "prometheus.io/port": str(self.monitoring_endpoint_port),
+                            "prometheus.io/port": str(const.MONITORING_ENDPOINT_PORT_NUMBER),
                             "prometheus.io/scrape": "true",
                         },
                     ),
@@ -317,36 +320,45 @@ class ServiceApp(Construct):
 
         return config_attr
 
-    def _get_ports_subset_keys_from_config(self) -> typing.List[typing.Tuple[str, str]]:
-        ports = []
-        for k, v in self.node_config.items():
-            if k.endswith(".port") and v != 0:
-                if k.startswith("components."):
-                    port_name = k.split(".")[1].replace("_", "-")
-                else:
-                    port_name = k.split(".")[0].replace("_", "-")
-            else:
-                continue
-
-            ports.append((port_name, k))
-
-        return ports
-
     def _get_container_ports(self) -> typing.List[k8s.ContainerPort]:
-        return [
-            k8s.ContainerPort(container_port=self._get_config_attr(attr[1]))
-            for attr in self._get_ports_subset_keys_from_config()
-        ]
+        container_ports = []
+        container_ports.append(
+            k8s.ContainerPort(
+                name=const.MONITORING_ENDPOINT_PORT_NAME,
+                container_port=const.MONITORING_ENDPOINT_PORT_NUMBER,
+            )
+        )
+        if self.service_topology.ports is not None:
+            for k, v in self.service_topology.ports.items():
+                container_ports.append(
+                    k8s.ContainerPort(
+                        name=helpers.sanitize_name(k),
+                        container_port=v,
+                    )
+                )
+
+        return container_ports
 
     def _get_service_ports(self) -> typing.List[k8s.ServicePort]:
-        return [
+        service_ports = []
+        service_ports.append(
             k8s.ServicePort(
-                name=attr[0],
-                port=self._get_config_attr(attr[1]),
-                target_port=k8s.IntOrString.from_number(self._get_config_attr(attr[1])),
+                name=const.MONITORING_ENDPOINT_PORT_NAME,
+                port=const.MONITORING_ENDPOINT_PORT_NUMBER,
+                target_port=k8s.IntOrString.from_number(const.MONITORING_ENDPOINT_PORT_NUMBER),
             )
-            for attr in self._get_ports_subset_keys_from_config()
-        ]
+        )
+        if self.service_topology.ports is not None:
+            for k, v in self.service_topology.ports.items():
+                service_ports.append(
+                    k8s.ServicePort(
+                        name=helpers.sanitize_name(k),
+                        port=v,
+                        target_port=k8s.IntOrString.from_number(v),
+                    )
+                )
+
+        return service_ports
 
     def _get_http_probe(
         self,
@@ -359,7 +371,7 @@ class ServiceApp(Construct):
         return k8s.Probe(
             http_get=k8s.HttpGetAction(
                 path=path,
-                port=k8s.IntOrString.from_number(self.monitoring_endpoint_port),
+                port=k8s.IntOrString.from_number(const.MONITORING_ENDPOINT_PORT_NUMBER),
             ),
             period_seconds=period_seconds,
             failure_threshold=failure_threshold,
@@ -534,7 +546,7 @@ class ServiceApp(Construct):
                 ),
                 timeout_sec=const.BACKEND_CONFIG_TIMEOUT_SECONDS,
                 health_check=BackendConfigSpecHealthCheck(
-                    port=self.monitoring_endpoint_port,
+                    port=const.MONITORING_ENDPOINT_PORT_NUMBER,
                     request_path=const.MONITORING_METRICS_ENDPOINT,
                     check_interval_sec=const.BACKEND_CONFIG_HEALTH_CHECK_INTERVAL_SECONDS,
                     timeout_sec=const.BACKEND_CONFIG_HEALTH_CHECK_TIMEOUT_SECONDS,

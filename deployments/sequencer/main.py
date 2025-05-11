@@ -77,6 +77,7 @@ def main():
                     controller=svc["controller"].lower(),
                     replicas=svc["replicas"],
                     autoscale=svc["autoscale"],
+                    ports=svc["ports"],
                     ingress=svc["ingress"],
                     storage=svc["storage"],
                     toleration=svc["toleration"],

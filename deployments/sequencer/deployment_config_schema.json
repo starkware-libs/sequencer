@@ -62,6 +62,9 @@
                   ]
                 },
                 "autoscale": { "type": "boolean" },
+                "ports": {
+                  "anyOf": [{ "type": "null" }, { "type": "object" }]
+                },
                 "replicas": { "type": "integer", "minimum": 1 },
                 "toleration": {
                   "anyOf": [{ "type": "string" }, { "type": "null" }]
