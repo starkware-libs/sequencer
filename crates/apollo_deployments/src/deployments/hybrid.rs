@@ -135,7 +135,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                 ),
                 HybridNodeServiceName::HttpServer => Service::new(
                     Into::<ServiceName>::into(*self),
-                    Controller::StatefulSet,
+                    Controller::Deployment,
                     Some(Ingress::new(
                         domain,
                         true,
@@ -152,7 +152,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                 ),
                 HybridNodeServiceName::Gateway => Service::new(
                     Into::<ServiceName>::into(*self),
-                    Controller::StatefulSet,
+                    Controller::Deployment,
                     None,
                     false,
                     1,
@@ -164,7 +164,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                 ),
                 HybridNodeServiceName::Mempool => Service::new(
                     Into::<ServiceName>::into(*self),
-                    Controller::StatefulSet,
+                    Controller::Deployment,
                     None,
                     false,
                     1,
@@ -176,7 +176,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                 ),
                 HybridNodeServiceName::SierraCompiler => Service::new(
                     Into::<ServiceName>::into(*self),
-                    Controller::StatefulSet,
+                    Controller::Deployment,
                     None,
                     false,
                     1,
