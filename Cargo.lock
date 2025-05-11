@@ -1960,6 +1960,7 @@ dependencies = [
  "apollo_state_sync_types",
  "apollo_storage",
  "apollo_test_utils",
+ "assert_matches",
  "async-trait",
  "futures",
  "indexmap 2.9.0",

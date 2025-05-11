@@ -1,6 +1,9 @@
+use std::collections::BTreeMap;
 use std::fmt::Debug;
 
 use apollo_class_manager_types::{ClassManagerClientError, SharedClassManagerClient};
+use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_network::network_manager::{ServerQueryManager, SqmrServerReceiver};
 use apollo_protobuf::converters::ProtobufConversionError;
 use apollo_protobuf::sync::{
@@ -27,18 +30,41 @@ use async_trait::async_trait;
 use futures::never::Never;
 use futures::StreamExt;
 use papyrus_common::pending_classes::ApiContractClass;
+use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::ClassHash;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::{Event, FullTransaction, TransactionHash};
 use tracing::{debug, error, info};
+use validator::Validate;
 
 #[cfg(test)]
 mod test;
 
 mod utils;
 
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Validate)]
+pub struct P2pSyncServerConfig {
+    pub buffer_size: usize,
+}
+
+impl SerializeConfig for P2pSyncServerConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([ser_param(
+            "buffer_size",
+            &self.buffer_size,
+            "Size of the buffer for incoming responses.",
+            ParamPrivacyInput::Public,
+        )])
+    }
+}
+
+impl Default for P2pSyncServerConfig {
+    fn default() -> Self {
+        Self { buffer_size: 100000 }
+    }
+}
 #[derive(thiserror::Error, Debug)]
 pub enum P2pSyncServerError {
     #[error(transparent)]

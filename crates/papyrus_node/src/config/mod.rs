@@ -27,6 +27,7 @@ use apollo_consensus::config::ConsensusConfig;
 use apollo_consensus_orchestrator::config::ContextConfig;
 use apollo_network::NetworkConfig;
 use apollo_p2p_sync::client::{P2pSyncClient, P2pSyncClientConfig};
+use apollo_p2p_sync::server::P2pSyncServerConfig;
 #[cfg(feature = "rpc")]
 use apollo_rpc::RpcConfig;
 use apollo_starknet_client::RetryConfig;
@@ -63,7 +64,9 @@ pub struct NodeConfig {
     /// One of p2p_sync or sync must be None.
     /// If p2p sync is active, then network must be active too.
     // TODO(yair): Change NodeConfig to have an option of enum of SyncConfig or P2pSyncConfig.
+    // TODO(guy.f): Rename this field to p2p_sync_client.
     pub p2p_sync: Option<P2pSyncClientConfig>,
+    pub p2p_sync_server: P2pSyncServerConfig,
     pub consensus: Option<ConsensusConfig>,
     pub context: Option<ContextConfig>,
     // TODO(shahak): Make network non-optional once it's developed enough.
@@ -83,6 +86,7 @@ impl Default for NodeConfig {
             storage: StorageConfig::default(),
             sync: Some(SyncConfig { store_sierras_and_casms: true, ..Default::default() }),
             p2p_sync: None,
+            p2p_sync_server: P2pSyncServerConfig::default(),
             consensus: None,
             context: None,
             network: None,
@@ -101,6 +105,7 @@ impl SerializeConfig for NodeConfig {
             prepend_sub_config_name(self.storage.dump(), "storage"),
             ser_optional_sub_config(&self.sync, "sync"),
             ser_optional_sub_config(&self.p2p_sync, "p2p_sync"),
+            prepend_sub_config_name(self.p2p_sync_server.dump(), "p2p_sync_server"),
             ser_optional_sub_config(&self.consensus, "consensus"),
             ser_optional_sub_config(&self.context, "context"),
             ser_optional_sub_config(&self.network, "network"),

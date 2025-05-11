@@ -21,7 +21,7 @@ use apollo_p2p_sync::client::{
     P2pSyncClientConfig,
     P2pSyncClientError,
 };
-use apollo_p2p_sync::server::{P2pSyncServer, P2pSyncServerChannels};
+use apollo_p2p_sync::server::{P2pSyncServer, P2pSyncServerChannels, P2pSyncServerConfig};
 use apollo_p2p_sync::{Protocol, BUFFER_SIZE};
 use apollo_reverts::{revert_block, revert_blocks_and_eternal_pending};
 use apollo_rpc::{run_server, RpcConfig};
@@ -131,6 +131,7 @@ impl StateSyncRunner {
         let StateSyncConfig {
             storage_config,
             p2p_sync_client_config,
+            p2p_sync_server_config,
             central_sync_client_config,
             network_config,
             revert_config,
@@ -266,6 +267,7 @@ impl StateSyncRunner {
             Some(mut network_manager) => {
                 let p2p_sync_server = Self::new_p2p_state_sync_server(
                     storage_reader.clone(),
+                    p2p_sync_server_config,
                     &mut network_manager,
                     class_manager_client.clone(),
                 );
@@ -341,6 +343,7 @@ impl StateSyncRunner {
 
     fn new_p2p_state_sync_server(
         storage_reader: StorageReader,
+        _p2p_sync_server_config: Option<P2pSyncServerConfig>,
         network_manager: &mut NetworkManager,
         class_manager_client: SharedClassManagerClient,
     ) -> P2pSyncServer {
