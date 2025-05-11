@@ -4,7 +4,7 @@ use std::result;
 
 use apollo_central_sync::sources::central::CentralSourceConfig;
 use apollo_central_sync::SyncConfig;
-use apollo_config::dumping::{append_sub_config_name, ser_optional_sub_config, SerializeConfig};
+use apollo_config::dumping::{prepend_sub_config_name, ser_optional_sub_config, SerializeConfig};
 use apollo_config::{ParamPath, SerializedParam};
 use apollo_network::NetworkConfig;
 use apollo_p2p_sync::client::P2pSyncClientConfig;
@@ -39,10 +39,10 @@ impl SerializeConfig for StateSyncConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let mut config = BTreeMap::new();
 
-        config.extend(append_sub_config_name(self.storage_config.dump(), "storage_config"));
+        config.extend(prepend_sub_config_name(self.storage_config.dump(), "storage_config"));
         config.extend(ser_optional_sub_config(&self.network_config, "network_config"));
-        config.extend(append_sub_config_name(self.revert_config.dump(), "revert_config"));
-        config.extend(append_sub_config_name(self.rpc_config.dump(), "rpc_config"));
+        config.extend(prepend_sub_config_name(self.revert_config.dump(), "revert_config"));
+        config.extend(prepend_sub_config_name(self.rpc_config.dump(), "rpc_config"));
         config.extend(ser_optional_sub_config(
             &self.p2p_sync_client_config,
             "p2p_sync_client_config",
@@ -95,8 +95,8 @@ pub struct CentralSyncClientConfig {
 impl SerializeConfig for CentralSyncClientConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         vec![
-            append_sub_config_name(self.sync_config.dump(), "sync_config"),
-            append_sub_config_name(self.central_source_config.dump(), "central_source_config"),
+            prepend_sub_config_name(self.sync_config.dump(), "sync_config"),
+            prepend_sub_config_name(self.central_source_config.dump(), "central_source_config"),
         ]
         .into_iter()
         .flatten()

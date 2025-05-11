@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use apollo_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use blockifier::blockifier::config::ContractClassManagerConfig;
 use serde::{Deserialize, Serialize};
@@ -44,12 +44,12 @@ impl SerializeConfig for BatcherConfig {
                 ParamPrivacyInput::Public,
             ),
         ]);
-        dump.append(&mut append_sub_config_name(self.storage.dump(), "storage"));
-        dump.append(&mut append_sub_config_name(
+        dump.append(&mut prepend_sub_config_name(self.storage.dump(), "storage"));
+        dump.append(&mut prepend_sub_config_name(
             self.block_builder_config.dump(),
             "block_builder_config",
         ));
-        dump.append(&mut append_sub_config_name(
+        dump.append(&mut prepend_sub_config_name(
             self.contract_class_manager_config.dump(),
             "contract_class_manager_config",
         ));

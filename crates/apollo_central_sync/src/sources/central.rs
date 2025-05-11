@@ -8,7 +8,7 @@ use std::num::NonZeroUsize;
 use std::sync::{Arc, Mutex};
 
 use apollo_config::converters::{deserialize_optional_map, serialize_optional_map};
-use apollo_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_starknet_client::reader::{
     BlockSignatureData,
@@ -122,7 +122,7 @@ impl SerializeConfig for CentralSourceConfig {
                 ParamPrivacyInput::Public,
             ),
         ]);
-        chain!(self_params_dump, append_sub_config_name(self.retry_config.dump(), "retry_config"))
+        chain!(self_params_dump, prepend_sub_config_name(self.retry_config.dump(), "retry_config"))
             .collect()
     }
 }

@@ -17,9 +17,9 @@ use validator::Validate;
 use crate::command::{get_command_matches, update_config_map_by_command_args};
 use crate::converters::deserialize_milliseconds_to_duration;
 use crate::dumping::{
-    append_sub_config_name,
     combine_config_map_and_pointers,
     generate_struct_pointer,
+    prepend_sub_config_name,
     required_param_description,
     ser_generated_param,
     ser_optional_param,
@@ -87,7 +87,7 @@ impl SerializeConfig for OuterConfig {
                 ParamPrivacyInput::Public
             ),
             ser_optional_sub_config(&self.opt_config, "opt_config"),
-            append_sub_config_name(self.inner_config.dump(), "inner_config"),
+            prepend_sub_config_name(self.inner_config.dump(), "inner_config"),
         )
         .collect()
     }
@@ -555,8 +555,8 @@ struct StructPointersConfig {
 impl SerializeConfig for StructPointersConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let mut dump = BTreeMap::new();
-        dump.append(&mut append_sub_config_name(self.a.dump(), "a"));
-        dump.append(&mut append_sub_config_name(self.b.dump(), "b"));
+        dump.append(&mut prepend_sub_config_name(self.a.dump(), "a"));
+        dump.append(&mut prepend_sub_config_name(self.b.dump(), "b"));
         dump
     }
 }

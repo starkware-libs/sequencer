@@ -15,7 +15,7 @@ use std::{env, fs, io};
 use apollo_central_sync::sources::central::CentralSourceConfig;
 use apollo_central_sync::SyncConfig;
 use apollo_config::dumping::{
-    append_sub_config_name,
+    prepend_sub_config_name,
     ser_optional_sub_config,
     ser_param,
     ser_pointer_target_param,
@@ -95,10 +95,10 @@ impl SerializeConfig for NodeConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         #[allow(unused_mut)]
         let mut sub_configs = vec![
-            append_sub_config_name(self.central.dump(), "central"),
-            append_sub_config_name(self.base_layer.dump(), "base_layer"),
-            append_sub_config_name(self.monitoring_gateway.dump(), "monitoring_gateway"),
-            append_sub_config_name(self.storage.dump(), "storage"),
+            prepend_sub_config_name(self.central.dump(), "central"),
+            prepend_sub_config_name(self.base_layer.dump(), "base_layer"),
+            prepend_sub_config_name(self.monitoring_gateway.dump(), "monitoring_gateway"),
+            prepend_sub_config_name(self.storage.dump(), "storage"),
             ser_optional_sub_config(&self.sync, "sync"),
             ser_optional_sub_config(&self.p2p_sync, "p2p_sync"),
             ser_optional_sub_config(&self.consensus, "consensus"),
@@ -112,7 +112,7 @@ impl SerializeConfig for NodeConfig {
             )]),
         ];
         #[cfg(feature = "rpc")]
-        sub_configs.push(append_sub_config_name(self.rpc.dump(), "rpc"));
+        sub_configs.push(prepend_sub_config_name(self.rpc.dump(), "rpc"));
 
         sub_configs.into_iter().flatten().collect()
     }

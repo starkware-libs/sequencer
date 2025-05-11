@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use apollo_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_consensus::config::{ConsensusConfig, StreamHandlerConfig};
 use apollo_consensus_orchestrator::cende::CendeConfig;
@@ -57,19 +57,19 @@ impl SerializeConfig for ConsensusManagerConfig {
                 ParamPrivacyInput::Public,
             ),
         ]);
-        config.extend(append_sub_config_name(self.consensus_config.dump(), "consensus_config"));
-        config.extend(append_sub_config_name(self.context_config.dump(), "context_config"));
-        config.extend(append_sub_config_name(
+        config.extend(prepend_sub_config_name(self.consensus_config.dump(), "consensus_config"));
+        config.extend(prepend_sub_config_name(self.context_config.dump(), "context_config"));
+        config.extend(prepend_sub_config_name(
             self.eth_to_strk_oracle_config.dump(),
             "eth_to_strk_oracle_config",
         ));
-        config.extend(append_sub_config_name(
+        config.extend(prepend_sub_config_name(
             self.stream_handler_config.dump(),
             "stream_handler_config",
         ));
-        config.extend(append_sub_config_name(self.cende_config.dump(), "cende_config"));
-        config.extend(append_sub_config_name(self.network_config.dump(), "network_config"));
-        config.extend(append_sub_config_name(self.revert_config.dump(), "revert_config"));
+        config.extend(prepend_sub_config_name(self.cende_config.dump(), "cende_config"));
+        config.extend(prepend_sub_config_name(self.network_config.dump(), "network_config"));
+        config.extend(prepend_sub_config_name(self.revert_config.dump(), "revert_config"));
         config
     }
 }

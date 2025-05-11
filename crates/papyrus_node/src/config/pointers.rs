@@ -13,7 +13,7 @@ use apollo_central_sync::SyncConfig;
 #[cfg(not(feature = "rpc"))]
 use apollo_config::dumping::ser_param;
 use apollo_config::dumping::{
-    append_sub_config_name,
+    prepend_sub_config_name,
     ser_optional_sub_config,
     ser_pointer_target_param,
     ser_pointer_target_required_param,

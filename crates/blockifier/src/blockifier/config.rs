@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use apollo_compile_to_native::config::SierraCompilationConfig;
-use apollo_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ClassHash;
@@ -33,7 +33,8 @@ impl Default for TransactionExecutorConfig {
 
 impl SerializeConfig for TransactionExecutorConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = append_sub_config_name(self.concurrency_config.dump(), "concurrency_config");
+        let mut dump =
+            prepend_sub_config_name(self.concurrency_config.dump(), "concurrency_config");
         dump.append(&mut BTreeMap::from([ser_param(
             "stack_size",
             &self.stack_size,
@@ -122,11 +123,11 @@ impl SerializeConfig for ContractClassManagerConfig {
             "The size of the global contract cache.",
             ParamPrivacyInput::Public,
         )]);
-        dump.append(&mut append_sub_config_name(
+        dump.append(&mut prepend_sub_config_name(
             self.cairo_native_run_config.dump(),
             "cairo_native_run_config",
         ));
-        dump.append(&mut append_sub_config_name(
+        dump.append(&mut prepend_sub_config_name(
             self.native_compiler_config.dump(),
             "native_compiler_config",
         ));

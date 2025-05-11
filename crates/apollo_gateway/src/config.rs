@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use apollo_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use blockifier::context::ChainInfo;
@@ -29,15 +29,15 @@ impl SerializeConfig for GatewayConfig {
             "If true, the gateway will block declare transactions.",
             ParamPrivacyInput::Public,
         )]);
-        dump.extend(append_sub_config_name(
+        dump.extend(prepend_sub_config_name(
             self.stateless_tx_validator_config.dump(),
             "stateless_tx_validator_config",
         ));
-        dump.extend(append_sub_config_name(
+        dump.extend(prepend_sub_config_name(
             self.stateful_tx_validator_config.dump(),
             "stateful_tx_validator_config",
         ));
-        dump.extend(append_sub_config_name(self.chain_info.dump(), "chain_info"));
+        dump.extend(prepend_sub_config_name(self.chain_info.dump(), "chain_info"));
         dump
     }
 }
@@ -107,8 +107,8 @@ impl SerializeConfig for StatelessTransactionValidatorConfig {
         ]);
         vec![
             members,
-            append_sub_config_name(self.min_sierra_version.dump(), "min_sierra_version"),
-            append_sub_config_name(self.max_sierra_version.dump(), "max_sierra_version"),
+            prepend_sub_config_name(self.min_sierra_version.dump(), "min_sierra_version"),
+            prepend_sub_config_name(self.max_sierra_version.dump(), "max_sierra_version"),
         ]
         .into_iter()
         .flatten()
@@ -196,7 +196,7 @@ impl SerializeConfig for StatefulTransactionValidatorConfig {
                 ParamPrivacyInput::Public,
             ),
         ]);
-        dump.append(&mut append_sub_config_name(
+        dump.append(&mut prepend_sub_config_name(
             self.versioned_constants_overrides.dump(),
             "versioned_constants_overrides",
         ));

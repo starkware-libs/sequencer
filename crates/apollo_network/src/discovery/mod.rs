@@ -13,7 +13,7 @@ use apollo_config::converters::{
     deserialize_milliseconds_to_duration,
     deserialize_seconds_to_duration,
 };
-use apollo_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use behaviours::bootstrapping::BootstrappingBehaviour;
 use behaviours::kad_requesting::KadRequestingBehaviour;
@@ -65,7 +65,7 @@ impl SerializeConfig for DiscoveryConfig {
             "The interval between each discovery (Kademlia) query in milliseconds.",
             ParamPrivacyInput::Public,
         )]);
-        dump.append(&mut append_sub_config_name(
+        dump.append(&mut prepend_sub_config_name(
             self.bootstrap_dial_retry_config.dump(),
             "bootstrap_dial_retry_config",
         ));

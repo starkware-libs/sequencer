@@ -9,7 +9,7 @@ use apollo_config::converters::{
     deserialize_float_seconds_to_duration,
     deserialize_seconds_to_duration,
 };
-use apollo_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 use serde::{Deserialize, Serialize};
@@ -78,7 +78,7 @@ impl SerializeConfig for ConsensusConfig {
                 ParamPrivacyInput::Public,
             ),
         ]);
-        config.extend(append_sub_config_name(self.timeouts.dump(), "timeouts"));
+        config.extend(prepend_sub_config_name(self.timeouts.dump(), "timeouts"));
         config
     }
 }
