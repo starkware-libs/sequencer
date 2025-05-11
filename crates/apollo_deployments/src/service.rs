@@ -12,6 +12,9 @@ use crate::deployments::consolidated::ConsolidatedNodeServiceName;
 use crate::deployments::distributed::DistributedNodeServiceName;
 use crate::deployments::hybrid::HybridNodeServiceName;
 
+const INGRESS_ROUTE: &str = "/gateway";
+const INGRESS_PORT: u16 = 8080;
+
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Service {
     name: ServiceName,
@@ -61,6 +64,14 @@ impl IngressParams {
     pub fn new(domain: String, alternative_names: Option<Vec<String>>) -> Self {
         Self { domain, alternative_names }
     }
+}
+
+pub(crate) fn get_ingress(ingress_params: IngressParams, internal: bool) -> Option<Ingress> {
+    Some(Ingress::new(
+        ingress_params,
+        internal,
+        vec![IngressRule::new(String::from(INGRESS_ROUTE), INGRESS_PORT, None)],
+    ))
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -116,12 +127,12 @@ impl Service {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         name: ServiceName,
-        ingress: Option<Ingress>,
         replicas: usize,
         storage: Option<usize>,
         resources: Resources,
         external_secret: Option<ExternalSecret>,
         mut additional_config_filenames: Vec<String>,
+        ingress_params: IngressParams,
         // TODO(Tsabary): consider if including the environment is necessary.
         environment: Environment,
     ) -> Self {
@@ -135,6 +146,7 @@ impl Service {
         let controller = name.get_controller();
         let autoscale = name.get_autoscale();
         let toleration = name.get_toleration(&environment);
+        let ingress = name.get_ingress(&environment, ingress_params);
         Self {
             name,
             config_paths,
@@ -208,6 +220,14 @@ impl ServiceName {
     pub fn get_toleration(&self, environment: &Environment) -> Option<Toleration> {
         self.as_inner().get_toleration(environment)
     }
+
+    pub fn get_ingress(
+        &self,
+        environment: &Environment,
+        ingress_params: IngressParams,
+    ) -> Option<Ingress> {
+        self.as_inner().get_ingress(environment, ingress_params)
+    }
 }
 
 pub(crate) trait ServiceNameInner: Display {
@@ -224,6 +244,12 @@ pub(crate) trait ServiceNameInner: Display {
     fn get_autoscale(&self) -> bool;
 
     fn get_toleration(&self, environment: &Environment) -> Option<Toleration>;
+
+    fn get_ingress(
+        &self,
+        environment: &Environment,
+        ingress_params: IngressParams,
+    ) -> Option<Ingress>;
 }
 
 impl DeploymentName {
