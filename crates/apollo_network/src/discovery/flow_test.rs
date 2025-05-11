@@ -25,7 +25,7 @@ struct DiscoveryMixedBehaviour {
 }
 
 impl DiscoveryMixedBehaviour {
-    pub fn new(key: Keypair, bootstrap_peer_multiaddr: Option<Multiaddr>) -> Self {
+    pub fn new(key: Keypair, bootstrap_peer_multiaddr: Option<Vec<Multiaddr>>) -> Self {
         let mixed_behaviour = MixedBehaviour::new(
             key,
             bootstrap_peer_multiaddr,
@@ -62,7 +62,7 @@ async fn all_nodes_have_same_bootstrap_peer() {
 
     let swarms = (0..NUM_NODES).map(|_| {
         Swarm::new_ephemeral(|keypair| {
-            DiscoveryMixedBehaviour::new(keypair, Some(bootstrap_peer_multiaddr.clone()))
+            DiscoveryMixedBehaviour::new(keypair, Some(vec![bootstrap_peer_multiaddr.clone()]))
         })
     });
     let mut swarms_stream = StreamMap::new(
