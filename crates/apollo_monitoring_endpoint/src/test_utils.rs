@@ -5,7 +5,7 @@ use apollo_infra_utils::run_until::run_until;
 use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
 use apollo_metrics::metrics::parse_numeric_metric;
 use axum::body::Body;
-use axum::http::Request;
+use axum::http::{Method, Request};
 use hyper::body::to_bytes;
 use hyper::client::HttpConnector;
 use hyper::Client;
@@ -100,7 +100,17 @@ impl MonitoringClient {
 
 // TODO(Tsabary): use socket instead of ip and port.
 pub(crate) fn build_request(ip: &IpAddr, port: u16, method: &str) -> Request<Body> {
+    build_http_request(ip, port, method, Method::GET)
+}
+
+pub(crate) fn build_http_request(
+    ip: &IpAddr,
+    port: u16,
+    method: &str,
+    http_method: Method,
+) -> Request<Body> {
     Request::builder()
+        .method(http_method.as_str())
         .uri(format!("http://{ip}:{port}/{MONITORING_PREFIX}/{method}").as_str())
         .body(Body::empty())
         .unwrap()
