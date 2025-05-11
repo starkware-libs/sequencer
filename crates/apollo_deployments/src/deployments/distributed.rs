@@ -150,7 +150,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::Batcher => Service::new(
                     Into::<ServiceName>::into(*self),
                     None,
-                    false,
                     1,
                     Some(32),
                     None,
@@ -161,7 +160,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::ClassManager => Service::new(
                     Into::<ServiceName>::into(*self),
                     None,
-                    false,
                     1,
                     Some(32),
                     None,
@@ -172,7 +170,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::ConsensusManager => Service::new(
                     Into::<ServiceName>::into(*self),
                     None,
-                    false,
                     1,
                     None,
                     None,
@@ -188,7 +185,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         vec![IngressRule::new(String::from("/gateway"), 8080, None)],
                         ingress_alternative_names.unwrap_or_default(),
                     )),
-                    false,
                     1,
                     None,
                     None,
@@ -199,7 +195,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::Gateway => Service::new(
                     Into::<ServiceName>::into(*self),
                     None,
-                    true,
                     1,
                     None,
                     None,
@@ -210,7 +205,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::L1 => Service::new(
                     Into::<ServiceName>::into(*self),
                     None,
-                    false,
                     1,
                     None,
                     None,
@@ -221,7 +215,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::Mempool => Service::new(
                     Into::<ServiceName>::into(*self),
                     None,
-                    false,
                     1,
                     None,
                     None,
@@ -232,7 +225,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::SierraCompiler => Service::new(
                     Into::<ServiceName>::into(*self),
                     None,
-                    true,
                     1,
                     None,
                     None,
@@ -243,7 +235,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::StateSync => Service::new(
                     Into::<ServiceName>::into(*self),
                     None,
-                    false,
                     1,
                     Some(32),
                     None,
@@ -256,7 +247,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::Batcher => Service::new(
                     Into::<ServiceName>::into(*self),
                     None,
-                    false,
                     1,
                     Some(32),
                     None,
@@ -267,7 +257,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::ClassManager => Service::new(
                     Into::<ServiceName>::into(*self),
                     None,
-                    false,
                     1,
                     Some(32),
                     None,
@@ -278,7 +267,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::ConsensusManager => Service::new(
                     Into::<ServiceName>::into(*self),
                     None,
-                    false,
                     1,
                     None,
                     None,
@@ -294,7 +282,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         vec![IngressRule::new(String::from("/gateway"), 8080, None)],
                         ingress_alternative_names.unwrap_or_default(),
                     )),
-                    false,
                     1,
                     None,
                     None,
@@ -305,7 +292,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::Gateway => Service::new(
                     Into::<ServiceName>::into(*self),
                     None,
-                    true,
                     1,
                     None,
                     None,
@@ -316,7 +302,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::L1 => Service::new(
                     Into::<ServiceName>::into(*self),
                     None,
-                    false,
                     1,
                     None,
                     None,
@@ -327,7 +312,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::Mempool => Service::new(
                     Into::<ServiceName>::into(*self),
                     None,
-                    false,
                     1,
                     None,
                     None,
@@ -338,7 +322,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::SierraCompiler => Service::new(
                     Into::<ServiceName>::into(*self),
                     None,
-                    true,
                     1,
                     None,
                     None,
@@ -349,7 +332,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::StateSync => Service::new(
                     Into::<ServiceName>::into(*self),
                     None,
-                    false,
                     1,
                     Some(32),
                     None,
@@ -374,6 +356,20 @@ impl ServiceNameInner for DistributedNodeServiceName {
             DistributedNodeServiceName::Mempool => Controller::StatefulSet,
             DistributedNodeServiceName::SierraCompiler => Controller::StatefulSet,
             DistributedNodeServiceName::StateSync => Controller::StatefulSet,
+        }
+    }
+
+    fn get_autoscale(&self) -> bool {
+        match self {
+            DistributedNodeServiceName::Batcher => false,
+            DistributedNodeServiceName::ClassManager => false,
+            DistributedNodeServiceName::ConsensusManager => false,
+            DistributedNodeServiceName::HttpServer => false,
+            DistributedNodeServiceName::Gateway => true,
+            DistributedNodeServiceName::L1 => false,
+            DistributedNodeServiceName::Mempool => false,
+            DistributedNodeServiceName::SierraCompiler => true,
+            DistributedNodeServiceName::StateSync => false,
         }
     }
 }
