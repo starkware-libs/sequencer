@@ -92,10 +92,10 @@ impl TestConfig {
         let _ = TestConfig {
             network_config: NetworkConfig {
                 port: 10002,
-                bootstrap_peer_multiaddr: Some(
+                bootstrap_peers_multiaddr: vec![
                     Multiaddr::from_str(&format!("/ip4/127.0.0.1/tcp/10000/p2p/{}", peer_id))
                         .unwrap(),
-                ),
+                ],
                 ..Default::default()
             },
             output_path: DEFAULT_OUTPUT_FILE_PATH.to_string(),
