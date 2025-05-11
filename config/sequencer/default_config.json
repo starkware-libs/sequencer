@@ -1704,6 +1704,16 @@
     "privacy": "Public",
     "value": 50
   },
+  "state_sync_config.p2p_sync_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
+  "state_sync_config.p2p_sync_server_config.buffer_size": {
+    "description": "Size of the buffer for incoming responses.",
+    "privacy": "Public",
+    "value": 100000
+  },
   "state_sync_config.revert_config.revert_up_to_and_including": {
     "description": "The component will revert blocks up to this block number (including).",
     "pointer_target": "revert_config.revert_up_to_and_including",

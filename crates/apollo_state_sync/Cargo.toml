@@ -37,6 +37,7 @@ validator.workspace = true
 [dev-dependencies]
 apollo_storage = { workspace = true, features = ["testing"] }
 apollo_test_utils.workspace = true
+assert_matches.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
 libp2p.workspace = true
 rand_chacha.workspace = true

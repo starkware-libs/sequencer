@@ -359,6 +359,16 @@
     "privacy": "Public",
     "value": 50
   },
+  "p2p_sync_server.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
+  "p2p_sync_server.buffer_size": {
+    "description": "Size of the buffer for incoming responses.",
+    "privacy": "Public",
+    "value": 100000
+  },
   "rpc.apollo_gateway_retry_config.max_retries": {
     "description": "For communicating with Starknet gateway, maximum number of retries before the node stops retrying.",
     "privacy": "Public",
