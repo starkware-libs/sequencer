@@ -142,14 +142,14 @@ impl MagicConstants {
     /// See docstring of `register_magic_constants!` macro for more details.
     #[track_caller]
     pub fn assert_eq<V: Serialize>(&mut self, value_name: &str, value: V) {
+        let actual: Value = serde_json::to_value(value).unwrap();
         if self.is_fix_or_clean() {
             // In fix mode, we just set the value in the file.
-            self.values.insert(value_name.to_string(), serde_json::to_value(value).unwrap());
+            self.values.insert(value_name.to_string(), actual);
         } else {
             let expected = self.values.get(value_name).unwrap_or_else(|| {
                 panic!("Magic constant {value_name} not found in file {}.", self.path)
             });
-            let actual: Value = serde_json::to_value(value).unwrap();
             assert_eq!(expected, &actual);
         }
     }
