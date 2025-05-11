@@ -305,7 +305,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::Gateway => Service::new(
                     Into::<ServiceName>::into(*self),
                     None,
-                    false,
+                    true,
                     1,
                     None,
                     None,
@@ -338,7 +338,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::SierraCompiler => Service::new(
                     Into::<ServiceName>::into(*self),
                     None,
-                    false,
+                    true,
                     1,
                     None,
                     None,

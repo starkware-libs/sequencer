@@ -151,7 +151,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                 HybridNodeServiceName::Gateway => Service::new(
                     Into::<ServiceName>::into(*self),
                     None,
-                    false,
+                    true,
                     1,
                     None,
                     None,
@@ -173,7 +173,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                 HybridNodeServiceName::SierraCompiler => Service::new(
                     Into::<ServiceName>::into(*self),
                     None,
-                    false,
+                    true,
                     1,
                     None,
                     None,
