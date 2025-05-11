@@ -4,4 +4,4 @@
 
 pub(crate) const CAIRO_LANG_BINARY_NAME: &str = "starknet-sierra-compile";
 
-pub const REQUIRED_CAIRO_LANG_VERSION: &str = "2.12.0-dev.0";
+pub const REQUIRED_CAIRO_LANG_VERSION: &str = "2.12.0-dev.1";
