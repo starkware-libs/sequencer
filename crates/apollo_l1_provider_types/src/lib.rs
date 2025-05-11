@@ -204,7 +204,7 @@ where
 pub enum Event {
     L1HandlerTransaction(L1HandlerTransaction),
     TransactionCanceled(EventData),
-    TransactionCancellationStarted(EventData),
+    TransactionCancellationStarted(TransactionHash),
     TransactionConsumed(EventData),
 }
 
