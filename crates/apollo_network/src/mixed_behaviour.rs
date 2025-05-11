@@ -60,7 +60,7 @@ impl MixedBehaviour {
     /// Panics if bootstrap_peer_multiaddr doesn't have a peer id.
     pub fn new(
         keypair: Keypair,
-        bootstrap_peer_multiaddr: Option<Multiaddr>,
+        bootstrap_peers_multiaddr: Vec<Multiaddr>,
         streamed_bytes_config: sqmr::Config,
         chain_id: ChainId,
         node_version: Option<String>,
@@ -74,21 +74,27 @@ impl MixedBehaviour {
             StreamProtocol::try_from_owned(format!("/starknet/kad/{}/1.0.0", chain_id))
                 .expect("Failed to create StreamProtocol from a string that starts with /"),
         ]);
-        Self {
-            peer_manager: peer_manager::PeerManager::new(peer_manager_config),
-            discovery: bootstrap_peer_multiaddr
-                .map(|bootstrap_peer_multiaddr| {
-                    discovery::Behaviour::new(
-                        discovery_config,
-                        vec![(
+        let discovery = if bootstrap_peers_multiaddr.is_empty() {
+            None
+        } else {
+            Some(discovery::Behaviour::new(
+                discovery_config,
+                bootstrap_peers_multiaddr
+                    .into_iter()
+                    .map(|bootstrap_peer_multiaddr| {
+                        (
                             DialOpts::from(bootstrap_peer_multiaddr.clone())
                                 .get_peer_id()
                                 .expect("bootstrap_peer_multiaddr doesn't have a peer id"),
                             bootstrap_peer_multiaddr.clone(),
-                        )],
-                    )
-                })
-                .into(),
+                        )
+                    })
+                    .collect(),
+            ))
+        };
+        Self {
+            peer_manager: peer_manager::PeerManager::new(peer_manager_config),
+            discovery: discovery.into(),
             identify: match node_version {
                 Some(version) => identify::Behaviour::new(
                     identify::Config::new(IDENTIFY_PROTOCOL_VERSION.to_string(), public_key)
