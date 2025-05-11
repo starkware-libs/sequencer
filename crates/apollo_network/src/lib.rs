@@ -46,7 +46,7 @@ pub struct NetworkConfig {
     pub session_timeout: Duration,
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub idle_connection_timeout: Duration,
-    pub bootstrap_peer_multiaddr: Option<Multiaddr>,
+    pub bootstrap_peers_multiaddr: Vec<Multiaddr>,
     #[validate(custom = "validate_vec_u256")]
     #[serde(deserialize_with = "deserialize_optional_vec_u8")]
     pub secret_key: Option<Vec<u8>>,
@@ -99,13 +99,12 @@ impl SerializeConfig for NetworkConfig {
                 ParamPrivacyInput::Public,
             ),
         ]);
-        config.extend(ser_optional_param(
-            &self.bootstrap_peer_multiaddr,
-            Multiaddr::empty(),
+        config.extend([ser_param(
             "bootstrap_peer_multiaddr",
+            &self.bootstrap_peers_multiaddr,
             "The multiaddress of the peer node. It should include the peer's id. For more info: https://docs.libp2p.io/concepts/fundamentals/peers/",
             ParamPrivacyInput::Public,
-        ));
+        )]);
         config.extend([ser_param(
             "secret_key",
             &serialize_optional_vec_u8(&self.secret_key),
@@ -137,7 +136,7 @@ impl Default for NetworkConfig {
             port: 10000,
             session_timeout: Duration::from_secs(120),
             idle_connection_timeout: Duration::from_secs(120),
-            bootstrap_peer_multiaddr: None,
+            bootstrap_peers_multiaddr: vec![],
             secret_key: None,
             advertised_multiaddr: None,
             chain_id: ChainId::Mainnet,

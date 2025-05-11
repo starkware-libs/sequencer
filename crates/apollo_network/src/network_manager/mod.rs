@@ -679,7 +679,7 @@ impl NetworkManager {
             port,
             session_timeout,
             idle_connection_timeout,
-            bootstrap_peer_multiaddr,
+            bootstrap_peers_multiaddr: bootstrap_peer_multiaddr,
             advertised_multiaddr,
             secret_key,
             chain_id,
