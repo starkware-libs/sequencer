@@ -136,7 +136,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
 
         let events = l1_events
             .into_iter()
-            .map(|event| self.event_from_raw_l1_event(event))
+            .map(|event| event_from_raw_l1_event(&self.config.chain_id, event))
             .collect::<L1ScraperResult<Vec<_>, _>>()?;
 
         // Used for debug.
@@ -183,26 +183,6 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
                 Err(e) => return Err(e),
             }
         }
-    }
-
-    fn event_from_raw_l1_event(&self, l1_event: L1Event) -> L1ScraperResult<Event, B> {
-        let chain_id = &self.config.chain_id;
-        Ok(match l1_event {
-            L1Event::LogMessageToL2 { tx, fee, .. } => {
-                let tx = ExecutableL1HandlerTransaction::create(tx, chain_id, fee)
-                    .map_err(L1ScraperError::HashCalculationError)?;
-                Event::L1HandlerTransaction(tx)
-            }
-            L1Event::MessageToL2CancellationStarted { cancelled_tx } => {
-                let tx_hash = cancelled_tx
-                    .calculate_transaction_hash(chain_id, &cancelled_tx.version)
-                    .map_err(L1ScraperError::HashCalculationError)?;
-
-                Event::TransactionCancellationStarted(tx_hash)
-            }
-            L1Event::MessageToL2Canceled(event_data) => Event::TransactionCanceled(event_data),
-            L1Event::ConsumedMessageToL2(event_data) => Event::TransactionConsumed(event_data),
-        })
     }
 
     async fn assert_no_l1_reorgs(&self) -> L1ScraperResult<(), B> {
@@ -388,4 +368,26 @@ async fn get_latest_l1_block_number<B: BaseLayerContract + Send + Sync>(
         Some(latest_l1_block_number) => Ok(latest_l1_block_number),
         None => Err(L1ScraperError::finality_too_high(finality, base_layer).await),
     }
+}
+
+fn event_from_raw_l1_event<B: BaseLayerContract + Send + Sync>(
+    chain_id: &ChainId,
+    l1_event: L1Event,
+) -> L1ScraperResult<Event, B> {
+    Ok(match l1_event {
+        L1Event::LogMessageToL2 { tx, fee, .. } => {
+            let tx = ExecutableL1HandlerTransaction::create(tx, chain_id, fee)
+                .map_err(L1ScraperError::HashCalculationError)?;
+            Event::L1HandlerTransaction(tx)
+        }
+        L1Event::MessageToL2CancellationStarted { cancelled_tx } => {
+            let tx_hash = cancelled_tx
+                .calculate_transaction_hash(chain_id, &cancelled_tx.version)
+                .map_err(L1ScraperError::HashCalculationError)?;
+
+            Event::TransactionCancellationStarted(tx_hash)
+        }
+        L1Event::MessageToL2Canceled(event_data) => Event::TransactionCanceled(event_data),
+        L1Event::ConsumedMessageToL2(event_data) => Event::TransactionConsumed(event_data),
+    })
 }
