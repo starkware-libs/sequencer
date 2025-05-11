@@ -14,7 +14,6 @@ use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
 use starknet_api::core::ClassHash;
 use starknet_api::deprecated_contract_class::ContractClass;
-use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintExtensionResult, OsHintResult};
 use crate::hints::types::HintArgs;
@@ -83,9 +82,9 @@ pub(crate) fn load_deprecated_class<S: StateReader>(
         hint_processor.os_program,
     )?;
     let computed_hash = vm.get_integer(computed_hash_addr)?;
-    let expected_hash = exec_scopes.get::<Felt>(Scope::CompiledClassHash.into())?;
+    let expected_hash = exec_scopes.get::<ClassHash>(Scope::CompiledClassHash.into())?;
 
-    if computed_hash.as_ref() != &expected_hash {
+    if computed_hash.as_ref() != &expected_hash.0 {
         return Err(OsHintError::AssertionFailed {
             message: format!(
                 "Computed compiled_class_hash is inconsistent with the hash in the os_input. \
