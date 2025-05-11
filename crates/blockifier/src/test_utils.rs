@@ -49,7 +49,7 @@ use crate::execution::call_info::ExecutionSummary;
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::syscalls::hint_processor::{SyscallUsage, SyscallUsageMap};
-use crate::execution::syscalls::SyscallSelector;
+use crate::execution::syscalls::vm_syscall_utils::SyscallSelector;
 use crate::fee::resources::{StarknetResources, StateResources};
 use crate::utils::{const_max, u64_from_usize};
 // Class hashes.

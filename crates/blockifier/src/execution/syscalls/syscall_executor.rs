@@ -31,7 +31,7 @@ use crate::execution::syscalls::secp::{
     SecpNewResponse,
 };
 use crate::execution::syscalls::syscall_base::SyscallResult;
-use crate::execution::syscalls::{
+use crate::execution::syscalls::vm_syscall_utils::{
     CallContractRequest,
     CallContractResponse,
     DeployRequest,

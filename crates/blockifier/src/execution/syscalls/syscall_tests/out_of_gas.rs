@@ -10,7 +10,7 @@ use crate::execution::call_info::CallExecution;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::syscalls::syscall_tests::constants;
 use crate::execution::syscalls::syscall_tests::get_block_hash::initialize_state;
-use crate::execution::syscalls::SyscallSelector;
+use crate::execution::syscalls::vm_syscall_utils::SyscallSelector;
 use crate::retdata;
 use crate::test_utils::trivial_external_entry_point_new;
 
