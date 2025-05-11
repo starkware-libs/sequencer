@@ -1,3 +1,4 @@
+use apollo_consensus::metrics::CONSENSUS_ROUND;
 use apollo_gateway::metrics::{GATEWAY_ADD_TX_LATENCY, GATEWAY_TRANSACTIONS_RECEIVED};
 use apollo_http_server::metrics::ADDED_TRANSACTIONS_TOTAL;
 use apollo_mempool::metrics::{MEMPOOL_GET_TXS_SIZE, MEMPOOL_TRANSACTIONS_RECEIVED};
@@ -90,10 +91,25 @@ const MEMPOOL_GET_TXS_SIZE_DROP: Alert = Alert {
     evaluation_interval_sec: 20,
 };
 
+const CONSENSUS_ROUND_HIGH_AVG: Alert = Alert {
+    name: "consensus_round_high_avg",
+    title: "Consensus round high average",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!("avg_over_time({}[10m])", CONSENSUS_ROUND.get_name()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::GreaterThan,
+        comparison_value: 0.2,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 20,
+};
+
 pub const SEQUENCER_ALERTS: Alerts = Alerts::new(&[
     GATEWAY_ADD_TX_RATE_DROP,
     GATEWAY_ADD_TX_LATENCY_INCREASE,
     MEMPOOL_ADD_TX_RATE_DROP,
     MEMPOOL_GET_TXS_SIZE_DROP,
     HTTP_SERVER_IDLE,
+    CONSENSUS_ROUND_HIGH_AVG,
 ]);
