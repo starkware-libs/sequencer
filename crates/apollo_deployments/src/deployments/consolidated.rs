@@ -65,7 +65,6 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
                 ConsolidatedNodeServiceName::Node => Service::new(
                     Into::<ServiceName>::into(*self),
                     1,
-                    Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
                     ingress_params.clone(),
@@ -76,7 +75,6 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
                 ConsolidatedNodeServiceName::Node => Service::new(
                     Into::<ServiceName>::into(*self),
                     1,
-                    Resources::new(Resource::new(2, 4), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
                     ingress_params.clone(),
@@ -131,6 +129,16 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
             Environment::SepoliaIntegration
             | Environment::TestingEnvTwo
             | Environment::TestingEnvThree => Some(NODE_STORAGE),
+            _ => unimplemented!(),
+        }
+    }
+
+    fn get_resources(&self, environment: &Environment) -> Resources {
+        match environment {
+            Environment::Testing => Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
+            Environment::SepoliaIntegration => {
+                Resources::new(Resource::new(2, 4), Resource::new(4, 8))
+            }
             _ => unimplemented!(),
         }
     }
