@@ -18,6 +18,7 @@ use starknet_api::transaction::fields::{
     Calldata,
     ResourceBounds,
     ValidResourceBounds,
+    HIGH_GAS_AMOUNT,
 };
 use starknet_api::transaction::TransactionVersion;
 use starknet_types_core::felt::Felt;
@@ -34,7 +35,8 @@ use crate::execution::errors::{
 };
 use crate::execution::execution_utils::execute_entry_point_call_wrapper;
 use crate::execution::stack_trace::{extract_trailing_cairo1_revert_trace, Cairo1RevertHeader};
-use crate::state::state_api::{State, StateResult};
+use crate::state::cached_state::CachedState;
+use crate::state::state_api::{State, StateReader, StateResult};
 use crate::transaction::objects::{HasRelatedFeeType, TransactionInfo};
 use crate::utils::usize_from_u64;
 
@@ -564,6 +566,45 @@ pub fn execute_constructor_entry_point(
     constructor_call.non_reverting_execute(state, context, remaining_gas).map_err(|error| {
         ConstructorEntryPointExecutionError::new(error, &ctor_context, Some(constructor_selector))
     })
+}
+
+// Calls the specified external entry point on the contract at the given address.
+// Intended for view-only entry points; any attempted state changes will be discarded.
+pub fn call_view_entry_point(
+    state_reader: impl StateReader,
+    block_context: Arc<BlockContext>,
+    storage_address: ContractAddress,
+    entry_point_name: &str,
+    calldata: Calldata,
+) -> EntryPointExecutionResult<CallInfo> {
+    let mut initial_gas = GasAmount(HIGH_GAS_AMOUNT);
+
+    let execute_call = CallEntryPoint {
+        entry_point_type: EntryPointType::External,
+        entry_point_selector: selector_from_name(entry_point_name),
+        calldata,
+        class_hash: None,
+        code_address: None,
+        storage_address,
+        caller_address: ContractAddress::default(),
+        call_type: CallType::Call,
+        initial_gas: initial_gas.0,
+    };
+
+    // Create a dummy transaction info, since we are not in a context of a real transaction.
+    let tx_context =
+        Arc::new(TransactionContext { block_context, tx_info: TransactionInfo::default() });
+
+    let limit_steps = false;
+    let mut context = EntryPointExecutionContext::new(
+        tx_context,
+        ExecutionMode::Execute,
+        limit_steps,
+        SierraGasRevertTracker::new(initial_gas),
+    );
+
+    let mut state = CachedState::new(state_reader); // Changes to it are discarded.
+    execute_call.execute(&mut state, &mut context, &mut initial_gas.0)
 }
 
 pub fn handle_empty_constructor(
