@@ -191,7 +191,7 @@ pub trait SerializeConfig {
     }
 }
 
-/// Appends `sub_config_name` to the ParamPath for each entry in `sub_config_dump`.
+/// Prepends `sub_config_name` to the ParamPath for each entry in `sub_config_dump`.
 /// In order to load from a dump properly, `sub_config_name` must match the field's name for the
 /// struct this function is called from.
 pub fn append_sub_config_name(
