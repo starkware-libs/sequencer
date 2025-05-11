@@ -160,7 +160,6 @@ class ServiceApp(Construct):
                                 env=self._get_container_env(),
                                 args=self._get_container_args(),
                                 ports=self._get_container_ports(),
-                                startup_probe=self._get_http_probe(),
                                 readiness_probe=self._get_http_probe(
                                     path=const.PROBE_MONITORING_READY_PATH
                                 ),
@@ -205,7 +204,6 @@ class ServiceApp(Construct):
                                 env=self._get_container_env(),
                                 args=self._get_container_args(),
                                 ports=self._get_container_ports(),
-                                startup_probe=self._get_http_probe(),
                                 readiness_probe=self._get_http_probe(
                                     path=const.PROBE_MONITORING_READY_PATH
                                 ),
