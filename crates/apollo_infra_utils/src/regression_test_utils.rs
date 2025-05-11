@@ -20,6 +20,7 @@ struct MagicConstantsRegistry(pub Mutex<HashSet<String>>);
 static MAGIC_CONSTANTS_REGISTRY: LazyLock<MagicConstantsRegistry> =
     LazyLock::new(MagicConstantsRegistry::default);
 
+#[derive(PartialEq)]
 enum MagicMode {
     Test,
     Fix,
@@ -55,23 +56,23 @@ pub struct MagicConstants {
 }
 
 impl MagicConstants {
-    /// Initialize the magic constants for the current test case. Should not be called directly
+    /// Initializes the magic constants for the current test case. Should not be called directly
     /// (use the `register_magic_constants!` macro instead).
     ///
     /// Adds the file path to the global registry (if it doesn't exist), and depending on the mode,
     /// performs additional actions:
     /// 1. In clean mode, if this is the first registration of a file in the current directory,
-    ///    deletes the directory (if it exists) and all files in it.
-    /// 2. In fix/clean mode, if this is the first registration of a file in the current directory
-    ///    and the directory does not exist, creates the directory.
-    /// 3. In fix/clean mode, if this is the first registration of this specific file, creates the
+    ///    deletes the directory (if it exists) and all files in it, and recreates it.
+    /// 2. In fix/clean mode, if this is the first registration of this specific file, creates the
     ///    file if it does not exist.
-    /// 4. In any mode, loads and returns the contents of the file as a `MagicConstants` object.
+    /// 3. In any mode, loads and returns the contents of the file as a `MagicConstants` object.
     pub fn register_and_create(current_dir: &Path, function_name: &str) -> Self {
         let mode = MagicMode::from_env();
         let magic_dir = current_dir.join("magic_constants");
         let absolute_path = magic_dir.join(Self::filename_from_function_name(function_name));
         let absolute_path_string = absolute_path.to_str().unwrap().to_string();
+        assert!(magic_dir.exists(), "Expected directory at {magic_dir:?} to exist.");
+        assert!(magic_dir.is_dir(), "Expected {magic_dir:?} to be a directory.");
 
         // Lock the registry.
         let mut locked = MAGIC_CONSTANTS_REGISTRY.0.lock().unwrap();
@@ -84,23 +85,13 @@ impl MagicConstants {
 
         // First registration of a file in the directory: cleanup / create the directory, depending
         // on mode.
-        if is_first_dir_registration {
-            if matches!(mode, MagicMode::Clean) && magic_dir.exists() {
-                std::fs::remove_dir_all(&magic_dir).unwrap_or_else(|error| {
-                    panic!("Failed to remove magic constants directory at {magic_dir:?}: {error}.")
-                });
-            }
-            if mode.is_fix_or_clean() && !magic_dir.exists() {
-                std::fs::create_dir_all(&magic_dir).unwrap_or_else(|error| {
-                    panic!("Failed to create magic constants directory at {magic_dir:?}: {error}.")
-                });
-            } else {
-                // In test mode, panic explicitly if the directory is missing.
-                assert!(
-                    magic_dir.exists(),
-                    "Magic constants directory {magic_dir:?} does not exist."
-                );
-            }
+        if is_first_dir_registration && mode == MagicMode::Clean {
+            std::fs::remove_dir_all(&magic_dir).unwrap_or_else(|error| {
+                panic!("Failed to remove magic constants directory at {magic_dir:?}: {error}.")
+            });
+            std::fs::create_dir_all(&magic_dir).unwrap_or_else(|error| {
+                panic!("Failed to create magic constants directory at {magic_dir:?}: {error}.")
+            });
         }
 
         // First registration of the specific file: create the file if it doesn't exist.
@@ -117,13 +108,17 @@ impl MagicConstants {
         }
 
         // Load and return contents.
-        let file = std::fs::File::open(&absolute_path).unwrap_or_else(|error| {
-            panic!("Failed to open magic constants file at {absolute_path:?}: {error}.")
+        let values = Self::load_contents(&PathBuf::from(&absolute_path));
+        Self { path: absolute_path_string, values, mode }
+    }
+
+    fn load_contents(path: &Path) -> BTreeMap<String, Value> {
+        let file = std::fs::File::open(path).unwrap_or_else(|error| {
+            panic!("Failed to open magic constants file at {path:?}: {error}.")
         });
         let reader = std::io::BufReader::new(file);
         let json: serde_json::Value = serde_json::from_reader(reader).unwrap();
-        let values = BTreeMap::from_iter(json.as_object().unwrap().clone());
-        Self { path: absolute_path_string, values, mode }
+        BTreeMap::from_iter(json.as_object().unwrap().clone())
     }
 
     /// Given the function name, generates a unique filename for the magic constants file.
@@ -142,14 +137,14 @@ impl MagicConstants {
     /// See docstring of `register_magic_constants!` macro for more details.
     #[track_caller]
     pub fn assert_eq<V: Serialize>(&mut self, value_name: &str, value: V) {
+        let actual: Value = serde_json::to_value(value).unwrap();
         if self.is_fix_or_clean() {
             // In fix mode, we just set the value in the file.
-            self.values.insert(value_name.to_string(), serde_json::to_value(value).unwrap());
+            self.values.insert(value_name.to_string(), actual);
         } else {
             let expected = self.values.get(value_name).unwrap_or_else(|| {
                 panic!("Magic constant {value_name} not found in file {}.", self.path)
             });
-            let actual: Value = serde_json::to_value(value).unwrap();
             assert_eq!(expected, &actual);
         }
     }
@@ -157,39 +152,34 @@ impl MagicConstants {
 
 /// TAKES THE LOCK.
 /// In fix mode, automatically dump the values to the file on drop (when test ends).
-/// Checks if the file exists first - if it does, the existing values are loaded and the current
-/// dict is updated, before dumping the contents.
+/// The existing values are loaded and the current dict is updated, before dumping the contents.
 impl Drop for MagicConstants {
     fn drop(&mut self) {
-        if self.is_fix_or_clean() {
-            // Lock the registry, to prevent races between different constants structs dropping and
-            // writing to the same file (different test cases in the same test function).
-            let _lock = MAGIC_CONSTANTS_REGISTRY.0.lock().unwrap();
-
-            // File should always exist; if not, the constants were not properly registered.
-            assert!(
-                PathBuf::from(&self.path).exists(),
-                "Magic constants file {} does not exist. Was it registered properly?",
-                self.path
-            );
-
-            // Load the existing values and update the current values.
-            // Required, as other test cases may have already dropped the constants struct and
-            // written new data to the file.
-            let file = std::fs::File::open(&self.path).unwrap_or_else(|error| {
-                panic!("Failed to open magic constants file at {}: {}", self.path, error)
-            });
-            let reader = std::io::BufReader::new(file);
-            let json: serde_json::Value = serde_json::from_reader(reader).unwrap();
-            let values = BTreeMap::from_iter(json.as_object().unwrap().clone());
-            self.values.extend(values);
-
-            // Write the updated values to the file.
-            std::fs::write(&self.path, serde_json::to_string_pretty(&self.values).unwrap())
-                .unwrap_or_else(|error| {
-                    panic!("Failed to write magic constants contents to {}: {}", self.path, error)
-                });
+        if !self.is_fix_or_clean() {
+            return;
         }
+        // Lock the registry, to prevent races between different constants structs dropping and
+        // writing to the same file (different test cases in the same test function).
+        let _lock = MAGIC_CONSTANTS_REGISTRY.0.lock().unwrap();
+
+        // File should always exist; if not, the constants were not properly registered.
+        assert!(
+            PathBuf::from(&self.path).exists(),
+            "Magic constants file {} does not exist. Was it registered properly?",
+            self.path
+        );
+
+        // Load the existing values and update the current values.
+        // Required, as other test cases may have already dropped the constants struct and
+        // written new data to the file.
+        let values = Self::load_contents(&PathBuf::from(&self.path));
+        self.values.extend(values.into_iter());
+
+        // Write the updated values to the file.
+        std::fs::write(&self.path, serde_json::to_string_pretty(&self.values).unwrap())
+            .unwrap_or_else(|error| {
+                panic!("Failed to write magic constants contents to {}: {}", self.path, error)
+            });
     }
 }
 
@@ -281,7 +271,6 @@ macro_rules! function_name {
 ///    name has changed (making the old file obsolete). Some things to note on the clean mode:
 ///    * The directory is cleaned only on the first registration of a "magic" file in the calling
 ///      crate.
-///    * The directory is created if it does not exist.
 ///    * If you run clean mode on a specific test, you will delete all "magic" files of all tests of
 ///      the respective crate, regardless of whether or not the respective test was run. To avoid
 ///      this, never run clean mode on a single test; only on entire crates.
