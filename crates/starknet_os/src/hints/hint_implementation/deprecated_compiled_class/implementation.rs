@@ -1,8 +1,8 @@
-use std::any::Any;
-use std::collections::hash_map::IntoIter;
+use std::collections::btree_map::IntoIter;
 use std::collections::HashMap;
 
 use blockifier::state::state_api::StateReader;
+use cairo_vm::any_box;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_from_var_name;
 use cairo_vm::hint_processor::hint_processor_definition::{
     HintExtension,
@@ -33,10 +33,11 @@ pub(crate) fn load_deprecated_class_facts<S: StateReader>(
         ap_tracking,
     )?;
     // TODO(Nimrod): See if we can avoid cloning here.
-    let scoped_classes: Box<dyn Any> = Box::new(deprecated_compiled_classes.clone().into_iter());
-    exec_scopes
-        .enter_scope(HashMap::from([(Scope::CompiledClassFacts.to_string(), scoped_classes)]));
-
+    let deprecated_classes_iter = deprecated_compiled_classes.clone().into_iter();
+    exec_scopes.enter_scope(HashMap::from([(
+        Scope::CompiledClassFacts.into(),
+        any_box!(deprecated_classes_iter),
+    )]));
     Ok(())
 }
 
@@ -47,8 +48,8 @@ pub(crate) fn load_deprecated_class_inner<S: StateReader>(
         S,
     >,
 ) -> OsHintResult {
-    let deprecated_class_iter = exec_scopes
-        .get_mut_ref::<IntoIter<ClassHash, ContractClass>>(Scope::CompiledClassFacts.into())?;
+    let deprecated_class_iter: &mut IntoIter<ClassHash, ContractClass> =
+        exec_scopes.get_mut_ref(Scope::CompiledClassFacts.into())?;
 
     let (class_hash, deprecated_class) = deprecated_class_iter.next().ok_or_else(|| {
         OsHintError::EndOfIterator { item_type: "deprecated_compiled_classes".to_string() }
