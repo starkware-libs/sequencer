@@ -39,14 +39,19 @@ class ServiceApp(Construct):
         namespace: str,
         service_topology: topology.ServiceTopology,
         monitoring: bool,
+        node_index: int,
+        number_of_nodes: int,
     ):
         super().__init__(scope, id)
 
         self.namespace = namespace
         self.monitoring = monitoring
+        self.node_index = node_index
+        self.number_of_nodes = number_of_nodes
         self.labels = {
             "app": "sequencer",
             "service": Names.to_label_value(self, include_hash=False),
+            "node_id": f"{self.node_index}",
         }
         self.service_topology = service_topology
         self.node_config = service_topology.config.get_config()
@@ -155,6 +160,7 @@ class ServiceApp(Construct):
                         volumes=self._get_volumes(),
                         tolerations=self._get_tolerations(),
                         node_selector=self._get_node_selector(),
+                        affinity=self._get_affinity(),
                         containers=[
                             k8s.Container(
                                 name=self.node.id,
@@ -200,6 +206,7 @@ class ServiceApp(Construct):
                         volumes=self._get_volumes(),
                         tolerations=self._get_tolerations(),
                         node_selector=self._get_node_selector(),
+                        affinity=self._get_affinity(),
                         containers=[
                             k8s.Container(
                                 name=self.node.id,
@@ -219,6 +226,40 @@ class ServiceApp(Construct):
                         ],
                     ),
                 ),
+            ),
+        )
+
+    def _get_pod_anti_affinity_terms(self) -> typing.List[k8s.PodAffinityTerm]:
+        pod_anti_affinity_terms = []
+        for x in range(self.number_of_nodes):
+            if x != self.node_index:
+                pod_anti_affinity_terms.append(
+                    k8s.PodAffinityTerm(
+                        label_selector=k8s.LabelSelector(
+                            match_labels={"node_id": f"{x}"},
+                        ),
+                        topology_key="kubernetes.io/hostname",
+                    )
+                )
+        return pod_anti_affinity_terms
+
+    def _get_pod_affinity_terms(self) -> typing.List[k8s.PodAffinityTerm]:
+        return [
+            k8s.PodAffinityTerm(
+                label_selector=k8s.LabelSelector(
+                    match_labels={"node_id": self.labels["node_id"]},
+                ),
+                topology_key="kubernetes.io/hostname",
+            ),
+        ]
+
+    def _get_affinity(self) -> k8s.Affinity:
+        return k8s.Affinity(
+            pod_affinity=k8s.PodAffinity(
+                preferred_during_scheduling_ignored_during_execution=self._get_pod_affinity_terms(),
+            ),
+            pod_anti_affinity=k8s.PodAntiAffinity(
+                required_during_scheduling_ignored_during_execution=self._get_pod_anti_affinity_terms(),
             ),
         )
 

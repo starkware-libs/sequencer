@@ -17,6 +17,8 @@ class SequencerNode(Chart):
         name: str,
         namespace: str,
         monitoring: bool,
+        node_index: int,
+        number_of_nodes: int,
         service_topology: topology.ServiceTopology,
     ):
         super().__init__(scope, name, disable_resource_name_hashes=True, namespace=namespace)
@@ -26,6 +28,8 @@ class SequencerNode(Chart):
             namespace=namespace,
             service_topology=service_topology,
             monitoring=monitoring,
+            node_index=node_index,
+            number_of_nodes=number_of_nodes,
         )
 
 
@@ -69,6 +73,8 @@ def main():
                 name=helpers.sanitize_name(f'sequencer-{svc["name"]}'),
                 namespace=helpers.sanitize_name(f"{args.namespace}-{index}"),
                 monitoring=create_monitoring,
+                node_index=index,
+                number_of_nodes=len(nodes),
                 service_topology=topology.ServiceTopology(
                     config=config.ServiceConfig(
                         config_subdir=application_config_subdir, config_paths=svc["config_paths"]
