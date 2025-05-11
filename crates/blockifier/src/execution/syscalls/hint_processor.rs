@@ -47,12 +47,9 @@ use crate::execution::execution_utils::{
 };
 use crate::execution::syscalls::secp::SecpHintProcessor;
 use crate::execution::syscalls::syscall_base::{SyscallHandlerBase, SyscallResult};
-use crate::execution::syscalls::syscall_executor::{
-    execute_next_syscall,
-    SyscallExecutor,
-    SyscallExecutorBaseError,
-};
+use crate::execution::syscalls::syscall_executor::SyscallExecutor;
 use crate::execution::syscalls::vm_syscall_utils::{
+    execute_next_syscall,
     CallContractRequest,
     CallContractResponse,
     DeployRequest,
@@ -79,6 +76,7 @@ use crate::execution::syscalls::vm_syscall_utils::{
     StorageReadResponse,
     StorageWriteRequest,
     StorageWriteResponse,
+    SyscallExecutorBaseError,
     SyscallRequest,
     SyscallSelector,
 };
