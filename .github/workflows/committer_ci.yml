@@ -103,17 +103,34 @@ jobs:
 
       - run: echo BENCHES_RESULT=$(cat bench_new.txt) >> $GITHUB_ENV
 
-      # Post comment in case of performance regression or improvement.
-      - run: npm install fs
-      - if: contains(env.BENCHES_RESULT, 'regressed') || contains(env.BENCHES_RESULT, 'improved')
-        uses: actions/github-script@v6
+      # Comment with a link to the workflow (or update existing comment on rerun).
+      - name: Find Comment
+        if: github.event_name == 'pull_request'
+        uses: starkware-libs/find-comment@v3
+        id: find-benchmark-comment
         with:
-          script: |
-            const fs = require('fs')
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: fs.readFileSync('bench_new.txt', 'utf8'),
-              path: 'Commits'
-            })
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: Benchmark movements
+
+      - name: Create comment
+        # If the PR number is found and the comment is not found, create a new comment.
+        if:  github.event_name == 'pull_request' 
+          && steps.find-benchmark-comment.outputs.comment-id == ''
+        uses: starkware-libs/create-or-update-comment@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body: ${{ env.BENCHES_RESULT }}
+
+      - name: Update comment
+        # If the PR number is found and the comment exists, update it.
+        if: github.event_name == 'pull_request' 
+          && steps.find-benchmark-comment.outputs.comment-id != ''
+        uses: starkware-libs/create-or-update-comment@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          comment-id: ${{ steps.find-benchmark-comment.outputs.comment-id }}
+          edit-mode: replace
+          body: ${{ env.BENCHES_RESULT }}
