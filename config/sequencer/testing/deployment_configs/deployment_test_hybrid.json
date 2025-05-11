@@ -37,6 +37,7 @@
       ],
       "ingress": {
         "domain": "sw-dev.io",
+        "alternative_names": [],
         "internal": true,
         "rules": [
           {
@@ -44,8 +45,7 @@
             "port": 8080,
             "backend": null
           }
-        ],
-        "alternative_names": []
+        ]
       },
       "autoscale": false,
       "replicas": 1,

@@ -9,7 +9,7 @@ use crate::deployment::{
     InstanceConfigOverride,
 };
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
-use crate::service::DeploymentName;
+use crate::service::{DeploymentName, IngressParams};
 
 fn testing_deployment_config_override() -> DeploymentConfigOverride {
     DeploymentConfigOverride::new(
@@ -37,6 +37,10 @@ fn testing_config_override() -> ConfigOverride {
     ConfigOverride::new(testing_deployment_config_override(), testing_instance_config_override())
 }
 
+fn get_ingress_params() -> IngressParams {
+    IngressParams::new(TESTING_INGRESS_DOMAIN.to_string(), None)
+}
+
 const TESTING_INGRESS_DOMAIN: &str = "sw-dev.io";
 
 pub(crate) fn system_test_distributed_deployment() -> Deployment {
@@ -48,8 +52,7 @@ pub(crate) fn system_test_distributed_deployment() -> Deployment {
         None,
         PathBuf::from(BASE_APP_CONFIG_PATH),
         testing_config_override(),
-        TESTING_INGRESS_DOMAIN.to_string(),
-        None,
+        get_ingress_params(),
     )
 }
 
@@ -62,8 +65,7 @@ pub(crate) fn system_test_hybrid_deployment() -> Deployment {
         None,
         PathBuf::from(BASE_APP_CONFIG_PATH),
         testing_config_override(),
-        TESTING_INGRESS_DOMAIN.to_string(),
-        None,
+        get_ingress_params(),
     )
 }
 
@@ -76,7 +78,6 @@ pub(crate) fn system_test_consolidated_deployment() -> Deployment {
         None,
         PathBuf::from(BASE_APP_CONFIG_PATH),
         testing_config_override(),
-        TESTING_INGRESS_DOMAIN.to_string(),
-        None,
+        get_ingress_params(),
     )
 }

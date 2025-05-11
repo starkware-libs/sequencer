@@ -39,6 +39,9 @@
       ],
       "ingress": {
         "domain": "sw-dev.io",
+        "alternative_names": [
+          "sn-test-sepolia-2-sepolia.gateway-proxy.sw-dev.io"
+        ],
         "internal": false,
         "rules": [
           {
@@ -46,9 +49,6 @@
             "port": 8080,
             "backend": null
           }
-        ],
-        "alternative_names": [
-          "sn-test-sepolia-2-sepolia.gateway-proxy.sw-dev.io"
         ]
       },
       "autoscale": false,
