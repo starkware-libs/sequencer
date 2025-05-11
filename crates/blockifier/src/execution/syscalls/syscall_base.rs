@@ -140,7 +140,7 @@ impl<'state> SyscallHandlerBase<'state> {
                     //   * if reverted - ignore, if succeeded - panic.
                     //   * in the gateway, the queried block is (actual_latest - 9),
                     //   * while in the sequencer, the queried block can be further than that.
-                    self.reject_selector_in_validate_mode("get_block_hash on recent blocks")?;
+                    self.reject_syscall_in_validate_mode("get_block_hash on recent blocks")?;
                 }
             }
         }
@@ -188,7 +188,7 @@ impl<'state> SyscallHandlerBase<'state> {
         contract_address: ContractAddress,
     ) -> SyscallResult<ClassHash> {
         if self.context.execution_mode == ExecutionMode::Validate {
-            self.reject_selector_in_validate_mode("get_class_hash_at")?;
+            self.reject_syscall_in_validate_mode("get_class_hash_at")?;
         }
 
         self.storage_access_tracker.accessed_contract_addresses.insert(contract_address);
@@ -257,7 +257,7 @@ impl<'state> SyscallHandlerBase<'state> {
         remaining_gas: &mut u64,
     ) -> SyscallResult<Vec<Felt>> {
         if self.context.execution_mode == ExecutionMode::Validate {
-            self.reject_selector_in_validate_mode("meta_tx_v0")?;
+            self.reject_syscall_in_validate_mode("meta_tx_v0")?;
         }
         if entry_point_selector != selector_from_name(EXECUTE_ENTRY_POINT_NAME) {
             return Err(SyscallExecutionError::Revert {
@@ -356,7 +356,7 @@ impl<'state> SyscallHandlerBase<'state> {
             versioned_constants.disable_deploy_in_validation_mode,
             self.context.execution_mode,
         ) {
-            self.reject_selector_in_validate_mode("deploy")?;
+            self.reject_syscall_in_validate_mode("deploy")?;
         }
 
         let deployer_address = self.call.storage_address;
@@ -487,7 +487,7 @@ impl<'state> SyscallHandlerBase<'state> {
             .original_values = std::mem::take(&mut self.original_values);
     }
 
-    fn reject_selector_in_validate_mode(&self, syscall_name: &str) -> SyscallResult<()> {
+    fn reject_syscall_in_validate_mode(&self, syscall_name: &str) -> SyscallResult<()> {
         Err(SyscallExecutionError::InvalidSyscallInExecutionMode {
             syscall_name: syscall_name.to_string(),
             execution_mode: ExecutionMode::Validate,
