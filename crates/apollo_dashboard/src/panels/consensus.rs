@@ -49,6 +49,12 @@ use crate::dashboard::{Panel, PanelType};
 pub(crate) const PANEL_CONSENSUS_BLOCK_NUMBER: Panel =
     Panel::from_gauge(CONSENSUS_BLOCK_NUMBER, PanelType::Stat);
 pub(crate) const PANEL_CONSENSUS_ROUND: Panel = Panel::from_gauge(CONSENSUS_ROUND, PanelType::Stat);
+pub(crate) const PANEL_CONSENSUS_ROUND_AVG: Panel = Panel::new(
+    "Average consensus round",
+    "Average consensus round (1m)",
+    formatcp!("avg_over_time({}[1m])", CONSENSUS_ROUND.get_name_with_filter()),
+    PanelType::Graph,
+);
 pub(crate) const PANEL_CONSENSUS_MAX_CACHED_BLOCK_NUMBER: Panel =
     Panel::from_gauge(CONSENSUS_MAX_CACHED_BLOCK_NUMBER, PanelType::Stat);
 pub(crate) const PANEL_CONSENSUS_CACHED_VOTES: Panel =

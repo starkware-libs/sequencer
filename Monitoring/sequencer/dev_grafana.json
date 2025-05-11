@@ -46,6 +46,13 @@
         "extra_params": {}
       },
       {
+        "title": "Average consensus round",
+        "description": "Average consensus round (1m)",
+        "type": "graph",
+        "expr": "avg_over_time(consensus_round{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
+        "extra_params": {}
+      },
+      {
         "title": "consensus_max_cached_block_number",
         "description": "How many blocks after current are cached",
         "type": "stat",
