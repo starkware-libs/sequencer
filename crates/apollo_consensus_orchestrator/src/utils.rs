@@ -29,11 +29,15 @@ pub(crate) async fn get_oracle_rate_and_prices(
         CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR.increment(1);
     }
 
-    if let (Ok(eth_to_strk_rate), Ok(price_info)) = (eth_to_strk_rate, price_info) {
-        info!("eth_to_strk_rate: {eth_to_strk_rate}, l1 gas price: {price_info:?}");
-        return (eth_to_strk_rate, price_info);
+    match (eth_to_strk_rate, price_info) {
+        (Ok(eth_to_strk_rate), Ok(price_info)) => {
+            info!("eth_to_strk_rate: {eth_to_strk_rate}, l1 gas price: {price_info:?}");
+            return (eth_to_strk_rate, price_info);
+        }
+        err => {
+            warn!("Failed to get oracle prices, using values from previous block info. {:?}", err);
+        }
     }
-    warn!("Failed to get oracle prices, using values from previous block info");
 
     if let Some(previous_block_info) = previous_block_info {
         let (prev_eth_to_strk_rate, prev_l1_price) = (
