@@ -33,7 +33,11 @@ pub(crate) async fn get_oracle_rate_and_prices(
         info!("eth_to_strk_rate: {eth_to_strk_rate}, l1 gas price: {price_info:?}");
         return (eth_to_strk_rate, price_info);
     }
-    warn!("Failed to get oracle prices, using values from previous block info");
+    warn!(
+        ?eth_to_strk_rate,
+        ?price_info,
+        "Failed to get oracle prices, using values from previous block info"
+    );
 
     if let Some(previous_block_info) = previous_block_info {
         let (prev_eth_to_strk_rate, prev_l1_price) = (
