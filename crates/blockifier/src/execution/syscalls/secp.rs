@@ -12,12 +12,11 @@ use crate::execution::execution_utils::{
     write_u256,
 };
 use crate::execution::secp::new_affine;
-use crate::execution::syscalls::hint_processor::felt_to_bool;
-use crate::execution::syscalls::{
-    SyscallExecutionError,
+use crate::execution::syscalls::hint_processor::{felt_to_bool, SyscallExecutionError};
+use crate::execution::syscalls::syscall_base::SyscallResult;
+use crate::execution::syscalls::vm_syscall_utils::{
     SyscallRequest,
     SyscallResponse,
-    SyscallResult,
     WriteResponseResult,
 };
 

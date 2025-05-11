@@ -30,7 +30,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::blockifier_versioned_constants::AllocationCost;
 use crate::context::{BlockContext, ChainInfo};
-use crate::execution::syscalls::SyscallSelector;
+use crate::execution::syscalls::vm_syscall_utils::SyscallSelector;
 use crate::fee::fee_utils::get_fee_by_gas_vector;
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::StateReader;

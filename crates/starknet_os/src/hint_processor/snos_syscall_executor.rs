@@ -2,7 +2,7 @@ use blockifier::blockifier_versioned_constants::{GasCostsError, SyscallGasCost};
 use blockifier::execution::syscalls::secp::SecpHintProcessor;
 use blockifier::execution::syscalls::syscall_base::SyscallResult;
 use blockifier::execution::syscalls::syscall_executor::SyscallExecutor;
-use blockifier::execution::syscalls::{
+use blockifier::execution::syscalls::vm_syscall_utils::{
     CallContractRequest,
     CallContractResponse,
     DeployRequest,
