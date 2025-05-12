@@ -127,7 +127,6 @@ impl ServiceNameInner for HybridNodeServiceName {
             Environment::Testing => match self {
                 HybridNodeServiceName::Core => Service::new(
                     Into::<ServiceName>::into(*self),
-                    1,
                     external_secret.clone(),
                     additional_config_filenames,
                     ingress_params.clone(),
@@ -135,7 +134,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                 ),
                 HybridNodeServiceName::HttpServer => Service::new(
                     Into::<ServiceName>::into(*self),
-                    1,
                     external_secret.clone(),
                     additional_config_filenames,
                     ingress_params.clone(),
@@ -143,7 +141,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                 ),
                 HybridNodeServiceName::Gateway => Service::new(
                     Into::<ServiceName>::into(*self),
-                    1,
                     external_secret.clone(),
                     additional_config_filenames,
                     ingress_params.clone(),
@@ -151,7 +148,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                 ),
                 HybridNodeServiceName::Mempool => Service::new(
                     Into::<ServiceName>::into(*self),
-                    1,
                     external_secret.clone(),
                     additional_config_filenames,
                     ingress_params.clone(),
@@ -159,7 +155,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                 ),
                 HybridNodeServiceName::SierraCompiler => Service::new(
                     Into::<ServiceName>::into(*self),
-                    1,
                     external_secret.clone(),
                     additional_config_filenames,
                     ingress_params.clone(),
@@ -171,7 +166,6 @@ impl ServiceNameInner for HybridNodeServiceName {
             | Environment::TestingEnvThree => match self {
                 HybridNodeServiceName::Core => Service::new(
                     Into::<ServiceName>::into(*self),
-                    1,
                     external_secret.clone(),
                     additional_config_filenames,
                     ingress_params.clone(),
@@ -179,7 +173,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                 ),
                 HybridNodeServiceName::HttpServer => Service::new(
                     Into::<ServiceName>::into(*self),
-                    1,
                     external_secret.clone(),
                     additional_config_filenames,
                     ingress_params.clone(),
@@ -187,7 +180,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                 ),
                 HybridNodeServiceName::Gateway => Service::new(
                     Into::<ServiceName>::into(*self),
-                    2,
                     external_secret.clone(),
                     additional_config_filenames,
                     ingress_params.clone(),
@@ -195,7 +187,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                 ),
                 HybridNodeServiceName::Mempool => Service::new(
                     Into::<ServiceName>::into(*self),
-                    1,
                     external_secret.clone(),
                     additional_config_filenames,
                     ingress_params.clone(),
@@ -203,7 +194,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                 ),
                 HybridNodeServiceName::SierraCompiler => Service::new(
                     Into::<ServiceName>::into(*self),
-                    2,
                     external_secret.clone(),
                     additional_config_filenames,
                     ingress_params.clone(),
@@ -303,6 +293,22 @@ impl ServiceNameInner for HybridNodeServiceName {
                 HybridNodeServiceName::SierraCompiler => {
                     Resources::new(Resource::new(1, 2), Resource::new(2, 4))
                 }
+            },
+            _ => unimplemented!(),
+        }
+    }
+
+    fn get_replicas(&self, environment: &Environment) -> usize {
+        match environment {
+            Environment::Testing => 1,
+            Environment::SepoliaIntegration
+            | Environment::TestingEnvTwo
+            | Environment::TestingEnvThree => match self {
+                HybridNodeServiceName::Core => 1,
+                HybridNodeServiceName::HttpServer => 1,
+                HybridNodeServiceName::Gateway => 2,
+                HybridNodeServiceName::Mempool => 1,
+                HybridNodeServiceName::SierraCompiler => 2,
             },
             _ => unimplemented!(),
         }

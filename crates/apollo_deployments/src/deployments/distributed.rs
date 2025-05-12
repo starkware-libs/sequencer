@@ -155,7 +155,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
             Environment::Testing => match self {
                 DistributedNodeServiceName::Batcher => Service::new(
                     Into::<ServiceName>::into(*self),
-                    1,
                     external_secret.clone(),
                     additional_config_filenames,
                     ingress_params.clone(),
@@ -163,7 +162,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 ),
                 DistributedNodeServiceName::ClassManager => Service::new(
                     Into::<ServiceName>::into(*self),
-                    1,
                     external_secret.clone(),
                     additional_config_filenames,
                     ingress_params.clone(),
@@ -171,7 +169,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 ),
                 DistributedNodeServiceName::ConsensusManager => Service::new(
                     Into::<ServiceName>::into(*self),
-                    1,
                     external_secret.clone(),
                     additional_config_filenames,
                     ingress_params.clone(),
@@ -179,7 +176,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 ),
                 DistributedNodeServiceName::HttpServer => Service::new(
                     Into::<ServiceName>::into(*self),
-                    1,
                     external_secret.clone(),
                     additional_config_filenames,
                     ingress_params.clone(),
@@ -187,7 +183,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 ),
                 DistributedNodeServiceName::Gateway => Service::new(
                     Into::<ServiceName>::into(*self),
-                    1,
                     external_secret.clone(),
                     additional_config_filenames,
                     ingress_params.clone(),
@@ -195,7 +190,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 ),
                 DistributedNodeServiceName::L1 => Service::new(
                     Into::<ServiceName>::into(*self),
-                    1,
                     external_secret.clone(),
                     additional_config_filenames,
                     ingress_params.clone(),
@@ -203,7 +197,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 ),
                 DistributedNodeServiceName::Mempool => Service::new(
                     Into::<ServiceName>::into(*self),
-                    1,
                     external_secret.clone(),
                     additional_config_filenames,
                     ingress_params.clone(),
@@ -211,7 +204,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 ),
                 DistributedNodeServiceName::SierraCompiler => Service::new(
                     Into::<ServiceName>::into(*self),
-                    1,
                     external_secret.clone(),
                     additional_config_filenames,
                     ingress_params.clone(),
@@ -219,7 +211,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 ),
                 DistributedNodeServiceName::StateSync => Service::new(
                     Into::<ServiceName>::into(*self),
-                    1,
                     external_secret.clone(),
                     additional_config_filenames,
                     ingress_params.clone(),
@@ -229,7 +220,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
             Environment::SepoliaIntegration => match self {
                 DistributedNodeServiceName::Batcher => Service::new(
                     Into::<ServiceName>::into(*self),
-                    1,
                     external_secret.clone(),
                     additional_config_filenames,
                     ingress_params.clone(),
@@ -237,7 +227,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 ),
                 DistributedNodeServiceName::ClassManager => Service::new(
                     Into::<ServiceName>::into(*self),
-                    1,
                     external_secret.clone(),
                     additional_config_filenames,
                     ingress_params.clone(),
@@ -245,7 +234,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 ),
                 DistributedNodeServiceName::ConsensusManager => Service::new(
                     Into::<ServiceName>::into(*self),
-                    1,
                     external_secret.clone(),
                     additional_config_filenames,
                     ingress_params.clone(),
@@ -253,7 +241,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 ),
                 DistributedNodeServiceName::HttpServer => Service::new(
                     Into::<ServiceName>::into(*self),
-                    1,
                     external_secret.clone(),
                     additional_config_filenames,
                     ingress_params.clone(),
@@ -261,7 +248,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 ),
                 DistributedNodeServiceName::Gateway => Service::new(
                     Into::<ServiceName>::into(*self),
-                    1,
                     external_secret.clone(),
                     additional_config_filenames,
                     ingress_params.clone(),
@@ -269,7 +255,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 ),
                 DistributedNodeServiceName::L1 => Service::new(
                     Into::<ServiceName>::into(*self),
-                    1,
                     external_secret.clone(),
                     additional_config_filenames,
                     ingress_params.clone(),
@@ -277,7 +262,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 ),
                 DistributedNodeServiceName::Mempool => Service::new(
                     Into::<ServiceName>::into(*self),
-                    1,
                     external_secret.clone(),
                     additional_config_filenames,
                     ingress_params.clone(),
@@ -285,7 +269,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 ),
                 DistributedNodeServiceName::SierraCompiler => Service::new(
                     Into::<ServiceName>::into(*self),
-                    1,
                     external_secret.clone(),
                     additional_config_filenames,
                     ingress_params.clone(),
@@ -293,7 +276,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 ),
                 DistributedNodeServiceName::StateSync => Service::new(
                     Into::<ServiceName>::into(*self),
-                    1,
                     external_secret.clone(),
                     additional_config_filenames,
                     ingress_params.clone(),
@@ -399,6 +381,10 @@ impl ServiceNameInner for DistributedNodeServiceName {
 
     fn get_resources(&self, _environment: &Environment) -> Resources {
         Resources::new(Resource::new(1, 2), Resource::new(4, 8))
+    }
+
+    fn get_replicas(&self, _environment: &Environment) -> usize {
+        1
     }
 }
 
