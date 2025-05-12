@@ -7,7 +7,7 @@ use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_traits::ToPrimitive;
 use starknet_api::execution_resources::GasAmount;
-use starknet_types_core::felt::Felt;
+use starknet_types_core::felt::{Felt, FromStrError};
 
 use crate::blockifier_versioned_constants::{GasCostsError, SyscallGasCost};
 use crate::execution::common_hints::HintExecutionResult;
@@ -419,8 +419,9 @@ where
 
     if gas_counter < required_gas {
         //  Out of gas failure.
-        let out_of_gas_error =
-            Felt::from_hex(OUT_OF_GAS_ERROR).map_err(SyscallExecutionError::from)?;
+        let out_of_gas_error = Felt::from_hex(OUT_OF_GAS_ERROR)
+            .map_err(SyscallExecutorBaseError::from)
+            .map_err(SyscallExecutionError::from)?;
         let response: SyscallResponseWrapper<Response> =
             SyscallResponseWrapper::Failure { gas_counter, error_data: vec![out_of_gas_error] };
         response.write(vm, syscall_executor.get_mut_syscall_ptr())?;
@@ -487,6 +488,8 @@ pub fn execute_next_syscall<T: SyscallExecutor>(
 pub enum SyscallExecutorBaseError {
     #[error(transparent)]
     DeprecatedSyscallExecutionError(#[from] DeprecatedSyscallExecutionError),
+    #[error(transparent)]
+    FromStr(#[from] FromStrError),
     #[error(transparent)]
     HintError(#[from] HintError),
     #[error("Invalid syscall input: {input:?}; {info}")]
