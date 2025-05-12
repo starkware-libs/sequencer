@@ -693,3 +693,114 @@ fn add_new_transaction_not_added_if_rejected() {
     l1_provider.add_events(vec![l1_handler_event(rejected_tx_id)]).unwrap();
     expected_l1_provider.assert_eq(&l1_provider);
 }
+
+#[test]
+fn cancellation_applies_after_timelock_elapsed() {
+    // Setup.
+
+    const TIMELOCK_CONFIG: BlockNumber = BlockNumber(2);
+    const CANCELLATION_ARRIVED_AT: BlockNumber = BlockNumber(1);
+    let tx = l1_handler(1);
+    let cancellation_requests = [(CANCELLATION_ARRIVED_AT, vec![tx.tx_hash])];
+    const HEIGHT_ONE_UNDER_EXPIRATION: BlockNumber =
+        BlockNumber((CANCELLATION_ARRIVED_AT.0 + TIMELOCK_CONFIG.0) - 1);
+    let mut provider = L1ProviderContentBuilder::new()
+        .with_height(HEIGHT_ONE_UNDER_EXPIRATION)
+        .with_txs([tx.clone()])
+        .with_config_cancellation_timelock_config(TIMELOCK_CONFIG)
+        .with_cancellation_requests(cancellation_requests.clone())
+        .build_into_l1_provider();
+
+    // Test
+
+    // Cancellation still timelocked: prevent off-by-one errors, timelock is inclusive.
+    let txs_and_cancellations_unchanged = L1ProviderContentBuilder::new()
+        .with_cancellation_requests(cancellation_requests)
+        .with_txs([tx.clone()])
+        .build();
+    provider.start_block(provider.current_height, ProposeSession).unwrap();
+    txs_and_cancellations_unchanged.assert_eq(&provider);
+
+    provider.current_height = provider.current_height.unchecked_next();
+
+    // Now cancellation will be applied.
+    let no_txs_no_cancellations =
+        L1ProviderContentBuilder::new().with_cancellation_requests([]).with_txs([]).build();
+
+    provider.start_block(provider.current_height, ProposeSession).unwrap();
+    no_txs_no_cancellations.assert_eq(&provider);
+}
+
+#[test]
+fn trivial_cancel_timelock_works() {
+    // Setup.
+
+    const TIMELOCK_CONFIG: BlockNumber = BlockNumber(0);
+    const CANCELLATION_ARRIVED_AT: BlockNumber = BlockNumber(1);
+    let tx = l1_handler(1);
+    let cancellation_requests = [(CANCELLATION_ARRIVED_AT, vec![tx.tx_hash])];
+    const SAME_HEIGHT_AS_CANCELLATION_REQUEST: BlockNumber = CANCELLATION_ARRIVED_AT;
+    let mut provider = L1ProviderContentBuilder::new()
+        .with_height(SAME_HEIGHT_AS_CANCELLATION_REQUEST)
+        .with_txs([tx.clone()])
+        .with_config_cancellation_timelock_config(TIMELOCK_CONFIG)
+        .with_cancellation_requests(cancellation_requests)
+        .build_into_l1_provider();
+
+    // Test
+
+    // Trivial timelock -> cancellation is applied the next start_block (inclusive).
+    let no_txs_no_cancellations =
+        L1ProviderContentBuilder::new().with_cancellation_requests([]).with_txs([]).build();
+    provider.start_block(provider.current_height, ProposeSession).unwrap();
+    no_txs_no_cancellations.assert_eq(&provider);
+}
+
+#[test]
+fn cancellation_saturates_on_timelock_underflow() {
+    let tx = l1_handler(4);
+    let tx_hash = tx.tx_hash;
+
+    let mut provider = L1ProviderContentBuilder::new()
+        .with_height(BlockNumber(0))
+        .with_txs([tx.clone()])
+        .with_cancellation_requests([(BlockNumber(0), vec![tx_hash])])
+        // Timelock is larger than the height, this checks that it won't break by trying to apply cancellations on block numbers -2 and -1, which will panic due to subtraction underflow.
+        .with_config_cancellation_timelock_config(BlockNumber(2))
+        .build_into_l1_provider();
+
+    provider.start_block(provider.current_height, ProposeSession).unwrap();
+
+    // If the timelock is larger than the height, then we apply all cancellations immediately.
+    let expected_provider_with_all_txs_cancelled = L1ProviderContentBuilder::new()
+        .with_height(BlockNumber(0))
+        .with_txs([])
+        .with_cancellation_requests([])
+        .build();
+
+    expected_provider_with_all_txs_cancelled.assert_eq(&provider);
+}
+
+#[test]
+fn multiple_cancellations_same_height() {
+    // Setup.
+
+    let tx1 = l1_handler(1);
+    let tx2 = l1_handler(2);
+    let tx3 = l1_handler(3);
+    const TIMELOCK: BlockNumber = BlockNumber(0); // Applied immediately.
+    const CANCELLATION_ARRIVED_AT: BlockNumber = BlockNumber(0);
+    let cancellations = [(CANCELLATION_ARRIVED_AT, vec![tx1.tx_hash, tx3.tx_hash])];
+    let mut provider = L1ProviderContentBuilder::new()
+        .with_cancellation_requests(cancellations)
+        .with_txs([tx1.clone(), tx2.clone(), tx3.clone()])
+        .with_config_cancellation_timelock_config(TIMELOCK)
+        .build_into_l1_provider();
+
+    // Test.
+    provider.start_block(provider.current_height, ProposeSession).unwrap();
+
+    // Cancellation not applied during the proposal.
+    let expected = L1ProviderContentBuilder::new().with_txs([tx2.clone()]).build();
+    expected.assert_eq(&provider);
+}
