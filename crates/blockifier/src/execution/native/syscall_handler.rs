@@ -37,9 +37,9 @@ use crate::execution::entry_point::{
 use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::native::utils::{calculate_resource_bounds, default_tx_v2_info};
 use crate::execution::secp;
+use crate::execution::syscalls::common_syscall_logic::base_keccak;
 use crate::execution::syscalls::hint_processor::{SyscallExecutionError, OUT_OF_GAS_ERROR};
 use crate::execution::syscalls::syscall_base::SyscallHandlerBase;
-use crate::execution::syscalls::syscall_executor::base_keccak;
 use crate::state::state_api::State;
 use crate::transaction::objects::TransactionInfo;
 use crate::utils::u64_from_usize;
