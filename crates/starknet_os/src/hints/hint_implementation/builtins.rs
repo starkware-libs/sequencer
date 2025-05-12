@@ -42,7 +42,7 @@ pub(crate) fn select_builtin<S: StateReader>(
         exec_scopes.insert_value(Scope::NSelectedBuiltins.into(), n_selected_builtins - Felt::ONE);
     }
     insert_value_from_var_name(
-        Ids::NSelectedBuiltins.into(),
+        Ids::SelectBuiltin.into(),
         Felt::from(select_builtin),
         vm,
         ids_data,
