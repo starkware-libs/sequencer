@@ -59,10 +59,6 @@ impl SoftDeleteIndexMap {
         Some(&entry.transaction)
     }
 
-    pub fn get_transaction(&self, tx_hash: &TransactionHash) -> Option<&L1HandlerTransaction> {
-        self.txs.get(tx_hash).map(|entry| &entry.transaction)
-    }
-
     /// Rolls back all staged transactions, converting them to unstaged.
     pub fn rollback_staging(&mut self) {
         for tx_hash in self.staged_txs.drain() {
@@ -72,6 +68,22 @@ impl SoftDeleteIndexMap {
 
     pub fn is_staged(&self, tx_hash: &TransactionHash) -> bool {
         self.staged_txs.contains(tx_hash)
+    }
+
+    pub fn contains(&self, tx_hash: &TransactionHash) -> bool {
+        self.txs.contains_key(tx_hash)
+    }
+
+    pub fn remove_unstaged_tx(
+        &mut self,
+        tx_hash: &TransactionHash,
+    ) -> Option<L1HandlerTransaction> {
+        // Don't purge staged transactions.
+        if self.is_staged(tx_hash) {
+            return None;
+        }
+
+        self.txs.shift_remove(tx_hash).map(|entry| entry.transaction)
     }
 }
 

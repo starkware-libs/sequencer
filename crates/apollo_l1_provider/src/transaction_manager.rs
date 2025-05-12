@@ -107,12 +107,26 @@ impl TransactionManager {
         tx_hashes.iter().all(|tx| self.committed.contains(tx))
     }
 
-    pub fn contains(&self, _tx_hash: &TransactionHash) -> bool {
-        todo!("Return if exists in any buffer.")
+    pub fn contains(&self, tx_hash: &TransactionHash) -> bool {
+        self.uncommitted.contains(tx_hash)
+            || self.rejected.contains(tx_hash)
+            || self.committed.contains(tx_hash)
     }
 
-    pub fn cancel(&mut self, _tx_hash: TransactionHash) -> CancelStatus {
-        todo!("Return CancelStatus")
+    pub fn cancel(&mut self, tx_hash: TransactionHash) -> CancelStatus {
+        if self.committed.contains(&tx_hash) || self.rejected.contains(&tx_hash) {
+            return CancelStatus::AlreadyProcessed;
+        }
+
+        if self.uncommitted.is_staged(&tx_hash) {
+            return CancelStatus::Staged;
+        }
+
+        if let Some(tx) = self.uncommitted.remove_unstaged_tx(&tx_hash) {
+            return CancelStatus::Canceled(tx);
+        }
+
+        CancelStatus::Unknown
     }
 }
 
