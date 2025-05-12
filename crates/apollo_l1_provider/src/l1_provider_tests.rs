@@ -63,6 +63,10 @@ impl From<L1ProviderContent> for L1Provider {
             // is functionally equivalent to Pending for testing purposes.
             state: content.state.unwrap_or(ProviderState::Pending),
             current_height: content.current_height.unwrap_or_default(),
+            // TODO(Gilad): will soon be replaced by the real values.
+            config: Default::default(),
+            // TODO(Gilad): will soon be replaced by the real values.
+            cancellation_requests: Default::default(),
         }
     }
 }

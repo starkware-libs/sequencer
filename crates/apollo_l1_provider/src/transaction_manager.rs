@@ -106,4 +106,19 @@ impl TransactionManager {
     pub fn committed_includes(&self, tx_hashes: &[TransactionHash]) -> bool {
         tx_hashes.iter().all(|tx| self.committed.contains(tx))
     }
+
+    pub fn contains(&self, _tx_hash: &TransactionHash) -> bool {
+        todo!("Return if exists in any buffer.")
+    }
+
+    pub fn cancel(&mut self, _tx_hash: TransactionHash) -> CancelStatus {
+        todo!("Return CancelStatus")
+    }
+}
+
+pub enum CancelStatus {
+    Canceled(L1HandlerTransaction),
+    AlreadyProcessed, // Committed or Rejected.
+    Staged,
+    Unknown,
 }

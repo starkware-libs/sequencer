@@ -1,5 +1,5 @@
 use std::cmp::Ordering::{Equal, Greater, Less};
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
 use apollo_batcher_types::communication::SharedBatcherClient;
@@ -19,7 +19,7 @@ use starknet_api::transaction::TransactionHash;
 use tracing::{debug, error, info, instrument, trace, warn};
 
 use crate::bootstrapper::Bootstrapper;
-use crate::transaction_manager::TransactionManager;
+use crate::transaction_manager::{CancelStatus, TransactionManager};
 use crate::{L1ProviderConfig, ProviderState};
 
 #[cfg(test)]
@@ -30,12 +30,16 @@ pub mod l1_provider_tests;
 // here is compatible with it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct L1Provider {
+    pub config: L1ProviderConfig,
     /// Represents the L2 block height being built.
     pub current_height: BlockNumber,
     pub tx_manager: TransactionManager,
     // TODO(Gilad): consider transitioning to a generic phantom state once the infra is stabilized
     // and we see how well it handles consuming the L1Provider when moving between states.
     pub state: ProviderState,
+    // Invariant: Every entry value must correspond to a transaction currently present inside
+    // the transaction manager.
+    cancellation_requests: BTreeMap<BlockNumber, Vec<TransactionHash>>,
 }
 
 impl L1Provider {
@@ -48,6 +52,10 @@ impl L1Provider {
         self.validate_height(height)?;
         self.state = state.into();
         self.tx_manager.start_block();
+
+        // Try to apply all cancellations past their timelock, doing this after `start_block` above
+        // to ensure staged txs are rolled-back (we don't want to cancel staged txs).
+        self.apply_due_cancellations();
         Ok(())
     }
 
@@ -258,6 +266,43 @@ impl L1Provider {
 
         self.current_height = self.current_height.unchecked_next();
     }
+
+    /// Consumes all cancellation requests that are due for the current height.
+    /// Uncommitted transactions with cancellation requests are purged.
+    fn apply_due_cancellations(&mut self) {
+        // TODO(Gilad): i think it's time to add `add` to BlockNumber...
+        let due_cancellations_height = BlockNumber(
+            self.current_height.0.saturating_sub(self.config.cancellation_timelock_in_blocks.0),
+        )
+        .unchecked_next(); // in order to include the current block, for example if timelock is 0.
+
+        // Efficiently extract the prefix of cancellations up to the calculated height.
+        let still_timelocked = self.cancellation_requests.split_off(&(due_cancellations_height));
+        let due_cancellations =
+            std::mem::replace(&mut self.cancellation_requests, still_timelocked);
+
+        for tx_hash in due_cancellations.into_values().flatten() {
+            match self.tx_manager.cancel(tx_hash) {
+                CancelStatus::Canceled(_tx) => {
+                    debug!("L1HandlerTransaction {tx_hash} cancelled.")
+                }
+                CancelStatus::AlreadyProcessed => debug!(
+                    "Cancellation request for L1HandlerTransaction {tx_hash} dropped, already \
+                     processed on L2."
+                ),
+                CancelStatus::Staged => panic!(
+                    "Fatal error: attempted to cancel an L1HandlerTransaction already sent to the \
+                     Batcher."
+                ),
+                CancelStatus::Unknown => {
+                    error!(
+                        "Received cancellation for unknown transaction. Dropping cancellation \
+                         request."
+                    )
+                }
+            }
+        }
+    }
 }
 
 impl ComponentStarter for L1Provider {}
@@ -341,9 +386,11 @@ impl L1ProviderBuilder {
         );
 
         L1Provider {
+            config: self.config,
             current_height: l1_provider_startup_height,
             tx_manager: TransactionManager::default(),
             state: ProviderState::Bootstrap(bootstrapper),
+            cancellation_requests: Default::default(),
         }
     }
 }
