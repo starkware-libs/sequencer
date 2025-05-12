@@ -802,7 +802,7 @@ async fn oracle_fails_on_startup(#[case] l1_oracle_failure: bool) {
             l1_prices_oracle_client.expect_get_price_info().times(1).return_const(Err(
                 L1GasPriceClientError::L1GasPriceProviderError(
                     // random error, these parameters don't mean anything
-                    L1GasPriceProviderError::UnexpectedHeightError { expected: 0, found: 1 },
+                    L1GasPriceProviderError::UnexpectedBlockNumberError { expected: 0, found: 1 },
                 ),
             ));
             let eth_to_strk_orcale_client = dummy_eth_to_strk_oracle_client();
@@ -899,7 +899,7 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
             l1_prices_oracle_client.expect_get_price_info().times(1).return_const(Err(
                 L1GasPriceClientError::L1GasPriceProviderError(
                     // random error, these parameters don't mean anything
-                    L1GasPriceProviderError::UnexpectedHeightError { expected: 0, found: 1 },
+                    L1GasPriceProviderError::UnexpectedBlockNumberError { expected: 0, found: 1 },
                 ),
             ));
             let eth_to_strk_orcale_client = dummy_eth_to_strk_oracle_client();

@@ -24,7 +24,7 @@ pub type L1GasPriceProviderClientResult<T> = Result<T, L1GasPriceClientError>;
 
 #[derive(Clone, Debug)]
 pub struct GasPriceData {
-    pub height: L1BlockNumber,
+    pub block_number: L1BlockNumber,
     pub sample: PriceSample,
 }
 
@@ -55,7 +55,7 @@ impl_debug_for_infra_requests_and_responses!(L1GasPriceResponse);
 pub trait L1GasPriceProviderClient: Send + Sync {
     async fn add_price_info(
         &self,
-        height: L1BlockNumber,
+        block_number: L1BlockNumber,
         sample: PriceSample,
     ) -> L1GasPriceProviderClientResult<()>;
 
@@ -80,10 +80,10 @@ where
     #[instrument(skip(self))]
     async fn add_price_info(
         &self,
-        height: L1BlockNumber,
+        block_number: L1BlockNumber,
         sample: PriceSample,
     ) -> L1GasPriceProviderClientResult<()> {
-        let request = L1GasPriceRequest::AddGasPrice(height, sample);
+        let request = L1GasPriceRequest::AddGasPrice(block_number, sample);
         handle_all_response_variants!(
             L1GasPriceResponse,
             AddGasPrice,

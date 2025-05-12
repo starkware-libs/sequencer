@@ -4,8 +4,8 @@ use thiserror::Error;
 
 #[derive(Clone, Debug, Error, PartialEq, Eq, Serialize, Deserialize)]
 pub enum L1GasPriceProviderError {
-    #[error("Block height is not consecutive: expected {expected}, got {found}")]
-    UnexpectedHeightError { expected: u64, found: u64 },
+    #[error("Block number is not consecutive: expected {expected}, got {found}")]
+    UnexpectedBlockNumberError { expected: u64, found: u64 },
     #[error("No price data saved for blocks starting at {timestamp} - {lag} seconds")]
     MissingDataError { timestamp: u64, lag: u64 },
     #[error("Insufficient block price history: expected at least {expected}, found only {found}")]
