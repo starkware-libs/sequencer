@@ -12,7 +12,7 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, TransactionSignature};
 use starknet_api::transaction::{EventContent, EventData, EventKey, L2ToL1Payload};
-use starknet_types_core::felt::Felt;
+use starknet_types_core::felt::{Felt, FromStrError};
 
 use crate::blockifier_versioned_constants::{EventLimits, VersionedConstants};
 use crate::execution::call_info::MessageToL1;
@@ -654,7 +654,7 @@ where
     if gas_counter < required_gas {
         //  Out of gas failure.
         let out_of_gas_error =
-            Felt::from_hex(OUT_OF_GAS_ERROR).map_err(SyscallExecutionError::from)?;
+            Felt::from_hex(OUT_OF_GAS_ERROR).map_err(SyscallExecutorBaseError::from)?;
         let response: SyscallResponseWrapper<Response> =
             SyscallResponseWrapper::Failure { gas_counter, error_data: vec![out_of_gas_error] };
         response.write(vm, syscall_executor.get_mut_syscall_ptr())?;
@@ -722,6 +722,8 @@ pub enum SyscallExecutorBaseError {
     #[error(transparent)]
     DeprecatedSyscallExecution(#[from] DeprecatedSyscallExecutionError),
     #[error(transparent)]
+    FromStr(#[from] FromStrError),
+    #[error(transparent)]
     Hint(#[from] HintError),
     #[error("Invalid syscall input: {input:?}; {info}")]
     InvalidSyscallInput { input: Felt, info: String },
@@ -734,3 +736,11 @@ pub enum SyscallExecutorBaseError {
 }
 
 pub type SyscallBaseResult<T> = Result<T, SyscallExecutorBaseError>;
+
+// Needed for custom hint implementations (in our case, syscall hints) which must comply with the
+// cairo-rs API.
+impl From<SyscallExecutorBaseError> for HintError {
+    fn from(error: SyscallExecutorBaseError) -> Self {
+        HintError::Internal(VirtualMachineError::Other(error.into()))
+    }
+}
