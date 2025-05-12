@@ -11,7 +11,7 @@ use itertools::chain;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use tempfile::TempDir;
+use tempfile::{NamedTempFile, TempDir};
 use validator::Validate;
 
 use crate::command::{get_command_matches, update_config_map_by_command_args};
@@ -638,6 +638,53 @@ fn test_load_many_custom_config_files() {
     let args = vec!["Testing", "-f", cli_config_param.as_str()];
     let param_path = load_custom_config(args).param_path;
     assert_eq!(param_path, "custom value");
+}
+
+// Make sure that if we have a field `foo_bar` and an optional field called `foo` with a value of
+// None, we don't remove the foo_bar field from the config.
+// This test was added following bug #37984 (see bug for more details).
+#[test]
+fn load_config_allows_optional_fields_can_be_prefixes_of_other_fields() {
+    #[derive(Clone, Default, Serialize, Deserialize, Debug, PartialEq)]
+    struct ConfigWithOptionalAndPrefixField {
+        foo: Option<String>,
+        foo_non_optional: String,
+    }
+    impl SerializeConfig for ConfigWithOptionalAndPrefixField {
+        fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+            let mut res = BTreeMap::from([ser_param(
+                "foo_non_optional",
+                &self.foo_non_optional,
+                "This is foo_non_optional.",
+                ParamPrivacyInput::Public,
+            )]);
+            res.extend(ser_optional_param(
+                &self.foo,
+                "foo".to_string(),
+                "foo",
+                "This is foo.",
+                ParamPrivacyInput::Public,
+            ));
+            res
+        }
+    }
+
+    let config_file = NamedTempFile::new().expect("Failed to create test config file");
+    let file_path = config_file.path();
+    ConfigWithOptionalAndPrefixField {
+        foo: None,
+        foo_non_optional: "bar non optional".to_string(),
+    }
+    .dump_to_file(&vec![], &HashSet::new(), file_path.to_str().unwrap())
+    .unwrap();
+
+    load_and_process_config::<ConfigWithOptionalAndPrefixField>(
+        File::open(file_path).unwrap(),
+        Command::new("Program"),
+        vec![],
+        false,
+    )
+    .expect("Unexpected error from loading test config.");
 }
 
 #[test]
