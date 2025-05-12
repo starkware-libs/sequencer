@@ -17,8 +17,8 @@ use apollo_config::validators::config_validate;
 use apollo_network::network_manager::NetworkManager;
 use apollo_network::{network_manager, NetworkConfig};
 use apollo_p2p_sync::client::{P2pSyncClient, P2pSyncClientChannels};
-use apollo_p2p_sync::server::{P2pSyncServer, P2pSyncServerChannels};
-use apollo_p2p_sync::{Protocol, BUFFER_SIZE};
+use apollo_p2p_sync::server::{P2pSyncServer, P2pSyncServerChannels, P2pSyncServerConfig};
+use apollo_p2p_sync::Protocol;
 #[cfg(feature = "rpc")]
 use apollo_rpc::run_server;
 use apollo_starknet_client::reader::objects::pending_data::{
@@ -240,14 +240,15 @@ async fn spawn_sync_client(
         (None, Some(p2p_sync_client_config)) => {
             let network_manager = maybe_network_manager
                 .expect("If p2p sync is enabled, network needs to be enabled too");
+            let buffer_size = p2p_sync_client_config.buffer_size;
             let header_client_sender = network_manager
-                .register_sqmr_protocol_client(Protocol::SignedBlockHeader.into(), BUFFER_SIZE);
+                .register_sqmr_protocol_client(Protocol::SignedBlockHeader.into(), buffer_size);
             let state_diff_client_sender = network_manager
-                .register_sqmr_protocol_client(Protocol::StateDiff.into(), BUFFER_SIZE);
+                .register_sqmr_protocol_client(Protocol::StateDiff.into(), buffer_size);
             let transaction_client_sender = network_manager
-                .register_sqmr_protocol_client(Protocol::Transaction.into(), BUFFER_SIZE);
+                .register_sqmr_protocol_client(Protocol::Transaction.into(), buffer_size);
             let class_client_sender =
-                network_manager.register_sqmr_protocol_client(Protocol::Class.into(), BUFFER_SIZE);
+                network_manager.register_sqmr_protocol_client(Protocol::Class.into(), buffer_size);
             let p2p_sync_client_channels = P2pSyncClientChannels::new(
                 header_client_sender,
                 state_diff_client_sender,
@@ -268,6 +269,7 @@ async fn spawn_sync_client(
 }
 
 fn spawn_p2p_sync_server(
+    config: &NodeConfig,
     network_manager: Option<&mut NetworkManager>,
     storage_reader: StorageReader,
     class_manager_client: SharedClassManagerClient,
@@ -277,16 +279,18 @@ fn spawn_p2p_sync_server(
         return tokio::spawn(future::pending());
     };
 
+    let P2pSyncServerConfig { buffer_size } = config.p2p_sync_server;
+
     let header_server_receiver = network_manager
-        .register_sqmr_protocol_server(Protocol::SignedBlockHeader.into(), BUFFER_SIZE);
+        .register_sqmr_protocol_server(Protocol::SignedBlockHeader.into(), buffer_size);
     let state_diff_server_receiver =
-        network_manager.register_sqmr_protocol_server(Protocol::StateDiff.into(), BUFFER_SIZE);
+        network_manager.register_sqmr_protocol_server(Protocol::StateDiff.into(), buffer_size);
     let transaction_server_receiver =
-        network_manager.register_sqmr_protocol_server(Protocol::Transaction.into(), BUFFER_SIZE);
+        network_manager.register_sqmr_protocol_server(Protocol::Transaction.into(), buffer_size);
     let class_server_receiver =
-        network_manager.register_sqmr_protocol_server(Protocol::Class.into(), BUFFER_SIZE);
+        network_manager.register_sqmr_protocol_server(Protocol::Class.into(), buffer_size);
     let event_server_receiver =
-        network_manager.register_sqmr_protocol_server(Protocol::Event.into(), BUFFER_SIZE);
+        network_manager.register_sqmr_protocol_server(Protocol::Event.into(), buffer_size);
 
     let p2p_sync_server_channels = P2pSyncServerChannels::new(
         header_server_receiver,
@@ -348,6 +352,7 @@ async fn run_threads(
         handle
     } else {
         spawn_p2p_sync_server(
+            &config,
             resources.maybe_network_manager.as_mut(),
             resources.storage_reader.clone(),
             resources.class_manager_client.clone(),
