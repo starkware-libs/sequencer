@@ -3,8 +3,6 @@ pub mod server;
 
 use enum_iterator::Sequence;
 
-pub const BUFFER_SIZE: usize = 100000;
-
 /// The p2p sync protocol names needed for negotiation, as they appear in the p2p specs
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Sequence)]
 pub enum Protocol {
