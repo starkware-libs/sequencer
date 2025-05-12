@@ -7,7 +7,7 @@ use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_traits::ToPrimitive;
 use starknet_api::execution_resources::GasAmount;
-use starknet_types_core::felt::Felt;
+use starknet_types_core::felt::{Felt, FromStrError};
 
 use crate::blockifier_versioned_constants::{GasCostsError, SyscallGasCost};
 use crate::execution::common_hints::HintExecutionResult;
@@ -518,6 +518,8 @@ pub fn execute_next_syscall<T: SyscallExecutor>(
 pub enum SyscallExecutorBaseError {
     #[error(transparent)]
     DeprecatedSyscallExecution(#[from] DeprecatedSyscallExecutionError),
+    #[error(transparent)]
+    FromStr(#[from] FromStrError),
     #[error(transparent)]
     Hint(#[from] HintError),
     #[error("Invalid syscall input: {input:?}; {info}")]
