@@ -12,6 +12,7 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, TransactionSignature};
 use starknet_api::transaction::{EventContent, EventData, EventKey, L2ToL1Payload};
+use starknet_api::StarknetApiError;
 use starknet_types_core::felt::{Felt, FromStrError};
 
 use crate::blockifier_versioned_constants::{EventLimits, VersionedConstants};
@@ -731,6 +732,8 @@ pub enum SyscallExecutorBaseError {
     Math(#[from] MathError),
     #[error(transparent)]
     Memory(#[from] MemoryError),
+    #[error(transparent)]
+    StarknetApi(#[from] StarknetApiError),
     #[error(transparent)]
     VirtualMachine(#[from] VirtualMachineError),
 }
