@@ -396,7 +396,9 @@ impl SyscallRequest for StorageReadRequest {
     fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<StorageReadRequest> {
         let address_domain = felt_from_ptr(vm, ptr)?;
         if address_domain != Felt::ZERO {
-            return Err(SyscallExecutionError::InvalidAddressDomain { address_domain });
+            return Err(SyscallExecutionError::from(
+                SyscallExecutorBaseError::InvalidAddressDomain { address_domain },
+            ));
         }
         let address = StorageKey::try_from(felt_from_ptr(vm, ptr)?)?;
         Ok(StorageReadRequest { address_domain, address })
@@ -428,7 +430,9 @@ impl SyscallRequest for StorageWriteRequest {
     fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<StorageWriteRequest> {
         let address_domain = felt_from_ptr(vm, ptr)?;
         if address_domain != Felt::ZERO {
-            return Err(SyscallExecutionError::InvalidAddressDomain { address_domain });
+            return Err(SyscallExecutionError::from(
+                SyscallExecutorBaseError::InvalidAddressDomain { address_domain },
+            ));
         }
         let address = StorageKey::try_from(felt_from_ptr(vm, ptr)?)?;
         let value = felt_from_ptr(vm, ptr)?;
@@ -520,7 +524,6 @@ impl SyscallResponse for GetClassHashAtResponse {
         Ok(())
     }
 }
-
 // Execution.
 
 pub(crate) fn execute_syscall_from_selector<T: SyscallExecutor>(
@@ -726,6 +729,8 @@ pub enum SyscallExecutorBaseError {
     FromStr(#[from] FromStrError),
     #[error(transparent)]
     Hint(#[from] HintError),
+    #[error("Invalid address domain: {address_domain}.")]
+    InvalidAddressDomain { address_domain: Felt },
     #[error("Invalid syscall input: {input:?}; {info}")]
     InvalidSyscallInput { input: Felt, info: String },
     #[error(transparent)]
