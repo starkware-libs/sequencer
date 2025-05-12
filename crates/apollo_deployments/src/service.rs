@@ -216,11 +216,12 @@ impl ServiceName {
         additional_config_filenames: Vec<String>,
         ingress_params: IngressParams,
     ) -> Service {
-        self.as_inner().create_service(
-            environment,
-            external_secret,
+        Service::new(
+            Into::<ServiceName>::into(*self),
+            external_secret.clone(),
             additional_config_filenames,
-            ingress_params,
+            ingress_params.clone(),
+            environment.clone(),
         )
     }
 
@@ -266,14 +267,6 @@ impl ServiceName {
 }
 
 pub(crate) trait ServiceNameInner: Display {
-    fn create_service(
-        &self,
-        environment: &Environment,
-        external_secret: &Option<ExternalSecret>,
-        additional_config_filenames: Vec<String>,
-        ingress_params: IngressParams,
-    ) -> Service;
-
     fn get_controller(&self) -> Controller;
 
     fn get_autoscale(&self) -> bool;

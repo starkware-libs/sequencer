@@ -12,13 +12,11 @@ use crate::deployment_definitions::{Environment, EnvironmentComponentConfigModif
 use crate::service::{
     get_ingress,
     Controller,
-    ExternalSecret,
     GetComponentConfigs,
     Ingress,
     IngressParams,
     Resource,
     Resources,
-    Service,
     ServiceName,
     ServiceNameInner,
     Toleration,
@@ -53,36 +51,6 @@ impl GetComponentConfigs for ConsolidatedNodeServiceName {
 }
 
 impl ServiceNameInner for ConsolidatedNodeServiceName {
-    fn create_service(
-        &self,
-        environment: &Environment,
-        external_secret: &Option<ExternalSecret>,
-        additional_config_filenames: Vec<String>,
-        ingress_params: IngressParams,
-    ) -> Service {
-        match environment {
-            Environment::Testing => match self {
-                ConsolidatedNodeServiceName::Node => Service::new(
-                    Into::<ServiceName>::into(*self),
-                    external_secret.clone(),
-                    additional_config_filenames,
-                    ingress_params.clone(),
-                    environment.clone(),
-                ),
-            },
-            Environment::SepoliaIntegration => match self {
-                ConsolidatedNodeServiceName::Node => Service::new(
-                    Into::<ServiceName>::into(*self),
-                    external_secret.clone(),
-                    additional_config_filenames,
-                    ingress_params.clone(),
-                    environment.clone(),
-                ),
-            },
-            _ => unimplemented!(),
-        }
-    }
-
     fn get_controller(&self) -> Controller {
         match self {
             ConsolidatedNodeServiceName::Node => Controller::StatefulSet,
