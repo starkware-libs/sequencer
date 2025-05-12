@@ -24,6 +24,8 @@ use crate::service::{
     Toleration,
 };
 
+const NODE_STORAGE: usize = 1000;
+
 #[derive(Clone, Copy, Debug, Display, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter)]
 #[strum(serialize_all = "snake_case")]
 pub enum ConsolidatedNodeServiceName {
@@ -63,7 +65,6 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
                 ConsolidatedNodeServiceName::Node => Service::new(
                     Into::<ServiceName>::into(*self),
                     1,
-                    Some(32),
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
@@ -75,7 +76,6 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
                 ConsolidatedNodeServiceName::Node => Service::new(
                     Into::<ServiceName>::into(*self),
                     1,
-                    Some(500),
                     Resources::new(Resource::new(2, 4), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
@@ -121,6 +121,16 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
             Environment::SepoliaIntegration
             | Environment::TestingEnvTwo
             | Environment::TestingEnvThree => get_ingress(ingress_params, false),
+            _ => unimplemented!(),
+        }
+    }
+
+    fn get_storage(&self, environment: &Environment) -> Option<usize> {
+        match environment {
+            Environment::Testing => None,
+            Environment::SepoliaIntegration
+            | Environment::TestingEnvTwo
+            | Environment::TestingEnvThree => Some(NODE_STORAGE),
             _ => unimplemented!(),
         }
     }
