@@ -150,7 +150,6 @@ impl Service {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         name: ServiceName,
-        replicas: usize,
         external_secret: Option<ExternalSecret>,
         mut additional_config_filenames: Vec<String>,
         ingress_params: IngressParams,
@@ -170,6 +169,7 @@ impl Service {
         let ingress = name.get_ingress(&environment, ingress_params);
         let storage = name.get_storage(&environment);
         let resources = name.get_resources(&environment);
+        let replicas = name.get_replicas(&environment);
         Self {
             name,
             config_paths,
@@ -259,6 +259,10 @@ impl ServiceName {
     pub fn get_resources(&self, environment: &Environment) -> Resources {
         self.as_inner().get_resources(environment)
     }
+
+    pub fn get_replicas(&self, environment: &Environment) -> usize {
+        self.as_inner().get_replicas(environment)
+    }
 }
 
 pub(crate) trait ServiceNameInner: Display {
@@ -285,6 +289,8 @@ pub(crate) trait ServiceNameInner: Display {
     fn get_storage(&self, environment: &Environment) -> Option<usize>;
 
     fn get_resources(&self, environment: &Environment) -> Resources;
+
+    fn get_replicas(&self, environment: &Environment) -> usize;
 }
 
 impl DeploymentName {

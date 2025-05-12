@@ -64,7 +64,6 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
             Environment::Testing => match self {
                 ConsolidatedNodeServiceName::Node => Service::new(
                     Into::<ServiceName>::into(*self),
-                    1,
                     external_secret.clone(),
                     additional_config_filenames,
                     ingress_params.clone(),
@@ -74,7 +73,6 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
             Environment::SepoliaIntegration => match self {
                 ConsolidatedNodeServiceName::Node => Service::new(
                     Into::<ServiceName>::into(*self),
-                    1,
                     external_secret.clone(),
                     additional_config_filenames,
                     ingress_params.clone(),
@@ -143,6 +141,10 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
             }
             _ => unimplemented!(),
         }
+    }
+
+    fn get_replicas(&self, _environment: &Environment) -> usize {
+        1
     }
 }
 
