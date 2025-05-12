@@ -205,6 +205,7 @@ define_string_enum! {
         (Res),
         (Retdata),
         (RetdataSize),
+        (SelectBuiltin),
         (SelectedEncodings),
         (SelectedPtrs),
         (SenderAddress),
