@@ -17,7 +17,8 @@ const INGRESS_PORT: u16 = 8080;
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Service {
-    name: ServiceName,
+    #[serde(rename = "name")]
+    service_name: ServiceName,
     // TODO(Tsabary): change config path to PathBuf type.
     controller: Controller,
     config_paths: Vec<String>,
@@ -149,7 +150,7 @@ impl Resources {
 impl Service {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        name: ServiceName,
+        service_name: ServiceName,
         external_secret: Option<ExternalSecret>,
         mut additional_config_filenames: Vec<String>,
         ingress_params: IngressParams,
@@ -160,18 +161,18 @@ impl Service {
         // We first list the base config, and then follow with the overrides.
         // TODO(Tsabary): the service override is currently engrained in the base config, need to
         // resolve that.
-        let mut config_paths: Vec<String> = vec![name.get_config_file_path()];
+        let mut config_paths: Vec<String> = vec![service_name.get_config_file_path()];
         config_paths.append(&mut additional_config_filenames);
 
-        let controller = name.get_controller();
-        let autoscale = name.get_autoscale();
-        let toleration = name.get_toleration(&environment);
-        let ingress = name.get_ingress(&environment, ingress_params);
-        let storage = name.get_storage(&environment);
-        let resources = name.get_resources(&environment);
-        let replicas = name.get_replicas(&environment);
+        let controller = service_name.get_controller();
+        let autoscale = service_name.get_autoscale();
+        let toleration = service_name.get_toleration(&environment);
+        let ingress = service_name.get_ingress(&environment, ingress_params);
+        let storage = service_name.get_storage(&environment);
+        let resources = service_name.get_resources(&environment);
+        let replicas = service_name.get_replicas(&environment);
         Self {
-            name,
+            service_name,
             config_paths,
             controller,
             ingress,
