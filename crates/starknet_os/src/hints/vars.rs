@@ -370,8 +370,8 @@ define_string_enum! {
             "starkware.starknet.core.os.execution.execute_entry_point.EntryPointReturnValues*"
         ),
         (
-            ExecutionContext,
-            "starkware.starknet.core.os.execution.execute_entry_point.ExecutionContext"
+            ExecutionContextPtr,
+            "starkware.starknet.core.os.execution.execute_entry_point.ExecutionContext*"
         ),
         (HashBuiltin, "starkware.cairo.common.cairo_builtins.HashBuiltin"),
         (HashBuiltinPtr, "starkware.cairo.common.cairo_builtins.HashBuiltin*"),
