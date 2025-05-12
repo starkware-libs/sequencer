@@ -87,6 +87,16 @@ pub(crate) fn get_ingress(ingress_params: IngressParams, internal: bool) -> Opti
     ))
 }
 
+pub(crate) fn get_environment_ingress_internal(environment: &Environment) -> bool {
+    match environment {
+        Environment::Testing => true,
+        Environment::SepoliaIntegration
+        | Environment::TestingEnvTwo
+        | Environment::TestingEnvThree => false,
+        _ => unimplemented!(),
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct IngressRule {
     path: String,

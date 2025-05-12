@@ -12,6 +12,7 @@ use strum_macros::{AsRefStr, EnumIter};
 
 use crate::deployment_definitions::{Environment, EnvironmentComponentConfigModifications};
 use crate::service::{
+    get_environment_ingress_internal,
     get_ingress,
     Controller,
     ExternalSecret,
@@ -257,14 +258,7 @@ impl ServiceNameInner for HybridNodeServiceName {
         match self {
             HybridNodeServiceName::Core => None,
             HybridNodeServiceName::HttpServer => {
-                let internal = match environment {
-                    Environment::Testing => true,
-                    Environment::SepoliaIntegration
-                    | Environment::TestingEnvTwo
-                    | Environment::TestingEnvThree => false,
-                    _ => unimplemented!(),
-                };
-                get_ingress(ingress_params, internal)
+                get_ingress(ingress_params, get_environment_ingress_internal(environment))
             }
             HybridNodeServiceName::Gateway => None,
             HybridNodeServiceName::Mempool => None,
