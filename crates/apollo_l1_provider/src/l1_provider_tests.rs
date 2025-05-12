@@ -108,6 +108,11 @@ impl L1ProviderContentBuilder {
         self
     }
 
+    pub fn with_staged_txs(mut self, txs: impl IntoIterator<Item = L1HandlerTransaction>) -> Self {
+        self.tx_manager_content_builder = self.tx_manager_content_builder.with_staged_txs(txs);
+        self
+    }
+
     pub fn with_txs(mut self, txs: impl IntoIterator<Item = L1HandlerTransaction>) -> Self {
         self.tx_manager_content_builder = self.tx_manager_content_builder.with_txs(txs);
         self
@@ -166,6 +171,7 @@ impl L1ProviderContentBuilder {
 #[derive(Debug, Default)]
 struct TransactionManagerContent {
     pub uncommitted: Option<Vec<L1HandlerTransaction>>,
+    pub staged: Option<Vec<L1HandlerTransaction>>,
     pub rejected: Option<Vec<L1HandlerTransaction>>,
     pub committed: Option<HashSet<TransactionHash>>,
 }
@@ -177,6 +183,13 @@ impl TransactionManagerContent {
             assert_eq!(
                 uncommitted,
                 &tx_manager.uncommitted.txs.values().map(|tx| tx.transaction.clone()).collect_vec()
+            );
+        }
+
+        if let Some(staged) = &self.staged {
+            assert_eq!(
+                HashSet::from_iter(staged.iter().map(|tx| tx.tx_hash)),
+                tx_manager.uncommitted.staged_txs
             );
         }
 
@@ -196,8 +209,21 @@ impl TransactionManagerContent {
 impl From<TransactionManagerContent> for TransactionManager {
     fn from(mut content: TransactionManagerContent) -> TransactionManager {
         let txs: Vec<_> = mem::take(&mut content.uncommitted).unwrap_or_default();
+        let mut uncommitted = SoftDeleteIndexMap::from(txs);
+        for staged_tx in content.staged.unwrap_or_default() {
+            let staged_tx_hash = staged_tx.tx_hash;
+            let insert_result = uncommitted.insert(staged_tx);
+            assert!(
+                insert_result,
+                "{staged_tx_hash:?} should appear either in txs xor in staged_txs."
+            );
+
+            // Stage tx.
+            uncommitted.soft_remove(staged_tx_hash);
+        }
+
         TransactionManager {
-            uncommitted: SoftDeleteIndexMap::from(txs),
+            uncommitted,
             committed: content.committed.unwrap_or_default(),
             rejected: SoftDeleteIndexMap::default(),
         }
@@ -207,6 +233,7 @@ impl From<TransactionManagerContent> for TransactionManager {
 #[derive(Debug, Default)]
 struct TransactionManagerContentBuilder {
     uncommitted: Option<Vec<L1HandlerTransaction>>,
+    staged: Option<Vec<L1HandlerTransaction>>,
     rejected: Option<Vec<L1HandlerTransaction>>,
     committed: Option<HashSet<TransactionHash>>,
 }
@@ -214,6 +241,11 @@ struct TransactionManagerContentBuilder {
 impl TransactionManagerContentBuilder {
     fn with_txs(mut self, txs: impl IntoIterator<Item = L1HandlerTransaction>) -> Self {
         self.uncommitted = Some(txs.into_iter().collect());
+        self
+    }
+
+    fn with_staged_txs(mut self, txs: impl IntoIterator<Item = L1HandlerTransaction>) -> Self {
+        self.staged = Some(txs.into_iter().collect());
         self
     }
 
@@ -234,14 +266,19 @@ impl TransactionManagerContentBuilder {
 
         Some(TransactionManagerContent {
             uncommitted: self.uncommitted,
+            staged: self.staged,
             committed: self.committed,
             rejected: self.rejected,
         })
     }
 
     fn is_default(&self) -> bool {
-        self.uncommitted.is_none() && self.committed.is_none()
+        self.uncommitted.is_none() && self.committed.is_none() && self.staged.is_none()
     }
+}
+
+const fn add_blocknumber(a: BlockNumber, b: BlockNumber) -> BlockNumber {
+    BlockNumber(a.0 + b.0)
 }
 
 fn setup_rejected_transactions() -> super::L1Provider {
@@ -802,5 +839,144 @@ fn multiple_cancellations_same_height() {
 
     // Cancellation not applied during the proposal.
     let expected = L1ProviderContentBuilder::new().with_txs([tx2.clone()]).build();
+    expected.assert_eq(&provider);
+}
+
+#[test]
+fn cancellation_withheld_during_validate() {
+    // Setup.
+
+    let tx = l1_handler(1);
+    const TIMELOCK: BlockNumber = BlockNumber(2);
+    const CANCELLATION_ARRIVED_AT: BlockNumber = BlockNumber(0);
+    let cancellations = [(CANCELLATION_ARRIVED_AT, vec![tx.tx_hash])];
+    const HEIGHT_OVER_TIMELOCK: BlockNumber = add_blocknumber(CANCELLATION_ARRIVED_AT, TIMELOCK);
+    let mut provider = L1ProviderContentBuilder::new()
+        .with_state(ProviderState::Validate)
+        .with_txs([tx.clone()])
+        .with_cancellation_requests(cancellations)
+        .with_height(HEIGHT_OVER_TIMELOCK)
+        .with_config_cancellation_timelock_config(TIMELOCK)
+        .build_into_l1_provider();
+
+    // Test.
+
+    // Cancellation not applied during the validation.
+    let expected = L1ProviderContentBuilder::new()
+        .with_staged_txs([tx.clone()])
+        .with_config_cancellation_timelock_config(TIMELOCK)
+        .build();
+
+    // Stage tx.
+    assert_eq!(
+        provider.validate(tx.tx_hash, provider.current_height).unwrap(),
+        ValidationStatus::Validated
+    );
+
+    expected.assert_eq(&provider);
+
+    // Ditto for failed validations.
+    let other_tx_hash = tx_hash!(2);
+    assert_eq!(
+        provider.validate(other_tx_hash, provider.current_height).unwrap(),
+        ValidationStatus::Invalid(InvalidValidationStatus::ConsumedOnL1OrUnknown)
+    );
+    expected.assert_eq(&provider);
+}
+
+#[test]
+fn cancellation_withheld_during_proposal() {
+    // Setup.
+
+    let tx = l1_handler(1);
+    const TIMELOCK: BlockNumber = BlockNumber(2);
+    const CANCELLATION_ARRIVED_AT: BlockNumber = BlockNumber(0);
+    let cancellations = [(CANCELLATION_ARRIVED_AT, vec![tx.tx_hash])];
+    const HEIGHT_OVER_TIMELOCK: BlockNumber = add_blocknumber(CANCELLATION_ARRIVED_AT, TIMELOCK);
+    let mut provider = L1ProviderContentBuilder::new()
+        .with_state(ProviderState::Propose)
+        .with_txs([tx.clone()])
+        .with_cancellation_requests(cancellations)
+        .with_height(HEIGHT_OVER_TIMELOCK)
+        .with_config_cancellation_timelock_config(TIMELOCK)
+        .build_into_l1_provider();
+
+    // Test.
+
+    // Cancellation not applied during the proposal.
+    let expected = L1ProviderContentBuilder::new()
+        .with_staged_txs([tx.clone()])
+        .with_config_cancellation_timelock_config(TIMELOCK)
+        .build();
+
+    // Stage tx.
+    assert_eq!(&provider.get_txs(2, provider.current_height).unwrap(), &[tx.clone()]);
+
+    expected.assert_eq(&provider);
+}
+
+#[test]
+fn cancellation_withheld_during_commit() {
+    // Setup.
+
+    let tx = l1_handler(1);
+    const TIMELOCK: BlockNumber = BlockNumber(2);
+    const CANCELLATION_ARRIVED_AT: BlockNumber = BlockNumber(0);
+    let cancellations = [(CANCELLATION_ARRIVED_AT, vec![tx.tx_hash])];
+    const HEIGHT_OVER_TIMELOCK: BlockNumber = BlockNumber(100);
+    let mut provider = L1ProviderContentBuilder::new()
+        .with_cancellation_requests(cancellations.clone())
+        .with_txs([tx.clone()])
+        .with_height(HEIGHT_OVER_TIMELOCK)
+        .with_config_cancellation_timelock_config(TIMELOCK)
+        .build_into_l1_provider();
+
+    // Test.
+
+    // Cancellation not applied during the commit_block of different tx.
+    let expected = L1ProviderContentBuilder::new()
+        .with_txs([tx.clone()])
+        .with_cancellation_requests(cancellations.clone())
+        .build();
+
+    let other_tx_hash = tx_hash!(2);
+    provider.commit_block(&[other_tx_hash], &Default::default(), provider.current_height).unwrap();
+    expected.assert_eq(&provider);
+
+    // Cancellation not applied during the commit_block of current_tx.
+    let expected =
+        L1ProviderContentBuilder::new().with_cancellation_requests(cancellations).build();
+    provider.commit_block(&[tx.tx_hash], &Default::default(), provider.current_height).unwrap();
+
+    expected.assert_eq(&provider);
+}
+
+#[test]
+fn cancellation_not_applied_in_add_events() {
+    // Setup.
+
+    let tx = l1_handler(1);
+    const TIMELOCK: BlockNumber = BlockNumber(2);
+    const CANCELLATION_ARRIVED_AT: BlockNumber = BlockNumber(0);
+    let cancellations = [(CANCELLATION_ARRIVED_AT, vec![tx.tx_hash])];
+    const HEIGHT_OVER_TIMELOCK: BlockNumber = BlockNumber(100);
+    let mut provider = L1ProviderContentBuilder::new()
+        .with_cancellation_requests(cancellations.clone())
+        .with_txs([tx.clone()])
+        .with_height(HEIGHT_OVER_TIMELOCK)
+        .with_config_cancellation_timelock_config(TIMELOCK)
+        .build_into_l1_provider();
+
+    // Test.
+
+    let new_tx = l1_handler(42);
+    let expected = L1ProviderContentBuilder::new()
+        .with_txs([tx.clone(), new_tx.clone()])
+        .with_cancellation_requests(cancellations)
+        .build();
+
+    provider.add_events(vec![Event::L1HandlerTransaction(new_tx.clone())]).unwrap();
+    provider.add_events(vec![]).unwrap();
+
     expected.assert_eq(&provider);
 }
