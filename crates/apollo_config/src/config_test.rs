@@ -640,6 +640,53 @@ fn test_load_many_custom_config_files() {
     assert_eq!(param_path, "custom value");
 }
 
+// Make sure that if we have a field `foo_bar`` and an optional field called `foo`` with a value of
+// None, we don't remove the foo_bar field from the config.
+// This test was added following bug #37984 (see bug for more details).
+#[test]
+fn load_config_allows_optional_fields_can_be_prefixes_of_other_fields() {
+    #[derive(Clone, Default, Serialize, Deserialize, Debug, PartialEq)]
+    struct ConfigWithOptionalAndPrefixField {
+        foo: Option<String>,
+        foo_non_optional: String,
+    }
+    impl SerializeConfig for ConfigWithOptionalAndPrefixField {
+        fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+            let mut res = BTreeMap::from([ser_param(
+                "foo_non_optional",
+                &self.foo_non_optional,
+                "This is foo_non_optional.",
+                ParamPrivacyInput::Public,
+            )]);
+            res.extend(ser_optional_param(
+                &self.foo,
+                "foo".to_string(),
+                "foo",
+                "This is foo.",
+                ParamPrivacyInput::Public,
+            ));
+            res
+        }
+    }
+
+    let dir = TempDir::new().unwrap();
+    let file_path = dir.path().join("config.json");
+    ConfigWithOptionalAndPrefixField {
+        foo: None,
+        foo_non_optional: "bar non optional".to_string(),
+    }
+    .dump_to_file(&vec![], &HashSet::new(), file_path.to_str().unwrap())
+    .unwrap();
+
+    load_and_process_config::<ConfigWithOptionalAndPrefixField>(
+        File::open(file_path).unwrap(),
+        Command::new("Program"),
+        vec![],
+        false,
+    )
+    .expect("Unexpected error from loading test config.");
+}
+
 #[test]
 fn test_generated_type() {
     let args = vec!["Testing"];
