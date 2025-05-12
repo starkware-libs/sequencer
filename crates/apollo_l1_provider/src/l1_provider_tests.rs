@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::mem;
 use std::sync::Arc;
 use std::time::Duration;
@@ -27,7 +27,7 @@ use crate::l1_provider::L1Provider;
 use crate::soft_delete_index_map::SoftDeleteIndexMap;
 use crate::test_utils::{l1_handler, FakeL1ProviderClient};
 use crate::transaction_manager::TransactionManager;
-use crate::ProviderState;
+use crate::{L1ProviderConfig, ProviderState};
 
 // Represents the internal content of the L1 provider for testing.
 // Enables customized (and potentially inconsistent) creation for unit testing.
@@ -36,6 +36,8 @@ pub struct L1ProviderContent {
     tx_manager_content: Option<TransactionManagerContent>,
     state: Option<ProviderState>,
     current_height: Option<BlockNumber>,
+    cancellation_requests: Option<BTreeMap<BlockNumber, Vec<TransactionHash>>>,
+    config_cancellation_timelock_in_blocks: Option<BlockNumber>,
 }
 
 impl L1ProviderContent {
@@ -52,21 +54,37 @@ impl L1ProviderContent {
         if let Some(current_height) = &self.current_height {
             assert_eq!(&l1_provider.current_height, current_height);
         }
+
+        if let Some(cancellation_requests) = &self.cancellation_requests {
+            assert_eq!(&l1_provider.cancellation_requests, cancellation_requests);
+        }
+
+        if let Some(config_cancellation_timelock_in_blocks) =
+            &self.config_cancellation_timelock_in_blocks
+        {
+            assert_eq!(
+                &l1_provider.config.cancellation_timelock_in_blocks,
+                config_cancellation_timelock_in_blocks
+            );
+        }
     }
 }
 
 impl From<L1ProviderContent> for L1Provider {
     fn from(content: L1ProviderContent) -> L1Provider {
         L1Provider {
+            config: L1ProviderConfig {
+                cancellation_timelock_in_blocks: content
+                    .config_cancellation_timelock_in_blocks
+                    .unwrap_or_default(),
+                ..Default::default()
+            },
             tx_manager: content.tx_manager_content.map(Into::into).unwrap_or_default(),
             // Defaulting to Pending state, since a provider with a "default" Bootstrapper
             // is functionally equivalent to Pending for testing purposes.
             state: content.state.unwrap_or(ProviderState::Pending),
             current_height: content.current_height.unwrap_or_default(),
-            // TODO(Gilad): will soon be replaced by the real values.
-            config: Default::default(),
-            // TODO(Gilad): will soon be replaced by the real values.
-            cancellation_requests: Default::default(),
+            cancellation_requests: content.cancellation_requests.unwrap_or_default(),
         }
     }
 }
@@ -76,6 +94,8 @@ pub struct L1ProviderContentBuilder {
     tx_manager_content_builder: TransactionManagerContentBuilder,
     state: Option<ProviderState>,
     current_height: Option<BlockNumber>,
+    cancellation_requests: Option<BTreeMap<BlockNumber, Vec<TransactionHash>>>,
+    config_cancellation_timelock_in_blocks: Option<BlockNumber>,
 }
 
 impl L1ProviderContentBuilder {
@@ -108,11 +128,31 @@ impl L1ProviderContentBuilder {
         self
     }
 
+    // At the time of writing, this is the only interesting part of the config for tests, if this
+    // changes replace this with a `with_config` method.
+    pub fn with_config_cancellation_timelock_config(
+        mut self,
+        cancellation_timelock_in_blocks: BlockNumber,
+    ) -> Self {
+        self.config_cancellation_timelock_in_blocks = Some(cancellation_timelock_in_blocks);
+        self
+    }
+
+    pub fn with_cancellation_requests(
+        mut self,
+        cancellation_requests: impl IntoIterator<Item = (BlockNumber, Vec<TransactionHash>)>,
+    ) -> Self {
+        self.cancellation_requests = Some(cancellation_requests.into_iter().collect());
+        self
+    }
+
     pub fn build(self) -> L1ProviderContent {
         L1ProviderContent {
             tx_manager_content: self.tx_manager_content_builder.build(),
             state: self.state,
             current_height: self.current_height,
+            cancellation_requests: self.cancellation_requests,
+            config_cancellation_timelock_in_blocks: self.config_cancellation_timelock_in_blocks,
         }
     }
 
