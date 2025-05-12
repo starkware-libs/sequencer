@@ -7,6 +7,7 @@ use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_traits::ToPrimitive;
 use starknet_api::execution_resources::GasAmount;
+use starknet_api::StarknetApiError;
 use starknet_types_core::felt::{Felt, FromStrError};
 
 use crate::blockifier_versioned_constants::{GasCostsError, SyscallGasCost};
@@ -527,6 +528,8 @@ pub enum SyscallExecutorBaseError {
     Math(#[from] MathError),
     #[error(transparent)]
     Memory(#[from] MemoryError),
+    #[error(transparent)]
+    StarknetApiError(#[from] StarknetApiError),
     #[error(transparent)]
     VirtualMachine(#[from] VirtualMachineError),
 }

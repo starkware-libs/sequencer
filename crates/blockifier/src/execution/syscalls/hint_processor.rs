@@ -49,6 +49,7 @@ use crate::execution::syscalls::secp::SecpHintProcessor;
 use crate::execution::syscalls::syscall_base::SyscallHandlerBase;
 use crate::execution::syscalls::syscall_executor::{
     execute_next_syscall,
+    SyscallBaseResult,
     SyscallExecutor,
     SyscallExecutorBaseError,
 };
@@ -835,14 +836,14 @@ pub fn felt_to_bool(felt: Felt, error_info: &str) -> SyscallResult<bool> {
     }
 }
 
-pub fn read_calldata(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<Calldata> {
-    Ok(Calldata(read_felt_array::<SyscallExecutionError>(vm, ptr)?.into()))
+pub fn read_calldata(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallBaseResult<Calldata> {
+    Ok(Calldata(read_felt_array::<SyscallExecutorBaseError>(vm, ptr)?.into()))
 }
 
 pub fn read_call_params(
     vm: &VirtualMachine,
     ptr: &mut Relocatable,
-) -> SyscallResult<(EntryPointSelector, Calldata)> {
+) -> SyscallBaseResult<(EntryPointSelector, Calldata)> {
     let function_selector = EntryPointSelector(felt_from_ptr(vm, ptr)?);
     let calldata = read_calldata(vm, ptr)?;
 
