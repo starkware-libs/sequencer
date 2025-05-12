@@ -27,7 +27,6 @@ use starknet_api::StarknetApiError;
 use starknet_types_core::felt::{Felt, FromStrError};
 use thiserror::Error;
 
-use crate::abi::sierra_types::SierraTypeError;
 use crate::blockifier_versioned_constants::{GasCosts, GasCostsError, SyscallGasCost};
 use crate::execution::common_hints::{ExecutionMode, HintExecutionResult};
 use crate::execution::contract_class::TrackedResource;
@@ -139,8 +138,6 @@ pub enum SyscallExecutionError {
     MathError(#[from] cairo_vm::types::errors::math_errors::MathError),
     #[error(transparent)]
     MemoryError(#[from] MemoryError),
-    #[error(transparent)]
-    SierraTypeError(#[from] SierraTypeError),
     #[error(transparent)]
     StarknetApiError(#[from] StarknetApiError),
     #[error(transparent)]
@@ -821,13 +818,13 @@ impl HintProcessorLogic for SyscallHintProcessor<'_> {
     }
 }
 
-pub fn felt_to_bool(felt: Felt, error_info: &str) -> SyscallResult<bool> {
+pub fn felt_to_bool(felt: Felt, error_info: &str) -> SyscallBaseResult<bool> {
     if felt == Felt::ZERO {
         Ok(false)
     } else if felt == Felt::ONE {
         Ok(true)
     } else {
-        Err(SyscallExecutorBaseError::InvalidSyscallInput { input: felt, info: error_info.into() })?
+        Err(SyscallExecutorBaseError::InvalidSyscallInput { input: felt, info: error_info.into() })
     }
 }
 
