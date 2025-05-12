@@ -7,7 +7,7 @@ use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_traits::ToPrimitive;
 use starknet_api::execution_resources::GasAmount;
-use starknet_types_core::felt::Felt;
+use starknet_types_core::felt::{Felt, FromStrError};
 
 use crate::blockifier_versioned_constants::{GasCostsError, SyscallGasCost};
 use crate::execution::common_hints::HintExecutionResult;
@@ -563,6 +563,8 @@ pub enum SyscallExecutorBaseError {
     #[error(transparent)]
     DeprecatedSyscallExecution(#[from] DeprecatedSyscallExecutionError),
     #[error(transparent)]
+    FromStr(#[from] FromStrError),
+    #[error(transparent)]
     Hint(#[from] HintError),
     #[error("Invalid syscall input: {input:?}; {info}")]
     InvalidSyscallInput { input: Felt, info: String },
@@ -575,3 +577,11 @@ pub enum SyscallExecutorBaseError {
 }
 
 pub type SyscallBaseResult<T> = Result<T, SyscallExecutorBaseError>;
+
+// Needed for custom hint implementations (in our case, syscall hints) which must comply with the
+// cairo-rs API.
+impl From<SyscallExecutorBaseError> for HintError {
+    fn from(error: SyscallExecutorBaseError) -> Self {
+        HintError::Internal(VirtualMachineError::Other(error.into()))
+    }
+}
