@@ -255,7 +255,7 @@ pub(crate) fn check_is_deprecated<S: StateReader>(
             get_address_of_nested_fields(
                 ids_data,
                 Ids::ExecutionContext,
-                CairoStruct::ExecutionContext,
+                CairoStruct::ExecutionContextPtr,
                 vm,
                 ap_tracking,
                 &["class_hash"],
@@ -306,7 +306,7 @@ pub(crate) fn enter_call<S: StateReader>(
     let execution_info_ptr = get_address_of_nested_fields(
         ids_data,
         Ids::ExecutionContext,
-        CairoStruct::ExecutionContext,
+        CairoStruct::ExecutionContextPtr,
         vm,
         ap_tracking,
         &["execution_info"],
@@ -315,7 +315,7 @@ pub(crate) fn enter_call<S: StateReader>(
     let deprecated_tx_info_ptr = get_address_of_nested_fields(
         ids_data,
         Ids::ExecutionContext,
-        CairoStruct::ExecutionContext,
+        CairoStruct::ExecutionContextPtr,
         vm,
         ap_tracking,
         &["deprecated_tx_info"],
