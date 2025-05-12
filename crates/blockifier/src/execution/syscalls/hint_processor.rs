@@ -47,7 +47,11 @@ use crate::execution::execution_utils::{
 };
 use crate::execution::syscalls::secp::SecpHintProcessor;
 use crate::execution::syscalls::syscall_base::SyscallHandlerBase;
-use crate::execution::syscalls::syscall_executor::{execute_next_syscall, SyscallExecutor};
+use crate::execution::syscalls::syscall_executor::{
+    execute_next_syscall,
+    SyscallExecutor,
+    SyscallExecutorBaseError,
+};
 use crate::execution::syscalls::{
     CallContractRequest,
     CallContractResponse,
@@ -147,6 +151,8 @@ pub enum SyscallExecutionError {
     StarknetApiError(#[from] StarknetApiError),
     #[error(transparent)]
     StateError(#[from] StateError),
+    #[error(transparent)]
+    SyscallExecutorBase(#[from] SyscallExecutorBaseError),
     #[error(transparent)]
     VirtualMachineError(#[from] VirtualMachineError),
     #[error("Syscall revert.")]
