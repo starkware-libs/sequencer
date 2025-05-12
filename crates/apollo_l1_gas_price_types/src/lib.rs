@@ -22,6 +22,12 @@ pub type SharedL1GasPriceClient = Arc<dyn L1GasPriceProviderClient>;
 pub type L1GasPriceProviderResult<T> = Result<T, L1GasPriceProviderError>;
 pub type L1GasPriceProviderClientResult<T> = Result<T, L1GasPriceClientError>;
 
+#[derive(Clone, Debug)]
+pub struct GasPriceData {
+    pub height: L1BlockNumber,
+    pub sample: PriceSample,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PriceInfo {
     pub base_fee_per_gas: GasPrice,
