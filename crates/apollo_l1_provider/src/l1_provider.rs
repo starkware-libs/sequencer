@@ -239,6 +239,18 @@ impl L1Provider {
                         );
                     }
                 }
+                Event::TransactionCancellationStarted(tx_hash) => {
+                    if !self.tx_manager.contains(&tx_hash) {
+                        error!(
+                            "Transaction cancellation request for unknown transaction with hash: \
+                             {tx_hash}. Dropping request."
+                        );
+                    }
+                    self.cancellation_requests
+                        .entry(self.current_height)
+                        .or_default()
+                        .push(tx_hash);
+                }
                 _ => return Err(L1ProviderError::unsupported_l1_event(event)),
             }
         }
