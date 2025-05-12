@@ -1,6 +1,7 @@
 use std::error::Error;
 use std::fmt::{Debug, Display};
 use std::ops::RangeInclusive;
+use std::sync::Arc;
 
 use alloy::primitives::FixedBytes;
 use async_trait::async_trait;
@@ -98,7 +99,7 @@ pub enum L1Event {
     ConsumedMessageToL2(EventData),
     // TODO(Arni): Consider adding the l1_tx_hash to all variants of L1 Event.
     LogMessageToL2 { tx: L1HandlerTransaction, fee: Fee, l1_tx_hash: Option<FixedBytes<32>> },
-    MessageToL2CancellationStarted(EventData),
+    MessageToL2CancellationStarted { cancelled_tx: L1HandlerTransaction },
     MessageToL2Canceled(EventData),
 }
 
@@ -110,6 +111,23 @@ pub struct EventData {
     pub entry_point_selector: EntryPointSelector,
     pub payload: Calldata,
     pub nonce: Nonce,
+}
+
+impl From<EventData> for L1HandlerTransaction {
+    fn from(mut event_data: EventData) -> Self {
+        // Might clone and update inner pointer, but that's fine since we're prepending anyway.
+        let payload = Arc::make_mut(&mut event_data.payload.0);
+        // Prepend the L1 sender address to the calldata.
+        payload.insert(0, event_data.from_address.into());
+
+        L1HandlerTransaction {
+            version: L1HandlerTransaction::VERSION,
+            contract_address: event_data.to_address,
+            entry_point_selector: event_data.entry_point_selector,
+            nonce: event_data.nonce,
+            calldata: event_data.payload,
+        }
+    }
 }
 
 impl Display for EventData {

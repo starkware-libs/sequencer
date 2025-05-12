@@ -192,8 +192,8 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
                     .map_err(L1ScraperError::HashCalculationError)?;
                 Event::L1HandlerTransaction(tx)
             }
-            L1Event::MessageToL2CancellationStarted(event_data) => {
-                Event::TransactionCancellationStarted(event_data)
+            L1Event::MessageToL2CancellationStarted { .. } => {
+                todo!()
             }
             L1Event::MessageToL2Canceled(event_data) => Event::TransactionCanceled(event_data),
             L1Event::ConsumedMessageToL2(event_data) => Event::TransactionConsumed(event_data),
