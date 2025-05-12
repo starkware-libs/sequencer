@@ -1,5 +1,6 @@
 use apollo_gateway::metrics::{GATEWAY_ADD_TX_LATENCY, GATEWAY_TRANSACTIONS_RECEIVED};
 use apollo_mempool::metrics::{MEMPOOL_GET_TXS_SIZE, MEMPOOL_TRANSACTIONS_RECEIVED};
+use apollo_mempool_p2p::metrics::MEMPOOL_P2P_NUM_CONNECTED_PEERS;
 use const_format::formatcp;
 
 use crate::dashboard::{
@@ -75,9 +76,25 @@ const MEMPOOL_GET_TXS_SIZE_DROP: Alert = Alert {
     evaluation_interval_sec: 20,
 };
 
+/// Alert when more than 10 disconnects occur in the last hour
+const MEMPOOL_P2P_TOO_MANY_CONNECTION_DROPS: Alert = Alert {
+    name: "mempool_p2p_too_many_connection_drops",
+    title: "Mempool p2p too many connection drops",
+    alert_group: AlertGroup::MempoolP2p,
+    expr: formatcp!("count(deriv({}[1h]) < 0)", MEMPOOL_P2P_NUM_CONNECTED_PEERS.get_name()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::LessThan,
+        comparison_value: 10.0,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 20,
+};
+
 pub const SEQUENCER_ALERTS: Alerts = Alerts::new(&[
     GATEWAY_ADD_TX_RATE_DROP,
     GATEWAY_ADD_TX_LATENCY_INCREASE,
     MEMPOOL_ADD_TX_RATE_DROP,
     MEMPOOL_GET_TXS_SIZE_DROP,
+    MEMPOOL_P2P_TOO_MANY_CONNECTION_DROPS,
 ]);

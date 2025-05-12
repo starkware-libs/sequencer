@@ -103,6 +103,32 @@
       ],
       "for": "1m",
       "intervalSec": 20
+    },
+    {
+      "name": "mempool_p2p_too_many_connection_drops",
+      "title": "Mempool p2p too many connection drops",
+      "ruleGroup": "mempool_p2p",
+      "expr": "count(deriv(apollo_mempool_p2p_num_connected_peers[1h]) < 0)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              10.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "1m",
+      "intervalSec": 20
     }
   ]
 }

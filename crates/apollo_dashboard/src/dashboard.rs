@@ -215,6 +215,7 @@ pub enum AlertGroup {
     Batcher,
     Gateway,
     Mempool,
+    MempoolP2p,
 }
 
 /// Describes the properties of an alert defined in grafana.
