@@ -10,12 +10,12 @@ use strum_macros::{AsRefStr, EnumIter};
 
 use crate::deployment_definitions::{Environment, EnvironmentComponentConfigModifications};
 use crate::service::{
+    get_ingress,
     Controller,
     ExternalSecret,
     GetComponentConfigs,
     Ingress,
     IngressParams,
-    IngressRule,
     Resource,
     Resources,
     Service,
@@ -62,28 +62,24 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
             Environment::Testing => match self {
                 ConsolidatedNodeServiceName::Node => Service::new(
                     Into::<ServiceName>::into(*self),
-                    None,
                     1,
                     Some(32),
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
+                    ingress_params.clone(),
                     environment.clone(),
                 ),
             },
             Environment::SepoliaIntegration => match self {
                 ConsolidatedNodeServiceName::Node => Service::new(
                     Into::<ServiceName>::into(*self),
-                    Some(Ingress::new(
-                        ingress_params,
-                        false,
-                        vec![IngressRule::new(String::from("/gateway"), 8080, None)],
-                    )),
                     1,
                     Some(500),
                     Resources::new(Resource::new(2, 4), Resource::new(4, 8)),
                     external_secret.clone(),
                     additional_config_filenames,
+                    ingress_params.clone(),
                     environment.clone(),
                 ),
             },
@@ -111,6 +107,20 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
             | Environment::TestingEnvThree => match self {
                 ConsolidatedNodeServiceName::Node => Some(Toleration::ApolloCoreService),
             },
+            _ => unimplemented!(),
+        }
+    }
+
+    fn get_ingress(
+        &self,
+        environment: &Environment,
+        ingress_params: IngressParams,
+    ) -> Option<Ingress> {
+        match environment {
+            Environment::Testing => None,
+            Environment::SepoliaIntegration
+            | Environment::TestingEnvTwo
+            | Environment::TestingEnvThree => get_ingress(ingress_params, false),
             _ => unimplemented!(),
         }
     }
