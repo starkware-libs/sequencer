@@ -11,6 +11,7 @@ use thiserror::Error;
 use crate::blockifier::block::pre_process_block;
 use crate::blockifier::config::TransactionExecutorConfig;
 use crate::bouncer::{Bouncer, BouncerWeights, CasmHashComputationData};
+use crate::concurrency::utils::AbortIfPanic;
 use crate::concurrency::worker_logic::WorkerExecutor;
 use crate::context::BlockContext;
 use crate::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps, TransactionalState};
@@ -277,8 +278,6 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
         &mut self,
         chunk: &[Transaction],
     ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
-        use crate::concurrency::utils::AbortIfPanic;
-
         let block_state = self.block_state.take().expect("The block state should be `Some`.");
         let chunk_size = chunk.len();
 
