@@ -227,6 +227,7 @@
   "l1_gas_price_scraper_config.starting_block.#is_none": true,
   "l1_provider_config.bootstrap_catch_up_height_override": 0,
   "l1_provider_config.bootstrap_catch_up_height_override.#is_none": true,
+  "l1_provider_config.cancellation_timelock_in_blocks": 0,
   "l1_provider_config.provider_startup_height_override": 1,
   "l1_provider_config.provider_startup_height_override.#is_none": false,
   "l1_provider_config.startup_sync_sleep_retry_interval_seconds": 0.0,

@@ -106,16 +106,26 @@ pub struct L1ProviderConfig {
     pub bootstrap_catch_up_height_override: Option<BlockNumber>,
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
     pub startup_sync_sleep_retry_interval_seconds: Duration,
+    /// How many blocks the provider should wait before attempting to cancel a message.
+    pub cancellation_timelock_in_blocks: BlockNumber,
 }
 
 impl SerializeConfig for L1ProviderConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = BTreeMap::from([ser_param(
-            "startup_sync_sleep_retry_interval_seconds",
-            &self.startup_sync_sleep_retry_interval_seconds.as_secs_f64(),
-            "Interval in seconds between each retry of syncing with L2 during startup.",
-            ParamPrivacyInput::Public,
-        )]);
+        let mut dump = BTreeMap::from([
+            ser_param(
+                "startup_sync_sleep_retry_interval_seconds",
+                &self.startup_sync_sleep_retry_interval_seconds.as_secs_f64(),
+                "Interval in seconds between each retry of syncing with L2 during startup.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "cancellation_timelock_in_blocks",
+                &self.cancellation_timelock_in_blocks,
+                "How many blocks the provider should wait before attempting to cancel a message.",
+                ParamPrivacyInput::Public,
+            ),
+        ]);
 
         dump.extend(ser_optional_param(
             &self.provider_startup_height_override,
