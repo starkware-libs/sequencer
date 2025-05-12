@@ -157,6 +157,7 @@ fn test_stack_trace_with_inner_error_msg(block_context: BlockContext) {
 #[case(CairoVersion::Cairo1(RunnableCairo1::Casm))]
 #[cfg_attr(feature = "cairo_native", case(CairoVersion::Cairo1(RunnableCairo1::Native)))]
 fn test_stack_trace(block_context: BlockContext, #[case] cairo_version: CairoVersion) {
+    let mut magic = register_magic_constants!();
     let chain_info = ChainInfo::create_for_testing();
     let account = FeatureContract::AccountWithoutValidations(cairo_version);
     let test_contract = FeatureContract::TestContract(cairo_version);
@@ -194,71 +195,34 @@ fn test_stack_trace(block_context: BlockContext, #[case] cairo_version: CairoVer
     )
     .unwrap_err();
 
+    // Regression test the trace.
+    let trace_string = tx_execution_error.to_string();
+    let cairo_version_key = if cairo_version.is_cairo0() { "CAIRO0" } else { "CAIRO1" };
+    magic.assert_eq(&format!("EXPECTED_TRACE_{cairo_version_key}"), trace_line_map(&trace_string));
+
+    // Check the frame order is as expected.
     let execute_selector_felt = selector_from_name(EXECUTE_ENTRY_POINT_NAME).0;
     let external_entry_point_selector_felt = selector_from_name(call_contract_function_name).0;
-    let expected_trace = match cairo_version {
-        CairoVersion::Cairo0 => {
-            // Fetch PC locations from the compiled contract to compute the expected PC locations in
-            // the traceback. Computation is not robust, but as long as the cairo
-            // function itself is not edited, this computation should be stable.
-            let account_entry_point_offset =
-                account.get_entry_point_offset(selector_from_name(EXECUTE_ENTRY_POINT_NAME));
-            let entry_point_offset = test_contract
-                .get_entry_point_offset(selector_from_name(call_contract_function_name));
-            // Relative offsets of the test_call_contract entry point and the inner call.
-            let call_location = entry_point_offset.0 + 14;
-            let entry_point_location = entry_point_offset.0 - 3;
-            // Relative offsets of the account contract.
-            let account_call_location = account_entry_point_offset.0 + 18;
-            let account_entry_point_location = account_entry_point_offset.0 - 8;
+    assert_contains_ordered_substrings(
+        &[
             format!(
-                "Transaction execution has failed:
-0: Error in the called contract (contract address: {account_address_felt:#064x}, class hash: \
-                 {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}):
-Error at pc=0:7:
-Cairo traceback (most recent call last):
-Unknown location (pc=0:{account_call_location})
-Unknown location (pc=0:{account_entry_point_location})
-
-1: Error in the called contract (contract address: {test_contract_address_felt:#064x}, class hash: \
-                 {test_contract_hash:#064x}, selector: \
-                 {external_entry_point_selector_felt:#064x}):
-Error at pc=0:37:
-Cairo traceback (most recent call last):
-Unknown location (pc=0:{call_location})
-Unknown location (pc=0:{entry_point_location})
-
-2: Error in the called contract (contract address: {test_contract_address_2_felt:#064x}, class \
-                 hash: {test_contract_hash:#064x}, selector: \
-                 {inner_entry_point_selector_felt:#064x}):
-Error message: You shall not pass!
-Error at pc=0:1311:
-Cairo traceback (most recent call last):
-Unknown location (pc=0:1315)
-
-An ASSERT_EQ instruction failed: 1 != 0.
-"
+                "contract address: {account_address_felt:#064x}, class hash: \
+                 {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}"
             )
-            .to_string()
-        }
-        CairoVersion::Cairo1(_) => format!(
-            "Transaction execution has failed:
-0: Error in the called contract (contract address: {account_address_felt:#064x}, class hash: \
-             {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}):
-Execution failed. Failure reason:
-Error in contract (contract address: {account_address_felt:#064x}, class hash: \
-             {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}):
-Error in contract (contract address: {test_contract_address_felt:#064x}, class hash: \
-             {test_contract_hash:#064x}, selector: {external_entry_point_selector_felt:#064x}):
-Error in contract (contract address: {test_contract_address_2_felt:#064x}, class hash: \
-             {test_contract_hash:#064x}, selector: {inner_entry_point_selector_felt:#064x}):
-0x6661696c ('fail').
-"
-        )
-        .to_string(),
-    };
-
-    assert_eq!(tx_execution_error.to_string(), expected_trace);
+            .as_str(),
+            format!(
+                "contract address: {test_contract_address_felt:#064x}, class hash: \
+                 {test_contract_hash:#064x}, selector: {external_entry_point_selector_felt:#064x}"
+            )
+            .as_str(),
+            format!(
+                "contract address: {test_contract_address_2_felt:#064x}, class hash: \
+                 {test_contract_hash:#064x}, selector: {inner_entry_point_selector_felt:#064x}"
+            )
+            .as_str(),
+        ],
+        &trace_string,
+    );
 }
 
 #[rstest]
