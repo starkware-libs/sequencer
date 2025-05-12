@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use apollo_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp, FeeType, GasPriceVector};
@@ -232,7 +232,7 @@ impl SerializeConfig for ChainInfo {
 
         vec![
             members,
-            append_sub_config_name(self.fee_token_addresses.dump(), "fee_token_addresses"),
+            prepend_sub_config_name(self.fee_token_addresses.dump(), "fee_token_addresses"),
         ]
         .into_iter()
         .flatten()

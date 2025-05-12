@@ -191,10 +191,10 @@ pub trait SerializeConfig {
     }
 }
 
-/// Appends `sub_config_name` to the ParamPath for each entry in `sub_config_dump`.
+/// Prepends `sub_config_name` to the ParamPath for each entry in `sub_config_dump`.
 /// In order to load from a dump properly, `sub_config_name` must match the field's name for the
 /// struct this function is called from.
-pub fn append_sub_config_name(
+pub fn prepend_sub_config_name(
     sub_config_dump: BTreeMap<ParamPath, SerializedParam>,
     sub_config_name: &str,
 ) -> BTreeMap<ParamPath, SerializedParam> {
@@ -272,7 +272,7 @@ pub fn ser_optional_sub_config<T: SerializeConfig + Default>(
 ) -> BTreeMap<ParamPath, SerializedParam> {
     chain!(
         BTreeMap::from_iter([ser_is_param_none(name, optional_config.is_none())]),
-        append_sub_config_name(
+        prepend_sub_config_name(
             match optional_config {
                 None => T::default().dump(),
                 Some(config) => config.dump(),

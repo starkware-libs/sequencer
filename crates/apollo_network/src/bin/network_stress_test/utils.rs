@@ -3,7 +3,7 @@ use std::str::FromStr;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::vec;
 
-use apollo_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_network::NetworkConfig;
 use libp2p::identity::Keypair;
@@ -56,7 +56,7 @@ impl SerializeConfig for TestConfig {
                 ParamPrivacyInput::Public,
             ),
         ]);
-        config.extend(append_sub_config_name(self.network_config.dump(), "network_config"));
+        config.extend(prepend_sub_config_name(self.network_config.dump(), "network_config"));
         config
     }
 }

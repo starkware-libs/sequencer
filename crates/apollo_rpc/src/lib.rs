@@ -19,7 +19,7 @@ use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 
 use apollo_class_manager_types::SharedClassManagerClient;
-use apollo_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::validators::validate_ascii;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_rpc_execution::ExecutionConfig;
@@ -149,8 +149,8 @@ impl SerializeConfig for RpcConfig {
         ]);
 
         self_params_dump
-            .append(&mut append_sub_config_name(self.execution_config.dump(), "execution_config"));
-        let mut retry_config_dump = append_sub_config_name(
+            .append(&mut prepend_sub_config_name(self.execution_config.dump(), "execution_config"));
+        let mut retry_config_dump = prepend_sub_config_name(
             self.apollo_gateway_retry_config.dump(),
             "apollo_gateway_retry_config",
         );

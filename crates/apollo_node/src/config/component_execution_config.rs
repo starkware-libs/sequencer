@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::net::{IpAddr, Ipv4Addr, ToSocketAddrs};
 
-use apollo_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra::component_client::RemoteClientConfig;
 use apollo_infra::component_server::LocalServerConfig;
@@ -81,8 +81,8 @@ impl SerializeConfig for ReactiveComponentExecutionConfig {
         ]);
         vec![
             members,
-            append_sub_config_name(self.local_server_config.dump(), "local_server_config"),
-            append_sub_config_name(self.remote_client_config.dump(), "remote_client_config"),
+            prepend_sub_config_name(self.local_server_config.dump(), "local_server_config"),
+            prepend_sub_config_name(self.remote_client_config.dump(), "remote_client_config"),
         ]
         .into_iter()
         .flatten()

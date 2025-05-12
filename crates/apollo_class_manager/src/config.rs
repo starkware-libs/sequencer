@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use apollo_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_storage::mmap_file::MmapFileConfig;
 use apollo_storage::{StorageConfig, StorageScope};
@@ -116,8 +116,8 @@ impl SerializeConfig for ClassHashStorageConfig {
             ParamPrivacyInput::Public,
         )]);
         dumped_config
-            .append(&mut append_sub_config_name(self.mmap_file_config.dump(), "mmap_file_config"));
-        dumped_config.append(&mut append_sub_config_name(
+            .append(&mut prepend_sub_config_name(self.mmap_file_config.dump(), "mmap_file_config"));
+        dumped_config.append(&mut prepend_sub_config_name(
             self.class_hash_db_config.dump(),
             "class_hash_db_config",
         ));
@@ -148,7 +148,7 @@ impl SerializeConfig for FsClassStorageConfig {
             "Path to the node's class storage directory.",
             ParamPrivacyInput::Public,
         )]);
-        dump.append(&mut append_sub_config_name(
+        dump.append(&mut prepend_sub_config_name(
             self.class_hash_storage_config.dump(),
             "class_hash_storage_config",
         ));
@@ -179,7 +179,7 @@ impl SerializeConfig for ClassManagerConfig {
             "Limitation of compiled contract class object size.",
             ParamPrivacyInput::Public,
         )]);
-        dump.append(&mut append_sub_config_name(
+        dump.append(&mut prepend_sub_config_name(
             self.cached_class_storage_config.dump(),
             "cached_class_storage_config",
         ));
@@ -196,11 +196,11 @@ pub struct FsClassManagerConfig {
 impl SerializeConfig for FsClassManagerConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let mut dump = BTreeMap::new();
-        dump.append(&mut append_sub_config_name(
+        dump.append(&mut prepend_sub_config_name(
             self.class_manager_config.dump(),
             "class_manager_config",
         ));
-        dump.append(&mut append_sub_config_name(
+        dump.append(&mut prepend_sub_config_name(
             self.class_storage_config.dump(),
             "class_storage_config",
         ));

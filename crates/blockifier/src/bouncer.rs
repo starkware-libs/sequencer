@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use apollo_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
@@ -87,7 +87,7 @@ impl BouncerConfig {
 
 impl SerializeConfig for BouncerConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        append_sub_config_name(self.block_max_capacity.dump(), "block_max_capacity")
+        prepend_sub_config_name(self.block_max_capacity.dump(), "block_max_capacity")
     }
 }
 
