@@ -22,7 +22,7 @@ use apollo_p2p_sync::client::{
     P2pSyncClientError,
 };
 use apollo_p2p_sync::server::{P2pSyncServer, P2pSyncServerChannels, P2pSyncServerConfig};
-use apollo_p2p_sync::{Protocol, BUFFER_SIZE};
+use apollo_p2p_sync::Protocol;
 use apollo_reverts::{revert_block, revert_blocks_and_eternal_pending};
 use apollo_rpc::{run_server, RpcConfig};
 use apollo_starknet_client::reader::objects::pending_data::{
@@ -321,14 +321,15 @@ impl StateSyncRunner {
         new_block_receiver: Receiver<SyncBlock>,
         class_manager_client: SharedClassManagerClient,
     ) -> P2pSyncClient {
+        let buffer_size = p2p_sync_client_config.buffer_size;
         let header_client_sender = network_manager
-            .register_sqmr_protocol_client(Protocol::SignedBlockHeader.into(), BUFFER_SIZE);
+            .register_sqmr_protocol_client(Protocol::SignedBlockHeader.into(), buffer_size);
         let state_diff_client_sender =
-            network_manager.register_sqmr_protocol_client(Protocol::StateDiff.into(), BUFFER_SIZE);
+            network_manager.register_sqmr_protocol_client(Protocol::StateDiff.into(), buffer_size);
         let transaction_client_sender = network_manager
-            .register_sqmr_protocol_client(Protocol::Transaction.into(), BUFFER_SIZE);
+            .register_sqmr_protocol_client(Protocol::Transaction.into(), buffer_size);
         let class_client_sender =
-            network_manager.register_sqmr_protocol_client(Protocol::Class.into(), BUFFER_SIZE);
+            network_manager.register_sqmr_protocol_client(Protocol::Class.into(), buffer_size);
         let p2p_sync_client_channels = P2pSyncClientChannels::new(
             header_client_sender,
             state_diff_client_sender,
@@ -347,20 +348,21 @@ impl StateSyncRunner {
 
     fn new_p2p_state_sync_server(
         storage_reader: StorageReader,
-        _p2p_sync_server_config: P2pSyncServerConfig,
+        p2p_sync_server_config: P2pSyncServerConfig,
         network_manager: &mut NetworkManager,
         class_manager_client: SharedClassManagerClient,
     ) -> P2pSyncServer {
+        let buffer_size = p2p_sync_server_config.buffer_size;
         let header_server_receiver = network_manager
-            .register_sqmr_protocol_server(Protocol::SignedBlockHeader.into(), BUFFER_SIZE);
+            .register_sqmr_protocol_server(Protocol::SignedBlockHeader.into(), buffer_size);
         let state_diff_server_receiver =
-            network_manager.register_sqmr_protocol_server(Protocol::StateDiff.into(), BUFFER_SIZE);
+            network_manager.register_sqmr_protocol_server(Protocol::StateDiff.into(), buffer_size);
         let transaction_server_receiver = network_manager
-            .register_sqmr_protocol_server(Protocol::Transaction.into(), BUFFER_SIZE);
+            .register_sqmr_protocol_server(Protocol::Transaction.into(), buffer_size);
         let class_server_receiver =
-            network_manager.register_sqmr_protocol_server(Protocol::Class.into(), BUFFER_SIZE);
+            network_manager.register_sqmr_protocol_server(Protocol::Class.into(), buffer_size);
         let event_server_receiver =
-            network_manager.register_sqmr_protocol_server(Protocol::Event.into(), BUFFER_SIZE);
+            network_manager.register_sqmr_protocol_server(Protocol::Event.into(), buffer_size);
         let p2p_sync_server_channels = P2pSyncServerChannels::new(
             header_server_receiver,
             state_diff_server_receiver,
