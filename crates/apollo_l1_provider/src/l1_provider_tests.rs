@@ -209,6 +209,7 @@ impl TransactionManagerContent {
 impl From<TransactionManagerContent> for TransactionManager {
     fn from(mut content: TransactionManagerContent) -> TransactionManager {
         let txs: Vec<_> = mem::take(&mut content.uncommitted).unwrap_or_default();
+        let rejected: Vec<_> = mem::take(&mut content.rejected).unwrap_or_default();
         let mut uncommitted = SoftDeleteIndexMap::from(txs);
         for staged_tx in content.staged.unwrap_or_default() {
             let staged_tx_hash = staged_tx.tx_hash;
@@ -225,7 +226,7 @@ impl From<TransactionManagerContent> for TransactionManager {
         TransactionManager {
             uncommitted,
             committed: content.committed.unwrap_or_default(),
-            rejected: SoftDeleteIndexMap::default(),
+            rejected: SoftDeleteIndexMap::from(rejected),
         }
     }
 }
@@ -273,7 +274,10 @@ impl TransactionManagerContentBuilder {
     }
 
     fn is_default(&self) -> bool {
-        self.uncommitted.is_none() && self.committed.is_none() && self.staged.is_none()
+        self.uncommitted.is_none()
+            && self.committed.is_none()
+            && self.rejected.is_none()
+            && self.staged.is_none()
     }
 }
 
@@ -978,5 +982,35 @@ fn cancellation_not_applied_in_add_events() {
     provider.add_events(vec![Event::L1HandlerTransaction(new_tx.clone())]).unwrap();
     provider.add_events(vec![]).unwrap();
 
+    expected.assert_eq(&provider);
+}
+
+#[test]
+fn cancellation_nop_if_committed_or_rejected() {
+    // Setup.
+
+    let committed_tx_hash = tx_hash!(1);
+    let rejected_tx = l1_handler(2);
+    const TIMELOCK: BlockNumber = BlockNumber(0);
+    const CANCELLATION_ARRIVED_AT: BlockNumber = BlockNumber(0);
+    let cancellations = [(CANCELLATION_ARRIVED_AT, vec![committed_tx_hash, rejected_tx.tx_hash])];
+    const HEIGHT_OVER_TIMELOCK: BlockNumber = BlockNumber(100);
+    let mut provider = L1ProviderContentBuilder::new()
+        .with_committed([committed_tx_hash])
+        .with_rejected([rejected_tx.clone()])
+        .with_cancellation_requests(cancellations)
+        .with_height(HEIGHT_OVER_TIMELOCK)
+        .with_config_cancellation_timelock_config(TIMELOCK)
+        .build_into_l1_provider();
+
+    // Test.
+
+    // Cancellation requested is dropped if tx already committed.
+    let expected = L1ProviderContentBuilder::new()
+        .with_committed([committed_tx_hash])
+        .with_rejected([rejected_tx])
+        .with_cancellation_requests([])
+        .build();
+    provider.start_block(provider.current_height, ProposeSession).unwrap();
     expected.assert_eq(&provider);
 }
