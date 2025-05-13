@@ -99,7 +99,7 @@ fn scheduler_flow_test(
     assert!(scheduler.done_marker.load(Ordering::Acquire));
     let inner_versioned_state = versioned_state.into_inner_state();
     for tx_index in 0..DEFAULT_CHUNK_SIZE {
-        assert_eq!(*scheduler.tx_statuses[tx_index].lock().unwrap(), TransactionStatus::Committed);
+        assert_eq!(scheduler.get_tx_status(tx_index), TransactionStatus::Committed);
         let storage_writes = inner_versioned_state.get_writes_of_index(tx_index).storage;
         assert_eq!(
             *storage_writes

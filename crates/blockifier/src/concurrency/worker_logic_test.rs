@@ -421,7 +421,7 @@ fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
 
     // Validate status change.
     for tx_index in 0..3 {
-        assert_eq!(*worker_executor.scheduler.get_tx_status(tx_index), TransactionStatus::Executed);
+        assert_eq!(worker_executor.scheduler.get_tx_status(tx_index), TransactionStatus::Executed);
     }
 }
 
@@ -508,7 +508,7 @@ fn test_worker_validate(default_all_resource_bounds: ValidResourceBounds) {
         storage_value0
     );
     // No status change.
-    assert_eq!(*worker_executor.scheduler.get_tx_status(tx_index), TransactionStatus::Executed);
+    assert_eq!(worker_executor.scheduler.get_tx_status(tx_index), TransactionStatus::Executed);
 
     // Validate failed. Invoke 2 failed validations; only the first leads to a re-execution.
     let tx_index = 1;
@@ -523,7 +523,7 @@ fn test_worker_validate(default_all_resource_bounds: ValidResourceBounds) {
         storage_value0
     );
     // Verify status change.
-    assert_eq!(*worker_executor.scheduler.get_tx_status(tx_index), TransactionStatus::Executing);
+    assert_eq!(worker_executor.scheduler.get_tx_status(tx_index), TransactionStatus::Executing);
 
     let next_task2 = worker_executor.validate(tx_index);
     assert_eq!(next_task2, Task::AskForTask);
@@ -688,8 +688,8 @@ fn test_worker_commit_phase(default_all_resource_bounds: ValidResourceBounds) {
     assert_eq!(worker_executor.scheduler.get_n_committed_txs(), 2);
 
     // Verify the status of the first two transactions is `Committed`.
-    assert_eq!(*worker_executor.scheduler.get_tx_status(0), TransactionStatus::Committed);
-    assert_eq!(*worker_executor.scheduler.get_tx_status(1), TransactionStatus::Committed);
+    assert_eq!(worker_executor.scheduler.get_tx_status(0), TransactionStatus::Committed);
+    assert_eq!(worker_executor.scheduler.get_tx_status(1), TransactionStatus::Committed);
 
     // Create the final execution task and execute it.
     assert_eq!(worker_executor.scheduler.next_task(), Task::ExecutionTask(2));
@@ -701,7 +701,7 @@ fn test_worker_commit_phase(default_all_resource_bounds: ValidResourceBounds) {
     // Verify the number of committed transactions is 3, the status of the last transaction is
     // `Committed`, and the next task is `Done`.
     assert_eq!(worker_executor.scheduler.get_n_committed_txs(), 3);
-    assert_eq!(*worker_executor.scheduler.get_tx_status(2), TransactionStatus::Committed);
+    assert_eq!(worker_executor.scheduler.get_tx_status(2), TransactionStatus::Committed);
     assert_eq!(worker_executor.scheduler.next_task(), Task::Done);
 
     // Try to commit when all transactions are already committed.
@@ -773,8 +773,8 @@ fn test_worker_commit_phase_with_halt() {
     assert_eq!(worker_executor.scheduler.next_task(), Task::Done);
 
     // Verify the status of both transactions is `Committed`.
-    assert_eq!(*worker_executor.scheduler.get_tx_status(0), TransactionStatus::Committed);
-    assert_eq!(*worker_executor.scheduler.get_tx_status(1), TransactionStatus::Committed);
+    assert_eq!(worker_executor.scheduler.get_tx_status(0), TransactionStatus::Committed);
+    assert_eq!(worker_executor.scheduler.get_tx_status(1), TransactionStatus::Committed);
 
     // Verify that only one transaction was in fact committed.
     assert_eq!(worker_executor.scheduler.get_n_committed_txs(), 1);
