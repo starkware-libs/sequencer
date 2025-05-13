@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use blockifier::execution::syscalls::SyscallSelector;
+use blockifier::execution::syscalls::vm_syscall_utils::SyscallSelector;
 use cairo_vm::hint_processor::hint_processor_definition::HintReference;
 use cairo_vm::serde::deserialize_program::ApTracking;
 use cairo_vm::types::builtin_name::BuiltinName;

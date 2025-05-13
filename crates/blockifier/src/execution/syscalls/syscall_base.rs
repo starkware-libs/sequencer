@@ -26,8 +26,6 @@ use starknet_api::transaction::{
 };
 use starknet_types_core::felt::Felt;
 
-use super::exceeds_event_size_limit;
-use super::hint_processor::INVALID_ARGUMENT;
 use crate::abi::constants;
 use crate::context::TransactionContext;
 use crate::execution::call_info::{
@@ -50,7 +48,9 @@ use crate::execution::syscalls::hint_processor::{
     SyscallExecutionError,
     BLOCK_NUMBER_OUT_OF_RANGE_ERROR,
     ENTRYPOINT_FAILED_ERROR,
+    INVALID_ARGUMENT,
 };
+use crate::execution::syscalls::vm_syscall_utils::exceeds_event_size_limit;
 use crate::state::state_api::State;
 use crate::transaction::account_transaction::is_cairo1;
 use crate::transaction::objects::{
