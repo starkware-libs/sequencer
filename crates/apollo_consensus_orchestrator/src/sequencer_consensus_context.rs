@@ -333,6 +333,7 @@ struct ProposalValidateArguments {
     min_l1_data_gas_price_wei: GasPrice,
     max_l1_data_gas_price_wei: GasPrice,
     l1_data_gas_price_multiplier: Ratio<u128>,
+    l1_gas_tip_wei: GasPrice,
     timeout: Duration,
     batcher_timeout_margin: Duration,
     valid_proposals: Arc<Mutex<BuiltProposals>>,
@@ -391,6 +392,7 @@ impl ConsensusContext for SequencerConsensusContext {
                 self.config.l1_data_gas_price_multiplier_ppt,
                 1000,
             ),
+            l1_gas_tip_wei: GasPrice(self.config.l1_gas_tip_wei),
         };
         let args = ProposalBuildArguments {
             batcher_timeout: timeout - self.config.build_proposal_margin_millis,
@@ -808,6 +810,7 @@ impl SequencerConsensusContext {
         let max_l1_data_gas_price_wei = GasPrice(self.config.max_l1_data_gas_price_wei);
         let l1_data_gas_price_multiplier =
             Ratio::new(self.config.l1_data_gas_price_multiplier_ppt, 1000);
+        let l1_gas_tip_wei = GasPrice(self.config.l1_gas_tip_wei);
         let transaction_converter = self.transaction_converter.clone();
         let valid_proposals = Arc::clone(&self.valid_proposals);
         let proposal_id = ProposalId(self.proposal_id);
@@ -830,6 +833,7 @@ impl SequencerConsensusContext {
                     min_l1_data_gas_price_wei,
                     max_l1_data_gas_price_wei,
                     l1_data_gas_price_multiplier,
+                    l1_gas_tip_wei,
                     timeout,
                     batcher_timeout_margin,
                     valid_proposals,
@@ -1064,6 +1068,7 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
         min_l1_data_gas_price_wei: args.min_l1_data_gas_price_wei,
         max_l1_data_gas_price_wei: args.max_l1_data_gas_price_wei,
         l1_data_gas_price_multiplier: args.l1_data_gas_price_multiplier,
+        l1_gas_tip_wei: args.l1_gas_tip_wei,
     };
     if !is_block_info_valid(
         args.block_info_validation.clone(),
