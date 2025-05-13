@@ -95,6 +95,14 @@ impl MagicConstants {
             });
         }
 
+        // In fix / clean mode, if this is the first registration of a file in the directory, delete
+        // it. There may be stale keys that should no longer be included.
+        if is_first_registration && mode.is_fix_or_clean() && absolute_path.exists() {
+            std::fs::remove_file(&absolute_path).unwrap_or_else(|error| {
+                panic!("Failed to remove magic constants file at {absolute_path:?}: {error}.")
+            });
+        }
+
         // First registration of the specific file: create the file if it doesn't exist.
         if is_first_registration && !absolute_path.exists() {
             // In test mode, assert the file exists; otherwise, create it.
