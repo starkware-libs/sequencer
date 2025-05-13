@@ -1,12 +1,11 @@
-import click
-import logging
-import datetime
 import json
 import os
 import requests
 import time
+import argparse
 
-from grafana10_objects import empty_dashboard, row_object, templating_object
+from common.grafana10_objects import empty_dashboard, row_object, templating_object
+from common.helpers import get_logger
 
 
 def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position: int) -> dict:
@@ -86,6 +85,7 @@ def create_dashboard(dashboard_name: str, dev_dashboard: json) -> dict:
     return {"dashboard": dashboard}
 
 
+# TODO(Idan Shamam): Use Grafana Client to upload the dashboards
 def upload_dashboards_local(dashboard: dict) -> None:
     retry = 0
 
@@ -96,45 +96,29 @@ def upload_dashboards_local(dashboard: dict) -> None:
                 json={**dashboard, **{"overwrite": True}},
             )
             if res.status_code != 200:
-                print(f"Failed to upload dashboard. {res.json()}")
+                logger.error(f"Failed to upload dashboard. {res.json()}")
                 break
-            print("Dashboard uploaded successfully.")
-            print(f"you can view the dashboard at: http://localhost:3000{res.json()['url']}")
+            logger.info("Dashboard uploaded successfully.")
+            logger.info(f"you can view the dashboard at: http://localhost:3000{res.json()['url']}")
             break
         except requests.exceptions.ConnectionError:
-            print("Grafana is not ready yet. Retrying...")
+            logger.info("Grafana is not ready yet. Retrying...")
             retry += 1
             time.sleep(5)
             continue
 
 
-@click.group()
-def cli():
-    pass
+def dashboard_builder(args: argparse.Namespace) -> None:
+    global logger
+    logger = get_logger(name="dashboard_builder", debug=args.debug)
 
-
-@cli.command()
-@click.option("-j", "--dev_json_file", default="./dev_dashboard.json")
-@click.option("-d", "--debug", is_flag=True, default=False)
-@click.option("-u", "--upload", is_flag=True, default=False)
-@click.option("-o", "--out_dir", default="./out")
-def builder(dev_json_file, out_dir, upload, debug) -> None:
-    dashboards = []
-
-    # Logging
-    if debug:
-        logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
-    else:
-        logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-    start_time = datetime.datetime.now()
-    logging.info(
-        f'Starting to build grafana dashboard, time is {start_time.strftime("%Y-%m-%d %H:%M:%S")}'
-    )
+    logger.info(f"Starting to build grafana dashboard")
 
     # Load json file
-    with open(dev_json_file, "r") as f:
+    with open(args.dev_dashboards_file, "r") as f:
         dev_json = json.load(f)
 
+    dashboards = []
     for dashboard_name in dev_json.keys():
         dashboards.append(
             [
@@ -145,19 +129,15 @@ def builder(dev_json_file, out_dir, upload, debug) -> None:
                 ),
             ]
         )
-    print(dashboards)
-
+    logger.debug(json.dumps(dashboards, indent=4))
     # Write the grafana dashboard
-    os.makedirs(out_dir, exist_ok=True)
     for dashboard_name, dashboard in dashboards:
-        with open(dashboard_file_name(out_dir, dashboard_name), "w") as f:
-            json.dump(dashboard, f, indent=4)
-        if upload:
+        if args.out_dir:
+            output_dir = f"{args.out_dir}/dashboards"
+            os.makedirs(output_dir, exist_ok=True)
+            with open(dashboard_file_name(output_dir, dashboard_name), "w") as f:
+                json.dump(dashboard, f, indent=4)
+        if not args.dry_run:
             upload_dashboards_local(dashboard=dashboard)
-    logging.info(
-        f'Done building grafana dashboard, time is {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}'
-    )
 
-
-if __name__ == "__main__":
-    cli()
+    logger.info("Done building grafana dashboards")
