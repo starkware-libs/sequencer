@@ -295,9 +295,9 @@ pub fn prepare_call_arguments(
     Ok(args)
 }
 /// Runs the runner from the given PC.
-pub fn run_entry_point(
+pub fn run_entry_point<HP: HintProcessor>(
     runner: &mut CairoRunner,
-    hint_processor: &mut dyn HintProcessor,
+    hint_processor: &mut HP,
     entry_point: EntryPointV1,
     args: Args,
     program_segment_size: usize,
@@ -446,6 +446,7 @@ pub fn finalize_execution(
     tracked_resource: TrackedResource,
 ) -> Result<CallInfo, PostExecutionError> {
     finalize_runner(&mut runner, n_total_args, program_extra_data_length)?;
+    syscall_handler.read_only_segments.mark_as_accessed(&mut runner)?;
 
     let call_result = get_call_result(&runner, &syscall_handler, &tracked_resource)?;
 
