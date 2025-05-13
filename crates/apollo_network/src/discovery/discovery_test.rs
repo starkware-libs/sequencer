@@ -24,20 +24,33 @@ use void::Void;
 use super::{Behaviour, DiscoveryConfig, RetryConfig, ToOtherBehaviourEvent};
 
 const TIMEOUT: Duration = Duration::from_secs(1);
-const BOOTSTRAP_DIAL_SLEEP_MILLIS: u64 = 1000; // 1 second
-const BOOTSTRAP_DIAL_SLEEP: Duration = Duration::from_millis(BOOTSTRAP_DIAL_SLEEP_MILLIS);
+const SMALL_SLEEP_MILLIS: u64 = 1000;
+const LARGE_SLEEP_MILLIS: u64 = 5000;
 
-const CONFIG: DiscoveryConfig = DiscoveryConfig {
+const CONFIG_WITH_ZERO_HEARTBEAT_AND_SMALL_BOOTSTRAP_DIAL: DiscoveryConfig = DiscoveryConfig {
     bootstrap_dial_retry_config: RetryConfig {
-        base_delay_millis: BOOTSTRAP_DIAL_SLEEP_MILLIS,
-        max_delay_seconds: BOOTSTRAP_DIAL_SLEEP,
+        base_delay_millis: SMALL_SLEEP_MILLIS,
+        max_delay_seconds: Duration::from_millis(SMALL_SLEEP_MILLIS),
         factor: 1,
     },
     heartbeat_interval: Duration::ZERO,
 };
-
-const CONFIG_WITH_LARGE_HEARTBEAT: DiscoveryConfig =
-    DiscoveryConfig { heartbeat_interval: Duration::from_secs(9999999), ..CONFIG };
+const CONFIG_WITH_SMALL_HEARTBEAT_AND_BOOTSTRAP_SLEEP: DiscoveryConfig = DiscoveryConfig {
+    heartbeat_interval: Duration::from_millis(SMALL_SLEEP_MILLIS),
+    ..CONFIG_WITH_ZERO_HEARTBEAT_AND_SMALL_BOOTSTRAP_DIAL
+};
+const CONFIG_WITH_LARGE_HEARTBEAT_AND_SMALL_BOOTSTRAP_SLEEP: DiscoveryConfig = DiscoveryConfig {
+    heartbeat_interval: Duration::from_millis(LARGE_SLEEP_MILLIS),
+    ..CONFIG_WITH_ZERO_HEARTBEAT_AND_SMALL_BOOTSTRAP_DIAL
+};
+const CONFIG_WITH_SMALL_HEARTBEAT_AND_LARGE_BOOTSTRAP_SLEEP: DiscoveryConfig = DiscoveryConfig {
+    bootstrap_dial_retry_config: RetryConfig {
+        base_delay_millis: LARGE_SLEEP_MILLIS,
+        max_delay_seconds: Duration::from_millis(LARGE_SLEEP_MILLIS),
+        factor: 1,
+    },
+    ..CONFIG_WITH_SMALL_HEARTBEAT_AND_BOOTSTRAP_SLEEP
+};
 
 impl Unpin for Behaviour {}
 
@@ -80,14 +93,25 @@ async fn check_event_happens_after_given_duration(
     behaviour.next().now_or_never().unwrap().unwrap()
 }
 
-#[tokio::test]
-async fn discovery_redials_on_dial_failure() {
-    let bootstrap_peer_id = PeerId::random();
-    let bootstrap_peer_address = Multiaddr::empty();
+#[rstest::fixture]
+fn bootstrap_peer_id() -> PeerId {
+    PeerId::random()
+}
 
-    let mut config = CONFIG.clone();
-    config.heartbeat_interval = BOOTSTRAP_DIAL_SLEEP * 2;
-    let mut behaviour = Behaviour::new(config, bootstrap_peer_id, bootstrap_peer_address);
+#[rstest::fixture]
+fn bootstrap_peer_address() -> Multiaddr {
+    Multiaddr::empty()
+}
+
+#[rstest::rstest]
+#[tokio::test]
+async fn discovery_redials_on_dial_failure(
+    #[values(CONFIG_WITH_LARGE_HEARTBEAT_AND_SMALL_BOOTSTRAP_SLEEP)] config: DiscoveryConfig,
+    bootstrap_peer_id: PeerId,
+    bootstrap_peer_address: Multiaddr,
+) {
+    let mut behaviour =
+        Behaviour::new(config.clone(), bootstrap_peer_id, bootstrap_peer_address.clone());
 
     let event = timeout(TIMEOUT, behaviour.next()).await.unwrap().unwrap();
     assert_matches!(
@@ -104,27 +128,37 @@ async fn discovery_redials_on_dial_failure() {
         connection_id: ConnectionId::new_unchecked(0),
     }));
 
-    let event =
-        check_event_happens_after_given_duration(&mut behaviour, BOOTSTRAP_DIAL_SLEEP).await;
+    let event = check_event_happens_after_given_duration(
+        &mut behaviour,
+        config.bootstrap_dial_retry_config.max_delay_seconds,
+    )
+    .await;
     assert_matches!(
         event,
         ToSwarm::Dial{opts} if opts.get_peer_id() == Some(bootstrap_peer_id)
     );
 }
 
+#[rstest::rstest]
 #[tokio::test]
-async fn discovery_redials_when_all_connections_closed() {
+async fn discovery_redials_when_all_connections_closed(
+    #[values(CONFIG_WITH_LARGE_HEARTBEAT_AND_SMALL_BOOTSTRAP_SLEEP)] config: DiscoveryConfig,
+    bootstrap_peer_id: PeerId,
+    bootstrap_peer_address: Multiaddr,
+) {
     let mut behaviour =
-        create_behaviour_and_connect_to_bootstrap_node(CONFIG_WITH_LARGE_HEARTBEAT).await;
+        Behaviour::new(config.clone(), bootstrap_peer_id, bootstrap_peer_address.clone());
+    connect_to_bootstrap_node(&mut behaviour, bootstrap_peer_id, bootstrap_peer_address.clone())
+        .await;
 
     // Consume the initial query event.
     timeout(TIMEOUT, behaviour.next()).await.unwrap();
 
     behaviour.on_swarm_event(FromSwarm::ConnectionClosed(ConnectionClosed {
-        peer_id: behaviour.bootstrap_peer_id(),
+        peer_id: bootstrap_peer_id,
         connection_id: ConnectionId::new_unchecked(0),
         endpoint: &ConnectedPoint::Dialer {
-            address: behaviour.bootstrap_peer_address().clone(),
+            address: bootstrap_peer_address.clone(),
             role_override: Endpoint::Dialer,
         },
         remaining_established: 0,
@@ -133,23 +167,30 @@ async fn discovery_redials_when_all_connections_closed() {
     let event = timeout(TIMEOUT, behaviour.next()).await.unwrap().unwrap();
     assert_matches!(
         event,
-        ToSwarm::Dial{opts} if opts.get_peer_id() == Some(behaviour.bootstrap_peer_id())
+        ToSwarm::Dial{opts} if opts.get_peer_id() == Some(bootstrap_peer_id)
     );
 }
 
+#[rstest::rstest]
 #[tokio::test]
-async fn discovery_doesnt_redial_when_one_connection_closes() {
+async fn discovery_doesnt_redial_when_one_connection_closes(
+    #[values(CONFIG_WITH_LARGE_HEARTBEAT_AND_SMALL_BOOTSTRAP_SLEEP)] config: DiscoveryConfig,
+    bootstrap_peer_id: PeerId,
+    bootstrap_peer_address: Multiaddr,
+) {
     let mut behaviour =
-        create_behaviour_and_connect_to_bootstrap_node(CONFIG_WITH_LARGE_HEARTBEAT).await;
+        Behaviour::new(config.clone(), bootstrap_peer_id, bootstrap_peer_address.clone());
+    connect_to_bootstrap_node(&mut behaviour, bootstrap_peer_id, bootstrap_peer_address.clone())
+        .await;
 
     // Consume the initial query event.
     timeout(TIMEOUT, behaviour.next()).await.unwrap();
 
     behaviour.on_swarm_event(FromSwarm::ConnectionEstablished(ConnectionEstablished {
-        peer_id: behaviour.bootstrap_peer_id(),
+        peer_id: bootstrap_peer_id,
         connection_id: ConnectionId::new_unchecked(1),
         endpoint: &ConnectedPoint::Dialer {
-            address: behaviour.bootstrap_peer_address().clone(),
+            address: bootstrap_peer_address.clone(),
             role_override: Endpoint::Dialer,
         },
         failed_addresses: &[],
@@ -157,10 +198,10 @@ async fn discovery_doesnt_redial_when_one_connection_closes() {
     }));
 
     behaviour.on_swarm_event(FromSwarm::ConnectionClosed(ConnectionClosed {
-        peer_id: behaviour.bootstrap_peer_id(),
+        peer_id: bootstrap_peer_id,
         connection_id: ConnectionId::new_unchecked(0),
         endpoint: &ConnectedPoint::Dialer {
-            address: behaviour.bootstrap_peer_address().clone(),
+            address: bootstrap_peer_address.clone(),
             role_override: Endpoint::Dialer,
         },
         remaining_established: 1,
@@ -169,12 +210,11 @@ async fn discovery_doesnt_redial_when_one_connection_closes() {
     assert_no_event(&mut behaviour);
 }
 
-async fn create_behaviour_and_connect_to_bootstrap_node(config: DiscoveryConfig) -> Behaviour {
-    let bootstrap_peer_id = PeerId::random();
-    let bootstrap_peer_address = Multiaddr::empty();
-
-    let mut behaviour = Behaviour::new(config, bootstrap_peer_id, bootstrap_peer_address.clone());
-
+async fn connect_to_bootstrap_node(
+    behaviour: &mut Behaviour,
+    bootstrap_peer_id: PeerId,
+    bootstrap_peer_address: Multiaddr,
+) {
     // Consume the dial event.
     timeout(TIMEOUT, behaviour.next()).await.unwrap();
 
@@ -200,42 +240,39 @@ async fn create_behaviour_and_connect_to_bootstrap_node(config: DiscoveryConfig)
             }
         ) if peer_id == bootstrap_peer_id && listen_addresses == vec![bootstrap_peer_address]
     );
-
-    behaviour
 }
 
+#[rstest::rstest]
 #[tokio::test]
-async fn discovery_sleeps_between_queries() {
-    let mut config = CONFIG;
-    const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(1);
-    config.heartbeat_interval = HEARTBEAT_INTERVAL;
-
-    let mut behaviour = create_behaviour_and_connect_to_bootstrap_node(config).await;
+async fn discovery_sleeps_between_queries(
+    #[values(CONFIG_WITH_SMALL_HEARTBEAT_AND_BOOTSTRAP_SLEEP)] config: DiscoveryConfig,
+    bootstrap_peer_id: PeerId,
+    bootstrap_peer_address: Multiaddr,
+) {
+    let mut behaviour =
+        Behaviour::new(config.clone(), bootstrap_peer_id, bootstrap_peer_address.clone());
+    connect_to_bootstrap_node(&mut behaviour, bootstrap_peer_id, bootstrap_peer_address).await;
 
     // Consume the initial query event.
     timeout(TIMEOUT, behaviour.next()).await.unwrap();
 
-    let event = check_event_happens_after_given_duration(&mut behaviour, HEARTBEAT_INTERVAL).await;
+    let event =
+        check_event_happens_after_given_duration(&mut behaviour, config.heartbeat_interval).await;
     assert_matches!(
         event,
         ToSwarm::GenerateEvent(ToOtherBehaviourEvent::RequestKadQuery(_peer_id))
     );
 }
 
+#[rstest::rstest]
 #[tokio::test]
-async fn discovery_performs_queries_even_if_not_connected_to_bootstrap_peer() {
-    let mut config = CONFIG;
-    const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(1);
-    const BOOTSTRAP_DIAL_SLEEP: Duration = Duration::from_secs(5);
-    config.heartbeat_interval = HEARTBEAT_INTERVAL;
-    config.bootstrap_dial_retry_config.base_delay_millis =
-        BOOTSTRAP_DIAL_SLEEP.as_millis().try_into().unwrap();
-    config.bootstrap_dial_retry_config.max_delay_seconds = BOOTSTRAP_DIAL_SLEEP;
-
-    let bootstrap_peer_id = PeerId::random();
-    let bootstrap_peer_address = Multiaddr::empty();
-
-    let mut behaviour = Behaviour::new(config, bootstrap_peer_id, bootstrap_peer_address.clone());
+async fn discovery_performs_queries_even_if_not_connected_to_bootstrap_peer(
+    #[values(CONFIG_WITH_SMALL_HEARTBEAT_AND_LARGE_BOOTSTRAP_SLEEP)] config: DiscoveryConfig,
+    bootstrap_peer_id: PeerId,
+    bootstrap_peer_address: Multiaddr,
+) {
+    let mut behaviour =
+        Behaviour::new(config.clone(), bootstrap_peer_id, bootstrap_peer_address.clone());
 
     // Consume the initial dial and query events.
     timeout(TIMEOUT, behaviour.next()).await.unwrap();
@@ -249,7 +286,8 @@ async fn discovery_performs_queries_even_if_not_connected_to_bootstrap_peer() {
     }));
 
     // Check that we get a new Kad query after HEARTBEAT_INTERVAL.
-    let event = check_event_happens_after_given_duration(&mut behaviour, HEARTBEAT_INTERVAL).await;
+    let event =
+        check_event_happens_after_given_duration(&mut behaviour, config.heartbeat_interval).await;
     assert_matches!(
         event,
         ToSwarm::GenerateEvent(ToOtherBehaviourEvent::RequestKadQuery(_peer_id))
