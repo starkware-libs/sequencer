@@ -1249,6 +1249,11 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "l1_provider_config.cancellation_timelock_in_blocks": {
+    "description": "How many blocks the provider should wait before attempting to cancel a message.",
+    "privacy": "Public",
+    "value": 0
+  },
   "l1_provider_config.provider_startup_height_override": {
     "description": "Override height at which the provider should start",
     "privacy": "Public",
