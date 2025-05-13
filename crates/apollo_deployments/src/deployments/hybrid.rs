@@ -15,13 +15,11 @@ use crate::service::{
     get_environment_ingress_internal,
     get_ingress,
     Controller,
-    ExternalSecret,
     GetComponentConfigs,
     Ingress,
     IngressParams,
     Resource,
     Resources,
-    Service,
     ServiceName,
     ServiceNameInner,
     Toleration,
@@ -116,94 +114,6 @@ impl GetComponentConfigs for HybridNodeServiceName {
 
 // TODO(Tsabary): per each service, update all values.
 impl ServiceNameInner for HybridNodeServiceName {
-    fn create_service(
-        &self,
-        environment: &Environment,
-        external_secret: &Option<ExternalSecret>,
-        additional_config_filenames: Vec<String>,
-        ingress_params: IngressParams,
-    ) -> Service {
-        match environment {
-            Environment::Testing => match self {
-                HybridNodeServiceName::Core => Service::new(
-                    Into::<ServiceName>::into(*self),
-                    external_secret.clone(),
-                    additional_config_filenames,
-                    ingress_params.clone(),
-                    environment.clone(),
-                ),
-                HybridNodeServiceName::HttpServer => Service::new(
-                    Into::<ServiceName>::into(*self),
-                    external_secret.clone(),
-                    additional_config_filenames,
-                    ingress_params.clone(),
-                    environment.clone(),
-                ),
-                HybridNodeServiceName::Gateway => Service::new(
-                    Into::<ServiceName>::into(*self),
-                    external_secret.clone(),
-                    additional_config_filenames,
-                    ingress_params.clone(),
-                    environment.clone(),
-                ),
-                HybridNodeServiceName::Mempool => Service::new(
-                    Into::<ServiceName>::into(*self),
-                    external_secret.clone(),
-                    additional_config_filenames,
-                    ingress_params.clone(),
-                    environment.clone(),
-                ),
-                HybridNodeServiceName::SierraCompiler => Service::new(
-                    Into::<ServiceName>::into(*self),
-                    external_secret.clone(),
-                    additional_config_filenames,
-                    ingress_params.clone(),
-                    environment.clone(),
-                ),
-            },
-            Environment::SepoliaIntegration
-            | Environment::TestingEnvTwo
-            | Environment::TestingEnvThree => match self {
-                HybridNodeServiceName::Core => Service::new(
-                    Into::<ServiceName>::into(*self),
-                    external_secret.clone(),
-                    additional_config_filenames,
-                    ingress_params.clone(),
-                    environment.clone(),
-                ),
-                HybridNodeServiceName::HttpServer => Service::new(
-                    Into::<ServiceName>::into(*self),
-                    external_secret.clone(),
-                    additional_config_filenames,
-                    ingress_params.clone(),
-                    environment.clone(),
-                ),
-                HybridNodeServiceName::Gateway => Service::new(
-                    Into::<ServiceName>::into(*self),
-                    external_secret.clone(),
-                    additional_config_filenames,
-                    ingress_params.clone(),
-                    environment.clone(),
-                ),
-                HybridNodeServiceName::Mempool => Service::new(
-                    Into::<ServiceName>::into(*self),
-                    external_secret.clone(),
-                    additional_config_filenames,
-                    ingress_params.clone(),
-                    environment.clone(),
-                ),
-                HybridNodeServiceName::SierraCompiler => Service::new(
-                    Into::<ServiceName>::into(*self),
-                    external_secret.clone(),
-                    additional_config_filenames,
-                    ingress_params.clone(),
-                    environment.clone(),
-                ),
-            },
-            _ => unimplemented!(),
-        }
-    }
-
     fn get_controller(&self) -> Controller {
         match self {
             HybridNodeServiceName::Core => Controller::StatefulSet,

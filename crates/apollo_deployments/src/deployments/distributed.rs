@@ -15,13 +15,11 @@ use crate::service::{
     get_environment_ingress_internal,
     get_ingress,
     Controller,
-    ExternalSecret,
     GetComponentConfigs,
     Ingress,
     IngressParams,
     Resource,
     Resources,
-    Service,
     ServiceName,
     ServiceNameInner,
     Toleration,
@@ -144,148 +142,6 @@ impl GetComponentConfigs for DistributedNodeServiceName {
 
 // TODO(Tsabary): per each service, update all values.
 impl ServiceNameInner for DistributedNodeServiceName {
-    fn create_service(
-        &self,
-        environment: &Environment,
-        external_secret: &Option<ExternalSecret>,
-        additional_config_filenames: Vec<String>,
-        ingress_params: IngressParams,
-    ) -> Service {
-        match environment {
-            Environment::Testing => match self {
-                DistributedNodeServiceName::Batcher => Service::new(
-                    Into::<ServiceName>::into(*self),
-                    external_secret.clone(),
-                    additional_config_filenames,
-                    ingress_params.clone(),
-                    environment.clone(),
-                ),
-                DistributedNodeServiceName::ClassManager => Service::new(
-                    Into::<ServiceName>::into(*self),
-                    external_secret.clone(),
-                    additional_config_filenames,
-                    ingress_params.clone(),
-                    environment.clone(),
-                ),
-                DistributedNodeServiceName::ConsensusManager => Service::new(
-                    Into::<ServiceName>::into(*self),
-                    external_secret.clone(),
-                    additional_config_filenames,
-                    ingress_params.clone(),
-                    environment.clone(),
-                ),
-                DistributedNodeServiceName::HttpServer => Service::new(
-                    Into::<ServiceName>::into(*self),
-                    external_secret.clone(),
-                    additional_config_filenames,
-                    ingress_params.clone(),
-                    environment.clone(),
-                ),
-                DistributedNodeServiceName::Gateway => Service::new(
-                    Into::<ServiceName>::into(*self),
-                    external_secret.clone(),
-                    additional_config_filenames,
-                    ingress_params.clone(),
-                    environment.clone(),
-                ),
-                DistributedNodeServiceName::L1 => Service::new(
-                    Into::<ServiceName>::into(*self),
-                    external_secret.clone(),
-                    additional_config_filenames,
-                    ingress_params.clone(),
-                    environment.clone(),
-                ),
-                DistributedNodeServiceName::Mempool => Service::new(
-                    Into::<ServiceName>::into(*self),
-                    external_secret.clone(),
-                    additional_config_filenames,
-                    ingress_params.clone(),
-                    environment.clone(),
-                ),
-                DistributedNodeServiceName::SierraCompiler => Service::new(
-                    Into::<ServiceName>::into(*self),
-                    external_secret.clone(),
-                    additional_config_filenames,
-                    ingress_params.clone(),
-                    environment.clone(),
-                ),
-                DistributedNodeServiceName::StateSync => Service::new(
-                    Into::<ServiceName>::into(*self),
-                    external_secret.clone(),
-                    additional_config_filenames,
-                    ingress_params.clone(),
-                    environment.clone(),
-                ),
-            },
-            Environment::SepoliaIntegration => match self {
-                DistributedNodeServiceName::Batcher => Service::new(
-                    Into::<ServiceName>::into(*self),
-                    external_secret.clone(),
-                    additional_config_filenames,
-                    ingress_params.clone(),
-                    environment.clone(),
-                ),
-                DistributedNodeServiceName::ClassManager => Service::new(
-                    Into::<ServiceName>::into(*self),
-                    external_secret.clone(),
-                    additional_config_filenames,
-                    ingress_params.clone(),
-                    environment.clone(),
-                ),
-                DistributedNodeServiceName::ConsensusManager => Service::new(
-                    Into::<ServiceName>::into(*self),
-                    external_secret.clone(),
-                    additional_config_filenames,
-                    ingress_params.clone(),
-                    environment.clone(),
-                ),
-                DistributedNodeServiceName::HttpServer => Service::new(
-                    Into::<ServiceName>::into(*self),
-                    external_secret.clone(),
-                    additional_config_filenames,
-                    ingress_params.clone(),
-                    environment.clone(),
-                ),
-                DistributedNodeServiceName::Gateway => Service::new(
-                    Into::<ServiceName>::into(*self),
-                    external_secret.clone(),
-                    additional_config_filenames,
-                    ingress_params.clone(),
-                    environment.clone(),
-                ),
-                DistributedNodeServiceName::L1 => Service::new(
-                    Into::<ServiceName>::into(*self),
-                    external_secret.clone(),
-                    additional_config_filenames,
-                    ingress_params.clone(),
-                    environment.clone(),
-                ),
-                DistributedNodeServiceName::Mempool => Service::new(
-                    Into::<ServiceName>::into(*self),
-                    external_secret.clone(),
-                    additional_config_filenames,
-                    ingress_params.clone(),
-                    environment.clone(),
-                ),
-                DistributedNodeServiceName::SierraCompiler => Service::new(
-                    Into::<ServiceName>::into(*self),
-                    external_secret.clone(),
-                    additional_config_filenames,
-                    ingress_params.clone(),
-                    environment.clone(),
-                ),
-                DistributedNodeServiceName::StateSync => Service::new(
-                    Into::<ServiceName>::into(*self),
-                    external_secret.clone(),
-                    additional_config_filenames,
-                    ingress_params.clone(),
-                    environment.clone(),
-                ),
-            },
-            _ => unimplemented!(),
-        }
-    }
-
     // TODO(Tsabary/Idan): set the correct controller type for each service.
     fn get_controller(&self) -> Controller {
         match self {
