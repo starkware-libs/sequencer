@@ -3201,6 +3201,7 @@ dependencies = [
  "cairo-native",
  "cairo-vm",
  "criterion",
+ "dashmap",
  "derive_more 0.99.18",
  "glob",
  "indexmap 2.9.0",
