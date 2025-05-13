@@ -63,7 +63,6 @@ impl NetworkBehaviour for KadRequestingBehaviour {
     {
         // remember instant
         let now = Instant::now();
-        self.waker_manager.add_waker(cx.waker());
 
         if self.time_for_next_kad_query <= now {
             self.time_for_next_kad_query = now + self.heartbeat_interval;
@@ -72,7 +71,7 @@ impl NetworkBehaviour for KadRequestingBehaviour {
             )));
         }
 
-        self.waker_manager.wake_at(self.time_for_next_kad_query);
+        let _ = self.waker_manager.wake_at(cx, self.time_for_next_kad_query);
         Poll::Pending
     }
 }

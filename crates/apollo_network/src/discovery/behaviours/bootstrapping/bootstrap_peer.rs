@@ -72,7 +72,7 @@ impl NetworkBehaviour for BootstrappingBehaviour {
                     .next()
                     .expect("Dial sleep strategy ended even though it's an infinite iterator.");
                 self.time_for_next_bootstrap_dial = now + delta_duration;
-                self.waker_manager.wake_at(self.time_for_next_bootstrap_dial);
+                self.waker_manager.wake();
             }
             FromSwarm::ConnectionEstablished(ConnectionEstablished { peer_id, .. })
                 if peer_id == self.bootstrap_peer_id =>
@@ -143,7 +143,8 @@ impl NetworkBehaviour for BootstrappingBehaviour {
         }
 
         if should_dial {
-            self.waker_manager.wake_at(self.time_for_next_bootstrap_dial);
+            let next_wake_up = self.time_for_next_bootstrap_dial;
+            let _ = self.waker_manager.wake_at(cx, next_wake_up);
         }
         Poll::Pending
     }

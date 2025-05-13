@@ -1,6 +1,8 @@
 use std::sync::{Arc, Mutex};
-use std::task::Waker;
+use std::task::{Context, Poll, Waker};
 
+use futures::future::BoxFuture;
+use futures::FutureExt;
 use tokio::time::Instant;
 
 pub mod bootstrapping;
@@ -9,9 +11,10 @@ pub mod kad_requesting;
 const LOCK_ERROR: &str = "Failed to lock waker list.";
 
 /// A manager for handling wakers and scheduling them to wake them at specific times.
-#[derive(Debug, Default)]
+#[derive(Default)]
 struct TimeWakerManager {
     wakers: Arc<Mutex<Vec<Waker>>>,
+    last_timer: Option<(BoxFuture<'static, ()>, Instant)>,
 }
 
 impl TimeWakerManager {
@@ -29,16 +32,35 @@ impl TimeWakerManager {
     }
 
     /// Spawns a task that will wake the waker at a specific instant.
-    pub fn wake_at(&mut self, instant: Instant) {
-        let wakers_clone = Arc::clone(&self.wakers);
+    pub fn wake_at(&mut self, cx: &mut Context<'_>, instant: Instant) -> Poll<()> {
+        self.add_waker(cx.waker());
 
-        // define the future that will wake the wakers at the specified instant
-        let timing_future = async move {
-            tokio::time::sleep_until(instant).await;
-            Self::wake_aux(&wakers_clone);
+        let should_update_timer = if let Some((_, last_instant)) = self.last_timer.as_ref() {
+            *last_instant > instant
+        } else {
+            true
         };
 
-        tokio::spawn(timing_future);
+        if should_update_timer {
+            let wakers = Arc::clone(&self.wakers);
+            self.last_timer = Some((
+                Box::pin(async move {
+                    tokio::time::sleep_until(instant).await;
+                    Self::wake_aux(&wakers);
+                }),
+                instant,
+            ));
+        }
+
+        let poll_result = self.last_timer.as_mut().unwrap().0.poll_unpin(cx);
+
+        match poll_result {
+            Poll::Ready(_) => {
+                self.last_timer = None;
+                Poll::Ready(())
+            }
+            Poll::Pending => Poll::Pending,
+        }
     }
 
     /// calls wake on the waker.
