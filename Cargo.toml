@@ -306,6 +306,7 @@ validator = "0.12"
 void = "1.0.2"
 workspace_tests.path = "workspace_tests"
 zstd = "0.13.1"
+dashmap = "6.1.0"
 
 # Note: both rust and clippy lints are warning by default and denied on the CI (see run_tests.py).
 # To deny warnings in local dev env:

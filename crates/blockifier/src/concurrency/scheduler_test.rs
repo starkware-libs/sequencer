@@ -1,6 +1,5 @@
 use std::cmp::min;
 use std::sync::atomic::Ordering;
-use std::sync::Arc;
 
 use pretty_assertions::assert_eq;
 use rstest::rstest;
@@ -12,13 +11,13 @@ use crate::concurrency::TxIndex;
 #[rstest]
 fn test_new(#[values(0, 1, 32)] chunk_size: usize) {
     let scheduler = Scheduler::new(chunk_size);
-    assert_eq!(scheduler.execution_index.into_inner(), 0);
-    assert_eq!(scheduler.validation_index.into_inner(), chunk_size);
+    assert_eq!(scheduler.execution_index.load(Ordering::Acquire), 0);
+    assert_eq!(scheduler.validation_index.load(Ordering::Acquire), chunk_size);
     assert_eq!(*scheduler.commit_index.lock().unwrap(), 0);
     assert_eq!(scheduler.chunk_size, chunk_size);
-    assert_eq!(scheduler.tx_statuses.len(), chunk_size);
-    for i in 0..chunk_size {
-        assert_eq!(*scheduler.tx_statuses[i].lock().unwrap(), TransactionStatus::ReadyToExecute);
+    assert_eq!(scheduler.tx_statuses.len(), 0);
+    for i in 0..10 {
+        assert_eq!(scheduler.get_tx_status(i), TransactionStatus::ReadyToExecute);
     }
     assert_eq!(scheduler.done_marker.into_inner(), false);
 }
@@ -28,20 +27,6 @@ fn test_lock_tx_status() {
     let scheduler = Scheduler::new(DEFAULT_CHUNK_SIZE);
     let status = scheduler.lock_tx_status(0);
     assert_eq!(*status, TransactionStatus::ReadyToExecute);
-}
-
-#[rstest]
-#[should_panic(expected = "Cell of transaction index 0 is poisoned. Data: ReadyToExecute.")]
-fn test_lock_tx_status_poisoned() {
-    let scheduler = Arc::new(Scheduler::new(DEFAULT_CHUNK_SIZE));
-    let scheduler_clone = scheduler.clone();
-    let handle = std::thread::spawn(move || {
-        let _guard = scheduler_clone.lock_tx_status(0);
-        panic!("Intentional panic to poison the mutex")
-    });
-    handle.join().expect_err("Thread did not panic as expected");
-    // The panic is expected here.
-    let _guard = scheduler.lock_tx_status(0);
 }
 
 #[rstest]
