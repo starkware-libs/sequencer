@@ -76,7 +76,6 @@ fn scheduler_flow_test(
                             Task::AskForTask
                         }
                     }
-                    Task::NoTaskAvailable => Task::AskForTask,
                     Task::AskForTask => scheduler.next_task(),
                     Task::Done => break,
                 }

@@ -12,7 +12,7 @@ use crate::concurrency::TxIndex;
 fn test_new(#[values(0, 1, 32)] chunk_size: usize) {
     let scheduler = Scheduler::new(chunk_size);
     assert_eq!(scheduler.execution_index.load(Ordering::Acquire), 0);
-    assert_eq!(scheduler.validation_index.load(Ordering::Acquire), chunk_size);
+    assert_eq!(scheduler.validation_index.load(Ordering::Acquire), usize::MAX);
     assert_eq!(*scheduler.commit_index.lock().unwrap(), 0);
     assert_eq!(scheduler.chunk_size, chunk_size);
     assert_eq!(scheduler.tx_statuses.len(), 0);
@@ -30,32 +30,27 @@ fn test_lock_tx_status() {
 }
 
 #[rstest]
-#[case::done(DEFAULT_CHUNK_SIZE, DEFAULT_CHUNK_SIZE, TransactionStatus::Executed, Task::Done)]
-#[case::no_task(
-    DEFAULT_CHUNK_SIZE,
-    DEFAULT_CHUNK_SIZE,
-    TransactionStatus::Executed,
-    Task::NoTaskAvailable
+#[case::done(10, 10, TransactionStatus::Executed, Task::Done, Task::Done)]
+#[case::no_task(10, 10, TransactionStatus::Executed, Task::AskForTask, Task::ValidationTask(10))]
+#[case::execution_task(
+    0, 0, TransactionStatus::ReadyToExecute, Task::ExecutionTask(0), Task::ExecutionTask(1)
 )]
-#[case::no_task_as_validation_index_not_executed(
-    DEFAULT_CHUNK_SIZE,
-    0,
-    TransactionStatus::ReadyToExecute,
-    Task::AskForTask
-)]
-#[case::execution_task(0, 0, TransactionStatus::ReadyToExecute, Task::ExecutionTask(0))]
 #[case::execution_task_as_validation_index_not_executed(
     1,
     0,
     TransactionStatus::ReadyToExecute,
-    Task::ExecutionTask(1)
+    Task::ExecutionTask(1),
+    Task::ExecutionTask(2)
 )]
-#[case::validation_task(1, 0, TransactionStatus::Executed, Task::ValidationTask(0))]
+#[case::validation_task(
+    1, 0, TransactionStatus::Executed, Task::ValidationTask(0), Task::ExecutionTask(1)
+)]
 fn test_next_task(
     #[case] execution_index: TxIndex,
     #[case] validation_index: TxIndex,
     #[case] validation_index_status: TransactionStatus,
     #[case] expected_next_task: Task,
+    #[case] expected_next_task2: Task,
 ) {
     let scheduler = Scheduler {
         execution_index: execution_index.into(),
@@ -66,6 +61,8 @@ fn test_next_task(
     scheduler.set_tx_status(validation_index, validation_index_status);
     let next_task = scheduler.next_task();
     assert_eq!(next_task, expected_next_task);
+    let next_task = scheduler.next_task();
+    assert_eq!(next_task, expected_next_task2);
 }
 
 #[rstest]
@@ -247,7 +244,6 @@ fn test_decrease_validation_index(
 #[case::executed(0, TransactionStatus::Executed, false)]
 #[case::aborting(0, TransactionStatus::Aborting, false)]
 #[case::committed(0, TransactionStatus::Committed, false)]
-#[case::index_out_of_bounds(DEFAULT_CHUNK_SIZE, TransactionStatus::ReadyToExecute, false)]
 fn test_try_incarnate(
     #[case] tx_index: TxIndex,
     #[case] tx_status: TransactionStatus,
@@ -269,7 +265,6 @@ fn test_try_incarnate(
 #[case::executed(1, TransactionStatus::Executed, Some(1))]
 #[case::aborting(1, TransactionStatus::Aborting, None)]
 #[case::committed(1, TransactionStatus::Committed, None)]
-#[case::index_out_of_bounds(DEFAULT_CHUNK_SIZE, TransactionStatus::ReadyToExecute, None)]
 fn test_next_version_to_validate(
     #[case] validation_index: TxIndex,
     #[case] tx_status: TransactionStatus,
@@ -292,7 +287,6 @@ fn test_next_version_to_validate(
 #[case::executed(1, TransactionStatus::Executed, None)]
 #[case::aborting(1, TransactionStatus::Aborting, None)]
 #[case::committed(1, TransactionStatus::Committed, None)]
-#[case::index_out_of_bounds(DEFAULT_CHUNK_SIZE, TransactionStatus::ReadyToExecute, None)]
 fn test_next_version_to_execute(
     #[case] execution_index: TxIndex,
     #[case] tx_status: TransactionStatus,
