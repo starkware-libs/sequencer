@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use cairo_lang_casm::hints::StarknetHint;
 use cairo_vm::types::errors::math_errors::MathError;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
@@ -43,6 +45,24 @@ use crate::utils::u64_from_usize;
 pub type WriteResponseResult = SyscallResult<()>;
 
 pub type SyscallSelector = DeprecatedSyscallSelector;
+
+pub type SyscallUsageMap = HashMap<SyscallSelector, SyscallUsage>;
+
+#[derive(Clone, Debug, Default)]
+pub struct SyscallUsage {
+    pub call_count: usize,
+    pub linear_factor: usize,
+}
+
+impl SyscallUsage {
+    pub fn new(call_count: usize, linear_factor: usize) -> Self {
+        SyscallUsage { call_count, linear_factor }
+    }
+
+    pub fn increment_call_count(&mut self) {
+        self.call_count += 1;
+    }
+}
 
 pub trait SyscallRequest: Sized {
     fn read(_vm: &VirtualMachine, _ptr: &mut Relocatable) -> SyscallResult<Self>;

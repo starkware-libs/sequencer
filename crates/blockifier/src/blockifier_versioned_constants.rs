@@ -24,8 +24,7 @@ use thiserror::Error;
 
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::execution_utils::poseidon_hash_many_cost;
-use crate::execution::syscalls::hint_processor::SyscallUsageMap;
-use crate::execution::syscalls::vm_syscall_utils::SyscallSelector;
+use crate::execution::syscalls::vm_syscall_utils::{SyscallSelector, SyscallUsageMap};
 use crate::fee::resources::StarknetResources;
 use crate::transaction::objects::ExecutionResourcesTraits;
 use crate::utils::get_gas_cost_from_vm_resources;

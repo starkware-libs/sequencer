@@ -80,28 +80,11 @@ use crate::execution::syscalls::vm_syscall_utils::{
     SyscallExecutorBaseError,
     SyscallRequest,
     SyscallSelector,
+    SyscallUsageMap,
 };
 use crate::state::errors::StateError;
 use crate::state::state_api::State;
 use crate::transaction::objects::{CurrentTransactionInfo, TransactionInfo};
-
-#[derive(Clone, Debug, Default)]
-pub struct SyscallUsage {
-    pub call_count: usize,
-    pub linear_factor: usize,
-}
-
-impl SyscallUsage {
-    pub fn new(call_count: usize, linear_factor: usize) -> Self {
-        SyscallUsage { call_count, linear_factor }
-    }
-
-    pub fn increment_call_count(&mut self) {
-        self.call_count += 1;
-    }
-}
-
-pub type SyscallUsageMap = HashMap<SyscallSelector, SyscallUsage>;
 
 #[derive(Debug, Error)]
 pub enum SyscallExecutionError {
