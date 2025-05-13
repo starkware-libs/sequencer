@@ -5,7 +5,7 @@ use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_l1_gas_price_types::errors::L1GasPriceProviderError;
-use apollo_l1_gas_price_types::{L1GasPriceProviderResult, PriceInfo};
+use apollo_l1_gas_price_types::{GasPriceData, L1GasPriceProviderResult, PriceInfo};
 use async_trait::async_trait;
 use papyrus_base_layer::{L1BlockNumber, PriceSample};
 use serde::{Deserialize, Serialize};
@@ -89,12 +89,6 @@ impl<T: Clone> std::ops::Deref for RingBuffer<T> {
     fn deref(&self) -> &Self::Target {
         &self.0
     }
-}
-
-#[derive(Clone, Debug)]
-pub struct GasPriceData {
-    pub height: L1BlockNumber,
-    pub sample: PriceSample,
 }
 
 #[derive(Clone, Debug)]
