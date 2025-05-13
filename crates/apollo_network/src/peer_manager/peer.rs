@@ -4,13 +4,15 @@ use libp2p::swarm::ConnectionId;
 use libp2p::{Multiaddr, PeerId};
 use tracing::info;
 
+use crate::misconduct_score::MisconductScore;
+
 #[derive(Clone)]
 pub struct Peer {
     peer_id: PeerId,
     multiaddr: Multiaddr,
     timed_out_until: Instant,
     connection_ids: Vec<ConnectionId>,
-    misconduct_score: f64,
+    misconduct_score: MisconductScore,
 }
 
 impl Peer {
@@ -20,7 +22,7 @@ impl Peer {
             multiaddr,
             timed_out_until: get_instant_now(),
             connection_ids: Vec::new(),
-            misconduct_score: 0f64,
+            misconduct_score: MisconductScore::NEUTRAL,
         }
     }
 
@@ -70,15 +72,15 @@ impl Peer {
     }
 
     pub fn reset_misconduct_score(&mut self) {
-        self.misconduct_score = 0f64;
+        self.misconduct_score = MisconductScore::NEUTRAL;
     }
 
-    pub fn report(&mut self, misconduct_score: f64) {
+    pub fn report(&mut self, misconduct_score: MisconductScore) {
         self.misconduct_score += misconduct_score;
     }
 
     pub fn is_malicious(&self) -> bool {
-        1.0f64 <= self.misconduct_score
+        self.misconduct_score.is_malicious()
     }
 }
 
