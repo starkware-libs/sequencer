@@ -92,9 +92,9 @@ use crate::execution::execution_utils::{
     ReadOnlySegments,
 };
 use crate::execution::hint_code;
-use crate::execution::syscalls::hint_processor::{EmitEventError, SyscallUsageMap};
+use crate::execution::syscalls::hint_processor::EmitEventError;
 use crate::execution::syscalls::syscall_base::should_reject_deploy;
-use crate::execution::syscalls::vm_syscall_utils::exceeds_event_size_limit;
+use crate::execution::syscalls::vm_syscall_utils::{exceeds_event_size_limit, SyscallUsageMap};
 use crate::state::errors::StateError;
 use crate::state::state_api::State;
 use crate::transaction::objects::TransactionInfo;
