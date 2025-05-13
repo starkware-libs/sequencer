@@ -5,6 +5,7 @@ use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
+use expect_test::expect_file;
 use pretty_assertions::assert_eq;
 use regex::Regex;
 use rstest::rstest;
@@ -85,7 +86,6 @@ fn assert_contains_ordered_substrings(needles: &[&str], haystack: &str) {
 
 #[rstest]
 fn test_stack_trace_with_inner_error_msg(block_context: BlockContext) {
-    let mut magic = register_magic_constants!();
     let cairo_version = CairoVersion::Cairo0;
     let chain_info = ChainInfo::create_for_testing();
     let account = FeatureContract::AccountWithoutValidations(cairo_version);
@@ -125,7 +125,8 @@ fn test_stack_trace_with_inner_error_msg(block_context: BlockContext) {
 
     // Regression test the trace.
     let trace_string = tx_execution_error.to_string();
-    magic.assert_eq("EXPECTED_TRACE", trace_line_map(&trace_string));
+    let expectation = expect_file!["./stack_trace_regression/with_inner_error_msg.txt"];
+    expectation.assert_eq(&trace_string);
 
     // Check the frame order is as expected.
     let execute_selector_felt = selector_from_name(EXECUTE_ENTRY_POINT_NAME).0;
