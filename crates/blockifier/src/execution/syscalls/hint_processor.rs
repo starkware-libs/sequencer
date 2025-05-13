@@ -46,13 +46,10 @@ use crate::execution::execution_utils::{
     ReadOnlySegments,
 };
 use crate::execution::syscalls::secp::SecpHintProcessor;
-use crate::execution::syscalls::syscall_base::SyscallHandlerBase;
-use crate::execution::syscalls::syscall_executor::{
+use crate::execution::syscalls::syscall_base::{SyscallHandlerBase, SyscallResult};
+use crate::execution::syscalls::syscall_executor::SyscallExecutor;
+use crate::execution::syscalls::vm_syscall_utils::{
     execute_next_syscall,
-    SyscallExecutor,
-    SyscallExecutorBaseError,
-};
-use crate::execution::syscalls::{
     CallContractRequest,
     CallContractResponse,
     DeployRequest,
@@ -79,8 +76,8 @@ use crate::execution::syscalls::{
     StorageReadResponse,
     StorageWriteRequest,
     StorageWriteResponse,
+    SyscallExecutorBaseError,
     SyscallRequest,
-    SyscallResult,
     SyscallSelector,
 };
 use crate::state::errors::StateError;

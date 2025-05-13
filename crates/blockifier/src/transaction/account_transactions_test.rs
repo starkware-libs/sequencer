@@ -82,7 +82,7 @@ use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::{EntryPointExecutionContext, SierraGasRevertTracker};
-use crate::execution::syscalls::SyscallSelector;
+use crate::execution::syscalls::vm_syscall_utils::SyscallSelector;
 use crate::fee::fee_utils::{
     get_fee_by_gas_vector,
     get_sequencer_balance_keys,
