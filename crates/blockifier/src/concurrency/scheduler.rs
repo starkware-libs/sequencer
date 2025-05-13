@@ -248,8 +248,8 @@ impl Scheduler {
     }
 
     #[cfg(any(feature = "testing", test))]
-    pub fn get_tx_status(&self, tx_index: TxIndex) -> MutexGuard<'_, TransactionStatus> {
-        self.lock_tx_status(tx_index)
+    pub fn get_tx_status(&self, tx_index: TxIndex) -> TransactionStatus {
+        *self.lock_tx_status(tx_index)
     }
 }
 
