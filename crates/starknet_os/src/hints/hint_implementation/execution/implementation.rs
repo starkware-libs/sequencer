@@ -590,7 +590,7 @@ pub(crate) fn check_execution<S: StateReader>(
         };
     }
 
-    let syscall_ptr_end = get_address_of_nested_fields(
+    let syscall_ptr_end_address = get_address_of_nested_fields(
         ids_data,
         Ids::EntryPointReturnValues,
         CairoStruct::EntryPointReturnValuesPtr,
@@ -599,6 +599,7 @@ pub(crate) fn check_execution<S: StateReader>(
         &["syscall_ptr"],
         hint_processor.os_program,
     )?;
+    let syscall_ptr_end = vm.get_relocatable(syscall_ptr_end_address)?;
     hint_processor.syscall_hint_processor.validate_and_discard_syscall_ptr(&syscall_ptr_end)?;
     current_execution_helper.tx_execution_iter.get_mut_tx_execution_info_ref()?.exit_call_info()?;
     Ok(())
