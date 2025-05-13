@@ -123,10 +123,11 @@ create_syscall_func!(
 pub(crate) fn set_syscall_ptr<S: StateReader>(
     HintArgs { hint_processor, vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    assert_eq!(
-        exec_scopes.get::<SyscallHandlerType>(Scope::SyscallHandlerType.into())?,
-        SyscallHandlerType::SyscallHandler,
-        "Called set_syscall_ptr in a deprecated syscall context."
+    assert!(
+        !exec_scopes
+            .get::<SyscallHandlerType>(Scope::SyscallHandlerType.into())
+            .is_ok_and(|handler_type| handler_type == SyscallHandlerType::DeprecatedSyscallHandler),
+        "Syscall handler type should either be unset or non-deprecated."
     );
     let syscall_ptr = get_ptr_from_var_name(Ids::SyscallPtr.into(), vm, ids_data, ap_tracking)?;
     hint_processor.syscall_hint_processor.set_syscall_ptr(syscall_ptr);
