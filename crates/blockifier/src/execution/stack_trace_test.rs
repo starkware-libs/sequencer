@@ -1,6 +1,3 @@
-use std::collections::BTreeMap;
-
-use apollo_infra_utils::register_magic_constants;
 use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
@@ -65,12 +62,6 @@ use crate::transaction::test_utils::{
     INVALID,
 };
 use crate::transaction::transactions::ExecutableTransaction;
-
-/// Converts a string with newlines to a map from line number to line; for ease of reading in the
-/// regression JSON.
-fn trace_line_map(trace: &str) -> BTreeMap<String, String> {
-    trace.lines().enumerate().map(|(i, line)| (format!("{i:0>3}"), line.to_string())).collect()
-}
 
 /// Asserts the subtrings (needles) appear in the haystack, in order, separated by any number of any
 /// character (including newlines).
@@ -158,7 +149,6 @@ fn test_stack_trace_with_inner_error_msg(block_context: BlockContext) {
 #[case(CairoVersion::Cairo1(RunnableCairo1::Casm))]
 #[cfg_attr(feature = "cairo_native", case(CairoVersion::Cairo1(RunnableCairo1::Native)))]
 fn test_stack_trace(block_context: BlockContext, #[case] cairo_version: CairoVersion) {
-    let mut magic = register_magic_constants!();
     let chain_info = ChainInfo::create_for_testing();
     let account = FeatureContract::AccountWithoutValidations(cairo_version);
     let test_contract = FeatureContract::TestContract(cairo_version);
@@ -198,8 +188,15 @@ fn test_stack_trace(block_context: BlockContext, #[case] cairo_version: CairoVer
 
     // Regression test the trace.
     let trace_string = tx_execution_error.to_string();
-    let cairo_version_key = if cairo_version.is_cairo0() { "CAIRO0" } else { "CAIRO1" };
-    magic.assert_eq(&format!("EXPECTED_TRACE_{cairo_version_key}"), trace_line_map(&trace_string));
+    let expectation = match cairo_version {
+        CairoVersion::Cairo0 => {
+            expect_file!["./stack_trace_regression/test_stack_trace_cairo0.txt"]
+        }
+        CairoVersion::Cairo1(_) => {
+            expect_file!["./stack_trace_regression/test_stack_trace_cairo1.txt"]
+        }
+    };
+    expectation.assert_eq(&trace_string);
 
     // Check the frame order is as expected.
     let execute_selector_felt = selector_from_name(EXECUTE_ENTRY_POINT_NAME).0;
