@@ -61,7 +61,7 @@ pub(crate) fn update_builtin_ptrs<S: StateReader>(
 ) -> OsHintResult {
     let n_builtins = get_integer_from_var_name(Ids::NBuiltins.into(), vm, ids_data, ap_tracking)?;
 
-    let builtins_encoding_addr = get_address_of_nested_fields(
+    let builtins_encoding_address = get_address_of_nested_fields(
         ids_data,
         Ids::BuiltinParams,
         CairoStruct::BuiltinParamsPtr,
@@ -70,6 +70,8 @@ pub(crate) fn update_builtin_ptrs<S: StateReader>(
         &["builtin_encodings"],
         hint_processor.os_program,
     )?;
+
+    let builtins_encoding = vm.get_relocatable(builtins_encoding_address)?;
 
     let n_selected_builtins =
         get_integer_from_var_name(Ids::NSelectedBuiltins.into(), vm, ids_data, ap_tracking)?;
@@ -83,8 +85,7 @@ pub(crate) fn update_builtin_ptrs<S: StateReader>(
 
     let selected_ptrs = get_ptr_from_var_name(Ids::SelectedPtrs.into(), vm, ids_data, ap_tracking)?;
 
-    let all_builtins =
-        vm.get_continuous_range(builtins_encoding_addr, felt_to_usize(&n_builtins)?)?;
+    let all_builtins = vm.get_continuous_range(builtins_encoding, felt_to_usize(&n_builtins)?)?;
 
     let selected_builtins =
         vm.get_continuous_range(selected_encodings, felt_to_usize(&n_selected_builtins)?)?;
