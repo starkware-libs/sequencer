@@ -19,6 +19,7 @@ pub(crate) struct GasPriceParams {
     pub max_l1_data_gas_price_wei: GasPrice,
     pub min_l1_data_gas_price_wei: GasPrice,
     pub l1_data_gas_price_multiplier: Ratio<u128>,
+    pub l1_gas_tip_wei: GasPrice,
 }
 
 pub(crate) async fn get_oracle_rate_and_prices(
@@ -87,6 +88,7 @@ pub(crate) fn apply_fee_transformations(
 ) -> PriceInfo {
     price_info.base_fee_per_gas = price_info
         .base_fee_per_gas
+        .saturating_add(gas_price_params.l1_gas_tip_wei)
         .clamp(gas_price_params.min_l1_gas_price_wei, gas_price_params.max_l1_gas_price_wei);
 
     price_info.blob_fee = GasPrice(
