@@ -6,7 +6,13 @@ repository.workspace = true
 license.workspace = true
 
 [features]
-testing = []
+testing = [
+  "apollo_mempool_p2p_types/testing",
+  "apollo_metrics/testing",
+  "apollo_network/testing",
+  "apollo_network_types/testing",
+  "starknet_api/testing",
+]
 
 [lints]
 workspace = true
@@ -24,7 +30,6 @@ serde.workspace = true
 starknet_api.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
-tokio.workspace = true
 tracing.workspace = true
 validator.workspace = true
 
@@ -44,6 +49,4 @@ pretty_assertions.workspace = true
 rstest.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
-
-[package.metadata.cargo-machete]
-ignored = ["starknet-types-core"]
+tokio.workspace = true
