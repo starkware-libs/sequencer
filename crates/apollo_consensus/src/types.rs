@@ -121,19 +121,10 @@ pub trait ConsensusContext {
     async fn set_height_and_round(&mut self, height: BlockNumber, round: Round);
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub struct Decision {
     pub precommits: Vec<Vote>,
     pub block: ProposalCommitment,
-}
-
-impl Debug for Decision {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Decision")
-            .field("block", &self.block)
-            .field("precommits", &self.precommits)
-            .finish()
-    }
 }
 
 pub struct BroadcastVoteChannel {
