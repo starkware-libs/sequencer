@@ -1,4 +1,5 @@
 use apollo_gateway::metrics::{GATEWAY_ADD_TX_LATENCY, GATEWAY_TRANSACTIONS_RECEIVED};
+use apollo_http_server::metrics::ADDED_TRANSACTIONS_TOTAL;
 use apollo_mempool::metrics::{MEMPOOL_GET_TXS_SIZE, MEMPOOL_TRANSACTIONS_RECEIVED};
 use const_format::formatcp;
 
@@ -59,6 +60,20 @@ const MEMPOOL_ADD_TX_RATE_DROP: Alert = Alert {
     evaluation_interval_sec: 20,
 };
 
+const HTTP_SERVER_IDLE: Alert = Alert {
+    name: "http_server_idle",
+    title: "http server idle",
+    alert_group: AlertGroup::HttpServer,
+    expr: formatcp!("rate(max({})[60m:])", ADDED_TRANSACTIONS_TOTAL.get_name()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::LessThan,
+        comparison_value: 0.000001,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "5m",
+    evaluation_interval_sec: 60,
+};
+
 // The rate of add_txs is lower than the rate of transactions inserted into a block since this node
 // is not always the proposer.
 const MEMPOOL_GET_TXS_SIZE_DROP: Alert = Alert {
@@ -80,4 +95,5 @@ pub const SEQUENCER_ALERTS: Alerts = Alerts::new(&[
     GATEWAY_ADD_TX_LATENCY_INCREASE,
     MEMPOOL_ADD_TX_RATE_DROP,
     MEMPOOL_GET_TXS_SIZE_DROP,
+    HTTP_SERVER_IDLE,
 ]);
