@@ -40,7 +40,7 @@ pub(crate) async fn get_oracle_rate_and_prices(
     match (eth_to_strk_rate, price_info) {
         (Ok(eth_to_strk_rate), Ok(price_info)) => {
             info!("eth_to_strk_rate: {eth_to_strk_rate}, l1 gas price: {price_info:?}");
-            return (eth_to_strk_rate, price_info);
+            return (eth_to_strk_rate, apply_fee_transformations(price_info, gas_price_params));
         }
         err => {
             warn!(
@@ -67,8 +67,9 @@ pub(crate) async fn get_oracle_rate_and_prices(
     }
     warn!("No previous block info available, using default values");
     warn!(
-        "default eth_to_strk_rate: {DEFAULT_ETH_TO_FRI_RATE}, default (min) l1 gas price: {:?}",
-        gas_price_params.min_l1_gas_price_wei
+        "default eth_to_strk_rate: {DEFAULT_ETH_TO_FRI_RATE}, default (min) l1 gas price: {:?}, \
+         default (min) l1 data gas price: {:?}",
+        gas_price_params.min_l1_gas_price_wei, gas_price_params.min_l1_data_gas_price_wei
     );
 
     (
@@ -78,4 +79,19 @@ pub(crate) async fn get_oracle_rate_and_prices(
             blob_fee: gas_price_params.min_l1_data_gas_price_wei,
         },
     )
+}
+
+fn apply_fee_transformations(
+    mut price_info: PriceInfo,
+    gas_price_params: &GasPriceParams,
+) -> PriceInfo {
+    price_info.base_fee_per_gas = price_info
+        .base_fee_per_gas
+        .clamp(gas_price_params.min_l1_gas_price_wei, gas_price_params.max_l1_gas_price_wei);
+
+    price_info.blob_fee = GasPrice(
+        (gas_price_params.l1_data_gas_price_multiplier * price_info.blob_fee.0).to_integer(),
+    )
+    .clamp(gas_price_params.min_l1_data_gas_price_wei, gas_price_params.max_l1_data_gas_price_wei);
+    price_info
 }
