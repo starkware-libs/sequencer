@@ -11,6 +11,9 @@ use tracing::info;
 use crate::config::SierraCompilationConfig;
 use crate::constants::CAIRO_LANG_BINARY_NAME;
 
+// TODO(Noa): Reconsider the default value.
+const DEFAULT_MAX_MEMORY_USAGE: u64 = 5 * 1024 * 1024 * 1024;
+
 #[derive(Clone)]
 pub struct SierraToCasmCompiler {
     pub config: SierraCompilationConfig,
@@ -37,7 +40,7 @@ impl SierraToCasmCompiler {
             "--allowed-libfuncs-list-name",
             "all",
         ];
-        let resource_limits = ResourceLimits::new(None, None, None);
+        let resource_limits = ResourceLimits::new(None, None, Some(DEFAULT_MAX_MEMORY_USAGE));
 
         let stdout = compile_with_args(
             compiler_binary_path,
