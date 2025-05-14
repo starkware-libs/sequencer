@@ -1062,15 +1062,10 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
     };
 
     let previous_block_info = block_info(BlockNumber(0));
-    // The l1_data_gas_price the proposer sends contains a discount we need to adjust for here.
-    let ContextConfig { l1_data_gas_price_multiplier_ppt: default_data_gas_multiplier, .. } =
-        ContextConfig::default();
-    let expected_l1_data_gas_price =
-        GasPrice(previous_block_info.l1_data_gas_price_wei.0 * default_data_gas_multiplier / 1000);
 
     assert_eq!(info.eth_to_fri_rate, previous_block_info.eth_to_fri_rate);
     assert_eq!(info.l1_gas_price_wei, previous_block_info.l1_gas_price_wei);
-    assert_eq!(info.l1_data_gas_price_wei, expected_l1_data_gas_price);
+    assert_eq!(info.l1_data_gas_price_wei, previous_block_info.l1_data_gas_price_wei);
 
     assert_eq!(
         receiver.next().await.unwrap(),
