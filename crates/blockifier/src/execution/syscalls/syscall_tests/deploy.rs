@@ -16,7 +16,7 @@ use crate::context::{BlockContext, ChainInfo};
 use crate::execution::call_info::CallExecution;
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::syscalls::hint_processor::SyscallUsage;
-use crate::execution::syscalls::SyscallSelector;
+use crate::execution::syscalls::vm_syscall_utils::SyscallSelector;
 use crate::retdata;
 use crate::state::state_api::StateReader;
 use crate::test_utils::create_deploy_entry_point;

@@ -11,6 +11,10 @@ use crate::core::CompiledClassHash;
 use crate::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use crate::StarknetApiError;
 
+#[cfg(test)]
+#[path = "contract_class_test.rs"]
+mod contract_class_test;
+
 /// One Felt fits into 32 bytes.
 pub const FELT_WIDTH: usize = 32;
 
@@ -72,9 +76,7 @@ impl SierraVersion {
     /// Version of deprecated contract class (Cairo 0).
     pub const DEPRECATED: Self = Self(Version::new(0, 0, 0));
 
-    // TODO(Aviv): Implement logic to fetch the latest version dynamically from Cargo.toml and write
-    // tests to ensure that it matches the value returned by this function.
-    pub const LATEST: Self = Self(Version::new(2, 8, 4));
+    pub const LATEST: Self = Self(Version::new(1, 7, 0));
 
     pub fn new(major: u64, minor: u64, patch: u64) -> Self {
         Self(Version::new(major, minor, patch))

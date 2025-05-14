@@ -28,6 +28,7 @@ use tracing::{debug, error, trace, warn};
 
 use self::swarm_trait::SwarmTrait;
 use crate::gossipsub_impl::Topic;
+use crate::misconduct_score::MisconductScore;
 use crate::mixed_behaviour::{self, BridgedBehaviour};
 use crate::sqmr::behaviour::SessionError;
 use crate::sqmr::{self, InboundSessionId, OutboundSessionId, SessionId};
@@ -84,8 +85,8 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                         topic_hash,
                     );
                 }
-                Some(Some(peer_id)) = self.reported_peer_receivers.next() => self.swarm.report_peer_as_malicious(peer_id),
-                Some(peer_id) = self.reported_peers_receiver.next() => self.swarm.report_peer_as_malicious(peer_id),
+                Some(Some(peer_id)) = self.reported_peer_receivers.next() => self.swarm.report_peer_as_malicious(peer_id, MisconductScore::MALICIOUS),
+                Some(peer_id) = self.reported_peers_receiver.next() => self.swarm.report_peer_as_malicious(peer_id, MisconductScore::MALICIOUS),
                 Some(broadcasted_message_metadata) = self.continue_propagation_receiver.next() => {
                     self.swarm.continue_propagation(broadcasted_message_metadata);
                 }

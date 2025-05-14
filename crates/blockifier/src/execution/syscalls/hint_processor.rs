@@ -46,13 +46,10 @@ use crate::execution::execution_utils::{
     ReadOnlySegments,
 };
 use crate::execution::syscalls::secp::SecpHintProcessor;
-use crate::execution::syscalls::syscall_base::SyscallHandlerBase;
-use crate::execution::syscalls::syscall_executor::{
+use crate::execution::syscalls::syscall_base::{SyscallHandlerBase, SyscallResult};
+use crate::execution::syscalls::syscall_executor::SyscallExecutor;
+use crate::execution::syscalls::vm_syscall_utils::{
     execute_next_syscall,
-    SyscallExecutor,
-    SyscallExecutorBaseError,
-};
-use crate::execution::syscalls::{
     CallContractRequest,
     CallContractResponse,
     DeployRequest,
@@ -79,8 +76,8 @@ use crate::execution::syscalls::{
     StorageReadResponse,
     StorageWriteRequest,
     StorageWriteResponse,
+    SyscallExecutorBaseError,
     SyscallRequest,
-    SyscallResult,
     SyscallSelector,
 };
 use crate::state::errors::StateError;
@@ -135,8 +132,6 @@ pub enum SyscallExecutionError {
         selector: EntryPointSelector,
         error: Box<SyscallExecutionError>,
     },
-    #[error("Invalid syscall input: {input:?}; {info}")]
-    InvalidSyscallInput { input: Felt, info: String },
     #[error("Invalid syscall selector: {0:?}.")]
     InvalidSyscallSelector(Felt),
     #[error("Unauthorized syscall {syscall_name} in execution mode {execution_mode}.")]
@@ -833,7 +828,7 @@ pub fn felt_to_bool(felt: Felt, error_info: &str) -> SyscallResult<bool> {
     } else if felt == Felt::ONE {
         Ok(true)
     } else {
-        Err(SyscallExecutionError::InvalidSyscallInput { input: felt, info: error_info.into() })
+        Err(SyscallExecutorBaseError::InvalidSyscallInput { input: felt, info: error_info.into() })?
     }
 }
 

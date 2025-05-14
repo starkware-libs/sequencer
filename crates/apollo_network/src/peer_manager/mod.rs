@@ -18,6 +18,7 @@ use tracing::info;
 
 pub use self::behaviour_impl::ToOtherBehaviourEvent;
 use crate::discovery::identify_impl::IdentifyToOtherBehaviourEvent;
+use crate::misconduct_score::MisconductScore;
 use crate::mixed_behaviour::BridgedBehaviour;
 use crate::sqmr::OutboundSessionId;
 use crate::{discovery, mixed_behaviour, sqmr};
@@ -27,16 +28,10 @@ pub(crate) mod peer;
 #[cfg(test)]
 mod test;
 
-pub const MALICIOUS: f64 = 1.0;
-
 #[cfg_attr(test, derive(Debug, PartialEq))]
 #[derive(Clone, Copy)]
 pub enum ReputationModifier {
-    /// misconduct_score is in the range [0, 1]. When a peer's total misconduct_score reaches 1, it
-    /// is considered malicious.
-    Misconduct {
-        misconduct_score: f64,
-    },
+    Misconduct { misconduct_score: MisconductScore },
     Unstable,
 }
 

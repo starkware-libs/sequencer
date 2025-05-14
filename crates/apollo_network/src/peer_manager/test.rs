@@ -16,10 +16,11 @@ use void::Void;
 
 use super::behaviour_impl::ToOtherBehaviourEvent;
 use crate::discovery::identify_impl::IdentifyToOtherBehaviourEvent;
+use crate::misconduct_score::MisconductScore;
 use crate::mixed_behaviour;
 use crate::mixed_behaviour::BridgedBehaviour;
 use crate::peer_manager::peer::Peer;
-use crate::peer_manager::{PeerManager, PeerManagerConfig, ReputationModifier, MALICIOUS};
+use crate::peer_manager::{PeerManager, PeerManagerConfig, ReputationModifier};
 use crate::sqmr::OutboundSessionId;
 
 impl Unpin for PeerManager {}
@@ -314,7 +315,7 @@ fn report_session_on_unknown_session_id() {
     peer_manager
         .report_session(
             outbound_session_id,
-            ReputationModifier::Misconduct { misconduct_score: MALICIOUS },
+            ReputationModifier::Misconduct { misconduct_score: MisconductScore::MALICIOUS },
         )
         .expect_err("report_session on unknown outbound_session_id should return an error");
 }
@@ -334,7 +335,10 @@ async fn timed_out_peer_not_assignable_to_queries() {
 
     // Report the peer as bad
     peer_manager
-        .report_peer(peer_id, ReputationModifier::Misconduct { misconduct_score: MALICIOUS })
+        .report_peer(
+            peer_id,
+            ReputationModifier::Misconduct { misconduct_score: MisconductScore::MALICIOUS },
+        )
         .unwrap();
 
     // Create a session
@@ -360,7 +364,10 @@ fn wrap_around_in_peer_assignment() {
 
     // Report the peer as malicious
     peer_manager
-        .report_peer(peer_id1, ReputationModifier::Misconduct { misconduct_score: MALICIOUS })
+        .report_peer(
+            peer_id1,
+            ReputationModifier::Misconduct { misconduct_score: MisconductScore::MALICIOUS },
+        )
         .unwrap();
 
     // Create a peer
@@ -398,7 +405,10 @@ fn block_and_allow_inbound_connection() {
     peer_manager.add_peer(peer2);
 
     peer_manager
-        .report_peer(peer_id1, ReputationModifier::Misconduct { misconduct_score: MALICIOUS })
+        .report_peer(
+            peer_id1,
+            ReputationModifier::Misconduct { misconduct_score: MisconductScore::MALICIOUS },
+        )
         .unwrap();
 
     // call handle_established_inbound_connection with the blocked peer

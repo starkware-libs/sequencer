@@ -7,8 +7,9 @@ use tracing::{info, warn};
 
 use super::BroadcastedMessageMetadata;
 use crate::gossipsub_impl::Topic;
+use crate::misconduct_score::MisconductScore;
 use crate::mixed_behaviour;
-use crate::peer_manager::{ReputationModifier, MALICIOUS};
+use crate::peer_manager::ReputationModifier;
 use crate::sqmr::behaviour::SessionIdNotFoundError;
 use crate::sqmr::{Bytes, InboundSessionId, OutboundSessionId, SessionId};
 
@@ -43,8 +44,7 @@ pub trait SwarmTrait: Stream<Item = Event> + Unpin {
 
     fn broadcast_message(&mut self, message: Bytes, topic_hash: TopicHash);
 
-    // TODO(Shahak): change this to report_peer and add an argument for the score.
-    fn report_peer_as_malicious(&mut self, peer_id: PeerId);
+    fn report_peer_as_malicious(&mut self, peer_id: PeerId, misconduct_score: MisconductScore);
 
     fn add_new_supported_inbound_protocol(&mut self, protocol_name: StreamProtocol);
 
@@ -110,11 +110,11 @@ impl SwarmTrait for Swarm<mixed_behaviour::MixedBehaviour> {
         }
     }
 
-    fn report_peer_as_malicious(&mut self, peer_id: PeerId) {
+    fn report_peer_as_malicious(&mut self, peer_id: PeerId, misconduct_score: MisconductScore) {
         let _ = self
             .behaviour_mut()
             .peer_manager
-            .report_peer(peer_id, ReputationModifier::Misconduct { misconduct_score: MALICIOUS });
+            .report_peer(peer_id, ReputationModifier::Misconduct { misconduct_score });
     }
 
     fn add_new_supported_inbound_protocol(&mut self, protocol: StreamProtocol) {

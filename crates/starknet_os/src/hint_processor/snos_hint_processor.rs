@@ -3,11 +3,12 @@ use std::collections::BTreeMap;
 use std::collections::HashSet;
 
 use blockifier::execution::syscalls::secp::SecpHintProcessor;
-use blockifier::execution::syscalls::syscall_executor::execute_next_syscall;
+use blockifier::execution::syscalls::vm_syscall_utils::execute_next_syscall;
 use blockifier::state::state_api::StateReader;
 #[cfg(any(feature = "testing", test))]
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use cairo_lang_casm::hints::Hint as Cairo1Hint;
+use cairo_lang_runner::casm_run::execute_core_hint_base;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::{
     BuiltinHintProcessor,
@@ -255,8 +256,10 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<'_, S> {
 
         // Cairo1 syscall or Cairo1 core hint.
         match hint_data.downcast_ref::<Cairo1Hint>().ok_or(HintError::WrongHintData)? {
-            Cairo1Hint::Core(_hint) => {
-                todo!()
+            Cairo1Hint::Core(hint) => {
+                let no_temporary_segments = true;
+                execute_core_hint_base(vm, exec_scopes, hint, no_temporary_segments)?;
+                Ok(HintExtension::default())
             }
             Cairo1Hint::Starknet(hint) => {
                 execute_next_syscall(self, vm, hint)?;
