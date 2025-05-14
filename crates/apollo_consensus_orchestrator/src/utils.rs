@@ -7,10 +7,19 @@ use apollo_l1_gas_price_types::{
     DEFAULT_ETH_TO_FRI_RATE,
 };
 use apollo_protobuf::consensus::ConsensusBlockInfo;
+use num_rational::Ratio;
 use starknet_api::block::{BlockTimestamp, GasPrice};
 use tracing::{info, warn};
 
 use crate::metrics::CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR;
+
+pub(crate) struct GasPriceParams {
+    pub min_l1_gas_price_wei: GasPrice,
+    pub max_l1_gas_price_wei: GasPrice,
+    pub max_l1_data_gas_price_wei: GasPrice,
+    pub min_l1_data_gas_price_wei: GasPrice,
+    pub l1_data_gas_price_multiplier: Ratio<u128>,
+}
 
 pub(crate) async fn get_oracle_rate_and_prices(
     eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
