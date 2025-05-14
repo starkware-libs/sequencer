@@ -201,7 +201,7 @@
   "consensus_manager_config.votes_topic": "consensus_votes",
   "eth_fee_token_address": "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
   "gateway_config.block_declare": false,
-  "gateway_config.stateful_tx_validator_config.max_allowed_nonce_gap": 1000,
+  "gateway_config.stateful_tx_validator_config.max_allowed_nonce_gap": 50,
   "gateway_config.stateful_tx_validator_config.max_nonce_for_validation_skip": "0x1",
   "gateway_config.stateful_tx_validator_config.reject_future_declare_txs": true,
   "gateway_config.stateless_tx_validator_config.max_calldata_length": 5000,
