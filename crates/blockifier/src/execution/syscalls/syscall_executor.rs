@@ -7,7 +7,6 @@ use starknet_types_core::felt::Felt;
 use crate::blockifier_versioned_constants::{GasCostsError, SyscallGasCost};
 use crate::execution::execution_utils::felt_from_ptr;
 use crate::execution::syscalls::common_syscall_logic::base_keccak;
-use crate::execution::syscalls::hint_processor::SyscallExecutionError;
 use crate::execution::syscalls::secp::{
     Secp256r1NewRequest,
     Secp256r1NewResponse,
@@ -53,6 +52,7 @@ use crate::execution::syscalls::vm_syscall_utils::{
     StorageReadResponse,
     StorageWriteRequest,
     StorageWriteResponse,
+    SyscallExecutorBaseError,
     SyscallSelector,
 };
 
@@ -141,10 +141,12 @@ pub trait SyscallExecutor {
         let data_u64: &[u64] = &data
             .iter()
             .map(|felt| {
-                felt.to_u64().ok_or_else(|| SyscallExecutionError::InvalidSyscallInput {
-                    input: **felt,
-                    info: "Invalid input for the keccak syscall.".to_string(),
-                })
+                {
+                    felt.to_u64().ok_or_else(|| SyscallExecutorBaseError::InvalidSyscallInput {
+                        input: **felt,
+                        info: "Invalid input for the keccak syscall.".to_string(),
+                    })
+                }
             })
             .collect::<Result<Vec<u64>, _>>()?;
 
