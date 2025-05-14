@@ -16,7 +16,7 @@ const ENTRY_POINT_TYPE_L1_HANDLER = 1;
 const ENTRY_POINT_TYPE_CONSTRUCTOR = 2;
 
 const L1_HANDLER_VERSION = 0;
-const L1_HANDLER_L2_GAS_MAX_AMOUNT = 1000000;
+const L1_HANDLER_L2_GAS_MAX_AMOUNT = 100000000;
 
 // Upper bound on the number of elements in a Sierra array.
 const SIERRA_ARRAY_LEN_BOUND = 4294967296;  // 2^32
