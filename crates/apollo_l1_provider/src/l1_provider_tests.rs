@@ -473,3 +473,72 @@ fn add_new_transaction_not_added_if_rejected() {
     l1_provider.add_events(vec![l1_handler_event(rejected_tx_id)]).unwrap();
     expected_l1_provider.assert_eq(&l1_provider);
 }
+
+#[test]
+fn consume_committed_tx() {
+    // Setup.
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_txs([l1_handler(1)])
+        .with_committed([tx_hash!(2)])
+        .with_state(ProviderState::Propose)
+        .build_into_l1_provider();
+
+    // get a consume message event
+    l1_provider.add_events(vec![Event::TransactionConsumed(tx_hash!(2))]).unwrap();
+
+    // Ensure that the committed transaction is removed from the provider.
+    let expected_l1_provider = L1ProviderContentBuilder::new()
+        .with_txs([l1_handler(1)])
+        .with_state(ProviderState::Propose)
+        .build_into_l1_provider();
+
+    assert_eq!(expected_l1_provider, l1_provider);
+}
+
+#[test]
+fn consume_uncommitted_tx() {
+    // Setup.
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_txs([l1_handler(1)])
+        .with_committed([tx_hash!(2)])
+        .with_state(ProviderState::Propose)
+        .build_into_l1_provider();
+
+    // get a consume message event
+    l1_provider.add_events(vec![Event::TransactionConsumed(tx_hash!(1))]).unwrap();
+
+    // Ensure that the uncommitted transaction is removed from the provider.
+    let expected_l1_provider = L1ProviderContentBuilder::new()
+        .with_committed([tx_hash!(2)])
+        .with_state(ProviderState::Propose)
+        .build_into_l1_provider();
+
+    assert_eq!(expected_l1_provider, l1_provider);
+}
+
+#[test]
+fn consume_unknown_tx() {
+    // Setup.
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_txs([l1_handler(1)])
+        .with_committed([tx_hash!(2)])
+        .with_state(ProviderState::Propose)
+        .build_into_l1_provider();
+
+    // get a consume message event
+    l1_provider.add_events(vec![Event::TransactionConsumed(tx_hash!(3))]).unwrap();
+
+    // Ensure that the unknown transaction is not added to the provider.
+    let expected_l1_provider = L1ProviderContentBuilder::new()
+        .with_txs([l1_handler(1)])
+        .with_committed([tx_hash!(2)])
+        .with_state(ProviderState::Propose)
+        .build_into_l1_provider();
+
+    assert_eq!(expected_l1_provider, l1_provider);
+}
+
+#[test]
+fn consume_rejected_tx() {
+    todo!();
+}
