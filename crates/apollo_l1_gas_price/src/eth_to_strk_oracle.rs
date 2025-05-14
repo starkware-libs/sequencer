@@ -14,7 +14,7 @@ use reqwest::Response;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use tokio_util::task::AbortOnDropHandle;
-use tracing::{debug, info, instrument};
+use tracing::{info, instrument};
 use url::Url;
 
 #[cfg(test)]
@@ -195,7 +195,7 @@ impl EthToStrkOracleClientTrait for EthToStrkOracleClient {
 
             match query {
                 Query::Resolved(rate) => {
-                    debug!("Cached conversion rate for timestamp {timestamp} is {rate}");
+                    info!("Cached conversion rate for timestamp {timestamp} is {rate}");
                     return Ok(*rate);
                 }
                 Query::Unresolved(handle) => {
@@ -211,7 +211,7 @@ impl EthToStrkOracleClientTrait for EthToStrkOracleClient {
             .lock()
             .expect("Lock on cached prices was poisoned due to a previous panic")
             .push(quantized_timestamp, Query::Resolved(rate));
-        debug!("Conversion rate for timestamp {timestamp} is {rate}");
+        info!("Conversion rate for timestamp {timestamp} is {rate}");
         Ok(rate)
     }
 }
