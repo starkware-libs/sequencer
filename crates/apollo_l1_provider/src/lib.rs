@@ -17,7 +17,11 @@ use std::time::Duration;
 use apollo_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_l1_provider_types::SessionState;
-use papyrus_base_layer::constants::{EventIdentifier, LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER};
+use papyrus_base_layer::constants::{
+    EventIdentifier,
+    CONSUMED_MESSAGE_TO_L1_EVENT_IDENTIFIER,
+    LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER,
+};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use validator::Validate;
@@ -132,5 +136,5 @@ impl SerializeConfig for L1ProviderConfig {
 }
 
 pub const fn event_identifiers_to_track() -> &'static [EventIdentifier] {
-    &[LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER]
+    &[LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER, CONSUMED_MESSAGE_TO_L1_EVENT_IDENTIFIER]
 }

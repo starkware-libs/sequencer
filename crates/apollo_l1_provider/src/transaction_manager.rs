@@ -4,6 +4,7 @@ use apollo_l1_provider_types::{InvalidValidationStatus, ValidationStatus};
 use indexmap::IndexMap;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
+use tracing::warn;
 
 use crate::soft_delete_index_map::SoftDeleteIndexMap;
 
@@ -85,7 +86,7 @@ impl TransactionManager {
 
         self.rejected.txs.extend(rejected);
 
-        // Assign the remaining uncommitted txs to the uncommitted pool, which was was drained.
+        // Assign the remaining uncommitted txs to the uncommitted pool, which was drained.
         self.uncommitted.txs = uncommitted;
 
         // Add all committed tx hashes to the committed buffer, regardless of if they're known or
@@ -105,5 +106,21 @@ impl TransactionManager {
 
     pub fn committed_includes(&self, tx_hashes: &[TransactionHash]) -> bool {
         tx_hashes.iter().all(|tx| self.committed.contains(tx))
+    }
+
+    /// Removes the given transaction from the committed pool, if it exists.
+    /// Returns true if the transaction was successfully removed, false otherwise.
+    pub fn consume_tx(&mut self, tx_hash: TransactionHash) -> bool {
+        if self.uncommitted.get_transaction(&tx_hash).is_some() {
+            warn!("Consumed an uncommitted transaction {tx_hash}");
+            // Using shift_remove instead of swap_remove to maintain the order of the uncommitted
+            // transactions.
+            self.uncommitted.txs.shift_remove(&tx_hash);
+        }
+        if self.rejected.get_transaction(&tx_hash).is_some() {
+            warn!("Consumed a rejected transaction {tx_hash}");
+            self.rejected.txs.swap_remove(&tx_hash);
+        }
+        self.committed.remove(&tx_hash)
     }
 }
