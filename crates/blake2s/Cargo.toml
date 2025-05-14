@@ -1,0 +1,15 @@
+[package]
+name = "blake2s"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+license-file.workspace = true
+
+[dependencies]
+blake2.workspace = true
+digest.workspace = true
+starknet-types-core.workspace = true
+
+[lints]
+workspace = true
