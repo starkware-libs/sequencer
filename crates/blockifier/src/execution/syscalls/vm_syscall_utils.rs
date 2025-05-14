@@ -66,7 +66,7 @@ impl<T: SyscallRequest> SyscallRequest for SyscallRequestWrapper<T> {
     fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<Self> {
         let gas_counter = felt_from_ptr(vm, ptr)?;
         let gas_counter =
-            gas_counter.to_u64().ok_or_else(|| SyscallExecutionError::InvalidSyscallInput {
+            gas_counter.to_u64().ok_or_else(|| SyscallExecutorBaseError::InvalidSyscallInput {
                 input: gas_counter,
                 info: String::from("Unexpected gas."),
             })?;
@@ -261,7 +261,7 @@ impl SyscallRequest for GetBlockHashRequest {
     fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<GetBlockHashRequest> {
         let felt = felt_from_ptr(vm, ptr)?;
         let block_number = BlockNumber(felt.to_u64().ok_or_else(|| {
-            SyscallExecutionError::InvalidSyscallInput {
+            SyscallExecutorBaseError::InvalidSyscallInput {
                 input: felt,
                 info: String::from("Block number must fit within 64 bits."),
             }
@@ -717,13 +717,14 @@ pub fn execute_next_syscall<T: SyscallExecutor>(
     execute_syscall_from_selector(syscall_executor, vm, selector)
 }
 
-// Error handling.
 #[derive(Debug, thiserror::Error)]
 pub enum SyscallExecutorBaseError {
     #[error(transparent)]
     DeprecatedSyscallExecution(#[from] DeprecatedSyscallExecutionError),
     #[error(transparent)]
     Hint(#[from] HintError),
+    #[error("Invalid syscall input: {input:?}; {info}")]
+    InvalidSyscallInput { input: Felt, info: String },
     #[error(transparent)]
     Math(#[from] MathError),
     #[error(transparent)]
