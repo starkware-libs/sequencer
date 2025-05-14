@@ -69,10 +69,10 @@ strum_macros.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
-apollo_infra_utils = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
 blockifier_test_utils.workspace = true
 criterion = { workspace = true, features = ["html_reports"] }
+expect-test.workspace = true
 glob.workspace = true
 itertools.workspace = true
 pretty_assertions.workspace = true
