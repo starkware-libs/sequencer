@@ -82,7 +82,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
         block_context: &'a BlockContext,
         bouncer: Mutex<&'a mut Bouncer>,
     ) -> Self {
-        let scheduler = Scheduler::new(chunk.len());
+        let scheduler = Scheduler::new();
         let execution_outputs =
             std::iter::repeat_with(|| Mutex::new(None)).take(chunk.len()).collect();
         let metrics = ConcurrencyMetrics::default();
@@ -107,7 +107,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
     ) -> Self {
         let versioned_state = VersionedState::new(state);
         let chunk_state = ThreadSafeVersionedState::new(versioned_state);
-        let scheduler = Scheduler::new(chunk.len());
+        let scheduler = Scheduler::new();
         let execution_outputs =
             std::iter::repeat_with(|| Mutex::new(None)).take(chunk.len()).collect();
         let metrics = ConcurrencyMetrics::default();
@@ -144,7 +144,9 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
             while let Some(tx_index) = tx_committer.try_commit() {
                 let commit_succeeded = self.commit_tx(tx_index);
                 if !commit_succeeded {
-                    tx_committer.halt_scheduler();
+                    tx_committer.abort_task_and_halt_scheduler();
+                } else if tx_index == self.chunk.len() - 1 {
+                    self.scheduler.halt();
                 }
             }
         }
