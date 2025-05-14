@@ -36,19 +36,23 @@ use blockifier::execution::deprecated_syscalls::{
     StorageWriteRequest,
     StorageWriteResponse,
 };
+use blockifier::state::state_api::StateReader;
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::vm_core::VirtualMachine;
 
-use super::snos_hint_processor::DeprecatedSyscallHintProcessor;
+use super::snos_hint_processor::SnosHintProcessor;
 
 #[allow(unused_variables)]
-impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor {
+impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
     fn increment_syscall_count(&mut self, selector: &DeprecatedSyscallSelector) {
         todo!()
     }
 
     fn verify_syscall_ptr(&self, actual_ptr: Relocatable) -> DeprecatedSyscallResult<()> {
-        let expected_ptr = self.syscall_ptr.expect("Syscall must be set at this point.");
+        let expected_ptr = self
+            .deprecated_syscall_hint_processor
+            .syscall_ptr
+            .expect("Syscall must be set at this point.");
         if actual_ptr != expected_ptr {
             return Err(DeprecatedSyscallExecutionError::BadSyscallPointer {
                 expected_ptr,
@@ -59,7 +63,10 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor {
     }
 
     fn get_mut_syscall_ptr(&mut self) -> &mut Relocatable {
-        self.syscall_ptr.as_mut().expect("Syscall pointer must be set when executing syscall.")
+        self.deprecated_syscall_hint_processor
+            .syscall_ptr
+            .as_mut()
+            .expect("Syscall pointer must be set when executing syscall.")
     }
 
     fn call_contract(
