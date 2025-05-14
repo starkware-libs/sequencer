@@ -37,15 +37,12 @@ impl<'a> TransactionCommitter<'a> {
         }
         *status = TransactionStatus::Committed;
         *self.commit_index_guard += 1;
-        if *self.commit_index_guard == self.scheduler.chunk_size {
-            self.scheduler.done_marker.store(true, Ordering::Release);
-        }
         Some(*self.commit_index_guard - 1)
     }
 
     /// Halts the scheduler. Decrements the commit index to indicate that the final transaction to
     /// commit has been excluded from the block.
-    pub fn halt_scheduler(&mut self) {
+    pub fn abort_task_and_halt_scheduler(&mut self) {
         assert!(*self.commit_index_guard > 0, "Commit index underflow.");
         *self.commit_index_guard -= 1;
 
@@ -59,20 +56,19 @@ pub struct Scheduler {
     validation_index: AtomicUsize,
     // The index of the next transaction to commit.
     commit_index: Mutex<usize>,
-    chunk_size: usize,
     tx_statuses: DashMap<TxIndex, TransactionStatus>,
-    // Set to true when all transactions have been committed, or when calling the halt_scheduler
-    // procedure, providing a cheap way for all threads to exit their main loops.
+    // Set to true when all transactions have been committed, or when calling the
+    // `abort_task_and_halt_scheduler` procedure, providing a cheap way for all threads to exit
+    // their main loops.
     done_marker: AtomicBool,
 }
 
 impl Scheduler {
-    pub fn new(chunk_size: usize) -> Scheduler {
+    pub fn new() -> Scheduler {
         Scheduler {
             execution_index: AtomicUsize::new(0),
             validation_index: AtomicUsize::new(usize::MAX),
             commit_index: Mutex::new(0),
-            chunk_size,
             tx_statuses: DashMap::new(),
             done_marker: AtomicBool::new(false),
         }

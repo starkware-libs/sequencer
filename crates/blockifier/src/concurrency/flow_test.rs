@@ -25,7 +25,7 @@ fn scheduler_flow_test(
     // transactions with multiple threads, where every transaction depends on its predecessor. Each
     // transaction sequentially advances a counter by reading the previous value and bumping it by
     // 1.
-    let scheduler = Arc::new(Scheduler::new(DEFAULT_CHUNK_SIZE));
+    let scheduler = Arc::new(Scheduler::new());
     let versioned_state =
         safe_versioned_state_for_testing(CachedState::from(DictStateReader::default()));
     let mut handles = vec![];
@@ -50,6 +50,10 @@ fn scheduler_flow_test(
                             );
                             state_proxy.apply_writes(&new_writes, &ContractClassMapping::default());
                             scheduler.finish_execution_during_commit(tx_index);
+                        }
+                        if tx_index == DEFAULT_CHUNK_SIZE - 1 {
+                            scheduler.halt();
+                            break;
                         }
                     }
                 }
