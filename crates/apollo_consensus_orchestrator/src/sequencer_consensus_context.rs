@@ -909,7 +909,7 @@ async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<Consens
     let batcher_timeout = chrono::Duration::from_std(args.batcher_timeout)
         .expect("Can't convert timeout to chrono::Duration");
     let timestamp = args.clock.now_as_timestamp();
-    let (eth_to_fri_rate, mut l1_prices) = get_oracle_rate_and_prices(
+    let (eth_to_fri_rate, l1_prices) = get_oracle_rate_and_prices(
         args.eth_to_strk_oracle_client.clone(),
         args.l1_gas_price_provider_client.clone(),
         timestamp,
@@ -917,18 +917,6 @@ async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<Consens
         &args.gas_price_params,
     )
     .await;
-    l1_prices.base_fee_per_gas = l1_prices.base_fee_per_gas.clamp(
-        args.gas_price_params.min_l1_gas_price_wei,
-        args.gas_price_params.max_l1_gas_price_wei,
-    );
-
-    l1_prices.blob_fee = GasPrice(
-        (args.gas_price_params.l1_data_gas_price_multiplier * l1_prices.blob_fee.0).to_integer(),
-    )
-    .clamp(
-        args.gas_price_params.min_l1_data_gas_price_wei,
-        args.gas_price_params.max_l1_data_gas_price_wei,
-    );
 
     let block_info = ConsensusBlockInfo {
         height: args.proposal_init.height,
@@ -1191,7 +1179,7 @@ async fn is_block_info_valid(
         warn!("Invalid BlockInfo. local_timestamp={now}");
         return false;
     }
-    let (eth_to_fri_rate, mut l1_gas_prices) = get_oracle_rate_and_prices(
+    let (eth_to_fri_rate, l1_gas_prices) = get_oracle_rate_and_prices(
         eth_to_strk_oracle_client,
         l1_gas_price_provider,
         block_info_proposed.timestamp,
@@ -1202,14 +1190,6 @@ async fn is_block_info_valid(
     let l1_gas_price_margin_percent =
         VersionedConstants::latest_constants().l1_gas_price_margin_percent.into();
     debug!("L1 price info: {l1_gas_prices:?}");
-    l1_gas_prices.base_fee_per_gas = l1_gas_prices
-        .base_fee_per_gas
-        .clamp(gas_price_params.min_l1_gas_price_wei, gas_price_params.max_l1_gas_price_wei);
-
-    l1_gas_prices.blob_fee = GasPrice(
-        (gas_price_params.l1_data_gas_price_multiplier * l1_gas_prices.blob_fee.0).to_integer(),
-    )
-    .clamp(gas_price_params.min_l1_data_gas_price_wei, gas_price_params.max_l1_data_gas_price_wei);
 
     let l1_gas_price_fri = l1_gas_prices.base_fee_per_gas.wei_to_fri(eth_to_fri_rate);
     let l1_data_gas_price_fri = l1_gas_prices.blob_fee.wei_to_fri(eth_to_fri_rate);
