@@ -189,6 +189,6 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<StorageWriteResponse> {
-        todo!()
+        Ok(StorageWriteResponse {})
     }
 }
