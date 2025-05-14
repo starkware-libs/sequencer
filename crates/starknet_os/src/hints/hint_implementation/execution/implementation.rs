@@ -638,12 +638,6 @@ pub(crate) fn check_new_deploy_response<S: StateReader>(
     todo!()
 }
 
-pub(crate) fn log_enter_syscall<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
-) -> OsHintResult {
-    todo!()
-}
-
 pub(crate) fn initial_ge_required_gas<S: StateReader>(
     HintArgs { .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
