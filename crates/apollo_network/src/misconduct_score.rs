@@ -13,8 +13,8 @@ impl MisconductScore {
     pub const NEUTRAL: MisconductScore = Self { score: 0.0 };
 
     pub fn new(score: f64) -> Self {
-        assert!(0.0 <= score);
-        assert!(score <= 1.0);
+        assert!(Self::NEUTRAL.score <= score);
+        assert!(score <= Self::MALICIOUS.score);
         Self { score }
     }
 
@@ -26,8 +26,8 @@ impl MisconductScore {
 impl AddAssign for MisconductScore {
     fn add_assign(&mut self, rhs: Self) {
         self.score += rhs.score;
-        if self.score > 1.0 {
-            self.score = 1.0;
+        if *self > Self::MALICIOUS {
+            *self = Self::MALICIOUS;
         }
     }
 }
