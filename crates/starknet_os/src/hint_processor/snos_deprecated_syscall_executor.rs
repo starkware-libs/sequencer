@@ -45,7 +45,11 @@ use super::snos_hint_processor::SnosHintProcessor;
 #[allow(unused_variables)]
 impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
     fn increment_syscall_count(&mut self, selector: &DeprecatedSyscallSelector) {
-        todo!()
+        self.deprecated_syscall_hint_processor
+            .syscalls_usage
+            .entry(*selector)
+            .or_default()
+            .increment_call_count();
     }
 
     fn verify_syscall_ptr(&self, actual_ptr: Relocatable) -> DeprecatedSyscallResult<()> {
