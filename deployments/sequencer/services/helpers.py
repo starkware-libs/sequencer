@@ -49,7 +49,7 @@ def sanitize_name(name: str) -> str:
     name = name.replace("_", "-")
     name = re.sub(r"[^a-z0-9-]", "", name)
     name = name.strip("-")
-    name = name[:253]
+    name = name[:63]
 
     return name
 
