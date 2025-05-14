@@ -129,6 +129,32 @@
       ],
       "for": "5m",
       "intervalSec": 60
+    },
+    {
+      "name": "mempool_pool_size_increase",
+      "title": "Mempool pool size increase",
+      "ruleGroup": "mempool",
+      "expr": "mempool_pool_size",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              2000.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "1m",
+      "intervalSec": 20
     }
   ]
 }
