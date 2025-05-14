@@ -70,6 +70,7 @@ const Configuration = {
             'apollo_storage',
             'apollo_task_executor',
             'apollo_test_utils',
+            'time',
             'blockifier',
             'blockifier_reexecution',
             'blockifier_test_utils',
