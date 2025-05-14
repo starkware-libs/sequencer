@@ -231,6 +231,12 @@ impl L1Provider {
                         );
                     }
                 }
+                // TODO(alonl): decide if it's right to consume the tx here
+                Event::TransactionConsumed(tx_hash) => {
+                    if !self.tx_manager.consume_tx(tx_hash) {
+                        debug!("Failed to consume transaction with hash: {tx_hash}");
+                    }
+                }
                 _ => return Err(L1ProviderError::unsupported_l1_event(event)),
             }
         }

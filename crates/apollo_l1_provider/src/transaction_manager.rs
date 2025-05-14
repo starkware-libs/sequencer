@@ -4,6 +4,7 @@ use apollo_l1_provider_types::{InvalidValidationStatus, ValidationStatus};
 use indexmap::IndexMap;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
+use tracing::{error, info};
 
 use crate::soft_delete_index_map::SoftDeleteIndexMap;
 
@@ -105,5 +106,17 @@ impl TransactionManager {
 
     pub fn committed_includes(&self, tx_hashes: &[TransactionHash]) -> bool {
         tx_hashes.iter().all(|tx| self.committed.contains(tx))
+    }
+
+    /// Removes the given transaction from the committed pool, if it exists.
+    /// Returns true if the transaction was successfully removed, false otherwise.
+    pub fn consume_tx(&mut self, tx_hash: TransactionHash) -> bool {
+        if self.uncommitted.get_transaction(&tx_hash).is_some() {
+            info!("Consumed an uncommitted transaction {tx_hash}");
+        }
+        if self.rejected.get_transaction(&tx_hash).is_some() {
+            error!("Consumed a rejected transaction {tx_hash}");
+        }
+        self.committed.remove(&tx_hash)
     }
 }
