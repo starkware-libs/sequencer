@@ -210,6 +210,6 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<StorageWriteResponse> {
-        todo!()
+        Ok(StorageWriteResponse {})
     }
 }
