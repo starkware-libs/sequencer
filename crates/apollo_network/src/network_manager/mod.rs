@@ -269,21 +269,42 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         event: SwarmEvent<mixed_behaviour::Event>,
     ) -> Result<(), NetworkError> {
         match event {
-            SwarmEvent::ConnectionEstablished { peer_id, .. } => {
-                debug!("Connected to peer id: {peer_id:?}");
+            SwarmEvent::ConnectionEstablished {
+                peer_id, connection_id, num_established, ..
+            } => {
+                debug!("Connected to peer id: {peer_id:?}. Connection id: {connection_id:?}");
                 if let Some(metrics) = self.metrics.as_ref() {
-                    metrics.num_connected_peers.increment(1);
+                    // We increment the count of connected peers only if this is the first
+                    // connection with the peer.
+                    if num_established.get() == 1 {
+                        metrics.num_connected_peers.increment(1);
+                    }
                 }
             }
-            SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
+            SwarmEvent::ConnectionClosed {
+                peer_id,
+                connection_id,
+                cause,
+                num_established: num_remaining_connections,
+                ..
+            } => {
                 match cause {
                     Some(connection_error) => {
-                        debug!("Connection to {peer_id:?} closed due to {connection_error:?}.")
+                        debug!(
+                            "Connection to {peer_id:?} closed due to {connection_error:?}. \
+                             Connection id: {connection_id:?}"
+                        );
                     }
-                    None => debug!("Connection to {peer_id:?} closed."),
+                    None => {
+                        debug!("Connection to {peer_id:?} closed. Connection id: {connection_id:?}")
+                    }
                 }
                 if let Some(metrics) = self.metrics.as_ref() {
-                    metrics.num_connected_peers.decrement(1);
+                    // We decrement the count of connected peers only if there are no more
+                    // connections with the peer.
+                    if num_remaining_connections == 0 {
+                        metrics.num_connected_peers.decrement(1);
+                    }
                 }
             }
             SwarmEvent::Behaviour(event) => {
