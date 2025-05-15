@@ -110,7 +110,7 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<EmitEventResponse> {
-        todo!()
+        Ok(EmitEventResponse {})
     }
 
     fn get_block_number(
