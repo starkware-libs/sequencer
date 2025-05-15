@@ -3,7 +3,12 @@ use std::sync::LazyLock;
 
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
 
-use crate::program_hash::{compute_os_program_hash, ProgramHash};
+use crate::program_hash::{
+    compute_aggregator_program_hash,
+    compute_os_program_hash,
+    AggregatorHash,
+    ProgramHash,
+};
 use crate::PROGRAM_HASH;
 
 static PROGRAM_HASH_PATH: LazyLock<PathBuf> = LazyLock::new(|| {
@@ -18,7 +23,12 @@ static PROGRAM_HASH_PATH: LazyLock<PathBuf> = LazyLock::new(|| {
 /// ```
 #[test]
 fn test_program_hash() {
-    let computed_hash = ProgramHash { os: compute_os_program_hash().unwrap() };
+    let AggregatorHash { with_prefix, without_prefix } = compute_aggregator_program_hash().unwrap();
+    let computed_hash = ProgramHash {
+        os: compute_os_program_hash().unwrap(),
+        aggregator: without_prefix,
+        aggregator_with_prefix: with_prefix,
+    };
     if std::env::var("FIX_PROGRAM_HASH").is_ok() {
         std::fs::write(
             PROGRAM_HASH_PATH.as_path(),
