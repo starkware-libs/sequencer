@@ -1,5 +1,6 @@
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
+use expect_test::expect;
 use itertools::concat;
 #[cfg(feature = "cairo_native")]
 use pretty_assertions::assert_eq;
@@ -12,7 +13,7 @@ use test_case::test_case;
 
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::context::ChainInfo;
-use crate::execution::call_info::{CallExecution, CallInfo, OrderedEvent};
+use crate::execution::call_info::{CallInfo, OrderedEvent};
 use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::syscalls::hint_processor::EmitEventError;
@@ -38,14 +39,40 @@ fn positive_flow(runnable_version: RunnableCairo1) {
         data: EventData(DATA.to_vec()),
     };
 
-    assert_eq!(
-        call_info.execution,
+    expect![[r#"
         CallExecution {
-            events: vec![OrderedEvent { order: 0, event }],
+            retdata: Retdata(
+                [],
+            ),
+            events: [
+                OrderedEvent {
+                    order: 0,
+                    event: EventContent {
+                        keys: [
+                            EventKey(
+                                0x2019,
+                            ),
+                            EventKey(
+                                0x2020,
+                            ),
+                        ],
+                        data: EventData(
+                            [
+                                0x2021,
+                                0x2022,
+                                0x2023,
+                            ],
+                        ),
+                    },
+                },
+            ],
+            l2_to_l1_messages: [],
+            failed: false,
             gas_consumed: 34580,
-            ..Default::default()
         }
-    );
+    "#]]
+    .assert_debug_eq(&call_info.execution);
+    assert_eq!(call_info.execution.events, vec![OrderedEvent { order: 0, event }]);
 }
 
 #[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native;"Native"))]
