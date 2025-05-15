@@ -15,15 +15,7 @@ use test_case::test_case;
 use crate::context::{BlockContext, ChainInfo};
 use crate::execution::call_info::CallExecution;
 use crate::execution::common_hints::ExecutionMode;
-<<<<<<< HEAD
-use crate::execution::syscalls::hint_processor::SyscallUsage;
-use crate::execution::syscalls::vm_syscall_utils::SyscallSelector;
-||||||| 9bd194e5c
-use crate::execution::syscalls::hint_processor::SyscallUsage;
-use crate::execution::syscalls::SyscallSelector;
-=======
 use crate::execution::syscalls::vm_syscall_utils::{SyscallSelector, SyscallUsage};
->>>>>>> origin/main
 use crate::retdata;
 use crate::state::state_api::StateReader;
 use crate::test_utils::create_deploy_entry_point;

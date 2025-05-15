@@ -76,13 +76,8 @@ use crate::execution::syscalls::vm_syscall_utils::{
     StorageReadResponse,
     StorageWriteRequest,
     StorageWriteResponse,
-<<<<<<< HEAD
-    SyscallExecutorBaseError,
-||||||| 9bd194e5c
-=======
     SyscallBaseResult,
     SyscallExecutorBaseError,
->>>>>>> origin/main
     SyscallRequest,
     SyscallSelector,
     SyscallUsageMap,

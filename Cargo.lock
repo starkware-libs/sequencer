@@ -3161,7 +3161,7 @@ dependencies = [
 
 [[package]]
 name = "blake2s"
-version = "0.0.0"
+version = "0.15.0-rc.0"
 dependencies = [
  "blake2",
  "digest 0.10.7",
