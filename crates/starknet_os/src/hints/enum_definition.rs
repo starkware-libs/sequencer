@@ -98,7 +98,6 @@ use crate::hints::hint_implementation::execution::implementation::{
     is_reverted,
     load_next_tx,
     load_resource_bounds,
-    log_enter_syscall,
     prepare_constructor_execution,
     set_ap_to_tx_nonce,
     set_fp_plus_4_to_tx_nonce,
@@ -138,6 +137,7 @@ use crate::hints::hint_implementation::os::{
     write_full_output_to_memory,
 };
 use crate::hints::hint_implementation::os_logger::{
+    log_enter_syscall,
     os_logger_enter_syscall_prepare_exit_syscall,
     os_logger_exit_syscall,
 };

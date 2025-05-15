@@ -324,6 +324,10 @@ fn get_secret_key(id: usize) -> String {
     format!("0x010101010101010101010101010101010101010101010101010101010101010{}", id + 1)
 }
 
+// TODO(Tsabary): Return this back to observer mode and add a way to configure between observer and
+// non observer. Also change the mempool ttl to 100000 and startup_rewind_time_seconds to 28800 in
+// observer mode
 fn get_validator_id(id: usize) -> String {
-    format!("0x{}", id + 1)
+    // TODO(Tsabary): Make sure this works for larger ids by converting the id to hex string.
+    format!("0x{}", id + 64)
 }

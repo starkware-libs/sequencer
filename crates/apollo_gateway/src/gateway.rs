@@ -77,7 +77,7 @@ impl Gateway {
         }
     }
 
-    #[instrument(skip_all, ret)]
+    #[instrument(skip_all, fields(is_p2p = p2p_message_metadata.is_some()), ret)]
     #[sequencer_latency_histogram(GATEWAY_ADD_TX_LATENCY, true)]
     pub async fn add_tx(
         &self,

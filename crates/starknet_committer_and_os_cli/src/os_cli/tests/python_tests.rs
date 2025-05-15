@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use blake2s::encode_felts_to_u32s;
 // TODO(Amos): When available in the VM crate, use an existing set, instead of using each hint
 //   const explicitly.
 use cairo_vm::hint_processor::builtin_hint_processor::hint_code::HINT_CODES;
@@ -7,6 +8,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::kzg_da::WRITE_DIVMOD_SEGME
 use cairo_vm::hint_processor::builtin_hint_processor::secp::cairo0_hints::CAIRO0_HINT_CODES;
 use starknet_os::hints::enum_definition::{AggregatorHint, HintExtension, OsHint};
 use starknet_os::hints::types::HintEnum;
+use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 
 use crate::os_cli::commands::{validate_input, Input};
@@ -21,6 +23,7 @@ pub enum OsPythonTestRunner {
     BlsFieldTest,
     CompareOsHints,
     InputDeserialization,
+    EncodeFelts,
 }
 
 // Implements conversion from a string to the test runner.
@@ -33,6 +36,7 @@ impl TryFrom<String> for OsPythonTestRunner {
             "bls_field_test" => Ok(Self::BlsFieldTest),
             "compare_os_hints" => Ok(Self::CompareOsHints),
             "input_deserialization" => Ok(Self::InputDeserialization),
+            "encode_felts" => Ok(Self::EncodeFelts),
             _ => Err(PythonTestError::UnknownTestName(value)),
         }
     }
@@ -46,6 +50,10 @@ impl PythonTestRunner for OsPythonTestRunner {
             Self::BlsFieldTest => test_bls_field(Self::non_optional_input(input)?),
             Self::CompareOsHints => compare_os_hints(Self::non_optional_input(input)?),
             Self::InputDeserialization => input_deserialization(Self::non_optional_input(input)?),
+            Self::EncodeFelts => {
+                let felts: Vec<Felt> = serde_json::from_str(Self::non_optional_input(input)?)?;
+                Ok(format!("{:?}", encode_felts_to_u32s(felts)))
+            }
         }
     }
 }
