@@ -246,12 +246,6 @@ pub(crate) fn get_block_hash_contract_address_state_entry_and_set_new_state_entr
     todo!()
 }
 
-pub(crate) fn get_contract_address_state_entry_and_set_new_state_entry<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
-) -> OsHintResult {
-    todo!()
-}
-
 pub(crate) fn check_is_deprecated<S: StateReader>(
     HintArgs { hint_processor, vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
