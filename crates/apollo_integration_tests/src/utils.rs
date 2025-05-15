@@ -79,9 +79,9 @@ pub const ACCOUNT_ID_0: AccountId = 0;
 pub const ACCOUNT_ID_1: AccountId = 1;
 pub const NEW_ACCOUNT_SALT: ContractAddressSalt = ContractAddressSalt(Felt::THREE);
 pub const UNDEPLOYED_ACCOUNT_ID: AccountId = 2;
-// Transactions per second sent to the gateway. This rate makes each block contain ~15 transactions
+// Transactions per second sent to the gateway. This rate makes each block contain ~25 transactions
 // with the set [TimeoutsConfig] .
-pub const TPS: u64 = 3;
+pub const TPS: u64 = 5;
 pub const N_TXS_IN_FIRST_BLOCK: usize = 2;
 
 pub type CreateRpcTxsFn = fn(&mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction>;
