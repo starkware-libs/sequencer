@@ -3,7 +3,13 @@ use std::collections::BTreeMap;
 use std::collections::HashSet;
 
 use blockifier::execution::syscalls::secp::SecpHintProcessor;
+<<<<<<< HEAD
 use blockifier::execution::syscalls::vm_syscall_utils::execute_next_syscall;
+||||||| 9bd194e5c
+use blockifier::execution::syscalls::syscall_executor::execute_next_syscall;
+=======
+use blockifier::execution::syscalls::vm_syscall_utils::{execute_next_syscall, SyscallUsageMap};
+>>>>>>> origin/main
 use blockifier::state::state_api::StateReader;
 #[cfg(any(feature = "testing", test))]
 use blockifier::test_utils::dict_state_reader::DictStateReader;
@@ -354,13 +360,14 @@ impl SyscallHintProcessor {
 
 pub struct DeprecatedSyscallHintProcessor {
     pub(crate) syscall_ptr: Option<Relocatable>,
+    pub(crate) syscalls_usage: SyscallUsageMap,
 }
 
 // TODO(Dori): remove this #[allow] after the constructor is no longer trivial.
 #[allow(clippy::new_without_default)]
 impl DeprecatedSyscallHintProcessor {
     pub fn new() -> Self {
-        Self { syscall_ptr: None }
+        Self { syscall_ptr: None, syscalls_usage: SyscallUsageMap::new() }
     }
 
     pub fn set_syscall_ptr(&mut self, syscall_ptr: Relocatable) {

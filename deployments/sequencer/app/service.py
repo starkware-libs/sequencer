@@ -323,6 +323,8 @@ class ServiceApp(Construct):
             if k.endswith(".port") and v != 0:
                 if k.startswith("components."):
                     port_name = k.split(".")[1].replace("_", "-")
+                elif "rpc_config" in k:
+                    port_name = "_".join(k.split(".")[:2]).replace("_", "-")
                 else:
                     port_name = k.split(".")[0].replace("_", "-")
             else:

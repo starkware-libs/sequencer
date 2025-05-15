@@ -48,7 +48,6 @@ use apollo_protobuf::consensus::{
     TransactionBatch,
     Vote,
     DEFAULT_VALIDATOR_ID,
-    ETH_TO_WEI,
 };
 use apollo_state_sync_types::communication::{SharedStateSyncClient, StateSyncClientError};
 use apollo_state_sync_types::state_sync_types::SyncBlock;
@@ -71,6 +70,7 @@ use starknet_api::block::{
     GasPriceVector,
     GasPrices,
     NonzeroGasPrice,
+    WEI_PER_ETH,
 };
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, SequencerContractAddress};
@@ -715,7 +715,7 @@ impl ConsensusContext for SequencerConsensusContext {
             .block_header_without_hash
             .l1_gas_price
             .price_in_fri
-            .checked_mul_u128(ETH_TO_WEI)
+            .checked_mul_u128(WEI_PER_ETH)
             .expect("Gas price overflow")
             .checked_div(sync_block.block_header_without_hash.l1_gas_price.price_in_wei.0)
             .expect("Price in wei should be non-zero")
@@ -1221,18 +1221,12 @@ async fn is_block_info_valid(
     )
     .clamp(gas_price_params.min_l1_data_gas_price_wei, gas_price_params.max_l1_data_gas_price_wei);
 
-    let l1_gas_price_fri =
-        ConsensusBlockInfo::wei_to_fri(l1_gas_prices.base_fee_per_gas, eth_to_fri_rate);
-    let l1_data_gas_price_fri =
-        ConsensusBlockInfo::wei_to_fri(l1_gas_prices.blob_fee, eth_to_fri_rate);
-    let l1_gas_price_fri_proposed = ConsensusBlockInfo::wei_to_fri(
-        block_info_proposed.l1_gas_price_wei,
-        block_info_proposed.eth_to_fri_rate,
-    );
-    let l1_data_gas_price_fri_proposed = ConsensusBlockInfo::wei_to_fri(
-        block_info_proposed.l1_data_gas_price_wei,
-        block_info_proposed.eth_to_fri_rate,
-    );
+    let l1_gas_price_fri = l1_gas_prices.base_fee_per_gas.wei_to_fri(eth_to_fri_rate);
+    let l1_data_gas_price_fri = l1_gas_prices.blob_fee.wei_to_fri(eth_to_fri_rate);
+    let l1_gas_price_fri_proposed =
+        block_info_proposed.l1_gas_price_wei.wei_to_fri(block_info_proposed.eth_to_fri_rate);
+    let l1_data_gas_price_fri_proposed =
+        block_info_proposed.l1_data_gas_price_wei.wei_to_fri(block_info_proposed.eth_to_fri_rate);
     if !(within_margin(l1_gas_price_fri_proposed, l1_gas_price_fri, l1_gas_price_margin_percent)
         && within_margin(
             l1_data_gas_price_fri_proposed,
@@ -1412,22 +1406,17 @@ async fn batcher_abort_proposal(batcher: &dyn BatcherClient, proposal_id: Propos
 }
 
 fn convert_to_sn_api_block_info(block_info: &ConsensusBlockInfo) -> starknet_api::block::BlockInfo {
-    let l1_gas_price_fri = NonzeroGasPrice::new(ConsensusBlockInfo::wei_to_fri(
-        block_info.l1_gas_price_wei,
-        block_info.eth_to_fri_rate,
-    ))
-    .unwrap();
-    let l1_data_gas_price_fri = NonzeroGasPrice::new(ConsensusBlockInfo::wei_to_fri(
-        block_info.l1_data_gas_price_wei,
-        block_info.eth_to_fri_rate,
-    ))
+    let l1_gas_price_fri =
+        NonzeroGasPrice::new(block_info.l1_gas_price_wei.wei_to_fri(block_info.eth_to_fri_rate))
+            .unwrap();
+    let l1_data_gas_price_fri = NonzeroGasPrice::new(
+        block_info.l1_data_gas_price_wei.wei_to_fri(block_info.eth_to_fri_rate),
+    )
     .unwrap();
     let l2_gas_price_fri = NonzeroGasPrice::new(block_info.l2_gas_price_fri).unwrap();
-    let l2_gas_price_wei = NonzeroGasPrice::new(ConsensusBlockInfo::fri_to_wei(
-        block_info.l2_gas_price_fri,
-        block_info.eth_to_fri_rate,
-    ))
-    .unwrap();
+    let l2_gas_price_wei =
+        NonzeroGasPrice::new(block_info.l2_gas_price_fri.fri_to_wei(block_info.eth_to_fri_rate))
+            .unwrap();
     let l1_gas_price_wei = NonzeroGasPrice::new(block_info.l1_gas_price_wei).unwrap();
     let l1_data_gas_price_wei = NonzeroGasPrice::new(block_info.l1_data_gas_price_wei).unwrap();
 

@@ -86,7 +86,7 @@ impl Default for EthToStrkOracleConfig {
         Self {
             base_url: Url::parse("https://example.com/api").unwrap(),
             headers: None,
-            lag_interval_seconds: 600,
+            lag_interval_seconds: 1,
         }
     }
 }

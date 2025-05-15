@@ -10,7 +10,7 @@ use apollo_class_manager::config::{
     FsClassManagerConfig,
     FsClassStorageConfig,
 };
-use apollo_consensus::config::ConsensusConfig;
+use apollo_consensus::config::{ConsensusConfig, TimeoutsConfig};
 use apollo_consensus::types::ValidatorId;
 use apollo_consensus_manager::config::ConsensusManagerConfig;
 use apollo_consensus_orchestrator::cende::{CendeConfig, RECORDER_WRITE_BLOB_PATH};
@@ -79,9 +79,9 @@ pub const ACCOUNT_ID_0: AccountId = 0;
 pub const ACCOUNT_ID_1: AccountId = 1;
 pub const NEW_ACCOUNT_SALT: ContractAddressSalt = ContractAddressSalt(Felt::THREE);
 pub const UNDEPLOYED_ACCOUNT_ID: AccountId = 2;
-// Transactions per second sent to the gateway. This rate makes each block contain ~10 transactions
+// Transactions per second sent to the gateway. This rate makes each block contain ~25 transactions
 // with the set [TimeoutsConfig] .
-pub const TPS: u64 = 2;
+pub const TPS: u64 = 5;
 pub const N_TXS_IN_FIRST_BLOCK: usize = 2;
 
 pub type CreateRpcTxsFn = fn(&mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction>;
@@ -264,6 +264,12 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
     n_composed_nodes: usize,
     chain_id: &ChainId,
 ) -> Vec<ConsensusManagerConfig> {
+    // TODO(Matan, Dan): set reasonable default timeouts.
+    let mut timeouts = TimeoutsConfig::default();
+    timeouts.precommit_timeout *= 3;
+    timeouts.prevote_timeout *= 3;
+    timeouts.proposal_timeout *= 3;
+
     let num_validators = u64::try_from(n_composed_nodes).unwrap();
 
     network_configs
@@ -275,6 +281,7 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
             consensus_config: ConsensusConfig {
                 // TODO(Matan, Dan): Set the right amount
                 startup_delay: Duration::from_secs(15),
+                timeouts: timeouts.clone(),
                 ..Default::default()
             },
             context_config: ContextConfig {
@@ -554,6 +561,7 @@ pub fn create_batcher_config(
                 },
             },
             execute_config: TransactionExecutorConfig::create_for_testing(concurrency_enabled),
+            tx_chunk_size: 3,
             ..Default::default()
         },
         #[cfg(feature = "cairo_native")]

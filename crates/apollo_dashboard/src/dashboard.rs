@@ -214,6 +214,7 @@ impl Serialize for AlertCondition {
 pub enum AlertGroup {
     Batcher,
     Gateway,
+    HttpServer,
     Mempool,
 }
 

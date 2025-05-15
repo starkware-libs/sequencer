@@ -48,8 +48,19 @@ use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::execution::call_info::ExecutionSummary;
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
+<<<<<<< HEAD
 use crate::execution::syscalls::hint_processor::{SyscallUsage, SyscallUsageMap};
 use crate::execution::syscalls::vm_syscall_utils::SyscallSelector;
+||||||| 9bd194e5c
+use crate::execution::syscalls::hint_processor::{SyscallUsage, SyscallUsageMap};
+use crate::execution::syscalls::SyscallSelector;
+=======
+use crate::execution::syscalls::vm_syscall_utils::{
+    SyscallSelector,
+    SyscallUsage,
+    SyscallUsageMap,
+};
+>>>>>>> origin/main
 use crate::fee::resources::{StarknetResources, StateResources};
 use crate::utils::{const_max, u64_from_usize};
 // Class hashes.

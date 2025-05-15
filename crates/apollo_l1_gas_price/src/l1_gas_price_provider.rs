@@ -105,19 +105,19 @@ impl L1GasPriceProvider {
 
     pub fn add_price_info(
         &mut self,
-        height: L1BlockNumber,
+        block_number: L1BlockNumber,
         sample: PriceSample,
     ) -> L1GasPriceProviderResult<()> {
         if let Some(data) = self.price_samples_by_block.back() {
-            if height != data.height + 1 {
-                return Err(L1GasPriceProviderError::UnexpectedHeightError {
-                    expected: data.height + 1,
-                    found: height,
+            if block_number != data.block_number + 1 {
+                return Err(L1GasPriceProviderError::UnexpectedBlockNumberError {
+                    expected: data.block_number + 1,
+                    found: block_number,
                 });
             }
         }
-        info!("Received price sample for L1 block {height}: {sample:?}");
-        self.price_samples_by_block.push(GasPriceData { height, sample });
+        info!("Received price sample for L1 block {block_number}: {sample:?}");
+        self.price_samples_by_block.push(GasPriceData { block_number, sample });
         Ok(())
     }
 

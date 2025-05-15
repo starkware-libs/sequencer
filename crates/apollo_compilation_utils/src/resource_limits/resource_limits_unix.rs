@@ -24,9 +24,10 @@ struct RLimit {
 impl RLimit {
     /// Set the resource limit for the current process.
     fn set(&self) -> io::Result<()> {
-        // Use `println!` and not a logger because this method is called in an unsafe block, and we
-        // don't want to risk unexpected behavior.
-        println!(
+        // Use `eprintln!` and not a logger because this method is called in an unsafe block, and we
+        // don't want to risk unexpected behavior. Use 'eprintln!' and not 'println!' because it
+        // corrupts stdout which is deserialized later.
+        eprintln!(
             "Setting {:?} limits: {} {} soft limit; {} {} hard limit.",
             self.resource, self.soft_limit, self.units, self.hard_limit, self.units
         );
