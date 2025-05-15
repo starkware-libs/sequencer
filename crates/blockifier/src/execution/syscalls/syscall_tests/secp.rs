@@ -1,6 +1,6 @@
-use apollo_infra_utils::register_magic_constants;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
+use expect_test::expect;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::transaction::fields::Calldata;
 use test_case::test_case;
@@ -14,7 +14,6 @@ use crate::test_utils::{trivial_external_entry_point_new, BALANCE};
 #[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native; "Native"))]
 #[test_case(RunnableCairo1::Casm; "VM")]
 fn test_secp256k1(runnable_version: RunnableCairo1) {
-    let mut magic = register_magic_constants!();
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
@@ -26,10 +25,18 @@ fn test_secp256k1(runnable_version: RunnableCairo1) {
         ..trivial_external_entry_point_new(test_contract)
     };
 
-    magic.assert_eq(
-        "execution_result",
-        entry_point_call.execute_directly(&mut state).unwrap().execution,
-    );
+    let expectation = expect![[r#"
+        CallExecution {
+            retdata: Retdata(
+                [],
+            ),
+            events: [],
+            l2_to_l1_messages: [],
+            failed: false,
+            gas_consumed: 17010359,
+        }
+    "#]];
+    expectation.assert_debug_eq(&entry_point_call.execute_directly(&mut state).unwrap().execution);
 }
 
 #[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native; "Native"))]

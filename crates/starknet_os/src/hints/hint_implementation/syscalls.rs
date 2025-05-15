@@ -88,7 +88,7 @@ macro_rules! create_syscall_func {
                 syscall_hint_processor.set_syscall_ptr(syscall_ptr);
                 Ok(
                     execute_next_deprecated_syscall(
-                        syscall_hint_processor,
+                        hint_processor,
                         vm,
                         ids_data,
                         ap_tracking

@@ -76,31 +76,15 @@ use crate::execution::syscalls::vm_syscall_utils::{
     StorageReadResponse,
     StorageWriteRequest,
     StorageWriteResponse,
+    SyscallBaseResult,
     SyscallExecutorBaseError,
     SyscallRequest,
     SyscallSelector,
+    SyscallUsageMap,
 };
 use crate::state::errors::StateError;
 use crate::state::state_api::State;
 use crate::transaction::objects::{CurrentTransactionInfo, TransactionInfo};
-
-#[derive(Clone, Debug, Default)]
-pub struct SyscallUsage {
-    pub call_count: usize,
-    pub linear_factor: usize,
-}
-
-impl SyscallUsage {
-    pub fn new(call_count: usize, linear_factor: usize) -> Self {
-        SyscallUsage { call_count, linear_factor }
-    }
-
-    pub fn increment_call_count(&mut self) {
-        self.call_count += 1;
-    }
-}
-
-pub type SyscallUsageMap = HashMap<SyscallSelector, SyscallUsage>;
 
 #[derive(Debug, Error)]
 pub enum SyscallExecutionError {
@@ -832,14 +816,14 @@ pub fn felt_to_bool(felt: Felt, error_info: &str) -> SyscallResult<bool> {
     }
 }
 
-pub fn read_calldata(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<Calldata> {
-    Ok(Calldata(read_felt_array::<SyscallExecutionError>(vm, ptr)?.into()))
+pub fn read_calldata(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallBaseResult<Calldata> {
+    Ok(Calldata(read_felt_array::<SyscallExecutorBaseError>(vm, ptr)?.into()))
 }
 
 pub fn read_call_params(
     vm: &VirtualMachine,
     ptr: &mut Relocatable,
-) -> SyscallResult<(EntryPointSelector, Calldata)> {
+) -> SyscallBaseResult<(EntryPointSelector, Calldata)> {
     let function_selector = EntryPointSelector(felt_from_ptr(vm, ptr)?);
     let calldata = read_calldata(vm, ptr)?;
 

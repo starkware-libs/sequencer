@@ -20,6 +20,7 @@ tempfile.workspace = true
 [dependencies]
 # The 'dump_source_files' feature should be moved under `testing` feature, when it exists.
 apollo_starknet_os_program = { workspace = true, features = ["dump_source_files"] }
+blake2s.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-vm = { workspace = true, features = [
   "cairo-0-data-availability-hints",

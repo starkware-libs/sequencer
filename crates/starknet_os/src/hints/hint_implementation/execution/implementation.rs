@@ -192,17 +192,22 @@ pub(crate) fn assert_transaction_hash<S: StateReader>(
 pub(crate) fn enter_scope_deprecated_syscall_handler<S: StateReader>(
     HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    exec_scopes.insert_value(
+    let new_scope = HashMap::from([(
         Scope::SyscallHandlerType.into(),
-        SyscallHandlerType::DeprecatedSyscallHandler,
-    );
+        any_box!(SyscallHandlerType::DeprecatedSyscallHandler),
+    )]);
+    exec_scopes.enter_scope(new_scope);
     Ok(())
 }
 
 pub(crate) fn enter_scope_syscall_handler<S: StateReader>(
     HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    exec_scopes.insert_value(Scope::SyscallHandlerType.into(), SyscallHandlerType::SyscallHandler);
+    let new_scope = HashMap::from([(
+        Scope::SyscallHandlerType.into(),
+        any_box!(SyscallHandlerType::SyscallHandler),
+    )]);
+    exec_scopes.enter_scope(new_scope);
     Ok(())
 }
 
@@ -628,12 +633,6 @@ pub(crate) fn check_new_syscall_response<S: StateReader>(
 }
 
 pub(crate) fn check_new_deploy_response<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
-) -> OsHintResult {
-    todo!()
-}
-
-pub(crate) fn log_enter_syscall<S: StateReader>(
     HintArgs { .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     todo!()

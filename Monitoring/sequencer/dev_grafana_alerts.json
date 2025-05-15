@@ -103,6 +103,32 @@
       ],
       "for": "1m",
       "intervalSec": 20
+    },
+    {
+      "name": "http_server_idle",
+      "title": "http server idle",
+      "ruleGroup": "http_server",
+      "expr": "rate(max(http_server_added_transactions_total)[60m:])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              1e-6
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "5m",
+      "intervalSec": 60
     }
   ]
 }

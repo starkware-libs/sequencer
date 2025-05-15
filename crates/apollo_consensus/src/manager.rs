@@ -105,7 +105,12 @@ where
             RunHeightRes::Decision(decision) => {
                 // We expect there to be under 100 validators, so this is a reasonable number of
                 // precommits to print.
-                info!("Decision reached. {:?}", decision);
+                let round = decision.precommits[0].round;
+                let proposer = context.proposer(current_height, round);
+                info!(
+                    "Decision reached for round {} with proposer {}. {:?}",
+                    round, proposer, decision
+                );
                 CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS.increment(1);
                 context.decision_reached(decision.block, decision.precommits).await?;
             }

@@ -127,38 +127,38 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
         Self { config, l1_gas_price_provider, base_layer }
     }
 
-    /// Run the scraper, starting from the given L1 `block_num`, indefinitely.
-    pub async fn run(&mut self, mut block_num: L1BlockNumber) -> L1GasPriceScraperResult<(), B> {
+    /// Run the scraper, starting from the given L1 `block_number`, indefinitely.
+    pub async fn run(&mut self, mut block_number: L1BlockNumber) -> L1GasPriceScraperResult<(), B> {
         loop {
-            block_num = self.update_prices(block_num).await?;
+            block_number = self.update_prices(block_number).await?;
             tokio::time::sleep(self.config.polling_interval).await;
         }
     }
 
-    /// Scrape all blocks the provider knows starting from `block_num`.
-    /// Returns the next `block_num` to be scraped.
+    /// Scrape all blocks the provider knows starting from `block_number`.
+    /// Returns the next `block_number` to be scraped.
     async fn update_prices(
         &mut self,
-        mut block_num: L1BlockNumber,
+        mut block_number: L1BlockNumber,
     ) -> L1GasPriceScraperResult<L1BlockNumber, B> {
-        info!("Scraping gas prices starting from block {block_num}");
+        info!("Scraping gas prices starting from block {block_number}");
         loop {
-            let sample = match self.base_layer.get_price_sample(block_num).await {
+            let sample = match self.base_layer.get_price_sample(block_number).await {
                 Ok(Some(sample)) => sample,
-                Ok(None) => return Ok(block_num),
+                Ok(None) => return Ok(block_number),
                 Err(e) => {
                     warn!("BaseLayerError during scraping: {e:?}");
                     L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT.increment(1);
-                    return Ok(block_num);
+                    return Ok(block_number);
                 }
             };
 
             self.l1_gas_price_provider
-                .add_price_info(block_num, sample)
+                .add_price_info(block_number, sample)
                 .await
                 .map_err(L1GasPriceScraperError::GasPriceClientError)?;
 
-            block_num += 1;
+            block_number += 1;
         }
     }
 }
