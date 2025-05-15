@@ -1,4 +1,4 @@
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
@@ -22,6 +22,7 @@ use crate::blockifier::transaction_executor::{
     BLOCK_STATE_ACCESS_ERR,
 };
 use crate::bouncer::{Bouncer, BouncerWeights};
+use crate::concurrency::worker_pool::WorkerPool;
 use crate::context::BlockContext;
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::StateReader;
@@ -300,7 +301,10 @@ fn test_bouncing(#[case] initial_bouncer_weights: BouncerWeights, #[case] n_even
 }
 
 #[rstest]
-fn test_execute_txs_bouncing(#[values(true, false)] concurrency_enabled: bool) {
+#[case(false, false)]
+#[case(true, false)]
+#[case(true, true)]
+fn test_execute_txs_bouncing(#[case] concurrency_enabled: bool, #[case] external_pool: bool) {
     let config = TransactionExecutorConfig::create_for_testing(concurrency_enabled);
     let max_n_events_in_block = 10;
     let block_context = BlockContext::create_for_bouncer_testing(max_n_events_in_block);
@@ -310,7 +314,13 @@ fn test_execute_txs_bouncing(#[values(true, false)] concurrency_enabled: bool) {
         CairoVersion::Cairo1(RunnableCairo1::Casm),
     );
 
-    let mut tx_executor = TransactionExecutor::new(state, block_context, config);
+    let pool = if external_pool {
+        Some(Arc::new(WorkerPool::start(config.stack_size, config.concurrency_config.clone())))
+    } else {
+        None
+    };
+
+    let mut tx_executor = TransactionExecutor::new_with_pool(state, block_context, config, pool);
 
     let txs: Vec<Transaction> = [
         emit_n_events_tx(1, account_address, contract_address, nonce!(0_u32)),
@@ -380,6 +390,11 @@ fn test_execute_txs_bouncing(#[values(true, false)] concurrency_enabled: bool) {
             .unwrap(),
         nonce!(4_u32)
     );
+
+    // End test by calling pool.join(), if pool is used.
+    if let Some(pool) = tx_executor.worker_pool {
+        Arc::try_unwrap(pool).expect("More than one instance of worker pool exists").join();
+    }
 }
 
 #[cfg(feature = "cairo_native")]
