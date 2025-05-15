@@ -56,11 +56,11 @@ const DEFAULT_ENTRY_POINT_SELECTOR = 0x0;
 // OS reserved contract addresses.
 
 // This contract stores the block number -> block hash mapping.
-const BLOCK_HASH_CONTRACT_ADDRESS = 1;
+const BLOCK_HASH_CONTRACT_ADDRESS = 0x1;
 // This contract stores the aliases mapping used for stateful compression.
-const ALIAS_CONTRACT_ADDRESS = 2;
+const ALIAS_CONTRACT_ADDRESS = 0x2;
 // Future reserved contract address.
-const RESERVED_CONTRACT_ADDRESS = 3;
+const RESERVED_CONTRACT_ADDRESS = 0x3;
 // The block number -> block hash mapping is written for the current block number minus this number.
 const STORED_BLOCK_HASH_BUFFER = 10;
 
