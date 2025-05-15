@@ -477,7 +477,7 @@ impl<
         // parent hash to the current hash.
         self.verify_parent_block_hash(block_number, &block)?;
 
-        debug!("Storing block number: {block_number}, block header: {:#?}", block.header);
+        debug!("Storing block number: {block_number}, block header: {:?}", block.header);
         trace!("Block data: {block:#?}, signature: {signature:?}");
         let num_txs =
             block.body.transactions.len().try_into().expect("Failed to convert usize to u64");
