@@ -129,6 +129,8 @@ impl FeeCheckReport {
         max_amount_bounds: &GasVector,
         gas_vector: &GasVector,
     ) -> FeeCheckResult<()> {
+        // TODO(Arni): Consider refactoring the returned error. The first failed check will hide
+        // future checks.
         for (resource, max_amount, actual_amount) in [
             (L1Gas, max_amount_bounds.l1_gas, gas_vector.l1_gas),
             (L2Gas, max_amount_bounds.l2_gas, gas_vector.l2_gas),

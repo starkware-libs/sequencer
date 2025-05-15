@@ -68,34 +68,60 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
             limit_steps_by_resources,
             SierraGasRevertTracker::new(GasAmount(remaining_gas)),
         );
-        let execute_call_info = self.run_execute(state, &mut context, &mut remaining_gas)?;
-        let l1_handler_payload_size = self.payload_size();
-        let mut receipt = TransactionReceipt::from_l1_handler(
-            &tx_context,
-            l1_handler_payload_size,
-            CallInfo::summarize_many(execute_call_info.iter(), &block_context.versioned_constants),
-            &state.to_state_diff()?,
-        );
+        let execution_result = self.run_execute(state, &mut context, &mut remaining_gas);
+        match execution_result {
+            Ok(execute_call_info) => {
+                let l1_handler_payload_size = self.payload_size();
+                let mut receipt = TransactionReceipt::from_l1_handler(
+                    &tx_context,
+                    l1_handler_payload_size,
+                    CallInfo::summarize_many(
+                        execute_call_info.iter(),
+                        &block_context.versioned_constants,
+                    ),
+                    &state.to_state_diff()?,
+                );
 
-        // Enforce resource bounds.
-        FeeCheckReport::check_all_gas_amounts_within_bounds(&l1_handler_bounds, &receipt.gas)?;
+                // Enforce resource bounds.
+                let fee_check_report = FeeCheckReport::check_all_gas_amounts_within_bounds(
+                    &l1_handler_bounds,
+                    &receipt.gas,
+                );
+                match fee_check_report {
+                    Ok(()) => {
+                        // TODO(Arni): Consider removing this check. It is covered by the starknet
+                        // core contract.
+                        let paid_fee = self.paid_fee_on_l1;
+                        // For now, assert only that any amount of fee was paid.
+                        // The error message still indicates the required fee.
+                        if paid_fee == Fee(0) {
+                            return Err(TransactionExecutionError::TransactionFeeError(
+                                TransactionFeeError::InsufficientFee {
+                                    paid_fee,
+                                    actual_fee: receipt.fee,
+                                },
+                            ));
+                        }
 
-        let paid_fee = self.paid_fee_on_l1;
-        // For now, assert only that any amount of fee was paid.
-        // The error message still indicates the required fee.
-        if paid_fee == Fee(0) {
-            return Err(TransactionExecutionError::TransactionFeeError(
-                TransactionFeeError::InsufficientFee { paid_fee, actual_fee: receipt.fee },
-            ));
+                        receipt.fee = Fee(0);
+                        Ok(TransactionExecutionInfo {
+                            validate_call_info: None,
+                            execute_call_info,
+                            fee_transfer_call_info: None,
+                            receipt,
+                            revert_error: None,
+                        })
+                    }
+                    Err(fee_check_error) => {
+                        // TODO(Arni): Handle error in fee check report as revert.
+                        Err(fee_check_error)?
+                    }
+                }
+            }
+            Err(execution_error) => {
+                // TODO(Arni): handle error in execution as revert.
+                Err(execution_error)?
+            }
         }
-
-        receipt.fee = Fee(0);
-        Ok(TransactionExecutionInfo {
-            validate_call_info: None,
-            execute_call_info,
-            fee_transfer_call_info: None,
-            receipt,
-            revert_error: None,
-        })
     }
 }
