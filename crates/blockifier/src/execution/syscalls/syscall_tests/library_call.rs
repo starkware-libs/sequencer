@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
+use expect_test::expect;
 use pretty_assertions::assert_eq;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::{calldata, felt, storage_key};
@@ -11,10 +12,7 @@ use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::context::ChainInfo;
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata, StorageAccessTracker};
 use crate::execution::entry_point::{CallEntryPoint, CallType};
-use crate::execution::syscalls::syscall_tests::constants::{
-    REQUIRED_GAS_LIBRARY_CALL_TEST,
-    REQUIRED_GAS_STORAGE_READ_WRITE_TEST,
-};
+use crate::execution::syscalls::syscall_tests::constants::REQUIRED_GAS_LIBRARY_CALL_TEST;
 use crate::retdata;
 use crate::test_utils::contracts::FeatureContractTrait;
 use crate::test_utils::initial_test_state::test_state;
@@ -112,22 +110,29 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
     ];
 
     // Create expected call info tree.
+    let main_initial_gas = 9999292440;
     let main_entry_point = CallEntryPoint {
         entry_point_selector: selector_from_name("test_nested_library_call"),
         calldata: main_entry_point_calldata,
         class_hash: Some(test_class_hash),
-        initial_gas: 9999292440,
+        initial_gas: main_initial_gas,
         ..trivial_external_entry_point_new(test_contract)
     };
+    let expected_nested_initial_gas = expect![[r#"
+        9999081600
+    "#]];
     let nested_storage_entry_point = CallEntryPoint {
         entry_point_selector: inner_entry_point_selector,
         calldata: calldata![felt!(key + 1), felt!(value + 1)],
         class_hash: Some(test_class_hash),
         code_address: None,
         call_type: CallType::Delegate,
-        initial_gas: 9999081600,
+        initial_gas: 0, // Tested via expect![] macro.
         ..trivial_external_entry_point_new(test_contract)
     };
+    let expected_library_initial_gas = expect![[r#"
+        9999182620
+    "#]];
     let library_entry_point = CallEntryPoint {
         entry_point_selector: outer_entry_point_selector,
         calldata: calldata![
@@ -140,12 +145,15 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
         class_hash: Some(test_class_hash),
         code_address: None,
         call_type: CallType::Delegate,
-        initial_gas: 9999182620,
+        initial_gas: 0, // Tested via expect![] macro.
         ..trivial_external_entry_point_new(test_contract)
     };
+    let expected_storage_initial_gas = expect![[r#"
+        9998975990
+    "#]];
     let storage_entry_point = CallEntryPoint {
         calldata: calldata![felt!(key), felt!(value)],
-        initial_gas: 9998975990,
+        initial_gas: 0, // Tested via expect![] macro.
         ..nested_storage_entry_point
     };
 
@@ -155,11 +163,14 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
         None,
     );
 
+    let expected_nested_gas_consumed = expect![[r#"
+        26450
+    "#]];
     let nested_storage_call_info = CallInfo {
         call: nested_storage_entry_point,
         execution: CallExecution {
             retdata: retdata![felt!(value + 1)],
-            gas_consumed: REQUIRED_GAS_STORAGE_READ_WRITE_TEST,
+            gas_consumed: 0, // Tested via expect![] macro.
             ..CallExecution::default()
         },
         tracked_resource,
@@ -171,11 +182,14 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
         ..Default::default()
     };
 
+    let expected_library_call_gas_consumed = expect![[r#"
+        127470
+    "#]];
     let library_call_info = CallInfo {
         call: library_entry_point,
         execution: CallExecution {
             retdata: retdata![felt!(value + 1)],
-            gas_consumed: REQUIRED_GAS_LIBRARY_CALL_TEST,
+            gas_consumed: 0, // Tested via expect![] macro.
             ..CallExecution::default()
         },
         inner_calls: vec![nested_storage_call_info],
@@ -183,11 +197,14 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
         ..Default::default()
     };
 
+    let expected_storage_call_gas_consumed = expect![[r#"
+        26450
+    "#]];
     let storage_call_info = CallInfo {
         call: storage_entry_point,
         execution: CallExecution {
             retdata: retdata![felt!(value)],
-            gas_consumed: REQUIRED_GAS_STORAGE_READ_WRITE_TEST,
+            gas_consumed: 0, // Tested via expect![] macro.
             ..CallExecution::default()
         },
         storage_access_tracker: StorageAccessTracker {
@@ -199,12 +216,14 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
         ..Default::default()
     };
 
-    let main_gas_consumed = 342890;
+    let expected_main_gas_consumed = expect![[r#"
+        342890
+    "#]];
     let expected_call_info = CallInfo {
         call: main_entry_point.clone(),
         execution: CallExecution {
             retdata: retdata![felt!(value)],
-            gas_consumed: main_gas_consumed,
+            gas_consumed: 0, // Tested via expect![] macro.
             ..CallExecution::default()
         },
         inner_calls: vec![library_call_info, storage_call_info],
@@ -212,5 +231,27 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
         ..Default::default()
     };
 
-    assert_eq!(main_entry_point.execute_directly(&mut state).unwrap(), expected_call_info);
+    let mut result = main_entry_point.execute_directly(&mut state).unwrap();
+
+    // Regression-test specific values and set to zero for comparison.
+    let [library_call, storage_call] = &mut result.inner_calls[..] else {
+        panic!("Expected 2 inner calls, got {}", result.inner_calls.len());
+    };
+    let nested_call = &mut library_call.inner_calls[0];
+    expected_nested_gas_consumed.assert_debug_eq(&nested_call.execution.gas_consumed);
+    expected_nested_initial_gas.assert_debug_eq(&nested_call.call.initial_gas);
+    expected_library_call_gas_consumed.assert_debug_eq(&library_call.execution.gas_consumed);
+    expected_library_initial_gas.assert_debug_eq(&library_call.call.initial_gas);
+    expected_storage_call_gas_consumed.assert_debug_eq(&storage_call.execution.gas_consumed);
+    expected_storage_initial_gas.assert_debug_eq(&storage_call.call.initial_gas);
+    expected_main_gas_consumed.assert_debug_eq(&result.execution.gas_consumed);
+    nested_call.execution.gas_consumed = 0;
+    nested_call.call.initial_gas = 0;
+    library_call.execution.gas_consumed = 0;
+    library_call.call.initial_gas = 0;
+    storage_call.execution.gas_consumed = 0;
+    storage_call.call.initial_gas = 0;
+    result.execution.gas_consumed = 0;
+
+    assert_eq!(result, expected_call_info);
 }
