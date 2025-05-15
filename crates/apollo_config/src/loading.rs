@@ -25,6 +25,7 @@ use crate::{
     SerializationType,
     SerializedContent,
     SerializedParam,
+    FIELD_SEPARATOR,
     IS_NONE_MARK,
 };
 
@@ -176,7 +177,10 @@ pub(crate) fn update_optional_values(config_map: &mut BTreeMap<ParamPath, Value>
     }
     // Remove param paths that start with any None param.
     config_map.retain(|param_path, _| {
-        !any(&none_params, |none_param| param_path.starts_with(none_param))
+        !any(&none_params, |none_param| {
+            param_path.starts_with(format!("{none_param}{FIELD_SEPARATOR}").as_str())
+                || param_path == none_param
+        })
     });
 
     // Set null for the None params.
