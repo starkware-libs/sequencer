@@ -701,25 +701,7 @@ fn write_syscall_result_helper<S: StateReader>(
 
     current_execution_helper.cached_state.set_storage_at(contract_address, key, request_value)?;
 
-    // Fetch a state_entry in this hint and validate it in the update that comes next.
-
-    let contract_state_changes_ptr =
-        get_ptr_from_var_name(Ids::ContractStateChanges.into(), vm, ids_data, ap_tracking)?;
-    let dict_manager = exec_scopes.get_dict_manager()?;
-    let mut dict_manager_borrowed = dict_manager.borrow_mut();
-    let contract_address_state_entry = dict_manager_borrowed
-        .get_tracker_mut(contract_state_changes_ptr)?
-        .get_value(&contract_address.key().into())?;
-
-    insert_value_from_var_name(
-        Ids::StateEntry.into(),
-        contract_address_state_entry,
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
-
-    Ok(())
+    set_state_entry(contract_address.key(), vm, exec_scopes, ids_data, ap_tracking)
 }
 
 pub(crate) fn write_syscall_result_deprecated<S: StateReader>(

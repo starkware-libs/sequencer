@@ -1,17 +1,14 @@
 use blockifier::state::state_api::StateReader;
-use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
-    get_ptr_from_var_name,
-    insert_value_from_var_name,
-    insert_value_into_ap,
-};
+use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_into_ap;
 use starknet_api::core::ascii_as_felt;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::enum_definition::{AllHints, OsHint};
 use crate::hints::error::OsHintResult;
+use crate::hints::hint_implementation::execution::utils::set_state_entry;
 use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;
-use crate::hints::vars::{Const, Ids};
+use crate::hints::vars::Const;
 
 // Hint implementations.
 
@@ -58,21 +55,7 @@ pub(crate) fn get_block_mapping<S: StateReader>(
     HintArgs { ids_data, constants, vm, ap_tracking, exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let block_hash_contract_address = Const::BlockHashContractAddress.fetch(constants)?;
-    let contract_state_changes_ptr =
-        get_ptr_from_var_name(Ids::ContractStateChanges.into(), vm, ids_data, ap_tracking)?;
-    let dict_manager = exec_scopes.get_dict_manager()?;
-    let mut dict_manager_borrowed = dict_manager.borrow_mut();
-    let block_hash_state_entry = dict_manager_borrowed
-        .get_tracker_mut(contract_state_changes_ptr)?
-        .get_value(&block_hash_contract_address.into())?;
-
-    Ok(insert_value_from_var_name(
-        Ids::StateEntry.into(),
-        block_hash_state_entry,
-        vm,
-        ids_data,
-        ap_tracking,
-    )?)
+    set_state_entry(block_hash_contract_address, vm, exec_scopes, ids_data, ap_tracking)
 }
 
 pub(crate) fn write_use_kzg_da_to_memory<S: StateReader>(
