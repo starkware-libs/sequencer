@@ -1,5 +1,6 @@
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
+use expect_test::expect;
 use pretty_assertions::assert_eq;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::{BlockHash, BlockNumber};
@@ -13,9 +14,7 @@ use test_case::test_case;
 use crate::abi::constants;
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::context::ChainInfo;
-use crate::execution::call_info::CallExecution;
 use crate::execution::entry_point::CallEntryPoint;
-use crate::execution::syscalls::syscall_tests::constants::REQUIRED_GAS_GET_BLOCK_HASH_TEST;
 use crate::retdata;
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::State;
@@ -70,13 +69,21 @@ fn positive_flow(runnable_version: RunnableCairo1) {
         vec![BlockHash(block_hash)]
     );
 
-    assert_eq!(
-        call_info.execution,
+    expect![[r#"
         CallExecution {
-            gas_consumed: REQUIRED_GAS_GET_BLOCK_HASH_TEST,
-            ..CallExecution::from_retdata(retdata![block_hash])
+            retdata: Retdata(
+                [
+                    0x42,
+                ],
+            ),
+            events: [],
+            l2_to_l1_messages: [],
+            failed: false,
+            gas_consumed: 16220,
         }
-    );
+    "#]]
+    .assert_debug_eq(&call_info.execution);
+    assert_eq!(call_info.execution.retdata, retdata![block_hash]);
 }
 
 #[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native;"Native"))]
