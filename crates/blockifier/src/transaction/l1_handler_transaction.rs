@@ -70,7 +70,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
         );
         let execute_call_info = self.run_execute(state, &mut context, &mut remaining_gas)?;
         let l1_handler_payload_size = self.payload_size();
-        let receipt = TransactionReceipt::from_l1_handler(
+        let mut receipt = TransactionReceipt::from_l1_handler(
             &tx_context,
             l1_handler_payload_size,
             CallInfo::summarize_many(execute_call_info.iter(), &block_context.versioned_constants),
@@ -89,16 +89,12 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
             ));
         }
 
+        receipt.fee = Fee(0);
         Ok(TransactionExecutionInfo {
             validate_call_info: None,
             execute_call_info,
             fee_transfer_call_info: None,
-            receipt: TransactionReceipt {
-                fee: Fee::default(),
-                da_gas: receipt.da_gas,
-                resources: receipt.resources,
-                gas: receipt.gas,
-            },
+            receipt,
             revert_error: None,
         })
     }
