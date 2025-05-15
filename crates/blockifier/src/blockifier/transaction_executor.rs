@@ -1,5 +1,4 @@
 use std::mem;
-use std::panic::{self, catch_unwind, AssertUnwindSafe};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use apollo_infra_utils::tracing::LogCompatibleToStringExt;
@@ -11,8 +10,8 @@ use thiserror::Error;
 use crate::blockifier::block::pre_process_block;
 use crate::blockifier::config::TransactionExecutorConfig;
 use crate::bouncer::{Bouncer, BouncerWeights, CasmHashComputationData};
-use crate::concurrency::utils::AbortIfPanic;
 use crate::concurrency::worker_logic::WorkerExecutor;
+use crate::concurrency::worker_pool::WorkerPool;
 use crate::context::BlockContext;
 use crate::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps, TransactionalState};
 use crate::state::errors::StateError;
@@ -214,7 +213,10 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
     pub fn execute_txs(
         &mut self,
         txs: &[Transaction],
-    ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
+    ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>>
+    where
+        S: 'static,
+    {
         if !self.config.concurrency_config.enabled {
             log::debug!("Executing transactions sequentially.");
             self.execute_txs_sequentially(txs)
@@ -286,7 +288,10 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
     fn execute_chunk(
         &mut self,
         chunk: &[Transaction],
-    ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
+    ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>>
+    where
+        S: 'static,
+    {
         let block_state = self.block_state.take().expect("The block state should be `Some`.");
         let chunk_size = chunk.len();
 
@@ -299,50 +304,10 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
             self.bouncer.clone(),
         ));
 
-        // No thread pool implementation is needed here since we already have our scheduler. The
-        // initialized threads below will "busy wait" for new tasks using the `run` method until the
-        // chunk execution is completed, and then they will be joined together in a for loop.
-        // TODO(barak, 01/07/2024): Consider using tokio and spawn tasks that will be served by some
-        // upper level tokio thread pool (Runtime in tokio terminology).
-        std::thread::scope(|s| {
-            for _ in 0..self.config.concurrency_config.n_workers {
-                let worker_executor = Arc::clone(&worker_executor);
-                let _handle = std::thread::Builder::new()
-                    // when running Cairo natively, the real stack is used and could get overflowed
-                    // (unlike the VM where the stack is simulated in the heap as a memory segment).
-                    //
-                    // We pre-allocate the stack here, and not during Native execution (not trivial), so it
-                    // needs to be big enough ahead.
-                    // However, making it very big is wasteful (especially with multi-threading).
-                    // So, the stack size should support calls with a reasonable gas limit, for extremely deep
-                    // recursions to reach out-of-gas before hitting the bottom of the recursion.
-                    //
-                    // The gas upper bound is MAX_POSSIBLE_SIERRA_GAS, and sequencers must not raise it without
-                    // adjusting the stack size.
-                    .stack_size(self.config.stack_size)
-                    .spawn_scoped(s, move || {
-                        // Making sure that the program will abort if a panic accured while halting
-                        // the scheduler.
-                        let abort_guard = AbortIfPanic;
-                        // If a panic is not handled or the handling logic itself panics, then we
-                        // abort the program.
-                        if let Err(err) = catch_unwind(AssertUnwindSafe(|| {
-                            worker_executor.run();
-                        })) {
-                            // If the program panics here, the abort guard will exit the program.
-                            // In this case, no panic message will be logged. Add the cargo flag
-                            // --nocapture to log the panic message.
-
-                            worker_executor.scheduler.halt();
-                            abort_guard.release();
-                            panic::resume_unwind(err);
-                        }
-
-                        abort_guard.release();
-                    })
-                    .expect("Failed to spawn thread.");
-            }
-        });
+        let worker_pool =
+            WorkerPool::start(self.config.stack_size, self.config.concurrency_config.clone());
+        worker_pool.run(worker_executor.clone());
+        worker_pool.join();
 
         let n_committed_txs = worker_executor.scheduler.get_n_committed_txs();
         let (abort_counter, abort_in_commit_counter, execute_counter, validate_counter) =
