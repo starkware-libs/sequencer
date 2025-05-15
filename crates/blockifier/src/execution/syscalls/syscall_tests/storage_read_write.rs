@@ -1,14 +1,13 @@
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
+use expect_test::expect;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::state::StorageKey;
 use starknet_api::{calldata, felt};
 use test_case::test_case;
 
 use crate::context::ChainInfo;
-use crate::execution::call_info::CallExecution;
 use crate::execution::entry_point::CallEntryPoint;
-use crate::execution::syscalls::syscall_tests::constants::REQUIRED_GAS_STORAGE_READ_WRITE_TEST;
 use crate::retdata;
 use crate::state::state_api::StateReader;
 use crate::test_utils::initial_test_state::test_state;
@@ -30,14 +29,22 @@ fn test_storage_read_write(runnable_version: RunnableCairo1) {
         ..trivial_external_entry_point_new(test_contract)
     };
     let storage_address = entry_point_call.storage_address;
-    assert_eq!(
-        entry_point_call.execute_directly(&mut state).unwrap().execution,
+    let execution = entry_point_call.execute_directly(&mut state).unwrap().execution;
+    expect![[r#"
         CallExecution {
-            retdata: retdata![value],
-            gas_consumed: REQUIRED_GAS_STORAGE_READ_WRITE_TEST,
-            ..CallExecution::default()
+            retdata: Retdata(
+                [
+                    0x12,
+                ],
+            ),
+            events: [],
+            l2_to_l1_messages: [],
+            failed: false,
+            gas_consumed: 26450,
         }
-    );
+    "#]]
+    .assert_debug_eq(&execution);
+    assert_eq!(execution.retdata, retdata![value]);
 
     // Verify that the state has changed.
     let value_from_state =
