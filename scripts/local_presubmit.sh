@@ -22,7 +22,7 @@ parse_args() {
         shift 2
         ;;
       *)
-        echo "Unknown option: $1"
+        echo "Unknown option: $1" >&2
         exit 1
         ;;
     esac
@@ -91,7 +91,7 @@ install_dependencies() {
 
   # Rust env needed. Should be imported from main.yml
   if [[ -z "$EXTRA_RUST_TOOLCHAINS" ]]; then
-    echo "Error: EXTRA_RUST_TOOLCHAINS is not set or is empty"
+    echo "Error: EXTRA_RUST_TOOLCHAINS is not set or is empty" >&2
     exit 1
   fi
   if rustup toolchain list | grep -q "${EXTRA_RUST_TOOLCHAINS}"; then
@@ -115,12 +115,15 @@ setup_new_venv() {
   # Store current venv (if any)
   CURRENT_VENV="$VIRTUAL_ENV"
 
-  VENV_NAME="~/presubmit_venv"
+  VENV_NAME="${HOME}/presubmit_venv"
 
   # Create venv if it doesn't exist.
   if [ ! -d "$VENV_NAME" ]; then
     echo "Creating virtual environment: $VENV_NAME"
-    python3 -m venv "$VENV_NAME"
+    if ! python3 -m venv "$VENV_NAME"; then
+      echo "Failed to create virtual environment!" >&2
+      exit 1
+    fi
   else
     log_debug "Virtual environment '$VENV_NAME' already exists."
   fi
@@ -133,7 +136,10 @@ setup_new_venv() {
 
   # Activate presubmit_venv.
   log_debug "Activating $VENV_NAME"
-  source "$VENV_NAME/bin/activate"
+  if ! source "$VENV_NAME/bin/activate"; then
+    echo "Failed to activate virtual environment!" >&2
+    exit 1
+  fi
 }
 
 restore_old_env() {
@@ -184,7 +190,7 @@ add_commit_lint_to_path() {
     ORIGINAL_PATH="$PATH"
     export PATH="$COMMITLINT_PATH:$PATH"
   else
-    echo "commitlint not found in PATH or local directories."
+    echo "commitlint not found in PATH or local directories." >&2
     exit 1
   fi
 }
@@ -216,7 +222,7 @@ ancestor_commit=$(git merge-base HEAD origin/${parent_branch})
 
 # Check if merge-base succeeded
 if [ -z "$ancestor_commit" ]; then
-  echo "Failed to determine common ancestor of HEAD and ${parent_branch}"
+  echo "Failed to determine common ancestor of HEAD and ${parent_branch}" >&2
   exit 1
 fi
 
