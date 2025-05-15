@@ -9,6 +9,7 @@ use super::objects::RevertError;
 use crate::context::BlockContext;
 use crate::execution::call_info::{CallInfo, ExecutionSummary};
 use crate::execution::entry_point::{EntryPointExecutionContext, SierraGasRevertTracker};
+use crate::execution::stack_trace::gen_tx_execution_error_trace;
 use crate::fee::fee_checks::FeeCheckReport;
 use crate::fee::receipt::TransactionReceipt;
 use crate::state::cached_state::{StateChanges, TransactionalState};
@@ -128,8 +129,12 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
                 }
             }
             Err(execution_error) => {
-                // TODO(Arni): handle error in execution as revert.
-                Err(execution_error)?
+                let receipt = get_revert_receipt();
+                Ok(l1_handler_tx_execution_info(
+                    None,
+                    receipt,
+                    Some(gen_tx_execution_error_trace(&execution_error).into()),
+                ))
             }
         }
     }
