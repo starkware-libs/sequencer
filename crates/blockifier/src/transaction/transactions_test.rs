@@ -144,6 +144,7 @@ use crate::transaction::errors::{
 };
 use crate::transaction::objects::{
     HasRelatedFeeType,
+    RevertError,
     TransactionExecutionInfo,
     TransactionInfo,
     TransactionInfoCreator,
@@ -2760,16 +2761,22 @@ fn test_l1_handler_resource_bounds(#[case] resource: Resource, #[case] new_bound
 
     let tx = l1handler_tx(Fee(1), contract_address);
 
-    let err = tx.execute(&mut state, &block_context).unwrap_err();
+    let execution_info = tx.execute(&mut state, &block_context).unwrap();
 
     assert_matches!(
-        err,
-        TransactionExecutionError::FeeCheckError(FeeCheckError::MaxGasAmountExceeded {
-            resource: r,
-            max_amount,
-            actual_amount,
-            ..
-        }) if r == resource && new_bound == max_amount && actual_amount > max_amount
+        execution_info,
+        TransactionExecutionInfo {
+            validate_call_info: None,
+            execute_call_info: None,
+            fee_transfer_call_info: None,
+            revert_error: Some(RevertError::PostExecution(FeeCheckError::MaxGasAmountExceeded {
+                resource: r,
+                max_amount,
+                actual_amount
+            })),
+            // TODO(Arni): consider checking other fields of the receipt.
+            receipt: TransactionReceipt { fee, .. },
+        } if r == resource && new_bound == max_amount && actual_amount > max_amount && fee == Fee(0)
     );
 }
 
