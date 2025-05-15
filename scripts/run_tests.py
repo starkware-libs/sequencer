@@ -2,7 +2,6 @@
 
 import argparse
 from enum import Enum
-import os
 import subprocess
 from typing import List, Set, Optional
 from tests_utils import (
@@ -115,10 +114,7 @@ def test_crates(crates: Set[str], base_command: BaseCommand, is_nightly: bool):
     print("Executing test commands...")
     for cmd in cmds:
         print(cmd, flush=True)
-        # Copy current environment and add new variable
-        env = os.environ.copy()
-        env["RUST_LOG"] = "debug"
-        subprocess.run(cmd, check=True, env=env)
+        subprocess.run(cmd, check=True)
     print("Tests complete.")
 
 
