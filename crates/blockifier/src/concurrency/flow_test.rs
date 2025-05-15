@@ -41,9 +41,11 @@ fn scheduler_flow_test(
                         let mut state_proxy = versioned_state.pin_version(tx_index);
                         let (reads, writes) =
                             get_reads_writes_for(Task::ValidationTask(tx_index), &versioned_state);
-                        let reads_valid = state_proxy.validate_reads(&reads);
+                        let reads_valid = state_proxy.validate_reads(&reads).unwrap();
                         if !reads_valid {
-                            state_proxy.delete_writes(&writes, &ContractClassMapping::default());
+                            state_proxy
+                                .delete_writes(&writes, &ContractClassMapping::default())
+                                .unwrap();
                             let (_, new_writes) = get_reads_writes_for(
                                 Task::ExecutionTask(tx_index),
                                 &versioned_state,
@@ -67,10 +69,12 @@ fn scheduler_flow_test(
                         let state_proxy = versioned_state.pin_version(tx_index);
                         let (reads, writes) =
                             get_reads_writes_for(Task::ValidationTask(tx_index), &versioned_state);
-                        let read_set_valid = state_proxy.validate_reads(&reads);
+                        let read_set_valid = state_proxy.validate_reads(&reads).unwrap();
                         let aborted = !read_set_valid && scheduler.try_validation_abort(tx_index);
                         if aborted {
-                            state_proxy.delete_writes(&writes, &ContractClassMapping::default());
+                            state_proxy
+                                .delete_writes(&writes, &ContractClassMapping::default())
+                                .unwrap();
                             scheduler.finish_abort(tx_index)
                         } else {
                             Task::AskForTask
