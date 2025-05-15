@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -65,23 +65,23 @@ impl ConcurrencyMetrics {
     }
 }
 
-pub struct WorkerExecutor<'a, S: StateReader> {
+pub struct WorkerExecutor<S: StateReader> {
     pub scheduler: Scheduler,
     pub state: ThreadSafeVersionedState<S>,
-    pub chunk: &'a [Transaction],
+    pub chunk: Vec<Transaction>,
     pub execution_outputs: Box<[Mutex<Option<ExecutionTaskOutput>>]>,
-    pub block_context: &'a BlockContext,
-    pub bouncer: Mutex<&'a mut Bouncer>,
+    pub block_context: Arc<BlockContext>,
+    pub bouncer: Arc<Mutex<Bouncer>>,
     pub execution_deadline: Option<Instant>,
     pub metrics: ConcurrencyMetrics,
 }
 
-impl<'a, S: StateReader> WorkerExecutor<'a, S> {
+impl<S: StateReader> WorkerExecutor<S> {
     pub fn new(
         state: ThreadSafeVersionedState<S>,
-        chunk: &'a [Transaction],
-        block_context: &'a BlockContext,
-        bouncer: Mutex<&'a mut Bouncer>,
+        chunk: Vec<Transaction>,
+        block_context: Arc<BlockContext>,
+        bouncer: Arc<Mutex<Bouncer>>,
     ) -> Self {
         let scheduler = Scheduler::new(chunk.len());
         let execution_outputs =
@@ -103,9 +103,9 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
     // TODO(barak, 01/08/2024): Remove the `new` method or move it to test utils.
     pub fn initialize(
         state: S,
-        chunk: &'a [Transaction],
-        block_context: &'a BlockContext,
-        bouncer: Mutex<&'a mut Bouncer>,
+        chunk: Vec<Transaction>,
+        block_context: Arc<BlockContext>,
+        bouncer: Arc<Mutex<Bouncer>>,
         execution_deadline: Option<Instant>,
     ) -> Self {
         let versioned_state = VersionedState::new(state);
@@ -183,7 +183,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
             TransactionalState::create_transactional(&mut tx_versioned_state);
         let concurrency_mode = true;
         let execution_result =
-            tx.execute_raw(&mut transactional_state, self.block_context, concurrency_mode);
+            tx.execute_raw(&mut transactional_state, &self.block_context, concurrency_mode);
 
         // Update the versioned state and store the transaction execution output.
         let execution_output_inner = match execution_result {
@@ -320,7 +320,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
     }
 }
 
-impl<U: UpdatableState> WorkerExecutor<'_, U> {
+impl<U: UpdatableState> WorkerExecutor<U> {
     pub fn commit_chunk_and_recover_block_state(self, n_committed_txs: usize) -> U {
         self.state.into_inner_state().commit_chunk_and_recover_block_state(n_committed_txs)
     }
