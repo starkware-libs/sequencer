@@ -12,7 +12,6 @@ use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::context::ChainInfo;
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata, StorageAccessTracker};
 use crate::execution::entry_point::{CallEntryPoint, CallType};
-use crate::execution::syscalls::syscall_tests::constants::REQUIRED_GAS_LIBRARY_CALL_TEST;
 use crate::retdata;
 use crate::test_utils::contracts::FeatureContractTrait;
 use crate::test_utils::initial_test_state::test_state;
@@ -24,6 +23,7 @@ fn test_library_call(runnable_version: RunnableCairo1) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
+    let value = felt!(91_u8);
 
     let inner_entry_point_selector = selector_from_name("test_storage_read_write");
     let calldata = calldata![
@@ -31,7 +31,7 @@ fn test_library_call(runnable_version: RunnableCairo1) {
         inner_entry_point_selector.0,     // Function selector.
         felt!(2_u8),                      // Calldata length.
         felt!(1219_u16),                  // Calldata: address.
-        felt!(91_u8)                      // Calldata: value.
+        value                             // Calldata: value.
     ];
 
     let entry_point_call = CallEntryPoint {
@@ -41,14 +41,22 @@ fn test_library_call(runnable_version: RunnableCairo1) {
         ..trivial_external_entry_point_new(test_contract)
     };
 
-    assert_eq!(
-        entry_point_call.execute_directly(&mut state).unwrap().execution,
+    let execution = entry_point_call.execute_directly(&mut state).unwrap().execution;
+    expect![[r#"
         CallExecution {
-            retdata: retdata![felt!(91_u16)],
-            gas_consumed: REQUIRED_GAS_LIBRARY_CALL_TEST,
-            ..Default::default()
+            retdata: Retdata(
+                [
+                    0x5b,
+                ],
+            ),
+            events: [],
+            l2_to_l1_messages: [],
+            failed: false,
+            gas_consumed: 132270,
         }
-    );
+    "#]]
+    .assert_debug_eq(&execution);
+    assert_eq!(execution.retdata, retdata![value]);
 }
 
 #[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native; "Native"))]
