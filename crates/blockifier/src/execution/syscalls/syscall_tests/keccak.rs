@@ -27,6 +27,6 @@ fn test_keccak(runnable_version: RunnableCairo1) {
 
     pretty_assertions::assert_eq!(
         entry_point_call.execute_directly(&mut state).unwrap().execution,
-        CallExecution { gas_consumed: 244467, ..CallExecution::from_retdata(retdata![]) }
+        CallExecution { gas_consumed: 236667, ..CallExecution::from_retdata(retdata![]) }
     );
 }

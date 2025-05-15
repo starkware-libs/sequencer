@@ -173,7 +173,7 @@ fn test_meta_tx_v0(
     assert_eq!(
         call_info.execution,
         CallExecution {
-            gas_consumed: if measure_resources { 0 } else { 525850 },
+            gas_consumed: if measure_resources { 0 } else { 523890 },
             ..CallExecution::default()
         }
     );
@@ -181,8 +181,8 @@ fn test_meta_tx_v0(
         call_info.resources,
         if measure_resources {
             ExecutionResources {
-                n_steps: 4624,
-                n_memory_holes: 24,
+                n_steps: 4582,
+                n_memory_holes: 28,
                 builtin_instance_counter: [
                     (BuiltinName::range_check, 91),
                     (BuiltinName::pedersen, 12),

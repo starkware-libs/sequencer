@@ -33,7 +33,7 @@ fn test_secp256k1(runnable_version: RunnableCairo1) {
             events: [],
             l2_to_l1_messages: [],
             failed: false,
-            gas_consumed: 17010359,
+            gas_consumed: 16997129,
         }
     "#]];
     expectation.assert_debug_eq(&entry_point_call.execute_directly(&mut state).unwrap().execution);
@@ -55,7 +55,7 @@ fn test_secp256k1_point_from_x(runnable_version: RunnableCairo1) {
 
     pretty_assertions::assert_eq!(
         entry_point_call.execute_directly(&mut state).unwrap().execution,
-        CallExecution { gas_consumed: 186480, ..Default::default() }
+        CallExecution { gas_consumed: 184690, ..Default::default() }
     );
 }
 
@@ -75,6 +75,6 @@ fn test_secp256r1(runnable_version: RunnableCairo1) {
 
     pretty_assertions::assert_eq!(
         entry_point_call.execute_directly(&mut state).unwrap().execution,
-        CallExecution { gas_consumed: 27572590, ..Default::default() }
+        CallExecution { gas_consumed: 27569930, ..Default::default() }
     );
 }

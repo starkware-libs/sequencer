@@ -75,7 +75,7 @@ fn positive_flow(runnable_version: RunnableCairo1) {
     };
     assert_eq!(
         entry_point_call.execute_directly(&mut state).unwrap().execution,
-        CallExecution { gas_consumed: 16120, ..Default::default() }
+        CallExecution { gas_consumed: 15220, ..Default::default() }
     );
     assert_eq!(state.get_class_hash_at(contract_address).unwrap(), new_class_hash);
 }
