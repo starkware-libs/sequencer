@@ -1,5 +1,6 @@
 use std::task::{Context, Poll};
 
+use futures::FutureExt;
 use libp2p::core::Endpoint;
 use libp2p::swarm::{
     dummy,
@@ -13,12 +14,13 @@ use libp2p::swarm::{
 use libp2p::{Multiaddr, PeerId};
 use tokio::time::{Duration, Instant};
 
-use super::configure_context_to_wake_at_instant;
+use super::TimeWakerManager;
 use crate::discovery::ToOtherBehaviourEvent;
 
 pub struct KadRequestingBehaviour {
     heartbeat_interval: Duration,
     time_for_next_kad_query: Instant,
+    waker_manager: TimeWakerManager,
 }
 
 impl NetworkBehaviour for KadRequestingBehaviour {
@@ -70,13 +72,18 @@ impl NetworkBehaviour for KadRequestingBehaviour {
             )));
         }
 
-        configure_context_to_wake_at_instant(cx, self.time_for_next_kad_query);
+        self.waker_manager.wake_at(cx, self.time_for_next_kad_query);
+        let _ = self.waker_manager.poll_unpin(cx);
         Poll::Pending
     }
 }
 
 impl KadRequestingBehaviour {
     pub fn new(heartbeat_interval: Duration) -> Self {
-        Self { heartbeat_interval, time_for_next_kad_query: Instant::now() }
+        Self {
+            heartbeat_interval,
+            time_for_next_kad_query: Instant::now(),
+            waker_manager: Default::default(),
+        }
     }
 }
