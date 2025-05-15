@@ -16,6 +16,7 @@ use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::context::{BlockContext, ChainInfo};
 use crate::execution::call_info::{CallExecution, CallInfo};
 use crate::execution::entry_point::{call_view_entry_point, CallEntryPoint};
+use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::syscalls::hint_processor::ENTRYPOINT_NOT_FOUND_ERROR;
 use crate::retdata;
 use crate::state::cached_state::CachedState;
@@ -579,5 +580,8 @@ fn test_call_view_entry_point_non_existing_function() {
         Calldata(vec![].into()),
     );
 
-    assert_eq!(call_info.unwrap().execution.retdata.0, vec![felt!(ENTRYPOINT_NOT_FOUND_ERROR)]);
+    let EntryPointExecutionError::ExecutionFailed { error_trace } = call_info.unwrap_err() else {
+        panic!("Expected ExecutionFailed error");
+    };
+    assert_eq!(error_trace.last_retdata.0, vec![felt!(ENTRYPOINT_NOT_FOUND_ERROR)]);
 }

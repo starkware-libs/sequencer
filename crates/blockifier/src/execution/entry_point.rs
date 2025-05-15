@@ -604,7 +604,7 @@ pub fn call_view_entry_point(
     );
 
     let mut state = CachedState::new(state_reader); // Changes to it are discarded.
-    execute_call.execute(&mut state, &mut context, &mut initial_gas.0)
+    execute_call.non_reverting_execute(&mut state, &mut context, &mut initial_gas.0)
 }
 
 pub fn handle_empty_constructor(
