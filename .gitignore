@@ -18,6 +18,7 @@ target
 */.vscode/*
 *.DS_Store
 tmp_venv/*
+sequencer_venv/*
 .vscode/settings.json
 /data
 /logs
