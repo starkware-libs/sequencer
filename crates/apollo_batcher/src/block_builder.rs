@@ -241,6 +241,10 @@ impl BlockBuilderTrait for BlockBuilder {
 
             // Execute the transactions on a separate thread pool to avoid blocking the executor
             // while waiting on `block_on` calls.
+            debug!(
+                "Starting execution of a chunk with {} transactions.",
+                executor_input_chunk.len()
+            );
             let executor = self.executor.clone();
             let results = tokio::task::spawn_blocking(move || {
                 executor
@@ -250,6 +254,7 @@ impl BlockBuilderTrait for BlockBuilder {
             })
             .await
             .expect("Failed to spawn blocking executor task.");
+            debug!("Finished execution of transactions chunk.");
             trace!("Transaction execution results: {:?}", results);
             block_is_full = collect_execution_results_and_stream_txs(
                 next_tx_chunk,
