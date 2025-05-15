@@ -4,6 +4,7 @@ use std::sync::Arc;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_vm::types::builtin_name::BuiltinName;
+use expect_test::expect;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::contract_class::SierraVersion;
@@ -39,10 +40,19 @@ fn no_constructor(runnable_version: RunnableCairo1) {
     let entry_point_call = create_deploy_entry_point(class_hash, &[], true, deployer_contract);
 
     let deploy_call = &entry_point_call.execute_directly(&mut state).unwrap();
-    assert_eq!(
-        deploy_call.execution,
-        CallExecution { retdata: retdata![], gas_consumed: 158740, ..CallExecution::default() }
-    );
+    expect![[r#"
+        CallExecution {
+            retdata: Retdata(
+                [],
+            ),
+            events: [],
+            l2_to_l1_messages: [],
+            failed: false,
+            gas_consumed: 158740,
+        }
+    "#]]
+    .assert_debug_eq(&deploy_call.execution);
+    assert_eq!(deploy_call.execution.retdata, retdata![]);
 
     let deployed_contract_address = calculate_contract_address(
         ContractAddressSalt::default(),
@@ -111,24 +121,39 @@ fn with_constructor(runnable_version: RunnableCairo1) {
 
     let deploy_call = &entry_point_call.execute_directly(&mut state).unwrap();
 
-    assert_eq!(
-        deploy_call.execution,
-        CallExecution { retdata: retdata![], gas_consumed: 188920, ..CallExecution::default() }
-    );
+    expect![[r#"
+        CallExecution {
+            retdata: Retdata(
+                [],
+            ),
+            events: [],
+            l2_to_l1_messages: [],
+            failed: false,
+            gas_consumed: 188920,
+        }
+    "#]]
+    .assert_debug_eq(&deploy_call.execution);
+    assert_eq!(deploy_call.execution.retdata, retdata![]);
 
     let constructor_call = &deploy_call.inner_calls[0];
 
-    assert_eq!(constructor_call.call.storage_address, contract_address);
-    assert_eq!(
-        constructor_call.execution,
+    expect![[r#"
         CallExecution {
-            // The test contract constructor returns its first argument.
-            retdata: retdata![constructor_calldata[0]],
-            // This reflects the gas cost of storage write syscall.
+            retdata: Retdata(
+                [
+                    0x1,
+                ],
+            ),
+            events: [],
+            l2_to_l1_messages: [],
+            failed: false,
             gas_consumed: 15140,
-            ..CallExecution::default()
         }
-    );
+    "#]]
+    .assert_debug_eq(&constructor_call.execution);
+    assert_eq!(constructor_call.execution.retdata, retdata![constructor_calldata[0]]);
+    assert_eq!(constructor_call.call.storage_address, contract_address);
+
     assert_eq!(state.get_class_hash_at(contract_address).unwrap(), class_hash);
 }
 
