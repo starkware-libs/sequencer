@@ -28,8 +28,8 @@ use crate::concurrency::test_utils::{
     safe_versioned_state_for_testing,
 };
 use crate::concurrency::versioned_state::{
+    OptionalVersionedState,
     ThreadSafeVersionedState,
-    VersionedState,
     VersionedStateProxy,
 };
 use crate::concurrency::TxIndex;
@@ -88,7 +88,7 @@ fn test_versioned_state_proxy() {
 
     let cached_state = CachedState::from(state_reader);
 
-    let versioned_state = Arc::new(Mutex::new(VersionedState::new(cached_state)));
+    let versioned_state = Arc::new(Mutex::new(OptionalVersionedState::new(cached_state)));
 
     let safe_versioned_state = ThreadSafeVersionedState(Arc::clone(&versioned_state));
     let versioned_state_proxys: Vec<VersionedStateProxy<CachedState<DictStateReader>>> =
@@ -110,7 +110,12 @@ fn test_versioned_state_proxy() {
         another_class_hash == class_hash
     );
     assert!(
-        !versioned_state_proxys[0].state().declared_contracts.read(0, another_class_hash).unwrap()
+        !versioned_state_proxys[0]
+            .state()
+            .inner_unwrap()
+            .declared_contracts
+            .read(0, another_class_hash)
+            .unwrap()
     );
 
     // Write to the state.
@@ -182,10 +187,20 @@ fn test_versioned_state_proxy() {
         class_hash_v7
     );
     assert!(
-        !versioned_state_proxys[0].state().declared_contracts.read(0, another_class_hash).unwrap()
+        !versioned_state_proxys[0]
+            .state()
+            .inner_unwrap()
+            .declared_contracts
+            .read(0, another_class_hash)
+            .unwrap()
     );
     assert!(
-        versioned_state_proxys[4].state().declared_contracts.read(4, another_class_hash).unwrap()
+        versioned_state_proxys[4]
+            .state()
+            .inner_unwrap()
+            .declared_contracts
+            .read(4, another_class_hash)
+            .unwrap()
     );
     // Include the writes in the current transaction.
     assert_eq!(
@@ -218,7 +233,7 @@ fn test_run_parallel_txs(default_all_resource_bounds: ValidResourceBounds) {
         FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0);
 
     // Initiate States
-    let versioned_state = Arc::new(Mutex::new(VersionedState::new(test_state(
+    let versioned_state = Arc::new(Mutex::new(OptionalVersionedState::new(test_state(
         chain_info,
         BALANCE,
         &[(account_without_validation, 1), (grindy_account, 1)],
@@ -525,6 +540,7 @@ fn test_delete_writes(
                 .0
                 .lock()
                 .unwrap()
+                .inner_unwrap()
                 .get_writes_of_index(tx_index)
                 .class_hashes
                 .is_empty(),
@@ -536,6 +552,7 @@ fn test_delete_writes(
                 .0
                 .lock()
                 .unwrap()
+                .inner_unwrap()
                 .compiled_contract_classes
                 .get_writes_of_index(tx_index)
                 .is_empty(),
@@ -570,23 +587,19 @@ fn test_delete_writes_completeness(
     let mut versioned_state_proxy = safe_versioned_state.pin_version(tx_index);
 
     versioned_state_proxy.apply_writes(&state_maps_writes, &class_hash_to_class_writes);
-    assert_eq!(
-        safe_versioned_state.0.lock().unwrap().get_writes_of_index(tx_index),
-        state_maps_writes
-    );
-    assert_eq!(
-        safe_versioned_state
-            .0
-            .lock()
-            .unwrap()
-            .compiled_contract_classes
-            .get_writes_of_index(tx_index),
-        class_hash_to_class_writes
-    );
+    {
+        let state_opt = safe_versioned_state.0.lock().unwrap();
+        let state = state_opt.inner_unwrap();
+        assert_eq!(state.get_writes_of_index(tx_index), state_maps_writes);
+        assert_eq!(
+            state.compiled_contract_classes.get_writes_of_index(tx_index),
+            class_hash_to_class_writes
+        );
+    }
 
     versioned_state_proxy.delete_writes(&state_maps_writes, &class_hash_to_class_writes);
     assert_eq!(
-        safe_versioned_state.0.lock().unwrap().get_writes_of_index(tx_index),
+        safe_versioned_state.0.lock().unwrap().inner_unwrap().get_writes_of_index(tx_index),
         StateMaps::default()
     );
     assert_eq!(
@@ -594,6 +607,7 @@ fn test_delete_writes_completeness(
             .0
             .lock()
             .unwrap()
+            .inner_unwrap()
             .compiled_contract_classes
             .get_writes_of_index(tx_index),
         ContractClassMapping::default()
