@@ -390,8 +390,9 @@ define_string_enum! {
         (SpongeHashBuiltin, "starkware.cairo.common.patricia_with_sponge.SpongeHashBuiltin"),
         (StateEntry, "starkware.starknet.core.os.state.commitment.StateEntry"),
         (StorageReadPtr, "starkware.starknet.common.syscalls.StorageRead*"),
-        (StorageReadRequestPtr, "starkware.starknet.core.os.storage.StorageReadRequest*"),
-        (StorageWritePtr, "starkware.starknet.common.syscalls.StorageWriteRequest*"),
+        (StorageReadRequestPtr, "starkware.starknet.common.new_syscalls.StorageReadRequest*"),
+        (StorageWritePtr, "starkware.starknet.common.syscalls.StorageWrite*"),
+        (StorageWriteRequestPtr, "starkware.starknet.common.new_syscalls.StorageWriteRequest*"),
         (TxInfoPtr, "starkware.starknet.common.new_syscalls.TxInfo*"),
     }
 }

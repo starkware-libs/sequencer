@@ -19,6 +19,8 @@ pub(crate) const PANEL_PROPOSAL_STARTED: Panel =
     Panel::from_counter(PROPOSAL_STARTED, PanelType::Stat);
 pub(crate) const PANEL_PROPOSAL_SUCCEEDED: Panel =
     Panel::from_counter(PROPOSAL_SUCCEEDED, PanelType::Stat);
+pub(crate) const PANEL_PROPOSAL_ABORTED: Panel =
+    Panel::from_counter(PROPOSAL_FAILED, PanelType::Stat);
 pub(crate) const PANEL_PROPOSAL_FAILED: Panel =
     Panel::from_counter(PROPOSAL_FAILED, PanelType::Stat);
 pub(crate) const PANEL_BATCHED_TRANSACTIONS: Panel =

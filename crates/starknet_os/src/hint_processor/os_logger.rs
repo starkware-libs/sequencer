@@ -6,6 +6,7 @@ use cairo_vm::serde::deserialize_program::ApTracking;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::program::Program;
 use cairo_vm::types::relocatable::Relocatable;
+use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::executable_transaction::TransactionType;
@@ -32,6 +33,8 @@ pub enum OsLoggerError {
     InnerBuiltinPtrsIdentifierMissing(String),
     #[error("No transaction should call another transaction.")]
     InTxContext,
+    #[error(transparent)]
+    Memory(#[from] MemoryError),
     #[error("{0}")]
     MissingBuiltinPtr(String),
     #[error("The `members` field is None in identifier data for struct {0}.")]
@@ -319,7 +322,7 @@ impl ResourceCounter {
             builtin_ptrs_dict.insert(
                 BuiltinName::from_str(member_name)
                     .ok_or_else(|| OsLoggerError::UnknownBuiltin(member_name.clone()))?,
-                member_ptr,
+                vm.get_relocatable(member_ptr)?,
             );
         }
         Ok(())
