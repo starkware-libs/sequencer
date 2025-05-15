@@ -1,6 +1,6 @@
 use std::mem;
 use std::panic::{self, catch_unwind, AssertUnwindSafe};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use apollo_infra_utils::tracing::LogCompatibleToStringExt;
 use itertools::FoldWhile::{Continue, Done};
@@ -57,8 +57,8 @@ pub struct BlockExecutionSummary {
 
 /// A transaction executor, used for building a single block.
 pub struct TransactionExecutor<S: StateReader> {
-    pub block_context: BlockContext,
-    pub bouncer: Bouncer,
+    pub block_context: Arc<BlockContext>,
+    pub bouncer: Arc<Mutex<Bouncer>>,
     // Note: this config must not affect the execution result (e.g. state diff and traces).
     pub config: TransactionExecutorConfig,
 
@@ -98,8 +98,8 @@ impl<S: StateReader> TransactionExecutor<S> {
         // Note: the state might not be empty even at this point; it is the creator's
         // responsibility to tune the bouncer according to pre and post block process.
         Self {
-            block_context,
-            bouncer: Bouncer::new(bouncer_config),
+            block_context: block_context.into(),
+            bouncer: Mutex::new(Bouncer::new(bouncer_config)).into(),
             config,
             block_state: Some(block_state),
         }
@@ -124,7 +124,7 @@ impl<S: StateReader> TransactionExecutor<S> {
             Ok(tx_execution_info) => {
                 let state_diff = transactional_state.to_state_diff()?.state_maps;
                 let tx_state_changes_keys = state_diff.keys();
-                self.bouncer.try_update(
+                lock_bouncer(&mut self.bouncer).try_update(
                     &transactional_state,
                     &tx_state_changes_keys,
                     &tx_execution_info.summarize(&self.block_context.versioned_constants),
@@ -171,7 +171,10 @@ impl<S: StateReader> TransactionExecutor<S> {
     }
 
     fn internal_finalize(&mut self) -> TransactionExecutorResult<BlockExecutionSummary> {
-        log::debug!("Final block weights: {:?}.", self.bouncer.get_accumulated_weights());
+        log::debug!(
+            "Final block weights: {:?}.",
+            lock_bouncer(&mut self.bouncer).get_accumulated_weights()
+        );
         let block_state = self.block_state.as_mut().expect(BLOCK_STATE_ACCESS_ERR);
         let alias_contract_address = self
             .block_context
@@ -189,13 +192,19 @@ impl<S: StateReader> TransactionExecutor<S> {
             } else {
                 None
             };
+
+        let mut bouncer = lock_bouncer(&mut self.bouncer);
         Ok(BlockExecutionSummary {
             state_diff: state_diff.into(),
             compressed_state_diff,
-            bouncer_weights: *self.bouncer.get_accumulated_weights(),
-            casm_hash_computation_data: mem::take(&mut self.bouncer.casm_hash_computation_data),
+            bouncer_weights: *bouncer.get_accumulated_weights(),
+            casm_hash_computation_data: mem::take(&mut bouncer.casm_hash_computation_data),
         })
     }
+}
+
+fn lock_bouncer(bouncer: &mut Arc<Mutex<Bouncer>>) -> MutexGuard<'_, Bouncer> {
+    bouncer.lock().expect("Bouncer lock failed.")
 }
 
 impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
@@ -283,9 +292,12 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
 
         let worker_executor = Arc::new(WorkerExecutor::initialize(
             block_state,
-            chunk,
-            &self.block_context,
-            Mutex::new(&mut self.bouncer),
+            // We need to clone the transactions so that ownership can be shared between threads,
+            // that will live longer than the current function.
+            // TODO(lior): Move the transactions instead of cloning them.
+            chunk.to_vec(),
+            self.block_context.clone(),
+            self.bouncer.clone(),
         ));
 
         // No thread pool implementation is needed here since we already have our scheduler. The
