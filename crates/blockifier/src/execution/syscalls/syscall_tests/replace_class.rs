@@ -1,12 +1,12 @@
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
+use expect_test::expect;
 use pretty_assertions::assert_eq;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::{calldata, felt};
 use test_case::test_case;
 
 use crate::context::ChainInfo;
-use crate::execution::call_info::CallExecution;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::state::state_api::StateReader;
 use crate::test_utils::initial_test_state::test_state;
@@ -73,9 +73,17 @@ fn positive_flow(runnable_version: RunnableCairo1) {
         entry_point_selector: selector_from_name("test_replace_class"),
         ..trivial_external_entry_point_new(test_contract)
     };
-    assert_eq!(
-        entry_point_call.execute_directly(&mut state).unwrap().execution,
-        CallExecution { gas_consumed: 16120, ..Default::default() }
-    );
+    expect![[r#"
+        CallExecution {
+            retdata: Retdata(
+                [],
+            ),
+            events: [],
+            l2_to_l1_messages: [],
+            failed: false,
+            gas_consumed: 16120,
+        }
+    "#]]
+    .assert_debug_eq(&entry_point_call.execute_directly(&mut state).unwrap().execution);
     assert_eq!(state.get_class_hash_at(contract_address).unwrap(), new_class_hash);
 }
