@@ -335,15 +335,8 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
             tx_execution_results.push(tx_execution_output);
         }
 
-        let block_state_after_commit = Arc::try_unwrap(worker_executor)
-            .unwrap_or_else(|_| {
-                panic!(
-                    "To consume the block state, you must have only one strong reference to the \
-                     worker executor factory. Consider dropping objects that hold a reference to \
-                     it."
-                )
-            })
-            .commit_chunk_and_recover_block_state(n_committed_txs);
+        let block_state_after_commit =
+            worker_executor.commit_chunk_and_recover_block_state(n_committed_txs);
         self.block_state.replace(block_state_after_commit);
 
         tx_execution_results
