@@ -65,6 +65,9 @@ pub type Description = String;
 
 #[cfg(test)]
 mod config_test;
+#[cfg(any(feature = "testing", test))]
+/// Utilities for the produced configuration.
+pub mod test_utils;
 
 mod command;
 pub mod converters;

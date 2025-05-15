@@ -53,9 +53,9 @@ tracing.workspace = true
 validator.workspace = true
 
 [dev-dependencies]
+apollo_config = { workspace = true, features = ["testing"] }
 apollo_infra_utils = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
-colored.workspace = true
 mempool_test_utils.workspace = true
 pretty_assertions.workspace = true
 tokio-util = { workspace = true, features = ["rt"] }
