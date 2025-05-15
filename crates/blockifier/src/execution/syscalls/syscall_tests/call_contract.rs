@@ -4,6 +4,7 @@ use std::sync::Arc;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
+use expect_test::expect;
 use itertools::Itertools;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
@@ -13,9 +14,7 @@ use starknet_api::felt;
 use starknet_api::transaction::fields::Calldata;
 use test_case::test_case;
 
-use super::constants::REQUIRED_GAS_CALL_CONTRACT_TEST;
 use crate::context::ChainInfo;
-use crate::execution::call_info::CallExecution;
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::retdata;
@@ -216,6 +215,7 @@ fn test_revert_with_inner_call_and_reverted_storage(#[case] runnable_version: Ru
 fn test_call_contract(outer_contract: FeatureContract, inner_contract: FeatureContract) {
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(outer_contract, 1), (inner_contract, 1)]);
+    let value = felt!(48_u8);
 
     let outer_entry_point_selector = selector_from_name("test_call_contract");
     let calldata = create_calldata(
@@ -223,7 +223,7 @@ fn test_call_contract(outer_contract: FeatureContract, inner_contract: FeatureCo
         "test_storage_read_write",
         &[
             felt!(405_u16), // Calldata: storage address.
-            felt!(48_u8),   // Calldata: value.
+            value,          // Calldata: value.
         ],
     );
     let entry_point_call = CallEntryPoint {
@@ -232,14 +232,22 @@ fn test_call_contract(outer_contract: FeatureContract, inner_contract: FeatureCo
         ..trivial_external_entry_point_new(outer_contract)
     };
 
-    assert_eq!(
-        entry_point_call.execute_directly(&mut state).unwrap().execution,
+    let execution = entry_point_call.execute_directly(&mut state).unwrap().execution;
+    expect![[r#"
         CallExecution {
-            retdata: retdata![felt!(48_u8)],
-            gas_consumed: REQUIRED_GAS_CALL_CONTRACT_TEST,
-            ..CallExecution::default()
+            retdata: Retdata(
+                [
+                    0x30,
+                ],
+            ),
+            events: [],
+            l2_to_l1_messages: [],
+            failed: false,
+            gas_consumed: 134670,
         }
-    );
+    "#]]
+    .assert_debug_eq(&execution);
+    assert_eq!(execution.retdata, retdata![value]);
 }
 
 /// Cairo0 / Old Cairo1 / Cairo1 / Native calls to Cairo0 / Old Cairo1 / Cairo1 / Native.
