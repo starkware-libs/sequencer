@@ -209,32 +209,90 @@ impl<U: UpdatableState> VersionedState<U> {
     }
 }
 
+#[derive(Debug)]
+pub enum VersionedStateError {
+    ExecutionHalted,
+}
+
+pub struct OptionalVersionedState<S: StateReader>(Option<VersionedState<S>>);
+
+impl<S: StateReader> OptionalVersionedState<S> {
+    #[cfg(any(feature = "testing", test))]
+    pub fn new(state: S) -> Self {
+        OptionalVersionedState(Some(VersionedState::new(state)))
+    }
+
+    #[cfg(any(feature = "testing", test))]
+    pub fn inner_unwrap(&self) -> &VersionedState<S> {
+        self.0.as_ref().unwrap()
+    }
+
+    fn inner_mut(&mut self) -> StateResult<&mut VersionedState<S>> {
+        self.0
+            .as_mut()
+            .ok_or(StateError::StateReadError("Versioned state was already consumed.".into()))
+    }
+
+    fn inner_mut_versioned_state_error(
+        &mut self,
+    ) -> Result<&mut VersionedState<S>, VersionedStateError> {
+        self.0.as_mut().ok_or(VersionedStateError::ExecutionHalted)
+    }
+
+    fn validate_reads(
+        &mut self,
+        tx_index: TxIndex,
+        reads: &StateMaps,
+    ) -> Result<bool, VersionedStateError> {
+        Ok(self.inner_mut_versioned_state_error()?.validate_reads(tx_index, reads))
+    }
+
+    fn delete_writes(
+        &mut self,
+        tx_index: TxIndex,
+        writes: &StateMaps,
+        class_hash_to_class: &ContractClassMapping,
+    ) -> Result<(), VersionedStateError> {
+        self.inner_mut_versioned_state_error()?.delete_writes(
+            tx_index,
+            writes,
+            class_hash_to_class,
+        );
+        Ok(())
+    }
+
+    fn apply_writes(
+        &mut self,
+        tx_index: TxIndex,
+        writes: &StateMaps,
+        class_hash_to_class: &ContractClassMapping,
+    ) {
+        if let Some(state) = self.0.as_mut() {
+            state.apply_writes(tx_index, writes, class_hash_to_class)
+        }
+    }
+}
+
 // TODO(barak, 01/07/2024): Re-consider the API (pub functions) of VersionedState,
 // ThreadSafeVersionedState and VersionedStateProxy.
 // TODO(barak, 01/07/2024): Re-consider the necessity ot ThreadSafeVersionedState once the worker
 // logic is completed.
-pub struct ThreadSafeVersionedState<S: StateReader>(Arc<Mutex<VersionedState<S>>>);
-pub type LockedVersionedState<'a, S> = MutexGuard<'a, VersionedState<S>>;
+pub struct ThreadSafeVersionedState<S: StateReader>(Arc<Mutex<OptionalVersionedState<S>>>);
+pub type LockedVersionedState<'a, S> = MutexGuard<'a, OptionalVersionedState<S>>;
 
 impl<S: StateReader> ThreadSafeVersionedState<S> {
     pub fn new(versioned_state: VersionedState<S>) -> Self {
-        ThreadSafeVersionedState(Arc::new(Mutex::new(versioned_state)))
+        ThreadSafeVersionedState(Mutex::new(OptionalVersionedState(Some(versioned_state))).into())
     }
 
     pub fn pin_version(&self, tx_index: TxIndex) -> VersionedStateProxy<S> {
         VersionedStateProxy { tx_index, state: self.0.clone() }
     }
 
-    pub fn into_inner_state(self) -> VersionedState<S> {
-        Arc::try_unwrap(self.0)
-            .unwrap_or_else(|_| {
-                panic!(
-                    "To consume the versioned state, you must have only one strong reference to \
-                     self. Consider dropping objects that hold a reference to it."
-                )
-            })
-            .into_inner()
-            .expect("No other mutex should hold the versioned state while calling this method.")
+    /// Replaces the inner versioned state with None and returns the existing state.
+    pub fn into_inner_state(&self) -> VersionedState<S> {
+        let mut opt_version_state = self.0.lock().expect("Failed to acquire state lock.");
+        opt_version_state.0.take().expect("Versioned state was already consumed.")
     }
 }
 
@@ -246,7 +304,7 @@ impl<S: StateReader> Clone for ThreadSafeVersionedState<S> {
 
 pub struct VersionedStateProxy<S: StateReader> {
     pub tx_index: TxIndex,
-    pub state: Arc<Mutex<VersionedState<S>>>,
+    pub state: Arc<Mutex<OptionalVersionedState<S>>>,
 }
 
 impl<S: StateReader> VersionedStateProxy<S> {
@@ -254,12 +312,16 @@ impl<S: StateReader> VersionedStateProxy<S> {
         self.state.lock().expect("Failed to acquire state lock.")
     }
 
-    pub fn validate_reads(&self, reads: &StateMaps) -> bool {
+    pub fn validate_reads(&self, reads: &StateMaps) -> Result<bool, VersionedStateError> {
         self.state().validate_reads(self.tx_index, reads)
     }
 
-    pub fn delete_writes(&self, writes: &StateMaps, class_hash_to_class: &ContractClassMapping) {
-        self.state().delete_writes(self.tx_index, writes, class_hash_to_class);
+    pub fn delete_writes(
+        &self,
+        writes: &StateMaps,
+        class_hash_to_class: &ContractClassMapping,
+    ) -> Result<(), VersionedStateError> {
+        self.state().delete_writes(self.tx_index, writes, class_hash_to_class)
     }
 }
 
@@ -275,7 +337,8 @@ impl<S: StateReader> StateReader for VersionedStateProxy<S> {
         contract_address: ContractAddress,
         key: StorageKey,
     ) -> StateResult<Felt> {
-        let mut state = self.state();
+        let mut state_opt = self.state();
+        let state = state_opt.inner_mut()?;
         match state.storage.read(self.tx_index, (contract_address, key)) {
             Some(value) => Ok(value),
             None => {
@@ -287,7 +350,8 @@ impl<S: StateReader> StateReader for VersionedStateProxy<S> {
     }
 
     fn get_nonce_at(&self, contract_address: ContractAddress) -> StateResult<Nonce> {
-        let mut state = self.state();
+        let mut state_opt = self.state();
+        let state = state_opt.inner_mut()?;
         match state.nonces.read(self.tx_index, contract_address) {
             Some(value) => Ok(value),
             None => {
@@ -299,7 +363,8 @@ impl<S: StateReader> StateReader for VersionedStateProxy<S> {
     }
 
     fn get_class_hash_at(&self, contract_address: ContractAddress) -> StateResult<ClassHash> {
-        let mut state = self.state();
+        let mut state_opt = self.state();
+        let state = state_opt.inner_mut()?;
         match state.class_hashes.read(self.tx_index, contract_address) {
             Some(value) => Ok(value),
             None => {
@@ -311,7 +376,8 @@ impl<S: StateReader> StateReader for VersionedStateProxy<S> {
     }
 
     fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
-        let mut state = self.state();
+        let mut state_opt = self.state();
+        let state = state_opt.inner_mut()?;
         match state.compiled_class_hashes.read(self.tx_index, class_hash) {
             Some(value) => Ok(value),
             None => {
@@ -323,7 +389,8 @@ impl<S: StateReader> StateReader for VersionedStateProxy<S> {
     }
 
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
-        let mut state = self.state();
+        let mut state_opt = self.state();
+        let state = state_opt.inner_mut()?;
         match state.compiled_contract_classes.read(self.tx_index, class_hash) {
             Some(value) => Ok(value),
             None => match state.initial_state.get_compiled_class(class_hash) {
