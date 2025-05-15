@@ -90,7 +90,6 @@ use crate::hints::hint_implementation::execution::implementation::{
     gen_signature_arg,
     get_block_hash_contract_address_state_entry_and_set_new_state_entry,
     get_contract_address_state_entry,
-    get_contract_address_state_entry_and_set_new_state_entry,
     get_old_block_number_and_hash,
     initial_ge_required_gas,
     is_deprecated,
@@ -964,7 +963,7 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
     ),
     (
         GetContractAddressStateEntryAndSetNewStateEntry,
-        get_contract_address_state_entry_and_set_new_state_entry,
+        get_contract_address_state_entry,
         indoc! {r#"
     # Fetch a state_entry in this hint and validate it in the update that comes next.
     ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]"#
@@ -972,7 +971,7 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
     ),
     (
         GetContractAddressStateEntryAndSetNewStateEntry2,
-        get_contract_address_state_entry_and_set_new_state_entry,
+        get_contract_address_state_entry,
         indoc! {r#"
 	# Fetch a state_entry in this hint and validate it in the update that comes next.
 	ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[
