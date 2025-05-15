@@ -82,19 +82,30 @@ fn test_library_call_assert_fails(runnable_version: RunnableCairo1) {
     };
     let call_info = entry_point_call.execute_directly(&mut state).unwrap();
 
-    assert_eq!(
-        call_info.execution,
+    expect![[r#"
         CallExecution {
-            retdata: Retdata(vec![
-                // 'x != y'.
-                felt!("0x7820213d2079"),
-                // 'ENTRYPOINT_FAILED'.
-                felt!("0x454e545259504f494e545f4641494c4544")
-            ]),
-            gas_consumed: 109360,
+            retdata: Retdata(
+                [
+                    0x7820213d2079,
+                    0x454e545259504f494e545f4641494c4544,
+                ],
+            ),
+            events: [],
+            l2_to_l1_messages: [],
             failed: true,
-            ..Default::default()
+            gas_consumed: 109360,
         }
+    "#]]
+    .assert_debug_eq(&call_info.execution);
+    assert!(call_info.execution.failed);
+    assert_eq!(
+        call_info.execution.retdata,
+        Retdata(vec![
+            // 'x != y'.
+            felt!("0x7820213d2079"),
+            // 'ENTRYPOINT_FAILED'.
+            felt!("0x454e545259504f494e545f4641494c4544")
+        ])
     );
 }
 
