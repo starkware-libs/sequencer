@@ -20,6 +20,7 @@ num_enum.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 socket2 = { workspace = true, optional = true }
+thiserror.workspace = true
 tokio = { workspace = true, features = ["process", "rt", "time"] }
 toml = { workspace = true, optional = true }
 tracing.workspace = true
