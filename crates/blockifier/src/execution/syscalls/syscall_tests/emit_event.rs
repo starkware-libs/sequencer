@@ -42,7 +42,7 @@ fn positive_flow(runnable_version: RunnableCairo1) {
         call_info.execution,
         CallExecution {
             events: vec![OrderedEvent { order: 0, event }],
-            gas_consumed: 41880,
+            gas_consumed: 34580,
             ..Default::default()
         }
     );

@@ -174,8 +174,8 @@ use crate::{
     check_tx_execution_error_for_invalid_scenario,
     retdata,
 };
-const DECLARE_REDEPOSIT_AMOUNT: u64 = 6860;
-const DEPLOY_ACCOUNT_REDEPOSIT_AMOUNT: u64 = 6360;
+const DECLARE_REDEPOSIT_AMOUNT: u64 = 7160;
+const DEPLOY_ACCOUNT_REDEPOSIT_AMOUNT: u64 = 6760;
 static VERSIONED_CONSTANTS: LazyLock<VersionedConstants> =
     LazyLock::new(VersionedConstants::create_for_testing);
 
@@ -478,17 +478,17 @@ fn add_kzg_da_resources_to_resources_mapping(
 #[case::with_cairo1_account(
     ExpectedResultTestInvokeTx{
         resources: ExecutionResources::default(),
-        validate_gas_consumed: 11690, // The gas consumption results from parsing the input
+        validate_gas_consumed: 8990, // The gas consumption results from parsing the input
             // arguments.
-        execute_gas_consumed: 118290,
+        execute_gas_consumed: 115190,
     },
     CairoVersion::Cairo1(RunnableCairo1::Casm))]
 #[cfg_attr(feature = "cairo_native", case::with_cairo1_native_account(
     ExpectedResultTestInvokeTx{
         resources: ExecutionResources::default(),
-        validate_gas_consumed: 11690, // The gas consumption results from parsing the input
+        validate_gas_consumed: 8990, // The gas consumption results from parsing the input
             // arguments.
-        execute_gas_consumed: 118290,
+        execute_gas_consumed: 115190,
     },
     CairoVersion::Cairo1(RunnableCairo1::Native)))]
 // TODO(Tzahi): Add calls to cairo1 test contracts (where gas flows to and from the inner call).
@@ -2522,7 +2522,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
 
     // Build the expected call info.
     let accessed_storage_key = StorageKey::try_from(key).unwrap();
-    let gas_consumed = GasAmount(16950);
+    let gas_consumed = GasAmount(15850);
     let expected_call_info = CallInfo {
         call: CallEntryPoint {
             class_hash: Some(test_contract.get_class_hash()),
@@ -2560,12 +2560,12 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
         true => GasVector {
             l1_gas: 16023_u32.into(),
             l1_data_gas: 160_u32.into(),
-            l2_gas: 201975_u32.into(),
+            l2_gas: 200875_u32.into(),
         },
         false => GasVector {
             l1_gas: 18226_u32.into(),
             l1_data_gas: 0_u32.into(),
-            l2_gas: 151075_u32.into(),
+            l2_gas: 149975_u32.into(),
         },
     };
 
