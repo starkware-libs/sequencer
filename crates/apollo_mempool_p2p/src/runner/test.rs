@@ -84,7 +84,7 @@ fn run_panics_when_network_future_returns_error() {
     mempool_p2p_runner.start().now_or_never().unwrap();
 }
 
-#[tokio::test]
+#[tokio::test(start_paused = true)] // Start pasued to allow deterministic behaviour between the test and mempool_p2p_runner clocks.
 async fn incoming_p2p_tx_reaches_gateway_client() {
     let network_future = pending().boxed();
 
@@ -107,10 +107,21 @@ async fn incoming_p2p_tx_reaches_gateway_client() {
             Ok(GatewayOutput::Invoke(InvokeGatewayOutput::new(TransactionHash::default())))
         },
     );
+
+    // because the internal is polled before the broadcast_topic_server in the mempool_p2p_runner
+    // loop, tokio time auto-advance (enabled because the clock is paused) will make the
+    // interval tick before the faulty transaction is received, meaning
+    // broadcast_queued_transactions will be called.
+    let mut mock_mempool_p2p_propagator_client = MockMempoolP2pPropagatorClient::new();
+    mock_mempool_p2p_propagator_client
+        .expect_broadcast_queued_transactions()
+        .times(1)
+        .return_const(Ok(()));
+
     let (mut mempool_p2p_runner, mock_network) = setup(
         network_future,
         Arc::new(mock_gateway_client),
-        Arc::new(MockMempoolP2pPropagatorClient::new()),
+        Arc::new(mock_mempool_p2p_propagator_client),
         MAX_TRANSACTION_BATCH_RATE,
     );
 
@@ -137,7 +148,7 @@ async fn incoming_p2p_tx_reaches_gateway_client() {
 }
 
 // The p2p runner receives a tx from network, and the gateway declines it, triggering report_peer.
-#[tokio::test]
+#[tokio::test(start_paused = true)] // Start pasued to allow deterministic behaviour between the test and mempool_p2p_runner clocks.
 async fn incoming_p2p_tx_fails_on_gateway_client() {
     let network_future = pending().boxed();
     // Create channels for sending an empty message to indicate that the tx reached the gateway
@@ -163,10 +174,20 @@ async fn incoming_p2p_tx_fails_on_gateway_client() {
         }))
     });
 
+    // because the internal is polled before the broadcast_topic_server in the mempool_p2p_runner
+    // loop, tokio time auto-advance (enabled because the clock is paused) will make the
+    // interval tick before the faulty transaction is received, meaning
+    // broadcast_queued_transactions will be called.
+    let mut mock_mempool_p2p_propagator_client = MockMempoolP2pPropagatorClient::new();
+    mock_mempool_p2p_propagator_client
+        .expect_broadcast_queued_transactions()
+        .times(1)
+        .return_const(Ok(()));
+
     let (mut mempool_p2p_runner, mock_network) = setup(
         network_future,
         Arc::new(mock_gateway_client),
-        Arc::new(MockMempoolP2pPropagatorClient::new()),
+        Arc::new(mock_mempool_p2p_propagator_client),
         MAX_TRANSACTION_BATCH_RATE,
     );
 
