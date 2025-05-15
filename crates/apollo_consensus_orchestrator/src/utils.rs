@@ -26,8 +26,7 @@ pub(crate) async fn get_oracle_rate_and_prices(
     l1_gas_price_provider_client: Arc<dyn L1GasPriceProviderClient>,
     timestamp: u64,
     previous_block_info: Option<&ConsensusBlockInfo>,
-    min_l1_gas_price: GasPrice,
-    min_l1_data_gas_price: GasPrice,
+    gas_price_params: &GasPriceParams,
 ) -> (u128, PriceInfo) {
     let (eth_to_strk_rate, price_info) = tokio::join!(
         eth_to_strk_oracle_client.eth_to_fri_rate(timestamp),
@@ -68,12 +67,15 @@ pub(crate) async fn get_oracle_rate_and_prices(
     }
     warn!("No previous block info available, using default values");
     warn!(
-        "default eth_to_strk_rate: {DEFAULT_ETH_TO_FRI_RATE}, default (min) l1 gas price: \
-         {min_l1_gas_price:?}"
+        "default eth_to_strk_rate: {DEFAULT_ETH_TO_FRI_RATE}, default (min) l1 gas price: {:?}",
+        gas_price_params.min_l1_gas_price_wei
     );
 
     (
         DEFAULT_ETH_TO_FRI_RATE,
-        PriceInfo { base_fee_per_gas: min_l1_gas_price, blob_fee: min_l1_data_gas_price },
+        PriceInfo {
+            base_fee_per_gas: gas_price_params.min_l1_gas_price_wei,
+            blob_fee: gas_price_params.min_l1_data_gas_price_wei,
+        },
     )
 }

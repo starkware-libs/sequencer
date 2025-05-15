@@ -319,11 +319,7 @@ struct ProposalBuildArguments {
     eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
     state_sync_client: SharedStateSyncClient,
     l1_gas_price_provider_client: Arc<dyn L1GasPriceProviderClient>,
-    min_l1_gas_price_wei: GasPrice,
-    max_l1_gas_price_wei: GasPrice,
-    min_l1_data_gas_price_wei: GasPrice,
-    max_l1_data_gas_price_wei: GasPrice,
-    l1_data_gas_price_multiplier: Ratio<u128>,
+    gas_price_params: GasPriceParams,
     valid_proposals: Arc<Mutex<BuiltProposals>>,
     proposal_id: ProposalId,
     cende_write_success: AbortOnDropHandle<bool>,
@@ -396,6 +392,16 @@ impl ConsensusContext for SequencerConsensusContext {
         info!(?proposal_init, ?timeout, %proposal_id, "Building proposal");
         let cancel_token = CancellationToken::new();
         let cancel_token_clone = cancel_token.clone();
+        let gas_price_params = GasPriceParams {
+            min_l1_gas_price_wei: GasPrice(self.config.min_l1_gas_price_wei),
+            max_l1_gas_price_wei: GasPrice(self.config.max_l1_gas_price_wei),
+            min_l1_data_gas_price_wei: GasPrice(self.config.min_l1_data_gas_price_wei),
+            max_l1_data_gas_price_wei: GasPrice(self.config.max_l1_data_gas_price_wei),
+            l1_data_gas_price_multiplier: Ratio::new(
+                self.config.l1_data_gas_price_multiplier_ppt,
+                1000,
+            ),
+        };
         let args = ProposalBuildArguments {
             batcher_timeout: timeout - self.config.build_proposal_margin_millis,
             proposal_init,
@@ -406,14 +412,7 @@ impl ConsensusContext for SequencerConsensusContext {
             eth_to_strk_oracle_client: Arc::clone(&self.eth_to_strk_oracle_client),
             state_sync_client: self.state_sync_client.clone(),
             l1_gas_price_provider_client: Arc::clone(&self.l1_gas_price_provider),
-            min_l1_gas_price_wei: GasPrice(self.config.min_l1_gas_price_wei),
-            max_l1_gas_price_wei: GasPrice(self.config.max_l1_gas_price_wei),
-            min_l1_data_gas_price_wei: GasPrice(self.config.min_l1_data_gas_price_wei),
-            max_l1_data_gas_price_wei: GasPrice(self.config.max_l1_data_gas_price_wei),
-            l1_data_gas_price_multiplier: Ratio::new(
-                self.config.l1_data_gas_price_multiplier_ppt,
-                1000,
-            ),
+            gas_price_params,
             valid_proposals: Arc::clone(&self.valid_proposals),
             proposal_id,
             cende_write_success,
@@ -925,16 +924,21 @@ async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<Consens
         args.l1_gas_price_provider_client.clone(),
         timestamp,
         args.previous_block_info.as_ref(),
-        args.min_l1_gas_price_wei,
-        args.min_l1_data_gas_price_wei,
+        &args.gas_price_params,
     )
     .await;
-    l1_prices.base_fee_per_gas =
-        l1_prices.base_fee_per_gas.clamp(args.min_l1_gas_price_wei, args.max_l1_gas_price_wei);
+    l1_prices.base_fee_per_gas = l1_prices.base_fee_per_gas.clamp(
+        args.gas_price_params.min_l1_gas_price_wei,
+        args.gas_price_params.max_l1_gas_price_wei,
+    );
 
-    l1_prices.blob_fee =
-        GasPrice((args.l1_data_gas_price_multiplier * l1_prices.blob_fee.0).to_integer())
-            .clamp(args.min_l1_data_gas_price_wei, args.max_l1_data_gas_price_wei);
+    l1_prices.blob_fee = GasPrice(
+        (args.gas_price_params.l1_data_gas_price_multiplier * l1_prices.blob_fee.0).to_integer(),
+    )
+    .clamp(
+        args.gas_price_params.min_l1_data_gas_price_wei,
+        args.gas_price_params.max_l1_data_gas_price_wei,
+    );
 
     let block_info = ConsensusBlockInfo {
         height: args.proposal_init.height,
@@ -1084,7 +1088,7 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
         args.eth_to_strk_oracle_client,
         args.clock.as_ref(),
         args.l1_gas_price_provider_client,
-        min_max_prices,
+        &min_max_prices,
         args.previous_block_info.clone(),
     )
     .await
@@ -1178,7 +1182,7 @@ async fn is_block_info_valid(
     eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
     clock: &dyn Clock,
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
-    gas_price_params: GasPriceParams,
+    gas_price_params: &GasPriceParams,
     previous_block_info: Option<ConsensusBlockInfo>,
 ) -> bool {
     let now: u64 = clock.now_as_timestamp();
@@ -1197,8 +1201,7 @@ async fn is_block_info_valid(
         l1_gas_price_provider,
         block_info_proposed.timestamp,
         previous_block_info.as_ref(),
-        gas_price_params.min_l1_gas_price_wei,
-        gas_price_params.min_l1_data_gas_price_wei,
+        gas_price_params,
     )
     .await;
     let l1_gas_price_margin_percent =
