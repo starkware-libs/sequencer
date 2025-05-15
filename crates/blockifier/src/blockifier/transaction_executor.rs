@@ -68,6 +68,8 @@ pub struct TransactionExecutor<S: StateReader> {
     // committing the chunk. The block state is wrapped with an Option<_> to allow setting it to
     // `None` while it is moved to the worker executor.
     pub block_state: Option<CachedState<S>>,
+
+    pub worker_pool: Option<Arc<WorkerPool<CachedState<S>>>>,
 }
 
 impl<S: StateReader> TransactionExecutor<S> {
@@ -85,7 +87,7 @@ impl<S: StateReader> TransactionExecutor<S> {
             block_context.block_info().block_number,
             &block_context.versioned_constants.os_constants,
         )?;
-        Ok(Self::new(block_state, block_context, config))
+        Ok(Self::new_with_pool(block_state, block_context, config, None))
     }
 
     // TODO(Yoni): consider making this c-tor private.
@@ -93,6 +95,15 @@ impl<S: StateReader> TransactionExecutor<S> {
         block_state: CachedState<S>,
         block_context: BlockContext,
         config: TransactionExecutorConfig,
+    ) -> Self {
+        Self::new_with_pool(block_state, block_context, config, None)
+    }
+
+    fn new_with_pool(
+        block_state: CachedState<S>,
+        block_context: BlockContext,
+        config: TransactionExecutorConfig,
+        worker_pool: Option<Arc<WorkerPool<CachedState<S>>>>,
     ) -> Self {
         let bouncer_config = block_context.bouncer_config.clone();
         // Note: the state might not be empty even at this point; it is the creator's
@@ -102,6 +113,7 @@ impl<S: StateReader> TransactionExecutor<S> {
             bouncer: Mutex::new(Bouncer::new(bouncer_config)).into(),
             config,
             block_state: Some(block_state),
+            worker_pool,
         }
     }
 
@@ -323,10 +335,15 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
             execution_deadline,
         ));
 
-        let worker_pool =
-            WorkerPool::start(self.config.stack_size, self.config.concurrency_config.clone());
-        worker_pool.run(worker_executor.clone());
-        worker_pool.join();
+        if let Some(worker_pool) = &mut self.worker_pool {
+            worker_pool.run(worker_executor.clone());
+        } else {
+            // If a pool is not given, create a new pool and wait for it to finish.
+            let worker_pool =
+                WorkerPool::start(self.config.stack_size, self.config.concurrency_config.clone());
+            worker_pool.run(worker_executor.clone());
+            worker_pool.join();
+        }
 
         let n_committed_txs = worker_executor.scheduler.get_n_committed_txs();
         let (abort_counter, abort_in_commit_counter, execute_counter, validate_counter) =
