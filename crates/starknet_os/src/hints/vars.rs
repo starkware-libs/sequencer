@@ -213,6 +213,7 @@ define_string_enum! {
         (SelectBuiltin),
         (SelectedEncodings),
         (SelectedPtrs),
+        (Selector),
         (SenderAddress),
         (Sha256Ptr, "sha256_ptr"),
         (Siblings),
