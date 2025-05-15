@@ -18,8 +18,10 @@ use crate::compiler::SierraToCasmCompiler;
 use crate::config::{SierraCompilationConfig, DEFAULT_MAX_BYTECODE_SIZE};
 use crate::{RawClass, SierraCompiler};
 
-const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig =
-    SierraCompilationConfig { max_bytecode_size: DEFAULT_MAX_BYTECODE_SIZE };
+const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompilationConfig {
+    max_bytecode_size: DEFAULT_MAX_BYTECODE_SIZE,
+    max_memory_usage: None,
+};
 
 fn compiler() -> SierraToCasmCompiler {
     SierraToCasmCompiler::new(SIERRA_COMPILATION_CONFIG)
@@ -68,6 +70,7 @@ fn test_max_bytecode_size() {
     // Positive flow.
     let compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
         max_bytecode_size: expected_casm_bytecode_length,
+        max_memory_usage: None,
     });
     let casm_contract_class = compiler
         .compile(contract_class.clone())
@@ -77,6 +80,7 @@ fn test_max_bytecode_size() {
     // Negative flow.
     let compiler = SierraToCasmCompiler::new(SierraCompilationConfig {
         max_bytecode_size: expected_casm_bytecode_length - 1,
+        max_memory_usage: None,
     });
     let result = compiler.compile(contract_class);
     assert_matches!(result, Err(CompilationUtilError::CompilationError(string))
