@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Usage: local_presubmit.sh [--parent_branch <branch>]
+#
+# if parent_branch is not provided, it will be read from the parent_branch.txt file.
+
 PRESUBMIT_DEBUG_LEVEL=0
 
 REPO_LOCATION=$(git rev-parse --show-toplevel)
@@ -8,6 +12,21 @@ declare -A ORIGINAL_VARS
 
 log_debug() {
   [[ $PRESUBMIT_DEBUG_LEVEL -ge 1 ]] && echo "[DEBUG] $*"
+}
+
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --parent_branch)
+        parent_branch="$2"
+        shift 2
+        ;;
+      *)
+        echo "Unknown option: $1"
+        exit 1
+        ;;
+    esac
+  done
 }
 
 install_yq() {
@@ -170,6 +189,10 @@ add_commit_lint_to_path() {
   fi
 }
 
+# Parse command-line arguments
+parse_args "$@"
+
+# Make sure to run cleanup even if the script exits unexpectedly.
 trap restore_old_env EXIT
 trap restore_old_env INT
 
@@ -183,8 +206,12 @@ add_commit_lint_to_path
 
 # Presubmit checks begin:
 
-# Get the common ancestor commit hash of HEAD and origin/{branch}
-parent_branch=$(head -n 1 ${REPO_LOCATION}/scripts/parent_branch.txt)
+# If no parent branch was given as an argument use the default from the parent_branch.txt file.
+if [ -z "$parent_branch" ]; then
+  parent_branch=$(head -n 1 "${REPO_LOCATION}/scripts/parent_branch.txt")
+fi
+
+# Get the common ancestor commit hash of HEAD and the original parent branch.
 ancestor_commit=$(git merge-base HEAD origin/${parent_branch})
 
 # Check if merge-base succeeded
