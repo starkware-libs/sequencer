@@ -25,6 +25,7 @@ pretty_assertions.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 starknet_api.workspace = true
+tempfile.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 validator.workspace = true

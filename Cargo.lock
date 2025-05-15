@@ -969,6 +969,7 @@ dependencies = [
  "serde",
  "serde_json",
  "starknet_api",
+ "tempfile",
  "thiserror 1.0.69",
  "tracing",
  "validator",

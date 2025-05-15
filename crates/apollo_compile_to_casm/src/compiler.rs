@@ -1,3 +1,5 @@
+use std::fs::File;
+use std::io::BufReader;
 use std::path::PathBuf;
 
 use apollo_compilation_utils::compiler_utils::compile_with_args;
@@ -6,6 +8,7 @@ use apollo_compilation_utils::paths::binary_path;
 use apollo_compilation_utils::resource_limits::ResourceLimits;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::contract_class::ContractClass;
+use tempfile::NamedTempFile;
 use tracing::info;
 
 use crate::config::SierraCompilationConfig;
@@ -29,7 +32,13 @@ impl SierraToCasmCompiler {
         contract_class: ContractClass,
     ) -> Result<CasmContractClass, CompilationUtilError> {
         let compiler_binary_path = &self.path_to_binary;
+
+        let output_file = NamedTempFile::new()?;
+        let output_file_path = output_file.path().to_str().ok_or(
+            CompilationUtilError::UnexpectedError("Failed to get output file path".to_owned()),
+        )?;
         let additional_args = &[
+            output_file_path,
             "--add-pythonic-hints",
             "--max-bytecode-size",
             &self.config.max_bytecode_size.to_string(),
@@ -46,7 +55,11 @@ impl SierraToCasmCompiler {
             additional_args,
             resource_limits,
         )?;
-        Ok(serde_json::from_slice::<CasmContractClass>(&stdout)?)
+        println!("Compiler stdout: {:#?}", String::from_utf8(stdout));
+
+        let file = File::open(output_file_path)?;
+        let reader = BufReader::new(file);
+        Ok(serde_json::from_reader(reader)?)
     }
 }
 
