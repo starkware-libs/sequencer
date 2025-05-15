@@ -6,6 +6,7 @@ use apollo_l1_provider_types::{
     Event,
     L1ProviderClient,
     L1ProviderClientResult,
+    L1ProviderSnapshot,
     SessionState,
     ValidationStatus,
 };
@@ -276,6 +277,10 @@ impl L1ProviderClient for FakeL1ProviderClient {
     }
 
     async fn initialize(&self, _events: Vec<Event>) -> L1ProviderClientResult<()> {
+        todo!()
+    }
+
+    async fn get_l1_provider_snapshot(&self) -> L1ProviderClientResult<L1ProviderSnapshot> {
         todo!()
     }
 }

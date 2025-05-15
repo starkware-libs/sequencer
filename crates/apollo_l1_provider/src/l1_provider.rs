@@ -8,6 +8,7 @@ use apollo_l1_provider_types::errors::L1ProviderError;
 use apollo_l1_provider_types::{
     Event,
     L1ProviderResult,
+    L1ProviderSnapshot,
     SessionState,
     SharedL1ProviderClient,
     ValidationStatus,
@@ -257,6 +258,30 @@ impl L1Provider {
         self.tx_manager.commit_txs(&committed_txs, &rejected_and_consumed);
 
         self.current_height = self.current_height.unchecked_next();
+    }
+
+    pub fn get_l1_provider_snapshot(&self) -> L1ProviderResult<L1ProviderSnapshot> {
+        Ok(L1ProviderSnapshot {
+            uncommitted_transactions: self.tx_manager.uncommitted.txs.keys().copied().collect(),
+            uncommitted_staged_transactions: self
+                .tx_manager
+                .uncommitted
+                .staged_txs
+                .iter()
+                .cloned()
+                .collect(),
+            rejected_transactions: self.tx_manager.rejected.txs.keys().copied().collect(),
+            rejected_staged_transactions: self
+                .tx_manager
+                .rejected
+                .staged_txs
+                .iter()
+                .cloned()
+                .collect(),
+            committed_transactions: self.tx_manager.committed.iter().cloned().collect(),
+            l1_provider_state: self.state.as_str().to_string(),
+            current_height: self.current_height,
+        })
     }
 }
 

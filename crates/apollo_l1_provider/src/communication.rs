@@ -48,6 +48,9 @@ impl ComponentRequestHandler<L1ProviderRequest, L1ProviderResponse> for L1Provid
             L1ProviderRequest::Initialize(events) => {
                 L1ProviderResponse::Initialize(self.initialize(events).await)
             }
+            L1ProviderRequest::GetL1ProviderSnapshot => {
+                L1ProviderResponse::GetL1ProviderSnapshot(self.get_l1_provider_snapshot())
+            }
         }
     }
 }
