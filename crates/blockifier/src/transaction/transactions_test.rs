@@ -20,7 +20,7 @@ use starknet_api::abi::abi_utils::{
 use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use starknet_api::block::{FeeType, GasPriceVector};
 use starknet_api::contract_class::EntryPointType;
-use starknet_api::core::{ClassHash, ContractAddress, EthAddress, Nonce};
+use starknet_api::core::{ascii_as_felt, ClassHash, ContractAddress, EthAddress, Nonce};
 use starknet_api::executable_transaction::{
     AccountTransaction as ApiExecutableTransaction,
     DeployAccountTransaction,
@@ -99,6 +99,12 @@ use crate::execution::call_info::{
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::{CallEntryPoint, CallType};
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
+use crate::execution::stack_trace::{
+    Cairo1RevertSummary,
+    EntryPointErrorFrame,
+    ErrorStack,
+    ErrorStackSegment,
+};
 use crate::execution::syscalls::hint_processor::EmitEventError;
 #[cfg(feature = "cairo_native")]
 use crate::execution::syscalls::hint_processor::SyscallExecutionError;
@@ -2712,6 +2718,40 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
         state.get_storage_at(contract_address, StorageKey::try_from(key).unwrap(),).unwrap(),
         value,
     );
+    // Negative flow: transaction execution failed.
+    let mut tx = l1handler_tx(Fee(1), contract_address);
+    let arbitrary_entry_point_selector = selector_from_name("arbitrary");
+    tx.tx.entry_point_selector = arbitrary_entry_point_selector;
+
+    let execution_info = tx.execute(state, block_context).unwrap();
+    let ErrorStack { stack: mut error_stack_segments, .. } = assert_matches!(
+        execution_info,
+        TransactionExecutionInfo {
+            validate_call_info: None,
+            execute_call_info: None,
+            fee_transfer_call_info : None,
+            revert_error: Some(RevertError::Execution(error_stack)),
+            receipt: TransactionReceipt { fee, .. },
+        }
+        if fee == Fee(0)
+        => error_stack
+    );
+    assert_eq!(error_stack_segments.len(), 2);
+    let cairo_1_revert_summery =
+        error_stack_segments.pop().expect("Expected at least two elements in the error stack");
+    let entry_point_error_frame =
+        error_stack_segments.pop().expect("Expected at least two elements in the error stack");
+    assert_matches!(
+        cairo_1_revert_summery,
+        ErrorStackSegment::Cairo1RevertSummary(Cairo1RevertSummary { last_retdata, .. })
+        if last_retdata == retdata!(ascii_as_felt("ENTRYPOINT_NOT_FOUND").unwrap())
+    );
+    assert_matches!(
+        entry_point_error_frame,
+        ErrorStackSegment::EntryPoint(EntryPointErrorFrame { selector: Some(selector), .. })
+        if selector == arbitrary_entry_point_selector
+    );
+
     // Negative flow: not enough fee paid on L1.
 
     // set the storage back to 0, so the fee will also include the storage write.
