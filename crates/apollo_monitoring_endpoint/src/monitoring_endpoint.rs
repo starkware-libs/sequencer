@@ -1,16 +1,20 @@
 use std::net::SocketAddr;
+use std::str::FromStr;
 
 use apollo_infra::component_definitions::ComponentStarter;
+use apollo_infra::trace_util::change_tracing_level;
 use apollo_infra_utils::type_name::short_type_name;
 use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_mempool_types::mempool_types::MempoolSnapshot;
 use apollo_metrics::metrics::COLLECT_SEQUENCER_PROFILING_METRICS;
+use axum::extract::Path;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::routing::get;
+use axum::routing::{get, put};
 use axum::{async_trait, Json, Router, Server};
 use hyper::Error;
 use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
+use tracing::metadata::LevelFilter;
 use tracing::{error, info, instrument};
 
 use crate::config::MonitoringEndpointConfig;
@@ -25,6 +29,7 @@ pub(crate) const READY: &str = "ready";
 pub(crate) const VERSION: &str = "nodeVersion";
 pub(crate) const METRICS: &str = "metrics";
 pub(crate) const MEMPOOL_SNAPSHOT: &str = "mempoolSnapshot";
+pub(crate) const SET_GLOBAL_LOG_LEVEL: &str = "setGlobalLogLevel";
 
 pub struct MonitoringEndpoint {
     config: MonitoringEndpointConfig,
@@ -101,6 +106,10 @@ impl MonitoringEndpoint {
                 format!("/{MONITORING_PREFIX}/{MEMPOOL_SNAPSHOT}").as_str(),
                 get(move || mempool_snapshot(mempool_client)),
             )
+            .route(
+                format!("/{MONITORING_PREFIX}/{SET_GLOBAL_LOG_LEVEL}/:logLevel").as_str(),
+                put(change_global_log_level),
+            )
     }
 }
 
@@ -147,4 +156,19 @@ async fn mempool_snapshot(
         },
         None => Err(StatusCode::METHOD_NOT_ALLOWED),
     }
+}
+
+// Change the global log level
+#[instrument(level = "debug")]
+async fn change_global_log_level(Path(log_level): Path<String>) -> StatusCode {
+    info!("Changing global log level to: {}", log_level);
+    let log_level = match LevelFilter::from_str(&log_level) {
+        Ok(level) => level,
+        Err(_) => {
+            error!("Invalid log level: {}", log_level);
+            return StatusCode::BAD_REQUEST;
+        }
+    };
+    change_tracing_level(log_level).await;
+    StatusCode::OK
 }
