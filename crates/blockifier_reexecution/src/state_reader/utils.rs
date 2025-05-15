@@ -214,7 +214,7 @@ impl From<CommitmentStateDiff> for ComparableStateDiff {
 }
 
 pub fn reexecute_and_verify_correctness<
-    S: StateReader + Send + Sync + Clone,
+    S: StateReader + Send + Sync + Clone + 'static,
     T: ConsecutiveReexecutionStateReaders<S>,
 >(
     consecutive_state_readers: T,
