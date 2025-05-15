@@ -142,6 +142,19 @@ impl TransactionReceipt {
         })
     }
 
+    /// Computes the receipt of a reverted L1 handler transaction.
+    pub fn reverted_from_l1_handler(
+        tx_context: &TransactionContext,
+        l1_handler_payload_size: usize,
+    ) -> Self {
+        Self::from_l1_handler(
+            tx_context,
+            l1_handler_payload_size,
+            ExecutionSummary::default(),
+            &StateChanges::default(),
+        )
+    }
+
     /// Computes the receipt of an account transaction.
     pub fn from_account_tx<'a>(
         account_tx: &'a AccountTransaction,
