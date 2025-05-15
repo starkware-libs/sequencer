@@ -96,8 +96,6 @@ pub enum SyscallExecutionError {
     ForbiddenClassReplacement { class_hash: ClassHash },
     #[error(transparent)]
     FromStr(#[from] FromStrError),
-    #[error("Invalid address domain: {address_domain}.")]
-    InvalidAddressDomain { address_domain: Felt },
     #[error(transparent)]
     ConstructorEntryPointExecutionError(#[from] ConstructorEntryPointExecutionError),
     #[error(transparent)]
