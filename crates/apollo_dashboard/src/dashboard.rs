@@ -216,6 +216,7 @@ pub enum AlertGroup {
     Gateway,
     HttpServer,
     Mempool,
+    MempoolP2p,
 }
 
 /// Describes the properties of an alert defined in grafana.
