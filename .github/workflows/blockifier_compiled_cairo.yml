@@ -8,7 +8,7 @@ on:
       - synchronize
     paths:
       - '.github/workflows/blockifier_compiled_cairo.yml'
-      - 'crates/apollo_sierra_multicompile/src/constants.rs' # Contains the compiler version.
+      - 'crates/apollo_compile_to_casm/src/constants.rs' # Contains the compiler version.
       - 'crates/blockifier_test_utils/**'
       - 'scripts/dependencies.sh'
       - 'scripts/requirements.txt'
