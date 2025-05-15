@@ -6,6 +6,7 @@
 
 PRESUBMIT_DEBUG_LEVEL=0
 
+ORIGINAL_DIR="$(pwd)"
 REPO_LOCATION=$(git rev-parse --show-toplevel)
 declare -A ORIGINAL_VARS
 
@@ -27,6 +28,14 @@ parse_args() {
         ;;
     esac
   done
+}
+
+change_dir_to_home() {
+  # Change to the home directory
+  cd "$HOME" || {
+    echo "Failed to change directory to home." >&2
+    exit 1
+  }
 }
 
 install_yq() {
@@ -170,6 +179,17 @@ restore_old_env() {
       export "$key"="${ORIGINAL_VARS[$key]}"
     fi
   done
+
+  # Set the directory back to the original one.
+  if [ -n "$ORIGINAL_DIR" ]; then
+    cd "$ORIGINAL_DIR" || {
+      echo "Failed to return to original directory: $ORIGINAL_DIR" >&2
+      return 1
+    }
+    log_debug "Returned to original directory: $ORIGINAL_DIR"
+  else
+    log_debug "No original directory stored."
+  fi
 }
 
 add_commit_lint_to_path() {
@@ -202,6 +222,8 @@ parse_args "$@"
 trap restore_old_env EXIT
 trap restore_old_env INT
 
+# We first change the directory to home to avoid installation creating files in the repo directory.
+change_dir_to_home
 setup_new_venv
 # YQ must be installed for setting up the environment variables and install_dependencies relies on
 # the environment variables set from the YAML file.
@@ -209,6 +231,12 @@ install_yq
 setup_env_variables_from_yml
 install_dependencies
 add_commit_lint_to_path
+
+# Change directory to the top of the repository which is needed for the presubmit script to run.
+cd "$REPO_LOCATION" || {
+  echo "Failed to change directory to $REPO_LOCATION." >&2
+  exit 1
+}
 
 # Presubmit checks begin:
 
