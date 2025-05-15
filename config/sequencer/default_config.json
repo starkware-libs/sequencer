@@ -329,6 +329,16 @@
     "privacy": "Public",
     "value": 81920
   },
+  "compiler_config.max_memory_usage": {
+    "description": "Limitation of compilation process's virtual memory (bytes).",
+    "privacy": "Public",
+    "value": 5368709120
+  },
+  "compiler_config.max_memory_usage.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
   "components.batcher.execution_mode": {
     "description": "The component execution mode.",
     "privacy": "Public",
