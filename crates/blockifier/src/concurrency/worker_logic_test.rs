@@ -501,7 +501,7 @@ fn test_worker_validate(default_all_resource_bounds: ValidResourceBounds) {
 
     // Validate succeeds.
     let tx_index = 0;
-    let next_task = worker_executor.validate(tx_index);
+    let next_task = worker_executor.validate(tx_index).unwrap();
     assert_eq!(next_task, Task::AskForTask);
     // Verify writes exist in state.
     assert_eq!(
@@ -516,7 +516,7 @@ fn test_worker_validate(default_all_resource_bounds: ValidResourceBounds) {
 
     // Validate failed. Invoke 2 failed validations; only the first leads to a re-execution.
     let tx_index = 1;
-    let next_task1 = worker_executor.validate(tx_index);
+    let next_task1 = worker_executor.validate(tx_index).unwrap();
     assert_eq!(next_task1, Task::ExecutionTask(tx_index));
     // Verify writes were removed.
     assert_eq!(
@@ -529,7 +529,7 @@ fn test_worker_validate(default_all_resource_bounds: ValidResourceBounds) {
     // Verify status change.
     assert_eq!(worker_executor.scheduler.get_tx_status(tx_index), TransactionStatus::Executing);
 
-    let next_task2 = worker_executor.validate(tx_index);
+    let next_task2 = worker_executor.validate(tx_index).unwrap();
     assert_eq!(next_task2, Task::AskForTask);
 }
 
@@ -618,7 +618,7 @@ fn test_deploy_before_declare(
     worker_executor.scheduler.next_task();
 
     // Verify validation failed.
-    assert_eq!(worker_executor.validate(1), Task::ExecutionTask(1));
+    assert_eq!(worker_executor.validate(1).unwrap(), Task::ExecutionTask(1));
 
     // Execute transaction 1 again.
     worker_executor.execute(1);
@@ -628,7 +628,7 @@ fn test_deploy_before_declare(
     drop(execution_output);
 
     // Successful validation for transaction 1.
-    let next_task = worker_executor.validate(1);
+    let next_task = worker_executor.validate(1).unwrap();
     assert_eq!(next_task, Task::AskForTask);
 }
 

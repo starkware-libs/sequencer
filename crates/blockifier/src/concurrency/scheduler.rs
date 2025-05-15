@@ -236,7 +236,7 @@ impl Scheduler {
     }
 
     /// Returns the done marker.
-    fn done(&self) -> bool {
+    pub fn done(&self) -> bool {
         self.done_marker.load(Ordering::Acquire)
     }
 
