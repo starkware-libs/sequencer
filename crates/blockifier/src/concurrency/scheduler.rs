@@ -1,4 +1,3 @@
-use std::cmp::min;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Mutex, MutexGuard, TryLockError};
 
@@ -31,10 +30,6 @@ impl<'a> TransactionCommitter<'a> {
         if self.scheduler.done() {
             return None;
         };
-        assert!(
-            *self.commit_index_guard < self.scheduler.chunk_size,
-            "The commit index must be less than the chunk size, since the scheduler is not done."
-        );
 
         let mut status = self.scheduler.lock_tx_status(*self.commit_index_guard);
         if *status != TransactionStatus::Executed {
@@ -75,7 +70,7 @@ impl Scheduler {
     pub fn new(chunk_size: usize) -> Scheduler {
         Scheduler {
             execution_index: AtomicUsize::new(0),
-            validation_index: AtomicUsize::new(chunk_size),
+            validation_index: AtomicUsize::new(usize::MAX),
             commit_index: Mutex::new(0),
             chunk_size,
             tx_statuses: DashMap::new(),
@@ -90,10 +85,6 @@ impl Scheduler {
 
         let index_to_validate = self.validation_index.load(Ordering::Acquire);
         let index_to_execute = self.execution_index.load(Ordering::Acquire);
-
-        if min(index_to_validate, index_to_execute) >= self.chunk_size {
-            return Task::NoTaskAvailable;
-        }
 
         if index_to_validate < index_to_execute {
             if let Some(tx_index) = self.next_version_to_validate() {
@@ -114,6 +105,21 @@ impl Scheduler {
     pub fn finish_execution(&self, tx_index: TxIndex) {
         self.set_executed_status(tx_index);
         self.decrease_validation_index(tx_index);
+    }
+
+    pub fn mark_missing_task(&self, tx_index: TxIndex) {
+        let mut status = self.lock_tx_status(tx_index);
+        assert_eq!(
+            *status,
+            TransactionStatus::Executing,
+            "Only executing transactions can be marked as missing. Transaction {tx_index} is not \
+             executing. Transaction status: {:?}.",
+            *status
+        );
+        *status = TransactionStatus::ReadyToExecute;
+
+        // Move the execution index back to the missing transaction.
+        self.decrease_execution_index(tx_index);
     }
 
     pub fn try_validation_abort(&self, tx_index: TxIndex) -> bool {
@@ -192,42 +198,34 @@ impl Scheduler {
         *status = TransactionStatus::ReadyToExecute;
     }
 
+    /// Decreases `validation_index` to the target index, if the current value is greater.
     fn decrease_validation_index(&self, target_index: TxIndex) {
         self.validation_index.fetch_min(target_index, Ordering::SeqCst);
     }
 
+    /// Decreases `execution_index` to the target index, if the current value is greater.
+    fn decrease_execution_index(&self, target_index: TxIndex) {
+        self.execution_index.fetch_min(target_index, Ordering::SeqCst);
+    }
+
     /// Updates a transaction's status to `Executing` if it is ready to execute.
     fn try_incarnate(&self, tx_index: TxIndex) -> bool {
-        if tx_index < self.chunk_size {
-            let mut status = self.lock_tx_status(tx_index);
-            if *status == TransactionStatus::ReadyToExecute {
-                *status = TransactionStatus::Executing;
-                return true;
-            }
+        let mut status = self.lock_tx_status(tx_index);
+        if *status == TransactionStatus::ReadyToExecute {
+            *status = TransactionStatus::Executing;
+            return true;
         }
         false
     }
 
     fn next_version_to_validate(&self) -> Option<TxIndex> {
-        let index_to_validate = self.validation_index.load(Ordering::Acquire);
-        if index_to_validate >= self.chunk_size {
-            return None;
-        }
         let index_to_validate = self.validation_index.fetch_add(1, Ordering::SeqCst);
-        if index_to_validate < self.chunk_size {
-            let status = self.lock_tx_status(index_to_validate);
-            if *status == TransactionStatus::Executed {
-                return Some(index_to_validate);
-            }
-        }
-        None
+
+        let status = self.lock_tx_status(index_to_validate);
+        if *status == TransactionStatus::Executed { Some(index_to_validate) } else { None }
     }
 
     fn next_version_to_execute(&self) -> Option<TxIndex> {
-        let index_to_execute = self.execution_index.load(Ordering::Acquire);
-        if index_to_execute >= self.chunk_size {
-            return None;
-        }
         let index_to_execute = self.execution_index.fetch_add(1, Ordering::SeqCst);
         if self.try_incarnate(index_to_execute) {
             return Some(index_to_execute);
@@ -242,10 +240,8 @@ impl Scheduler {
 
     #[cfg(any(feature = "testing", test))]
     pub fn set_tx_status(&self, tx_index: TxIndex, status: TransactionStatus) {
-        if tx_index < self.chunk_size {
-            let mut tx_status = self.lock_tx_status(tx_index);
-            *tx_status = status;
-        }
+        let mut tx_status = self.lock_tx_status(tx_index);
+        *tx_status = status;
     }
 
     #[cfg(any(feature = "testing", test))]
@@ -259,7 +255,6 @@ pub enum Task {
     ExecutionTask(TxIndex),
     ValidationTask(TxIndex),
     AskForTask,
-    NoTaskAvailable,
     Done,
 }
 

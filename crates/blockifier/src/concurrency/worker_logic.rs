@@ -133,12 +133,6 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
                     Task::AskForTask
                 }
                 Task::ValidationTask(tx_index) => self.validate(tx_index),
-                Task::NoTaskAvailable => {
-                    // There's no available task at the moment; sleep for a bit to save CPU power.
-                    // (since busy-looping might damage performance when using hyper-threads).
-                    thread::sleep(Duration::from_micros(1));
-                    Task::AskForTask
-                }
                 Task::AskForTask => self.scheduler.next_task(),
                 Task::Done => break,
             };
@@ -157,9 +151,16 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
     }
 
     fn execute(&self, tx_index: TxIndex) {
-        self.metrics.count_execute();
-        self.execute_tx(tx_index);
-        self.scheduler.finish_execution(tx_index)
+        if tx_index < self.chunk.len() {
+            self.metrics.count_execute();
+            self.execute_tx(tx_index);
+            self.scheduler.finish_execution(tx_index)
+        } else {
+            // There's no available task at the moment; sleep for a bit to prevent busy-waiting.
+            thread::sleep(Duration::from_micros(1));
+
+            self.scheduler.mark_missing_task(tx_index);
+        }
     }
 
     fn execute_tx(&self, tx_index: TxIndex) {
