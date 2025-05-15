@@ -8,13 +8,12 @@ use crate::concurrency::scheduler::{Scheduler, Task, TransactionStatus};
 use crate::concurrency::test_utils::DEFAULT_CHUNK_SIZE;
 use crate::concurrency::TxIndex;
 
-#[rstest]
-fn test_new(#[values(0, 1, 32)] chunk_size: usize) {
-    let scheduler = Scheduler::new(chunk_size);
+#[test]
+fn test_new() {
+    let scheduler = Scheduler::new();
     assert_eq!(scheduler.execution_index.load(Ordering::Acquire), 0);
     assert_eq!(scheduler.validation_index.load(Ordering::Acquire), usize::MAX);
     assert_eq!(*scheduler.commit_index.lock().unwrap(), 0);
-    assert_eq!(scheduler.chunk_size, chunk_size);
     assert_eq!(scheduler.tx_statuses.len(), 0);
     for i in 0..10 {
         assert_eq!(scheduler.get_tx_status(i), TransactionStatus::ReadyToExecute);
@@ -24,7 +23,7 @@ fn test_new(#[values(0, 1, 32)] chunk_size: usize) {
 
 #[rstest]
 fn test_lock_tx_status() {
-    let scheduler = Scheduler::new(DEFAULT_CHUNK_SIZE);
+    let scheduler = Scheduler::new();
     let status = scheduler.lock_tx_status(0);
     assert_eq!(*status, TransactionStatus::ReadyToExecute);
 }
@@ -64,7 +63,7 @@ fn test_next_task(
         execution_index: execution_index.into(),
         validation_index: validation_index.into(),
         done_marker: (expected_next_task == Task::Done).into(),
-        ..Scheduler::new(DEFAULT_CHUNK_SIZE)
+        ..Scheduler::new()
     };
     scheduler.set_tx_status(validation_index, validation_index_status);
     let next_task = scheduler.next_task();
@@ -76,8 +75,6 @@ fn test_next_task(
 #[rstest]
 #[case::happy_flow(0, TransactionStatus::Executed, false)]
 #[case::happy_flow_with_halt(0, TransactionStatus::Executed, true)]
-#[case::last_tx_to_commit(DEFAULT_CHUNK_SIZE - 1, TransactionStatus::Executed, false)]
-#[case::last_tx_to_commit_with_halt(DEFAULT_CHUNK_SIZE - 1, TransactionStatus::Executed, true)]
 #[case::wrong_status_ready(0, TransactionStatus::ReadyToExecute, false)]
 #[case::wrong_status_executing(0, TransactionStatus::Executing, false)]
 #[case::wrong_status_aborting(0, TransactionStatus::Aborting, false)]
@@ -87,8 +84,7 @@ fn test_commit_flow(
     #[case] commit_index_tx_status: TransactionStatus,
     #[case] should_halt: bool,
 ) {
-    let scheduler =
-        Scheduler { commit_index: commit_index.into(), ..Scheduler::new(DEFAULT_CHUNK_SIZE) };
+    let scheduler = Scheduler { commit_index: commit_index.into(), ..Scheduler::new() };
     scheduler.set_tx_status(commit_index, commit_index_tx_status);
     let mut tx_committer = scheduler.try_enter_commit_phase().unwrap();
     // Lock is already acquired.
@@ -97,7 +93,7 @@ fn test_commit_flow(
         assert_eq!(index, commit_index);
     }
     if should_halt {
-        tx_committer.halt_scheduler();
+        tx_committer.abort_task_and_halt_scheduler();
     }
     drop(tx_committer);
     if commit_index_tx_status == TransactionStatus::Executed {
@@ -124,10 +120,7 @@ fn test_finish_execution_during_commit(
     #[case] validation_index: TxIndex,
 ) {
     let target_index = tx_index + 1;
-    let scheduler = Scheduler {
-        validation_index: validation_index.into(),
-        ..Scheduler::new(DEFAULT_CHUNK_SIZE)
-    };
+    let scheduler = Scheduler { validation_index: validation_index.into(), ..Scheduler::new() };
     scheduler.finish_execution_during_commit(tx_index);
     let expected_validation_index = min(target_index, validation_index);
     assert_eq!(scheduler.validation_index.load(Ordering::Acquire), expected_validation_index);
@@ -149,7 +142,7 @@ fn test_finish_execution_during_commit(
 #[case::wrong_status_committed(TransactionStatus::Committed)]
 fn test_set_executed_status(#[case] tx_status: TransactionStatus) {
     let tx_index = 0;
-    let scheduler = Scheduler::new(DEFAULT_CHUNK_SIZE);
+    let scheduler = Scheduler::new();
     scheduler.set_tx_status(tx_index, tx_status);
     // Panic is expected here in negative flows.
     scheduler.set_executed_status(tx_index);
@@ -160,10 +153,7 @@ fn test_set_executed_status(#[case] tx_status: TransactionStatus) {
 #[case::reduces_validation_index(0, 10)]
 #[case::does_not_reduce_validation_index(10, 0)]
 fn test_finish_execution(#[case] tx_index: TxIndex, #[case] validation_index: TxIndex) {
-    let scheduler = Scheduler {
-        validation_index: validation_index.into(),
-        ..Scheduler::new(DEFAULT_CHUNK_SIZE)
-    };
+    let scheduler = Scheduler { validation_index: validation_index.into(), ..Scheduler::new() };
     scheduler.set_tx_status(tx_index, TransactionStatus::Executing);
     scheduler.finish_execution(tx_index);
     assert_eq!(*scheduler.lock_tx_status(tx_index), TransactionStatus::Executed);
@@ -172,7 +162,7 @@ fn test_finish_execution(#[case] tx_index: TxIndex, #[case] validation_index: Tx
 
 #[test]
 fn test_mark_missing_task() {
-    let scheduler = Scheduler::new(DEFAULT_CHUNK_SIZE);
+    let scheduler = Scheduler::new();
     assert_eq!(scheduler.next_task(), Task::ExecutionTask(0));
     assert_eq!(scheduler.next_task(), Task::ExecutionTask(1));
     assert_eq!(scheduler.next_task(), Task::ExecutionTask(2));
@@ -204,7 +194,7 @@ fn test_mark_missing_task() {
 #[case::wrong_status_committed(TransactionStatus::Committed)]
 fn test_set_ready_status(#[case] tx_status: TransactionStatus) {
     let tx_index = 0;
-    let scheduler = Scheduler::new(DEFAULT_CHUNK_SIZE);
+    let scheduler = Scheduler::new();
     scheduler.set_tx_status(tx_index, tx_status);
     // Panic is expected here in negative flows.
     scheduler.set_ready_status(tx_index);
@@ -219,7 +209,7 @@ fn test_set_ready_status(#[case] tx_status: TransactionStatus) {
 #[case::wrong_status_committed(TransactionStatus::Committed)]
 fn test_try_validation_abort(#[case] tx_status: TransactionStatus) {
     let tx_index = 0;
-    let scheduler = Scheduler::new(DEFAULT_CHUNK_SIZE);
+    let scheduler = Scheduler::new();
     scheduler.set_tx_status(tx_index, tx_status);
     let result = scheduler.try_validation_abort(tx_index);
     assert_eq!(result, tx_status == TransactionStatus::Executed);
@@ -232,8 +222,7 @@ fn test_try_validation_abort(#[case] tx_status: TransactionStatus) {
 #[case::returns_execution_task(0, 10)]
 #[case::does_not_return_execution_task(10, 0)]
 fn test_finish_abort(#[case] tx_index: TxIndex, #[case] execution_index: TxIndex) {
-    let scheduler =
-        Scheduler { execution_index: execution_index.into(), ..Scheduler::new(DEFAULT_CHUNK_SIZE) };
+    let scheduler = Scheduler { execution_index: execution_index.into(), ..Scheduler::new() };
     scheduler.set_tx_status(tx_index, TransactionStatus::Aborting);
     let result = scheduler.finish_abort(tx_index);
     let new_status = scheduler.lock_tx_status(tx_index);
@@ -255,10 +244,7 @@ fn test_decrease_validation_index(
     #[case] target_index: TxIndex,
     #[case] validation_index: TxIndex,
 ) {
-    let scheduler = Scheduler {
-        validation_index: validation_index.into(),
-        ..Scheduler::new(DEFAULT_CHUNK_SIZE)
-    };
+    let scheduler = Scheduler { validation_index: validation_index.into(), ..Scheduler::new() };
     scheduler.decrease_validation_index(target_index);
     let expected_validation_index = min(target_index, validation_index);
     assert_eq!(scheduler.validation_index.load(Ordering::Acquire), expected_validation_index);
@@ -275,7 +261,7 @@ fn test_try_incarnate(
     #[case] tx_status: TransactionStatus,
     #[case] expected_output: bool,
 ) {
-    let scheduler = Scheduler::new(DEFAULT_CHUNK_SIZE);
+    let scheduler = Scheduler::new();
     scheduler.set_tx_status(tx_index, tx_status);
     assert_eq!(scheduler.try_incarnate(tx_index), expected_output);
     if expected_output {
@@ -296,10 +282,7 @@ fn test_next_version_to_validate(
     #[case] tx_status: TransactionStatus,
     #[case] expected_output: Option<TxIndex>,
 ) {
-    let scheduler = Scheduler {
-        validation_index: validation_index.into(),
-        ..Scheduler::new(DEFAULT_CHUNK_SIZE)
-    };
+    let scheduler = Scheduler { validation_index: validation_index.into(), ..Scheduler::new() };
     scheduler.set_tx_status(validation_index, tx_status);
     assert_eq!(scheduler.next_version_to_validate(), expected_output);
     let expected_validation_index =
@@ -318,8 +301,7 @@ fn test_next_version_to_execute(
     #[case] tx_status: TransactionStatus,
     #[case] expected_output: Option<TxIndex>,
 ) {
-    let scheduler =
-        Scheduler { execution_index: execution_index.into(), ..Scheduler::new(DEFAULT_CHUNK_SIZE) };
+    let scheduler = Scheduler { execution_index: execution_index.into(), ..Scheduler::new() };
     scheduler.set_tx_status(execution_index, tx_status);
     assert_eq!(scheduler.next_version_to_execute(), expected_output);
     let expected_execution_index =

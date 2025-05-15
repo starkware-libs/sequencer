@@ -315,9 +315,8 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
                         let abort_guard = AbortIfPanic;
                         // If a panic is not handled or the handling logic itself panics, then we
                         // abort the program.
-                        if let Err(err) = catch_unwind(AssertUnwindSafe(|| {
-                            worker_executor.run();
-                        })) {
+                        let res = catch_unwind(AssertUnwindSafe(|| { worker_executor.run(); }));
+                        if let Err(err) = res {
                             // If the program panics here, the abort guard will exit the program.
                             // In this case, no panic message will be logged. Add the cargo flag
                             // --nocapture to log the panic message.
