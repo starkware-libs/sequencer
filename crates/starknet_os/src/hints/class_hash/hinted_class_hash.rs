@@ -4,7 +4,7 @@ use std::io::Write;
 use std::string::FromUtf8Error;
 
 use papyrus_common::python_json::PythonJsonFormatter;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 use sha3::digest::Digest;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::deprecated_contract_class::EntryPointV0;
@@ -65,7 +65,8 @@ pub struct CairoProgram<'a> {
     #[serde(borrow)]
     pub data: Vec<Cow<'a, str>>,
 
-    #[serde(borrow)]
+    // Serialize as None for compatibility with Python.
+    #[serde(borrow, serialize_with = "serialize_as_none")]
     pub debug_info: Option<&'a serde_json::value::RawValue>,
 
     // Important that this is ordered by the numeric keys, not lexicographically
@@ -82,6 +83,16 @@ pub struct CairoProgram<'a> {
     pub prime: Cow<'a, str>,
 
     pub reference_manager: serde_json::Value,
+}
+
+fn serialize_as_none<S>(
+    _: &Option<&serde_json::value::RawValue>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_none()
 }
 
 /// `std::io::Write` adapter for Keccak256; we don't need the serialized version in

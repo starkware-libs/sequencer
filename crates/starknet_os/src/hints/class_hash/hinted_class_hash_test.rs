@@ -12,7 +12,7 @@ use crate::hints::class_hash::hinted_class_hash::{
 // The contract and the expected hash are taken from the python side.
 #[test]
 fn test_compute_cairo_hinted_class_hash() {
-    let contract_path = current_dir().unwrap().join("resources/legacy_contract.json");
+    let contract_path = current_dir().unwrap().join("resources/test_contract.json");
     let mut file = File::open(&contract_path)
         .unwrap_or_else(|_| panic!("Unable to open file {contract_path:?}"));
     let mut data = String::new();
@@ -25,7 +25,7 @@ fn test_compute_cairo_hinted_class_hash() {
         .expect("Failed to compute class hash");
 
     let expected_hash = Felt::from_hex_unchecked(
-        "0x1DBF36F651C9917E703BF6932FA4E866BFB6BCBFF18765F769CA9401C2CAF4F",
+        "0x3D64E035186B556B0B88C52684FDDF6A9251944E763DCCA6637159C9FBC2D66",
     );
     assert_eq!(computed_hash, expected_hash, "Computed hash does not match expected hash");
 }
