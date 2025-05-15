@@ -75,7 +75,7 @@ install_dependencies() {
   for pkg in "${packages[@]}"; do
     if npm list "$pkg" >/dev/null 2>&1; then
       log_debug "$pkg is already installed ✅"
-    else  
+    else
       echo "$pkg is NOT installed ❌ — installing..."
       npm install "$pkg"
     fi
