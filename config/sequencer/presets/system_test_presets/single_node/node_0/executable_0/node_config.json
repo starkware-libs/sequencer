@@ -168,6 +168,7 @@
   "consensus_manager_config.context_config.builder_address": "0x4",
   "consensus_manager_config.context_config.l1_da_mode": true,
   "consensus_manager_config.context_config.l1_data_gas_price_multiplier_ppt": 135,
+  "consensus_manager_config.context_config.l1_gas_tip_wei": 1000000000,
   "consensus_manager_config.context_config.max_l1_data_gas_price_wei": 1000000000000000000,
   "consensus_manager_config.context_config.max_l1_gas_price_wei": 200000000000,
   "consensus_manager_config.context_config.min_l1_data_gas_price_wei": 1,

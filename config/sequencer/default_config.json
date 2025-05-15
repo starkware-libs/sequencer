@@ -899,6 +899,11 @@
     "privacy": "Public",
     "value": 135
   },
+  "consensus_manager_config.context_config.l1_gas_tip_wei": {
+    "description": "This additional gas is added to the L1 gas price.",
+    "privacy": "Public",
+    "value": 1000000000
+  },
   "consensus_manager_config.context_config.max_l1_data_gas_price_wei": {
     "description": "The maximum L1 data gas price in wei.",
     "privacy": "Public",
