@@ -67,7 +67,8 @@ use crate::transaction::transactions::ExecutableTransaction;
 /// character (including newlines).
 #[track_caller]
 fn assert_contains_ordered_substrings(needles: &[&str], haystack: &str) {
-    let pattern = Regex::new(&needles.join(r"[\S\s]*")).unwrap();
+    let escaped: Vec<String> = needles.iter().map(|s| regex::escape(s)).collect();
+    let pattern = Regex::new(&escaped.join(r"[\S\s]*")).unwrap();
     assert!(
         pattern.is_match(haystack),
         "Expected to find the following needles in the haystack: \
@@ -224,24 +225,35 @@ fn test_stack_trace(block_context: BlockContext, #[case] cairo_version: CairoVer
 }
 
 #[rstest]
-#[case(CairoVersion::Cairo0, "invoke_call_chain", "Couldn't compute operand op0. Unknown value for memory cell 1:37", (1208_u16, 1254_u16))]
-#[case(CairoVersion::Cairo0, "fail", "An ASSERT_EQ instruction failed: 1 != 0.", (1311_u16, 1262_u16))]
-#[case(CairoVersion::Cairo1(RunnableCairo1::Casm), "invoke_call_chain", "0x4469766973696f6e2062792030 ('Division by 0')", (0_u16, 0_u16))]
-#[case(CairoVersion::Cairo1(RunnableCairo1::Casm), "fail", "0x6661696c ('fail')", (0_u16, 0_u16))]
+#[case(
+    CairoVersion::Cairo0,
+    "invoke_call_chain",
+    "Couldn't compute operand op0. Unknown value for memory cell 1:37"
+)]
+#[case(CairoVersion::Cairo0, "fail", "An ASSERT_EQ instruction failed: 1 != 0.")]
+#[case(
+    CairoVersion::Cairo1(RunnableCairo1::Casm),
+    "invoke_call_chain",
+    "0x4469766973696f6e2062792030 ('Division by 0')"
+)]
+#[case(CairoVersion::Cairo1(RunnableCairo1::Casm), "fail", "0x6661696c ('fail')")]
 #[cfg_attr(
     feature = "cairo_native",
-    case(CairoVersion::Cairo1(RunnableCairo1::Native), "invoke_call_chain", "0x4469766973696f6e2062792030 ('Division by 0')", (0_u16, 0_u16))
+    case(
+        CairoVersion::Cairo1(RunnableCairo1::Native),
+        "invoke_call_chain",
+        "0x4469766973696f6e2062792030 ('Division by 0')"
+    )
 )]
 #[cfg_attr(
     feature = "cairo_native",
-    case(CairoVersion::Cairo1(RunnableCairo1::Native), "fail", "0x6661696c ('fail')", (0_u16, 0_u16))
+    case(CairoVersion::Cairo1(RunnableCairo1::Native), "fail", "0x6661696c ('fail')")
 )]
 fn test_trace_callchain_ends_with_regular_call(
     block_context: BlockContext,
     #[case] cairo_version: CairoVersion,
     #[case] last_func_name: &str,
     #[case] expected_error: &str,
-    #[case] expected_pc_locations: (u16, u16),
 ) {
     let expected_with_attr_error_msg = match (cairo_version, last_func_name) {
         (CairoVersion::Cairo0, "fail") => "Error message: You shall not pass!\n".to_string(),
@@ -289,67 +301,46 @@ fn test_trace_callchain_ends_with_regular_call(
     )
     .unwrap_err();
 
-    let execute_selector_felt = selector_from_name(EXECUTE_ENTRY_POINT_NAME).0;
+    let trace = tx_execution_error.to_string();
 
-    let expected_trace = match cairo_version {
-        CairoVersion::Cairo0 => {
-            let account_entry_point_offset = account_contract
-                .get_entry_point_offset(selector_from_name(EXECUTE_ENTRY_POINT_NAME));
-            let entry_point_offset =
-                test_contract.get_entry_point_offset(invoke_call_chain_selector);
-            let call_location = entry_point_offset.0 + 12;
-            let entry_point_location = entry_point_offset.0 - 61;
-            // Relative offsets of the account contract.
-            let account_call_location = account_entry_point_offset.0 + 18;
-            let account_entry_point_location = account_entry_point_offset.0 - 8;
-            // Final invocation locations.
-            let (expected_pc0, expected_pc1) = expected_pc_locations;
-            format!(
-                "Transaction execution has failed:
-0: Error in the called contract (contract address: {account_address_felt:#064x}, class hash: \
-                 {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}):
-Error at pc=0:7:
-Cairo traceback (most recent call last):
-Unknown location (pc=0:{account_call_location})
-Unknown location (pc=0:{account_entry_point_location})
-
-1: Error in the called contract (contract address: {contract_address_felt:#064x}, class hash: \
-                 {test_contract_hash:#064x}, selector: {invoke_call_chain_selector_felt:#064x}):
-Error at pc=0:37:
-Cairo traceback (most recent call last):
-Unknown location (pc=0:{call_location})
-Unknown location (pc=0:{entry_point_location})
-
-2: Error in the called contract (contract address: {contract_address_felt:#064x}, class hash: \
-                 {test_contract_hash:#064x}, selector: {invoke_call_chain_selector_felt:#064x}):
-{expected_with_attr_error_msg}Error at pc=0:{expected_pc0}:
-Cairo traceback (most recent call last):
-Unknown location (pc=0:{call_location})
-Unknown location (pc=0:{expected_pc1})
-
-{expected_error}
-"
-            )
-        }
-        CairoVersion::Cairo1(_) => {
-            format!(
-                "Transaction execution has failed:
-0: Error in the called contract (contract address: {account_address_felt:#064x}, class hash: \
-                 {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}):
-Execution failed. Failure reason:
-Error in contract (contract address: {account_address_felt:#064x}, class hash: \
-                 {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}):
-Error in contract (contract address: {contract_address_felt:#064x}, class hash: \
-                 {test_contract_hash:#064x}, selector: {invoke_call_chain_selector_felt:#064x}):
-Error in contract (contract address: {contract_address_felt:#064x}, class hash: \
-                 {test_contract_hash:#064x}, selector: {invoke_call_chain_selector_felt:#064x}):
-{expected_error}.
-"
-            )
-        }
+    let expectation = match (cairo_version, last_func_name) {
+        (CairoVersion::Cairo0, "fail") => expect_file![
+            "./stack_trace_regression/test_trace_callchain_ends_with_regular_call_cairo0_fail.txt"
+        ],
+        (CairoVersion::Cairo1(_), "fail") => expect_file![
+            "./stack_trace_regression/test_trace_callchain_ends_with_regular_call_cairo1_fail.txt"
+        ],
+        (CairoVersion::Cairo0, "invoke_call_chain") => expect_file![
+            "./stack_trace_regression/test_trace_callchain_ends_with_regular_call_cairo0_chain.txt"
+        ],
+        (CairoVersion::Cairo1(_), "invoke_call_chain") => expect_file![
+            "./stack_trace_regression/test_trace_callchain_ends_with_regular_call_cairo1_chain.txt"
+        ],
+        (version, name) => panic!("Unexpected case: {version:?}, {name:?}"),
     };
+    expectation.assert_eq(&trace);
 
-    assert_eq!(tx_execution_error.to_string(), expected_trace);
+    let execute_selector_felt = selector_from_name(EXECUTE_ENTRY_POINT_NAME).0;
+    let mut sub_trace_strings = vec![
+        format!(
+            "contract address: {account_address_felt:#064x}, class hash: \
+             {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}"
+        ),
+        format!(
+            "contract address: {contract_address_felt:#064x}, class hash: \
+             {test_contract_hash:#064x}, selector: {invoke_call_chain_selector_felt:#064x}"
+        ),
+        format!(
+            "contract address: {contract_address_felt:#064x}, class hash: \
+             {test_contract_hash:#064x}, selector: {invoke_call_chain_selector_felt:#064x}"
+        ),
+    ];
+    if cairo_version.is_cairo0() {
+        sub_trace_strings.push(expected_with_attr_error_msg);
+    }
+    sub_trace_strings.push(expected_error.to_string());
+    let sub_trace_strings: Vec<&str> = sub_trace_strings.iter().map(|s| s.as_str()).collect();
+    assert_contains_ordered_substrings(&sub_trace_strings, &trace);
 }
 
 #[rstest]
