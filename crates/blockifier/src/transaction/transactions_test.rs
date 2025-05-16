@@ -199,7 +199,23 @@ static DECLARE_REDEPOSIT_AMOUNT: LazyLock<u64> = LazyLock::new(|| {
     VersionedConstants::latest_constants().os_constants.gas_costs.base.entry_point_initial_budget
         - actual_execution_info.validate_call_info.unwrap().execution.gas_consumed
 });
-const DEPLOY_ACCOUNT_REDEPOSIT_AMOUNT: u64 = 6760;
+static DEPLOY_ACCOUNT_REDEPOSIT_AMOUNT: LazyLock<u64> = LazyLock::new(|| {
+    let block_context = &BlockContext::create_for_account_testing_with_kzg(true);
+    let chain_info = &block_context.chain_info;
+    let account =
+        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let state = &mut test_state(chain_info, BALANCE, &[(account, 1)]);
+    let deploy_account = AccountTransaction::new_with_default_flags(executable_deploy_account_tx(
+        deploy_account_tx_args! {
+            resource_bounds: default_all_resource_bounds(),
+            class_hash: account.get_class_hash(),
+        },
+    ));
+    fund_account(chain_info, deploy_account.tx.contract_address(), BALANCE, &mut state.state);
+    let actual_execution_info = deploy_account.execute(state, block_context).unwrap();
+    VersionedConstants::latest_constants().os_constants.gas_costs.base.entry_point_initial_budget
+        - actual_execution_info.validate_call_info.unwrap().execution.gas_consumed
+});
 static VERSIONED_CONSTANTS: LazyLock<VersionedConstants> =
     LazyLock::new(VersionedConstants::create_for_testing);
 
@@ -1902,16 +1918,24 @@ fn test_declare_tx_v0(
 }
 
 #[rstest]
+fn test_deploy_account_redeposit_amount_regression() {
+    expect![[r#"
+        6760
+    "#]]
+    .assert_debug_eq(&*DEPLOY_ACCOUNT_REDEPOSIT_AMOUNT);
+}
+
+#[rstest]
 #[case::with_cairo0_account(CairoVersion::Cairo0, 0)]
 #[case::with_cairo1_account(
     CairoVersion::Cairo1(RunnableCairo1::Casm),
-    VersionedConstants::create_for_testing().os_constants.gas_costs.base.entry_point_initial_budget - DEPLOY_ACCOUNT_REDEPOSIT_AMOUNT
+    VersionedConstants::create_for_testing().os_constants.gas_costs.base.entry_point_initial_budget - *DEPLOY_ACCOUNT_REDEPOSIT_AMOUNT
 )]
 #[cfg_attr(
     feature = "cairo_native",
     case::with_cairo1_native_account(
         CairoVersion::Cairo1(RunnableCairo1::Native),
-        VersionedConstants::create_for_testing().os_constants.gas_costs.base.entry_point_initial_budget - DEPLOY_ACCOUNT_REDEPOSIT_AMOUNT
+        VersionedConstants::create_for_testing().os_constants.gas_costs.base.entry_point_initial_budget - *DEPLOY_ACCOUNT_REDEPOSIT_AMOUNT
     )
 )]
 fn test_deploy_account_tx(
