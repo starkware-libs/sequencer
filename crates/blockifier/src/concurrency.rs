@@ -6,5 +6,6 @@ pub mod utils;
 pub mod versioned_state;
 pub mod versioned_storage;
 pub mod worker_logic;
+pub mod worker_pool;
 
 type TxIndex = usize;
