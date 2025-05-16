@@ -236,8 +236,17 @@ impl Scheduler {
     }
 
     /// Returns the done marker.
-    fn done(&self) -> bool {
+    pub fn done(&self) -> bool {
         self.done_marker.load(Ordering::Acquire)
+    }
+
+    /// Sleeps until the scheduler is done.
+    pub fn wait_for_completion(&self) {
+        while !self.done() {
+            std::thread::sleep(std::time::Duration::from_micros(1));
+        }
+        // Lock and release the commit index to ensure that no commit phase is in progress.
+        drop(self.commit_index.lock());
     }
 
     #[cfg(any(feature = "testing", test))]

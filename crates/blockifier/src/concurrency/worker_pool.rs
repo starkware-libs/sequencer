@@ -13,6 +13,7 @@ use crate::state::state_api::StateReader;
 /// If an execution of a chunk is halted (`Scheduler::halt`), each thread will continue to run until
 /// finishing the current execution (excluding reruns), and then move to the next chunk.
 /// The transactions that were not fully executed by the time halt was called will be discarded.
+#[derive(Debug)]
 pub struct WorkerPool<S: StateReader> {
     senders: Vec<mpsc::Sender<Option<Arc<WorkerExecutor<S>>>>>,
     handlers: Vec<std::thread::JoinHandle<()>>,
@@ -62,6 +63,7 @@ impl<S: StateReader + Send + 'static> WorkerPool<S> {
         for sender in self.senders.iter() {
             sender.send(Some(worker_executor.clone())).expect("Failed to send worker executor.");
         }
+        worker_executor.scheduler.wait_for_completion();
     }
 
     pub fn join(mut self) {
