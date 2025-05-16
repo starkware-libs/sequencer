@@ -1,8 +1,9 @@
 {
-  "name": "mempool_get_txs_size_drop",
-  "title": "Mempool get_txs size drop",
+  "name": "Batcher Proposal Started",
+  "title": "Batcher Proposal Started - Test",
   "orgId": 1,
-  "condition": "B",
+  "condition": "A",
+  "interval": "1m",
   "data": [
     {
       "refId": "A",
@@ -20,7 +21,7 @@
         "maxDataPoints": 43200,
         "range": false,
         "refId": "A",
-        "expr": "avg_over_time(mempool_get_txs_size[20m])"
+        "expr": "batcher_proposal_started{job=\"node\"}"
       }
     },
     {
@@ -36,12 +37,15 @@
           {
             "evaluator": {
               "params": [
-                0.01
+                50
               ],
               "type": "lt"
             },
             "operator": {
               "type": "and"
+            },
+            "query": {
+              "params": []
             },
             "reducer": {
               "params": [],
@@ -67,10 +71,9 @@
   "for": "1m",
   "execErrState": "Error",
   "noDataState": "NoData",
-  "folderUID": "sequencer-dev",
-  "ruleGroup": "mempool",
+  "folderUID": "",
+  "ruleGroup": "batcher",
   "annotations": {},
   "labels": {},
-  "isPaused": false,
-  "intervalSec": 20
+  "isPaused": false
 }
