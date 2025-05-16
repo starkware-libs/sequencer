@@ -47,7 +47,6 @@ use crate::execution::stack_trace::{
     TRACE_LENGTH_CAP,
 };
 use crate::execution::syscalls::hint_processor::ENTRYPOINT_FAILED_ERROR;
-use crate::test_utils::contracts::FeatureContractTrait;
 use crate::test_utils::initial_test_state::{fund_account, test_state};
 use crate::test_utils::test_templates::cairo_version;
 use crate::test_utils::BALANCE;
@@ -790,7 +789,7 @@ fn test_contract_ctor_frame_stack_trace(
     let faulty_class_hash = faulty_ctor.get_class_hash();
     let expected_address = expected_deployed_address.0.key();
 
-    let (frame_0, frame_1, frame_2) = (
+    let (frame0, frame1, frame2, error_frame) = (
         format!(
             "Transaction execution has failed:
 0: Error in the called contract (contract address: {account_address_felt:#064x}, class hash: \
@@ -807,86 +806,37 @@ fn test_contract_ctor_frame_stack_trace(
              {expected_address:#064x}, class hash: {:#064x}, selector: {:#064x}):",
             faulty_class_hash.0, ctor_selector.0
         ),
-    );
-
-    let expected_error = match cairo_version {
-        CairoVersion::Cairo0 => {
-            let (execute_offset, deploy_offset, ctor_offset) = (
-                account.get_entry_point_offset(execute_selector).0,
-                account.get_entry_point_offset(deploy_contract_selector).0,
-                faulty_ctor.get_ctor_offset(Some(ctor_selector)).0,
-            );
-            format!(
-                "{frame_0}
-Error at pc=0:7:
-Cairo traceback (most recent call last):
-Unknown location (pc=0:{})
-Unknown location (pc=0:{})
-
-{frame_1}
-Error at pc=0:20:
-Cairo traceback (most recent call last):
-Unknown location (pc=0:{})
-Unknown location (pc=0:{})
-
-{frame_2}
-Error at pc=0:250:
-Cairo traceback (most recent call last):
-Unknown location (pc=0:{})
-Unknown location (pc=0:{})
-
-An ASSERT_EQ instruction failed: 1 != 0.
-",
-                execute_offset + 18,
-                execute_offset - 8,
-                deploy_offset + 14,
-                deploy_offset - 12,
-                ctor_offset + 7,
-                ctor_offset - 9
-            )
-        }
-        CairoVersion::Cairo1(runnable_version) => {
-            let final_error = format!(
+        match cairo_version {
+            CairoVersion::Cairo0 => "An ASSERT_EQ instruction failed: 1 != 0.".to_string(),
+            CairoVersion::Cairo1(_) => format!(
                 "Execution failed. Failure reason:
 Error in contract (contract address: {expected_address:#064x}, class hash: {:#064x}, selector: \
                  {:#064x}):
 0x496e76616c6964207363656e6172696f ('Invalid scenario').
 ",
                 faulty_class_hash.0, ctor_selector.0
-            );
-            // TODO(Dori, 1/1/2025): Get lowest level PC locations from Cairo1 errors (ctor offset
-            //   does not appear in the trace).
-            match runnable_version {
-                RunnableCairo1::Casm => {
-                    let (execute_offset, deploy_offset) = (
-                        account.get_entry_point_offset(execute_selector).0,
-                        account.get_entry_point_offset(deploy_contract_selector).0,
-                    );
-                    format!(
-                        "{frame_0}
-Error at pc=0:{}:
-{frame_1}
-Error at pc=0:{}:
-{frame_2}
-{final_error}",
-                        execute_offset + 133,
-                        deploy_offset + 122,
-                    )
-                }
-                #[cfg(feature = "cairo_native")]
-                RunnableCairo1::Native => format!(
-                    "{frame_0}
-{frame_1}
-{frame_2}
-{final_error}"
-                ),
-            }
-        }
+            ),
+        },
+    );
+
+    let cairo_version_string = match cairo_version {
+        CairoVersion::Cairo0 => "cairo0",
+        CairoVersion::Cairo1(RunnableCairo1::Casm) => "cairo1_casm",
+        #[cfg(feature = "cairo_native")]
+        CairoVersion::Cairo1(RunnableCairo1::Native) => "cairo1_native",
     };
+    let expectation = expect_file![format!(
+        "./stack_trace_regression/test_contract_ctor_frame_stack_trace_{cairo_version_string}.txt"
+    )];
 
     // Compare expected and actual error.
-    let error = invoke_deploy_tx.execute(state, &block_context).unwrap().revert_error.unwrap();
-    assert_eq!(error.to_string(), expected_error);
+    let error =
+        invoke_deploy_tx.execute(state, &block_context).unwrap().revert_error.unwrap().to_string();
+    expectation.assert_eq(&error);
+    assert_contains_ordered_substrings(
+        &[frame0.as_str(), frame1.as_str(), frame2.as_str(), error_frame.as_str()],
+        &error,
+    );
 }
 
 #[test]
