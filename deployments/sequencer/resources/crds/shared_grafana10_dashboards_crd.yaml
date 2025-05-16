@@ -3,7 +3,7 @@ kind: CustomResourceDefinition
 metadata:
   name: sharedgrafanadashboards.grafana.starkware.co
 spec:
-  group: dashboards.grafana.starkware.co
+  group: grafana.starkware.co
   versions:
     - name: v1beta1
       served: true

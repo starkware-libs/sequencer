@@ -4,6 +4,6 @@ imports:
   - k8s@1.26.0
   - resources/crds/backendconfigs_cloud_google_com.yaml
   - resources/crds/external_secrets_crd_bundle.yaml
-  - resources/crds/shared_grafana10_dashboards_crd.yaml
   - resources/crds/podmonitorings_monitoring_googleapis_com.yaml
-  - resources/crds/shared_grafana10_alert_rule_groups_crd.yaml
+  - dashboards:=resources/crds/shared_grafana10_dashboards_crd.yaml
+  - alerts:=resources/crds/shared_grafana10_alert_rule_groups_crd.yaml

@@ -1,0 +1,79 @@
+{
+  "name": "Mempool Transactions Dropped",
+  "title": "Mempool Transactions Dropped",
+  "orgId": 1,
+  "condition": "A",
+  "interval": "1m",
+  "data": [
+    {
+      "refId": "A",
+      "queryType": "",
+      "relativeTimeRange": {
+        "from": 600,
+        "to": 0
+      },
+      "datasourceUid": "PBFA97CFB590B2093",
+      "model": {
+        "editorMode": "code",
+        "instant": true,
+        "intervalMs": 1000,
+        "legendFormat": "__auto",
+        "maxDataPoints": 43200,
+        "range": false,
+        "refId": "A",
+        "expr": "mempool_transactions_dropped{job=\"node\"}"
+      }
+    },
+    {
+      "refId": "B",
+      "queryType": "",
+      "relativeTimeRange": {
+        "from": 1,
+        "to": 0
+      },
+      "datasourceUid": "__expr__",
+      "model": {
+        "conditions": [
+          {
+            "evaluator": {
+              "params": [
+                0
+              ],
+              "type": "gt"
+            },
+            "operator": {
+              "type": "and"
+            },
+            "query": {
+              "params": []
+            },
+            "reducer": {
+              "params": [],
+              "type": "avg"
+            },
+            "type": "query"
+          }
+        ],
+        "datasource": {
+          "name": "Expression",
+          "type": "__expr__",
+          "uid": "__expr__"
+        },
+        "expression": "A",
+        "hide": false,
+        "intervalMs": 1000,
+        "maxDataPoints": 43200,
+        "refId": "B",
+        "type": "threshold"
+      }
+    }
+  ],
+  "for": "1m",
+  "execErrState": "Error",
+  "noDataState": "NoData",
+  "folderUID": "",
+  "ruleGroup": "mempool",
+  "annotations": {},
+  "labels": {},
+  "isPaused": false
+}

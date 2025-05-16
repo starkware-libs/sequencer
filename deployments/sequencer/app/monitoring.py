@@ -3,11 +3,11 @@ from typing import Any, Dict, Optional
 
 from constructs import Construct
 from cdk8s import Names, ApiObjectMetadata
-from imports.co.starkware.grafana.dashboards import (
+from imports.dashboards.co.starkware.grafana import (
     SharedGrafanaDashboard,
     SharedGrafanaDashboardSpec,
 )
-from imports.co.starkware.grafana.alerts import (
+from imports.alerts.co.starkware.grafana import (
     SharedGrafanaAlertRuleGroup,
     SharedGrafanaAlertRuleGroupSpec,
     SharedGrafanaAlertRuleGroupSpecInstanceSelector,
@@ -15,7 +15,7 @@ from imports.co.starkware.grafana.alerts import (
     SharedGrafanaAlertRuleGroupSpecRulesData,
     SharedGrafanaAlertRuleGroupSpecRulesExecErrState,
     SharedGrafanaAlertRuleGroupSpecRulesNoDataState,
-    SharedGrafanaAlertRuleGroupSpecRulesDataRelativeTimeRange
+    SharedGrafanaAlertRuleGroupSpecRulesDataRelativeTimeRange,
 )
 
 from services.monitoring import GrafanaDashboard, GrafanaAlertGroup
