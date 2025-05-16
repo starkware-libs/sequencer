@@ -33,6 +33,7 @@ use apollo_reverts::revert_block;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
 use async_trait::async_trait;
+use blockifier::concurrency::worker_pool::WorkerPool;
 use blockifier::state::contract_class_manager::ContractClassManager;
 use indexmap::IndexSet;
 #[cfg(test)]
@@ -87,30 +88,31 @@ pub struct Batcher {
     pub mempool_client: SharedMempoolClient,
     pub transaction_converter: TransactionConverter,
 
-    // Used to create block builders.
-    // Using the factory pattern to allow for easier testing.
+    /// Used to create block builders.
+    /// Using the factory pattern to allow for easier testing.
     block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
 
-    // The height that the batcher is currently working on.
-    // All proposals are considered to be at this height.
+    /// The height that the batcher is currently working on.
+    /// All proposals are considered to be at this height.
     active_height: Option<BlockNumber>,
 
-    // The block proposal that is currently being built, if any.
-    // At any given time, there can be only one proposal being actively executed (either proposed
-    // or validated).
+    /// The block proposal that is currently being built, if any.
+    /// At any given time, there can be only one proposal being actively executed (either proposed
+    /// or validated).
     active_proposal: Arc<Mutex<Option<ProposalId>>>,
     active_proposal_task: Option<ProposalTask>,
 
-    // Holds all the proposals that completed execution in the current height.
+    /// Holds all the proposals that completed execution in the current height.
     executed_proposals: Arc<Mutex<HashMap<ProposalId, ProposalResult<BlockExecutionArtifacts>>>>,
 
-    // The propose blocks transaction streams, used to stream out the proposal transactions.
-    // Each stream is kept until all the transactions are streamed out, or a new height is started.
+    /// The propose blocks transaction streams, used to stream out the proposal transactions.
+    /// Each stream is kept until all the transactions are streamed out, or a new height is
+    /// started.
     propose_tx_streams: HashMap<ProposalId, OutputStreamReceiver>,
 
-    // The validate blocks transaction streams, used to stream in the transactions to validate.
-    // Each stream is kept until SendProposalContent::Finish/Abort is received, or a new height is
-    // started.
+    /// The validate blocks transaction streams, used to stream in the transactions to validate.
+    /// Each stream is kept until SendProposalContent::Finish/Abort is received, or a new height is
+    /// started.
     validate_tx_streams: HashMap<ProposalId, InputStreamSender>,
 }
 
@@ -125,7 +127,7 @@ impl Batcher {
         block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
     ) -> Self {
         Self {
-            config: config.clone(),
+            config,
             storage_reader,
             storage_writer,
             l1_provider_client,
@@ -765,6 +767,11 @@ pub fn create_batcher(
     let (storage_reader, storage_writer) = apollo_storage::open_storage(config.storage.clone())
         .expect("Failed to open batcher's storage");
 
+    let execute_config = &config.block_builder_config.execute_config;
+    let worker_pool = Arc::new(WorkerPool::start(
+        execute_config.stack_size,
+        execute_config.concurrency_config.clone(),
+    ));
     let block_builder_factory = Box::new(BlockBuilderFactory {
         block_builder_config: config.block_builder_config.clone(),
         storage_reader: storage_reader.clone(),
@@ -772,6 +779,7 @@ pub fn create_batcher(
             config.contract_class_manager_config.clone(),
         ),
         class_manager_client: class_manager_client.clone(),
+        worker_pool,
     });
     let storage_reader = Arc::new(storage_reader);
     let storage_writer = Box::new(storage_writer);
