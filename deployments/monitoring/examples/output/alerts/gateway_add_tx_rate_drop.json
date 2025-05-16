@@ -1,9 +1,8 @@
 {
-  "name": "Batcher Proposal Failed",
-  "title": "Batcher Proposal Failed",
+  "name": "gateway_add_tx_rate_drop",
+  "title": "Gateway add_tx rate drop",
   "orgId": 1,
-  "condition": "A",
-  "interval": "1m",
+  "condition": "B",
   "data": [
     {
       "refId": "A",
@@ -21,7 +20,7 @@
         "maxDataPoints": 43200,
         "range": false,
         "refId": "A",
-        "expr": "batcher_proposal_failed{job=\"node\"}"
+        "expr": "sum(rate(gateway_transactions_received[20m])) or vector(0)"
       }
     },
     {
@@ -37,15 +36,12 @@
           {
             "evaluator": {
               "params": [
-                0
+                0.1
               ],
-              "type": "gt"
+              "type": "lt"
             },
             "operator": {
               "type": "and"
-            },
-            "query": {
-              "params": []
             },
             "reducer": {
               "params": [],
@@ -71,9 +67,10 @@
   "for": "1m",
   "execErrState": "Error",
   "noDataState": "NoData",
-  "folderUID": "",
-  "ruleGroup": "batcher",
+  "folderUID": "sequencer-dev",
+  "ruleGroup": "gateway",
   "annotations": {},
   "labels": {},
-  "isPaused": false
+  "isPaused": false,
+  "intervalSec": 20
 }

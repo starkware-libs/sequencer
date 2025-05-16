@@ -26,6 +26,12 @@ def argument_parser():
         type=str,
         help="Path to Grafana dashboard JSON file.",
     ),
+    parser.add_argument(
+        "--monitoring-alerts-folder",
+        required=False,
+        type=str,
+        help="Path to Grafana alerts folder.",
+    ),
 
     return parser.parse_args()
 

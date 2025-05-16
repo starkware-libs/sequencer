@@ -37,10 +37,16 @@ class SequencerMonitoring(Chart):
         cluster: str,
         namespace: str,
         grafana_dashboard: monitoring.GrafanaDashboard,
+        grafana_alert_rule_group: monitoring.GrafanaAlertGroup,
     ):
         super().__init__(scope, name, disable_resource_name_hashes=True, namespace=namespace)
         self.dashboard = MonitoringApp(
-            self, name, cluster=cluster, namespace=namespace, grafana_dashboard=grafana_dashboard
+            self,
+            name,
+            cluster=cluster,
+            namespace=namespace,
+            grafana_dashboard=grafana_dashboard,
+            grafana_alert_rule_group=grafana_alert_rule_group,
         )
 
 
@@ -91,6 +97,9 @@ def main():
             cluster=args.cluster,
             namespace=helpers.sanitize_name(args.namespace),
             grafana_dashboard=monitoring.GrafanaDashboard(args.monitoring_dashboard_file),
+            grafana_alert_rule_group=monitoring.GrafanaAlertGroup(
+                args.monitoring_alerts_folder,
+            ),
         )
 
     app.synth()
