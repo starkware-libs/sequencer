@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use blockifier_test_utils::cairo_versions::RunnableCairo1;
 use blockifier_test_utils::contracts::FeatureContract;
-use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use cairo_vm::Felt252;
+use expect_test::expect;
 use starknet_api::abi::abi_utils::{selector_from_name, starknet_keccak};
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ContractAddress, Nonce};
@@ -25,9 +25,9 @@ use starknet_types_core::hash::{Pedersen, StarkHash};
 use test_case::test_case;
 
 use crate::context::{BlockContext, ChainInfo};
-use crate::execution::call_info::CallExecution;
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::CallEntryPoint;
+use crate::execution::syscalls::syscall_tests::DeterministicExecutionResources;
 use crate::state::state_api::StateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{trivial_external_entry_point_with_address, BALANCE};
@@ -170,30 +170,34 @@ fn test_meta_tx_v0(
     };
 
     assert!(!call_info.execution.failed);
-    assert_eq!(
-        call_info.execution,
-        CallExecution {
-            gas_consumed: if measure_resources { 0 } else { 525850 },
-            ..CallExecution::default()
-        }
-    );
-    assert_eq!(
-        call_info.resources,
-        if measure_resources {
-            ExecutionResources {
+    if measure_resources {
+        assert_eq!(call_info.execution.gas_consumed, 0);
+        expect![[r#"
+            DeterministicExecutionResources {
                 n_steps: 4624,
                 n_memory_holes: 24,
-                builtin_instance_counter: [
-                    (BuiltinName::range_check, 91),
-                    (BuiltinName::pedersen, 12),
-                ]
-                .into_iter()
-                .collect(),
+                builtin_instance_counter: {
+                    "pedersen_builtin": 12,
+                    "range_check_builtin": 91,
+                },
             }
-        } else {
-            ExecutionResources::default()
-        }
-    );
+        "#]]
+        .assert_debug_eq(&DeterministicExecutionResources::from(&call_info.resources));
+    } else {
+        expect![[r#"
+            CallExecution {
+                retdata: Retdata(
+                    [],
+                ),
+                events: [],
+                l2_to_l1_messages: [],
+                failed: false,
+                gas_consumed: 525850,
+            }
+        "#]]
+        .assert_debug_eq(&call_info.execution);
+        assert_eq!(call_info.resources, ExecutionResources::default());
+    }
 
     let check_value = |key: Felt252, value: Felt252| {
         assert_eq!(state.get_storage_at(contract_address, key.try_into().unwrap()).unwrap(), value)
