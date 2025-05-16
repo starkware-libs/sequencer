@@ -79,6 +79,23 @@ impl<S: StateReader> TransactionExecutor<S> {
         old_block_number_and_hash: Option<BlockHashAndNumber>,
         config: TransactionExecutorConfig,
     ) -> StateResult<Self> {
+        Self::pre_process_and_create_with_pool(
+            initial_state_reader,
+            block_context,
+            old_block_number_and_hash,
+            config,
+            None,
+        )
+    }
+
+    /// Performs pre-processing required for block building before creating the executor.
+    pub fn pre_process_and_create_with_pool(
+        initial_state_reader: S,
+        block_context: BlockContext,
+        old_block_number_and_hash: Option<BlockHashAndNumber>,
+        config: TransactionExecutorConfig,
+        worker_pool: Option<Arc<WorkerPool<CachedState<S>>>>,
+    ) -> StateResult<Self> {
         let mut block_state = CachedState::new(initial_state_reader);
         pre_process_block(
             &mut block_state,
@@ -86,7 +103,7 @@ impl<S: StateReader> TransactionExecutor<S> {
             block_context.block_info().block_number,
             &block_context.versioned_constants.os_constants,
         )?;
-        Ok(Self::new_with_pool(block_state, block_context, config, None))
+        Ok(Self::new_with_pool(block_state, block_context, config, worker_pool))
     }
 
     // TODO(Yoni): consider making this c-tor private.
