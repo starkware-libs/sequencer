@@ -711,7 +711,7 @@ impl NetworkManager {
         // .with_quic()
         .with_behaviour(|key| mixed_behaviour::MixedBehaviour::new(
                 key.clone(),
-                bootstrap_peer_multiaddr.into_iter().collect(),
+                bootstrap_peer_multiaddr.unwrap_or(vec![Multiaddr::empty()]),
                 sqmr::Config { session_timeout },
                 chain_id,
                 node_version,
