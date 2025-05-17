@@ -21,7 +21,7 @@ async fn create_swarm(bootstrap_peer_multiaddr: Option<Multiaddr>) -> Swarm<Mixe
     let mut swarm = Swarm::new_ephemeral(|keypair| {
         MixedBehaviour::new(
             keypair.clone(),
-            bootstrap_peer_multiaddr,
+            bootstrap_peer_multiaddr.into_iter().collect(),
             sqmr::Config::default(),
             ChainId::Mainnet,
             None,
