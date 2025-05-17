@@ -2589,11 +2589,10 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     let key = calldata.0[1];
     let value = calldata.0[2];
     let payload_size = tx.payload_size();
-    let actual_execution_info = tx.execute(state, block_context).unwrap();
+    let mut actual_execution_info = tx.execute(state, block_context).unwrap();
 
     // Build the expected call info.
     let accessed_storage_key = StorageKey::try_from(key).unwrap();
-    let gas_consumed = GasAmount(15850);
     let expected_call_info = CallInfo {
         call: CallEntryPoint {
             class_hash: Some(test_contract.get_class_hash()),
@@ -2613,7 +2612,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
         },
         execution: CallExecution {
             retdata: Retdata(vec![value]),
-            gas_consumed: gas_consumed.0,
+            gas_consumed: 0, // Regression-tested explicitly.
             ..Default::default()
         },
         storage_access_tracker: StorageAccessTracker {
@@ -2624,20 +2623,6 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
             .get_runnable_class()
             .tracked_resource(&versioned_constants.min_sierra_version_for_sierra_gas, None),
         ..Default::default()
-    };
-
-    // Build the expected resource mapping.
-    let expected_gas = match use_kzg_da {
-        true => GasVector {
-            l1_gas: 16023_u32.into(),
-            l1_data_gas: 160_u32.into(),
-            l2_gas: 200875_u32.into(),
-        },
-        false => GasVector {
-            l1_gas: 18226_u32.into(),
-            l1_data_gas: 0_u32.into(),
-            l2_gas: 149975_u32.into(),
-        },
     };
 
     let expected_da_gas = match use_kzg_da {
@@ -2676,26 +2661,59 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
         starknet_resources: actual_execution_info.receipt.resources.starknet_resources.clone(),
         computation: ComputationResources {
             vm_resources: expected_execution_resources,
-            sierra_gas: gas_consumed,
+            sierra_gas: GasAmount(0), // Regression-tested explicitly.
             ..Default::default()
         },
     };
 
-    assert_eq!(actual_execution_info.receipt.resources, expected_tx_resources);
-    assert_eq!(
-        actual_execution_info.receipt.resources.to_gas_vector(
-            versioned_constants,
-            use_kzg_da,
-            &gas_mode,
-        ),
-        expected_gas
-    );
-
-    let total_gas = expected_tx_resources.to_gas_vector(
+    // Regression-test the execution gas consumed.
+    // First, compute that actual gas vectors (before nullifying the gas fields on the actual
+    // execution info) to get the correct values.
+    let actual_gas_vector = actual_execution_info.receipt.resources.to_gas_vector(
         versioned_constants,
-        block_context.block_info.use_kzg_da,
+        use_kzg_da,
         &gas_mode,
     );
+
+    // Regression-test the gas consumed, and then set to zero to compare the rest of the resources.
+    let expected_gas = expect![[r#"
+        15850
+    "#]];
+    expected_gas.assert_debug_eq(&actual_execution_info.receipt.resources.computation.sierra_gas.0);
+    actual_execution_info.receipt.resources.computation.sierra_gas.0 = 0;
+    assert_eq!(actual_execution_info.receipt.resources, expected_tx_resources);
+
+    match use_kzg_da {
+        true => expect![[r#"
+            GasVector {
+                l1_gas: GasAmount(
+                    16023,
+                ),
+                l1_data_gas: GasAmount(
+                    160,
+                ),
+                l2_gas: GasAmount(
+                    200875,
+                ),
+            }
+        "#]]
+        .assert_debug_eq(&actual_gas_vector),
+        false => expect![[r#"
+            GasVector {
+                l1_gas: GasAmount(
+                    18226,
+                ),
+                l1_data_gas: GasAmount(
+                    0,
+                ),
+                l2_gas: GasAmount(
+                    149975,
+                ),
+            }
+        "#]]
+        .assert_debug_eq(&actual_gas_vector),
+    };
+    assert_eq!(use_kzg_da, actual_gas_vector.l1_data_gas.0 > 0);
 
     // Build the expected execution info.
     let expected_execution_info = TransactionExecutionInfo {
@@ -2705,13 +2723,20 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
         receipt: TransactionReceipt {
             fee: Fee(0),
             da_gas: expected_da_gas,
-            resources: expected_tx_resources,
-            gas: total_gas,
+            resources: expected_tx_resources.clone(),
+            // Gas vector was already tested; set the expected to the actual.
+            gas: actual_gas_vector,
         },
         revert_error: None,
     };
 
     // Check the actual returned execution info.
+    // First, regression-test the execution gas consumed, and set to zero after testing to easily
+    // compare the rest of the fields.
+    let mut actual_execute_call_info = actual_execution_info.execute_call_info.unwrap();
+    expected_gas.assert_debug_eq(&actual_execute_call_info.execution.gas_consumed);
+    actual_execute_call_info.execution.gas_consumed = 0;
+    actual_execution_info.execute_call_info = Some(actual_execute_call_info);
     assert_eq!(actual_execution_info, expected_execution_info);
 
     // Check the state changes.
@@ -2765,7 +2790,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     // Today, we check that the paid_fee is positive, no matter what was the actual fee.
     let tip = block_context.to_tx_context(&tx_no_fee).effective_tip();
     let expected_actual_fee =
-        get_fee_by_gas_vector(&block_context.block_info, total_gas, &FeeType::Eth, tip);
+        get_fee_by_gas_vector(&block_context.block_info, actual_gas_vector, &FeeType::Eth, tip);
 
     assert_matches!(
         error,
