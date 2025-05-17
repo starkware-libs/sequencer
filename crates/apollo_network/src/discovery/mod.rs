@@ -135,16 +135,6 @@ impl Behaviour {
             kad_requesting: KadRequestingBehaviour::new(config.heartbeat_interval),
         }
     }
-
-    #[cfg(test)]
-    pub fn bootstrap_peer_id(&self) -> PeerId {
-        self.boot_strapping.bootstrap_peer_id()
-    }
-
-    #[cfg(test)]
-    pub fn bootstrap_peer_address(&self) -> &Multiaddr {
-        self.boot_strapping.bootstrap_peer_address()
-    }
 }
 
 impl From<ToOtherBehaviourEvent> for mixed_behaviour::Event {
