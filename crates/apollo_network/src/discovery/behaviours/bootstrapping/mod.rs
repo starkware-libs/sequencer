@@ -73,15 +73,16 @@ impl NetworkBehaviour for BootstrappingBehaviour {
 impl BootstrappingBehaviour {
     pub fn new(
         bootstrap_dial_retry_config: RetryConfig,
-        bootstrap_peer_id: PeerId,
-        bootstrap_peer_address: Multiaddr,
+        bootstrap_peers: Vec<(PeerId, Multiaddr)>,
     ) -> Self {
         let mut peers = SelectAll::new();
-        peers.push(BootstrapPeer::new(
-            bootstrap_dial_retry_config,
-            bootstrap_peer_id,
-            bootstrap_peer_address,
-        ));
+        for (bootstrap_peer_id, bootstrap_peer_address) in bootstrap_peers {
+            peers.push(BootstrapPeer::new(
+                bootstrap_dial_retry_config,
+                bootstrap_peer_id,
+                bootstrap_peer_address,
+            ));
+        }
         Self { peers }
     }
 }
