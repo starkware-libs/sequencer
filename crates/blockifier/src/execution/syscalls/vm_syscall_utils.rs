@@ -43,7 +43,7 @@ use crate::execution::syscalls::syscall_base::SyscallResult;
 use crate::execution::syscalls::syscall_executor::SyscallExecutor;
 use crate::utils::u64_from_usize;
 
-pub type WriteResponseResult = SyscallResult<()>;
+pub type WriteResponseResult = SyscallBaseResult<()>;
 
 pub type SyscallSelector = DeprecatedSyscallSelector;
 
