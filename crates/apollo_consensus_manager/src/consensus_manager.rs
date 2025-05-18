@@ -12,7 +12,6 @@ use apollo_consensus::stream_handler::StreamHandler;
 use apollo_consensus::types::ConsensusError;
 use apollo_consensus_orchestrator::cende::CendeAmbassador;
 use apollo_consensus_orchestrator::sequencer_consensus_context::{
-    DefaultClock,
     SequencerConsensusContext,
     SequencerConsensusContextDeps,
 };
@@ -26,6 +25,7 @@ use apollo_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use apollo_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, Vote};
 use apollo_reverts::revert_blocks_and_eternal_pending;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
+use apollo_time::tokio_clock::TokioClock;
 use async_trait::async_trait;
 use futures::channel::mpsc;
 use starknet_api::block::BlockNumber;
@@ -161,7 +161,7 @@ impl ConsensusManager {
                     self.config.eth_to_strk_oracle_config.lag_interval_seconds,
                 )),
                 l1_gas_price_provider: self.l1_gas_price_provider.clone(),
-                clock: Arc::new(DefaultClock::default()),
+                clock: Arc::new(TokioClock),
             },
         );
 

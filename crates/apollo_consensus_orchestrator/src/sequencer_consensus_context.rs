@@ -51,13 +51,12 @@ use apollo_protobuf::consensus::{
 };
 use apollo_state_sync_types::communication::{SharedStateSyncClient, StateSyncClientError};
 use apollo_state_sync_types::state_sync_types::SyncBlock;
+use apollo_time::clock::Clock;
 use async_trait::async_trait;
 // TODO(Gilad): Define in consensus, either pass to blockifier as config or keep the dup.
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use futures::channel::{mpsc, oneshot};
 use futures::{FutureExt, SinkExt, StreamExt};
-#[cfg(any(feature = "testing", test))]
-use mockall::automock;
 use num_rational::Ratio;
 use starknet_api::block::{
     BlockHash,
@@ -78,6 +77,7 @@ use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::TransactionHash;
 use tokio::task::JoinHandle;
+use tokio::time::Instant as TokioInstant;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
 use tracing::{debug, error, error_span, info, instrument, trace, warn, Instrument};
@@ -95,6 +95,8 @@ use crate::metrics::{
 };
 use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::utils::get_oracle_rate_and_prices;
+
+type SharedClock = Arc<dyn Clock<Instant = TokioInstant>>;
 
 // Contains parameters required for validating block info.
 #[derive(Clone, Debug)]
@@ -130,27 +132,6 @@ enum BuildProposalError {
     #[error("L1GasPriceProvider error: {0}")]
     L1GasPriceProvider(#[from] L1GasPriceClientError),
 }
-
-// TODO(guy.f): Times are probably used in other crates which would benefit from this. Move this to
-// a common mod that can be used across crates.
-#[cfg_attr(any(test, feature = "testing"), automock)]
-pub trait Clock: Send + Sync {
-    fn now(&self) -> chrono::DateTime<chrono::Utc> {
-        chrono::Utc::now()
-    }
-
-    fn now_as_timestamp(&self) -> u64 {
-        self.now().timestamp().try_into().expect("Failed to convert timestamp to u64")
-    }
-
-    fn now_at_tokio_instant(&self) -> tokio::time::Instant {
-        tokio::time::Instant::now()
-    }
-}
-
-#[derive(Default)]
-pub struct DefaultClock();
-impl Clock for DefaultClock {}
 
 // TODO(guy.f): Consider storing a ContextDeps struct instead of all the dependencies directly.
 //
@@ -250,7 +231,7 @@ pub struct SequencerConsensusContext {
     l1_da_mode: L1DataAvailabilityMode,
     // TODO(alonl): remove this field and use the one in the previous block info.
     last_block_timestamp: Option<u64>,
-    clock: Arc<dyn Clock>,
+    clock: SharedClock,
     previous_block_info: Option<ConsensusBlockInfo>,
 }
 pub struct SequencerConsensusContextDeps {
@@ -263,7 +244,7 @@ pub struct SequencerConsensusContextDeps {
     pub eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
     pub l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     /// Use DefaultClock if you don't want to inject timestamps.
-    pub clock: Arc<dyn Clock>,
+    pub clock: SharedClock,
 }
 
 impl SequencerConsensusContext {
@@ -331,7 +312,7 @@ struct ProposalBuildArguments {
     transaction_converter: TransactionConverter,
     builder_address: ContractAddress,
     cancel_token: CancellationToken,
-    clock: Arc<dyn Clock>,
+    clock: SharedClock,
     previous_block_info: Option<ConsensusBlockInfo>,
 }
 
@@ -354,7 +335,7 @@ struct ProposalValidateArguments {
     fin_sender: oneshot::Sender<ProposalCommitment>,
     cancel_token: CancellationToken,
     transaction_converter: TransactionConverter,
-    clock: Arc<dyn Clock>,
+    clock: SharedClock,
     previous_block_info: Option<ConsensusBlockInfo>,
 }
 
@@ -695,7 +676,7 @@ impl ConsensusContext for SequencerConsensusContext {
         // TODO(Asmaa): validate starknet_version and parent_hash when they are stored.
         let block_number = sync_block.block_header_without_hash.block_number;
         let timestamp = sync_block.block_header_without_hash.timestamp;
-        let now: u64 = self.clock.now_as_timestamp();
+        let now: u64 = self.clock.unix_now_secs();
         if !(block_number == height
             && timestamp.0 >= self.last_block_timestamp.unwrap_or(0)
             && timestamp.0 <= now + self.config.block_timestamp_window_seconds)
@@ -919,7 +900,7 @@ async fn build_proposal(mut args: ProposalBuildArguments) {
 async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<ConsensusBlockInfo> {
     let batcher_timeout = chrono::Duration::from_std(args.batcher_timeout)
         .expect("Can't convert timeout to chrono::Duration");
-    let timestamp = args.clock.now_as_timestamp();
+    let timestamp = args.clock.unix_now_secs();
     let (eth_to_fri_rate, mut l1_prices) = get_oracle_rate_and_prices(
         args.eth_to_strk_oracle_client.clone(),
         args.l1_gas_price_provider_client.clone(),
@@ -951,7 +932,7 @@ async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<Consens
         retrospective_block_hash(args.state_sync_client.clone(), &block_info).await?;
     let build_proposal_input = ProposeBlockInput {
         proposal_id: args.proposal_id,
-        deadline: args.clock.now() + batcher_timeout,
+        deadline: args.clock.chrono_unix_now() + batcher_timeout,
         retrospective_block_hash,
         block_info: convert_to_sn_api_block_info(&block_info),
     };
@@ -1055,7 +1036,7 @@ async fn get_proposal_content(
 
 async fn validate_proposal(mut args: ProposalValidateArguments) {
     let mut content = Vec::new();
-    let now = args.clock.now_at_tokio_instant();
+    let now = args.clock.now();
     let Some(deadline) = now.checked_add(args.timeout) else {
         warn!("Cannot calculate deadline. Timeout: {:?}, now: {:?}", args.timeout, now);
         return;
@@ -1184,12 +1165,12 @@ async fn is_block_info_valid(
     block_info_validation: BlockInfoValidation,
     block_info_proposed: ConsensusBlockInfo,
     eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
-    clock: &dyn Clock,
+    clock: &dyn Clock<Instant = TokioInstant>,
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     gas_price_params: GasPriceParams,
     previous_block_info: Option<ConsensusBlockInfo>,
 ) -> bool {
-    let now: u64 = clock.now_as_timestamp();
+    let now: u64 = clock.unix_now_secs();
     if !(block_info_proposed.height == block_info_validation.height
         && block_info_proposed.timestamp >= block_info_validation.last_block_timestamp.unwrap_or(0)
         // Check timestamp isn't in the future (allowing for clock disagreement).
@@ -1263,7 +1244,7 @@ fn within_margin(number1: GasPrice, number2: GasPrice, margin_percent: u128) -> 
 // 2. BlockInfo - required to begin executing TX batches.
 async fn await_second_proposal_part(
     cancel_token: &CancellationToken,
-    deadline: tokio::time::Instant,
+    deadline: TokioInstant,
     content_receiver: &mut mpsc::Receiver<ProposalPart>,
     fin_sender: oneshot::Sender<ProposalCommitment>,
 ) -> Option<(ConsensusBlockInfo, oneshot::Sender<ProposalCommitment>)> {
@@ -1307,14 +1288,14 @@ async fn initiate_validation(
     block_info: ConsensusBlockInfo,
     proposal_id: ProposalId,
     timeout_plus_margin: Duration,
-    clock: &dyn Clock,
+    clock: &dyn Clock<Instant = TokioInstant>,
 ) -> ProposalResult<()> {
     let chrono_timeout = chrono::Duration::from_std(timeout_plus_margin)
         .expect("Can't convert timeout to chrono::Duration");
 
     let input = ValidateBlockInput {
         proposal_id,
-        deadline: clock.now() + chrono_timeout,
+        deadline: clock.chrono_unix_now() + chrono_timeout,
         retrospective_block_hash: retrospective_block_hash(state_sync_client, &block_info).await?,
         block_info: convert_to_sn_api_block_info(&block_info),
     };

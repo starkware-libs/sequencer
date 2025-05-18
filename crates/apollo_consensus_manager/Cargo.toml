@@ -26,6 +26,7 @@ apollo_network.workspace = true
 apollo_protobuf.workspace = true
 apollo_reverts.workspace = true
 apollo_state_sync_types.workspace = true
+apollo_time = { workspace = true, features = ["chrono", "tokio"] }
 async-trait.workspace = true
 futures.workspace = true
 serde.workspace = true
