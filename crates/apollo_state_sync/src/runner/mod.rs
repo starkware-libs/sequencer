@@ -31,7 +31,6 @@ use apollo_starknet_client::reader::objects::pending_data::{
 };
 use apollo_starknet_client::reader::PendingData;
 use apollo_state_sync_metrics::metrics::{
-    register_metrics,
     update_marker_metrics,
     P2P_SYNC_NUM_ACTIVE_INBOUND_SESSIONS,
     P2P_SYNC_NUM_ACTIVE_OUTBOUND_SESSIONS,
@@ -142,8 +141,6 @@ impl StateSyncRunner {
             pending_data,
             pending_classes,
         } = StateSyncResources::new(&storage_config);
-
-        register_metrics(&storage_reader.begin_ro_txn().unwrap());
 
         if revert_config.should_revert {
             let revert_up_to_and_including = revert_config.revert_up_to_and_including;

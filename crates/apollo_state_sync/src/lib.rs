@@ -8,6 +8,7 @@ use std::cmp::min;
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use apollo_infra::component_server::{LocalComponentServer, RemoteComponentServer};
+use apollo_state_sync_metrics::metrics::register_metrics;
 use apollo_state_sync_types::communication::{StateSyncRequest, StateSyncResponse};
 use apollo_state_sync_types::errors::StateSyncError;
 use apollo_state_sync_types::state_sync_types::{StateSyncResult, SyncBlock};
@@ -258,4 +259,10 @@ pub type LocalStateSyncServer =
     LocalComponentServer<StateSync, StateSyncRequest, StateSyncResponse>;
 pub type RemoteStateSyncServer = RemoteComponentServer<StateSyncRequest, StateSyncResponse>;
 
-impl ComponentStarter for StateSync {}
+#[async_trait]
+impl ComponentStarter for StateSync {
+    async fn start(&mut self) {
+        let txn = self.storage_reader.begin_ro_txn().unwrap();
+        register_metrics(&txn);
+    }
+}
