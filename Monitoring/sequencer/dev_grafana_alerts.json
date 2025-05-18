@@ -1,6 +1,32 @@
 {
   "alerts": [
     {
+      "name": "consensus_block_number_stuck",
+      "title": "Consensus block number stuck",
+      "ruleGroup": "consensus",
+      "expr": "changes(consensus_block_number[12s])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              1.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "10s",
+      "intervalSec": 10
+    },
+    {
       "name": "gateway_add_tx_rate_drop",
       "title": "Gateway add_tx rate drop",
       "ruleGroup": "gateway",
