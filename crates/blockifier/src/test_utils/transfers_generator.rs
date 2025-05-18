@@ -1,3 +1,5 @@
+use std::time::{Duration, Instant};
+
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use blockifier_test_utils::contracts::FeatureContract;
 use rand::rngs::StdRng;
@@ -142,7 +144,9 @@ impl TransfersGenerator {
         }
     }
 
-    pub fn execute_transfers(&mut self) {
+    /// Generates and executes transfer transactions.
+    /// Returns the number of transactions executed.
+    pub fn execute_transfers(&mut self, timeout: Option<Duration>) -> usize {
         let mut txs: Vec<Transaction> = Vec::with_capacity(self.config.n_txs);
         for _ in 0..self.config.n_txs {
             let sender_address = self.account_addresses[self.sender_index];
@@ -153,11 +157,13 @@ impl TransfersGenerator {
             let account_tx = AccountTransaction::new_for_sequencing(tx);
             txs.push(Transaction::Account(account_tx));
         }
-        let results = self.executor.execute_txs(&txs);
-        assert_eq!(results.len(), self.config.n_txs);
+        let execution_deadline = timeout.map(|timeout| Instant::now() + timeout);
+        let results = self.executor.execute_txs(&txs, execution_deadline);
+        let n_results = results.len();
         for result in results {
             assert!(!result.unwrap().0.is_reverted());
         }
+        n_results
         // TODO(Avi, 01/06/2024): Run the same transactions concurrently on a new state and compare
         // the state diffs.
     }
