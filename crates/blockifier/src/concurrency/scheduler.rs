@@ -62,12 +62,12 @@ impl<'a> TransactionCommitter<'a> {
 pub struct Scheduler {
     execution_index: AtomicUsize,
     validation_index: AtomicUsize,
-    // The index of the next transaction to commit.
+    /// The index of the next transaction to commit.
     commit_index: Mutex<usize>,
     chunk_size: usize,
     tx_statuses: DashMap<TxIndex, TransactionStatus>,
-    // Set to true when all transactions have been committed, or when calling the halt_scheduler
-    // procedure, providing a cheap way for all threads to exit their main loops.
+    /// Set to true when all transactions have been committed, or when calling the halt_scheduler
+    /// procedure, providing a cheap way for all threads to exit their main loops.
     done_marker: AtomicBool,
 }
 
@@ -238,6 +238,18 @@ impl Scheduler {
     /// Returns the done marker.
     pub fn done(&self) -> bool {
         self.done_marker.load(Ordering::Acquire)
+    }
+
+    /// Sleeps until the scheduler is done.
+    pub fn wait_for_completion(&self) {
+        while !self.done() {
+            std::thread::sleep(std::time::Duration::from_micros(1));
+        }
+
+        // Lock and release the commit index to ensure that no commit phase is in progress.
+        // Future calls to `try_commit` (which is under the same lock) will exit immediately since
+        // the done marker is set.
+        drop(self.commit_index.lock());
     }
 
     #[cfg(any(feature = "testing", test))]
