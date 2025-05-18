@@ -70,7 +70,8 @@ impl ConcurrencyMetrics {
 pub struct WorkerExecutor<S: StateReader> {
     pub scheduler: Scheduler,
     pub state: ThreadSafeVersionedState<S>,
-    pub chunk: Vec<Transaction>,
+    pub transactions: DashMap<TxIndex, Arc<Transaction>>,
+    pub n_transactions: Mutex<usize>,
     pub execution_outputs: DashMap<TxIndex, ExecutionTaskOutput>,
     pub block_context: Arc<BlockContext>,
     pub bouncer: Arc<Mutex<Bouncer>>,
@@ -80,14 +81,20 @@ pub struct WorkerExecutor<S: StateReader> {
 impl<S: StateReader> WorkerExecutor<S> {
     pub fn new(
         state: ThreadSafeVersionedState<S>,
-        chunk: Vec<Transaction>,
+        chunk_vec: Vec<Transaction>,
         block_context: Arc<BlockContext>,
         bouncer: Arc<Mutex<Bouncer>>,
     ) -> Self {
+        let n_transactions = Mutex::new(chunk_vec.len());
         WorkerExecutor {
             scheduler: Scheduler::new(),
             state,
-            chunk,
+            transactions: chunk_vec
+                .into_iter()
+                .enumerate()
+                .map(|(i, tx)| (i, Arc::new(tx)))
+                .collect(),
+            n_transactions,
             execution_outputs: DashMap::new(),
             block_context,
             bouncer,
@@ -98,14 +105,14 @@ impl<S: StateReader> WorkerExecutor<S> {
     // TODO(barak, 01/08/2024): Remove the `new` method or move it to test utils.
     pub fn initialize(
         state: S,
-        chunk: Vec<Transaction>,
+        transactions: Vec<Transaction>,
         block_context: Arc<BlockContext>,
         bouncer: Arc<Mutex<Bouncer>>,
     ) -> Self {
         let versioned_state = VersionedState::new(state);
         let chunk_state = ThreadSafeVersionedState::new(versioned_state);
 
-        WorkerExecutor::new(chunk_state, chunk, block_context, bouncer)
+        WorkerExecutor::new(chunk_state, transactions, block_context, bouncer)
     }
 
     pub fn run(&self) {
@@ -124,13 +131,23 @@ impl<S: StateReader> WorkerExecutor<S> {
         }
     }
 
+    /// Returns the transaction at the given index.
+    /// Panics if the transaction does not exist.
+    fn tx_at(&self, tx_index: TxIndex) -> Arc<Transaction> {
+        self.transactions.get(&tx_index).expect("Transaction missing").value().clone()
+    }
+
+    fn get_n_transactions(&self) -> usize {
+        *self.n_transactions.lock().expect("Failed to lock n_transactions")
+    }
+
     fn commit_while_possible(&self) {
         if let Some(mut tx_committer) = self.scheduler.try_enter_commit_phase() {
             while let Some(tx_index) = tx_committer.try_commit() {
                 let commit_succeeded = self.commit_tx(tx_index);
                 if !commit_succeeded {
                     tx_committer.abort_task_and_halt_scheduler();
-                } else if tx_index == self.chunk.len() - 1 {
+                } else if tx_index == self.get_n_transactions() - 1 {
                     self.scheduler.halt();
                 }
             }
@@ -138,7 +155,7 @@ impl<S: StateReader> WorkerExecutor<S> {
     }
 
     fn execute(&self, tx_index: TxIndex) {
-        if tx_index < self.chunk.len() {
+        if tx_index < self.get_n_transactions() {
             self.metrics.count_execute();
             self.execute_tx(tx_index);
             self.scheduler.finish_execution(tx_index)
@@ -152,13 +169,15 @@ impl<S: StateReader> WorkerExecutor<S> {
 
     fn execute_tx(&self, tx_index: TxIndex) {
         let mut tx_versioned_state = self.state.pin_version(tx_index);
-        let tx = &self.chunk[tx_index];
         // TODO(Yoni): is it necessary to use a transactional state here?
         let mut transactional_state =
             TransactionalState::create_transactional(&mut tx_versioned_state);
         let concurrency_mode = true;
-        let execution_result =
-            tx.execute_raw(&mut transactional_state, &self.block_context, concurrency_mode);
+        let execution_result = self.tx_at(tx_index).execute_raw(
+            &mut transactional_state,
+            &self.block_context,
+            concurrency_mode,
+        );
 
         // Update the versioned state and store the transaction execution output.
         let execution_output_inner = match execution_result {
@@ -249,7 +268,8 @@ impl<S: StateReader> WorkerExecutor<S> {
         let mut tx_state_changes_keys = execution_output.state_diff.keys();
 
         if let Ok(tx_execution_info) = execution_output.result.as_mut() {
-            let tx_context = self.block_context.to_tx_context(&self.chunk[tx_index]);
+            let tx = &*self.tx_at(tx_index);
+            let tx_context = self.block_context.to_tx_context(tx);
             // Add the deleted sequencer balance key to the storage keys.
             let concurrency_mode = true;
             tx_state_changes_keys.update_sequencer_key_in_storage(
@@ -279,7 +299,7 @@ impl<S: StateReader> WorkerExecutor<S> {
                 tx_execution_info,
                 &mut execution_output.state_diff,
                 &mut tx_versioned_state,
-                &self.chunk[tx_index],
+                tx,
             );
             // Optimization: changing the sequencer balance storage cell does not trigger
             // (re-)validation of the next transactions.
