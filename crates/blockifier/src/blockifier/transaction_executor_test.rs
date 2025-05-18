@@ -329,7 +329,7 @@ fn test_execute_txs_bouncing(#[values(true, false)] concurrency_enabled: bool) {
     .collect();
 
     // Run.
-    let results = tx_executor.execute_txs(&txs);
+    let results = tx_executor.execute_txs(&txs, None);
 
     // Check execution results.
     let expected_offset = 3;
@@ -357,12 +357,12 @@ fn test_execute_txs_bouncing(#[values(true, false)] concurrency_enabled: bool) {
 
     // Check idempotency: excess transactions should not be added.
     let remaining_txs = &txs[expected_offset..];
-    let remaining_tx_results = tx_executor.execute_txs(remaining_txs);
+    let remaining_tx_results = tx_executor.execute_txs(remaining_txs, None);
     assert_eq!(remaining_tx_results.len(), 0);
 
     // Reset the bouncer and add the remaining transactions.
     tx_executor.bouncer = Bouncer::new(tx_executor.block_context.bouncer_config.clone());
-    let remaining_tx_results = tx_executor.execute_txs(remaining_txs);
+    let remaining_tx_results = tx_executor.execute_txs(remaining_txs, None);
 
     assert_eq!(remaining_tx_results.len(), 2);
     assert!(remaining_tx_results[0].is_ok());
@@ -410,7 +410,7 @@ fn test_stack_overflow(#[values(true, false)] concurrency_enabled: bool) {
     // Run.
     let config = TransactionExecutorConfig::create_for_testing(concurrency_enabled);
     let mut executor = TransactionExecutor::new(state, block_context, config);
-    let results = executor.execute_txs(&vec![account_tx.into()]);
+    let results = executor.execute_txs(&vec![account_tx.into()], None);
 
     let (tx_execution_info, _state_diff) = results[0].as_ref().unwrap();
     assert!(tx_execution_info.is_reverted());

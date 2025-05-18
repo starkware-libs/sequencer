@@ -24,7 +24,8 @@ impl<S: StateReader + Send + Sync> TransactionExecutorTrait for TransactionExecu
         &mut self,
         txs: &[BlockifierTransaction],
     ) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>> {
-        self.execute_txs(txs)
+        // TODO(Itamar): pass the timeout to the executor.
+        self.execute_txs(txs, None)
             .into_iter()
             .map(|res| res.map(|(tx_execution_info, _state_diff)| tx_execution_info))
             .collect()

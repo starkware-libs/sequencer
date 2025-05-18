@@ -1,6 +1,7 @@
 use std::mem;
 use std::panic::{self, catch_unwind, AssertUnwindSafe};
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use apollo_infra_utils::tracing::LogCompatibleToStringExt;
 use itertools::FoldWhile::{Continue, Done};
@@ -145,9 +146,16 @@ impl<S: StateReader> TransactionExecutor<S> {
     fn execute_txs_sequentially_inner(
         &mut self,
         txs: &[Transaction],
+        execution_deadline: Option<Instant>,
     ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
         let mut results = Vec::new();
         for tx in txs {
+            if let Some(deadline) = execution_deadline {
+                if Instant::now() > deadline {
+                    log::debug!("Execution timed out.");
+                    break;
+                }
+            }
             match self.execute(tx) {
                 Ok((tx_execution_info, state_diff)) => {
                     results.push(Ok((tx_execution_info, state_diff)))
@@ -200,15 +208,23 @@ impl<S: StateReader> TransactionExecutor<S> {
 
 impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
     /// Executes the given transactions on the state maintained by the executor.
-    /// Stops if and when there is no more room in the block, and returns the executed transactions'
-    /// results.
+    ///
+    /// # Arguments:
+    /// * `txs` - A slice of transactions to be executed
+    /// * `timeout` - Optional duration specifying maximum execution time
+    ///
+    /// Returns a vector of `TransactionExecutorResult<TransactionExecutionOutput>`, containing the
+    /// execution results for each transaction. The execution may stop early if the block becomes
+    /// full.
     pub fn execute_txs(
         &mut self,
         txs: &[Transaction],
+        timeout: Option<Duration>,
     ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
+        let execution_deadline = timeout.map(|timeout| Instant::now() + timeout);
         if !self.config.concurrency_config.enabled {
             log::debug!("Executing transactions sequentially.");
-            self.execute_txs_sequentially(txs)
+            self.execute_txs_sequentially(txs, execution_deadline)
         } else {
             log::debug!("Executing transactions concurrently.");
             let chunk_size = self.config.concurrency_config.chunk_size;
@@ -227,7 +243,7 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
             );
             txs.chunks(chunk_size)
                 .fold_while(Vec::new(), |mut results, chunk| {
-                    let chunk_results = self.execute_chunk(chunk);
+                    let chunk_results = self.execute_chunk(chunk, execution_deadline);
                     if chunk_results.len() < chunk.len() {
                         // Block is full.
                         results.extend(chunk_results);
@@ -244,9 +260,10 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
     fn execute_txs_sequentially(
         &mut self,
         txs: &[Transaction],
+        execution_deadline: Option<Instant>,
     ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
         #[cfg(not(feature = "cairo_native"))]
-        return self.execute_txs_sequentially_inner(txs);
+        return self.execute_txs_sequentially_inner(txs, execution_deadline);
         #[cfg(feature = "cairo_native")]
         {
             // TODO(meshi): find a way to access the contract class manager config from transaction
@@ -266,7 +283,7 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
                     // The gas upper bound is MAX_POSSIBLE_SIERRA_GAS, and sequencers must not raise it without
                     // adjusting the stack size.
                     .stack_size(self.config.stack_size)
-                    .spawn_scoped(s, || self.execute_txs_sequentially_inner(&txs))
+                    .spawn_scoped(s, || self.execute_txs_sequentially_inner(&txs, execution_deadline))
                     .expect("Failed to spawn thread")
                     .join()
                     .expect("Failed to join thread.")
@@ -277,6 +294,7 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
     fn execute_chunk(
         &mut self,
         chunk: &[Transaction],
+        execution_deadline: Option<Instant>,
     ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
         let block_state = self.block_state.take().expect("The block state should be `Some`.");
         let chunk_size = chunk.len();
@@ -286,6 +304,7 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
             chunk,
             &self.block_context,
             Mutex::new(&mut self.bouncer),
+            execution_deadline,
         ));
 
         // No thread pool implementation is needed here since we already have our scheduler. The
