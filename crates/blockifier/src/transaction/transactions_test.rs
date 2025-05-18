@@ -7,6 +7,7 @@ use blockifier_test_utils::calldata::{create_calldata, create_trivial_calldata};
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use expect_test::expect;
 use num_bigint::BigUint;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
@@ -176,7 +177,30 @@ use crate::{
     check_tx_execution_error_for_invalid_scenario,
     retdata,
 };
-const DECLARE_REDEPOSIT_AMOUNT: u64 = 7160;
+
+static DECLARE_REDEPOSIT_AMOUNT: LazyLock<u64> = LazyLock::new(|| {
+    let resource_bounds = default_all_resource_bounds();
+    let cairo_version = CairoVersion::Cairo1(RunnableCairo1::Casm);
+    let block_context = &BlockContext::create_for_account_testing_with_kzg(true);
+    let account = FeatureContract::AccountWithoutValidations(cairo_version);
+    let empty_contract = FeatureContract::Empty(cairo_version);
+    let chain_info = &block_context.chain_info;
+    let state = &mut test_state(chain_info, BALANCE, &[(account, 1)]);
+    let account_tx = AccountTransaction::new_with_default_flags(executable_declare_tx(
+        declare_tx_args! {
+            sender_address: account.get_instance_address(0),
+            version: TransactionVersion::THREE,
+            resource_bounds,
+            class_hash: empty_contract.get_class_hash(),
+            compiled_class_hash: empty_contract.get_compiled_class_hash(),
+            nonce: Nonce(Felt::ZERO),
+        },
+        calculate_class_info_for_testing(empty_contract.get_class()).clone(),
+    ));
+    let actual_execution_info = account_tx.execute(state, block_context).unwrap();
+    VersionedConstants::latest_constants().os_constants.gas_costs.base.entry_point_initial_budget
+        - actual_execution_info.validate_call_info.unwrap().execution.gas_consumed
+});
 const DEPLOY_ACCOUNT_REDEPOSIT_AMOUNT: u64 = 6760;
 static VERSIONED_CONSTANTS: LazyLock<VersionedConstants> =
     LazyLock::new(VersionedConstants::create_for_testing);
@@ -1599,7 +1623,7 @@ fn declare_validate_callinfo(
                     .gas_costs
                     .base
                     .entry_point_initial_budget
-                    - DECLARE_REDEPOSIT_AMOUNT
+                    - *DECLARE_REDEPOSIT_AMOUNT
             }
         };
         expected_validate_call_info(
@@ -1640,6 +1664,14 @@ fn declare_expected_state_changes_count(version: TransactionVersion) -> StateCha
     } else {
         panic!("Unsupported version {version:?}.")
     }
+}
+
+#[rstest]
+fn test_declare_redeposit_amount_regression() {
+    expect![[r#"
+        7160
+    "#]]
+    .assert_debug_eq(&*DECLARE_REDEPOSIT_AMOUNT);
 }
 
 #[apply(cairo_version)]
@@ -1749,7 +1781,7 @@ fn test_declare_tx(
             if tx_version == TransactionVersion::ZERO {
                 GasAmount(0)
             } else {
-                GasAmount(initial_gas - DECLARE_REDEPOSIT_AMOUNT)
+                GasAmount(initial_gas - *DECLARE_REDEPOSIT_AMOUNT)
             }
         }
     };
