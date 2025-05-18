@@ -1,6 +1,6 @@
 {
   "chain_id": "SN_INTEGRATION_SEPOLIA",
-  "application_config_subdir": "config/sequencer/testing_env_2/app_configs/hybrid/integration_hybrid_node_1/",
+  "application_config_subdir": "config/sequencer/auto_generated/testing/app_configs/hybrid/deployment_test_hybrid/",
   "services": [
     {
       "name": "Core",
@@ -13,21 +13,19 @@
       "ingress": null,
       "autoscale": false,
       "replicas": 1,
-      "storage": 1000,
-      "toleration": "apollo-core-service",
+      "storage": null,
+      "toleration": null,
       "resources": {
         "requests": {
-          "cpu": 2,
-          "memory": 4
+          "cpu": 1,
+          "memory": 2
         },
         "limits": {
-          "cpu": 7,
-          "memory": 14
+          "cpu": 4,
+          "memory": 8
         }
       },
-      "external_secret": {
-        "gcsm_key": "sequencer-test-sepolia-1"
-      }
+      "external_secret": null
     },
     {
       "name": "HttpServer",
@@ -39,10 +37,8 @@
       ],
       "ingress": {
         "domain": "sw-dev.io",
-        "alternative_names": [
-          "sn-test-sepolia-2-sepolia.gateway-proxy.sw-dev.io"
-        ],
-        "internal": false,
+        "alternative_names": [],
+        "internal": true,
         "rules": [
           {
             "path": "/gateway",
@@ -54,7 +50,7 @@
       "autoscale": false,
       "replicas": 1,
       "storage": null,
-      "toleration": "apollo-general-service",
+      "toleration": null,
       "resources": {
         "requests": {
           "cpu": 1,
@@ -65,9 +61,7 @@
           "memory": 8
         }
       },
-      "external_secret": {
-        "gcsm_key": "sequencer-test-sepolia-1"
-      }
+      "external_secret": null
     },
     {
       "name": "Gateway",
@@ -79,22 +73,20 @@
       ],
       "ingress": null,
       "autoscale": true,
-      "replicas": 2,
+      "replicas": 1,
       "storage": null,
-      "toleration": "apollo-general-service",
+      "toleration": null,
       "resources": {
         "requests": {
           "cpu": 1,
           "memory": 2
         },
         "limits": {
-          "cpu": 2,
-          "memory": 4
+          "cpu": 4,
+          "memory": 8
         }
       },
-      "external_secret": {
-        "gcsm_key": "sequencer-test-sepolia-1"
-      }
+      "external_secret": null
     },
     {
       "name": "Mempool",
@@ -108,20 +100,18 @@
       "autoscale": false,
       "replicas": 1,
       "storage": null,
-      "toleration": "apollo-general-service",
+      "toleration": null,
       "resources": {
         "requests": {
           "cpu": 1,
           "memory": 2
         },
         "limits": {
-          "cpu": 2,
-          "memory": 4
+          "cpu": 4,
+          "memory": 8
         }
       },
-      "external_secret": {
-        "gcsm_key": "sequencer-test-sepolia-1"
-      }
+      "external_secret": null
     },
     {
       "name": "SierraCompiler",
@@ -133,22 +123,20 @@
       ],
       "ingress": null,
       "autoscale": true,
-      "replicas": 2,
+      "replicas": 1,
       "storage": null,
-      "toleration": "apollo-general-service",
+      "toleration": null,
       "resources": {
         "requests": {
           "cpu": 1,
           "memory": 2
         },
         "limits": {
-          "cpu": 2,
-          "memory": 4
+          "cpu": 4,
+          "memory": 8
         }
       },
-      "external_secret": {
-        "gcsm_key": "sequencer-test-sepolia-1"
-      }
+      "external_secret": null
     }
   ]
 }

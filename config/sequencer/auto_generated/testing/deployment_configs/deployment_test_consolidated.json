@@ -1,6 +1,6 @@
 {
   "chain_id": "SN_INTEGRATION_SEPOLIA",
-  "application_config_subdir": "config/sequencer/testing/app_configs/consolidated/deployment_test_consolidated/",
+  "application_config_subdir": "config/sequencer/auto_generated/testing/app_configs/consolidated/deployment_test_consolidated/",
   "services": [
     {
       "name": "Node",
