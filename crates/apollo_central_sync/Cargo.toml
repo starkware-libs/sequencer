@@ -15,10 +15,10 @@ apollo_proc_macros.workspace = true
 apollo_starknet_client.workspace = true
 apollo_state_sync_metrics.workspace = true
 apollo_storage.workspace = true
+apollo_time.workspace = true
 async-stream.workspace = true
 async-trait.workspace = true
 cairo-lang-starknet-classes.workspace = true
-chrono.workspace = true
 futures.workspace = true
 futures-util.workspace = true
 indexmap = { workspace = true, features = ["serde"] }

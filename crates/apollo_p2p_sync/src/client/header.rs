@@ -5,7 +5,8 @@ use apollo_state_sync_metrics::metrics::{STATE_SYNC_HEADER_LATENCY_SEC, STATE_SY
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::header::{HeaderStorageReader, HeaderStorageWriter};
 use apollo_storage::{StorageError, StorageReader, StorageWriter};
-use chrono::{TimeZone, Utc};
+use apollo_time::clock::UnixClock;
+use apollo_time::system::SystemClock;
 use futures::future::BoxFuture;
 use futures::{FutureExt, StreamExt};
 use starknet_api::block::{BlockHash, BlockHeader, BlockNumber, BlockSignature};
@@ -49,18 +50,14 @@ impl BlockData for SignedBlockHeader {
             STATE_SYNC_HEADER_MARKER.set_lossy(
                 self.block_header.block_header_without_hash.block_number.unchecked_next().0,
             );
-            // TODO(shahak): Fix code dup with central sync
-            let time_delta = Utc::now()
-                - Utc
-                    .timestamp_opt(
-                        self.block_header.block_header_without_hash.timestamp.0 as i64,
-                        0,
-                    )
-                    .single()
-                    .expect("block timestamp should be valid");
-            let header_latency = time_delta.num_seconds();
+            let header_latency = i64::try_from(SystemClock.unix_now_secs())
+                .unwrap()
+                .checked_sub(
+                    i64::try_from(self.block_header.block_header_without_hash.timestamp.0).unwrap(),
+                )
+                .expect("Latency should fit inside i64");
             debug!("Header latency: {}.", header_latency);
-            if header_latency >= 0 {
+            if header_latency.is_positive() {
                 STATE_SYNC_HEADER_LATENCY_SEC.set_lossy(header_latency);
             }
             Ok(())

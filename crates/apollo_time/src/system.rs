@@ -1,6 +1,6 @@
 use std::time::Instant as StdInstant;
 
-use crate::clock::InstantClock;
+use crate::clock::{InstantClock, UnixClock};
 
 /// A clock that relies on the the internal OS clock (CLOCK_MONOTONIC) for relative timing.
 /// Use this when you need real-world timing without interfacing with tokio Instance (don't mix the
@@ -14,3 +14,5 @@ impl InstantClock for SystemClock {
         StdInstant::now()
     }
 }
+
+impl UnixClock for SystemClock {}
