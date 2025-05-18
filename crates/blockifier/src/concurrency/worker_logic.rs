@@ -5,12 +5,14 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
+use dashmap::mapref::one::RefMut;
+use dashmap::DashMap;
+
 use super::versioned_state::VersionedState;
 use crate::blockifier::transaction_executor::TransactionExecutorError;
 use crate::bouncer::Bouncer;
 use crate::concurrency::fee_utils::complete_fee_transfer_flow;
 use crate::concurrency::scheduler::{Scheduler, Task};
-use crate::concurrency::utils::lock_mutex_in_array;
 use crate::concurrency::versioned_state::ThreadSafeVersionedState;
 use crate::concurrency::TxIndex;
 use crate::context::BlockContext;
@@ -69,7 +71,7 @@ pub struct WorkerExecutor<S: StateReader> {
     pub scheduler: Scheduler,
     pub state: ThreadSafeVersionedState<S>,
     pub chunk: Vec<Transaction>,
-    pub execution_outputs: Box<[Mutex<Option<ExecutionTaskOutput>>]>,
+    pub execution_outputs: DashMap<TxIndex, ExecutionTaskOutput>,
     pub block_context: Arc<BlockContext>,
     pub bouncer: Arc<Mutex<Bouncer>>,
     pub metrics: ConcurrencyMetrics,
@@ -82,19 +84,14 @@ impl<S: StateReader> WorkerExecutor<S> {
         block_context: Arc<BlockContext>,
         bouncer: Arc<Mutex<Bouncer>>,
     ) -> Self {
-        let scheduler = Scheduler::new();
-        let execution_outputs =
-            std::iter::repeat_with(|| Mutex::new(None)).take(chunk.len()).collect();
-        let metrics = ConcurrencyMetrics::default();
-
         WorkerExecutor {
-            scheduler,
+            scheduler: Scheduler::new(),
             state,
             chunk,
-            execution_outputs,
+            execution_outputs: DashMap::new(),
             block_context,
             bouncer,
-            metrics,
+            metrics: ConcurrencyMetrics::default(),
         }
     }
 
@@ -107,20 +104,8 @@ impl<S: StateReader> WorkerExecutor<S> {
     ) -> Self {
         let versioned_state = VersionedState::new(state);
         let chunk_state = ThreadSafeVersionedState::new(versioned_state);
-        let scheduler = Scheduler::new();
-        let execution_outputs =
-            std::iter::repeat_with(|| Mutex::new(None)).take(chunk.len()).collect();
-        let metrics = ConcurrencyMetrics::default();
 
-        WorkerExecutor {
-            scheduler,
-            state: chunk_state,
-            chunk,
-            execution_outputs,
-            block_context,
-            bouncer,
-            metrics,
-        }
+        WorkerExecutor::new(chunk_state, chunk, block_context, bouncer)
     }
 
     pub fn run(&self) {
@@ -197,15 +182,13 @@ impl<S: StateReader> WorkerExecutor<S> {
                 result: execution_result,
             },
         };
-        let mut execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
-        *execution_output = Some(execution_output_inner);
+        self.execution_outputs.insert(tx_index, execution_output_inner);
     }
 
     fn validate(&self, tx_index: TxIndex) -> Task {
         self.metrics.count_validate();
         let tx_versioned_state = self.state.pin_version(tx_index);
-        let execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
-        let execution_output = execution_output.as_ref().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR);
+        let execution_output = self.lock_execution_output(tx_index);
         let reads = &execution_output.reads;
         let reads_valid = tx_versioned_state.validate_reads(reads);
 
@@ -233,9 +216,8 @@ impl<S: StateReader> WorkerExecutor<S> {
     ///     * Else (execution failed), commit the transaction without fixing the call info or
     ///       updating the sequencer balance.
     fn commit_tx(&self, tx_index: TxIndex) -> bool {
-        let execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
-        let execution_output_ref = execution_output.as_ref().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR);
-        let reads = &execution_output_ref.reads;
+        let execution_output = self.lock_execution_output(tx_index);
+        let reads = &execution_output.reads;
 
         let mut tx_versioned_state = self.state.pin_version(tx_index);
         let reads_valid = tx_versioned_state.validate_reads(reads);
@@ -244,18 +226,16 @@ impl<S: StateReader> WorkerExecutor<S> {
         if !reads_valid {
             // Revalidate failed: re-execute the transaction.
             self.metrics.count_abort_in_commit();
-            tx_versioned_state.delete_writes(
-                &execution_output_ref.state_diff,
-                &execution_output_ref.contract_classes,
-            );
+            tx_versioned_state
+                .delete_writes(&execution_output.state_diff, &execution_output.contract_classes);
             // Release the execution output lock as it is acquired in execution (avoid dead-lock).
             drop(execution_output);
 
             self.execute_tx(tx_index);
             self.scheduler.finish_execution_during_commit(tx_index);
 
-            let execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
-            let read_set = &execution_output.as_ref().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR).reads;
+            let execution_output = self.lock_execution_output(tx_index);
+            let read_set = &execution_output.reads;
             // Another validation after the re-execution for sanity check.
             assert!(tx_versioned_state.validate_reads(read_set));
         } else {
@@ -264,8 +244,8 @@ impl<S: StateReader> WorkerExecutor<S> {
         }
 
         // Execution is final.
-        let mut execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
-        let execution_output = execution_output.as_mut().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR);
+        let mut execution_output_refmut = self.lock_execution_output(tx_index);
+        let execution_output = execution_output_refmut.value_mut();
         let mut tx_state_changes_keys = execution_output.state_diff.keys();
 
         if let Ok(tx_execution_info) = execution_output.result.as_mut() {
@@ -306,6 +286,20 @@ impl<S: StateReader> WorkerExecutor<S> {
         }
 
         true
+    }
+
+    /// Locks the execution output for the given transaction index.
+    /// Panics if the execution output does not exist.
+    pub fn lock_execution_output(
+        &self,
+        tx_index: TxIndex,
+    ) -> RefMut<'_, TxIndex, ExecutionTaskOutput> {
+        self.execution_outputs.get_mut(&tx_index).expect(EXECUTION_OUTPUTS_UNWRAP_ERROR)
+    }
+
+    /// Removes the execution output of the given transaction and returns it.
+    pub fn extract_execution_output(&self, tx_index: TxIndex) -> ExecutionTaskOutput {
+        self.execution_outputs.remove(&tx_index).expect(EXECUTION_OUTPUTS_UNWRAP_ERROR).1
     }
 }
 

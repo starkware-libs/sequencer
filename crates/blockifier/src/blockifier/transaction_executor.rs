@@ -354,18 +354,10 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
              {abort_in_commit_counter}"
         );
         let mut tx_execution_results = Vec::new();
-        for execution_output in worker_executor.execution_outputs.iter() {
-            if tx_execution_results.len() >= n_committed_txs {
-                break;
-            }
-            let locked_execution_output = execution_output
-                .lock()
-                .expect("Failed to lock execution output.")
-                .take()
-                .expect("Output must be ready.");
-            let tx_execution_output = locked_execution_output
-                .result
-                .map(|tx_execution_info| (tx_execution_info, locked_execution_output.state_diff))
+        for tx_index in 0..n_committed_txs {
+            let execution_output = worker_executor.extract_execution_output(tx_index);
+            let tx_execution_output = execution_output.result
+                .map(|tx_execution_info| (tx_execution_info, execution_output.state_diff))
                 .map_err(TransactionExecutorError::from);
             tx_execution_results.push(tx_execution_output);
         }
