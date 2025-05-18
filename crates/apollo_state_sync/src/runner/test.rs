@@ -15,6 +15,7 @@ fn run_panics_when_network_future_returns() {
     let central_sync_client_future = pending().boxed();
     let new_block_dev_null_future = pending().boxed();
     let rpc_server_future = pending().boxed();
+    let register_metrics_fn = Box::new(|| {});
     let mut state_sync_runner = StateSyncRunner {
         network_future,
         p2p_sync_client_future,
@@ -22,6 +23,7 @@ fn run_panics_when_network_future_returns() {
         central_sync_client_future,
         new_block_dev_null_future,
         rpc_server_future,
+        register_metrics_fn,
     };
     state_sync_runner.start().now_or_never().unwrap();
 }
@@ -36,6 +38,7 @@ fn run_panics_when_network_future_returns_error() {
     let central_sync_client_future = pending().boxed();
     let new_block_dev_null_future = pending().boxed();
     let rpc_server_future = pending().boxed();
+    let register_metrics_fn = Box::new(|| {});
     let mut state_sync_runner = StateSyncRunner {
         network_future,
         p2p_sync_client_future,
@@ -43,6 +46,7 @@ fn run_panics_when_network_future_returns_error() {
         central_sync_client_future,
         new_block_dev_null_future,
         rpc_server_future,
+        register_metrics_fn,
     };
     state_sync_runner.start().now_or_never().unwrap();
 }
@@ -56,6 +60,7 @@ fn run_panics_when_sync_client_future_returns_error() {
     let central_sync_client_future = pending().boxed();
     let new_block_dev_null_future = pending().boxed();
     let rpc_server_future = pending().boxed();
+    let register_metrics_fn = Box::new(|| {});
     let mut state_sync_runner = StateSyncRunner {
         network_future,
         p2p_sync_client_future,
@@ -63,6 +68,7 @@ fn run_panics_when_sync_client_future_returns_error() {
         central_sync_client_future,
         new_block_dev_null_future,
         rpc_server_future,
+        register_metrics_fn,
     };
     state_sync_runner.start().now_or_never().unwrap();
 }
