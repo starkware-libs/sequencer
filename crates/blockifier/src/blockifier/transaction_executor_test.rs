@@ -1,3 +1,5 @@
+use std::sync::{Arc, Mutex};
+
 use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
@@ -20,6 +22,7 @@ use crate::blockifier::transaction_executor::{
     BLOCK_STATE_ACCESS_ERR,
 };
 use crate::bouncer::{Bouncer, BouncerWeights};
+use crate::concurrency::worker_pool::WorkerPool;
 use crate::context::BlockContext;
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::StateReader;
@@ -58,7 +61,8 @@ fn tx_executor_test_body<S: StateReader>(
     // should not be added, rename the test to `test_bouncer_info`.
     // TODO(Arni, 30/03/2024): Test all bouncer weights.
     let _tx_execution_output = tx_executor.execute(&tx).unwrap();
-    let bouncer_weights = tx_executor.bouncer.get_accumulated_weights();
+    let bouncer = tx_executor.bouncer.lock().unwrap();
+    let bouncer_weights = bouncer.get_accumulated_weights();
     assert_eq!(bouncer_weights.state_diff_size, expected_bouncer_weights.state_diff_size);
     assert_eq!(
         bouncer_weights.message_segment_length,
@@ -280,7 +284,7 @@ fn test_bouncing(#[case] initial_bouncer_weights: BouncerWeights, #[case] n_even
     let mut tx_executor =
         TransactionExecutor::new(state, block_context, TransactionExecutorConfig::default());
 
-    tx_executor.bouncer.set_accumulated_weights(initial_bouncer_weights);
+    tx_executor.bouncer.lock().unwrap().set_accumulated_weights(initial_bouncer_weights);
 
     tx_executor
         .execute(
@@ -297,7 +301,10 @@ fn test_bouncing(#[case] initial_bouncer_weights: BouncerWeights, #[case] n_even
 }
 
 #[rstest]
-fn test_execute_txs_bouncing(#[values(true, false)] concurrency_enabled: bool) {
+#[case(false, false)]
+#[case(true, false)]
+#[case(true, true)]
+fn test_execute_txs_bouncing(#[case] concurrency_enabled: bool, #[case] external_pool: bool) {
     let config = TransactionExecutorConfig::create_for_testing(concurrency_enabled);
     let max_n_events_in_block = 10;
     let block_context = BlockContext::create_for_bouncer_testing(max_n_events_in_block);
@@ -307,7 +314,13 @@ fn test_execute_txs_bouncing(#[values(true, false)] concurrency_enabled: bool) {
         CairoVersion::Cairo1(RunnableCairo1::Casm),
     );
 
-    let mut tx_executor = TransactionExecutor::new(state, block_context, config);
+    let pool = if external_pool {
+        Some(Arc::new(WorkerPool::start(config.stack_size, config.concurrency_config.clone())))
+    } else {
+        None
+    };
+
+    let mut tx_executor = TransactionExecutor::new_with_pool(state, block_context, config, pool);
 
     let txs: Vec<Transaction> = [
         emit_n_events_tx(1, account_address, contract_address, nonce!(0_u32)),
@@ -361,7 +374,8 @@ fn test_execute_txs_bouncing(#[values(true, false)] concurrency_enabled: bool) {
     assert_eq!(remaining_tx_results.len(), 0);
 
     // Reset the bouncer and add the remaining transactions.
-    tx_executor.bouncer = Bouncer::new(tx_executor.block_context.bouncer_config.clone());
+    tx_executor.bouncer =
+        Mutex::new(Bouncer::new(tx_executor.block_context.bouncer_config.clone())).into();
     let remaining_tx_results = tx_executor.execute_txs(remaining_txs);
 
     assert_eq!(remaining_tx_results.len(), 2);
@@ -376,6 +390,11 @@ fn test_execute_txs_bouncing(#[values(true, false)] concurrency_enabled: bool) {
             .unwrap(),
         nonce!(4_u32)
     );
+
+    // End test by calling pool.join(), if pool is used.
+    if let Some(pool) = tx_executor.worker_pool {
+        Arc::try_unwrap(pool).expect("More than one instance of worker pool exists").join();
+    }
 }
 
 #[cfg(feature = "cairo_native")]
