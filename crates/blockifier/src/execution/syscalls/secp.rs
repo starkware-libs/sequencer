@@ -15,6 +15,7 @@ use crate::execution::secp::new_affine;
 use crate::execution::syscalls::hint_processor::{felt_to_bool, SyscallExecutionError};
 use crate::execution::syscalls::syscall_base::SyscallResult;
 use crate::execution::syscalls::vm_syscall_utils::{
+    SyscallBaseResult,
     SyscallExecutorBaseError,
     SyscallRequest,
     SyscallResponse,
@@ -178,7 +179,7 @@ pub struct SecpAddRequest {
 }
 
 impl SyscallRequest for SecpAddRequest {
-    fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<SecpAddRequest> {
+    fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallBaseResult<SecpAddRequest> {
         Ok(SecpAddRequest {
             lhs_ptr: relocatable_from_ptr(vm, ptr)?,
             rhs_ptr: relocatable_from_ptr(vm, ptr)?,
@@ -199,7 +200,10 @@ pub struct SecpGetPointFromXRequest {
 }
 
 impl SyscallRequest for SecpGetPointFromXRequest {
-    fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<SecpGetPointFromXRequest> {
+    fn read(
+        vm: &VirtualMachine,
+        ptr: &mut Relocatable,
+    ) -> SyscallBaseResult<SecpGetPointFromXRequest> {
         let x = SierraU256::from_memory(vm, ptr)?.to_biguint();
 
         let y_parity = felt_to_bool(felt_from_ptr(vm, ptr)?, "Invalid y parity")?;
@@ -217,7 +221,7 @@ pub struct SecpGetXyRequest {
 }
 
 impl SyscallRequest for SecpGetXyRequest {
-    fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<SecpGetXyRequest> {
+    fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallBaseResult<SecpGetXyRequest> {
         Ok(SecpGetXyRequest { ec_point_ptr: relocatable_from_ptr(vm, ptr)? })
     }
 }
@@ -241,7 +245,7 @@ pub struct SecpMulRequest {
 }
 
 impl SyscallRequest for SecpMulRequest {
-    fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<SecpMulRequest> {
+    fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallBaseResult<SecpMulRequest> {
         let ec_point_ptr = relocatable_from_ptr(vm, ptr)?;
         let multiplier = SierraU256::from_memory(vm, ptr)?.to_biguint();
         Ok(SecpMulRequest { ec_point_ptr, multiplier })
@@ -255,7 +259,7 @@ pub type SecpMulResponse = SecpOpRespone;
 pub type SecpNewRequest = EcPointCoordinates;
 
 impl SyscallRequest for SecpNewRequest {
-    fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<SecpNewRequest> {
+    fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallBaseResult<SecpNewRequest> {
         let x = SierraU256::from_memory(vm, ptr)?.to_biguint();
         let y = SierraU256::from_memory(vm, ptr)?.to_biguint();
         Ok(SecpNewRequest { x, y })
