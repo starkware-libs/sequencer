@@ -526,7 +526,7 @@ func execute_invoke_function_transaction{
         execution_context=tx_execution_context
     );
 
-    if (nondet %{ execution_helper.tx_execution_info.is_reverted %} == 0) {
+    if (nondet %{ execution_helper.tx_execution_info.is_reverted %} != TRUE) {
         // Execute only non-reverted transactions.
         with remaining_gas {
             cap_remaining_gas(max_gas=EXECUTE_MAX_SIERRA_GAS);
@@ -592,6 +592,13 @@ func execute_l1_handler_transaction{
             f"Computed hash = {ids.transaction_hash}, Expected hash = {tx.hash_value}.")
     %}
 
+    // Skip the execution step for reverted transaction.
+    %{ execution_helper.start_tx() %}
+    if (nondet %{ execution_helper.tx_execution_info.is_reverted %} != FALSE) {
+        %{ execution_helper.skip_tx() %}
+        return ();
+    }
+
     // Write the transaction info and complete the ExecutionInfo struct.
     tempvar tx_info = tx_execution_info.tx_info;
     assert [tx_info] = TxInfo(
@@ -618,7 +625,6 @@ func execute_l1_handler_transaction{
 
     // Consume L1-to-L2 message.
     consume_l1_to_l2_message(execution_context=tx_execution_context, nonce=nonce);
-    %{ execution_helper.start_tx() %}
     let remaining_gas = L1_HANDLER_L2_GAS_MAX_AMOUNT;
     non_reverting_select_execute_entry_point_func{remaining_gas=remaining_gas}(
         block_context=block_context, execution_context=tx_execution_context
