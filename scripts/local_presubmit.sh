@@ -1,13 +1,41 @@
 #!/bin/bash
 
+# Usage: local_presubmit.sh [--parent_branch <branch>]
+#
+# if parent_branch is not provided, it will be read from the parent_branch.txt file.
+
 PRESUBMIT_DEBUG_LEVEL=0
 
+ORIGINAL_DIR="$(pwd)"
 REPO_LOCATION=$(git rev-parse --show-toplevel)
 declare -A ORIGINAL_VARS
 
 
 log_debug() {
   [[ $PRESUBMIT_DEBUG_LEVEL -ge 1 ]] && echo "[DEBUG] $*"
+}
+
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --parent_branch)
+        parent_branch="$2"
+        shift 2
+        ;;
+      *)
+        echo "Unknown option: $1" >&2
+        exit 1
+        ;;
+    esac
+  done
+}
+
+change_dir_to_home() {
+  # Change to the home directory
+  cd "$HOME" || {
+    echo "Failed to change directory to home." >&2
+    exit 1
+  }
 }
 
 install_yq() {
@@ -72,7 +100,7 @@ install_dependencies() {
 
   # Rust env needed. Should be imported from main.yml
   if [[ -z "$EXTRA_RUST_TOOLCHAINS" ]]; then
-    echo "Error: EXTRA_RUST_TOOLCHAINS is not set or is empty"
+    echo "Error: EXTRA_RUST_TOOLCHAINS is not set or is empty" >&2
     exit 1
   fi
   if rustup toolchain list | grep -q "${EXTRA_RUST_TOOLCHAINS}"; then
@@ -96,12 +124,15 @@ setup_new_venv() {
   # Store current venv (if any)
   CURRENT_VENV="$VIRTUAL_ENV"
 
-  VENV_NAME="~/presubmit_venv"
+  VENV_NAME="${HOME}/presubmit_venv"
 
   # Create venv if it doesn't exist.
   if [ ! -d "$VENV_NAME" ]; then
     echo "Creating virtual environment: $VENV_NAME"
-    python3 -m venv "$VENV_NAME"
+    if ! python3 -m venv "$VENV_NAME"; then
+      echo "Failed to create virtual environment!" >&2
+      exit 1
+    fi
   else
     log_debug "Virtual environment '$VENV_NAME' already exists."
   fi
@@ -114,7 +145,10 @@ setup_new_venv() {
 
   # Activate presubmit_venv.
   log_debug "Activating $VENV_NAME"
-  source "$VENV_NAME/bin/activate"
+  if ! source "$VENV_NAME/bin/activate"; then
+    echo "Failed to activate virtual environment!" >&2
+    exit 1
+  fi
 }
 
 restore_old_env() {
@@ -145,6 +179,17 @@ restore_old_env() {
       export "$key"="${ORIGINAL_VARS[$key]}"
     fi
   done
+
+  # Set the directory back to the original one.
+  if [ -n "$ORIGINAL_DIR" ]; then
+    cd "$ORIGINAL_DIR" || {
+      echo "Failed to return to original directory: $ORIGINAL_DIR" >&2
+      return 1
+    }
+    log_debug "Returned to original directory: $ORIGINAL_DIR"
+  else
+    log_debug "No original directory stored."
+  fi
 }
 
 add_commit_lint_to_path() {
@@ -165,14 +210,20 @@ add_commit_lint_to_path() {
     ORIGINAL_PATH="$PATH"
     export PATH="$COMMITLINT_PATH:$PATH"
   else
-    echo "commitlint not found in PATH or local directories."
+    echo "commitlint not found in PATH or local directories." >&2
     exit 1
   fi
 }
 
+# Parse command-line arguments
+parse_args "$@"
+
+# Make sure to run cleanup even if the script exits unexpectedly.
 trap restore_old_env EXIT
 trap restore_old_env INT
 
+# We first change the directory to home to avoid installation creating files in the repo directory.
+change_dir_to_home
 setup_new_venv
 # YQ must be installed for setting up the environment variables and install_dependencies relies on
 # the environment variables set from the YAML file.
@@ -181,15 +232,25 @@ setup_env_variables_from_yml
 install_dependencies
 add_commit_lint_to_path
 
+# Change directory to the top of the repository which is needed for the presubmit script to run.
+cd "$REPO_LOCATION" || {
+  echo "Failed to change directory to $REPO_LOCATION." >&2
+  exit 1
+}
+
 # Presubmit checks begin:
 
-# Get the common ancestor commit hash of HEAD and origin/{branch}
-parent_branch=$(head -n 1 ${REPO_LOCATION}/scripts/parent_branch.txt)
+# If no parent branch was given as an argument use the default from the parent_branch.txt file.
+if [ -z "$parent_branch" ]; then
+  parent_branch=$(head -n 1 "${REPO_LOCATION}/scripts/parent_branch.txt")
+fi
+
+# Get the common ancestor commit hash of HEAD and the original parent branch.
 ancestor_commit=$(git merge-base HEAD origin/${parent_branch})
 
 # Check if merge-base succeeded
 if [ -z "$ancestor_commit" ]; then
-  echo "Failed to determine common ancestor of HEAD and ${parent_branch}"
+  echo "Failed to determine common ancestor of HEAD and ${parent_branch}" >&2
   exit 1
 fi
 
