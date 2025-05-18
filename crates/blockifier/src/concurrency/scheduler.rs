@@ -62,13 +62,15 @@ impl<'a> TransactionCommitter<'a> {
 pub struct Scheduler {
     execution_index: AtomicUsize,
     validation_index: AtomicUsize,
-    // The index of the next transaction to commit.
+    /// The index of the next transaction to commit.
     commit_index: Mutex<usize>,
     chunk_size: usize,
     tx_statuses: DashMap<TxIndex, TransactionStatus>,
-    // Set to true when all transactions have been committed, or when calling the halt_scheduler
-    // procedure, providing a cheap way for all threads to exit their main loops.
+    /// Set to true when all transactions have been committed, or when calling the halt_scheduler
+    /// procedure, providing a cheap way for all threads to exit their main loops.
     done_marker: AtomicBool,
+    /// Indicates that a thread has panicked.
+    a_thread_panicked: AtomicBool,
 }
 
 impl Scheduler {
@@ -80,6 +82,7 @@ impl Scheduler {
             chunk_size,
             tx_statuses: DashMap::new(),
             done_marker: AtomicBool::new(false),
+            a_thread_panicked: AtomicBool::new(false),
         }
     }
 
@@ -164,6 +167,12 @@ impl Scheduler {
         self.done_marker.store(true, Ordering::Release);
     }
 
+    /// Sets the panic flag to indicate that a thread has panicked.
+    /// This is used to propagate panic information to the main thread.
+    pub fn set_panic_flag(&self) {
+        self.a_thread_panicked.store(true, Ordering::Release);
+    }
+
     fn lock_tx_status(&self, tx_index: TxIndex) -> RefMut<'_, TxIndex, TransactionStatus> {
         self.tx_statuses.entry(tx_index).or_insert(TransactionStatus::ReadyToExecute)
     }
@@ -238,6 +247,20 @@ impl Scheduler {
     /// Returns the done marker.
     fn done(&self) -> bool {
         self.done_marker.load(Ordering::Acquire)
+    }
+
+    /// Sleeps until the scheduler is done.
+    pub fn wait_for_completion(&self) {
+        while !self.done() {
+            std::thread::sleep(std::time::Duration::from_micros(1));
+        }
+
+        if self.a_thread_panicked.load(Ordering::Acquire) {
+            panic!("One of the threads panicked.");
+        }
+
+        // Lock and release the commit index to ensure that no commit phase is in progress.
+        drop(self.commit_index.lock());
     }
 
     #[cfg(any(feature = "testing", test))]
