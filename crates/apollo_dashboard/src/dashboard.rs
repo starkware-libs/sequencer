@@ -213,6 +213,7 @@ impl Serialize for AlertCondition {
 #[serde(rename_all = "snake_case")]
 pub enum AlertGroup {
     Batcher,
+    Consensus,
     Gateway,
     HttpServer,
     Mempool,
