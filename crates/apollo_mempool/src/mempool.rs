@@ -11,6 +11,7 @@ use apollo_mempool_types::mempool_types::{
     MempoolSnapshot,
     MempoolStateSnapshot,
 };
+use apollo_time::clock::InstantClock;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::{InternalRpcTransaction, InternalRpcTransactionWithoutTxHash};
@@ -33,7 +34,7 @@ use crate::metrics::{
 };
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
-use crate::utils::{try_increment_nonce, Clock};
+use crate::utils::try_increment_nonce;
 
 #[cfg(test)]
 #[path = "mempool_test.rs"]
@@ -42,6 +43,8 @@ pub mod mempool_test;
 #[cfg(test)]
 #[path = "mempool_flow_tests.rs"]
 pub mod mempool_flow_tests;
+
+pub(crate) type SharedClock = Arc<dyn InstantClock<Instant = std::time::Instant>>;
 
 type AddressToNonce = HashMap<ContractAddress, Nonce>;
 
@@ -238,11 +241,11 @@ pub struct Mempool {
     // Transactions eligible for sequencing.
     tx_queue: TransactionQueue,
     state: MempoolState,
-    clock: Arc<dyn Clock>,
+    clock: SharedClock,
 }
 
 impl Mempool {
-    pub fn new(config: MempoolConfig, clock: Arc<dyn Clock>) -> Self {
+    pub fn new(config: MempoolConfig, clock: SharedClock) -> Self {
         Mempool {
             config: config.clone(),
             delayed_declares: AddTransactionQueue::new(),
