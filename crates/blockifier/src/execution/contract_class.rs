@@ -33,7 +33,11 @@ use starknet_types_core::felt::Felt;
 use crate::abi::constants::{self};
 use crate::execution::entry_point::{EntryPointExecutionContext, EntryPointTypeAndSelector};
 use crate::execution::errors::PreExecutionError;
-use crate::execution::execution_utils::{poseidon_hash_many_cost, sn_api_to_cairo_vm_program};
+use crate::execution::execution_utils::{
+    cost_of_encode_felt252_data_and_calc_blake_hash,
+    poseidon_hash_many_cost,
+    sn_api_to_cairo_vm_program,
+};
 #[cfg(feature = "cairo_native")]
 use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::transaction::errors::TransactionExecutionError;
@@ -272,7 +276,7 @@ impl CompiledClassV1 {
     /// This is an empiric measurement of several bytecode lengths, which constitutes as the
     /// dominant factor in it.
     fn estimate_casm_hash_computation_resources(&self) -> ExecutionResources {
-        estimate_casm_hash_computation_resources(&self.bytecode_segment_lengths)
+        estimate_casm_poseidon_hash_computation_resources(&self.bytecode_segment_lengths)
     }
 
     // Returns the set of segments that were visited according to the given visited PCs.
@@ -300,7 +304,7 @@ impl CompiledClassV1 {
 ///
 /// Note: the function focuses on the bytecode size, and currently ignores the cost handling the
 /// class entry points.
-pub fn estimate_casm_hash_computation_resources(
+pub fn estimate_casm_poseidon_hash_computation_resources(
     bytecode_segment_lengths: &NestedIntList,
 ) -> ExecutionResources {
     // The constants in this function were computed by running the Casm code on a few values
@@ -338,6 +342,70 @@ pub fn estimate_casm_hash_computation_resources(
             execution_resources
         }
     }
+}
+
+/// Cost to hash a single flat segment of `len` felts.
+fn leaf_cost(len: usize) -> ExecutionResources {
+    // All `len` inputs treated as “big” felts; no small-felt optimization here.
+    cost_of_encode_felt252_data_and_calc_blake_hash(len, 0)
+}
+
+/// Cost to hash a multi-segment contract:
+fn node_cost(segs: &[NestedIntList]) -> ExecutionResources {
+    // TODO(AvivG): Add base estimation for node.
+    let mut resources = ExecutionResources {
+        n_steps: 0,
+        n_memory_holes: 0,
+        builtin_instance_counter: HashMap::new(),
+    };
+
+    // Hash all (segment_hash, segment_length) pairs.
+    resources += &cost_of_encode_felt252_data_and_calc_blake_hash(segs.len(), segs.len());
+
+    // TODO(AvivG): Add base estimation of each segment.
+    let segment_overhead = ExecutionResources {
+        n_steps: 0,
+        n_memory_holes: 0,
+        builtin_instance_counter: HashMap::new(),
+    };
+
+    // 2) For each segment, hash its felts.
+    for seg in segs {
+        match seg {
+            NestedIntList::Leaf(len) => {
+                resources += &segment_overhead;
+                resources += &leaf_cost(*len);
+            }
+            _ => panic!("Estimating hash cost only supports at most one level of segmentation."),
+        }
+    }
+
+    resources
+}
+
+/// Estimates the VM resources to compute the CASM Blake hash for a Cairo-1 contract:
+/// - TODO(AvivG): Currently ignores entry-point costs.
+/// - Uses only bytecode size (treats all felts as “big”, ignores the small-felt optimization).
+/// - This estimation was done by...
+pub fn estimate_casm_blake_hash_computation_resources(
+    bytecode_segment_lengths: &NestedIntList,
+) -> ExecutionResources {
+    // Basic frame overhead
+    let mut resources = ExecutionResources {
+        n_steps: 0,
+        n_memory_holes: 0,
+        builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 3)]),
+    };
+
+    // Add leaf vs node cost
+    let seg_cost = match bytecode_segment_lengths {
+        // Single-segment contract (e.g., older Sierra contracts).
+        NestedIntList::Leaf(len) => leaf_cost(*len),
+        NestedIntList::Node(segs) => node_cost(segs),
+    };
+    resources += &seg_cost;
+
+    resources
 }
 
 // Returns the set of segments that were visited according to the given visited PCs and segment
