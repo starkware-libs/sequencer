@@ -526,7 +526,7 @@ func execute_invoke_function_transaction{
         execution_context=tx_execution_context
     );
 
-    if (nondet %{ execution_helper.tx_execution_info.is_reverted %} == 0) {
+    if (nondet %{ execution_helper.tx_execution_info.is_reverted %} != TRUE) {
         // Execute only non-reverted transactions.
         with remaining_gas {
             cap_remaining_gas(max_gas=EXECUTE_MAX_SIERRA_GAS);
@@ -591,6 +591,11 @@ func execute_l1_handler_transaction{
             "Computed transaction_hash is inconsistent with the hash in the transaction. "
             f"Computed hash = {ids.transaction_hash}, Expected hash = {tx.hash_value}.")
     %}
+
+    // Skip the execution step for reverted transaction.
+    if (nondet %{ execution_helper.tx_execution_info.is_reverted %} != FALSE) {
+        return ();
+    }
 
     // Write the transaction info and complete the ExecutionInfo struct.
     tempvar tx_info = tx_execution_info.tx_info;
