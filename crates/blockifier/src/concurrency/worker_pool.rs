@@ -61,8 +61,7 @@ impl<S: StateReader + Send + 'static> WorkerPool<S> {
         for sender in self.senders.iter() {
             sender.send(Some(worker_executor.clone())).expect("Failed to send worker executor.");
         }
-
-        // TODO(lior): Propagate panics.
+        worker_executor.scheduler.wait_for_completion();
     }
 
     pub fn join(self) {
@@ -95,6 +94,9 @@ impl<S: StateReader + Send + 'static> WorkerPool<S> {
             worker_executor.run();
         }));
         if let Err(err) = res {
+            // First, set the panic flag. This must be done before halting the scheduler,
+            worker_executor.scheduler.set_panic_flag();
+
             // If the program panics here, the abort guard will exit the program.
             // In this case, no panic message will be logged. Add the cargo flag
             // --nocapture to log the panic message.
