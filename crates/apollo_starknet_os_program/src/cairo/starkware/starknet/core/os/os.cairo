@@ -371,7 +371,7 @@ func write_block_number_to_block_hash_mapping{range_check_ptr, contract_state_ch
     tempvar old_block_number = block_context.block_info_for_execute.block_number -
         STORED_BLOCK_HASH_BUFFER;
     let is_old_block_number_non_negative = is_nn(old_block_number);
-    if (is_old_block_number_non_negative == FALSE) {
+    if (is_old_block_number_non_negative != TRUE) {
         // Not enough blocks in the system - nothing to write.
         return ();
     }

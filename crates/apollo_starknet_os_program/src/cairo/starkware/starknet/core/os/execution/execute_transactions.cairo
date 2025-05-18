@@ -868,7 +868,7 @@ func execute_deploy_account_transaction{
             block_context=block_context, execution_context=validate_deploy_execution_context
         );
     }
-    if (is_deprecated == 0) {
+    if (is_deprecated != TRUE) {
         assert retdata_size = 1;
         assert retdata[0] = VALIDATED;
     }
@@ -1009,7 +1009,7 @@ func execute_declare_transaction{
         );
     }
     // TODO(Yoni): calculate the gas consumed and use it to charge fee (for all transactions).
-    if (is_deprecated == 0) {
+    if (is_deprecated != TRUE) {
         assert retdata_size = 1;
         assert retdata[0] = VALIDATED;
     }

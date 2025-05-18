@@ -1,5 +1,5 @@
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.bool import FALSE
+from starkware.cairo.common.bool import FALSE, TRUE
 from starkware.cairo.common.builtin_keccak.keccak import (
     KECCAK_FULL_RATE_IN_WORDS,
     keccak_padded_input,
@@ -505,7 +505,7 @@ func execute_call_contract{
     let (success, remaining_gas) = reduce_syscall_base_gas(
         specific_base_gas_cost=CALL_CONTRACT_GAS_COST, request_struct_size=CallContractRequest.SIZE
     );
-    if (success == FALSE) {
+    if (success != TRUE) {
         // Not enough gas to execute the syscall.
         return ();
     }
@@ -568,7 +568,7 @@ func execute_library_call{
     let (success, remaining_gas) = reduce_syscall_base_gas(
         specific_base_gas_cost=LIBRARY_CALL_GAS_COST, request_struct_size=LibraryCallRequest.SIZE
     );
-    if (success == FALSE) {
+    if (success != TRUE) {
         // Not enough gas to execute the syscall.
         return ();
     }
@@ -625,7 +625,7 @@ func execute_meta_tx_v0{
     let (success, remaining_gas) = reduce_syscall_base_gas(
         specific_base_gas_cost=specific_base_gas_cost, request_struct_size=MetaTxV0Request.SIZE
     );
-    if (success == FALSE) {
+    if (success != TRUE) {
         // Not enough gas to execute the syscall.
         return ();
     }
@@ -795,7 +795,7 @@ func execute_deploy{
     let (success, remaining_gas) = reduce_syscall_base_gas(
         specific_base_gas_cost=specific_base_gas_cost, request_struct_size=DeployRequest.SIZE
     );
-    if (success == FALSE) {
+    if (success != TRUE) {
         // Not enough gas to execute the syscall.
         return ();
     }
@@ -902,7 +902,7 @@ func execute_get_class_hash_at{
         total_gas_cost=GET_CLASS_HASH_AT_GAS_COST, request_struct_size=GetClassHashAtRequest.SIZE
     );
 
-    if (success == FALSE) {
+    if (success != TRUE) {
         // Not enough gas to execute the syscall.
         return ();
     }
@@ -933,7 +933,7 @@ func execute_storage_read{range_check_ptr, syscall_ptr: felt*, contract_state_ch
     let success = reduce_syscall_gas_and_write_response_header(
         total_gas_cost=STORAGE_READ_GAS_COST, request_struct_size=StorageReadRequest.SIZE
     );
-    if (success == FALSE) {
+    if (success != TRUE) {
         // Not enough gas to execute the syscall.
         return ();
     }
@@ -991,7 +991,7 @@ func execute_storage_write{
     let success = reduce_syscall_gas_and_write_response_header(
         total_gas_cost=STORAGE_WRITE_GAS_COST, request_struct_size=StorageWriteRequest.SIZE
     );
-    if (success == FALSE) {
+    if (success != TRUE) {
         // Not enough gas to execute the syscall.
         return ();
     }
@@ -1046,7 +1046,7 @@ func execute_get_block_hash{
     let (success, remaining_gas) = reduce_syscall_base_gas(
         specific_base_gas_cost=GET_BLOCK_HASH_GAS_COST, request_struct_size=GetBlockHashRequest.SIZE
     );
-    if (success == FALSE) {
+    if (success != TRUE) {
         // Not enough gas to execute the syscall; in that case, 'reduce_syscall_base_gas' already
         // wrote the response objects and advanced the syscall pointer.
         return ();
@@ -1121,7 +1121,7 @@ func execute_get_execution_info{range_check_ptr, syscall_ptr: felt*}(
     let success = reduce_syscall_gas_and_write_response_header(
         total_gas_cost=GET_EXECUTION_INFO_GAS_COST, request_struct_size=0
     );
-    if (success == FALSE) {
+    if (success != TRUE) {
         // Not enough gas to execute the syscall.
         return ();
     }
@@ -1227,7 +1227,7 @@ func execute_replace_class{
     let success = reduce_syscall_gas_and_write_response_header(
         total_gas_cost=REPLACE_CLASS_GAS_COST, request_struct_size=ReplaceClassRequest.SIZE
     );
-    if (success == FALSE) {
+    if (success != TRUE) {
         // Not enough gas to execute the syscall.
         return ();
     }
@@ -1286,7 +1286,7 @@ func execute_keccak{
         total_gas_cost=required_gas, request_struct_size=KeccakRequest.SIZE
     );
 
-    if (success == FALSE) {
+    if (success != TRUE) {
         // Not enough gas to execute the syscall.
         return ();
     }
@@ -1694,7 +1694,7 @@ func execute_send_message_to_l1{range_check_ptr, syscall_ptr: felt*, outputs: Os
     let success = reduce_syscall_gas_and_write_response_header(
         total_gas_cost=SEND_MESSAGE_TO_L1_GAS_COST, request_struct_size=SendMessageToL1Request.SIZE
     );
-    if (success == FALSE) {
+    if (success != TRUE) {
         // Not enough gas to execute the syscall.
         return ();
     }
