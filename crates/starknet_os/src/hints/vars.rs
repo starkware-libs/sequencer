@@ -387,7 +387,7 @@ define_string_enum! {
         (OsStateUpdate, "starkware.starknet.core.os.state.state.OsStateUpdate"),
         (ResourceBounds, "starkware.starknet.common.new_syscalls.ResourceBounds"),
         (SelectableBuiltins, "starkware.starknet.core.os.builtins.SelectableBuiltins"),
-        (SpongeHashBuiltin, "starkware.cairo.common.patricia_with_sponge.SpongeHashBuiltin"),
+        (SpongeHashBuiltin, "starkware.cairo.common.sponge_as_hash.SpongeHashBuiltin"),
         (StateEntry, "starkware.starknet.core.os.state.commitment.StateEntry"),
         (StorageReadPtr, "starkware.starknet.common.syscalls.StorageRead*"),
         (StorageReadRequestPtr, "starkware.starknet.common.new_syscalls.StorageReadRequest*"),
