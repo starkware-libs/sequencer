@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use super::versioned_state::VersionedState;
 use crate::blockifier::transaction_executor::TransactionExecutorError;
@@ -72,6 +72,7 @@ pub struct WorkerExecutor<'a, S: StateReader> {
     pub execution_outputs: Box<[Mutex<Option<ExecutionTaskOutput>>]>,
     pub block_context: &'a BlockContext,
     pub bouncer: Mutex<&'a mut Bouncer>,
+    pub execution_deadline: Option<Instant>,
     pub metrics: ConcurrencyMetrics,
 }
 
@@ -94,6 +95,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
             execution_outputs,
             block_context,
             bouncer,
+            execution_deadline: None,
             metrics,
         }
     }
@@ -104,6 +106,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
         chunk: &'a [Transaction],
         block_context: &'a BlockContext,
         bouncer: Mutex<&'a mut Bouncer>,
+        execution_deadline: Option<Instant>,
     ) -> Self {
         let versioned_state = VersionedState::new(state);
         let chunk_state = ThreadSafeVersionedState::new(versioned_state);
@@ -119,6 +122,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
             execution_outputs,
             block_context,
             bouncer,
+            execution_deadline,
             metrics,
         }
     }
@@ -126,7 +130,16 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
     pub fn run(&self) {
         let mut task = Task::AskForTask;
         loop {
+            if let Some(deadline) = self.execution_deadline {
+                if Instant::now() > deadline {
+                    log::debug!("Execution timed out.");
+                    // TODO(Yoni): `break` would give the same result. Reconsider the location of
+                    // this check.
+                    self.scheduler.halt();
+                }
+            }
             self.commit_while_possible();
+
             task = match task {
                 Task::ExecutionTask(tx_index) => {
                     self.execute(tx_index);
@@ -248,6 +261,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
             // Release the execution output lock as it is acquired in execution (avoid dead-lock).
             drop(execution_output);
 
+            // TODO(Yoni): avoid re-executing in the commit phase.
             self.execute_tx(tx_index);
             self.scheduler.finish_execution_during_commit(tx_index);
 
