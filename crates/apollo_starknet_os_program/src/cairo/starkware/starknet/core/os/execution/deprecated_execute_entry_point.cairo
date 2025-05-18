@@ -1,6 +1,6 @@
 from starkware.cairo.builtin_selection.select_builtins import select_builtins
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.bool import FALSE
+from starkware.cairo.common.bool import FALSE, TRUE
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.find_element import find_element, search_sorted_optimistic
 from starkware.cairo.common.math import assert_not_zero
@@ -57,7 +57,7 @@ func get_entry_point_offset{range_check_ptr}(
             n_entry_points = compiled_class.n_constructors;
 
             if (n_entry_points == 0) {
-                return (success=1, entry_point_offset=NOP_ENTRY_POINT_OFFSET);
+                return (success=TRUE, entry_point_offset=NOP_ENTRY_POINT_OFFSET);
             }
         }
     }
@@ -71,14 +71,14 @@ func get_entry_point_offset{range_check_ptr}(
         key=execution_context.execution_info.selector,
     );
     if (success != FALSE) {
-        return (success=1, entry_point_offset=entry_point_desc.offset);
+        return (success=TRUE, entry_point_offset=entry_point_desc.offset);
     }
 
     // If the selector was not found, check if we have a default entry point.
     if (n_entry_points != 0 and entry_points[0].selector == DEFAULT_ENTRY_POINT_SELECTOR) {
-        return (success=1, entry_point_offset=entry_points[0].offset);
+        return (success=TRUE, entry_point_offset=entry_points[0].offset);
     }
-    return (success=0, entry_point_offset=0);
+    return (success=FALSE, entry_point_offset=0);
 }
 
 // Performs a Cairo jump to the function 'execute_deprecated_syscalls'.
@@ -132,18 +132,18 @@ func deprecated_execute_entry_point{
         compiled_class=compiled_class, execution_context=execution_context
     );
 
-    if (success == 0) {
+    if (success == FALSE) {
         %{ execution_helper.exit_call() %}
         let (retdata: felt*) = alloc();
         assert retdata[0] = ERROR_ENTRY_POINT_NOT_FOUND;
-        return (is_reverted=1, retdata_size=1, retdata=retdata);
+        return (is_reverted=TRUE, retdata_size=1, retdata=retdata);
     }
 
     if (entry_point_offset == NOP_ENTRY_POINT_OFFSET) {
         %{ execution_helper.exit_call() %}
         // Assert that there is no call data in the case of NOP entry point.
         assert execution_context.calldata_size = 0;
-        return (is_reverted=0, retdata_size=0, retdata=cast(0, felt*));
+        return (is_reverted=FALSE, retdata_size=0, retdata=cast(0, felt*));
     }
 
     local range_check_ptr = range_check_ptr;
@@ -205,7 +205,7 @@ func deprecated_execute_entry_point{
         syscall_ptr=syscall_ptr,
     );
 
-    return (is_reverted=0, retdata_size=retdata_size, retdata=retdata);
+    return (is_reverted=FALSE, retdata_size=retdata_size, retdata=retdata);
 }
 
 // Selects execute_entry_point function according to the Cairo version of the entry point.
@@ -229,6 +229,7 @@ func select_execute_entry_point_func{
         )
     %}
 
+    // See definition of Cairo's FALSE = 0 and TRUE = 1.
     %{ is_deprecated = 1 if ids.execution_context.class_hash in __deprecated_class_hashes else 0 %}
     // Note that the class_hash is validated in both the `if` and `else` cases, so a malicious
     // prover won't be able to produce a proof if guesses the wrong case.
@@ -237,7 +238,7 @@ func select_execute_entry_point_func{
             block_context=block_context, execution_context=execution_context
         );
         return (
-            is_reverted=is_reverted, retdata_size=retdata_size, retdata=retdata, is_deprecated=1
+            is_reverted=is_reverted, retdata_size=retdata_size, retdata=retdata, is_deprecated=TRUE
         );
     }
 
@@ -271,7 +272,12 @@ func select_execute_entry_point_func{
         // Do not count Sierra gas for the caller in this case.
         tempvar remaining_gas = caller_remaining_gas;
     }
-    return (is_reverted=is_reverted, retdata_size=retdata_size, retdata=retdata, is_deprecated=0);
+    return (
+        is_reverted=is_reverted,
+        retdata_size=retdata_size,
+        retdata=retdata,
+        is_deprecated=FALSE
+    );
 }
 
 // Same as `select_execute_entry_point_func`, but does not support reverts and does
@@ -290,6 +296,6 @@ func non_reverting_select_execute_entry_point_func{
     let (is_reverted, retdata_size, retdata, is_deprecated) = select_execute_entry_point_func{
         revert_log=revert_log
     }(block_context=block_context, execution_context=execution_context);
-    assert is_reverted = 0;
+    assert is_reverted = FALSE;
     return (retdata_size, retdata, is_deprecated);
 }
