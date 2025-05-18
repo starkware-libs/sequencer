@@ -704,37 +704,32 @@ fn test_account_ctor_frame_stack_trace(
 
     let expected_selector = selector_from_name(CONSTRUCTOR_ENTRY_POINT_NAME).0;
     let expected_address = deploy_address.0.key();
-    let expected_error = format!(
+    let expected_error_prefix = format!(
         "Contract constructor execution has failed:
 0: Error in the contract class constructor (contract address: {expected_address:#064x}, class \
          hash: {:#064x}, selector: {expected_selector:#064x}):
 ",
         class_hash.0
-    )
-    .to_string()
-        + &match cairo_version {
-            CairoVersion::Cairo0 => "Error at pc=0:250:
-Cairo traceback (most recent call last):
-Unknown location (pc=0:222)
-Unknown location (pc=0:206)
-
-An ASSERT_EQ instruction failed: 1 != 0.
-"
-            .to_string(),
-            CairoVersion::Cairo1(_) => format!(
-                "Execution failed. Failure reason:
-Error in contract (contract address: {expected_address:#064x}, class hash: {:#064x}, selector: \
-                 {expected_selector:#064x}):
-0x496e76616c6964207363656e6172696f ('Invalid scenario').
-",
-                class_hash.0
-            )
-            .to_string(),
-        };
+    );
+    let expected_error_suffix = match cairo_version {
+        CairoVersion::Cairo0 => "An ASSERT_EQ instruction failed: 1 != 0.",
+        CairoVersion::Cairo1(_) => "0x496e76616c6964207363656e6172696f ('Invalid scenario').",
+    };
+    let expectation = expect_file![format!(
+        "./stack_trace_regression/test_account_ctor_frame_stack_trace_cairo{}.txt",
+        if cairo_version.is_cairo0() { 0 } else { 1 }
+    )];
 
     // Compare expected and actual error.
-    let error = deploy_account_tx.execute(state, &block_context).unwrap_err();
-    assert_eq!(error.to_string(), expected_error);
+    let error = deploy_account_tx
+        .execute(state, &block_context)
+        .unwrap_err()
+        .to_string()
+        .trim()
+        .to_string();
+    expectation.assert_eq(&error);
+    assert!(error.starts_with(&expected_error_prefix));
+    assert!(error.ends_with(expected_error_suffix));
 }
 
 #[rstest]
