@@ -31,12 +31,19 @@ use starknet_api::deprecated_contract_class::{
 use starknet_types_core::felt::Felt;
 
 use crate::abi::constants::{self};
+use crate::blockifier_versioned_constants::VersionedConstants;
+use crate::bouncer::vm_resources_to_sierra_gas;
 use crate::execution::entry_point::{EntryPointExecutionContext, EntryPointTypeAndSelector};
 use crate::execution::errors::PreExecutionError;
-use crate::execution::execution_utils::{poseidon_hash_many_cost, sn_api_to_cairo_vm_program};
+use crate::execution::execution_utils::{
+    cost_of_encode_felt252_data_and_calc_blake_hash,
+    poseidon_hash_many_cost,
+    sn_api_to_cairo_vm_program,
+};
 #[cfg(feature = "cairo_native")]
 use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::transaction::errors::TransactionExecutionError;
+use crate::utils::safe_add_gas_panic_on_overflow;
 
 #[cfg(test)]
 #[path = "contract_class_test.rs"]
@@ -272,7 +279,7 @@ impl CompiledClassV1 {
     /// This is an empiric measurement of several bytecode lengths, which constitutes as the
     /// dominant factor in it.
     fn estimate_casm_hash_computation_resources(&self) -> ExecutionResources {
-        estimate_casm_hash_computation_resources(&self.bytecode_segment_lengths)
+        estimate_casm_poseidon_hash_computation_resources(&self.bytecode_segment_lengths)
     }
 
     // Returns the set of segments that were visited according to the given visited PCs.
@@ -300,7 +307,7 @@ impl CompiledClassV1 {
 ///
 /// Note: the function focuses on the bytecode size, and currently ignores the cost handling the
 /// class entry points.
-pub fn estimate_casm_hash_computation_resources(
+pub fn estimate_casm_poseidon_hash_computation_resources(
     bytecode_segment_lengths: &NestedIntList,
 ) -> ExecutionResources {
     // The constants in this function were computed by running the Casm code on a few values
@@ -336,6 +343,68 @@ pub fn estimate_casm_hash_computation_resources(
                 execution_resources += &base_segment_cost;
             }
             execution_resources
+        }
+    }
+}
+
+/// Cost to hash a single flat segment of `len` felts.
+fn leaf_cost(len: usize, versioned_constants: &VersionedConstants) -> GasAmount {
+    // All `len` inputs treated as “big” felts; no small-felt optimization here.
+    cost_of_encode_felt252_data_and_calc_blake_hash(len, 0, versioned_constants)
+}
+
+/// Cost to hash a multi-segment contract:
+fn node_cost(segs: &[NestedIntList], versioned_constants: &VersionedConstants) -> GasAmount {
+    // TODO(AvivG): Add base estimation for node.
+    let mut gas = GasAmount::ZERO;
+
+    // TODO(AvivG): Add base estimation of each segment. Could this be part of 'leaf_cost'?
+    let segment_overhead = GasAmount::ZERO;
+
+    // 2) For each segment, hash its felts.
+    for seg in segs {
+        match seg {
+            NestedIntList::Leaf(len) => {
+                gas = safe_add_gas_panic_on_overflow(gas, segment_overhead);
+                gas = safe_add_gas_panic_on_overflow(gas, leaf_cost(*len, versioned_constants));
+            }
+            _ => panic!("Estimating hash cost only supports at most one level of segmentation."),
+        }
+    }
+    // Node‐level hash over (hash1, len1, hash2, len2, …): one segment hash (“big” felt))
+    // and one segment length (“small” felt) per segment.
+    let node_hash_cost = cost_of_encode_felt252_data_and_calc_blake_hash(
+        segs.len(),
+        segs.len(),
+        versioned_constants,
+    );
+
+    safe_add_gas_panic_on_overflow(gas, node_hash_cost)
+}
+
+/// Estimates the VM resources to compute the CASM Blake hash for a Cairo-1 contract:
+/// - Uses only bytecode size (treats all felts as “big”, ignores the small-felt optimization).
+pub fn estimate_casm_blake_hash_computation_resources(
+    bytecode_segment_lengths: &NestedIntList,
+    versioned_constants: &VersionedConstants,
+) -> GasAmount {
+    // TODO(AvivG): Currently ignores entry-point costs.
+    // Basic frame overhead
+    let resources = ExecutionResources {
+        n_steps: 0,
+        n_memory_holes: 0,
+        builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 3)]),
+    };
+    let gas = vm_resources_to_sierra_gas(resources, versioned_constants);
+
+    // Add leaf vs node cost
+    match bytecode_segment_lengths {
+        // Single-segment contract (e.g., older Sierra contracts).
+        NestedIntList::Leaf(len) => {
+            safe_add_gas_panic_on_overflow(gas, leaf_cost(*len, versioned_constants))
+        }
+        NestedIntList::Node(segs) => {
+            safe_add_gas_panic_on_overflow(gas, node_cost(segs, versioned_constants))
         }
     }
 }
