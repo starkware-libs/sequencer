@@ -258,7 +258,7 @@ impl SingleHeightConsensus {
         context: &mut ContextT,
         event: ShcEvent,
     ) -> Result<ShcReturn, ConsensusError> {
-        debug!("Received ShcEvent: {:?}", event);
+        trace!("Received ShcEvent: {:?}", event);
         let ret = match event {
             ShcEvent::TimeoutPropose(event)
             | ShcEvent::TimeoutPrevote(event)

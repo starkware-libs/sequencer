@@ -10,7 +10,7 @@ mod state_machine_test;
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use serde::{Deserialize, Serialize};
-use tracing::{info, trace};
+use tracing::{debug, info, trace};
 
 use crate::metrics::{
     TimeoutReason,
@@ -274,6 +274,7 @@ impl StateMachine {
         if self.step != Step::Propose || round != self.round {
             return VecDeque::new();
         };
+        debug!("Applying TimeoutPropose for round={round}.");
         CONSENSUS_TIMEOUTS
             .increment(1, &[(LABEL_NAME_TIMEOUT_REASON, TimeoutReason::Propose.into())]);
         let mut output = VecDeque::from([StateMachineEvent::Prevote(None, round)]);
@@ -301,6 +302,7 @@ impl StateMachine {
         if self.step != Step::Prevote || round != self.round {
             return VecDeque::new();
         };
+        debug!("Applying TimeoutPrevote for round={round}.");
         CONSENSUS_TIMEOUTS
             .increment(1, &[(LABEL_NAME_TIMEOUT_REASON, TimeoutReason::Prevote.into())]);
         let mut output = VecDeque::from([StateMachineEvent::Precommit(None, round)]);
@@ -336,6 +338,7 @@ impl StateMachine {
         if round != self.round {
             return VecDeque::new();
         };
+        debug!("Applying TimeoutPrecommit for round={round}.");
         CONSENSUS_TIMEOUTS
             .increment(1, &[(LABEL_NAME_TIMEOUT_REASON, TimeoutReason::Precommit.into())]);
         self.advance_to_round(round + 1, leader_fn)
@@ -381,6 +384,7 @@ impl StateMachine {
 
     fn advance_to_step(&mut self, step: Step) -> VecDeque<StateMachineEvent> {
         assert_ne!(step, Step::Propose, "Advancing to Propose is done by advancing rounds");
+        info!("Advancing to step={step} in round={}", self.round);
         self.step = step;
         self.current_round_upons()
     }
