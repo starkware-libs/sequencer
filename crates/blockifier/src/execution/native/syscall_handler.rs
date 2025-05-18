@@ -445,11 +445,11 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         if self.base.context.execution_mode == ExecutionMode::Validate
             && self.base.call.storage_address != contract_address
         {
-            let err = SyscallExecutionError::InvalidSyscallInExecutionMode {
+            let err = SyscallExecutorBaseError::InvalidSyscallInExecutionMode {
                 syscall_name: "call_contract".to_string(),
                 execution_mode: self.base.context.execution_mode,
             };
-            return Err(self.handle_error(remaining_gas, err));
+            return Err(self.handle_error(remaining_gas, err.into()));
         }
 
         let wrapper_calldata = Calldata(Arc::new(calldata.to_vec()));

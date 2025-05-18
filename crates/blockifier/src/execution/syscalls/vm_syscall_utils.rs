@@ -20,7 +20,7 @@ use starknet_types_core::felt::{Felt, FromStrError};
 use crate::abi::sierra_types::SierraTypeError;
 use crate::blockifier_versioned_constants::{EventLimits, VersionedConstants};
 use crate::execution::call_info::MessageToL1;
-use crate::execution::common_hints::HintExecutionResult;
+use crate::execution::common_hints::{ExecutionMode, HintExecutionResult};
 use crate::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallExecutionError;
 use crate::execution::deprecated_syscalls::DeprecatedSyscallSelector;
 use crate::execution::execution_utils::{
@@ -756,6 +756,8 @@ pub enum SyscallExecutorBaseError {
     Hint(#[from] HintError),
     #[error("Invalid address domain: {address_domain}.")]
     InvalidAddressDomain { address_domain: Felt },
+    #[error("Unauthorized syscall {syscall_name} in execution mode {execution_mode}.")]
+    InvalidSyscallInExecutionMode { syscall_name: String, execution_mode: ExecutionMode },
     #[error("Invalid syscall input: {input:?}; {info}")]
     InvalidSyscallInput { input: Felt, info: String },
     #[error(transparent)]

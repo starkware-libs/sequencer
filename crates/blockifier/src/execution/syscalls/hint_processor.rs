@@ -115,8 +115,6 @@ pub enum SyscallExecutionError {
     },
     #[error("Invalid syscall selector: {0:?}.")]
     InvalidSyscallSelector(Felt),
-    #[error("Unauthorized syscall {syscall_name} in execution mode {execution_mode}.")]
-    InvalidSyscallInExecutionMode { syscall_name: String, execution_mode: ExecutionMode },
     #[error(transparent)]
     MathError(#[from] cairo_vm::types::errors::math_errors::MathError),
     #[error(transparent)]
@@ -493,10 +491,11 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         if syscall_handler.is_validate_mode()
             && syscall_handler.storage_address() != storage_address
         {
-            return Err(SyscallExecutionError::InvalidSyscallInExecutionMode {
+            return Err(SyscallExecutorBaseError::InvalidSyscallInExecutionMode {
                 syscall_name: "call_contract".to_string(),
                 execution_mode: syscall_handler.execution_mode(),
-            });
+            }
+            .into());
         }
         let entry_point = CallEntryPoint {
             class_hash: None,
