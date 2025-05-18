@@ -361,7 +361,7 @@ pub(crate) fn enter_scope_left_child<S: StateReader>(
 pub(crate) fn enter_scope_right_child<S: StateReader>(
     HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    let right_child: UpdateTree = exec_scopes.get(Scope::LeftChild.into())?;
+    let right_child: UpdateTree = exec_scopes.get(Scope::RightChild.into())?;
     enter_scope_specific_node(right_child, exec_scopes)
 }
 
