@@ -9,8 +9,8 @@ use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::execution_utils::format_panic_data;
-use starknet_api::felt;
 use starknet_api::transaction::fields::Calldata;
+use starknet_api::{calldata as calldata_macro, felt};
 use test_case::test_case;
 
 use super::constants::REQUIRED_GAS_CALL_CONTRACT_TEST;
@@ -240,6 +240,41 @@ fn test_call_contract(outer_contract: FeatureContract, inner_contract: FeatureCo
             ..CallExecution::default()
         }
     );
+}
+
+// TODO(Amos): Test cairo native, once direct execute call is disallowed.
+#[test_case(
+    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+    FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    "Call `__execute__` directly using VM."
+)]
+fn test_direct_execute_call(
+    test_contract: FeatureContract,
+    contract_with_execute: FeatureContract,
+) {
+    let chain_info = &ChainInfo::create_for_testing();
+    let mut state =
+        test_state(chain_info, BALANCE, &[(test_contract, 1), (contract_with_execute, 1)]);
+    let test_contract_address = *test_contract.get_instance_address(0).0.key();
+    let contract_with_execute_address = *contract_with_execute.get_instance_address(0).0.key();
+
+    let test_execute_selector = selector_from_name("test_direct_execute_call");
+    let return_result_selector = selector_from_name("return_result");
+    let direct_execute_test_call = CallEntryPoint {
+        entry_point_selector: test_execute_selector,
+        calldata: calldata_macro![
+            contract_with_execute_address,
+            // Outer calldata.
+            felt!(4_u8), // Outer calldata length.
+            test_contract_address,
+            return_result_selector.0,
+            felt!(1_u8), // Inner calldata length.
+            felt!(0_u8)  // Inner calldata value.
+        ],
+        ..trivial_external_entry_point_new(test_contract)
+    };
+    let call_info = direct_execute_test_call.execute_directly(&mut state).unwrap();
+    assert!(!call_info.execution.failed, "Expected call to succeed. Call info: {call_info:?}");
 }
 
 /// Cairo0 / Old Cairo1 / Cairo1 / Native calls to Cairo0 / Old Cairo1 / Cairo1 / Native.

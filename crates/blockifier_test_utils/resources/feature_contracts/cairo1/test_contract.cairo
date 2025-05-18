@@ -76,6 +76,30 @@ mod TestContract {
     }
 
     #[external(v0)]
+    fn test_direct_execute_call(
+        ref self: ContractState, contract_address: ContractAddress, calldata: Array::<felt252>
+    ) {
+        let call_execute_result = syscalls::call_contract_syscall(
+            contract_address, selector!("__execute__"), calldata.span()
+        );
+        match call_execute_result {
+            Result::Ok(_) => panic!("Calling `__execute__` directly should fail."),
+            Result::Err(err) => {
+                let mut error_span = err.span();
+                let expected_error_msg = 'Calling execute is not allowed';
+                let actual_error_msg = *error_span.pop_back().unwrap();
+                if expected_error_msg != actual_error_msg {
+                    panic!(
+                        "Unexpected err during execute call. Expected {:?}. Got: {}",
+                        expected_error_msg,
+                        actual_error_msg
+                    )
+                }
+            },
+        }
+    }
+
+    #[external(v0)]
     fn test_call_two_contracts(
         self: @ContractState,
         contract_address_0: ContractAddress,

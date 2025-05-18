@@ -14,10 +14,12 @@ use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::runners::cairo_runner::{ResourceTracker, RunResources};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_traits::ToPrimitive;
+use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::BlockHash;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::execution_resources::GasAmount;
+use starknet_api::transaction::constants::EXECUTE_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{
     valid_resource_bounds_as_felts,
     Calldata,
@@ -209,6 +211,9 @@ pub const INVALID_INPUT_LENGTH_ERROR: &str =
 // "Invalid argument";
 pub const INVALID_ARGUMENT: &str =
     "0x00000000000000000000000000000000496e76616c696420617267756d656e74";
+// "Calling execute is not allowed";
+pub const ERROR_DIRECT_EXECUTE_CALL: &str =
+    "0x43616c6c696e672065786563757465206973206e6f7420616c6c6f776564";
 
 /// Executes Starknet syscalls (stateful protocol hints) during the execution of an entry point
 /// call.
@@ -498,6 +503,12 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
                 execution_mode: syscall_handler.execution_mode(),
             });
         }
+        if selector == selector_from_name(EXECUTE_ENTRY_POINT_NAME) {
+            return Err(SyscallExecutionError::Revert {
+                error_data: vec![Felt::from_hex(ERROR_DIRECT_EXECUTE_CALL).unwrap()],
+            });
+        }
+
         let entry_point = CallEntryPoint {
             class_hash: None,
             code_address: Some(storage_address),
