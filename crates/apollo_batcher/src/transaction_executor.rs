@@ -14,6 +14,7 @@ pub trait TransactionExecutorTrait: Send {
     fn add_txs_to_block(
         &mut self,
         txs: &[BlockifierTransaction],
+        chunk_timeout: tokio::time::Instant,
     ) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>>;
     fn close_block(&mut self) -> TransactionExecutorResult<BlockExecutionSummary>;
 }
@@ -23,8 +24,9 @@ impl<S: StateReader + Send + Sync> TransactionExecutorTrait for TransactionExecu
     fn add_txs_to_block(
         &mut self,
         txs: &[BlockifierTransaction],
+        chunk_timeout: tokio::time::Instant,
     ) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>> {
-        self.execute_txs(txs)
+        self.execute_txs(txs, chunk_timeout)
             .into_iter()
             .map(|res| res.map(|(tx_execution_info, _state_diff)| tx_execution_info))
             .collect()
