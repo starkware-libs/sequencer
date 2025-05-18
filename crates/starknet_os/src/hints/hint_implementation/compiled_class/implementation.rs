@@ -46,9 +46,16 @@ pub(crate) fn assign_bytecode_segments<S: StateReader>(
 }
 
 pub(crate) fn assert_end_of_bytecode_segments<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let bytecode_segments: &mut IntoIter<BytecodeSegment> =
+        exec_scopes.get_mut_ref(Scope::BytecodeSegments.into())?;
+    if bytecode_segments.next().is_some() {
+        return Err(OsHintError::AssertionFailed {
+            message: "The bytecode segments iterator is expected to be exhausted.".to_string(),
+        });
+    }
+    Ok(())
 }
 
 pub(crate) fn bytecode_segment_structure<S: StateReader>(
