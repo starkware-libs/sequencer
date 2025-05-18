@@ -1974,6 +1974,8 @@ name = "apollo_state_sync_metrics"
 version = "0.15.0-rc.0"
 dependencies = [
  "apollo_metrics",
+ "apollo_storage",
+ "starknet_api",
 ]
 
 [[package]]
