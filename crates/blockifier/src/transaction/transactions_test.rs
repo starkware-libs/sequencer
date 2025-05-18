@@ -101,6 +101,8 @@ use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointEx
 use crate::execution::syscalls::hint_processor::EmitEventError;
 #[cfg(feature = "cairo_native")]
 use crate::execution::syscalls::hint_processor::SyscallExecutionError;
+#[cfg(feature = "cairo_native")]
+use crate::execution::syscalls::vm_syscall_utils::SyscallExecutorBaseError;
 use crate::execution::syscalls::vm_syscall_utils::SyscallSelector;
 use crate::fee::fee_checks::FeeCheckError;
 use crate::fee::fee_utils::{balance_to_big_uint, get_fee_by_gas_vector, GasVectorToL1GasForFee};
@@ -2153,7 +2155,12 @@ fn check_native_validate_error(
         }
         _ => panic!("Unexpected error: {:?}", error),
     };
-    assert_matches!(syscall_error, SyscallExecutionError::InvalidSyscallInExecutionMode { .. });
+    assert_matches!(
+        syscall_error,
+        SyscallExecutionError::SyscallExecutorBase(
+            SyscallExecutorBaseError::InvalidSyscallInExecutionMode { .. }
+        )
+    );
     assert!(syscall_error.to_string().contains(error_msg));
 }
 // TODO(Arni, 1/5/2024): Cover other versions of declare transaction.
