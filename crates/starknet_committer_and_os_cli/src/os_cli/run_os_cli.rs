@@ -27,6 +27,7 @@ pub struct OsCliCommand {
 #[derive(clap::ValueEnum, Clone, Debug, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ProgramToDump {
+    Aggregator,
     Os,
 }
 
