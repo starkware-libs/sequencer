@@ -34,4 +34,6 @@ pub enum EthToStrkOracleClientError {
     InvalidDecimalsError(u64, u64),
     #[error("Query not yet resolved: timestamp={0}")]
     QueryNotReadyError(u64),
+    #[error("Request timed out: timestamp={0}")]
+    RequestTimeoutError(u64),
 }
