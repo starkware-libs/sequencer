@@ -23,6 +23,8 @@ pub static OS_PROGRAM: LazyLock<Program> = LazyLock::new(|| {
 });
 
 pub static PROGRAM_HASH: LazyLock<ProgramHash> = LazyLock::new(|| {
+    // As the program hash file may not exist at runtime, it's contents must be included at compile
+    // time.
     serde_json::from_str(include_str!("program_hash.json"))
         .expect("Failed to deserialize program_hash.json.")
 });

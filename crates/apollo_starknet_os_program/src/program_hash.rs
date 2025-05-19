@@ -20,9 +20,9 @@ pub enum ProgramHashError {
     UnexpectedRelocatable,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct ProgramHash {
-    os: Felt,
+    pub os: Felt,
 }
 
 const BOOTLOADER_VERSION: u8 = 0;
