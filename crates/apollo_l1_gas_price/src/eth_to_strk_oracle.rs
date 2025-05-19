@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::num::NonZeroUsize;
 use std::sync::Mutex;
+use std::time::Duration;
 
 use apollo_config::converters::{deserialize_optional_map, serialize_optional_map};
 use apollo_config::dumping::{ser_param, SerializeConfig};
@@ -24,6 +25,7 @@ pub mod eth_to_strk_oracle_test;
 // TODO(Asmaa): Move to config.
 pub const ETH_TO_STRK_QUANTIZATION: u64 = 18;
 const MAX_CACHE_SIZE: NonZeroUsize = NonZeroUsize::new(100).expect("Invalid cache size");
+const QUERY_TIMEOUT_SEC: u64 = 3;
 
 pub enum Query {
     Resolved(u128),
@@ -206,7 +208,15 @@ impl EthToStrkOracleClientTrait for EthToStrkOracleClient {
             };
         }
 
-        let rate = self.resolve_query(quantized_timestamp).await?;
+        let rate = match tokio::time::timeout(
+            Duration::from_secs(QUERY_TIMEOUT_SEC),
+            self.resolve_query(quantized_timestamp),
+        )
+        .await
+        {
+            Ok(inner_result) => inner_result,
+            Err(_) => Err(EthToStrkOracleClientError::RequestTimeoutError(timestamp)),
+        }?;
         self.cached_prices
             .lock()
             .expect("Lock on cached prices was poisoned due to a previous panic")
