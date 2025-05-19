@@ -1,5 +1,6 @@
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
+use expect_test::expect;
 use itertools::concat;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::core::EthAddress;
@@ -9,7 +10,7 @@ use starknet_api::transaction::L2ToL1Payload;
 use test_case::test_case;
 
 use crate::context::ChainInfo;
-use crate::execution::call_info::{CallExecution, MessageToL1, OrderedL2ToL1Message};
+use crate::execution::call_info::{MessageToL1, OrderedL2ToL1Message};
 use crate::execution::entry_point::CallEntryPoint;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{trivial_external_entry_point_new, BALANCE};
@@ -44,12 +45,37 @@ fn test_send_message_to_l1(runnable_version: RunnableCairo1) {
     let to_address = EthAddress::try_from(to_address).unwrap();
     let message = MessageToL1 { to_address, payload: L2ToL1Payload(payload) };
 
-    pretty_assertions::assert_eq!(
-        entry_point_call.execute_directly(&mut state).unwrap().execution,
+    let execution = entry_point_call.execute_directly(&mut state).unwrap().execution;
+    expect![[r#"
         CallExecution {
-            l2_to_l1_messages: vec![OrderedL2ToL1Message { order: 0, message }],
+            retdata: Retdata(
+                [],
+            ),
+            events: [],
+            l2_to_l1_messages: [
+                OrderedL2ToL1Message {
+                    order: 0,
+                    message: MessageToL1 {
+                        to_address: EthAddress(
+                            0x00000000000000000000000000000000000004d2,
+                        ),
+                        payload: L2ToL1Payload(
+                            [
+                                0x7e3,
+                                0x7e4,
+                                0x7e5,
+                            ],
+                        ),
+                    },
+                },
+            ],
+            failed: false,
             gas_consumed: 26690,
-            ..Default::default()
         }
+    "#]]
+    .assert_debug_eq(&execution);
+    pretty_assertions::assert_eq!(
+        execution.l2_to_l1_messages,
+        vec![OrderedL2ToL1Message { order: 0, message }]
     );
 }
