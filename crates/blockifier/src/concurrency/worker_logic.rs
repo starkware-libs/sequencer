@@ -9,7 +9,11 @@ use dashmap::mapref::one::RefMut;
 use dashmap::DashMap;
 
 use super::versioned_state::VersionedState;
-use crate::blockifier::transaction_executor::TransactionExecutorError;
+use crate::blockifier::transaction_executor::{
+    TransactionExecutionOutput,
+    TransactionExecutorError,
+    TransactionExecutorResult,
+};
 use crate::bouncer::Bouncer;
 use crate::concurrency::fee_utils::complete_fee_transfer_flow;
 use crate::concurrency::scheduler::{Scheduler, Task};
@@ -129,6 +133,57 @@ impl<S: StateReader> WorkerExecutor<S> {
                 Task::Done => break,
             };
         }
+    }
+
+    pub fn add_transaction(&self, tx: Transaction) {
+        let mut n_transactions_lock =
+            self.n_transactions.lock().expect("Failed to lock n_transactions");
+        self.transactions.insert(*n_transactions_lock, Arc::new(tx));
+        *n_transactions_lock += 1;
+    }
+
+    pub fn add_transactions_and_wait(
+        &self,
+        txs: Vec<Transaction>,
+    ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
+        let (from_tx, to_tx) = {
+            let mut n_transactions_lock =
+                self.n_transactions.lock().expect("Failed to lock n_transactions");
+            let from_tx = *n_transactions_lock;
+            let n_new_transactions = txs.len();
+            for (i, tx) in txs.into_iter().enumerate() {
+                self.transactions.insert(from_tx + i, Arc::new(tx));
+            }
+            let to_tx = from_tx + n_new_transactions;
+            *n_transactions_lock = to_tx;
+            (from_tx, to_tx)
+        };
+
+        self.extract_execution_outputs(from_tx, to_tx)
+    }
+
+    /// Extracts the outputs of the committed transactions in the range [from_tx, to_tx).
+    /// Note that the number of transactions may be smaller than to_tx - from_tx, if the execution
+    /// was halted.
+    pub fn extract_execution_outputs(
+        &self,
+        from_tx: usize,
+        to_tx: usize,
+    ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
+        self.scheduler.wait_for_completion(to_tx);
+
+        let n_committed_txs = self.scheduler.get_n_committed_txs();
+        let actual_to_tx = std::cmp::min(n_committed_txs, to_tx);
+        (from_tx..actual_to_tx)
+            .map(|tx_index| {
+                let execution_output = self.extract_execution_output(tx_index);
+                let tx_execution_output = execution_output
+                    .result
+                    .map(|tx_execution_info| (tx_execution_info, execution_output.state_diff))
+                    .map_err(TransactionExecutorError::from);
+                tx_execution_output
+            })
+            .collect()
     }
 
     /// Returns the transaction at the given index.

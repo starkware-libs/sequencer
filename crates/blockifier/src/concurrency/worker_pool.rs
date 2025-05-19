@@ -62,7 +62,6 @@ impl<S: StateReader + Send + 'static> WorkerPool<S> {
         for sender in self.senders.iter() {
             sender.send(Some(worker_executor.clone())).expect("Failed to send worker executor.");
         }
-        worker_executor.scheduler.wait_for_completion();
     }
 
     pub fn join(self) {

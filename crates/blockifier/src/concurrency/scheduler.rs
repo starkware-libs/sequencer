@@ -243,9 +243,10 @@ impl Scheduler {
         self.done_marker.load(Ordering::Acquire)
     }
 
-    /// Sleeps until the scheduler is done.
-    pub fn wait_for_completion(&self) {
-        while !self.done() {
+    /// Sleeps until the scheduler is done or the requested number of committed transactions is
+    /// reached..
+    pub fn wait_for_completion(&self, target_n_txs: usize) {
+        while !(self.done() || self.get_n_committed_txs() >= target_n_txs) {
             std::thread::sleep(std::time::Duration::from_micros(1));
         }
 
