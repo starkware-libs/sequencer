@@ -1,4 +1,6 @@
 use blockifier::blockifier_versioned_constants::VersionedConstants;
+use blockifier::execution::execution_utils::ReadOnlySegment;
+use blockifier::execution::syscalls::hint_processor::SyscallExecutionError;
 use blockifier::execution::syscalls::secp::SecpHintProcessor;
 use blockifier::execution::syscalls::syscall_base::SyscallResult;
 use blockifier::execution::syscalls::syscall_executor::SyscallExecutor;
@@ -32,10 +34,11 @@ use blockifier::execution::syscalls::vm_syscall_utils::{
     SyscallSelector,
 };
 use blockifier::state::state_api::StateReader;
-use cairo_vm::types::relocatable::Relocatable;
+use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::execution_resources::GasAmount;
 
+use crate::hint_processor::execution_helper::ExecutionHelperError;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 
 #[allow(unused_variables)]
@@ -73,7 +76,45 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<CallContractResponse> {
-        todo!()
+        // TODO(Tzahi): Change `expect`s to regular errors once the syscall trait has an associated
+        // error type.
+        let call_tracker = syscall_handler
+            .execution_helpers_manager
+            .get_mut_current_execution_helper()
+            .expect("No current execution helper")
+            .tx_execution_iter
+            .get_mut_tx_execution_info_ref()
+            .expect("No current tx execution info")
+            .call_info_tracker
+            .as_mut()
+            .expect("No call info tracker found");
+
+        let next_call_execution = &call_tracker
+            .inner_calls_iterator
+            .next()
+            .ok_or(ExecutionHelperError::MissingCallInfo)
+            .expect("Missing call info")
+            .execution;
+
+        *remaining_gas -= next_call_execution.gas_consumed;
+        let ret_data = &next_call_execution.retdata.0;
+
+        if next_call_execution.failed {
+            return Err(SyscallExecutionError::Revert { error_data: ret_data.clone() });
+        };
+
+        let relocatable_ret_data: Vec<MaybeRelocatable> =
+            ret_data.iter().map(|&x| MaybeRelocatable::from(x)).collect();
+
+        let retdata_segment_start_ptr = vm.add_memory_segment();
+        vm.load_data(retdata_segment_start_ptr, &relocatable_ret_data)?;
+
+        Ok(CallContractResponse {
+            segment: ReadOnlySegment {
+                start_ptr: retdata_segment_start_ptr,
+                length: relocatable_ret_data.len(),
+            },
+        })
     }
 
     fn deploy(
