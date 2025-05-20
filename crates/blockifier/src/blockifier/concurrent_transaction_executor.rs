@@ -4,7 +4,11 @@ use std::sync::{Arc, Mutex};
 use starknet_api::block::BlockHashAndNumber;
 
 use crate::blockifier::block::pre_process_block;
-use crate::blockifier::transaction_executor::{BlockExecutionSummary, TransactionExecutorResult};
+use crate::blockifier::transaction_executor::{
+    BlockExecutionSummary,
+    TransactionExecutionOutput,
+    TransactionExecutorResult,
+};
 use crate::bouncer::Bouncer;
 use crate::concurrency::worker_logic::WorkerExecutor;
 use crate::concurrency::worker_pool::WorkerPool;
@@ -12,7 +16,6 @@ use crate::context::BlockContext;
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::{StateReader, StateResult};
 use crate::state::stateful_compression::{allocate_aliases_in_storage, compress};
-use crate::blockifier::transaction_executor::TransactionExecutionOutput;
 use crate::transaction::transaction_execution::Transaction;
 
 pub struct ConcurrentTransactionExecutor<S: StateReader> {
