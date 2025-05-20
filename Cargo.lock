@@ -819,6 +819,7 @@ dependencies = [
  "chrono",
  "futures",
  "indexmap 2.9.0",
+ "log",
  "mempool_test_utils",
  "metrics 0.24.1",
  "metrics-exporter-prometheus",
