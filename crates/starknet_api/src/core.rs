@@ -496,9 +496,7 @@ impl From<EthAddress> for PrefixedBytesAsHex<20_usize> {
 }
 
 /// A public key of a sequencer.
-#[derive(
-    Debug, Copy, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
-)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize)]
 pub struct SequencerPublicKey(pub PublicKey);
 
 #[derive(
