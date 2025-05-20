@@ -197,7 +197,7 @@ impl EthToStrkOracleClientTrait for EthToStrkOracleClient {
     /// The HTTP response must include the following fields:
     /// - `price`: a hexadecimal string representing the price.
     /// - `decimals`: a `u64` value, must be equal to `ETH_TO_STRK_QUANTIZATION`.
-    #[instrument(skip(self), err)]
+    #[instrument(skip(self))]
     async fn eth_to_fri_rate(&self, timestamp: u64) -> Result<u128, EthToStrkOracleClientError> {
         let quantized_timestamp = (timestamp - self.lag_interval_seconds)
             .checked_div(self.lag_interval_seconds)
@@ -211,6 +211,7 @@ impl EthToStrkOracleClientTrait for EthToStrkOracleClient {
                     quantized_timestamp,
                     Query::Unresolved(self.spawn_query(quantized_timestamp)),
                 );
+                warn!("Query not yet resolved: timestamp={timestamp}");
                 return Err(EthToStrkOracleClientError::QueryNotReadyError(timestamp));
             };
 
@@ -221,12 +222,19 @@ impl EthToStrkOracleClientTrait for EthToStrkOracleClient {
                 }
                 Query::Unresolved(handle) => {
                     if !handle.is_finished() {
+                        warn!("Query not yet resolved: timestamp={timestamp}");
                         return Err(EthToStrkOracleClientError::QueryNotReadyError(timestamp));
                     }
                 }
             };
         }
-        let rate = self.resolve_query(quantized_timestamp)?;
+        let rate = match self.resolve_query(quantized_timestamp) {
+            Ok(rate) => rate,
+            Err(e) => {
+                warn!("Query failed for timestamp {timestamp}: {e:?}");
+                return Err(e);
+            }
+        };
         self.cached_prices
             .lock()
             .expect("Lock on cached prices was poisoned due to a previous panic")
