@@ -144,15 +144,15 @@ impl<S: StateReader> WorkerExecutor<S> {
 
     pub fn add_transactions_and_wait(
         &self,
-        txs: Vec<Transaction>,
+        txs: &[Transaction],
     ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
         let (from_tx, to_tx) = {
             let mut n_transactions_lock =
                 self.n_transactions.lock().expect("Failed to lock n_transactions");
             let from_tx = *n_transactions_lock;
             let n_new_transactions = txs.len();
-            for (i, tx) in txs.into_iter().enumerate() {
-                self.transactions.insert(from_tx + i, Arc::new(tx));
+            for (i, tx) in txs.iter().enumerate() {
+                self.transactions.insert(from_tx + i, Arc::new(tx.clone()));
             }
             let to_tx = from_tx + n_new_transactions;
             *n_transactions_lock = to_tx;
