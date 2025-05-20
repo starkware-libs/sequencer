@@ -53,7 +53,7 @@ impl SoftDeleteIndexMap {
         }
 
         assert_eq!(self.staged_txs.get(&tx_hash), None);
-        entry.set_state(TxState::Staged);
+        entry.set_state(TransactionState::Staged);
         self.staged_txs.insert(tx_hash);
 
         Some(&entry.transaction)
@@ -66,7 +66,7 @@ impl SoftDeleteIndexMap {
     /// Rolls back all staged transactions, converting them to unstaged.
     pub fn rollback_staging(&mut self) {
         for tx_hash in self.staged_txs.drain() {
-            self.txs.entry(tx_hash).and_modify(|entry| entry.set_state(TxState::Unstaged));
+            self.txs.entry(tx_hash).and_modify(|entry| entry.set_state(TransactionState::Unstaged));
         }
     }
 
@@ -84,7 +84,7 @@ impl From<Vec<L1HandlerTransaction>> for SoftDeleteIndexMap {
 
 /// Indicates whether a transaction is unstaged or staged.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TxState {
+pub enum TransactionState {
     Unstaged,
     Staged,
 }
@@ -94,22 +94,22 @@ pub enum TxState {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TransactionEntry {
     pub transaction: L1HandlerTransaction,
-    pub state: TxState,
+    pub state: TransactionState,
 }
 
 impl TransactionEntry {
     pub fn new(transaction: L1HandlerTransaction) -> Self {
-        Self { transaction, state: TxState::Unstaged }
+        Self { transaction, state: TransactionState::Unstaged }
     }
 
-    pub fn set_state(&mut self, state: TxState) {
+    pub fn set_state(&mut self, state: TransactionState) {
         self.state = state
     }
 
     pub fn is_available(&self) -> bool {
         match self.state {
-            TxState::Unstaged => true,
-            TxState::Staged => false,
+            TransactionState::Unstaged => true,
+            TransactionState::Staged => false,
         }
     }
 }
