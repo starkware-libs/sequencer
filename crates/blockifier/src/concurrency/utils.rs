@@ -14,4 +14,3 @@ impl AbortIfPanic {
         std::mem::forget(self);
     }
 }
-

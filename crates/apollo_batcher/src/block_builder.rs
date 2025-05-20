@@ -15,10 +15,10 @@ use apollo_infra_utils::tracing::LogCompatibleToStringExt;
 use apollo_state_reader::papyrus_state::{ClassReader, PapyrusReader};
 use apollo_storage::StorageReader;
 use async_trait::async_trait;
+use blockifier::blockifier::concurrent_transaction_executor::ConcurrentTransactionExecutor;
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::{
     BlockExecutionSummary,
-    TransactionExecutor,
     TransactionExecutorError as BlockifierTransactionExecutorError,
     TransactionExecutorResult,
 };
@@ -453,7 +453,9 @@ impl BlockBuilderFactory {
         &self,
         block_metadata: BlockMetadata,
         runtime: tokio::runtime::Handle,
-    ) -> BlockBuilderResult<TransactionExecutor<StateReaderAndContractManager<PapyrusReader>>> {
+    ) -> BlockBuilderResult<
+        ConcurrentTransactionExecutor<StateReaderAndContractManager<PapyrusReader>>,
+    > {
         let height = block_metadata.block_info.block_number;
         let block_builder_config = self.block_builder_config.clone();
         let versioned_constants = VersionedConstants::get_versioned_constants(
@@ -474,12 +476,12 @@ impl BlockBuilderFactory {
             contract_class_manager: self.contract_class_manager.clone(),
         };
 
-        let executor = TransactionExecutor::pre_process_and_create_with_pool(
+        // TODO: Check block_builder_config.execute_config.
+        let executor = ConcurrentTransactionExecutor::start_block(
             state_reader,
             block_context,
             block_metadata.retrospective_block_hash,
-            block_builder_config.execute_config,
-            Some(self.worker_pool.clone()),
+            self.worker_pool.clone(),
         )?;
 
         Ok(executor)
