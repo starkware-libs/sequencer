@@ -1,11 +1,11 @@
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
+use expect_test::expect;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::transaction::fields::Calldata;
 use test_case::test_case;
 
 use crate::context::ChainInfo;
-use crate::execution::call_info::CallExecution;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::retdata;
 use crate::test_utils::initial_test_state::test_state;
@@ -25,8 +25,18 @@ fn test_sha256(runnable_version: RunnableCairo1) {
         ..trivial_external_entry_point_new(test_contract)
     };
 
-    pretty_assertions::assert_eq!(
-        entry_point_call.execute_directly(&mut state).unwrap().execution,
-        CallExecution { gas_consumed: 869855, ..CallExecution::from_retdata(retdata![]) }
-    );
+    let execution = entry_point_call.execute_directly(&mut state).unwrap().execution;
+    expect![[r#"
+        CallExecution {
+            retdata: Retdata(
+                [],
+            ),
+            events: [],
+            l2_to_l1_messages: [],
+            failed: false,
+            gas_consumed: 869855,
+        }
+    "#]]
+    .assert_debug_eq(&execution);
+    pretty_assertions::assert_eq!(execution.retdata, retdata![]);
 }

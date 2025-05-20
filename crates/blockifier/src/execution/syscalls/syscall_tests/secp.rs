@@ -6,7 +6,6 @@ use starknet_api::transaction::fields::Calldata;
 use test_case::test_case;
 
 use crate::context::ChainInfo;
-use crate::execution::call_info::CallExecution;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{trivial_external_entry_point_new, BALANCE};
@@ -53,10 +52,18 @@ fn test_secp256k1_point_from_x(runnable_version: RunnableCairo1) {
         ..trivial_external_entry_point_new(test_contract)
     };
 
-    pretty_assertions::assert_eq!(
-        entry_point_call.execute_directly(&mut state).unwrap().execution,
-        CallExecution { gas_consumed: 184690, ..Default::default() }
-    );
+    expect![[r#"
+        CallExecution {
+            retdata: Retdata(
+                [],
+            ),
+            events: [],
+            l2_to_l1_messages: [],
+            failed: false,
+            gas_consumed: 184690,
+        }
+    "#]]
+    .assert_debug_eq(&entry_point_call.execute_directly(&mut state).unwrap().execution);
 }
 
 #[cfg_attr(feature = "cairo_native",test_case(RunnableCairo1::Native; "Native"))]
@@ -73,8 +80,16 @@ fn test_secp256r1(runnable_version: RunnableCairo1) {
         ..trivial_external_entry_point_new(test_contract)
     };
 
-    pretty_assertions::assert_eq!(
-        entry_point_call.execute_directly(&mut state).unwrap().execution,
-        CallExecution { gas_consumed: 27569930, ..Default::default() }
-    );
+    expect![[r#"
+        CallExecution {
+            retdata: Retdata(
+                [],
+            ),
+            events: [],
+            l2_to_l1_messages: [],
+            failed: false,
+            gas_consumed: 27569930,
+        }
+    "#]]
+    .assert_debug_eq(&entry_point_call.execute_directly(&mut state).unwrap().execution);
 }

@@ -60,7 +60,8 @@ impl MixedBehaviour {
     /// Panics if bootstrap_peer_multiaddr doesn't have a peer id.
     pub fn new(
         keypair: Keypair,
-        bootstrap_peer_multiaddr: Option<Multiaddr>,
+        // TODO(AndrewL): consider making this non optional
+        bootstrap_peers_multiaddrs: Option<Vec<Multiaddr>>,
         streamed_bytes_config: sqmr::Config,
         chain_id: ChainId,
         node_version: Option<String>,
@@ -76,16 +77,21 @@ impl MixedBehaviour {
         ]);
         Self {
             peer_manager: peer_manager::PeerManager::new(peer_manager_config),
-            discovery: bootstrap_peer_multiaddr
+            discovery: bootstrap_peers_multiaddrs
                 .map(|bootstrap_peer_multiaddr| {
                     discovery::Behaviour::new(
                         discovery_config,
-                        vec![(
-                            DialOpts::from(bootstrap_peer_multiaddr.clone())
-                                .get_peer_id()
-                                .expect("bootstrap_peer_multiaddr doesn't have a peer id"),
-                            bootstrap_peer_multiaddr.clone(),
-                        )],
+                        bootstrap_peer_multiaddr
+                            .iter()
+                            .map(|bootstrap_peer_multiaddr| {
+                                (
+                                    DialOpts::from(bootstrap_peer_multiaddr.clone())
+                                        .get_peer_id()
+                                        .expect("bootstrap_peer_multiaddr doesn't have a peer id"),
+                                    bootstrap_peer_multiaddr.clone(),
+                                )
+                            })
+                            .collect(),
                     )
                 })
                 .into(),

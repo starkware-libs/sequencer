@@ -49,6 +49,7 @@ impl<S: StateReader> VersionedState<S> {
         }
     }
 
+    /// Returns the writes performed up to the given transaction index (excluding).
     fn get_writes_up_to_index(&mut self, tx_index: TxIndex) -> StateMaps {
         StateMaps {
             storage: self.storage.get_writes_up_to_index(tx_index),
@@ -199,13 +200,9 @@ impl<S: StateReader> VersionedState<S> {
 
 impl<U: UpdatableState> VersionedState<U> {
     pub fn commit_chunk_and_recover_block_state(mut self, n_committed_txs: usize) -> U {
-        if n_committed_txs == 0 {
-            return self.into_initial_state();
-        }
-        let commit_index = n_committed_txs - 1;
-        let writes = self.get_writes_up_to_index(commit_index);
+        let writes = self.get_writes_up_to_index(n_committed_txs);
         let class_hash_to_class =
-            self.compiled_contract_classes.get_writes_up_to_index(commit_index);
+            self.compiled_contract_classes.get_writes_up_to_index(n_committed_txs);
         let mut state = self.into_initial_state();
         state.apply_writes(&writes, &class_hash_to_class);
         state
