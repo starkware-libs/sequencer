@@ -22,10 +22,7 @@ use url::Url;
 #[path = "eth_to_strk_oracle_test.rs"]
 pub mod eth_to_strk_oracle_test;
 
-// TODO(Asmaa): Move to config.
 pub const ETH_TO_STRK_QUANTIZATION: u64 = 18;
-const MAX_CACHE_SIZE: NonZeroUsize = NonZeroUsize::new(100).expect("Invalid cache size");
-const QUERY_TIMEOUT_SEC: u64 = 3;
 
 pub enum Query {
     Resolved(u128),
@@ -51,6 +48,8 @@ pub struct EthToStrkOracleConfig {
     #[serde(deserialize_with = "deserialize_optional_map")]
     pub headers: Option<HashMap<String, String>>,
     pub lag_interval_seconds: u64,
+    pub max_cache_size: usize,
+    pub query_timeout_sec: u64,
 }
 
 impl SerializeConfig for EthToStrkOracleConfig {
@@ -79,6 +78,18 @@ impl SerializeConfig for EthToStrkOracleConfig {
                  with relevant query parameters in `base_url`, if required.",
                 ParamPrivacyInput::Private,
             ),
+            ser_param(
+                "max_cache_size",
+                &self.max_cache_size,
+                "The maximum number of cached conversion rates.",
+                ParamPrivacyInput::Private,
+            ),
+            ser_param(
+                "query_timeout_sec",
+                &self.query_timeout_sec,
+                "The timeout (seconds) for the query to the eth to strk oracle.",
+                ParamPrivacyInput::Private,
+            ),
         ])
     }
 }
@@ -89,39 +100,40 @@ impl Default for EthToStrkOracleConfig {
             base_url: Url::parse("https://example.com/api").unwrap(),
             headers: None,
             lag_interval_seconds: 1,
+            max_cache_size: 100,
+            query_timeout_sec: 3,
         }
     }
 }
 
 /// Client for interacting with the eth to strk Oracle API.
 pub struct EthToStrkOracleClient {
+    config: EthToStrkOracleConfig,
     /// The base URL of the eth to strk Oracle API.
     /// The `timestamp` parameter is appended dynamically when making requests,
     /// in order to have a stable mapping from block timestamp to conversion rate.
     base_url: Url,
     /// HTTP headers required for requests.
     headers: HeaderMap,
-    lag_interval_seconds: u64,
     client: reqwest::Client,
     cached_prices: Mutex<LruCache<u64, Query>>,
 }
 
 impl EthToStrkOracleClient {
-    pub fn new(
-        base_url: Url,
-        headers: Option<HashMap<String, String>>,
-        lag_interval_seconds: u64,
-    ) -> Self {
+    pub fn new(config: EthToStrkOracleConfig) -> Self {
         info!(
-            "Creating EthToStrkOracleClient with: base_url={base_url} headers={headers:?} \
-             lag_interval_seconds={lag_interval_seconds}"
+            "Creating EthToStrkOracleClient with: base_url={:} headers={:?} \
+             lag_interval_seconds={}",
+            config.base_url, config.headers, config.lag_interval_seconds
         );
         Self {
-            base_url,
-            headers: hashmap_to_headermap(headers),
-            lag_interval_seconds,
+            config: config.clone(),
+            base_url: config.base_url,
+            headers: hashmap_to_headermap(config.headers),
             client: reqwest::Client::new(),
-            cached_prices: Mutex::new(LruCache::new(MAX_CACHE_SIZE)),
+            cached_prices: Mutex::new(LruCache::new(
+                NonZeroUsize::new(config.max_cache_size).expect("Invalid cache size"),
+            )),
         }
     }
 
@@ -129,7 +141,7 @@ impl EthToStrkOracleClient {
         &self,
         quantized_timestamp: u64,
     ) -> AbortOnDropHandle<Result<Response, reqwest::Error>> {
-        let adjusted_timestamp = quantized_timestamp * self.lag_interval_seconds;
+        let adjusted_timestamp = quantized_timestamp * self.config.lag_interval_seconds;
         let mut url = self.base_url.clone();
         url.query_pairs_mut().append_pair("timestamp", &adjusted_timestamp.to_string());
         let request = self.client.get(url).headers(self.headers.clone()).send();
@@ -180,8 +192,8 @@ impl EthToStrkOracleClientTrait for EthToStrkOracleClient {
     /// - `decimals`: a `u64` value, must be equal to `ETH_TO_STRK_QUANTIZATION`.
     #[instrument(skip(self))]
     async fn eth_to_fri_rate(&self, timestamp: u64) -> Result<u128, EthToStrkOracleClientError> {
-        let quantized_timestamp = (timestamp - self.lag_interval_seconds)
-            .checked_div(self.lag_interval_seconds)
+        let quantized_timestamp = (timestamp - self.config.lag_interval_seconds)
+            .checked_div(self.config.lag_interval_seconds)
             .expect("lag_interval_seconds should be non-zero");
 
         // Scope is to make sure the MutexGuard is dropped before the await.
@@ -211,7 +223,7 @@ impl EthToStrkOracleClientTrait for EthToStrkOracleClient {
         }
 
         let rate = match tokio::time::timeout(
-            Duration::from_secs(QUERY_TIMEOUT_SEC),
+            Duration::from_secs(self.config.query_timeout_sec),
             self.resolve_query(quantized_timestamp),
         )
         .await

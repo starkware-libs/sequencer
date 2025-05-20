@@ -959,6 +959,16 @@
     "privacy": "Private",
     "value": 1
   },
+  "consensus_manager_config.eth_to_strk_oracle_config.max_cache_size": {
+    "description": "The maximum number of cached conversion rates.",
+    "privacy": "Private",
+    "value": 100
+  },
+  "consensus_manager_config.eth_to_strk_oracle_config.query_timeout_sec": {
+    "description": "The timeout (seconds) for the query to the eth to strk oracle.",
+    "privacy": "Private",
+    "value": 3
+  },
   "consensus_manager_config.immediate_active_height": {
     "description": "The height at which the node may actively participate in consensus.",
     "privacy": "Public",
