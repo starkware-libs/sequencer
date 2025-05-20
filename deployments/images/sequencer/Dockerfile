@@ -18,8 +18,7 @@ WORKDIR /app
 COPY --from=planner /app/recipe.json recipe.json
 RUN cargo chef cook --recipe-path recipe.json
 COPY . .
-# TODO(Itay): Change this to only build the node instead of the entire project.
-RUN cargo build --features cairo_native
+RUN cargo build --release --bin apollo_node --features cairo_native
 
 FROM ubuntu:24.04 AS final_stage
 
@@ -28,8 +27,8 @@ RUN apt-get update && apt-get install -y ca-certificates
 
 ENV ID=1001
 WORKDIR /app
-COPY --from=builder /app/target/debug/apollo_node ./target/debug/apollo_node
-COPY --from=builder /app/target/debug/shared_executables/starknet-sierra-compile ./target/debug/shared_executables/starknet-sierra-compile
+COPY --from=builder /app/target/release/apollo_node ./target/release/apollo_node
+COPY --from=builder /app/target/release/shared_executables/starknet-sierra-compile ./target/release/shared_executables/starknet-sierra-compile
 COPY --from=builder /usr/bin/tini /usr/bin/tini
 
 # Copy sequencer config
@@ -49,4 +48,4 @@ EXPOSE 8080 8081 8082
 USER ${ID}
 
 # Set the entrypoint to use tini to manage the process.
-ENTRYPOINT ["tini", "--", "/app/target/debug/apollo_node"]
+ENTRYPOINT ["tini", "--", "/app/target/release/apollo_node"]
