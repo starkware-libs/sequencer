@@ -8,6 +8,14 @@ import sys
 import time
 
 
+# Save the original print function
+original_print = print
+
+# Override print to always flush
+def print(*args, **kwargs):
+    kwargs['flush'] = True
+    original_print(*args, **kwargs)
+
 def check_manifest_files(deployment_config_path: str, workspace: str):
     with open(deployment_config_path, "r", encoding="utf-8") as f:
         deployment_config = json.load(f)

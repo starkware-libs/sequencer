@@ -6,6 +6,16 @@ import time
 from typing import List
 
 
+# Save the original print function
+original_print = print
+
+
+# Override print to always flush
+def print(*args, **kwargs):
+    kwargs["flush"] = True
+    original_print(*args, **kwargs)
+
+
 def run(cmd: List[str], capture_output=False, check=True, text=True) -> subprocess.CompletedProcess:
     return subprocess.run(cmd, capture_output=capture_output, check=check, text=text)
 
