@@ -1,10 +1,11 @@
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
+use apollo_config::dumping::{combine_config_map_and_pointers, SerializeConfig};
 use apollo_infra_utils::dumping::serialize_to_file;
 #[cfg(test)]
 use apollo_infra_utils::dumping::serialize_to_file_test;
-use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
-use apollo_node::config::config_utils::{get_deployment_from_config_path, BaseAppConfigOverride};
+use apollo_node::config::config_utils::config_to_preset;
 use indexmap::IndexMap;
 use serde::Serialize;
 use serde_json::{to_value, Value};
@@ -56,8 +57,16 @@ impl Deployment {
         let application_config_subdir = deployment_name
             .add_path_suffix(environment.application_config_dir_path(), instance_name);
 
-        let additional_config_filenames: Vec<String> =
-            config_override.create(&application_config_subdir);
+        // Reference the base app config file from the application config subdir.
+        let base_app_config_relative_path =
+            relative_up_path(&application_config_subdir, &base_app_config_file_path);
+
+        let config_override_files: Vec<String> = config_override.create(&application_config_subdir);
+
+        let additional_config_filenames =
+            std::iter::once(base_app_config_relative_path.to_string_lossy().to_string())
+                .chain(config_override_files)
+                .collect::<Vec<_>>();
 
         let services = service_names
             .iter()
@@ -90,30 +99,42 @@ impl Deployment {
     }
 
     pub fn application_config_values(&self) -> IndexMap<ServiceName, Value> {
-        let deployment_base_app_config =
-            get_deployment_from_config_path(self.get_base_app_config_file_path().to_str().unwrap());
         let component_configs = self.deployment_name.get_component_configs(None, &self.environment);
-
         let mut result = IndexMap::new();
 
+        let l1_provider_config = self.environment.get_l1_provider_config_modifications().as_value();
+
         for (service, component_config) in component_configs.into_iter() {
-            let mut service_deployment_base_app_config = deployment_base_app_config.clone();
+            // Component configs, determined by the service.
+            let component_config_map =
+                combine_config_map_and_pointers(component_config.dump(), &vec![], &HashSet::new())
+                    .unwrap();
 
-            let monitoring_endpoint_config = MonitoringEndpointConfig::deployment();
-            let base_app_config_override =
-                BaseAppConfigOverride::new(component_config, monitoring_endpoint_config);
+            let mut flattened_component_config_map = config_to_preset(&component_config_map);
+            fn prepend_keys(value: &mut Value, prefix: &str) {
+                match value {
+                    Value::Object(obj) => {
+                        let keys: Vec<String> = obj.keys().cloned().collect();
+                        for key in keys {
+                            if let Some(val) = obj.remove(&key) {
+                                obj.insert(format!("{}{}", prefix, key), val);
+                            }
+                        }
+                    }
+                    _ => panic!("Only objects are supported for prepending keys"),
+                }
+            }
+            prepend_keys(&mut flattened_component_config_map, "components.");
 
-            service_deployment_base_app_config.override_base_app_config(base_app_config_override);
+            // Unify maps of component configs and L1 provider configs.
+            // TODO(Tsabary): l1 provider config should be dumped in a different file
+            if let (Value::Object(obj1), Value::Object(obj2)) =
+                (&mut flattened_component_config_map, l1_provider_config.clone())
+            {
+                obj1.extend(obj2);
+            }
 
-            service_deployment_base_app_config
-                .config
-                .l1_provider_config
-                .provider_startup_height_override = self
-                .environment
-                .get_l1_provider_config_modifications()
-                .l1_provider_config_provider_startup_height_override;
-
-            result.insert(service, service_deployment_base_app_config.as_value());
+            result.insert(service, flattened_component_config_map);
         }
 
         result
@@ -338,4 +359,27 @@ fn get_secret_key(id: usize) -> String {
 fn get_validator_id(id: usize) -> String {
     // TODO(Tsabary): Make sure this works for larger ids by converting the id to hex string.
     format!("0x{}", id + 64)
+}
+
+fn relative_up_path(from: &Path, to: &Path) -> PathBuf {
+    // Canonicalize logically (NOT on filesystem)
+    let from_components: Vec<_> = from.components().collect();
+    let to_components: Vec<_> = to.components().collect();
+
+    // Find common prefix length
+    let common_len = from_components.iter().zip(&to_components).take_while(|(a, b)| a == b).count();
+
+    // How many directories to go up from `from` to get to common root
+    let up_levels = from_components.len() - common_len;
+
+    // Build the relative path
+    let mut result = PathBuf::new();
+    for _ in 0..up_levels {
+        result.push("..");
+    }
+    for component in &to_components[common_len..] {
+        result.push(component.as_os_str());
+    }
+
+    result
 }
