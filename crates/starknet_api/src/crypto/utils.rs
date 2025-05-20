@@ -26,9 +26,7 @@ pub enum CryptoError {
 }
 
 /// A public key.
-#[derive(
-    Debug, Default, Copy, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
-)]
+#[derive(Debug, Default, Copy, Clone, Eq, PartialEq, Hash, Deserialize, Serialize)]
 pub struct PublicKey(pub Felt);
 
 impl std::fmt::LowerHex for PublicKey {
@@ -38,9 +36,7 @@ impl std::fmt::LowerHex for PublicKey {
 }
 
 /// A signature.
-#[derive(
-    Debug, Default, Copy, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
-)]
+#[derive(Debug, Default, Copy, Clone, Eq, PartialEq, Hash, Deserialize, Serialize)]
 pub struct Signature {
     pub r: Felt,
     pub s: Felt,
