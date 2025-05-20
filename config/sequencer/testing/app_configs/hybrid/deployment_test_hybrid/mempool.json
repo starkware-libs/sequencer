@@ -180,6 +180,8 @@
   "consensus_manager_config.eth_to_strk_oracle_config.base_url": "https://api.dev.pragma.build/node/v1/data/eth/strk?interval=15min&aggregation=median",
   "consensus_manager_config.eth_to_strk_oracle_config.headers": "",
   "consensus_manager_config.eth_to_strk_oracle_config.lag_interval_seconds": 900,
+  "consensus_manager_config.eth_to_strk_oracle_config.max_cache_size": 100,
+  "consensus_manager_config.eth_to_strk_oracle_config.query_timeout_sec": 3,
   "consensus_manager_config.immediate_active_height": 1,
   "consensus_manager_config.network_config.advertised_multiaddr": "",
   "consensus_manager_config.network_config.advertised_multiaddr.#is_none": true,

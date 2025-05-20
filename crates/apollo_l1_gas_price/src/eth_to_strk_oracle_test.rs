@@ -3,7 +3,7 @@ use serde_json::json;
 use tokio::{self};
 use url::Url;
 
-use crate::eth_to_strk_oracle::EthToStrkOracleClient;
+use crate::eth_to_strk_oracle::{EthToStrkOracleClient, EthToStrkOracleConfig};
 
 #[tokio::test]
 async fn eth_to_fri_rate_uses_cache_on_quantized_hit() {
@@ -31,9 +31,9 @@ async fn eth_to_fri_rate_uses_cache_on_quantized_hit() {
             .to_string(),
         )
         .create();
-
     let base_url = Url::parse(&server.url()).unwrap();
-    let client = EthToStrkOracleClient::new(base_url, None, lag_interval_seconds);
+    let config = EthToStrkOracleConfig { base_url, lag_interval_seconds, ..Default::default() };
+    let client = EthToStrkOracleClient::new(config.clone());
 
     // First request should fail because the cache is empty.
     assert!(client.eth_to_fri_rate(timestamp1).await.is_err());
