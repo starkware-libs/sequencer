@@ -1,0 +1,151 @@
+name: Sequencer k8s deployment test
+
+permissions:
+  contents: read
+  packages: read
+
+on:
+  workflow_dispatch:
+    inputs:
+      liveness_test_duration_sec:
+        description: Time in seconds to keep the livness test running.
+        required: false
+        default: 60
+        type: number
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: >
+    ${{ github.workflow }}-
+    ${{ github.ref }}-
+    ${{ github.event_name == 'pull_request' && 'PR' || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  namespace: "test"
+  deployment_config_path: ${{ github.workspace }}/config/sequencer/testing/deployment_configs/deployment_test_consolidated.json
+
+jobs:
+  run-tests:
+    runs-on: starkware-ubuntu-24.04-large
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - uses: AbsaOSS/k3d-action@v2
+        name: "Create k3d cluster"
+        with:
+          cluster-name: "sequencer-test"
+          args: >-
+            --verbose
+            --agents 1
+            --no-lb 
+            --wait
+            --timeout 120s
+      - uses: ./.github/actions/bootstrap
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Anvil
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v0.3.0
+
+      - name: Setup python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pipenv
+
+      - name: Setup pipenv
+        run: python3 -m pip install pipenv
+
+      - name: Install dependencies with pipenv
+        run: pipenv install kubernetes
+
+      - name: Setup cdk8s-cli
+        run: npm install -g cdk8s-cli
+
+      - name: Build sequencer_node_setup
+        run: cargo build --bin sequencer_node_setup --bin sequencer_simulator
+
+      - name: Run sequencer_node_setup
+        run: ./target/debug/sequencer_node_setup --output-base-dir ./output --data-prefix-path /data --n-consolidated 1 --n-distributed 0
+
+      - name: Get Deployment Config Metadata
+        run: |
+          set -euo pipefail
+
+          # Get the config directory
+          config_dir=$(jq -r '.application_config_subdir' ${{ env.deployment_config_path }})
+
+          # Export to environment for the next step
+          echo "config_dir=$config_dir" >> $GITHUB_ENV
+          echo "config_dir is: $config_dir"
+
+      - name: Inject Config Secrets
+        run: |
+          python ./scripts/config_injector.py ${{ env.deployment_config_path }} '${{ vars.SEQUENCER_CONFIG_JSON }}'
+
+      - name: Generate k8s manifests
+        working-directory: deployments/sequencer
+        run: |
+          pipenv install
+          cdk8s import
+          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.namespace }} --deployment-config-file ${{ env.deployment_config_path }}"
+          echo "env.deployment_config_path is: "
+          cat "${{ env.deployment_config_path }}"
+
+      - name: Deploy Sequencer
+        working-directory: deployments/sequencer
+        run: |
+          echo "Deploying Sequencer..."
+          kubectl create namespace ${{ env.namespace }}
+          kubectl apply -R -f ./dist/
+
+      - name: Set default namespace
+        run: kubectl config set-context --current --namespace ${{ env.namespace }}
+
+      - name: Run readiness check
+        run: pipenv run python ./scripts/sequencer_readiness_check.py ${{ env.deployment_config_path }} --namespace ${{ env.namespace }}
+
+      - name: Test sequencer is alive
+        env:
+          initial_delay_sec: 10
+          check_interval_sec: 5
+          check_timeout_sec: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.liveness_test_duration_sec || 120 }}
+        run: |
+          pipenv run python ./scripts/sequencer_liveness_check.py \
+            "${{ env.deployment_config_path }}" \
+            "${{ env.config_dir }}" \
+            "${{ env.check_timeout_sec }}" \
+            "${{ env.check_interval_sec }}"
+
+      - name: Copy state and restart pod
+        run: pipenv run python ./scripts/copy_state_and_restart.py --deployment_config_path ${{ env.deployment_config_path }} --data-dir "./output/data/node_0"
+
+      - name: Send transactions test
+        run: pipenv run python ./scripts/sequencer_simulator.py --deployment_config_path ${{ env.deployment_config_path }} --config_dir "${{ env.config_dir }}" --node_type "consolidated"
+
+      - name: Get container logs
+        if: always()
+        run: |
+          pod=$(kubectl get pods -l app=sequencer -o custom-columns=":metadata.name" --no-headers)
+          echo "Exporting container logs..."
+          kubectl describe pod "$pod" | tee -a container.log
+          kubectl logs "$pod" | tee -a container.log
+
+      - name: Upload artifacts
+        if: always()
+        id: upload_logs
+        uses: actions/upload-artifact@v4.6.0
+        with:
+          name: workflow-${{ github.run_id }}
+          path: |
+            ./container.log
+            ./sequencer_simulator.log
