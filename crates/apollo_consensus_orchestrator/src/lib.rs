@@ -9,6 +9,9 @@ pub mod sequencer_consensus_context;
 #[allow(missing_docs)]
 pub mod cende;
 
+#[allow(missing_docs)]
+pub mod committee_manager;
+
 /// Fee market logic.
 pub mod fee_market;
 
