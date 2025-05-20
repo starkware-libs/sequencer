@@ -15,11 +15,28 @@ RUN cargo chef prepare --recipe-path recipe.json
 
 FROM base AS builder
 WORKDIR /app
+
+
+ARG BUILD_MODE=release
+ENV BUILD_MODE=${BUILD_MODE}  # Make available in later stages
+
+# Validate BUILD_MODE value
+RUN if [ "$BUILD_MODE" != "release" ] && [ "$BUILD_MODE" != "debug" ]; then \
+        echo "Error: BUILD_MODE must be either 'release' or 'debug' (got '$BUILD_MODE')" >&2; \
+        exit 1; \
+    fi
+
+
 COPY --from=planner /app/recipe.json recipe.json
 RUN cargo chef cook --recipe-path recipe.json
 COPY . .
-# TODO(Itay): Change this to only build the node instead of the entire project.
-RUN cargo build --features cairo_native
+
+RUN if [ "$BUILD_MODE" = "release" ]; then \
+        cargo build --release --bin apollo_node --features cairo_native; \
+    else \
+        cargo build --bin apollo_node --features cairo_native; \
+    fi
+
 
 FROM ubuntu:24.04 AS final_stage
 
@@ -28,8 +45,8 @@ RUN apt-get update && apt-get install -y ca-certificates
 
 ENV ID=1001
 WORKDIR /app
-COPY --from=builder /app/target/debug/apollo_node ./target/debug/apollo_node
-COPY --from=builder /app/target/debug/shared_executables/starknet-sierra-compile ./target/debug/shared_executables/starknet-sierra-compile
+COPY --from=builder /app/target/${BUILD_MODE}/apollo_node ./target/${BUILD_MODE}/apollo_node
+COPY --from=builder /app/target/${BUILD_MODE}/shared_executables/starknet-sierra-compile ./target/${BUILD_MODE}/shared_executables/starknet-sierra
 COPY --from=builder /usr/bin/tini /usr/bin/tini
 
 # Copy sequencer config
@@ -49,4 +66,4 @@ EXPOSE 8080 8081 8082
 USER ${ID}
 
 # Set the entrypoint to use tini to manage the process.
-ENTRYPOINT ["tini", "--", "/app/target/debug/apollo_node"]
+ENTRYPOINT ["tini", "--", "/app/target/${BUILD_MODE}/apollo_node"]
