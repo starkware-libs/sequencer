@@ -51,9 +51,9 @@ futures-util = { workspace = true, optional = true }
 tokio-stream = { workspace = true, optional = true }
 
 [dev-dependencies]
+apollo_config = { workspace = true, features = ["testing"] }
 apollo_infra_utils = { workspace = true, features = ["testing"] }
 apollo_test_utils.workspace = true
-colored.workspace = true
 insta = { workspace = true, features = ["json"] }
 metrics-exporter-prometheus.workspace = true
 pretty_assertions.workspace = true
