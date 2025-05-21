@@ -1,4 +1,4 @@
-use apollo_consensus::metrics::CONSENSUS_BLOCK_NUMBER;
+use apollo_consensus::metrics::{CONSENSUS_BLOCK_NUMBER, CONSENSUS_ROUND};
 use apollo_gateway::metrics::{GATEWAY_ADD_TX_LATENCY, GATEWAY_TRANSACTIONS_RECEIVED};
 use apollo_http_server::metrics::ADDED_TRANSACTIONS_TOTAL;
 use apollo_mempool::metrics::{MEMPOOL_GET_TXS_SIZE, MEMPOOL_TRANSACTIONS_RECEIVED};
@@ -23,6 +23,20 @@ const CONSENSUS_BLOCK_NUMBER_STUCK: Alert = Alert {
     conditions: &[AlertCondition {
         comparison_op: AlertComparisonOp::LessThan,
         comparison_value: 1.0,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 20,
+};
+
+const CONSENSUS_ROUND_ABOVE_ONE: Alert = Alert {
+    name: "consensus_round_above_one",
+    title: "Consensus round above one",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!("changes({}>1)[12s]", CONSENSUS_ROUND.get_name()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::GreaterThan,
+        comparison_value: 5.0,
         logical_op: AlertLogicalOp::And,
     }],
     pending_duration: "1m",
@@ -107,6 +121,7 @@ const MEMPOOL_GET_TXS_SIZE_DROP: Alert = Alert {
 
 pub const SEQUENCER_ALERTS: Alerts = Alerts::new(&[
     CONSENSUS_BLOCK_NUMBER_STUCK,
+    CONSENSUS_ROUND_ABOVE_ONE,
     GATEWAY_ADD_TX_RATE_DROP,
     GATEWAY_ADD_TX_LATENCY_INCREASE,
     MEMPOOL_ADD_TX_RATE_DROP,
