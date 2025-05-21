@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
-use std::task::Waker;
+use std::task::{Context, Waker};
 
 use waker_fn::waker_fn;
 
@@ -23,6 +23,10 @@ impl MockWakerWrapper {
 
     pub fn get_waker(&self) -> &Waker {
         &self.waker
+    }
+
+    pub fn create_context(&self) -> Context {
+        Context::from_waker(&self.waker)
     }
 
     pub fn times_woken(&self) -> usize {
