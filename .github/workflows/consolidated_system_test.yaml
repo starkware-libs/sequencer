@@ -34,6 +34,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Create k3d cluster (Local k8s)
+        uses: AbsaOSS/k3d-action@v2
+        with:
+          cluster-name: "consolidated-system-test"
+          args: >-
+            --verbose
+            --agents 1
+            --no-lb
+            --wait
+            --timeout 120s
+      - uses: ./.github/actions/bootstrap
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
       # Install rust components.
       - uses: ./.github/actions/bootstrap
         with:
@@ -89,3 +103,10 @@ jobs:
           echo "Generating Kubernetes manifests using deployment config at: ${{ env.deployment_config_path }}:"
           cat "${{ env.deployment_config_path }}"
           cdk8s synth --app "pipenv run python main.py --namespace ${{ env.namespace }} --deployment-config-file ${{ env.deployment_config_path }}"
+
+      - name: Deploy Sequencer
+        working-directory: deployments/sequencer
+        run: |
+          echo "Deploying Sequencer..."
+          kubectl create namespace ${{ env.namespace }}
+          kubectl apply -R -f ./dist/
