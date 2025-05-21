@@ -226,10 +226,10 @@ where
             let http_request = self.construct_http_request(serialized_request.clone());
             let res = self.try_send(http_request).await;
             if res.is_ok() {
-                debug!("Request successful on attempt {}", attempt + 1);
+                debug!("Request successful on attempt {}/{}", attempt + 1, max_attempts);
                 return res;
             }
-            error!("Request failed on attempt {}: {:?}", attempt + 1, res);
+            error!("Request failed on attempt {}/{}: {:?}", attempt + 1, max_attempts, res);
             if attempt == max_attempts - 1 {
                 return res;
             }
