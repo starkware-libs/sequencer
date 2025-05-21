@@ -64,6 +64,7 @@ pub enum L1ProviderRequest {
         tx_hash: TransactionHash,
         height: BlockNumber,
     },
+    GetL1ProviderSnapshot,
 }
 impl_debug_for_infra_requests_and_responses!(L1ProviderRequest);
 
@@ -75,6 +76,7 @@ pub enum L1ProviderResponse {
     Initialize(L1ProviderResult<()>),
     StartBlock(L1ProviderResult<()>),
     Validate(L1ProviderResult<ValidationStatus>),
+    GetL1ProviderSnapshot(L1ProviderResult<L1ProviderSnapshot>),
 }
 impl_debug_for_infra_requests_and_responses!(L1ProviderResponse);
 
@@ -110,6 +112,7 @@ pub trait L1ProviderClient: Send + Sync {
 
     async fn add_events(&self, events: Vec<Event>) -> L1ProviderClientResult<()>;
     async fn initialize(&self, events: Vec<Event>) -> L1ProviderClientResult<()>;
+    async fn get_l1_provider_snapshot(&self) -> L1ProviderClientResult<L1ProviderSnapshot>;
 }
 
 #[async_trait]
@@ -203,6 +206,17 @@ where
             Direct
         )
     }
+
+    async fn get_l1_provider_snapshot(&self) -> L1ProviderClientResult<L1ProviderSnapshot> {
+        let request = L1ProviderRequest::GetL1ProviderSnapshot;
+        handle_all_response_variants!(
+            L1ProviderResponse,
+            GetL1ProviderSnapshot,
+            L1ProviderClientError,
+            L1ProviderError,
+            Direct
+        )
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -251,4 +265,15 @@ impl Display for Event {
 pub enum SessionState {
     Propose,
     Validate,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct L1ProviderSnapshot {
+    pub uncommitted_transactions: Vec<TransactionHash>,
+    pub uncommitted_staged_transactions: Vec<TransactionHash>,
+    pub rejected_transactions: Vec<TransactionHash>,
+    pub rejected_staged_transactions: Vec<TransactionHash>,
+    pub committed_transactions: Vec<TransactionHash>,
+    pub l1_provider_state: String,
+    pub current_height: BlockNumber,
 }

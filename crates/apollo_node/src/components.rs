@@ -183,19 +183,33 @@ pub async fn create_node_components(
 
     let monitoring_endpoint = match config.components.monitoring_endpoint.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
-            let mempool_client = if mempool.is_some() {
-                Some(
+            let mempool_client = match config.components.mempool.execution_mode {
+                ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
+                | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => Some(
                     clients
                         .get_mempool_shared_client()
                         .expect("Mempool Client should be available"),
-                )
-            } else {
-                None
+                ),
+                ReactiveComponentExecutionMode::Disabled
+                | ReactiveComponentExecutionMode::Remote => None,
             };
+
+            let l1_provider_client = match config.components.l1_provider.execution_mode {
+                ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
+                | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => Some(
+                    clients
+                        .get_l1_provider_shared_client()
+                        .expect("L1 Provider Client should be available"),
+                ),
+                ReactiveComponentExecutionMode::Disabled
+                | ReactiveComponentExecutionMode::Remote => None,
+            };
+
             Some(create_monitoring_endpoint(
                 config.monitoring_endpoint_config.clone(),
                 VERSION_FULL,
                 mempool_client,
+                l1_provider_client,
             ))
         }
         ActiveComponentExecutionMode::Disabled => None,
