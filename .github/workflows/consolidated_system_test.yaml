@@ -114,6 +114,9 @@ jobs:
       - name: Set default namespace
         run: kubectl config set-context --current --namespace ${{ env.namespace }}
 
+      - name: Run readiness check
+        run: pipenv run python ./scripts/system_tests/readiness_check.py --deployment_config_path ${{ env.deployment_config_path }} --namespace ${{ env.namespace }}
+
       - name: Get container logs
         if: always()
         run: |
