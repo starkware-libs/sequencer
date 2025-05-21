@@ -6,6 +6,7 @@ use blockifier::blockifier_versioned_constants::{OsConstants, VersionedConstants
 use blockifier::execution::syscalls::vm_syscall_utils::SyscallSelector;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_types_core::felt::Felt;
+use strum::IntoEnumIterator;
 
 const CONSTANTS_CONTENTS: &str = include_str!("cairo/starkware/starknet/core/os/constants.cairo");
 
@@ -231,5 +232,43 @@ fn test_os_constants() {
              `FIX_OS_CONSTANTS=1 cargo test -p apollo_starknet_os_program test_os_constants` to \
              fix the test."
         );
+    }
+}
+
+/// Test that all syscalls have a gas cost, and syscalls with linear factors have both costs.
+#[test]
+fn test_all_syscall_have_gas_costs() {
+    let os_constants_template =
+        include_str!("cairo/starkware/starknet/core/os/constants_template.txt");
+    let syscall_costs = &VersionedConstants::latest_constants().os_constants.gas_costs.syscalls;
+    for selector in SyscallSelector::iter() {
+        let Ok(cost) = syscall_costs.get_syscall_gas_cost(&selector) else {
+            // We don't care about deprecated syscalls (without gas costs).
+            continue;
+        };
+
+        let selector_str: &str = match selector {
+            // Keccak round is a special case, since it has a different name in the template.
+            SyscallSelector::KeccakRound => "KECCAK_ROUND_COST",
+            _ => selector.as_ref(),
+        };
+        let gas_cost_str = format!("{selector_str}_GAS_COST = {{{selector_str}_GAS_COST}}");
+
+        // Base cost always exists.
+        assert!(
+            os_constants_template.contains(&gas_cost_str),
+            "Syscall {selector_str} should have a base gas cost."
+        );
+        // If the syscall has a linear factor check for it.
+        if cost.linear_syscall_cost() != 0 {
+            let linear_factor_str = format!(
+                "{selector_str}_CALLDATA_FACTOR_GAS_COST = \
+                 {{{selector_str}_CALLDATA_FACTOR_GAS_COST}}"
+            );
+            assert!(
+                os_constants_template.contains(&linear_factor_str),
+                "Syscall {selector_str} should have a linear gas cost."
+            );
+        }
     }
 }
