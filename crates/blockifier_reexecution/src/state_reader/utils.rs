@@ -226,7 +226,7 @@ pub fn reexecute_and_verify_correctness<
     let mut transaction_executor =
         consecutive_state_readers.pre_process_and_create_executor(None).unwrap();
 
-    let execution_results = transaction_executor.execute_txs(&all_txs_in_next_block);
+    let execution_results = transaction_executor.execute_txs(&all_txs_in_next_block, None);
     // Verify all transactions executed successfully.
     for res in execution_results.iter() {
         assert_matches!(res, Ok(_));
