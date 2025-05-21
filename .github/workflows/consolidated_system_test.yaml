@@ -110,3 +110,7 @@ jobs:
           echo "Deploying Sequencer..."
           kubectl create namespace ${{ env.namespace }}
           kubectl apply -R -f ./dist/
+
+      - name: Run readiness check
+        run: pipenv run python ./scripts/readiness_check.py --deployment_config_path ${{ env.deployment_config_path }} --namespace ${{ env.namespace }}
+
