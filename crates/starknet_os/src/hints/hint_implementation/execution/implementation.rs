@@ -21,12 +21,14 @@ use starknet_api::transaction::fields::ValidResourceBounds;
 use starknet_api::transaction::{DeployAccountTransaction, TransactionVersion};
 use starknet_types_core::felt::Felt;
 
+use crate::hints::enum_definition::{AllHints, OsHint};
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::execution::utils::{
     get_account_deployment_data,
     get_calldata,
     set_state_entry,
 };
+use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
 use crate::syscall_handler_utils::SyscallHandlerType;
@@ -479,7 +481,11 @@ pub(crate) fn tx_account_deployment_data_len<S: StateReader>(
 ) -> OsHintResult {
     let account_deployment_data =
         get_account_deployment_data(hint_processor.get_current_execution_helper()?)?;
-    insert_value_into_ap(vm, account_deployment_data.0.len())?;
+    insert_nondet_hint_value(
+        vm,
+        AllHints::OsHint(OsHint::TxAccountDeploymentDataLen),
+        account_deployment_data.0.len(),
+    )?;
     Ok(())
 }
 
