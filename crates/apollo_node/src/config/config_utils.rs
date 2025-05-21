@@ -102,7 +102,7 @@ impl BaseAppConfigOverride {
 
 #[derive(Debug, Clone, Default)]
 pub struct DeploymentBaseAppConfig {
-    config: SequencerNodeConfig,
+    pub config: SequencerNodeConfig,
     config_pointers_map: ConfigPointersMap,
     non_pointer_params: Pointers,
 }

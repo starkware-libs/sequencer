@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use apollo_infra::component_client::RemoteClientConfig;
 use apollo_infra::component_server::LocalServerConfig;
+use starknet_api::block::BlockNumber;
 use strum_macros::{Display, EnumString};
 
 use crate::deployment::Deployment;
@@ -87,17 +88,24 @@ impl Environment {
     pub fn get_component_config_modifications(&self) -> EnvironmentComponentConfigModifications {
         match self {
             Environment::Testing => EnvironmentComponentConfigModifications::testing(),
-            Environment::SepoliaIntegration => {
+            Environment::SepoliaIntegration
+            | Environment::TestingEnvTwo
+            | Environment::TestingEnvThree => {
                 EnvironmentComponentConfigModifications::sepolia_integration()
             }
-            Environment::TestingEnvTwo => {
-                EnvironmentComponentConfigModifications::sepolia_integration()
+            _ => unimplemented!("This env is not implemented yet"),
+        }
+    }
+
+    pub fn get_l1_provider_config_modifications(&self) -> EnvironmentL1ProviderConfigModifications {
+        match self {
+            Environment::Testing => EnvironmentL1ProviderConfigModifications::testing(),
+            Environment::SepoliaIntegration
+            | Environment::TestingEnvTwo
+            | Environment::TestingEnvThree => {
+                EnvironmentL1ProviderConfigModifications::sepolia_integration()
             }
-            Environment::TestingEnvThree => {
-                EnvironmentComponentConfigModifications::sepolia_integration()
-            }
-            Environment::SepoliaTestnet => unimplemented!("SepoliaTestnet is not implemented yet"),
-            Environment::Mainnet => unimplemented!("Mainnet is not implemented yet"),
+            _ => unimplemented!("This env is not implemented yet"),
         }
     }
 }
@@ -133,5 +141,19 @@ impl EnvironmentComponentConfigModifications {
                 retry_interval: 1,
             },
         }
+    }
+}
+
+pub struct EnvironmentL1ProviderConfigModifications {
+    pub l1_provider_config_provider_startup_height_override: Option<BlockNumber>,
+}
+
+impl EnvironmentL1ProviderConfigModifications {
+    pub fn testing() -> Self {
+        Self { l1_provider_config_provider_startup_height_override: Some(BlockNumber(1)) }
+    }
+
+    pub fn sepolia_integration() -> Self {
+        Self { l1_provider_config_provider_startup_height_override: None }
     }
 }
