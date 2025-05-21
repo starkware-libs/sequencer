@@ -50,7 +50,7 @@ impl<'a> TransactionCommitter<'a> {
 
     /// Halts the scheduler. Decrements the commit index to indicate that the final transaction to
     /// commit has been excluded from the block.
-    pub fn halt_scheduler(&mut self) {
+    pub fn uncommit_and_halt_scheduler(&mut self) {
         assert!(*self.commit_index_guard > 0, "Commit index underflow.");
         *self.commit_index_guard -= 1;
 
@@ -66,8 +66,8 @@ pub struct Scheduler {
     commit_index: Mutex<usize>,
     chunk_size: usize,
     tx_statuses: DashMap<TxIndex, TransactionStatus>,
-    // Set to true when all transactions have been committed, or when calling the halt_scheduler
-    // procedure, providing a cheap way for all threads to exit their main loops.
+    // Set to true when all transactions have been committed, or when calling `halt()`,
+    // providing a cheap way for all threads to exit their main loops.
     done_marker: AtomicBool,
 }
 

@@ -65,6 +65,11 @@ impl ConcurrencyMetrics {
     }
 }
 
+enum CommitResult {
+    Success,
+    NoRoomInBlock,
+}
+
 pub struct WorkerExecutor<S: StateReader> {
     pub scheduler: Scheduler,
     pub state: ThreadSafeVersionedState<S>,
@@ -161,9 +166,11 @@ impl<S: StateReader> WorkerExecutor<S> {
     fn commit_while_possible(&self) {
         if let Some(mut tx_committer) = self.scheduler.try_enter_commit_phase() {
             while let Some(tx_index) = tx_committer.try_commit() {
-                let commit_succeeded = self.commit_tx(tx_index);
-                if !commit_succeeded {
-                    tx_committer.halt_scheduler();
+                match self.commit_tx(tx_index) {
+                    CommitResult::Success => {}
+                    CommitResult::NoRoomInBlock => {
+                        tx_committer.uncommit_and_halt_scheduler();
+                    }
                 }
             }
         }
@@ -242,7 +249,7 @@ impl<S: StateReader> WorkerExecutor<S> {
     ///         - Else (no room), do not commit. The block should be closed without the transaction.
     ///     * Else (execution failed), commit the transaction without fixing the call info or
     ///       updating the sequencer balance.
-    fn commit_tx(&self, tx_index: TxIndex) -> bool {
+    fn commit_tx(&self, tx_index: TxIndex) -> CommitResult {
         let execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
         let execution_output_ref = execution_output.as_ref().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR);
         let reads = &execution_output_ref.reads;
@@ -298,7 +305,7 @@ impl<S: StateReader> WorkerExecutor<S> {
             );
             if let Err(error) = bouncer_result {
                 match error {
-                    TransactionExecutorError::BlockFull => return false,
+                    TransactionExecutorError::BlockFull => return CommitResult::NoRoomInBlock,
                     _ => {
                         // TODO(Avi, 01/07/2024): Consider propagating the error.
                         panic!("Bouncer update failed. {error:?}: {error}");
@@ -316,7 +323,7 @@ impl<S: StateReader> WorkerExecutor<S> {
             // (re-)validation of the next transactions.
         }
 
-        true
+        CommitResult::Success
     }
 }
 
