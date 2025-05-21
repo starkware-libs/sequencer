@@ -102,7 +102,7 @@ pub fn serialize_optional_vec_u8(optional_vector: &Option<Vec<u8>>) -> String {
 }
 
 /// Deserializes a vector from string structure. The vector is expected to be a list of u8 values
-/// separated by spaces.
+/// in hexadecimal format (e.g. 0x1b) separated by spaces.
 pub fn deserialize_optional_vec_u8<'de, D>(de: D) -> Result<Option<Vec<u8>>, D::Error>
 where
     D: Deserializer<'de>,
@@ -131,5 +131,34 @@ where
         })?;
         vector.push(byte);
     }
+    Ok(Some(vector))
+}
+
+/// Deserializes a vector from string structure. Values are separated by commas, `""` is considered
+/// `None` and `"multiaddr1, multiaddr2"` as `Some(vec![multiaddr1,multiaddr2])`.
+/// This function will deserialize using R::from_str, if you require a custom de-serialization you
+/// will need to write your own function.
+pub fn deserialize_optional_vec<'de, D, R>(de: D) -> Result<Option<Vec<R>>, D::Error>
+where
+    D: Deserializer<'de>,
+    R: std::str::FromStr,
+{
+    let raw_str: String = Deserialize::deserialize(de).unwrap_or_default();
+    if raw_str.is_empty() {
+        return Ok(None);
+    }
+
+    let mut vector = Vec::new();
+    for i in raw_str.split(',').filter(|s| !s.is_empty()) {
+        let value = R::from_str(i).map_err(|_| {
+            D::Error::custom(format!("Couldn't deserialize vector. Failed to parse value: {}", i))
+        })?;
+        vector.push(value);
+    }
+
+    if vector.is_empty() {
+        return Ok(None);
+    }
+
     Ok(Some(vector))
 }

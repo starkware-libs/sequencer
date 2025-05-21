@@ -65,6 +65,8 @@ pub type Description = String;
 
 #[cfg(test)]
 mod config_test;
+#[cfg(test)]
+mod converters_test;
 
 mod command;
 pub mod converters;
