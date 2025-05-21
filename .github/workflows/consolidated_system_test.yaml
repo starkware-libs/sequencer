@@ -1,0 +1,72 @@
+name: Sequencer - Consolidated Node System Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      liveness_test_duration_sec:
+        description: Time in seconds to keep the livness test running.
+        required: false
+        default: 10
+        type: number
+
+  pull_request:
+    paths:
+      - ".github/workflows/consolidated_system_test.yaml"
+
+env:
+  disable_slack_notifications: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.disable_slack_notifications || github.event_name == 'pull_request' && 'true' || 'false' }}
+  job_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+permissions:
+  contents: read
+
+# On PR events, cancel existing CI runs on this same PR for this workflow.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.job }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'pr' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  deploy_test:
+    runs-on: starkware-ubuntu-24.04-large
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Anvil
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v0.3.0
+
+      - name: Setup python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pipenv
+
+      - name: Setup pipenv
+        run: python3 -m pip install pipenv
+
+      - name: Install dependencies with pipenv
+        run: pipenv install kubernetes
+
+      - name: Setup cdk8s-cli
+        run: npm install -g cdk8s-cli
+
+      - name: Build binaries
+        run: cargo build --bin sequencer_node_setup --bin sequencer_simulator
+
+      - name: Create storage files
+        run: ./target/debug/sequencer_node_setup --output-base-dir ./output --data-prefix-path /data --n-consolidated 1 --n-distributed 0
+
+      - name: Export application config dir
+        run: |
+          set -euo pipefail
+
+          # Get the config directory
+          app_config_dir=$(jq -r '.application_config_subdir' ${{ env.deployment_config_path }})
+
+          # Export to environment for the next step
+          echo "app_config_dir=$app_config_dir" >> $GITHUB_ENV
+          echo "app_config_dir is: $app_config_dir"
+
+
