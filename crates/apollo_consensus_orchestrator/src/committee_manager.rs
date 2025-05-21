@@ -1,11 +1,16 @@
 use std::sync::Arc;
 
 use blockifier::context::BlockContext;
+use blockifier::execution::call_info::Retdata;
 use blockifier::state::state_api::StateReader;
 use starknet_api::core::ContractAddress;
 use starknet_api::staking::StakingWeight;
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
+
+#[cfg(test)]
+#[path = "committee_manager_test.rs"]
+mod committee_manager_test;
 
 pub struct CommitteeManagerConfig {
     pub staking_contract_address: ContractAddress,
@@ -20,7 +25,20 @@ pub struct CommitteeManager {
 }
 
 #[derive(Debug, Error)]
-pub enum CommitteeManagerError {}
+pub enum CommitteeManagerError {
+    #[error(transparent)]
+    RetdataDeserializationError(#[from] RetdataDeserializationError),
+}
+
+#[derive(Debug, Error)]
+pub enum RetdataDeserializationError {
+    #[error("Failed to convert Felt to ContractAddress: {address}")]
+    ContractAddressConversionError { address: Felt },
+    #[error("Failed to convert Felt to u128: {felt}")]
+    U128ConversionError { felt: Felt },
+    #[error("Invalid retdata length: {length}")]
+    InvalidRetdataLength { length: usize },
+}
 
 pub type CommitteeManagerResult<T> = Result<T, CommitteeManagerError>;
 
@@ -50,4 +68,71 @@ pub struct Staker {
     pub weight: StakingWeight,
     // The public key of the staker, used to verify the staker's identity.
     pub public_key: Felt,
+}
+
+impl Staker {
+    pub const CAIRO_OBJECT_LENGTH: usize = 3;
+
+    pub fn from_retdata_many(retdata: Retdata) -> Result<Vec<Self>, RetdataDeserializationError> {
+        Ok(ArrayRetdata::<{ Self::CAIRO_OBJECT_LENGTH }, Staker>::try_from(retdata)?.0)
+    }
+}
+
+impl TryFrom<[Felt; Self::CAIRO_OBJECT_LENGTH]> for Staker {
+    type Error = RetdataDeserializationError;
+
+    fn try_from(felts: [Felt; Self::CAIRO_OBJECT_LENGTH]) -> Result<Self, Self::Error> {
+        let [address, weight, public_key] = felts;
+        let address = ContractAddress::try_from(address)
+            .map_err(|_| RetdataDeserializationError::ContractAddressConversionError { address })?;
+        let weight = StakingWeight(
+            u128::try_from(weight)
+                .map_err(|_| RetdataDeserializationError::U128ConversionError { felt: weight })?,
+        );
+        Ok(Self { address, weight, public_key })
+    }
+}
+
+#[cfg(test)]
+impl From<&Staker> for Vec<Felt> {
+    fn from(staker: &Staker) -> Self {
+        vec![Felt::from(staker.address), Felt::from(staker.weight.0), staker.public_key]
+    }
+}
+
+// Represents a Cairo1 `Array` containing elements that can be deserialized to `T`.
+// `T` must implement `TryFrom<[Felt; N]>`, where `N` is the size of `T`'s Cairo equivalent.
+#[derive(Debug, PartialEq, Eq)]
+struct ArrayRetdata<const N: usize, T>(Vec<T>);
+
+impl<const N: usize, T> TryFrom<Retdata> for ArrayRetdata<N, T>
+where
+    T: TryFrom<[Felt; N], Error = RetdataDeserializationError>,
+{
+    type Error = RetdataDeserializationError;
+
+    fn try_from(retdata: Retdata) -> Result<Self, Self::Error> {
+        let data = retdata.0;
+
+        // The first Felt in the Retdata must be the number of elements in the array.
+        if data.is_empty() {
+            return Err(RetdataDeserializationError::InvalidRetdataLength { length: data.len() });
+        }
+
+        // Split the remaining Felts into chunks of N Felts, each is an element of the array.
+        let data_chunks = data[1..].chunks_exact(N);
+
+        // Verify that the number of elements in the array matches the number of chunks.
+        let num_elements = usize::try_from(data[0]).expect("num_elements should fit in usize.");
+        if data_chunks.len() != num_elements || !data_chunks.remainder().is_empty() {
+            return Err(RetdataDeserializationError::InvalidRetdataLength { length: data.len() });
+        }
+
+        // Convert each element to T.
+        let result = data_chunks
+            .map(|chunk| T::try_from(chunk.try_into().expect("chunk size must be N.")))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(ArrayRetdata(result))
+    }
 }
