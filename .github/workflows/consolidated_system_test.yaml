@@ -33,6 +33,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Create k3d cluster (Local k8s)
+        uses: AbsaOSS/k3d-action@v2
+        with:
+          # Assumption: only one PR can run per machine at a time.
+          cluster-name: "consolidated-system-test"
+          args: >-
+            --verbose
+            --agents 1
+            --no-lb
+            --wait
+            --timeout 120s
+      - uses: ./.github/actions/bootstrap
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
       # Install rust components.
       - uses: ./.github/actions/bootstrap
         with:
@@ -91,3 +106,34 @@ jobs:
           echo "Generating Kubernetes manifests using deployment config at: ${{ env.deployment_config_path }}:"
           cat "${{ env.deployment_config_path }}"
           cdk8s synth --app "pipenv run python main.py --namespace ${{ env.namespace }} --deployment-config-file ${{ env.deployment_config_path }}"
+
+      - name: Deploy Sequencer
+        working-directory: deployments/sequencer
+        run: |
+          echo "Deploying Sequencer..."
+          kubectl create namespace ${{ env.namespace }}
+          kubectl apply -R -f ./dist/
+
+      - name: Set default namespace
+        run: kubectl config set-context --current --namespace ${{ env.namespace }}
+
+      - name: Get container logs
+        if: always()
+        run: |
+          echo "📥 Getting pod logs and descriptions from namespace: $namespace"
+
+          # List all pods in the namespace
+          kubectl get pods -n "$namespace"
+
+          # For each pod, get logs and description
+          for pod in $(kubectl get pods -n "$namespace" -o jsonpath='{.items[*].metadata.name}'); do
+            echo "---------------------------------------------"
+            echo "Logs for pod: $pod"
+            kubectl logs -n "$namespace" "$pod" || echo "⚠️ Failed to get logs for $pod"
+
+            echo ""
+            echo "Description for pod: $pod"
+            kubectl describe pod -n "$namespace" "$pod" || echo "⚠️ Failed to describe pod $pod"
+            echo "---------------------------------------------"
+            echo ""
+          done
