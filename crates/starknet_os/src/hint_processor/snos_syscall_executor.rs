@@ -64,7 +64,9 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
     }
 
     fn get_mut_syscall_ptr(&mut self) -> &mut Relocatable {
-        todo!()
+        self.syscall_hint_processor
+            .get_mut_syscall_ptr()
+            .expect("Syscall pointer is not initialized.")
     }
 
     fn get_syscall_base_gas_cost(&self) -> u64 {

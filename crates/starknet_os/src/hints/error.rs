@@ -111,6 +111,8 @@ pub enum OsHintError {
     UnexpectedTxType(TransactionType),
     #[error("Unknown hint string: {0}")]
     UnknownHint(String),
+    #[error("Unset syscall pointer.")]
+    UnsetSyscallPtr,
     #[error(transparent)]
     Vm(#[from] VirtualMachineError),
     #[error(transparent)]

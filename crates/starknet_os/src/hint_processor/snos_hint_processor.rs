@@ -350,6 +350,10 @@ impl SyscallHintProcessor {
             None => Err(OsHintError::AssertionFailed { message: "Missing syscall_ptr.".into() }),
         }
     }
+
+    pub(crate) fn get_mut_syscall_ptr(&mut self) -> Result<&mut Relocatable, OsHintError> {
+        self.syscall_ptr.as_mut().ok_or(OsHintError::UnsetSyscallPtr)
+    }
 }
 
 pub struct DeprecatedSyscallHintProcessor {
