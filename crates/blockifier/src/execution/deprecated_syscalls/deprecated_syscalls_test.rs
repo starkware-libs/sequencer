@@ -30,9 +30,10 @@ use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
 use crate::blockifier_versioned_constants::VersionedConstants;
-use crate::context::ChainInfo;
+use crate::context::{BlockContext, ChainInfo};
 use crate::execution::call_info::{CallExecution, CallInfo, OrderedEvent, StorageAccessTracker};
 use crate::execution::common_hints::ExecutionMode;
+use crate::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallExecutionError;
 use crate::execution::deprecated_syscalls::DeprecatedSyscallSelector;
 use crate::execution::entry_point::{CallEntryPoint, CallType};
 use crate::execution::errors::EntryPointExecutionError;
@@ -206,6 +207,53 @@ fn test_nested_library_call() {
     };
 
     assert_eq!(main_entry_point.execute_directly(&mut state).unwrap(), expected_call_info);
+}
+
+#[rstest]
+#[case::block_direct_execute_call_is_on(true)]
+#[case::block_direct_execute_call_is_off(false)]
+fn test_call_execute_directly(#[case] block_direct_execute_call: bool) {
+    let chain_info = &ChainInfo::create_for_testing();
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
+    let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0);
+    let mut state = test_state(chain_info, Fee(0), &[(test_contract, 1), (account, 1)]);
+
+    let account_address = account.get_instance_address(0);
+    let test_contract_address = test_contract.get_instance_address(0);
+    let call_execute_directly_selector = selector_from_name("call_execute_directly");
+    let return_result_selector = selector_from_name("return_result");
+    let calldata = calldata![
+        *account_address.0.key(),
+        felt!(4_u8), // Outer calldata length.
+        // Outer calldata.
+        *test_contract_address.0.key(),
+        return_result_selector.0,
+        felt!(1_u8), // Inner calldata length.
+        felt!(0_u8)  // Inner calldata: value.
+    ];
+
+    let entry_point_call = CallEntryPoint {
+        entry_point_selector: call_execute_directly_selector,
+        calldata: calldata.clone(),
+        ..trivial_external_entry_point_new(test_contract)
+    };
+
+    let mut block_context = BlockContext::create_for_testing();
+    block_context.versioned_constants.block_direct_execute_call = block_direct_execute_call;
+    let wrapped_result =
+        entry_point_call.execute_directly_given_block_context(&mut state, block_context);
+    if block_direct_execute_call {
+        let error = wrapped_result.expect_err("Expected direct execute call to fail.").to_string();
+        assert!(
+            error.contains(&DeprecatedSyscallExecutionError::DirectExecuteCall.to_string()),
+            "Expected error to contain: {:?}, but got: {:?}",
+            DeprecatedSyscallExecutionError::DirectExecuteCall,
+            error
+        );
+    } else {
+        wrapped_result
+            .expect("Expected direct execute call to succeed, because flag is set to false.");
+    }
 }
 
 #[test]
