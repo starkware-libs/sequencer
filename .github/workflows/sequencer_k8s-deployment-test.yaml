@@ -47,6 +47,7 @@ jobs:
             --no-lb 
             --wait
             --timeout 120s
+
       - uses: ./.github/actions/bootstrap
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -71,6 +72,51 @@ jobs:
       - name: Setup cdk8s-cli
         run: npm install -g cdk8s-cli
 
+      - name: Deploy Dummy Recorder
+        env:
+          namespace: dummy-recorder
+        working-directory: deployments/dummy_recorder
+        run: |
+          echo "Deploying Dummy Recorder..."
+          pipenv install
+          cdk8s import
+          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.namespace }}"
+          kubectl create namespace ${{ env.namespace }}
+          kubectl apply -R -f ./dist
+          echo "⏳ Waiting for Dummy Recorder to become ready..."
+          kubectl wait --namespace ${{ env.namespace }} --for=condition=Ready -l app=dummy-recorder pod --timeout 60s
+          echo "🚀 Dummy Recorder deployed successfully."
+
+      - name: Deploy Dummy Eth2Strk Oracle
+        env:
+          namespace: dummy-eth2strk-oracle
+        working-directory: deployments/dummy_eth2strk_oracle
+        run: |
+          echo "Deploying Dummy Eth2Strk Oracle..."
+          pipenv install
+          cdk8s import
+          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.namespace }}"
+          kubectl create namespace ${{ env.namespace }}
+          kubectl apply -R -f ./dist
+          echo "⏳ Waiting for Dummy Eth2Strk Oracle to become ready..."
+          kubectl wait --namespace ${{ env.namespace }} --for=condition=Ready -l app=dummy-eth2strk-oracle pod --timeout 60s
+          echo "🚀 Dummy Eth2Strk Oracle deployed successfully."
+
+      - name: Deploy Anvil
+        env:
+          namespace: anvil
+        working-directory: deployments/anvil
+        run: |
+          echo "Deploying Anvil..."
+          pipenv install
+          cdk8s import
+          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.namespace }}"
+          kubectl create namespace ${{ env.namespace }}
+          kubectl apply -R -f ./dist
+          echo "⏳ Waiting for Anvil to become ready..."
+          kubectl wait --namespace ${{ env.namespace }} --for=condition=Ready -l app=anvil pod --timeout 60s
+          echo "🚀 Anvil deployed successfully."
+
       - name: Build sequencer_node_setup
         run: cargo build --bin sequencer_node_setup --bin sequencer_simulator
 
@@ -92,7 +138,7 @@ jobs:
         run: |
           python ./scripts/config_injector.py ${{ env.deployment_config_path }} '${{ vars.SEQUENCER_CONFIG_JSON }}'
 
-      - name: Generate k8s manifests
+      - name: Generate sequencer k8s manifests
         working-directory: deployments/sequencer
         run: |
           pipenv install
