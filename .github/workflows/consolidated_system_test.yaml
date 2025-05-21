@@ -16,6 +16,7 @@ on:
 env:
   job_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
   deployment_config_path: ${{ github.workspace }}/config/sequencer/testing/deployment_configs/deployment_test_consolidated.json
+  namespace: sequencer-consolidated-system-test-run-${{ github.run_number }}-attempt-${{ github.run_attempt }}
 
 permissions:
   contents: read
@@ -78,6 +79,12 @@ jobs:
         run: |
           python ./scripts/system_tests/config_secrets_injector.py --deployment_config_path ${{ env.deployment_config_path }} --secrets_json '${{ vars.SEQUENCER_CONFIG_JSON }}'
 
+      - name: Generate k8s manifests
+        working-directory: deployments/sequencer
+        run: |
+          pipenv install
+          cdk8s import
 
-
-
+          echo "Generating Kubernetes manifests using deployment config at: ${{ env.deployment_config_path }}:"
+          cat "${{ env.deployment_config_path }}"
+          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.namespace }} --deployment-config-file ${{ env.deployment_config_path }}"
