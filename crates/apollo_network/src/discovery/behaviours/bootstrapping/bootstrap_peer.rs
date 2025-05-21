@@ -110,7 +110,6 @@ impl Stream for BootstrapPeer {
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let now = tokio::time::Instant::now();
-        self.event_waker.add_waker(cx.waker());
         let _ = self.time_waker.poll_unpin(cx);
 
         if self.is_connected_to_bootstrap_peer && !self.is_bootstrap_in_kad_routing_table {
@@ -141,6 +140,11 @@ impl Stream for BootstrapPeer {
             let next_wake_up = self.time_for_next_bootstrap_dial;
             self.time_waker.wake_at(cx, next_wake_up);
         }
+
+        // If we also set a timed waker on this waker above, it's still safe to also add it to be
+        // woken by an event (it's safe to call awake twice). We do not want to only rely on the
+        // timer since it could delay handling of events.
+        self.event_waker.add_waker(cx.waker());
 
         Poll::Pending
     }
