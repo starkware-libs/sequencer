@@ -72,6 +72,7 @@ pub struct RawVersionedConstants {
     pub disable_cairo0_redeclaration: bool,
     pub enable_stateful_compression: bool,
     pub comprehensive_state_diff: bool,
+    pub block_direct_execute_call: bool,
     pub ignore_inner_event_resources: bool,
     pub disable_deploy_in_validation_mode: bool,
     pub enable_reverts: bool,
@@ -240,6 +241,7 @@ pub struct VersionedConstants {
     pub disable_cairo0_redeclaration: bool,
     pub enable_stateful_compression: bool,
     pub comprehensive_state_diff: bool,
+    pub block_direct_execute_call: bool,
     pub ignore_inner_event_resources: bool,
     pub disable_deploy_in_validation_mode: bool,
 
@@ -281,6 +283,7 @@ impl From<RawVersionedConstants> for VersionedConstants {
             disable_cairo0_redeclaration: raw_vc.disable_cairo0_redeclaration,
             enable_stateful_compression: raw_vc.enable_stateful_compression,
             comprehensive_state_diff: raw_vc.comprehensive_state_diff,
+            block_direct_execute_call: raw_vc.block_direct_execute_call,
             ignore_inner_event_resources: raw_vc.ignore_inner_event_resources,
             disable_deploy_in_validation_mode: raw_vc.disable_deploy_in_validation_mode,
             enable_reverts: raw_vc.enable_reverts,
