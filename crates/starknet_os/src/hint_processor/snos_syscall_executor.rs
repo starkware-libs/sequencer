@@ -165,7 +165,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<ReplaceClassResponse> {
-        todo!()
+        Ok(ReplaceClassResponse {})
     }
 
     fn send_message_to_l1(
