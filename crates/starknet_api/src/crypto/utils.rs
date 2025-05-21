@@ -112,3 +112,20 @@ impl HashChain {
         Poseidon::hash_array(self.elements.as_slice())
     }
 }
+
+/// A raw message to be signed, represented as a sequence of field elements (`Felt`).
+///
+/// Before signing, the message vector should be hashed to produce a digest suitable
+/// for the signature algorithm in use (e.g., Blake hash).
+#[derive(Debug, Default, Clone, Eq, PartialEq, Hash, Deserialize, Serialize)]
+pub struct Message(pub Vec<Felt>);
+
+/// A raw Stark signature, represented as a list of field elements (`Felt`).
+///
+/// Depending on the signature scheme, this typically contains two elements
+/// (e.g., `(r, s)` for ECDSA-like schemes), but may vary for other algorithms.
+///
+/// This generic container allows higher-level traits to work without the burden of
+/// propagating generic signature types.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct RawSignature(pub Vec<Felt>);
