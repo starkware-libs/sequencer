@@ -5,6 +5,7 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::{Fee, TransactionSignature};
 use starknet_api::transaction::TransactionVersion;
 
+use super::objects::RevertError;
 use crate::context::BlockContext;
 use crate::execution::call_info::CallInfo;
 use crate::execution::entry_point::{EntryPointExecutionContext, SierraGasRevertTracker};
@@ -72,7 +73,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
         match execution_result {
             Ok(execute_call_info) => {
                 let l1_handler_payload_size = self.payload_size();
-                let mut receipt = TransactionReceipt::from_l1_handler(
+                let receipt = TransactionReceipt::from_l1_handler(
                     &tx_context,
                     l1_handler_payload_size,
                     CallInfo::summarize_many(
@@ -103,14 +104,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
                             ));
                         }
 
-                        receipt.fee = Fee(0);
-                        Ok(TransactionExecutionInfo {
-                            validate_call_info: None,
-                            execute_call_info,
-                            fee_transfer_call_info: None,
-                            receipt,
-                            revert_error: None,
-                        })
+                        Ok(l1_handler_tx_execution_info(execute_call_info, receipt, None))
                     }
                     Err(fee_check_error) => {
                         // TODO(Arni): Handle error in fee check report as revert.
@@ -123,5 +117,20 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
                 Err(execution_error)?
             }
         }
+    }
+}
+
+fn l1_handler_tx_execution_info(
+    execute_call_info: Option<CallInfo>,
+    mut receipt: TransactionReceipt,
+    revert_error: Option<RevertError>,
+) -> TransactionExecutionInfo {
+    receipt.fee = Fee(0);
+    TransactionExecutionInfo {
+        validate_call_info: None,
+        execute_call_info,
+        fee_transfer_call_info: None,
+        receipt,
+        revert_error,
     }
 }
