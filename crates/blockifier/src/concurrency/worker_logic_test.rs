@@ -501,8 +501,7 @@ fn test_worker_validate(default_all_resource_bounds: ValidResourceBounds) {
 
     // Validate succeeds.
     let tx_index = 0;
-    let next_task = worker_executor.validate(tx_index);
-    assert_eq!(next_task, Task::AskForTask);
+    assert_eq!(worker_executor.validate(tx_index), true);
     // Verify writes exist in state.
     assert_eq!(
         safe_versioned_state
@@ -516,8 +515,12 @@ fn test_worker_validate(default_all_resource_bounds: ValidResourceBounds) {
 
     // Validate failed. Invoke 2 failed validations; only the first leads to a re-execution.
     let tx_index = 1;
-    let next_task1 = worker_executor.validate(tx_index);
-    assert_eq!(next_task1, Task::ExecutionTask(tx_index));
+    assert_eq!(worker_executor.validate(tx_index), false);
+    assert_eq!(
+        worker_executor.scheduler.get_tx_status(tx_index),
+        TransactionStatus::ReadyToExecute
+    );
+    assert_eq!(worker_executor.scheduler.next_task(), Task::ExecutionTask(tx_index));
     // Verify writes were removed.
     assert_eq!(
         safe_versioned_state
@@ -529,8 +532,9 @@ fn test_worker_validate(default_all_resource_bounds: ValidResourceBounds) {
     // Verify status change.
     assert_eq!(worker_executor.scheduler.get_tx_status(tx_index), TransactionStatus::Executing);
 
-    let next_task2 = worker_executor.validate(tx_index);
-    assert_eq!(next_task2, Task::AskForTask);
+    // Validation still fails, but the task is already being executed by "another" thread.
+    assert_eq!(worker_executor.validate(tx_index), false);
+    assert_eq!(worker_executor.scheduler.next_task(), Task::NoTaskAvailable);
 }
 
 #[rstest]
@@ -618,7 +622,9 @@ fn test_deploy_before_declare(
     worker_executor.scheduler.next_task();
 
     // Verify validation failed.
-    assert_eq!(worker_executor.validate(1), Task::ExecutionTask(1));
+    assert_eq!(worker_executor.validate(1), false);
+    assert_eq!(worker_executor.scheduler.get_tx_status(1), TransactionStatus::ReadyToExecute);
+    assert_eq!(worker_executor.scheduler.next_task(), Task::ExecutionTask(1));
 
     // Execute transaction 1 again.
     worker_executor.execute(1);
@@ -627,9 +633,11 @@ fn test_deploy_before_declare(
     assert!(!execution_output.as_ref().unwrap().result.as_ref().unwrap().is_reverted());
     drop(execution_output);
 
+    assert_eq!(worker_executor.scheduler.next_task(), Task::ValidationTask(1));
+
     // Successful validation for transaction 1.
-    let next_task = worker_executor.validate(1);
-    assert_eq!(next_task, Task::AskForTask);
+    assert_eq!(worker_executor.validate(1), true);
+    assert_eq!(worker_executor.scheduler.next_task(), Task::NoTaskAvailable);
 }
 
 #[rstest]

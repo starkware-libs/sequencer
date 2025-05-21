@@ -150,7 +150,10 @@ impl<S: StateReader> WorkerExecutor<S> {
                     self.execute(tx_index);
                     Task::AskForTask
                 }
-                Task::ValidationTask(tx_index) => self.validate(tx_index),
+                Task::ValidationTask(tx_index) => {
+                    self.validate(tx_index);
+                    Task::AskForTask
+                }
                 Task::NoTaskAvailable => {
                     // There's no available task at the moment; sleep for a bit to save CPU power.
                     // (since busy-looping might damage performance when using hyper-threads).
@@ -219,7 +222,8 @@ impl<S: StateReader> WorkerExecutor<S> {
         *execution_output = Some(execution_output_inner);
     }
 
-    fn validate(&self, tx_index: TxIndex) -> Task {
+    /// Validates the transaction at the given index and returns whether the transaction is valid.
+    fn validate(&self, tx_index: TxIndex) -> bool {
         self.metrics.count_validate();
         let tx_versioned_state = self.state.pin_version(tx_index);
         let execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
@@ -232,10 +236,9 @@ impl<S: StateReader> WorkerExecutor<S> {
             self.metrics.count_abort();
             tx_versioned_state
                 .delete_writes(&execution_output.state_diff, &execution_output.contract_classes);
-            self.scheduler.finish_abort(tx_index)
-        } else {
-            Task::AskForTask
+            self.scheduler.finish_abort(tx_index);
         }
+        reads_valid
     }
 
     /// Commits a transaction. The commit process is as follows:

@@ -71,10 +71,9 @@ fn scheduler_flow_test(
                         let aborted = !read_set_valid && scheduler.try_validation_abort(tx_index);
                         if aborted {
                             state_proxy.delete_writes(&writes, &ContractClassMapping::default());
-                            scheduler.finish_abort(tx_index)
-                        } else {
-                            Task::AskForTask
+                            scheduler.finish_abort(tx_index);
                         }
+                        Task::AskForTask
                     }
                     Task::NoTaskAvailable => Task::AskForTask,
                     Task::AskForTask => scheduler.next_task(),
