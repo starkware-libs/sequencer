@@ -2,9 +2,13 @@ use std::sync::Arc;
 
 use blockifier::context::BlockContext;
 use blockifier::execution::call_info::Retdata;
+use blockifier::execution::entry_point::call_view_entry_point;
+use blockifier::execution::errors::EntryPointExecutionError;
 use blockifier::state::state_api::StateReader;
 use starknet_api::core::ContractAddress;
+use starknet_api::felt;
 use starknet_api::staking::StakingWeight;
+use starknet_api::transaction::fields::Calldata;
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
 
@@ -20,12 +24,13 @@ pub struct CommitteeManagerConfig {
 // The committee is a subset of nodes (proposer and validators) that are selected to participate in
 // the consensus at a given epoch, responsible for proposing blocks and voting on them.
 pub struct CommitteeManager {
-    #[allow(dead_code)]
     config: CommitteeManagerConfig,
 }
 
 #[derive(Debug, Error)]
 pub enum CommitteeManagerError {
+    #[error(transparent)]
+    EntryPointExecutionError(#[from] EntryPointExecutionError),
     #[error(transparent)]
     RetdataDeserializationError(#[from] RetdataDeserializationError),
 }
@@ -51,11 +56,20 @@ impl CommitteeManager {
     // The state's most recent block should be provided in the block_context.
     pub fn get_committee_at_epoch(
         &self,
-        _epoch: u64,
-        _state_reader: impl StateReader,
-        _block_context: Arc<BlockContext>,
+        epoch: u64,
+        state_reader: impl StateReader,
+        block_context: Arc<BlockContext>,
     ) -> CommitteeManagerResult<Vec<Staker>> {
-        unimplemented!()
+        let call_info = call_view_entry_point(
+            state_reader,
+            block_context,
+            self.config.staking_contract_address,
+            "get_stakers",
+            Calldata(vec![felt!(epoch)].into()),
+        )?;
+
+        let stakers = Staker::from_retdata_many(call_info.execution.retdata)?;
+        Ok(stakers)
     }
 }
 
