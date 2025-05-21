@@ -136,7 +136,6 @@ impl<S: StateReader> WorkerExecutor<S> {
     }
 
     pub fn run(&self) {
-        let mut task = Task::AskForTask;
         loop {
             if let Some(deadline) = self.execution_deadline {
                 if Instant::now() > deadline {
@@ -148,22 +147,22 @@ impl<S: StateReader> WorkerExecutor<S> {
             }
             self.commit_while_possible();
 
-            task = match task {
+            match self.scheduler.next_task() {
                 Task::ExecutionTask(tx_index) => {
                     self.execute(tx_index);
-                    Task::AskForTask
                 }
-                Task::ValidationTask(tx_index) => self.validate(tx_index).unwrap_or_else(|_| {
-                    assert!(self.scheduler.done());
-                    Task::Done
-                }),
+                Task::ValidationTask(tx_index) => {
+                    if self.validate(tx_index).is_err() {
+                        assert!(self.scheduler.done());
+                        break;
+                    }
+                }
                 Task::NoTaskAvailable => {
                     // There's no available task at the moment; sleep for a bit to save CPU power.
                     // (since busy-looping might damage performance when using hyper-threads).
                     thread::sleep(Duration::from_micros(1));
-                    Task::AskForTask
                 }
-                Task::AskForTask => self.scheduler.next_task(),
+                Task::AskForTask => continue,
                 Task::Done => break,
             };
         }
@@ -228,7 +227,8 @@ impl<S: StateReader> WorkerExecutor<S> {
         *execution_output = Some(execution_output_inner);
     }
 
-    fn validate(&self, tx_index: TxIndex) -> Result<Task, VersionedStateError> {
+    /// Validates the transaction at the given index and returns whether the transaction is valid.
+    fn validate(&self, tx_index: TxIndex) -> Result<bool, VersionedStateError> {
         self.metrics.count_validate();
         let tx_versioned_state = self.state.pin_version(tx_index);
         let execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
@@ -241,10 +241,9 @@ impl<S: StateReader> WorkerExecutor<S> {
             self.metrics.count_abort();
             tx_versioned_state
                 .delete_writes(&execution_output.state_diff, &execution_output.contract_classes)?;
-            Ok(self.scheduler.finish_abort(tx_index))
-        } else {
-            Ok(Task::AskForTask)
+            self.scheduler.finish_abort(tx_index);
         }
+        Ok(reads_valid)
     }
 
     /// Commits a transaction. The commit process is as follows:
