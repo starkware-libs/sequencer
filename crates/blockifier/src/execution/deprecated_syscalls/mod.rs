@@ -33,7 +33,8 @@ pub mod hint_processor;
 pub type DeprecatedSyscallResult<T> = Result<T, DeprecatedSyscallExecutionError>;
 pub type WriteResponseResult = DeprecatedSyscallResult<()>;
 
-#[cfg_attr(any(test, feature = "testing"), derive(serde::Serialize))]
+#[cfg_attr(any(test, feature = "testing"), derive(serde::Serialize, strum_macros::AsRefStr))]
+#[cfg_attr(any(test, feature = "testing"), strum(serialize_all = "SCREAMING_SNAKE_CASE"))]
 #[derive(Clone, Copy, Debug, Deserialize, EnumIter, Eq, Hash, PartialEq)]
 pub enum DeprecatedSyscallSelector {
     CallContract,
