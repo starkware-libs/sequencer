@@ -117,6 +117,18 @@ jobs:
       - name: Run readiness check
         run: pipenv run python ./scripts/system_tests/readiness_check.py --deployment_config_path ${{ env.deployment_config_path }} --namespace ${{ env.namespace }}
 
+      - name: Test sequencer is alive
+        env:
+          initial_delay_sec: 10
+          check_interval_sec: 5
+          check_timeout_sec: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.liveness_test_duration_sec || 10 }}
+        run: |
+          pipenv run python ./scripts/system_tests/liveness_check.py \
+            "${{ env.deployment_config_path }}" \
+            "${{ env.config_dir }}" \
+            "${{ env.check_timeout_sec }}" \
+            "${{ env.check_interval_sec }}"
+
       - name: Get container logs
         if: always()
         run: |
