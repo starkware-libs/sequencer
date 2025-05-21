@@ -15,6 +15,7 @@ on:
 
 env:
   job_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  deployment_config_path: ${{ github.workspace }}/config/sequencer/testing/deployment_configs/deployment_test_consolidated.json
 
 permissions:
   contents: read
@@ -72,5 +73,12 @@ jobs:
           # Export to environment for the next step
           echo "app_config_dir=$app_config_dir" >> $GITHUB_ENV
           echo "app_config_dir is: $app_config_dir"
+
+      # TODO(Nadin): move the config definition out of the GitHub Actions secret section, since it no longer contains sensitive values.
+      - name: Inject Config Secrets
+        run: |
+          python ./scripts/system_tests/config_secrets_injector.py --deployment_config_path ${{ env.deployment_config_path }} --secrets_json '${{ vars.SEQUENCER_CONFIG_JSON }}'
+
+
 
 
