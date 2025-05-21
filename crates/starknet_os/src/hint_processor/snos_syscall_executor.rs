@@ -1,4 +1,4 @@
-use blockifier::blockifier_versioned_constants::{GasCostsError, SyscallGasCost};
+use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::execution::syscalls::secp::SecpHintProcessor;
 use blockifier::execution::syscalls::syscall_base::SyscallResult;
 use blockifier::execution::syscalls::syscall_executor::SyscallExecutor;
@@ -57,21 +57,10 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         syscall_usage.call_count += count;
     }
 
-    fn get_gas_cost_from_selector(
-        &self,
-        selector: &SyscallSelector,
-    ) -> Result<SyscallGasCost, GasCostsError> {
-        todo!()
-    }
-
     fn get_mut_syscall_ptr(&mut self) -> &mut Relocatable {
         self.syscall_hint_processor
             .get_mut_syscall_ptr()
             .expect("Syscall pointer is not initialized.")
-    }
-
-    fn get_syscall_base_gas_cost(&self) -> u64 {
-        todo!()
     }
 
     fn update_revert_gas_with_next_remaining_gas(&mut self, next_remaining_gas: GasAmount) {
@@ -193,5 +182,9 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         remaining_gas: &mut u64,
     ) -> SyscallResult<StorageWriteResponse> {
         Ok(StorageWriteResponse {})
+    }
+
+    fn versioned_constants(&self) -> &VersionedConstants {
+        VersionedConstants::latest_constants()
     }
 }

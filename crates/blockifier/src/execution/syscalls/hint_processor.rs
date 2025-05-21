@@ -27,7 +27,7 @@ use starknet_api::StarknetApiError;
 use starknet_types_core::felt::{Felt, FromStrError};
 use thiserror::Error;
 
-use crate::blockifier_versioned_constants::{GasCosts, GasCostsError, SyscallGasCost};
+use crate::blockifier_versioned_constants::{GasCosts, VersionedConstants};
 use crate::execution::common_hints::{ExecutionMode, HintExecutionResult};
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::{
@@ -460,19 +460,8 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_usage.call_count += n;
     }
 
-    fn get_gas_cost_from_selector(
-        &self,
-        selector: &SyscallSelector,
-    ) -> Result<SyscallGasCost, GasCostsError> {
-        self.gas_costs().syscalls.get_syscall_gas_cost(selector)
-    }
-
     fn get_mut_syscall_ptr(&mut self) -> &mut Relocatable {
         &mut self.syscall_ptr
-    }
-
-    fn get_syscall_base_gas_cost(&self) -> u64 {
-        self.base.context.gas_costs().base.syscall_base_gas_cost
     }
 
     fn update_revert_gas_with_next_remaining_gas(&mut self, remaining_gas: GasAmount) {
@@ -734,6 +723,10 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
     ) -> SyscallResult<StorageWriteResponse> {
         syscall_handler.base.storage_write(request.address, request.value)?;
         Ok(StorageWriteResponse {})
+    }
+
+    fn versioned_constants(&self) -> &VersionedConstants {
+        self.base.context.versioned_constants()
     }
 }
 
