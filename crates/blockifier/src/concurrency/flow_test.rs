@@ -75,10 +75,9 @@ fn scheduler_flow_test(
                             state_proxy
                                 .delete_writes(&writes, &ContractClassMapping::default())
                                 .unwrap();
-                            scheduler.finish_abort(tx_index)
-                        } else {
-                            Task::AskForTask
+                            scheduler.finish_abort(tx_index);
                         }
+                        Task::AskForTask
                     }
                     Task::NoTaskAvailable => Task::AskForTask,
                     Task::AskForTask => scheduler.next_task(),
