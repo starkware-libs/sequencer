@@ -69,4 +69,10 @@ jobs:
           echo "app_config_dir=$app_config_dir" >> $GITHUB_ENV
           echo "app_config_dir is: $app_config_dir"
 
+      - name: Inject Config Secrets
+        run: |
+          python ./scripts/system_tests/config_secrets_injector.py --deployment_config_path ${{ env.deployment_config_path }} --secrets_json '${{ vars.SEQUENCER_CONFIG_JSON }}'
+
+
+
 
