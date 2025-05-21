@@ -50,20 +50,28 @@ class SequencerMonitoring(Chart):
 
         self.hash = generate_random_hash(from_string=f"{cluster}-{namespace}")
 
-        self.dashboard = GrafanaDashboardApp(
-            self,
-            sanitize_name(f"dashboard-{self.hash}"),
-            cluster=cluster,
-            namespace=namespace,
-            grafana_dashboard=grafana_dashboard,
+        self.dashboard = (
+            GrafanaDashboardApp(
+                self,
+                sanitize_name(f"dashboard-{self.hash}"),
+                cluster=cluster,
+                namespace=namespace,
+                grafana_dashboard=grafana_dashboard,
+            )
+            if grafana_dashboard
+            else None
         )
 
-        self.alert_rule_group = GrafanaAlertRuleGroupApp(
-            self,
-            sanitize_name(f"alert-rule-group-{self.hash}"),
-            cluster=cluster,
-            namespace=namespace,
-            grafana_alert_rule_group=grafana_alert_rule_group,
+        self.alert_rule_group = (
+            GrafanaAlertRuleGroupApp(
+                self,
+                sanitize_name(f"alert-rule-group-{self.hash}"),
+                cluster=cluster,
+                namespace=namespace,
+                grafana_alert_rule_group=grafana_alert_rule_group,
+            )
+            if grafana_alert_rule_group
+            else None
         )
 
 
