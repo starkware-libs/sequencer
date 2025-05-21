@@ -16,6 +16,7 @@ on:
 env:
   disable_slack_notifications: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.disable_slack_notifications || github.event_name == 'pull_request' && 'true' || 'false' }}
   job_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  deployment_config_path: ${{ github.workspace }}/config/sequencer/testing/deployment_configs/deployment_test_consolidated.json
 
 permissions:
   contents: read
@@ -73,5 +74,11 @@ jobs:
           # Export to environment for the next step
           echo "app_config_dir=$app_config_dir" >> $GITHUB_ENV
           echo "app_config_dir is: $app_config_dir"
+
+      - name: Inject Config Secrets
+        run: |
+          python ./scripts/system_tests/config_secrets_injector.py --deployment_config_path ${{ env.deployment_config_path }} --secrets_json '${{ vars.SEQUENCER_CONFIG_JSON }}'
+
+
 
 
