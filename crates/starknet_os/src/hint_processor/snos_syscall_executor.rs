@@ -53,7 +53,8 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
     }
 
     fn increment_syscall_count_by(&mut self, selector: &SyscallSelector, count: usize) {
-        todo!()
+        let syscall_usage = self.syscall_hint_processor.syscall_usage.entry(*selector).or_default();
+        syscall_usage.call_count += count;
     }
 
     fn get_gas_cost_from_selector(
