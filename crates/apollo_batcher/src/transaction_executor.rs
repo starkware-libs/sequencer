@@ -18,7 +18,7 @@ pub trait TransactionExecutorTrait: Send {
     fn close_block(&mut self) -> TransactionExecutorResult<BlockExecutionSummary>;
 }
 
-impl<S: StateReader + Send + Sync> TransactionExecutorTrait for TransactionExecutor<S> {
+impl<S: StateReader + Send + Sync + 'static> TransactionExecutorTrait for TransactionExecutor<S> {
     /// Adds the transactions to the generated block and returns the execution results.
     fn add_txs_to_block(
         &mut self,
