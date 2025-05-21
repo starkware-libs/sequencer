@@ -3,48 +3,59 @@ kind: CustomResourceDefinition
 metadata:
   name: sharedgrafanadashboards.grafana.starkware.co
 spec:
+  conversion:
+    strategy: None
   group: grafana.starkware.co
+  names:
+    kind: SharedGrafanaDashboard
+    listKind: SharedGrafanaDashboardList
+    plural: sharedgrafanadashboards
+    shortNames:
+      - sgd
+      - sgds
+    singular: sharedgrafanadashboard
+  scope: Namespaced
   versions:
-    - name: v1beta1
-      served: true
-      storage: true
-      additionalPrinterColumns:
+    - additionalPrinterColumns:
         - jsonPath: .status.apply.status
           name: status
           type: string
         - jsonPath: .status.apply.grafana
           name: grafana
           type: string
+      name: v1beta1
       schema:
         openAPIV3Schema:
-          type: object
           properties:
             spec:
-              type: object
-              required:
-                - dashboardName
-                - folderName
-                - dashboardJson
-                - CollectionName
               properties:
+                CollectionName:
+                  default: shared-grafana10-dashboards
+                  type: string
+                dashboardJson:
+                  type: string
                 dashboardName:
                   type: string
                 folderName:
                   type: string
-                dashboardJson:
+                folderRef:
                   type: string
-                CollectionName:
-                  type: string
-                  default: shared-grafana10-dashboards
+              required:
+                - dashboardName
+                - dashboardJson
+                - CollectionName
+              type: object
+              x-kubernetes-validations:
+                - message:
+                    Exactly one of 'folderName' or 'folderRef' must be specified.
+                    Please provide one, but not both.
+                  rule: has(self.folderName) != has(self.folderRef)
             status:
-              description: Status of the shared grafana dashboard CRD instance. This is set and managed automatically.
+              description:
+                Status of the shared grafana dashboard CRD instance. This
+                is set and managed automatically.
               type: object
               x-kubernetes-preserve-unknown-fields: true
-  scope: Namespaced
-  names:
-    plural: sharedgrafanadashboards
-    singular: sharedgrafanadashboard
-    kind: SharedGrafanaDashboard
-    shortNames:
-    - sgd
-    - sgds
+          type: object
+      served: true
+      storage: true
