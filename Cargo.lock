@@ -1644,6 +1644,7 @@ dependencies = [
  "unsigned-varint 0.8.0",
  "validator",
  "void",
+ "waker-fn",
 ]
 
 [[package]]
