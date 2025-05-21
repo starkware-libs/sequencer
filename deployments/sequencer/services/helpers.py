@@ -1,8 +1,8 @@
 import argparse
-import re
-import random
-import string
 import hashlib
+import random
+import re
+import string
 from typing import Optional
 
 
@@ -25,6 +25,12 @@ def argument_parser():
         required=False,
         type=str,
         help="Path to Grafana dashboard JSON file.",
+    ),
+    parser.add_argument(
+        "--monitoring-alerts-folder",
+        required=False,
+        type=str,
+        help="Path to Grafana alerts folder.",
     ),
 
     return parser.parse_args()
