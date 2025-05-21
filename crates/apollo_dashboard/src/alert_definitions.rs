@@ -33,6 +33,23 @@ const CONSENSUS_BLOCK_NUMBER_STUCK: Alert = Alert {
     evaluation_interval_sec: 10,
 };
 
+const CONSENSUS_ROUND_ABOVE_ONE: Alert = Alert {
+    name: "consensus_round_above_one",
+    title: "Consensus round above one",
+    alert_group: AlertGroup::Consensus,
+    // The interval is set to 12 seconds to match the CONSENSUS_BLOCK_NUMBER_STUCK alert.
+    // If the blocks keep progressing in under 12s but the round still exceeds 1 multiple times,
+    // this alert will trigger.
+    expr: formatcp!("count_over_time(({} > 1)[1h:12s])", CONSENSUS_ROUND.get_name()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::GreaterThan,
+        comparison_value: 5.0,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 20,
+};
+
 const GATEWAY_ADD_TX_RATE_DROP: Alert = Alert {
     name: "gateway_add_tx_rate_drop",
     title: "Gateway add_tx rate drop",
@@ -139,6 +156,7 @@ const CONSENSUS_ROUND_HIGH_AVG: Alert = Alert {
 
 pub const SEQUENCER_ALERTS: Alerts = Alerts::new(&[
     CONSENSUS_BLOCK_NUMBER_STUCK,
+    CONSENSUS_ROUND_ABOVE_ONE,
     GATEWAY_ADD_TX_RATE_DROP,
     GATEWAY_ADD_TX_LATENCY_INCREASE,
     MEMPOOL_ADD_TX_RATE_DROP,
