@@ -309,6 +309,7 @@ pub struct SyscallHintProcessor {
     // Sha256 segments.
     sha256_segment: Option<Relocatable>,
     syscall_ptr: Option<Relocatable>,
+    pub(crate) syscall_usage: SyscallUsageMap,
 
     // Secp hint processors.
     pub(crate) secp256k1_hint_processor: SecpHintProcessor<ark_secp256k1::Config>,
@@ -324,6 +325,7 @@ impl SyscallHintProcessor {
             syscall_ptr: None,
             secp256k1_hint_processor: SecpHintProcessor::default(),
             secp256r1_hint_processor: SecpHintProcessor::default(),
+            syscall_usage: SyscallUsageMap::new(),
         }
     }
 
