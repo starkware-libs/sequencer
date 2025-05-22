@@ -34,6 +34,13 @@ def argument_parser():
         help="Full Docker image to use instead of default GHCR tag",
     )
 
+    parser.add_argument(
+        "--monitoring-alerts-folder",
+        required=False,
+        type=str,
+        help="Path to Grafana alerts folder.",
+    )
+
     return parser.parse_args()
 
 
