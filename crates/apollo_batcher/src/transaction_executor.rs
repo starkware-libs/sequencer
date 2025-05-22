@@ -14,6 +14,7 @@ pub trait TransactionExecutorTrait: Send {
     fn add_txs_to_block(
         &mut self,
         txs: &[BlockifierTransaction],
+        block_timeout: Option<tokio::time::Instant>,
     ) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>>;
     fn close_block(&mut self) -> TransactionExecutorResult<BlockExecutionSummary>;
 }
@@ -23,9 +24,11 @@ impl<S: StateReader + Send + Sync> TransactionExecutorTrait for TransactionExecu
     fn add_txs_to_block(
         &mut self,
         txs: &[BlockifierTransaction],
+        block_timeout: Option<tokio::time::Instant>,
     ) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>> {
-        // TODO(Itamar): pass the timeout to the executor.
-        self.execute_txs(txs, None)
+        // Change deadline from tokio::time::Instant to std::time::Instant.
+        let execution_deadine = block_timeout.map(|instant| instant.into());
+        self.execute_txs(txs, execution_deadine)
             .into_iter()
             .map(|res| res.map(|(tx_execution_info, _state_diff)| tx_execution_info))
             .collect()

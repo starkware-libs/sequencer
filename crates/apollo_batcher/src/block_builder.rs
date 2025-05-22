@@ -246,11 +246,12 @@ impl BlockBuilderTrait for BlockBuilder {
                 executor_input_chunk.len()
             );
             let executor = self.executor.clone();
+            let block_deadline = self.execution_params.deadline;
             let results = tokio::task::spawn_blocking(move || {
                 executor
                     .try_lock() // Acquire the lock in a sync manner.
                     .expect("Only a single task should use the executor.")
-                    .add_txs_to_block(executor_input_chunk.as_slice())
+                    .add_txs_to_block(executor_input_chunk.as_slice(), Some(block_deadline))
             })
             .await
             .expect("Failed to spawn blocking executor task.");
@@ -357,6 +358,7 @@ async fn collect_execution_results_and_stream_txs(
             }
         }
     }
+    info!("Finished collect_execution_results_and_stream_txs gracefully");
     Ok(block_is_full)
 }
 
