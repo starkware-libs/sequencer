@@ -79,7 +79,7 @@
     },
     {
       "name": "HttpServer",
-      "controller": "StatefulSet",
+      "controller": "Deployment",
       "config_paths": [
         "http_server.json",
         "deployment_config_override.json",
@@ -115,7 +115,7 @@
     },
     {
       "name": "Gateway",
-      "controller": "StatefulSet",
+      "controller": "Deployment",
       "config_paths": [
         "gateway.json",
         "deployment_config_override.json",
@@ -140,7 +140,7 @@
     },
     {
       "name": "L1",
-      "controller": "StatefulSet",
+      "controller": "Deployment",
       "config_paths": [
         "l1.json",
         "deployment_config_override.json",
@@ -165,7 +165,7 @@
     },
     {
       "name": "Mempool",
-      "controller": "StatefulSet",
+      "controller": "Deployment",
       "config_paths": [
         "mempool.json",
         "deployment_config_override.json",
@@ -190,7 +190,7 @@
     },
     {
       "name": "SierraCompiler",
-      "controller": "StatefulSet",
+      "controller": "Deployment",
       "config_paths": [
         "sierra_compiler.json",
         "deployment_config_override.json",
