@@ -11,6 +11,7 @@ workspace = true
 
 [features]
 cairo_native = ["dep:cairo-native", "starknet_sierra_multicompile/cairo_native", "dep:sierra-emu"]
+with-trace-dump = ["cairo_native", "cairo-native/with-trace-dump"]
 jemalloc = ["dep:tikv-jemallocator"]
 native_blockifier = []
 node_api = []

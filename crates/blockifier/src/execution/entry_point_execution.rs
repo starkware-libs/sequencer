@@ -109,8 +109,10 @@ pub fn initialize_execution_context<'a>(
     let mut runner = CairoRunner::new(
         &compiled_class.0.program,
         LayoutName::starknet,
+        None,
         proof_mode,
         trace_enabled,
+        false,
     )?;
 
     runner.initialize_function_runner_cairo_1(&entry_point.builtins)?;
