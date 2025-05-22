@@ -11,9 +11,10 @@ workspace = true
 
 [features]
 deserialize = []
-testing = []
+testing = ["dep:num-bigint"]
 
 [dev-dependencies]
+num-bigint = { workspace = true, features = ["rand"] }
 pretty_assertions.workspace = true
 rand.workspace = true
 rstest.workspace = true
@@ -22,6 +23,7 @@ rstest.workspace = true
 async-recursion.workspace = true
 derive_more.workspace = true
 ethnum.workspace = true
+num-bigint = { workspace = true, optional = true}
 rand.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true

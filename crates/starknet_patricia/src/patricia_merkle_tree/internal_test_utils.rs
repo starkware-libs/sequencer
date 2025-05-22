@@ -118,9 +118,11 @@ pub(crate) fn small_tree_index_to_full(index: U256, height: SubTreeHeight) -> No
 #[rstest]
 #[should_panic]
 #[case(U256::ZERO, U256::ZERO)]
+#[should_panic]
+#[case(U256::ONE, U256::ZERO)]
 #[case(U256::ZERO, U256::ONE)]
 #[case(U256::ONE, U256::ONE << 128)]
-#[case((U256::ONE<<128)-U256::ONE, U256::ONE << 128)]
+#[case(U256::ONE<<62, U256::ONE << 128)]
 #[case(U256::ONE<<128, (U256::ONE << 128)+U256::ONE)]
 fn test_get_random_u256(mut random: ThreadRng, #[case] low: U256, #[case] high: U256) {
     let r = get_random_u256(&mut random, low, high);
