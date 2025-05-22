@@ -1,7 +1,8 @@
 import json
 import os
-from typing import Dict, Any, List
-from jsonschema import validate, ValidationError
+from typing import Any, Dict, List
+
+from jsonschema import ValidationError, validate
 
 
 class DeploymentConfig:

@@ -2,12 +2,11 @@
 
 import sys
 
-from constructs import Construct
-from cdk8s import App, Chart, YamlOutputType
-
-from app.service import ServiceApp
 from app.monitoring import MonitoringApp
-from services import topology, helpers, config, monitoring
+from app.service import ServiceApp
+from cdk8s import App, Chart, YamlOutputType
+from constructs import Construct
+from services import config, helpers, monitoring, topology
 
 
 class SequencerNode(Chart):
