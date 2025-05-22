@@ -6,6 +6,7 @@ repository.workspace = true
 license-file.workspace = true
 
 [features]
+testing = []
 
 [dependencies]
 

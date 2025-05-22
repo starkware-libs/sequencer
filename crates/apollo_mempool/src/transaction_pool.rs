@@ -1,6 +1,5 @@
 use std::cmp::Ordering;
 use std::collections::{hash_map, BTreeMap, HashMap};
-use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use apollo_mempool_types::errors::MempoolError;
@@ -9,9 +8,9 @@ use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::transaction::TransactionHash;
 
-use crate::mempool::TransactionReference;
+use crate::mempool::{SharedClock, TransactionReference};
 use crate::metrics::TRANSACTION_TIME_SPENT_IN_MEMPOOL;
-use crate::utils::{try_increment_nonce, Clock};
+use crate::utils::try_increment_nonce;
 
 type HashToTransaction = HashMap<TransactionHash, InternalRpcTransaction>;
 
@@ -31,7 +30,7 @@ pub struct TransactionPool {
 }
 
 impl TransactionPool {
-    pub fn new(clock: Arc<dyn Clock>) -> Self {
+    pub fn new(clock: SharedClock) -> Self {
         TransactionPool {
             tx_pool: HashMap::new(),
             txs_by_account: AccountTransactionIndex::default(),
@@ -327,11 +326,11 @@ impl PartialOrd for SubmissionID {
 struct TimedTransactionMap {
     txs_by_submission_time: BTreeMap<SubmissionID, TransactionReference>,
     hash_to_submission_id: HashMap<TransactionHash, SubmissionID>,
-    clock: Arc<dyn Clock>,
+    clock: SharedClock,
 }
 
 impl TimedTransactionMap {
-    fn new(clock: Arc<dyn Clock>) -> Self {
+    fn new(clock: SharedClock) -> Self {
         TimedTransactionMap {
             txs_by_submission_time: BTreeMap::new(),
             hash_to_submission_id: HashMap::new(),
