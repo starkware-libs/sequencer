@@ -12,9 +12,9 @@ on:
   pull_request:
     branches:
       - main
-      - main-v0.1[4-9]*
-      - main-v0.[2-9]*
-      - main-v[1-9]*
+      - 'main-v0.1[4-9]*'
+      - 'main-v0.[2-9]*'
+      - 'main-v[1-9]*'
     paths:
       - ".github/workflows/consolidated_system_test.yaml"
       - "crates/**"
