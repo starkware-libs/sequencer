@@ -13,3 +13,5 @@ testing = []
 
 [dependencies]
 apollo_metrics.workspace = true
+apollo_storage.workspace = true
+starknet_api.workspace = true
