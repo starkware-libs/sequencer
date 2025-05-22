@@ -2,7 +2,7 @@ use std::ops::Add;
 use std::sync::Mutex;
 use std::time::{Duration, Instant as StdInstant};
 
-use crate::clock::InstantClock;
+use crate::clock::{InstantClock, UnixClock};
 
 #[derive(Debug)]
 pub struct FakeClock<I: Copy + Add<Duration, Output = I> + Send + Sync> {
@@ -33,8 +33,21 @@ where
     }
 }
 
+impl<I: Copy + Add<Duration, Output = I> + Send + Sync> UnixClock for FakeClock<I> {
+    fn unix_now(&self) -> Duration {
+        *self.offset.lock().unwrap()
+    }
+}
+
 impl Default for FakeClock<StdInstant> {
     fn default() -> Self {
         FakeClock { offset: Mutex::new(Duration::ZERO), base_instant: StdInstant::now() }
+    }
+}
+
+#[cfg(feature = "tokio")]
+impl Default for FakeClock<tokio::time::Instant> {
+    fn default() -> Self {
+        FakeClock { offset: Mutex::new(Duration::ZERO), base_instant: tokio::time::Instant::now() }
     }
 }

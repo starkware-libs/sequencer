@@ -51,7 +51,9 @@ use apollo_protobuf::consensus::{
     Vote,
 };
 use apollo_state_sync_types::communication::MockStateSyncClient;
-use chrono::{TimeZone, Utc};
+use apollo_time::clock::UnixClock;
+use apollo_time::test_utils::FakeClock;
+use apollo_time::tokio_clock::TokioClock;
 use futures::channel::mpsc;
 use futures::channel::oneshot::Canceled;
 use futures::executor::block_on;
@@ -76,12 +78,12 @@ use starknet_api::state::ThinStateDiff;
 use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
 use starknet_types_core::felt::Felt;
 
-use super::{DefaultClock, SequencerConsensusContextDeps};
+use super::SequencerConsensusContextDeps;
 use crate::cende::MockCendeContext;
 use crate::config::ContextConfig;
 use crate::metrics::CONSENSUS_L2_GAS_PRICE;
 use crate::orchestrator_versioned_constants::VersionedConstants;
-use crate::sequencer_consensus_context::{MockClock, SequencerConsensusContext};
+use crate::sequencer_consensus_context::SequencerConsensusContext;
 
 const TIMEOUT: Duration = Duration::from_millis(1200);
 const CHANNEL_SIZE: usize = 5000;
@@ -156,7 +158,7 @@ fn default_context_dependencies() -> (SequencerConsensusContextDeps, NetworkDepe
         cende_ambassador: Arc::new(success_cende_ammbassador()),
         eth_to_strk_oracle_client: Arc::new(dummy_eth_to_strk_oracle_client()),
         l1_gas_price_provider: Arc::new(dummy_gas_price_provider()),
-        clock: Arc::new(DefaultClock::default()),
+        clock: Arc::new(TokioClock),
     };
 
     let network_dependencies =
@@ -731,12 +733,8 @@ async fn decision_reached_sends_correct_values() {
     let mut batcher = MockBatcherClient::new();
     setup_batcher_for_build(&mut batcher, BlockNumber(0)).await;
 
-    const BLOCK_TIME_STAMP_SECONDS: u64 = 123456;
-    let mut clock = MockClock::new();
-    clock.expect_now_as_timestamp().return_const(BLOCK_TIME_STAMP_SECONDS);
-    clock
-        .expect_now()
-        .return_const(Utc.timestamp_opt(BLOCK_TIME_STAMP_SECONDS.try_into().unwrap(), 0).unwrap());
+    let clock = FakeClock::default();
+    let frozen_unix_time = clock.unix_now_secs();
 
     // 2. Decision reached setup starts.
     batcher
@@ -749,8 +747,8 @@ async fn decision_reached_sends_correct_values() {
 
     // This is the actual part of the test that checks the values are correct.
     // TODO(guy.f): Add expectations and validations for all the other values being written.
-    mock_sync_client.expect_add_new_block().times(1).return_once(|block_info| {
-        assert_eq!(block_info.block_header_without_hash.timestamp.0, BLOCK_TIME_STAMP_SECONDS);
+    mock_sync_client.expect_add_new_block().times(1).return_once(move |block_info| {
+        assert_eq!(block_info.block_header_without_hash.timestamp.0, frozen_unix_time);
         Ok(())
     });
 
