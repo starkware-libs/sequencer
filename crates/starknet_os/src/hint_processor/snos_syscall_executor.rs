@@ -31,6 +31,7 @@ use blockifier::execution::syscalls::vm_syscall_utils::{
     StorageReadResponse,
     StorageWriteRequest,
     StorageWriteResponse,
+    SyscallExecutorBaseError,
     SyscallSelector,
 };
 use blockifier::state::state_api::StateReader;
@@ -41,8 +42,16 @@ use starknet_api::execution_resources::GasAmount;
 use crate::hint_processor::execution_helper::ExecutionHelperError;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 
+#[derive(Debug, thiserror::Error)]
+pub enum SnosSyscallError {
+    #[error(transparent)]
+    SyscallExecutorBase(#[from] SyscallExecutorBaseError),
+}
+
 #[allow(unused_variables)]
 impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
+    type Error = SnosSyscallError;
+
     fn get_keccak_round_cost_base_syscall_cost(&self) -> u64 {
         todo!()
     }
