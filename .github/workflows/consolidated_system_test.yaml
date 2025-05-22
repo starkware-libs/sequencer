@@ -194,6 +194,9 @@ jobs:
             "${{ env.check_timeout_sec }}" \
             "${{ env.check_interval_sec }}"
 
+      - name: Copy state and restart pod
+        run: pipenv run python ./scripts/copy_state_and_restart.py --deployment_config_path ${{ env.deployment_config_path }} --data-dir "./output/data/node_0"
+
       - name: Get container logs
         if: always()
         run: |
