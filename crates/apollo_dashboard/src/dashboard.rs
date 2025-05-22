@@ -115,9 +115,7 @@ pub struct Dashboard {
 }
 
 impl Dashboard {
-    pub const fn new(name: &'static str, description: &'static str, rows: &'static [Row]) -> Self {
-        // TODO(Tsabary): remove description.
-        let _ = description;
+    pub const fn new(name: &'static str, rows: &'static [Row]) -> Self {
         Self { name, rows }
     }
 }

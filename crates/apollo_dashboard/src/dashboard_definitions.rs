@@ -415,7 +415,6 @@ pub const COMPILE_TO_CASM_ROW: Row =
 
 pub const SEQUENCER_DASHBOARD: Dashboard = Dashboard::new(
     "Sequencer Node Dashboard",
-    "Monitoring of the decentralized sequencer node",
     &[
         BATCHER_ROW,
         CONSENSUS_ROW,
