@@ -138,6 +138,9 @@ impl TryExtractRevert for SyscallExecutionError {
     fn try_extract_revert(self) -> SelfOrRevert<Self> {
         match self {
             Self::Revert { error_data } => SelfOrRevert::Revert(error_data),
+            Self::SyscallExecutorBase(base_error) => {
+                base_error.try_extract_revert().map_original(Self::SyscallExecutorBase)
+            }
             _ => SelfOrRevert::Original(self),
         }
     }

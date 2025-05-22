@@ -53,8 +53,11 @@ pub enum SnosSyscallError {
 
 impl TryExtractRevert for SnosSyscallError {
     fn try_extract_revert(self) -> SelfOrRevert<Self> {
-        // No revert case in this error enum.
-        SelfOrRevert::Original(self)
+        match self {
+            SnosSyscallError::SyscallExecutorBase(base_error) => {
+                base_error.try_extract_revert().map_original(Self::SyscallExecutorBase)
+            }
+        }
     }
 
     fn as_revert(error_data: RevertData) -> Self {
