@@ -68,9 +68,11 @@ impl ConcurrencyMetrics {
     }
 }
 
+#[derive(Debug, PartialEq)]
 enum CommitResult {
     Success,
     NoRoomInBlock,
+    ValidationFailed,
 }
 
 pub struct WorkerExecutor<S: StateReader> {
@@ -152,7 +154,7 @@ impl<S: StateReader> WorkerExecutor<S> {
                     self.execute(tx_index);
                 }
                 Task::ValidationTask(tx_index) => {
-                    if self.validate(tx_index).is_err() {
+                    if self.validate(tx_index, false).is_err() {
                         assert!(self.scheduler.done());
                         break;
                     }
@@ -183,6 +185,10 @@ impl<S: StateReader> WorkerExecutor<S> {
                     CommitResult::NoRoomInBlock => {
                         tx_committer.uncommit();
                         self.scheduler.halt();
+                    }
+                    CommitResult::ValidationFailed => {
+                        tx_committer.uncommit();
+                        return;
                     }
                 }
             }
@@ -232,7 +238,12 @@ impl<S: StateReader> WorkerExecutor<S> {
     }
 
     /// Validates the transaction at the given index and returns whether the transaction is valid.
-    fn validate(&self, tx_index: TxIndex) -> Result<bool, VersionedStateError> {
+    /// `commit_phase` should be `true` if the function is called during the commit phase.
+    fn validate(
+        &self,
+        tx_index: TxIndex,
+        commit_phase: bool,
+    ) -> Result<bool, VersionedStateError> {
         self.metrics.count_validate();
         let tx_versioned_state = self.state.pin_version(tx_index);
         let execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
@@ -240,7 +251,8 @@ impl<S: StateReader> WorkerExecutor<S> {
         let reads = &execution_output.reads;
         let reads_valid = tx_versioned_state.validate_reads(reads)?;
 
-        let aborted = !reads_valid && self.scheduler.try_validation_abort(tx_index);
+        let aborted =
+            !reads_valid && self.scheduler.try_validation_abort(tx_index, commit_phase);
         if aborted {
             self.metrics.count_abort();
             tx_versioned_state
@@ -263,38 +275,13 @@ impl<S: StateReader> WorkerExecutor<S> {
     ///     * Else (execution failed), commit the transaction without fixing the call info or
     ///       updating the sequencer balance.
     fn commit_tx(&self, tx_index: TxIndex) -> Result<CommitResult, VersionedStateError> {
-        let execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
-        let execution_output_ref = execution_output.as_ref().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR);
-        let reads = &execution_output_ref.reads;
-
-        let mut tx_versioned_state = self.state.pin_version(tx_index);
-        let reads_valid = tx_versioned_state.validate_reads(reads)?;
-
-        // First, re-validate the transaction.
-        if !reads_valid {
-            // Revalidate failed: re-execute the transaction.
+        if !self.validate(tx_index, true)? {
             self.metrics.count_abort_in_commit();
-            tx_versioned_state.delete_writes(
-                &execution_output_ref.state_diff,
-                &execution_output_ref.contract_classes,
-            )?;
-            // Release the execution output lock as it is acquired in execution (avoid dead-lock).
-            drop(execution_output);
-
-            // TODO(Yoni): avoid re-executing in the commit phase.
-            self.execute_tx(tx_index);
-            self.scheduler.finish_execution_during_commit(tx_index);
-
-            let execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
-            let read_set = &execution_output.as_ref().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR).reads;
-            // Another validation after the re-execution for sanity check.
-            assert!(tx_versioned_state.validate_reads(read_set)?);
-        } else {
-            // Release the execution output lock, since it is has been released in the other flow.
-            drop(execution_output);
+            return Ok(CommitResult::ValidationFailed);
         }
 
         // Execution is final.
+        let mut tx_versioned_state = self.state.pin_version(tx_index);
         let mut execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
         let execution_output = execution_output.as_mut().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR);
         let mut tx_state_changes_keys = execution_output.state_diff.keys();
