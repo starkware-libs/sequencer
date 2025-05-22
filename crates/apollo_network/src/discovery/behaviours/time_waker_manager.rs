@@ -34,6 +34,8 @@ impl TimeWakerManager {
 impl Future for TimeWakerManager {
     type Output = Never;
 
+    /// This method will always return pending. Despite this it should continue to be called every
+    /// time the caller of this class' is polled.
     fn poll(self: std::pin::Pin<&mut Self>, cx: &mut Context<'_>) -> std::task::Poll<Self::Output> {
         let this = self.get_mut();
         let _ = this.timers.poll_next_unpin(cx);
