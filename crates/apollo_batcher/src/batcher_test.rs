@@ -578,9 +578,13 @@ async fn send_proposal_content_abort() {
         batcher.send_proposal_content(send_abort_proposal).await.unwrap(),
         SendProposalContentResponse { response: ProposalStatus::Aborted }
     );
+    assert_eq!(
+        batcher.send_proposal_content(send_abort_proposal).await.unwrap(),
+        SendProposalContentResponse { response: ProposalStatus::Aborted }
+    );
 
     // The block builder is running in a separate task, and the proposal metrics are emitted from
-    // that task, so we need to wait for them (we don't have a way to wait for the completion of the
+    // that task, so we need to wait for them (we don't have a way to wait for the completion of the.
     // abort).
     // TODO(AlonH): Find a way to wait for the metrics to be emitted.
     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
