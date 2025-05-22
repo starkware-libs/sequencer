@@ -19,6 +19,8 @@ where
     V: Clone + Debug,
 {
     cached_initial_values: HashMap<K, V>,
+    /// Map: `key -> transaction_index -> value`. Where `value` was written at `key` in the given
+    /// transaction index.
     writes: HashMap<K, BTreeMap<TxIndex, V>>,
 }
 
@@ -68,10 +70,11 @@ where
         self.cached_initial_values.insert(key, value);
     }
 
+    /// Returns the writes performed up to the given transaction index (excluding).
     pub(crate) fn get_writes_up_to_index(&self, index: TxIndex) -> HashMap<K, V> {
         let mut writes = HashMap::default();
         for (&key, cell) in self.writes.iter() {
-            if let Some(value) = cell.range(..=index).next_back() {
+            if let Some(value) = cell.range(..index).next_back() {
                 writes.insert(key, value.1.clone());
             }
         }

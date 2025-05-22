@@ -40,6 +40,7 @@ use crate::execution::secp;
 use crate::execution::syscalls::common_syscall_logic::base_keccak;
 use crate::execution::syscalls::hint_processor::{SyscallExecutionError, OUT_OF_GAS_ERROR};
 use crate::execution::syscalls::syscall_base::SyscallHandlerBase;
+use crate::execution::syscalls::vm_syscall_utils::SyscallExecutorBaseError;
 use crate::state::state_api::State;
 use crate::transaction::objects::TransactionInfo;
 use crate::utils::u64_from_usize;
@@ -444,11 +445,11 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         if self.base.context.execution_mode == ExecutionMode::Validate
             && self.base.call.storage_address != contract_address
         {
-            let err = SyscallExecutionError::InvalidSyscallInExecutionMode {
+            let err = SyscallExecutorBaseError::InvalidSyscallInExecutionMode {
                 syscall_name: "call_contract".to_string(),
                 execution_mode: self.base.context.execution_mode,
             };
-            return Err(self.handle_error(remaining_gas, err));
+            return Err(self.handle_error(remaining_gas, err.into()));
         }
 
         let wrapper_calldata = Calldata(Arc::new(calldata.to_vec()));
@@ -491,7 +492,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
 
         if address_domain != 0 {
             let address_domain = Felt::from(address_domain);
-            let error = SyscallExecutionError::InvalidAddressDomain { address_domain };
+            let error = SyscallExecutorBaseError::InvalidAddressDomain { address_domain }.into();
             return Err(self.handle_error(remaining_gas, error));
         }
 
@@ -516,7 +517,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
 
         if address_domain != 0 {
             let address_domain = Felt::from(address_domain);
-            let error = SyscallExecutionError::InvalidAddressDomain { address_domain };
+            let error = SyscallExecutorBaseError::InvalidAddressDomain { address_domain }.into();
             return Err(self.handle_error(remaining_gas, error));
         }
 

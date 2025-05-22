@@ -105,6 +105,14 @@ impl Deployment {
 
             service_deployment_base_app_config.override_base_app_config(base_app_config_override);
 
+            service_deployment_base_app_config
+                .config
+                .l1_provider_config
+                .provider_startup_height_override = self
+                .environment
+                .get_l1_provider_config_modifications()
+                .l1_provider_config_provider_startup_height_override;
+
             result.insert(service, service_deployment_base_app_config.as_value());
         }
 

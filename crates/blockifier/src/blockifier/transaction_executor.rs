@@ -1,6 +1,6 @@
 use std::mem;
-use std::panic::{self, catch_unwind, AssertUnwindSafe};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
+use std::time::Instant;
 
 use apollo_infra_utils::tracing::LogCompatibleToStringExt;
 use itertools::FoldWhile::{Continue, Done};
@@ -11,8 +11,8 @@ use thiserror::Error;
 use crate::blockifier::block::pre_process_block;
 use crate::blockifier::config::TransactionExecutorConfig;
 use crate::bouncer::{Bouncer, BouncerWeights, CasmHashComputationData};
-use crate::concurrency::utils::AbortIfPanic;
 use crate::concurrency::worker_logic::WorkerExecutor;
+use crate::concurrency::worker_pool::WorkerPool;
 use crate::context::BlockContext;
 use crate::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps, TransactionalState};
 use crate::state::errors::StateError;
@@ -57,8 +57,8 @@ pub struct BlockExecutionSummary {
 
 /// A transaction executor, used for building a single block.
 pub struct TransactionExecutor<S: StateReader> {
-    pub block_context: BlockContext,
-    pub bouncer: Bouncer,
+    pub block_context: Arc<BlockContext>,
+    pub bouncer: Arc<Mutex<Bouncer>>,
     // Note: this config must not affect the execution result (e.g. state diff and traces).
     pub config: TransactionExecutorConfig,
 
@@ -98,8 +98,8 @@ impl<S: StateReader> TransactionExecutor<S> {
         // Note: the state might not be empty even at this point; it is the creator's
         // responsibility to tune the bouncer according to pre and post block process.
         Self {
-            block_context,
-            bouncer: Bouncer::new(bouncer_config),
+            block_context: block_context.into(),
+            bouncer: Mutex::new(Bouncer::new(bouncer_config)).into(),
             config,
             block_state: Some(block_state),
         }
@@ -124,7 +124,7 @@ impl<S: StateReader> TransactionExecutor<S> {
             Ok(tx_execution_info) => {
                 let state_diff = transactional_state.to_state_diff()?.state_maps;
                 let tx_state_changes_keys = state_diff.keys();
-                self.bouncer.try_update(
+                lock_bouncer(&mut self.bouncer).try_update(
                     &transactional_state,
                     &tx_state_changes_keys,
                     &tx_execution_info.summarize(&self.block_context.versioned_constants),
@@ -145,9 +145,16 @@ impl<S: StateReader> TransactionExecutor<S> {
     fn execute_txs_sequentially_inner(
         &mut self,
         txs: &[Transaction],
+        execution_deadline: Option<Instant>,
     ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
         let mut results = Vec::new();
         for tx in txs {
+            if let Some(deadline) = execution_deadline {
+                if Instant::now() > deadline {
+                    log::debug!("Execution timed out.");
+                    break;
+                }
+            }
             match self.execute(tx) {
                 Ok((tx_execution_info, state_diff)) => {
                     results.push(Ok((tx_execution_info, state_diff)))
@@ -171,7 +178,10 @@ impl<S: StateReader> TransactionExecutor<S> {
     }
 
     fn internal_finalize(&mut self) -> TransactionExecutorResult<BlockExecutionSummary> {
-        log::debug!("Final block weights: {:?}.", self.bouncer.get_accumulated_weights());
+        log::debug!(
+            "Final block weights: {:?}.",
+            lock_bouncer(&mut self.bouncer).get_accumulated_weights()
+        );
         let block_state = self.block_state.as_mut().expect(BLOCK_STATE_ACCESS_ERR);
         let alias_contract_address = self
             .block_context
@@ -189,26 +199,42 @@ impl<S: StateReader> TransactionExecutor<S> {
             } else {
                 None
             };
+
+        let mut bouncer = lock_bouncer(&mut self.bouncer);
         Ok(BlockExecutionSummary {
             state_diff: state_diff.into(),
             compressed_state_diff,
-            bouncer_weights: *self.bouncer.get_accumulated_weights(),
-            casm_hash_computation_data: mem::take(&mut self.bouncer.casm_hash_computation_data),
+            bouncer_weights: *bouncer.get_accumulated_weights(),
+            casm_hash_computation_data: mem::take(&mut bouncer.casm_hash_computation_data),
         })
     }
 }
 
+fn lock_bouncer(bouncer: &mut Arc<Mutex<Bouncer>>) -> MutexGuard<'_, Bouncer> {
+    bouncer.lock().expect("Bouncer lock failed.")
+}
+
 impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
     /// Executes the given transactions on the state maintained by the executor.
-    /// Stops if and when there is no more room in the block, and returns the executed transactions'
-    /// results.
+    ///
+    /// # Arguments:
+    /// * `txs` - A slice of transactions to be executed.
+    /// * `execution_deadline` - An optional deadline for the execution.
+    ///
+    /// Returns a vector of `TransactionExecutorResult<TransactionExecutionOutput>`, containing the
+    /// execution results for each transaction. The execution may stop early if the block becomes
+    /// full.
     pub fn execute_txs(
         &mut self,
         txs: &[Transaction],
-    ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
+        execution_deadline: Option<Instant>,
+    ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>>
+    where
+        S: 'static,
+    {
         if !self.config.concurrency_config.enabled {
             log::debug!("Executing transactions sequentially.");
-            self.execute_txs_sequentially(txs)
+            self.execute_txs_sequentially(txs, execution_deadline)
         } else {
             log::debug!("Executing transactions concurrently.");
             let chunk_size = self.config.concurrency_config.chunk_size;
@@ -227,7 +253,7 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
             );
             txs.chunks(chunk_size)
                 .fold_while(Vec::new(), |mut results, chunk| {
-                    let chunk_results = self.execute_chunk(chunk);
+                    let chunk_results = self.execute_chunk(chunk, execution_deadline);
                     if chunk_results.len() < chunk.len() {
                         // Block is full.
                         results.extend(chunk_results);
@@ -244,9 +270,10 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
     fn execute_txs_sequentially(
         &mut self,
         txs: &[Transaction],
+        execution_deadline: Option<Instant>,
     ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
         #[cfg(not(feature = "cairo_native"))]
-        return self.execute_txs_sequentially_inner(txs);
+        return self.execute_txs_sequentially_inner(txs, execution_deadline);
         #[cfg(feature = "cairo_native")]
         {
             // TODO(meshi): find a way to access the contract class manager config from transaction
@@ -266,7 +293,7 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
                     // The gas upper bound is MAX_POSSIBLE_SIERRA_GAS, and sequencers must not raise it without
                     // adjusting the stack size.
                     .stack_size(self.config.stack_size)
-                    .spawn_scoped(s, || self.execute_txs_sequentially_inner(&txs))
+                    .spawn_scoped(s, || self.execute_txs_sequentially_inner(&txs, execution_deadline))
                     .expect("Failed to spawn thread")
                     .join()
                     .expect("Failed to join thread.")
@@ -277,61 +304,29 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
     fn execute_chunk(
         &mut self,
         chunk: &[Transaction],
-    ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
+        execution_deadline: Option<Instant>,
+    ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>>
+    where
+        S: 'static,
+    {
         let block_state = self.block_state.take().expect("The block state should be `Some`.");
         let chunk_size = chunk.len();
 
         let worker_executor = Arc::new(WorkerExecutor::initialize(
             block_state,
-            chunk,
-            &self.block_context,
-            Mutex::new(&mut self.bouncer),
+            // We need to clone the transactions so that ownership can be shared between threads,
+            // that will live longer than the current function.
+            // TODO(lior): Move the transactions instead of cloning them.
+            chunk.to_vec(),
+            self.block_context.clone(),
+            self.bouncer.clone(),
+            execution_deadline,
         ));
 
-        // No thread pool implementation is needed here since we already have our scheduler. The
-        // initialized threads below will "busy wait" for new tasks using the `run` method until the
-        // chunk execution is completed, and then they will be joined together in a for loop.
-        // TODO(barak, 01/07/2024): Consider using tokio and spawn tasks that will be served by some
-        // upper level tokio thread pool (Runtime in tokio terminology).
-        std::thread::scope(|s| {
-            for _ in 0..self.config.concurrency_config.n_workers {
-                let worker_executor = Arc::clone(&worker_executor);
-                let _handle = std::thread::Builder::new()
-                    // when running Cairo natively, the real stack is used and could get overflowed
-                    // (unlike the VM where the stack is simulated in the heap as a memory segment).
-                    //
-                    // We pre-allocate the stack here, and not during Native execution (not trivial), so it
-                    // needs to be big enough ahead.
-                    // However, making it very big is wasteful (especially with multi-threading).
-                    // So, the stack size should support calls with a reasonable gas limit, for extremely deep
-                    // recursions to reach out-of-gas before hitting the bottom of the recursion.
-                    //
-                    // The gas upper bound is MAX_POSSIBLE_SIERRA_GAS, and sequencers must not raise it without
-                    // adjusting the stack size.
-                    .stack_size(self.config.stack_size)
-                    .spawn_scoped(s, move || {
-                        // Making sure that the program will abort if a panic accured while halting
-                        // the scheduler.
-                        let abort_guard = AbortIfPanic;
-                        // If a panic is not handled or the handling logic itself panics, then we
-                        // abort the program.
-                        if let Err(err) = catch_unwind(AssertUnwindSafe(|| {
-                            worker_executor.run();
-                        })) {
-                            // If the program panics here, the abort guard will exit the program.
-                            // In this case, no panic message will be logged. Add the cargo flag
-                            // --nocapture to log the panic message.
-
-                            worker_executor.scheduler.halt();
-                            abort_guard.release();
-                            panic::resume_unwind(err);
-                        }
-
-                        abort_guard.release();
-                    })
-                    .expect("Failed to spawn thread.");
-            }
-        });
+        let worker_pool =
+            WorkerPool::start(self.config.stack_size, self.config.concurrency_config.clone());
+        worker_pool.run(worker_executor.clone());
+        worker_pool.join();
 
         let n_committed_txs = worker_executor.scheduler.get_n_committed_txs();
         let (abort_counter, abort_in_commit_counter, execute_counter, validate_counter) =
@@ -343,10 +338,7 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
              {abort_in_commit_counter}"
         );
         let mut tx_execution_results = Vec::new();
-        for execution_output in worker_executor.execution_outputs.iter() {
-            if tx_execution_results.len() >= n_committed_txs {
-                break;
-            }
+        for execution_output in worker_executor.execution_outputs.iter().take(n_committed_txs) {
             let locked_execution_output = execution_output
                 .lock()
                 .expect("Failed to lock execution output.")
@@ -359,15 +351,8 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
             tx_execution_results.push(tx_execution_output);
         }
 
-        let block_state_after_commit = Arc::try_unwrap(worker_executor)
-            .unwrap_or_else(|_| {
-                panic!(
-                    "To consume the block state, you must have only one strong reference to the \
-                     worker executor factory. Consider dropping objects that hold a reference to \
-                     it."
-                )
-            })
-            .commit_chunk_and_recover_block_state(n_committed_txs);
+        let block_state_after_commit =
+            worker_executor.commit_chunk_and_recover_block_state(n_committed_txs);
         self.block_state.replace(block_state_after_commit);
 
         tx_execution_results

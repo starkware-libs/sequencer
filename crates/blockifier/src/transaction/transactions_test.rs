@@ -7,6 +7,7 @@ use blockifier_test_utils::calldata::{create_calldata, create_trivial_calldata};
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use expect_test::expect;
 use num_bigint::BigUint;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
@@ -101,6 +102,8 @@ use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointEx
 use crate::execution::syscalls::hint_processor::EmitEventError;
 #[cfg(feature = "cairo_native")]
 use crate::execution::syscalls::hint_processor::SyscallExecutionError;
+#[cfg(feature = "cairo_native")]
+use crate::execution::syscalls::vm_syscall_utils::SyscallExecutorBaseError;
 use crate::execution::syscalls::vm_syscall_utils::SyscallSelector;
 use crate::fee::fee_checks::FeeCheckError;
 use crate::fee::fee_utils::{balance_to_big_uint, get_fee_by_gas_vector, GasVectorToL1GasForFee};
@@ -174,8 +177,47 @@ use crate::{
     check_tx_execution_error_for_invalid_scenario,
     retdata,
 };
-const DECLARE_REDEPOSIT_AMOUNT: u64 = 6860;
-const DEPLOY_ACCOUNT_REDEPOSIT_AMOUNT: u64 = 6360;
+
+static DECLARE_REDEPOSIT_AMOUNT: LazyLock<u64> = LazyLock::new(|| {
+    let resource_bounds = default_all_resource_bounds();
+    let cairo_version = CairoVersion::Cairo1(RunnableCairo1::Casm);
+    let block_context = &BlockContext::create_for_account_testing_with_kzg(true);
+    let account = FeatureContract::AccountWithoutValidations(cairo_version);
+    let empty_contract = FeatureContract::Empty(cairo_version);
+    let chain_info = &block_context.chain_info;
+    let state = &mut test_state(chain_info, BALANCE, &[(account, 1)]);
+    let account_tx = AccountTransaction::new_with_default_flags(executable_declare_tx(
+        declare_tx_args! {
+            sender_address: account.get_instance_address(0),
+            version: TransactionVersion::THREE,
+            resource_bounds,
+            class_hash: empty_contract.get_class_hash(),
+            compiled_class_hash: empty_contract.get_compiled_class_hash(),
+            nonce: Nonce(Felt::ZERO),
+        },
+        calculate_class_info_for_testing(empty_contract.get_class()).clone(),
+    ));
+    let actual_execution_info = account_tx.execute(state, block_context).unwrap();
+    VersionedConstants::latest_constants().os_constants.gas_costs.base.entry_point_initial_budget
+        - actual_execution_info.validate_call_info.unwrap().execution.gas_consumed
+});
+static DEPLOY_ACCOUNT_REDEPOSIT_AMOUNT: LazyLock<u64> = LazyLock::new(|| {
+    let block_context = &BlockContext::create_for_account_testing_with_kzg(true);
+    let chain_info = &block_context.chain_info;
+    let account =
+        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let state = &mut test_state(chain_info, BALANCE, &[(account, 1)]);
+    let deploy_account = AccountTransaction::new_with_default_flags(executable_deploy_account_tx(
+        deploy_account_tx_args! {
+            resource_bounds: default_all_resource_bounds(),
+            class_hash: account.get_class_hash(),
+        },
+    ));
+    fund_account(chain_info, deploy_account.tx.contract_address(), BALANCE, &mut state.state);
+    let actual_execution_info = deploy_account.execute(state, block_context).unwrap();
+    VersionedConstants::latest_constants().os_constants.gas_costs.base.entry_point_initial_budget
+        - actual_execution_info.validate_call_info.unwrap().execution.gas_consumed
+});
 static VERSIONED_CONSTANTS: LazyLock<VersionedConstants> =
     LazyLock::new(VersionedConstants::create_for_testing);
 
@@ -478,17 +520,17 @@ fn add_kzg_da_resources_to_resources_mapping(
 #[case::with_cairo1_account(
     ExpectedResultTestInvokeTx{
         resources: ExecutionResources::default(),
-        validate_gas_consumed: 11690, // The gas consumption results from parsing the input
+        validate_gas_consumed: 8990, // The gas consumption results from parsing the input
             // arguments.
-        execute_gas_consumed: 118290,
+        execute_gas_consumed: 115190,
     },
     CairoVersion::Cairo1(RunnableCairo1::Casm))]
 #[cfg_attr(feature = "cairo_native", case::with_cairo1_native_account(
     ExpectedResultTestInvokeTx{
         resources: ExecutionResources::default(),
-        validate_gas_consumed: 11690, // The gas consumption results from parsing the input
+        validate_gas_consumed: 8990, // The gas consumption results from parsing the input
             // arguments.
-        execute_gas_consumed: 118290,
+        execute_gas_consumed: 115190,
     },
     CairoVersion::Cairo1(RunnableCairo1::Native)))]
 // TODO(Tzahi): Add calls to cairo1 test contracts (where gas flows to and from the inner call).
@@ -1597,7 +1639,7 @@ fn declare_validate_callinfo(
                     .gas_costs
                     .base
                     .entry_point_initial_budget
-                    - DECLARE_REDEPOSIT_AMOUNT
+                    - *DECLARE_REDEPOSIT_AMOUNT
             }
         };
         expected_validate_call_info(
@@ -1638,6 +1680,14 @@ fn declare_expected_state_changes_count(version: TransactionVersion) -> StateCha
     } else {
         panic!("Unsupported version {version:?}.")
     }
+}
+
+#[rstest]
+fn test_declare_redeposit_amount_regression() {
+    expect![[r#"
+        7160
+    "#]]
+    .assert_debug_eq(&*DECLARE_REDEPOSIT_AMOUNT);
 }
 
 #[apply(cairo_version)]
@@ -1747,7 +1797,7 @@ fn test_declare_tx(
             if tx_version == TransactionVersion::ZERO {
                 GasAmount(0)
             } else {
-                GasAmount(initial_gas - DECLARE_REDEPOSIT_AMOUNT)
+                GasAmount(initial_gas - *DECLARE_REDEPOSIT_AMOUNT)
             }
         }
     };
@@ -1870,16 +1920,24 @@ fn test_declare_tx_v0(
 }
 
 #[rstest]
+fn test_deploy_account_redeposit_amount_regression() {
+    expect![[r#"
+        6760
+    "#]]
+    .assert_debug_eq(&*DEPLOY_ACCOUNT_REDEPOSIT_AMOUNT);
+}
+
+#[rstest]
 #[case::with_cairo0_account(CairoVersion::Cairo0, 0)]
 #[case::with_cairo1_account(
     CairoVersion::Cairo1(RunnableCairo1::Casm),
-    VersionedConstants::create_for_testing().os_constants.gas_costs.base.entry_point_initial_budget - DEPLOY_ACCOUNT_REDEPOSIT_AMOUNT
+    VersionedConstants::create_for_testing().os_constants.gas_costs.base.entry_point_initial_budget - *DEPLOY_ACCOUNT_REDEPOSIT_AMOUNT
 )]
 #[cfg_attr(
     feature = "cairo_native",
     case::with_cairo1_native_account(
         CairoVersion::Cairo1(RunnableCairo1::Native),
-        VersionedConstants::create_for_testing().os_constants.gas_costs.base.entry_point_initial_budget - DEPLOY_ACCOUNT_REDEPOSIT_AMOUNT
+        VersionedConstants::create_for_testing().os_constants.gas_costs.base.entry_point_initial_budget - *DEPLOY_ACCOUNT_REDEPOSIT_AMOUNT
     )
 )]
 fn test_deploy_account_tx(
@@ -2153,7 +2211,12 @@ fn check_native_validate_error(
         }
         _ => panic!("Unexpected error: {:?}", error),
     };
-    assert_matches!(syscall_error, SyscallExecutionError::InvalidSyscallInExecutionMode { .. });
+    assert_matches!(
+        syscall_error,
+        SyscallExecutionError::SyscallExecutorBase(
+            SyscallExecutorBaseError::InvalidSyscallInExecutionMode { .. }
+        )
+    );
     assert!(syscall_error.to_string().contains(error_msg));
 }
 // TODO(Arni, 1/5/2024): Cover other versions of declare transaction.
@@ -2522,7 +2585,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
 
     // Build the expected call info.
     let accessed_storage_key = StorageKey::try_from(key).unwrap();
-    let gas_consumed = GasAmount(16950);
+    let gas_consumed = GasAmount(15850);
     let expected_call_info = CallInfo {
         call: CallEntryPoint {
             class_hash: Some(test_contract.get_class_hash()),
@@ -2560,12 +2623,12 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
         true => GasVector {
             l1_gas: 16023_u32.into(),
             l1_data_gas: 160_u32.into(),
-            l2_gas: 201975_u32.into(),
+            l2_gas: 200875_u32.into(),
         },
         false => GasVector {
             l1_gas: 18226_u32.into(),
             l1_data_gas: 0_u32.into(),
-            l2_gas: 151075_u32.into(),
+            l2_gas: 149975_u32.into(),
         },
     };
 

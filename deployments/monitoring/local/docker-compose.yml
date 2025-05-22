@@ -103,6 +103,8 @@ services:
     build:
       context: ${SEQUENCER_ROOT_DIR}
       dockerfile: ${SEQUENCER_ROOT_DIR}/deployments/images/sequencer/Dockerfile
+      args:
+        BUILD_MODE: debug
     environment:
       - RUST_LOG=${RUST_LOG}
       - RUST_BACKTRACE=${RUST_BACKTRACE}

@@ -17,9 +17,10 @@ use starknet_api::transaction::{EventContent, EventData, EventKey, L2ToL1Payload
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::{Felt, FromStrError};
 
+use crate::abi::sierra_types::SierraTypeError;
 use crate::blockifier_versioned_constants::{EventLimits, VersionedConstants};
 use crate::execution::call_info::MessageToL1;
-use crate::execution::common_hints::HintExecutionResult;
+use crate::execution::common_hints::{ExecutionMode, HintExecutionResult};
 use crate::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallExecutionError;
 use crate::execution::deprecated_syscalls::DeprecatedSyscallSelector;
 use crate::execution::execution_utils::{
@@ -35,14 +36,13 @@ use crate::execution::syscalls::hint_processor::{
     read_felt_array,
     write_segment,
     EmitEventError,
-    SyscallExecutionError,
     OUT_OF_GAS_ERROR,
 };
 use crate::execution::syscalls::syscall_base::SyscallResult;
 use crate::execution::syscalls::syscall_executor::SyscallExecutor;
 use crate::utils::u64_from_usize;
 
-pub type WriteResponseResult = SyscallResult<()>;
+pub type WriteResponseResult = SyscallBaseResult<()>;
 
 pub type SyscallSelector = DeprecatedSyscallSelector;
 
@@ -65,7 +65,7 @@ impl SyscallUsage {
 }
 
 pub trait SyscallRequest: Sized {
-    fn read(_vm: &VirtualMachine, _ptr: &mut Relocatable) -> SyscallResult<Self>;
+    fn read(_vm: &VirtualMachine, _ptr: &mut Relocatable) -> SyscallBaseResult<Self>;
 
     /// Returns the linear factor's length for the syscall.
     /// If no factor exists, it returns 0.
@@ -84,7 +84,7 @@ pub struct SyscallRequestWrapper<T: SyscallRequest> {
     pub request: T,
 }
 impl<T: SyscallRequest> SyscallRequest for SyscallRequestWrapper<T> {
-    fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<Self> {
+    fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallBaseResult<Self> {
         let gas_counter = felt_from_ptr(vm, ptr)?;
         let gas_counter =
             gas_counter.to_u64().ok_or_else(|| SyscallExecutorBaseError::InvalidSyscallInput {
@@ -135,7 +135,7 @@ impl<T: SyscallResponse> SyscallResponse for SyscallResponseWrapper<T> {
 pub struct EmptyRequest;
 
 impl SyscallRequest for EmptyRequest {
-    fn read(_vm: &VirtualMachine, _ptr: &mut Relocatable) -> SyscallResult<EmptyRequest> {
+    fn read(_vm: &VirtualMachine, _ptr: &mut Relocatable) -> SyscallBaseResult<EmptyRequest> {
         Ok(EmptyRequest)
     }
 }
@@ -151,7 +151,7 @@ impl SyscallResponse for EmptyResponse {
 
 #[derive(Debug)]
 pub struct SingleSegmentResponse {
-    pub(crate) segment: ReadOnlySegment,
+    pub segment: ReadOnlySegment,
 }
 
 impl SyscallResponse for SingleSegmentResponse {
@@ -170,7 +170,7 @@ pub struct CallContractRequest {
 }
 
 impl SyscallRequest for CallContractRequest {
-    fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<CallContractRequest> {
+    fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallBaseResult<CallContractRequest> {
         let contract_address = ContractAddress::try_from(felt_from_ptr(vm, ptr)?)?;
         let (function_selector, calldata) = read_call_params(vm, ptr)?;
 
@@ -191,7 +191,7 @@ pub struct DeployRequest {
 }
 
 impl SyscallRequest for DeployRequest {
-    fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<DeployRequest> {
+    fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallBaseResult<DeployRequest> {
         let class_hash = ClassHash(felt_from_ptr(vm, ptr)?);
         let contract_address_salt = ContractAddressSalt(felt_from_ptr(vm, ptr)?);
         let constructor_calldata = read_calldata(vm, ptr)?;
@@ -235,10 +235,12 @@ pub struct EmitEventRequest {
 
 impl SyscallRequest for EmitEventRequest {
     // The Cairo struct contains: `keys_len`, `keys`, `data_len`, `data`·
-    fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<EmitEventRequest> {
-        let keys =
-            read_felt_array::<SyscallExecutionError>(vm, ptr)?.into_iter().map(EventKey).collect();
-        let data = EventData(read_felt_array::<SyscallExecutionError>(vm, ptr)?);
+    fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallBaseResult<EmitEventRequest> {
+        let keys = read_felt_array::<SyscallExecutorBaseError>(vm, ptr)?
+            .into_iter()
+            .map(EventKey)
+            .collect();
+        let data = EventData(read_felt_array::<SyscallExecutorBaseError>(vm, ptr)?);
 
         Ok(EmitEventRequest { content: EventContent { keys, data } })
     }
@@ -279,7 +281,7 @@ pub struct GetBlockHashRequest {
 }
 
 impl SyscallRequest for GetBlockHashRequest {
-    fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<GetBlockHashRequest> {
+    fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallBaseResult<GetBlockHashRequest> {
         let felt = felt_from_ptr(vm, ptr)?;
         let block_number = BlockNumber(felt.to_u64().ok_or_else(|| {
             SyscallExecutorBaseError::InvalidSyscallInput {
@@ -330,7 +332,7 @@ pub struct LibraryCallRequest {
 }
 
 impl SyscallRequest for LibraryCallRequest {
-    fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<LibraryCallRequest> {
+    fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallBaseResult<LibraryCallRequest> {
         let class_hash = ClassHash(felt_from_ptr(vm, ptr)?);
         let (function_selector, calldata) = read_call_params(vm, ptr)?;
 
@@ -351,11 +353,11 @@ pub struct MetaTxV0Request {
 }
 
 impl SyscallRequest for MetaTxV0Request {
-    fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<MetaTxV0Request> {
+    fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallBaseResult<MetaTxV0Request> {
         let contract_address = ContractAddress::try_from(felt_from_ptr(vm, ptr)?)?;
         let (entry_point_selector, calldata) = read_call_params(vm, ptr)?;
         let signature =
-            TransactionSignature(read_felt_array::<SyscallExecutionError>(vm, ptr)?.into());
+            TransactionSignature(read_felt_array::<SyscallExecutorBaseError>(vm, ptr)?.into());
 
         Ok(MetaTxV0Request { contract_address, entry_point_selector, calldata, signature })
     }
@@ -375,7 +377,7 @@ pub struct ReplaceClassRequest {
 }
 
 impl SyscallRequest for ReplaceClassRequest {
-    fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<ReplaceClassRequest> {
+    fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallBaseResult<ReplaceClassRequest> {
         let class_hash = ClassHash(felt_from_ptr(vm, ptr)?);
 
         Ok(ReplaceClassRequest { class_hash })
@@ -393,9 +395,12 @@ pub struct SendMessageToL1Request {
 
 impl SyscallRequest for SendMessageToL1Request {
     // The Cairo struct contains: `to_address`, `payload_size`, `payload`.
-    fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<SendMessageToL1Request> {
+    fn read(
+        vm: &VirtualMachine,
+        ptr: &mut Relocatable,
+    ) -> SyscallBaseResult<SendMessageToL1Request> {
         let to_address = EthAddress::try_from(felt_from_ptr(vm, ptr)?)?;
-        let payload = L2ToL1Payload(read_felt_array::<SyscallExecutionError>(vm, ptr)?);
+        let payload = L2ToL1Payload(read_felt_array::<SyscallExecutorBaseError>(vm, ptr)?);
 
         Ok(SendMessageToL1Request { message: MessageToL1 { to_address, payload } })
     }
@@ -413,10 +418,10 @@ pub struct StorageReadRequest {
 }
 
 impl SyscallRequest for StorageReadRequest {
-    fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<StorageReadRequest> {
+    fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallBaseResult<StorageReadRequest> {
         let address_domain = felt_from_ptr(vm, ptr)?;
         if address_domain != Felt::ZERO {
-            return Err(SyscallExecutionError::InvalidAddressDomain { address_domain });
+            return Err(SyscallExecutorBaseError::InvalidAddressDomain { address_domain });
         }
         let address = StorageKey::try_from(felt_from_ptr(vm, ptr)?)?;
         Ok(StorageReadRequest { address_domain, address })
@@ -445,10 +450,10 @@ pub struct StorageWriteRequest {
 }
 
 impl SyscallRequest for StorageWriteRequest {
-    fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<StorageWriteRequest> {
+    fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallBaseResult<StorageWriteRequest> {
         let address_domain = felt_from_ptr(vm, ptr)?;
         if address_domain != Felt::ZERO {
-            return Err(SyscallExecutionError::InvalidAddressDomain { address_domain });
+            return Err(SyscallExecutorBaseError::InvalidAddressDomain { address_domain });
         }
         let address = StorageKey::try_from(felt_from_ptr(vm, ptr)?)?;
         let value = felt_from_ptr(vm, ptr)?;
@@ -467,7 +472,7 @@ pub struct KeccakRequest {
 }
 
 impl SyscallRequest for KeccakRequest {
-    fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<KeccakRequest> {
+    fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallBaseResult<KeccakRequest> {
         let input_start = vm.get_relocatable(*ptr)?;
         *ptr = (*ptr + 1)?;
         let input_end = vm.get_relocatable(*ptr)?;
@@ -501,7 +506,7 @@ impl SyscallRequest for Sha256ProcessBlockRequest {
     fn read(
         vm: &VirtualMachine,
         ptr: &mut Relocatable,
-    ) -> SyscallResult<Sha256ProcessBlockRequest> {
+    ) -> SyscallBaseResult<Sha256ProcessBlockRequest> {
         let state_start = vm.get_relocatable(*ptr)?;
         *ptr = (*ptr + 1)?;
         let input_start = vm.get_relocatable(*ptr)?;
@@ -528,7 +533,10 @@ pub type GetClassHashAtRequest = ContractAddress;
 pub type GetClassHashAtResponse = ClassHash;
 
 impl SyscallRequest for GetClassHashAtRequest {
-    fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<GetClassHashAtRequest> {
+    fn read(
+        vm: &VirtualMachine,
+        ptr: &mut Relocatable,
+    ) -> SyscallBaseResult<GetClassHashAtRequest> {
         let address = ContractAddress::try_from(felt_from_ptr(vm, ptr)?)?;
         Ok(address)
     }
@@ -540,7 +548,6 @@ impl SyscallResponse for GetClassHashAtResponse {
         Ok(())
     }
 }
-
 // Execution.
 
 pub(crate) fn execute_syscall_from_selector<T: SyscallExecutor>(
@@ -703,10 +710,12 @@ where
     let original_response = execute_callback(request, vm, syscall_executor, &mut remaining_gas);
     let response = match original_response {
         Ok(response) => SyscallResponseWrapper::Success { gas_counter: remaining_gas, response },
-        Err(SyscallExecutionError::Revert { error_data: data }) => {
-            SyscallResponseWrapper::Failure { gas_counter: remaining_gas, error_data: data }
-        }
-        Err(error) => return Err(error.into()),
+        Err(error) => match error.try_extract_revert() {
+            SelfOrRevert::Revert(data) => {
+                SyscallResponseWrapper::Failure { gas_counter: remaining_gas, error_data: data }
+            }
+            SelfOrRevert::Original(err) => return Err(err.into()),
+        },
     };
 
     response.write(vm, syscall_executor.get_mut_syscall_ptr())?;
@@ -738,6 +747,17 @@ pub fn execute_next_syscall<T: SyscallExecutor>(
     execute_syscall_from_selector(syscall_executor, vm, selector)
 }
 
+pub enum SelfOrRevert<T> {
+    Original(T),
+    Revert(Vec<Felt>),
+}
+
+pub trait TryExtractRevert {
+    fn try_extract_revert(self) -> SelfOrRevert<Self>
+    where
+        Self: Sized;
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum SyscallExecutorBaseError {
     #[error(transparent)]
@@ -746,12 +766,18 @@ pub enum SyscallExecutorBaseError {
     FromStr(#[from] FromStrError),
     #[error(transparent)]
     Hint(#[from] HintError),
+    #[error("Invalid address domain: {address_domain}.")]
+    InvalidAddressDomain { address_domain: Felt },
+    #[error("Unauthorized syscall {syscall_name} in execution mode {execution_mode}.")]
+    InvalidSyscallInExecutionMode { syscall_name: String, execution_mode: ExecutionMode },
     #[error("Invalid syscall input: {input:?}; {info}")]
     InvalidSyscallInput { input: Felt, info: String },
     #[error(transparent)]
     Math(#[from] MathError),
     #[error(transparent)]
     Memory(#[from] MemoryError),
+    #[error(transparent)]
+    SierraType(#[from] SierraTypeError),
     #[error(transparent)]
     StarknetApi(#[from] StarknetApiError),
     #[error(transparent)]

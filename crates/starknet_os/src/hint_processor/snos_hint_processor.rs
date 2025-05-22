@@ -12,7 +12,7 @@ use cairo_lang_runner::casm_run::execute_core_hint_base;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::{
     BuiltinHintProcessor,
-    HintProcessorData,
+    HintProcessorData as Cairo0Hint,
 };
 use cairo_vm::hint_processor::hint_processor_definition::{HintExtension, HintProcessorLogic};
 use cairo_vm::stdlib::any::Any;
@@ -218,7 +218,7 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<'_, S> {
         hint_data: &Box<dyn Any>,
         constants: &HashMap<String, Felt>,
     ) -> VmHintExtensionResult {
-        if let Some(hint_processor_data) = hint_data.downcast_ref::<HintProcessorData>() {
+        if let Some(hint_processor_data) = hint_data.downcast_ref::<Cairo0Hint>() {
             // AllHints (OS hint, aggregator hint, Cairo0 syscall) or Cairo0 core hint.
             let hint_args = HintArgs {
                 hint_processor: self,
@@ -309,6 +309,7 @@ pub struct SyscallHintProcessor {
     // Sha256 segments.
     sha256_segment: Option<Relocatable>,
     syscall_ptr: Option<Relocatable>,
+    pub(crate) syscall_usage: SyscallUsageMap,
 
     // Secp hint processors.
     pub(crate) secp256k1_hint_processor: SecpHintProcessor<ark_secp256k1::Config>,
@@ -324,6 +325,7 @@ impl SyscallHintProcessor {
             syscall_ptr: None,
             secp256k1_hint_processor: SecpHintProcessor::default(),
             secp256r1_hint_processor: SecpHintProcessor::default(),
+            syscall_usage: SyscallUsageMap::new(),
         }
     }
 
@@ -349,6 +351,10 @@ impl SyscallHintProcessor {
             }
             None => Err(OsHintError::AssertionFailed { message: "Missing syscall_ptr.".into() }),
         }
+    }
+
+    pub(crate) fn get_mut_syscall_ptr(&mut self) -> Result<&mut Relocatable, OsHintError> {
+        self.syscall_ptr.as_mut().ok_or(OsHintError::UnsetSyscallPtr)
     }
 }
 

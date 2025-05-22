@@ -220,8 +220,18 @@ impl BytecodeSegmentNode {
 // derives.
 #[derive(Clone, Debug)]
 pub(crate) struct BytecodeSegment {
-    node: BytecodeSegmentNode,
+    pub(crate) node: BytecodeSegmentNode,
     length: usize,
+}
+
+impl BytecodeSegment {
+    pub(crate) fn is_leaf(&self) -> bool {
+        self.node.is_leaf()
+    }
+
+    pub(crate) fn length(&self) -> usize {
+        self.length
+    }
 }
 
 /// Creates the bytecode segment structure from the given bytecode and bytecode segment lengths.

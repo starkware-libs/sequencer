@@ -27,8 +27,7 @@ use starknet_api::StarknetApiError;
 use starknet_types_core::felt::{Felt, FromStrError};
 use thiserror::Error;
 
-use crate::abi::sierra_types::SierraTypeError;
-use crate::blockifier_versioned_constants::{GasCosts, GasCostsError, SyscallGasCost};
+use crate::blockifier_versioned_constants::{GasCosts, VersionedConstants};
 use crate::execution::common_hints::{ExecutionMode, HintExecutionResult};
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::{
@@ -68,6 +67,7 @@ use crate::execution::syscalls::vm_syscall_utils::{
     MetaTxV0Response,
     ReplaceClassRequest,
     ReplaceClassResponse,
+    SelfOrRevert,
     SendMessageToL1Request,
     SendMessageToL1Response,
     Sha256ProcessBlockRequest,
@@ -81,6 +81,7 @@ use crate::execution::syscalls::vm_syscall_utils::{
     SyscallRequest,
     SyscallSelector,
     SyscallUsageMap,
+    TryExtractRevert,
 };
 use crate::state::errors::StateError;
 use crate::state::state_api::State;
@@ -96,8 +97,6 @@ pub enum SyscallExecutionError {
     ForbiddenClassReplacement { class_hash: ClassHash },
     #[error(transparent)]
     FromStr(#[from] FromStrError),
-    #[error("Invalid address domain: {address_domain}.")]
-    InvalidAddressDomain { address_domain: Felt },
     #[error(transparent)]
     ConstructorEntryPointExecutionError(#[from] ConstructorEntryPointExecutionError),
     #[error(transparent)]
@@ -118,14 +117,10 @@ pub enum SyscallExecutionError {
     },
     #[error("Invalid syscall selector: {0:?}.")]
     InvalidSyscallSelector(Felt),
-    #[error("Unauthorized syscall {syscall_name} in execution mode {execution_mode}.")]
-    InvalidSyscallInExecutionMode { syscall_name: String, execution_mode: ExecutionMode },
     #[error(transparent)]
     MathError(#[from] cairo_vm::types::errors::math_errors::MathError),
     #[error(transparent)]
     MemoryError(#[from] MemoryError),
-    #[error(transparent)]
-    SierraTypeError(#[from] SierraTypeError),
     #[error(transparent)]
     StarknetApiError(#[from] StarknetApiError),
     #[error(transparent)]
@@ -136,6 +131,15 @@ pub enum SyscallExecutionError {
     VirtualMachineError(#[from] VirtualMachineError),
     #[error("Syscall revert.")]
     Revert { error_data: Vec<Felt> },
+}
+
+impl TryExtractRevert for SyscallExecutionError {
+    fn try_extract_revert(self) -> SelfOrRevert<Self> {
+        match self {
+            Self::Revert { error_data } => SelfOrRevert::Revert(error_data),
+            _ => SelfOrRevert::Original(self),
+        }
+    }
 }
 
 #[derive(Debug, Error)]
@@ -450,6 +454,8 @@ impl<'a> SyscallHintProcessor<'a> {
 }
 
 impl SyscallExecutor for SyscallHintProcessor<'_> {
+    type Error = SyscallExecutionError;
+
     fn get_keccak_round_cost_base_syscall_cost(&self) -> u64 {
         self.gas_costs().syscalls.keccak_round.base_syscall_cost()
     }
@@ -467,19 +473,8 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_usage.call_count += n;
     }
 
-    fn get_gas_cost_from_selector(
-        &self,
-        selector: &SyscallSelector,
-    ) -> Result<SyscallGasCost, GasCostsError> {
-        self.gas_costs().syscalls.get_syscall_gas_cost(selector)
-    }
-
     fn get_mut_syscall_ptr(&mut self) -> &mut Relocatable {
         &mut self.syscall_ptr
-    }
-
-    fn get_syscall_base_gas_cost(&self) -> u64 {
-        self.base.context.gas_costs().base.syscall_base_gas_cost
     }
 
     fn update_revert_gas_with_next_remaining_gas(&mut self, remaining_gas: GasAmount) {
@@ -498,10 +493,11 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         if syscall_handler.is_validate_mode()
             && syscall_handler.storage_address() != storage_address
         {
-            return Err(SyscallExecutionError::InvalidSyscallInExecutionMode {
+            return Err(SyscallExecutorBaseError::InvalidSyscallInExecutionMode {
                 syscall_name: "call_contract".to_string(),
                 execution_mode: syscall_handler.execution_mode(),
-            });
+            }
+            .into());
         }
         let entry_point = CallEntryPoint {
             class_hash: None,
@@ -741,6 +737,10 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_handler.base.storage_write(request.address, request.value)?;
         Ok(StorageWriteResponse {})
     }
+
+    fn versioned_constants(&self) -> &VersionedConstants {
+        self.base.context.versioned_constants()
+    }
 }
 
 impl ResourceTracker for SyscallHintProcessor<'_> {
@@ -806,13 +806,13 @@ impl HintProcessorLogic for SyscallHintProcessor<'_> {
     }
 }
 
-pub fn felt_to_bool(felt: Felt, error_info: &str) -> SyscallResult<bool> {
+pub fn felt_to_bool(felt: Felt, error_info: &str) -> SyscallBaseResult<bool> {
     if felt == Felt::ZERO {
         Ok(false)
     } else if felt == Felt::ONE {
         Ok(true)
     } else {
-        Err(SyscallExecutorBaseError::InvalidSyscallInput { input: felt, info: error_info.into() })?
+        Err(SyscallExecutorBaseError::InvalidSyscallInput { input: felt, info: error_info.into() })
     }
 }
 
@@ -867,7 +867,7 @@ pub fn write_segment(
     vm: &mut VirtualMachine,
     ptr: &mut Relocatable,
     segment: ReadOnlySegment,
-) -> SyscallResult<()> {
+) -> SyscallBaseResult<()> {
     write_maybe_relocatable(vm, ptr, segment.start_ptr)?;
     let segment_end_ptr = (segment.start_ptr + segment.length)?;
     write_maybe_relocatable(vm, ptr, segment_end_ptr)?;

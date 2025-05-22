@@ -50,7 +50,11 @@ use crate::execution::syscalls::hint_processor::{
     ENTRYPOINT_FAILED_ERROR,
     INVALID_ARGUMENT,
 };
-use crate::execution::syscalls::vm_syscall_utils::exceeds_event_size_limit;
+use crate::execution::syscalls::vm_syscall_utils::{
+    exceeds_event_size_limit,
+    SyscallBaseResult,
+    SyscallExecutorBaseError,
+};
 use crate::state::state_api::State;
 use crate::transaction::account_transaction::is_cairo1;
 use crate::transaction::objects::{
@@ -443,8 +447,8 @@ impl<'state> SyscallHandlerBase<'state> {
             .original_values = std::mem::take(&mut self.original_values);
     }
 
-    fn reject_syscall_in_validate_mode(&self, syscall_name: &str) -> SyscallResult<()> {
-        Err(SyscallExecutionError::InvalidSyscallInExecutionMode {
+    fn reject_syscall_in_validate_mode(&self, syscall_name: &str) -> SyscallBaseResult<()> {
+        Err(SyscallExecutorBaseError::InvalidSyscallInExecutionMode {
             syscall_name: syscall_name.to_string(),
             execution_mode: ExecutionMode::Validate,
         })

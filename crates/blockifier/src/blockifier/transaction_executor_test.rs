@@ -1,3 +1,5 @@
+use std::sync::Mutex;
+
 use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
@@ -58,7 +60,8 @@ fn tx_executor_test_body<S: StateReader>(
     // should not be added, rename the test to `test_bouncer_info`.
     // TODO(Arni, 30/03/2024): Test all bouncer weights.
     let _tx_execution_output = tx_executor.execute(&tx).unwrap();
-    let bouncer_weights = tx_executor.bouncer.get_accumulated_weights();
+    let bouncer = tx_executor.bouncer.lock().unwrap();
+    let bouncer_weights = bouncer.get_accumulated_weights();
     assert_eq!(bouncer_weights.state_diff_size, expected_bouncer_weights.state_diff_size);
     assert_eq!(
         bouncer_weights.message_segment_length,
@@ -280,7 +283,7 @@ fn test_bouncing(#[case] initial_bouncer_weights: BouncerWeights, #[case] n_even
     let mut tx_executor =
         TransactionExecutor::new(state, block_context, TransactionExecutorConfig::default());
 
-    tx_executor.bouncer.set_accumulated_weights(initial_bouncer_weights);
+    tx_executor.bouncer.lock().unwrap().set_accumulated_weights(initial_bouncer_weights);
 
     tx_executor
         .execute(
@@ -329,7 +332,7 @@ fn test_execute_txs_bouncing(#[values(true, false)] concurrency_enabled: bool) {
     .collect();
 
     // Run.
-    let results = tx_executor.execute_txs(&txs);
+    let results = tx_executor.execute_txs(&txs, None);
 
     // Check execution results.
     let expected_offset = 3;
@@ -357,12 +360,13 @@ fn test_execute_txs_bouncing(#[values(true, false)] concurrency_enabled: bool) {
 
     // Check idempotency: excess transactions should not be added.
     let remaining_txs = &txs[expected_offset..];
-    let remaining_tx_results = tx_executor.execute_txs(remaining_txs);
+    let remaining_tx_results = tx_executor.execute_txs(remaining_txs, None);
     assert_eq!(remaining_tx_results.len(), 0);
 
     // Reset the bouncer and add the remaining transactions.
-    tx_executor.bouncer = Bouncer::new(tx_executor.block_context.bouncer_config.clone());
-    let remaining_tx_results = tx_executor.execute_txs(remaining_txs);
+    tx_executor.bouncer =
+        Mutex::new(Bouncer::new(tx_executor.block_context.bouncer_config.clone())).into();
+    let remaining_tx_results = tx_executor.execute_txs(remaining_txs, None);
 
     assert_eq!(remaining_tx_results.len(), 2);
     assert!(remaining_tx_results[0].is_ok());
@@ -410,7 +414,7 @@ fn test_stack_overflow(#[values(true, false)] concurrency_enabled: bool) {
     // Run.
     let config = TransactionExecutorConfig::create_for_testing(concurrency_enabled);
     let mut executor = TransactionExecutor::new(state, block_context, config);
-    let results = executor.execute_txs(&vec![account_tx.into()]);
+    let results = executor.execute_txs(&vec![account_tx.into()], None);
 
     let (tx_execution_info, _state_diff) = results[0].as_ref().unwrap();
     assert!(tx_execution_info.is_reverted());

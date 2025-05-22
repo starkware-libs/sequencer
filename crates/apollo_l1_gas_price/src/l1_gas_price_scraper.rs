@@ -28,10 +28,6 @@ pub mod l1_gas_price_scraper_test;
 type L1GasPriceScraperResult<T, B> = Result<T, L1GasPriceScraperError<B>>;
 pub type SharedL1GasPriceProvider = Arc<dyn L1GasPriceProviderClient>;
 
-// How many sets of config.num_blocks_for_mean blocks to go back
-// on the chain when starting to scrape.
-const STARTUP_NUM_BLOCKS_MULTIPLIER: u64 = 2;
-
 #[derive(Error, Debug)]
 pub enum L1GasPriceScraperError<T: BaseLayerContract + Send + Sync> {
     #[error("Base layer error: {0}")]
@@ -59,6 +55,9 @@ pub struct L1GasPriceScraperConfig {
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
     pub polling_interval: Duration,
     pub number_of_blocks_for_mean: u64,
+    // How many sets of config.num_blocks_for_mean blocks to go back
+    // on the chain when starting to scrape.
+    pub startup_num_blocks_multiplier: u64,
 }
 
 impl Default for L1GasPriceScraperConfig {
@@ -69,6 +68,7 @@ impl Default for L1GasPriceScraperConfig {
             finality: 0,
             polling_interval: Duration::from_secs(1),
             number_of_blocks_for_mean: 300,
+            startup_num_blocks_multiplier: 2,
         }
     }
 }
@@ -98,6 +98,12 @@ impl SerializeConfig for L1GasPriceScraperConfig {
                 "number_of_blocks_for_mean",
                 &self.number_of_blocks_for_mean,
                 "Number of blocks to use for the mean gas price calculation",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "startup_num_blocks_multiplier",
+                &self.startup_num_blocks_multiplier,
+                "How many sets of config.num_blocks_for_mean blocks to go back on the chain when starting to scrape.",
                 ParamPrivacyInput::Public,
             ),
         ]);
@@ -181,11 +187,12 @@ where
                     .expect("Failed to get the latest L1 block number")
                     .expect("Failed to get the latest L1 block number");
                 // If no starting block is provided, the default is to start from
-                // 2 * number_of_blocks_for_mean before the tip of L1.
+                // startup_num_blocks_multiplier * number_of_blocks_for_mean before the tip of L1.
                 // Note that for new chains this subtraction may be negative,
                 // hence the use of saturating_sub.
                 latest.saturating_sub(
-                    self.config.number_of_blocks_for_mean * STARTUP_NUM_BLOCKS_MULTIPLIER,
+                    self.config.number_of_blocks_for_mean
+                        * self.config.startup_num_blocks_multiplier,
                 )
             }
         };

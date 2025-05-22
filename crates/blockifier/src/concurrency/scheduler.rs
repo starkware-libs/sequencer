@@ -2,7 +2,9 @@ use std::cmp::min;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Mutex, MutexGuard, TryLockError};
 
-use crate::concurrency::utils::lock_mutex_in_array;
+use dashmap::mapref::one::RefMut;
+use dashmap::DashMap;
+
 use crate::concurrency::TxIndex;
 
 #[cfg(test)]
@@ -60,13 +62,12 @@ impl<'a> TransactionCommitter<'a> {
 pub struct Scheduler {
     execution_index: AtomicUsize,
     validation_index: AtomicUsize,
-    // The index of the next transaction to commit.
+    /// The index of the next transaction to commit.
     commit_index: Mutex<usize>,
     chunk_size: usize,
-    // TODO(Avi, 15/05/2024): Consider using RwLock instead of Mutex.
-    tx_statuses: Box<[Mutex<TransactionStatus>]>,
-    // Set to true when all transactions have been committed, or when calling the halt_scheduler
-    // procedure, providing a cheap way for all threads to exit their main loops.
+    tx_statuses: DashMap<TxIndex, TransactionStatus>,
+    /// Set to true when all transactions have been committed, or when calling the halt_scheduler
+    /// procedure, providing a cheap way for all threads to exit their main loops.
     done_marker: AtomicBool,
 }
 
@@ -77,9 +78,7 @@ impl Scheduler {
             validation_index: AtomicUsize::new(chunk_size),
             commit_index: Mutex::new(0),
             chunk_size,
-            tx_statuses: std::iter::repeat_with(|| Mutex::new(TransactionStatus::ReadyToExecute))
-                .take(chunk_size)
-                .collect(),
+            tx_statuses: DashMap::new(),
             done_marker: AtomicBool::new(false),
         }
     }
@@ -165,8 +164,8 @@ impl Scheduler {
         self.done_marker.store(true, Ordering::Release);
     }
 
-    fn lock_tx_status(&self, tx_index: TxIndex) -> MutexGuard<'_, TransactionStatus> {
-        lock_mutex_in_array(&self.tx_statuses, tx_index)
+    fn lock_tx_status(&self, tx_index: TxIndex) -> RefMut<'_, TxIndex, TransactionStatus> {
+        self.tx_statuses.entry(tx_index).or_insert(TransactionStatus::ReadyToExecute)
     }
 
     fn set_executed_status(&self, tx_index: TxIndex) {
@@ -175,7 +174,8 @@ impl Scheduler {
             *status,
             TransactionStatus::Executing,
             "Only executing transactions can gain status executed. Transaction {tx_index} is not \
-             executing. Transaction status: {status:?}."
+             executing. Transaction status: {:?}.",
+            *status
         );
         *status = TransactionStatus::Executed;
     }
@@ -186,7 +186,8 @@ impl Scheduler {
             *status,
             TransactionStatus::Aborting,
             "Only aborting transactions can be re-executed. Transaction {tx_index} is not \
-             aborting. Transaction status: {status:?}."
+             aborting. Transaction status: {:?}.",
+            *status
         );
         *status = TransactionStatus::ReadyToExecute;
     }
@@ -235,8 +236,20 @@ impl Scheduler {
     }
 
     /// Returns the done marker.
-    fn done(&self) -> bool {
+    pub fn done(&self) -> bool {
         self.done_marker.load(Ordering::Acquire)
+    }
+
+    /// Sleeps until the scheduler is done.
+    pub fn wait_for_completion(&self) {
+        while !self.done() {
+            std::thread::sleep(std::time::Duration::from_micros(1));
+        }
+
+        // Lock and release the commit index to ensure that no commit phase is in progress.
+        // Future calls to `try_commit` (which is under the same lock) will exit immediately since
+        // the done marker is set.
+        drop(self.commit_index.lock());
     }
 
     #[cfg(any(feature = "testing", test))]
@@ -248,8 +261,8 @@ impl Scheduler {
     }
 
     #[cfg(any(feature = "testing", test))]
-    pub fn get_tx_status(&self, tx_index: TxIndex) -> MutexGuard<'_, TransactionStatus> {
-        self.lock_tx_status(tx_index)
+    pub fn get_tx_status(&self, tx_index: TxIndex) -> TransactionStatus {
+        *self.lock_tx_status(tx_index)
     }
 }
 

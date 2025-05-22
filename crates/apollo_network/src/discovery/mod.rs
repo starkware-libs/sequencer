@@ -121,29 +121,14 @@ impl RetryConfig {
 }
 
 impl Behaviour {
-    pub fn new(
-        config: DiscoveryConfig,
-        bootstrap_peer_id: PeerId,
-        bootstrap_peer_address: Multiaddr,
-    ) -> Self {
+    pub fn new(config: DiscoveryConfig, bootstrap_peers: Vec<(PeerId, Multiaddr)>) -> Self {
         Self {
             boot_strapping: BootstrappingBehaviour::new(
                 config.bootstrap_dial_retry_config,
-                bootstrap_peer_id,
-                bootstrap_peer_address,
+                bootstrap_peers,
             ),
             kad_requesting: KadRequestingBehaviour::new(config.heartbeat_interval),
         }
-    }
-
-    #[cfg(test)]
-    pub fn bootstrap_peer_id(&self) -> PeerId {
-        self.boot_strapping.bootstrap_peer_id()
-    }
-
-    #[cfg(test)]
-    pub fn bootstrap_peer_address(&self) -> &Multiaddr {
-        self.boot_strapping.bootstrap_peer_address()
     }
 }
 

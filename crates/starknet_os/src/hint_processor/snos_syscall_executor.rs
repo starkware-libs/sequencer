@@ -1,4 +1,6 @@
-use blockifier::blockifier_versioned_constants::{GasCostsError, SyscallGasCost};
+use blockifier::blockifier_versioned_constants::VersionedConstants;
+use blockifier::execution::execution_utils::ReadOnlySegment;
+use blockifier::execution::syscalls::hint_processor::SyscallExecutionError;
 use blockifier::execution::syscalls::secp::SecpHintProcessor;
 use blockifier::execution::syscalls::syscall_base::SyscallResult;
 use blockifier::execution::syscalls::syscall_executor::SyscallExecutor;
@@ -21,6 +23,7 @@ use blockifier::execution::syscalls::vm_syscall_utils::{
     MetaTxV0Response,
     ReplaceClassRequest,
     ReplaceClassResponse,
+    SelfOrRevert,
     SendMessageToL1Request,
     SendMessageToL1Response,
     Sha256ProcessBlockRequest,
@@ -29,17 +32,35 @@ use blockifier::execution::syscalls::vm_syscall_utils::{
     StorageReadResponse,
     StorageWriteRequest,
     StorageWriteResponse,
+    SyscallExecutorBaseError,
     SyscallSelector,
+    TryExtractRevert,
 };
 use blockifier::state::state_api::StateReader;
-use cairo_vm::types::relocatable::Relocatable;
+use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::execution_resources::GasAmount;
 
+use crate::hint_processor::execution_helper::ExecutionHelperError;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
+
+#[derive(Debug, thiserror::Error)]
+pub enum SnosSyscallError {
+    #[error(transparent)]
+    SyscallExecutorBase(#[from] SyscallExecutorBaseError),
+}
+
+impl TryExtractRevert for SnosSyscallError {
+    fn try_extract_revert(self) -> SelfOrRevert<Self> {
+        // No revert case in this error enum.
+        SelfOrRevert::Original(self)
+    }
+}
 
 #[allow(unused_variables)]
 impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
+    type Error = SnosSyscallError;
+
     fn get_keccak_round_cost_base_syscall_cost(&self) -> u64 {
         todo!()
     }
@@ -53,27 +74,17 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
     }
 
     fn increment_syscall_count_by(&mut self, selector: &SyscallSelector, count: usize) {
-        todo!()
-    }
-
-    fn get_gas_cost_from_selector(
-        &self,
-        selector: &SyscallSelector,
-    ) -> Result<SyscallGasCost, GasCostsError> {
-        todo!()
+        let syscall_usage = self.syscall_hint_processor.syscall_usage.entry(*selector).or_default();
+        syscall_usage.call_count += count;
     }
 
     fn get_mut_syscall_ptr(&mut self) -> &mut Relocatable {
-        todo!()
+        self.syscall_hint_processor
+            .get_mut_syscall_ptr()
+            .expect("Syscall pointer is not initialized.")
     }
 
-    fn get_syscall_base_gas_cost(&self) -> u64 {
-        todo!()
-    }
-
-    fn update_revert_gas_with_next_remaining_gas(&mut self, next_remaining_gas: GasAmount) {
-        todo!()
-    }
+    fn update_revert_gas_with_next_remaining_gas(&mut self, next_remaining_gas: GasAmount) {}
 
     fn call_contract(
         request: CallContractRequest,
@@ -81,7 +92,45 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<CallContractResponse> {
-        todo!()
+        // TODO(Tzahi): Change `expect`s to regular errors once the syscall trait has an associated
+        // error type.
+        let call_tracker = syscall_handler
+            .execution_helpers_manager
+            .get_mut_current_execution_helper()
+            .expect("No current execution helper")
+            .tx_execution_iter
+            .get_mut_tx_execution_info_ref()
+            .expect("No current tx execution info")
+            .call_info_tracker
+            .as_mut()
+            .expect("No call info tracker found");
+
+        let next_call_execution = &call_tracker
+            .inner_calls_iterator
+            .next()
+            .ok_or(ExecutionHelperError::MissingCallInfo)
+            .expect("Missing call info")
+            .execution;
+
+        *remaining_gas -= next_call_execution.gas_consumed;
+        let ret_data = &next_call_execution.retdata.0;
+
+        if next_call_execution.failed {
+            return Err(SyscallExecutionError::Revert { error_data: ret_data.clone() });
+        };
+
+        let relocatable_ret_data: Vec<MaybeRelocatable> =
+            ret_data.iter().map(|&x| MaybeRelocatable::from(x)).collect();
+
+        let retdata_segment_start_ptr = vm.add_memory_segment();
+        vm.load_data(retdata_segment_start_ptr, &relocatable_ret_data)?;
+
+        Ok(CallContractResponse {
+            segment: ReadOnlySegment {
+                start_ptr: retdata_segment_start_ptr,
+                length: relocatable_ret_data.len(),
+            },
+        })
     }
 
     fn deploy(
@@ -190,5 +239,9 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         remaining_gas: &mut u64,
     ) -> SyscallResult<StorageWriteResponse> {
         Ok(StorageWriteResponse {})
+    }
+
+    fn versioned_constants(&self) -> &VersionedConstants {
+        VersionedConstants::latest_constants()
     }
 }

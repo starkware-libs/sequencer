@@ -22,17 +22,12 @@ fn deployment_files_are_up_to_date() {
             deployment.deployment_file_path().to_str().unwrap(),
             FIX_BINARY_NAME,
         );
-
-        // TODO(Tsabary): test that the dumped app-config files are up to date, i.e., their current
-        // content matches the dumped on. This test will replace the application_config_files_exist
-        // test below.
     }
 }
 
-// Test the base application config files are successfully loaded and processed.
-// TODO(Tsabary): consider having a similar test for the dumped (non-base) application config files.
+// Test that each service config files constitute a valid config.
 #[test]
-fn load_and_process_base_application_config_files_schema() {
+fn load_and_process_service_config_files() {
     env::set_current_dir(resolve_project_relative_path("").unwrap())
         .expect("Couldn't set working dir.");
     for deployment_fn in DEPLOYMENTS {
@@ -44,9 +39,9 @@ fn load_and_process_base_application_config_files_schema() {
                 .flat_map(|path| vec!["--config_file".to_string(), path])
                 .collect();
 
-            let mut new_vec: Vec<String> = vec!["command_name_placeholder".to_string()];
-            new_vec.extend(config_file_args);
-            let load_result = SequencerNodeConfig::load_and_process(new_vec);
+            let mut config_load_command: Vec<String> = vec!["command_name_placeholder".to_string()];
+            config_load_command.extend(config_file_args);
+            let load_result = SequencerNodeConfig::load_and_process(config_load_command);
             assert!(load_result.is_ok());
         }
     }
@@ -59,7 +54,6 @@ fn application_config_files_exist() {
     for deployment_fn in DEPLOYMENTS {
         let deployment = deployment_fn();
         deployment.assert_application_configs_exist();
-
         deployment.test_dump_application_config_files();
     }
 }
