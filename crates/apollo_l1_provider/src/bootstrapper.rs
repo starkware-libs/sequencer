@@ -71,7 +71,7 @@ impl Bootstrapper {
 
     pub fn add_commit_block_to_backlog(
         &mut self,
-        committed_txs: &IndexSet<TransactionHash>,
+        committed_txs: IndexSet<TransactionHash>,
         height: BlockNumber,
     ) {
         assert!(
