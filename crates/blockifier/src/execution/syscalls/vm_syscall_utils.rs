@@ -775,6 +775,8 @@ pub enum SyscallExecutorBaseError {
     StarknetApi(#[from] StarknetApiError),
     #[error(transparent)]
     VirtualMachine(#[from] VirtualMachineError),
+    #[error("Syscall revert.")]
+    Revert { error_data: Vec<Felt> },
 }
 
 pub type SyscallBaseResult<T> = Result<T, SyscallExecutorBaseError>;
@@ -784,5 +786,14 @@ pub type SyscallBaseResult<T> = Result<T, SyscallExecutorBaseError>;
 impl From<SyscallExecutorBaseError> for HintError {
     fn from(error: SyscallExecutorBaseError) -> Self {
         Self::Internal(VirtualMachineError::Other(error.into()))
+    }
+}
+
+impl RevertableError for SyscallExecutorBaseError {
+    fn revert_data(&self) -> Option<Vec<Felt>> {
+        match self {
+            SyscallExecutorBaseError::Revert { error_data } => Some(error_data.clone()),
+            _ => None,
+        }
     }
 }

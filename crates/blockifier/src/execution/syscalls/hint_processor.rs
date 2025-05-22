@@ -136,6 +136,7 @@ impl RevertableError for SyscallExecutionError {
     fn revert_data(&self) -> Option<Vec<Felt>> {
         match self {
             SyscallExecutionError::Revert { error_data } => Some(error_data.clone()),
+            SyscallExecutionError::SyscallExecutorBase(base_error) => base_error.revert_data(),
             _ => None,
         }
     }
