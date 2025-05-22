@@ -32,7 +32,7 @@ use apollo_state_sync_types::state_sync_types::SyncBlock;
 use assert_matches::assert_matches;
 use blockifier::abi::constants;
 use blockifier::transaction::objects::TransactionExecutionInfo;
-use indexmap::indexmap;
+use indexmap::{indexmap, IndexSet};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use rstest::rstest;
@@ -843,7 +843,7 @@ async fn add_sync_block() {
         .l1_provider_client
         .expect_commit_block()
         .times(1)
-        .with(eq(l1_transaction_hashes.clone()), eq(HashSet::new()), eq(INITIAL_HEIGHT))
+        .with(eq(l1_transaction_hashes.clone()), eq(IndexSet::new()), eq(INITIAL_HEIGHT))
         .returning(|_, _, _| Ok(()));
 
     let mut batcher = create_batcher(mock_dependencies).await;
@@ -984,7 +984,7 @@ async fn decision_reached() {
         .l1_provider_client
         .expect_commit_block()
         .times(1)
-        .with(eq(vec![]), eq(HashSet::new()), eq(INITIAL_HEIGHT))
+        .with(eq(vec![]), eq(IndexSet::new()), eq(INITIAL_HEIGHT))
         .returning(|_, _, _| Ok(()));
 
     mock_dependencies
