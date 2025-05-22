@@ -38,7 +38,6 @@ use crate::execution::syscalls::hint_processor::{
     EmitEventError,
     OUT_OF_GAS_ERROR,
 };
-use crate::execution::syscalls::syscall_base::SyscallResult;
 use crate::execution::syscalls::syscall_executor::SyscallExecutor;
 use crate::utils::u64_from_usize;
 
@@ -655,7 +654,7 @@ where
         &mut VirtualMachine,
         &mut Executor,
         &mut u64, // Remaining gas.
-    ) -> SyscallResult<Response>,
+    ) -> Result<Response, Executor::Error>,
 {
     let syscall_gas_cost = syscall_executor
         .get_gas_cost_from_selector(&selector)
