@@ -91,8 +91,11 @@ impl SequencerSimulator {
 }
 
 fn get_socket_addr(url_str: &str, port: u16) -> Result<SocketAddr, Box<dyn std::error::Error>> {
+    info!("Parsing URL: {} {}", url_str, port);
     let url = Url::parse(url_str)?;
+    info!("Parsed url: {}", url);
     let host = url.host_str().ok_or("Invalid URL: no host found")?;
+    info!("Host: {}", host);
     let addr = format!("{}:{}", host, port)
         .to_socket_addrs()?
         .next()
