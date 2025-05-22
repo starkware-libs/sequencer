@@ -61,6 +61,7 @@ const Configuration = {
             'apollo_reverts',
             'apollo_rpc',
             'apollo_rpc_execution',
+            'apollo_signature_manager',
             'apollo_signature_manager_types',
             'apollo_starknet_client',
             'apollo_starknet_os_program',
