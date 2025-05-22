@@ -38,7 +38,6 @@ use crate::execution::syscalls::hint_processor::{
     EmitEventError,
     OUT_OF_GAS_ERROR,
 };
-use crate::execution::syscalls::syscall_base::SyscallResult;
 use crate::execution::syscalls::syscall_executor::SyscallExecutor;
 use crate::utils::u64_from_usize;
 
@@ -633,10 +632,11 @@ pub(crate) fn execute_syscall_from_selector<T: SyscallExecutor>(
         | SyscallSelector::GetTxInfo
         | SyscallSelector::GetTxSignature
         | SyscallSelector::KeccakRound
-        | SyscallSelector::LibraryCallL1Handler => Err(SyscallExecutorBaseError::from(
-            HintError::UnknownHint(format!("Unsupported syscall selector {selector:?}.").into()),
-        ))
-        .map_err(T::Error::from),
+        | SyscallSelector::LibraryCallL1Handler => {
+            Err(T::Error::from(SyscallExecutorBaseError::from(HintError::UnknownHint(
+                format!("Unsupported syscall selector {selector:?}.").into(),
+            ))))
+        }
     }
 }
 
@@ -655,7 +655,7 @@ where
         &mut VirtualMachine,
         &mut Executor,
         &mut u64, // Remaining gas.
-    ) -> SyscallResult<Response>,
+    ) -> Result<Response, Executor::Error>,
 {
     let syscall_gas_cost = syscall_executor
         .get_gas_cost_from_selector(&selector)
@@ -729,10 +729,9 @@ pub fn execute_next_syscall<T: SyscallExecutor>(
     hint: &StarknetHint,
 ) -> Result<(), T::Error> {
     let StarknetHint::SystemCall { .. } = hint else {
-        return Err(VirtualMachineError::Other(anyhow::anyhow!(
+        return Err(SyscallExecutorBaseError::from(VirtualMachineError::Other(anyhow::anyhow!(
             "Test functions are unsupported on starknet."
-        )))
-        .map_err(SyscallExecutorBaseError::from)?;
+        ))))?;
     };
 
     let selector = SyscallSelector::try_from(syscall_executor.read_next_syscall_selector(vm)?)
