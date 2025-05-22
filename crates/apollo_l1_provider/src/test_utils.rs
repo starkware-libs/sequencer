@@ -219,7 +219,7 @@ impl FakeL1ProviderClient {
     pub async fn flush_messages(&self, l1_provider: &mut L1Provider) {
         let commit_blocks = self.commit_blocks_received.lock().unwrap().drain(..).collect_vec();
         for CommitBlockBacklog { height, committed_txs } in commit_blocks {
-            l1_provider.commit_block(&committed_txs, &[].into(), height).unwrap();
+            l1_provider.commit_block(committed_txs, [].into(), height).unwrap();
         }
 
         // TODO(gilad): flush other buffers if necessary.
