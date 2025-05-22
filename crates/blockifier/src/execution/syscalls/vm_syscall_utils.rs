@@ -18,7 +18,7 @@ use starknet_api::StarknetApiError;
 use starknet_types_core::felt::{Felt, FromStrError};
 
 use crate::abi::sierra_types::SierraTypeError;
-use crate::blockifier_versioned_constants::{EventLimits, VersionedConstants};
+use crate::blockifier_versioned_constants::{EventLimits, GasCostsError, VersionedConstants};
 use crate::execution::call_info::MessageToL1;
 use crate::execution::common_hints::{ExecutionMode, HintExecutionResult};
 use crate::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallExecutionError;
@@ -656,12 +656,9 @@ where
         &mut u64, // Remaining gas.
     ) -> SyscallResult<Response>,
 {
-    let syscall_gas_cost = syscall_executor.get_gas_cost_from_selector(&selector).map_err(|e| {
-        HintError::CustomHint(
-            format!("Failed to get gas cost for syscall selector {selector:?}. Error: {e:?}")
-                .into(),
-        )
-    })?;
+    let syscall_gas_cost = syscall_executor
+        .get_gas_cost_from_selector(&selector)
+        .map_err(|error| SyscallExecutorBaseError::GasCost { error, selector })?;
 
     let SyscallRequestWrapper { gas_counter, request } =
         SyscallRequestWrapper::<Request>::read(vm, syscall_executor.get_mut_syscall_ptr())?;
@@ -788,6 +785,8 @@ pub enum SyscallExecutorBaseError {
     DeprecatedSyscallExecution(#[from] DeprecatedSyscallExecutionError),
     #[error(transparent)]
     FromStr(#[from] FromStrError),
+    #[error("Failed to get gas cost for syscall selector {selector:?}. Error: {error:?}")]
+    GasCost { error: GasCostsError, selector: SyscallSelector },
     #[error(transparent)]
     Hint(#[from] HintError),
     #[error("Invalid address domain: {address_domain}.")]
