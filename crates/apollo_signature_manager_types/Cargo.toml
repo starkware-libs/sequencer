@@ -6,6 +6,11 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
+apollo_infra.workspace = true
+async-trait.workspace = true
+serde.workspace = true
+starknet_api.workspace = true
+thiserror.workspace = true
 
 [lints]
 workspace = true
