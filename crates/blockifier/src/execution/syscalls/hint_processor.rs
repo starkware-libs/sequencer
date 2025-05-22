@@ -854,7 +854,7 @@ pub fn write_segment(
     vm: &mut VirtualMachine,
     ptr: &mut Relocatable,
     segment: ReadOnlySegment,
-) -> SyscallResult<()> {
+) -> SyscallBaseResult<()> {
     write_maybe_relocatable(vm, ptr, segment.start_ptr)?;
     let segment_end_ptr = (segment.start_ptr + segment.length)?;
     write_maybe_relocatable(vm, ptr, segment_end_ptr)?;
