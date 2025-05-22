@@ -11,6 +11,7 @@ use apollo_l1_provider_types::{Event, L1ProviderClient, MockL1ProviderClient};
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use assert_matches::assert_matches;
+use indexmap::IndexSet;
 use itertools::Itertools;
 use papyrus_base_layer::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
@@ -56,16 +57,19 @@ async fn send_commit_block(
     committed: &[TransactionHash],
     height: BlockNumber,
 ) {
-    l1_provider_client.commit_block(committed.to_vec(), [].into(), height).await.unwrap();
+    l1_provider_client
+        .commit_block((committed).iter().copied().collect(), [].into(), height)
+        .await
+        .unwrap();
 }
 
 // Can't mock clients in runtime (mockall not applicable), hence mocking sender and receiver.
 fn receive_commit_block(
     l1_provider: &mut L1Provider,
-    committed: &[TransactionHash],
+    committed: &IndexSet<TransactionHash>,
     height: BlockNumber,
 ) {
-    l1_provider.commit_block(committed, &[].into(), height).unwrap();
+    l1_provider.commit_block(&committed.iter().copied().collect(), &[].into(), height).unwrap();
 }
 
 // TODO(Gilad): Replace EthereumBaseLayerContract with a mock that has a provider initialized with
@@ -358,7 +362,7 @@ async fn bootstrap_delayed_batcher_and_sync_state_with_trivial_catch_up() {
     assert_eq!(l1_provider.current_height, start_height_plus_2);
     // Finally, commit a new block to trigger the bootstrapping check, should switch to steady
     // state.
-    receive_commit_block(&mut l1_provider, &no_txs_committed, start_height_plus_2);
+    receive_commit_block(&mut l1_provider, &no_txs_committed.into(), start_height_plus_2);
     assert_eq!(l1_provider.current_height, height_add(start_height_plus_2, 1));
     // The new commit block triggered the catch-up check, which ended the bootstrapping phase.
     assert!(!l1_provider.state.is_bootstrapping());
@@ -478,7 +482,7 @@ async fn test_stuck_sync() {
     l1_provider.initialize(Default::default()).await.unwrap();
 
     for i in 0..=(Bootstrapper::MAX_HEALTH_CHECK_FAILURES + 1) {
-        receive_commit_block(&mut l1_provider, &[], height_add(STARTUP_HEIGHT, i.into()));
+        receive_commit_block(&mut l1_provider, &[].into(), height_add(STARTUP_HEIGHT, i.into()));
         tokio::time::sleep(config.startup_sync_sleep_retry_interval_seconds).await;
     }
 }
