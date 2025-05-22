@@ -10,7 +10,7 @@ use apollo_l1_provider_types::{
     ValidationStatus,
 };
 use async_trait::async_trait;
-use indexmap::IndexSet;
+use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
 use pretty_assertions::assert_eq;
 use starknet_api::block::BlockNumber;
@@ -25,7 +25,7 @@ use starknet_api::transaction::TransactionHash;
 use crate::bootstrapper::CommitBlockBacklog;
 use crate::l1_provider::L1Provider;
 use crate::soft_delete_index_map::SoftDeleteIndexMap;
-use crate::transaction_manager::TransactionManager;
+use crate::transaction_manager::{TransactionManager, TransactionPayload};
 use crate::ProviderState;
 
 pub fn l1_handler(tx_hash: usize) -> L1HandlerTransaction {
@@ -35,7 +35,7 @@ pub fn l1_handler(tx_hash: usize) -> L1HandlerTransaction {
 
 // Represents the internal content of the L1 provider for testing.
 // Enables customized (and potentially inconsistent) creation for unit testing.
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct L1ProviderContent {
     tx_manager_content: Option<TransactionManagerContent>,
     state: Option<ProviderState>,
@@ -103,8 +103,20 @@ impl L1ProviderContentBuilder {
         self
     }
 
-    pub fn with_committed(mut self, tx_hashes: impl IntoIterator<Item = TransactionHash>) -> Self {
-        self.tx_manager_content_builder = self.tx_manager_content_builder.with_committed(tx_hashes);
+    pub fn with_committed(
+        mut self,
+        committed: impl IntoIterator<Item = L1HandlerTransaction>,
+    ) -> Self {
+        self.tx_manager_content_builder = self.tx_manager_content_builder.with_committed(committed);
+        self
+    }
+
+    pub fn with_committed_hashes(
+        mut self,
+        tx_hashes: impl IntoIterator<Item = TransactionHash>,
+    ) -> Self {
+        self.tx_manager_content_builder =
+            self.tx_manager_content_builder.with_committed_hashes(tx_hashes);
         self
     }
 
@@ -127,7 +139,7 @@ impl L1ProviderContentBuilder {
 struct TransactionManagerContent {
     pub uncommitted: Option<Vec<L1HandlerTransaction>>,
     pub rejected: Option<Vec<L1HandlerTransaction>>,
-    pub committed: Option<IndexSet<TransactionHash>>,
+    pub committed: Option<IndexMap<TransactionHash, TransactionPayload>>,
 }
 
 impl TransactionManagerContent {
@@ -140,8 +152,8 @@ impl TransactionManagerContent {
             );
         }
 
-        if let Some(committed) = &self.committed {
-            assert_eq!(committed, &tx_manager.committed);
+        if let Some(expected_committed) = &self.committed {
+            assert_eq!(expected_committed, &tx_manager.committed);
         }
 
         if let Some(rejected) = &self.rejected {
@@ -168,7 +180,7 @@ impl From<TransactionManagerContent> for TransactionManager {
 struct TransactionManagerContentBuilder {
     uncommitted: Option<Vec<L1HandlerTransaction>>,
     rejected: Option<Vec<L1HandlerTransaction>>,
-    committed: Option<IndexSet<TransactionHash>>,
+    committed: Option<IndexMap<TransactionHash, TransactionPayload>>,
 }
 
 impl TransactionManagerContentBuilder {
@@ -182,8 +194,20 @@ impl TransactionManagerContentBuilder {
         self
     }
 
-    fn with_committed(mut self, tx_hashes: impl IntoIterator<Item = TransactionHash>) -> Self {
-        self.committed = Some(tx_hashes.into_iter().collect());
+    fn with_committed(mut self, committed: impl IntoIterator<Item = L1HandlerTransaction>) -> Self {
+        self.committed
+            .get_or_insert_default()
+            .extend(committed.into_iter().map(|tx| (tx.tx_hash, tx.into())));
+        self
+    }
+
+    fn with_committed_hashes(
+        mut self,
+        committed_hashes: impl IntoIterator<Item = TransactionHash>,
+    ) -> Self {
+        self.committed.get_or_insert_default().extend(
+            committed_hashes.into_iter().map(|tx_hash| (tx_hash, TransactionPayload::HashOnly)),
+        );
         self
     }
 
