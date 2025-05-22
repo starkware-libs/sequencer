@@ -489,7 +489,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
-    ) -> SyscallResult<CallContractResponse> {
+    ) -> Result<CallContractResponse, Self::Error> {
         let storage_address = request.contract_address;
         let class_hash = syscall_handler.base.state.get_class_hash_at(storage_address)?;
         let selector = request.function_selector;
@@ -529,7 +529,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
-    ) -> SyscallResult<DeployResponse> {
+    ) -> Result<DeployResponse, Self::Error> {
         // Increment the Deploy syscall's linear cost counter by the number of elements in the
         // constructor calldata.
         syscall_handler.increment_linear_factor_by(
@@ -556,7 +556,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
-    ) -> SyscallResult<EmitEventResponse> {
+    ) -> Result<EmitEventResponse, Self::Error> {
         syscall_handler.base.emit_event(request.content)?;
         Ok(EmitEventResponse {})
     }
@@ -571,7 +571,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
-    ) -> SyscallResult<GetBlockHashResponse> {
+    ) -> Result<GetBlockHashResponse, Self::Error> {
         let block_hash = BlockHash(syscall_handler.base.get_block_hash(request.block_number.0)?);
         Ok(GetBlockHashResponse { block_hash })
     }
@@ -581,7 +581,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
-    ) -> SyscallResult<GetClassHashAtResponse> {
+    ) -> Result<GetClassHashAtResponse, Self::Error> {
         syscall_handler.base.get_class_hash_at(request)
     }
 
@@ -590,7 +590,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
-    ) -> SyscallResult<GetExecutionInfoResponse> {
+    ) -> Result<GetExecutionInfoResponse, Self::Error> {
         let execution_info_ptr = syscall_handler.get_or_allocate_execution_info_segment(vm)?;
 
         Ok(GetExecutionInfoResponse { execution_info_ptr })
@@ -601,7 +601,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
-    ) -> SyscallResult<LibraryCallResponse> {
+    ) -> Result<LibraryCallResponse, Self::Error> {
         let entry_point = CallEntryPoint {
             class_hash: Some(request.class_hash),
             code_address: None,
@@ -634,7 +634,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
-    ) -> SyscallResult<MetaTxV0Response> {
+    ) -> Result<MetaTxV0Response, Self::Error> {
         // Increment the MetaTxV0 syscall's linear cost counter by the number of elements in the
         // calldata.
         syscall_handler.increment_linear_factor_by(
@@ -662,7 +662,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
-    ) -> SyscallResult<Sha256ProcessBlockResponse> {
+    ) -> Result<Sha256ProcessBlockResponse, Self::Error> {
         const SHA256_BLOCK_SIZE: usize = 16;
 
         let data = vm.get_integer_range(request.input_start, SHA256_BLOCK_SIZE)?;
@@ -706,7 +706,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
-    ) -> SyscallResult<ReplaceClassResponse> {
+    ) -> Result<ReplaceClassResponse, Self::Error> {
         syscall_handler.base.replace_class(request.class_hash)?;
         Ok(ReplaceClassResponse {})
     }
@@ -716,7 +716,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
-    ) -> SyscallResult<SendMessageToL1Response> {
+    ) -> Result<SendMessageToL1Response, Self::Error> {
         syscall_handler.base.send_message_to_l1(request.message)?;
         Ok(SendMessageToL1Response {})
     }
@@ -726,7 +726,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
-    ) -> SyscallResult<StorageReadResponse> {
+    ) -> Result<StorageReadResponse, Self::Error> {
         let value = syscall_handler.base.storage_read(request.address)?;
         Ok(StorageReadResponse { value })
     }
@@ -736,7 +736,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
-    ) -> SyscallResult<StorageWriteResponse> {
+    ) -> Result<StorageWriteResponse, Self::Error> {
         syscall_handler.base.storage_write(request.address, request.value)?;
         Ok(StorageWriteResponse {})
     }

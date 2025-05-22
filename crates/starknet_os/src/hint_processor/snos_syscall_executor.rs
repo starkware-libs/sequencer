@@ -1,8 +1,6 @@
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::execution::execution_utils::ReadOnlySegment;
-use blockifier::execution::syscalls::hint_processor::SyscallExecutionError;
 use blockifier::execution::syscalls::secp::SecpHintProcessor;
-use blockifier::execution::syscalls::syscall_base::SyscallResult;
 use blockifier::execution::syscalls::syscall_executor::SyscallExecutor;
 use blockifier::execution::syscalls::vm_syscall_utils::{
     CallContractRequest,
@@ -49,6 +47,8 @@ use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 #[derive(Debug, thiserror::Error)]
 pub enum SnosSyscallError {
     #[error(transparent)]
+    ExecutionHelper(#[from] ExecutionHelperError),
+    #[error(transparent)]
     SyscallExecutorBase(#[from] SyscallExecutorBaseError),
 }
 
@@ -66,6 +66,7 @@ impl TryExtractRevert for SnosSyscallError {
             SnosSyscallError::SyscallExecutorBase(base_error) => {
                 base_error.try_extract_revert().map_original(Self::SyscallExecutorBase)
             }
+            _ => SelfOrRevert::Original(self),
         }
     }
 }
@@ -104,7 +105,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
-    ) -> SyscallResult<CallContractResponse> {
+    ) -> Result<CallContractResponse, Self::Error> {
         // TODO(Tzahi): Change `expect`s to regular errors once the syscall trait has an associated
         // error type.
         let call_tracker = syscall_handler
@@ -129,14 +130,15 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         let ret_data = &next_call_execution.retdata.0;
 
         if next_call_execution.failed {
-            return Err(SyscallExecutionError::Revert { error_data: ret_data.clone() });
+            return Err(SyscallExecutorBaseError::Revert { error_data: ret_data.clone() }.into());
         };
 
         let relocatable_ret_data: Vec<MaybeRelocatable> =
             ret_data.iter().map(|&x| MaybeRelocatable::from(x)).collect();
 
         let retdata_segment_start_ptr = vm.add_memory_segment();
-        vm.load_data(retdata_segment_start_ptr, &relocatable_ret_data)?;
+        vm.load_data(retdata_segment_start_ptr, &relocatable_ret_data)
+            .map_err(SyscallExecutorBaseError::from)?;
 
         Ok(CallContractResponse {
             segment: ReadOnlySegment {
@@ -151,7 +153,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
-    ) -> SyscallResult<DeployResponse> {
+    ) -> Result<DeployResponse, Self::Error> {
         todo!()
     }
 
@@ -160,7 +162,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
-    ) -> SyscallResult<EmitEventResponse> {
+    ) -> Result<EmitEventResponse, Self::Error> {
         todo!()
     }
 
@@ -169,7 +171,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
-    ) -> SyscallResult<GetBlockHashResponse> {
+    ) -> Result<GetBlockHashResponse, Self::Error> {
         todo!()
     }
 
@@ -178,7 +180,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
-    ) -> SyscallResult<GetClassHashAtResponse> {
+    ) -> Result<GetClassHashAtResponse, Self::Error> {
         todo!()
     }
 
@@ -187,7 +189,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
-    ) -> SyscallResult<GetExecutionInfoResponse> {
+    ) -> Result<GetExecutionInfoResponse, Self::Error> {
         todo!()
     }
 
@@ -196,7 +198,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
-    ) -> SyscallResult<LibraryCallResponse> {
+    ) -> Result<LibraryCallResponse, Self::Error> {
         todo!()
     }
 
@@ -205,7 +207,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
-    ) -> SyscallResult<MetaTxV0Response> {
+    ) -> Result<MetaTxV0Response, Self::Error> {
         todo!()
     }
 
@@ -214,7 +216,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
-    ) -> SyscallResult<Sha256ProcessBlockResponse> {
+    ) -> Result<Sha256ProcessBlockResponse, Self::Error> {
         todo!()
     }
 
@@ -223,7 +225,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
-    ) -> SyscallResult<ReplaceClassResponse> {
+    ) -> Result<ReplaceClassResponse, Self::Error> {
         todo!()
     }
 
@@ -232,7 +234,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
-    ) -> SyscallResult<SendMessageToL1Response> {
+    ) -> Result<SendMessageToL1Response, Self::Error> {
         todo!()
     }
 
@@ -241,7 +243,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
-    ) -> SyscallResult<StorageReadResponse> {
+    ) -> Result<StorageReadResponse, Self::Error> {
         todo!()
     }
 
@@ -250,7 +252,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
-    ) -> SyscallResult<StorageWriteResponse> {
+    ) -> Result<StorageWriteResponse, Self::Error> {
         Ok(StorageWriteResponse {})
     }
 
