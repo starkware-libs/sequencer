@@ -75,9 +75,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
             .expect("Syscall pointer is not initialized.")
     }
 
-    fn update_revert_gas_with_next_remaining_gas(&mut self, next_remaining_gas: GasAmount) {
-        todo!()
-    }
+    fn update_revert_gas_with_next_remaining_gas(&mut self, next_remaining_gas: GasAmount) {}
 
     fn call_contract(
         request: CallContractRequest,
