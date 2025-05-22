@@ -93,7 +93,10 @@ impl<S: StateReader> WorkerExecutor<S> {
         block_context: Arc<BlockContext>,
         bouncer: Arc<Mutex<Bouncer>>,
     ) -> Self {
-        let scheduler = Scheduler::new(chunk.len());
+        let scheduler = Scheduler::new();
+        for tx_index in 0..chunk.len() {
+            scheduler.new_transaction(tx_index);
+        }
         let execution_outputs =
             std::iter::repeat_with(|| Mutex::new(None)).take(chunk.len()).collect();
         let metrics = ConcurrencyMetrics::default();
@@ -120,7 +123,10 @@ impl<S: StateReader> WorkerExecutor<S> {
     ) -> Self {
         let versioned_state = VersionedState::new(state);
         let chunk_state = ThreadSafeVersionedState::new(versioned_state);
-        let scheduler = Scheduler::new(chunk.len());
+        let scheduler = Scheduler::new();
+        for tx_index in 0..chunk.len() {
+            scheduler.new_transaction(tx_index);
+        }
         let execution_outputs =
             std::iter::repeat_with(|| Mutex::new(None)).take(chunk.len()).collect();
         let metrics = ConcurrencyMetrics::default();
