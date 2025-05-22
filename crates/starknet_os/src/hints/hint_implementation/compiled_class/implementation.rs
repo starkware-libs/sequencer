@@ -84,7 +84,6 @@ pub(crate) fn bytecode_segment_structure<S: StateReader>(
         Scope::BytecodeSegmentStructure.into(),
         any_box!(bytecode_segment_structure.clone()),
     )]);
-    // TODO(Nimrod): support is_segment_used_callback.
     exec_scopes.enter_scope(new_scope);
 
     Ok(())
@@ -121,8 +120,21 @@ pub(crate) fn iter_current_segment_info<S: StateReader>(
         .next()
         .ok_or(OsHintError::EndOfIterator { item_type: "Bytecode segments".to_string() })?;
 
-    // TODO(Nimrod): Get from VM::is_accessed after we upgrade the VM.
-    let is_used = true;
+    let data_ptr = get_ptr_from_var_name(Ids::DataPtr.into(), vm, ids_data, ap_tracking)?;
+    let is_used = vm.is_accessed(&data_ptr)?;
+    if !is_used {
+        for i in 0..current_segment_info.length() {
+            let pc = (data_ptr + i)?;
+            if vm.is_accessed(&pc)? {
+                return Err(OsHintError::AssertionFailed {
+                    message: format!(
+                        "PC {} was visited, but the beginning of the segment ({}) was not",
+                        pc.offset, data_ptr.offset
+                    ),
+                });
+            }
+        }
+    }
 
     insert_value_from_var_name(
         Ids::IsSegmentUsed.into(),
@@ -204,8 +216,6 @@ pub(crate) fn validate_compiled_class_facts_post_execution<S: StateReader>(
         );
     }
     // No need for is_segment_used callback: use the VM's `MemoryCell::is_accessed`.
-    // TODO(Dori): upgrade the VM to a version including the `is_accessed` API, as added
-    //   [here](https://github.com/lambdaclass/cairo-vm/pull/2024).
     exec_scopes.enter_scope(HashMap::from([(
         Scope::BytecodeSegmentStructures.into(),
         any_box!(bytecode_segment_structures),
