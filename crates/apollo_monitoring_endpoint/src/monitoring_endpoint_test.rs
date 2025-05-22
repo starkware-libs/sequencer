@@ -8,7 +8,7 @@ use apollo_mempool_types::mempool_types::{
     MempoolStateSnapshot,
     TransactionQueueSnapshot,
 };
-use axum::http::StatusCode;
+use axum::http::{Method, StatusCode};
 use axum::response::Response;
 use axum::Router;
 use hyper::body::to_bytes;
@@ -32,9 +32,10 @@ use crate::monitoring_endpoint::{
     MEMPOOL_SNAPSHOT,
     METRICS,
     READY,
+    SET_GLOBAL_LOG_LEVEL,
     VERSION,
 };
-use crate::test_utils::build_request;
+use crate::test_utils::{build_http_request, build_request};
 
 const TEST_VERSION: &str = "1.2.3-dev";
 
@@ -54,6 +55,12 @@ fn setup_monitoring_endpoint(config: Option<MonitoringEndpointConfig>) -> Monito
 
 async fn request_app(app: Router, method: &str) -> Response {
     app.oneshot(build_request(&IpAddr::from([0, 0, 0, 0]), 0, method)).await.unwrap()
+}
+
+async fn put_request_app(app: Router, method: &str) -> Response {
+    app.oneshot(build_http_request(&IpAddr::from([0, 0, 0, 0]), 0, method, Method::PUT))
+        .await
+        .unwrap()
 }
 
 #[tokio::test]
@@ -179,4 +186,23 @@ async fn mempool_not_present() {
     let app = setup_monitoring_endpoint(None).app();
     let response = request_app(app, MEMPOOL_SNAPSHOT).await;
     assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
+}
+
+#[tokio::test]
+async fn set_log_level() {
+    let levels = ["trace", "debug", "info", "warn", "error", "off"];
+    for level in levels {
+        let response = put_request_app(
+            setup_monitoring_endpoint(None).app(),
+            &format!("{}/{}", SET_GLOBAL_LOG_LEVEL, level),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+    let response = put_request_app(
+        setup_monitoring_endpoint(None).app(),
+        &format!("{}/noneExistingLevel", SET_GLOBAL_LOG_LEVEL),
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }
