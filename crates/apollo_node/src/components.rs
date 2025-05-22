@@ -53,18 +53,18 @@ pub struct SequencerNodeComponents {
 
 pub async fn create_node_components(
     config: &SequencerNodeConfig,
-    clients: &SequencerNodeClients,
+    client: &SequencerNodeClients,
 ) -> SequencerNodeComponents {
     info!("Creating node components.");
     let batcher = match config.components.batcher.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
             let mempool_client =
-                clients.get_mempool_shared_client().expect("Mempool Client should be available");
-            let l1_provider_client = clients
+                client.get_mempool_shared_client().expect("Mempool Client should be available");
+            let l1_provider_client = client
                 .get_l1_provider_shared_client()
                 .expect("L1 Provider Client should be available");
-            let class_manager_client = clients
+            let class_manager_client = client
                 .get_class_manager_shared_client()
                 .expect("Class Manager Client should be available");
             Some(create_batcher(
@@ -80,7 +80,7 @@ pub async fn create_node_components(
     let class_manager = match config.components.class_manager.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            let compiler_shared_client = clients
+            let compiler_shared_client = client
                 .get_sierra_compiler_shared_client()
                 .expect("Sierra Compiler Client should be available");
             Some(create_class_manager(config.class_manager_config.clone(), compiler_shared_client))
@@ -91,14 +91,14 @@ pub async fn create_node_components(
     let consensus_manager = match config.components.consensus_manager.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
             let batcher_client =
-                clients.get_batcher_shared_client().expect("Batcher Client should be available");
-            let state_sync_client = clients
+                client.get_batcher_shared_client().expect("Batcher Client should be available");
+            let state_sync_client = client
                 .get_state_sync_shared_client()
                 .expect("State Sync Client should be available");
-            let class_manager_client = clients
+            let class_manager_client = client
                 .get_class_manager_shared_client()
                 .expect("Class Manager Client should be available");
-            let l1_gas_price_client = clients
+            let l1_gas_price_client = client
                 .get_l1_gas_price_shared_client()
                 .expect("L1 gas price shared client should be available");
             Some(ConsensusManager::new(
@@ -115,11 +115,11 @@ pub async fn create_node_components(
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
             let mempool_client =
-                clients.get_mempool_shared_client().expect("Mempool Client should be available");
-            let state_sync_client = clients
+                client.get_mempool_shared_client().expect("Mempool Client should be available");
+            let state_sync_client = client
                 .get_state_sync_shared_client()
                 .expect("State Sync Client should be available");
-            let class_manager_client = clients
+            let class_manager_client = client
                 .get_class_manager_shared_client()
                 .expect("Class Manager Client should be available");
             Some(create_gateway(
@@ -135,7 +135,7 @@ pub async fn create_node_components(
     let http_server = match config.components.http_server.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
             let gateway_client =
-                clients.get_gateway_shared_client().expect("Gateway Client should be available");
+                client.get_gateway_shared_client().expect("Gateway Client should be available");
 
             Some(create_http_server(config.http_server_config.clone(), gateway_client))
         }
@@ -146,13 +146,13 @@ pub async fn create_node_components(
         match config.components.mempool_p2p.execution_mode {
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
             | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-                let gateway_client = clients
+                let gateway_client = client
                     .get_gateway_shared_client()
                     .expect("Gateway Client should be available");
-                let class_manager_client = clients
+                let class_manager_client = client
                     .get_class_manager_shared_client()
                     .expect("Class Manager Client should be available");
-                let mempool_p2p_propagator_client = clients
+                let mempool_p2p_propagator_client = client
                     .get_mempool_p2p_propagator_shared_client()
                     .expect("Mempool P2p Propagator Client should be available");
                 let (mempool_p2p_propagator, mempool_p2p_runner) = create_p2p_propagator_and_runner(
@@ -171,7 +171,7 @@ pub async fn create_node_components(
     let mempool = match config.components.mempool.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            let mempool_p2p_propagator_client = clients
+            let mempool_p2p_propagator_client = client
                 .get_mempool_p2p_propagator_shared_client()
                 .expect("Propagator Client should be available");
             let mempool =
@@ -185,7 +185,7 @@ pub async fn create_node_components(
         ActiveComponentExecutionMode::Enabled => {
             let mempool_client = if mempool.is_some() {
                 Some(
-                    clients
+                    client
                         .get_mempool_shared_client()
                         .expect("Mempool Client should be available"),
                 )
@@ -204,7 +204,7 @@ pub async fn create_node_components(
     let (state_sync, state_sync_runner) = match config.components.state_sync.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            let class_manager_client = clients
+            let class_manager_client = client
                 .get_class_manager_shared_client()
                 .expect("Class Manager Client should be available");
             let (state_sync, state_sync_runner) = create_state_sync_and_runner(
@@ -220,7 +220,7 @@ pub async fn create_node_components(
 
     let l1_scraper = match config.components.l1_scraper.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
-            let l1_provider_client = clients.get_l1_provider_shared_client().unwrap();
+            let l1_provider_client = client.get_l1_provider_shared_client().unwrap();
             let l1_scraper_config = config.l1_scraper_config.clone();
             let base_layer = EthereumBaseLayerContract::new(config.base_layer_config.clone());
             Some(
@@ -244,9 +244,9 @@ pub async fn create_node_components(
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
             let mut l1_provider_builder = L1ProviderBuilder::new(
                 config.l1_provider_config,
-                clients.get_l1_provider_shared_client().unwrap(),
-                clients.get_batcher_shared_client().unwrap(),
-                clients.get_state_sync_shared_client().unwrap(),
+                client.get_l1_provider_shared_client().unwrap(),
+                client.get_batcher_shared_client().unwrap(),
+                client.get_state_sync_shared_client().unwrap(),
             );
             match &l1_scraper {
                 Some(l1_scraper) => {
@@ -325,7 +325,7 @@ pub async fn create_node_components(
     };
     let l1_gas_price_scraper = match config.components.l1_gas_price_scraper.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
-            let l1_gas_price_client = clients
+            let l1_gas_price_client = client
                 .get_l1_gas_price_shared_client()
                 .expect("L1 gas price client should be available");
             let l1_gas_price_scraper_config = config.l1_gas_price_scraper_config.clone();
