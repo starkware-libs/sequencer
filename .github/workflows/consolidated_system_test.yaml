@@ -10,6 +10,11 @@ on:
         type: number
 
   pull_request:
+    branches:
+      - main
+      - main-v0.1[4-9]*
+      - main-v0.[2-9]*
+      - main-v[1-9]*
     paths:
       - ".github/workflows/consolidated_system_test.yaml"
       - "crates/**"
@@ -46,9 +51,6 @@ jobs:
             --no-lb
             --wait
             --timeout 120s
-      - uses: ./.github/actions/bootstrap
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       # Install rust components.
       - uses: ./.github/actions/bootstrap
@@ -68,10 +70,6 @@ jobs:
 
       - name: Setup pipenv
         run: python3 -m pip install pipenv
-
-      # TODO(Nadin): add requirements.txt file.
-      - name: Install dependencies with pipenv
-        run: pipenv install
 
       - name: Install dependencies with pipenv
         run: pipenv install kubernetes
@@ -105,7 +103,7 @@ jobs:
         working-directory: deployments/sequencer
         run: |
           cdk8s import
-
+          pipenv install
           echo "Generating Kubernetes manifests using deployment config at: ${{ env.deployment_config_path }}:"
           cat "${{ env.deployment_config_path }}"
           cdk8s synth --app "pipenv run python main.py --namespace ${{ env.namespace }} --deployment-config-file ${{ env.deployment_config_path }}"
