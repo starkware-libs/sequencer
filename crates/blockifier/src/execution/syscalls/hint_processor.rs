@@ -818,7 +818,7 @@ impl HintProcessorLogic for SyscallHintProcessor<'_> {
             Hint::Core(hint) => {
                 execute_core_hint_base(vm, exec_scopes, hint, no_temporary_segments)
             }
-            Hint::Starknet(hint) => execute_next_syscall(self, vm, hint),
+            Hint::Starknet(hint) => Ok(execute_next_syscall(self, vm, hint)?),
             Hint::External(_) => {
                 panic!("starknet should never accept classes with external hints!")
             }
