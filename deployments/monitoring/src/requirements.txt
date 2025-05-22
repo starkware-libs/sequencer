@@ -1,5 +1,4 @@
 grafana-client==4.3.2
-click==8.1.8
 requests==2.32.3
 colorlog==6.9.0
 tenacity==9.1.2
