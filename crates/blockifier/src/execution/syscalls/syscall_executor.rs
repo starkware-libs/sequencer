@@ -4,7 +4,7 @@ use num_traits::ToPrimitive;
 use starknet_api::execution_resources::GasAmount;
 use starknet_types_core::felt::Felt;
 
-use crate::blockifier_versioned_constants::{GasCostsError, SyscallGasCost};
+use crate::blockifier_versioned_constants::{GasCostsError, SyscallGasCost, VersionedConstants};
 use crate::execution::execution_utils::felt_from_ptr;
 use crate::execution::syscalls::common_syscall_logic::base_keccak;
 use crate::execution::syscalls::secp::{
@@ -54,9 +54,12 @@ use crate::execution::syscalls::vm_syscall_utils::{
     StorageWriteResponse,
     SyscallExecutorBaseError,
     SyscallSelector,
+    TryExtractRevert,
 };
 
 pub trait SyscallExecutor {
+    type Error: From<SyscallExecutorBaseError> + TryExtractRevert;
+
     fn read_next_syscall_selector(&mut self, vm: &mut VirtualMachine) -> SyscallResult<Felt> {
         Ok(felt_from_ptr(vm, self.get_mut_syscall_ptr())?)
     }
@@ -78,12 +81,18 @@ pub trait SyscallExecutor {
     fn get_gas_cost_from_selector(
         &self,
         selector: &SyscallSelector,
-    ) -> Result<SyscallGasCost, GasCostsError>;
+    ) -> Result<SyscallGasCost, GasCostsError> {
+        self.versioned_constants().os_constants.gas_costs.syscalls.get_syscall_gas_cost(selector)
+    }
 
     fn get_mut_syscall_ptr(&mut self) -> &mut Relocatable;
 
     // TODO(Aner): replace function with inline after implementing fn get_gas_costs.
-    fn get_syscall_base_gas_cost(&self) -> u64;
+    fn get_syscall_base_gas_cost(&self) -> u64 {
+        self.versioned_constants().os_constants.gas_costs.base.syscall_base_gas_cost
+    }
+
+    fn versioned_constants(&self) -> &VersionedConstants;
 
     fn update_revert_gas_with_next_remaining_gas(&mut self, next_remaining_gas: GasAmount);
 

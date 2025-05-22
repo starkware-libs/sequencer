@@ -31,33 +31,25 @@ use apollo_starknet_client::reader::objects::pending_data::{
 };
 use apollo_starknet_client::reader::PendingData;
 use apollo_state_sync_metrics::metrics::{
+    register_metrics,
+    update_marker_metrics,
     P2P_SYNC_NUM_ACTIVE_INBOUND_SESSIONS,
     P2P_SYNC_NUM_ACTIVE_OUTBOUND_SESSIONS,
     P2P_SYNC_NUM_BLACKLISTED_PEERS,
     P2P_SYNC_NUM_CONNECTED_PEERS,
-    STATE_SYNC_BODY_MARKER,
-    STATE_SYNC_CLASS_MANAGER_MARKER,
-    STATE_SYNC_COMPILED_CLASS_MARKER,
-    STATE_SYNC_HEADER_MARKER,
-    STATE_SYNC_PROCESSED_TRANSACTIONS,
     STATE_SYNC_REVERTED_TRANSACTIONS,
-    STATE_SYNC_STATE_MARKER,
 };
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::body::BodyStorageReader;
-use apollo_storage::class_manager::ClassManagerStorageReader;
-use apollo_storage::compiled_class::CasmStorageReader;
-use apollo_storage::db::TransactionKind;
 use apollo_storage::header::HeaderStorageReader;
-use apollo_storage::state::StateStorageReader;
-use apollo_storage::{open_storage, StorageConfig, StorageReader, StorageTxn, StorageWriter};
+use apollo_storage::{open_storage, StorageConfig, StorageReader, StorageWriter};
 use async_trait::async_trait;
 use futures::channel::mpsc::Receiver;
 use futures::future::{self, pending, BoxFuture};
 use futures::never::Never;
 use futures::{FutureExt, StreamExt};
 use papyrus_common::pending_classes::PendingClasses;
-use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
+use starknet_api::block::{BlockHash, BlockHashAndNumber};
 use starknet_api::felt;
 use tokio::sync::RwLock;
 use tracing::info_span;
@@ -73,11 +65,13 @@ pub struct StateSyncRunner {
     central_sync_client_future: BoxFuture<'static, Result<(), CentralStateSyncError>>,
     new_block_dev_null_future: BoxFuture<'static, Never>,
     rpc_server_future: BoxFuture<'static, ()>,
+    register_metrics_fn: Box<dyn Fn() + Send>,
 }
 
 #[async_trait]
 impl ComponentStarter for StateSyncRunner {
     async fn start(&mut self) {
+        (self.register_metrics_fn)();
         tokio::select! {
             _ = &mut self.network_future => {
                 panic!("StateSyncRunner failed - network stopped unexpectedly");
@@ -151,7 +145,7 @@ impl StateSyncRunner {
             pending_classes,
         } = StateSyncResources::new(&storage_config);
 
-        register_metrics(&storage_reader.begin_ro_txn().unwrap());
+        let register_metrics_fn = Self::create_register_metrics_fn(storage_reader.clone());
 
         if revert_config.should_revert {
             let revert_up_to_and_including = revert_config.revert_up_to_and_including;
@@ -192,6 +186,7 @@ impl StateSyncRunner {
                     central_sync_client_future: pending().boxed(),
                     new_block_dev_null_future: pending().boxed(),
                     rpc_server_future: pending().boxed(),
+                    register_metrics_fn,
                 },
                 storage_reader,
             );
@@ -306,6 +301,7 @@ impl StateSyncRunner {
                 central_sync_client_future,
                 new_block_dev_null_future,
                 rpc_server_future,
+                register_metrics_fn,
             },
             storage_reader,
         )
@@ -400,6 +396,13 @@ impl StateSyncRunner {
             Some(class_manager_client),
         )
     }
+
+    fn create_register_metrics_fn(storage_reader: StorageReader) -> Box<dyn Fn() + Send> {
+        Box::new(move || {
+            let txn = storage_reader.begin_ro_txn().unwrap();
+            register_metrics(&txn);
+        })
+    }
 }
 
 /// A future that consumes the new block receiver and does nothing with the received blocks, to
@@ -444,44 +447,6 @@ fn spawn_rpc_server(
         .expect("Failed spawning JSON-RPC server");
     }
     .boxed()
-}
-
-fn register_metrics<Mode: TransactionKind>(txn: &StorageTxn<'_, Mode>) {
-    STATE_SYNC_HEADER_MARKER.register();
-    STATE_SYNC_BODY_MARKER.register();
-    STATE_SYNC_STATE_MARKER.register();
-    STATE_SYNC_CLASS_MANAGER_MARKER.register();
-    STATE_SYNC_COMPILED_CLASS_MARKER.register();
-    STATE_SYNC_PROCESSED_TRANSACTIONS.register();
-    STATE_SYNC_REVERTED_TRANSACTIONS.register();
-    update_marker_metrics(txn);
-    reconstruct_processed_transactions_metric(txn);
-}
-
-fn update_marker_metrics<Mode: TransactionKind>(txn: &StorageTxn<'_, Mode>) {
-    STATE_SYNC_HEADER_MARKER
-        .set_lossy(txn.get_header_marker().expect("Should have a header marker").0);
-    STATE_SYNC_BODY_MARKER.set_lossy(txn.get_body_marker().expect("Should have a body marker").0);
-    STATE_SYNC_STATE_MARKER
-        .set_lossy(txn.get_state_marker().expect("Should have a state marker").0);
-    STATE_SYNC_CLASS_MANAGER_MARKER.set_lossy(
-        txn.get_class_manager_block_marker().expect("Should have a class manager block marker").0,
-    );
-    STATE_SYNC_COMPILED_CLASS_MARKER
-        .set_lossy(txn.get_compiled_class_marker().expect("Should have a compiled class marker").0);
-}
-
-fn reconstruct_processed_transactions_metric(txn: &StorageTxn<'_, impl TransactionKind>) {
-    let block_marker = txn.get_body_marker().expect("Should have a body marker");
-
-    for current_block_number in 0..block_marker.0 {
-        let current_block_tx_count = txn
-            .get_block_transactions_count(BlockNumber(current_block_number))
-            .expect("Should have block transactions count")
-            .expect("Missing block body with block number smaller than body marker");
-        STATE_SYNC_PROCESSED_TRANSACTIONS
-            .increment(current_block_tx_count.try_into().expect("Failed to convert usize to u64"));
-    }
 }
 
 pub type StateSyncRunnerServer = WrapperServer<StateSyncRunner>;

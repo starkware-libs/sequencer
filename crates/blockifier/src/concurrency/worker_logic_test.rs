@@ -98,12 +98,16 @@ pub fn test_commit_tx() {
     .into_iter()
     .map(Transaction::Account)
     .collect::<Vec<Transaction>>();
-    let mut bouncer = Bouncer::new(block_context.bouncer_config.clone());
+    let bouncer = Bouncer::new(block_context.bouncer_config.clone());
     let cached_state =
         test_state(&block_context.chain_info, BALANCE, &[(account, 1), (test_contract, 1)]);
     let versioned_state = safe_versioned_state_for_testing(cached_state);
-    let executor =
-        WorkerExecutor::new(versioned_state, &txs, &block_context, Mutex::new(&mut bouncer));
+    let executor = WorkerExecutor::new(
+        versioned_state,
+        txs.to_vec(),
+        block_context.into(),
+        Mutex::new(bouncer).into(),
+    );
 
     // Execute transactions.
     // Simulate a concurrent run by executing tx1 before tx0.
@@ -138,7 +142,7 @@ pub fn test_commit_tx() {
     for &(commit_idx, should_fail_execution) in
         [(0, false), (1, false), (2, true), (3, true)].iter()
     {
-        executor.commit_tx(commit_idx);
+        executor.commit_tx(commit_idx).unwrap();
         let execution_task_outputs = lock_mutex_in_array(&executor.execution_outputs, commit_idx);
         let execution_result = &execution_task_outputs.as_ref().unwrap().result;
         let expected_sequencer_balance_high = 0_u128;
@@ -200,15 +204,15 @@ fn test_commit_tx_when_sender_is_sequencer() {
         nonce!(0_u8),
     ))];
 
-    let mut bouncer = Bouncer::new(block_context.bouncer_config.clone());
+    let bouncer = Bouncer::new(block_context.bouncer_config.clone());
 
     let state = test_state(&block_context.chain_info, BALANCE, &[(account, 1), (test_contract, 1)]);
     let versioned_state = safe_versioned_state_for_testing(state);
     let executor = WorkerExecutor::new(
         versioned_state,
-        &sequencer_tx,
-        &block_context,
-        Mutex::new(&mut bouncer),
+        sequencer_tx.to_vec(),
+        block_context.into(),
+        Mutex::new(bouncer).into(),
     );
     let tx_index = 0;
     let tx_versioned_state = executor.state.pin_version(tx_index);
@@ -232,7 +236,7 @@ fn test_commit_tx_when_sender_is_sequencer() {
         tx_versioned_state.get_storage_at(fee_token_address, sequencer_balance_key_low).unwrap();
 
     // Commit tx and check that the commit made no changes in the execution result or the state.
-    executor.commit_tx(tx_index);
+    executor.commit_tx(tx_index).unwrap();
     let execution_task_outputs = lock_mutex_in_array(&executor.execution_outputs, tx_index);
     let commit_result = &execution_task_outputs.as_ref().unwrap().result;
     let fee_transfer_call_info =
@@ -315,12 +319,12 @@ fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
         .map(Transaction::Account)
         .collect::<Vec<Transaction>>();
 
-    let mut bouncer = Bouncer::new(block_context.bouncer_config.clone());
+    let bouncer = Bouncer::new(block_context.bouncer_config.clone());
     let worker_executor = WorkerExecutor::new(
         safe_versioned_state.clone(),
-        &txs,
-        &block_context,
-        Mutex::new(&mut bouncer),
+        txs.to_vec(),
+        block_context.into(),
+        Mutex::new(bouncer).into(),
     );
 
     // Creates 3 execution active tasks.
@@ -421,7 +425,7 @@ fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
 
     // Validate status change.
     for tx_index in 0..3 {
-        assert_eq!(*worker_executor.scheduler.get_tx_status(tx_index), TransactionStatus::Executed);
+        assert_eq!(worker_executor.scheduler.get_tx_status(tx_index), TransactionStatus::Executed);
     }
 }
 
@@ -475,12 +479,12 @@ fn test_worker_validate(default_all_resource_bounds: ValidResourceBounds) {
         .map(Transaction::Account)
         .collect::<Vec<Transaction>>();
 
-    let mut bouncer = Bouncer::new(block_context.bouncer_config.clone());
+    let bouncer = Bouncer::new(block_context.bouncer_config.clone());
     let worker_executor = WorkerExecutor::new(
         safe_versioned_state.clone(),
-        &txs,
-        &block_context,
-        Mutex::new(&mut bouncer),
+        txs.to_vec(),
+        block_context.into(),
+        Mutex::new(bouncer).into(),
     );
 
     // Creates 2 active tasks.
@@ -497,7 +501,7 @@ fn test_worker_validate(default_all_resource_bounds: ValidResourceBounds) {
 
     // Validate succeeds.
     let tx_index = 0;
-    let next_task = worker_executor.validate(tx_index);
+    let next_task = worker_executor.validate(tx_index).unwrap();
     assert_eq!(next_task, Task::AskForTask);
     // Verify writes exist in state.
     assert_eq!(
@@ -508,11 +512,11 @@ fn test_worker_validate(default_all_resource_bounds: ValidResourceBounds) {
         storage_value0
     );
     // No status change.
-    assert_eq!(*worker_executor.scheduler.get_tx_status(tx_index), TransactionStatus::Executed);
+    assert_eq!(worker_executor.scheduler.get_tx_status(tx_index), TransactionStatus::Executed);
 
     // Validate failed. Invoke 2 failed validations; only the first leads to a re-execution.
     let tx_index = 1;
-    let next_task1 = worker_executor.validate(tx_index);
+    let next_task1 = worker_executor.validate(tx_index).unwrap();
     assert_eq!(next_task1, Task::ExecutionTask(tx_index));
     // Verify writes were removed.
     assert_eq!(
@@ -523,9 +527,9 @@ fn test_worker_validate(default_all_resource_bounds: ValidResourceBounds) {
         storage_value0
     );
     // Verify status change.
-    assert_eq!(*worker_executor.scheduler.get_tx_status(tx_index), TransactionStatus::Executing);
+    assert_eq!(worker_executor.scheduler.get_tx_status(tx_index), TransactionStatus::Executing);
 
-    let next_task2 = worker_executor.validate(tx_index);
+    let next_task2 = worker_executor.validate(tx_index).unwrap();
     assert_eq!(next_task2, Task::AskForTask);
 }
 
@@ -587,9 +591,13 @@ fn test_deploy_before_declare(
     let txs =
         [declare_tx, invoke_tx].into_iter().map(Transaction::Account).collect::<Vec<Transaction>>();
 
-    let mut bouncer = Bouncer::new(block_context.bouncer_config.clone());
-    let worker_executor =
-        WorkerExecutor::new(safe_versioned_state, &txs, &block_context, Mutex::new(&mut bouncer));
+    let bouncer = Bouncer::new(block_context.bouncer_config.clone());
+    let worker_executor = WorkerExecutor::new(
+        safe_versioned_state,
+        txs.to_vec(),
+        block_context.into(),
+        Mutex::new(bouncer).into(),
+    );
 
     // Creates 2 active tasks.
     worker_executor.scheduler.next_task();
@@ -610,7 +618,7 @@ fn test_deploy_before_declare(
     worker_executor.scheduler.next_task();
 
     // Verify validation failed.
-    assert_eq!(worker_executor.validate(1), Task::ExecutionTask(1));
+    assert_eq!(worker_executor.validate(1).unwrap(), Task::ExecutionTask(1));
 
     // Execute transaction 1 again.
     worker_executor.execute(1);
@@ -620,7 +628,7 @@ fn test_deploy_before_declare(
     drop(execution_output);
 
     // Successful validation for transaction 1.
-    let next_task = worker_executor.validate(1);
+    let next_task = worker_executor.validate(1).unwrap();
     assert_eq!(next_task, Task::AskForTask);
 }
 
@@ -660,9 +668,13 @@ fn test_worker_commit_phase(default_all_resource_bounds: ValidResourceBounds) {
         })
         .collect::<Vec<Transaction>>();
 
-    let mut bouncer = Bouncer::new(block_context.bouncer_config.clone());
-    let worker_executor =
-        WorkerExecutor::new(safe_versioned_state, &txs, &block_context, Mutex::new(&mut bouncer));
+    let bouncer = Bouncer::new(block_context.bouncer_config.clone());
+    let worker_executor = WorkerExecutor::new(
+        safe_versioned_state,
+        txs.to_vec(),
+        block_context.into(),
+        Mutex::new(bouncer).into(),
+    );
 
     // Try to commit before any transaction is ready.
     worker_executor.commit_while_possible();
@@ -688,8 +700,8 @@ fn test_worker_commit_phase(default_all_resource_bounds: ValidResourceBounds) {
     assert_eq!(worker_executor.scheduler.get_n_committed_txs(), 2);
 
     // Verify the status of the first two transactions is `Committed`.
-    assert_eq!(*worker_executor.scheduler.get_tx_status(0), TransactionStatus::Committed);
-    assert_eq!(*worker_executor.scheduler.get_tx_status(1), TransactionStatus::Committed);
+    assert_eq!(worker_executor.scheduler.get_tx_status(0), TransactionStatus::Committed);
+    assert_eq!(worker_executor.scheduler.get_tx_status(1), TransactionStatus::Committed);
 
     // Create the final execution task and execute it.
     assert_eq!(worker_executor.scheduler.next_task(), Task::ExecutionTask(2));
@@ -701,7 +713,7 @@ fn test_worker_commit_phase(default_all_resource_bounds: ValidResourceBounds) {
     // Verify the number of committed transactions is 3, the status of the last transaction is
     // `Committed`, and the next task is `Done`.
     assert_eq!(worker_executor.scheduler.get_n_committed_txs(), 3);
-    assert_eq!(*worker_executor.scheduler.get_tx_status(2), TransactionStatus::Committed);
+    assert_eq!(worker_executor.scheduler.get_tx_status(2), TransactionStatus::Committed);
     assert_eq!(worker_executor.scheduler.next_task(), Task::Done);
 
     // Try to commit when all transactions are already committed.
@@ -751,9 +763,13 @@ fn test_worker_commit_phase_with_halt() {
         })
         .collect::<Vec<Transaction>>();
 
-    let mut bouncer = Bouncer::new(block_context.bouncer_config.clone());
-    let worker_executor =
-        WorkerExecutor::new(safe_versioned_state, &txs, &block_context, Mutex::new(&mut bouncer));
+    let bouncer = Bouncer::new(block_context.bouncer_config.clone());
+    let worker_executor = WorkerExecutor::new(
+        safe_versioned_state,
+        txs.to_vec(),
+        block_context.into(),
+        Mutex::new(bouncer).into(),
+    );
 
     // Creates 2 active tasks.
     // Creating these tasks changes the status of both transactions to `Executing`. If we skip this
@@ -773,8 +789,8 @@ fn test_worker_commit_phase_with_halt() {
     assert_eq!(worker_executor.scheduler.next_task(), Task::Done);
 
     // Verify the status of both transactions is `Committed`.
-    assert_eq!(*worker_executor.scheduler.get_tx_status(0), TransactionStatus::Committed);
-    assert_eq!(*worker_executor.scheduler.get_tx_status(1), TransactionStatus::Committed);
+    assert_eq!(worker_executor.scheduler.get_tx_status(0), TransactionStatus::Committed);
+    assert_eq!(worker_executor.scheduler.get_tx_status(1), TransactionStatus::Committed);
 
     // Verify that only one transaction was in fact committed.
     assert_eq!(worker_executor.scheduler.get_n_committed_txs(), 1);

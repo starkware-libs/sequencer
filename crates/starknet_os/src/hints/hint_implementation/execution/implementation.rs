@@ -21,12 +21,14 @@ use starknet_api::transaction::fields::ValidResourceBounds;
 use starknet_api::transaction::{DeployAccountTransaction, TransactionVersion};
 use starknet_types_core::felt::Felt;
 
+use crate::hints::enum_definition::{AllHints, OsHint};
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::execution::utils::{
     get_account_deployment_data,
     get_calldata,
     set_state_entry,
 };
+use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
 use crate::syscall_handler_utils::SyscallHandlerType;
@@ -479,7 +481,11 @@ pub(crate) fn tx_account_deployment_data_len<S: StateReader>(
 ) -> OsHintResult {
     let account_deployment_data =
         get_account_deployment_data(hint_processor.get_current_execution_helper()?)?;
-    insert_value_into_ap(vm, account_deployment_data.0.len())?;
+    insert_nondet_hint_value(
+        vm,
+        AllHints::OsHint(OsHint::TxAccountDeploymentDataLen),
+        account_deployment_data.0.len(),
+    )?;
     Ok(())
 }
 
@@ -633,9 +639,13 @@ pub(crate) fn check_new_deploy_response<S: StateReader>(
 }
 
 pub(crate) fn initial_ge_required_gas<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let initial_gas = get_integer_from_var_name(Ids::InitialGas.into(), vm, ids_data, ap_tracking)?;
+    let required_gas =
+        get_integer_from_var_name(Ids::RequiredGas.into(), vm, ids_data, ap_tracking)?;
+    insert_value_into_ap(vm, Felt::from(initial_gas >= required_gas))?;
+    Ok(())
 }
 
 pub(crate) fn set_ap_to_tx_nonce<S: StateReader>(
@@ -711,7 +721,7 @@ pub(crate) fn write_syscall_result_deprecated<S: StateReader>(
 }
 
 pub(crate) fn write_syscall_result<S: StateReader>(hint_args: HintArgs<'_, '_, S>) -> OsHintResult {
-    write_syscall_result_helper(hint_args, Ids::Request, CairoStruct::StorageReadRequestPtr, "key")
+    write_syscall_result_helper(hint_args, Ids::Request, CairoStruct::StorageWriteRequestPtr, "key")
 }
 
 pub(crate) fn declare_tx_fields<S: StateReader>(
@@ -857,7 +867,7 @@ pub(crate) fn cache_contract_storage_syscall_request_address<S: StateReader>(
         hint_args,
         Ids::SyscallPtr,
         CairoStruct::StorageReadPtr,
-        &["request", "key"],
+        &["request", "address"],
     )
 }
 

@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, HashMap};
+use std::vec::IntoIter;
 
 use blockifier::state::state_api::StateReader;
 use cairo_vm::any_box;
@@ -13,6 +14,7 @@ use cairo_vm::types::relocatable::Relocatable;
 use starknet_api::core::ClassHash;
 use starknet_types_core::felt::Felt;
 
+use super::utils::BytecodeSegment;
 use crate::hints::error::{OsHintError, OsHintExtensionResult, OsHintResult};
 use crate::hints::hint_implementation::compiled_class::utils::{
     create_bytecode_segment_structure,
@@ -44,9 +46,16 @@ pub(crate) fn assign_bytecode_segments<S: StateReader>(
 }
 
 pub(crate) fn assert_end_of_bytecode_segments<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let bytecode_segments: &mut IntoIter<BytecodeSegment> =
+        exec_scopes.get_mut_ref(Scope::BytecodeSegments.into())?;
+    if bytecode_segments.next().is_some() {
+        return Err(OsHintError::AssertionFailed {
+            message: "The bytecode segments iterator is expected to be exhausted.".to_string(),
+        });
+    }
+    Ok(())
 }
 
 pub(crate) fn bytecode_segment_structure<S: StateReader>(
@@ -104,9 +113,45 @@ pub(crate) fn is_leaf<S: StateReader>(
 }
 
 pub(crate) fn iter_current_segment_info<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { exec_scopes, vm, ap_tracking, ids_data, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let bytecode_segments: &mut IntoIter<BytecodeSegment> =
+        exec_scopes.get_mut_ref(Scope::BytecodeSegments.into())?;
+    let current_segment_info = bytecode_segments
+        .next()
+        .ok_or(OsHintError::EndOfIterator { item_type: "Bytecode segments".to_string() })?;
+
+    // TODO(Nimrod): Get from VM::is_accessed after we upgrade the VM.
+    let is_used = true;
+
+    insert_value_from_var_name(
+        Ids::IsSegmentUsed.into(),
+        Felt::from(is_used),
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    let is_used_leaf = is_used && current_segment_info.is_leaf();
+    insert_value_from_var_name(
+        Ids::IsUsedLeaf.into(),
+        Felt::from(is_used_leaf),
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    insert_value_from_var_name(
+        Ids::SegmentLength.into(),
+        current_segment_info.length(),
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    let new_scope = HashMap::from([(
+        Scope::BytecodeSegmentStructure.into(),
+        any_box!(current_segment_info.node),
+    )]);
+    exec_scopes.enter_scope(new_scope);
+    Ok(())
 }
 
 pub(crate) fn load_class<S: StateReader>(

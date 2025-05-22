@@ -1592,6 +1592,7 @@ dependencies = [
  "apollo_config",
  "apollo_infra",
  "apollo_infra_utils",
+ "apollo_l1_provider_types",
  "apollo_mempool_types",
  "apollo_metrics",
  "axum",
@@ -1973,6 +1974,8 @@ name = "apollo_state_sync_metrics"
 version = "0.0.0"
 dependencies = [
  "apollo_metrics",
+ "apollo_storage",
+ "starknet_api",
 ]
 
 [[package]]
@@ -3208,6 +3211,7 @@ dependencies = [
  "cairo-native",
  "cairo-vm",
  "criterion",
+ "dashmap",
  "derive_more 0.99.18",
  "expect-test",
  "glob",

@@ -5,19 +5,11 @@ on:
   push:
     branches:
       - main
+      - main-v*.*.* # e.g. main-v0.14.0
       - v*.*.*-integration # e.g. v0.14.0-integration
     tags:
       - "v*.*.*"
       - "APOLLO-*"
-    paths:
-      - ".github/workflows/sequencer_docker-publish.yml"
-      - "crates/**"
-      - "scripts/dependencies.sh"
-      - "scripts/install_build_tools.sh"
-      - "deployments/images/base/Dockerfile"
-      - "deployments/images/sequencer/Dockerfile"
-
-  pull_request:
     paths:
       - ".github/workflows/sequencer_docker-publish.yml"
       - "crates/**"
@@ -96,3 +88,4 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           load: true # Loads the build result to docker images. Required for "Run docker test" step to work.
           no-cache: true
+          build-args: BUILD_MODE=release

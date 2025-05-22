@@ -1,13 +1,12 @@
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
+use expect_test::expect;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::{calldata, class_hash, contract_address, felt};
 use test_case::test_case;
 
 use crate::context::ChainInfo;
-use crate::execution::call_info::CallExecution;
 use crate::execution::entry_point::CallEntryPoint;
-use crate::execution::syscalls::syscall_tests::constants::REQUIRED_GAS_GET_CLASS_HASH_AT_TEST;
 use crate::retdata;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{trivial_external_entry_point_new, BALANCE};
@@ -36,20 +35,24 @@ fn test_get_class_hash_at(runnable_version: RunnableCairo1) {
     };
     let positive_call_info =
         positive_entry_point_call.clone().execute_directly(&mut state).unwrap();
-    let redeposit_gas = 300;
     assert!(
         positive_call_info.storage_access_tracker.accessed_contract_addresses.contains(&address)
     );
     assert!(positive_call_info.storage_access_tracker.read_class_hash_values[0] == class_hash);
-    assert_eq!(
-        positive_call_info.execution,
+    expect![[r#"
         CallExecution {
-            retdata: retdata!(),
-            gas_consumed: REQUIRED_GAS_GET_CLASS_HASH_AT_TEST + redeposit_gas,
+            retdata: Retdata(
+                [],
+            ),
+            events: [],
+            l2_to_l1_messages: [],
             failed: false,
-            ..CallExecution::default()
+            gas_consumed: 16460,
         }
-    );
+    "#]]
+    .assert_debug_eq(&positive_call_info.execution);
+    assert!(!positive_call_info.execution.failed);
+    assert_eq!(positive_call_info.execution.retdata, retdata![]);
     // Test undeployed contract - should return class_hash = 0 and succeed.
     let non_existing_address = felt!("0x333");
     let class_hash_of_undeployed_contract = felt!("0x0");
