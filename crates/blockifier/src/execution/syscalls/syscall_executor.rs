@@ -54,10 +54,11 @@ use crate::execution::syscalls::vm_syscall_utils::{
     StorageWriteResponse,
     SyscallExecutorBaseError,
     SyscallSelector,
+    TryExtractRevert,
 };
 
 pub trait SyscallExecutor {
-    type Error: From<SyscallExecutorBaseError>;
+    type Error: From<SyscallExecutorBaseError> + TryExtractRevert;
 
     fn read_next_syscall_selector(&mut self, vm: &mut VirtualMachine) -> SyscallResult<Felt> {
         Ok(felt_from_ptr(vm, self.get_mut_syscall_ptr())?)

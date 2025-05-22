@@ -36,7 +36,6 @@ use crate::execution::syscalls::hint_processor::{
     read_felt_array,
     write_segment,
     EmitEventError,
-    SyscallExecutionError,
     OUT_OF_GAS_ERROR,
 };
 use crate::execution::syscalls::syscall_base::SyscallResult;
@@ -711,10 +710,12 @@ where
     let original_response = execute_callback(request, vm, syscall_executor, &mut remaining_gas);
     let response = match original_response {
         Ok(response) => SyscallResponseWrapper::Success { gas_counter: remaining_gas, response },
-        Err(SyscallExecutionError::Revert { error_data: data }) => {
-            SyscallResponseWrapper::Failure { gas_counter: remaining_gas, error_data: data }
-        }
-        Err(error) => return Err(error.into()),
+        Err(error) => match error.try_extract_revert() {
+            SelfOrRevert::Revert(data) => {
+                SyscallResponseWrapper::Failure { gas_counter: remaining_gas, error_data: data }
+            }
+            SelfOrRevert::Original(err) => return Err(err.into()),
+        },
     };
 
     response.write(vm, syscall_executor.get_mut_syscall_ptr())?;
@@ -744,6 +745,17 @@ pub fn execute_next_syscall<T: SyscallExecutor>(
     }
 
     execute_syscall_from_selector(syscall_executor, vm, selector)
+}
+
+pub enum SelfOrRevert<T> {
+    Original(T),
+    Revert(Vec<Felt>),
+}
+
+pub trait TryExtractRevert {
+    fn try_extract_revert(self) -> SelfOrRevert<Self>
+    where
+        Self: Sized;
 }
 
 #[derive(Debug, thiserror::Error)]
