@@ -7,4 +7,4 @@ pub(crate) const CAIRO_LANG_BINARY_NAME: &str = "starknet-sierra-compile";
 pub(crate) const CAIRO_NATIVE_BINARY_NAME: &str = "starknet-native-compile";
 
 #[cfg(feature = "cairo_native")]
-pub const REQUIRED_CAIRO_NATIVE_VERSION: &str = "0.3.4";
+pub const REQUIRED_CAIRO_NATIVE_VERSION: &str = "0.3.6";
