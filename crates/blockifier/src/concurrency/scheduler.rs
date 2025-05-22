@@ -42,9 +42,6 @@ impl<'a> TransactionCommitter<'a> {
         }
         *status = TransactionStatus::Committed;
         *self.commit_index_guard += 1;
-        if *self.commit_index_guard == self.scheduler.chunk_size {
-            self.scheduler.done_marker.store(true, Ordering::Release);
-        }
         Some(*self.commit_index_guard - 1)
     }
 
@@ -64,8 +61,7 @@ pub struct Scheduler {
     commit_index: Mutex<usize>,
     chunk_size: usize,
     tx_statuses: DashMap<TxIndex, TransactionStatus>,
-    /// Set to true when all transactions have been committed, or when calling `halt()`,
-    /// providing a cheap way for all threads to exit their main loops.
+    /// Set to true when calling `halt()`. This will cause all threads to exit their main loops.
     done_marker: AtomicBool,
 }
 
