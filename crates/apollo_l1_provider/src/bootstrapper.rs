@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -190,8 +189,15 @@ async fn l2_sync_task(
 
         match block {
             Ok(Some(block)) => {
+                // No rejected txs in sync blocks.
+                let l1_handler_rejected_tx_hashes = Default::default();
+
                 l1_provider_client
-                    .commit_block(block.l1_transaction_hashes, HashSet::new(), current_height)
+                    .commit_block(
+                        block.l1_transaction_hashes,
+                        l1_handler_rejected_tx_hashes,
+                        current_height,
+                    )
                     .await
                     .unwrap();
                 current_height = current_height.unchecked_next();
