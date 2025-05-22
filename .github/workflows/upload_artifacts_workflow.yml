@@ -30,6 +30,7 @@ on:
       - 'crates/blockifier/**'
       - 'crates/native_blockifier/**'
       - 'crates/apollo_state_reader/**'
+      - 'crates/apollo_starknet_os_program/**'
       - 'crates/apollo_storage/**'
       - 'crates/starknet_api/**'
       - 'crates/apollo_sierra_multicompile/**'
