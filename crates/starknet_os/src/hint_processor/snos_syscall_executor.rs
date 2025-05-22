@@ -45,6 +45,12 @@ pub enum SnosSyscallError {
     SyscallExecutorBase(#[from] SyscallExecutorBaseError),
 }
 
+impl RevertableError for SnosSyscallError {
+    fn revert_data(&self) -> Option<Vec<Felt>> {
+        None
+    }
+}
+
 #[allow(unused_variables)]
 impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
     type Error = SnosSyscallError;

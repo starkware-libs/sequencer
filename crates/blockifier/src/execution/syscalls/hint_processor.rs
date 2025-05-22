@@ -67,6 +67,7 @@ use crate::execution::syscalls::vm_syscall_utils::{
     MetaTxV0Response,
     ReplaceClassRequest,
     ReplaceClassResponse,
+    RevertableError,
     SendMessageToL1Request,
     SendMessageToL1Response,
     Sha256ProcessBlockRequest,
@@ -129,6 +130,15 @@ pub enum SyscallExecutionError {
     VirtualMachineError(#[from] VirtualMachineError),
     #[error("Syscall revert.")]
     Revert { error_data: Vec<Felt> },
+}
+
+impl RevertableError for SyscallExecutionError {
+    fn revert_data(&self) -> Option<Vec<Felt>> {
+        match self {
+            SyscallExecutionError::Revert { error_data } => Some(error_data.clone()),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Error)]
