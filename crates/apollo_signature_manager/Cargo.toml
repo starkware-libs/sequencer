@@ -6,6 +6,8 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
+apollo_signature_manager_types.workspace = true
+starknet_api.workspace = true
 
 [lints]
 workspace = true

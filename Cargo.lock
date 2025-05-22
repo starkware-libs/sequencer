@@ -1881,6 +1881,10 @@ dependencies = [
 [[package]]
 name = "apollo_signature_manager"
 version = "0.0.0"
+dependencies = [
+ "apollo_signature_manager_types",
+ "starknet_api",
+]
 
 [[package]]
 name = "apollo_signature_manager_types"
