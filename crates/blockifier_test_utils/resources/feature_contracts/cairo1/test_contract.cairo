@@ -75,6 +75,17 @@ mod TestContract {
             .span()
     }
 
+
+    #[external(v0)]
+    fn call_execute_directly(
+        ref self: ContractState, contract_address: ContractAddress, calldata: Array::<felt252>,
+    ) -> Span::<felt252> {
+        syscalls::call_contract_syscall(contract_address, selector!("__execute__"), calldata.span())
+            .unwrap_syscall()
+            .snapshot
+            .span()
+    }
+
     #[external(v0)]
     fn test_call_two_contracts(
         self: @ContractState,
