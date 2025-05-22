@@ -710,11 +710,11 @@ where
     let original_response = execute_callback(request, vm, syscall_executor, &mut remaining_gas);
     let response = match original_response {
         Ok(response) => SyscallResponseWrapper::Success { gas_counter: remaining_gas, response },
-        Err(error) => match error.revert_data() {
-            Some(data) => {
+        Err(error) => match error.try_extract_revert() {
+            SelfOrRevert::Revert(data) => {
                 SyscallResponseWrapper::Failure { gas_counter: remaining_gas, error_data: data }
             }
-            None => return Err(error.into()),
+            SelfOrRevert::Original(err) => return Err(err.into()),
         },
     };
 
@@ -747,8 +747,15 @@ pub fn execute_next_syscall<T: SyscallExecutor>(
     execute_syscall_from_selector(syscall_executor, vm, selector)
 }
 
-pub trait RevertableError {
-    fn revert_data(&self) -> Option<Vec<Felt>>;
+pub enum SelfOrRevert<T> {
+    Original(T),
+    Revert(Vec<Felt>),
+}
+
+pub trait TryExtractRevert {
+    fn try_extract_revert(self) -> SelfOrRevert<Self>
+    where
+        Self: Sized;
 }
 
 #[derive(Debug, thiserror::Error)]

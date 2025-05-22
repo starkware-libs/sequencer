@@ -67,7 +67,7 @@ use crate::execution::syscalls::vm_syscall_utils::{
     MetaTxV0Response,
     ReplaceClassRequest,
     ReplaceClassResponse,
-    RevertableError,
+    SelfOrRevert,
     SendMessageToL1Request,
     SendMessageToL1Response,
     Sha256ProcessBlockRequest,
@@ -81,6 +81,7 @@ use crate::execution::syscalls::vm_syscall_utils::{
     SyscallRequest,
     SyscallSelector,
     SyscallUsageMap,
+    TryExtractRevert,
 };
 use crate::state::errors::StateError;
 use crate::state::state_api::State;
@@ -132,11 +133,11 @@ pub enum SyscallExecutionError {
     Revert { error_data: Vec<Felt> },
 }
 
-impl RevertableError for SyscallExecutionError {
-    fn revert_data(&self) -> Option<Vec<Felt>> {
+impl TryExtractRevert for SyscallExecutionError {
+    fn try_extract_revert(self) -> SelfOrRevert<Self> {
         match self {
-            Self::Revert { error_data } => Some(error_data.clone()),
-            _ => None,
+            Self::Revert { error_data } => SelfOrRevert::Revert(error_data),
+            _ => SelfOrRevert::Original(self),
         }
     }
 }

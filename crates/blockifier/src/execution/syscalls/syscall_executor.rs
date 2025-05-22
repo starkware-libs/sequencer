@@ -44,7 +44,6 @@ use crate::execution::syscalls::vm_syscall_utils::{
     MetaTxV0Response,
     ReplaceClassRequest,
     ReplaceClassResponse,
-    RevertableError,
     SendMessageToL1Request,
     SendMessageToL1Response,
     Sha256ProcessBlockRequest,
@@ -55,10 +54,11 @@ use crate::execution::syscalls::vm_syscall_utils::{
     StorageWriteResponse,
     SyscallExecutorBaseError,
     SyscallSelector,
+    TryExtractRevert,
 };
 
 pub trait SyscallExecutor {
-    type Error: From<SyscallExecutorBaseError> + RevertableError;
+    type Error: From<SyscallExecutorBaseError> + TryExtractRevert;
 
     fn read_next_syscall_selector(&mut self, vm: &mut VirtualMachine) -> SyscallResult<Felt> {
         Ok(felt_from_ptr(vm, self.get_mut_syscall_ptr())?)
