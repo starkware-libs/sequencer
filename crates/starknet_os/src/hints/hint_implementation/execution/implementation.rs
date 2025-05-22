@@ -639,9 +639,13 @@ pub(crate) fn check_new_deploy_response<S: StateReader>(
 }
 
 pub(crate) fn initial_ge_required_gas<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let initial_gas = get_integer_from_var_name(Ids::InitialGas.into(), vm, ids_data, ap_tracking)?;
+    let required_gas =
+        get_integer_from_var_name(Ids::RequiredGas.into(), vm, ids_data, ap_tracking)?;
+    insert_value_into_ap(vm, Felt::from(initial_gas >= required_gas))?;
+    Ok(())
 }
 
 pub(crate) fn set_ap_to_tx_nonce<S: StateReader>(
