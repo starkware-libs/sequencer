@@ -21,7 +21,7 @@ use blockifier::execution::syscalls::vm_syscall_utils::{
     MetaTxV0Response,
     ReplaceClassRequest,
     ReplaceClassResponse,
-    RevertableError,
+    SelfOrRevert,
     SendMessageToL1Request,
     SendMessageToL1Response,
     Sha256ProcessBlockRequest,
@@ -32,12 +32,12 @@ use blockifier::execution::syscalls::vm_syscall_utils::{
     StorageWriteResponse,
     SyscallExecutorBaseError,
     SyscallSelector,
+    TryExtractRevert,
 };
 use blockifier::state::state_api::StateReader;
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::execution_resources::GasAmount;
-use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 
@@ -47,10 +47,10 @@ pub enum SnosSyscallError {
     SyscallExecutorBase(#[from] SyscallExecutorBaseError),
 }
 
-impl RevertableError for SnosSyscallError {
-    fn revert_data(&self) -> Option<Vec<Felt>> {
+impl TryExtractRevert for SnosSyscallError {
+    fn try_extract_revert(self) -> SelfOrRevert<Self> {
         // No revert case in this error enum.
-        None
+        SelfOrRevert::Original(self)
     }
 }
 
