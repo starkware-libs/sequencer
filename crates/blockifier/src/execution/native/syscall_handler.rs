@@ -586,7 +586,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
                 hi: u128::from(state[2]) | (u128::from(state[3]) << 64),
                 lo: u128::from(state[0]) | (u128::from(state[1]) << 64),
             }),
-            Err(err) => Err(self.handle_error(remaining_gas, err)),
+            Err(err) => Err(self.handle_error(remaining_gas, err.into())),
         }
     }
 
