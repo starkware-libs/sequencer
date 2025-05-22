@@ -51,14 +51,14 @@ class ServiceApp(Construct):
             "service": Names.to_label_value(self, include_hash=False),
         }
         self.service_topology = service_topology
-        self.node_config = service_topology.config.get_config()
+        self.node_config = service_topology.config.load()
         self.monitoring_endpoint_port = self._get_config_attr("monitoring_endpoint_config.port")
 
         self.config_map = k8s.KubeConfigMap(
             self,
             "configmap",
             metadata=k8s.ObjectMeta(name=f"{self.node.id}-config"),
-            data=dict(config=json.dumps(self.service_topology.config.get_config(), indent=2)),
+            data=dict(config=json.dumps(self.node_config, indent=2)),
         )
 
         self.service = k8s.KubeService(
