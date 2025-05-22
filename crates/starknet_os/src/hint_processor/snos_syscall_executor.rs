@@ -38,6 +38,8 @@ use blockifier::execution::syscalls::vm_syscall_utils::{
 };
 use blockifier::state::state_api::StateReader;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
+use cairo_vm::vm::errors::hint_errors::HintError;
+use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::execution_resources::GasAmount;
 use starknet_types_core::felt::Felt;
@@ -49,6 +51,14 @@ use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 pub enum SnosSyscallError {
     #[error(transparent)]
     SyscallExecutorBase(#[from] SyscallExecutorBaseError),
+}
+
+// Needed for custom hint implementations (in our case, syscall hints) which must comply with the
+// cairo-rs API.
+impl From<SnosSyscallError> for HintError {
+    fn from(error: SnosSyscallError) -> Self {
+        HintError::Internal(VirtualMachineError::Other(error.into()))
+    }
 }
 
 impl TryExtractRevert for SnosSyscallError {
