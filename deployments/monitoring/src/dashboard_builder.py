@@ -1,11 +1,11 @@
-import click
-import logging
 import datetime
 import json
+import logging
 import os
-import requests
 import time
 
+import click
+import requests
 from grafana10_objects import empty_dashboard, row_object, templating_object
 
 

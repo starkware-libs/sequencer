@@ -1,7 +1,6 @@
 import dataclasses
 import typing
 
-
 from services.config import SequencerConfig
 
 
