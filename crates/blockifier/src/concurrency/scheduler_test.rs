@@ -109,23 +109,6 @@ fn test_commit_flow(
 }
 
 #[rstest]
-#[case::reduces_validation_index(0, 3)]
-#[case::does_not_reduce_validation_index(1, 0)]
-fn test_finish_execution_during_commit(
-    #[case] tx_index: TxIndex,
-    #[case] validation_index: TxIndex,
-) {
-    let target_index = tx_index + 1;
-    let scheduler = Scheduler {
-        validation_index: validation_index.into(),
-        ..Scheduler::new(DEFAULT_CHUNK_SIZE)
-    };
-    scheduler.finish_execution_during_commit(tx_index);
-    let expected_validation_index = min(target_index, validation_index);
-    assert_eq!(scheduler.validation_index.load(Ordering::Acquire), expected_validation_index);
-}
-
-#[rstest]
 #[case::happy_flow(TransactionStatus::Executing)]
 #[should_panic(expected = "Only executing transactions can gain status executed. Transaction 0 \
                            is not executing. Transaction status: ReadyToExecute.")]
@@ -186,20 +169,24 @@ fn test_set_ready_status(#[case] tx_status: TransactionStatus) {
 }
 
 #[rstest]
-#[case::abort_validation(TransactionStatus::Executed)]
-#[case::wrong_status_ready(TransactionStatus::ReadyToExecute)]
-#[case::wrong_status_executing(TransactionStatus::Executing)]
-#[case::wrong_status_aborted(TransactionStatus::Aborting)]
-#[case::wrong_status_committed(TransactionStatus::Committed)]
-fn test_try_validation_abort(#[case] tx_status: TransactionStatus) {
+#[case::abort_validation(TransactionStatus::Executed, false)]
+#[case::wrong_status_ready(TransactionStatus::ReadyToExecute, false)]
+#[case::wrong_status_executing(TransactionStatus::Executing, false)]
+#[case::wrong_status_aborted(TransactionStatus::Aborting, false)]
+#[case::wrong_status_committed(TransactionStatus::Committed, false)]
+#[case::abort_committed(TransactionStatus::Committed, true)]
+fn test_try_validation_abort(#[case] tx_status: TransactionStatus, #[case] abort_committed: bool) {
     let tx_index = 0;
     let scheduler = Scheduler::new(DEFAULT_CHUNK_SIZE);
     scheduler.set_tx_status(tx_index, tx_status);
-    let result = scheduler.try_validation_abort(tx_index);
-    assert_eq!(result, tx_status == TransactionStatus::Executed);
-    if result {
-        assert_eq!(*scheduler.lock_tx_status(tx_index), TransactionStatus::Aborting);
-    }
+    let result = scheduler.try_validation_abort(tx_index, abort_committed);
+    let (expected_result, expected_status) = match tx_status {
+        TransactionStatus::Executed => (true, TransactionStatus::Aborting),
+        TransactionStatus::Committed if abort_committed => (true, TransactionStatus::Aborting),
+        _ => (false, tx_status),
+    };
+    assert_eq!(result, expected_result);
+    assert_eq!(*scheduler.lock_tx_status(tx_index), expected_status);
 }
 
 #[rstest]
