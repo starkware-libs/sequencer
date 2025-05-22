@@ -1,8 +1,7 @@
 #!/usr/bin/env python
-from constructs import Construct
 from cdk8s import App, Chart, Names, YamlOutputType
+from constructs import Construct
 from imports import k8s
-
 
 SERVICE_NAME = "dummy-eth2strk-oracle"
 SERVICE_PORT = 9000
