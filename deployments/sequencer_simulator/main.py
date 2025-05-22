@@ -1,12 +1,13 @@
 #!/usr/bin/env python
-from constructs import Construct
-from cdk8s import App, Chart, Names, YamlOutputType
-from imports import k8s
-
-from typing import Dict
+import argparse
 import json
 import os
-import argparse
+from typing import Dict
+
+from cdk8s import App, Chart, Names, YamlOutputType
+from constructs import Construct
+from imports import k8s
+
 
 def argument_parser():
   parser = argparse.ArgumentParser()

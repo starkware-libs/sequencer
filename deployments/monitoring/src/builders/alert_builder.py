@@ -1,26 +1,18 @@
 #!/usr/bin/env python3
 
+import argparse
 import json
 import os
-import argparse
-
 from typing import Optional
-from tenacity import retry, stop_after_attempt, wait_fixed, before_sleep_log
-from grafana_client import GrafanaApi
-from grafana_client.client import (
-    GrafanaException,
-    GrafanaClientError,
-    GrafanaServerError,
-    GrafanaBadInputError,
-)
 
+from common.grafana10_objects import (alert_expression_model_object,
+                                      alert_query_model_object,
+                                      alert_query_object, alert_rule_object)
 from common.helpers import get_logger
-from common.grafana10_objects import (
-    alert_rule_object,
-    alert_query_object,
-    alert_query_model_object,
-    alert_expression_model_object,
-)
+from grafana_client import GrafanaApi
+from grafana_client.client import (GrafanaBadInputError, GrafanaClientError,
+                                   GrafanaException, GrafanaServerError)
+from tenacity import before_sleep_log, retry, stop_after_attempt, wait_fixed
 
 
 def create_alert_expression_model(conditions: list[dict[str, any]]):
