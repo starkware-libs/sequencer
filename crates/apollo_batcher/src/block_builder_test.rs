@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::sync::Arc;
 
 use apollo_class_manager_types::transaction_converter::TransactionConverter;
@@ -72,7 +71,7 @@ fn output_channel()
 
 fn block_execution_artifacts(
     execution_infos: IndexMap<TransactionHash, TransactionExecutionInfo>,
-    rejected_tx_hashes: HashSet<TransactionHash>,
+    rejected_tx_hashes: IndexSet<TransactionHash>,
     consumed_l1_handler_tx_hashes: IndexSet<TransactionHash>,
 ) -> BlockExecutionArtifacts {
     let l2_gas_used = GasAmount(execution_infos.len().try_into().unwrap());
@@ -290,7 +289,7 @@ fn stream_done_test_expectations() -> TestExpectations {
 fn transaction_failed_test_expectations() -> TestExpectations {
     let input_invoke_txs = test_txs(0..3);
     let input_l1_handler_txs = test_l1_handler_txs(3..6);
-    let failed_tx_hashes = HashSet::from([tx_hash!(1), tx_hash!(4)]);
+    let failed_tx_hashes = IndexSet::from([tx_hash!(1), tx_hash!(4)]);
     let consumed_l1_handler_tx_hashes: IndexSet<_> =
         input_l1_handler_txs.iter().map(|tx| tx.tx_hash()).collect();
     let input_txs = input_invoke_txs.into_iter().chain(input_l1_handler_txs);

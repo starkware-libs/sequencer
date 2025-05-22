@@ -1,5 +1,6 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
+use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
@@ -31,7 +32,7 @@ pub struct AddTransactionArgs {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct CommitBlockArgs {
     pub address_to_nonce: HashMap<ContractAddress, Nonce>,
-    pub rejected_tx_hashes: HashSet<TransactionHash>,
+    pub rejected_tx_hashes: IndexSet<TransactionHash>,
 }
 
 pub type MempoolResult<T> = Result<T, MempoolError>;
