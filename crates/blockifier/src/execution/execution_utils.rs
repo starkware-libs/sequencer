@@ -115,6 +115,8 @@ pub fn execute_entry_point_call(
     state: &mut dyn State,
     context: &mut EntryPointExecutionContext,
 ) -> EntryPointExecutionResult<CallInfo> {
+    let current_call_counter = context.call_counter;
+    context.call_counter += 1;
     let pre_time = std::time::Instant::now();
     let mut result = match compiled_class {
         RunnableCompiledClass::V0(compiled_class) => {
@@ -152,6 +154,7 @@ pub fn execute_entry_point_call(
         }
     }?;
     result.time = pre_time.elapsed();
+    result.call_counter = current_call_counter;
     Ok(result)
 }
 

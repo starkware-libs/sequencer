@@ -394,6 +394,7 @@ pub fn finalize_execution(
         read_class_hash_values: syscall_handler_base.read_class_hash_values,
         accessed_contract_addresses: syscall_handler_base.accessed_contract_addresses,
         time: std::time::Duration::default(),
+        call_counter: 0,
     })
 }
 
