@@ -1,7 +1,5 @@
-use std::collections::HashSet;
-
 use apollo_l1_provider_types::{InvalidValidationStatus, ValidationStatus};
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
 
@@ -11,7 +9,7 @@ use crate::soft_delete_index_map::SoftDeleteIndexMap;
 pub struct TransactionManager {
     pub uncommitted: SoftDeleteIndexMap,
     pub rejected: SoftDeleteIndexMap,
-    pub committed: HashSet<TransactionHash>,
+    pub committed: IndexSet<TransactionHash>,
 }
 
 impl TransactionManager {
@@ -103,7 +101,7 @@ impl TransactionManager {
         self.uncommitted.insert(tx)
     }
 
-    pub fn committed_includes(&self, tx_hashes: &[TransactionHash]) -> bool {
-        tx_hashes.iter().all(|tx| self.committed.contains(tx))
+    pub fn committed_includes(&self, tx_hashes: &IndexSet<TransactionHash>) -> bool {
+        self.committed.is_superset(tx_hashes)
     }
 }

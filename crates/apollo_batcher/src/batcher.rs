@@ -578,11 +578,7 @@ impl Batcher {
 
         let l1_provider_result = self
             .l1_provider_client
-            .commit_block(
-                consumed_l1_handler_tx_hashes.iter().copied().collect(),
-                rejected_l1_handler_tx_hashes,
-                height,
-            )
+            .commit_block(consumed_l1_handler_tx_hashes, rejected_l1_handler_tx_hashes, height)
             .await;
 
         // Return error if the commit to the L1 provider failed.

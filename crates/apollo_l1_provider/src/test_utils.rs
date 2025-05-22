@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::mem;
 use std::sync::Mutex;
 
@@ -128,7 +127,7 @@ impl L1ProviderContentBuilder {
 struct TransactionManagerContent {
     pub uncommitted: Option<Vec<L1HandlerTransaction>>,
     pub rejected: Option<Vec<L1HandlerTransaction>>,
-    pub committed: Option<HashSet<TransactionHash>>,
+    pub committed: Option<IndexSet<TransactionHash>>,
 }
 
 impl TransactionManagerContent {
@@ -169,7 +168,7 @@ impl From<TransactionManagerContent> for TransactionManager {
 struct TransactionManagerContentBuilder {
     uncommitted: Option<Vec<L1HandlerTransaction>>,
     rejected: Option<Vec<L1HandlerTransaction>>,
-    committed: Option<HashSet<TransactionHash>>,
+    committed: Option<IndexSet<TransactionHash>>,
 }
 
 impl TransactionManagerContentBuilder {
@@ -258,7 +257,7 @@ impl L1ProviderClient for FakeL1ProviderClient {
 
     async fn commit_block(
         &self,
-        l1_handler_tx_hashes: Vec<TransactionHash>,
+        l1_handler_tx_hashes: IndexSet<TransactionHash>,
         _rejected_l1_handler_tx_hashes: IndexSet<TransactionHash>,
         height: BlockNumber,
     ) -> L1ProviderClientResult<()> {
