@@ -53,6 +53,10 @@ fn scheduler_flow_test(
                             state_proxy.apply_writes(&new_writes, &ContractClassMapping::default());
                             scheduler.finish_execution_during_commit(tx_index);
                         }
+                        if tx_index == DEFAULT_CHUNK_SIZE - 1 {
+                            scheduler.halt();
+                            break;
+                        }
                     }
                 }
                 task = match task {

@@ -180,7 +180,11 @@ impl<S: StateReader> WorkerExecutor<S> {
                     panic!("Commit transaction should not be called after clearing the state.");
                 });
                 match commit_result {
-                    CommitResult::Success => {}
+                    CommitResult::Success => {
+                        if tx_index == self.chunk.len() - 1 {
+                            self.scheduler.halt();
+                        }
+                    }
                     CommitResult::NoRoomInBlock => {
                         tx_committer.uncommit();
                         self.scheduler.halt();
