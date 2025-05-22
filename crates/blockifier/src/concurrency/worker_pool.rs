@@ -53,9 +53,12 @@ impl<S: StateReader + Send + 'static> WorkerPool<S> {
                 // The gas upper bound is MAX_POSSIBLE_SIERRA_GAS, and sequencers must not raise it
                 // without adjusting the stack size.
                 thread_builder = thread_builder.stack_size(stack_size);
-                let a_thread_panicked = a_thread_panicked.clone();
+                let worker_thread = WorkerThread {
+                    a_thread_panicked: a_thread_panicked.clone(),
+                    receiver,
+                };
                 thread_builder
-                    .spawn(move || WorkerPool::_run_thread(a_thread_panicked, receiver))
+                    .spawn(move || worker_thread.run_thread())
                     .expect("Failed to spawn thread.")
             })
             .collect();
@@ -83,22 +86,26 @@ impl<S: StateReader + Send + 'static> WorkerPool<S> {
             handler.join().expect("Failed to join thread.");
         }
     }
+}
 
+struct WorkerThread<S: StateReader> {
+    a_thread_panicked: Arc<AtomicBool>,
+    receiver: mpsc::Receiver<Option<Arc<WorkerExecutor<S>>>>,
+}
+
+impl<S: StateReader> WorkerThread<S> {
     /// Fetches worker executors from the channel, until None is received.
-    fn _run_thread(
-        a_thread_panicked: Arc<AtomicBool>,
-        receiver: mpsc::Receiver<Option<Arc<WorkerExecutor<S>>>>,
-    ) {
+    fn run_thread(&self) {
         while let Some(worker_executor) =
-            receiver.recv().expect("Failed to receive worker executor.")
+            self.receiver.recv().expect("Failed to receive worker executor.")
         {
-            WorkerPool::_run_executor(a_thread_panicked.clone(), &*worker_executor);
+            self._run_executor(&*worker_executor);
         }
     }
 
     /// Runs a single worker executor.
-    fn _run_executor(a_thread_panicked: Arc<AtomicBool>, worker_executor: &WorkerExecutor<S>) {
-        if a_thread_panicked.load(Ordering::Acquire) {
+    fn _run_executor(&self, worker_executor: &WorkerExecutor<S>) {
+        if self.a_thread_panicked.load(Ordering::Acquire) {
             panic!("Another thread panicked. Aborting.");
         }
 
@@ -112,7 +119,7 @@ impl<S: StateReader + Send + 'static> WorkerPool<S> {
         }));
         if let Err(err) = res {
             // First, set the panic flag. This must be done before halting the scheduler.
-            a_thread_panicked.store(true, Ordering::Release);
+            self.a_thread_panicked.store(true, Ordering::Release);
 
             // If the program panics here, the abort guard will exit the program.
             // In this case, no panic message will be logged. Add the cargo flag
