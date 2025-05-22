@@ -13,7 +13,6 @@ from imports.alerts.co.starkware.grafana import (
     SharedGrafanaAlertRuleGroupSpecRulesExecErrState,
     SharedGrafanaAlertRuleGroupSpecRulesNoDataState,
 )
-from imports.co.starkware.grafana import SharedGrafanaDashboard, SharedGrafanaDashboardSpec
 from imports.dashboards.co.starkware.grafana import (
     SharedGrafanaDashboard,
     SharedGrafanaDashboardSpec,

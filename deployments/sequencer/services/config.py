@@ -39,7 +39,7 @@ class Config(ABC):
         if not os.access(dir_path, os.R_OK):
             raise ValueError(f"Directory path {dir_path} is not readable")
 
-    def _try_load(file_path: str, file_description: str) -> dict:
+    def _try_load(self, file_path: str, file_description: str) -> dict:
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 return json.load(f)
