@@ -554,7 +554,10 @@ pub(crate) fn execute_syscall_from_selector<T: SyscallExecutor>(
     syscall_executor: &mut T,
     vm: &mut VirtualMachine,
     selector: SyscallSelector,
-) -> HintExecutionResult {
+) -> HintExecutionResult
+where
+    HintError: From<<T as SyscallExecutor>::Error>,
+{
     match selector {
         SyscallSelector::CallContract => {
             execute_syscall(syscall_executor, vm, selector, T::call_contract)
@@ -647,6 +650,7 @@ fn execute_syscall<Request, Response, ExecuteCallback, Executor>(
 ) -> HintExecutionResult
 where
     Executor: SyscallExecutor,
+    HintError: From<<Executor as SyscallExecutor>::Error>,
     Request: SyscallRequest + std::fmt::Debug,
     Response: SyscallResponse + std::fmt::Debug,
     ExecuteCallback: FnOnce(
@@ -729,7 +733,10 @@ pub fn execute_next_syscall<T: SyscallExecutor>(
     syscall_executor: &mut T,
     vm: &mut VirtualMachine,
     hint: &StarknetHint,
-) -> HintExecutionResult {
+) -> HintExecutionResult
+where
+    HintError: From<<T as SyscallExecutor>::Error>,
+{
     let StarknetHint::SystemCall { .. } = hint else {
         return Err(HintError::Internal(VirtualMachineError::Other(anyhow::anyhow!(
             "Test functions are unsupported on starknet."

@@ -1,4 +1,5 @@
 use cairo_vm::types::relocatable::Relocatable;
+use cairo_vm::vm::errors::hint_errors::HintError;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_traits::ToPrimitive;
 use starknet_api::execution_resources::GasAmount;
@@ -58,7 +59,7 @@ use crate::execution::syscalls::vm_syscall_utils::{
 };
 
 pub trait SyscallExecutor {
-    type Error: From<SyscallExecutorBaseError> + TryExtractRevert;
+    type Error: From<SyscallExecutorBaseError> + TryExtractRevert + Into<HintError>;
 
     fn read_next_syscall_selector(&mut self, vm: &mut VirtualMachine) -> SyscallResult<Felt> {
         Ok(felt_from_ptr(vm, self.get_mut_syscall_ptr())?)
