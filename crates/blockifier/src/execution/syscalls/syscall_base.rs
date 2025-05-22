@@ -447,6 +447,21 @@ impl<'state> SyscallHandlerBase<'state> {
             .original_values = std::mem::take(&mut self.original_values);
     }
 
+    pub(crate) fn maybe_block_direct_execute_call(
+        &mut self,
+        selector: EntryPointSelector,
+    ) -> SyscallResult<()> {
+        let versioned_constants = &self.context.tx_context.block_context.versioned_constants;
+        if versioned_constants.block_direct_execute_call
+            && selector == selector_from_name(EXECUTE_ENTRY_POINT_NAME)
+        {
+            return Err(SyscallExecutionError::Revert {
+                error_data: vec![Felt::from_hex(INVALID_ARGUMENT).unwrap()],
+            });
+        }
+        Ok(())
+    }
+
     fn reject_syscall_in_validate_mode(&self, syscall_name: &str) -> SyscallBaseResult<()> {
         Err(SyscallExecutorBaseError::InvalidSyscallInExecutionMode {
             syscall_name: syscall_name.to_string(),
