@@ -266,7 +266,7 @@
   "monitoring_endpoint_config.collect_metrics": true,
   "monitoring_endpoint_config.collect_profiling_metrics": true,
   "monitoring_endpoint_config.ip": "0.0.0.0",
-  "monitoring_endpoint_config.port": 53380,
+  "monitoring_endpoint_config.port": 8082,
   "recorder_url": "http://127.0.0.1:53261/",
   "revert_config.revert_up_to_and_including": 18446744073709551615,
   "revert_config.should_revert": false,
