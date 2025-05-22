@@ -20,7 +20,7 @@ use starknet_types_core::felt::{Felt, FromStrError};
 use crate::abi::sierra_types::SierraTypeError;
 use crate::blockifier_versioned_constants::{EventLimits, GasCostsError, VersionedConstants};
 use crate::execution::call_info::MessageToL1;
-use crate::execution::common_hints::{ExecutionMode, HintExecutionResult};
+use crate::execution::common_hints::ExecutionMode;
 use crate::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallExecutionError;
 use crate::execution::deprecated_syscalls::DeprecatedSyscallSelector;
 use crate::execution::execution_utils::{
@@ -581,7 +581,7 @@ pub(crate) fn execute_syscall_from_selector<T: SyscallExecutor>(
     syscall_executor: &mut T,
     vm: &mut VirtualMachine,
     selector: SyscallSelector,
-) -> HintExecutionResult {
+) -> Result<(), T::Error> {
     match selector {
         SyscallSelector::CallContract => {
             execute_syscall(syscall_executor, vm, selector, T::call_contract)
@@ -660,9 +660,10 @@ pub(crate) fn execute_syscall_from_selector<T: SyscallExecutor>(
         | SyscallSelector::GetTxInfo
         | SyscallSelector::GetTxSignature
         | SyscallSelector::KeccakRound
-        | SyscallSelector::LibraryCallL1Handler => Err(HintError::UnknownHint(
-            format!("Unsupported syscall selector {selector:?}.").into(),
-        )),
+        | SyscallSelector::LibraryCallL1Handler => Err(SyscallExecutorBaseError::from(
+            HintError::UnknownHint(format!("Unsupported syscall selector {selector:?}.").into()),
+        ))
+        .map_err(T::Error::from),
     }
 }
 
@@ -671,7 +672,7 @@ fn execute_syscall<Request, Response, ExecuteCallback, Executor>(
     vm: &mut VirtualMachine,
     selector: SyscallSelector,
     execute_callback: ExecuteCallback,
-) -> HintExecutionResult
+) -> Result<(), Executor::Error>
 where
     Executor: SyscallExecutor,
     Request: SyscallRequest + std::fmt::Debug,
@@ -738,7 +739,7 @@ where
             SelfOrRevert::Revert(data) => {
                 SyscallResponseWrapper::Failure { gas_counter: remaining_gas, error_data: data }
             }
-            SelfOrRevert::Original(err) => return Err(err.into()),
+            SelfOrRevert::Original(err) => return Err(err),
         },
     };
 
@@ -753,14 +754,16 @@ pub fn execute_next_syscall<T: SyscallExecutor>(
     syscall_executor: &mut T,
     vm: &mut VirtualMachine,
     hint: &StarknetHint,
-) -> HintExecutionResult {
+) -> Result<(), T::Error> {
     let StarknetHint::SystemCall { .. } = hint else {
-        return Err(HintError::Internal(VirtualMachineError::Other(anyhow::anyhow!(
+        return Err(VirtualMachineError::Other(anyhow::anyhow!(
             "Test functions are unsupported on starknet."
-        ))));
+        )))
+        .map_err(SyscallExecutorBaseError::from)?;
     };
 
-    let selector = SyscallSelector::try_from(syscall_executor.read_next_syscall_selector(vm)?)?;
+    let selector = SyscallSelector::try_from(syscall_executor.read_next_syscall_selector(vm)?)
+        .map_err(SyscallExecutorBaseError::from)?;
 
     // Keccak resource usage depends on the input length, so we increment the syscall count
     // in the syscall execution callback.
