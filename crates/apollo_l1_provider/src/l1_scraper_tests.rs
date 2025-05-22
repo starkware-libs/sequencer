@@ -69,7 +69,7 @@ fn receive_commit_block(
     committed: &IndexSet<TransactionHash>,
     height: BlockNumber,
 ) {
-    l1_provider.commit_block(&committed.iter().copied().collect(), &[].into(), height).unwrap();
+    l1_provider.commit_block(committed.iter().copied().collect(), [].into(), height).unwrap();
 }
 
 // TODO(Gilad): Replace EthereumBaseLayerContract with a mock that has a provider initialized with
