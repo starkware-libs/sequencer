@@ -119,8 +119,8 @@ impl L1Provider {
     #[instrument(skip(self), err)]
     pub fn commit_block(
         &mut self,
-        committed_txs: &IndexSet<TransactionHash>,
-        rejected_txs: &IndexSet<TransactionHash>,
+        committed_txs: IndexSet<TransactionHash>,
+        rejected_txs: IndexSet<TransactionHash>,
         height: BlockNumber,
     ) -> L1ProviderResult<()> {
         if self.state.is_bootstrapping() {
@@ -138,14 +138,14 @@ impl L1Provider {
     /// Try to apply commit_block backlog, and if all caught up, drop bootstrapping state.
     fn bootstrap(
         &mut self,
-        committed_txs: &IndexSet<TransactionHash>,
+        committed_txs: IndexSet<TransactionHash>,
         new_height: BlockNumber,
     ) -> L1ProviderResult<()> {
         let current_height = self.current_height;
         match new_height.cmp(&current_height) {
             // This is likely a bug in the batcher/sync, it should never be _behind_ the provider.
             Less => {
-                if self.tx_manager.committed_includes(committed_txs) {
+                if self.tx_manager.committed_includes(&committed_txs) {
                     error!(
                         "Duplicate commit block: commit block for {new_height:?} already \
                          received, and all committed transaction hashes already known to be \
@@ -166,7 +166,7 @@ impl L1Provider {
                     })?
                 }
             }
-            Equal => self.apply_commit_block(committed_txs, &Default::default()),
+            Equal => self.apply_commit_block(committed_txs, Default::default()),
             // We're still syncing, backlog it, it'll get applied later.
             Greater => {
                 self.state
@@ -199,7 +199,7 @@ impl L1Provider {
                 backlog.iter().map(|commit_block| commit_block.height).collect::<Vec<_>>()
             );
             for commit_block in backlog {
-                self.apply_commit_block(&commit_block.committed_txs, &Default::default());
+                self.apply_commit_block(commit_block.committed_txs, Default::default());
             }
 
             // Drops bootstrapper and all of its assets.
@@ -248,8 +248,8 @@ impl L1Provider {
 
     fn apply_commit_block(
         &mut self,
-        consumed_txs: &IndexSet<TransactionHash>,
-        rejected_txs: &IndexSet<TransactionHash>,
+        consumed_txs: IndexSet<TransactionHash>,
+        rejected_txs: IndexSet<TransactionHash>,
     ) {
         let (rejected_and_consumed, committed_txs): (Vec<_>, Vec<_>) =
             consumed_txs.iter().copied().partition(|tx| rejected_txs.contains(tx));
