@@ -92,7 +92,8 @@ fn test_commit_flow(
         assert_eq!(index, commit_index);
     }
     if should_halt {
-        tx_committer.halt_scheduler();
+        tx_committer.uncommit();
+        scheduler.halt();
     }
     drop(tx_committer);
     if commit_index_tx_status == TransactionStatus::Executed {
