@@ -44,6 +44,7 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
             vec![],
             block_context.into(),
             Mutex::new(Bouncer::new(bouncer_config)).into(),
+            None, // TODO: pass execution deadline.
         ));
         worker_pool.run(worker_executor.clone());
 
