@@ -18,11 +18,17 @@ use crate::state::state_api::{StateReader, StateResult};
 use crate::state::stateful_compression::{allocate_aliases_in_storage, compress};
 use crate::transaction::transaction_execution::Transaction;
 
+#[cfg(test)]
+#[path = "concurrent_transaction_executor_test.rs"]
+pub mod concurrent_transaction_executor_test;
+
 pub struct ConcurrentTransactionExecutor<S: StateReader> {
     // TODO: Remove `pub`.
     pub worker_executor: Arc<WorkerExecutor<CachedState<S>>>,
+    worker_pool: Arc<WorkerPool<CachedState<S>>>,
 }
 
+// TODO: Add a unit test.
 impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
     pub fn start_block(
         initial_state_reader: S,
@@ -48,18 +54,22 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
         ));
         worker_pool.run(worker_executor.clone());
 
-        Ok(Self { worker_executor })
+        Ok(Self { worker_executor, worker_pool: worker_pool.clone() })
     }
 
     pub fn add_transactions_and_wait(
         &mut self,
         txs: &[Transaction],
     ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
-        self.worker_executor.add_transactions_and_wait(txs)
+        let (from_tx, to_tx) = self.worker_executor.add_transactions(txs);
+        self.worker_executor.scheduler.wait_for_completion(to_tx);
+        self.worker_pool.check_panic();
+        self.worker_executor.extract_execution_outputs(from_tx, to_tx)
     }
 
     pub fn close_block(&mut self) -> TransactionExecutorResult<BlockExecutionSummary> {
         let worker_executor = &self.worker_executor;
+        worker_executor.scheduler.halt();
         log::debug!(
             "Final block weights: {:?}.",
             worker_executor.bouncer.lock().expect("Bouncer lock failed.").get_accumulated_weights()

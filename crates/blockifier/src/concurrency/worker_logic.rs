@@ -173,26 +173,22 @@ impl<S: StateReader> WorkerExecutor<S> {
         *n_transactions_lock += 1;
     }
 
-    pub fn add_transactions_and_wait(
+    pub fn add_transactions(
         &self,
         txs: &[Transaction],
-    ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
-        let (from_tx, to_tx) = {
-            let mut n_transactions_lock =
-                self.n_transactions.lock().expect("Failed to lock n_transactions");
-            let from_tx = *n_transactions_lock;
-            let n_new_transactions = txs.len();
-            for (i, tx) in txs.iter().enumerate() {
-                self.transactions.insert(from_tx + i, Arc::new(tx.clone()));
-            }
-            let to_tx = from_tx + n_new_transactions;
-            *n_transactions_lock = to_tx;
-            (from_tx, to_tx)
-        };
-
-        // TODO: Wait for the transactions to be executed and check the panic flag.
-
-        self.extract_execution_outputs(from_tx, to_tx)
+    ) -> (TxIndex, TxIndex) {
+        let mut n_transactions_lock =
+            self.n_transactions.lock().expect("Failed to lock n_transactions");
+        let from_tx = *n_transactions_lock;
+        let n_new_transactions = txs.len();
+        for (i, tx) in txs.iter().enumerate() {
+            self.transactions.insert(from_tx + i, Arc::new(tx.clone()));
+            // Notify the scheduler that a new transaction is available.
+            self.scheduler.new_transaction(from_tx + i);
+        }
+        let to_tx = from_tx + n_new_transactions;
+        *n_transactions_lock = to_tx;
+        (from_tx, to_tx)
     }
 
     /// Extracts the outputs of the committed transactions in the range [from_tx, to_tx).
@@ -223,10 +219,6 @@ impl<S: StateReader> WorkerExecutor<S> {
         self.transactions.get(&tx_index).expect("Transaction missing").value().clone()
     }
 
-    fn get_n_transactions(&self) -> usize {
-        *self.n_transactions.lock().expect("Failed to lock n_transactions")
-    }
-
     fn commit_while_possible(&self) {
         if let Some(mut tx_committer) = self.scheduler.try_enter_commit_phase() {
             while let Some(tx_index) = tx_committer.try_commit() {
@@ -234,11 +226,7 @@ impl<S: StateReader> WorkerExecutor<S> {
                     panic!("Commit transaction should not be called after clearing the state.");
                 });
                 match commit_result {
-                    CommitResult::Success => {
-                        if tx_index == self.get_n_transactions() - 1 {
-                            self.scheduler.halt();
-                        }
-                    }
+                    CommitResult::Success => {}
                     CommitResult::NoRoomInBlock => {
                         tx_committer.uncommit();
                         self.scheduler.halt();

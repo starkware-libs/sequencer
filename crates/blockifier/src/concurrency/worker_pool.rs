@@ -79,6 +79,12 @@ impl<S: StateReader + Send + 'static> WorkerPool<S> {
 
         worker_executor.scheduler.wait_for_completion(target_n_txs);
 
+        worker_executor.scheduler.halt();
+
+        self.check_panic();
+    }
+
+    pub fn check_panic(&self) {
         if self.a_thread_panicked.load(Ordering::Acquire) {
             panic!("One of the threads panicked.");
         }
