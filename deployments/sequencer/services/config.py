@@ -1,60 +1,150 @@
 import json
 import os
-from typing import Dict, Any, List
-from jsonschema import validate, ValidationError
+from abc import ABC, abstractmethod
+from pathlib import Path
+from typing import Any, Dict, List
+
+import jsonschema
 
 
-class DeploymentConfig:
-    SCHEMA_FILE = "deployment_config_schema.json"
+class Config(ABC):
+    @abstractmethod
+    def load(self):
+        pass
+
+    @abstractmethod
+    def _validate(self):
+        pass
+
+    def _validate_file(
+        self, file_path: str, must_be_json: bool = True, must_be_readable: bool = True
+    ) -> None:
+        """Validate that a file path exists, is a file, and optionally is a JSON file and readable."""
+        path = Path(file_path)
+        if not path.exists():
+            raise ValueError(f"File path {file_path} does not exist")
+        if not path.is_file():
+            raise ValueError(f"File path {file_path} is not a file")
+        if must_be_json and not file_path.endswith(".json"):
+            raise ValueError(f"File path {file_path} is not a JSON file")
+        if must_be_readable and not os.access(file_path, os.R_OK):
+            raise ValueError(f"File path {file_path} is not readable")
+
+    def _validate_directory(self, dir_path: str) -> None:
+        path = Path(dir_path)
+        if not path.is_dir():
+            raise ValueError(f"Directory path {dir_path} is not a directory")
+        if not path.exists():
+            raise ValueError(f"Directory path {dir_path} does not exist")
+        if not os.access(dir_path, os.R_OK):
+            raise ValueError(f"Directory path {dir_path} is not readable")
+
+
+class DeploymentConfig(Config):
+    SCHEMA_FILE = "./schemas/deployment_config_schema.json"
 
     def __init__(self, deployment_config_file: str):
         self.deployment_config_file_path = deployment_config_file
-        self._deployment_config_data = self._read_deployment_config_file()
+        self._validate()
+        self._deployment_config_data = self.load()
         self._schema = self._load_schema()
-        self._validate_deployment_config()
+        self._validate_schema()
 
-    def _validate_deployment_config(self):
+    def _validate(self) -> None:
+        self._validate_file(self.deployment_config_file_path)
+        self._validate_file(self.SCHEMA_FILE)
+
+    def _validate_schema(self) -> None:
         try:
-            validate(instance=self._deployment_config_data, schema=self._schema)
-        except ValidationError as e:
+            jsonschema.validate(instance=self._deployment_config_data, schema=self._schema)
+        except jsonschema.ValidationError as e:
             raise ValueError(f"Invalid deployment config file: {e.message}")
+        except jsonschema.SchemaError as e:
+            raise ValueError(f"Invalid schema file: {e.message}")
 
-    def _load_schema(self):
-        with open(self.SCHEMA_FILE) as f:
-            return json.load(f)
+    def _load_schema(self) -> dict:
+        try:
+            with open(self.SCHEMA_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Schema file {self.SCHEMA_FILE} is not valid JSON: {str(e)}")
 
-    def _read_deployment_config_file(self):
-        with open(self.deployment_config_file_path) as f:
-            return json.loads(f.read())
+    def load(self) -> dict:
+        try:
+            with open(self.deployment_config_file_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except json.JSONDecodeError as e:
+            raise ValueError(
+                f"Deployment config file {self.deployment_config_file_path} is not valid JSON: {str(e)}"
+            )
 
-    def get_chain_id(self):
+    def get_chain_id(self) -> str | None:
         return self._deployment_config_data.get("chain_id")
 
-    def get_application_config_subdir(self):
+    def get_application_config_subdir(self) -> str | None:
         return self._deployment_config_data.get("application_config_subdir")
 
-    def get_services(self):
-        return [service for service in self._deployment_config_data.get("services", [])]
+    def get_services(self) -> List[dict]:
+        return self._deployment_config_data.get("services", [])
 
 
-class SequencerConfig:
+class SequencerConfig(Config):
     ROOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../../")
 
     def __init__(self, config_subdir: str, config_paths: List[str]):
         self.config_subdir = os.path.join(self.ROOT_DIR, config_subdir)
         self.config_paths = config_paths
 
-    def get_config(self) -> Dict[Any, Any]:
+    def _validate(self):
+        self._validate_directory(self.config_subdir)
+        for config_path in self.config_paths:
+            self._validate_file(os.path.join(self.config_subdir, config_path))
+
+    def load(self) -> Dict[Any, Any]:
         result = {}
         for config_path in self.config_paths:
             path = os.path.join(self.config_subdir, config_path)
-            with open(path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                if not isinstance(data, dict):
-                    raise ValueError(f"File {path} does not contain a JSON object")
-                result.update(data)  # later values overwrite previous
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    result.update(data)  # later values overwrite previous
+            except json.JSONDecodeError as e:
+                raise ValueError(f"Config file {path} is not valid JSON: {str(e)}")
 
         return result
 
-    def validate(self):
-        pass
+
+class GrafanaDashboardConfig(Config):
+    def __init__(self, dashboard_file_path: str):
+        self.dashboard_file_path = os.path.abspath(dashboard_file_path)
+        self._validate()
+
+    def _validate(self):
+        self._validate_file(self.dashboard_file_path)
+
+    def load(self):
+        try:
+            with open(self.dashboard_file_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except json.JSONDecodeError as e:
+            raise ValueError(
+                f"Dashboard file {self.dashboard_file_path} is not valid JSON: {str(e)}"
+            )
+
+
+class GrafanaAlertRuleGroupConfig(Config):
+    def __init__(self, alerts_folder_path: str):
+        self.alerts_folder_path = Path(alerts_folder_path)
+        self._validate()
+
+    def _validate(self):
+        self._validate_directory(str(self.alerts_folder_path))
+        for file in self.get_alert_files():
+            self._validate_file(str(file))
+
+    def get_alert_files(self) -> List[Path]:
+        return list(self.alerts_folder_path.glob("*.json"))
+
+    def load(self, alert_file_path: str) -> Dict[str, Any]:
+        with open(alert_file_path, "r") as f:
+            return json.load(f)
