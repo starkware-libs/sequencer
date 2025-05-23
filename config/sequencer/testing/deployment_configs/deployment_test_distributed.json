@@ -6,9 +6,10 @@
       "name": "Batcher",
       "controller": "StatefulSet",
       "config_paths": [
-        "batcher.json",
+        "../../../../base_app_config.json",
         "deployment_config_override.json",
-        "instance_config_override.json"
+        "instance_config_override.json",
+        "batcher.json"
       ],
       "ingress": null,
       "autoscale": false,
@@ -31,9 +32,10 @@
       "name": "ClassManager",
       "controller": "StatefulSet",
       "config_paths": [
-        "class_manager.json",
+        "../../../../base_app_config.json",
         "deployment_config_override.json",
-        "instance_config_override.json"
+        "instance_config_override.json",
+        "class_manager.json"
       ],
       "ingress": null,
       "autoscale": false,
@@ -56,9 +58,10 @@
       "name": "ConsensusManager",
       "controller": "StatefulSet",
       "config_paths": [
-        "consensus_manager.json",
+        "../../../../base_app_config.json",
         "deployment_config_override.json",
-        "instance_config_override.json"
+        "instance_config_override.json",
+        "consensus_manager.json"
       ],
       "ingress": null,
       "autoscale": false,
@@ -81,9 +84,10 @@
       "name": "HttpServer",
       "controller": "StatefulSet",
       "config_paths": [
-        "http_server.json",
+        "../../../../base_app_config.json",
         "deployment_config_override.json",
-        "instance_config_override.json"
+        "instance_config_override.json",
+        "http_server.json"
       ],
       "ingress": {
         "domain": "sw-dev.io",
@@ -117,9 +121,10 @@
       "name": "Gateway",
       "controller": "StatefulSet",
       "config_paths": [
-        "gateway.json",
+        "../../../../base_app_config.json",
         "deployment_config_override.json",
-        "instance_config_override.json"
+        "instance_config_override.json",
+        "gateway.json"
       ],
       "ingress": null,
       "autoscale": true,
@@ -142,9 +147,10 @@
       "name": "L1",
       "controller": "StatefulSet",
       "config_paths": [
-        "l1.json",
+        "../../../../base_app_config.json",
         "deployment_config_override.json",
-        "instance_config_override.json"
+        "instance_config_override.json",
+        "l1.json"
       ],
       "ingress": null,
       "autoscale": false,
@@ -167,9 +173,10 @@
       "name": "Mempool",
       "controller": "StatefulSet",
       "config_paths": [
-        "mempool.json",
+        "../../../../base_app_config.json",
         "deployment_config_override.json",
-        "instance_config_override.json"
+        "instance_config_override.json",
+        "mempool.json"
       ],
       "ingress": null,
       "autoscale": false,
@@ -192,9 +199,10 @@
       "name": "SierraCompiler",
       "controller": "StatefulSet",
       "config_paths": [
-        "sierra_compiler.json",
+        "../../../../base_app_config.json",
         "deployment_config_override.json",
-        "instance_config_override.json"
+        "instance_config_override.json",
+        "sierra_compiler.json"
       ],
       "ingress": null,
       "autoscale": true,
@@ -217,9 +225,10 @@
       "name": "StateSync",
       "controller": "StatefulSet",
       "config_paths": [
-        "state_sync.json",
+        "../../../../base_app_config.json",
         "deployment_config_override.json",
-        "instance_config_override.json"
+        "instance_config_override.json",
+        "state_sync.json"
       ],
       "ingress": null,
       "autoscale": false,

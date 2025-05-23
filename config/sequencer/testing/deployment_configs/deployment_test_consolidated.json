@@ -6,9 +6,10 @@
       "name": "Node",
       "controller": "StatefulSet",
       "config_paths": [
-        "node.json",
+        "../../../../base_app_config.json",
         "deployment_config_override.json",
-        "instance_config_override.json"
+        "instance_config_override.json",
+        "node.json"
       ],
       "ingress": null,
       "autoscale": false,
