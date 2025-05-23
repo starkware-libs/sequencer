@@ -501,12 +501,17 @@ func execute_call_contract{
     revert_log: RevertLogEntry*,
     outputs: OsCarriedOutputs*,
 }(block_context: BlockContext*, caller_execution_context: ExecutionContext*) {
+    alloc_locals;
     let request = cast(syscall_ptr + RequestHeader.SIZE, CallContractRequest*);
     let (success, remaining_gas) = reduce_syscall_base_gas(
         specific_base_gas_cost=CALL_CONTRACT_GAS_COST, request_struct_size=CallContractRequest.SIZE
     );
     if (success == FALSE) {
         // Not enough gas to execute the syscall.
+        return ();
+    }
+    if (request.selector == EXECUTE_ENTRY_POINT_SELECTOR) {
+        write_failure_response(remaining_gas=remaining_gas, failure_felt=ERROR_INVALID_ARGUMENT);
         return ();
     }
 
