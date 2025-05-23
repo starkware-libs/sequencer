@@ -443,6 +443,13 @@ expression: dumped_default_config
     },
     "privacy": "Public"
   },
+  "p2p_sync_server.buffer_size": {
+    "description": "Size of the buffer for incoming responses.",
+    "value": {
+      "$serde_json::private::Number": "100000"
+    },
+    "privacy": "Public"
+  },
   "rpc.apollo_gateway_retry_config.max_retries": {
     "description": "For communicating with Starknet gateway, maximum number of retries before the node stops retrying.",
     "value": {
