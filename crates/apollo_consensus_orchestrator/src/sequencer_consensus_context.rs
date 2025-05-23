@@ -1189,16 +1189,46 @@ async fn is_block_info_valid(
     gas_price_params: GasPriceParams,
     previous_block_info: Option<ConsensusBlockInfo>,
 ) -> bool {
+    let mut success = true;
+    let mut warnings = vec![];
     let now: u64 = clock.now_as_timestamp();
-    if !(block_info_proposed.height == block_info_validation.height
-        && block_info_proposed.timestamp >= block_info_validation.last_block_timestamp.unwrap_or(0)
-        // Check timestamp isn't in the future (allowing for clock disagreement).
-        && block_info_proposed.timestamp <= now + block_info_validation.block_timestamp_window_seconds
-        && block_info_proposed.l1_da_mode == block_info_validation.l1_da_mode
-        && block_info_proposed.l2_gas_price_fri == block_info_validation.l2_gas_price_fri)
-    {
-        warn!("Invalid BlockInfo. local_timestamp={now}");
-        return false;
+    if block_info_proposed.height != block_info_validation.height {
+        warnings.push(format!(
+            "Invalid BlockInfo. Expected height {}, got {}",
+            block_info_validation.height, block_info_proposed.height
+        ));
+        success = false;
+    }
+    if block_info_proposed.timestamp < block_info_validation.last_block_timestamp.unwrap_or(0) {
+        warnings.push(format!(
+            "Invalid BlockInfo. Expected timestamp greater than {}, got {}",
+            block_info_validation.last_block_timestamp.unwrap_or(0),
+            block_info_proposed.timestamp
+        ));
+        success = false;
+    }
+    // Check timestamp isn't in the future (allowing for clock disagreement).
+    if block_info_proposed.timestamp > now + block_info_validation.block_timestamp_window_seconds {
+        warnings.push(format!(
+            "Invalid BlockInfo. Expected timestamp less than {}, got {}",
+            now + block_info_validation.block_timestamp_window_seconds,
+            block_info_proposed.timestamp
+        ));
+        success = false;
+    }
+    if block_info_proposed.l1_da_mode != block_info_validation.l1_da_mode {
+        warnings.push(format!(
+            "Invalid BlockInfo. Expected L1 DA mode {:?}, got {:?}",
+            block_info_validation.l1_da_mode, block_info_proposed.l1_da_mode
+        ));
+        success = false;
+    }
+    if block_info_proposed.l2_gas_price_fri != block_info_validation.l2_gas_price_fri {
+        warnings.push(format!(
+            "Invalid BlockInfo. Expected L2 gas price FRI {}, got {}",
+            block_info_validation.l2_gas_price_fri, block_info_proposed.l2_gas_price_fri
+        ));
+        success = false;
     }
     let (eth_to_fri_rate, mut l1_gas_prices) = get_oracle_rate_and_prices(
         eth_to_strk_oracle_client,
@@ -1211,6 +1241,7 @@ async fn is_block_info_valid(
     .await;
     let l1_gas_price_margin_percent =
         VersionedConstants::latest_constants().l1_gas_price_margin_percent.into();
+
     debug!("L1 price info: {l1_gas_prices:?}");
     l1_gas_prices.base_fee_per_gas = l1_gas_prices
         .base_fee_per_gas
@@ -1234,23 +1265,32 @@ async fn is_block_info_valid(
             l1_gas_price_margin_percent,
         ))
     {
+        warnings.push(format!(
+            "L1 gas prices outside margins. proposed: {}, calculated: {}. L1 data gas price, \
+             proposed: {}, calculated: {}. Margin: {}%",
+            l1_gas_price_fri_proposed,
+            l1_gas_price_fri,
+            l1_data_gas_price_fri_proposed,
+            l1_data_gas_price_fri,
+            l1_gas_price_margin_percent,
+        ));
+        success = false;
+    } else {
+        if l1_gas_price_fri_proposed != l1_gas_price_fri {
+            CONSENSUS_L1_GAS_MISMATCH.increment(1);
+        }
+        if l1_data_gas_price_fri_proposed != l1_data_gas_price_fri {
+            CONSENSUS_L1_DATA_GAS_MISMATCH.increment(1);
+        }
+    }
+
+    if !warnings.is_empty() {
         warn!(
-            %l1_gas_price_fri_proposed,
-            %l1_gas_price_fri,
-            %l1_data_gas_price_fri_proposed,
-            %l1_data_gas_price_fri,
-            %l1_gas_price_margin_percent,
-            "Invalid L1 gas price proposed.",
+            "Invalid BlockInfo. \nProposed: {:?} \nValidation: {:?}. \nWarnings: {:#?}",
+            block_info_proposed, block_info_validation, warnings
         );
-        return false;
     }
-    if l1_gas_price_fri_proposed != l1_gas_price_fri {
-        CONSENSUS_L1_GAS_MISMATCH.increment(1);
-    }
-    if l1_data_gas_price_fri_proposed != l1_data_gas_price_fri {
-        CONSENSUS_L1_DATA_GAS_MISMATCH.increment(1);
-    }
-    true
+    success
 }
 
 fn within_margin(number1: GasPrice, number2: GasPrice, margin_percent: u128) -> bool {
