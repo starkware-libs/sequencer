@@ -140,7 +140,7 @@ def merge_branches(src_branch: str, dst_branch: Optional[str]):
     )
 
     if len(conflicts) != 0:
-        compare = "https://github.com/starkware-libs/blockifier/compare"
+        compare = "https://github.com/starkware-libs/sequencer/compare"
         comment_file_path = "/tmp/comment.XXXXXX"
         with open(comment_file_path, "w") as comment_file:
             for conflict in conflicts:

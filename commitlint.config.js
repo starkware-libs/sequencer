@@ -87,6 +87,7 @@ const Configuration = {
             'papyrus_monitoring_gateway',
             'papyrus_node',
             'release',
+            'scripts',
             'shared_execution_objects',
             'starknet_api',
             'starknet_committer',
