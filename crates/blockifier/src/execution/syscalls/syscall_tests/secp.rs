@@ -25,7 +25,11 @@ fn test_secp256k1(runnable_version: RunnableCairo1) {
 
     pretty_assertions::assert_eq!(
         entry_point_call.execute_directly(&mut state).unwrap().execution,
-        CallExecution { gas_consumed: 17011779, ..Default::default() }
+        CallExecution {
+            gas_consumed: 17011779,
+            cairo_native: runnable_version.is_cairo_native(),
+            ..Default::default()
+        }
     );
 }
 
@@ -45,6 +49,10 @@ fn test_secp256r1(runnable_version: RunnableCairo1) {
 
     pretty_assertions::assert_eq!(
         entry_point_call.execute_directly(&mut state).unwrap().execution,
-        CallExecution { gas_consumed: 27571210, ..Default::default() }
+        CallExecution {
+            gas_consumed: 27571210,
+            cairo_native: runnable_version.is_cairo_native(),
+            ..Default::default()
+        }
     );
 }

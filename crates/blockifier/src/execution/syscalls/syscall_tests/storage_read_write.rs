@@ -34,6 +34,7 @@ fn test_storage_read_write(runnable_version: RunnableCairo1) {
         CallExecution {
             retdata: retdata![value],
             gas_consumed: REQUIRED_GAS_STORAGE_READ_WRITE_TEST,
+            cairo_native: runnable_version.is_cairo_native(),
             ..CallExecution::default()
         }
     );
