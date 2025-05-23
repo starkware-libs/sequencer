@@ -169,6 +169,20 @@ func test_call_contract{syscall_ptr: felt*}(
 }
 
 @external
+func call_execute_directly{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    contract_address: felt, calldata_len: felt, calldata: felt*
+) {
+    let execute_selector = 0x15d40a3d6ca2ac30f4031e42be28da9b056fef9bb7357ac5e85627ee876e5ad;
+    call_contract(
+        contract_address=contract_address,
+        function_selector=execute_selector,
+        calldata_size=calldata_len,
+        calldata=calldata,
+    );
+    return ();
+}
+
+@external
 @raw_output
 func test_call_two_contracts{syscall_ptr: felt*}(
     contract_address_0: felt,
