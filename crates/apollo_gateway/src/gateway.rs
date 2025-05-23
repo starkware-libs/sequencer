@@ -31,7 +31,7 @@ use starknet_api::rpc_transaction::{
     InternalRpcTransactionWithoutTxHash,
     RpcTransaction,
 };
-use tracing::{debug, error, instrument, warn, Span};
+use tracing::{debug, error, info, instrument, warn, Span};
 
 use crate::config::GatewayConfig;
 use crate::errors::{mempool_client_result_to_deprecated_gw_result, GatewayResult};
@@ -101,7 +101,8 @@ impl Gateway {
         let mut metric_counters = GatewayMetricHandle::new(&tx, &p2p_message_metadata);
         metric_counters.count_transaction_received();
 
-        let blocking_task = ProcessTxBlockingTask::new(self, tx, tokio::runtime::Handle::current());
+        let blocking_task =
+            ProcessTxBlockingTask::new(self, tx.clone(), tokio::runtime::Handle::current());
         // Run the blocking task in the current span.
         let curr_span = Span::current();
         let add_tx_args =
@@ -110,7 +111,13 @@ impl Gateway {
                 .map_err(|join_err| {
                     error!("Failed to process tx: {}", join_err);
                     StarknetError::internal(&join_err.to_string())
-                })??;
+                })?
+                .inspect_err(|starknet_error| {
+                    info!(
+                        "Gateway validation failed for tx: {:?} with error: {}",
+                        tx, starknet_error
+                    );
+                })?;
 
         let gateway_output = create_gateway_output(&add_tx_args.tx);
 
