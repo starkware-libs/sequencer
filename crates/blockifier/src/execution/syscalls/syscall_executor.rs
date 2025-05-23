@@ -209,7 +209,7 @@ pub trait SyscallExecutor {
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
     ) -> SyscallResult<SecpAddResponse> {
-        syscall_handler.get_secpk1_hint_processor().secp_add(request)
+        Ok(syscall_handler.get_secpk1_hint_processor().secp_add(request)?)
     }
 
     fn secp256k1_get_point_from_x(
@@ -218,7 +218,7 @@ pub trait SyscallExecutor {
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
     ) -> SyscallResult<SecpGetPointFromXResponse> {
-        syscall_handler.get_secpk1_hint_processor().secp_get_point_from_x(vm, request)
+        Ok(syscall_handler.get_secpk1_hint_processor().secp_get_point_from_x(vm, request)?)
     }
 
     fn secp256k1_get_xy(
@@ -227,7 +227,7 @@ pub trait SyscallExecutor {
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
     ) -> SyscallResult<SecpGetXyResponse> {
-        syscall_handler.get_secpk1_hint_processor().secp_get_xy(request)
+        Ok(syscall_handler.get_secpk1_hint_processor().secp_get_xy(request)?)
     }
 
     fn secp256k1_mul(
@@ -236,7 +236,7 @@ pub trait SyscallExecutor {
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
     ) -> SyscallResult<SecpMulResponse> {
-        syscall_handler.get_secpk1_hint_processor().secp_mul(request)
+        Ok(syscall_handler.get_secpk1_hint_processor().secp_mul(request)?)
     }
 
     fn secp256k1_new(
@@ -245,7 +245,7 @@ pub trait SyscallExecutor {
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
     ) -> SyscallResult<SecpNewResponse> {
-        syscall_handler.get_secpk1_hint_processor().secp_new(vm, request)
+        Ok(syscall_handler.get_secpk1_hint_processor().secp_new(vm, request)?)
     }
 
     fn secp256r1_add(
@@ -254,7 +254,7 @@ pub trait SyscallExecutor {
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
     ) -> SyscallResult<SecpAddResponse> {
-        syscall_handler.get_secpr1_hint_processor().secp_add(request)
+        Ok(syscall_handler.get_secpr1_hint_processor().secp_add(request)?)
     }
 
     fn secp256r1_get_point_from_x(
@@ -263,7 +263,7 @@ pub trait SyscallExecutor {
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
     ) -> SyscallResult<SecpGetPointFromXResponse> {
-        syscall_handler.get_secpr1_hint_processor().secp_get_point_from_x(vm, request)
+        Ok(syscall_handler.get_secpr1_hint_processor().secp_get_point_from_x(vm, request)?)
     }
 
     fn secp256r1_get_xy(
@@ -272,7 +272,7 @@ pub trait SyscallExecutor {
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
     ) -> SyscallResult<SecpGetXyResponse> {
-        syscall_handler.get_secpr1_hint_processor().secp_get_xy(request)
+        Ok(syscall_handler.get_secpr1_hint_processor().secp_get_xy(request)?)
     }
 
     fn secp256r1_mul(
@@ -281,7 +281,7 @@ pub trait SyscallExecutor {
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
     ) -> SyscallResult<SecpMulResponse> {
-        syscall_handler.get_secpr1_hint_processor().secp_mul(request)
+        Ok(syscall_handler.get_secpr1_hint_processor().secp_mul(request)?)
     }
 
     fn secp256r1_new(
@@ -290,7 +290,7 @@ pub trait SyscallExecutor {
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
     ) -> SyscallResult<Secp256r1NewResponse> {
-        syscall_handler.get_secpr1_hint_processor().secp_new(vm, request)
+        Ok(syscall_handler.get_secpr1_hint_processor().secp_new(vm, request)?)
     }
 
     fn send_message_to_l1(
