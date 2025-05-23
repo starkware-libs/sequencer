@@ -54,9 +54,7 @@ pub(crate) fn load_next_tx<S: StateReader>(
     execution_helper.os_logger.enter_tx(
         tx.tx_type(),
         tx.tx_hash(),
-        // TODO(Dori): when `vm.current_step` has a public getter, use it instead of the dummy
-        //   value ([PR](https://github.com/lambdaclass/cairo-vm/pull/2031)).
-        7,
+        vm.get_current_step(),
         range_check_ptr,
         ids_data,
         vm,
@@ -107,9 +105,7 @@ pub(crate) fn exit_tx<S: StateReader>(
         .get_mut_current_execution_helper()?
         .os_logger
         .exit_tx(
-            // TODO(Dori): when `vm.current_step` has a public getter, use it instead of the dummy
-            //   value ([PR](https://github.com/lambdaclass/cairo-vm/pull/2031)).
-            7,
+            vm.get_current_step(),
             range_check_ptr,
             ids_data,
             vm,
