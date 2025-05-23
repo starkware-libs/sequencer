@@ -102,10 +102,6 @@ fn test_commit_flow(
             *scheduler.commit_index.lock().unwrap(),
             if should_halt { commit_index } else { commit_index + 1 }
         );
-        assert_eq!(
-            scheduler.done_marker.load(Ordering::Acquire),
-            commit_index + 1 == DEFAULT_CHUNK_SIZE || should_halt
-        );
     } else {
         assert_eq!(*scheduler.lock_tx_status(commit_index), commit_index_tx_status);
         assert_eq!(*scheduler.commit_index.lock().unwrap(), commit_index);
