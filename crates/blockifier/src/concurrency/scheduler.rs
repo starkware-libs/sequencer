@@ -123,16 +123,11 @@ impl Scheduler {
         false
     }
 
-    /// Updates the Scheduler that a validation task has aborted and triggers the creation of new
-    /// tasks: schedules validation for higher transactions + re-executes the current transaction
-    /// (if ready).
-    pub fn finish_abort(&self, tx_index: TxIndex) -> Task {
+    /// Updates the Scheduler that a validation task has aborted.
+    /// Decreases the execution index to ensure that the transaction will be re-executed.
+    pub fn finish_abort(&self, tx_index: TxIndex) {
         self.set_ready_status(tx_index);
-        if self.execution_index.load(Ordering::Acquire) > tx_index && self.try_incarnate(tx_index) {
-            Task::ExecutionTask(tx_index)
-        } else {
-            Task::AskForTask
-        }
+        self.decrease_execution_index(tx_index);
     }
 
     /// This method is called after a transaction gets re-executed during a commit. It decreases the
@@ -192,6 +187,10 @@ impl Scheduler {
 
     fn decrease_validation_index(&self, target_index: TxIndex) {
         self.validation_index.fetch_min(target_index, Ordering::SeqCst);
+    }
+
+    fn decrease_execution_index(&self, target_index: TxIndex) {
+        self.execution_index.fetch_min(target_index, Ordering::SeqCst);
     }
 
     /// Updates a transaction's status to `Executing` if it is ready to execute.
