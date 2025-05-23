@@ -53,6 +53,10 @@ fn scheduler_flow_test(
                             state_proxy.apply_writes(&new_writes, &ContractClassMapping::default());
                             scheduler.finish_execution_during_commit(tx_index);
                         }
+                        if tx_index == DEFAULT_CHUNK_SIZE - 1 {
+                            scheduler.halt();
+                            break;
+                        }
                     }
                 }
                 task = match task {
@@ -75,10 +79,9 @@ fn scheduler_flow_test(
                             state_proxy
                                 .delete_writes(&writes, &ContractClassMapping::default())
                                 .unwrap();
-                            scheduler.finish_abort(tx_index)
-                        } else {
-                            Task::AskForTask
+                            scheduler.finish_abort(tx_index);
                         }
+                        Task::AskForTask
                     }
                     Task::NoTaskAvailable => Task::AskForTask,
                     Task::AskForTask => scheduler.next_task(),

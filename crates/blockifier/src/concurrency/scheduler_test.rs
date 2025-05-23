@@ -92,7 +92,8 @@ fn test_commit_flow(
         assert_eq!(index, commit_index);
     }
     if should_halt {
-        tx_committer.halt_scheduler();
+        tx_committer.uncommit();
+        scheduler.halt();
     }
     drop(tx_committer);
     if commit_index_tx_status == TransactionStatus::Executed {
@@ -100,10 +101,6 @@ fn test_commit_flow(
         assert_eq!(
             *scheduler.commit_index.lock().unwrap(),
             if should_halt { commit_index } else { commit_index + 1 }
-        );
-        assert_eq!(
-            scheduler.done_marker.load(Ordering::Acquire),
-            commit_index + 1 == DEFAULT_CHUNK_SIZE || should_halt
         );
     } else {
         assert_eq!(*scheduler.lock_tx_status(commit_index), commit_index_tx_status);
@@ -206,20 +203,23 @@ fn test_try_validation_abort(#[case] tx_status: TransactionStatus) {
 }
 
 #[rstest]
-#[case::returns_execution_task(0, 10)]
-#[case::does_not_return_execution_task(10, 0)]
+#[case::same_execution_index(10, 10)]
+#[case::larger_execution_index(0, 10)]
+#[case::smaller_execution_index(10, 0)]
 fn test_finish_abort(#[case] tx_index: TxIndex, #[case] execution_index: TxIndex) {
     let scheduler =
         Scheduler { execution_index: execution_index.into(), ..Scheduler::new(DEFAULT_CHUNK_SIZE) };
     scheduler.set_tx_status(tx_index, TransactionStatus::Aborting);
-    let result = scheduler.finish_abort(tx_index);
-    let new_status = scheduler.lock_tx_status(tx_index);
-    if execution_index > tx_index {
-        assert_eq!(result, Task::ExecutionTask(tx_index));
-        assert_eq!(*new_status, TransactionStatus::Executing);
-    } else {
-        assert_eq!(result, Task::AskForTask);
-        assert_eq!(*new_status, TransactionStatus::ReadyToExecute);
+    scheduler.finish_abort(tx_index);
+    assert_eq!(scheduler.get_tx_status(tx_index), TransactionStatus::ReadyToExecute);
+    assert_eq!(
+        scheduler.execution_index.load(Ordering::Acquire),
+        std::cmp::min(tx_index, execution_index)
+    );
+
+    if tx_index <= execution_index {
+        // Check the next task is re-execution of the transaction.
+        assert_eq!(scheduler.next_task(), Task::ExecutionTask(tx_index));
     }
 }
 
