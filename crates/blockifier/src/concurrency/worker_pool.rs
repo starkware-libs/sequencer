@@ -5,6 +5,7 @@ use std::sync::{mpsc, Arc};
 use crate::blockifier::config::ConcurrencyConfig;
 use crate::concurrency::utils::AbortIfPanic;
 use crate::concurrency::worker_logic::WorkerExecutor;
+use crate::concurrency::TxIndex;
 use crate::state::state_api::StateReader;
 
 /// Used to execute transactions concurrently.
@@ -68,7 +69,16 @@ impl<S: StateReader + Send + 'static> WorkerPool<S> {
         for sender in self.senders.iter() {
             sender.send(Some(worker_executor.clone())).expect("Failed to send worker executor.");
         }
-        worker_executor.scheduler.wait_for_completion();
+    }
+
+    pub fn run_and_wait(&self, worker_executor: Arc<WorkerExecutor<S>>, target_n_txs: TxIndex) {
+        self.run(worker_executor.clone());
+
+        worker_executor.scheduler.wait_for_completion(target_n_txs);
+
+        // Halt the scheduler to allow future blocks to start.
+        // This is required since`wait_for_completion` can exit before the scheduler is done.
+        worker_executor.scheduler.halt();
 
         if self.a_thread_panicked.load(Ordering::Acquire) {
             panic!("One of the threads panicked.");

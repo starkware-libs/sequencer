@@ -193,10 +193,6 @@ impl<S: StateReader> WorkerExecutor<S> {
         self.transactions.get(&tx_index).expect("Transaction missing").value().clone()
     }
 
-    fn get_n_transactions(&self) -> usize {
-        *self.n_transactions.lock().expect("Failed to lock n_transactions")
-    }
-
     fn commit_while_possible(&self) {
         if let Some(mut tx_committer) = self.scheduler.try_enter_commit_phase() {
             while let Some(tx_index) = tx_committer.try_commit() {
@@ -204,11 +200,7 @@ impl<S: StateReader> WorkerExecutor<S> {
                     panic!("Commit transaction should not be called after clearing the state.");
                 });
                 match commit_result {
-                    CommitResult::Success => {
-                        if tx_index == self.get_n_transactions() - 1 {
-                            self.scheduler.halt();
-                        }
-                    }
+                    CommitResult::Success => {}
                     CommitResult::NoRoomInBlock => {
                         tx_committer.uncommit();
                         self.scheduler.halt();
