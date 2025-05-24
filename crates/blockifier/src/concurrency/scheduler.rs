@@ -245,9 +245,14 @@ impl Scheduler {
         self.done_marker.load(Ordering::Acquire)
     }
 
-    /// Sleeps until the scheduler is done.
-    pub fn wait_for_completion(&self) {
-        while !self.done() {
+    /// Sleeps until the scheduler is done or the requested number of committed transactions is
+    /// reached.
+    pub fn wait_for_completion(&self, target_n_txs: usize) {
+        // TODO(lior): Consider splitting n_committed_txs from the commit lock, so that the
+        //   following line will not wait for the commit lock and vice versa.
+        //   Note that such a change requires updating n_committed_txs only after the tx is
+        //   finalized (currently it's updated before the tx is really committed).
+        while !(self.done() || self.get_n_committed_txs() >= target_n_txs) {
             std::thread::sleep(std::time::Duration::from_micros(1));
         }
 
