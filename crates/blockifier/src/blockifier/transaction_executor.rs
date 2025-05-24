@@ -365,16 +365,8 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
             worker_pool.join();
         }
 
-        let n_committed_txs = worker_executor.scheduler.get_n_committed_txs();
-        let mut tx_execution_results = Vec::new();
-        for tx_index in 0..n_committed_txs {
-            let execution_output = worker_executor.extract_execution_output(tx_index);
-            let tx_execution_output = execution_output
-                .result
-                .map(|tx_execution_info| (tx_execution_info, execution_output.state_diff))
-                .map_err(TransactionExecutorError::from);
-            tx_execution_results.push(tx_execution_output);
-        }
+        let tx_execution_results = worker_executor.extract_execution_outputs(0, chunk.len());
+        let n_committed_txs = tx_execution_results.len();
 
         let block_state_after_commit =
             worker_executor.commit_chunk_and_recover_block_state(n_committed_txs);
