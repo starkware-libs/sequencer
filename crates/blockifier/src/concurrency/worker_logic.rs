@@ -8,7 +8,11 @@ use std::time::{Duration, Instant};
 use dashmap::mapref::one::RefMut;
 use dashmap::DashMap;
 
-use crate::blockifier::transaction_executor::TransactionExecutorError;
+use crate::blockifier::transaction_executor::{
+    TransactionExecutionOutput,
+    TransactionExecutorError,
+    TransactionExecutorResult,
+};
 use crate::bouncer::Bouncer;
 use crate::concurrency::fee_utils::complete_fee_transfer_flow;
 use crate::concurrency::scheduler::{Scheduler, Task};
@@ -160,6 +164,27 @@ impl<S: StateReader> WorkerExecutor<S> {
                 Task::Done => break,
             };
         }
+    }
+
+    /// Extracts the outputs of the committed transactions in the range [from_tx, to_tx).
+    /// Note that the number of transactions may be smaller than `to_tx - from_tx`, if the execution
+    /// was halted (due to time or full block).
+    pub fn extract_execution_outputs(
+        &self,
+        from_tx: usize,
+        to_tx: usize,
+    ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
+        let n_committed_txs = self.scheduler.get_n_committed_txs();
+        let actual_to_tx = std::cmp::min(n_committed_txs, to_tx);
+        (from_tx..actual_to_tx)
+            .map(|tx_index| {
+                let execution_output = self.extract_execution_output(tx_index);
+                execution_output
+                    .result
+                    .map(|tx_execution_info| (tx_execution_info, execution_output.state_diff))
+                    .map_err(TransactionExecutorError::from)
+            })
+            .collect()
     }
 
     /// Returns the transaction at the given index.
