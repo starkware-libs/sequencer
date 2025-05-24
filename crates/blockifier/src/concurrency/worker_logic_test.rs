@@ -21,7 +21,7 @@ use crate::concurrency::fee_utils::STORAGE_READ_SEQUENCER_BALANCE_INDICES;
 use crate::concurrency::scheduler::{Task, TransactionStatus};
 use crate::concurrency::test_utils::safe_versioned_state_for_testing;
 use crate::concurrency::versioned_state::ThreadSafeVersionedState;
-use crate::concurrency::worker_logic::lock_mutex_in_array;
+use crate::concurrency::worker_logic::CommitResult;
 use crate::context::{BlockContext, TransactionContext};
 use crate::fee::fee_utils::get_sequencer_balance_keys;
 use crate::state::cached_state::StateMaps;
@@ -107,6 +107,7 @@ pub fn test_commit_tx() {
         txs.to_vec(),
         block_context.into(),
         Mutex::new(bouncer).into(),
+        None,
     );
 
     // Execute transactions.
@@ -122,8 +123,8 @@ pub fn test_commit_tx() {
         [(1, true), (0, false), (2, false), (3, true)].iter()
     {
         executor.execute_tx(execute_idx);
-        let execution_task_outputs = lock_mutex_in_array(&executor.execution_outputs, execute_idx);
-        let result = &execution_task_outputs.as_ref().unwrap().result;
+        let execution_task_outputs = executor.lock_execution_output(execute_idx);
+        let result = &execution_task_outputs.result;
         assert_eq!(result.is_err(), should_fail_execution);
         if !should_fail_execution {
             assert!(!result.as_ref().unwrap().is_reverted());
@@ -139,21 +140,31 @@ pub fn test_commit_tx() {
     // * tx2 should fail revalidation (it read the nonce before tx1 re-executed and incremented it).
     //   It should fail re-execution because it has the same nonce as tx1.
     // * tx3 should pass revalidation and commit.
-    for &(commit_idx, should_fail_execution) in
-        [(0, false), (1, false), (2, true), (3, true)].iter()
+    for &(commit_idx, should_pass_validation, should_pass_execution) in
+        [(0, true, true), (1, false, true), (2, false, false), (3, true, false)].iter()
     {
-        executor.commit_tx(commit_idx).unwrap();
-        let execution_task_outputs = lock_mutex_in_array(&executor.execution_outputs, commit_idx);
-        let execution_result = &execution_task_outputs.as_ref().unwrap().result;
-        let expected_sequencer_balance_high = 0_u128;
-        assert_eq!(execution_result.is_err(), should_fail_execution);
-        // Extract the actual fee. If the transaction fails, no fee should be charged.
-        let actual_fee = if should_fail_execution {
-            0
+        let commit_result = executor.commit_tx(commit_idx).unwrap();
+        if should_pass_validation {
+            assert_eq!(commit_result, CommitResult::Success);
         } else {
+            assert_eq!(commit_result, CommitResult::ValidationFailed, "commit_idx: {}", commit_idx);
+            // Re-execute the transaction.
+            executor.execute_tx(commit_idx);
+            // Commit again. This time it should succeed.
+            assert_eq!(executor.commit_tx(commit_idx).unwrap(), CommitResult::Success);
+        }
+
+        let execution_task_outputs = executor.lock_execution_output(commit_idx);
+        let execution_result = &execution_task_outputs.result;
+        let expected_sequencer_balance_high = 0_u128;
+        assert_eq!(execution_result.is_ok(), should_pass_execution);
+        // Extract the actual fee. If the transaction fails, no fee should be charged.
+        let actual_fee = if should_pass_execution {
             execution_result.as_ref().unwrap().receipt.fee.0
+        } else {
+            0
         };
-        if !should_fail_execution {
+        if should_pass_execution {
             assert!(!execution_result.as_ref().unwrap().is_reverted());
             // Check that the call info was fixed.
             for (expected_sequencer_storage_read, read_storage_index) in [
@@ -213,14 +224,15 @@ fn test_commit_tx_when_sender_is_sequencer() {
         sequencer_tx.to_vec(),
         block_context.into(),
         Mutex::new(bouncer).into(),
+        None,
     );
     let tx_index = 0;
     let tx_versioned_state = executor.state.pin_version(tx_index);
 
     // Execute and save the execution result.
     executor.execute_tx(tx_index);
-    let execution_task_outputs = lock_mutex_in_array(&executor.execution_outputs, tx_index);
-    let execution_result = &execution_task_outputs.as_ref().unwrap().result;
+    let execution_task_outputs = executor.lock_execution_output(tx_index);
+    let execution_result = &execution_task_outputs.result;
     let fee_transfer_call_info =
         execution_result.as_ref().unwrap().fee_transfer_call_info.as_ref().unwrap();
     let read_values_before_commit =
@@ -237,8 +249,8 @@ fn test_commit_tx_when_sender_is_sequencer() {
 
     // Commit tx and check that the commit made no changes in the execution result or the state.
     executor.commit_tx(tx_index).unwrap();
-    let execution_task_outputs = lock_mutex_in_array(&executor.execution_outputs, tx_index);
-    let commit_result = &execution_task_outputs.as_ref().unwrap().result;
+    let execution_task_outputs = executor.lock_execution_output(tx_index);
+    let commit_result = &execution_task_outputs.result;
     let fee_transfer_call_info =
         commit_result.as_ref().unwrap().fee_transfer_call_info.as_ref().unwrap();
     // Check that the result call info is the same as before the commit.
@@ -325,6 +337,7 @@ fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
         txs.to_vec(),
         block_context.into(),
         Mutex::new(bouncer).into(),
+        None,
     );
 
     // Creates 3 execution active tasks.
@@ -344,8 +357,7 @@ fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
         storage_value
     );
     // Verify the output was written. Validate its correctness.
-    let execution_output = worker_executor.execution_outputs[tx_index].lock().unwrap();
-    let execution_output = execution_output.as_ref().unwrap();
+    let execution_output = worker_executor.lock_execution_output(tx_index);
     let result = execution_output.result.as_ref().unwrap();
     let account_balance = BALANCE.0 - result.receipt.fee.0;
     assert!(!result.is_reverted());
@@ -400,9 +412,8 @@ fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
         safe_versioned_state.pin_version(tx_index).get_nonce_at(account_address).unwrap(),
         nonce!(1_u8)
     );
-    let execution_output = worker_executor.execution_outputs[tx_index].lock().unwrap();
-    let execution_output = execution_output.as_ref().unwrap();
-    assert!(execution_output.result.as_ref().is_err());
+    let execution_output = worker_executor.lock_execution_output(tx_index);
+    assert!(execution_output.result.is_err());
     let reads = StateMaps {
         nonces: HashMap::from([(account_address, nonce!(1_u8))]),
         ..Default::default()
@@ -418,8 +429,7 @@ fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
         safe_versioned_state.pin_version(tx_index).get_nonce_at(account_address).unwrap(),
         nonce!(2_u8)
     );
-    let execution_output = worker_executor.execution_outputs[tx_index].lock().unwrap();
-    let execution_output = execution_output.as_ref().unwrap();
+    let execution_output = worker_executor.lock_execution_output(tx_index);
     assert!(execution_output.result.as_ref().unwrap().is_reverted());
     assert_ne!(execution_output.state_diff, StateMaps::default());
 
@@ -485,6 +495,7 @@ fn test_worker_validate(default_all_resource_bounds: ValidResourceBounds) {
         txs.to_vec(),
         block_context.into(),
         Mutex::new(bouncer).into(),
+        None,
     );
 
     // Creates 2 active tasks.
@@ -501,7 +512,7 @@ fn test_worker_validate(default_all_resource_bounds: ValidResourceBounds) {
 
     // Validate succeeds.
     let tx_index = 0;
-    assert!(worker_executor.validate(tx_index).unwrap());
+    assert!(worker_executor.validate(tx_index, false).unwrap());
     // Verify writes exist in state.
     assert_eq!(
         safe_versioned_state
@@ -515,7 +526,7 @@ fn test_worker_validate(default_all_resource_bounds: ValidResourceBounds) {
 
     // Validate failed. Invoke 2 failed validations; only the first leads to a re-execution.
     let tx_index = 1;
-    assert!(!worker_executor.validate(tx_index).unwrap());
+    assert!(!worker_executor.validate(tx_index, false).unwrap());
     assert_eq!(
         worker_executor.scheduler.get_tx_status(tx_index),
         TransactionStatus::ReadyToExecute
@@ -533,7 +544,7 @@ fn test_worker_validate(default_all_resource_bounds: ValidResourceBounds) {
     assert_eq!(worker_executor.scheduler.get_tx_status(tx_index), TransactionStatus::Executing);
 
     // Validation still fails, but the task is already being executed by "another" thread.
-    assert!(!worker_executor.validate(tx_index).unwrap());
+    assert!(!worker_executor.validate(tx_index, false).unwrap());
     assert_eq!(worker_executor.scheduler.next_task(), Task::NoTaskAvailable);
 }
 
@@ -601,6 +612,7 @@ fn test_deploy_before_declare(
         txs.to_vec(),
         block_context.into(),
         Mutex::new(bouncer).into(),
+        None,
     );
 
     // Creates 2 active tasks.
@@ -611,8 +623,8 @@ fn test_deploy_before_declare(
     worker_executor.execute(1);
     worker_executor.execute(0);
 
-    let execution_output = worker_executor.execution_outputs[1].lock().unwrap();
-    let tx_execution_info = execution_output.as_ref().unwrap().result.as_ref().unwrap();
+    let execution_output = worker_executor.lock_execution_output(1);
+    let tx_execution_info = execution_output.result.as_ref().unwrap();
     assert!(tx_execution_info.is_reverted());
     assert!(tx_execution_info.revert_error.clone().unwrap().to_string().contains("not declared."));
     drop(execution_output);
@@ -622,21 +634,21 @@ fn test_deploy_before_declare(
     worker_executor.scheduler.next_task();
 
     // Verify validation failed.
-    assert!(!worker_executor.validate(1).unwrap());
+    assert!(!worker_executor.validate(1, false).unwrap());
     assert_eq!(worker_executor.scheduler.get_tx_status(1), TransactionStatus::ReadyToExecute);
     assert_eq!(worker_executor.scheduler.next_task(), Task::ExecutionTask(1));
 
     // Execute transaction 1 again.
     worker_executor.execute(1);
 
-    let execution_output = worker_executor.execution_outputs[1].lock().unwrap();
-    assert!(!execution_output.as_ref().unwrap().result.as_ref().unwrap().is_reverted());
+    let execution_output = worker_executor.lock_execution_output(1);
+    assert!(!execution_output.result.as_ref().unwrap().is_reverted());
     drop(execution_output);
 
     assert_eq!(worker_executor.scheduler.next_task(), Task::ValidationTask(1));
 
     // Successful validation for transaction 1.
-    assert!(worker_executor.validate(1).unwrap());
+    assert!(worker_executor.validate(1, false).unwrap());
     assert_eq!(worker_executor.scheduler.next_task(), Task::NoTaskAvailable);
 }
 
@@ -682,6 +694,7 @@ fn test_worker_commit_phase(default_all_resource_bounds: ValidResourceBounds) {
         txs.to_vec(),
         block_context.into(),
         Mutex::new(bouncer).into(),
+        None,
     );
 
     // Try to commit before any transaction is ready.
@@ -719,9 +732,16 @@ fn test_worker_commit_phase(default_all_resource_bounds: ValidResourceBounds) {
     worker_executor.commit_while_possible();
 
     // Verify the number of committed transactions is 3, the status of the last transaction is
-    // `Committed`, and the next task is `Done`.
+    // `Committed`.
     assert_eq!(worker_executor.scheduler.get_n_committed_txs(), 3);
     assert_eq!(worker_executor.scheduler.get_tx_status(2), TransactionStatus::Committed);
+
+    // The next two tasks are `AskForTask` (advancing the validation_index), then `NoTaskAvailable`,
+    // until `halt` is called.
+    assert_eq!(worker_executor.scheduler.next_task(), Task::AskForTask);
+    assert_eq!(worker_executor.scheduler.next_task(), Task::AskForTask);
+    assert_eq!(worker_executor.scheduler.next_task(), Task::NoTaskAvailable);
+    worker_executor.scheduler.halt();
     assert_eq!(worker_executor.scheduler.next_task(), Task::Done);
 
     // Try to commit when all transactions are already committed.
@@ -730,8 +750,7 @@ fn test_worker_commit_phase(default_all_resource_bounds: ValidResourceBounds) {
 
     // Make sure all transactions were executed successfully.
     for execution_output in worker_executor.execution_outputs.iter() {
-        let locked_execution_output = execution_output.lock().unwrap();
-        let result = locked_execution_output.as_ref().unwrap().result.as_ref();
+        let result = execution_output.result.as_ref();
         assert!(!result.unwrap().is_reverted());
     }
 }
@@ -777,6 +796,7 @@ fn test_worker_commit_phase_with_halt() {
         txs.to_vec(),
         block_context.into(),
         Mutex::new(bouncer).into(),
+        None,
     );
 
     // Creates 2 active tasks.
@@ -805,8 +825,7 @@ fn test_worker_commit_phase_with_halt() {
 
     // Make sure all transactions were executed successfully.
     for execution_output in worker_executor.execution_outputs.iter() {
-        let locked_execution_output = execution_output.lock().unwrap();
-        let result = locked_execution_output.as_ref().unwrap().result.as_ref();
+        let result = execution_output.result.as_ref();
         assert!(!result.unwrap().is_reverted());
     }
 }

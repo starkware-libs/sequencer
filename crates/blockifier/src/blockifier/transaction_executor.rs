@@ -352,38 +352,29 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
             execution_deadline,
         ));
 
-        if let Some(worker_pool) = &mut self.worker_pool {
-            worker_pool.run(worker_executor.clone());
+        let tx_execution_results = if let Some(worker_pool) = &mut self.worker_pool {
+            worker_pool.run_and_wait(worker_executor.clone(), chunk.len());
+            worker_executor.extract_execution_outputs(0, chunk.len())
         } else {
             // If a pool is not given, create a new pool and wait for it to finish.
             let worker_pool =
                 WorkerPool::start(self.config.stack_size, self.config.concurrency_config.clone());
-            worker_pool.run(worker_executor.clone());
+            worker_pool.run_and_wait(worker_executor.clone(), chunk.len());
+            let tx_execution_results = worker_executor.extract_execution_outputs(0, chunk.len());
             worker_pool.join();
-        }
 
-        let n_committed_txs = worker_executor.scheduler.get_n_committed_txs();
+            tx_execution_results
+        };
+
         let (abort_counter, abort_in_commit_counter, execute_counter, validate_counter) =
             worker_executor.metrics.get_metrics();
+        let n_committed_txs = tx_execution_results.len();
         log::debug!(
             "Concurrent execution done. Initial chunk size: {chunk_size}; Committed chunk size: \
              {n_committed_txs}; Execute counter: {execute_counter}; Validate counter: \
              {validate_counter}; Abort counter: {abort_counter}; Abort in commit counter: \
              {abort_in_commit_counter}"
         );
-        let mut tx_execution_results = Vec::new();
-        for execution_output in worker_executor.execution_outputs.iter().take(n_committed_txs) {
-            let locked_execution_output = execution_output
-                .lock()
-                .expect("Failed to lock execution output.")
-                .take()
-                .expect("Output must be ready.");
-            let tx_execution_output = locked_execution_output
-                .result
-                .map(|tx_execution_info| (tx_execution_info, locked_execution_output.state_diff))
-                .map_err(TransactionExecutorError::from);
-            tx_execution_results.push(tx_execution_output);
-        }
 
         let block_state_after_commit =
             worker_executor.commit_chunk_and_recover_block_state(n_committed_txs);

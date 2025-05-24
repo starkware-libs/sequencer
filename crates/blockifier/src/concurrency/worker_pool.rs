@@ -3,9 +3,11 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Arc};
 
 use crate::blockifier::config::ConcurrencyConfig;
+use crate::concurrency::TxIndex;
 use crate::concurrency::utils::AbortIfPanic;
 use crate::concurrency::worker_logic::WorkerExecutor;
 use crate::state::state_api::StateReader;
+
 
 /// Used to execute transactions concurrently.
 /// Call `run()` to start executing a chunk of transactions (represented by a [WorkerExecutor]).
@@ -68,8 +70,21 @@ impl<S: StateReader + Send + 'static> WorkerPool<S> {
         for sender in self.senders.iter() {
             sender.send(Some(worker_executor.clone())).expect("Failed to send worker executor.");
         }
-        worker_executor.scheduler.wait_for_completion();
+    }
 
+    pub fn run_and_wait(&self, worker_executor: Arc<WorkerExecutor<S>>, target_n_txs: TxIndex) {
+        for sender in self.senders.iter() {
+            sender.send(Some(worker_executor.clone())).expect("Failed to send worker executor.");
+        }
+
+        worker_executor.scheduler.wait_for_completion(target_n_txs);
+
+        worker_executor.scheduler.halt();
+
+        self.check_panic();
+    }
+
+    pub fn check_panic(&self) {
         if self.a_thread_panicked.load(Ordering::Acquire) {
             panic!("One of the threads panicked.");
         }

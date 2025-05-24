@@ -30,6 +30,7 @@ blockifier.workspace = true
 chrono.workspace = true
 futures.workspace = true
 indexmap.workspace = true
+log.workspace = true
 serde.workspace = true
 starknet_api.workspace = true
 thiserror.workspace = true

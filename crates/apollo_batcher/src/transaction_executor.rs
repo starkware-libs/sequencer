@@ -1,6 +1,6 @@
+use blockifier::blockifier::concurrent_transaction_executor::ConcurrentTransactionExecutor;
 use blockifier::blockifier::transaction_executor::{
     BlockExecutionSummary,
-    TransactionExecutor,
     TransactionExecutorResult,
 };
 use blockifier::state::state_api::StateReader;
@@ -18,21 +18,20 @@ pub trait TransactionExecutorTrait: Send {
     fn close_block(&mut self) -> TransactionExecutorResult<BlockExecutionSummary>;
 }
 
-impl<S: StateReader + Send + Sync + 'static> TransactionExecutorTrait for TransactionExecutor<S> {
-    /// Adds the transactions to the generated block and returns the execution results.
+impl<S: StateReader + Send + Sync + 'static> TransactionExecutorTrait
+    for ConcurrentTransactionExecutor<S>
+{
     fn add_txs_to_block(
         &mut self,
         txs: &[BlockifierTransaction],
     ) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>> {
-        // TODO(Itamar): pass the timeout to the executor.
-        self.execute_txs(txs, None)
+        self.add_transactions_and_wait(txs)
             .into_iter()
             .map(|res| res.map(|(tx_execution_info, _state_diff)| tx_execution_info))
             .collect()
     }
-    /// Finalizes the block creation and returns the commitment state diff, visited
-    /// segments mapping and bouncer.
+
     fn close_block(&mut self) -> TransactionExecutorResult<BlockExecutionSummary> {
-        self.finalize()
+        ConcurrentTransactionExecutor::close_block(self)
     }
 }
