@@ -356,12 +356,12 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
         ));
 
         if let Some(worker_pool) = &mut self.worker_pool {
-            worker_pool.run(worker_executor.clone());
+            worker_pool.run_and_wait(worker_executor.clone(), chunk.len());
         } else {
             // If a pool is not given, create a new pool and wait for it to finish.
             let worker_pool =
                 WorkerPool::start(self.config.stack_size, self.config.concurrency_config.clone());
-            worker_pool.run(worker_executor.clone());
+            worker_pool.run_and_wait(worker_executor.clone(), chunk.len());
             worker_pool.join();
         }
 
