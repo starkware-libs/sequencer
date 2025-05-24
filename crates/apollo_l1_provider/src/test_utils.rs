@@ -11,6 +11,7 @@ use apollo_l1_provider_types::{
     ValidationStatus,
 };
 use async_trait::async_trait;
+use indexmap::IndexSet;
 use itertools::Itertools;
 use pretty_assertions::assert_eq;
 use starknet_api::block::BlockNumber;
@@ -219,7 +220,7 @@ impl FakeL1ProviderClient {
     pub async fn flush_messages(&self, l1_provider: &mut L1Provider) {
         let commit_blocks = self.commit_blocks_received.lock().unwrap().drain(..).collect_vec();
         for CommitBlockBacklog { height, committed_txs } in commit_blocks {
-            l1_provider.commit_block(&committed_txs, &HashSet::new(), height).unwrap();
+            l1_provider.commit_block(&committed_txs, &[].into(), height).unwrap();
         }
 
         // TODO(gilad): flush other buffers if necessary.
@@ -258,7 +259,7 @@ impl L1ProviderClient for FakeL1ProviderClient {
     async fn commit_block(
         &self,
         l1_handler_tx_hashes: Vec<TransactionHash>,
-        _rejected_l1_handler_tx_hashes: HashSet<TransactionHash>,
+        _rejected_l1_handler_tx_hashes: IndexSet<TransactionHash>,
         height: BlockNumber,
     ) -> L1ProviderClientResult<()> {
         self.commit_blocks_received
