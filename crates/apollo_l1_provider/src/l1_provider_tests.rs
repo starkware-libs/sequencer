@@ -28,7 +28,7 @@ fn commit_block_no_rejected(
     txs: &[TransactionHash],
     block_number: BlockNumber,
 ) {
-    l1_provider.commit_block(txs, &[].into(), block_number).unwrap();
+    l1_provider.commit_block(&txs.iter().copied().collect(), &[].into(), block_number).unwrap();
 }
 
 fn setup_rejected_transactions() -> super::L1Provider {
@@ -49,7 +49,9 @@ fn setup_rejected_transactions() -> super::L1Provider {
     // Commit block with rejected transactions.
     let consumed_txs = [tx1, tx2];
     let rejected_txs = [tx1];
-    l1_provider.commit_block(&consumed_txs, &rejected_txs.into(), first_block_number).unwrap();
+    l1_provider
+        .commit_block(&consumed_txs.into(), &rejected_txs.into(), first_block_number)
+        .unwrap();
 
     // Set the state to Validate for the validation tests.
     l1_provider.state = ProviderState::Validate;
@@ -62,7 +64,7 @@ macro_rules! bootstrapper {
             commit_block_backlog: vec![
                 $(CommitBlockBacklog {
                     height: BlockNumber($height),
-                    committed_txs: vec![$(tx_hash!($tx)),*]
+                    committed_txs: [$(tx_hash!($tx)),*].into()
                 }),*
             ].into_iter().collect(),
             catch_up_height: Arc::new(BlockNumber($catch).into()),
@@ -384,7 +386,7 @@ fn bootstrap_commit_block_received_twice_error_if_new_uncommitted_txs() {
     // Error, since the new tx hash is not known to be committed.
     assert_matches!(
         l1_provider
-            .commit_block(&[tx_hash!(1), tx_hash!(3)], &[].into(), BlockNumber(0))
+            .commit_block(&[tx_hash!(1), tx_hash!(3)].into(), &[].into(), BlockNumber(0))
             .unwrap_err(),
         L1ProviderError::UnexpectedHeight { expected_height: BlockNumber(1), got: BlockNumber(0) }
     );
