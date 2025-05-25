@@ -2,13 +2,13 @@ use std::fs::remove_dir_all;
 use std::path::PathBuf;
 
 use apollo_infra_utils::test_utils::TestIdentifier;
-use apollo_integration_tests::consts::{DATA_PREFIX_PATH, SINGLE_NODE_CONFIG_PATH};
 use apollo_integration_tests::integration_test_manager::IntegrationTestManager;
 use apollo_integration_tests::storage::CustomPaths;
 use clap::Parser;
 use tracing::info;
 
 const DB_DIR: &str = "./data";
+const DATA_PREFIX_PATH: &str = "/data";
 
 #[tokio::main]
 async fn main() {
@@ -45,9 +45,6 @@ async fn main() {
 #[derive(Parser, Debug)]
 #[command(name = "system_test_dump_single_node_config", about = "Dump single node config.")]
 struct Args {
-    #[arg(long,  default_value_t = SINGLE_NODE_CONFIG_PATH.to_string())]
-    config_output_path: String,
-
     #[arg(long,  default_value_t = DB_DIR.to_string())]
     db_dir: String,
 
