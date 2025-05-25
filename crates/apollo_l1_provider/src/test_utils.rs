@@ -103,6 +103,14 @@ impl L1ProviderContentBuilder {
         self
     }
 
+    pub fn with_committed(
+        mut self,
+        committed: impl IntoIterator<Item = L1HandlerTransaction>,
+    ) -> Self {
+        self.tx_manager_content_builder = self.tx_manager_content_builder.with_committed(committed);
+        self
+    }
+
     pub fn with_committed_hashes(
         mut self,
         tx_hashes: impl IntoIterator<Item = TransactionHash>,
@@ -183,6 +191,13 @@ impl TransactionManagerContentBuilder {
 
     fn with_rejected(mut self, rejected: impl IntoIterator<Item = L1HandlerTransaction>) -> Self {
         self.rejected = Some(rejected.into_iter().collect());
+        self
+    }
+
+    fn with_committed(mut self, committed: impl IntoIterator<Item = L1HandlerTransaction>) -> Self {
+        self.committed
+            .get_or_insert_default()
+            .extend(committed.into_iter().map(|tx| (tx.tx_hash, tx.into())));
         self
     }
 
