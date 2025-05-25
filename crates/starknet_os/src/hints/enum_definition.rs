@@ -1713,7 +1713,7 @@ memory[ap] = 1 if case != 'both' else 0"#
 initial_dict = {
     address: segments.gen_arg(
         (from_bytes(contract.contract_hash), segments.add(), contract.nonce))
-    for address, contract in block_input.contracts.items()
+    for address, contract in sorted(block_input.contracts.items())
 }"#
         }
     ),
