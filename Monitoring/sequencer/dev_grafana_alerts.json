@@ -53,6 +53,32 @@
       "intervalSec": 20
     },
     {
+      "name": "consensus_build_proposal_failed",
+      "title": "Consensus build proposal failed",
+      "ruleGroup": "consensus",
+      "expr": "rate(consensus_build_proposal_failed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "10s",
+      "intervalSec": 20
+    },
+    {
       "name": "gateway_add_tx_rate_drop",
       "title": "Gateway add_tx rate drop",
       "ruleGroup": "gateway",
