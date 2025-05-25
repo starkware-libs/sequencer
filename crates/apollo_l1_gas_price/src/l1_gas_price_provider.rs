@@ -27,6 +27,8 @@ pub struct L1GasPriceProviderConfig {
     // Ethereum.
     pub lag_margin_seconds: u64,
     pub storage_limit: usize,
+    // Maximum valid time gap between the requested timestamp and the last price sample.
+    pub max_time_gap: BlockTimestamp,
 }
 
 impl Default for L1GasPriceProviderConfig {
@@ -36,6 +38,8 @@ impl Default for L1GasPriceProviderConfig {
             number_of_blocks_for_mean: MEAN_NUMBER_OF_BLOCKS,
             lag_margin_seconds: 60,
             storage_limit: usize::try_from(10 * MEAN_NUMBER_OF_BLOCKS).unwrap(),
+            // TODO(alonl): choose a proper value instead of this placeholder.
+            max_time_gap: BlockTimestamp(1000),
         }
     }
 }
@@ -60,6 +64,12 @@ impl SerializeConfig for L1GasPriceProviderConfig {
                 "storage_limit",
                 &self.storage_limit,
                 "Maximum number of L1 blocks to keep cached",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_time_gap",
+                &self.max_time_gap,
+                "Maximum valid time gap between the requested timestamp and the last price sample",
                 ParamPrivacyInput::Public,
             ),
         ])
@@ -122,6 +132,26 @@ impl L1GasPriceProvider {
     }
 
     pub fn get_price_info(&self, timestamp: BlockTimestamp) -> L1GasPriceProviderResult<PriceInfo> {
+        // timestamp of the newest price sample
+        let last_timestamp = self
+            .price_samples_by_block
+            .back()
+            .ok_or(L1GasPriceProviderError::MissingDataError {
+                timestamp: timestamp.0,
+                lag: self.config.lag_margin_seconds,
+            })?
+            .sample
+            .timestamp;
+
+        // Check if the prices are stale.
+        if (timestamp.0 - last_timestamp) > self.config.max_time_gap.0 {
+            return Err(L1GasPriceProviderError::StaleL1GasPricesError {
+                current_timestamp: timestamp.0,
+                last_valid_price_timestamp: last_timestamp,
+                max_time_gap: self.config.max_time_gap.0,
+            });
+        }
+
         // This index is for the last block in the mean (inclusive).
         let index_last_timestamp_rev =
             self.price_samples_by_block.iter().rev().position(|data| {
