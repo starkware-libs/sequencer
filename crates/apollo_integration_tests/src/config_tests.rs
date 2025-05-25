@@ -7,7 +7,8 @@ use apollo_infra_utils::test_utils::assert_json_eq;
 use serde_json::{from_reader, Value};
 use tempfile::NamedTempFile;
 
-use crate::consts::SINGLE_NODE_CONFIG_PATH;
+const SINGLE_NODE_CONFIG_PATH: &str =
+    "config/sequencer/presets/system_test_presets/single_node/node_0/executable_0/node_config.json";
 
 /// Test that the single node preset is up to date. To update it, run:
 /// cargo run --bin system_test_dump_single_node_config -q
