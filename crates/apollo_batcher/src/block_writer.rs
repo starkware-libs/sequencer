@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
 
-use crate::block_builder::AbortSignalSender;
+use crate::batcher::AbortSignalSender;
 
 #[derive(Debug, Error)]
 pub enum BlockWriterError {}

@@ -79,6 +79,8 @@ use crate::utils::{
 
 type OutputStreamReceiver = tokio::sync::mpsc::UnboundedReceiver<InternalConsensusTransaction>;
 type InputStreamSender = tokio::sync::mpsc::Sender<InternalConsensusTransaction>;
+// Type definitions for the abort channel required to abort the block builder and block writer.
+pub type AbortSignalSender = tokio::sync::oneshot::Sender<()>;
 
 pub struct Batcher {
     pub config: BatcherConfig,

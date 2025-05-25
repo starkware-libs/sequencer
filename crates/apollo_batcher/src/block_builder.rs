@@ -47,6 +47,7 @@ use thiserror::Error;
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, trace};
 
+use crate::batcher::AbortSignalSender;
 use crate::block_builder::FailOnErrorCause::L1HandlerTransactionValidationFailed;
 use crate::metrics::FULL_BLOCKS;
 use crate::transaction_executor::TransactionExecutorTrait;
@@ -366,8 +367,6 @@ pub struct BlockMetadata {
     pub retrospective_block_hash: Option<BlockHashAndNumber>,
 }
 
-// Type definitions for the abort channel required to abort the block builder.
-pub type AbortSignalSender = tokio::sync::oneshot::Sender<()>;
 pub type BatcherWorkerPool =
     Arc<WorkerPool<CachedState<StateReaderAndContractManager<PapyrusReader>>>>;
 

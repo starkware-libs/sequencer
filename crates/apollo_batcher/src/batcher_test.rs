@@ -45,9 +45,13 @@ use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, nonce, tx_hash};
 use validator::Validate;
 
-use crate::batcher::{Batcher, MockBatcherStorageReaderTrait, MockBatcherStorageWriterTrait};
-use crate::block_builder::{
+use crate::batcher::{
     AbortSignalSender,
+    Batcher,
+    MockBatcherStorageReaderTrait,
+    MockBatcherStorageWriterTrait,
+};
+use crate::block_builder::{
     BlockBuilderConfig,
     BlockBuilderError,
     BlockBuilderResult,
