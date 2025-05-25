@@ -55,7 +55,14 @@ def main():
 
     preset = config.DeploymentConfig(args.deployment_config_file)
     services = preset.get_services()
-    image = f"ghcr.io/starkware-libs/sequencer/sequencer:{args.deployment_image_tag}"
+
+    if args.deployment_image:
+        image = args.deployment_image
+    else:
+        # Set default tag if not provided
+        if not args.deployment_image_tag:
+            args.deployment_image_tag = "dev"
+        image = f"ghcr.io/starkware-libs/sequencer/sequencer:{args.deployment_image_tag}"
     application_config_subdir = preset.get_application_config_subdir()
     create_monitoring = True if args.monitoring_dashboard_file else False
 
