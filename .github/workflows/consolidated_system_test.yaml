@@ -72,6 +72,67 @@ jobs:
       - name: Setup cdk8s-cli
         run: npm install -g cdk8s-cli
 
+      - name: Deploy Dummy Recorder
+        env:
+          dummy_recorder_namespace: dummy-recorder
+        working-directory: deployments/dummy_recorder
+        run: |
+          echo "Deploying Dummy Recorder..."
+          pipenv install
+          cdk8s import
+          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.dummy_recorder_namespace }}"
+          kubectl create namespace ${{ env.dummy_recorder_namespace }} || echo "Namespace already exists"
+          kubectl apply -R -f ./dist
+          echo "⏳ Waiting for Dummy Recorder to become ready..."
+          kubectl wait --namespace ${{ env.dummy_recorder_namespace }} --for=condition=Ready -l app=dummy-recorder pod --timeout=60s
+
+          echo "📋 Getting pod information..."
+          kubectl get pods --namespace ${{ env.dummy_recorder_namespace }}
+
+          echo "📝 Describing pods..."
+          for pod in $(kubectl get pods -n ${{ env.dummy_recorder_namespace }} -l app=dummy-recorder -o jsonpath="{.items[*].metadata.name}"); do
+            echo "🔍 Description for pod: $pod"
+            kubectl describe pod $pod -n ${{ env.dummy_recorder_namespace }}
+          done
+
+          echo "📦 Fetching pod logs..."
+          for pod in $(kubectl get pods -n ${{ env.dummy_recorder_namespace }} -l app=dummy-recorder -o jsonpath="{.items[*].metadata.name}"); do
+            echo "📜 Logs for pod: $pod"
+            kubectl logs $pod -n ${{ env.dummy_recorder_namespace }}
+          done
+
+          echo "🚀 Dummy Recorder deployed successfully."
+
+      - name: Deploy Dummy Eth2Strk Oracle
+        env:
+          namespace: dummy-eth2strk-oracle
+        working-directory: deployments/dummy_eth2strk_oracle
+        run: |
+          echo "Deploying Dummy Eth2Strk Oracle..."
+          pipenv install
+          cdk8s import
+          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.namespace }}"
+          kubectl create namespace ${{ env.namespace }}
+          kubectl apply -R -f ./dist
+          echo "⏳ Waiting for Dummy Eth2Strk Oracle to become ready..."
+          kubectl wait --namespace ${{ env.namespace }} --for=condition=Ready -l app=dummy-eth2strk-oracle pod --timeout 60s
+          echo "🚀 Dummy Eth2Strk Oracle deployed successfully."
+
+      - name: Deploy Anvil
+        env:
+          namespace: anvil
+        working-directory: deployments/anvil
+        run: |
+          echo "Deploying Anvil..."
+          pipenv install
+          cdk8s import
+          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.namespace }}"
+          kubectl create namespace ${{ env.namespace }}
+          kubectl apply -R -f ./dist
+          echo "⏳ Waiting for Anvil to become ready..."
+          kubectl wait --namespace ${{ env.namespace }} --for=condition=Ready -l app=anvil pod --timeout 60s
+          echo "🚀 Anvil deployed successfully."
+
       - name: Build binaries
         run: cargo build --bin sequencer_node_setup --bin sequencer_simulator
 
@@ -97,8 +158,8 @@ jobs:
       - name: Generate k8s manifests
         working-directory: deployments/sequencer
         run: |
-          pipenv install
           cdk8s import
+          pipenv install
           echo "Generating Kubernetes manifests using deployment config at: ${{ env.deployment_config_path }}:"
           cat "${{ env.deployment_config_path }}"
           cdk8s synth --app "pipenv run python main.py --namespace ${{ env.namespace }} --deployment-config-file ${{ env.deployment_config_path }}"
@@ -112,6 +173,9 @@ jobs:
 
       - name: Set default namespace
         run: kubectl config set-context --current --namespace ${{ env.namespace }}
+
+      - name: Run readiness check
+        run: pipenv run python ./scripts/system_tests/readiness_check.py --deployment_config_path ${{ env.deployment_config_path }} --namespace ${{ env.namespace }}
 
       - name: Get container logs
         if: always()
