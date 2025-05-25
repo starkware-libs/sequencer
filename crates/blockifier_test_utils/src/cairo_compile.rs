@@ -1,16 +1,12 @@
-use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, Output, Stdio};
-use std::sync::LazyLock;
 
+use apollo_infra_utils::cairo0_compiler::verify_cairo0_compiler_deps;
 use apollo_infra_utils::cairo_compiler_version::cairo1_compiler_version;
-use apollo_infra_utils::path::{project_path, resolve_project_relative_path};
+use apollo_infra_utils::path::project_path;
 use tempfile::NamedTempFile;
 use tracing::info;
-
-static CAIRO0_PIP_REQUIREMENTS_FILE: LazyLock<PathBuf> =
-    LazyLock::new(|| resolve_project_relative_path("scripts/requirements.txt").unwrap());
 
 pub enum CompilationArtifacts {
     Cairo0 { casm: Vec<u8> },
@@ -144,39 +140,4 @@ fn starknet_sierra_compile(path: String, version: &String) -> Vec<u8> {
     sierra_compile_command.args([&path, "--allowed-libfuncs-list-name", "all"]);
     let casm_output = run_and_verify_output(&mut sierra_compile_command);
     casm_output.stdout
-}
-
-/// Verifies that the required dependencies are available before compiling; panics if unavailable.
-fn verify_cairo0_compiler_deps() {
-    // Python compiler. Verify correct version.
-    let cairo_lang_version_output =
-        Command::new("sh").arg("-c").arg("pip freeze | grep cairo-lang").output().unwrap().stdout;
-    let cairo_lang_version_untrimmed = String::from_utf8(cairo_lang_version_output).unwrap();
-    let cairo_lang_version =
-        cairo_lang_version_untrimmed.trim().split("==").nth(1).unwrap_or_else(|| {
-            panic!("Unexpected cairo-lang version format '{cairo_lang_version_untrimmed}'.")
-        });
-    let requirements_contents = fs::read_to_string(&*CAIRO0_PIP_REQUIREMENTS_FILE).unwrap();
-    let expected_cairo_lang_version = requirements_contents
-        .lines()
-        .find(|line| line.starts_with("cairo-lang"))
-        .unwrap_or_else(|| {
-            panic!("Could not find cairo-lang in {:?}.", *CAIRO0_PIP_REQUIREMENTS_FILE)
-        })
-        .trim()
-        .split("==")
-        .nth(1)
-        .unwrap_or_else(|| {
-            panic!(
-                "Malformed cairo-lang dependency (expected 'cairo-lang==X') in {:?}.",
-                *CAIRO0_PIP_REQUIREMENTS_FILE
-            )
-        });
-
-    assert_eq!(
-        expected_cairo_lang_version, cairo_lang_version,
-        "cairo-lang version {expected_cairo_lang_version} not found (installed version: \
-         {cairo_lang_version}). Please run:\npip3.9 install -r {:?}\nthen rerun the test.",
-        *CAIRO0_PIP_REQUIREMENTS_FILE
-    );
 }
