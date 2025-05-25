@@ -1395,6 +1395,13 @@ dependencies = [
 [[package]]
 name = "apollo_l1_endpoint_monitor"
 version = "0.15.0-rc.1"
+dependencies = [
+ "alloy",
+ "serde",
+ "thiserror 1.0.69",
+ "tracing",
+ "url",
+]
 
 [[package]]
 name = "apollo_l1_gas_price"
