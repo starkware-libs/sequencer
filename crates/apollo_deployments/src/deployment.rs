@@ -1,13 +1,16 @@
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+use apollo_config::dumping::{prepend_sub_config_name, SerializeConfig};
+use apollo_config::{ParamPath, SerializedParam};
 use apollo_infra_utils::dumping::serialize_to_file;
 #[cfg(test)]
 use apollo_infra_utils::dumping::serialize_to_file_test;
-use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
-use apollo_node::config::config_utils::{get_deployment_from_config_path, BaseAppConfigOverride};
+use apollo_node::config::component_config::ComponentConfig;
+use apollo_node::config::config_utils::config_to_preset;
 use indexmap::IndexMap;
 use serde::Serialize;
-use serde_json::{to_value, Value};
+use serde_json::{json, to_value, Value};
 use starknet_api::core::ChainId;
 
 use crate::deployment_definitions::{Environment, CONFIG_BASE_DIR};
@@ -56,8 +59,20 @@ impl Deployment {
         let application_config_subdir = deployment_name
             .add_path_suffix(environment.application_config_dir_path(), instance_name);
 
+        // TODO(Tsabary): list the mutual parent dir of the base app config and all the services'
+        // configs as the parent dir, and for each file add its specific path originating from that
+        // dir. This will enable removing the current "upward" paths.
+
+        // Reference the base app config file from the application config subdir.
+        let base_app_config_relative_path =
+            relative_up_path(&application_config_subdir, &base_app_config_file_path);
+
+        let config_override_files: Vec<String> = config_override.create(&application_config_subdir);
+
         let additional_config_filenames: Vec<String> =
-            config_override.create(&application_config_subdir);
+            std::iter::once(base_app_config_relative_path.to_string_lossy().to_string())
+                .chain(config_override_files)
+                .collect();
 
         let services = service_names
             .iter()
@@ -90,30 +105,29 @@ impl Deployment {
     }
 
     pub fn application_config_values(&self) -> IndexMap<ServiceName, Value> {
-        let deployment_base_app_config =
-            get_deployment_from_config_path(self.get_base_app_config_file_path().to_str().unwrap());
         let component_configs = self.deployment_name.get_component_configs(None, &self.environment);
-
         let mut result = IndexMap::new();
 
+        let l1_provider_config = self.environment.get_l1_provider_config_modifications().as_value();
+
         for (service, component_config) in component_configs.into_iter() {
-            let mut service_deployment_base_app_config = deployment_base_app_config.clone();
+            // Component configs, determined by the service.
 
-            let monitoring_endpoint_config = MonitoringEndpointConfig::deployment();
-            let base_app_config_override =
-                BaseAppConfigOverride::new(component_config, monitoring_endpoint_config);
+            let component_config_serialization_wrapper: ComponentConfigsSerializationWrapper =
+                component_config.into();
 
-            service_deployment_base_app_config.override_base_app_config(base_app_config_override);
+            let mut flattened_component_config_map =
+                config_to_preset(&json!(component_config_serialization_wrapper.dump()));
 
-            service_deployment_base_app_config
-                .config
-                .l1_provider_config
-                .provider_startup_height_override = self
-                .environment
-                .get_l1_provider_config_modifications()
-                .l1_provider_config_provider_startup_height_override;
+            // Unify maps of component configs and L1 provider configs.
+            // TODO(Tsabary): l1 provider config should be dumped in a different file
+            if let (Value::Object(obj1), Value::Object(obj2)) =
+                (&mut flattened_component_config_map, l1_provider_config.clone())
+            {
+                obj1.extend(obj2);
+            }
 
-            result.insert(service, service_deployment_base_app_config.as_value());
+            result.insert(service, flattened_component_config_map);
         }
 
         result
@@ -338,4 +352,46 @@ fn get_secret_key(id: usize) -> String {
 fn get_validator_id(id: usize) -> String {
     // TODO(Tsabary): Make sure this works for larger ids by converting the id to hex string.
     format!("0x{}", id + 64)
+}
+
+fn relative_up_path(from: &Path, to: &Path) -> PathBuf {
+    // Canonicalize logically (NOT on filesystem)
+    let from_components: Vec<_> = from.components().collect();
+    let to_components: Vec<_> = to.components().collect();
+
+    // Find common prefix length
+    let common_len = from_components.iter().zip(&to_components).take_while(|(a, b)| a == b).count();
+
+    // How many directories to go up from `from` to get to common root
+    let up_levels = from_components.len() - common_len;
+
+    // Build the relative path
+    let mut result = PathBuf::new();
+    for _ in 0..up_levels {
+        result.push("..");
+    }
+    for component in &to_components[common_len..] {
+        result.push(component.as_os_str());
+    }
+
+    result
+}
+
+// A helper struct for serializing the components config in the same hierarchy as of its
+// serialization as part of the entire config, i.e., by prepending "components.".
+#[derive(Clone, Debug, Default, Serialize)]
+struct ComponentConfigsSerializationWrapper {
+    components: ComponentConfig,
+}
+
+impl From<ComponentConfig> for ComponentConfigsSerializationWrapper {
+    fn from(value: ComponentConfig) -> Self {
+        ComponentConfigsSerializationWrapper { components: value }
+    }
+}
+
+impl SerializeConfig for ComponentConfigsSerializationWrapper {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        prepend_sub_config_name(self.components.dump(), "components")
+    }
 }

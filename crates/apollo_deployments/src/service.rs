@@ -1,4 +1,5 @@
 use std::fmt::Display;
+use std::iter::once;
 use std::path::PathBuf;
 
 use apollo_node::config::component_config::ComponentConfig;
@@ -152,17 +153,18 @@ impl Service {
     pub fn new(
         service_name: ServiceName,
         external_secret: Option<ExternalSecret>,
-        mut additional_config_filenames: Vec<String>,
+        config_filenames: Vec<String>,
         ingress_params: IngressParams,
         // TODO(Tsabary): consider if including the environment is necessary.
         environment: Environment,
     ) -> Self {
         // Configs are loaded by order such that a config may override previous ones.
         // We first list the base config, and then follow with the overrides.
-        // TODO(Tsabary): the service override is currently engrained in the base config, need to
-        // resolve that.
-        let mut config_paths: Vec<String> = vec![service_name.get_config_file_path()];
-        config_paths.append(&mut additional_config_filenames);
+        let config_paths = config_filenames
+            .iter()
+            .cloned()
+            .chain(once(service_name.get_config_file_path()))
+            .collect();
 
         let controller = service_name.get_controller();
         let autoscale = service_name.get_autoscale();

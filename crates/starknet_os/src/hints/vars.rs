@@ -149,6 +149,7 @@ define_string_enum! {
         (DaSize),
         (DaStart),
         (DataEnd),
+        (DataPtr),
         (DataStart),
         (DecompressedDst),
         (DictPtr),

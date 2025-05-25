@@ -24,8 +24,9 @@ use blockifier::blockifier::transaction_executor::{
 };
 use blockifier::blockifier_versioned_constants::{VersionedConstants, VersionedConstantsOverrides};
 use blockifier::bouncer::{BouncerConfig, BouncerWeights, CasmHashComputationData};
+use blockifier::concurrency::worker_pool::WorkerPool;
 use blockifier::context::{BlockContext, ChainInfo};
-use blockifier::state::cached_state::CommitmentStateDiff;
+use blockifier::state::cached_state::{CachedState, CommitmentStateDiff};
 use blockifier::state::contract_class_manager::ContractClassManager;
 use blockifier::state::errors::StateError;
 use blockifier::state::state_reader_and_contract_manager::StateReaderAndContractManager;
@@ -367,6 +368,8 @@ pub struct BlockMetadata {
 
 // Type definitions for the abort channel required to abort the block builder.
 pub type AbortSignalSender = tokio::sync::oneshot::Sender<()>;
+pub type BatcherWorkerPool =
+    Arc<WorkerPool<CachedState<StateReaderAndContractManager<PapyrusReader>>>>;
 
 /// The BlockBuilderFactoryTrait is responsible for creating a new block builder.
 #[cfg_attr(test, automock)]
@@ -440,6 +443,7 @@ pub struct BlockBuilderFactory {
     pub storage_reader: StorageReader,
     pub contract_class_manager: ContractClassManager,
     pub class_manager_client: SharedClassManagerClient,
+    pub worker_pool: BatcherWorkerPool,
 }
 
 impl BlockBuilderFactory {
@@ -470,11 +474,12 @@ impl BlockBuilderFactory {
             contract_class_manager: self.contract_class_manager.clone(),
         };
 
-        let executor = TransactionExecutor::pre_process_and_create(
+        let executor = TransactionExecutor::pre_process_and_create_with_pool(
             state_reader,
             block_context,
             block_metadata.retrospective_block_hash,
             block_builder_config.execute_config,
+            Some(self.worker_pool.clone()),
         )?;
 
         Ok(executor)
