@@ -510,6 +510,7 @@ auto_storage_serde! {
 
     (BlockNumber, TransactionOffsetInBlock);
     (BlockHash, ClassHash);
+    (ClassHash, BlockNumber);
     (ContractAddress, BlockHash);
     (ContractAddress, BlockNumber);
     (ContractAddress, Nonce);
