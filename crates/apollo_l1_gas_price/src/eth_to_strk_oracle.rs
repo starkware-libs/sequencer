@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::num::NonZeroUsize;
 use std::sync::Mutex;
+use std::time::Duration;
 
 use apollo_config::converters::{deserialize_optional_map, serialize_optional_map};
 use apollo_config::dumping::{ser_param, SerializeConfig};
@@ -8,13 +9,13 @@ use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_l1_gas_price_types::errors::EthToStrkOracleClientError;
 use apollo_l1_gas_price_types::EthToStrkOracleClientTrait;
 use async_trait::async_trait;
+use futures::FutureExt;
 use lru::LruCache;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
-use reqwest::Response;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use tokio_util::task::AbortOnDropHandle;
-use tracing::{debug, info, instrument};
+use tracing::{debug, info, instrument, warn};
 use url::Url;
 
 #[cfg(test)]
@@ -24,10 +25,11 @@ pub mod eth_to_strk_oracle_test;
 // TODO(Asmaa): Move to config.
 pub const ETH_TO_STRK_QUANTIZATION: u64 = 18;
 const MAX_CACHE_SIZE: NonZeroUsize = NonZeroUsize::new(100).expect("Invalid cache size");
+const QUERY_TIMEOUT_SEC: u64 = 3;
 
 pub enum Query {
     Resolved(u128),
-    Unresolved(AbortOnDropHandle<Result<Response, reqwest::Error>>),
+    Unresolved(AbortOnDropHandle<Result<String, EthToStrkOracleClientError>>),
 }
 
 fn hashmap_to_headermap(hash_map: Option<HashMap<String, String>>) -> HeaderMap {
@@ -126,18 +128,37 @@ impl EthToStrkOracleClient {
     fn spawn_query(
         &self,
         quantized_timestamp: u64,
-    ) -> AbortOnDropHandle<Result<Response, reqwest::Error>> {
+    ) -> AbortOnDropHandle<Result<String, EthToStrkOracleClientError>> {
         let adjusted_timestamp = quantized_timestamp * self.lag_interval_seconds;
-        let mut url = self.base_url.clone();
-        url.query_pairs_mut().append_pair("timestamp", &adjusted_timestamp.to_string());
-        let request = self.client.get(url).headers(self.headers.clone()).send();
-        AbortOnDropHandle::new(tokio::spawn(request))
+        let client = self.client.clone();
+        let base_url = self.base_url.clone();
+        let headers = self.headers.clone();
+
+        let future = async move {
+            loop {
+                let mut url = base_url.clone();
+                url.query_pairs_mut().append_pair("timestamp", &adjusted_timestamp.to_string());
+
+                let result = tokio::time::timeout(Duration::from_secs(QUERY_TIMEOUT_SEC), async {
+                    let response = client.get(url).headers(headers.clone()).send().await?;
+                    let body = response.text().await?;
+                    Ok::<_, EthToStrkOracleClientError>(body)
+                })
+                .await;
+
+                match result {
+                    Ok(inner_result) => return inner_result,
+                    Err(_) => {
+                        warn!("Timeout when resolving query for timestamp {adjusted_timestamp}")
+                    }
+                }
+            }
+        };
+
+        AbortOnDropHandle::new(tokio::spawn(future))
     }
 
-    async fn resolve_query(
-        &self,
-        quantized_timestamp: u64,
-    ) -> Result<u128, EthToStrkOracleClientError> {
+    fn resolve_query(&self, quantized_timestamp: u64) -> Result<u128, EthToStrkOracleClientError> {
         let Some(Query::Unresolved(handle)) = self
             .cached_prices
             .lock()
@@ -146,8 +167,8 @@ impl EthToStrkOracleClient {
         else {
             panic!("Entry must exist")
         };
-        assert!(handle.is_finished(), "Should only be called once the query completes");
-        let body = handle.await??.text().await?;
+        let body =
+            handle.now_or_never().expect("Should only be called once the query completes")??;
         let json: serde_json::Value = serde_json::from_str(&body)?;
         let price = json
             .get("price")
@@ -205,8 +226,7 @@ impl EthToStrkOracleClientTrait for EthToStrkOracleClient {
                 }
             };
         }
-
-        let rate = self.resolve_query(quantized_timestamp).await?;
+        let rate = self.resolve_query(quantized_timestamp)?;
         self.cached_prices
             .lock()
             .expect("Lock on cached prices was poisoned due to a previous panic")
