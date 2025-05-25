@@ -102,8 +102,8 @@ jobs:
       - name: Generate k8s manifests
         working-directory: deployments/sequencer
         run: |
-          cdk8s import
           pipenv install
+          cdk8s import
           echo "Generating Kubernetes manifests using deployment config at: ${{ env.deployment_config_path }}:"
           cat "${{ env.deployment_config_path }}"
           cdk8s synth --app "pipenv run python main.py --namespace ${{ env.namespace }} --deployment-config-file ${{ env.deployment_config_path }}"
