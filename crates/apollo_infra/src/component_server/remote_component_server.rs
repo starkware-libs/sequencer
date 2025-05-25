@@ -179,7 +179,11 @@ where
                 debug!("Successfully deserialized request: {:?}", request);
                 metrics.increment_valid_received();
 
-                let response = local_client.send(request).await;
+                // Wrap the send operation in a tokio::spawn as it is NOT a cancel-safe operation.
+                // Even if the current task is cancelled, the inner task will continue to run.
+                let response = tokio::spawn(async move { local_client.send(request).await })
+                    .await
+                    .expect("Should be able to extract value from the task");
 
                 metrics.increment_processed();
 
