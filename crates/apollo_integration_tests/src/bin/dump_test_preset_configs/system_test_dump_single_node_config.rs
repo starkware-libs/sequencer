@@ -3,9 +3,8 @@ use std::path::PathBuf;
 
 use apollo_infra_utils::test_utils::TestIdentifier;
 use apollo_integration_tests::consts::{DATA_PREFIX_PATH, SINGLE_NODE_CONFIG_PATH};
-use apollo_integration_tests::integration_test_manager::get_sequencer_setup_configs;
+use apollo_integration_tests::integration_test_manager::IntegrationTestManager;
 use apollo_integration_tests::storage::CustomPaths;
-use apollo_integration_tests::utils::create_integration_test_tx_generator;
 use clap::Parser;
 use tracing::info;
 
@@ -18,18 +17,13 @@ async fn main() {
     info!("Generating system test preset for single node.");
     let args = Args::parse();
 
-    // Creates a multi-account transaction generator for integration test
-    let tx_generator = create_integration_test_tx_generator();
-
     let custom_paths = CustomPaths::new(
         Some(PathBuf::from(args.db_dir.clone())),
         None,
         Some(PathBuf::from(args.data_prefix_path)),
     );
-    // TODO(Nadin): Align this with node_setup.
-    // Run node setup.
-    let (mut sequencers_setup, _node_indices) = get_sequencer_setup_configs(
-        &tx_generator,
+
+    let test_manager = IntegrationTestManager::new(
         N_CONSOLIDATED_SEQUENCERS,
         N_DISTRIBUTED_SEQUENCERS,
         Some(custom_paths),
@@ -37,10 +31,11 @@ async fn main() {
     )
     .await;
 
-    // Dump the config file in the single node path.
-    let single_node_path = PathBuf::from(args.config_output_path);
-    sequencers_setup[0].set_executable_config_path(0, single_node_path).unwrap();
-    sequencers_setup[0].get_executables()[0].dump_config_file_changes();
+    test_manager.get_idle_nodes().iter().for_each(|(_, node_setup)| {
+        node_setup.get_executables().iter().for_each(|executable_setup| {
+            executable_setup.dump_config_file_changes();
+        });
+    });
 
     remove_dir_all(args.db_dir).expect("Failed to remove db directory");
 
