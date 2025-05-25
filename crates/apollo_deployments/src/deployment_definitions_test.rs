@@ -1,5 +1,6 @@
 use std::env;
 
+use apollo_config::CONFIG_FILE_ARG;
 use apollo_infra_utils::dumping::serialize_to_file_test;
 use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_node::config::component_execution_config::{
@@ -32,11 +33,10 @@ fn load_and_process_service_config_files() {
         .expect("Couldn't set working dir.");
     for deployment_fn in DEPLOYMENTS {
         let deployment = deployment_fn();
-        // TODO(Tsabary): "--config_file" should be a constant.
         for service_config_paths in deployment.get_config_file_paths().into_iter() {
             let config_file_args: Vec<String> = service_config_paths
                 .into_iter()
-                .flat_map(|path| vec!["--config_file".to_string(), path])
+                .flat_map(|path| vec![CONFIG_FILE_ARG.to_string(), path])
                 .collect();
 
             let mut config_load_command: Vec<String> = vec!["command_name_placeholder".to_string()];
