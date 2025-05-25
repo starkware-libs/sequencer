@@ -21,7 +21,7 @@ use crate::concurrency::fee_utils::STORAGE_READ_SEQUENCER_BALANCE_INDICES;
 use crate::concurrency::scheduler::{Task, TransactionStatus};
 use crate::concurrency::test_utils::safe_versioned_state_for_testing;
 use crate::concurrency::versioned_state::ThreadSafeVersionedState;
-use crate::concurrency::worker_logic::lock_mutex_in_array;
+use crate::concurrency::worker_logic::{lock_mutex_in_array, CommitResult};
 use crate::context::{BlockContext, TransactionContext};
 use crate::fee::fee_utils::get_sequencer_balance_keys;
 use crate::state::cached_state::StateMaps;
@@ -139,21 +139,34 @@ pub fn test_commit_tx() {
     // * tx2 should fail revalidation (it read the nonce before tx1 re-executed and incremented it).
     //   It should fail re-execution because it has the same nonce as tx1.
     // * tx3 should pass revalidation and commit.
-    for &(commit_idx, should_fail_execution) in
-        [(0, false), (1, false), (2, true), (3, true)].iter()
+    for &(commit_idx, should_pass_validation, should_pass_execution) in
+        [(0, true, true), (1, false, true), (2, false, false), (3, true, false)].iter()
     {
-        executor.commit_tx(commit_idx).unwrap();
+        // Manually set the status before calling `commit_tx` to simulate the behavior of
+        // `try_commit`.
+        executor.scheduler.set_tx_status(commit_idx, TransactionStatus::Committed);
+        let commit_result = executor.commit_tx(commit_idx).unwrap();
+        if should_pass_validation {
+            assert_eq!(commit_result, CommitResult::Success);
+        } else {
+            assert_eq!(commit_result, CommitResult::ValidationFailed, "commit_idx: {}", commit_idx);
+            // Re-execute the transaction.
+            executor.execute_tx(commit_idx);
+            // Commit again. This time it should succeed.
+            assert_eq!(executor.commit_tx(commit_idx).unwrap(), CommitResult::Success);
+        }
+
         let execution_task_outputs = lock_mutex_in_array(&executor.execution_outputs, commit_idx);
         let execution_result = &execution_task_outputs.as_ref().unwrap().result;
         let expected_sequencer_balance_high = 0_u128;
-        assert_eq!(execution_result.is_err(), should_fail_execution);
+        assert_eq!(execution_result.is_ok(), should_pass_execution);
         // Extract the actual fee. If the transaction fails, no fee should be charged.
-        let actual_fee = if should_fail_execution {
-            0
-        } else {
+        let actual_fee = if should_pass_execution {
             execution_result.as_ref().unwrap().receipt.fee.0
+        } else {
+            0
         };
-        if !should_fail_execution {
+        if should_pass_execution {
             assert!(!execution_result.as_ref().unwrap().is_reverted());
             // Check that the call info was fixed.
             for (expected_sequencer_storage_read, read_storage_index) in [
@@ -501,7 +514,7 @@ fn test_worker_validate(default_all_resource_bounds: ValidResourceBounds) {
 
     // Validate succeeds.
     let tx_index = 0;
-    assert!(worker_executor.validate(tx_index).unwrap());
+    assert!(worker_executor.validate(tx_index, false).unwrap());
     // Verify writes exist in state.
     assert_eq!(
         safe_versioned_state
@@ -515,7 +528,7 @@ fn test_worker_validate(default_all_resource_bounds: ValidResourceBounds) {
 
     // Validate failed. Invoke 2 failed validations; only the first leads to a re-execution.
     let tx_index = 1;
-    assert!(!worker_executor.validate(tx_index).unwrap());
+    assert!(!worker_executor.validate(tx_index, false).unwrap());
     assert_eq!(
         worker_executor.scheduler.get_tx_status(tx_index),
         TransactionStatus::ReadyToExecute
@@ -533,7 +546,7 @@ fn test_worker_validate(default_all_resource_bounds: ValidResourceBounds) {
     assert_eq!(worker_executor.scheduler.get_tx_status(tx_index), TransactionStatus::Executing);
 
     // Validation still fails, but the task is already being executed by "another" thread.
-    assert!(!worker_executor.validate(tx_index).unwrap());
+    assert!(!worker_executor.validate(tx_index, false).unwrap());
     assert_eq!(worker_executor.scheduler.next_task(), Task::NoTaskAvailable);
 }
 
@@ -622,7 +635,7 @@ fn test_deploy_before_declare(
     worker_executor.scheduler.next_task();
 
     // Verify validation failed.
-    assert!(!worker_executor.validate(1).unwrap());
+    assert!(!worker_executor.validate(1, false).unwrap());
     assert_eq!(worker_executor.scheduler.get_tx_status(1), TransactionStatus::ReadyToExecute);
     assert_eq!(worker_executor.scheduler.next_task(), Task::ExecutionTask(1));
 
@@ -636,7 +649,7 @@ fn test_deploy_before_declare(
     assert_eq!(worker_executor.scheduler.next_task(), Task::ValidationTask(1));
 
     // Successful validation for transaction 1.
-    assert!(worker_executor.validate(1).unwrap());
+    assert!(worker_executor.validate(1, false).unwrap());
     assert_eq!(worker_executor.scheduler.next_task(), Task::NoTaskAvailable);
 }
 

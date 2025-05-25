@@ -110,8 +110,21 @@ impl Scheduler {
         self.decrease_validation_index(tx_index);
     }
 
-    pub fn try_validation_abort(&self, tx_index: TxIndex) -> bool {
+    /// Marks the given transaction as `Aborting` if the current status is `Executed`.
+    /// `commit_phase` should be `true` if the function is called during the commit phase.
+    pub fn try_validation_abort(&self, tx_index: TxIndex, commit_phase: bool) -> bool {
         let mut status = self.lock_tx_status(tx_index);
+        if commit_phase {
+            assert_eq!(
+                *status,
+                TransactionStatus::Committed,
+                "Unexpected status during commit phase: {:?}",
+                *status
+            );
+            *status = TransactionStatus::Aborting;
+            return true;
+        }
+
         if *status == TransactionStatus::Executed {
             *status = TransactionStatus::Aborting;
             return true;
@@ -124,13 +137,6 @@ impl Scheduler {
     pub fn finish_abort(&self, tx_index: TxIndex) {
         self.set_ready_status(tx_index);
         self.decrease_execution_index(tx_index);
-    }
-
-    /// This method is called after a transaction gets re-executed during a commit. It decreases the
-    /// validation index to ensure that higher transactions are validated. There is no need to set
-    /// the transaction status to Executed, as it is already set to Committed.
-    pub fn finish_execution_during_commit(&self, tx_index: TxIndex) {
-        self.decrease_validation_index(tx_index + 1);
     }
 
     /// Tries to takes the lock on the commit index. Returns a `TransactionCommitter` if successful,
