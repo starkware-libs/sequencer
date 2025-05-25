@@ -1,5 +1,4 @@
 use std::cmp::Ordering::{Equal, Greater, Less};
-use std::collections::HashSet;
 use std::sync::Arc;
 
 use apollo_batcher_types::communication::SharedBatcherClient;
@@ -120,7 +119,7 @@ impl L1Provider {
     #[instrument(skip(self), err)]
     pub fn commit_block(
         &mut self,
-        committed_txs: &[TransactionHash],
+        committed_txs: &IndexSet<TransactionHash>,
         rejected_txs: &IndexSet<TransactionHash>,
         height: BlockNumber,
     ) -> L1ProviderResult<()> {
@@ -139,7 +138,7 @@ impl L1Provider {
     /// Try to apply commit_block backlog, and if all caught up, drop bootstrapping state.
     fn bootstrap(
         &mut self,
-        committed_txs: &[TransactionHash],
+        committed_txs: &IndexSet<TransactionHash>,
         new_height: BlockNumber,
     ) -> L1ProviderResult<()> {
         let current_height = self.current_height;
@@ -156,9 +155,7 @@ impl L1Provider {
                 } else {
                     // This is either a configuration error or a bug in the
                     // batcher/sync/bootstrapper.
-                    let committed_txs_diff: HashSet<_> = committed_txs.iter().copied().collect();
-                    let committed_txs_diff =
-                        committed_txs_diff.difference(&self.tx_manager.committed);
+                    let committed_txs_diff = committed_txs.difference(&self.tx_manager.committed);
                     error!(
                         "Duplicate commit block: commit block for {new_height:?} already \
                          received, with DIFFERENT transaction_hashes: {committed_txs_diff:?}"
@@ -251,7 +248,7 @@ impl L1Provider {
 
     fn apply_commit_block(
         &mut self,
-        consumed_txs: &[TransactionHash],
+        consumed_txs: &IndexSet<TransactionHash>,
         rejected_txs: &IndexSet<TransactionHash>,
     ) {
         let (rejected_and_consumed, committed_txs): (Vec<_>, Vec<_>) =
