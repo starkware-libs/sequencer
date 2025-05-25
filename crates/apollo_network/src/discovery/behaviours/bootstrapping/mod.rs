@@ -1,6 +1,6 @@
 use std::task::{Context, Poll};
 
-use bootstrap_peer::BootstrapPeer;
+use bootstrap_peer::BootstrapPeerEventStream;
 use futures::stream::SelectAll;
 use futures::StreamExt;
 use libp2p::core::Endpoint;
@@ -22,7 +22,7 @@ pub mod bootstrap_peer;
 mod bootstrap_test;
 
 pub struct BootstrappingBehaviour {
-    peers: SelectAll<BootstrapPeer>,
+    peers: SelectAll<BootstrapPeerEventStream>,
 }
 
 impl NetworkBehaviour for BootstrappingBehaviour {
@@ -79,7 +79,7 @@ impl BootstrappingBehaviour {
     ) -> Self {
         let mut peers = SelectAll::new();
         for (bootstrap_peer_id, bootstrap_peer_address) in bootstrap_peers {
-            peers.push(BootstrapPeer::new(
+            peers.push(BootstrapPeerEventStream::new(
                 bootstrap_dial_retry_config,
                 bootstrap_peer_id,
                 bootstrap_peer_address,
