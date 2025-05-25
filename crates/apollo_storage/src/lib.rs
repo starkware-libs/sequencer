@@ -194,6 +194,8 @@ pub fn open_storage(
         state_diffs: db_writer.create_simple_table("state_diffs")?,
         transaction_hash_to_idx: db_writer.create_simple_table("transaction_hash_to_idx")?,
         transaction_metadata: db_writer.create_simple_table("transaction_metadata")?,
+        stateful_class_hash_to_executable_class_hash: db_writer
+            .create_common_prefix_table("stateful_class_hash_to_executable_class_hash")?,
 
         // Version tables.
         starknet_version: db_writer.create_simple_table("starknet_version")?,
@@ -544,6 +546,7 @@ struct_field_names! {
         nonces: TableIdentifier<(ContractAddress, BlockNumber), VersionZeroWrapper<Nonce>, CommonPrefix>,
         file_offsets: TableIdentifier<OffsetKind, NoVersionValueWrapper<usize>, SimpleTable>,
         state_diffs: TableIdentifier<BlockNumber, VersionZeroWrapper<LocationInFile>, SimpleTable>,
+        stateful_class_hash_to_executable_class_hash: TableIdentifier<(ClassHash, BlockNumber), VersionZeroWrapper<CompiledClassHash>, CommonPrefix>,
         transaction_hash_to_idx: TableIdentifier<TransactionHash, NoVersionValueWrapper<TransactionIndex>, SimpleTable>,
         // TODO(dvir): consider not saving transaction hash and calculating it from the transaction on demand.
         transaction_metadata: TableIdentifier<TransactionIndex, VersionZeroWrapper<TransactionMetadata>, SimpleTable>,
