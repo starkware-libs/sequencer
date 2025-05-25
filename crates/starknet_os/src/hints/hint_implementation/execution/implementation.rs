@@ -717,7 +717,7 @@ pub(crate) fn write_syscall_result_deprecated<S: StateReader>(
 }
 
 pub(crate) fn write_syscall_result<S: StateReader>(hint_args: HintArgs<'_, '_, S>) -> OsHintResult {
-    write_syscall_result_helper(hint_args, Ids::Request, CairoStruct::StorageWriteRequestPtr, "key")
+    write_syscall_result_helper(hint_args, Ids::Request, CairoStruct::StorageWriteRequest, "key")
 }
 
 pub(crate) fn declare_tx_fields<S: StateReader>(
@@ -851,7 +851,7 @@ pub(crate) fn cache_contract_storage_request_key<S: StateReader>(
     assert_value_cached_by_reading(
         hint_args,
         Ids::Request,
-        CairoStruct::StorageReadRequestPtr,
+        CairoStruct::StorageReadRequest,
         &["key"],
     )
 }
