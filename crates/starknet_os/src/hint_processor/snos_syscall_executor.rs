@@ -1,3 +1,4 @@
+use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::execution::execution_utils::ReadOnlySegment;
 use blockifier::execution::syscalls::hint_processor::SyscallExecutionError;
@@ -39,6 +40,8 @@ use blockifier::execution::syscalls::vm_syscall_utils::{
 use blockifier::state::state_api::StateReader;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::vm_core::VirtualMachine;
+use starknet_api::block::BlockHash;
+use starknet_api::core::BLOCK_HASH_TABLE_ADDRESS;
 use starknet_api::execution_resources::GasAmount;
 
 use crate::hint_processor::execution_helper::ExecutionHelperError;
@@ -157,7 +160,19 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<GetBlockHashResponse> {
-        todo!()
+        // TODO(Nimrod): Handle errors correctly.
+        let block_number = request.block_number;
+        let execution_helper = syscall_handler.get_mut_current_execution_helper().unwrap();
+        let diff = execution_helper.os_block_input.block_info.block_number.0 - block_number.0;
+        if diff < STORED_BLOCK_HASH_BUFFER {
+            return Err(SyscallExecutionError::BlockHashBufferTooLow(diff));
+        }
+        let block_hash = BlockHash(
+            execution_helper
+                .cached_state
+                .get_storage_at(BLOCK_HASH_TABLE_ADDRESS, block_number.0.into())?,
+        );
+        Ok(GetBlockHashResponse { block_hash })
     }
 
     fn get_class_hash_at(

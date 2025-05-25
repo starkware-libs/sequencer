@@ -91,6 +91,8 @@ use crate::transaction::objects::{CurrentTransactionInfo, TransactionInfo};
 pub enum SyscallExecutionError {
     #[error("Bad syscall_ptr; expected: {expected_ptr:?}, got: {actual_ptr:?}.")]
     BadSyscallPointer { expected_ptr: Relocatable, actual_ptr: Relocatable },
+    #[error("Block hash buffer is too low {0}.")]
+    BlockHashBufferTooLow(u64),
     #[error(transparent)]
     EmitEventError(#[from] EmitEventError),
     #[error("Cannot replace V1 class hash with V0 class hash: {class_hash}.")]
