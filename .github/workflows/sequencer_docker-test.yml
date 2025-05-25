@@ -3,24 +3,15 @@ name: Sequencer-Docker-Test
 on:
   workflow_dispatch:
   push:
-    branches: [main]
-    tags: ["v*.*.*"]
-    paths:
-      - ".github/workflows/sequencer_docker-test.yml"
-      - "config/sequencer/presets/system_test_presets/single_node/node_0/executable_0/node_config.json"
-      - "crates/**"
-      - "scripts/dependencies.sh"
-      - "scripts/install_build_tools.sh"
-      - "deployments/images/base/Dockerfile"
-      - "deployments/images/sequencer/**"
-      - "deployments/monitoring/deploy_local_stack.sh"
-      - "deployments/monitoring/local/docker-compose.yml"
-      - "deployments/monitoring/local/.env"
+    branches:
+      - main
+      - main-v[0-9].**
+    tags:
+      - v[0-9].**
 
   pull_request:
     paths:
       - ".github/workflows/sequencer_docker-test.yml"
-      - "config/sequencer/presets/system_test_presets/single_node/node_0/executable_0/node_config.json"
       - "crates/**"
       - "scripts/dependencies.sh"
       - "scripts/install_build_tools.sh"
