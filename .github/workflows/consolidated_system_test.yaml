@@ -63,6 +63,9 @@ jobs:
           python-version: "3.10"
           cache: pipenv
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
       - name: Setup pipenv
         run: python3 -m pip install pipenv
 
@@ -74,6 +77,22 @@ jobs:
 
       - name: Build binaries
         run: cargo build --bin sequencer_node_setup --bin sequencer_simulator
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deployments/images/sequencer/Dockerfile
+          tags: sequencer:local
+          load: true
+          push: false
+          build-args: |
+            BUILD_MODE=release
+
+      - name: Run script with built image
+        run: |
+          chmod +x ./scripts/run_with_image.sh
+          ./scripts/run_with_image.sh sequencer:local
 
       - name: Create storage files
         run: ./target/debug/sequencer_node_setup --output-base-dir ./output --data-prefix-path /data --n-consolidated 1 --n-distributed 0
