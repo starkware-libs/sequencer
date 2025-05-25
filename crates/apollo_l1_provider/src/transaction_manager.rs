@@ -99,10 +99,17 @@ impl TransactionManager {
     }
 
     /// Adds a transaction to the transaction manager, return true if the transaction was
-    /// successfully added. If the transaction is occupied or already committed, it will not be
-    /// added, and false will be returned.
+    /// successfully added. If the transaction is occupied or already had its hash stored as
+    /// committed, it will not be added, and false will be returned.
+    // Note: if only the committed hash was known, the transaction will "fill in the blank" in the
+    // committed txs storage, to account for commit-before-add tx scenario.
     pub fn add_tx(&mut self, tx: L1HandlerTransaction) -> bool {
-        if self.committed.contains_key(&tx.tx_hash) || self.rejected.txs.contains_key(&tx.tx_hash) {
+        if let Some(entry) = self.committed.get_mut(&tx.tx_hash) {
+            entry.get_or_insert(tx);
+            return false;
+        }
+
+        if self.rejected.txs.contains_key(&tx.tx_hash) {
             return false;
         }
 
@@ -119,6 +126,20 @@ pub enum TransactionPayload {
     #[default]
     HashOnly,
     Full(L1HandlerTransaction),
+}
+
+impl TransactionPayload {
+    pub fn get_or_insert(&mut self, entry: L1HandlerTransaction) -> Option<&L1HandlerTransaction> {
+        match self {
+            TransactionPayload::Full(tx) => Some(tx),
+            TransactionPayload::HashOnly => {
+                // Filling in information about a transaction that was previously only known by it's
+                // hash. This can happen if tx is committed by another node before we scraped it.
+                *self = TransactionPayload::Full(entry);
+                None
+            }
+        }
+    }
 }
 
 impl From<L1HandlerTransaction> for TransactionPayload {

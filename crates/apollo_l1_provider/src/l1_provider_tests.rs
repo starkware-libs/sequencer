@@ -333,7 +333,7 @@ fn commit_block_backlog() {
 }
 
 #[test]
-fn tx_in_commit_block_before_processed_is_skipped() {
+fn commit_block_before_add_tx_stores_tx_in_committed() {
     // Setup
     let mut l1_provider =
         L1ProviderContentBuilder::new().with_committed([l1_handler(1)]).build_into_l1_provider();
@@ -347,8 +347,13 @@ fn tx_in_commit_block_before_processed_is_skipped() {
         .build();
     expected_l1_provider.assert_eq(&l1_provider);
 
-    // Parsing the tx after getting it from commit-block is a NOP.
+    // Adding the tx after getting it from commit-block will store it as committed.
     l1_provider.add_events(vec![l1_handler_event(tx_hash!(2))]).unwrap();
+    let expected_l1_provider = L1ProviderContentBuilder::new()
+        .with_txs([])
+        .with_committed([l1_handler(1), l1_handler(2)])
+        .with_committed_hashes([tx_hash!(3)])
+        .build();
     expected_l1_provider.assert_eq(&l1_provider);
 }
 
