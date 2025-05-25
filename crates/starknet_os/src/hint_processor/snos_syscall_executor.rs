@@ -40,6 +40,7 @@ use blockifier::state::state_api::StateReader;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::execution_resources::GasAmount;
+use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::execution_helper::ExecutionHelperError;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
@@ -229,7 +230,22 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<StorageReadResponse> {
-        todo!()
+        // TODO(Tzahi): Change `expect`s to regular errors once the syscall trait has an associated
+        // error type.
+        assert_eq!(request.address_domain, Felt::ZERO);
+        let value = *syscall_handler
+            .get_mut_current_execution_helper()
+            .expect("No current execution helper")
+            .tx_execution_iter
+            .get_mut_tx_execution_info_ref()
+            .expect("No current tx execution info")
+            .get_mut_call_info_tracker()
+            .expect("No call info tracker found")
+            .execute_code_read_iterator
+            .next()
+            .expect("Missing hint for read_storage");
+
+        Ok(StorageReadResponse { value })
     }
 
     fn storage_write(
