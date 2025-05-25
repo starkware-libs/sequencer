@@ -10,6 +10,8 @@ on:
         type: number
 
   pull_request:
+    branches:
+      - main-v0.14*
     paths:
       - ".github/workflows/consolidated_system_test.yaml"
       - "crates/**"
@@ -54,10 +56,6 @@ jobs:
       - name: Setup pipenv
         run: python3 -m pip install pipenv
 
-      # TODO(Nadin): add requirements.txt file.
-      - name: Install dependencies with pipenv
-        run: pipenv install
-
       - name: Install dependencies with pipenv
         run: pipenv install kubernetes
 
@@ -89,8 +87,8 @@ jobs:
       - name: Generate k8s manifests
         working-directory: deployments/sequencer
         run: |
+          pipenv install
           cdk8s import
-
           echo "Generating Kubernetes manifests using deployment config at: ${{ env.deployment_config_path }}:"
           cat "${{ env.deployment_config_path }}"
           cdk8s synth --app "pipenv run python main.py --namespace ${{ env.namespace }} --deployment-config-file ${{ env.deployment_config_path }}"
