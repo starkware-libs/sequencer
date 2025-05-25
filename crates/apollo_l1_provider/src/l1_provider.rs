@@ -155,7 +155,9 @@ impl L1Provider {
                 } else {
                     // This is either a configuration error or a bug in the
                     // batcher/sync/bootstrapper.
-                    let committed_txs_diff = committed_txs.difference(&self.tx_manager.committed);
+                    let committed: IndexSet<TransactionHash> =
+                        self.tx_manager.committed.keys().copied().collect();
+                    let committed_txs_diff = committed_txs.difference(&committed);
                     error!(
                         "Duplicate commit block: commit block for {new_height:?} already \
                          received, with DIFFERENT transaction_hashes: {committed_txs_diff:?}"
@@ -276,7 +278,7 @@ impl L1Provider {
                 .iter()
                 .cloned()
                 .collect(),
-            committed_transactions: self.tx_manager.committed.iter().cloned().collect(),
+            committed_transactions: self.tx_manager.committed.keys().copied().collect(),
             l1_provider_state: self.state.as_str().to_string(),
             current_height: self.current_height,
         })
