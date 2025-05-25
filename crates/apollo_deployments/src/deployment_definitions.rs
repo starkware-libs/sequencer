@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use apollo_infra::component_client::RemoteClientConfig;
 use apollo_infra::component_server::LocalServerConfig;
+use serde_json::{Map, Value};
 use starknet_api::block::BlockNumber;
 use strum_macros::{Display, EnumString};
 
@@ -155,5 +156,31 @@ impl EnvironmentL1ProviderConfigModifications {
 
     pub fn sepolia_integration() -> Self {
         Self { l1_provider_config_provider_startup_height_override: None }
+    }
+
+    pub fn as_value(&self) -> Value {
+        let mut result = Map::new();
+        match self.l1_provider_config_provider_startup_height_override {
+            Some(block_number) => {
+                let block_number_value = Value::Number(serde_json::Number::from(block_number.0));
+                result.insert(
+                    "l1_provider_config.provider_startup_height_override".to_string(),
+                    block_number_value,
+                );
+                let is_none_value = Value::Bool(false);
+                result.insert(
+                    "l1_provider_config.provider_startup_height_override.#is_none".to_string(),
+                    is_none_value,
+                );
+            }
+            None => {
+                let is_none_value = Value::Bool(true);
+                result.insert(
+                    "l1_provider_config.provider_startup_height_override.#is_none".to_string(),
+                    is_none_value,
+                );
+            }
+        }
+        Value::Object(result)
     }
 }
