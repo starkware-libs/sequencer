@@ -181,7 +181,6 @@ jobs:
 
       - name: "Run integration tests pull request"
         if: github.event_name == 'pull_request'
-        # TODO(Tsabary): Find a better way to set the ephemeral port range.
         run: |
           python3 -m venv ci
           ci/bin/pip install -r scripts/requirements.txt
