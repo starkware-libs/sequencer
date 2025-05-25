@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
@@ -37,7 +37,8 @@ pub(crate) fn initialize_state_changes<S: StateReader>(
     HintArgs { hint_processor, exec_scopes, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let cached_state = &hint_processor.get_current_execution_helper()?.cached_state;
-    let writes_accessed_addresses = cached_state.writes_contract_addresses();
+    let writes_accessed_addresses: BTreeSet<_> =
+        cached_state.writes_contract_addresses().into_iter().collect();
     let mut initial_dict: HashMap<MaybeRelocatable, MaybeRelocatable> = HashMap::new();
 
     for contract_address in writes_accessed_addresses {
