@@ -217,8 +217,17 @@ impl StateReader for PapyrusReader {
         self.get_compiled_class_from_db(class_hash).map(|class| class.to_runnable())
     }
 
-    fn get_compiled_class_hash(&self, _class_hash: ClassHash) -> StateResult<CompiledClassHash> {
-        todo!()
+    fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+        let state_number = StateNumber(self.latest_block);
+        match self
+            .reader()?
+            .get_state_reader()
+            .and_then(|sr| sr.get_compiled_class_hash_at(state_number, &class_hash))
+        {
+            Ok(Some(nonce)) => Ok(nonce),
+            Ok(None) => Ok(CompiledClassHash::default()),
+            Err(err) => Err(StateError::StateReadError(err.to_string())),
+        }
     }
 }
 
