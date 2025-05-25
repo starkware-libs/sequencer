@@ -482,6 +482,8 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
         let declared_classes_block_table = self.open_table(&self.tables.declared_classes_block)?;
         let deprecated_declared_classes_block_table =
             self.open_table(&self.tables.deprecated_declared_classes_block)?;
+        let compiled_class_hash_table =
+            self.open_table(&self.tables.stateful_class_hash_to_executable_class_hash)?;
 
         // Write state.
         write_deployed_contracts(
@@ -503,6 +505,13 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
         for (class_hash, _) in &thin_state_diff.declared_classes {
             declared_classes_block_table.insert(&self.txn, class_hash, &block_number)?;
         }
+
+        write_compiled_class_hashes(
+            &thin_state_diff.declared_classes,
+            &self.txn,
+            block_number,
+            &compiled_class_hash_table,
+        )?;
 
         for class_hash in thin_state_diff.deprecated_declared_classes.iter() {
             // Cairo0 classes can be declared in different blocks. The first block to declare the
@@ -551,6 +560,8 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
         let nonces_table = self.open_table(&self.tables.nonces)?;
         let storage_table = self.open_table(&self.tables.contract_storage)?;
         let state_diffs_table = self.open_table(&self.tables.state_diffs)?;
+        let compiled_class_hash_table =
+            self.open_table(&self.tables.stateful_class_hash_to_executable_class_hash)?;
 
         let current_state_marker = self.get_state_marker()?;
 
@@ -619,6 +630,12 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
         )?;
         delete_storage_diffs(&self.txn, block_number, &thin_state_diff, &storage_table)?;
         delete_nonces(&self.txn, block_number, &thin_state_diff, &nonces_table)?;
+        delete_compiled_class_hashes(
+            &self.txn,
+            block_number,
+            &thin_state_diff,
+            &compiled_class_hash_table,
+        )?;
         state_diffs_table.delete(&self.txn, &block_number)?;
 
         Ok((
@@ -722,6 +739,19 @@ fn write_nonces<'env>(
 ) -> StorageResult<()> {
     for (contract_address, nonce) in nonces {
         contracts_table.upsert(txn, &(*contract_address, block_number), nonce)?;
+    }
+    Ok(())
+}
+
+#[latency_histogram("storage_write_nonce_latency_seconds", false)]
+fn write_compiled_class_hashes<'env>(
+    compiled_class_hashes: &IndexMap<ClassHash, CompiledClassHash>,
+    txn: &DbTransaction<'env, RW>,
+    block_number: BlockNumber,
+    compiled_class_hash_table: &'env CompiledClassHashTable<'env>,
+) -> StorageResult<()> {
+    for (class_hash, compiled_class_hash) in compiled_class_hashes {
+        compiled_class_hash_table.upsert(txn, &(*class_hash, block_number), compiled_class_hash)?;
     }
     Ok(())
 }
@@ -914,6 +944,18 @@ fn delete_nonces<'env>(
 ) -> StorageResult<()> {
     for contract_address in thin_state_diff.nonces.keys() {
         contracts_table.delete(txn, &(*contract_address, block_number))?;
+    }
+    Ok(())
+}
+
+fn delete_compiled_class_hashes<'env>(
+    txn: &'env DbTransaction<'env, RW>,
+    block_number: BlockNumber,
+    thin_state_diff: &ThinStateDiff,
+    compiled_class_hash_table: &'env CompiledClassHashTable<'env>,
+) -> StorageResult<()> {
+    for (class_hash, _) in &thin_state_diff.declared_classes {
+        compiled_class_hash_table.delete(txn, &(*class_hash, block_number))?;
     }
     Ok(())
 }
