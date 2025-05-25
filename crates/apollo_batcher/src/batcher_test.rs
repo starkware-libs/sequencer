@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use apollo_batcher_types::batcher_types::{
@@ -237,7 +237,7 @@ async fn start_batcher_with_active_validate(
     batcher
 }
 
-fn test_tx_hashes() -> HashSet<TransactionHash> {
+fn test_tx_hashes() -> IndexSet<TransactionHash> {
     (0..5u8).map(|i| tx_hash!(i + 12)).collect()
 }
 
@@ -820,7 +820,7 @@ async fn proposal_startup_failure_allows_new_proposals() {
 async fn add_sync_block() {
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
-    let l1_transaction_hashes: Vec<_> = test_tx_hashes().into_iter().collect();
+    let l1_transaction_hashes = test_tx_hashes();
     let mut mock_dependencies = MockDependencies::default();
 
     mock_dependencies
@@ -857,7 +857,7 @@ async fn add_sync_block() {
             ..Default::default()
         },
         state_diff: test_state_diff(),
-        l1_transaction_hashes,
+        l1_transaction_hashes: l1_transaction_hashes.into_iter().collect(),
         ..Default::default()
     };
     batcher.add_sync_block(sync_block).await.unwrap();
@@ -985,7 +985,7 @@ async fn decision_reached() {
         .l1_provider_client
         .expect_commit_block()
         .times(1)
-        .with(eq(vec![]), eq(IndexSet::new()), eq(INITIAL_HEIGHT))
+        .with(eq(IndexSet::new()), eq(IndexSet::new()), eq(INITIAL_HEIGHT))
         .returning(|_, _, _| Ok(()));
 
     mock_dependencies
