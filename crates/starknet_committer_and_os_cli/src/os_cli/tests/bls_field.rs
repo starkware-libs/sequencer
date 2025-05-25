@@ -38,12 +38,10 @@ pub(crate) fn test_bls_field(input: &str) -> OsPythonTestResult {
     test_felt_to_bigint3(input)?;
     info!("Testing `test_horner_eval`...");
     test_horner_eval(input)?;
-    // TODO(Amos): Uncomment once WRITE_DIVMOD_SEGMENT cairo-vm implementation is fixed (and
-    // accepts negative values).
-    // info!("Testing `test_reduced_mul_random`...");
-    // test_reduced_mul_random(input)?;
-    // info!("Testing `test_reduced_mul_parameterized`...");
-    // test_reduced_mul_parameterized(input)?;
+    info!("Testing `test_reduced_mul_random`...");
+    test_reduced_mul_random(input)?;
+    info!("Testing `test_reduced_mul_parameterized`...");
+    test_reduced_mul_parameterized(input)?;
     info!("Testing `test_bls_prime_value`...");
     test_bls_prime_value(input)?;
     Ok("".to_string())
