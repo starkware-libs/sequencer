@@ -1171,9 +1171,9 @@ dependencies = [
 name = "apollo_deployments"
 version = "0.15.0-rc.0"
 dependencies = [
+ "apollo_config",
  "apollo_infra",
  "apollo_infra_utils",
- "apollo_monitoring_endpoint",
  "apollo_node",
  "indexmap 2.9.0",
  "serde",
