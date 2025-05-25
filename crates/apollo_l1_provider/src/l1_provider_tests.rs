@@ -105,7 +105,7 @@ fn validate_happy_flow() {
     // Setup.
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_txs([l1_handler(1)])
-        .with_committed([tx_hash!(2)])
+        .with_committed_hashes([tx_hash!(2)])
         .with_state(ProviderState::Validate)
         .build_into_l1_provider();
 
@@ -135,7 +135,7 @@ fn process_events_happy_flow() {
     for state in [ProviderState::Propose, ProviderState::Validate, ProviderState::Pending] {
         let mut l1_provider = L1ProviderContentBuilder::new()
             .with_txs([l1_handler(1)])
-            .with_committed(vec![])
+            .with_committed_hashes([])
             .with_state(state.clone())
             .build_into_l1_provider();
 
@@ -152,7 +152,7 @@ fn process_events_happy_flow() {
                 l1_handler(3),
                 l1_handler(6),
             ])
-            .with_committed(vec![])
+            .with_committed_hashes([])
             // State should be unchanged.
             .with_state(state)
             .build();
@@ -166,7 +166,7 @@ fn process_events_committed_txs() {
     // Setup.
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_txs([l1_handler(1)])
-        .with_committed(vec![tx_hash!(2)])
+        .with_committed_hashes([tx_hash!(2)])
         .with_state(ProviderState::Pending)
         .build_into_l1_provider();
 
@@ -335,13 +335,15 @@ fn commit_block_backlog() {
 #[test]
 fn tx_in_commit_block_before_processed_is_skipped() {
     // Setup
-    let mut l1_provider =
-        L1ProviderContentBuilder::new().with_committed([tx_hash!(1)]).build_into_l1_provider();
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_committed_hashes([tx_hash!(1)])
+        .build_into_l1_provider();
 
     // Transactions unknown yet.
     commit_block_no_rejected(&mut l1_provider, &[tx_hash!(2), tx_hash!(3)], BlockNumber(0));
     let expected_l1_provider = L1ProviderContentBuilder::new()
-        .with_committed([tx_hash!(1), tx_hash!(2), tx_hash!(3)])
+        .with_txs([])
+        .with_committed_hashes([tx_hash!(1), tx_hash!(2), tx_hash!(3)])
         .build();
     expected_l1_provider.assert_eq(&l1_provider);
 
@@ -410,7 +412,7 @@ fn commit_block_rejected_transactions() {
     let expected_l1_provider = L1ProviderContentBuilder::new()
         .with_txs([l1_handler(3)])
         .with_rejected([l1_handler(1)])
-        .with_committed([tx_hash!(2)])
+        .with_committed_hashes([tx_hash!(2)])
         .with_height(BlockNumber(1))
         .build();
     expected_l1_provider.assert_eq(&l1_provider);
@@ -472,7 +474,7 @@ fn add_new_transaction_not_added_if_rejected() {
     let expected_l1_provider = L1ProviderContentBuilder::new()
         .with_txs([l1_handler(3)])
         .with_rejected([l1_handler(1)])
-        .with_committed([tx_hash!(2)])
+        .with_committed_hashes([tx_hash!(2)])
         .with_height(BlockNumber(1))
         .build();
     expected_l1_provider.assert_eq(&l1_provider);
