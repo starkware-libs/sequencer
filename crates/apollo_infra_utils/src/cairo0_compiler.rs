@@ -9,6 +9,16 @@ use crate::path::resolve_project_relative_path;
 static PIP_REQUIREMENTS_FILE: LazyLock<PathBuf> =
     LazyLock::new(|| resolve_project_relative_path("scripts/requirements.txt").unwrap());
 
+static ENTER_VENV_INSTRUCTIONS: LazyLock<String> = LazyLock::new(|| {
+    format!(
+        r#"
+python3 -m venv sequencer_venv
+. sequencer_venv/bin/activate
+pip install -r {:#?}"#,
+        *PIP_REQUIREMENTS_FILE
+    )
+});
+
 /// Verifies that the required Cairo0 compiler is available; panics if unavailable.
 pub fn verify_cairo0_compiler_deps() {
     // Python compiler. Verify correct version.
@@ -17,7 +27,11 @@ pub fn verify_cairo0_compiler_deps() {
     let cairo_lang_version_untrimmed = String::from_utf8(cairo_lang_version_output).unwrap();
     let cairo_lang_version =
         cairo_lang_version_untrimmed.trim().split("==").nth(1).unwrap_or_else(|| {
-            panic!("Unexpected cairo-lang version format '{cairo_lang_version_untrimmed}'.")
+            panic!(
+                "Unexpected cairo-lang version format '{cairo_lang_version_untrimmed}'.  Are you \
+                 in a venv? If not, run:\n{}",
+                *ENTER_VENV_INSTRUCTIONS
+            )
         });
     let requirements_contents = fs::read_to_string(&*PIP_REQUIREMENTS_FILE).unwrap();
     let expected_cairo_lang_version = requirements_contents
@@ -37,7 +51,8 @@ pub fn verify_cairo0_compiler_deps() {
     assert_eq!(
         expected_cairo_lang_version, cairo_lang_version,
         "cairo-lang version {expected_cairo_lang_version} not found (installed version: \
-         {cairo_lang_version}). Please run:\npip3.9 install -r {:?}\nthen rerun the test.",
-        *PIP_REQUIREMENTS_FILE
+         {cairo_lang_version}). Run the following commands (enter a python venv and install \
+         dependencies) and retry:\n{}",
+        *ENTER_VENV_INSTRUCTIONS
     );
 }
