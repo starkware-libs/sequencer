@@ -533,6 +533,6 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
 #[derive(Debug, Default, PartialEq)]
 pub struct BlockTransactionExecutionData {
     pub execution_infos: IndexMap<TransactionHash, TransactionExecutionInfo>,
-    pub rejected_tx_hashes: HashSet<TransactionHash>,
+    pub rejected_tx_hashes: IndexSet<TransactionHash>,
     pub consumed_l1_handler_tx_hashes: IndexSet<TransactionHash>,
 }
