@@ -68,7 +68,7 @@ impl TransactionManager {
 
         let mut uncommitted = IndexMap::new();
         let mut rejected = IndexMap::new();
-        let committed: IndexMap<_, _> = committed_txs
+        let mut committed: IndexMap<_, _> = committed_txs
             .iter()
             .copied()
             .map(|tx_hash| (tx_hash, TransactionPayload::HashOnly))
@@ -79,7 +79,9 @@ impl TransactionManager {
             // Each rejected transaction is added to the rejected pool.
             if rejected_txs.contains(&hash) {
                 rejected.insert(hash, entry);
-            } else if !committed_txs.contains(&hash) {
+            } else if committed.contains_key(&hash) {
+                *committed.get_mut(&hash).unwrap() = entry.transaction.into();
+            } else {
                 // If a transaction is not committed or rejected, it is added back to the
                 // uncommitted pool.
                 uncommitted.insert(hash, entry);
@@ -117,4 +119,10 @@ pub enum TransactionPayload {
     #[default]
     HashOnly,
     Full(L1HandlerTransaction),
+}
+
+impl From<L1HandlerTransaction> for TransactionPayload {
+    fn from(tx: L1HandlerTransaction) -> Self {
+        TransactionPayload::Full(tx)
+    }
 }
