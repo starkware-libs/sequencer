@@ -21,6 +21,12 @@ def argument_parser():
         help="Apollo node binary image name, to be fetched from ghcr. Defaults to 'dev'.",
     )
     parser.add_argument(
+        "--deployment-image",
+        required=False,
+        type=str,
+        help="Apollo node binary image.",
+    )
+    parser.add_argument(
         "--monitoring-dashboard-file",
         required=False,
         type=str,
