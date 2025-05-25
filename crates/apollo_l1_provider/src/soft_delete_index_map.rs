@@ -17,10 +17,6 @@ pub struct SoftDeleteIndexMap {
 }
 
 impl SoftDeleteIndexMap {
-    pub fn _new() -> Self {
-        Self::default()
-    }
-
     /// Inserts a transaction into the map, returning true if transaction was successfully inserted.
     pub fn insert(&mut self, tx: L1HandlerTransaction) -> bool {
         let tx_hash = tx.tx_hash;
