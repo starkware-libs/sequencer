@@ -7,6 +7,7 @@ mod block_builder_test;
 pub mod communication;
 pub mod config;
 pub mod metrics;
+pub mod pre_confirmed_cende_client;
 #[cfg(test)]
 mod test_utils;
 mod transaction_executor;
