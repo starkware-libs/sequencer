@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -21,10 +20,19 @@ use starknet_api::transaction::TransactionHash;
 use starknet_api::tx_hash;
 
 use crate::bootstrapper::{Bootstrapper, CommitBlockBacklog, SyncTaskHandle};
+use crate::l1_provider::L1Provider;
 use crate::test_utils::{l1_handler, FakeL1ProviderClient, L1ProviderContentBuilder};
 use crate::ProviderState;
 
-fn setup_rejected_transactions() -> super::L1Provider {
+fn commit_block_no_rejected(
+    l1_provider: &mut L1Provider,
+    txs: &[TransactionHash],
+    block_number: BlockNumber,
+) {
+    l1_provider.commit_block(txs, &[].into(), block_number).unwrap();
+}
+
+fn setup_rejected_transactions() -> L1Provider {
     let tx_id1 = 1;
     let tx_id2 = 2;
     let tx_id3 = 3;
@@ -41,8 +49,8 @@ fn setup_rejected_transactions() -> super::L1Provider {
 
     // Commit block with rejected transactions.
     let consumed_txs = [tx1, tx2];
-    let rejected_txs = HashSet::from([tx1]);
-    l1_provider.commit_block(&consumed_txs, &rejected_txs, first_block_number).unwrap();
+    let rejected_txs = [tx1];
+    l1_provider.commit_block(&consumed_txs, &rejected_txs.into(), first_block_number).unwrap();
 
     // Set the state to Validate for the validation tests.
     l1_provider.state = ProviderState::Validate;
@@ -219,7 +227,7 @@ fn commit_block_empty_block() {
         .build_into_l1_provider();
 
     // Test: empty commit_block
-    l1_provider.commit_block(&[], &HashSet::new(), BlockNumber(10)).unwrap();
+    commit_block_no_rejected(&mut l1_provider, &[], BlockNumber(10));
 
     let expected_l1_provider = L1ProviderContentBuilder::new()
         .with_txs(txs)
@@ -239,7 +247,7 @@ fn commit_block_during_proposal() {
         .build_into_l1_provider();
 
     // Test: commit block during proposal.
-    l1_provider.commit_block(&[tx_hash!(1)], &HashSet::new(), BlockNumber(5)).unwrap();
+    commit_block_no_rejected(&mut l1_provider, &[tx_hash!(1)], BlockNumber(5));
 
     let expected_l1_provider = L1ProviderContentBuilder::new()
         .with_txs([l1_handler(2), l1_handler(3)])
@@ -259,7 +267,7 @@ fn commit_block_during_pending() {
         .build_into_l1_provider();
 
     // Test: commit block during pending.
-    l1_provider.commit_block(&[tx_hash!(2)], &HashSet::new(), BlockNumber(5)).unwrap();
+    commit_block_no_rejected(&mut l1_provider, &[tx_hash!(2)], BlockNumber(5));
 
     let expected_l1_provider = L1ProviderContentBuilder::new()
         .with_txs([l1_handler(1), l1_handler(3)])
@@ -281,7 +289,7 @@ fn commit_block_during_validation() {
     // Test: commit block during validate.
     l1_provider.state = ProviderState::Validate;
 
-    l1_provider.commit_block(&[tx_hash!(3)], &HashSet::new(), BlockNumber(5)).unwrap();
+    commit_block_no_rejected(&mut l1_provider, &[tx_hash!(3)], BlockNumber(5));
     let expected_l1_provider = L1ProviderContentBuilder::new()
         .with_txs([l1_handler(1), l1_handler(2)])
         .with_height(BlockNumber(6))
@@ -305,7 +313,7 @@ fn commit_block_backlog() {
 
     // Test.
     // Commit height too low to affect backlog.
-    l1_provider.commit_block(&[tx_hash!(1)], &HashSet::new(), BlockNumber(8)).unwrap();
+    commit_block_no_rejected(&mut l1_provider, &[tx_hash!(1)], BlockNumber(8));
     let expected_l1_provider = L1ProviderContentBuilder::new()
         .with_txs([l1_handler(2), l1_handler(4)])
         .with_height(BlockNumber(9))
@@ -314,7 +322,8 @@ fn commit_block_backlog() {
     expected_l1_provider.assert_eq(&l1_provider);
 
     // Backlog is consumed, bootstrapping complete.
-    l1_provider.commit_block(&[], &HashSet::new(), BlockNumber(9)).unwrap();
+    commit_block_no_rejected(&mut l1_provider, &[], BlockNumber(9));
+
     let expected_l1_provider = L1ProviderContentBuilder::new()
         .with_txs([])
         .with_height(BlockNumber(12))
@@ -330,7 +339,7 @@ fn tx_in_commit_block_before_processed_is_skipped() {
         L1ProviderContentBuilder::new().with_committed([tx_hash!(1)]).build_into_l1_provider();
 
     // Transactions unknown yet.
-    l1_provider.commit_block(&[tx_hash!(2), tx_hash!(3)], &HashSet::new(), BlockNumber(0)).unwrap();
+    commit_block_no_rejected(&mut l1_provider, &[tx_hash!(2), tx_hash!(3)], BlockNumber(0));
     let expected_l1_provider = L1ProviderContentBuilder::new()
         .with_committed([tx_hash!(1), tx_hash!(2), tx_hash!(3)])
         .build();
@@ -354,9 +363,9 @@ fn bootstrap_commit_block_received_twice_no_error() {
         .build_into_l1_provider();
 
     // Test.
-    l1_provider.commit_block(&[tx_hash!(1)], &HashSet::new(), BlockNumber(0)).unwrap();
+    commit_block_no_rejected(&mut l1_provider, &[tx_hash!(1)], BlockNumber(0));
     // No error, since the this tx hash is already known to be committed.
-    l1_provider.commit_block(&[tx_hash!(1)], &HashSet::new(), BlockNumber(0)).unwrap();
+    commit_block_no_rejected(&mut l1_provider, &[tx_hash!(1)], BlockNumber(0));
 }
 
 #[test]
@@ -372,11 +381,11 @@ fn bootstrap_commit_block_received_twice_error_if_new_uncommitted_txs() {
         .build_into_l1_provider();
 
     // Test.
-    l1_provider.commit_block(&[tx_hash!(1)], &HashSet::new(), BlockNumber(0)).unwrap();
+    commit_block_no_rejected(&mut l1_provider, &[tx_hash!(1)], BlockNumber(0));
     // Error, since the new tx hash is not known to be committed.
     assert_matches!(
         l1_provider
-            .commit_block(&[tx_hash!(1), tx_hash!(3)], &HashSet::new(), BlockNumber(0))
+            .commit_block(&[tx_hash!(1), tx_hash!(3)], &[].into(), BlockNumber(0))
             .unwrap_err(),
         L1ProviderError::UnexpectedHeight { expected_height: BlockNumber(1), got: BlockNumber(0) }
     );
