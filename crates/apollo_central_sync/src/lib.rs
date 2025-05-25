@@ -38,9 +38,10 @@ use apollo_storage::db::DbError;
 use apollo_storage::header::{HeaderStorageReader, HeaderStorageWriter};
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
 use apollo_storage::{StorageError, StorageReader, StorageWriter};
+use apollo_time::clock::UnixClock;
+use apollo_time::system::SystemClock;
 use async_stream::try_stream;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
-use chrono::{TimeZone, Utc};
 use futures::future::pending;
 use futures::stream;
 use futures_util::{pin_mut, select, Stream, StreamExt};
@@ -502,14 +503,14 @@ impl<
         STATE_SYNC_HEADER_MARKER.set_lossy(block_number.unchecked_next().0);
         STATE_SYNC_BODY_MARKER.set_lossy(block_number.unchecked_next().0);
         STATE_SYNC_PROCESSED_TRANSACTIONS.increment(num_txs);
-        let time_delta = Utc::now()
-            - Utc
-                .timestamp_opt(timestamp.0 as i64, 0)
-                .single()
-                .expect("block timestamp should be valid");
-        let header_latency = time_delta.num_seconds();
+
+        let header_latency = i64::try_from(SystemClock.unix_now_secs())
+            .unwrap()
+            .checked_sub(i64::try_from(timestamp.0).unwrap())
+            .expect("Latency should fit inside i64");
+
         debug!("Header latency: {}.", header_latency);
-        if header_latency >= 0 {
+        if header_latency.is_positive() {
             STATE_SYNC_HEADER_LATENCY_SEC.set_lossy(header_latency);
         }
 
