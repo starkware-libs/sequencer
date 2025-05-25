@@ -92,10 +92,15 @@ pub(crate) fn bytecode_segment_structure<S: StateReader>(
 }
 
 pub(crate) fn delete_memory_data<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { vm, ap_tracking, ids_data, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    // TODO(Yoni): Assert that the address was not accessed before.
-    todo!()
+    let data_ptr = get_ptr_from_var_name(Ids::DataPtr.into(), vm, ids_data, ap_tracking)?;
+    if vm.is_accessed(&data_ptr)? {
+        return Err(OsHintError::AssertionFailed {
+            message: format!("The segment {} is skipped but was accessed.", data_ptr),
+        });
+    }
+    Ok(())
 }
 
 pub(crate) fn is_leaf<S: StateReader>(
