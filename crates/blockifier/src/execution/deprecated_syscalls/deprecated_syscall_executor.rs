@@ -5,6 +5,7 @@ use cairo_vm::hint_processor::hint_processor_definition::HintReference;
 use cairo_vm::serde::deserialize_program::ApTracking;
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::hint_errors::HintError;
+use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_types_core::felt::Felt;
 
@@ -292,4 +293,20 @@ pub fn execute_next_deprecated_syscall<T: DeprecatedSyscallExecutor>(
     deprecated_syscall_executor.increment_syscall_count(&selector);
 
     execute_deprecated_syscall_from_selector(deprecated_syscall_executor, vm, selector)
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum DeprecatedSyscallExecutorBaseError {
+    #[error(transparent)]
+    Hint(#[from] HintError),
+}
+
+pub type DeprecatedSyscallExecutorBaseResult<T> = Result<T, DeprecatedSyscallExecutorBaseError>;
+
+// Needed for custom hint implementations (in our case, syscall hints) which must comply with the
+// cairo-rs API.
+impl From<DeprecatedSyscallExecutorBaseError> for HintError {
+    fn from(error: DeprecatedSyscallExecutorBaseError) -> Self {
+        Self::Internal(VirtualMachineError::Other(error.into()))
+    }
 }

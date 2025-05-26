@@ -40,6 +40,7 @@ use crate::execution::common_hints::{
 use crate::execution::deprecated_syscalls::deprecated_syscall_executor::{
     execute_next_deprecated_syscall,
     DeprecatedSyscallExecutor,
+    DeprecatedSyscallExecutorBaseError,
 };
 use crate::execution::deprecated_syscalls::{
     CallContractRequest,
@@ -108,6 +109,8 @@ pub enum DeprecatedSyscallExecutionError {
         expected_selector: DeprecatedSyscallSelector,
         actual_selector: DeprecatedSyscallSelector,
     },
+    #[error(transparent)]
+    BaseError(#[from] DeprecatedSyscallExecutorBaseError),
     #[error(transparent)]
     EntryPointExecutionError(#[from] EntryPointExecutionError),
     #[error(transparent)]
