@@ -2,6 +2,7 @@ use blockifier::metrics::{
     CLASS_CACHE_HITS,
     CLASS_CACHE_MISSES,
     NATIVE_CLASS_RETURNED,
+    NATIVE_COMPILATION_ERROR,
     STATE_READER_METRIC_RATE_DURATION,
 };
 use const_format::formatcp;
@@ -36,3 +37,6 @@ pub(crate) const PANEL_BLOCKIFIER_STATE_READER_NATIVE_CLASS_RETURNED_RATIO: Pane
     ),
     PanelType::Graph,
 );
+
+pub(crate) const PANEL_NATIVE_COMPILATION_ERROR: Panel = 
+    Panel::from_counter(NATIVE_COMPILATION_ERROR, PanelType::Stat);
