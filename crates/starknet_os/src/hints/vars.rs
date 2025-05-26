@@ -348,6 +348,7 @@ define_string_enum! {
         (BigInt3, "starkware.starknet.core.os.data_availability.bls_field.BigInt3"),
         (BuiltinParamsPtr, "starkware.starknet.core.os.builtins.BuiltinParams*"),
         (BuiltinPointersPtr, "starkware.starknet.core.os.builtins.BuiltinPointers*"),
+        (CallContractResponse, "starkware.starknet.common.new_syscalls.CallContractResponse"),
         (CompiledClass, "starkware.starknet.core.os.contract_class.compiled_class.CompiledClass"),
         (
             CompiledClassEntryPoint,

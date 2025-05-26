@@ -624,9 +624,17 @@ pub(crate) fn check_syscall_response<S: StateReader>(
 }
 
 pub(crate) fn check_new_syscall_response<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { hint_processor, vm, ap_tracking, ids_data, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    assert_retdata_as_expected(
+        "retdata_start",
+        "retdata_end",
+        CairoStruct::CallContractResponse,
+        vm,
+        ap_tracking,
+        ids_data,
+        hint_processor.os_program,
+    )
 }
 
 pub(crate) fn check_new_deploy_response<S: StateReader>(
