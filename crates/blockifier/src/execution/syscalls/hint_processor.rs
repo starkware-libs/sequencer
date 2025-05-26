@@ -140,6 +140,10 @@ impl TryExtractRevert for SyscallExecutionError {
             _ => SelfOrRevert::Original(self),
         }
     }
+
+    fn as_revert(error_data: Vec<Felt>) -> Self {
+        Self::Revert { error_data }
+    }
 }
 
 #[derive(Debug, Error)]
@@ -513,9 +517,12 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         };
 
         let retdata_segment = execute_inner_call(entry_point, vm, syscall_handler, remaining_gas)
-            .map_err(|error| match error {
-            SyscallExecutionError::Revert { .. } => error,
-            _ => error.as_call_contract_execution_error(class_hash, storage_address, selector),
+            .map_err(|error| {
+            SyscallExecutionError::from_self_or_revert(error.try_extract_revert().map_original(
+                |error| {
+                    error.as_call_contract_execution_error(class_hash, storage_address, selector)
+                },
+            ))
         })?;
 
         Ok(CallContractResponse { segment: retdata_segment })
