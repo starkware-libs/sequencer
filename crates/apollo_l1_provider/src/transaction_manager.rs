@@ -80,7 +80,7 @@ impl TransactionManager {
             if rejected_txs.contains(&hash) {
                 rejected.insert(hash, entry);
             } else if committed.contains_key(&hash) {
-                committed.get_mut(&hash).unwrap().set(entry.transaction);
+                committed.get_mut(&hash).unwrap().set(entry.tx);
             } else {
                 // If a transaction is not committed or rejected, it is added back to the
                 // uncommitted pool.
