@@ -3,10 +3,14 @@ use std::collections::HashMap;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::get_ptr_from_var_name;
 use cairo_vm::hint_processor::hint_processor_definition::HintReference;
 use cairo_vm::serde::deserialize_program::ApTracking;
+use cairo_vm::types::errors::math_errors::MathError;
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::hint_errors::HintError;
+use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::vm_core::VirtualMachine;
+use num_bigint::{BigUint, TryFromBigIntError};
+use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
 
 use crate::execution::common_hints::HintExecutionResult;
@@ -299,6 +303,18 @@ pub fn execute_next_deprecated_syscall<T: DeprecatedSyscallExecutor>(
 pub enum DeprecatedSyscallExecutorBaseError {
     #[error(transparent)]
     Hint(#[from] HintError),
+    #[error("Invalid syscall input: {input:?}; {info}")]
+    InvalidSyscallInput { input: Felt, info: String },
+    #[error(transparent)]
+    Math(#[from] MathError),
+    #[error(transparent)]
+    Memory(#[from] MemoryError),
+    #[error(transparent)]
+    StarknetApi(#[from] StarknetApiError),
+    #[error(transparent)]
+    FromBigUint(#[from] TryFromBigIntError<BigUint>),
+    #[error(transparent)]
+    VirtualMachine(#[from] VirtualMachineError),
 }
 
 pub type DeprecatedSyscallExecutorBaseResult<T> = Result<T, DeprecatedSyscallExecutorBaseError>;
