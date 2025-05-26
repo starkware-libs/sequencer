@@ -557,6 +557,13 @@
         "type": "graph",
         "expr": "100 * (rate(native_class_returned{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) / (rate(class_cache_hits{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) + rate(class_cache_misses{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
         "extra_params": {}
+      },
+      {
+        "title": "native_compilation_error",
+        "description": "Counter of Native compilation failures in the blockifier",
+        "type": "stat",
+        "expr": "native_compilation_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+        "extra_params": {}
       }
     ],
     "Batcher Infra": [
