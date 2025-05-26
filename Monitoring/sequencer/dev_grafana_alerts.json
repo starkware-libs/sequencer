@@ -55,6 +55,32 @@
       "severity": "p2"
     },
     {
+      "name": "consensus_validate_proposal_failed",
+      "title": "Consensus validate proposal failed",
+      "ruleGroup": "consensus",
+      "expr": "rate(consensus_proposals_invalid{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.001388888888888889
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "1m",
+      "intervalSec": 20
+    },
+    {
       "name": "gateway_add_tx_rate_drop",
       "title": "Gateway add_tx rate drop",
       "ruleGroup": "gateway",
