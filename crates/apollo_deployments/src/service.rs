@@ -32,6 +32,7 @@ pub struct Service {
     external_secret: Option<ExternalSecret>,
     #[serde(skip_serializing)]
     environment: Environment,
+    anti_affinity: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
@@ -173,6 +174,7 @@ impl Service {
         let storage = service_name.get_storage(&environment);
         let resources = service_name.get_resources(&environment);
         let replicas = service_name.get_replicas(&environment);
+        let anti_affinity = service_name.get_anti_affinity(&environment);
         Self {
             service_name,
             config_paths,
@@ -185,6 +187,7 @@ impl Service {
             resources,
             external_secret,
             environment,
+            anti_affinity,
         }
     }
 
@@ -267,6 +270,11 @@ impl ServiceName {
     pub fn get_replicas(&self, environment: &Environment) -> usize {
         self.as_inner().get_replicas(environment)
     }
+
+    pub fn get_anti_affinity(&self, environment: &Environment) -> bool {
+        // TODO(Tsabary): implement anti-affinity logic.
+        self.as_inner().get_anti_affinity(environment)
+    }
 }
 
 pub(crate) trait ServiceNameInner: Display {
@@ -287,6 +295,8 @@ pub(crate) trait ServiceNameInner: Display {
     fn get_resources(&self, environment: &Environment) -> Resources;
 
     fn get_replicas(&self, environment: &Environment) -> usize;
+
+    fn get_anti_affinity(&self, environment: &Environment) -> bool;
 }
 
 impl DeploymentName {

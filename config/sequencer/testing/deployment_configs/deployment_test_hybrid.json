@@ -26,7 +26,8 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": null,
+      "anti_affinity": false
     },
     {
       "name": "HttpServer",
@@ -63,7 +64,8 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": null,
+      "anti_affinity": false
     },
     {
       "name": "Gateway",
@@ -89,7 +91,8 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": null,
+      "anti_affinity": false
     },
     {
       "name": "Mempool",
@@ -115,7 +118,8 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": null,
+      "anti_affinity": false
     },
     {
       "name": "SierraCompiler",
@@ -141,7 +145,8 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": null,
+      "anti_affinity": false
     }
   ]
 }

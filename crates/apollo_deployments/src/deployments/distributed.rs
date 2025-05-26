@@ -241,6 +241,26 @@ impl ServiceNameInner for DistributedNodeServiceName {
     fn get_replicas(&self, _environment: &Environment) -> usize {
         1
     }
+
+    fn get_anti_affinity(&self, environment: &Environment) -> bool {
+        match environment {
+            Environment::Testing => false,
+            Environment::SepoliaIntegration
+            | Environment::TestingEnvTwo
+            | Environment::TestingEnvThree => match self {
+                DistributedNodeServiceName::Batcher => true,
+                DistributedNodeServiceName::ClassManager => false,
+                DistributedNodeServiceName::ConsensusManager => false,
+                DistributedNodeServiceName::HttpServer => false,
+                DistributedNodeServiceName::Gateway => false,
+                DistributedNodeServiceName::L1 => false,
+                DistributedNodeServiceName::Mempool => false,
+                DistributedNodeServiceName::SierraCompiler => false,
+                DistributedNodeServiceName::StateSync => false,
+            },
+            _ => unimplemented!(),
+        }
+    }
 }
 
 impl DistributedNodeServiceName {
