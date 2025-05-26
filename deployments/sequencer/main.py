@@ -82,6 +82,7 @@ def main():
                 ingress=svc["ingress"],
                 storage=svc["storage"],
                 toleration=svc["toleration"],
+                anti_affinity=svc["anti_affinity"],
                 resources=svc["resources"],
                 external_secret=svc["external_secret"],
             ),
