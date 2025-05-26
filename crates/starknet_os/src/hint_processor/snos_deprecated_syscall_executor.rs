@@ -2,7 +2,6 @@ use blockifier::execution::deprecated_syscalls::deprecated_syscall_executor::{
     DeprecatedSyscallExecutor,
     DeprecatedSyscallExecutorBaseError,
 };
-use blockifier::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallExecutionError;
 use blockifier::execution::deprecated_syscalls::{
     CallContractRequest,
     CallContractResponse,
@@ -100,10 +99,10 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
             .syscall_ptr
             .expect("Syscall must be set at this point.");
         if actual_ptr != expected_ptr {
-            return Err(DeprecatedSyscallExecutionError::BadSyscallPointer {
+            return Err(DeprecatedSyscallExecutorBaseError::BadSyscallPointer {
                 expected_ptr,
                 actual_ptr,
-            });
+            })?;
         }
         Ok(())
     }
