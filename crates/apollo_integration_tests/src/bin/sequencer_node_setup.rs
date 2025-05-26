@@ -20,7 +20,7 @@ async fn main() {
 
     let custom_paths = CustomPaths::new(
         Some(PathBuf::from(args.output_base_dir.clone()).join("data")),
-        Some(PathBuf::from(args.output_base_dir.clone()).join("configs")),
+        Some(PathBuf::from(args.output_base_dir.clone()).join("config")),
         args.data_prefix_path.map(PathBuf::from),
     );
 

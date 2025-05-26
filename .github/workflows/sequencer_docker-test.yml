@@ -12,7 +12,6 @@ on:
   pull_request:
     paths:
       - ".github/workflows/sequencer_docker-test.yml"
-      - "config/sequencer/presets/system_test_presets/single_node/node_0/executable_0/node_config.json"
       - "crates/**"
       - "scripts/dependencies.sh"
       - "scripts/install_build_tools.sh"
