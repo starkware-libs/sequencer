@@ -482,6 +482,8 @@ async fn run_build_block(
         mock_transaction_executor,
         Box::new(tx_provider),
         output_sender,
+        None,
+        None,
         abort_receiver,
         transaction_converter,
         TX_CHUNK_SIZE,
