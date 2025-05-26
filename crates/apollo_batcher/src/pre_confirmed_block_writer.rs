@@ -62,7 +62,8 @@ impl PreConfirmedBlockWriter {
 #[async_trait]
 impl PreConfirmedBlockWriterTrait for PreConfirmedBlockWriter {
     async fn run(&mut self) -> BlockWriterResult<()> {
-        todo!("Implement block writing logic")
+        // TODO(noamsp): Implement the logic for the pre-confirmed block writer.
+        Ok(())
     }
 }
 
