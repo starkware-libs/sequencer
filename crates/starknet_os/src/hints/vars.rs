@@ -213,6 +213,7 @@ define_string_enum! {
         (Request),
         (RequiredGas),
         (Res),
+        (Response),
         (Retdata),
         (RetdataSize),
         (SegmentLength),
@@ -356,6 +357,7 @@ define_string_enum! {
             CompiledClassFact,
             "starkware.starknet.core.os.contract_class.compiled_class.CompiledClassFact"
         ),
+        (DeployResponsePtr, "starkware.starknet.common.new_syscalls.DeployResponse*"),
         (
             DeprecatedCompiledClass,
             "starkware.starknet.core.os.contract_class.deprecated_compiled_class.\

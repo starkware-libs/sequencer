@@ -581,7 +581,7 @@ define_hint_enum!(
     bytecode_segment_access_oracle = BytecodeAccessOracle(is_pc_accessed_callback=is_accessed)
     vm_enter_scope({
         "bytecode_segment_structures": bytecode_segment_structures,
-        "is_segment_used_callback": bytecode_segment_access_oracle.is_segment_used
+        "is_segment_used_callback": lambda *args, **kwargs: True
     })"#}
     ),
     (

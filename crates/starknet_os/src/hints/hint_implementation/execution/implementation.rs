@@ -629,9 +629,44 @@ pub(crate) fn check_new_syscall_response<S: StateReader>(
 }
 
 pub(crate) fn check_new_deploy_response<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { hint_processor, vm, ap_tracking, ids_data, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let response_start = vm.get_relocatable(get_address_of_nested_fields(
+        ids_data,
+        Ids::Response,
+        CairoStruct::DeployResponsePtr,
+        vm,
+        ap_tracking,
+        &["constructor_retdata_start"],
+        hint_processor.os_program,
+    )?)?;
+
+    let response_end = vm.get_relocatable(get_address_of_nested_fields(
+        ids_data,
+        Ids::Response,
+        CairoStruct::DeployResponsePtr,
+        vm,
+        ap_tracking,
+        &["constructor_retdata_end"],
+        hint_processor.os_program,
+    )?)?;
+
+    let response_len = (response_end - response_start)?;
+    let expected_retdata = vm.get_continuous_range(response_start, response_len)?;
+
+    let retdata_base = get_ptr_from_var_name(Ids::Retdata.into(), vm, ids_data, ap_tracking)?;
+    let retdata_size =
+        get_integer_from_var_name(Ids::RetdataSize.into(), vm, ids_data, ap_tracking)?;
+    let actual_retdata = vm.get_continuous_range(retdata_base, felt_to_usize(&retdata_size)?)?;
+    if actual_retdata != expected_retdata {
+        return Err(OsHintError::AssertionFailed {
+            message: format!(
+                "Return value mismatch; expected={:?}, actual={:?}.",
+                expected_retdata, actual_retdata
+            ),
+        });
+    }
+    Ok(())
 }
 
 pub(crate) fn initial_ge_required_gas<S: StateReader>(
