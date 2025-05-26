@@ -45,10 +45,11 @@ use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
 use tokio::sync::Mutex;
+use tokio::time::Instant;
 use tracing::{debug, error, info, trace};
 
 use crate::block_builder::FailOnErrorCause::L1HandlerTransactionValidationFailed;
-use crate::metrics::FULL_BLOCKS;
+use crate::metrics::{BLOCKS_REACHED_DEADLINE, FULL_BLOCKS};
 use crate::transaction_executor::TransactionExecutorTrait;
 use crate::transaction_provider::{NextTxs, TransactionProvider, TransactionProviderError};
 
@@ -143,7 +144,7 @@ pub trait BlockBuilderTrait: Send {
 }
 
 pub struct BlockBuilderExecutionParams {
-    pub deadline: tokio::time::Instant,
+    pub deadline: Instant,
     pub fail_on_err: bool,
 }
 
@@ -212,6 +213,7 @@ impl BlockBuilder {
                 if self.execution_params.fail_on_err {
                     return Err(BlockBuilderError::FailOnError(FailOnErrorCause::DeadlineReached));
                 }
+                BLOCKS_REACHED_DEADLINE.increment(1);
                 break;
             }
             if self.abort_signal_receiver.try_recv().is_ok() {
@@ -275,6 +277,7 @@ impl BlockBuilder {
                 &mut execution_data,
                 &self.output_content_sender,
                 self.execution_params.fail_on_err,
+                block_deadline,
             )
             .await?;
         }
@@ -314,24 +317,34 @@ async fn collect_execution_results_and_stream_txs(
         tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
     >,
     fail_on_err: bool,
+    block_deadline: Instant,
 ) -> BlockBuilderResult<bool> {
     assert!(
         results.len() <= tx_chunk.len(),
         "The number of results should be less than or equal to the number of transactions."
     );
-    let mut block_is_full = false;
-    // If the block is full, we won't get an error from the executor. We will just get only the
-    // results of the transactions that were executed before the block was full.
-    // see [TransactionExecutor::execute_txs].
+
+    let mut close_block = false;
+    // Checks and handles the case a chunk was only partially executed.
+    // Fewer results from the chunk transactions indicate the deadline was reached or the block is
+    // full. See [TransactionExecutor::execute_txs].
     if results.len() < tx_chunk.len() {
-        info!("Block is full.");
-        if fail_on_err {
-            return Err(BlockBuilderError::FailOnError(FailOnErrorCause::BlockFull));
+        if Instant::now() >= block_deadline {
+            info!("Block builder deadline reached in middle of chunk execution.");
+            if fail_on_err {
+                return Err(BlockBuilderError::FailOnError(FailOnErrorCause::DeadlineReached));
+            }
+            BLOCKS_REACHED_DEADLINE.increment(1);
         } else {
+            info!("Block is full.");
+            if fail_on_err {
+                return Err(BlockBuilderError::FailOnError(FailOnErrorCause::BlockFull));
+            }
             FULL_BLOCKS.increment(1);
-            block_is_full = true;
         }
+        close_block = true;
     }
+
     for (input_tx, result) in tx_chunk.into_iter().zip(results.into_iter()) {
         let tx_hash = input_tx.tx_hash();
 
@@ -369,7 +382,7 @@ async fn collect_execution_results_and_stream_txs(
             }
         }
     }
-    Ok(block_is_full)
+    Ok(close_block)
 }
 
 pub struct BlockMetadata {
