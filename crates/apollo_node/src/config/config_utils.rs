@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use apollo_config::dumping::{combine_config_map_and_pointers, Pointers, SerializeConfig};
+use apollo_config::CONFIG_FILE_ARG;
 use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
 use serde_json::{to_value, Map, Value};
@@ -174,7 +175,7 @@ pub fn get_deployment_from_config_path(config_path: &str) -> DeploymentBaseAppCo
     // TODO(Nadin): simplify this by using only config_path and removing the extra strings.
     let config = load_and_validate_config(vec![
         "deployment_from_config_path".to_string(),
-        "--config_file".to_string(),
+        CONFIG_FILE_ARG.to_string(),
         config_path.to_string(),
     ])
     .unwrap();
