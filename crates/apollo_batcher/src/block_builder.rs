@@ -154,7 +154,7 @@ pub struct BlockBuilder {
     tx_provider: Box<dyn TransactionProvider>,
     output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>>,
     // Optional senders because they are not used during validation flow.
-    _pre_confirmed_tx_sender: Option<PreConfirmedTxSender>,
+    pre_confirmed_tx_sender: Option<PreConfirmedTxSender>,
     _executed_tx_sender: Option<ExecutedTxSender>,
     abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
     transaction_converter: TransactionConverter,
@@ -186,7 +186,7 @@ impl BlockBuilder {
             executor,
             tx_provider,
             output_content_sender,
-            _pre_confirmed_tx_sender: pre_confirmed_tx_sender,
+            pre_confirmed_tx_sender,
             _executed_tx_sender: executed_tx_sender,
             abort_signal_receiver,
             transaction_converter,
@@ -251,6 +251,33 @@ impl BlockBuilder {
                 ))
                 .await;
                 continue;
+            }
+
+            if let Some(pre_confirmed_tx_sender) = &self.pre_confirmed_tx_sender {
+                let tx_hashes: Vec<TransactionHash> =
+                    next_tx_chunk.iter().map(|tx| tx.tx_hash()).collect();
+                let num_txs = tx_hashes.len();
+
+                info!(
+                    "Attempting to send a pre confirmed transaction chunk with {num_txs} \
+                     transactions.",
+                );
+
+                match pre_confirmed_tx_sender.send(tx_hashes) {
+                    Ok(_) => {
+                        info!(
+                            "Successfully sent a pre confirmed transaction chunk with {num_txs} \
+                             transactions.",
+                        );
+                    }
+                    Err(err) => {
+                        error!(
+                            "Failed to send a pre confirmed transaction chunk with {num_txs} \
+                             transactions: {:?}",
+                            err
+                        );
+                    }
+                }
             }
 
             let tx_convert_futures = next_tx_chunk.iter().map(|tx| async {
