@@ -11,6 +11,7 @@ class ServiceTopology:
     controller: str
     replicas: int
     autoscale: bool
+    anti_affinity: bool
     ingress: typing.Optional[dict[any, any]]
     toleration: typing.Optional[str]
     storage: typing.Optional[int]
