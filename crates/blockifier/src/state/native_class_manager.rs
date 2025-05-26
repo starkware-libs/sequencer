@@ -19,6 +19,7 @@ use crate::blockifier::config::{
 };
 use crate::execution::contract_class::{CompiledClassV1, RunnableCompiledClass};
 use crate::execution::native::contract_class::NativeCompiledClassV1;
+use crate::metrics::NATIVE_COMPILATION_ERROR;
 use crate::state::global_cache::{CachedCairoNative, CompiledClasses, RawClassCache};
 
 #[cfg(test)]
@@ -291,6 +292,7 @@ fn process_compilation_request(
             if panic_on_compilation_failure {
                 panic!("Compilation failed");
             }
+            NATIVE_COMPILATION_ERROR.increment(1);
             Err(err)
         }
     }
