@@ -127,7 +127,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         let relocatable_ret_data: Vec<MaybeRelocatable> =
             ret_data.iter().map(|&x| MaybeRelocatable::from(x)).collect();
 
-        let retdata_segment_start_ptr = vm.add_memory_segment();
+        let retdata_segment_start_ptr = vm.add_temporary_segment();
         vm.load_data(retdata_segment_start_ptr, &relocatable_ret_data)?;
 
         Ok(CallContractResponse {
