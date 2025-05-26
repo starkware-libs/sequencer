@@ -36,23 +36,42 @@ use blockifier::execution::syscalls::vm_syscall_utils::{
     TryExtractRevert,
 };
 use blockifier::state::state_api::StateReader;
+use cairo_vm::types::errors::math_errors::MathError;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::errors::hint_errors::HintError;
+use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::execution_resources::GasAmount;
+use starknet_api::transaction::TransactionVersion;
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::execution_helper::ExecutionHelperError;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
-use crate::vm_utils::write_to_temp_segment;
+use crate::hints::vars::CairoStruct;
+use crate::vm_utils::{
+    get_address_of_nested_fields_from_base_address,
+    get_field_offset,
+    get_size_of_cairo_struct,
+    write_to_temp_segment,
+    IdentifierGetter,
+    VmUtilsError,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum SnosSyscallError {
     #[error(transparent)]
     ExecutionHelper(#[from] ExecutionHelperError),
+    #[error("Invalid resource bounds: {0:?}")]
+    InvalidResourceBounds(Vec<MaybeRelocatable>),
+    #[error(transparent)]
+    Math(#[from] MathError),
+    #[error(transparent)]
+    Memory(#[from] MemoryError),
     #[error(transparent)]
     SyscallExecutorBase(#[from] SyscallExecutorBaseError),
+    #[error(transparent)]
+    VmUtils(#[from] VmUtilsError),
 }
 
 // Needed for custom hint implementations (in our case, syscall hints) which must comply with the
@@ -69,7 +88,11 @@ impl TryExtractRevert for SnosSyscallError {
             Self::SyscallExecutorBase(base_error) => {
                 base_error.try_extract_revert().map_original(Self::SyscallExecutorBase)
             }
-            Self::ExecutionHelper(_) => SelfOrRevert::Original(self),
+            Self::ExecutionHelper(_)
+            | Self::Math(_)
+            | Self::InvalidResourceBounds(_)
+            | Self::VmUtils(_)
+            | Self::Memory(_) => SelfOrRevert::Original(self),
         }
     }
 
@@ -220,7 +243,61 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> Result<GetExecutionInfoResponse, Self::Error> {
-        todo!()
+        // TODO(Nimrod): Handle errors correctly.
+        let call_info_tracker = syscall_handler
+            .get_current_execution_helper()
+            .expect("No current execution helper")
+            .tx_execution_iter
+            .get_tx_execution_info_ref()
+            .expect("No current transaction execution info")
+            .get_call_info_tracker()
+            .expect("No call info tracker found");
+        let original_execution_info_ptr = call_info_tracker.execution_info_ptr;
+        let class_hash = call_info_tracker.call_info.call.class_hash.unwrap();
+        let tx_version = vm
+            .get_integer(
+                get_address_of_nested_fields_from_base_address(
+                    original_execution_info_ptr,
+                    CairoStruct::ExecutionInfo,
+                    vm,
+                    &["tx_info", "version"],
+                    syscall_handler.os_program,
+                )
+                .unwrap(),
+            )
+            .unwrap()
+            .into_owned();
+        let os_constants = &syscall_handler.versioned_constants().os_constants;
+        // Check if we should exclude L1 data gas for this class hash.
+        let should_exclude_l1_data_gas = tx_version == TransactionVersion::THREE.0
+            && os_constants.data_gas_accounts.contains(&class_hash);
+        // Check if we should return version = 1.
+        let tip = vm
+            .get_integer(
+                get_address_of_nested_fields_from_base_address(
+                    original_execution_info_ptr,
+                    CairoStruct::ExecutionInfo,
+                    vm,
+                    &["tx_info", "tip"],
+                    syscall_handler.os_program,
+                )
+                .unwrap(),
+            )
+            .unwrap();
+        let should_replace_to_v1 = tx_version == TransactionVersion::THREE.0
+            && os_constants.v1_bound_accounts_cairo1.contains(&class_hash)
+            && *tip <= Felt::from(os_constants.v1_bound_accounts_max_tip.0);
+
+        // Allocate or return the original execution info segment.
+        let execution_info_ptr = allocate_or_return_execution_info_segment(
+            original_execution_info_ptr,
+            should_exclude_l1_data_gas,
+            should_replace_to_v1,
+            vm,
+            syscall_handler.os_program,
+        )
+        .unwrap();
+        Ok(GetExecutionInfoResponse { execution_info_ptr })
     }
 
     #[allow(clippy::result_large_err)]
@@ -311,4 +388,73 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
     fn versioned_constants(&self) -> &VersionedConstants {
         VersionedConstants::latest_constants()
     }
+}
+
+#[allow(clippy::result_large_err)]
+fn allocate_or_return_execution_info_segment<IG: IdentifierGetter>(
+    original_ptr: Relocatable,
+    should_exclude_l1_data_gas: bool,
+    should_replace_to_v1: bool,
+    vm: &mut VirtualMachine,
+    identifier_getter: &IG,
+) -> Result<Relocatable, SnosSyscallError> {
+    // TODO(Nimrod): Handle errors correctly.
+    if !should_replace_to_v1 && !should_exclude_l1_data_gas {
+        // No need to replace anything - return the original pointer.
+        return Ok(original_ptr);
+    }
+
+    let replaced_execution_info = vm.add_memory_segment();
+    let tx_info_ptr = vm.get_relocatable(get_address_of_nested_fields_from_base_address(
+        original_ptr,
+        CairoStruct::ExecutionInfo,
+        vm,
+        &["tx_info"],
+        identifier_getter,
+    )?)?;
+    let tx_info_size = get_size_of_cairo_struct(CairoStruct::TxInfo, identifier_getter)?;
+    let mut flattened_tx_info = vm.get_continuous_range(tx_info_ptr, tx_info_size)?;
+    if should_replace_to_v1 {
+        let version_offset = get_field_offset(CairoStruct::TxInfo, "version", identifier_getter)?;
+        flattened_tx_info[version_offset] = TransactionVersion::ONE.0.into();
+    }
+    if should_exclude_l1_data_gas {
+        let resource_bounds_start_offset =
+            get_field_offset(CairoStruct::TxInfo, "resource_bounds_start", identifier_getter)?;
+        let resource_bounds_end_offset =
+            get_field_offset(CairoStruct::TxInfo, "resource_bounds_end", identifier_getter)?;
+
+        let resource_bounds_start =
+            vm.get_relocatable((tx_info_ptr + resource_bounds_start_offset)?)?;
+        let resource_bounds_end =
+            vm.get_relocatable((tx_info_ptr + resource_bounds_end_offset)?)?;
+
+        let resource_bounds_size =
+            get_size_of_cairo_struct(CairoStruct::ResourceBounds, identifier_getter)?;
+        // Verify all resource bounds are present.
+        assert!(resource_bounds_size != 0);
+        assert!(
+            (resource_bounds_end.offset - resource_bounds_start.offset) % resource_bounds_size == 0,
+            "Resource bounds segment length is not a multiple of resource bounds size."
+        );
+        if (resource_bounds_end.offset - resource_bounds_start.offset) / resource_bounds_size != 3 {
+            return Err(SnosSyscallError::InvalidResourceBounds(vm.get_continuous_range(
+                resource_bounds_start,
+                resource_bounds_end.offset - resource_bounds_start.offset,
+            )?));
+        }
+        // Subtract the size of a resource from the end to exclude the last resource.
+        flattened_tx_info[resource_bounds_end_offset] =
+            (resource_bounds_end - resource_bounds_size)?.into();
+    }
+    let mut flattened_execution_info = vm.get_continuous_range(
+        original_ptr,
+        get_size_of_cairo_struct(CairoStruct::ExecutionInfo, identifier_getter)?,
+    )?;
+    let tx_info_offset =
+        get_field_offset(CairoStruct::ExecutionInfo, "tx_info", identifier_getter)?;
+    let replaced_tx_info = vm.gen_arg(&flattened_tx_info)?;
+    flattened_execution_info[tx_info_offset] = replaced_tx_info;
+    vm.load_data(replaced_execution_info, &flattened_execution_info)?;
+    Ok(replaced_execution_info)
 }
