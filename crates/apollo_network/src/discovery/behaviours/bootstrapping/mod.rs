@@ -14,6 +14,7 @@ use libp2p::swarm::{
     ToSwarm,
 };
 use libp2p::{Multiaddr, PeerId};
+use tracing::info;
 
 use crate::discovery::{RetryConfig, ToOtherBehaviourEvent};
 
@@ -74,11 +75,16 @@ impl NetworkBehaviour for BootstrappingBehaviour {
 
 impl BootstrappingBehaviour {
     pub fn new(
+        local_peer_id: PeerId,
         bootstrap_dial_retry_config: RetryConfig,
         bootstrap_peers: Vec<(PeerId, Multiaddr)>,
     ) -> Self {
         let mut peers = SelectAll::new();
         for (bootstrap_peer_id, bootstrap_peer_address) in bootstrap_peers {
+            if bootstrap_peer_id == local_peer_id {
+                info!("Skipping bootstrap peer with same ID as local peer: {bootstrap_peer_id}");
+                continue;
+            }
             peers.push(BootstrapPeer::new(
                 bootstrap_dial_retry_config,
                 bootstrap_peer_id,
