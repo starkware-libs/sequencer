@@ -3,6 +3,8 @@ use std::sync::Arc;
 use apollo_batcher_types::batcher_types::Round;
 use async_trait::async_trait;
 use blockifier::fee::receipt::TransactionReceipt;
+#[cfg(test)]
+use mockall::automock;
 use starknet_api::block::BlockNumber;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
@@ -58,6 +60,7 @@ impl PreConfirmedBlockWriterTrait for PreConfirmedBlockWriter {
     }
 }
 
+#[cfg_attr(test, automock)]
 pub trait PreConfirmedBlockWriterFactoryTrait: Send + Sync {
     fn create_pre_confirmed_block_writer(
         &self,
