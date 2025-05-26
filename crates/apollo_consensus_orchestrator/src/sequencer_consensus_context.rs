@@ -45,7 +45,7 @@ use apollo_protobuf::consensus::{
     Vote,
     DEFAULT_VALIDATOR_ID,
 };
-use apollo_state_sync_types::communication::{SharedStateSyncClient, StateSyncClientError};
+use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use async_trait::async_trait;
 // TODO(Gilad): Define in consensus, either pass to blockifier as config or keep the dup.
@@ -233,7 +233,7 @@ pub struct SequencerConsensusContext {
 
 pub struct SequencerConsensusContextDeps {
     pub transaction_converter: Arc<dyn TransactionConverterTrait>,
-    pub state_sync_client: SharedStateSyncClient,
+    pub state_sync_client: Arc<dyn StateSyncClient>,
     pub batcher: Arc<dyn BatcherClient>,
     pub cende_ambassador: Arc<dyn CendeContext>,
     pub eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
@@ -284,7 +284,7 @@ struct ProposalBuildArguments {
     fin_sender: oneshot::Sender<ProposalCommitment>,
     batcher: Arc<dyn BatcherClient>,
     eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
-    state_sync_client: SharedStateSyncClient,
+    state_sync_client: Arc<dyn StateSyncClient>,
     l1_gas_price_provider_client: Arc<dyn L1GasPriceProviderClient>,
     gas_price_params: GasPriceParams,
     valid_proposals: Arc<Mutex<BuiltProposals>>,
@@ -303,7 +303,7 @@ struct ProposalValidateArguments {
     proposal_id: ProposalId,
     batcher: Arc<dyn BatcherClient>,
     eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
-    state_sync_client: SharedStateSyncClient,
+    state_sync_client: Arc<dyn StateSyncClient>,
     l1_gas_price_provider_client: Arc<dyn L1GasPriceProviderClient>,
     min_l1_gas_price_wei: GasPrice,
     max_l1_gas_price_wei: GasPrice,
@@ -1274,7 +1274,7 @@ async fn await_second_proposal_part(
 
 async fn initiate_validation(
     batcher: &dyn BatcherClient,
-    state_sync_client: SharedStateSyncClient,
+    state_sync_client: Arc<dyn StateSyncClient>,
     block_info: ConsensusBlockInfo,
     proposal_id: ProposalId,
     timeout_plus_margin: Duration,
@@ -1416,7 +1416,7 @@ fn convert_to_sn_api_block_info(block_info: &ConsensusBlockInfo) -> starknet_api
 }
 
 async fn retrospective_block_hash(
-    state_sync_client: SharedStateSyncClient,
+    state_sync_client: Arc<dyn StateSyncClient>,
     block_info: &ConsensusBlockInfo,
 ) -> ProposalResult<Option<BlockHashAndNumber>> {
     let retrospective_block_number = block_info.height.0.checked_sub(STORED_BLOCK_HASH_BUFFER);
