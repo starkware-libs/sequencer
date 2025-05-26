@@ -377,7 +377,7 @@
   "components.batcher.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
-    "value": 3
+    "value": 50
   },
   "components.batcher.remote_client_config.retry_interval": {
     "description": "The duration in seconds to wait between remote connection retries.",
@@ -427,7 +427,7 @@
   "components.class_manager.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
-    "value": 3
+    "value": 50
   },
   "components.class_manager.remote_client_config.retry_interval": {
     "description": "The duration in seconds to wait between remote connection retries.",
@@ -482,7 +482,7 @@
   "components.gateway.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
-    "value": 3
+    "value": 50
   },
   "components.gateway.remote_client_config.retry_interval": {
     "description": "The duration in seconds to wait between remote connection retries.",
@@ -537,7 +537,7 @@
   "components.l1_gas_price_provider.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
-    "value": 3
+    "value": 50
   },
   "components.l1_gas_price_provider.remote_client_config.retry_interval": {
     "description": "The duration in seconds to wait between remote connection retries.",
@@ -592,7 +592,7 @@
   "components.l1_provider.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
-    "value": 3
+    "value": 50
   },
   "components.l1_provider.remote_client_config.retry_interval": {
     "description": "The duration in seconds to wait between remote connection retries.",
@@ -647,7 +647,7 @@
   "components.mempool.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
-    "value": 3
+    "value": 50
   },
   "components.mempool.remote_client_config.retry_interval": {
     "description": "The duration in seconds to wait between remote connection retries.",
@@ -697,7 +697,7 @@
   "components.mempool_p2p.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
-    "value": 3
+    "value": 50
   },
   "components.mempool_p2p.remote_client_config.retry_interval": {
     "description": "The duration in seconds to wait between remote connection retries.",
@@ -752,7 +752,7 @@
   "components.sierra_compiler.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
-    "value": 3
+    "value": 50
   },
   "components.sierra_compiler.remote_client_config.retry_interval": {
     "description": "The duration in seconds to wait between remote connection retries.",
@@ -802,7 +802,7 @@
   "components.state_sync.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
-    "value": 3
+    "value": 50
   },
   "components.state_sync.remote_client_config.retry_interval": {
     "description": "The duration in seconds to wait between remote connection retries.",
