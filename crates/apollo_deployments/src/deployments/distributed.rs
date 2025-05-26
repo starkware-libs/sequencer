@@ -142,17 +142,16 @@ impl GetComponentConfigs for DistributedNodeServiceName {
 
 // TODO(Tsabary): per each service, update all values.
 impl ServiceNameInner for DistributedNodeServiceName {
-    // TODO(Tsabary/Idan): set the correct controller type for each service.
     fn get_controller(&self) -> Controller {
         match self {
             DistributedNodeServiceName::Batcher => Controller::StatefulSet,
             DistributedNodeServiceName::ClassManager => Controller::StatefulSet,
             DistributedNodeServiceName::ConsensusManager => Controller::StatefulSet,
-            DistributedNodeServiceName::HttpServer => Controller::StatefulSet,
-            DistributedNodeServiceName::Gateway => Controller::StatefulSet,
-            DistributedNodeServiceName::L1 => Controller::StatefulSet,
-            DistributedNodeServiceName::Mempool => Controller::StatefulSet,
-            DistributedNodeServiceName::SierraCompiler => Controller::StatefulSet,
+            DistributedNodeServiceName::HttpServer => Controller::Deployment,
+            DistributedNodeServiceName::Gateway => Controller::Deployment,
+            DistributedNodeServiceName::L1 => Controller::Deployment,
+            DistributedNodeServiceName::Mempool => Controller::Deployment,
+            DistributedNodeServiceName::SierraCompiler => Controller::Deployment,
             DistributedNodeServiceName::StateSync => Controller::StatefulSet,
         }
     }
