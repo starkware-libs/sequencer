@@ -26,7 +26,8 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": null,
+      "anti_affinity": false
     }
   ]
 }

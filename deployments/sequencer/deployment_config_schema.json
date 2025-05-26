@@ -58,6 +58,7 @@
           },
           "replicas": { "type": "integer", "minimum": 1 },
           "autoscale": { "type": "boolean" },
+          "anti_affinity": { "type": "boolean" },
           "toleration": {
             "anyOf": [{ "type": "string" }, { "type": "null" }]
           },
@@ -106,6 +107,7 @@
           "ingress",
           "replicas",
           "autoscale",
+          "anti_affinity",
           "toleration",
           "storage",
           "resources",

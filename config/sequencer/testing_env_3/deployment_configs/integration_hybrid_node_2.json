@@ -28,7 +28,8 @@
       },
       "external_secret": {
         "gcsm_key": "sequencer-test-3-node-2"
-      }
+      },
+      "anti_affinity": true
     },
     {
       "name": "HttpServer",
@@ -69,7 +70,8 @@
       },
       "external_secret": {
         "gcsm_key": "sequencer-test-3-node-2"
-      }
+      },
+      "anti_affinity": false
     },
     {
       "name": "Gateway",
@@ -97,7 +99,8 @@
       },
       "external_secret": {
         "gcsm_key": "sequencer-test-3-node-2"
-      }
+      },
+      "anti_affinity": false
     },
     {
       "name": "Mempool",
@@ -125,7 +128,8 @@
       },
       "external_secret": {
         "gcsm_key": "sequencer-test-3-node-2"
-      }
+      },
+      "anti_affinity": false
     },
     {
       "name": "SierraCompiler",
@@ -153,7 +157,8 @@
       },
       "external_secret": {
         "gcsm_key": "sequencer-test-3-node-2"
-      }
+      },
+      "anti_affinity": false
     }
   ]
 }
