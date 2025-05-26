@@ -15,7 +15,6 @@ use itertools::Itertools;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::block::BlockNumber;
-use starknet_api::test_utils::l1_handler::{executable_l1_handler_tx, L1HandlerTxArgs};
 use starknet_api::transaction::TransactionHash;
 use starknet_api::tx_hash;
 
@@ -77,11 +76,8 @@ macro_rules! bootstrapper {
     }};
 }
 
-fn l1_handler_event(tx_hash: TransactionHash) -> Event {
-    Event::L1HandlerTransaction(executable_l1_handler_tx(L1HandlerTxArgs {
-        tx_hash,
-        ..Default::default()
-    }))
+fn l1_handler_event(tx_hash: usize) -> Event {
+    Event::L1HandlerTransaction(l1_handler(tx_hash))
 }
 
 #[test]
@@ -140,10 +136,8 @@ fn process_events_happy_flow() {
             .build_into_l1_provider();
 
         // Test.
-        l1_provider
-            .add_events(vec![l1_handler_event(tx_hash!(4)), l1_handler_event(tx_hash!(3))])
-            .unwrap();
-        l1_provider.add_events(vec![l1_handler_event(tx_hash!(6))]).unwrap();
+        l1_provider.add_events(vec![l1_handler_event(4), l1_handler_event(3)]).unwrap();
+        l1_provider.add_events(vec![l1_handler_event(6)]).unwrap();
 
         let expected_l1_provider = L1ProviderContentBuilder::new()
             .with_txs([
@@ -174,11 +168,11 @@ fn process_events_committed_txs() {
 
     // Test.
     // Uncommitted transaction, should fail silently.
-    l1_provider.add_events(vec![l1_handler_event(tx_hash!(1))]).unwrap();
+    l1_provider.add_events(vec![l1_handler_event(1)]).unwrap();
     assert_eq!(l1_provider, expected_l1_provider);
 
     // Committed transaction, should fail silently.
-    l1_provider.add_events(vec![l1_handler_event(tx_hash!(2))]).unwrap();
+    l1_provider.add_events(vec![l1_handler_event(2)]).unwrap();
     assert_eq!(l1_provider, expected_l1_provider);
 }
 
@@ -346,7 +340,7 @@ fn tx_in_commit_block_before_processed_is_skipped() {
     expected_l1_provider.assert_eq(&l1_provider);
 
     // Parsing the tx after getting it from commit-block is a NOP.
-    l1_provider.add_events(vec![l1_handler_event(tx_hash!(2))]).unwrap();
+    l1_provider.add_events(vec![l1_handler_event(2)]).unwrap();
     expected_l1_provider.assert_eq(&l1_provider);
 }
 
@@ -462,7 +456,7 @@ fn validate_rejected_transaction_accepted_after_rollback() {
 #[test]
 fn add_new_transaction_not_added_if_rejected() {
     // Setup.
-    let rejected_tx_id: TransactionHash = tx_hash!(1);
+    let rejected_tx_id = 1;
     let mut l1_provider = setup_rejected_transactions();
 
     // Add a new transaction that is already in the rejected set.
@@ -478,7 +472,7 @@ fn add_new_transaction_not_added_if_rejected() {
     expected_l1_provider.assert_eq(&l1_provider);
 
     // Ensure that the rejected transaction is not re-added to the provider, even if it is staged.
-    l1_provider.validate(rejected_tx_id, BlockNumber(1)).unwrap();
+    l1_provider.validate(tx_hash!(rejected_tx_id), BlockNumber(1)).unwrap();
     l1_provider.add_events(vec![l1_handler_event(rejected_tx_id)]).unwrap();
     expected_l1_provider.assert_eq(&l1_provider);
 }
