@@ -1,4 +1,5 @@
 use apollo_batcher::batcher::{create_batcher, Batcher};
+use apollo_batcher::pre_confirmed_cende_writer::EmptyPreConfirmedCendeWriterClient;
 use apollo_class_manager::class_manager::create_class_manager;
 use apollo_class_manager::ClassManager;
 use apollo_compile_to_casm::{create_sierra_compiler, SierraCompiler};
@@ -67,11 +68,15 @@ pub async fn create_node_components(
             let class_manager_client = clients
                 .get_class_manager_shared_client()
                 .expect("Class Manager Client should be available");
+            // TODO(noamsp): Remove this once the Cende writer client is implemented.
+            let pre_confirmed_cende_writer_client =
+                std::sync::Arc::new(EmptyPreConfirmedCendeWriterClient {});
             Some(create_batcher(
                 config.batcher_config.clone(),
                 mempool_client,
                 l1_provider_client,
                 class_manager_client,
+                pre_confirmed_cende_writer_client,
             ))
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
