@@ -139,7 +139,31 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<DeployResponse> {
-        todo!()
+        // TODO(Nimrod): Handle errors correctly.
+        let call_info_tracker = syscall_handler
+            .execution_helpers_manager
+            .get_mut_current_execution_helper()
+            .unwrap()
+            .tx_execution_iter
+            .tx_execution_info_ref
+            .as_mut()
+            .unwrap()
+            .call_info_tracker
+            .as_mut()
+            .unwrap();
+
+        let deployed_contract_address =
+            call_info_tracker.deployed_contracts_iterator.next().unwrap();
+        let execution = &call_info_tracker.inner_calls_iterator.next().unwrap().execution;
+
+        *remaining_gas -= execution.gas_consumed;
+        let retdata: Vec<_> = execution.retdata.0.iter().map(MaybeRelocatable::from).collect();
+        let retdata_base = vm.add_temporary_segment();
+        vm.load_data(retdata_base, &retdata).unwrap();
+        Ok(DeployResponse {
+            contract_address: deployed_contract_address,
+            constructor_retdata: ReadOnlySegment { start_ptr: retdata_base, length: retdata.len() },
+        })
     }
 
     fn emit_event(
