@@ -83,7 +83,3 @@ path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_rev
 [[bin]]
 name = "integration_test_central_and_p2p_sync_flow"
 path = "src/bin/sequencer_node_end_to_end_integration_tests/integration_test_central_and_p2p_sync_flow.rs"
-
-[[bin]]
-name = "system_test_dump_single_node_config"
-path = "src/bin/dump_test_preset_configs/system_test_dump_single_node_config.rs"
