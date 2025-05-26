@@ -105,8 +105,6 @@ use crate::transaction::objects::TransactionInfo;
 
 #[derive(Debug, Error)]
 pub enum DeprecatedSyscallExecutionError {
-    #[error("Bad syscall_ptr; expected: {expected_ptr:?}, got: {actual_ptr:?}.")]
-    BadSyscallPointer { expected_ptr: Relocatable, actual_ptr: Relocatable },
     #[error("Bad syscall selector; expected: {expected_selector:?}, got: {actual_selector:?}.")]
     BadSyscallSelector {
         expected_selector: DeprecatedSyscallSelector,
@@ -464,10 +462,10 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
     #[allow(clippy::result_large_err)]
     fn verify_syscall_ptr(&self, actual_ptr: Relocatable) -> DeprecatedSyscallResult<()> {
         if actual_ptr != self.syscall_ptr {
-            return Err(DeprecatedSyscallExecutionError::BadSyscallPointer {
+            return Err(DeprecatedSyscallExecutorBaseError::BadSyscallPointer {
                 expected_ptr: self.syscall_ptr,
                 actual_ptr,
-            });
+            })?;
         }
 
         Ok(())
