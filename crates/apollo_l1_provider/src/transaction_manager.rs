@@ -9,7 +9,7 @@ use crate::soft_delete_index_map::SoftDeleteIndexMap;
 pub struct TransactionManager {
     pub uncommitted: SoftDeleteIndexMap,
     pub rejected: SoftDeleteIndexMap,
-    pub committed: IndexSet<TransactionHash>,
+    pub committed: IndexMap<TransactionHash, TransactionPayload>,
 }
 
 impl TransactionManager {
@@ -31,7 +31,7 @@ impl TransactionManager {
     }
 
     pub fn validate_tx(&mut self, tx_hash: TransactionHash) -> ValidationStatus {
-        if self.committed.contains(&tx_hash) {
+        if self.committed.contains_key(&tx_hash) {
             return ValidationStatus::Invalid(InvalidValidationStatus::AlreadyIncludedOnL2);
         }
 
@@ -68,6 +68,11 @@ impl TransactionManager {
 
         let mut uncommitted = IndexMap::new();
         let mut rejected = IndexMap::new();
+        let committed: IndexMap<_, _> = committed_txs
+            .iter()
+            .copied()
+            .map(|tx_hash| (tx_hash, TransactionPayload::HashOnly))
+            .collect();
 
         // Iterate over the uncommitted transactions and check if they are committed or rejected.
         for (hash, entry) in self.uncommitted.txs.drain(..) {
@@ -88,20 +93,28 @@ impl TransactionManager {
 
         // Add all committed tx hashes to the committed buffer, regardless of if they're known or
         // not, in case we haven't scraped them yet and another node did.
-        self.committed.extend(committed_txs)
+        self.committed.extend(committed)
     }
 
     /// Adds a transaction to the transaction manager, return true if the transaction was
     /// successfully added. If the transaction is occupied or already committed, it will not be
     /// added, and false will be returned.
     pub fn add_tx(&mut self, tx: L1HandlerTransaction) -> bool {
-        if self.committed.contains(&tx.tx_hash) || self.rejected.txs.contains_key(&tx.tx_hash) {
+        if self.committed.contains_key(&tx.tx_hash) || self.rejected.txs.contains_key(&tx.tx_hash) {
             return false;
         }
+
         self.uncommitted.insert(tx)
     }
 
     pub fn committed_includes(&self, tx_hashes: &IndexSet<TransactionHash>) -> bool {
-        self.committed.is_superset(tx_hashes)
+        tx_hashes.iter().all(|tx_hash| self.committed.contains_key(tx_hash))
     }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub enum TransactionPayload {
+    #[default]
+    HashOnly,
+    Full(L1HandlerTransaction),
 }
