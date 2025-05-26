@@ -175,7 +175,18 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<GetExecutionInfoResponse> {
-        todo!()
+        // TODO(Nimrod): Handle errors correctly.
+        Ok(GetExecutionInfoResponse {
+            execution_info_ptr: syscall_handler
+                .get_current_execution_helper()
+                .unwrap()
+                .tx_execution_iter
+                .get_tx_execution_info_ref()
+                .unwrap()
+                .get_call_info_tracker()
+                .unwrap()
+                .execution_info_ptr,
+        })
     }
 
     fn library_call(
