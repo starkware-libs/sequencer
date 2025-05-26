@@ -153,8 +153,6 @@ impl ConsensusManager {
                 )),
                 state_sync_client: Arc::clone(&self.state_sync_client),
                 batcher: Arc::clone(&self.batcher_client),
-                outbound_proposal_sender: outbound_internal_sender,
-                vote_broadcast_client: votes_broadcast_channels.broadcast_topic_client.clone(),
                 cende_ambassador: Arc::new(CendeAmbassador::new(
                     self.config.cende_config.clone(),
                     Arc::clone(&self.class_manager_client),
@@ -164,6 +162,8 @@ impl ConsensusManager {
                 )),
                 l1_gas_price_provider: self.l1_gas_price_provider.clone(),
                 clock: Arc::new(DefaultClock::default()),
+                outbound_proposal_sender: outbound_internal_sender,
+                vote_broadcast_client: votes_broadcast_channels.broadcast_topic_client.clone(),
             },
         );
 

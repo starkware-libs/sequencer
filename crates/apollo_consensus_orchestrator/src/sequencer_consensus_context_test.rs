@@ -154,12 +154,12 @@ fn default_context_dependencies() -> (SequencerConsensusContextDeps, NetworkDepe
         )),
         state_sync_client: Arc::new(MockStateSyncClient::new()),
         batcher: Arc::new(MockBatcherClient::new()),
-        outbound_proposal_sender,
-        vote_broadcast_client: votes_topic_client,
         cende_ambassador: Arc::new(success_cende_ammbassador()),
         eth_to_strk_oracle_client: Arc::new(dummy_eth_to_strk_oracle_client()),
         l1_gas_price_provider: Arc::new(dummy_gas_price_provider()),
         clock: Arc::new(DefaultClock::default()),
+        outbound_proposal_sender,
+        vote_broadcast_client: votes_topic_client,
     };
 
     let network_dependencies =
