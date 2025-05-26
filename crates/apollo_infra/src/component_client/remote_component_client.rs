@@ -19,7 +19,7 @@ use super::definitions::{ClientError, ClientResult};
 use crate::component_definitions::{ComponentClient, ServerError, APPLICATION_OCTET_STREAM};
 use crate::serde_utils::SerdeWrapper;
 
-const DEFAULT_RETRIES: usize = 3;
+const DEFAULT_RETRIES: usize = 50;
 const DEFAULT_IDLE_CONNECTIONS: usize = usize::MAX;
 const DEFAULT_IDLE_TIMEOUT: u64 = 90;
 const DEFAULT_RETRY_INTERVAL: u64 = 3;
