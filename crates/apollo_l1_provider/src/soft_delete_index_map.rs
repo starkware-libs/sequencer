@@ -1,7 +1,5 @@
-use std::collections::HashSet;
-
 use indexmap::map::Entry;
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
 
@@ -13,7 +11,7 @@ use starknet_api::transaction::TransactionHash;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct SoftDeleteIndexMap {
     pub txs: IndexMap<TransactionHash, TransactionEntry>,
-    pub staged_txs: HashSet<TransactionHash>,
+    pub staged_txs: IndexSet<TransactionHash>,
 }
 
 impl SoftDeleteIndexMap {
@@ -65,7 +63,7 @@ impl SoftDeleteIndexMap {
 
     /// Rolls back all staged transactions, converting them to unstaged.
     pub fn rollback_staging(&mut self) {
-        for tx_hash in self.staged_txs.drain() {
+        for tx_hash in self.staged_txs.drain(..) {
             self.txs.entry(tx_hash).and_modify(|entry| entry.set_state(TxState::Unstaged));
         }
     }
