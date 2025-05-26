@@ -32,7 +32,11 @@ use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
 use crate::syscall_handler_utils::SyscallHandlerType;
-use crate::vm_utils::{get_address_of_nested_fields, LoadCairoObject};
+use crate::vm_utils::{
+    get_address_of_nested_fields,
+    get_address_of_nested_fields_from_base_address,
+    LoadCairoObject,
+};
 
 pub(crate) fn load_next_tx<S: StateReader>(
     HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
@@ -629,9 +633,40 @@ pub(crate) fn check_new_syscall_response<S: StateReader>(
 }
 
 pub(crate) fn check_new_deploy_response<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { hint_processor, vm, ap_tracking, ids_data, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let response_ptr = get_ptr_from_var_name(Ids::Response.into(), vm, ids_data, ap_tracking)?;
+    let response_start = vm.get_relocatable(get_address_of_nested_fields_from_base_address(
+        response_ptr,
+        CairoStruct::DeployResponse,
+        vm,
+        &["constructor_retdata_start"],
+        hint_processor.os_program,
+    )?)?;
+
+    let response_end = vm.get_relocatable(get_address_of_nested_fields_from_base_address(
+        response_ptr,
+        CairoStruct::DeployResponse,
+        vm,
+        &["constructor_retdata_end"],
+        hint_processor.os_program,
+    )?)?;
+
+    let response_len = (response_end - response_start)?;
+    let expected_retdata = vm.get_continuous_range(response_start, response_len)?;
+
+    let retdata_base = get_ptr_from_var_name(Ids::Retdata.into(), vm, ids_data, ap_tracking)?;
+    let retdata_size =
+        get_integer_from_var_name(Ids::RetdataSize.into(), vm, ids_data, ap_tracking)?;
+    let actual_retdata = vm.get_continuous_range(retdata_base, felt_to_usize(&retdata_size)?)?;
+    if actual_retdata != expected_retdata {
+        return Err(OsHintError::AssertionFailed {
+            message: format!(
+                "Return value mismatch; expected={expected_retdata:?}, actual={actual_retdata:?}."
+            ),
+        });
+    }
+    Ok(())
 }
 
 pub(crate) fn initial_ge_required_gas<S: StateReader>(
