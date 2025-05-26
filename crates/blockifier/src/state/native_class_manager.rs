@@ -291,6 +291,9 @@ fn process_compilation_request(
             if panic_on_compilation_failure {
                 panic!("Compilation failed");
             }
+            // Increment the metric for native compilation errors. This will result by raising an alert in Grafana.
+            crate::metrics::NATIVE_COMPILATION_ERROR
+                .increment(1);
             Err(err)
         }
     }
