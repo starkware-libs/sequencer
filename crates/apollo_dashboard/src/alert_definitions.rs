@@ -6,6 +6,7 @@ use apollo_mempool::metrics::{
     MEMPOOL_POOL_SIZE,
     MEMPOOL_TRANSACTIONS_RECEIVED,
 };
+use blockifier::metrics::NATIVE_COMPILATION_ERROR;
 use const_format::formatcp;
 
 use crate::alerts::{
@@ -154,6 +155,21 @@ const CONSENSUS_ROUND_HIGH_AVG: Alert = Alert {
     severity: AlertSeverity::Regular,
 };
 
+const NATIVE_COMPILATION_ERROR_INCREASE: Alert = Alert {
+    name: "native_compilation_error",
+    title: "Native compilation alert",
+    alert_group: AlertGroup::Batcher,
+    expr: formatcp!("increase({}[1m])", NATIVE_COMPILATION_ERROR.get_name()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::GreaterThan,
+        comparison_value: 0.0,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 20,
+    severity: AlertSeverity::Regular,
+};
+
 pub const SEQUENCER_ALERTS: Alerts = Alerts::new(&[
     CONSENSUS_BLOCK_NUMBER_STUCK,
     GATEWAY_ADD_TX_RATE_DROP,
@@ -163,4 +179,5 @@ pub const SEQUENCER_ALERTS: Alerts = Alerts::new(&[
     HTTP_SERVER_IDLE,
     MEMPOOL_POOL_SIZE_INCREASE,
     CONSENSUS_ROUND_HIGH_AVG,
+    NATIVE_COMPILATION_ERROR_INCREASE,
 ]);
