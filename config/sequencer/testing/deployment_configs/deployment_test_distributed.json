@@ -6,9 +6,9 @@
       "name": "Batcher",
       "controller": "StatefulSet",
       "config_paths": [
-        "../../../../base_app_config.json",
-        "deployment_config_override.json",
-        "instance_config_override.json",
+        "testing/app_configs/distributed/deployment_test_distributedbase_app_config.json",
+        "testing/app_configs/distributed/deployment_test_distributeddeployment_config_override.json",
+        "testing/app_configs/distributed/deployment_test_distributedinstance_config_override.json",
         "batcher.json"
       ],
       "ingress": null,
@@ -32,9 +32,9 @@
       "name": "ClassManager",
       "controller": "StatefulSet",
       "config_paths": [
-        "../../../../base_app_config.json",
-        "deployment_config_override.json",
-        "instance_config_override.json",
+        "testing/app_configs/distributed/deployment_test_distributedbase_app_config.json",
+        "testing/app_configs/distributed/deployment_test_distributeddeployment_config_override.json",
+        "testing/app_configs/distributed/deployment_test_distributedinstance_config_override.json",
         "class_manager.json"
       ],
       "ingress": null,
@@ -58,9 +58,9 @@
       "name": "ConsensusManager",
       "controller": "StatefulSet",
       "config_paths": [
-        "../../../../base_app_config.json",
-        "deployment_config_override.json",
-        "instance_config_override.json",
+        "testing/app_configs/distributed/deployment_test_distributedbase_app_config.json",
+        "testing/app_configs/distributed/deployment_test_distributeddeployment_config_override.json",
+        "testing/app_configs/distributed/deployment_test_distributedinstance_config_override.json",
         "consensus_manager.json"
       ],
       "ingress": null,
@@ -84,9 +84,9 @@
       "name": "HttpServer",
       "controller": "Deployment",
       "config_paths": [
-        "../../../../base_app_config.json",
-        "deployment_config_override.json",
-        "instance_config_override.json",
+        "testing/app_configs/distributed/deployment_test_distributedbase_app_config.json",
+        "testing/app_configs/distributed/deployment_test_distributeddeployment_config_override.json",
+        "testing/app_configs/distributed/deployment_test_distributedinstance_config_override.json",
         "http_server.json"
       ],
       "ingress": {
@@ -121,9 +121,9 @@
       "name": "Gateway",
       "controller": "Deployment",
       "config_paths": [
-        "../../../../base_app_config.json",
-        "deployment_config_override.json",
-        "instance_config_override.json",
+        "testing/app_configs/distributed/deployment_test_distributedbase_app_config.json",
+        "testing/app_configs/distributed/deployment_test_distributeddeployment_config_override.json",
+        "testing/app_configs/distributed/deployment_test_distributedinstance_config_override.json",
         "gateway.json"
       ],
       "ingress": null,
@@ -147,9 +147,9 @@
       "name": "L1",
       "controller": "Deployment",
       "config_paths": [
-        "../../../../base_app_config.json",
-        "deployment_config_override.json",
-        "instance_config_override.json",
+        "testing/app_configs/distributed/deployment_test_distributedbase_app_config.json",
+        "testing/app_configs/distributed/deployment_test_distributeddeployment_config_override.json",
+        "testing/app_configs/distributed/deployment_test_distributedinstance_config_override.json",
         "l1.json"
       ],
       "ingress": null,
@@ -173,9 +173,9 @@
       "name": "Mempool",
       "controller": "Deployment",
       "config_paths": [
-        "../../../../base_app_config.json",
-        "deployment_config_override.json",
-        "instance_config_override.json",
+        "testing/app_configs/distributed/deployment_test_distributedbase_app_config.json",
+        "testing/app_configs/distributed/deployment_test_distributeddeployment_config_override.json",
+        "testing/app_configs/distributed/deployment_test_distributedinstance_config_override.json",
         "mempool.json"
       ],
       "ingress": null,
@@ -199,9 +199,9 @@
       "name": "SierraCompiler",
       "controller": "Deployment",
       "config_paths": [
-        "../../../../base_app_config.json",
-        "deployment_config_override.json",
-        "instance_config_override.json",
+        "testing/app_configs/distributed/deployment_test_distributedbase_app_config.json",
+        "testing/app_configs/distributed/deployment_test_distributeddeployment_config_override.json",
+        "testing/app_configs/distributed/deployment_test_distributedinstance_config_override.json",
         "sierra_compiler.json"
       ],
       "ingress": null,
@@ -225,9 +225,9 @@
       "name": "StateSync",
       "controller": "StatefulSet",
       "config_paths": [
-        "../../../../base_app_config.json",
-        "deployment_config_override.json",
-        "instance_config_override.json",
+        "testing/app_configs/distributed/deployment_test_distributedbase_app_config.json",
+        "testing/app_configs/distributed/deployment_test_distributeddeployment_config_override.json",
+        "testing/app_configs/distributed/deployment_test_distributedinstance_config_override.json",
         "state_sync.json"
       ],
       "ingress": null,

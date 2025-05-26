@@ -64,14 +64,43 @@ impl Deployment {
         // dir. This will enable removing the current "upward" paths.
 
         // Reference the base app config file from the application config subdir.
-        let base_app_config_relative_path =
-            relative_up_path(&application_config_subdir, &base_app_config_file_path);
+
+        fn find_mutual_parent_dir<'a>(path1: &'a Path, path2: &'a Path) -> PathBuf {
+            let ancestors1: Vec<&Path> = path1.ancestors().collect();
+            let ancestors2: Vec<&Path> = path2.ancestors().collect();
+
+            // Find the deepest common ancestor
+            ancestors1
+                .iter()
+                .filter(|p| ancestors2.contains(p))
+                .max_by_key(|p| p.components().count())
+                .map(|p| (*p).to_path_buf())
+                .expect("Should have a common ancestor")
+        }
+
+        let mutual_parent_dir =
+            find_mutual_parent_dir(&application_config_subdir, &base_app_config_file_path);
+
+        let path_from_parent_dir_to_base_app_config = base_app_config_file_path
+            .strip_prefix(&mutual_parent_dir)
+            .expect("Base app config file path should be a subpath of the mutual parent dir");
+
+        let path_from_parent_dir_to_application_config_subdir = application_config_subdir
+            .strip_prefix(&mutual_parent_dir)
+            .expect("Base app config file path should be a subpath of the mutual parent dir");
 
         let config_override_files: Vec<String> = config_override.create(&application_config_subdir);
 
         let additional_config_filenames: Vec<String> =
-            std::iter::once(base_app_config_relative_path.to_string_lossy().to_string())
+            std::iter::once(path_from_parent_dir_to_base_app_config.to_string_lossy().to_string())
                 .chain(config_override_files)
+                .map(|filename| {
+                    format!(
+                        "{}/{}",
+                        path_from_parent_dir_to_application_config_subdir.to_string_lossy(),
+                        filename
+                    )
+                })
                 .collect();
 
         let services = service_names
@@ -87,7 +116,7 @@ impl Deployment {
             .collect();
         Self {
             chain_id,
-            application_config_subdir,
+            application_config_subdir: mutual_parent_dir,
             deployment_name,
             environment,
             services,
@@ -352,29 +381,6 @@ fn get_secret_key(id: usize) -> String {
 fn get_validator_id(id: usize) -> String {
     // TODO(Tsabary): Make sure this works for larger ids by converting the id to hex string.
     format!("0x{}", id + 64)
-}
-
-fn relative_up_path(from: &Path, to: &Path) -> PathBuf {
-    // Canonicalize logically (NOT on filesystem)
-    let from_components: Vec<_> = from.components().collect();
-    let to_components: Vec<_> = to.components().collect();
-
-    // Find common prefix length
-    let common_len = from_components.iter().zip(&to_components).take_while(|(a, b)| a == b).count();
-
-    // How many directories to go up from `from` to get to common root
-    let up_levels = from_components.len() - common_len;
-
-    // Build the relative path
-    let mut result = PathBuf::new();
-    for _ in 0..up_levels {
-        result.push("..");
-    }
-    for component in &to_components[common_len..] {
-        result.push(component.as_os_str());
-    }
-
-    result
 }
 
 // A helper struct for serializing the components config in the same hierarchy as of its
