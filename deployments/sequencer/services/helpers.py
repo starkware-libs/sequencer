@@ -60,3 +60,10 @@ def generate_random_hash(length: int = 6, from_string: Optional[str] = None) -> 
         return hash_object.hexdigest()[:length]
     else:
         return "".join(random.choices(string.ascii_letters, k=length))
+
+
+def get_node_id_from_namespace(namespace: str) -> str:
+    if "-" in namespace:
+        parts = namespace.split("-")
+        return parts[-1] if parts[-1].isdigit() else "0"
+    return "0"
