@@ -347,3 +347,33 @@ fn mempool_state_retains_address_across_api_calls(mut mempool: Mempool) {
     // committed transactions. Mirroring this behavior may require a modification of this test.
     assert!(mempool.account_tx_in_pool_or_recent_block(account_address));
 }
+
+#[rstest]
+// TODO(Ayelet): Remove this test once the eviction manager is implemented.
+fn test_txs_tracking_in_eviction_manager(mut mempool: Mempool) {
+    let tx_ready_address_0 =
+        add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0);
+    let tx_gap_address_1 = add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 1, account_nonce: 0);
+    let tx_gap_address_2 = add_tx_input!(tx_hash: 3, address: "0x2", tx_nonce: 1, account_nonce: 0);
+
+    for input in [&tx_ready_address_0, &tx_gap_address_1, &tx_gap_address_2] {
+        add_tx(&mut mempool, input);
+    }
+
+    let manager = mempool.eviction_manager();
+    assert!(manager.suspended.contains_key(&tx_gap_address_1.tx.contract_address()));
+    assert!(manager.suspended.contains_key(&tx_gap_address_2.tx.contract_address()));
+    assert!(!manager.suspended.contains_key(&tx_ready_address_0.tx.contract_address()));
+
+    let tx_fill_gap_address_1 =
+        add_tx_input!(tx_hash: 4, address: "0x1", tx_nonce: 0, account_nonce: 0);
+    add_tx(&mut mempool, &tx_fill_gap_address_1);
+
+    let manager = mempool.eviction_manager();
+    assert!(!manager.suspended.contains_key(&tx_gap_address_1.tx.contract_address()));
+    assert!(manager.suspended.contains_key(&tx_gap_address_2.tx.contract_address()));
+
+    commit_block(&mut mempool, [("0x2", 1)], []);
+    let manager = mempool.eviction_manager();
+    assert!(!manager.suspended.contains_key(&tx_gap_address_2.tx.contract_address()));
+}
