@@ -21,7 +21,7 @@ use crate::abi::sierra_types::SierraTypeError;
 use crate::blockifier_versioned_constants::{EventLimits, GasCostsError, VersionedConstants};
 use crate::execution::call_info::MessageToL1;
 use crate::execution::common_hints::ExecutionMode;
-use crate::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallExecutionError;
+use crate::execution::deprecated_syscalls::deprecated_syscall_executor::DeprecatedSyscallExecutorBaseError;
 use crate::execution::deprecated_syscalls::DeprecatedSyscallSelector;
 use crate::execution::execution_utils::{
     felt_from_ptr,
@@ -811,7 +811,7 @@ pub trait TryExtractRevert {
 #[derive(Debug, thiserror::Error)]
 pub enum SyscallExecutorBaseError {
     #[error(transparent)]
-    DeprecatedSyscallExecution(#[from] DeprecatedSyscallExecutionError),
+    DeprecatedSyscallExecutorBase(#[from] DeprecatedSyscallExecutorBaseError),
     #[error(transparent)]
     FromStr(#[from] FromStrError),
     #[error("Failed to get gas cost for syscall selector {selector:?}. Error: {error:?}")]
