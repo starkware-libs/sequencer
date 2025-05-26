@@ -69,6 +69,8 @@ pub enum OsHintError {
     InconsistentBlockNumber { actual: BlockNumber, expected: BlockNumber },
     #[error("Inconsistent storage value. Actual: {actual}, expected: {expected}.")]
     InconsistentValue { actual: Felt, expected: Felt },
+    #[error("Invalid resource bounds: {0:?}")]
+    InvalidResourceBounds(Vec<MaybeRelocatable>),
     #[error(transparent)]
     Math(#[from] MathError),
     #[error(transparent)]
