@@ -1,26 +1,25 @@
 #!/usr/bin/env python3
 
+import argparse
 import json
 import os
-import argparse
-
 from typing import Optional
-from tenacity import retry, stop_after_attempt, wait_fixed, before_sleep_log
+
+from common.grafana10_objects import (
+    alert_expression_model_object,
+    alert_query_model_object,
+    alert_query_object,
+    alert_rule_object,
+)
+from common.helpers import get_logger
 from grafana_client import GrafanaApi
 from grafana_client.client import (
-    GrafanaException,
-    GrafanaClientError,
-    GrafanaServerError,
     GrafanaBadInputError,
+    GrafanaClientError,
+    GrafanaException,
+    GrafanaServerError,
 )
-
-from common.helpers import get_logger
-from common.grafana10_objects import (
-    alert_rule_object,
-    alert_query_object,
-    alert_query_model_object,
-    alert_expression_model_object,
-)
+from tenacity import before_sleep_log, retry, stop_after_attempt, wait_fixed
 
 
 def create_alert_expression_model(conditions: list[dict[str, any]]):
@@ -43,7 +42,7 @@ def create_alert_query(
     model: dict[any, any],
     datasource_uid: str,
     ref_id: str = "A",
-    relative_time_range: dict[str, int] = {"from": 600, "to": 0}
+    relative_time_range: dict[str, int] = {"from": 600, "to": 0},
 ):
     logger.debug(f"Creating alert query {model}")
     alert_query = alert_query_object.copy()
@@ -64,7 +63,7 @@ def create_alert_rule(
     _for: str,
     expr: str,
     conditions: list[dict[str, any]],
-    datasource_uid: str
+    datasource_uid: str,
 ):
     logger.debug(f"Creating alert rule {name}")
     alert_rule = alert_rule_object.copy()
@@ -75,7 +74,9 @@ def create_alert_rule(
     alert_rule["intervalSec"] = interval_sec
     alert_rule["for"] = _for
     alert_rule["data"] = [
-        create_alert_query(datasource_uid=datasource_uid, model=create_alert_query_model(expr=expr)),
+        create_alert_query(
+            datasource_uid=datasource_uid, model=create_alert_query_model(expr=expr)
+        ),
         create_alert_query(
             ref_id="B",
             relative_time_range={"from": 1, "to": 0},
@@ -195,7 +196,7 @@ def alert_builder(args: argparse.Namespace):
         if not args.dry_run:
             try:
                 client.alertingprovisioning.create_alertrule(
-                    alertrule=alert, 
+                    alertrule=alert,
                     disable_provenance=True,
                 )
                 logger.info(f'Alert "{alert["name"]}" uploaded to Grafana successfully')
