@@ -300,7 +300,7 @@ pub(crate) fn end_tx<S: StateReader>(
 pub(crate) fn enter_call<S: StateReader>(
     HintArgs { hint_processor, ids_data, vm, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    let execution_info_ptr = get_address_of_nested_fields(
+    let execution_info_ptr = vm.get_relocatable(get_address_of_nested_fields(
         ids_data,
         Ids::ExecutionContext,
         CairoStruct::ExecutionContextPtr,
@@ -308,8 +308,8 @@ pub(crate) fn enter_call<S: StateReader>(
         ap_tracking,
         &["execution_info"],
         hint_processor.os_program,
-    )?;
-    let deprecated_tx_info_ptr = get_address_of_nested_fields(
+    )?)?;
+    let deprecated_tx_info_ptr = vm.get_relocatable(get_address_of_nested_fields(
         ids_data,
         Ids::ExecutionContext,
         CairoStruct::ExecutionContextPtr,
@@ -317,7 +317,7 @@ pub(crate) fn enter_call<S: StateReader>(
         ap_tracking,
         &["deprecated_tx_info"],
         hint_processor.os_program,
-    )?;
+    )?)?;
 
     hint_processor
         .get_mut_current_execution_helper()?
