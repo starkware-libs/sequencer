@@ -148,13 +148,6 @@ pub trait Clock: Send + Sync {
 pub struct DefaultClock();
 impl Clock for DefaultClock {}
 
-// TODO(guy.f): Consider storing a ContextDeps struct instead of all the dependencies directly.
-//
-// pub struct SequencerConsensusContext {
-//   config: Config,
-//   clients: Clients,
-//   ...all the other fields remain flat
-// }
 type HeightToIdToContent = BTreeMap<
     BlockNumber,
     HashMap<
@@ -212,9 +205,7 @@ impl BuiltProposals {
 
 pub struct SequencerConsensusContext {
     config: ContextConfig,
-    transaction_converter: Arc<dyn TransactionConverterTrait>,
-    state_sync_client: SharedStateSyncClient,
-    batcher: Arc<dyn BatcherClient>,
+    context_deps: SequencerConsensusContextDeps,
     validators: Vec<ValidatorId>,
     // Proposal building/validating returns immediately, leaving the actual processing to a spawned
     // task. The spawned task processes the proposal asynchronously and updates the
@@ -233,32 +224,27 @@ pub struct SequencerConsensusContext {
     active_proposal: Option<(CancellationToken, JoinHandle<()>)>,
     // Stores proposals for future rounds until the round is reached.
     queued_proposals: BTreeMap<Round, (ValidationParams, oneshot::Sender<ProposalCommitment>)>,
-    outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
-    // Used to broadcast votes to other consensus nodes.
-    vote_broadcast_client: BroadcastTopicClient<Vote>,
-    cende_ambassador: Arc<dyn CendeContext>,
-    eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
-    // The next block's l2 gas price, calculated based on EIP-1559, used for building and
-    // validating proposals.
-    l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     l2_gas_price: GasPrice,
     l1_da_mode: L1DataAvailabilityMode,
     // TODO(alonl): remove this field and use the one in the previous block info.
     last_block_timestamp: Option<u64>,
-    clock: Arc<dyn Clock>,
     previous_block_info: Option<ConsensusBlockInfo>,
 }
+
 pub struct SequencerConsensusContextDeps {
     pub transaction_converter: Arc<dyn TransactionConverterTrait>,
     pub state_sync_client: SharedStateSyncClient,
     pub batcher: Arc<dyn BatcherClient>,
-    pub outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
-    pub vote_broadcast_client: BroadcastTopicClient<Vote>,
     pub cende_ambassador: Arc<dyn CendeContext>,
     pub eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
+    // The next block's l2 gas price, calculated based on EIP-1559, used for building and
+    // validating proposals.
     pub l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     /// Use DefaultClock if you don't want to inject timestamps.
     pub clock: Arc<dyn Clock>,
+    pub outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
+    // Used to broadcast votes to other consensus nodes.
+    pub vote_broadcast_client: BroadcastTopicClient<Vote>,
 }
 
 impl SequencerConsensusContext {
@@ -272,11 +258,7 @@ impl SequencerConsensusContext {
         };
         Self {
             config,
-            transaction_converter: context_deps.transaction_converter,
-            state_sync_client: context_deps.state_sync_client,
-            batcher: context_deps.batcher,
-            outbound_proposal_sender: context_deps.outbound_proposal_sender,
-            vote_broadcast_client: context_deps.vote_broadcast_client,
+            context_deps,
             // TODO(Matan): Set the actual validator IDs (contract addresses).
             validators: (0..num_validators)
                 .map(|i| ValidatorId::from(DEFAULT_VALIDATOR_ID + i))
@@ -287,13 +269,9 @@ impl SequencerConsensusContext {
             current_round: 0,
             active_proposal: None,
             queued_proposals: BTreeMap::new(),
-            cende_ambassador: context_deps.cende_ambassador,
-            eth_to_strk_oracle_client: context_deps.eth_to_strk_oracle_client,
-            l1_gas_price_provider: context_deps.l1_gas_price_provider,
             l2_gas_price: VersionedConstants::latest_constants().min_gas_price,
             l1_da_mode,
             last_block_timestamp: None,
-            clock: context_deps.clock,
             previous_block_info: None,
         }
     }
@@ -362,7 +340,7 @@ impl ConsensusContext for SequencerConsensusContext {
         // finality time. Use this option only for one special sequencer that is the same cluster as
         // the recorder.
         let cende_write_success = AbortOnDropHandle::new(
-            self.cende_ambassador.write_prev_height_blob(proposal_init.height),
+            self.context_deps.cende_ambassador.write_prev_height_blob(proposal_init.height),
         );
         // Handles interrupting an active proposal from a previous height/round
         self.set_height_and_round(proposal_init.height, proposal_init.round).await;
@@ -378,7 +356,8 @@ impl ConsensusContext for SequencerConsensusContext {
         assert!(timeout > self.config.build_proposal_margin_millis);
         let (proposal_sender, proposal_receiver) = mpsc::channel(self.config.proposal_buffer_size);
         let stream_id = HeightAndRound(proposal_init.height.0, proposal_init.round);
-        self.outbound_proposal_sender
+        self.context_deps
+            .outbound_proposal_sender
             .send((stream_id, proposal_receiver))
             .await
             .expect("Failed to send proposal receiver");
@@ -392,10 +371,10 @@ impl ConsensusContext for SequencerConsensusContext {
             l1_da_mode: self.l1_da_mode,
             proposal_sender,
             fin_sender,
-            batcher: Arc::clone(&self.batcher),
-            eth_to_strk_oracle_client: Arc::clone(&self.eth_to_strk_oracle_client),
-            state_sync_client: self.state_sync_client.clone(),
-            l1_gas_price_provider_client: Arc::clone(&self.l1_gas_price_provider),
+            batcher: Arc::clone(&self.context_deps.batcher),
+            eth_to_strk_oracle_client: Arc::clone(&self.context_deps.eth_to_strk_oracle_client),
+            state_sync_client: self.context_deps.state_sync_client.clone(),
+            l1_gas_price_provider_client: Arc::clone(&self.context_deps.l1_gas_price_provider),
             min_l1_gas_price_wei: GasPrice(self.config.min_l1_gas_price_wei),
             max_l1_gas_price_wei: GasPrice(self.config.max_l1_gas_price_wei),
             min_l1_data_gas_price_wei: GasPrice(self.config.min_l1_data_gas_price_wei),
@@ -408,10 +387,10 @@ impl ConsensusContext for SequencerConsensusContext {
             proposal_id,
             cende_write_success,
             l2_gas_price: self.l2_gas_price,
-            transaction_converter: self.transaction_converter.clone(),
+            transaction_converter: self.context_deps.transaction_converter.clone(),
             builder_address: self.config.builder_address,
             cancel_token,
-            clock: self.clock.clone(),
+            clock: self.context_deps.clock.clone(),
             previous_block_info: self.previous_block_info.clone(),
         };
         let handle = tokio::spawn(
@@ -485,8 +464,8 @@ impl ConsensusContext for SequencerConsensusContext {
             .get_proposal(&height, &id)
             .clone();
 
-        let transaction_converter = self.transaction_converter.clone();
-        let mut outbound_proposal_sender = self.outbound_proposal_sender.clone();
+        let transaction_converter = self.context_deps.transaction_converter.clone();
+        let mut outbound_proposal_sender = self.context_deps.outbound_proposal_sender.clone();
         let channel_size = self.config.proposal_buffer_size;
         tokio::spawn(
             async move {
@@ -543,7 +522,7 @@ impl ConsensusContext for SequencerConsensusContext {
 
     async fn broadcast(&mut self, message: Vote) -> Result<(), ConsensusError> {
         trace!("Broadcasting message: {message:?}");
-        self.vote_broadcast_client.broadcast_message(message).await?;
+        self.context_deps.vote_broadcast_client.broadcast_message(message).await?;
         Ok(())
     }
 
@@ -574,6 +553,7 @@ impl ConsensusContext for SequencerConsensusContext {
         // TODO(dvir): return from the batcher's 'decision_reached' function the relevant data to
         // build a blob.
         let DecisionReachedResponse { state_diff, l2_gas_used, central_objects } = self
+            .context_deps
             .batcher
             .decision_reached(DecisionReachedInput { proposal_id })
             .await
@@ -637,7 +617,7 @@ impl ConsensusContext for SequencerConsensusContext {
             l1_transaction_hashes,
             block_header_without_hash,
         };
-        let state_sync_client = self.state_sync_client.clone();
+        let state_sync_client = self.context_deps.state_sync_client.clone();
         // `add_new_block` returns immediately, it doesn't wait for sync to fully process the block.
         state_sync_client.add_new_block(sync_block).await.expect("Failed to add new block.");
 
@@ -646,6 +626,7 @@ impl ConsensusContext for SequencerConsensusContext {
         // `prepare_blob_for_next_height` is called with the correct parameters.
         self.last_block_timestamp = Some(block_info.timestamp);
         let _ = self
+            .context_deps
             .cende_ambassador
             .prepare_blob_for_next_height(BlobParameters {
                 block_info: cende_block_info,
@@ -669,7 +650,7 @@ impl ConsensusContext for SequencerConsensusContext {
     }
 
     async fn try_sync(&mut self, height: BlockNumber) -> bool {
-        let sync_block = match self.state_sync_client.get_block(height).await {
+        let sync_block = match self.context_deps.state_sync_client.get_block(height).await {
             Err(e) => {
                 error!("Sync returned an error: {e:?}");
                 return false;
@@ -685,7 +666,7 @@ impl ConsensusContext for SequencerConsensusContext {
         // TODO(Asmaa): validate starknet_version and parent_hash when they are stored.
         let block_number = sync_block.block_header_without_hash.block_number;
         let timestamp = sync_block.block_header_without_hash.timestamp;
-        let now: u64 = self.clock.now_as_timestamp();
+        let now: u64 = self.context_deps.clock.now_as_timestamp();
         if !(block_number == height
             && timestamp.0 >= self.last_block_timestamp.unwrap_or(0)
             && timestamp.0 <= now + self.config.block_timestamp_window_seconds)
@@ -724,7 +705,7 @@ impl ConsensusContext for SequencerConsensusContext {
             eth_to_fri_rate,
         });
         self.interrupt_active_proposal().await;
-        self.batcher.add_sync_block(sync_block).await.unwrap();
+        self.context_deps.batcher.add_sync_block(sync_block).await.unwrap();
         true
     }
 
@@ -738,7 +719,8 @@ impl ConsensusContext for SequencerConsensusContext {
             // that consensus works on a given height until it is done (either a decision is reached
             // or sync causes us to move on) and then moves on to a different height, never to
             // return to the old height.
-            self.batcher
+            self.context_deps
+                .batcher
                 .start_height(StartHeightInput { height })
                 .await
                 .expect("Batcher should be ready to start the next height");
@@ -799,20 +781,20 @@ impl SequencerConsensusContext {
     ) {
         let cancel_token = CancellationToken::new();
         let cancel_token_clone = cancel_token.clone();
-        let batcher = Arc::clone(&self.batcher);
-        let eth_to_strk_oracle_client = self.eth_to_strk_oracle_client.clone();
-        let state_sync_client = self.state_sync_client.clone();
-        let l1_gas_price_provider_client = self.l1_gas_price_provider.clone();
+        let batcher = Arc::clone(&self.context_deps.batcher);
+        let eth_to_strk_oracle_client = self.context_deps.eth_to_strk_oracle_client.clone();
+        let state_sync_client = self.context_deps.state_sync_client.clone();
+        let l1_gas_price_provider_client = self.context_deps.l1_gas_price_provider.clone();
         let min_l1_gas_price_wei = GasPrice(self.config.min_l1_gas_price_wei);
         let max_l1_gas_price_wei = GasPrice(self.config.max_l1_gas_price_wei);
         let min_l1_data_gas_price_wei = GasPrice(self.config.min_l1_data_gas_price_wei);
         let max_l1_data_gas_price_wei = GasPrice(self.config.max_l1_data_gas_price_wei);
         let l1_data_gas_price_multiplier =
             Ratio::new(self.config.l1_data_gas_price_multiplier_ppt, 1000);
-        let transaction_converter = self.transaction_converter.clone();
+        let transaction_converter = self.context_deps.transaction_converter.clone();
         let valid_proposals = Arc::clone(&self.valid_proposals);
         let proposal_id = ProposalId(self.proposal_id);
-        let clock = self.clock.clone();
+        let clock = self.context_deps.clock.clone();
         let previous_block_info = self.previous_block_info.clone();
         self.proposal_id += 1;
 
