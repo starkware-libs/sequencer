@@ -140,6 +140,43 @@ impl From<TestDeps> for SequencerConsensusContextDeps {
 }
 
 impl TestDeps {
+    fn setup_default_expectations(&mut self) {
+        self.setup_default_transaction_converter();
+        self.setup_default_cende_ambassador();
+        self.setup_default_gas_price_provider();
+        self.setup_default_eth_to_strk_oracle_client();
+    }
+
+    fn setup_default_transaction_converter(&mut self) {
+        for (tx, internal_tx) in TX_BATCH.iter().zip(INTERNAL_TX_BATCH.iter()) {
+            self.transaction_converter
+                .expect_convert_internal_consensus_tx_to_consensus_tx()
+                .withf(move |tx| tx == internal_tx)
+                .returning(|_| Ok(tx.clone()));
+            self.transaction_converter
+                .expect_convert_consensus_tx_to_internal_consensus_tx()
+                .withf(move |internal_tx| internal_tx == tx)
+                .returning(|_| Ok(internal_tx.clone()));
+        }
+    }
+
+    fn setup_default_cende_ambassador(&mut self) {
+        self.cende_ambassador
+            .expect_write_prev_height_blob()
+            .return_once(|_height| tokio::spawn(ready(true)));
+    }
+
+    fn setup_default_gas_price_provider(&mut self) {
+        self.l1_gas_price_provider.expect_get_price_info().return_const(Ok(PriceInfo {
+            base_fee_per_gas: GasPrice(TEMP_ETH_GAS_FEE_IN_WEI),
+            blob_fee: GasPrice(TEMP_ETH_BLOB_GAS_FEE_IN_WEI),
+        }));
+    }
+
+    fn setup_default_eth_to_strk_oracle_client(&mut self) {
+        self.eth_to_strk_oracle_client.expect_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
+    }
+
     fn build_context(self) -> SequencerConsensusContext {
         SequencerConsensusContext::new(
             ContextConfig {
@@ -354,14 +391,13 @@ fn dummy_eth_to_strk_oracle_client() -> MockEthToStrkOracleClientTrait {
 
 #[tokio::test]
 async fn cancelled_proposal_aborts() {
-    let mut batcher = MockBatcherClient::new();
-    batcher.expect_propose_block().times(1).return_const(Ok(()));
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.setup_default_expectations();
 
-    batcher.expect_start_height().times(1).return_const(Ok(()));
-    let (default_deps, _network) = default_context_dependencies();
-    let context_deps = SequencerConsensusContextDeps { batcher: Arc::new(batcher), ..default_deps };
-    let mut context = setup_with_custom_mocks(context_deps);
+    deps.batcher.expect_propose_block().times(1).return_const(Ok(()));
+    deps.batcher.expect_start_height().times(1).return_const(Ok(()));
 
+    let mut context = deps.build_context();
     let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await;
 
     // Now we intrrupt the proposal and verify that the fin_receiever is dropped.
@@ -640,22 +676,21 @@ async fn build_proposal_cende_incomplete() {
 #[case::validator(false)]
 #[tokio::test]
 async fn batcher_not_ready(#[case] proposer: bool) {
-    let mut batcher = MockBatcherClient::new();
-    batcher.expect_start_height().times(1).return_const(Ok(()));
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.setup_default_expectations();
+    deps.batcher.expect_start_height().times(1).return_const(Ok(()));
     if proposer {
-        batcher
+        deps.batcher
             .expect_propose_block()
             .times(1)
             .return_const(Err(BatcherClientError::BatcherError(BatcherError::NotReady)));
     } else {
-        batcher
+        deps.batcher
             .expect_validate_block()
             .times(1)
             .return_const(Err(BatcherClientError::BatcherError(BatcherError::NotReady)));
     }
-    let (default_deps, _network) = default_context_dependencies();
-    let context_deps = SequencerConsensusContextDeps { batcher: Arc::new(batcher), ..default_deps };
-    let mut context = setup_with_custom_mocks(context_deps);
+    let mut context = deps.build_context();
     context.set_height_and_round(BlockNumber::default(), Round::default()).await;
 
     if proposer {
@@ -707,16 +742,15 @@ async fn propose_then_repropose() {
 
 #[tokio::test]
 async fn eth_to_fri_rate_out_of_range() {
-    let mut batcher = MockBatcherClient::new();
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.setup_default_expectations();
 
-    batcher
+    deps.batcher
         .expect_start_height()
         .times(1)
         .withf(|input| input.height == BlockNumber(0))
         .return_const(Ok(()));
-    let (default_deps, _network) = default_context_dependencies();
-    let context_deps = SequencerConsensusContextDeps { batcher: Arc::new(batcher), ..default_deps };
-    let mut context = setup_with_custom_mocks(context_deps);
+    let mut context = deps.build_context();
     context.set_height_and_round(BlockNumber(0), 0).await;
     let (mut content_sender, content_receiver) = mpsc::channel(context.config.proposal_buffer_size);
     // Send a block info with an eth_to_fri_rate that is outside the margin of error.
