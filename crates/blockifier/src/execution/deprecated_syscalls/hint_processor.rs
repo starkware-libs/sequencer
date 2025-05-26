@@ -41,6 +41,7 @@ use crate::execution::deprecated_syscalls::deprecated_syscall_executor::{
     execute_next_deprecated_syscall,
     DeprecatedSyscallExecutor,
     DeprecatedSyscallExecutorBaseError,
+    DeprecatedSyscallExecutorBaseResult,
 };
 use crate::execution::deprecated_syscalls::{
     CallContractRequest,
@@ -769,13 +770,13 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
     }
 }
 
-pub fn felt_to_bool(felt: Felt) -> DeprecatedSyscallResult<bool> {
+pub fn felt_to_bool(felt: Felt) -> DeprecatedSyscallExecutorBaseResult<bool> {
     if felt == Felt::ZERO {
         Ok(false)
     } else if felt == Felt::ONE {
         Ok(true)
     } else {
-        Err(DeprecatedSyscallExecutionError::InvalidSyscallInput {
+        Err(DeprecatedSyscallExecutorBaseError::InvalidSyscallInput {
             input: felt,
             info: String::from(
                 "The deploy_from_zero field in the deploy system call must be 0 or 1.",
@@ -787,14 +788,14 @@ pub fn felt_to_bool(felt: Felt) -> DeprecatedSyscallResult<bool> {
 pub fn read_calldata(
     vm: &VirtualMachine,
     ptr: &mut Relocatable,
-) -> DeprecatedSyscallResult<Calldata> {
-    Ok(Calldata(read_felt_array::<DeprecatedSyscallExecutionError>(vm, ptr)?.into()))
+) -> DeprecatedSyscallExecutorBaseResult<Calldata> {
+    Ok(Calldata(read_felt_array::<DeprecatedSyscallExecutorBaseError>(vm, ptr)?.into()))
 }
 
 pub fn read_call_params(
     vm: &VirtualMachine,
     ptr: &mut Relocatable,
-) -> DeprecatedSyscallResult<(EntryPointSelector, Calldata)> {
+) -> DeprecatedSyscallExecutorBaseResult<(EntryPointSelector, Calldata)> {
     let function_selector = EntryPointSelector(felt_from_ptr(vm, ptr)?);
     let calldata = read_calldata(vm, ptr)?;
 
