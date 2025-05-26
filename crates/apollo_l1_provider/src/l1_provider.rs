@@ -145,7 +145,8 @@ impl L1Provider {
         match new_height.cmp(&current_height) {
             // This is likely a bug in the batcher/sync, it should never be _behind_ the provider.
             Less => {
-                if self.tx_manager.committed_includes(&committed_txs) {
+                let currently_committed = self.tx_manager.committed_tx_hashes();
+                if currently_committed.is_superset(&committed_txs) {
                     error!(
                         "Duplicate commit block: commit block for {new_height:?} already \
                          received, and all committed transaction hashes already known to be \
@@ -155,9 +156,7 @@ impl L1Provider {
                 } else {
                     // This is either a configuration error or a bug in the
                     // batcher/sync/bootstrapper.
-                    let committed: IndexSet<TransactionHash> =
-                        self.tx_manager.committed.keys().copied().collect();
-                    let committed_txs_diff = committed_txs.difference(&committed);
+                    let committed_txs_diff = committed_txs.difference(&currently_committed);
                     error!(
                         "Duplicate commit block: commit block for {new_height:?} already \
                          received, with DIFFERENT transaction_hashes: {committed_txs_diff:?}"

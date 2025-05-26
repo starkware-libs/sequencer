@@ -24,7 +24,6 @@ use starknet_api::transaction::TransactionHash;
 
 use crate::bootstrapper::CommitBlockBacklog;
 use crate::l1_provider::L1Provider;
-use crate::soft_delete_index_map::SoftDeleteIndexMap;
 use crate::transaction_manager::{TransactionManager, TransactionPayload};
 use crate::ProviderState;
 
@@ -145,35 +144,30 @@ struct TransactionManagerContent {
 impl TransactionManagerContent {
     #[track_caller]
     fn assert_eq(&self, tx_manager: &TransactionManager) {
+        let snapshot = tx_manager.snapshot();
+
         if let Some(uncommitted) = &self.uncommitted {
-            assert_eq!(
-                uncommitted,
-                &tx_manager.uncommitted.txs.values().map(|tx| tx.transaction.clone()).collect_vec()
-            );
+            assert_eq!(uncommitted.iter().map(|tx| tx.tx_hash).collect_vec(), snapshot.uncommitted);
         }
 
         if let Some(expected_committed) = &self.committed {
-            assert_eq!(expected_committed, &tx_manager.committed);
+            assert_eq!(expected_committed.keys().copied().collect_vec(), snapshot.committed);
         }
 
         if let Some(rejected) = &self.rejected {
-            assert_eq!(
-                rejected,
-                &tx_manager.rejected.txs.values().map(|tx| tx.transaction.clone()).collect_vec()
-            );
+            assert_eq!(rejected.iter().map(|tx| tx.tx_hash).collect_vec(), snapshot.rejected);
         }
     }
 }
 
 impl From<TransactionManagerContent> for TransactionManager {
     fn from(mut content: TransactionManagerContent) -> TransactionManager {
-        let uncommitted: Vec<_> = mem::take(&mut content.uncommitted).unwrap_or_default();
+        let txs: Vec<_> = mem::take(&mut content.uncommitted).unwrap_or_default();
         let rejected: Vec<_> = mem::take(&mut content.rejected).unwrap_or_default();
-        TransactionManager {
-            uncommitted: SoftDeleteIndexMap::from(uncommitted),
-            committed: content.committed.unwrap_or_default(),
-            rejected: SoftDeleteIndexMap::from(rejected),
-        }
+        let uncommitted = txs.into();
+        let rejected = rejected.into();
+        let committed = content.committed.unwrap_or_default();
+        TransactionManager::create_for_testing(uncommitted, rejected, committed)
     }
 }
 
