@@ -23,6 +23,7 @@ use blockifier::execution::syscalls::vm_syscall_utils::{
     MetaTxV0Response,
     ReplaceClassRequest,
     ReplaceClassResponse,
+    RevertData,
     SelfOrRevert,
     SendMessageToL1Request,
     SendMessageToL1Response,
@@ -55,6 +56,10 @@ impl TryExtractRevert for SnosSyscallError {
     fn try_extract_revert(self) -> SelfOrRevert<Self> {
         // No revert case in this error enum.
         SelfOrRevert::Original(self)
+    }
+
+    fn as_revert(error_data: RevertData) -> Self {
+        SyscallExecutorBaseError::Revert { error_data }.into()
     }
 }
 

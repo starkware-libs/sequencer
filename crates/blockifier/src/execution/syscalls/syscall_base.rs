@@ -54,6 +54,7 @@ use crate::execution::syscalls::vm_syscall_utils::{
     exceeds_event_size_limit,
     SyscallBaseResult,
     SyscallExecutorBaseError,
+    TryExtractRevert,
 };
 use crate::state::state_api::State;
 use crate::transaction::account_transaction::is_cairo1;
@@ -315,18 +316,17 @@ impl<'state> SyscallHandlerBase<'state> {
         });
 
         // No error should be propagated until we restore the old `tx_context`.
-        let result =
-            self.execute_inner_call(entry_point, remaining_gas).map_err(|error| match error {
-                SyscallExecutionError::Revert { .. } => error,
-                _ => {
-                    // TODO(lior): Change to meta-tx specific error.
+        let result = self.execute_inner_call(entry_point, remaining_gas).map_err(|error| {
+            SyscallExecutionError::from_self_or_revert(error.try_extract_revert().map_original(
+                |error| {
                     error.as_call_contract_execution_error(
                         class_hash,
                         contract_address,
                         entry_point_selector,
                     )
-                }
-            });
+                },
+            ))
+        });
 
         // Restore the old `tx_context`.
         self.context.tx_context = old_tx_context;
