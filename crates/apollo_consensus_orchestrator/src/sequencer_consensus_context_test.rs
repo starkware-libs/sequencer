@@ -324,142 +324,6 @@ struct NetworkDependencies {
     outbound_proposal_receiver: mpsc::Receiver<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
 }
 
-fn default_context_dependencies() -> (SequencerConsensusContextDeps, NetworkDependencies) {
-    let (outbound_proposal_sender, outbound_proposal_receiver) =
-        mpsc::channel::<(HeightAndRound, mpsc::Receiver<ProposalPart>)>(CHANNEL_SIZE);
-
-    let TestSubscriberChannels { mock_network: mock_vote_network, subscriber_channels } =
-        mock_register_broadcast_topic().expect("Failed to create mock network");
-    let BroadcastTopicChannels { broadcast_topic_client: votes_topic_client, .. } =
-        subscriber_channels;
-
-    let sequencer_deps = SequencerConsensusContextDeps {
-        transaction_converter: Arc::new(TransactionConverter::new(
-            Arc::new(EmptyClassManagerClient),
-            CHAIN_ID,
-        )),
-        state_sync_client: Arc::new(MockStateSyncClient::new()),
-        batcher: Arc::new(MockBatcherClient::new()),
-        cende_ambassador: Arc::new(success_cende_ammbassador()),
-        eth_to_strk_oracle_client: Arc::new(dummy_eth_to_strk_oracle_client()),
-        l1_gas_price_provider: Arc::new(dummy_gas_price_provider()),
-        clock: Arc::new(DefaultClock::default()),
-        outbound_proposal_sender,
-        vote_broadcast_client: votes_topic_client,
-    };
-
-    let network_dependencies =
-        NetworkDependencies { _vote_network: mock_vote_network, outbound_proposal_receiver };
-
-    (sequencer_deps, network_dependencies)
-}
-
-fn setup_with_custom_mocks(
-    context_deps: SequencerConsensusContextDeps,
-) -> SequencerConsensusContext {
-    SequencerConsensusContext::new(
-        ContextConfig {
-            proposal_buffer_size: CHANNEL_SIZE,
-            num_validators: NUM_VALIDATORS,
-            chain_id: CHAIN_ID,
-            ..Default::default()
-        },
-        context_deps,
-    )
-}
-
-// Setup batcher client for proposal building flow.
-async fn setup_batcher_for_build(batcher: &mut MockBatcherClient, block_number: BlockNumber) {
-    let proposal_id = Arc::new(OnceLock::new());
-    let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_propose_block().times(1).returning(move |input: ProposeBlockInput| {
-        proposal_id_clone.set(input.proposal_id).unwrap();
-        Ok(())
-    });
-    batcher
-        .expect_start_height()
-        .times(1)
-        .withf(move |input| input.height == block_number)
-        .return_const(Ok(()));
-    let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_get_proposal_content().times(1).returning(move |input| {
-        assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-        Ok(GetProposalContentResponse {
-            content: GetProposalContent::Txs(INTERNAL_TX_BATCH.clone()),
-        })
-    });
-    let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_get_proposal_content().times(1).returning(move |input| {
-        assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-        Ok(GetProposalContentResponse {
-            content: GetProposalContent::Finished(ProposalCommitment {
-                state_diff_commitment: STATE_DIFF_COMMITMENT,
-            }),
-        })
-    });
-}
-
-// Setup batcher client for proposal validation flow.
-async fn setup_batcher_for_validate(batcher: &mut MockBatcherClient, block_number: BlockNumber) {
-    let proposal_id = Arc::new(OnceLock::new());
-    let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_validate_block().times(1).returning(move |input: ValidateBlockInput| {
-        proposal_id_clone.set(input.proposal_id).unwrap();
-        Ok(())
-    });
-    batcher
-        .expect_start_height()
-        .times(1)
-        .withf(move |input| input.height == block_number)
-        .return_const(Ok(()));
-    let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_send_proposal_content().times(1).returning(
-        move |input: SendProposalContentInput| {
-            assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-            let SendProposalContent::Txs(txs) = input.content else {
-                panic!("Expected SendProposalContent::Txs, got {:?}", input.content);
-            };
-            assert_eq!(txs, *INTERNAL_TX_BATCH);
-            Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
-        },
-    );
-    let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_send_proposal_content().times(1).returning(
-        move |input: SendProposalContentInput| {
-            assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-            assert!(matches!(input.content, SendProposalContent::Finish));
-            Ok(SendProposalContentResponse {
-                response: ProposalStatus::Finished(ProposalCommitment {
-                    state_diff_commitment: STATE_DIFF_COMMITMENT,
-                }),
-            })
-        },
-    );
-}
-
-// Returns a mock CendeContext that will return a successful write_prev_height_blob.
-fn success_cende_ammbassador() -> MockCendeContext {
-    let mut mock_cende = MockCendeContext::new();
-    mock_cende.expect_write_prev_height_blob().return_once(|_height| tokio::spawn(ready(true)));
-    mock_cende
-}
-
-fn dummy_gas_price_provider() -> MockL1GasPriceProviderClient {
-    let mut l1_gas_price_provider = MockL1GasPriceProviderClient::new();
-    l1_gas_price_provider.expect_get_price_info().return_const(Ok(PriceInfo {
-        base_fee_per_gas: GasPrice(TEMP_ETH_GAS_FEE_IN_WEI),
-        blob_fee: GasPrice(TEMP_ETH_BLOB_GAS_FEE_IN_WEI),
-    }));
-
-    l1_gas_price_provider
-}
-
-fn dummy_eth_to_strk_oracle_client() -> MockEthToStrkOracleClientTrait {
-    let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
-    eth_to_strk_oracle_client.expect_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
-    eth_to_strk_oracle_client
-}
-
 #[tokio::test]
 async fn cancelled_proposal_aborts() {
     let (mut deps, _network) = create_test_and_network_deps();
@@ -692,20 +556,15 @@ async fn build_proposal() {
 
 #[tokio::test]
 async fn build_proposal_cende_failure() {
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.setup_deps_for_build(BlockNumber(0));
     let mut mock_cende_context = MockCendeContext::new();
     mock_cende_context
         .expect_write_prev_height_blob()
         .times(1)
         .return_once(|_height| tokio::spawn(ready(false)));
-    let mut batcher = MockBatcherClient::new();
-    setup_batcher_for_build(&mut batcher, BlockNumber(0)).await;
-    let (default_deps, _network) = default_context_dependencies();
-    let context_deps = SequencerConsensusContextDeps {
-        batcher: Arc::new(batcher),
-        cende_ambassador: Arc::new(mock_cende_context),
-        ..default_deps
-    };
-    let mut context = setup_with_custom_mocks(context_deps);
+    deps.cende_ambassador = mock_cende_context;
+    let mut context = deps.build_context();
 
     let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await;
     assert_eq!(fin_receiver.await, Err(Canceled));
@@ -713,20 +572,15 @@ async fn build_proposal_cende_failure() {
 
 #[tokio::test]
 async fn build_proposal_cende_incomplete() {
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.setup_deps_for_build(BlockNumber(0));
     let mut mock_cende_context = MockCendeContext::new();
     mock_cende_context
         .expect_write_prev_height_blob()
         .times(1)
         .return_once(|_height| tokio::spawn(pending()));
-    let mut batcher = MockBatcherClient::new();
-    setup_batcher_for_build(&mut batcher, BlockNumber(0)).await;
-    let (default_deps, _network) = default_context_dependencies();
-    let context_deps = SequencerConsensusContextDeps {
-        batcher: Arc::new(batcher),
-        cende_ambassador: Arc::new(mock_cende_context),
-        ..default_deps
-    };
-    let mut context = setup_with_custom_mocks(context_deps);
+    deps.cende_ambassador = mock_cende_context;
+    let mut context = deps.build_context();
 
     let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await;
     assert_eq!(fin_receiver.await, Err(Canceled));
@@ -829,6 +683,8 @@ async fn eth_to_fri_rate_out_of_range() {
 #[case::minimum(false)]
 #[tokio::test]
 async fn gas_price_limits(#[case] maximum: bool) {
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.setup_deps_for_validate(BlockNumber(0));
     let context_config = ContextConfig::default();
     let min_gas_price = context_config.min_l1_gas_price_wei;
     let min_data_price = context_config.min_l1_data_gas_price_wei;
@@ -847,17 +703,9 @@ async fn gas_price_limits(#[case] maximum: bool) {
     l1_gas_price_provider.expect_get_price_info().returning(move |_| {
         Ok(PriceInfo { base_fee_per_gas: GasPrice(price), blob_fee: GasPrice(price) })
     });
-    let l1_gas_price_provider = Arc::new(l1_gas_price_provider);
-    let mut batcher = MockBatcherClient::new();
-    setup_batcher_for_validate(&mut batcher, BlockNumber(0)).await;
 
-    let (default_deps, _network) = default_context_dependencies();
-    let context_deps = SequencerConsensusContextDeps {
-        batcher: Arc::new(batcher),
-        l1_gas_price_provider,
-        ..default_deps
-    };
-    let mut context = setup_with_custom_mocks(context_deps);
+    deps.l1_gas_price_provider = l1_gas_price_provider;
+    let mut context = deps.build_context();
 
     context.set_height_and_round(BlockNumber(0), 0).await;
     let (mut content_sender, content_receiver) = mpsc::channel(context.config.proposal_buffer_size);
@@ -896,13 +744,14 @@ async fn gas_price_limits(#[case] maximum: bool) {
 
 #[tokio::test]
 async fn decision_reached_sends_correct_values() {
+    let (mut deps, _network) = create_test_and_network_deps();
+
     let recorder = PrometheusBuilder::new().build_recorder();
     let _recorder_guard = metrics::set_default_local_recorder(&recorder);
     // We need to create a valid proposal to call decision_reached on.
     //
     // 1. Build proposal setup starts.
-    let mut batcher = MockBatcherClient::new();
-    setup_batcher_for_build(&mut batcher, BlockNumber(0)).await;
+    deps.setup_deps_for_build(BlockNumber(0));
 
     const BLOCK_TIME_STAMP_SECONDS: u64 = 123456;
     let mut clock = MockClock::new();
@@ -910,39 +759,27 @@ async fn decision_reached_sends_correct_values() {
     clock
         .expect_now()
         .return_const(Utc.timestamp_opt(BLOCK_TIME_STAMP_SECONDS.try_into().unwrap(), 0).unwrap());
+    deps.clock = Arc::new(clock);
 
     // 2. Decision reached setup starts.
-    batcher
+    deps.batcher
         .expect_decision_reached()
         .times(1)
         .return_once(move |_| Ok(DecisionReachedResponse::default()));
 
-    // Mock the sync client and validate that add_new_block receives the expected block_info.
-    let mut mock_sync_client = MockStateSyncClient::new();
-
     // This is the actual part of the test that checks the values are correct.
     // TODO(guy.f): Add expectations and validations for all the other values being written.
-    mock_sync_client.expect_add_new_block().times(1).return_once(|block_info| {
+    deps.state_sync_client.expect_add_new_block().times(1).return_once(|block_info| {
         assert_eq!(block_info.block_header_without_hash.timestamp.0, BLOCK_TIME_STAMP_SECONDS);
         Ok(())
     });
 
-    let mut cende_ammbassador = success_cende_ammbassador();
-    cende_ammbassador
+    deps.cende_ambassador
         .expect_prepare_blob_for_next_height()
         // TODO(guy.f): Verify the values sent here are correct.
         .return_once(|_height| Ok(()));
 
-    let (default_deps, _network_dependencies) = default_context_dependencies();
-    let context_deps = SequencerConsensusContextDeps {
-        batcher: Arc::new(batcher),
-        cende_ambassador: Arc::new(cende_ammbassador),
-        state_sync_client: Arc::new(mock_sync_client),
-        clock: Arc::new(clock),
-        ..default_deps
-    };
-
-    let mut context = setup_with_custom_mocks(context_deps);
+    let mut context = deps.build_context();
 
     // This sets up the required state for the test, prior to running the code being tested.
     let _fin = context.build_proposal(ProposalInit::default(), TIMEOUT).await.await;
@@ -966,41 +803,28 @@ async fn decision_reached_sends_correct_values() {
 #[case::eth_to_strk_rate_oracle_failure(false)]
 #[tokio::test]
 async fn oracle_fails_on_startup(#[case] l1_oracle_failure: bool) {
-    let mut batcher = MockBatcherClient::new();
-    setup_batcher_for_build(&mut batcher, BlockNumber(0)).await;
+    let (mut deps, mut network) = create_test_and_network_deps();
+    deps.setup_deps_for_build(BlockNumber(0));
 
-    let (l1_prices_oracle_client, eth_to_strk_oracle_client) = {
-        if l1_oracle_failure {
-            let mut l1_prices_oracle_client = MockL1GasPriceProviderClient::new();
-            l1_prices_oracle_client.expect_get_price_info().times(1).return_const(Err(
-                L1GasPriceClientError::L1GasPriceProviderError(
-                    // random error, these parameters don't mean anything
-                    L1GasPriceProviderError::UnexpectedBlockNumberError { expected: 0, found: 1 },
-                ),
-            ));
-            let eth_to_strk_orcale_client = dummy_eth_to_strk_oracle_client();
-            (l1_prices_oracle_client, eth_to_strk_orcale_client)
-        } else {
-            let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
-            eth_to_strk_oracle_client
-                .expect_eth_to_fri_rate()
-                .times(1)
-                .return_once(|_| Err(EthToStrkOracleClientError::MissingFieldError("")));
-            let l1_prices_oracle_client = dummy_gas_price_provider();
-            (l1_prices_oracle_client, eth_to_strk_oracle_client)
-        }
-    };
+    if l1_oracle_failure {
+        let mut l1_prices_oracle_client = MockL1GasPriceProviderClient::new();
+        l1_prices_oracle_client.expect_get_price_info().times(1).return_const(Err(
+            L1GasPriceClientError::L1GasPriceProviderError(
+                // random error, these parameters don't mean anything
+                L1GasPriceProviderError::UnexpectedBlockNumberError { expected: 0, found: 1 },
+            ),
+        ));
+        deps.l1_gas_price_provider = l1_prices_oracle_client;
+    } else {
+        let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
+        eth_to_strk_oracle_client
+            .expect_eth_to_fri_rate()
+            .times(1)
+            .return_once(|_| Err(EthToStrkOracleClientError::MissingFieldError("")));
+        deps.eth_to_strk_oracle_client = eth_to_strk_oracle_client;
+    }
 
-    let (default_dependencies, mut network) = default_context_dependencies();
-
-    let context_dependencies = SequencerConsensusContextDeps {
-        batcher: Arc::new(batcher),
-        eth_to_strk_oracle_client: Arc::new(eth_to_strk_oracle_client),
-        l1_gas_price_provider: Arc::new(l1_prices_oracle_client),
-        ..default_dependencies
-    };
-
-    let mut context = setup_with_custom_mocks(context_dependencies);
+    let mut context = deps.build_context();
 
     let init = ProposalInit::default();
 
@@ -1040,14 +864,14 @@ async fn oracle_fails_on_startup(#[case] l1_oracle_failure: bool) {
 #[case::eth_to_strk_rate_oracle_failure(false)]
 #[tokio::test]
 async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
+    let (mut deps, mut network) = create_test_and_network_deps();
     // Validate block number 0, call decision_reached to save the previous block info (block 0), and
     // attempt to build_proposal on block number 1.
-    let mut batcher = MockBatcherClient::new();
-    setup_batcher_for_validate(&mut batcher, BlockNumber(0)).await;
-    setup_batcher_for_build(&mut batcher, BlockNumber(1)).await;
+    deps.setup_deps_for_validate(BlockNumber(0));
+    deps.setup_deps_for_build(BlockNumber(1));
 
     // set up batcher decision_reached
-    batcher.expect_decision_reached().times(1).return_once(|_| {
+    deps.batcher.expect_decision_reached().times(1).return_once(|_| {
         Ok(DecisionReachedResponse {
             state_diff: ThinStateDiff::default(),
             l2_gas_used: GasAmount::default(),
@@ -1056,54 +880,37 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
     });
 
     // required for decision reached flow
-    let mut state_sync_client = MockStateSyncClient::new();
-    state_sync_client.expect_add_new_block().times(1).return_once(|_| Ok(()));
-    let mut cende_ambassador = success_cende_ammbassador();
-    cende_ambassador.expect_prepare_blob_for_next_height().times(1).return_once(|_| Ok(()));
+    deps.state_sync_client.expect_add_new_block().times(1).return_once(|_| Ok(()));
+    deps.cende_ambassador.expect_prepare_blob_for_next_height().times(1).return_once(|_| Ok(()));
 
     // set the oracle to succeed on first block and fail on second
-    let (l1_prices_oracle_client, eth_to_strk_oracle_client) = {
-        if l1_oracle_failure {
-            let mut l1_prices_oracle_client = MockL1GasPriceProviderClient::new();
-            l1_prices_oracle_client.expect_get_price_info().times(1).return_const(Ok(PriceInfo {
-                base_fee_per_gas: GasPrice(TEMP_ETH_GAS_FEE_IN_WEI),
-                blob_fee: GasPrice(TEMP_ETH_BLOB_GAS_FEE_IN_WEI),
-            }));
-            l1_prices_oracle_client.expect_get_price_info().times(1).return_const(Err(
-                L1GasPriceClientError::L1GasPriceProviderError(
-                    // random error, these parameters don't mean anything
-                    L1GasPriceProviderError::UnexpectedBlockNumberError { expected: 0, found: 1 },
-                ),
-            ));
-            let eth_to_strk_orcale_client = dummy_eth_to_strk_oracle_client();
-            (l1_prices_oracle_client, eth_to_strk_orcale_client)
-        } else {
-            let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
-            eth_to_strk_oracle_client
-                .expect_eth_to_fri_rate()
-                .times(1)
-                .return_once(|_| Ok(ETH_TO_FRI_RATE));
-            eth_to_strk_oracle_client
-                .expect_eth_to_fri_rate()
-                .times(1)
-                .return_once(|_| Err(EthToStrkOracleClientError::MissingFieldError("")));
-            let l1_prices_oracle_client = dummy_gas_price_provider();
-            (l1_prices_oracle_client, eth_to_strk_oracle_client)
-        }
-    };
+    if l1_oracle_failure {
+        let mut l1_prices_oracle_client = MockL1GasPriceProviderClient::new();
+        l1_prices_oracle_client.expect_get_price_info().times(1).return_const(Ok(PriceInfo {
+            base_fee_per_gas: GasPrice(TEMP_ETH_GAS_FEE_IN_WEI),
+            blob_fee: GasPrice(TEMP_ETH_BLOB_GAS_FEE_IN_WEI),
+        }));
+        l1_prices_oracle_client.expect_get_price_info().times(1).return_const(Err(
+            L1GasPriceClientError::L1GasPriceProviderError(
+                // random error, these parameters don't mean anything
+                L1GasPriceProviderError::UnexpectedBlockNumberError { expected: 0, found: 1 },
+            ),
+        ));
+        deps.l1_gas_price_provider = l1_prices_oracle_client;
+    } else {
+        let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
+        eth_to_strk_oracle_client
+            .expect_eth_to_fri_rate()
+            .times(1)
+            .return_once(|_| Ok(ETH_TO_FRI_RATE));
+        eth_to_strk_oracle_client
+            .expect_eth_to_fri_rate()
+            .times(1)
+            .return_once(|_| Err(EthToStrkOracleClientError::MissingFieldError("")));
+        deps.eth_to_strk_oracle_client = eth_to_strk_oracle_client;
+    }
 
-    let (default_dependencies, mut network) = default_context_dependencies();
-
-    let context_dependencies = SequencerConsensusContextDeps {
-        batcher: Arc::new(batcher),
-        cende_ambassador: Arc::new(cende_ambassador),
-        eth_to_strk_oracle_client: Arc::new(eth_to_strk_oracle_client),
-        l1_gas_price_provider: Arc::new(l1_prices_oracle_client),
-        state_sync_client: Arc::new(state_sync_client),
-        ..default_dependencies
-    };
-
-    let mut context = setup_with_custom_mocks(context_dependencies);
+    let mut context = deps.build_context();
 
     // Validate block number 0.
 
