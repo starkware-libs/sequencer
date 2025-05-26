@@ -152,6 +152,7 @@ class ServiceApp(Construct):
                         volumes=self._get_volumes(),
                         tolerations=self._get_tolerations(),
                         node_selector=self._get_node_selector(),
+                        affinity=self._get_affinity(),
                         containers=[
                             k8s.Container(
                                 name=self.node.id,
@@ -197,6 +198,7 @@ class ServiceApp(Construct):
                         volumes=self._get_volumes(),
                         tolerations=self._get_tolerations(),
                         node_selector=self._get_node_selector(),
+                        affinity=self._get_affinity(),
                         containers=[
                             k8s.Container(
                                 name=self.node.id,
@@ -595,4 +597,23 @@ class ServiceApp(Construct):
                     effect="NoSchedule",
                 ),
             ]
+        return None
+
+    def _get_affinity(self) -> k8s.Affinity:
+        if self.service_topology.anti_affinity:
+            return k8s.Affinity(
+                pod_anti_affinity=k8s.PodAntiAffinity(
+                    required_during_scheduling_ignored_during_execution=[
+                        k8s.PodAffinityTerm(
+                            label_selector=k8s.LabelSelector(
+                                match_labels={
+                                    "service": Names.to_label_value(self, include_hash=False)
+                                },
+                            ),
+                            topology_key="kubernetes.io/hostname",
+                            namespace_selector={},
+                        ),
+                    ],
+                ),
+            )
         return None
