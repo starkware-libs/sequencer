@@ -35,7 +35,7 @@ pub mod deprecated_syscalls_test;
 pub mod hint_processor;
 
 pub type DeprecatedSyscallResult<T> = Result<T, DeprecatedSyscallExecutionError>;
-pub type WriteResponseResult = DeprecatedSyscallResult<()>;
+pub type WriteResponseResult = DeprecatedSyscallExecutorBaseResult<()>;
 
 #[cfg_attr(any(test, feature = "testing"), derive(serde::Serialize))]
 #[derive(Clone, Copy, Debug, Deserialize, EnumIter, Eq, Hash, PartialEq)]
