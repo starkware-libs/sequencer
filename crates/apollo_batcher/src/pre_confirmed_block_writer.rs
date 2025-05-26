@@ -28,6 +28,7 @@ pub type ExecutedTxSender =
 /// Listens for transaction updates from the block builder via dedicated channels and utilizes a
 /// Cende client to communicate the updates to the Cende recorder.
 #[async_trait]
+#[cfg_attr(test, automock)]
 pub trait PreConfirmedBlockWriterTrait: Send {
     async fn run(&mut self) -> BlockWriterResult<()>;
 }
