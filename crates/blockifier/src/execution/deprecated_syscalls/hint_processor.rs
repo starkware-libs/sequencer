@@ -443,7 +443,12 @@ impl HintProcessorLogic for DeprecatedSyscallHintProcessor<'_> {
     ) -> HintExecutionResult {
         let hint = hint_data.downcast_ref::<HintProcessorData>().ok_or(HintError::WrongHintData)?;
         if hint_code::SYSCALL_HINTS.contains(hint.code.as_str()) {
-            return execute_next_deprecated_syscall(self, vm, &hint.ids_data, &hint.ap_tracking);
+            return Ok(execute_next_deprecated_syscall(
+                self,
+                vm,
+                &hint.ids_data,
+                &hint.ap_tracking,
+            )?);
         }
 
         self.builtin_hint_processor.execute_hint(vm, exec_scopes, hint_data, constants)
@@ -451,6 +456,8 @@ impl HintProcessorLogic for DeprecatedSyscallHintProcessor<'_> {
 }
 
 impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
+    type Error = DeprecatedSyscallExecutionError;
+
     fn verify_syscall_ptr(&self, actual_ptr: Relocatable) -> DeprecatedSyscallResult<()> {
         if actual_ptr != self.syscall_ptr {
             return Err(DeprecatedSyscallExecutionError::BadSyscallPointer {

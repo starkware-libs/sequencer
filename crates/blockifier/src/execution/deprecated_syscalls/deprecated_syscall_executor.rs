@@ -13,7 +13,6 @@ use num_bigint::{BigUint, TryFromBigIntError};
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
 
-use crate::execution::common_hints::HintExecutionResult;
 use crate::execution::deprecated_syscalls::{
     CallContractRequest,
     CallContractResponse,
@@ -21,7 +20,6 @@ use crate::execution::deprecated_syscalls::{
     DelegateCallResponse,
     DeployRequest,
     DeployResponse,
-    DeprecatedSyscallResult,
     DeprecatedSyscallSelector,
     EmitEventRequest,
     EmitEventResponse,
@@ -55,16 +53,18 @@ use crate::execution::deprecated_syscalls::{
 use crate::execution::execution_utils::felt_from_ptr;
 
 pub trait DeprecatedSyscallExecutor {
+    type Error: From<DeprecatedSyscallExecutorBaseError>;
+
     fn read_next_syscall_selector(
         &mut self,
         vm: &mut VirtualMachine,
-    ) -> DeprecatedSyscallResult<Felt> {
+    ) -> DeprecatedSyscallExecutorBaseResult<Felt> {
         Ok(felt_from_ptr(vm, self.get_mut_syscall_ptr())?)
     }
 
     fn increment_syscall_count(&mut self, selector: &DeprecatedSyscallSelector);
 
-    fn verify_syscall_ptr(&self, actual_ptr: Relocatable) -> DeprecatedSyscallResult<()>;
+    fn verify_syscall_ptr(&self, actual_ptr: Relocatable) -> Result<(), Self::Error>;
 
     fn get_mut_syscall_ptr(&mut self) -> &mut Relocatable;
 
@@ -72,116 +72,116 @@ pub trait DeprecatedSyscallExecutor {
         request: CallContractRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
-    ) -> DeprecatedSyscallResult<CallContractResponse>;
+    ) -> Result<CallContractResponse, Self::Error>;
 
     fn delegate_call(
         request: DelegateCallRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
-    ) -> DeprecatedSyscallResult<DelegateCallResponse>;
+    ) -> Result<DelegateCallResponse, Self::Error>;
 
     fn delegate_l1_handler(
         request: DelegateCallRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
-    ) -> DeprecatedSyscallResult<DelegateCallResponse>;
+    ) -> Result<DelegateCallResponse, Self::Error>;
 
     fn deploy(
         request: DeployRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
-    ) -> DeprecatedSyscallResult<DeployResponse>;
+    ) -> Result<DeployResponse, Self::Error>;
 
     fn emit_event(
         request: EmitEventRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
-    ) -> DeprecatedSyscallResult<EmitEventResponse>;
+    ) -> Result<EmitEventResponse, Self::Error>;
 
     fn get_block_number(
         request: GetBlockNumberRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
-    ) -> DeprecatedSyscallResult<GetBlockNumberResponse>;
+    ) -> Result<GetBlockNumberResponse, Self::Error>;
 
     fn get_block_timestamp(
         request: GetBlockTimestampRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
-    ) -> DeprecatedSyscallResult<GetBlockTimestampResponse>;
+    ) -> Result<GetBlockTimestampResponse, Self::Error>;
 
     fn get_caller_address(
         request: GetCallerAddressRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
-    ) -> DeprecatedSyscallResult<GetCallerAddressResponse>;
+    ) -> Result<GetCallerAddressResponse, Self::Error>;
 
     fn get_contract_address(
         request: GetContractAddressRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
-    ) -> DeprecatedSyscallResult<GetContractAddressResponse>;
+    ) -> Result<GetContractAddressResponse, Self::Error>;
 
     fn get_sequencer_address(
         request: GetSequencerAddressRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
-    ) -> DeprecatedSyscallResult<GetSequencerAddressResponse>;
+    ) -> Result<GetSequencerAddressResponse, Self::Error>;
 
     fn get_tx_info(
         request: GetTxInfoRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
-    ) -> DeprecatedSyscallResult<GetTxInfoResponse>;
+    ) -> Result<GetTxInfoResponse, Self::Error>;
 
     fn get_tx_signature(
         request: GetTxSignatureRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
-    ) -> DeprecatedSyscallResult<GetTxSignatureResponse>;
+    ) -> Result<GetTxSignatureResponse, Self::Error>;
 
     fn library_call(
         request: LibraryCallRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
-    ) -> DeprecatedSyscallResult<LibraryCallResponse>;
+    ) -> Result<LibraryCallResponse, Self::Error>;
 
     fn library_call_l1_handler(
         request: LibraryCallRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
-    ) -> DeprecatedSyscallResult<LibraryCallResponse>;
+    ) -> Result<LibraryCallResponse, Self::Error>;
 
     fn replace_class(
         request: ReplaceClassRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
-    ) -> DeprecatedSyscallResult<ReplaceClassResponse>;
+    ) -> Result<ReplaceClassResponse, Self::Error>;
 
     fn send_message_to_l1(
         request: SendMessageToL1Request,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
-    ) -> DeprecatedSyscallResult<SendMessageToL1Response>;
+    ) -> Result<SendMessageToL1Response, Self::Error>;
 
     fn storage_read(
         request: StorageReadRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
-    ) -> DeprecatedSyscallResult<StorageReadResponse>;
+    ) -> Result<StorageReadResponse, Self::Error>;
 
     fn storage_write(
         request: StorageWriteRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
-    ) -> DeprecatedSyscallResult<StorageWriteResponse>;
+    ) -> Result<StorageWriteResponse, Self::Error>;
 }
 
 pub fn execute_deprecated_syscall_from_selector<T: DeprecatedSyscallExecutor>(
     deprecated_syscall_executor: &mut T,
     vm: &mut VirtualMachine,
     selector: DeprecatedSyscallSelector,
-) -> HintExecutionResult {
+) -> Result<(), T::Error> {
     match selector {
         DeprecatedSyscallSelector::CallContract => {
             execute_deprecated_syscall(deprecated_syscall_executor, vm, T::call_contract)
@@ -254,9 +254,11 @@ pub fn execute_deprecated_syscall_from_selector<T: DeprecatedSyscallExecutor>(
         | DeprecatedSyscallSelector::Secp256r1GetPointFromX
         | DeprecatedSyscallSelector::Secp256r1GetXy
         | DeprecatedSyscallSelector::Secp256r1Mul
-        | DeprecatedSyscallSelector::Secp256r1New => Err(HintError::UnknownHint(
-            format!("Unsupported syscall selector {selector:?}.").into(),
-        )),
+        | DeprecatedSyscallSelector::Secp256r1New => {
+            Err(DeprecatedSyscallExecutorBaseError::from(HintError::UnknownHint(
+                format!("Unsupported syscall selector {selector:?}.").into(),
+            )))?
+        }
     }
 }
 
@@ -264,13 +266,13 @@ fn execute_deprecated_syscall<Request, Response, ExecuteCallback, Executor>(
     deprecated_syscall_executor: &mut Executor,
     vm: &mut VirtualMachine,
     execute_callback: ExecuteCallback,
-) -> HintExecutionResult
+) -> Result<(), Executor::Error>
 where
     Executor: DeprecatedSyscallExecutor,
     Request: SyscallRequest,
     Response: SyscallResponse,
     ExecuteCallback:
-        FnOnce(Request, &mut VirtualMachine, &mut Executor) -> DeprecatedSyscallResult<Response>,
+        FnOnce(Request, &mut VirtualMachine, &mut Executor) -> Result<Response, Executor::Error>,
 {
     let request = Request::read(vm, deprecated_syscall_executor.get_mut_syscall_ptr())?;
 
@@ -287,8 +289,9 @@ pub fn execute_next_deprecated_syscall<T: DeprecatedSyscallExecutor>(
     vm: &mut VirtualMachine,
     ids_data: &HashMap<String, HintReference>,
     ap_tracking: &ApTracking,
-) -> HintExecutionResult {
-    let initial_syscall_ptr = get_ptr_from_var_name("syscall_ptr", vm, ids_data, ap_tracking)?;
+) -> Result<(), T::Error> {
+    let initial_syscall_ptr = get_ptr_from_var_name("syscall_ptr", vm, ids_data, ap_tracking)
+        .map_err(DeprecatedSyscallExecutorBaseError::from)?;
     deprecated_syscall_executor.verify_syscall_ptr(initial_syscall_ptr)?;
 
     let selector = DeprecatedSyscallSelector::try_from(
