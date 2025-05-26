@@ -114,6 +114,16 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
     fn get_replicas(&self, _environment: &Environment) -> usize {
         1
     }
+
+    fn get_anti_affinity(&self, environment: &Environment) -> bool {
+        match environment {
+            Environment::Testing => false,
+            Environment::SepoliaIntegration
+            | Environment::TestingEnvTwo
+            | Environment::TestingEnvThree => true,
+            _ => unimplemented!(),
+        }
+    }
 }
 
 fn get_consolidated_config(environment: &Environment) -> ComponentConfig {

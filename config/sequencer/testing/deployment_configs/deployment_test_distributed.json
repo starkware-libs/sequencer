@@ -26,7 +26,8 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": null,
+      "anti_affinity": false
     },
     {
       "name": "ClassManager",
@@ -52,7 +53,8 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": null,
+      "anti_affinity": false
     },
     {
       "name": "ConsensusManager",
@@ -78,7 +80,8 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": null,
+      "anti_affinity": false
     },
     {
       "name": "HttpServer",
@@ -115,7 +118,8 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": null,
+      "anti_affinity": false
     },
     {
       "name": "Gateway",
@@ -141,7 +145,8 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": null,
+      "anti_affinity": false
     },
     {
       "name": "L1",
@@ -167,7 +172,8 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": null,
+      "anti_affinity": false
     },
     {
       "name": "Mempool",
@@ -193,7 +199,8 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": null,
+      "anti_affinity": false
     },
     {
       "name": "SierraCompiler",
@@ -219,7 +226,8 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": null,
+      "anti_affinity": false
     },
     {
       "name": "StateSync",
@@ -245,7 +253,8 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": null,
+      "anti_affinity": false
     }
   ]
 }
