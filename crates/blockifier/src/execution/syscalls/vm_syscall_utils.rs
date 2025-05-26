@@ -752,10 +752,34 @@ pub enum SelfOrRevert<T> {
     Revert(Vec<Felt>),
 }
 
+impl<T> SelfOrRevert<T> {
+    pub fn map_original<F, U>(self, f: F) -> SelfOrRevert<U>
+    where
+        F: FnOnce(T) -> U,
+    {
+        match self {
+            SelfOrRevert::Original(val) => SelfOrRevert::Original(f(val)),
+            SelfOrRevert::Revert(data) => SelfOrRevert::Revert(data),
+        }
+    }
+}
+
 pub trait TryExtractRevert {
     fn try_extract_revert(self) -> SelfOrRevert<Self>
     where
         Self: Sized;
+
+    fn as_revert(error_data: Vec<Felt>) -> Self;
+
+    fn from_self_or_revert(self_or_revert: SelfOrRevert<Self>) -> Self
+    where
+        Self: Sized,
+    {
+        match self_or_revert {
+            SelfOrRevert::Original(original) => original,
+            SelfOrRevert::Revert(data) => Self::as_revert(data),
+        }
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -782,6 +806,8 @@ pub enum SyscallExecutorBaseError {
     StarknetApi(#[from] StarknetApiError),
     #[error(transparent)]
     VirtualMachine(#[from] VirtualMachineError),
+    #[error("Syscall revert.")]
+    Revert { error_data: Vec<Felt> },
 }
 
 pub type SyscallBaseResult<T> = Result<T, SyscallExecutorBaseError>;
@@ -791,5 +817,21 @@ pub type SyscallBaseResult<T> = Result<T, SyscallExecutorBaseError>;
 impl From<SyscallExecutorBaseError> for HintError {
     fn from(error: SyscallExecutorBaseError) -> Self {
         Self::Internal(VirtualMachineError::Other(error.into()))
+    }
+}
+
+impl TryExtractRevert for SyscallExecutorBaseError {
+    fn try_extract_revert(self) -> SelfOrRevert<Self>
+    where
+        Self: Sized,
+    {
+        match self {
+            Self::Revert { error_data } => SelfOrRevert::Revert(error_data),
+            _ => SelfOrRevert::Original(self),
+        }
+    }
+
+    fn as_revert(error_data: Vec<Felt>) -> Self {
+        Self::Revert { error_data }
     }
 }

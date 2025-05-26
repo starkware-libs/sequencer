@@ -40,7 +40,11 @@ use crate::execution::secp;
 use crate::execution::syscalls::common_syscall_logic::base_keccak;
 use crate::execution::syscalls::hint_processor::{SyscallExecutionError, OUT_OF_GAS_ERROR};
 use crate::execution::syscalls::syscall_base::SyscallHandlerBase;
-use crate::execution::syscalls::vm_syscall_utils::SyscallExecutorBaseError;
+use crate::execution::syscalls::vm_syscall_utils::{
+    SelfOrRevert,
+    SyscallExecutorBaseError,
+    TryExtractRevert,
+};
 use crate::state::state_api::State;
 use crate::transaction::objects::TransactionInfo;
 use crate::utils::u64_from_usize;
@@ -127,9 +131,9 @@ impl<'state> NativeSyscallHandler<'state> {
             }
         }
 
-        match error {
-            SyscallExecutionError::Revert { error_data } => error_data,
-            error => {
+        match error.try_extract_revert() {
+            SelfOrRevert::Revert(error_data) => error_data,
+            SelfOrRevert::Original(error) => {
                 assert!(
                     self.unrecoverable_error.is_none(),
                     "Trying to set an unrecoverable error twice in Native Syscall Handler"
@@ -157,15 +161,16 @@ impl<'state> NativeSyscallHandler<'state> {
         let raw_data = self.base.execute_inner_call(entry_point, remaining_gas).map_err(|e| {
             self.handle_error(
                 remaining_gas,
-                match e {
-                    SyscallExecutionError::Revert { .. } => e,
-                    _ => error_wrapper_fn(
-                        e,
-                        class_hash,
-                        entry_point_clone.storage_address,
-                        entry_point_clone.entry_point_selector,
-                    ),
-                },
+                SyscallExecutionError::from_self_or_revert(e.try_extract_revert().map_original(
+                    |error| {
+                        error_wrapper_fn(
+                            error,
+                            class_hash,
+                            entry_point_clone.storage_address,
+                            entry_point_clone.entry_point_selector,
+                        )
+                    },
+                )),
             )
         })?;
         Ok(Retdata(raw_data))
