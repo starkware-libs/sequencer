@@ -21,6 +21,7 @@ use starknet_api::transaction::fields::ValidResourceBounds;
 use starknet_api::transaction::{DeployAccountTransaction, TransactionVersion};
 use starknet_types_core::felt::Felt;
 
+use super::utils::assert_retdata_as_expected;
 use crate::hints::enum_definition::{AllHints, OsHint};
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::execution::utils::{
@@ -629,9 +630,17 @@ pub(crate) fn check_new_syscall_response<S: StateReader>(
 }
 
 pub(crate) fn check_new_deploy_response<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { hint_processor, vm, ap_tracking, ids_data, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    assert_retdata_as_expected(
+        "constructor_retdata_start",
+        "constructor_retdata_end",
+        CairoStruct::DeployResponse,
+        vm,
+        ap_tracking,
+        ids_data,
+        hint_processor.os_program,
+    )
 }
 
 pub(crate) fn initial_ge_required_gas<S: StateReader>(
