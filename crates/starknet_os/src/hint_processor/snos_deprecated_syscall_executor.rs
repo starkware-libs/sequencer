@@ -1,4 +1,7 @@
-use blockifier::execution::deprecated_syscalls::deprecated_syscall_executor::DeprecatedSyscallExecutor;
+use blockifier::execution::deprecated_syscalls::deprecated_syscall_executor::{
+    DeprecatedSyscallExecutor,
+    DeprecatedSyscallExecutorBaseError,
+};
 use blockifier::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallExecutionError;
 use blockifier::execution::deprecated_syscalls::{
     CallContractRequest,
@@ -41,6 +44,12 @@ use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::vm_core::VirtualMachine;
 
 use super::snos_hint_processor::SnosHintProcessor;
+
+#[derive(Debug, thiserror::Error)]
+pub enum DeprecatedSnosSyscallError {
+    #[error(transparent)]
+    SyscallExecutorBase(#[from] DeprecatedSyscallExecutorBaseError),
+}
 
 #[allow(unused_variables)]
 impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
