@@ -182,6 +182,77 @@ impl TestDeps {
         self.dummy_eth_to_strk_oracle_client();
     }
 
+    fn setup_deps_for_build(&mut self, block_number: BlockNumber) {
+        self.setup_deps();
+        let proposal_id = Arc::new(OnceLock::new());
+        let proposal_id_clone = Arc::clone(&proposal_id);
+        self.batcher.expect_propose_block().times(1).returning(move |input: ProposeBlockInput| {
+            proposal_id_clone.set(input.proposal_id).unwrap();
+            Ok(())
+        });
+        self.batcher
+            .expect_start_height()
+            .times(1)
+            .withf(move |input| input.height == block_number)
+            .return_const(Ok(()));
+        let proposal_id_clone = Arc::clone(&proposal_id);
+        self.batcher.expect_get_proposal_content().times(1).returning(move |input| {
+            assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
+            Ok(GetProposalContentResponse {
+                content: GetProposalContent::Txs(INTERNAL_TX_BATCH.clone()),
+            })
+        });
+        let proposal_id_clone = Arc::clone(&proposal_id);
+        self.batcher.expect_get_proposal_content().times(1).returning(move |input| {
+            assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
+            Ok(GetProposalContentResponse {
+                content: GetProposalContent::Finished(ProposalCommitment {
+                    state_diff_commitment: STATE_DIFF_COMMITMENT,
+                }),
+            })
+        });
+    }
+
+    fn setup_deps_for_validate(&mut self, block_number: BlockNumber) {
+        self.setup_deps();
+        let proposal_id = Arc::new(OnceLock::new());
+        let proposal_id_clone = Arc::clone(&proposal_id);
+        self.batcher.expect_validate_block().times(1).returning(
+            move |input: ValidateBlockInput| {
+                proposal_id_clone.set(input.proposal_id).unwrap();
+                Ok(())
+            },
+        );
+        self.batcher
+            .expect_start_height()
+            .times(1)
+            .withf(move |input| input.height == block_number)
+            .return_const(Ok(()));
+        let proposal_id_clone = Arc::clone(&proposal_id);
+        self.batcher.expect_send_proposal_content().times(1).returning(
+            move |input: SendProposalContentInput| {
+                assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
+                let SendProposalContent::Txs(txs) = input.content else {
+                    panic!("Expected SendProposalContent::Txs, got {:?}", input.content);
+                };
+                assert_eq!(txs, *INTERNAL_TX_BATCH);
+                Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
+            },
+        );
+        let proposal_id_clone = Arc::clone(&proposal_id);
+        self.batcher.expect_send_proposal_content().times(1).returning(
+            move |input: SendProposalContentInput| {
+                assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
+                assert!(matches!(input.content, SendProposalContent::Finish));
+                Ok(SendProposalContentResponse {
+                    response: ProposalStatus::Finished(ProposalCommitment {
+                        state_diff_commitment: STATE_DIFF_COMMITMENT,
+                    }),
+                })
+            },
+        );
+    }
+
     fn dummy_transaction_converter(&mut self) {
         for (tx, internal_tx) in TX_BATCH.iter().zip(INTERNAL_TX_BATCH.iter()) {
             self.transaction_converter
@@ -409,11 +480,9 @@ async fn cancelled_proposal_aborts() {
 
 #[tokio::test]
 async fn validate_proposal_success() {
-    let mut batcher = MockBatcherClient::new();
-    setup_batcher_for_validate(&mut batcher, BlockNumber(0)).await;
-    let (default_deps, _network) = default_context_dependencies();
-    let context_deps = SequencerConsensusContextDeps { batcher: Arc::new(batcher), ..default_deps };
-    let mut context = setup_with_custom_mocks(context_deps);
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.setup_deps_for_validate(BlockNumber(0));
+    let mut context = deps.build_context();
 
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
@@ -461,11 +530,9 @@ async fn dont_send_block_info() {
 #[tokio::test]
 async fn repropose() {
     // Receive a proposal. Then re-retrieve it.
-    let mut batcher = MockBatcherClient::new();
-    setup_batcher_for_validate(&mut batcher, BlockNumber(0)).await;
-    let (default_deps, mut network) = default_context_dependencies();
-    let context_deps = SequencerConsensusContextDeps { batcher: Arc::new(batcher), ..default_deps };
-    let mut context = setup_with_custom_mocks(context_deps);
+    let (mut deps, mut network) = create_test_and_network_deps();
+    deps.setup_deps_for_validate(BlockNumber(0));
+    let mut context = deps.build_context();
 
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
@@ -498,11 +565,9 @@ async fn repropose() {
 
 #[tokio::test]
 async fn proposals_from_different_rounds() {
-    let mut batcher = MockBatcherClient::new();
-    setup_batcher_for_validate(&mut batcher, BlockNumber(0)).await;
-    let (default_deps, _network) = default_context_dependencies();
-    let context_deps = SequencerConsensusContextDeps { batcher: Arc::new(batcher), ..default_deps };
-    let mut context = setup_with_custom_mocks(context_deps);
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.setup_deps_for_validate(BlockNumber(0));
+    let mut context = deps.build_context();
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
     context.set_height_and_round(BlockNumber(0), 1).await;
@@ -552,11 +617,9 @@ async fn proposals_from_different_rounds() {
 
 #[tokio::test]
 async fn interrupt_active_proposal() {
-    let mut batcher = MockBatcherClient::new();
-    setup_batcher_for_validate(&mut batcher, BlockNumber(0)).await;
-    let (default_deps, _network) = default_context_dependencies();
-    let context_deps = SequencerConsensusContextDeps { batcher: Arc::new(batcher), ..default_deps };
-    let mut context = setup_with_custom_mocks(context_deps);
+    let (mut deps, _network) = create_test_and_network_deps();
+    deps.setup_deps_for_validate(BlockNumber(0));
+    let mut context = deps.build_context();
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
 
@@ -599,11 +662,9 @@ async fn interrupt_active_proposal() {
 async fn build_proposal() {
     let before: u64 =
         chrono::Utc::now().timestamp().try_into().expect("Timestamp conversion failed");
-    let mut batcher = MockBatcherClient::new();
-    setup_batcher_for_build(&mut batcher, BlockNumber(0)).await;
-    let (default_deps, mut network) = default_context_dependencies();
-    let context_deps = SequencerConsensusContextDeps { batcher: Arc::new(batcher), ..default_deps };
-    let mut context = setup_with_custom_mocks(context_deps);
+    let (mut deps, mut network) = create_test_and_network_deps();
+    deps.setup_deps_for_build(BlockNumber(0));
+    let mut context = deps.build_context();
     let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await;
     // Test proposal parts.
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
@@ -710,11 +771,9 @@ async fn batcher_not_ready(#[case] proposer: bool) {
 
 #[tokio::test]
 async fn propose_then_repropose() {
-    let mut batcher = MockBatcherClient::new();
-    setup_batcher_for_build(&mut batcher, BlockNumber(0)).await;
-    let (default_deps, mut network) = default_context_dependencies();
-    let context_deps = SequencerConsensusContextDeps { batcher: Arc::new(batcher), ..default_deps };
-    let mut context = setup_with_custom_mocks(context_deps);
+    let (mut deps, mut network) = create_test_and_network_deps();
+    deps.setup_deps_for_build(BlockNumber(0));
+    let mut context = deps.build_context();
     // Build proposal.
     let fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await;
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
