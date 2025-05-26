@@ -45,10 +45,11 @@ use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
 use tokio::sync::Mutex;
+use tokio::time::Instant;
 use tracing::{debug, error, info, trace};
 
 use crate::block_builder::FailOnErrorCause::L1HandlerTransactionValidationFailed;
-use crate::metrics::FULL_BLOCKS;
+use crate::metrics::{BLOCKS_REACHED_DEADLINE, FULL_BLOCKS};
 use crate::transaction_executor::TransactionExecutorTrait;
 use crate::transaction_provider::{NextTxs, TransactionProvider, TransactionProviderError};
 
@@ -143,7 +144,7 @@ pub trait BlockBuilderTrait: Send {
 }
 
 pub struct BlockBuilderExecutionParams {
-    pub deadline: tokio::time::Instant,
+    pub deadline: Instant,
     pub fail_on_err: bool,
 }
 
@@ -192,16 +193,17 @@ impl BlockBuilder {
 #[async_trait]
 impl BlockBuilderTrait for BlockBuilder {
     async fn build_block(&mut self) -> BlockBuilderResult<BlockExecutionArtifacts> {
-        let mut block_is_full = false;
+        let mut block_completion_triggered = false;
         let mut l2_gas_used = GasAmount::ZERO;
         let mut execution_data = BlockTransactionExecutionData::default();
         // TODO(yael 6/10/2024): delete the timeout condition once the executor has a timeout
-        while !block_is_full {
-            if tokio::time::Instant::now() >= self.execution_params.deadline {
-                info!("Block builder deadline reached.");
+        while !block_completion_triggered {
+            if Instant::now() >= self.execution_params.deadline {
+                info!("Block builder deadline reached between chunks execution.");
                 if self.execution_params.fail_on_err {
                     return Err(BlockBuilderError::FailOnError(FailOnErrorCause::DeadlineReached));
                 }
+                BLOCKS_REACHED_DEADLINE.increment(1);
                 break;
             }
             if self.abort_signal_receiver.try_recv().is_ok() {
@@ -258,13 +260,14 @@ impl BlockBuilderTrait for BlockBuilder {
             .expect("Failed to spawn blocking executor task.");
             debug!("Finished execution of transactions chunk.");
             trace!("Transaction execution results: {:?}", results);
-            block_is_full = collect_execution_results_and_stream_txs(
+            block_completion_triggered = collect_execution_results_and_stream_txs(
                 next_tx_chunk,
                 results,
                 &mut l2_gas_used,
                 &mut execution_data,
                 &self.output_content_sender,
                 self.execution_params.fail_on_err,
+                block_deadline,
             )
             .await?;
         }
@@ -304,22 +307,36 @@ async fn collect_execution_results_and_stream_txs(
         tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
     >,
     fail_on_err: bool,
+    block_deadline: Instant,
 ) -> BlockBuilderResult<bool> {
     assert!(
         results.len() <= tx_chunk.len(),
         "The number of results should be less than or equal to the number of transactions."
     );
-    let mut block_is_full = false;
-    // If the block is full, we won't get an error from the executor. We will just get only the
-    // results of the transactions that were executed before the block was full.
-    // see [TransactionExecutor::execute_txs].
+    let mut block_completion_triggered = false;
+    // If the executor returns fewer results than requested, we won't get an error from the
+    // executor. it indicates one of two conditions:
+    // - The block builder deadline was reached during execution of the chunk.
+    // - The block ran out of capacity and could not fit all transactions.
+    // In either case, this signals that block construction should stop,
+    // See [TransactionExecutor::execute_txs].
     if results.len() < tx_chunk.len() {
-        info!("Block is full.");
-        if fail_on_err {
-            return Err(BlockBuilderError::FailOnError(FailOnErrorCause::BlockFull));
+        if Instant::now() >= block_deadline {
+            info!("Block builder deadline reached in middle of chunk execution.");
+            if fail_on_err {
+                return Err(BlockBuilderError::FailOnError(FailOnErrorCause::DeadlineReached));
+            } else {
+                BLOCKS_REACHED_DEADLINE.increment(1);
+                block_completion_triggered = true;
+            }
         } else {
-            FULL_BLOCKS.increment(1);
-            block_is_full = true;
+            info!("Block is full.");
+            if fail_on_err {
+                return Err(BlockBuilderError::FailOnError(FailOnErrorCause::BlockFull));
+            } else {
+                FULL_BLOCKS.increment(1);
+                block_completion_triggered = true;
+            }
         }
     }
     for (input_tx, result) in tx_chunk.into_iter().zip(results.into_iter()) {
@@ -359,7 +376,7 @@ async fn collect_execution_results_and_stream_txs(
             }
         }
     }
-    Ok(block_is_full)
+    Ok(block_completion_triggered)
 }
 
 pub struct BlockMetadata {
