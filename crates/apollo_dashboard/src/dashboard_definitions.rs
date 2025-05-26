@@ -164,7 +164,6 @@ pub const DEV_JSON_PATH: &str = "Monitoring/sequencer/dev_grafana.json";
 
 const MEMPOOL_P2P_ROW: Row = Row::new(
     "MempoolP2p",
-    "Mempool peer to peer metrics",
     &[
         PANEL_MEMPOOL_P2P_NUM_CONNECTED_PEERS,
         PANEL_MEMPOOL_P2P_NUM_SENT_MESSAGES,
@@ -175,7 +174,6 @@ const MEMPOOL_P2P_ROW: Row = Row::new(
 
 const MEMPOOL_P2P_INFRA_ROW: Row = Row::new(
     "MempoolP2pInfra",
-    "Mempool peer to peer infra metrics",
     &[
         PANEL_MEMPOOL_P2P_LOCAL_MSGS_RECEIVED,
         PANEL_MEMPOOL_P2P_LOCAL_MSGS_PROCESSED,
@@ -188,7 +186,6 @@ const MEMPOOL_P2P_INFRA_ROW: Row = Row::new(
 
 const SIERRA_COMPILER_INFRA_ROW: Row = Row::new(
     "SierraCompilerInfra",
-    "sierra compiler infra metrics",
     &[
         PANEL_SIERRA_COMPILER_LOCAL_MSGS_RECEIVED,
         PANEL_SIERRA_COMPILER_LOCAL_MSGS_PROCESSED,
@@ -201,7 +198,6 @@ const SIERRA_COMPILER_INFRA_ROW: Row = Row::new(
 
 const STATE_SYNC_INFRA_ROW: Row = Row::new(
     "StateSyncInfra",
-    "state sync infra metrics",
     &[
         PANEL_STATE_SYNC_LOCAL_MSGS_RECEIVED,
         PANEL_STATE_SYNC_LOCAL_MSGS_PROCESSED,
@@ -214,7 +210,6 @@ const STATE_SYNC_INFRA_ROW: Row = Row::new(
 
 const CONSENSUS_P2P_ROW: Row = Row::new(
     "ConsensusP2p",
-    "Consensus peer to peer metrics",
     &[
         PANEL_CONSENSUS_NUM_CONNECTED_PEERS,
         PANEL_CONSENSUS_VOTES_NUM_SENT_MESSAGES,
@@ -226,7 +221,6 @@ const CONSENSUS_P2P_ROW: Row = Row::new(
 
 const STATE_SYNC_P2P_ROW: Row = Row::new(
     "StateSyncP2p",
-    "State sync peer to peer metrics",
     &[
         PANEL_P2P_SYNC_NUM_CONNECTED_PEERS,
         PANEL_P2P_SYNC_NUM_ACTIVE_INBOUND_SESSIONS,
@@ -236,7 +230,6 @@ const STATE_SYNC_P2P_ROW: Row = Row::new(
 
 const BATCHER_ROW: Row = Row::new(
     "Batcher",
-    "Batcher metrics including proposals and transactions",
     &[
         PANEL_PROPOSAL_ABORTED,
         PANEL_PROPOSAL_STARTED,
@@ -248,7 +241,6 @@ const BATCHER_ROW: Row = Row::new(
 
 const BATCHER_INFRA_ROW: Row = Row::new(
     "Batcher Infra",
-    "Batcher infra metrics",
     &[
         PANEL_BATCHER_LOCAL_MSGS_RECEIVED,
         PANEL_BATCHER_LOCAL_MSGS_PROCESSED,
@@ -261,7 +253,6 @@ const BATCHER_INFRA_ROW: Row = Row::new(
 
 const CLASS_MANAGER_INFRA_ROW: Row = Row::new(
     "Class Manager Infra",
-    "Class manager infra metrics",
     &[
         PANEL_CLASS_MANAGER_LOCAL_MSGS_RECEIVED,
         PANEL_CLASS_MANAGER_LOCAL_MSGS_PROCESSED,
@@ -274,7 +265,6 @@ const CLASS_MANAGER_INFRA_ROW: Row = Row::new(
 
 const L1_PROVIDER_INFRA_ROW: Row = Row::new(
     "L1 Provider Infra",
-    "L1 provider infra metrics",
     &[
         PANEL_L1_PROVIDER_LOCAL_MSGS_RECEIVED,
         PANEL_L1_PROVIDER_LOCAL_MSGS_PROCESSED,
@@ -287,7 +277,6 @@ const L1_PROVIDER_INFRA_ROW: Row = Row::new(
 
 const L1_GAS_PRICE_INFRA_ROW: Row = Row::new(
     "L1 Gas Price Infra",
-    "L1 gas price infra metrics",
     &[
         PANEL_L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_RECEIVED,
         PANEL_L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_PROCESSED,
@@ -300,7 +289,6 @@ const L1_GAS_PRICE_INFRA_ROW: Row = Row::new(
 
 const BLOCKIFIER_STATE_READER_ROW: Row = Row::new(
     "Blockifier State Reader",
-    "Blockifier State Reader metrics",
     &[
         PANEL_BLOCKIFIER_STATE_READER_CLASS_CACHE_MISS_RATIO,
         PANEL_BLOCKIFIER_STATE_READER_NATIVE_CLASS_RETURNED_RATIO,
@@ -309,7 +297,6 @@ const BLOCKIFIER_STATE_READER_ROW: Row = Row::new(
 
 const CONSENSUS_ROW: Row = Row::new(
     "Consensus",
-    "Consensus metrics including block number, round, and so on.",
     &[
         PANEL_CONSENSUS_BLOCK_NUMBER,
         PANEL_CONSENSUS_ROUND,
@@ -346,15 +333,10 @@ const CONSENSUS_ROW: Row = Row::new(
     ],
 );
 
-const HTTP_SERVER_ROW: Row = Row::new(
-    "Http Server",
-    "Http Server metrics including added transactions",
-    &[PANEL_ADDED_TRANSACTIONS_TOTAL],
-);
+const HTTP_SERVER_ROW: Row = Row::new("Http Server", &[PANEL_ADDED_TRANSACTIONS_TOTAL]);
 
 const STATE_SYNC_ROW: Row = Row::new(
     "State Sync",
-    "State sync metrics",
     &[
         PANEL_STATE_SYNC_PROCESSED_TRANSACTIONS,
         PANEL_STATE_SYNC_REVERTED_TRANSACTIONS,
@@ -368,7 +350,6 @@ const STATE_SYNC_ROW: Row = Row::new(
 
 pub const GATEWAY_ROW: Row = Row::new(
     "Gateway",
-    "Gateway metrics",
     &[
         PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_TYPE,
         PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_SOURCE,
@@ -382,7 +363,6 @@ pub const GATEWAY_ROW: Row = Row::new(
 
 pub const GATEWAY_INFRA_ROW: Row = Row::new(
     "Gateway Infra",
-    "Gateway infra metrics",
     &[
         PANEL_GATEWAY_LOCAL_MSGS_RECEIVED,
         PANEL_GATEWAY_LOCAL_MSGS_PROCESSED,
@@ -395,7 +375,6 @@ pub const GATEWAY_INFRA_ROW: Row = Row::new(
 
 pub const L1_GAS_PRICE_ROW: Row = Row::new(
     "L1 Gas Price",
-    "L1 gas price provider and scraper metrics",
     &[
         PANEL_L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY,
         PANEL_L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT,
@@ -404,7 +383,6 @@ pub const L1_GAS_PRICE_ROW: Row = Row::new(
 
 pub const MEMPOOL_ROW: Row = Row::new(
     "Mempool",
-    "Mempool metrics",
     &[
         PANEL_MEMPOOL_TRANSACTIONS_RECEIVED,
         PANEL_MEMPOOL_TRANSACTIONS_RECEIVED_RATE,
@@ -422,7 +400,6 @@ pub const MEMPOOL_ROW: Row = Row::new(
 
 pub const MEMPOOL_INFRA_ROW: Row = Row::new(
     "Mempool Infra",
-    "Mempool infra metrics",
     &[
         PANEL_MEMPOOL_LOCAL_MSGS_RECEIVED,
         PANEL_MEMPOOL_LOCAL_MSGS_PROCESSED,
@@ -434,7 +411,7 @@ pub const MEMPOOL_INFRA_ROW: Row = Row::new(
 );
 
 pub const COMPILE_TO_CASM_ROW: Row =
-    Row::new("Compile sierra to casm", "Compile to casm metrics", &[PANEL_COMPILATION_DURATION]);
+    Row::new("Compile sierra to casm", &[PANEL_COMPILATION_DURATION]);
 
 pub const SEQUENCER_DASHBOARD: Dashboard = Dashboard::new(
     "Sequencer Node Dashboard",

@@ -91,13 +91,7 @@ pub struct Row {
 }
 
 impl Row {
-    pub const fn new(
-        name: &'static str,
-        description: &'static str,
-        panels: &'static [Panel],
-    ) -> Self {
-        // TODO(Tsabary): remove description.
-        let _ = description;
+    pub const fn new(name: &'static str, panels: &'static [Panel]) -> Self {
         Self { name, panels }
     }
 }
