@@ -56,6 +56,10 @@ impl TryExtractRevert for SnosSyscallError {
         // No revert case in this error enum.
         SelfOrRevert::Original(self)
     }
+
+    fn as_revert(error_data: RevertData) -> Self {
+        SyscallExecutorBaseError::Revert { error_data }.into()
+    }
 }
 
 #[allow(unused_variables)]
