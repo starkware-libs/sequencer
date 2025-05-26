@@ -266,7 +266,7 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
     ///
     /// Returns a vector of `TransactionExecutorResult<TransactionExecutionOutput>`, containing the
     /// execution results for each transaction. The execution may stop early if the block becomes
-    /// full.
+    /// full or the deadline is reached.
     pub fn execute_txs(
         &mut self,
         txs: &[Transaction],
