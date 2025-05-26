@@ -148,7 +148,10 @@ fn default_context_dependencies() -> (SequencerConsensusContextDeps, NetworkDepe
         subscriber_channels;
 
     let sequencer_deps = SequencerConsensusContextDeps {
-        class_manager_client: Arc::new(EmptyClassManagerClient),
+        transaction_converter: Arc::new(TransactionConverter::new(
+            Arc::new(EmptyClassManagerClient),
+            CHAIN_ID,
+        )),
         state_sync_client: Arc::new(MockStateSyncClient::new()),
         batcher: Arc::new(MockBatcherClient::new()),
         outbound_proposal_sender,
