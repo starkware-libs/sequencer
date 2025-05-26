@@ -49,6 +49,7 @@ use tracing::{debug, error, info, trace};
 
 use crate::block_builder::FailOnErrorCause::L1HandlerTransactionValidationFailed;
 use crate::metrics::FULL_BLOCKS;
+use crate::pre_confirmed_block_writer::{ExecutedTxSender, PreConfirmedTxSender};
 use crate::transaction_executor::TransactionExecutorTrait;
 use crate::transaction_provider::{NextTxs, TransactionProvider, TransactionProviderError};
 
@@ -152,6 +153,8 @@ pub struct BlockBuilder {
     executor: Arc<Mutex<dyn TransactionExecutorTrait>>,
     tx_provider: Box<dyn TransactionProvider>,
     output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>>,
+    _pre_confirmed_tx_sender: Option<PreConfirmedTxSender>,
+    _executed_tx_sender: Option<ExecutedTxSender>,
     abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
     transaction_converter: TransactionConverter,
 
@@ -169,6 +172,8 @@ impl BlockBuilder {
         output_content_sender: Option<
             tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
         >,
+        pre_confirmed_tx_sender: Option<PreConfirmedTxSender>,
+        executed_tx_sender: Option<ExecutedTxSender>,
         abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
         transaction_converter: TransactionConverter,
         tx_chunk_size: usize,
@@ -180,6 +185,8 @@ impl BlockBuilder {
             executor,
             tx_provider,
             output_content_sender,
+            _pre_confirmed_tx_sender: pre_confirmed_tx_sender,
+            _executed_tx_sender: executed_tx_sender,
             abort_signal_receiver,
             transaction_converter,
             tx_chunk_size,
@@ -386,7 +393,7 @@ pub type BatcherWorkerPool =
 #[cfg_attr(test, automock)]
 pub trait BlockBuilderFactoryTrait: Send + Sync {
     // TODO(noamsp): Investigate and remove this clippy warning.
-    #[allow(clippy::result_large_err)]
+    #[allow(clippy::result_large_err, clippy::too_many_arguments)]
     fn create_block_builder(
         &self,
         block_metadata: BlockMetadata,
@@ -395,6 +402,8 @@ pub trait BlockBuilderFactoryTrait: Send + Sync {
         output_content_sender: Option<
             tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
         >,
+        pre_confirmed_tx_sender: Option<PreConfirmedTxSender>,
+        executed_tx_sender: Option<ExecutedTxSender>,
         runtime: tokio::runtime::Handle,
     ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, AbortSignalSender)>;
 }
@@ -506,6 +515,8 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
         output_content_sender: Option<
             tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
         >,
+        pre_confirmed_tx_sender: Option<PreConfirmedTxSender>,
+        executed_tx_sender: Option<ExecutedTxSender>,
         runtime: tokio::runtime::Handle,
     ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, AbortSignalSender)> {
         let executor = self.preprocess_and_create_transaction_executor(block_metadata, runtime)?;
@@ -518,6 +529,8 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
             executor,
             tx_provider,
             output_content_sender,
+            pre_confirmed_tx_sender,
+            executed_tx_sender,
             abort_signal_receiver,
             transaction_converter,
             self.block_builder_config.tx_chunk_size,
