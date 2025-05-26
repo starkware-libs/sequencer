@@ -241,6 +241,8 @@ impl Batcher {
                 },
                 Box::new(tx_provider),
                 Some(output_tx_sender),
+                None,
+                None,
                 tokio::runtime::Handle::current(),
             )
             .map_err(|err| {
@@ -307,6 +309,8 @@ impl Batcher {
                     fail_on_err: true,
                 },
                 Box::new(tx_provider),
+                None,
+                None,
                 None,
                 tokio::runtime::Handle::current(),
             )
