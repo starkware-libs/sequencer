@@ -1,6 +1,6 @@
-from common.helpers import get_logger, arg_parser
-from builders.dashboard_builder import dashboard_builder
 from builders.alert_builder import alert_builder
+from builders.dashboard_builder import dashboard_builder
+from common.helpers import arg_parser, get_logger
 
 
 # TODO(Idan Shamam): Add more logs to dashboard_builder

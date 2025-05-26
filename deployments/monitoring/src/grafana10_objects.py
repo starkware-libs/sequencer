@@ -76,7 +76,7 @@ templating_object = {
             "skipUrlSync": False,
             "sort": 0,
             "type": "query",
-        }
+        },
     ]
 }
 

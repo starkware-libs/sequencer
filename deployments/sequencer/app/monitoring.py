@@ -1,9 +1,8 @@
 import json
 
+from cdk8s import ApiObjectMetadata, Names
 from constructs import Construct
-from cdk8s import Names, ApiObjectMetadata
 from imports.co.starkware.grafana import SharedGrafanaDashboard, SharedGrafanaDashboardSpec
-
 from services.monitoring import GrafanaDashboard
 
 

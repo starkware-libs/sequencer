@@ -1,9 +1,9 @@
+import argparse
 import json
 import os
-import requests
 import time
-import argparse
 
+import requests
 from common.grafana10_objects import empty_dashboard, row_object, templating_object
 from common.helpers import get_logger
 
