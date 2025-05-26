@@ -71,6 +71,7 @@ use crate::metrics::{
 use crate::pre_confirmed_block_writer::{
     PreConfirmedBlockWriterFactory,
     PreConfirmedBlockWriterFactoryTrait,
+    PreConfirmedBlockWriterTrait,
 };
 use crate::pre_confirmed_cende_client::PreConfirmedCendeClientTrait;
 use crate::transaction_provider::{ProposeTransactionProvider, ValidateTransactionProvider};
@@ -228,7 +229,7 @@ impl Batcher {
         // A channel to receive the transactions included in the proposed block.
         let (output_tx_sender, output_tx_receiver) = tokio::sync::mpsc::unbounded_channel();
 
-        let (_pre_confirmed_block_writer, pre_confirmed_tx_sender, executed_tx_sender) =
+        let (pre_confirmed_block_writer, pre_confirmed_tx_sender, executed_tx_sender) =
             self.pre_confirmed_block_writer_factory.create(
                 propose_block_input.block_info.block_number,
                 propose_block_input.proposal_round,
@@ -260,6 +261,7 @@ impl Batcher {
             propose_block_input.proposal_id,
             block_builder,
             abort_signal_sender,
+            Some(pre_confirmed_block_writer),
             proposal_metrics_handle,
         )
         .await?;
@@ -329,6 +331,7 @@ impl Batcher {
             validate_block_input.proposal_id,
             block_builder,
             abort_signal_sender,
+            None,
             proposal_metrics_handle,
         )
         .await?;
@@ -680,6 +683,7 @@ impl Batcher {
         proposal_id: ProposalId,
         mut block_builder: Box<dyn BlockBuilderTrait>,
         abort_signal_sender: tokio::sync::oneshot::Sender<()>,
+        pre_confirmed_block_writer: Option<Box<dyn PreConfirmedBlockWriterTrait>>,
         mut proposal_metrics_handle: ProposalMetricsHandle,
     ) -> BatcherResult<()> {
         self.set_active_proposal(proposal_id).await?;
@@ -687,6 +691,14 @@ impl Batcher {
 
         let active_proposal = self.active_proposal.clone();
         let executed_proposals = self.executed_proposals.clone();
+
+        let writer_join_handle =
+            pre_confirmed_block_writer.map(|mut pre_confirmed_block_writer| {
+                tokio::spawn(async move {
+                    // TODO(noamsp): add error handling
+                    pre_confirmed_block_writer.run().await.ok();
+                })
+            });
 
         let join_handle = tokio::spawn(
             async move {
@@ -715,7 +727,8 @@ impl Batcher {
             .in_current_span(),
         );
 
-        self.active_proposal_task = Some(ProposalTask { abort_signal_sender, join_handle });
+        self.active_proposal_task =
+            Some(ProposalTask { abort_signal_sender, join_handle, writer_join_handle });
         Ok(())
     }
 
@@ -746,6 +759,9 @@ impl Batcher {
     pub async fn await_active_proposal(&mut self) {
         if let Some(proposal_task) = self.active_proposal_task.take() {
             proposal_task.join_handle.await.ok();
+            if let Some(writer_join_handle) = proposal_task.writer_join_handle {
+                writer_join_handle.await.ok();
+            }
         }
     }
 
