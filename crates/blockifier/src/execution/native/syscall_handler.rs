@@ -832,7 +832,7 @@ where
         let x = u256_to_biguint(x);
         let y = u256_to_biguint(y);
 
-        Self::wrap_secp_result(secp::new_affine(x, y))
+        Self::wrap_secp_result(Ok(secp::new_affine(x, y)?))
     }
 
     fn add(p0: Self, p1: Self) -> Self {
@@ -848,7 +848,7 @@ where
     fn get_point_from_x(x: U256, y_parity: bool) -> Result<Option<Self>, SyscallExecutionError> {
         let x = u256_to_biguint(x);
 
-        Self::wrap_secp_result(secp::get_point_from_x(x, y_parity))
+        Self::wrap_secp_result(Ok(secp::get_point_from_x(x, y_parity)?))
     }
 }
 
