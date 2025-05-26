@@ -1014,6 +1014,7 @@ dependencies = [
  "apollo_test_utils",
  "assert_matches",
  "clap",
+ "const_format",
  "itertools 0.12.1",
  "lazy_static",
  "serde",

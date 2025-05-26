@@ -49,11 +49,17 @@
 //! ```
 
 use clap::parser::MatchesError;
+use const_format::formatcp;
 use dumping::REQUIRED_PARAM_DESCRIPTION_PREFIX;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use validator::ValidationError;
 use validators::ParsedValidationErrors;
+
+/// Arg name for providing a configuration file.
+pub const CONFIG_FILE_ARG_NAME: &str = "config_file";
+/// The config file arg name prepended with a double dash.
+pub const CONFIG_FILE_ARG: &str = formatcp!("--{}", CONFIG_FILE_ARG_NAME);
 
 pub(crate) const IS_NONE_MARK: &str = "#is_none";
 pub(crate) const FIELD_SEPARATOR: &str = ".";
