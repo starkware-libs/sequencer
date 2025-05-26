@@ -181,6 +181,32 @@
       ],
       "for": "1m",
       "intervalSec": 20
+    },
+    {
+      "name": "native_compilation_error",
+      "title": "Native compilation error",
+      "ruleGroup": "batcher",
+      "expr": "number of native compilation errors",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "1m",
+      "intervalSec": 20
     }
   ]
 }

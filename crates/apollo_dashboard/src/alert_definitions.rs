@@ -123,6 +123,20 @@ const CONSENSUS_ROUND_HIGH_AVG: Alert = Alert {
     evaluation_interval_sec: 20,
 };
 
+const NATIVE_COMPILATION_ERROR: Alert = Alert {
+    name: "native_compilation_error",
+    title: "Native compilation error",
+    alert_group: AlertGroup::Batcher,
+    expr: "number of native compilation errors",
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::GreaterThan,
+        comparison_value: 0.0,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 20,
+};
+
 pub const SEQUENCER_ALERTS: Alerts = Alerts::new(&[
     GATEWAY_ADD_TX_RATE_DROP,
     GATEWAY_ADD_TX_LATENCY_INCREASE,
@@ -131,4 +145,5 @@ pub const SEQUENCER_ALERTS: Alerts = Alerts::new(&[
     HTTP_SERVER_IDLE,
     MEMPOOL_POOL_SIZE_INCREASE,
     CONSENSUS_ROUND_HIGH_AVG,
+    NATIVE_COMPILATION_ERROR,
 ]);
