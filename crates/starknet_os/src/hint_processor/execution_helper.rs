@@ -210,7 +210,7 @@ impl<'a> CallInfoTracker<'a> {
                     .inner_calls
                     .iter()
                     .filter(|inner| inner.call.entry_point_type == EntryPointType::Constructor)
-                    .map(|inner| inner.call.caller_address),
+                    .map(|inner| inner.call.storage_address),
             ),
             inner_calls_iterator: call_info.inner_calls.iter(),
             execute_code_read_iterator: call_info.storage_access_tracker.storage_read_values.iter(),
