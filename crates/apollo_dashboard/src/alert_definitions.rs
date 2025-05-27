@@ -4,6 +4,7 @@ use apollo_consensus::metrics::{
     CONSENSUS_PROPOSALS_INVALID,
     CONSENSUS_ROUND,
 };
+use apollo_consensus_manager::metrics::CONSENSUS_VOTES_NUM_SENT_MESSAGES;
 use apollo_gateway::metrics::{GATEWAY_ADD_TX_LATENCY, GATEWAY_TRANSACTIONS_RECEIVED};
 use apollo_http_server::metrics::ADDED_TRANSACTIONS_TOTAL;
 use apollo_mempool::metrics::{
@@ -70,6 +71,21 @@ const CONSENSUS_VALIDATE_PROPOSAL_FAILED_ALERT: Alert = Alert {
     pending_duration: "1m",
     evaluation_interval_sec: 20,
     severity: AlertSeverity::DayOnly,
+};
+
+const CONSENSUS_VOTES_NUM_SENT_MESSAGES_ALERT: Alert = Alert {
+    name: "consensus_votes_num_sent_messages",
+    title: "Consensus votes num sent messages",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!("rate({}[20m])", CONSENSUS_VOTES_NUM_SENT_MESSAGES.get_name_with_filter()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::LessThan,
+        comparison_value: 100.0 / 3600.0, // 100 per hour
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 20,
+    severity: AlertSeverity::WorkingHours,
 };
 
 const GATEWAY_ADD_TX_RATE_DROP: Alert = Alert {
@@ -193,6 +209,7 @@ pub const SEQUENCER_ALERTS: Alerts = Alerts::new(&[
     CONSENSUS_BLOCK_NUMBER_STUCK,
     CONSENSUS_BUILD_PROPOSAL_FAILED_ALERT,
     CONSENSUS_VALIDATE_PROPOSAL_FAILED_ALERT,
+    CONSENSUS_VOTES_NUM_SENT_MESSAGES_ALERT,
     GATEWAY_ADD_TX_RATE_DROP,
     GATEWAY_ADD_TX_LATENCY_INCREASE,
     MEMPOOL_ADD_TX_RATE_DROP,
