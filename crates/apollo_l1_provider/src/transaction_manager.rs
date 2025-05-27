@@ -1,5 +1,5 @@
 use apollo_l1_provider_types::{InvalidValidationStatus, ValidationStatus};
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexMap;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
 
@@ -31,7 +31,7 @@ impl TransactionManager {
     }
 
     pub fn validate_tx(&mut self, tx_hash: TransactionHash) -> ValidationStatus {
-        if self.committed.contains_key(&tx_hash) {
+        if self.is_committed(tx_hash) {
             return ValidationStatus::Invalid(InvalidValidationStatus::AlreadyIncludedOnL2);
         }
 
@@ -116,8 +116,8 @@ impl TransactionManager {
         self.uncommitted.insert(tx)
     }
 
-    pub fn committed_tx_hashes(&self) -> IndexSet<TransactionHash> {
-        self.committed.keys().copied().collect()
+    pub fn is_committed(&self, tx_hash: TransactionHash) -> bool {
+        self.committed.contains_key(&tx_hash)
     }
 
     pub(crate) fn snapshot(&self) -> TransactionManagerSnapshot {
