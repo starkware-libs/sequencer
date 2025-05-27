@@ -5,39 +5,37 @@ use blockifier_test_utils::contracts::FeatureContract;
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use starknet_api::abi::abi_utils::selector_from_name;
+use starknet_api::block::BlockInfo;
 use starknet_api::core::ContractAddress;
 use starknet_api::executable_transaction::AccountTransaction as ApiExecutableTransaction;
+use starknet_api::execution_resources::GasVector;
 use starknet_api::test_utils::invoke::executable_invoke_tx;
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::constants::TRANSFER_ENTRY_POINT_NAME;
-use starknet_api::transaction::fields::Fee;
+use starknet_api::transaction::fields::{Fee, ValidResourceBounds};
 use starknet_api::transaction::TransactionVersion;
 use starknet_api::{calldata, felt, invoke_tx_args};
-use starknet_types_core::felt::Felt;
 
 use crate::blockifier::config::{ConcurrencyConfig, TransactionExecutorConfig};
 use crate::blockifier::transaction_executor::{TransactionExecutor, DEFAULT_STACK_SIZE};
 use crate::context::{BlockContext, ChainInfo};
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{RunnableCairo1, BALANCE, MAX_FEE};
+use crate::test_utils::{RunnableCairo1, BALANCE};
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::transaction_execution::Transaction;
 const N_ACCOUNTS: u16 = 10000;
 const N_TXS: usize = 1000;
 const RANDOMIZATION_SEED: u64 = 0;
 const CAIRO_VERSION: CairoVersion = CairoVersion::Cairo1(RunnableCairo1::Casm);
-const TRANSACTION_VERSION: TransactionVersion = TransactionVersion(Felt::THREE);
 const RECIPIENT_GENERATOR_TYPE: RecipientGeneratorType = RecipientGeneratorType::RoundRobin;
 
 pub struct TransfersGeneratorConfig {
     pub n_accounts: u16,
     pub balance: Fee,
-    pub max_fee: Fee,
     pub n_txs: usize,
     pub randomization_seed: u64,
     pub cairo_version: CairoVersion,
-    pub tx_version: TransactionVersion,
     pub recipient_generator_type: RecipientGeneratorType,
     pub concurrency_config: ConcurrencyConfig,
     pub stack_size: usize,
@@ -49,11 +47,9 @@ impl Default for TransfersGeneratorConfig {
         Self {
             n_accounts: N_ACCOUNTS,
             balance: Fee(BALANCE.0 * 1000),
-            max_fee: MAX_FEE,
             n_txs: N_TXS,
             randomization_seed: RANDOMIZATION_SEED,
             cairo_version: CAIRO_VERSION,
-            tx_version: TRANSACTION_VERSION,
             recipient_generator_type: RECIPIENT_GENERATOR_TYPE,
             concurrency_config: ConcurrencyConfig::create_for_testing(concurrency_enabled),
             stack_size: DEFAULT_STACK_SIZE,
@@ -70,6 +66,7 @@ pub enum RecipientGeneratorType {
 pub struct TransfersGenerator {
     account_addresses: Vec<ContractAddress>,
     chain_info: ChainInfo,
+    resource_bounds: ValidResourceBounds,
     executor: TransactionExecutor<DictStateReader>,
     nonce_manager: NonceManager,
     sender_index: usize,
@@ -81,7 +78,18 @@ pub struct TransfersGenerator {
 impl TransfersGenerator {
     pub fn new(config: TransfersGeneratorConfig) -> Self {
         let account_contract = FeatureContract::AccountWithoutValidations(config.cairo_version);
-        let block_context = BlockContext::create_for_account_testing();
+        let block_context = BlockContext {
+            block_info: BlockInfo::create_for_testing_with_kzg(true),
+            ..BlockContext::create_for_account_testing()
+        };
+        let resource_bounds = ValidResourceBounds::all_bounds_from_vectors(
+            &GasVector {
+                l1_gas: 0_u32.into(),
+                l1_data_gas: 224_u32.into(),
+                l2_gas: 1_000_000_u32.into(),
+            },
+            &block_context.block_info.gas_prices.strk_gas_prices,
+        );
         let chain_info = block_context.chain_info().clone();
         let state =
             test_state(&chain_info, config.balance, &[(account_contract, config.n_accounts)]);
@@ -114,9 +122,11 @@ impl TransfersGenerator {
                 );
             }
         };
+
         Self {
             account_addresses,
             chain_info,
+            resource_bounds,
             executor,
             nonce_manager,
             sender_index: 0,
@@ -176,13 +186,7 @@ impl TransfersGenerator {
         let nonce = self.nonce_manager.next(sender_address);
 
         let entry_point_selector = selector_from_name(TRANSFER_ENTRY_POINT_NAME);
-        let contract_address = if self.config.tx_version == TransactionVersion::ONE {
-            *self.chain_info.fee_token_addresses.eth_fee_token_address.0.key()
-        } else if self.config.tx_version == TransactionVersion::THREE {
-            *self.chain_info.fee_token_addresses.strk_fee_token_address.0.key()
-        } else {
-            panic!("Unsupported transaction version: {:?}", self.config.tx_version)
-        };
+        let contract_address = *self.chain_info.fee_token_addresses.strk_fee_token_address.0.key();
 
         let execute_calldata = calldata![
             contract_address,           // Contract address.
@@ -194,11 +198,11 @@ impl TransfersGenerator {
         ];
 
         executable_invoke_tx(invoke_tx_args! {
-            max_fee: self.config.max_fee,
             sender_address,
             calldata: execute_calldata,
-            version: self.config.tx_version,
+            version: TransactionVersion::THREE,
             nonce,
+            resource_bounds: self.resource_bounds,
         })
     }
 }
