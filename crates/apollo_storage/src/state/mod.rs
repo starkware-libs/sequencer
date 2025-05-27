@@ -60,7 +60,7 @@ use apollo_proc_macros::latency_histogram;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::IndexMap;
 use starknet_api::block::BlockNumber;
-use starknet_api::core::{ClassHash, ContractAddress, Nonce};
+use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{SierraContractClass, StateNumber, StorageKey, ThinStateDiff};
 use starknet_types_core::felt::Felt;
@@ -106,6 +106,12 @@ pub(crate) type ContractStorageTable<'env> = TableHandle<
 >;
 pub(crate) type NoncesTable<'env> =
     TableHandle<'env, (ContractAddress, BlockNumber), VersionZeroWrapper<Nonce>, CommonPrefix>;
+pub(crate) type CompiledClassHashTable<'env> = TableHandle<
+    'env,
+    (ClassHash, BlockNumber),
+    VersionZeroWrapper<CompiledClassHash>,
+    CommonPrefix,
+>;
 
 /// Interface for reading data related to the state.
 // Structure of state data:
@@ -125,6 +131,8 @@ pub(crate) type NoncesTable<'env> =
 //   block_num.
 // * nonces_table: (contract_address, block_num) -> (nonce). Specifies that at `block_num`, the
 //   nonce of `contract_address` was changed to `nonce`.
+// * compiled_class_hash_table: (class_hash, block_num) -> (compiled_class_hash). Specifies that at
+//   `block_num`, the compiled class hash of `class_hash` was changed to `compiled_class_hash`.
 pub trait StateStorageReader<Mode: TransactionKind> {
     /// The state marker is the first block number that doesn't exist yet.
     fn get_state_marker(&self) -> StorageResult<BlockNumber>;
@@ -195,6 +203,7 @@ pub struct StateReader<'env, Mode: TransactionKind> {
     deprecated_declared_classes_block_table: DeprecatedDeclaredClassesBlockTable<'env>,
     deployed_contracts_table: DeployedContractsTable<'env>,
     nonces_table: NoncesTable<'env>,
+    compiled_class_hash_table: CompiledClassHashTable<'env>,
     storage_table: ContractStorageTable<'env>,
     markers_table: MarkersTable<'env>,
     file_handlers: &'env FileHandlers<Mode>,
@@ -211,6 +220,8 @@ impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
     /// # Errors
     /// Returns [`StorageError`] if there was an error opening the tables.
     fn new(txn: &'env StorageTxn<'env, Mode>) -> StorageResult<Self> {
+        let compiled_class_hash_table =
+            txn.txn.open_table(&txn.tables.stateful_class_hash_to_executable_class_hash)?;
         let declared_classes_table = txn.txn.open_table(&txn.tables.declared_classes)?;
         let declared_classes_block_table =
             txn.txn.open_table(&txn.tables.declared_classes_block)?;
@@ -224,6 +235,7 @@ impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
         let markers_table = txn.txn.open_table(&txn.tables.markers)?;
         Ok(StateReader {
             txn: &txn.txn,
+            compiled_class_hash_table,
             declared_classes_table,
             declared_classes_block_table,
             deprecated_declared_classes_table,
@@ -287,6 +299,30 @@ impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
         // State diff updates are indexed by the block_number at which they occurred.
         let block_number: BlockNumber = state_number.block_after();
         get_nonce_at(block_number, address, self.txn, &self.nonces_table)
+    }
+
+    /// Returns the compiled class hash at a given state number.
+    /// If CompiledClassHash is not found at the given state number, returns `None`.
+    ///
+    /// # Arguments
+    /// * state_number - state number to search before.
+    /// * class_hash - The class hash to search for.
+    ///
+    /// # Errors
+    /// Returns [`StorageError`] if there was an error searching the table.
+    pub fn get_compiled_class_hash_at(
+        &self,
+        state_number: StateNumber,
+        class_hash: &ClassHash,
+    ) -> StorageResult<Option<CompiledClassHash>> {
+        // State diff updates are indexed by the block_number at which they occurred.
+        let block_number: BlockNumber = state_number.block_after();
+        get_compiled_class_hash_at(
+            block_number,
+            class_hash,
+            self.txn,
+            &self.compiled_class_hash_table,
+        )
     }
 
     /// Returns the storage value at a given state number for a given contract and key.
@@ -899,6 +935,31 @@ fn get_nonce_at<'env, Mode: TransactionKind>(
         Some(((got_address, _got_block_number), value)) => {
             if got_address != *address {
                 // The previous item belongs to different address, which means there is no
+                // previous state diff for this item.
+                return Ok(None);
+            };
+            // The previous db item indeed belongs to this address and key.
+            Ok(Some(value))
+        }
+    }
+}
+
+fn get_compiled_class_hash_at<'env, Mode: TransactionKind>(
+    first_irrelevant_block: BlockNumber,
+    class_hash: &ClassHash,
+    txn: &'env DbTransaction<'env, Mode>,
+    compiled_class_hash_table: &'env CompiledClassHashTable<'env>,
+) -> StorageResult<Option<CompiledClassHash>> {
+    let db_key = (*class_hash, first_irrelevant_block);
+    // Find the previous db item.
+    let mut cursor = compiled_class_hash_table.cursor(txn)?;
+    cursor.lower_bound(&db_key)?;
+    let res = cursor.prev()?;
+    match res {
+        None => Ok(None),
+        Some(((got_class_hash, _got_block_number), value)) => {
+            if got_class_hash != *class_hash {
+                // The previous item belongs to different class hash, which means there is no
                 // previous state diff for this item.
                 return Ok(None);
             };
