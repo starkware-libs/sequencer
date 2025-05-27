@@ -1,6 +1,7 @@
 use starknet_api::transaction::TransactionVersion;
+use strum_macros::EnumIter;
 
-#[derive(Clone, Hash, PartialEq, Eq, Copy, Debug)]
+#[derive(Clone, Hash, PartialEq, EnumIter, Eq, Copy, Debug)]
 pub enum RunnableCairo1 {
     Casm,
     #[cfg(feature = "cairo_native")]
