@@ -150,6 +150,7 @@ impl FeeCheckReport {
 
     /// If the actual cost exceeds the resource bounds on the transaction, returns a fee check
     /// error.
+    #[allow(clippy::result_large_err)]
     fn check_actual_cost_within_bounds(
         tx_context: &TransactionContext,
         tx_receipt: &TransactionReceipt,
@@ -179,6 +180,7 @@ impl FeeCheckReport {
     }
 
     /// If the actual cost exceeds the sender's balance, returns a fee check error.
+    #[allow(clippy::result_large_err)]
     fn check_can_pay_fee<S: StateReader>(
         state: &mut S,
         tx_context: &TransactionContext,
@@ -260,6 +262,7 @@ impl PostValidationReport {
     /// Verifies that the actual cost of validation is within sender bounds.
     /// Note: the balance cannot be changed in `__validate__` (which cannot call other contracts),
     /// so there is no need to recheck that balance >= actual cost.
+    #[allow(clippy::result_large_err)]
     pub fn verify(
         tx_context: &TransactionContext,
         tx_receipt: &TransactionReceipt,
@@ -277,6 +280,7 @@ impl PostValidationReport {
 impl PostExecutionReport {
     /// Verifies the actual cost can be paid by the account. If not, reports an error and the fee
     /// that should be charged in revert flow.
+    #[allow(clippy::result_large_err)]
     pub fn new<S: StateReader>(
         state: &mut S,
         tx_context: &TransactionContext,

@@ -249,6 +249,7 @@ define_string_enum! {
 }
 
 impl Ids {
+    #[allow(clippy::result_large_err)]
     pub fn fetch_as<T: TryFrom<Felt>>(
         &self,
         vm: &mut VirtualMachine,
@@ -313,6 +314,7 @@ impl Const {
         constants.get(identifier).ok_or(HintError::MissingConstant(Box::new(identifier)))
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn fetch_as<T: TryFrom<Felt>>(
         &self,
         constants: &HashMap<String, Felt>,
@@ -329,12 +331,14 @@ impl Const {
         })
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn get_alias_counter_storage_key(
         constants: &HashMap<String, Felt>,
     ) -> Result<StorageKey, OsHintError> {
         Self::AliasCounterStorageKey.fetch_as(constants)
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn get_alias_contract_address(
         constants: &HashMap<String, Felt>,
     ) -> Result<ContractAddress, OsHintError> {

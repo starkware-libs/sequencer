@@ -79,6 +79,7 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for ValidResourceBounds {
     }
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn get_account_deployment_data<S: StateReader>(
     execution_helper: &OsExecutionHelper<'_, S>,
 ) -> Result<AccountDeploymentData, OsHintError> {
@@ -90,6 +91,7 @@ pub(crate) fn get_account_deployment_data<S: StateReader>(
     }
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn get_calldata<'a, S: StateReader>(
     execution_helper: &OsExecutionHelper<'a, S>,
 ) -> Result<&'a Calldata, OsHintError> {
@@ -105,6 +107,7 @@ pub(crate) fn get_calldata<'a, S: StateReader>(
     }
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn set_state_entry<'a>(
     key: &Felt,
     vm: &'a mut VirtualMachine,
@@ -122,6 +125,7 @@ pub(crate) fn set_state_entry<'a>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn assert_retdata_as_expected<IG: IdentifierGetter>(
     retdata_start_field_name: &str,
     retdata_end_field_name: &str,

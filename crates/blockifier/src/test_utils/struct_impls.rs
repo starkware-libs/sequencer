@@ -50,6 +50,7 @@ use crate::transaction::objects::{
 impl CallEntryPoint {
     /// Executes the call directly, without account context. Limits the number of steps by resource
     /// bounds.
+    #[allow(clippy::result_large_err)]
     pub fn execute_directly(self, state: &mut dyn State) -> EntryPointExecutionResult<CallInfo> {
         // Do not limit steps by resources as we use default resources.
         let limit_steps_by_resources = false;
@@ -62,6 +63,7 @@ impl CallEntryPoint {
         )
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn execute_directly_given_block_context(
         self,
         state: &mut dyn State,
@@ -84,6 +86,7 @@ impl CallEntryPoint {
         self.execute(state, &mut context, &mut remaining_gas)
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn execute_directly_given_tx_info(
         self,
         state: &mut dyn State,
@@ -107,6 +110,7 @@ impl CallEntryPoint {
 
     /// Executes the call directly in validate mode, without account context. Limits the number of
     /// steps by resource bounds.
+    #[allow(clippy::result_large_err)]
     pub fn execute_directly_in_validate_mode(
         self,
         state: &mut dyn State,

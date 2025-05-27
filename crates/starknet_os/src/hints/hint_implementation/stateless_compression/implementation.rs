@@ -16,6 +16,7 @@ use crate::hints::hint_implementation::stateless_compression::utils::TOTAL_N_BUC
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{Ids, Scope};
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn dictionary_from_bucket<S: StateReader>(
     HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -26,6 +27,7 @@ pub(crate) fn dictionary_from_bucket<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn get_prev_offset<S: StateReader>(
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -43,6 +45,7 @@ pub(crate) fn get_prev_offset<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn compression_hint<S: StateReader>(
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -62,6 +65,7 @@ pub(crate) fn compression_hint<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn set_decompressed_dst<S: StateReader>(
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {

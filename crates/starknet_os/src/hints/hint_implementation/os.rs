@@ -16,6 +16,7 @@ use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Ids, Scope};
 use crate::vm_utils::insert_values_to_fields;
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn initialize_class_hashes<S: StateReader>(
     HintArgs { hint_processor, exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -33,6 +34,7 @@ pub(crate) fn initialize_class_hashes<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn initialize_state_changes<S: StateReader>(
     HintArgs { hint_processor, exec_scopes, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -63,6 +65,7 @@ pub(crate) fn initialize_state_changes<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn write_full_output_to_memory<S: StateReader>(
     HintArgs { vm, hint_processor, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -70,6 +73,7 @@ pub(crate) fn write_full_output_to_memory<S: StateReader>(
     insert_nondet_hint_value(vm, AllHints::OsHint(OsHint::WriteFullOutputToMemory), full_output)
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn configure_kzg_manager<S: StateReader>(
     HintArgs { hint_processor, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -77,6 +81,7 @@ pub(crate) fn configure_kzg_manager<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn set_ap_to_prev_block_hash<S: StateReader>(
     HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -84,6 +89,7 @@ pub(crate) fn set_ap_to_prev_block_hash<S: StateReader>(
     Ok(insert_value_into_ap(vm, os_input.prev_block_hash.0)?)
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn set_ap_to_new_block_hash<S: StateReader>(
     HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -91,6 +97,7 @@ pub(crate) fn set_ap_to_new_block_hash<S: StateReader>(
     Ok(insert_value_into_ap(vm, os_input.new_block_hash.0)?)
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn starknet_os_input<S: StateReader>(
     HintArgs { .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -98,6 +105,7 @@ pub(crate) fn starknet_os_input<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn init_state_update_pointer<S: StateReader>(
     HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -105,6 +113,7 @@ pub(crate) fn init_state_update_pointer<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn get_n_blocks<S: StateReader>(
     HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -112,6 +121,7 @@ pub(crate) fn get_n_blocks<S: StateReader>(
     insert_nondet_hint_value(vm, AllHints::OsHint(OsHint::GetBlocksNumber), n_blocks)
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn log_remaining_blocks<S: StateReader>(
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -120,6 +130,7 @@ pub(crate) fn log_remaining_blocks<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn create_block_additional_hints<S: StateReader>(
     HintArgs { hint_processor, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {

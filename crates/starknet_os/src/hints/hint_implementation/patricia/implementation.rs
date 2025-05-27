@@ -47,6 +47,7 @@ use crate::vm_utils::{
     insert_values_to_fields,
 };
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn set_siblings<S: StateReader>(
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -63,6 +64,7 @@ pub(crate) fn set_siblings<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn is_case_right<S: StateReader>(
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -82,6 +84,7 @@ pub(crate) fn is_case_right<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn set_bit<S: StateReader>(
     HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -104,6 +107,7 @@ pub(crate) fn set_bit<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn set_ap_to_descend<S: StateReader>(
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -129,6 +133,7 @@ pub(crate) fn set_ap_to_descend<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn assert_case_is_right<S: StateReader>(
     HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -139,6 +144,7 @@ pub(crate) fn assert_case_is_right<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn write_case_not_left_to_ap<S: StateReader>(
     HintArgs { vm, exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -148,6 +154,7 @@ pub(crate) fn write_case_not_left_to_ap<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn split_descend<S: StateReader>(
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -161,6 +168,7 @@ pub(crate) fn split_descend<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn height_is_zero_or_len_node_preimage_is_two<S: StateReader>(
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -181,6 +189,7 @@ pub(crate) fn height_is_zero_or_len_node_preimage_is_two<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn prepare_preimage_validation_non_deterministic_hashes<S: StateReader>(
     HintArgs { hint_processor, vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -226,6 +235,7 @@ pub(crate) fn prepare_preimage_validation_non_deterministic_hashes<S: StateReade
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn build_descent_map<S: StateReader>(
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, hint_processor, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -277,6 +287,7 @@ pub(crate) fn build_descent_map<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 fn enter_scope_specific_node(node: UpdateTree, exec_scopes: &mut ExecutionScopes) -> OsHintResult {
     // TODO(Rotem): `preimage_map` and `descent_map` are computed once and remain constant.
     // Consider adding them as fields to the `SnosHintProcessor` struct.
@@ -292,6 +303,7 @@ fn enter_scope_specific_node(node: UpdateTree, exec_scopes: &mut ExecutionScopes
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn enter_scope_node<S: StateReader>(
     HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -299,6 +311,7 @@ pub(crate) fn enter_scope_node<S: StateReader>(
     enter_scope_specific_node(node, exec_scopes)
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn enter_scope_new_node<S: StateReader>(
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -319,6 +332,7 @@ pub(crate) fn enter_scope_new_node<S: StateReader>(
     enter_scope_specific_node(new_node, exec_scopes)
 }
 
+#[allow(clippy::result_large_err)]
 fn enter_scope_next_node_bit(
     is_left: bool,
     vm: &mut VirtualMachine,
@@ -339,18 +353,21 @@ fn enter_scope_next_node_bit(
     enter_scope_specific_node(new_node, exec_scopes)
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn enter_scope_next_node_bit_0<S: StateReader>(
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     enter_scope_next_node_bit(false, vm, exec_scopes, ids_data, ap_tracking)
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn enter_scope_next_node_bit_1<S: StateReader>(
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     enter_scope_next_node_bit(true, vm, exec_scopes, ids_data, ap_tracking)
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn enter_scope_left_child<S: StateReader>(
     HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -358,6 +375,7 @@ pub(crate) fn enter_scope_left_child<S: StateReader>(
     enter_scope_specific_node(left_child, exec_scopes)
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn enter_scope_right_child<S: StateReader>(
     HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -365,6 +383,7 @@ pub(crate) fn enter_scope_right_child<S: StateReader>(
     enter_scope_specific_node(right_child, exec_scopes)
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn enter_scope_descend_edge<S: StateReader>(
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -393,6 +412,7 @@ pub(crate) fn enter_scope_descend_edge<S: StateReader>(
     enter_scope_specific_node(new_node, exec_scopes)
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn load_edge<S: StateReader>(
     HintArgs { hint_processor, vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -434,6 +454,7 @@ pub(crate) fn load_edge<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn load_bottom<S: StateReader>(
     HintArgs { hint_processor, vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -473,6 +494,7 @@ pub(crate) fn load_bottom<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn decode_node<S: StateReader>(
     HintArgs { vm, exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {

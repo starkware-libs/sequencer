@@ -34,6 +34,7 @@ pub static RPC_NODE_URL: LazyLock<String> = LazyLock::new(|| {
         .unwrap_or_else(|_| "https://free-rpc.nethermind.io/mainnet-juno/".to_string())
 });
 
+#[allow(clippy::result_large_err)]
 pub fn guess_chain_id_from_node_url(node_url: &str) -> ReexecutionResult<ChainId> {
     match (
         node_url.contains("mainnet"),

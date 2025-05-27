@@ -30,6 +30,7 @@ use crate::vm_utils::{
     LoadCairoObject,
 };
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn assign_bytecode_segments<S: StateReader>(
     HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -45,6 +46,7 @@ pub(crate) fn assign_bytecode_segments<S: StateReader>(
     }
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn assert_end_of_bytecode_segments<S: StateReader>(
     HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -58,6 +60,7 @@ pub(crate) fn assert_end_of_bytecode_segments<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn bytecode_segment_structure<S: StateReader>(
     HintArgs { hint_processor, exec_scopes, ids_data, ap_tracking, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -91,6 +94,7 @@ pub(crate) fn bytecode_segment_structure<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn delete_memory_data<S: StateReader>(
     HintArgs { .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -98,6 +102,7 @@ pub(crate) fn delete_memory_data<S: StateReader>(
     todo!()
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn is_leaf<S: StateReader>(
     HintArgs { vm, exec_scopes, ap_tracking, ids_data, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -113,6 +118,7 @@ pub(crate) fn is_leaf<S: StateReader>(
     )?)
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn iter_current_segment_info<S: StateReader>(
     HintArgs { exec_scopes, vm, ap_tracking, ids_data, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -168,6 +174,7 @@ pub(crate) fn iter_current_segment_info<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn load_class<S: StateReader>(
     HintArgs { exec_scopes, ids_data, ap_tracking, vm, hint_processor, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -195,6 +202,7 @@ pub(crate) fn load_class<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn set_ap_to_segment_hash<S: StateReader>(
     HintArgs { exec_scopes, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -204,6 +212,7 @@ pub(crate) fn set_ap_to_segment_hash<S: StateReader>(
     Ok(insert_value_into_ap(vm, bytecode_segment_structure.hash().0)?)
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn validate_compiled_class_facts_post_execution<S: StateReader>(
     HintArgs { hint_processor, exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -226,6 +235,7 @@ pub(crate) fn validate_compiled_class_facts_post_execution<S: StateReader>(
 }
 
 // Hint extensions.
+#[allow(clippy::result_large_err)]
 pub(crate) fn load_class_inner<S: StateReader>(
     HintArgs { hint_processor, constants, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintExtensionResult {
