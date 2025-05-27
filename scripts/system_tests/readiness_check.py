@@ -92,9 +92,6 @@ def wait_for_services_ready(deployment_config_path: str, namespace: str) -> None
                     status = apps_v1.read_namespaced_stateful_set_status(
                         name=resource_name, namespace=namespace
                     ).status
-                    ready = status.ready_replicas or 0
-                    desired = status.replicas or 0
-                elif controller_lower == "deployment":
                     status = apps_v1.read_namespaced_deployment_status(
                         name=resource_name, namespace=namespace
                     ).status
