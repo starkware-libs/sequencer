@@ -192,6 +192,16 @@ impl BlockBuilder {
 #[async_trait]
 impl BlockBuilderTrait for BlockBuilder {
     async fn build_block(&mut self) -> BlockBuilderResult<BlockExecutionArtifacts> {
+        let res = self.build_block_inner().await;
+        if res.is_err() {
+            self.executor.lock().await.abort_block();
+        }
+        res
+    }
+}
+
+impl BlockBuilder {
+    async fn build_block_inner(&mut self) -> BlockBuilderResult<BlockExecutionArtifacts> {
         let mut block_is_full = false;
         let mut l2_gas_used = GasAmount::ZERO;
         let mut execution_data = BlockTransactionExecutionData::default();
