@@ -22,7 +22,7 @@ def validate_todo_format(file_path: str) -> bool:
     """
     # Skip this current file, as the following regex definition itself is detected as an unformatted
     # TODO comment.
-    if os.path.relpath(__file__) == file_path:
+    if os.path.abspath(__file__) == os.path.abspath(file_path):
         return True
 
     # Matches a comment indicator (// or #), any set characters, and the TODO literal.
