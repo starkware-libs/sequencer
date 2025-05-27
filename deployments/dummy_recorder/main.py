@@ -1,11 +1,29 @@
 #!/usr/bin/env python
+
+import argparse
 from cdk8s import App, Chart, Names, YamlOutputType
 from constructs import Construct
 from imports import k8s
 
 
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--namespace",
+        required=True,
+        help="Kubernetes namespace to deploy to."
+    )
+    parser.add_argument(
+        "--image",
+        required=False,
+        default="us-central1-docker.pkg.dev/starkware-dev/sequencer/dummy_recorder:latest",
+        help="Docker image to deploy. Defaults to the latest dummy recorder image."
+    )
+    return parser.parse_args()
+
+
 class DummyRecorder(Chart):
-    def __init__(self, scope: Construct, id: str, namespace: str):
+    def __init__(self, scope: Construct, id: str, namespace: str, image: str):
         super().__init__(scope, id, disable_resource_name_hashes=True, namespace=namespace)
 
         self.label = {"app": Names.to_label_value(self, include_hash=False)}
@@ -37,7 +55,7 @@ class DummyRecorder(Chart):
                         containers=[
                             k8s.Container(
                                 name=self.node.id,
-                                image="us-central1-docker.pkg.dev/starkware-dev/sequencer/dummy_recorder:latest",
+                                image=image,
                                 env=[k8s.EnvVar(name="RUST_LOG", value="DEBUG")],
                                 ports=[k8s.ContainerPort(container_port=8080)],
                             )
@@ -80,7 +98,14 @@ class DummyRecorder(Chart):
         )
 
 
-app = App(yaml_output_type=YamlOutputType.FOLDER_PER_CHART_FILE_PER_RESOURCE)
-DummyRecorder(scope=app, id="dummy-recorder", namespace="dummy-recorder")
+if __name__ == "__main__":
+    args = get_args()
 
-app.synth()
+    app = App(yaml_output_type=YamlOutputType.FOLDER_PER_CHART_FILE_PER_RESOURCE)
+    DummyRecorder(
+        scope=app,
+        id="dummy-recorder",
+        namespace=args.namespace,
+        image=args.image
+    )
+    app.synth()
