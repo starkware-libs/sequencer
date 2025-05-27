@@ -151,6 +151,7 @@ pub trait SyscallRequest: Sized {
 }
 
 pub trait SyscallResponse {
+    #[allow(clippy::result_large_err)]
     fn write(self, _vm: &mut VirtualMachine, _ptr: &mut Relocatable) -> WriteResponseResult;
 }
 
@@ -172,6 +173,7 @@ impl SyscallRequest for EmptyRequest {
 pub struct EmptyResponse;
 
 impl SyscallResponse for EmptyResponse {
+    #[allow(clippy::result_large_err)]
     fn write(self, _vm: &mut VirtualMachine, _ptr: &mut Relocatable) -> WriteResponseResult {
         Ok(())
     }
@@ -183,6 +185,7 @@ pub struct SingleSegmentResponse {
 }
 
 impl SyscallResponse for SingleSegmentResponse {
+    #[allow(clippy::result_large_err)]
     fn write(self, vm: &mut VirtualMachine, ptr: &mut Relocatable) -> WriteResponseResult {
         write_maybe_relocatable(vm, ptr, self.segment.length)?;
         write_maybe_relocatable(vm, ptr, self.segment.start_ptr)?;
@@ -256,6 +259,7 @@ impl SyscallResponse for DeployResponse {
     // The Cairo struct contains: `contract_address`, `constructor_retdata_size`,
     // `constructor_retdata`.
     // Nonempty constructor retdata is currently not supported.
+    #[allow(clippy::result_large_err)]
     fn write(self, vm: &mut VirtualMachine, ptr: &mut Relocatable) -> WriteResponseResult {
         write_felt(vm, ptr, *self.contract_address.0.key())?;
         write_maybe_relocatable(vm, ptr, 0)?;
@@ -299,6 +303,7 @@ pub struct GetBlockNumberResponse {
 }
 
 impl SyscallResponse for GetBlockNumberResponse {
+    #[allow(clippy::result_large_err)]
     fn write(self, vm: &mut VirtualMachine, ptr: &mut Relocatable) -> WriteResponseResult {
         write_maybe_relocatable(vm, ptr, Felt::from(self.block_number.0))?;
         Ok(())
@@ -315,6 +320,7 @@ pub struct GetBlockTimestampResponse {
 }
 
 impl SyscallResponse for GetBlockTimestampResponse {
+    #[allow(clippy::result_large_err)]
     fn write(self, vm: &mut VirtualMachine, ptr: &mut Relocatable) -> WriteResponseResult {
         write_maybe_relocatable(vm, ptr, Felt::from(self.block_timestamp.0))?;
         Ok(())
@@ -336,6 +342,7 @@ pub struct GetContractAddressResponse {
 }
 
 impl SyscallResponse for GetContractAddressResponse {
+    #[allow(clippy::result_large_err)]
     fn write(self, vm: &mut VirtualMachine, ptr: &mut Relocatable) -> WriteResponseResult {
         write_felt(vm, ptr, *self.address.0.key())?;
         Ok(())
@@ -357,6 +364,7 @@ pub struct GetTxInfoResponse {
 }
 
 impl SyscallResponse for GetTxInfoResponse {
+    #[allow(clippy::result_large_err)]
     fn write(self, vm: &mut VirtualMachine, ptr: &mut Relocatable) -> WriteResponseResult {
         write_maybe_relocatable(vm, ptr, self.tx_info_start_ptr)?;
         Ok(())
@@ -457,6 +465,7 @@ pub struct StorageReadResponse {
 }
 
 impl SyscallResponse for StorageReadResponse {
+    #[allow(clippy::result_large_err)]
     fn write(self, vm: &mut VirtualMachine, ptr: &mut Relocatable) -> WriteResponseResult {
         write_felt(vm, ptr, self.value)?;
         Ok(())
