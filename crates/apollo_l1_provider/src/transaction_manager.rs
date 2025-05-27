@@ -119,6 +119,16 @@ impl TransactionManager {
     pub fn committed_includes(&self, tx_hashes: &IndexSet<TransactionHash>) -> bool {
         tx_hashes.iter().all(|tx_hash| self.committed.contains_key(tx_hash))
     }
+
+    pub(crate) fn snapshot(&self) -> TransactionManagerSnapshot {
+        TransactionManagerSnapshot {
+            uncommitted: self.uncommitted.txs.keys().copied().collect(),
+            uncommitted_staged: self.uncommitted.staged_txs.iter().cloned().collect(),
+            rejected: self.rejected.txs.keys().copied().collect(),
+            rejected_staged: self.rejected.staged_txs.iter().cloned().collect(),
+            committed: self.committed.keys().copied().collect(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -138,4 +148,12 @@ impl From<L1HandlerTransaction> for TransactionPayload {
     fn from(tx: L1HandlerTransaction) -> Self {
         TransactionPayload::Full(tx)
     }
+}
+
+pub(crate) struct TransactionManagerSnapshot {
+    pub uncommitted: Vec<TransactionHash>,
+    pub uncommitted_staged: Vec<TransactionHash>,
+    pub rejected: Vec<TransactionHash>,
+    pub rejected_staged: Vec<TransactionHash>,
+    pub committed: Vec<TransactionHash>,
 }
