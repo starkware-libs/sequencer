@@ -1,3 +1,5 @@
+#[cfg(any(test, feature = "testing"))]
+use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::LazyLock;
@@ -137,4 +139,24 @@ pub fn verify_cairo0_compiler_deps() {
          a venv and rerun the test:\n{}",
         *ENTER_VENV_INSTRUCTIONS
     );
+}
+
+/// Runs the Cairo0 formatter on the input source code.
+#[cfg(any(test, feature = "testing"))]
+pub fn cairo0_format(unformatted: &String) -> String {
+    verify_cairo0_compiler_deps();
+
+    // Dump string to temporary file.
+    let mut temp_file = tempfile::NamedTempFile::new().unwrap();
+    temp_file.write_all(unformatted.as_bytes()).unwrap();
+
+    // Run formatter.
+    let mut command = Command::new("cairo-format");
+    command.arg(temp_file.path().to_str().unwrap());
+    let format_output = command.output().unwrap();
+    let stderr_output = String::from_utf8(format_output.stderr).unwrap();
+    assert!(format_output.status.success(), "{stderr_output}");
+
+    // Return formatted file.
+    String::from_utf8_lossy(format_output.stdout.as_slice()).to_string()
 }
