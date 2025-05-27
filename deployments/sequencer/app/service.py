@@ -163,7 +163,7 @@ class ServiceApp(Construct):
                             k8s.Container(
                                 name=self.node.id,
                                 image=self.service_topology.image,
-                                image_pull_policy="Always",
+                                image_pull_policy="IfNotPresent",
                                 env=self._get_container_env(),
                                 args=self._get_container_args(),
                                 ports=self._get_container_ports(),
@@ -209,7 +209,7 @@ class ServiceApp(Construct):
                             k8s.Container(
                                 name=self.node.id,
                                 image=self.service_topology.image,
-                                image_pull_policy="Always",
+                                image_pull_policy="IfNotPresent",
                                 env=self._get_container_env(),
                                 args=self._get_container_args(),
                                 ports=self._get_container_ports(),
