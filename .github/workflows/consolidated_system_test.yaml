@@ -149,6 +149,20 @@ jobs:
           kubectl wait --namespace ${{ env.dummy_eth_to_strk_namespace }} --for=condition=Ready -l app=dummy-eth2strk-oracle pod --timeout 60s
           echo "🚀 Dummy Eth2Strk Oracle deployed successfully."
 
+      - name: Deploy Anvil
+        env:
+          namespace: anvil
+        working-directory: deployments/anvil
+        run: |
+          echo "Deploying Anvil..."
+          pipenv install
+          cdk8s import
+          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.namespace }}"
+          kubectl create namespace ${{ env.namespace }}
+          kubectl apply -R -f ./dist
+          echo "⏳ Waiting for Anvil to become ready..."
+          kubectl wait --namespace ${{ env.namespace }} --for=condition=Ready -l app=anvil pod --timeout 60s
+          echo "🚀 Anvil deployed successfully."
 
 
       - name: Build binaries
