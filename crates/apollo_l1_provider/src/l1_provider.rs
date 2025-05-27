@@ -145,8 +145,13 @@ impl L1Provider {
         match new_height.cmp(&current_height) {
             // This is likely a bug in the batcher/sync, it should never be _behind_ the provider.
             Less => {
-                let currently_committed = self.tx_manager.committed_tx_hashes();
-                if currently_committed.is_superset(&committed_txs) {
+                let diff_from_already_committed: Vec<_> = committed_txs
+                    .iter()
+                    .copied()
+                    .filter(|&tx_hash| !self.tx_manager.is_committed(tx_hash))
+                    .collect();
+
+                if diff_from_already_committed.is_empty() {
                     error!(
                         "Duplicate commit block: commit block for {new_height:?} already \
                          received, and all committed transaction hashes already known to be \
@@ -156,10 +161,10 @@ impl L1Provider {
                 } else {
                     // This is either a configuration error or a bug in the
                     // batcher/sync/bootstrapper.
-                    let committed_txs_diff = committed_txs.difference(&currently_committed);
                     error!(
                         "Duplicate commit block: commit block for {new_height:?} already \
-                         received, with DIFFERENT transaction_hashes: {committed_txs_diff:?}"
+                         received, with DIFFERENT transaction_hashes: \
+                         {diff_from_already_committed:?}"
                     );
                     Err(L1ProviderError::UnexpectedHeight {
                         expected_height: current_height,
