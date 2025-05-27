@@ -297,6 +297,7 @@ impl<'a> SyscallHintProcessor<'a> {
         self.base.context.gas_costs()
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn get_or_allocate_execution_info_segment(
         &mut self,
         vm: &mut VirtualMachine,
@@ -316,6 +317,7 @@ impl<'a> SyscallHintProcessor<'a> {
         }
     }
 
+    #[allow(clippy::result_large_err)]
     fn allocate_tx_resource_bounds_segment(
         &mut self,
         vm: &mut VirtualMachine,
@@ -339,6 +341,7 @@ impl<'a> SyscallHintProcessor<'a> {
         syscall_usage.linear_factor += n;
     }
 
+    #[allow(clippy::result_large_err)]
     fn allocate_execution_info_segment(
         &mut self,
         vm: &mut VirtualMachine,
@@ -359,6 +362,7 @@ impl<'a> SyscallHintProcessor<'a> {
         Ok(execution_info_segment_start_ptr)
     }
 
+    #[allow(clippy::result_large_err)]
     fn allocate_block_info_segment(
         &mut self,
         vm: &mut VirtualMachine,
@@ -379,6 +383,7 @@ impl<'a> SyscallHintProcessor<'a> {
         Ok(block_info_segment_start_ptr)
     }
 
+    #[allow(clippy::result_large_err)]
     fn allocate_data_segment(
         &mut self,
         vm: &mut VirtualMachine,
@@ -390,6 +395,7 @@ impl<'a> SyscallHintProcessor<'a> {
         Ok((data_segment_start_ptr, data_segment_end_ptr))
     }
 
+    #[allow(clippy::result_large_err)]
     fn allocate_tx_info_segment(&mut self, vm: &mut VirtualMachine) -> SyscallResult<Relocatable> {
         let tx_info = &self.base.context.tx_context.clone().tx_info;
         let (tx_signature_start_ptr, tx_signature_end_ptr) =
@@ -488,6 +494,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         self.base.context.update_revert_gas_with_next_remaining_gas(remaining_gas);
     }
 
+    #[allow(clippy::result_large_err)]
     fn call_contract(
         request: CallContractRequest,
         vm: &mut VirtualMachine,
@@ -531,6 +538,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         Ok(CallContractResponse { segment: retdata_segment })
     }
 
+    #[allow(clippy::result_large_err)]
     fn deploy(
         request: DeployRequest,
         vm: &mut VirtualMachine,
@@ -558,6 +566,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         Ok(DeployResponse { contract_address: deployed_contract_address, constructor_retdata })
     }
 
+    #[allow(clippy::result_large_err)]
     fn emit_event(
         request: EmitEventRequest,
         _vm: &mut VirtualMachine,
@@ -573,6 +582,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
     /// Returns the expected block hash if the given block was created at least
     /// [crate::abi::constants::STORED_BLOCK_HASH_BUFFER] blocks before the current block.
     /// Otherwise, returns an error.
+    #[allow(clippy::result_large_err)]
     fn get_block_hash(
         request: GetBlockHashRequest,
         _vm: &mut VirtualMachine,
@@ -583,6 +593,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         Ok(GetBlockHashResponse { block_hash })
     }
 
+    #[allow(clippy::result_large_err)]
     fn get_class_hash_at(
         request: GetClassHashAtRequest,
         _vm: &mut VirtualMachine,
@@ -592,6 +603,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_handler.base.get_class_hash_at(request)
     }
 
+    #[allow(clippy::result_large_err)]
     fn get_execution_info(
         _request: GetExecutionInfoRequest,
         vm: &mut VirtualMachine,
@@ -603,6 +615,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         Ok(GetExecutionInfoResponse { execution_info_ptr })
     }
 
+    #[allow(clippy::result_large_err)]
     fn library_call(
         request: LibraryCallRequest,
         vm: &mut VirtualMachine,
@@ -636,6 +649,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         Ok(LibraryCallResponse { segment: retdata_segment })
     }
 
+    #[allow(clippy::result_large_err)]
     fn meta_tx_v0(
         request: MetaTxV0Request,
         vm: &mut VirtualMachine,
@@ -664,6 +678,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         Ok(MetaTxV0Response { segment: retdata_segment })
     }
 
+    #[allow(clippy::result_large_err)]
     fn sha256_process_block(
         request: Sha256ProcessBlockRequest,
         vm: &mut VirtualMachine,
@@ -708,6 +723,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         Ok(Sha256ProcessBlockResponse { state_ptr: response })
     }
 
+    #[allow(clippy::result_large_err)]
     fn replace_class(
         request: ReplaceClassRequest,
         _vm: &mut VirtualMachine,
@@ -718,6 +734,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         Ok(ReplaceClassResponse {})
     }
 
+    #[allow(clippy::result_large_err)]
     fn send_message_to_l1(
         request: SendMessageToL1Request,
         _vm: &mut VirtualMachine,
@@ -728,6 +745,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         Ok(SendMessageToL1Response {})
     }
 
+    #[allow(clippy::result_large_err)]
     fn storage_read(
         request: StorageReadRequest,
         _vm: &mut VirtualMachine,
@@ -738,6 +756,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         Ok(StorageReadResponse { value })
     }
 
+    #[allow(clippy::result_large_err)]
     fn storage_write(
         request: StorageWriteRequest,
         _vm: &mut VirtualMachine,
@@ -816,6 +835,7 @@ impl HintProcessorLogic for SyscallHintProcessor<'_> {
     }
 }
 
+#[allow(clippy::result_large_err)]
 pub fn felt_to_bool(felt: Felt, error_info: &str) -> SyscallBaseResult<bool> {
     if felt == Felt::ZERO {
         Ok(false)
@@ -826,10 +846,12 @@ pub fn felt_to_bool(felt: Felt, error_info: &str) -> SyscallBaseResult<bool> {
     }
 }
 
+#[allow(clippy::result_large_err)]
 pub fn read_calldata(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallBaseResult<Calldata> {
     Ok(Calldata(read_felt_array::<SyscallExecutorBaseError>(vm, ptr)?.into()))
 }
 
+#[allow(clippy::result_large_err)]
 pub fn read_call_params(
     vm: &VirtualMachine,
     ptr: &mut Relocatable,
@@ -840,6 +862,7 @@ pub fn read_call_params(
     Ok((function_selector, calldata))
 }
 
+#[allow(clippy::result_large_err)]
 pub fn execute_inner_call(
     call: CallEntryPoint,
     vm: &mut VirtualMachine,
@@ -850,6 +873,7 @@ pub fn execute_inner_call(
     create_retdata_segment(vm, syscall_handler, &raw_retdata)
 }
 
+#[allow(clippy::result_large_err)]
 pub fn create_retdata_segment(
     vm: &mut VirtualMachine,
     syscall_handler: &mut SyscallHintProcessor<'_>,
@@ -873,6 +897,7 @@ where
     Ok(felt_range_from_ptr(vm, array_data_start_ptr, array_size)?)
 }
 
+#[allow(clippy::result_large_err)]
 pub fn write_segment(
     vm: &mut VirtualMachine,
     ptr: &mut Relocatable,

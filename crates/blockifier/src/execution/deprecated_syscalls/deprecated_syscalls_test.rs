@@ -588,6 +588,7 @@ fn test_emit_event() {
     assert!(error.to_string().contains(format!("{}", expected_error).as_str()));
 }
 
+#[allow(clippy::result_large_err)]
 fn emit_events(
     n_emitted_events: &[Felt],
     keys: &[Felt],

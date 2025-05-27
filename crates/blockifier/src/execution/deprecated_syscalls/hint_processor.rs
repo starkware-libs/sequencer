@@ -263,6 +263,7 @@ impl<'a> DeprecatedSyscallHintProcessor<'a> {
     }
 
     /// Returns an error if the syscall is run in validate mode.
+    #[allow(clippy::result_large_err)]
     pub fn verify_not_in_validate_mode(&self, syscall_name: &str) -> DeprecatedSyscallResult<()> {
         if self.is_validate_mode() {
             return Err(DeprecatedSyscallExecutionError::InvalidSyscallInExecutionMode {
@@ -274,6 +275,7 @@ impl<'a> DeprecatedSyscallHintProcessor<'a> {
         Ok(())
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn get_or_allocate_tx_signature_segment(
         &mut self,
         vm: &mut VirtualMachine,
@@ -288,6 +290,7 @@ impl<'a> DeprecatedSyscallHintProcessor<'a> {
         }
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn get_or_allocate_tx_info_start_ptr(
         &mut self,
         vm: &mut VirtualMachine,
@@ -328,6 +331,7 @@ impl<'a> DeprecatedSyscallHintProcessor<'a> {
         }
     }
 
+    #[allow(clippy::result_large_err)]
     fn allocate_tx_signature_segment(
         &mut self,
         vm: &mut VirtualMachine,
@@ -343,6 +347,7 @@ impl<'a> DeprecatedSyscallHintProcessor<'a> {
     /// Allocates and populates a segment with the transaction info.
     ///
     /// If `tx_version_override` is given, it will be used instead of the real value.
+    #[allow(clippy::result_large_err)]
     fn allocate_tx_info_segment(
         &mut self,
         vm: &mut VirtualMachine,
@@ -367,6 +372,7 @@ impl<'a> DeprecatedSyscallHintProcessor<'a> {
         Ok(tx_info_start_ptr)
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn get_contract_storage_at(
         &mut self,
         key: StorageKey,
@@ -378,6 +384,7 @@ impl<'a> DeprecatedSyscallHintProcessor<'a> {
         Ok(StorageReadResponse { value })
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn set_contract_storage_at(
         &mut self,
         key: StorageKey,
@@ -393,6 +400,7 @@ impl<'a> DeprecatedSyscallHintProcessor<'a> {
         &self.context.tx_context.block_context.block_info
     }
 
+    #[allow(clippy::result_large_err)]
     fn delegate_call_helper(
         request: DelegateCallRequest,
         vm: &mut VirtualMachine,
@@ -451,6 +459,7 @@ impl HintProcessorLogic for DeprecatedSyscallHintProcessor<'_> {
 }
 
 impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
+    #[allow(clippy::result_large_err)]
     fn verify_syscall_ptr(&self, actual_ptr: Relocatable) -> DeprecatedSyscallResult<()> {
         if actual_ptr != self.syscall_ptr {
             return Err(DeprecatedSyscallExecutionError::BadSyscallPointer {
@@ -470,6 +479,7 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
         &mut self.syscall_ptr
     }
 
+    #[allow(clippy::result_large_err)]
     fn call_contract(
         request: CallContractRequest,
         vm: &mut VirtualMachine,
@@ -505,6 +515,7 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
         Ok(CallContractResponse { segment: retdata_segment })
     }
 
+    #[allow(clippy::result_large_err)]
     fn delegate_call(
         request: DelegateCallRequest,
         vm: &mut VirtualMachine,
@@ -513,6 +524,7 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
         Self::delegate_call_helper(request, vm, syscall_handler, true)
     }
 
+    #[allow(clippy::result_large_err)]
     fn delegate_l1_handler(
         request: DelegateCallRequest,
         vm: &mut VirtualMachine,
@@ -521,6 +533,7 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
         Self::delegate_call_helper(request, vm, syscall_handler, false)
     }
 
+    #[allow(clippy::result_large_err)]
     fn deploy(
         request: DeployRequest,
         _vm: &mut VirtualMachine,
@@ -577,6 +590,7 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
         Ok(DeployResponse { contract_address: deployed_contract_address })
     }
 
+    #[allow(clippy::result_large_err)]
     fn emit_event(
         request: EmitEventRequest,
         _vm: &mut VirtualMachine,
@@ -596,6 +610,7 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
         Ok(EmitEventResponse {})
     }
 
+    #[allow(clippy::result_large_err)]
     fn get_block_number(
         _request: GetBlockNumberRequest,
         _vm: &mut VirtualMachine,
@@ -617,6 +632,7 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
         Ok(GetBlockNumberResponse { block_number })
     }
 
+    #[allow(clippy::result_large_err)]
     fn get_block_timestamp(
         _request: GetBlockTimestampRequest,
         _vm: &mut VirtualMachine,
@@ -637,6 +653,7 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
         Ok(GetBlockTimestampResponse { block_timestamp })
     }
 
+    #[allow(clippy::result_large_err)]
     fn get_caller_address(
         _request: GetCallerAddressRequest,
         _vm: &mut VirtualMachine,
@@ -645,6 +662,7 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
         Ok(GetCallerAddressResponse { address: syscall_handler.caller_address })
     }
 
+    #[allow(clippy::result_large_err)]
     fn get_contract_address(
         _request: GetContractAddressRequest,
         _vm: &mut VirtualMachine,
@@ -653,6 +671,7 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
         Ok(GetContractAddressResponse { address: syscall_handler.storage_address })
     }
 
+    #[allow(clippy::result_large_err)]
     fn get_sequencer_address(
         _request: GetSequencerAddressRequest,
         _vm: &mut VirtualMachine,
@@ -664,6 +683,7 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
         })
     }
 
+    #[allow(clippy::result_large_err)]
     fn get_tx_info(
         _request: GetTxInfoRequest,
         vm: &mut VirtualMachine,
@@ -674,6 +694,7 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
         Ok(GetTxInfoResponse { tx_info_start_ptr })
     }
 
+    #[allow(clippy::result_large_err)]
     fn get_tx_signature(
         _request: GetTxSignatureRequest,
         vm: &mut VirtualMachine,
@@ -685,6 +706,7 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
         Ok(GetTxSignatureResponse { segment: ReadOnlySegment { start_ptr, length } })
     }
 
+    #[allow(clippy::result_large_err)]
     fn library_call(
         request: LibraryCallRequest,
         vm: &mut VirtualMachine,
@@ -704,6 +726,7 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
         Ok(LibraryCallResponse { segment: retdata_segment })
     }
 
+    #[allow(clippy::result_large_err)]
     fn library_call_l1_handler(
         request: LibraryCallRequest,
         vm: &mut VirtualMachine,
@@ -723,6 +746,7 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
         Ok(LibraryCallResponse { segment: retdata_segment })
     }
 
+    #[allow(clippy::result_large_err)]
     fn replace_class(
         request: ReplaceClassRequest,
         _vm: &mut VirtualMachine,
@@ -737,6 +761,7 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
         Ok(ReplaceClassResponse {})
     }
 
+    #[allow(clippy::result_large_err)]
     fn send_message_to_l1(
         request: SendMessageToL1Request,
         _vm: &mut VirtualMachine,
@@ -753,6 +778,7 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
         Ok(SendMessageToL1Response {})
     }
 
+    #[allow(clippy::result_large_err)]
     fn storage_read(
         request: StorageReadRequest,
         _vm: &mut VirtualMachine,
@@ -761,6 +787,7 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
         syscall_handler.get_contract_storage_at(request.address)
     }
 
+    #[allow(clippy::result_large_err)]
     fn storage_write(
         request: StorageWriteRequest,
         _vm: &mut VirtualMachine,
@@ -802,6 +829,7 @@ pub fn read_call_params(
     Ok((function_selector, calldata))
 }
 
+#[allow(clippy::result_large_err)]
 pub fn execute_inner_call(
     call: CallEntryPoint,
     vm: &mut VirtualMachine,
@@ -823,6 +851,7 @@ pub fn execute_inner_call(
     Ok(ReadOnlySegment { start_ptr: retdata_segment_start_ptr, length: retdata.len() })
 }
 
+#[allow(clippy::result_large_err)]
 pub fn execute_library_call(
     syscall_handler: &mut DeprecatedSyscallHintProcessor<'_>,
     vm: &mut VirtualMachine,

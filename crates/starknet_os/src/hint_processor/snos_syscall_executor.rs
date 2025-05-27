@@ -94,6 +94,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
 
     fn update_revert_gas_with_next_remaining_gas(&mut self, next_remaining_gas: GasAmount) {}
 
+    #[allow(clippy::result_large_err)]
     fn call_contract(
         request: CallContractRequest,
         vm: &mut VirtualMachine,
@@ -141,6 +142,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         })
     }
 
+    #[allow(clippy::result_large_err)]
     fn deploy(
         request: DeployRequest,
         vm: &mut VirtualMachine,
@@ -177,6 +179,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         })
     }
 
+    #[allow(clippy::result_large_err)]
     fn emit_event(
         request: EmitEventRequest,
         vm: &mut VirtualMachine,
@@ -186,6 +189,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         todo!()
     }
 
+    #[allow(clippy::result_large_err)]
     fn get_block_hash(
         request: GetBlockHashRequest,
         vm: &mut VirtualMachine,
@@ -195,6 +199,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         todo!()
     }
 
+    #[allow(clippy::result_large_err)]
     fn get_class_hash_at(
         request: GetClassHashAtRequest,
         vm: &mut VirtualMachine,
@@ -204,6 +209,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         todo!()
     }
 
+    #[allow(clippy::result_large_err)]
     fn get_execution_info(
         request: GetExecutionInfoRequest,
         vm: &mut VirtualMachine,
@@ -213,6 +219,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         todo!()
     }
 
+    #[allow(clippy::result_large_err)]
     fn library_call(
         request: LibraryCallRequest,
         vm: &mut VirtualMachine,
@@ -222,6 +229,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         todo!()
     }
 
+    #[allow(clippy::result_large_err)]
     fn meta_tx_v0(
         request: MetaTxV0Request,
         vm: &mut VirtualMachine,
@@ -231,6 +239,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         todo!()
     }
 
+    #[allow(clippy::result_large_err)]
     fn sha256_process_block(
         request: Sha256ProcessBlockRequest,
         vm: &mut VirtualMachine,
@@ -240,6 +249,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         todo!()
     }
 
+    #[allow(clippy::result_large_err)]
     fn replace_class(
         request: ReplaceClassRequest,
         vm: &mut VirtualMachine,
@@ -249,6 +259,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         Ok(ReplaceClassResponse {})
     }
 
+    #[allow(clippy::result_large_err)]
     fn send_message_to_l1(
         request: SendMessageToL1Request,
         vm: &mut VirtualMachine,
@@ -258,6 +269,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         todo!()
     }
 
+    #[allow(clippy::result_large_err)]
     fn storage_read(
         request: StorageReadRequest,
         vm: &mut VirtualMachine,
@@ -282,6 +294,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         Ok(StorageReadResponse { value })
     }
 
+    #[allow(clippy::result_large_err)]
     fn storage_write(
         request: StorageWriteRequest,
         vm: &mut VirtualMachine,

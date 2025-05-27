@@ -60,6 +60,7 @@ use crate::execution::syscalls::vm_syscall_utils::{
 pub trait SyscallExecutor {
     type Error: From<SyscallExecutorBaseError> + TryExtractRevert;
 
+    #[allow(clippy::result_large_err)]
     fn read_next_syscall_selector(&mut self, vm: &mut VirtualMachine) -> SyscallResult<Felt> {
         Ok(felt_from_ptr(vm, self.get_mut_syscall_ptr())?)
     }
@@ -96,6 +97,7 @@ pub trait SyscallExecutor {
 
     fn update_revert_gas_with_next_remaining_gas(&mut self, next_remaining_gas: GasAmount);
 
+    #[allow(clippy::result_large_err)]
     fn call_contract(
         request: CallContractRequest,
         vm: &mut VirtualMachine,
@@ -103,6 +105,7 @@ pub trait SyscallExecutor {
         remaining_gas: &mut u64,
     ) -> SyscallResult<CallContractResponse>;
 
+    #[allow(clippy::result_large_err)]
     fn deploy(
         request: DeployRequest,
         vm: &mut VirtualMachine,
@@ -110,6 +113,7 @@ pub trait SyscallExecutor {
         remaining_gas: &mut u64,
     ) -> SyscallResult<DeployResponse>;
 
+    #[allow(clippy::result_large_err)]
     fn emit_event(
         request: EmitEventRequest,
         vm: &mut VirtualMachine,
@@ -117,6 +121,7 @@ pub trait SyscallExecutor {
         remaining_gas: &mut u64,
     ) -> SyscallResult<EmitEventResponse>;
 
+    #[allow(clippy::result_large_err)]
     fn get_block_hash(
         request: GetBlockHashRequest,
         vm: &mut VirtualMachine,
@@ -124,6 +129,7 @@ pub trait SyscallExecutor {
         remaining_gas: &mut u64,
     ) -> SyscallResult<GetBlockHashResponse>;
 
+    #[allow(clippy::result_large_err)]
     fn get_class_hash_at(
         request: GetClassHashAtRequest,
         vm: &mut VirtualMachine,
@@ -131,6 +137,7 @@ pub trait SyscallExecutor {
         remaining_gas: &mut u64,
     ) -> SyscallResult<GetClassHashAtResponse>;
 
+    #[allow(clippy::result_large_err)]
     fn get_execution_info(
         request: GetExecutionInfoRequest,
         vm: &mut VirtualMachine,
@@ -138,6 +145,7 @@ pub trait SyscallExecutor {
         remaining_gas: &mut u64,
     ) -> SyscallResult<GetExecutionInfoResponse>;
 
+    #[allow(clippy::result_large_err)]
     fn keccak(
         request: KeccakRequest,
         vm: &mut VirtualMachine,
@@ -175,6 +183,7 @@ pub trait SyscallExecutor {
         })
     }
 
+    #[allow(clippy::result_large_err)]
     fn library_call(
         request: LibraryCallRequest,
         vm: &mut VirtualMachine,
@@ -182,6 +191,7 @@ pub trait SyscallExecutor {
         remaining_gas: &mut u64,
     ) -> SyscallResult<LibraryCallResponse>;
 
+    #[allow(clippy::result_large_err)]
     fn meta_tx_v0(
         request: MetaTxV0Request,
         vm: &mut VirtualMachine,
@@ -189,6 +199,7 @@ pub trait SyscallExecutor {
         remaining_gas: &mut u64,
     ) -> SyscallResult<MetaTxV0Response>;
 
+    #[allow(clippy::result_large_err)]
     fn sha256_process_block(
         request: Sha256ProcessBlockRequest,
         vm: &mut VirtualMachine,
@@ -196,6 +207,7 @@ pub trait SyscallExecutor {
         remaining_gas: &mut u64,
     ) -> SyscallResult<Sha256ProcessBlockResponse>;
 
+    #[allow(clippy::result_large_err)]
     fn replace_class(
         request: ReplaceClassRequest,
         vm: &mut VirtualMachine,
@@ -203,6 +215,7 @@ pub trait SyscallExecutor {
         remaining_gas: &mut u64,
     ) -> SyscallResult<ReplaceClassResponse>;
 
+    #[allow(clippy::result_large_err)]
     fn secp256k1_add(
         request: SecpAddRequest,
         _vm: &mut VirtualMachine,
@@ -212,6 +225,7 @@ pub trait SyscallExecutor {
         Ok(syscall_handler.get_secpk1_hint_processor().secp_add(request)?)
     }
 
+    #[allow(clippy::result_large_err)]
     fn secp256k1_get_point_from_x(
         request: SecpGetPointFromXRequest,
         vm: &mut VirtualMachine,
@@ -221,6 +235,7 @@ pub trait SyscallExecutor {
         Ok(syscall_handler.get_secpk1_hint_processor().secp_get_point_from_x(vm, request)?)
     }
 
+    #[allow(clippy::result_large_err)]
     fn secp256k1_get_xy(
         request: SecpGetXyRequest,
         _vm: &mut VirtualMachine,
@@ -230,6 +245,7 @@ pub trait SyscallExecutor {
         Ok(syscall_handler.get_secpk1_hint_processor().secp_get_xy(request)?)
     }
 
+    #[allow(clippy::result_large_err)]
     fn secp256k1_mul(
         request: SecpMulRequest,
         _vm: &mut VirtualMachine,
@@ -239,6 +255,7 @@ pub trait SyscallExecutor {
         Ok(syscall_handler.get_secpk1_hint_processor().secp_mul(request)?)
     }
 
+    #[allow(clippy::result_large_err)]
     fn secp256k1_new(
         request: SecpNewRequest,
         vm: &mut VirtualMachine,
@@ -248,6 +265,7 @@ pub trait SyscallExecutor {
         Ok(syscall_handler.get_secpk1_hint_processor().secp_new(vm, request)?)
     }
 
+    #[allow(clippy::result_large_err)]
     fn secp256r1_add(
         request: SecpAddRequest,
         _vm: &mut VirtualMachine,
@@ -257,6 +275,7 @@ pub trait SyscallExecutor {
         Ok(syscall_handler.get_secpr1_hint_processor().secp_add(request)?)
     }
 
+    #[allow(clippy::result_large_err)]
     fn secp256r1_get_point_from_x(
         request: SecpGetPointFromXRequest,
         vm: &mut VirtualMachine,
@@ -266,6 +285,7 @@ pub trait SyscallExecutor {
         Ok(syscall_handler.get_secpr1_hint_processor().secp_get_point_from_x(vm, request)?)
     }
 
+    #[allow(clippy::result_large_err)]
     fn secp256r1_get_xy(
         request: SecpGetXyRequest,
         _vm: &mut VirtualMachine,
@@ -275,6 +295,7 @@ pub trait SyscallExecutor {
         Ok(syscall_handler.get_secpr1_hint_processor().secp_get_xy(request)?)
     }
 
+    #[allow(clippy::result_large_err)]
     fn secp256r1_mul(
         request: SecpMulRequest,
         _vm: &mut VirtualMachine,
@@ -284,6 +305,7 @@ pub trait SyscallExecutor {
         Ok(syscall_handler.get_secpr1_hint_processor().secp_mul(request)?)
     }
 
+    #[allow(clippy::result_large_err)]
     fn secp256r1_new(
         request: Secp256r1NewRequest,
         vm: &mut VirtualMachine,
@@ -293,6 +315,7 @@ pub trait SyscallExecutor {
         Ok(syscall_handler.get_secpr1_hint_processor().secp_new(vm, request)?)
     }
 
+    #[allow(clippy::result_large_err)]
     fn send_message_to_l1(
         request: SendMessageToL1Request,
         vm: &mut VirtualMachine,
@@ -300,6 +323,7 @@ pub trait SyscallExecutor {
         remaining_gas: &mut u64,
     ) -> SyscallResult<SendMessageToL1Response>;
 
+    #[allow(clippy::result_large_err)]
     fn storage_read(
         request: StorageReadRequest,
         vm: &mut VirtualMachine,
@@ -307,6 +331,7 @@ pub trait SyscallExecutor {
         remaining_gas: &mut u64,
     ) -> SyscallResult<StorageReadResponse>;
 
+    #[allow(clippy::result_large_err)]
     fn storage_write(
         request: StorageWriteRequest,
         vm: &mut VirtualMachine,
