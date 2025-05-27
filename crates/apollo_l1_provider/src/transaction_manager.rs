@@ -7,9 +7,9 @@ use crate::soft_delete_index_map::SoftDeleteIndexMap;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct TransactionManager {
-    pub uncommitted: SoftDeleteIndexMap,
-    pub rejected: SoftDeleteIndexMap,
-    pub committed: IndexMap<TransactionHash, TransactionPayload>,
+    uncommitted: SoftDeleteIndexMap,
+    rejected: SoftDeleteIndexMap,
+    committed: IndexMap<TransactionHash, TransactionPayload>,
 }
 
 impl TransactionManager {
@@ -116,8 +116,8 @@ impl TransactionManager {
         self.uncommitted.insert(tx)
     }
 
-    pub fn committed_includes(&self, tx_hashes: &IndexSet<TransactionHash>) -> bool {
-        tx_hashes.iter().all(|tx_hash| self.committed.contains_key(tx_hash))
+    pub fn committed_tx_hashes(&self) -> IndexSet<TransactionHash> {
+        self.committed.keys().copied().collect()
     }
 
     pub(crate) fn snapshot(&self) -> TransactionManagerSnapshot {
@@ -128,6 +128,15 @@ impl TransactionManager {
             rejected_staged: self.rejected.staged_txs.iter().cloned().collect(),
             committed: self.committed.keys().copied().collect(),
         }
+    }
+
+    #[cfg(any(feature = "testing", test))]
+    pub fn create_for_testing(
+        uncommitted: SoftDeleteIndexMap,
+        rejected: SoftDeleteIndexMap,
+        committed: IndexMap<TransactionHash, TransactionPayload>,
+    ) -> Self {
+        Self { uncommitted, rejected, committed }
     }
 }
 
