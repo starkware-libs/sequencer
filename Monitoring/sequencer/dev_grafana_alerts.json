@@ -105,6 +105,32 @@
       "intervalSec": 20
     },
     {
+      "name": "consensus_votes_num_sent_messages",
+      "title": "Consensus votes num sent messages",
+      "ruleGroup": "consensus",
+      "expr": "rate(apollo_consensus_votes_num_sent_messages[20m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.027777777777777776
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "1m",
+      "intervalSec": 20
+    },
+    {
       "name": "gateway_add_tx_rate_drop",
       "title": "Gateway add_tx rate drop",
       "ruleGroup": "gateway",
