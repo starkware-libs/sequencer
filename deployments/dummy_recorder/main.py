@@ -39,6 +39,22 @@ def argument_parser():
     return args
 
 
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--namespace",
+        required=True,
+        help="Kubernetes namespace to deploy to."
+    )
+    parser.add_argument(
+        "--image",
+        required=False,
+        default="us-central1-docker.pkg.dev/starkware-dev/sequencer/dummy_recorder:latest",
+        help="Docker image to deploy. Defaults to the latest dummy recorder image."
+    )
+    return parser.parse_args()
+
+
 class DummyRecorder(Chart):
     def __init__(
         self,

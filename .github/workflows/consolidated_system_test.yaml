@@ -17,6 +17,7 @@ on:
       - 'main-v[1-9]*'
     paths:
       - ".github/workflows/consolidated_system_test.yaml"
+      - "deployments/**"
       - "crates/**"
       - "scripts/system_tests/**"
 
@@ -80,7 +81,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Build Docker image
+      - name: Build sequencer docker image
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -90,6 +91,37 @@ jobs:
           push: false
           build-args: |
             BUILD_MODE=debug
+
+      - name: Build dummy recorder docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deployments/images/sequencer/dummy_recorder.Dockerfile
+          tags: recorder:local
+          load: true
+          push: false
+
+      - name: Import dummy recorder image into k3d
+        run: k3d image import recorder:local -c consolidated-system-test
+
+      - name: Deploy Dummy Recorder
+        env:
+          dummy_recorder_namespace: dummy-recorder
+        working-directory: deployments/dummy_recorder
+        run: |
+          echo "Deploying Dummy Recorder..."
+          pipenv install
+          cdk8s import
+          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.dummy_recorder_namespace }} --image recorder:local"
+          kubectl create namespace ${{ env.dummy_recorder_namespace }}
+          kubectl apply -R -f ./dist
+          echo "⏳ Waiting for Dummy Recorder to become ready..."
+
+          # Wait for pod to be ready
+          kubectl wait --namespace ${{ env.dummy_recorder_namespace }} --for=condition=Ready -l app=dummy-recorder pod --timeout=300s
+
+          echo "🚀 Dummy Recorder deployed successfully."
+
 
       - name: Build binaries
         run: cargo build --bin sequencer_node_setup --bin sequencer_simulator
