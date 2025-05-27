@@ -261,24 +261,13 @@ impl L1Provider {
     }
 
     pub fn get_l1_provider_snapshot(&self) -> L1ProviderResult<L1ProviderSnapshot> {
+        let txs_snapshot = self.tx_manager.snapshot();
         Ok(L1ProviderSnapshot {
-            uncommitted_transactions: self.tx_manager.uncommitted.txs.keys().copied().collect(),
-            uncommitted_staged_transactions: self
-                .tx_manager
-                .uncommitted
-                .staged_txs
-                .iter()
-                .cloned()
-                .collect(),
-            rejected_transactions: self.tx_manager.rejected.txs.keys().copied().collect(),
-            rejected_staged_transactions: self
-                .tx_manager
-                .rejected
-                .staged_txs
-                .iter()
-                .cloned()
-                .collect(),
-            committed_transactions: self.tx_manager.committed.keys().copied().collect(),
+            uncommitted_transactions: txs_snapshot.uncommitted,
+            uncommitted_staged_transactions: txs_snapshot.uncommitted_staged,
+            rejected_transactions: txs_snapshot.rejected,
+            rejected_staged_transactions: txs_snapshot.rejected_staged,
+            committed_transactions: txs_snapshot.committed,
             l1_provider_state: self.state.as_str().to_string(),
             current_height: self.current_height,
         })
