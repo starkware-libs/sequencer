@@ -64,7 +64,7 @@ pub fn complete_fee_transfer_flow(
         // Sanity check.
         match tx {
             Transaction::Account(tx) => assert!(
-                !tx.execution_flags.charge_fee || tx_execution_info.receipt.fee == Fee(0),
+                !tx.execution_flags.charge_fee,
                 "Transaction with no fee transfer info must not enforce a fee charge."
             ),
             // No fee transfer info for L1 handler transactions.
