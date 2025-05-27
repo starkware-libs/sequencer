@@ -97,7 +97,7 @@ use crate::utils::get_oracle_rate_and_prices;
 struct BlockInfoValidation {
     height: BlockNumber,
     block_timestamp_window_seconds: u64,
-    last_block_timestamp: Option<u64>,
+    previous_block_info: Option<ConsensusBlockInfo>,
     l1_da_mode: L1DataAvailabilityMode,
     l2_gas_price_fri: GasPrice,
 }
@@ -225,8 +225,6 @@ pub struct SequencerConsensusContext {
     queued_proposals: BTreeMap<Round, (ValidationParams, oneshot::Sender<ProposalCommitment>)>,
     l2_gas_price: GasPrice,
     l1_da_mode: L1DataAvailabilityMode,
-    // TODO(alonl): remove this field and use the one in the previous block info.
-    last_block_timestamp: Option<u64>,
     previous_block_info: Option<ConsensusBlockInfo>,
 }
 
@@ -271,7 +269,6 @@ impl SequencerConsensusContext {
             queued_proposals: BTreeMap::new(),
             l2_gas_price: VersionedConstants::latest_constants().min_gas_price,
             l1_da_mode,
-            last_block_timestamp: None,
             previous_block_info: None,
         }
     }
@@ -305,7 +302,6 @@ struct ProposalValidateArguments {
     content_receiver: mpsc::Receiver<ProposalPart>,
     fin_sender: oneshot::Sender<ProposalCommitment>,
     cancel_token: CancellationToken,
-    previous_block_info: Option<ConsensusBlockInfo>,
 }
 
 #[async_trait]
@@ -416,7 +412,7 @@ impl ConsensusContext for SequencerConsensusContext {
                 let block_info_validation = BlockInfoValidation {
                     height: proposal_init.height,
                     block_timestamp_window_seconds: self.config.block_timestamp_window_seconds,
-                    last_block_timestamp: self.last_block_timestamp,
+                    previous_block_info: self.previous_block_info.clone(),
                     l1_da_mode: self.l1_da_mode,
                     l2_gas_price_fri: self.l2_gas_price,
                 };
@@ -604,7 +600,6 @@ impl ConsensusContext for SequencerConsensusContext {
         // TODO(dvir): pass here real `BlobParameters` info.
         // TODO(dvir): when passing here the correct `BlobParameters`, also test that
         // `prepare_blob_for_next_height` is called with the correct parameters.
-        self.last_block_timestamp = Some(block_info.timestamp);
         let _ = self
             .context_deps
             .cende_ambassador
@@ -646,9 +641,11 @@ impl ConsensusContext for SequencerConsensusContext {
         // TODO(Asmaa): validate starknet_version and parent_hash when they are stored.
         let block_number = sync_block.block_header_without_hash.block_number;
         let timestamp = sync_block.block_header_without_hash.timestamp;
+        let last_block_timestamp =
+            self.previous_block_info.as_ref().map_or(0, |info| info.timestamp);
         let now: u64 = self.context_deps.clock.now_as_timestamp();
         if !(block_number == height
-            && timestamp.0 >= self.last_block_timestamp.unwrap_or(0)
+            && timestamp.0 >= last_block_timestamp
             && timestamp.0 <= now + self.config.block_timestamp_window_seconds)
         {
             warn!(
@@ -656,7 +653,7 @@ impl ConsensusContext for SequencerConsensusContext {
                  [{}, {}], got {}",
                 height,
                 block_number,
-                self.last_block_timestamp.unwrap_or(0),
+                last_block_timestamp,
                 now + self.config.block_timestamp_window_seconds,
                 timestamp.0,
             );
@@ -733,7 +730,7 @@ impl ConsensusContext for SequencerConsensusContext {
         let block_info_validation = BlockInfoValidation {
             height,
             block_timestamp_window_seconds: self.config.block_timestamp_window_seconds,
-            last_block_timestamp: self.last_block_timestamp,
+            previous_block_info: self.previous_block_info.clone(),
             l1_da_mode: self.l1_da_mode,
             l2_gas_price_fri: self.l2_gas_price,
         };
@@ -763,7 +760,6 @@ impl SequencerConsensusContext {
         let cancel_token_clone = cancel_token.clone();
         let valid_proposals = Arc::clone(&self.valid_proposals);
         let proposal_id = ProposalId(self.proposal_id);
-        let previous_block_info = self.previous_block_info.clone();
         self.proposal_id += 1;
         let context_deps = self.context_deps.clone();
         let gas_price_params = GasPriceParams {
@@ -791,7 +787,6 @@ impl SequencerConsensusContext {
                     content_receiver,
                     fin_sender,
                     cancel_token: cancel_token_clone,
-                    previous_block_info,
                 })
                 .await
             }
@@ -1027,7 +1022,6 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
         args.context_deps.clock.as_ref(),
         args.context_deps.l1_gas_price_provider,
         args.gas_price_params,
-        args.previous_block_info.clone(),
     )
     .await
     {
@@ -1129,11 +1123,12 @@ async fn is_block_info_valid(
     clock: &dyn Clock,
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     gas_price_params: GasPriceParams,
-    previous_block_info: Option<ConsensusBlockInfo>,
 ) -> bool {
     let now: u64 = clock.now_as_timestamp();
+    let last_block_timestamp =
+        block_info_validation.previous_block_info.as_ref().map_or(0, |info| info.timestamp);
     if !(block_info_proposed.height == block_info_validation.height
-        && block_info_proposed.timestamp >= block_info_validation.last_block_timestamp.unwrap_or(0)
+        && block_info_proposed.timestamp >= last_block_timestamp
         // Check timestamp isn't in the future (allowing for clock disagreement).
         && block_info_proposed.timestamp <= now + block_info_validation.block_timestamp_window_seconds
         && block_info_proposed.l1_da_mode == block_info_validation.l1_da_mode
@@ -1146,7 +1141,7 @@ async fn is_block_info_valid(
         eth_to_strk_oracle_client,
         l1_gas_price_provider,
         block_info_proposed.timestamp,
-        previous_block_info.as_ref(),
+        block_info_validation.previous_block_info.as_ref(),
         gas_price_params.min_l1_gas_price_wei,
         gas_price_params.min_l1_data_gas_price_wei,
     )
