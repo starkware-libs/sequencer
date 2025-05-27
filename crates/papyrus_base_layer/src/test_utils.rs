@@ -175,7 +175,7 @@ pub async fn make_block_history_on_anvil(
             .get_receipt()
             .await
             .expect("Could not get receipt for transaction to base layer");
-        info!(
+        debug!(
             "Added L1 transaction to L1 block: {} with gas price: {}, blob price: {}",
             receipt.block_number.unwrap(),
             receipt.effective_gas_price,
