@@ -167,11 +167,12 @@ impl TransactionManagerContent {
 
 impl From<TransactionManagerContent> for TransactionManager {
     fn from(mut content: TransactionManagerContent) -> TransactionManager {
-        let txs: Vec<_> = mem::take(&mut content.uncommitted).unwrap_or_default();
+        let uncommitted: Vec<_> = mem::take(&mut content.uncommitted).unwrap_or_default();
+        let rejected: Vec<_> = mem::take(&mut content.rejected).unwrap_or_default();
         TransactionManager {
-            uncommitted: SoftDeleteIndexMap::from(txs),
+            uncommitted: SoftDeleteIndexMap::from(uncommitted),
             committed: content.committed.unwrap_or_default(),
-            rejected: SoftDeleteIndexMap::default(),
+            rejected: SoftDeleteIndexMap::from(rejected),
         }
     }
 }
