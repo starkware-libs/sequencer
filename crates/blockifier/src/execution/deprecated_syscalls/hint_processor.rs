@@ -15,6 +15,7 @@ use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::runners::cairo_runner::{ResourceTracker, RunResources};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_bigint::{BigUint, TryFromBigIntError};
+use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp};
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
@@ -24,6 +25,7 @@ use starknet_api::core::{
     EntryPointSelector,
 };
 use starknet_api::state::StorageKey;
+use starknet_api::transaction::constants::EXECUTE_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::Calldata;
 use starknet_api::transaction::{signed_tx_version, TransactionOptions, TransactionVersion};
 use starknet_api::StarknetApiError;
@@ -123,6 +125,8 @@ pub enum DeprecatedSyscallExecutionError {
         selector: EntryPointSelector,
         error: Box<DeprecatedSyscallExecutionError>,
     },
+    #[error("Calling `__execute__` directly is not allowed.")]
+    DirectExecuteCall,
     #[error(transparent)]
     EmitEventError(#[from] EmitEventError),
     #[error(transparent)]
@@ -495,6 +499,13 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
                 syscall_name: "call_contract".to_string(),
                 execution_mode: syscall_handler.execution_mode(),
             });
+        }
+        let versioned_constants =
+            &syscall_handler.context.tx_context.block_context.versioned_constants;
+        if versioned_constants.block_direct_execute_call
+            && selector == selector_from_name(EXECUTE_ENTRY_POINT_NAME)
+        {
+            return Err(DeprecatedSyscallExecutionError::DirectExecuteCall);
         }
         let entry_point = CallEntryPoint {
             class_hash: None,
