@@ -339,7 +339,6 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
         S: 'static,
     {
         let block_state = self.block_state.take().expect("The block state should be `Some`.");
-        let chunk_size = chunk.len();
 
         let worker_executor = Arc::new(WorkerExecutor::initialize(
             block_state,
@@ -363,14 +362,6 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
         }
 
         let n_committed_txs = worker_executor.scheduler.get_n_committed_txs();
-        let (abort_counter, abort_in_commit_counter, execute_counter, validate_counter) =
-            worker_executor.metrics.get_metrics();
-        log::debug!(
-            "Concurrent execution done. Initial chunk size: {chunk_size}; Committed chunk size: \
-             {n_committed_txs}; Execute counter: {execute_counter}; Validate counter: \
-             {validate_counter}; Abort counter: {abort_counter}; Abort in commit counter: \
-             {abort_in_commit_counter}"
-        );
         let mut tx_execution_results = Vec::new();
         for execution_output in worker_executor.execution_outputs.iter().take(n_committed_txs) {
             let locked_execution_output = execution_output
