@@ -73,6 +73,7 @@ const Configuration = {
             'apollo_task_executor',
             'apollo_test_utils',
             'blake2s',
+            'time',
             'blockifier',
             'blockifier_reexecution',
             'blockifier_test_utils',
