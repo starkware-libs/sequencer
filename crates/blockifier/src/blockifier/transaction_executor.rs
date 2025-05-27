@@ -48,6 +48,7 @@ impl LogCompatibleToStringExt for TransactionExecutorError {}
 
 pub type TransactionExecutorResult<T> = Result<T, TransactionExecutorError>;
 
+#[derive(Debug, PartialEq)]
 pub struct BlockExecutionSummary {
     pub state_diff: CommitmentStateDiff,
     pub compressed_state_diff: Option<CommitmentStateDiff>,
