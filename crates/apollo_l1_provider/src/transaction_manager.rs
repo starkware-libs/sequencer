@@ -14,8 +14,7 @@ pub struct TransactionManager {
 
 impl TransactionManager {
     pub fn start_block(&mut self) {
-        self.uncommitted.rollback_staging();
-        self.rejected.rollback_staging();
+        self.rollback_staging();
     }
 
     pub fn get_txs(&mut self, n_txs: usize) -> Vec<L1HandlerTransaction> {
@@ -63,8 +62,7 @@ impl TransactionManager {
         rejected_txs: &[TransactionHash],
     ) {
         // When committing transactions, we don't need to have staged transactions.
-        self.uncommitted.rollback_staging();
-        self.rejected.rollback_staging();
+        self.rollback_staging();
 
         let mut uncommitted = IndexMap::new();
         let mut rejected = IndexMap::new();
@@ -128,6 +126,11 @@ impl TransactionManager {
             rejected_staged: self.rejected.staged_txs.iter().copied().collect(),
             committed: self.committed.keys().copied().collect(),
         }
+    }
+
+    fn rollback_staging(&mut self) {
+        self.uncommitted.rollback_staging();
+        self.rejected.rollback_staging();
     }
 
     #[cfg(any(feature = "testing", test))]
