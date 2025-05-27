@@ -468,6 +468,10 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
             };
             return Err(self.handle_error(remaining_gas, err.into()));
         }
+        let selector = EntryPointSelector(entry_point_selector);
+        self.base
+            .maybe_block_direct_execute_call(selector)
+            .map_err(|e| self.handle_error(remaining_gas, e))?;
 
         let wrapper_calldata = Calldata(Arc::new(calldata.to_vec()));
 
@@ -475,7 +479,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
             class_hash: None,
             code_address: Some(contract_address),
             entry_point_type: EntryPointType::External,
-            entry_point_selector: EntryPointSelector(entry_point_selector),
+            entry_point_selector: selector,
             calldata: wrapper_calldata,
             storage_address: contract_address,
             caller_address: self.base.call.storage_address,

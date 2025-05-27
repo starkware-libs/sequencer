@@ -513,6 +513,8 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
             }
             .into());
         }
+        syscall_handler.base.maybe_block_direct_execute_call(selector)?;
+
         let entry_point = CallEntryPoint {
             class_hash: None,
             code_address: Some(storage_address),
