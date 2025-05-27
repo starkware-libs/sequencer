@@ -44,7 +44,6 @@ url = { workspace = true, features = ["serde"] }
 validator.workspace = true
 
 [dev-dependencies]
-assert_matches.workspace = true
 apollo_batcher.workspace = true
 apollo_batcher_types = { workspace = true, features = ["testing"] }
 apollo_class_manager_types = { workspace = true, features = ["testing"] }
@@ -58,6 +57,7 @@ apollo_state_sync_types = { workspace = true, features = ["testing"] }
 apollo_storage = { workspace = true, features = ["testing"] }
 apollo_test_utils.workspace = true
 apollo_time = { workspace = true, features = ["testing", "tokio"] }
+assert_matches.workspace = true
 cairo-lang-casm.workspace = true
 cairo-lang-utils.workspace = true
 cairo-vm.workspace = true
