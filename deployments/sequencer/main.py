@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
 
-import sys
+from typing import Optional
 
-from app.monitoring import MonitoringApp
+from app.monitoring import GrafanaAlertRuleGroupApp, GrafanaDashboardApp
 from app.service import ServiceApp
 from cdk8s import App, Chart, YamlOutputType
 from constructs import Construct
-from services import config, helpers, monitoring, topology
+from services.config import (
+    DeploymentConfig,
+    GrafanaAlertRuleGroupConfig,
+    GrafanaDashboardConfig,
+    SequencerConfig,
+)
+from services.helpers import argument_parser, generate_random_hash, sanitize_name
+from services.topology import ServiceTopology
 
 
 class SequencerNode(Chart):
@@ -16,7 +23,7 @@ class SequencerNode(Chart):
         name: str,
         namespace: str,
         monitoring: bool,
-        service_topology: topology.ServiceTopology,
+        service_topology: ServiceTopology,
     ):
         super().__init__(scope, name, disable_resource_name_hashes=True, namespace=namespace)
         self.service = ServiceApp(
@@ -32,27 +39,50 @@ class SequencerMonitoring(Chart):
     def __init__(
         self,
         scope: Construct,
-        name: str,
+        id: str,
         cluster: str,
         namespace: str,
-        grafana_dashboard: monitoring.GrafanaDashboard,
+        grafana_dashboard: Optional[GrafanaDashboardConfig],
+        grafana_alert_rule_group: Optional[GrafanaAlertRuleGroupConfig],
     ):
-        super().__init__(scope, name, disable_resource_name_hashes=True, namespace=namespace)
-        self.dashboard = MonitoringApp(
-            self, name, cluster=cluster, namespace=namespace, grafana_dashboard=grafana_dashboard
+        super().__init__(scope, id, disable_resource_name_hashes=True, namespace=namespace)
+
+        self.hash = generate_random_hash(from_string=f"{cluster}-{namespace}")
+
+        self.dashboard = (
+            GrafanaDashboardApp(
+                self,
+                sanitize_name(f"dashboard-{self.hash}"),
+                cluster=cluster,
+                namespace=namespace,
+                grafana_dashboard=grafana_dashboard,
+            )
+            if grafana_dashboard
+            else None
+        )
+
+        self.alert_rule_group = (
+            GrafanaAlertRuleGroupApp(
+                self,
+                sanitize_name(f"alert-rule-group-{self.hash}"),
+                cluster=cluster,
+                namespace=namespace,
+                grafana_alert_rule_group=grafana_alert_rule_group,
+            )
+            if grafana_alert_rule_group
+            else None
         )
 
 
 def main():
-    args = helpers.argument_parser()
+    args = argument_parser()
 
     assert not (
         args.monitoring_dashboard_file and not args.cluster
     ), "Error: --cluster is required when --monitoring-dashboard-file is provided."
 
     app = App(yaml_output_type=YamlOutputType.FOLDER_PER_CHART_FILE_PER_RESOURCE)
-
-    preset = config.DeploymentConfig(args.deployment_config_file)
+    preset = DeploymentConfig(args.deployment_config_file)
     services = preset.get_services()
 
     if args.deployment_image:
@@ -68,12 +98,13 @@ def main():
     for svc in services:
         SequencerNode(
             scope=app,
-            name=helpers.sanitize_name(f'sequencer-{svc["name"]}'),
-            namespace=helpers.sanitize_name(args.namespace),
+            name=sanitize_name(f'sequencer-{svc["name"]}'),
+            namespace=sanitize_name(args.namespace),
             monitoring=create_monitoring,
-            service_topology=topology.ServiceTopology(
-                config=config.SequencerConfig(
-                    config_subdir=application_config_subdir, config_paths=svc["config_paths"]
+            service_topology=ServiceTopology(
+                config=SequencerConfig(
+                    config_subdir=application_config_subdir,
+                    config_paths=svc["config_paths"],
                 ),
                 image=image,
                 controller=svc["controller"].lower(),
@@ -88,17 +119,26 @@ def main():
             ),
         )
 
-    if args.monitoring_dashboard_file:
-        dashboard_hash = helpers.generate_random_hash(
-            from_string=f"{args.cluster}-{args.namespace}"
-        )
-        SequencerMonitoring(
-            scope=app,
-            name=helpers.sanitize_name(f"sequencer-monitoring-{dashboard_hash}"),
-            cluster=args.cluster,
-            namespace=helpers.sanitize_name(args.namespace),
-            grafana_dashboard=monitoring.GrafanaDashboard(args.monitoring_dashboard_file),
-        )
+    grafana_dashboard_config = (
+        GrafanaDashboardConfig(dashboard_file_path=args.monitoring_dashboard_file)
+        if args.monitoring_dashboard_file
+        else None
+    )
+
+    grafana_alert_rule_group_config = (
+        GrafanaAlertRuleGroupConfig(alerts_folder_path=args.monitoring_alerts_folder)
+        if args.monitoring_alerts_folder
+        else None
+    )
+
+    SequencerMonitoring(
+        scope=app,
+        id="sequencer-monitoring",
+        cluster=args.cluster,
+        namespace=sanitize_name(args.namespace),
+        grafana_dashboard=grafana_dashboard_config,
+        grafana_alert_rule_group=grafana_alert_rule_group_config,
+    )
 
     app.synth()
 
