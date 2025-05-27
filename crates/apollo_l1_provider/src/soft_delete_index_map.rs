@@ -24,7 +24,7 @@ impl SoftDeleteIndexMap {
         let tx_hash = tx.tx_hash;
         match self.txs.entry(tx_hash) {
             Entry::Occupied(entry) => {
-                assert_eq!(entry.get().transaction, tx);
+                assert_eq!(entry.get().tx, tx);
                 false
             }
             Entry::Vacant(entry) => {
@@ -54,11 +54,11 @@ impl SoftDeleteIndexMap {
         entry.set_state(TxState::Staged);
         self.staged_txs.insert(tx_hash);
 
-        Some(&entry.transaction)
+        Some(&entry.tx)
     }
 
     pub fn get_transaction(&self, tx_hash: &TransactionHash) -> Option<&L1HandlerTransaction> {
-        self.txs.get(tx_hash).map(|entry| &entry.transaction)
+        self.txs.get(tx_hash).map(|entry| &entry.tx)
     }
 
     /// Rolls back all staged transactions, converting them to unstaged.
@@ -91,13 +91,13 @@ pub enum TxState {
 /// and provides convenience methods for stage/unstage.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TransactionEntry {
-    pub transaction: L1HandlerTransaction,
+    pub tx: L1HandlerTransaction,
     pub state: TxState,
 }
 
 impl TransactionEntry {
-    pub fn new(transaction: L1HandlerTransaction) -> Self {
-        Self { transaction, state: TxState::Unstaged }
+    pub fn new(tx: L1HandlerTransaction) -> Self {
+        Self { tx, state: TxState::Unstaged }
     }
 
     pub fn set_state(&mut self, state: TxState) {
