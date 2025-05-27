@@ -1,8 +1,6 @@
 use std::collections::HashSet;
 
 use blake2s::encode_felts_to_u32s;
-// TODO(Amos): When available in the VM crate, use an existing set, instead of using each hint
-//   const explicitly.
 use cairo_vm::hint_processor::builtin_hint_processor::hint_code::HINT_CODES;
 use cairo_vm::hint_processor::builtin_hint_processor::kzg_da::WRITE_DIVMOD_SEGMENT;
 use cairo_vm::hint_processor::builtin_hint_processor::secp::cairo0_hints::CAIRO0_HINT_CODES;
