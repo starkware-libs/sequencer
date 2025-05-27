@@ -21,6 +21,7 @@ services:
     networks:
       - sequencer-network
 
+  # TODO(Tsabary): pass all relevant constants to the .env file.
   sequencer_node_setup:
     build:
       context: ${SEQUENCER_ROOT_DIR}
@@ -71,6 +72,7 @@ services:
       context: ${SEQUENCER_ROOT_DIR}
       dockerfile: ${SEQUENCER_ROOT_DIR}/deployments/images/sequencer/config_injector.Dockerfile
     # TODO(Tsabary): change the setup binary to output the file to a specific path, and use it in the following command.
+    # TODO(Tsabary): the config changes need to be more robust, probably managed through a suitable rust binary.
     command: |
       "cp /config/node_0/executable_0/node_integration_test_config_changes.json ${SEQUENCER_CONFIG_PATH} \
       echo 'Injecting config changes...' && \
