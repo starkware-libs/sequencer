@@ -2,12 +2,12 @@ import dataclasses
 import typing
 
 
-from services.config import SequencerConfig
+from services.config import ServiceConfig
 
 
 @dataclasses.dataclass
 class ServiceTopology:
-    config: SequencerConfig
+    config: ServiceConfig
     image: str
     controller: str
     replicas: int
