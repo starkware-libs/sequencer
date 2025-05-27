@@ -1,0 +1,127 @@
+use std::sync::Arc;
+
+use assert_matches::assert_matches;
+use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
+use rstest::rstest;
+use starknet_api::core::ContractAddress;
+use starknet_api::nonce;
+
+use crate::blockifier::concurrent_transaction_executor::ConcurrentTransactionExecutor;
+use crate::blockifier::config::TransactionExecutorConfig;
+use crate::blockifier::transaction_executor::TransactionExecutorError;
+use crate::concurrency::worker_pool::WorkerPool;
+use crate::context::BlockContext;
+use crate::state::cached_state::CachedState;
+use crate::test_utils::dict_state_reader::DictStateReader;
+use crate::test_utils::maybe_dummy_block_hash_and_number;
+use crate::transaction::account_transaction::AccountTransaction;
+use crate::transaction::errors::TransactionExecutionError;
+use crate::transaction::test_utils::{create_test_init_data, emit_n_events_tx, TestInitData};
+use crate::transaction::transaction_execution::Transaction;
+
+fn get_txs<const N: usize>(txs: [AccountTransaction; N]) -> Vec<Transaction> {
+    txs.into_iter().map(Transaction::Account).collect()
+}
+
+struct TestData {
+    pool: Arc<WorkerPool<CachedState<CachedState<DictStateReader>>>>,
+    tx_executor: ConcurrentTransactionExecutor<CachedState<DictStateReader>>,
+    account_address: ContractAddress,
+    contract_address: ContractAddress,
+    max_n_events_in_block: usize,
+}
+
+fn get_test_data() -> TestData {
+    let config = TransactionExecutorConfig::create_for_testing(true);
+    let pool = Arc::new(WorkerPool::start(config.stack_size, config.concurrency_config.clone()));
+
+    let max_n_events_in_block = 10;
+    let block_context = BlockContext::create_for_bouncer_testing(max_n_events_in_block);
+
+    let TestInitData { state, account_address, contract_address, .. } = create_test_init_data(
+        &block_context.chain_info,
+        CairoVersion::Cairo1(RunnableCairo1::Casm),
+    );
+
+    let block_number_hash_pair =
+        maybe_dummy_block_hash_and_number(block_context.block_info().block_number);
+
+    let tx_executor = ConcurrentTransactionExecutor::start_block(
+        state,
+        block_context,
+        block_number_hash_pair,
+        pool.clone(),
+    )
+    .unwrap();
+
+    TestData { pool, tx_executor, account_address, contract_address, max_n_events_in_block }
+}
+
+#[rstest]
+fn test_concurrent_transaction_executor() {
+    let TestData {
+        pool,
+        mut tx_executor,
+        account_address,
+        contract_address,
+        max_n_events_in_block,
+    } = get_test_data();
+
+    let txs0 = get_txs([
+        emit_n_events_tx(1, account_address, contract_address, nonce!(0_u32)),
+        // Transaction too big.
+        emit_n_events_tx(
+            max_n_events_in_block + 1,
+            account_address,
+            contract_address,
+            nonce!(1_u32),
+        ),
+        emit_n_events_tx(3, account_address, contract_address, nonce!(1_u32)),
+    ]);
+
+    let txs1 = get_txs([
+        emit_n_events_tx(1, account_address, contract_address, nonce!(2_u32)),
+        // No room for this in block - execution should halt.
+        emit_n_events_tx(7, account_address, contract_address, nonce!(3_u32)),
+        // Should not be processed since the execution halted.
+        emit_n_events_tx(1, account_address, contract_address, nonce!(3_u32)),
+    ]);
+
+    // Run.
+    let results0 = tx_executor.add_transactions_and_wait(&txs0);
+    let results1 = tx_executor.add_transactions_and_wait(&txs1);
+
+    // Check execution results.
+    assert_eq!(results0.len(), 3);
+
+    assert!(results0[0].is_ok());
+    assert_matches!(
+        results0[1].as_ref().unwrap_err(),
+        TransactionExecutorError::TransactionExecutionError(
+            TransactionExecutionError::TransactionTooLarge { .. }
+        )
+    );
+    assert!(results0[2].is_ok());
+
+    assert_eq!(results1.len(), 1);
+    assert!(results1[0].is_ok());
+
+    // Close the block.
+    let block_summary = tx_executor.close_block().unwrap();
+    assert_eq!(block_summary.state_diff.address_to_nonce[&account_address], nonce!(3_u32));
+
+    // End test by calling pool.join().
+    drop(tx_executor);
+    Arc::try_unwrap(pool).expect("More than one instance of worker pool exists").join();
+}
+
+#[rstest]
+fn test_concurrent_transaction_executor_abort() {
+    let TestData { pool, mut tx_executor, .. } = get_test_data();
+
+    // Not calling `abort_block` would cause the `join` below to hang.
+    tx_executor.abort_block();
+
+    drop(tx_executor);
+    Arc::try_unwrap(pool).expect("More than one instance of worker pool exists").join();
+}

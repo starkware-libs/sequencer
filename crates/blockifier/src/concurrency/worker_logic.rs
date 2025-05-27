@@ -162,6 +162,31 @@ impl<S: StateReader> WorkerExecutor<S> {
         }
     }
 
+    pub fn add_transactions(&self, txs: &[Transaction]) -> (TxIndex, TxIndex) {
+        // Avoid a possible deadlock by not locking n_committed_txs during the n_transactions lock.
+        let n_committed_txs = self.scheduler.get_n_committed_txs();
+
+        let mut n_transactions_lock =
+            self.n_transactions.lock().expect("Failed to lock n_transactions");
+        assert_eq!(
+            *n_transactions_lock, n_committed_txs,
+            "All transactions must be committed before adding new ones. Committed txs: \
+             {n_committed_txs} out of {}",
+            *n_transactions_lock
+        );
+
+        let from_tx = *n_transactions_lock;
+        let n_new_transactions = txs.len();
+        for (i, tx) in txs.iter().enumerate() {
+            self.transactions.insert(from_tx + i, Arc::new(tx.clone()));
+            // Notify the scheduler that a new transaction is available.
+            self.scheduler.new_tx(from_tx + i);
+        }
+        let to_tx = from_tx + n_new_transactions;
+        *n_transactions_lock = to_tx;
+        (from_tx, to_tx)
+    }
+
     /// Extracts the outputs of the committed transactions in the range [from_tx, to_tx).
     /// Note that the number of transactions may be smaller than `to_tx - from_tx`, if the execution
     /// was halted (due to time or full block).
