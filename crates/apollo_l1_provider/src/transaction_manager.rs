@@ -85,7 +85,7 @@ impl TransactionManager {
 
         self.rejected.txs.extend(rejected);
 
-        // Assign the remaining uncommitted txs to the uncommitted pool, which was was drained.
+        // Assign the remaining uncommitted txs to the uncommitted pool, which was drained.
         self.uncommitted.txs = uncommitted;
 
         // Add all committed tx hashes to the committed buffer, regardless of if they're known or
@@ -105,5 +105,11 @@ impl TransactionManager {
 
     pub fn committed_includes(&self, tx_hashes: &[TransactionHash]) -> bool {
         tx_hashes.iter().all(|tx| self.committed.contains(tx))
+    }
+
+    /// Removes the given transaction from the committed pool, if it exists.
+    /// Returns true if the transaction was successfully removed, false otherwise.
+    pub fn consume_tx(&mut self, _tx_hash: TransactionHash) -> bool {
+        todo!()
     }
 }
