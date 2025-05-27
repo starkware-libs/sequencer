@@ -122,6 +122,34 @@ jobs:
 
           echo "🚀 Dummy Recorder deployed successfully."
 
+      - name: Build dummy Eth2Strk oracle docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deployments/images/sequencer/dummy_eth_to_strk_oracle.Dockerfile
+          tags: eth_to_strk:local
+          load: true
+          push: false
+
+      - name: Import eth_to_strk image into k3d
+        run: k3d image import eth_to_strk:local -c consolidated-system-test
+
+      - name: Deploy Eth2Strk Oracle
+        env:
+          dummy_eth_to_strk_namespace: dummy-eth-to-strk
+        working-directory: deployments/dummy_eth2strk_oracle
+        run: |
+          echo "Deploying Dummy Eth2Strk Oracle..."
+          pipenv install
+          cdk8s import
+          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.dummy_eth_to_strk_namespace }} --image eth_to_strk:local"
+          kubectl create namespace ${{ env.dummy_eth_to_strk_namespace }}
+          kubectl apply -R -f ./dist
+          echo "⏳ Waiting for Dummy Eth2Strk Oracle to become ready..."
+          kubectl wait --namespace ${{ env.dummy_eth_to_strk_namespace }} --for=condition=Ready -l app=dummy-eth2strk-oracle pod --timeout 60s
+          echo "🚀 Dummy Eth2Strk Oracle deployed successfully."
+
+
 
       - name: Build binaries
         run: cargo build --bin sequencer_node_setup --bin sequencer_simulator

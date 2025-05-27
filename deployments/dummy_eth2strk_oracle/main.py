@@ -91,7 +91,7 @@ class DummyEth2StrkOracle(Chart):
                         containers=[
                             k8s.Container(
                                 name=self.node.id,
-                                image=IMAGE,
+                                image=image,
                                 env=[k8s.EnvVar(name="RUST_LOG", value="DEBUG")],
                                 ports=[k8s.ContainerPort(container_port=SERVICE_PORT)],
                             )
