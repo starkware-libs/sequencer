@@ -95,7 +95,8 @@ pub(crate) fn get_environment_ingress_internal(environment: &Environment) -> boo
         Environment::Testing => true,
         Environment::SepoliaIntegration
         | Environment::TestingEnvTwo
-        | Environment::TestingEnvThree => false,
+        | Environment::TestingEnvThree
+        | Environment::StressTest => false,
         _ => unimplemented!(),
     }
 }
