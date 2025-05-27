@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import argparse
 from cdk8s import App, Chart, Names, YamlOutputType
 from constructs import Construct
 from imports import k8s
@@ -6,12 +7,12 @@ from imports import k8s
 SERVICE_NAME = "dummy-eth2strk-oracle"
 SERVICE_PORT = 9000
 CLUSTER = "sequencer-dev"
-NAMESPACE = "dummy-eth2strk-oracle"
-IMAGE = "us-central1-docker.pkg.dev/starkware-dev/sequencer/dummy_eth2strk_oracle:latest"
+DEFAULT_IMAGE = "us-central1-docker.pkg.dev/starkware-dev/sequencer/dummy_eth2strk_oracle:latest"
+DEFAULT_NAMESPACE = "dummy-eth2strk-oracle"
 
 
 class DummyEth2StrkOracle(Chart):
-    def __init__(self, scope: Construct, id: str, namespace: str):
+    def __init__(self, scope: Construct, id: str, namespace: str, image: str):
         super().__init__(scope, id, disable_resource_name_hashes=True, namespace=namespace)
 
         self.label = {"app": Names.to_label_value(self, include_hash=False)}
@@ -45,7 +46,7 @@ class DummyEth2StrkOracle(Chart):
                         containers=[
                             k8s.Container(
                                 name=self.node.id,
-                                image=IMAGE,
+                                image=image,
                                 env=[k8s.EnvVar(name="RUST_LOG", value="DEBUG")],
                                 ports=[k8s.ContainerPort(container_port=SERVICE_PORT)],
                             )
@@ -88,7 +89,22 @@ class DummyEth2StrkOracle(Chart):
         )
 
 
-app = App(yaml_output_type=YamlOutputType.FOLDER_PER_CHART_FILE_PER_RESOURCE)
-DummyEth2StrkOracle(scope=app, id=SERVICE_NAME, namespace=NAMESPACE)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--image",
+        type=str,
+        default=DEFAULT_IMAGE,
+        help="Docker image to use (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--namespace",
+        type=str,
+        default=DEFAULT_NAMESPACE,
+        help="Kubernetes namespace to deploy into (default: %(default)s)",
+    )
+    args = parser.parse_args()
 
-app.synth()
+    app = App(yaml_output_type=YamlOutputType.FOLDER_PER_CHART_FILE_PER_RESOURCE)
+    DummyEth2StrkOracle(scope=app, id=SERVICE_NAME, namespace=args.namespace, image=args.image)
+    app.synth()
