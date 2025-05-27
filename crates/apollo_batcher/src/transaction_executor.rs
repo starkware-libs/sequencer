@@ -17,6 +17,7 @@ pub trait TransactionExecutorTrait: Send {
         txs: &[BlockifierTransaction],
         block_timeout: Instant,
     ) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>>;
+    #[allow(clippy::result_large_err)]
     fn close_block(&mut self) -> TransactionExecutorResult<BlockExecutionSummary>;
 }
 
@@ -34,6 +35,7 @@ impl<S: StateReader + Send + Sync + 'static> TransactionExecutorTrait for Transa
     }
     /// Finalizes the block creation and returns the commitment state diff, visited
     /// segments mapping and bouncer.
+    #[allow(clippy::result_large_err)]
     fn close_block(&mut self) -> TransactionExecutorResult<BlockExecutionSummary> {
         self.finalize()
     }

@@ -7,6 +7,7 @@ use crate::execution::syscalls::hint_processor::{
 };
 use crate::execution::syscalls::syscall_base::{SyscallResult, KECCAK_FULL_RATE_IN_WORDS};
 
+#[allow(clippy::result_large_err)]
 pub fn base_keccak(
     keccak_round_cost_base_syscall_cost: u64,
     input: &[u64],

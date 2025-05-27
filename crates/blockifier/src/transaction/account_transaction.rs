@@ -220,6 +220,7 @@ impl AccountTransaction {
         self.create_tx_info().enforce_fee()
     }
 
+    #[allow(clippy::result_large_err)]
     fn verify_tx_version(&self, version: TransactionVersion) -> TransactionExecutionResult<()> {
         let allowed_versions: Vec<TransactionVersion> = match &self.tx {
             // Support `Declare` of version 0 in order to allow bootstrapping of a new system.
@@ -247,6 +248,7 @@ impl AccountTransaction {
 
     // Performs static checks before executing validation entry point.
     // Note that nonce is incremented during these checks.
+    #[allow(clippy::result_large_err)]
     pub fn perform_pre_validation_stage<S: State + StateReader>(
         &self,
         state: &mut S,
@@ -264,6 +266,7 @@ impl AccountTransaction {
         Ok(())
     }
 
+    #[allow(clippy::result_large_err)]
     fn check_fee_bounds(
         &self,
         tx_context: &TransactionContext,
@@ -368,6 +371,7 @@ impl AccountTransaction {
         Ok(())
     }
 
+    #[allow(clippy::result_large_err)]
     fn handle_nonce(
         state: &mut dyn State,
         tx_info: &TransactionInfo,
@@ -419,6 +423,7 @@ impl AccountTransaction {
         }
     }
 
+    #[allow(clippy::result_large_err)]
     fn handle_fee<S: StateReader>(
         state: &mut TransactionalState<'_, S>,
         tx_context: Arc<TransactionContext>,
@@ -442,6 +447,7 @@ impl AccountTransaction {
         Ok(Some(fee_transfer_call_info))
     }
 
+    #[allow(clippy::result_large_err)]
     fn execute_fee_transfer(
         state: &mut dyn State,
         tx_context: Arc<TransactionContext>,
@@ -491,6 +497,7 @@ impl AccountTransaction {
     /// manipulates the state to avoid that part.
     /// Note: the returned transfer call info is partial, and should be completed at the commit
     /// stage, as well as the actual sequencer balance.
+    #[allow(clippy::result_large_err)]
     fn concurrency_execute_fee_transfer<S: StateReader>(
         state: &mut TransactionalState<'_, S>,
         tx_context: Arc<TransactionContext>,
@@ -517,6 +524,7 @@ impl AccountTransaction {
         fee_transfer_call_info
     }
 
+    #[allow(clippy::result_large_err)]
     fn run_execute<S: State>(
         &self,
         state: &mut S,
@@ -537,6 +545,7 @@ impl AccountTransaction {
         }))
     }
 
+    #[allow(clippy::result_large_err)]
     fn run_non_revertible<S: StateReader>(
         &self,
         state: &mut TransactionalState<'_, S>,
@@ -605,6 +614,7 @@ impl AccountTransaction {
         }
     }
 
+    #[allow(clippy::result_large_err)]
     fn run_revertible<S: StateReader>(
         &self,
         state: &mut TransactionalState<'_, S>,
@@ -755,6 +765,7 @@ impl AccountTransaction {
     }
 
     /// Runs validation and execution.
+    #[allow(clippy::result_large_err)]
     fn run_or_revert<S: StateReader>(
         &self,
         state: &mut TransactionalState<'_, S>,
@@ -770,6 +781,7 @@ impl AccountTransaction {
 }
 
 impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
+    #[allow(clippy::result_large_err)]
     fn execute_raw(
         &self,
         state: &mut TransactionalState<'_, U>,
@@ -876,6 +888,7 @@ impl ValidateExecuteCallInfo {
 }
 
 impl ValidatableTransaction for AccountTransaction {
+    #[allow(clippy::result_large_err)]
     fn validate_tx(
         &self,
         state: &mut dyn State,

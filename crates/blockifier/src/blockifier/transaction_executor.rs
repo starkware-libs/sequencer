@@ -137,6 +137,7 @@ impl<S: StateReader> TransactionExecutor<S> {
     /// Executes the given transaction on the state maintained by the executor.
     /// Returns the execution result (info or error) if there is room for the transaction;
     /// Otherwise, returns BlockFull error.
+    #[allow(clippy::result_large_err)]
     pub fn execute(
         &mut self,
         tx: &Transaction,
@@ -197,15 +198,18 @@ impl<S: StateReader> TransactionExecutor<S> {
 
     /// Returns the state diff and the block weights.
     // TODO(Aner): Consume "self", i.e., remove the reference, after removing the native blockifier.
+    #[allow(clippy::result_large_err)]
     pub fn finalize(&mut self) -> TransactionExecutorResult<BlockExecutionSummary> {
         self.internal_finalize()
     }
 
     #[cfg(feature = "reexecution")]
+    #[allow(clippy::result_large_err)]
     pub fn non_consuming_finalize(&mut self) -> TransactionExecutorResult<BlockExecutionSummary> {
         self.internal_finalize()
     }
 
+    #[allow(clippy::result_large_err)]
     fn internal_finalize(&mut self) -> TransactionExecutorResult<BlockExecutionSummary> {
         log::debug!(
             "Final block weights: {:?}.",
