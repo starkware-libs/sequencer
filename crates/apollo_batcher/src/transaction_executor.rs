@@ -17,8 +17,16 @@ pub trait TransactionExecutorTrait: Send {
         txs: &[BlockifierTransaction],
         block_timeout: Instant,
     ) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>>;
+
+    /// Finalizes the block creation and returns the commitment state diff, visited
+    /// segments mapping and bouncer.
+    ///
+    /// Every block must be closed with either `close_block` or `abort_block`.
     #[allow(clippy::result_large_err)]
     fn close_block(&mut self) -> TransactionExecutorResult<BlockExecutionSummary>;
+
+    /// Marks the block as aborted.
+    fn abort_block(&mut self);
 }
 
 impl<S: StateReader + Send + Sync + 'static> TransactionExecutorTrait for TransactionExecutor<S> {
@@ -33,10 +41,14 @@ impl<S: StateReader + Send + Sync + 'static> TransactionExecutorTrait for Transa
             .map(|res| res.map(|(tx_execution_info, _state_diff)| tx_execution_info))
             .collect()
     }
+
     /// Finalizes the block creation and returns the commitment state diff, visited
     /// segments mapping and bouncer.
     #[allow(clippy::result_large_err)]
     fn close_block(&mut self) -> TransactionExecutorResult<BlockExecutionSummary> {
         self.finalize()
     }
+
+    /// Marks the block as aborted.
+    fn abort_block(&mut self) {}
 }
