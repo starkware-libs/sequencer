@@ -61,11 +61,15 @@ pub fn complete_fee_transfer_flow(
             state_diff,
         );
     } else {
-        let charge_fee = match tx {
-            Transaction::Account(tx) => tx.execution_flags.charge_fee,
-            Transaction::L1Handler(_) => tx_context.tx_info.enforce_fee(),
+        // Sanity check.
+        match tx {
+            Transaction::Account(tx) => assert!(
+                !tx.execution_flags.charge_fee || tx_execution_info.receipt.fee == Fee(0),
+                "Transaction with no fee transfer info must not enforce a fee charge."
+            ),
+            // No fee transfer info for L1 handler transactions.
+            Transaction::L1Handler(_) => {}
         };
-        assert!(!charge_fee, "Transaction with no fee transfer info must not enforce a fee charge.")
     }
 }
 
