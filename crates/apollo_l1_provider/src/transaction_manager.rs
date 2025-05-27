@@ -123,9 +123,9 @@ impl TransactionManager {
     pub(crate) fn snapshot(&self) -> TransactionManagerSnapshot {
         TransactionManagerSnapshot {
             uncommitted: self.uncommitted.txs.keys().copied().collect(),
-            uncommitted_staged: self.uncommitted.staged_txs.iter().cloned().collect(),
+            uncommitted_staged: self.uncommitted.staged_txs.iter().copied().collect(),
             rejected: self.rejected.txs.keys().copied().collect(),
-            rejected_staged: self.rejected.staged_txs.iter().cloned().collect(),
+            rejected_staged: self.rejected.staged_txs.iter().copied().collect(),
             committed: self.committed.keys().copied().collect(),
         }
     }
