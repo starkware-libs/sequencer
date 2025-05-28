@@ -71,7 +71,6 @@ def wait_for_resource(controller: str, name: str, timeout: int = 180) -> None:
         print(f"⚠️ Timeout waiting for {controller.capitalize()} {name}")
         sys.exit(1)
 
-
 # TODO(Nadin): Move this function to utils and use it across all the scripts.
 def build_resource_name(service_name: str, controller: str) -> str:
     return f"sequencer-{service_name.lower()}-{controller.lower()}"
@@ -87,11 +86,8 @@ def main(deployment_config_path: str, data_dir: str) -> None:
     # Reverse the service order so the batcher (which must restart last in the distributed flow) is
     #  handled after the others.
     # TODO(Nadin): Investigate why a specific restart order is needed and whether it can be enforced
-    #  explicitly instead of relying on reversed().
     for service_name, controller in reversed(services):
         service_name_lower = service_name.lower()
-        controller_lower = controller.lower()
-        resource_name = build_resource_name(service_name, controller)
 
         print(f"🚀 Processing service: {service_name} ({controller})")
 
