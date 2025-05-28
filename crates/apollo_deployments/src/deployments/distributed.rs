@@ -179,13 +179,11 @@ impl ServiceNameInner for DistributedNodeServiceName {
             | Environment::StressTest => match self {
                 DistributedNodeServiceName::Batcher => Some(Toleration::ApolloCoreService),
                 DistributedNodeServiceName::ClassManager => Some(Toleration::ApolloGeneralService),
-                DistributedNodeServiceName::ConsensusManager => {
-                    Some(Toleration::ApolloGeneralService)
-                }
+                DistributedNodeServiceName::ConsensusManager => Some(Toleration::ApolloCoreService),
                 DistributedNodeServiceName::HttpServer => Some(Toleration::ApolloGeneralService),
                 DistributedNodeServiceName::Gateway => Some(Toleration::ApolloGeneralService),
                 DistributedNodeServiceName::L1 => Some(Toleration::ApolloGeneralService),
-                DistributedNodeServiceName::Mempool => Some(Toleration::ApolloGeneralService),
+                DistributedNodeServiceName::Mempool => Some(Toleration::ApolloCoreService),
                 DistributedNodeServiceName::SierraCompiler => {
                     Some(Toleration::ApolloGeneralService)
                 }
