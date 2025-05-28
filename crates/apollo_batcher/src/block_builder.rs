@@ -507,6 +507,13 @@ async fn collect_execution_results_and_stream_txs(
 
         match result {
             Ok((tx_execution_info, state_maps)) => {
+                if let Some(ref revert_error) = tx_execution_info.revert_error {
+                    warn!(
+                        "Transaction {} is reverted while accepted. Revert Error: {:?}",
+                        input_tx.tx_hash(),
+                        revert_error,
+                    );
+                }
                 let (tx_index, duplicate_tx_hash) =
                     execution_data.execution_infos.insert_full(tx_hash, tx_execution_info);
                 assert_eq!(duplicate_tx_hash, None, "Duplicate transaction: {tx_hash}.");
@@ -540,7 +547,7 @@ async fn collect_execution_results_and_stream_txs(
             }
             Err(err) => {
                 info!(
-                    "Transaction {} failed with error: {}.",
+                    "Transaction {} failed to execute with error: {}.",
                     tx_hash,
                     err.log_compatible_to_string()
                 );
