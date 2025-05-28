@@ -203,6 +203,13 @@ expression: dumped_default_config
     },
     "privacy": "Public"
   },
+  "context.l1_gas_tip_wei": {
+    "description": "This additional gas is added to the L1 gas price.",
+    "value": {
+      "$serde_json::private::Number": "1000000000"
+    },
+    "privacy": "Public"
+  },
   "context.max_l1_data_gas_price_wei": {
     "description": "The maximum L1 data gas price in wei.",
     "value": {
