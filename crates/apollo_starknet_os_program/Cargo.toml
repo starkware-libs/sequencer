@@ -9,6 +9,7 @@ build = "build/main.rs"
 
 [features]
 dump_source_files = []
+test_programs = []
 
 [lints]
 workspace = true
