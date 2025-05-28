@@ -120,12 +120,13 @@ pub fn invoke_tx(cairo_version: CairoVersion) -> RpcTransaction {
     let account_contract = FeatureContract::AccountWithoutValidations(cairo_version);
     let sender_address = account_contract.get_instance_address(0);
     let mut nonce_manager = NonceManager::default();
+    let calldata = create_trivial_calldata(test_contract.get_instance_address(0));
 
     rpc_invoke_tx(invoke_tx_args!(
         resource_bounds: test_valid_resource_bounds(),
         nonce : nonce_manager.next(sender_address),
         sender_address,
-        calldata: create_trivial_calldata(test_contract.get_instance_address(0))
+        calldata,
     ))
 }
 
@@ -403,6 +404,7 @@ impl AccountTransactionGenerator {
              account must be a deploy account transaction."
         );
         let nonce = self.next_nonce();
+
         let invoke_args = invoke_tx_args!(
             nonce,
             tip: Tip(tip),
@@ -419,12 +421,14 @@ impl AccountTransactionGenerator {
     }
 
     pub fn generate_trivial_rpc_invoke_tx(&mut self, tip: u64) -> RpcTransaction {
-        let calldata = create_trivial_calldata(self.sender_address());
+        let test_contract = FeatureContract::TestContract(self.account.cairo_version());
+        let calldata = create_trivial_calldata(test_contract.get_instance_address(0));
         self.generate_rpc_invoke_tx(tip, calldata)
     }
 
     pub fn generate_trivial_executable_invoke_tx(&mut self) -> AccountTransaction {
-        let calldata = create_trivial_calldata(self.sender_address());
+        let test_contract = FeatureContract::TestContract(self.account.cairo_version());
+        let calldata = create_trivial_calldata(test_contract.get_instance_address(0));
         let invoke_args = self.generate_invoke_tx_args(Tip::default().0, calldata);
         starknet_api::test_utils::invoke::executable_invoke_tx(invoke_args)
     }
