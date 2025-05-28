@@ -85,7 +85,7 @@ use crate::utils::{
 };
 
 pub const DEFAULT_SENDER_ACCOUNT: AccountId = 0;
-const BLOCK_MAX_CAPACITY_GAS: GasAmount = GasAmount(30000000);
+const BLOCK_MAX_CAPACITY_N_STEPS: GasAmount = GasAmount(100000000); // Capacity allows multiple transactions per block.
 pub const BLOCK_TO_WAIT_FOR_DEPLOY_AND_INVOKE: BlockNumber = BlockNumber(4);
 pub const BLOCK_TO_WAIT_FOR_DECLARE: BlockNumber =
     BlockNumber(BLOCK_TO_WAIT_FOR_DEPLOY_AND_INVOKE.0 + 10);
@@ -971,7 +971,7 @@ async fn get_sequencer_setup_configs(
                 monitoring_endpoint_config,
                 executable_component_config.clone(),
                 base_layer_config.clone(),
-                BLOCK_MAX_CAPACITY_GAS,
+                BLOCK_MAX_CAPACITY_N_STEPS,
                 validator_id,
                 ALLOW_BOOTSTRAP_TXS,
             );
