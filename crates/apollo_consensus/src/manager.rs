@@ -108,7 +108,7 @@ where
                 let round = decision.precommits[0].round;
                 let proposer = context.proposer(current_height, round);
                 info!(
-                    "Decision reached for round {} with proposer {}. {:?}",
+                    "DECISION_REACHED: Decision reached for round {} with proposer {}. {:?}",
                     round, proposer, decision
                 );
                 CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS.increment(1);
