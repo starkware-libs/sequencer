@@ -324,6 +324,16 @@ impl<S: StateReader> WorkerExecutor<S> {
 
 impl<U: UpdatableState> WorkerExecutor<U> {
     pub fn commit_chunk_and_recover_block_state(&self, n_committed_txs: usize) -> U {
+        let (abort_counter, abort_in_commit_counter, execute_counter, validate_counter) =
+            self.metrics.get_metrics();
+        let chunk_size = self.chunk.len();
+        log::debug!(
+            "Concurrent execution done. Initial chunk size: {chunk_size}; Committed chunk size: \
+             {n_committed_txs}; Execute counter: {execute_counter}; Validate counter: \
+             {validate_counter}; Abort counter: {abort_counter}; Abort in commit counter: \
+             {abort_in_commit_counter}"
+        );
+
         self.state.into_inner_state().commit_chunk_and_recover_block_state(n_committed_txs)
     }
 }
