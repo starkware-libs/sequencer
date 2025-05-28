@@ -108,7 +108,7 @@ where
                 let round = decision.precommits[0].round;
                 let proposer = context.proposer(current_height, round);
                 info!(
-                    "Decision reached for round {} with proposer {}. {:?}",
+                    "DECISION_REACHED: Decision reached for round {} with proposer {}. {:?}",
                     round, proposer, decision
                 );
                 CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS.increment(1);
@@ -237,8 +237,8 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         let validators = context.validators(height).await;
         let is_observer = must_observer || !validators.contains(&self.validator_id);
         info!(
-            "running consensus for height {height:?}. is_observer: {is_observer}, validators: \
-             {validators:?}"
+            "START_HEIGHT: running consensus for height {height:?}. is_observer: {is_observer}, \
+             validators: {validators:?}"
         );
         CONSENSUS_BLOCK_NUMBER.set_lossy(height.0);
 

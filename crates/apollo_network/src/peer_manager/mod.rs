@@ -115,7 +115,7 @@ impl PeerManager {
     }
 
     fn add_peer(&mut self, peer: Peer) {
-        info!("Peer Manager found new peer {:?}", peer.peer_id());
+        info!("NEW_PEER: Peer Manager found new peer {:?}", peer.peer_id());
         self.peers.insert(peer.peer_id(), peer);
         // The new peer is unblocked so we don't need to wait for unblocked peer.
         self.sleep_waiting_for_unblocked_peer = None;
