@@ -21,7 +21,7 @@ type HashToTransaction = HashMap<TransactionHash, InternalRpcTransaction>;
 /// No duplicate transactions appear in the pool.
 pub struct TransactionPool {
     // Holds the complete transaction objects; it should be the sole entity that does so.
-    tx_pool: HashToTransaction,
+    txs: HashToTransaction,
     // Transactions organized by account address, sorted by ascending nonce values.
     txs_by_account: AccountTransactionIndex,
     // Transactions sorted by their time spent in the pool (i.e. newest to oldest).
@@ -33,7 +33,7 @@ pub struct TransactionPool {
 impl TransactionPool {
     pub fn new(clock: Arc<dyn Clock>) -> Self {
         TransactionPool {
-            tx_pool: HashMap::new(),
+            txs: HashMap::new(),
             txs_by_account: AccountTransactionIndex::default(),
             txs_by_submission_time: TimedTransactionMap::new(clock),
             size: PoolSize::default(),
@@ -41,7 +41,7 @@ impl TransactionPool {
     }
 
     pub fn len(&self) -> usize {
-        self.tx_pool.len()
+        self.txs.len()
     }
 
     pub fn size_in_bytes(&self) -> u64 {
@@ -54,7 +54,7 @@ impl TransactionPool {
         let tx_size = tx.total_bytes();
 
         // Insert to pool.
-        if let hash_map::Entry::Vacant(entry) = self.tx_pool.entry(tx_hash) {
+        if let hash_map::Entry::Vacant(entry) = self.txs.entry(tx_hash) {
             entry.insert(tx);
         } else {
             return Err(MempoolError::DuplicateTransaction { tx_hash });
@@ -87,8 +87,7 @@ impl TransactionPool {
 
     pub fn remove(&mut self, tx_hash: TransactionHash) -> MempoolResult<InternalRpcTransaction> {
         // Remove from pool.
-        let tx =
-            self.tx_pool.remove(&tx_hash).ok_or(MempoolError::TransactionNotFound { tx_hash })?;
+        let tx = self.txs.remove(&tx_hash).ok_or(MempoolError::TransactionNotFound { tx_hash })?;
 
         // Remove reference from other mappings.
         let removed_tx = vec![TransactionReference::new(&tx)];
@@ -133,7 +132,7 @@ impl TransactionPool {
         &self,
         tx_hash: TransactionHash,
     ) -> MempoolResult<&InternalRpcTransaction> {
-        self.tx_pool.get(&tx_hash).ok_or(MempoolError::TransactionNotFound { tx_hash })
+        self.txs.get(&tx_hash).ok_or(MempoolError::TransactionNotFound { tx_hash })
     }
 
     pub fn get_by_address_and_nonce(
@@ -167,7 +166,7 @@ impl TransactionPool {
 
     fn remove_from_main_mapping(&mut self, removed_txs: &Vec<TransactionReference>) {
         for TransactionReference { tx_hash, .. } in removed_txs {
-            let tx = self.tx_pool.remove(tx_hash).unwrap_or_else(|| {
+            let tx = self.txs.remove(tx_hash).unwrap_or_else(|| {
                 panic!(
                     "Transaction pool consistency error: transaction with hash {tx_hash} does not \
                      appear in the main mapping.",
@@ -210,7 +209,7 @@ impl TransactionPool {
 
     #[cfg(test)]
     pub fn tx_pool(&self) -> HashMap<TransactionHash, InternalRpcTransaction> {
-        self.tx_pool.clone()
+        self.txs.clone()
     }
 }
 
