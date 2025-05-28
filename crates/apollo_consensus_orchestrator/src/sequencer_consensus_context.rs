@@ -231,6 +231,7 @@ pub struct SequencerConsensusContext {
     previous_block_info: Option<ConsensusBlockInfo>,
 }
 
+#[derive(Clone)]
 pub struct SequencerConsensusContextDeps {
     pub transaction_converter: Arc<dyn TransactionConverterTrait>,
     pub state_sync_client: Arc<dyn StateSyncClient>,
@@ -277,34 +278,26 @@ impl SequencerConsensusContext {
 }
 
 struct ProposalBuildArguments {
+    deps: SequencerConsensusContextDeps,
     batcher_timeout: Duration,
     proposal_init: ProposalInit,
     l1_da_mode: L1DataAvailabilityMode,
     proposal_sender: mpsc::Sender<ProposalPart>,
     fin_sender: oneshot::Sender<ProposalCommitment>,
-    batcher: Arc<dyn BatcherClient>,
-    eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
-    state_sync_client: Arc<dyn StateSyncClient>,
-    l1_gas_price_provider_client: Arc<dyn L1GasPriceProviderClient>,
     gas_price_params: GasPriceParams,
     valid_proposals: Arc<Mutex<BuiltProposals>>,
     proposal_id: ProposalId,
     cende_write_success: AbortOnDropHandle<bool>,
     l2_gas_price: GasPrice,
-    transaction_converter: Arc<dyn TransactionConverterTrait>,
     builder_address: ContractAddress,
     cancel_token: CancellationToken,
-    clock: Arc<dyn Clock>,
     previous_block_info: Option<ConsensusBlockInfo>,
 }
 
 struct ProposalValidateArguments {
+    deps: SequencerConsensusContextDeps,
     block_info_validation: BlockInfoValidation,
     proposal_id: ProposalId,
-    batcher: Arc<dyn BatcherClient>,
-    eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
-    state_sync_client: Arc<dyn StateSyncClient>,
-    l1_gas_price_provider_client: Arc<dyn L1GasPriceProviderClient>,
     min_l1_gas_price_wei: GasPrice,
     max_l1_gas_price_wei: GasPrice,
     min_l1_data_gas_price_wei: GasPrice,
@@ -316,8 +309,6 @@ struct ProposalValidateArguments {
     content_receiver: mpsc::Receiver<ProposalPart>,
     fin_sender: oneshot::Sender<ProposalCommitment>,
     cancel_token: CancellationToken,
-    transaction_converter: Arc<dyn TransactionConverterTrait>,
-    clock: Arc<dyn Clock>,
     previous_block_info: Option<ConsensusBlockInfo>,
 }
 
@@ -371,24 +362,19 @@ impl ConsensusContext for SequencerConsensusContext {
             ),
         };
         let args = ProposalBuildArguments {
+            deps: self.deps.clone(),
             batcher_timeout: timeout - self.config.build_proposal_margin_millis,
             proposal_init,
             l1_da_mode: self.l1_da_mode,
             proposal_sender,
             fin_sender,
-            batcher: Arc::clone(&self.deps.batcher),
-            eth_to_strk_oracle_client: Arc::clone(&self.deps.eth_to_strk_oracle_client),
-            state_sync_client: self.deps.state_sync_client.clone(),
-            l1_gas_price_provider_client: Arc::clone(&self.deps.l1_gas_price_provider),
             gas_price_params,
             valid_proposals: Arc::clone(&self.valid_proposals),
             proposal_id,
             cende_write_success,
             l2_gas_price: self.l2_gas_price,
-            transaction_converter: self.deps.transaction_converter.clone(),
             builder_address: self.config.builder_address,
             cancel_token,
-            clock: self.deps.clock.clone(),
             previous_block_info: self.previous_block_info.clone(),
         };
         let handle = tokio::spawn(
@@ -779,33 +765,25 @@ impl SequencerConsensusContext {
     ) {
         let cancel_token = CancellationToken::new();
         let cancel_token_clone = cancel_token.clone();
-        let batcher = Arc::clone(&self.deps.batcher);
-        let eth_to_strk_oracle_client = self.deps.eth_to_strk_oracle_client.clone();
-        let state_sync_client = self.deps.state_sync_client.clone();
-        let l1_gas_price_provider_client = self.deps.l1_gas_price_provider.clone();
         let min_l1_gas_price_wei = GasPrice(self.config.min_l1_gas_price_wei);
         let max_l1_gas_price_wei = GasPrice(self.config.max_l1_gas_price_wei);
         let min_l1_data_gas_price_wei = GasPrice(self.config.min_l1_data_gas_price_wei);
         let max_l1_data_gas_price_wei = GasPrice(self.config.max_l1_data_gas_price_wei);
         let l1_data_gas_price_multiplier =
             Ratio::new(self.config.l1_data_gas_price_multiplier_ppt, 1000);
-        let transaction_converter = self.deps.transaction_converter.clone();
         let valid_proposals = Arc::clone(&self.valid_proposals);
         let proposal_id = ProposalId(self.proposal_id);
-        let clock = self.deps.clock.clone();
         let previous_block_info = self.previous_block_info.clone();
         self.proposal_id += 1;
+        let deps = self.deps.clone();
 
         info!(?timeout, %proposal_id, %proposer, round=self.current_round, "Validating proposal.");
         let handle = tokio::spawn(
             async move {
                 validate_proposal(ProposalValidateArguments {
+                    deps,
                     block_info_validation,
                     proposal_id,
-                    batcher,
-                    eth_to_strk_oracle_client,
-                    state_sync_client,
-                    l1_gas_price_provider_client,
                     min_l1_gas_price_wei,
                     max_l1_gas_price_wei,
                     min_l1_data_gas_price_wei,
@@ -817,8 +795,6 @@ impl SequencerConsensusContext {
                     content_receiver,
                     fin_sender,
                     cancel_token: cancel_token_clone,
-                    transaction_converter,
-                    clock,
                     previous_block_info,
                 })
                 .await
@@ -859,10 +835,10 @@ async fn build_proposal(mut args: ProposalBuildArguments) {
 
     let Some((proposal_commitment, content)) = get_proposal_content(
         args.proposal_id,
-        args.batcher.as_ref(),
+        args.deps.batcher.as_ref(),
         args.proposal_sender,
         args.cende_write_success,
-        args.transaction_converter,
+        args.deps.transaction_converter,
         args.cancel_token,
     )
     .await
@@ -889,10 +865,10 @@ async fn build_proposal(mut args: ProposalBuildArguments) {
 async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<ConsensusBlockInfo> {
     let batcher_timeout = chrono::Duration::from_std(args.batcher_timeout)
         .expect("Can't convert timeout to chrono::Duration");
-    let timestamp = args.clock.now_as_timestamp();
+    let timestamp = args.deps.clock.now_as_timestamp();
     let (eth_to_fri_rate, mut l1_prices) = get_oracle_rate_and_prices(
-        args.eth_to_strk_oracle_client.clone(),
-        args.l1_gas_price_provider_client.clone(),
+        args.deps.eth_to_strk_oracle_client.clone(),
+        args.deps.l1_gas_price_provider.clone(),
         timestamp,
         args.previous_block_info.as_ref(),
         &args.gas_price_params,
@@ -923,15 +899,15 @@ async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<Consens
     };
 
     let retrospective_block_hash =
-        retrospective_block_hash(args.state_sync_client.clone(), &block_info).await?;
+        retrospective_block_hash(args.deps.state_sync_client.clone(), &block_info).await?;
     let build_proposal_input = ProposeBlockInput {
         proposal_id: args.proposal_id,
-        deadline: args.clock.now() + batcher_timeout,
+        deadline: args.deps.clock.now() + batcher_timeout,
         retrospective_block_hash,
         block_info: convert_to_sn_api_block_info(&block_info),
     };
     debug!("Initiating build proposal: {build_proposal_input:?}");
-    args.batcher.propose_block(build_proposal_input).await?;
+    args.deps.batcher.propose_block(build_proposal_input).await?;
     Ok(block_info)
 }
 
@@ -1035,7 +1011,7 @@ async fn get_proposal_content(
 
 async fn validate_proposal(mut args: ProposalValidateArguments) {
     let mut content = Vec::new();
-    let now = args.clock.now_at_tokio_instant();
+    let now = args.deps.clock.now_at_tokio_instant();
     let Some(deadline) = now.checked_add(args.timeout) else {
         warn!("Cannot calculate deadline. Timeout: {:?}, now: {:?}", args.timeout, now);
         return;
@@ -1061,9 +1037,9 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
     if !is_block_info_valid(
         args.block_info_validation.clone(),
         block_info.clone(),
-        args.eth_to_strk_oracle_client,
-        args.clock.as_ref(),
-        args.l1_gas_price_provider_client,
+        args.deps.eth_to_strk_oracle_client,
+        args.deps.clock.as_ref(),
+        args.deps.l1_gas_price_provider,
         &min_max_prices,
         args.previous_block_info.clone(),
     )
@@ -1072,12 +1048,12 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
         return;
     }
     if let Err(e) = initiate_validation(
-        args.batcher.as_ref(),
-        args.state_sync_client,
+        args.deps.batcher.as_ref(),
+        args.deps.state_sync_client,
         block_info.clone(),
         args.proposal_id,
         args.timeout + args.batcher_timeout_margin,
-        args.clock.as_ref(),
+        args.deps.clock.as_ref(),
     )
     .await
     {
@@ -1089,21 +1065,21 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
         tokio::select! {
             _ = args.cancel_token.cancelled() => {
                 warn!("Proposal interrupted during validation.");
-                batcher_abort_proposal(args.batcher.as_ref(), args.proposal_id).await;
+                batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await;
                 return;
             }
             _ = tokio::time::sleep_until(deadline) => {
                 warn!("Validation timed out.");
-                batcher_abort_proposal(args.batcher.as_ref(), args.proposal_id).await;
+                batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await;
                 return;
             }
             proposal_part = args.content_receiver.next() => {
                 match handle_proposal_part(
                     args.proposal_id,
-                    args.batcher.as_ref(),
+                    args.deps.batcher.as_ref(),
                     proposal_part,
                     &mut content,
-                    args.transaction_converter.clone(),
+                    args.deps.transaction_converter.clone(),
                 ).await {
                     HandledProposalPart::Finished(built_block, received_fin) => {
                         break (built_block, received_fin);
@@ -1116,7 +1092,7 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
                     }
                     HandledProposalPart::Failed(fail_reason) => {
                         warn!("Failed to handle proposal part. {fail_reason}");
-                        batcher_abort_proposal(args.batcher.as_ref(), args.proposal_id).await;
+                        batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await;
                         return;
                     }
                 }
