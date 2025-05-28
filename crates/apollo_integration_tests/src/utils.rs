@@ -388,7 +388,12 @@ pub fn create_integration_test_tx_generator() -> MultiAccountTransactionGenerato
 
     let account =
         FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
-    tx_generator.register_undeployed_account(account, ContractAddressSalt(Felt::ZERO));
+    let test_account = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    tx_generator.register_undeployed_account(
+        account,
+        test_account,
+        ContractAddressSalt(Felt::ZERO),
+    );
     tx_generator
 }
 
@@ -396,17 +401,19 @@ pub fn create_integration_test_tx_generator() -> MultiAccountTransactionGenerato
 pub fn create_flow_test_tx_generator() -> MultiAccountTransactionGenerator {
     let mut tx_generator: MultiAccountTransactionGenerator =
         MultiAccountTransactionGenerator::new();
+    let test_account = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
 
     for account in [
         FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm)),
         FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0),
     ] {
-        tx_generator.register_deployed_account(account);
+        tx_generator.register_deployed_account(account, test_account);
     }
     // TODO(yair): This is a hack to fund the new account during the setup. Move the registration to
     // the test body once funding is supported.
     let new_account_id = tx_generator.register_undeployed_account(
         FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+        test_account,
         NEW_ACCOUNT_SALT,
     );
     assert_eq!(new_account_id, UNDEPLOYED_ACCOUNT_ID);
