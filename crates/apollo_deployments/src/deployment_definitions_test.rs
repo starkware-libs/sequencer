@@ -13,6 +13,7 @@ use crate::deployment::FIX_BINARY_NAME;
 use crate::deployment_definitions::{Environment, DEPLOYMENTS};
 
 /// Test that the deployment file is up to date. To update it run:
+///
 /// cargo run --bin deployment_generator -q
 #[test]
 fn deployment_files_are_up_to_date() {
