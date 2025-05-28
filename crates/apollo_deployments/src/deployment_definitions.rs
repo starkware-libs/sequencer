@@ -7,35 +7,11 @@ use starknet_api::block::BlockNumber;
 use strum_macros::{Display, EnumString};
 
 use crate::deployment::Deployment;
-use crate::deployment_definitions::sepolia_integration::{
-    sepolia_integration_hybrid_deployment_node_0,
-    sepolia_integration_hybrid_deployment_node_1,
-    sepolia_integration_hybrid_deployment_node_2,
-    sepolia_integration_hybrid_deployment_node_3,
-};
-use crate::deployment_definitions::stress_test::{
-    stress_test_hybrid_deployment_node_0,
-    stress_test_hybrid_deployment_node_1,
-    stress_test_hybrid_deployment_node_2,
-    stress_test_hybrid_deployment_node_3,
-};
-use crate::deployment_definitions::testing::{
-    system_test_consolidated_deployment,
-    system_test_distributed_deployment,
-    system_test_hybrid_deployment,
-};
-use crate::deployment_definitions::testing_env_2::{
-    testing_env_2_hybrid_deployment_node_0,
-    testing_env_2_hybrid_deployment_node_1,
-    testing_env_2_hybrid_deployment_node_2,
-    testing_env_2_hybrid_deployment_node_3,
-};
-use crate::deployment_definitions::testing_env_3::{
-    testing_env_3_hybrid_deployment_node_0,
-    testing_env_3_hybrid_deployment_node_1,
-    testing_env_3_hybrid_deployment_node_2,
-    testing_env_3_hybrid_deployment_node_3,
-};
+use crate::deployment_definitions::sepolia_integration::sepolia_integration_hybrid_deployments;
+use crate::deployment_definitions::stress_test::stress_test_hybrid_deployments;
+use crate::deployment_definitions::testing::system_test_deployments;
+use crate::deployment_definitions::testing_env_2::testing_env_2_hybrid_deployments;
+use crate::deployment_definitions::testing_env_3::testing_env_3_hybrid_deployments;
 
 #[cfg(test)]
 #[path = "deployment_definitions_test.rs"]
@@ -51,30 +27,14 @@ pub(crate) const BASE_APP_CONFIG_PATH: &str = "config/sequencer/base_app_config.
 pub(crate) const CONFIG_BASE_DIR: &str = "config/sequencer/";
 const APP_CONFIGS_DIR_NAME: &str = "app_configs/";
 
-type DeploymentFn = fn() -> Deployment;
-
-// TODO(Tsabary): create deployment instances per deployment.
+type DeploymentFn = fn() -> Vec<Deployment>;
 
 pub const DEPLOYMENTS: &[DeploymentFn] = &[
-    system_test_distributed_deployment,
-    system_test_hybrid_deployment,
-    system_test_consolidated_deployment,
-    sepolia_integration_hybrid_deployment_node_0,
-    sepolia_integration_hybrid_deployment_node_1,
-    sepolia_integration_hybrid_deployment_node_2,
-    sepolia_integration_hybrid_deployment_node_3,
-    testing_env_2_hybrid_deployment_node_0,
-    testing_env_2_hybrid_deployment_node_1,
-    testing_env_2_hybrid_deployment_node_2,
-    testing_env_2_hybrid_deployment_node_3,
-    testing_env_3_hybrid_deployment_node_0,
-    testing_env_3_hybrid_deployment_node_1,
-    testing_env_3_hybrid_deployment_node_2,
-    testing_env_3_hybrid_deployment_node_3,
-    stress_test_hybrid_deployment_node_0,
-    stress_test_hybrid_deployment_node_1,
-    stress_test_hybrid_deployment_node_2,
-    stress_test_hybrid_deployment_node_3,
+    system_test_deployments,
+    sepolia_integration_hybrid_deployments,
+    testing_env_2_hybrid_deployments,
+    testing_env_3_hybrid_deployments,
+    stress_test_hybrid_deployments,
 ];
 
 #[derive(EnumString, Clone, Display, PartialEq, Debug)]

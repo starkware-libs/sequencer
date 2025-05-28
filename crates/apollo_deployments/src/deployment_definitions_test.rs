@@ -16,8 +16,7 @@ use crate::deployment_definitions::{Environment, DEPLOYMENTS};
 /// cargo run --bin deployment_generator -q
 #[test]
 fn deployment_files_are_up_to_date() {
-    for deployment_fn in DEPLOYMENTS {
-        let deployment = deployment_fn();
+    for deployment in DEPLOYMENTS.iter().flat_map(|f| f()) {
         serialize_to_file_test(
             &deployment,
             deployment.deployment_file_path().to_str().unwrap(),
@@ -31,8 +30,7 @@ fn deployment_files_are_up_to_date() {
 fn load_and_process_service_config_files() {
     env::set_current_dir(resolve_project_relative_path("").unwrap())
         .expect("Couldn't set working dir.");
-    for deployment_fn in DEPLOYMENTS {
-        let deployment = deployment_fn();
+    for deployment in DEPLOYMENTS.iter().flat_map(|f| f()) {
         for service_config_paths in deployment.get_config_file_paths().into_iter() {
             let config_file_args: Vec<String> = service_config_paths
                 .into_iter()
@@ -51,8 +49,7 @@ fn load_and_process_service_config_files() {
 fn application_config_files_exist() {
     env::set_current_dir(resolve_project_relative_path("").unwrap())
         .expect("Couldn't set working dir.");
-    for deployment_fn in DEPLOYMENTS {
-        let deployment = deployment_fn();
+    for deployment in DEPLOYMENTS.iter().flat_map(|f| f()) {
         deployment.assert_application_configs_exist();
         deployment.test_dump_application_config_files();
     }
@@ -62,8 +59,7 @@ fn application_config_files_exist() {
 
 #[test]
 fn l1_components_state_consistency() {
-    for deployment_fn in DEPLOYMENTS {
-        let deployment = deployment_fn();
+    for deployment in DEPLOYMENTS.iter().flat_map(|f| f()) {
         let deployment_name = deployment.get_deployment_name();
         let component_configs = deployment_name.get_component_configs(None, &Environment::Testing);
 

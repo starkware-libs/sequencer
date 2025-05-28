@@ -11,6 +11,20 @@ use crate::deployment::{
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
 use crate::service::{DeploymentName, ExternalSecret, IngressParams};
 
+const TESTING_ENV_2_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str =
+    "sn-test-sepolia-2-sepolia.gateway-proxy.sw-dev.io";
+const TESTING_ENV_2_INGRESS_DOMAIN: &str = "sw-dev.io";
+const FIRST_NODE_NAMESPACE: &str = "sequencer-test-sepolia-0";
+
+pub(crate) fn testing_env_2_hybrid_deployments() -> Vec<Deployment> {
+    vec![
+        testing_env_2_hybrid_deployment_node_0(),
+        testing_env_2_hybrid_deployment_node_1(),
+        testing_env_2_hybrid_deployment_node_2(),
+        testing_env_2_hybrid_deployment_node_3(),
+    ]
+}
+
 fn testing_env_2_deployment_config_override() -> DeploymentConfigOverride {
     DeploymentConfigOverride::new(
         "0xA43812F9C610851daF67c5FA36606Ea8c8Fa7caE",
@@ -20,8 +34,6 @@ fn testing_env_2_deployment_config_override() -> DeploymentConfigOverride {
         "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d",
     )
 }
-
-const FIRST_NODE_NAMESPACE: &str = "sequencer-test-sepolia-0";
 
 fn testing_env_2_node_0_config_override() -> ConfigOverride {
     ConfigOverride::new(
@@ -55,11 +67,7 @@ fn get_ingress_params() -> IngressParams {
     )
 }
 
-const TESTING_ENV_2_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str =
-    "sn-test-sepolia-2-sepolia.gateway-proxy.sw-dev.io";
-const TESTING_ENV_2_INGRESS_DOMAIN: &str = "sw-dev.io";
-
-pub(crate) fn testing_env_2_hybrid_deployment_node_0() -> Deployment {
+fn testing_env_2_hybrid_deployment_node_0() -> Deployment {
     Deployment::new(
         ChainId::IntegrationSepolia,
         DeploymentName::HybridNode,
@@ -72,7 +80,7 @@ pub(crate) fn testing_env_2_hybrid_deployment_node_0() -> Deployment {
     )
 }
 
-pub(crate) fn testing_env_2_hybrid_deployment_node_1() -> Deployment {
+fn testing_env_2_hybrid_deployment_node_1() -> Deployment {
     Deployment::new(
         ChainId::IntegrationSepolia,
         DeploymentName::HybridNode,
@@ -85,7 +93,7 @@ pub(crate) fn testing_env_2_hybrid_deployment_node_1() -> Deployment {
     )
 }
 
-pub(crate) fn testing_env_2_hybrid_deployment_node_2() -> Deployment {
+fn testing_env_2_hybrid_deployment_node_2() -> Deployment {
     Deployment::new(
         ChainId::IntegrationSepolia,
         DeploymentName::HybridNode,
@@ -98,7 +106,7 @@ pub(crate) fn testing_env_2_hybrid_deployment_node_2() -> Deployment {
     )
 }
 
-pub(crate) fn testing_env_2_hybrid_deployment_node_3() -> Deployment {
+fn testing_env_2_hybrid_deployment_node_3() -> Deployment {
     Deployment::new(
         ChainId::IntegrationSepolia,
         DeploymentName::HybridNode,
