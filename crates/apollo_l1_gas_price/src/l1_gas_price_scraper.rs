@@ -139,6 +139,10 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
 
     /// Run the scraper, starting from the given L1 `block_number`, indefinitely.
     pub async fn run(&mut self, mut block_number: L1BlockNumber) -> L1GasPriceScraperResult<(), B> {
+        self.l1_gas_price_provider
+            .initialize()
+            .await
+            .map_err(L1GasPriceScraperError::GasPriceClientError)?;
         loop {
             block_number = self.update_prices(block_number).await?;
             tokio::time::sleep(self.config.polling_interval).await;

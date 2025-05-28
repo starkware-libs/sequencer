@@ -15,6 +15,7 @@ fn make_provider() -> (L1GasPriceProvider, Vec<PriceInfo>, u64) {
         number_of_blocks_for_mean: 3,
         ..Default::default()
     });
+    provider.initialize().unwrap();
     let mut prices = Vec::new();
     let mut timestamp3 = 0;
     for i in 0..5 {
@@ -119,7 +120,20 @@ fn gas_price_provider_can_start_at_nonzero_height() {
         number_of_blocks_for_mean: 3,
         ..Default::default()
     });
+    provider.initialize().unwrap();
     let price_info = PriceInfo { base_fee_per_gas: GasPrice(0), blob_fee: GasPrice(0) };
     let timestamp = BlockTimestamp(0);
     provider.add_price_info(GasPriceData { block_number: 42, timestamp, price_info }).unwrap();
+}
+
+#[test]
+fn gas_price_provider_uninitialized_error() {
+    let mut provider = L1GasPriceProvider::new(L1GasPriceProviderConfig {
+        number_of_blocks_for_mean: 3,
+        ..Default::default()
+    });
+    let price_info = PriceInfo { base_fee_per_gas: GasPrice(0), blob_fee: GasPrice(0) };
+    let timestamp = BlockTimestamp(0);
+    let result = provider.add_price_info(GasPriceData { block_number: 42, timestamp, price_info });
+    assert!(matches!(result, Err(L1GasPriceProviderError::NotInitializedError)));
 }
