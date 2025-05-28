@@ -48,6 +48,7 @@ use crate::{
     SerializationType,
     SerializedContent,
     SerializedParam,
+    CONFIG_FILE_ARG,
 };
 
 lazy_static! {
@@ -622,7 +623,7 @@ fn test_load_custom_config_file() {
 fn test_load_custom_config_file_and_args() {
     let args = vec![
         "Testing",
-        "--config_file",
+        CONFIG_FILE_ARG,
         CUSTOM_CONFIG_PATH.to_str().unwrap(),
         "--param_path",
         "command value",
@@ -769,7 +770,7 @@ fn test_required_param_from_command() {
 
 #[test]
 fn test_required_param_from_file() {
-    let args = vec!["Testing", "--config_file", CUSTOM_CONFIG_PATH.to_str().unwrap()];
+    let args = vec!["Testing", CONFIG_FILE_ARG, CUSTOM_CONFIG_PATH.to_str().unwrap()];
     let param_path = load_required_param_path(args);
     assert_eq!(param_path, "custom value");
 }

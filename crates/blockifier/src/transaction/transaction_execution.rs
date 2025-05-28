@@ -31,6 +31,7 @@ use crate::transaction::objects::{
 use crate::transaction::transactions::ExecutableTransaction;
 
 // TODO(Gilad): Move into transaction.rs, makes more sense to be defined there.
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, derive_more::From)]
 pub enum Transaction {
     Account(AccountTransaction),
@@ -70,6 +71,7 @@ impl Transaction {
         }
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn from_api(
         tx: StarknetApiTransaction,
         tx_hash: TransactionHash,
@@ -127,6 +129,7 @@ impl TransactionInfoCreator for Transaction {
 }
 
 impl<U: UpdatableState> ExecutableTransaction<U> for Transaction {
+    #[allow(clippy::result_large_err)]
     fn execute_raw(
         &self,
         state: &mut TransactionalState<'_, U>,

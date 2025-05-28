@@ -223,6 +223,22 @@ impl ServiceNameInner for HybridNodeServiceName {
             _ => unimplemented!(),
         }
     }
+
+    fn get_anti_affinity(&self, environment: &Environment) -> bool {
+        match environment {
+            Environment::Testing => false,
+            Environment::SepoliaIntegration
+            | Environment::TestingEnvTwo
+            | Environment::TestingEnvThree => match self {
+                HybridNodeServiceName::Core => true,
+                HybridNodeServiceName::HttpServer => false,
+                HybridNodeServiceName::Gateway => false,
+                HybridNodeServiceName::Mempool => false,
+                HybridNodeServiceName::SierraCompiler => false,
+            },
+            _ => unimplemented!(),
+        }
+    }
 }
 
 impl HybridNodeServiceName {

@@ -340,6 +340,8 @@ func guess_compiled_class_facts{poseidon_ptr: PoseidonBuiltin*, range_check_ptr}
     %{
         from starkware.starknet.core.os.contract_class.compiled_class_hash import (
             create_bytecode_segment_structure,
+        )
+        from starkware.starknet.core.os.contract_class.compiled_class_hash_cairo_hints import (
             get_compiled_class_struct,
         )
 

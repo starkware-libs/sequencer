@@ -1022,6 +1022,9 @@ async fn get_proposal_content(
                 let proposal_commitment = BlockHash(id.state_diff_commitment.0.0);
                 let num_txs: usize = content.iter().map(|batch| batch.len()).sum();
                 info!(?proposal_commitment, num_txs = num_txs, "Finished building proposal",);
+                if num_txs == 0 {
+                    warn!("Built an empty proposal.");
+                }
 
                 // If the blob writing operation to Aerospike doesn't return a success status, we
                 // can't finish the proposal.
@@ -1043,8 +1046,10 @@ async fn get_proposal_content(
                     }
                 }
 
+                let fin = ProposalFin { proposal_commitment };
+                info!("Sending fin={fin:?}");
                 proposal_sender
-                    .send(ProposalPart::Fin(ProposalFin { proposal_commitment }))
+                    .send(ProposalPart::Fin(fin))
                     .await
                     .expect("Failed to broadcast proposal fin");
                 return Some((proposal_commitment, content));
@@ -1336,7 +1341,8 @@ async fn handle_proposal_part(
 ) -> HandledProposalPart {
     match proposal_part {
         None => HandledProposalPart::Failed("Failed to receive proposal content".to_string()),
-        Some(ProposalPart::Fin(ProposalFin { proposal_commitment: id })) => {
+        Some(ProposalPart::Fin(fin)) => {
+            info!("Received fin={fin:?}");
             // Output this along with the ID from batcher, to compare them.
             let input =
                 SendProposalContentInput { proposal_id, content: SendProposalContent::Finish };
@@ -1351,12 +1357,15 @@ async fn handle_proposal_part(
             let batcher_block_id = BlockHash(response_id.state_diff_commitment.0.0);
             let num_txs: usize = content.iter().map(|batch| batch.len()).sum();
             info!(
-                network_block_id = ?id,
+                network_block_id = ?fin.proposal_commitment,
                 ?batcher_block_id,
                 num_txs,
                 "Finished validating proposal."
             );
-            HandledProposalPart::Finished(batcher_block_id, ProposalFin { proposal_commitment: id })
+            if num_txs == 0 {
+                warn!("Validated an empty proposal.");
+            }
+            HandledProposalPart::Finished(batcher_block_id, fin)
         }
         Some(ProposalPart::Transactions(TransactionBatch { transactions: txs })) => {
             debug!("Received transaction batch with {} txs", txs.len());

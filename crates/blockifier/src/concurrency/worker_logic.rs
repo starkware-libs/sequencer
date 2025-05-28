@@ -68,6 +68,13 @@ impl ConcurrencyMetrics {
     }
 }
 
+#[derive(Debug, PartialEq)]
+enum CommitResult {
+    Success,
+    NoRoomInBlock,
+    ValidationFailed,
+}
+
 pub struct WorkerExecutor<S: StateReader> {
     pub scheduler: Scheduler,
     pub state: ThreadSafeVersionedState<S>,
@@ -131,7 +138,6 @@ impl<S: StateReader> WorkerExecutor<S> {
     }
 
     pub fn run(&self) {
-        let mut task = Task::AskForTask;
         loop {
             if let Some(deadline) = self.execution_deadline {
                 if Instant::now() > deadline {
@@ -143,22 +149,22 @@ impl<S: StateReader> WorkerExecutor<S> {
             }
             self.commit_while_possible();
 
-            task = match task {
+            match self.scheduler.next_task() {
                 Task::ExecutionTask(tx_index) => {
                     self.execute(tx_index);
-                    Task::AskForTask
                 }
-                Task::ValidationTask(tx_index) => self.validate(tx_index).unwrap_or_else(|_| {
-                    assert!(self.scheduler.done());
-                    Task::Done
-                }),
+                Task::ValidationTask(tx_index) => {
+                    if self.validate(tx_index, false).is_err() {
+                        assert!(self.scheduler.done());
+                        break;
+                    }
+                }
                 Task::NoTaskAvailable => {
                     // There's no available task at the moment; sleep for a bit to save CPU power.
                     // (since busy-looping might damage performance when using hyper-threads).
                     thread::sleep(Duration::from_micros(1));
-                    Task::AskForTask
                 }
-                Task::AskForTask => self.scheduler.next_task(),
+                Task::AskForTask => continue,
                 Task::Done => break,
             };
         }
@@ -167,11 +173,23 @@ impl<S: StateReader> WorkerExecutor<S> {
     fn commit_while_possible(&self) {
         if let Some(mut tx_committer) = self.scheduler.try_enter_commit_phase() {
             while let Some(tx_index) = tx_committer.try_commit() {
-                let commit_succeeded = self.commit_tx(tx_index).unwrap_or_else(|_| {
+                let commit_result = self.commit_tx(tx_index).unwrap_or_else(|_| {
                     panic!("Commit transaction should not be called after clearing the state.");
                 });
-                if !commit_succeeded {
-                    tx_committer.halt_scheduler();
+                match commit_result {
+                    CommitResult::Success => {
+                        if tx_index == self.chunk.len() - 1 {
+                            self.scheduler.halt();
+                        }
+                    }
+                    CommitResult::NoRoomInBlock => {
+                        tx_committer.uncommit();
+                        self.scheduler.halt();
+                    }
+                    CommitResult::ValidationFailed => {
+                        tx_committer.uncommit();
+                        return;
+                    }
                 }
             }
         }
@@ -219,7 +237,9 @@ impl<S: StateReader> WorkerExecutor<S> {
         *execution_output = Some(execution_output_inner);
     }
 
-    fn validate(&self, tx_index: TxIndex) -> Result<Task, VersionedStateError> {
+    /// Validates the transaction at the given index and returns whether the transaction is valid.
+    /// `commit_phase` should be `true` if the function is called during the commit phase.
+    fn validate(&self, tx_index: TxIndex, commit_phase: bool) -> Result<bool, VersionedStateError> {
         self.metrics.count_validate();
         let tx_versioned_state = self.state.pin_version(tx_index);
         let execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
@@ -227,15 +247,14 @@ impl<S: StateReader> WorkerExecutor<S> {
         let reads = &execution_output.reads;
         let reads_valid = tx_versioned_state.validate_reads(reads)?;
 
-        let aborted = !reads_valid && self.scheduler.try_validation_abort(tx_index);
+        let aborted = !reads_valid && self.scheduler.try_validation_abort(tx_index, commit_phase);
         if aborted {
             self.metrics.count_abort();
             tx_versioned_state
                 .delete_writes(&execution_output.state_diff, &execution_output.contract_classes)?;
-            Ok(self.scheduler.finish_abort(tx_index))
-        } else {
-            Ok(Task::AskForTask)
+            self.scheduler.finish_abort(tx_index);
         }
+        Ok(reads_valid)
     }
 
     /// Commits a transaction. The commit process is as follows:
@@ -250,39 +269,14 @@ impl<S: StateReader> WorkerExecutor<S> {
     ///         - Else (no room), do not commit. The block should be closed without the transaction.
     ///     * Else (execution failed), commit the transaction without fixing the call info or
     ///       updating the sequencer balance.
-    fn commit_tx(&self, tx_index: TxIndex) -> Result<bool, VersionedStateError> {
-        let execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
-        let execution_output_ref = execution_output.as_ref().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR);
-        let reads = &execution_output_ref.reads;
-
-        let mut tx_versioned_state = self.state.pin_version(tx_index);
-        let reads_valid = tx_versioned_state.validate_reads(reads)?;
-
-        // First, re-validate the transaction.
-        if !reads_valid {
-            // Revalidate failed: re-execute the transaction.
+    fn commit_tx(&self, tx_index: TxIndex) -> Result<CommitResult, VersionedStateError> {
+        if !self.validate(tx_index, true)? {
             self.metrics.count_abort_in_commit();
-            tx_versioned_state.delete_writes(
-                &execution_output_ref.state_diff,
-                &execution_output_ref.contract_classes,
-            )?;
-            // Release the execution output lock as it is acquired in execution (avoid dead-lock).
-            drop(execution_output);
-
-            // TODO(Yoni): avoid re-executing in the commit phase.
-            self.execute_tx(tx_index);
-            self.scheduler.finish_execution_during_commit(tx_index);
-
-            let execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
-            let read_set = &execution_output.as_ref().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR).reads;
-            // Another validation after the re-execution for sanity check.
-            assert!(tx_versioned_state.validate_reads(read_set)?);
-        } else {
-            // Release the execution output lock, since it is has been released in the other flow.
-            drop(execution_output);
+            return Ok(CommitResult::ValidationFailed);
         }
 
         // Execution is final.
+        let mut tx_versioned_state = self.state.pin_version(tx_index);
         let mut execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
         let execution_output = execution_output.as_mut().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR);
         let mut tx_state_changes_keys = execution_output.state_diff.keys();
@@ -306,7 +300,7 @@ impl<S: StateReader> WorkerExecutor<S> {
             );
             if let Err(error) = bouncer_result {
                 match error {
-                    TransactionExecutorError::BlockFull => return Ok(false),
+                    TransactionExecutorError::BlockFull => return Ok(CommitResult::NoRoomInBlock),
                     _ => {
                         // TODO(Avi, 01/07/2024): Consider propagating the error.
                         panic!("Bouncer update failed. {error:?}: {error}");
@@ -324,7 +318,7 @@ impl<S: StateReader> WorkerExecutor<S> {
             // (re-)validation of the next transactions.
         }
 
-        Ok(true)
+        Ok(CommitResult::Success)
     }
 }
 
