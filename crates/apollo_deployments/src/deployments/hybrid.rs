@@ -139,7 +139,8 @@ impl ServiceNameInner for HybridNodeServiceName {
             Environment::Testing => None,
             Environment::SepoliaIntegration
             | Environment::TestingEnvTwo
-            | Environment::TestingEnvThree => match self {
+            | Environment::TestingEnvThree
+            | Environment::StressTest => match self {
                 HybridNodeServiceName::Core => Some(Toleration::ApolloCoreService),
                 HybridNodeServiceName::HttpServer => Some(Toleration::ApolloGeneralService),
                 HybridNodeServiceName::Gateway => Some(Toleration::ApolloGeneralService),
@@ -171,7 +172,8 @@ impl ServiceNameInner for HybridNodeServiceName {
             Environment::Testing => None,
             Environment::SepoliaIntegration
             | Environment::TestingEnvTwo
-            | Environment::TestingEnvThree => match self {
+            | Environment::TestingEnvThree
+            | Environment::StressTest => match self {
                 HybridNodeServiceName::Core => Some(CORE_STORAGE),
                 HybridNodeServiceName::HttpServer => None,
                 HybridNodeServiceName::Gateway => None,
@@ -187,7 +189,8 @@ impl ServiceNameInner for HybridNodeServiceName {
             Environment::Testing => Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
             Environment::SepoliaIntegration
             | Environment::TestingEnvTwo
-            | Environment::TestingEnvThree => match self {
+            | Environment::TestingEnvThree
+            | Environment::StressTest => match self {
                 HybridNodeServiceName::Core => {
                     Resources::new(Resource::new(2, 4), Resource::new(7, 14))
                 }
@@ -213,7 +216,8 @@ impl ServiceNameInner for HybridNodeServiceName {
             Environment::Testing => 1,
             Environment::SepoliaIntegration
             | Environment::TestingEnvTwo
-            | Environment::TestingEnvThree => match self {
+            | Environment::TestingEnvThree
+            | Environment::StressTest => match self {
                 HybridNodeServiceName::Core => 1,
                 HybridNodeServiceName::HttpServer => 1,
                 HybridNodeServiceName::Gateway => 2,
@@ -229,7 +233,8 @@ impl ServiceNameInner for HybridNodeServiceName {
             Environment::Testing => false,
             Environment::SepoliaIntegration
             | Environment::TestingEnvTwo
-            | Environment::TestingEnvThree => match self {
+            | Environment::TestingEnvThree
+            | Environment::StressTest => match self {
                 HybridNodeServiceName::Core => true,
                 HybridNodeServiceName::HttpServer => false,
                 HybridNodeServiceName::Gateway => false,

@@ -13,6 +13,12 @@ use crate::deployment_definitions::sepolia_integration::{
     sepolia_integration_hybrid_deployment_node_2,
     sepolia_integration_hybrid_deployment_node_3,
 };
+use crate::deployment_definitions::stress_test::{
+    stress_test_hybrid_deployment_node_0,
+    stress_test_hybrid_deployment_node_1,
+    stress_test_hybrid_deployment_node_2,
+    stress_test_hybrid_deployment_node_3,
+};
 use crate::deployment_definitions::testing::{
     system_test_consolidated_deployment,
     system_test_distributed_deployment,
@@ -36,11 +42,10 @@ use crate::deployment_definitions::testing_env_3::{
 mod deployment_definitions_test;
 
 mod sepolia_integration;
+mod stress_test;
 mod testing;
 mod testing_env_2;
 mod testing_env_3;
-
-// TODO(Tsabary): separate deployments to different modules.
 
 pub(crate) const BASE_APP_CONFIG_PATH: &str = "config/sequencer/base_app_config.json";
 pub(crate) const CONFIG_BASE_DIR: &str = "config/sequencer/";
@@ -48,7 +53,7 @@ const APP_CONFIGS_DIR_NAME: &str = "app_configs/";
 
 type DeploymentFn = fn() -> Deployment;
 
-// TODO(Tsabary): create deployment instances per per deployment.
+// TODO(Tsabary): create deployment instances per deployment.
 
 pub const DEPLOYMENTS: &[DeploymentFn] = &[
     system_test_distributed_deployment,
@@ -66,6 +71,10 @@ pub const DEPLOYMENTS: &[DeploymentFn] = &[
     testing_env_3_hybrid_deployment_node_1,
     testing_env_3_hybrid_deployment_node_2,
     testing_env_3_hybrid_deployment_node_3,
+    stress_test_hybrid_deployment_node_0,
+    stress_test_hybrid_deployment_node_1,
+    stress_test_hybrid_deployment_node_2,
+    stress_test_hybrid_deployment_node_3,
 ];
 
 #[derive(EnumString, Clone, Display, PartialEq, Debug)]
@@ -78,6 +87,8 @@ pub enum Environment {
     TestingEnvTwo,
     #[strum(serialize = "testing_env_3")]
     TestingEnvThree,
+    #[strum(serialize = "stress_test")]
+    StressTest,
     Mainnet,
 }
 
@@ -91,7 +102,8 @@ impl Environment {
             Environment::Testing => EnvironmentComponentConfigModifications::testing(),
             Environment::SepoliaIntegration
             | Environment::TestingEnvTwo
-            | Environment::TestingEnvThree => {
+            | Environment::TestingEnvThree
+            | Environment::StressTest => {
                 EnvironmentComponentConfigModifications::sepolia_integration()
             }
             _ => unimplemented!("This env is not implemented yet"),
@@ -103,7 +115,8 @@ impl Environment {
             Environment::Testing => EnvironmentL1ProviderConfigModifications::testing(),
             Environment::SepoliaIntegration
             | Environment::TestingEnvTwo
-            | Environment::TestingEnvThree => {
+            | Environment::TestingEnvThree
+            | Environment::StressTest => {
                 EnvironmentL1ProviderConfigModifications::sepolia_integration()
             }
             _ => unimplemented!("This env is not implemented yet"),
