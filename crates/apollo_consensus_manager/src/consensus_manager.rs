@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 use apollo_batcher_types::batcher_types::RevertBlockInput;
 use apollo_batcher_types::communication::SharedBatcherClient;
+use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_consensus::stream_handler::StreamHandler;
 use apollo_consensus::types::ConsensusError;
@@ -146,7 +147,10 @@ impl ConsensusManager {
         let context = SequencerConsensusContext::new(
             self.config.context_config.clone(),
             SequencerConsensusContextDeps {
-                class_manager_client: Arc::clone(&self.class_manager_client),
+                transaction_converter: Arc::new(TransactionConverter::new(
+                    Arc::clone(&self.class_manager_client),
+                    self.config.context_config.chain_id.clone(),
+                )),
                 state_sync_client: Arc::clone(&self.state_sync_client),
                 batcher: Arc::clone(&self.batcher_client),
                 outbound_proposal_sender: outbound_internal_sender,
