@@ -31,7 +31,7 @@ use crate::metrics::{
     MEMPOOL_PRIORITY_QUEUE_SIZE,
     MEMPOOL_TOTAL_SIZE_BYTES,
 };
-use crate::transaction_pool::TransactionPool;
+use crate::transaction_manager::TransactionManager;
 use crate::transaction_queue::TransactionQueue;
 use crate::utils::{try_increment_nonce, Clock};
 
@@ -234,7 +234,7 @@ pub struct Mempool {
     // Declare transactions that are waiting to be added to the tx pool after a delay.
     delayed_declares: AddTransactionQueue,
     // All transactions currently held in the mempool (excluding the delayed declares).
-    tx_pool: TransactionPool,
+    tx_manager: TransactionManager,
     // Transactions eligible for sequencing.
     tx_queue: TransactionQueue,
     state: MempoolState,
@@ -246,7 +246,7 @@ impl Mempool {
         Mempool {
             config: config.clone(),
             delayed_declares: AddTransactionQueue::new(),
-            tx_pool: TransactionPool::new(clock.clone()),
+            tx_manager: TransactionManager::new(clock.clone()),
             tx_queue: TransactionQueue::default(),
             state: MempoolState::new(config.committed_nonce_retention_block_count),
             clock,
@@ -298,7 +298,7 @@ impl Mempool {
         Ok(eligible_tx_references
             .iter()
             .map(|tx_reference| {
-                self.tx_pool
+                self.tx_manager.tx_pool
                     .get_by_tx_hash(tx_reference.tx_hash)
                     .expect("Transaction hash from queue must appear in pool.")
             })
@@ -359,7 +359,8 @@ impl Mempool {
 
         let tx_reference = TransactionReference::new(&tx);
 
-        self.tx_pool
+        self.tx_manager
+            .tx_pool
             .insert(tx)
             .expect("Duplicate transactions should cause an error during the validation stage.");
 
@@ -412,13 +413,13 @@ impl Mempool {
             }
 
             // Remove from pool.
-            let n_removed_txs = self.tx_pool.remove_up_to_nonce(address, next_nonce);
+            let n_removed_txs = self.tx_manager.tx_pool.remove_up_to_nonce(address, next_nonce);
             metric_count_committed_txs(n_removed_txs);
 
             // Maybe close nonce gap.
             if self.tx_queue.get_nonce(address).is_none() {
                 if let Some(tx_reference) =
-                    self.tx_pool.get_by_address_and_nonce(address, next_nonce)
+                    self.tx_manager.tx_pool.get_by_address_and_nonce(address, next_nonce)
                 {
                     self.insert_to_tx_queue(tx_reference);
                 }
@@ -430,9 +431,9 @@ impl Mempool {
         for address in addresses_to_rewind {
             // Account nonce is the minimal nonce of this address: it was proposed but not included.
             let tx_reference =
-                self.tx_pool.account_txs_sorted_by_nonce(address).next().unwrap_or_else(|| {
-                    panic!("Address {address} should appear in transaction pool.")
-                });
+                self.tx_manager.tx_pool.account_txs_sorted_by_nonce(address).next().unwrap_or_else(
+                    || panic!("Address {address} should appear in transaction pool."),
+                );
             self.tx_queue.remove(address);
             self.insert_to_tx_queue(*tx_reference);
         }
@@ -445,7 +446,7 @@ impl Mempool {
         }
         metric_count_rejected_txs(rejected_tx_hashes.len());
         for tx_hash in rejected_tx_hashes {
-            if let Ok(tx) = self.tx_pool.remove(tx_hash) {
+            if let Ok(tx) = self.tx_manager.tx_pool.remove(tx_hash) {
                 self.tx_queue.remove(tx.contract_address());
             } else {
                 continue; // Transaction hash unknown to mempool, from a different node.
@@ -460,7 +461,7 @@ impl Mempool {
 
     pub fn account_tx_in_pool_or_recent_block(&self, account_address: ContractAddress) -> bool {
         self.state.contains_account(account_address)
-            || self.tx_pool.contains_account(account_address)
+            || self.tx_manager.tx_pool.contains_account(account_address)
     }
 
     fn validate_incoming_tx(
@@ -468,7 +469,7 @@ impl Mempool {
         tx_reference: TransactionReference,
         incoming_account_nonce: Nonce,
     ) -> MempoolResult<()> {
-        if self.tx_pool.get_by_tx_hash(tx_reference.tx_hash).is_ok() {
+        if self.tx_manager.tx_pool.get_by_tx_hash(tx_reference.tx_hash).is_ok() {
             return Err(MempoolError::DuplicateTransaction { tx_hash: tx_reference.tx_hash });
         }
         self.state.validate_incoming_tx(tx_reference, incoming_account_nonce)
@@ -504,7 +505,7 @@ impl Mempool {
             let current_account_state = AccountState { address: tx.address, nonce: tx.nonce };
 
             if let Some(next_tx_reference) =
-                self.tx_pool.get_next_eligible_tx(current_account_state)?
+                self.tx_manager.tx_pool.get_next_eligible_tx(current_account_state)?
             {
                 self.insert_to_tx_queue(next_tx_reference);
             }
@@ -524,14 +525,15 @@ impl Mempool {
         self.validate_no_delayed_declare_front_run(incoming_tx_reference)?;
 
         if !self.config.enable_fee_escalation {
-            if self.tx_pool.get_by_address_and_nonce(address, nonce).is_some() {
+            if self.tx_manager.tx_pool.get_by_address_and_nonce(address, nonce).is_some() {
                 return Err(MempoolError::DuplicateNonce { address, nonce });
             };
 
             return Ok(());
         }
 
-        let Some(existing_tx_reference) = self.tx_pool.get_by_address_and_nonce(address, nonce)
+        let Some(existing_tx_reference) =
+            self.tx_manager.tx_pool.get_by_address_and_nonce(address, nonce)
         else {
             // Replacement irrelevant: no existing transaction with the same nonce for address.
             return Ok(());
@@ -549,7 +551,8 @@ impl Mempool {
         debug!("{existing_tx_reference} will be replaced by {incoming_tx_reference}.");
 
         self.tx_queue.remove_txs(&[existing_tx_reference]);
-        self.tx_pool
+        self.tx_manager
+            .tx_pool
             .remove(existing_tx_reference.tx_hash)
             .expect("Transaction hash from pool must exist.");
 
@@ -589,8 +592,10 @@ impl Mempool {
     }
 
     fn remove_expired_txs(&mut self) {
-        let removed_txs =
-            self.tx_pool.remove_txs_older_than(self.config.transaction_ttl, &self.state.staged);
+        let removed_txs = self
+            .tx_manager
+            .tx_pool
+            .remove_txs_older_than(self.config.transaction_ttl, &self.state.staged);
         self.tx_queue.remove_txs(&removed_txs);
 
         metric_count_expired_txs(removed_txs.len());
@@ -609,6 +614,7 @@ impl Mempool {
         let submission_cutoff_time = self.clock.now() - self.config.transaction_ttl;
         let (old_txs, valid_txs): (Vec<_>, Vec<_>) = txs.into_iter().partition(|tx| {
             let tx_submission_time = self
+                .tx_manager
                 .tx_pool
                 .get_submission_time(tx.tx_hash)
                 .expect("Transaction hash from queue must appear in pool.");
@@ -618,7 +624,8 @@ impl Mempool {
         // Remove old transactions from the pool.
         metric_count_expired_txs(old_txs.len());
         for tx in old_txs {
-            self.tx_pool
+            self.tx_manager
+                .tx_pool
                 .remove(tx.tx_hash)
                 .expect("Transaction hash from queue must appear in pool.");
         }
@@ -628,7 +635,7 @@ impl Mempool {
 
     pub fn mempool_snapshot(&self) -> MempoolResult<MempoolSnapshot> {
         Ok(MempoolSnapshot {
-            transactions: self.tx_pool.chronological_txs_hashes(),
+            transactions: self.tx_manager.tx_pool.chronological_txs_hashes(),
             delayed_declares: self
                 .delayed_declares
                 .elements
@@ -641,7 +648,7 @@ impl Mempool {
     }
 
     fn size_in_bytes(&self) -> u64 {
-        self.tx_pool.size_in_bytes() + self.delayed_declares.size_in_bytes()
+        self.tx_manager.tx_pool.size_in_bytes() + self.delayed_declares.size_in_bytes()
     }
 
     // Returns true if the mempool will exceeds its capacity by adding the given transaction.
@@ -652,14 +659,14 @@ impl Mempool {
     #[cfg(test)]
     fn content(&self) -> MempoolContent {
         MempoolContent {
-            tx_pool: self.tx_pool.tx_pool(),
+            tx_pool: self.tx_manager.tx_pool.tx_pool(),
             priority_txs: self.tx_queue.iter_over_ready_txs().cloned().collect(),
             pending_txs: self.tx_queue.pending_txs(),
         }
     }
 
     fn update_state_metrics(&self) {
-        MEMPOOL_POOL_SIZE.set_lossy(self.tx_pool.len());
+        MEMPOOL_POOL_SIZE.set_lossy(self.tx_manager.tx_pool.len());
         MEMPOOL_PRIORITY_QUEUE_SIZE.set_lossy(self.tx_queue.priority_queue_len());
         MEMPOOL_PENDING_QUEUE_SIZE.set_lossy(self.tx_queue.pending_queue_len());
         MEMPOOL_DELAYED_DECLARES_SIZE.set_lossy(self.delayed_declares.len());
