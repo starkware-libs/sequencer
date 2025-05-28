@@ -93,6 +93,9 @@ jobs:
           build-args: |
             BUILD_MODE=debug
 
+      - name: Import sequencer image into k3d
+        run: k3d image import sequencer:local -c ${{ env.cluster_name }}
+
       - name: Build dummy recorder docker image
         uses: docker/build-push-action@v6
         with:
@@ -156,6 +159,14 @@ jobs:
         working-directory: deployments/anvil
         run: |
           echo "Deploying Anvil..."
+          # Delete namespace if it already exists
+          if kubectl get namespace "${{ env.namespace }}" &> /dev/null; then
+            echo "🔁 Namespace '${{ env.namespace }}' already exists. Deleting it..."
+            kubectl delete namespace "${{ env.namespace }}"
+            echo "⏳ Waiting for namespace deletion..."
+            while kubectl get namespace "${{ env.namespace }}" &> /dev/null; do sleep 2; done
+            echo "✅ Namespace '${{ env.namespace }}' deleted."
+          fi
           pipenv install
           cdk8s import
           cdk8s synth --app "pipenv run python main.py --namespace ${{ env.namespace }}"
@@ -164,7 +175,6 @@ jobs:
           echo "⏳ Waiting for Anvil to become ready..."
           kubectl wait --namespace ${{ env.namespace }} --for=condition=Ready -l app=anvil pod --timeout 60s
           echo "🚀 Anvil deployed successfully."
-
 
       - name: Build binaries
         run: cargo build --bin sequencer_node_setup --bin sequencer_simulator
@@ -206,6 +216,9 @@ jobs:
 
       - name: Set default namespace
         run: kubectl config set-context --current --namespace ${{ env.namespace }}
+
+      - name: Run readiness check
+        run: pipenv run python ./scripts/system_tests/readiness_check.py --deployment_config_path ${{ env.deployment_config_path }} --namespace ${{ env.namespace }}
 
       - name: Get container logs
         if: always()
