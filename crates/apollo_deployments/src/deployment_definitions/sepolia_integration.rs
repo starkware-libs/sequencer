@@ -11,6 +11,20 @@ use crate::deployment::{
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
 use crate::service::{DeploymentName, ExternalSecret, IngressParams};
 
+const SEPOLIA_INTEGRATION_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str =
+    "integration-sepolia.starknet.io";
+const SEPOLIA_INTEGRATION_INGRESS_DOMAIN: &str = "starknet.io";
+const FIRST_NODE_NAMESPACE: &str = "apollo-sepolia-integration-0";
+
+pub(crate) fn sepolia_integration_hybrid_deployments() -> Vec<Deployment> {
+    vec![
+        sepolia_integration_hybrid_deployment_node_0(),
+        sepolia_integration_hybrid_deployment_node_1(),
+        sepolia_integration_hybrid_deployment_node_2(),
+        sepolia_integration_hybrid_deployment_node_3(),
+    ]
+}
+
 fn sepolia_integration_deployment_config_override() -> DeploymentConfigOverride {
     DeploymentConfigOverride::new(
         "0x4737c0c1B4D5b1A687B42610DdabEE781152359c",
@@ -20,8 +34,6 @@ fn sepolia_integration_deployment_config_override() -> DeploymentConfigOverride 
         "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d",
     )
 }
-
-const FIRST_NODE_NAMESPACE: &str = "apollo-sepolia-integration-0";
 
 fn sepolia_integration_node_0_config_override() -> ConfigOverride {
     ConfigOverride::new(
@@ -55,14 +67,7 @@ fn get_ingress_params() -> IngressParams {
     )
 }
 
-const SEPOLIA_INTEGRATION_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str =
-    "integration-sepolia.starknet.io";
-
-const SEPOLIA_INTEGRATION_INGRESS_DOMAIN: &str = "starknet.io";
-
-// Integration deployments
-
-pub(crate) fn sepolia_integration_hybrid_deployment_node_0() -> Deployment {
+fn sepolia_integration_hybrid_deployment_node_0() -> Deployment {
     Deployment::new(
         ChainId::IntegrationSepolia,
         DeploymentName::HybridNode,
@@ -75,7 +80,7 @@ pub(crate) fn sepolia_integration_hybrid_deployment_node_0() -> Deployment {
     )
 }
 
-pub(crate) fn sepolia_integration_hybrid_deployment_node_1() -> Deployment {
+fn sepolia_integration_hybrid_deployment_node_1() -> Deployment {
     Deployment::new(
         ChainId::IntegrationSepolia,
         DeploymentName::HybridNode,
@@ -88,7 +93,7 @@ pub(crate) fn sepolia_integration_hybrid_deployment_node_1() -> Deployment {
     )
 }
 
-pub(crate) fn sepolia_integration_hybrid_deployment_node_2() -> Deployment {
+fn sepolia_integration_hybrid_deployment_node_2() -> Deployment {
     Deployment::new(
         ChainId::IntegrationSepolia,
         DeploymentName::HybridNode,
@@ -101,7 +106,7 @@ pub(crate) fn sepolia_integration_hybrid_deployment_node_2() -> Deployment {
     )
 }
 
-pub(crate) fn sepolia_integration_hybrid_deployment_node_3() -> Deployment {
+fn sepolia_integration_hybrid_deployment_node_3() -> Deployment {
     Deployment::new(
         ChainId::IntegrationSepolia,
         DeploymentName::HybridNode,
