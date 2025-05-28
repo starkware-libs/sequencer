@@ -79,7 +79,7 @@ jobs:
       - run: pip install -r scripts/requirements.txt
 
       - name: Build CLI binary
-        run: ./build_native_in_docker.sh rustup toolchain install && cargo build -p starknet_committer_and_os_cli -r --bin starknet_committer_and_os_cli --target-dir CLI_TARGET
+        run: ./build_native_in_docker.sh cargo build -p starknet_committer_and_os_cli -r --bin starknet_committer_and_os_cli --target-dir CLI_TARGET
 
       - id: auth
         uses: "google-github-actions/auth@v2"
