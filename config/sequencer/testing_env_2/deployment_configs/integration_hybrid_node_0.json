@@ -115,7 +115,7 @@
       "autoscale": false,
       "replicas": 1,
       "storage": null,
-      "toleration": "apollo-general-service",
+      "toleration": "apollo-core-service",
       "resources": {
         "requests": {
           "cpu": 1,
