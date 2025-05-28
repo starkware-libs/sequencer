@@ -235,7 +235,7 @@ class ServiceApp(Construct):
             spec=ExternalSecretSpec(
                 secret_store_ref=ExternalSecretSpecSecretStoreRef(
                     kind=ExternalSecretSpecSecretStoreRefKind.CLUSTER_SECRET_STORE,
-                    name="external-secrets",
+                    name="external-secrets-project",
                 ),
                 refresh_interval="1m",
                 target=ExternalSecretSpecTarget(
