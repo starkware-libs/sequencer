@@ -90,7 +90,7 @@ use crate::metrics::{
     CONSENSUS_NUM_TXS_IN_PROPOSAL,
 };
 use crate::orchestrator_versioned_constants::VersionedConstants;
-use crate::utils::get_oracle_rate_and_prices;
+use crate::utils::{get_oracle_rate_and_prices, GasPriceParams};
 
 // Contains parameters required for validating block info.
 #[derive(Clone, Debug)]
@@ -1164,14 +1164,6 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
         // Consensus may exit early (e.g. sync).
         warn!("Failed to send proposal content ids");
     }
-}
-
-struct GasPriceParams {
-    min_l1_gas_price_wei: GasPrice,
-    max_l1_gas_price_wei: GasPrice,
-    max_l1_data_gas_price_wei: GasPrice,
-    min_l1_data_gas_price_wei: GasPrice,
-    l1_data_gas_price_multiplier: Ratio<u128>,
 }
 
 #[instrument(level = "warn", skip_all, fields(?block_info_validation, ?block_info_proposed))]
