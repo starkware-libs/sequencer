@@ -215,6 +215,29 @@ jobs:
       - name: Run readiness check
         run: pipenv run python ./scripts/system_tests/readiness_check.py --deployment_config_path ${{ env.deployment_config_path }} --namespace ${{ env.namespace }}
 
+      - name: Get Config Dir
+        run: |
+          set -euo pipefail
+
+          # Get the config directory
+          config_dir=$(jq -r '.application_config_subdir' ${{ env.deployment_config_path }})
+
+          # Export to environment for the next step
+          echo "config_dir=$config_dir" >> $GITHUB_ENV
+          echo "config_dir is: $config_dir"
+
+      - name: Test sequencer is alive
+        env:
+          initial_delay_sec: 10
+          check_interval_sec: 5
+          check_timeout_sec: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.liveness_test_duration_sec || 10 }}
+        run: |
+          pipenv run python ./scripts/system_tests/liveness_check.py \
+            "${{ env.deployment_config_path }}" \
+            "${{ env.config_dir }}" \
+            "${{ env.check_timeout_sec }}" \
+            "${{ env.check_interval_sec }}"
+
       - name: Get container logs
         if: always()
         run: |
