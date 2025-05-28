@@ -12,6 +12,11 @@ pub enum L1GasPriceProviderError {
     InsufficientHistoryError { expected: usize, found: usize },
     #[error("Price Provider is not initialized")]
     NotInitializedError,
+    #[error(
+        "Stale L1 gas prices: no new data received for {current_timestamp} - \
+         {last_valid_price_timestamp} seconds"
+    )]
+    StaleL1GasPricesError { current_timestamp: u64, last_valid_price_timestamp: u64 },
 }
 
 #[derive(Clone, Debug, Error)]
