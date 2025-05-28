@@ -155,7 +155,7 @@ pub struct BlockBuilder {
     output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>>,
     // Optional senders because they are not used during validation flow.
     pre_confirmed_tx_sender: Option<PreConfirmedTxSender>,
-    _executed_tx_sender: Option<ExecutedTxSender>,
+    executed_tx_sender: Option<ExecutedTxSender>,
     abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
     transaction_converter: TransactionConverter,
 
@@ -187,7 +187,7 @@ impl BlockBuilder {
             tx_provider,
             output_content_sender,
             pre_confirmed_tx_sender,
-            _executed_tx_sender: executed_tx_sender,
+            executed_tx_sender,
             abort_signal_receiver,
             transaction_converter,
             tx_chunk_size,
@@ -310,6 +310,7 @@ impl BlockBuilder {
                 &mut execution_data,
                 &self.output_content_sender,
                 self.execution_params.fail_on_err,
+                &self.executed_tx_sender,
             )
             .await?;
         }
@@ -349,6 +350,7 @@ async fn collect_execution_results_and_stream_txs(
         tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
     >,
     fail_on_err: bool,
+    executed_tx_sender: &Option<ExecutedTxSender>,
 ) -> BlockBuilderResult<bool> {
     assert!(
         results.len() <= tx_chunk.len(),
@@ -367,6 +369,10 @@ async fn collect_execution_results_and_stream_txs(
             block_is_full = true;
         }
     }
+
+    // Collect executed transactions and their receipts
+    let mut executed_txs = Vec::new();
+
     for (input_tx, result) in tx_chunk.into_iter().zip(results.into_iter()) {
         let tx_hash = input_tx.tx_hash();
 
@@ -380,6 +386,8 @@ async fn collect_execution_results_and_stream_txs(
                 *l2_gas_used = l2_gas_used
                     .checked_add(tx_execution_info.receipt.gas.l2_gas)
                     .expect("Total L2 gas overflow.");
+
+                executed_txs.push((tx_hash, tx_execution_info.receipt.clone()));
 
                 execution_data.execution_infos.insert(tx_hash, tx_execution_info);
 
@@ -404,6 +412,26 @@ async fn collect_execution_results_and_stream_txs(
             }
         }
     }
+
+    // Send executed transactions and their receipts
+    if let Some(executed_tx_sender) = executed_tx_sender {
+        let num_executed_txs = executed_txs.len();
+
+        info!("Attempting to send receipts for {num_executed_txs} executed transactions.");
+
+        match executed_tx_sender.send(executed_txs) {
+            Ok(_) => {
+                info!("Successfully sent receipts for {num_executed_txs} executed transactions.");
+            }
+            Err(e) => {
+                error!(
+                    "Failed to send receipts for {num_executed_txs} executed transactions: {:?}",
+                    e
+                );
+            }
+        }
+    }
+
     Ok(block_is_full)
 }
 
