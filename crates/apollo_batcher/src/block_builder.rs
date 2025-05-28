@@ -46,7 +46,11 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
+<<<<<<< HEAD
 use tokio::sync::{Mutex, MutexGuard};
+=======
+use tokio::sync::Mutex;
+>>>>>>> 9508076cf (fix(apollo_integration_tests): make invoke tx succeed by calling functions in test contract)
 use tracing::{debug, error, info, trace, warn};
 
 use crate::block_builder::FailOnErrorCause::L1HandlerTransactionValidationFailed;
@@ -507,6 +511,13 @@ async fn collect_execution_results_and_stream_txs(
 
         match result {
             Ok((tx_execution_info, state_maps)) => {
+                if let Some(ref revert_error) = tx_execution_info.revert_error {
+                    warn!(
+                        "Transaction {} is reverted while accepted. Revert Error: {:?}",
+                        input_tx.tx_hash(),
+                        revert_error,
+                    );
+                }
                 let (tx_index, duplicate_tx_hash) =
                     execution_data.execution_infos.insert_full(tx_hash, tx_execution_info);
                 assert_eq!(duplicate_tx_hash, None, "Duplicate transaction: {tx_hash}.");
@@ -540,7 +551,7 @@ async fn collect_execution_results_and_stream_txs(
             }
             Err(err) => {
                 info!(
-                    "Transaction {} failed with error: {}.",
+                    "Transaction {} failed to execute with error: {}.",
                     tx_hash,
                     err.log_compatible_to_string()
                 );
