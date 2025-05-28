@@ -19,6 +19,8 @@ pub type BlockWriterResult<T> = Result<T, BlockWriterError>;
 pub type PreConfirmedTxReceiver = tokio::sync::mpsc::UnboundedReceiver<Vec<TransactionHash>>;
 pub type PreConfirmedTxSender = tokio::sync::mpsc::UnboundedSender<Vec<TransactionHash>>;
 
+// TODO(noamsp): Change TransactionReceipt to TransactionExecutionInfo and translate into the
+// receipt type that FGW uses.
 pub type ExecutedTxReceiver =
     tokio::sync::mpsc::UnboundedReceiver<Vec<(TransactionHash, TransactionReceipt)>>;
 pub type ExecutedTxSender =
