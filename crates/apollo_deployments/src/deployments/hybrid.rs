@@ -144,7 +144,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                 HybridNodeServiceName::Core => Some(Toleration::ApolloCoreService),
                 HybridNodeServiceName::HttpServer => Some(Toleration::ApolloGeneralService),
                 HybridNodeServiceName::Gateway => Some(Toleration::ApolloGeneralService),
-                HybridNodeServiceName::Mempool => Some(Toleration::ApolloGeneralService),
+                HybridNodeServiceName::Mempool => Some(Toleration::ApolloCoreService),
                 HybridNodeServiceName::SierraCompiler => Some(Toleration::ApolloGeneralService),
             },
             _ => unimplemented!(),
