@@ -1,33 +1,39 @@
 import json
 import typing
 
+from cdk8s import ApiObjectMetadata, Names
 from constructs import Construct
-from cdk8s import Names, ApiObjectMetadata
 from imports import k8s
 from imports.com.google.cloud import (
     BackendConfig,
     BackendConfigSpec,
-    BackendConfigSpecHealthCheck,
     BackendConfigSpecConnectionDraining,
-)
-from imports.io.external_secrets import (
-    ExternalSecretV1Beta1 as ExternalSecret,
-    ExternalSecretV1Beta1Spec as ExternalSecretSpec,
-    ExternalSecretV1Beta1SpecData as ExternalSecretSpecData,
-    ExternalSecretV1Beta1SpecTarget as ExternalSecretSpecTarget,
-    ExternalSecretV1Beta1SpecDataRemoteRef as ExternalSecretSpecDataRemoteRef,
-    ExternalSecretV1Beta1SpecSecretStoreRef as ExternalSecretSpecSecretStoreRef,
-    ExternalSecretV1Beta1SpecSecretStoreRefKind as ExternalSecretSpecSecretStoreRefKind,
-    ExternalSecretV1Beta1SpecDataRemoteRefConversionStrategy as ExternalSecretSpecDataRemoteRefConversionStrategy,
+    BackendConfigSpecHealthCheck,
 )
 from imports.com.googleapis.monitoring import (
     PodMonitoring,
     PodMonitoringSpec,
-    PodMonitoringSpecSelector,
     PodMonitoringSpecEndpoints,
     PodMonitoringSpecEndpointsPort,
+    PodMonitoringSpecSelector,
 )
-from services import topology, const
+from imports.io.external_secrets import ExternalSecretV1Beta1 as ExternalSecret
+from imports.io.external_secrets import ExternalSecretV1Beta1Spec as ExternalSecretSpec
+from imports.io.external_secrets import ExternalSecretV1Beta1SpecData as ExternalSecretSpecData
+from imports.io.external_secrets import (
+    ExternalSecretV1Beta1SpecDataRemoteRef as ExternalSecretSpecDataRemoteRef,
+)
+from imports.io.external_secrets import (
+    ExternalSecretV1Beta1SpecDataRemoteRefConversionStrategy as ExternalSecretSpecDataRemoteRefConversionStrategy,
+)
+from imports.io.external_secrets import (
+    ExternalSecretV1Beta1SpecSecretStoreRef as ExternalSecretSpecSecretStoreRef,
+)
+from imports.io.external_secrets import (
+    ExternalSecretV1Beta1SpecSecretStoreRefKind as ExternalSecretSpecSecretStoreRefKind,
+)
+from imports.io.external_secrets import ExternalSecretV1Beta1SpecTarget as ExternalSecretSpecTarget
+from services import const, topology
 
 
 class ServiceApp(Construct):
@@ -49,14 +55,14 @@ class ServiceApp(Construct):
             "service": Names.to_label_value(self, include_hash=False),
         }
         self.service_topology = service_topology
-        self.node_config = service_topology.config.get_config()
+        self.node_config = service_topology.config.load()
         self.monitoring_endpoint_port = self._get_config_attr("monitoring_endpoint_config.port")
 
         self.config_map = k8s.KubeConfigMap(
             self,
             "configmap",
             metadata=k8s.ObjectMeta(name=f"{self.node.id}-config"),
-            data=dict(config=json.dumps(self.service_topology.config.get_config(), indent=2)),
+            data=dict(config=json.dumps(self.node_config, indent=2)),
         )
 
         self.service = k8s.KubeService(
@@ -152,6 +158,7 @@ class ServiceApp(Construct):
                         volumes=self._get_volumes(),
                         tolerations=self._get_tolerations(),
                         node_selector=self._get_node_selector(),
+                        affinity=self._get_affinity(),
                         containers=[
                             k8s.Container(
                                 name=self.node.id,
@@ -197,6 +204,7 @@ class ServiceApp(Construct):
                         volumes=self._get_volumes(),
                         tolerations=self._get_tolerations(),
                         node_selector=self._get_node_selector(),
+                        affinity=self._get_affinity(),
                         containers=[
                             k8s.Container(
                                 name=self.node.id,
@@ -595,4 +603,23 @@ class ServiceApp(Construct):
                     effect="NoSchedule",
                 ),
             ]
+        return None
+
+    def _get_affinity(self) -> k8s.Affinity:
+        if self.service_topology.anti_affinity:
+            return k8s.Affinity(
+                pod_anti_affinity=k8s.PodAntiAffinity(
+                    required_during_scheduling_ignored_during_execution=[
+                        k8s.PodAffinityTerm(
+                            label_selector=k8s.LabelSelector(
+                                match_labels={
+                                    "service": Names.to_label_value(self, include_hash=False)
+                                },
+                            ),
+                            topology_key="kubernetes.io/hostname",
+                            namespace_selector={},
+                        ),
+                    ],
+                ),
+            )
         return None

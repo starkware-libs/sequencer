@@ -17,6 +17,7 @@ use crate::hints::hint_implementation::kzg::utils::{
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{Const, Ids};
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn store_da_segment<S: StateReader>(
     HintArgs { hint_processor, vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -79,6 +80,7 @@ pub(crate) fn store_da_segment<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn write_split_result<S: StateReader>(
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {

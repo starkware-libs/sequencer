@@ -24,11 +24,7 @@ use apollo_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
-use apollo_class_manager_types::transaction_converter::{
-    TransactionConverter,
-    TransactionConverterTrait,
-};
-use apollo_class_manager_types::SharedClassManagerClient;
+use apollo_class_manager_types::transaction_converter::TransactionConverterTrait;
 use apollo_consensus::types::{
     ConsensusContext,
     ConsensusError,
@@ -216,8 +212,7 @@ impl BuiltProposals {
 
 pub struct SequencerConsensusContext {
     config: ContextConfig,
-    // TODO(Shahak): change this into a dynamic TransactionConverterTrait.
-    transaction_converter: TransactionConverter,
+    transaction_converter: Arc<dyn TransactionConverterTrait>,
     state_sync_client: SharedStateSyncClient,
     batcher: Arc<dyn BatcherClient>,
     validators: Vec<ValidatorId>,
@@ -254,7 +249,7 @@ pub struct SequencerConsensusContext {
     previous_block_info: Option<ConsensusBlockInfo>,
 }
 pub struct SequencerConsensusContextDeps {
-    pub class_manager_client: SharedClassManagerClient,
+    pub transaction_converter: Arc<dyn TransactionConverterTrait>,
     pub state_sync_client: SharedStateSyncClient,
     pub batcher: Arc<dyn BatcherClient>,
     pub outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
@@ -267,10 +262,8 @@ pub struct SequencerConsensusContextDeps {
 }
 
 impl SequencerConsensusContext {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(config: ContextConfig, context_deps: SequencerConsensusContextDeps) -> Self {
         register_metrics();
-        let chain_id = config.chain_id.clone();
         let num_validators = config.num_validators;
         let l1_da_mode = if config.l1_da_mode {
             L1DataAvailabilityMode::Blob
@@ -279,10 +272,7 @@ impl SequencerConsensusContext {
         };
         Self {
             config,
-            transaction_converter: TransactionConverter::new(
-                context_deps.class_manager_client,
-                chain_id,
-            ),
+            transaction_converter: context_deps.transaction_converter,
             state_sync_client: context_deps.state_sync_client,
             batcher: context_deps.batcher,
             outbound_proposal_sender: context_deps.outbound_proposal_sender,
@@ -328,7 +318,7 @@ struct ProposalBuildArguments {
     proposal_id: ProposalId,
     cende_write_success: AbortOnDropHandle<bool>,
     l2_gas_price: GasPrice,
-    transaction_converter: TransactionConverter,
+    transaction_converter: Arc<dyn TransactionConverterTrait>,
     builder_address: ContractAddress,
     cancel_token: CancellationToken,
     clock: Arc<dyn Clock>,
@@ -353,7 +343,7 @@ struct ProposalValidateArguments {
     content_receiver: mpsc::Receiver<ProposalPart>,
     fin_sender: oneshot::Sender<ProposalCommitment>,
     cancel_token: CancellationToken,
-    transaction_converter: TransactionConverter,
+    transaction_converter: Arc<dyn TransactionConverterTrait>,
     clock: Arc<dyn Clock>,
     previous_block_info: Option<ConsensusBlockInfo>,
 }
@@ -892,7 +882,7 @@ async fn build_proposal(mut args: ProposalBuildArguments) {
         args.batcher.as_ref(),
         args.proposal_sender,
         args.cende_write_success,
-        &args.transaction_converter,
+        args.transaction_converter,
         args.cancel_token,
     )
     .await
@@ -968,7 +958,7 @@ async fn get_proposal_content(
     batcher: &dyn BatcherClient,
     mut proposal_sender: mpsc::Sender<ProposalPart>,
     cende_write_success: AbortOnDropHandle<bool>,
-    transaction_converter: &TransactionConverter,
+    transaction_converter: Arc<dyn TransactionConverterTrait>,
     cancel_token: CancellationToken,
 ) -> Option<(ProposalCommitment, Vec<Vec<InternalConsensusTransaction>>)> {
     let mut content = Vec::new();
@@ -1022,6 +1012,9 @@ async fn get_proposal_content(
                 let proposal_commitment = BlockHash(id.state_diff_commitment.0.0);
                 let num_txs: usize = content.iter().map(|batch| batch.len()).sum();
                 info!(?proposal_commitment, num_txs = num_txs, "Finished building proposal",);
+                if num_txs == 0 {
+                    warn!("Built an empty proposal.");
+                }
 
                 // If the blob writing operation to Aerospike doesn't return a success status, we
                 // can't finish the proposal.
@@ -1043,8 +1036,10 @@ async fn get_proposal_content(
                     }
                 }
 
+                let fin = ProposalFin { proposal_commitment };
+                info!("Sending fin={fin:?}");
                 proposal_sender
-                    .send(ProposalPart::Fin(ProposalFin { proposal_commitment }))
+                    .send(ProposalPart::Fin(fin))
                     .await
                     .expect("Failed to broadcast proposal fin");
                 return Some((proposal_commitment, content));
@@ -1123,7 +1118,7 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
                     args.batcher.as_ref(),
                     proposal_part,
                     &mut content,
-                    &args.transaction_converter,
+                    args.transaction_converter.clone(),
                 ).await {
                     HandledProposalPart::Finished(built_block, received_fin) => {
                         break (built_block, received_fin);
@@ -1332,11 +1327,12 @@ async fn handle_proposal_part(
     batcher: &dyn BatcherClient,
     proposal_part: Option<ProposalPart>,
     content: &mut Vec<Vec<InternalConsensusTransaction>>,
-    transaction_converter: &TransactionConverter,
+    transaction_converter: Arc<dyn TransactionConverterTrait>,
 ) -> HandledProposalPart {
     match proposal_part {
         None => HandledProposalPart::Failed("Failed to receive proposal content".to_string()),
-        Some(ProposalPart::Fin(ProposalFin { proposal_commitment: id })) => {
+        Some(ProposalPart::Fin(fin)) => {
+            info!("Received fin={fin:?}");
             // Output this along with the ID from batcher, to compare them.
             let input =
                 SendProposalContentInput { proposal_id, content: SendProposalContent::Finish };
@@ -1351,12 +1347,15 @@ async fn handle_proposal_part(
             let batcher_block_id = BlockHash(response_id.state_diff_commitment.0.0);
             let num_txs: usize = content.iter().map(|batch| batch.len()).sum();
             info!(
-                network_block_id = ?id,
+                network_block_id = ?fin.proposal_commitment,
                 ?batcher_block_id,
                 num_txs,
                 "Finished validating proposal."
             );
-            HandledProposalPart::Finished(batcher_block_id, ProposalFin { proposal_commitment: id })
+            if num_txs == 0 {
+                warn!("Validated an empty proposal.");
+            }
+            HandledProposalPart::Finished(batcher_block_id, fin)
         }
         Some(ProposalPart::Transactions(TransactionBatch { transactions: txs })) => {
             debug!("Received transaction batch with {} txs", txs.len());

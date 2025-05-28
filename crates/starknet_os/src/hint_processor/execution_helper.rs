@@ -27,6 +27,7 @@ pub struct OsExecutionHelper<'a, S: StateReader> {
 }
 
 impl<'a, S: StateReader> OsExecutionHelper<'a, S> {
+    #[allow(clippy::result_large_err)]
     pub fn new(
         os_block_input: &'a OsBlockInput,
         state_reader: S,
@@ -42,6 +43,7 @@ impl<'a, S: StateReader> OsExecutionHelper<'a, S> {
         })
     }
 
+    #[allow(clippy::result_large_err)]
     fn initialize_cached_state(
         state_reader: S,
         state_input: CachedStateInput,
@@ -210,7 +212,7 @@ impl<'a> CallInfoTracker<'a> {
                     .inner_calls
                     .iter()
                     .filter(|inner| inner.call.entry_point_type == EntryPointType::Constructor)
-                    .map(|inner| inner.call.caller_address),
+                    .map(|inner| inner.call.storage_address),
             ),
             inner_calls_iterator: call_info.inner_calls.iter(),
             execute_code_read_iterator: call_info.storage_access_tracker.storage_read_values.iter(),

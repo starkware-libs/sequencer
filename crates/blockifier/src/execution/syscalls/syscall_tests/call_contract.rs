@@ -10,11 +10,11 @@ use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::execution_utils::format_panic_data;
-use starknet_api::felt;
 use starknet_api::transaction::fields::Calldata;
+use starknet_api::{calldata as calldata_macro, felt};
 use test_case::test_case;
 
-use crate::context::ChainInfo;
+use crate::context::{BlockContext, ChainInfo};
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::retdata;
@@ -248,6 +248,74 @@ fn test_call_contract(outer_contract: FeatureContract, inner_contract: FeatureCo
     "#]]
     .assert_debug_eq(&execution);
     assert_eq!(execution.retdata, retdata![value]);
+}
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+    RunnableCairo1::Native, true;
+    "Call execute directly using native, `block_direct_execute_call` = true."
+))]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+    RunnableCairo1::Native, false;
+    "Call execute directly using native, `block_direct_execute_call` = false."
+))]
+#[test_case(
+    RunnableCairo1::Casm, true;
+    "Call execute directly using VM, `block_direct_execute_call` = true."
+)]
+#[test_case(
+    RunnableCairo1::Casm, false;
+    "Call execute directly using VM, `block_direct_execute_call` = false."
+)]
+fn test_direct_execute_call(cairo1_type: RunnableCairo1, block_direct_execute_call: bool) {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(cairo1_type));
+    let contract_with_execute = FeatureContract::EmptyAccount(cairo1_type);
+    let chain_info = &ChainInfo::create_for_testing();
+    let mut state =
+        test_state(chain_info, BALANCE, &[(test_contract, 1), (contract_with_execute, 1)]);
+
+    let test_contract_address = *test_contract.get_instance_address(0).0.key();
+    let contract_with_execute_address = *contract_with_execute.get_instance_address(0).0.key();
+    let call_execute_directly_selector = selector_from_name("call_execute_directly");
+    let return_result_selector = selector_from_name("return_result");
+
+    let call_execute_directly = CallEntryPoint {
+        entry_point_selector: call_execute_directly_selector,
+        calldata: calldata_macro![
+            // The Execute entrypoint of this contract will be called.
+            contract_with_execute_address,
+            // Outer calldata (passed to `execute` entrypoint)
+            felt!(4_u8), // Outer calldata length.
+            test_contract_address,
+            return_result_selector.0,
+            // Inner calldata (passed to function called by `execute` entrypoint)
+            felt!(1_u8), // Inner calldata length.
+            felt!(0_u8)  // Inner calldata value.
+        ],
+        ..trivial_external_entry_point_new(test_contract)
+    };
+
+    let mut block_context = BlockContext::create_for_testing();
+    block_context.versioned_constants.block_direct_execute_call = block_direct_execute_call;
+    let call_info = call_execute_directly
+        .execute_directly_given_block_context(&mut state, block_context)
+        .unwrap();
+
+    if block_direct_execute_call {
+        assert!(call_info.execution.failed, "Expected direct execute call to fail.");
+        assert_eq!(
+            format_panic_data(&call_info.execution.retdata.0),
+            "0x496e76616c696420617267756d656e74 ('Invalid argument')",
+        );
+    } else {
+        assert!(
+            !call_info.execution.failed,
+            "Expected direct execute call to succeed, because `block_direct_execute_call` is \
+             false."
+        );
+    }
 }
 
 /// Cairo0 / Old Cairo1 / Cairo1 / Native calls to Cairo0 / Old Cairo1 / Cairo1 / Native.

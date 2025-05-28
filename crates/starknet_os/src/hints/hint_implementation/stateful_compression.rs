@@ -23,6 +23,7 @@ use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
 use crate::vm_utils::get_address_of_nested_fields;
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn enter_scope_with_aliases<S: StateReader>(
     HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -34,6 +35,7 @@ pub(crate) fn enter_scope_with_aliases<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn key_lt_min_alias_alloc_value<S: StateReader>(
     HintArgs { ids_data, ap_tracking, vm, constants, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -42,6 +44,7 @@ pub(crate) fn key_lt_min_alias_alloc_value<S: StateReader>(
     Ok(insert_value_into_ap(vm, Felt::from(key < min_value_for_alias_alloc))?)
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn assert_key_big_enough_for_alias<S: StateReader>(
     HintArgs { ids_data, ap_tracking, vm, constants, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -56,6 +59,7 @@ pub(crate) fn assert_key_big_enough_for_alias<S: StateReader>(
     }
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn read_alias_from_key<S: StateReader>(
     HintArgs { hint_processor, ids_data, ap_tracking, vm, constants, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -67,6 +71,7 @@ pub(crate) fn read_alias_from_key<S: StateReader>(
     insert_nondet_hint_value(vm, AllHints::OsHint(OsHint::ReadAliasFromKey), alias)
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn write_next_alias_from_key<S: StateReader>(
     HintArgs { hint_processor, ids_data, ap_tracking, vm, constants, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -82,6 +87,7 @@ pub(crate) fn write_next_alias_from_key<S: StateReader>(
     )?)
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn read_alias_counter<S: StateReader>(
     HintArgs { hint_processor, vm, constants, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -94,6 +100,7 @@ pub(crate) fn read_alias_counter<S: StateReader>(
     Ok(insert_value_into_ap(vm, alias_counter)?)
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn initialize_alias_counter<S: StateReader>(
     HintArgs { hint_processor, constants, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -107,6 +114,7 @@ pub(crate) fn initialize_alias_counter<S: StateReader>(
     )?)
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn update_alias_counter<S: StateReader>(
     HintArgs { hint_processor, constants, ids_data, ap_tracking, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -121,6 +129,7 @@ pub(crate) fn update_alias_counter<S: StateReader>(
     )?)
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn contract_address_le_max_for_compression<S: StateReader>(
     HintArgs { constants, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -130,6 +139,7 @@ pub(crate) fn contract_address_le_max_for_compression<S: StateReader>(
     Ok(insert_value_into_ap(vm, Felt::from(contract_address <= max_contract_address))?)
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn guess_contract_addr_storage_ptr<S: StateReader>(
     HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -166,6 +176,7 @@ pub(crate) fn guess_contract_addr_storage_ptr<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn update_contract_addr_to_storage_ptr<S: StateReader>(
     HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -196,6 +207,7 @@ pub(crate) fn update_contract_addr_to_storage_ptr<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn guess_aliases_contract_storage_ptr<S: StateReader>(
     HintArgs { hint_processor, vm, constants, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -222,6 +234,7 @@ pub(crate) fn guess_aliases_contract_storage_ptr<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn update_aliases_contract_to_storage_ptr<S: StateReader>(
     HintArgs { hint_processor, vm, constants, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {

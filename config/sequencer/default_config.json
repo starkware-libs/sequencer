@@ -377,7 +377,7 @@
   "components.batcher.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
-    "value": 3
+    "value": 50
   },
   "components.batcher.remote_client_config.retry_interval": {
     "description": "The duration in seconds to wait between remote connection retries.",
@@ -427,7 +427,7 @@
   "components.class_manager.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
-    "value": 3
+    "value": 50
   },
   "components.class_manager.remote_client_config.retry_interval": {
     "description": "The duration in seconds to wait between remote connection retries.",
@@ -482,7 +482,7 @@
   "components.gateway.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
-    "value": 3
+    "value": 50
   },
   "components.gateway.remote_client_config.retry_interval": {
     "description": "The duration in seconds to wait between remote connection retries.",
@@ -537,7 +537,7 @@
   "components.l1_gas_price_provider.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
-    "value": 3
+    "value": 50
   },
   "components.l1_gas_price_provider.remote_client_config.retry_interval": {
     "description": "The duration in seconds to wait between remote connection retries.",
@@ -592,7 +592,7 @@
   "components.l1_provider.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
-    "value": 3
+    "value": 50
   },
   "components.l1_provider.remote_client_config.retry_interval": {
     "description": "The duration in seconds to wait between remote connection retries.",
@@ -647,7 +647,7 @@
   "components.mempool.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
-    "value": 3
+    "value": 50
   },
   "components.mempool.remote_client_config.retry_interval": {
     "description": "The duration in seconds to wait between remote connection retries.",
@@ -697,7 +697,7 @@
   "components.mempool_p2p.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
-    "value": 3
+    "value": 50
   },
   "components.mempool_p2p.remote_client_config.retry_interval": {
     "description": "The duration in seconds to wait between remote connection retries.",
@@ -752,7 +752,7 @@
   "components.sierra_compiler.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
-    "value": 3
+    "value": 50
   },
   "components.sierra_compiler.remote_client_config.retry_interval": {
     "description": "The duration in seconds to wait between remote connection retries.",
@@ -802,7 +802,7 @@
   "components.state_sync.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
-    "value": 3
+    "value": 50
   },
   "components.state_sync.remote_client_config.retry_interval": {
     "description": "The duration in seconds to wait between remote connection retries.",
@@ -958,6 +958,16 @@
     "description": "The size of the interval (seconds) that the eth to strk rate is taken on. The lag refers to the fact that the interval `[T, T+k)` contains the conversion rate for queries in the interval `[T+k, T+2k)`. Should be configured in alignment with relevant query parameters in `base_url`, if required.",
     "privacy": "Private",
     "value": 1
+  },
+  "consensus_manager_config.eth_to_strk_oracle_config.max_cache_size": {
+    "description": "The maximum number of cached conversion rates.",
+    "privacy": "Private",
+    "value": 100
+  },
+  "consensus_manager_config.eth_to_strk_oracle_config.query_timeout_sec": {
+    "description": "The timeout (seconds) for the query to the eth to strk oracle.",
+    "privacy": "Private",
+    "value": 3
   },
   "consensus_manager_config.immediate_active_height": {
     "description": "The height at which the node may actively participate in consensus.",

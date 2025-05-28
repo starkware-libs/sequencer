@@ -80,6 +80,7 @@ impl TryFrom<PyDeployAccountTransactionV3> for DeployAccountTransactionV3 {
     }
 }
 
+#[allow(clippy::result_large_err)]
 pub fn py_deploy_account(py_tx: &PyAny) -> NativeBlockifierResult<DeployAccountTransaction> {
     let version = py_attr::<PyFelt>(py_tx, "version")?.0;
     // TODO(Dori): Make TransactionVersion an enum and use match here.

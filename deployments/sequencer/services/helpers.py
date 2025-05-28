@@ -1,8 +1,8 @@
 import argparse
-import re
-import random
-import string
 import hashlib
+import random
+import re
+import string
 from typing import Optional
 
 
@@ -14,18 +14,32 @@ def argument_parser():
         "--deployment-config-file", required=True, type=str, help="Path to deployment config file."
     )
     parser.add_argument(
-        "--deployment-image-tag",
-        required=False,
-        type=str,
-        default="dev",
-        help="Apollo node binary image name, to be fetched from ghcr. Defaults to 'dev'.",
-    )
-    parser.add_argument(
         "--monitoring-dashboard-file",
         required=False,
         type=str,
         help="Path to Grafana dashboard JSON file.",
-    ),
+    )
+
+    image_group = parser.add_mutually_exclusive_group()
+    image_group.add_argument(
+        "--deployment-image-tag",
+        required=False,
+        type=str,
+        help="Apollo node image tag to fetch from GHCR (default: 'dev')",
+    )
+    image_group.add_argument(
+        "--deployment-image",
+        required=False,
+        type=str,
+        help="Full Docker image to use instead of default GHCR tag",
+    )
+
+    parser.add_argument(
+        "--monitoring-alerts-folder",
+        required=False,
+        type=str,
+        help="Path to Grafana alerts folder.",
+    )
 
     return parser.parse_args()
 
