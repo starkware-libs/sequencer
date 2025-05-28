@@ -93,17 +93,29 @@ impl<T: Clone> std::ops::Deref for RingBuffer<T> {
 #[derive(Clone, Debug)]
 pub struct L1GasPriceProvider {
     config: L1GasPriceProviderConfig,
-    price_samples_by_block: RingBuffer<GasPriceData>,
+    // If received data before initialization (is None), it means the scraper has restarted.
+    price_samples_by_block: Option<RingBuffer<GasPriceData>>,
 }
 
 impl L1GasPriceProvider {
     pub fn new(config: L1GasPriceProviderConfig) -> Self {
-        let storage_limit = config.storage_limit;
-        Self { config, price_samples_by_block: RingBuffer::new(storage_limit) }
+        Self { config, price_samples_by_block: None }
+    }
+
+    pub fn initialize(&mut self) -> L1GasPriceProviderResult<()> {
+        info!("Initializing L1GasPriceProvider with config: {:?}", self.config);
+        self.price_samples_by_block = Some(RingBuffer::new(self.config.storage_limit));
+        Ok(())
     }
 
     pub fn add_price_info(&mut self, new_data: GasPriceData) -> L1GasPriceProviderResult<()> {
-        if let Some(data) = self.price_samples_by_block.back() {
+        // In case the provider has been restarted while the scraper is still running,
+        // a NotInitializedError will be returned to the scraper. We expect the scraper to exit with
+        // an error, and that infrastructure will restart it, leading to initialization.
+        let Some(samples) = &mut self.price_samples_by_block else {
+            return Err(L1GasPriceProviderError::NotInitializedError);
+        };
+        if let Some(data) = samples.back() {
             if new_data.block_number != data.block_number + 1 {
                 return Err(L1GasPriceProviderError::UnexpectedBlockNumberError {
                     expected: data.block_number + 1,
@@ -112,13 +124,16 @@ impl L1GasPriceProvider {
             }
         }
         info!("Received price sample for L1 block: {:?}", new_data);
-        self.price_samples_by_block.push(new_data);
+        samples.push(new_data);
         Ok(())
     }
 
     pub fn get_price_info(&self, timestamp: BlockTimestamp) -> L1GasPriceProviderResult<PriceInfo> {
+        let Some(samples) = &self.price_samples_by_block else {
+            return Err(L1GasPriceProviderError::NotInitializedError);
+        };
         // This index is for the last block in the mean (inclusive).
-        let index_last_timestamp_rev = self.price_samples_by_block.iter().rev().position(|data| {
+        let index_last_timestamp_rev = samples.iter().rev().position(|data| {
             data.timestamp <= timestamp.saturating_sub_seconds(self.config.lag_margin_seconds)
         });
 
@@ -133,7 +148,7 @@ impl L1GasPriceProvider {
         // `last_index` should be one past the final entry we will include in our calculation.
         // The index returned from `position` is guaranteed to be less than `len()`,
         // so `last_index` is guaranteed to be >= 1.
-        let last_index = self.price_samples_by_block.len() - last_index_rev;
+        let last_index = samples.len() - last_index_rev;
 
         let num_blocks = usize::try_from(self.config.number_of_blocks_for_mean)
             .expect("number_of_blocks_for_mean is too large to fit into a usize");
@@ -153,8 +168,7 @@ impl L1GasPriceProvider {
         let actual_number_of_blocks = last_index - first_index;
 
         // Go over all elements between `first_index` and `last_index` (non-inclusive).
-        let price_info_summed: PriceInfo = self
-            .price_samples_by_block
+        let price_info_summed: PriceInfo = samples
             .iter()
             .skip(first_index)
             .take(actual_number_of_blocks)
