@@ -25,6 +25,7 @@ env:
   job_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
   deployment_config_path: ${{ github.workspace }}/config/sequencer/testing/deployment_configs/deployment_test_consolidated.json
   namespace: sequencer-consolidated-system-test-run-${{ github.run_number }}-attempt-${{ github.run_attempt }}
+  cluster_name: consolidated-system-test
 
 permissions:
   contents: read
@@ -45,7 +46,7 @@ jobs:
         uses: AbsaOSS/k3d-action@v2
         with:
           # Assumption: only one PR can run per machine at a time.
-          cluster-name: "consolidated-system-test"
+          cluster-name: ${{ env.cluster_name }}
           args: >-
             --verbose
             --agents 1
@@ -102,7 +103,7 @@ jobs:
           push: false
 
       - name: Import dummy recorder image into k3d
-        run: k3d image import recorder:local -c consolidated-system-test
+        run: k3d image import recorder:local -c ${{ env.cluster_name }}
 
       - name: Deploy Dummy Recorder
         env:
@@ -132,7 +133,7 @@ jobs:
           push: false
 
       - name: Import eth_to_strk image into k3d
-        run: k3d image import eth_to_strk:local -c consolidated-system-test
+        run: k3d image import eth_to_strk:local -c ${{ env.cluster_name }}
 
       - name: Deploy Eth2Strk Oracle
         env:
