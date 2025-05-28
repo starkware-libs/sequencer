@@ -122,7 +122,6 @@ enum BuildProposalError {
     StateSyncNotReady(String),
     #[error("EthToStrkOracle error: {0}")]
     EthToStrkOracle(#[from] EthToStrkOracleClientError),
-
     #[error("L1GasPriceProvider error: {0}")]
     L1GasPriceProvider(#[from] L1GasPriceClientError),
 }
@@ -298,16 +297,12 @@ struct ProposalValidateArguments {
     deps: SequencerConsensusContextDeps,
     block_info_validation: BlockInfoValidation,
     proposal_id: ProposalId,
-    min_l1_gas_price_wei: GasPrice,
-    max_l1_gas_price_wei: GasPrice,
-    min_l1_data_gas_price_wei: GasPrice,
-    max_l1_data_gas_price_wei: GasPrice,
-    l1_data_gas_price_multiplier: Ratio<u128>,
     timeout: Duration,
     batcher_timeout_margin: Duration,
     valid_proposals: Arc<Mutex<BuiltProposals>>,
     content_receiver: mpsc::Receiver<ProposalPart>,
     fin_sender: oneshot::Sender<ProposalCommitment>,
+    gas_price_params: GasPriceParams,
     cancel_token: CancellationToken,
     previous_block_info: Option<ConsensusBlockInfo>,
 }
@@ -765,17 +760,21 @@ impl SequencerConsensusContext {
     ) {
         let cancel_token = CancellationToken::new();
         let cancel_token_clone = cancel_token.clone();
-        let min_l1_gas_price_wei = GasPrice(self.config.min_l1_gas_price_wei);
-        let max_l1_gas_price_wei = GasPrice(self.config.max_l1_gas_price_wei);
-        let min_l1_data_gas_price_wei = GasPrice(self.config.min_l1_data_gas_price_wei);
-        let max_l1_data_gas_price_wei = GasPrice(self.config.max_l1_data_gas_price_wei);
-        let l1_data_gas_price_multiplier =
-            Ratio::new(self.config.l1_data_gas_price_multiplier_ppt, 1000);
         let valid_proposals = Arc::clone(&self.valid_proposals);
         let proposal_id = ProposalId(self.proposal_id);
         let previous_block_info = self.previous_block_info.clone();
         self.proposal_id += 1;
         let deps = self.deps.clone();
+        let gas_price_params = GasPriceParams {
+            min_l1_gas_price_wei: GasPrice(self.config.min_l1_gas_price_wei),
+            max_l1_gas_price_wei: GasPrice(self.config.max_l1_gas_price_wei),
+            min_l1_data_gas_price_wei: GasPrice(self.config.min_l1_data_gas_price_wei),
+            max_l1_data_gas_price_wei: GasPrice(self.config.max_l1_data_gas_price_wei),
+            l1_data_gas_price_multiplier: Ratio::new(
+                self.config.l1_data_gas_price_multiplier_ppt,
+                1000,
+            ),
+        };
 
         info!(?timeout, %proposal_id, %proposer, round=self.current_round, "Validating proposal.");
         let handle = tokio::spawn(
@@ -784,16 +783,12 @@ impl SequencerConsensusContext {
                     deps,
                     block_info_validation,
                     proposal_id,
-                    min_l1_gas_price_wei,
-                    max_l1_gas_price_wei,
-                    min_l1_data_gas_price_wei,
-                    max_l1_data_gas_price_wei,
-                    l1_data_gas_price_multiplier,
                     timeout,
                     batcher_timeout_margin,
                     valid_proposals,
                     content_receiver,
                     fin_sender,
+                    gas_price_params,
                     cancel_token: cancel_token_clone,
                     previous_block_info,
                 })
@@ -1027,20 +1022,14 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
     else {
         return;
     };
-    let min_max_prices = GasPriceParams {
-        min_l1_gas_price_wei: args.min_l1_gas_price_wei,
-        max_l1_gas_price_wei: args.max_l1_gas_price_wei,
-        min_l1_data_gas_price_wei: args.min_l1_data_gas_price_wei,
-        max_l1_data_gas_price_wei: args.max_l1_data_gas_price_wei,
-        l1_data_gas_price_multiplier: args.l1_data_gas_price_multiplier,
-    };
+
     if !is_block_info_valid(
         args.block_info_validation.clone(),
         block_info.clone(),
         args.deps.eth_to_strk_oracle_client,
         args.deps.clock.as_ref(),
         args.deps.l1_gas_price_provider,
-        &min_max_prices,
+        &args.gas_price_params,
         args.previous_block_info.clone(),
     )
     .await
