@@ -139,8 +139,14 @@ impl ServiceNameInner for HybridNodeServiceName {
             Environment::Testing => None,
             Environment::SepoliaIntegration
             | Environment::TestingEnvTwo
-            | Environment::TestingEnvThree
-            | Environment::StressTest => match self {
+            | Environment::TestingEnvThree => match self {
+                HybridNodeServiceName::Core => Some(Toleration::ApolloCoreService),
+                HybridNodeServiceName::HttpServer => Some(Toleration::ApolloGeneralService),
+                HybridNodeServiceName::Gateway => Some(Toleration::ApolloGeneralService),
+                HybridNodeServiceName::Mempool => Some(Toleration::ApolloCoreService),
+                HybridNodeServiceName::SierraCompiler => Some(Toleration::ApolloGeneralService),
+            },
+            Environment::StressTest => match self {
                 HybridNodeServiceName::Core => Some(Toleration::ApolloCoreService),
                 HybridNodeServiceName::HttpServer => Some(Toleration::ApolloGeneralService),
                 HybridNodeServiceName::Gateway => Some(Toleration::ApolloGeneralService),
@@ -189,10 +195,26 @@ impl ServiceNameInner for HybridNodeServiceName {
             Environment::Testing => Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
             Environment::SepoliaIntegration
             | Environment::TestingEnvTwo
-            | Environment::TestingEnvThree
-            | Environment::StressTest => match self {
+            | Environment::TestingEnvThree => match self {
                 HybridNodeServiceName::Core => {
                     Resources::new(Resource::new(2, 4), Resource::new(7, 14))
+                }
+                HybridNodeServiceName::HttpServer => {
+                    Resources::new(Resource::new(1, 2), Resource::new(4, 8))
+                }
+                HybridNodeServiceName::Gateway => {
+                    Resources::new(Resource::new(1, 2), Resource::new(2, 4))
+                }
+                HybridNodeServiceName::Mempool => {
+                    Resources::new(Resource::new(1, 2), Resource::new(2, 4))
+                }
+                HybridNodeServiceName::SierraCompiler => {
+                    Resources::new(Resource::new(1, 2), Resource::new(2, 4))
+                }
+            },
+            Environment::StressTest => match self {
+                HybridNodeServiceName::Core => {
+                    Resources::new(Resource::new(2, 4), Resource::new(25, 215))
                 }
                 HybridNodeServiceName::HttpServer => {
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8))
