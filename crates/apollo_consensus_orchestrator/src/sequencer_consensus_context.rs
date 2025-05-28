@@ -333,6 +333,7 @@ struct ProposalBuildArguments {
     cancel_token: CancellationToken,
     clock: Arc<dyn Clock>,
     previous_block_info: Option<ConsensusBlockInfo>,
+    proposal_round: Round,
 }
 
 struct ProposalValidateArguments {
@@ -423,6 +424,7 @@ impl ConsensusContext for SequencerConsensusContext {
             cancel_token,
             clock: self.clock.clone(),
             previous_block_info: self.previous_block_info.clone(),
+            proposal_round: self.current_round,
         };
         let handle = tokio::spawn(
             async move {
@@ -954,6 +956,7 @@ async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<Consens
         deadline: args.clock.now() + batcher_timeout,
         retrospective_block_hash,
         block_info: convert_to_sn_api_block_info(&block_info),
+        proposal_round: args.proposal_round,
     };
     debug!("Initiating build proposal: {build_proposal_input:?}");
     args.batcher.propose_block(build_proposal_input).await?;
