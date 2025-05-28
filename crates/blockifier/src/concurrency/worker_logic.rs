@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 use crate::blockifier::transaction_executor::TransactionExecutorError;
 use crate::bouncer::Bouncer;
 use crate::concurrency::fee_utils::complete_fee_transfer_flow;
-use crate::concurrency::scheduler::{Scheduler, Task};
+use crate::concurrency::scheduler::{Scheduler, Task, TransactionStatus};
 use crate::concurrency::utils::lock_mutex_in_array;
 use crate::concurrency::versioned_state::{
     ThreadSafeVersionedState,
@@ -243,7 +243,19 @@ impl<S: StateReader> WorkerExecutor<S> {
         self.metrics.count_validate();
         let tx_versioned_state = self.state.pin_version(tx_index);
         let execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
-        let execution_output = execution_output.as_ref().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR);
+        let Some(execution_output) = execution_output.as_ref() else {
+            // If the execution output is missing, it means that the transaction was already
+            // committed. This can happen if `commit_tx` precedes the `validation_index` run.
+            // In this case, treat it as valid.
+            assert!(!commit_phase, "Missing execution output in commit phase.");
+            let status = self.scheduler.get_tx_status(tx_index);
+            assert_eq!(
+                status,
+                TransactionStatus::Committed,
+                "Missing execution output with tx_status={status:?}",
+            );
+            return Ok(true);
+        };
         let reads = &execution_output.reads;
         let reads_valid = tx_versioned_state.validate_reads(reads)?;
 

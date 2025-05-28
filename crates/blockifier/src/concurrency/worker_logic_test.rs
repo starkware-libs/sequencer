@@ -271,6 +271,58 @@ fn test_commit_tx_when_sender_is_sequencer() {
 }
 
 #[rstest]
+pub fn test_validate_after_commit_tx() {
+    let block_context = BlockContext::create_for_account_testing();
+    let account =
+        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
+    let account_address = account.get_instance_address(0);
+    let test_contract_address = test_contract.get_instance_address(0);
+
+    // Create transactions.
+    let txs = [
+        trivial_calldata_invoke_tx(account_address, test_contract_address, nonce!(0_u8)),
+        trivial_calldata_invoke_tx(account_address, test_contract_address, nonce!(1_u8)),
+    ]
+    .into_iter()
+    .map(Transaction::Account)
+    .collect::<Vec<Transaction>>();
+
+    let bouncer = Bouncer::new(block_context.bouncer_config.clone());
+    let cached_state =
+        test_state(&block_context.chain_info, BALANCE, &[(account, 1), (test_contract, 1)]);
+    let versioned_state = safe_versioned_state_for_testing(cached_state);
+    let executor = WorkerExecutor::new(
+        versioned_state,
+        txs.to_vec(),
+        block_context.into(),
+        Mutex::new(bouncer).into(),
+    );
+
+    assert_eq!(executor.scheduler.next_task(), Task::ExecutionTask(0));
+    executor.execute_tx(0);
+    executor.scheduler.finish_execution(0);
+
+    // Request the next task.
+    assert_eq!(executor.scheduler.next_task(), Task::ValidationTask(0));
+
+    // A different thread may now commit and finish execution, before the validation task is run.
+    executor.scheduler.set_tx_status(0, TransactionStatus::Committed);
+    executor.commit_tx(0).unwrap();
+
+    // Extract the execution result.
+    {
+        let mut execution_task_output = lock_mutex_in_array(&executor.execution_outputs, 0);
+        let result = &execution_task_output.take().unwrap().result;
+        assert!(result.is_ok());
+    }
+
+    // Continue with validation.
+    let validation_result = executor.validate(0, false).unwrap();
+    assert!(validation_result);
+}
+
+#[rstest]
 fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
     // Settings.
     let block_context = BlockContext::create_for_account_testing();
