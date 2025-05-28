@@ -81,7 +81,7 @@ use crate::utils::{
 };
 
 pub const DEFAULT_SENDER_ACCOUNT: AccountId = 0;
-const BLOCK_MAX_CAPACITY_N_STEPS: GasAmount = GasAmount(30000000);
+const BLOCK_MAX_CAPACITY_N_STEPS: GasAmount = GasAmount(40000000); // Keep enough gas to avoid high number of rounds, above 150.
 pub const BLOCK_TO_WAIT_FOR_DEPLOY_AND_INVOKE: BlockNumber = BlockNumber(4);
 pub const BLOCK_TO_WAIT_FOR_DECLARE: BlockNumber =
     BlockNumber(BLOCK_TO_WAIT_FOR_DEPLOY_AND_INVOKE.0 + 10);
