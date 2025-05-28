@@ -191,9 +191,12 @@ impl Deployment {
 }
 
 // TODO(Tsabary): test no conflicts between config entries defined in each of the override types.
-// TODO(Tsabary): modify the loading test of the base app config to include the overrides as well.
 // TODO(Tsabary): delete duplicates from the base app config, and add a test that there are no
 // conflicts between all the override config entries and the values in the base app config.
+
+pub(crate) fn format_node_id(base_format: &str, id: usize) -> String {
+    base_format.replace("{}", &id.to_string())
+}
 
 #[derive(Debug, Serialize)]
 pub struct ConfigOverride {
