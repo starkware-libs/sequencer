@@ -175,7 +175,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
             Environment::Testing => None,
             Environment::SepoliaIntegration
             | Environment::TestingEnvTwo
-            | Environment::TestingEnvThree => match self {
+            | Environment::TestingEnvThree
+            | Environment::StressTest => match self {
                 DistributedNodeServiceName::Batcher => Some(Toleration::ApolloCoreService),
                 DistributedNodeServiceName::ClassManager => Some(Toleration::ApolloGeneralService),
                 DistributedNodeServiceName::ConsensusManager => {
@@ -219,7 +220,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
             Environment::Testing => None,
             Environment::SepoliaIntegration
             | Environment::TestingEnvTwo
-            | Environment::TestingEnvThree => match self {
+            | Environment::TestingEnvThree
+            | Environment::StressTest => match self {
                 DistributedNodeServiceName::Batcher => Some(BATCHER_STORAGE),
                 DistributedNodeServiceName::ClassManager => Some(CLASS_MANAGER_STORAGE),
                 DistributedNodeServiceName::ConsensusManager => None,
@@ -247,7 +249,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
             Environment::Testing => false,
             Environment::SepoliaIntegration
             | Environment::TestingEnvTwo
-            | Environment::TestingEnvThree => match self {
+            | Environment::TestingEnvThree
+            | Environment::StressTest => match self {
                 DistributedNodeServiceName::Batcher => true,
                 DistributedNodeServiceName::ClassManager => false,
                 DistributedNodeServiceName::ConsensusManager => false,

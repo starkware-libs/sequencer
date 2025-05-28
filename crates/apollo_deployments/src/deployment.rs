@@ -351,7 +351,7 @@ fn get_secret_key(id: usize) -> String {
 // observer mode
 fn get_validator_id(id: usize) -> String {
     // TODO(Tsabary): Make sure this works for larger ids by converting the id to hex string.
-    format!("0x{}", id + 64)
+    format!("0x{}", id + 1)
 }
 
 fn relative_up_path(from: &Path, to: &Path) -> PathBuf {
