@@ -98,7 +98,7 @@ pub struct Batcher {
     block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
 
     /// Used to create pre-confirmed block writers.
-    _pre_confirmed_block_writer_factory: Box<dyn PreConfirmedBlockWriterFactoryTrait>,
+    pre_confirmed_block_writer_factory: Box<dyn PreConfirmedBlockWriterFactoryTrait>,
 
     /// The height that the batcher is currently working on.
     /// All proposals are considered to be at this height.
@@ -144,7 +144,7 @@ impl Batcher {
             mempool_client,
             transaction_converter,
             block_builder_factory,
-            _pre_confirmed_block_writer_factory: pre_confirmed_block_writer_factory,
+            pre_confirmed_block_writer_factory,
             active_height: None,
             active_proposal: Arc::new(Mutex::new(None)),
             active_proposal_task: None,
@@ -228,6 +228,12 @@ impl Batcher {
         // A channel to receive the transactions included in the proposed block.
         let (output_tx_sender, output_tx_receiver) = tokio::sync::mpsc::unbounded_channel();
 
+        let (_pre_confirmed_block_writer, pre_confirmed_tx_sender, executed_tx_sender) =
+            self.pre_confirmed_block_writer_factory.create(
+                propose_block_input.block_info.block_number,
+                propose_block_input.proposal_round,
+            );
+
         let (block_builder, abort_signal_sender) = self
             .block_builder_factory
             .create_block_builder(
@@ -241,8 +247,8 @@ impl Batcher {
                 },
                 Box::new(tx_provider),
                 Some(output_tx_sender),
-                None,
-                None,
+                Some(pre_confirmed_tx_sender),
+                Some(executed_tx_sender),
                 tokio::runtime::Handle::current(),
             )
             .map_err(|err| {
