@@ -142,8 +142,6 @@ pub enum DeprecatedSyscallExecutionError {
     },
     #[error("Invalid syscall input: {input:?}; {info}")]
     InvalidSyscallInput { input: Felt, info: String },
-    #[error("Invalid syscall selector: {0:?}.")]
-    InvalidDeprecatedSyscallSelector(Felt),
     #[error(transparent)]
     MathError(#[from] cairo_vm::types::errors::math_errors::MathError),
     #[error(transparent)]

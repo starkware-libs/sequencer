@@ -136,9 +136,9 @@ impl TryFrom<Felt> for DeprecatedSyscallSelector {
             b"SendMessageToL1" => Ok(Self::SendMessageToL1),
             b"StorageRead" => Ok(Self::StorageRead),
             b"StorageWrite" => Ok(Self::StorageWrite),
-            _ => {
-                Err(DeprecatedSyscallExecutionError::InvalidDeprecatedSyscallSelector(raw_selector))
-            }
+            _ => Err(Self::Error::from(
+                DeprecatedSyscallExecutorBaseError::InvalidDeprecatedSyscallSelector(raw_selector),
+            )),
         }
     }
 }
