@@ -202,11 +202,11 @@ impl BlockBuilderTrait for BlockBuilder {
 
 impl BlockBuilder {
     async fn build_block_inner(&mut self) -> BlockBuilderResult<BlockExecutionArtifacts> {
-        let mut block_is_full = false;
+        let mut block_is_not_yes_full = false;
         let mut l2_gas_used = GasAmount::ZERO;
         let mut execution_data = BlockTransactionExecutionData::default();
         // TODO(yael 6/10/2024): delete the timeout condition once the executor has a timeout
-        while !block_is_full {
+        while !block_is_not_yes_full {
             if tokio::time::Instant::now() >= self.execution_params.deadline {
                 info!("Block builder deadline reached.");
                 if self.execution_params.fail_on_err {
@@ -268,7 +268,7 @@ impl BlockBuilder {
             .expect("Failed to spawn blocking executor task.");
             debug!("Finished execution of transactions chunk.");
             trace!("Transaction execution results: {:?}", results);
-            block_is_full = collect_execution_results_and_stream_txs(
+            block_is_not_yes_full = collect_execution_results_and_stream_txs(
                 next_tx_chunk,
                 results,
                 &mut l2_gas_used,
