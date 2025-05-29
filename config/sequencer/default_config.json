@@ -64,20 +64,10 @@
     "pointer_target": "strk_fee_token_address",
     "privacy": "Public"
   },
-  "batcher_config.block_builder_config.execute_config.concurrency_config.chunk_size": {
-    "description": "The size of the transaction chunk executed in parallel.",
-    "privacy": "Public",
-    "value": 0
-  },
-  "batcher_config.block_builder_config.execute_config.concurrency_config.enabled": {
-    "description": "Enables concurrency of transaction execution.",
-    "privacy": "Public",
-    "value": false
-  },
-  "batcher_config.block_builder_config.execute_config.concurrency_config.n_workers": {
+  "batcher_config.block_builder_config.execute_config.n_workers": {
     "description": "Number of parallel transaction execution workers.",
     "privacy": "Public",
-    "value": 0
+    "value": 1
   },
   "batcher_config.block_builder_config.execute_config.stack_size": {
     "description": "The thread stack size (proportional to the maximal gas of a transaction).",

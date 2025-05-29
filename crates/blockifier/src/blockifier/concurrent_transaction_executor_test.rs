@@ -50,6 +50,7 @@ fn get_test_data() -> TestData {
         block_context,
         block_number_hash_pair,
         pool.clone(),
+        None,
     )
     .unwrap();
 
