@@ -258,7 +258,14 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<MetaTxV0Response> {
-        todo!()
+        if request.entry_point_selector != selector_from_name(EXECUTE_ENTRY_POINT_NAME) {
+            return Err(SyscallExecutionError::Revert {
+                error_data: vec![Felt::from_hex(INVALID_ARGUMENT).unwrap()],
+            });
+        }
+        // TODO(Nimrod): Handle errors correctly.
+        Ok(call_contract_helper(vm, syscall_handler, remaining_gas)
+            .unwrap_or_else(|e| panic!("Error calling contract: {e}")))
     }
 
     #[allow(clippy::result_large_err)]
