@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
 
-use apollo_infra_utils::cairo_compiler_version::cairo1_compiler_version;
+use apollo_infra_utils::cairo_compiler_version::CAIRO1_COMPILER_VERSION;
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
 use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;
 use starknet_api::contract_class::SierraVersion;
@@ -210,7 +210,7 @@ impl FeatureContract {
                     !contract.cairo_version().is_cairo0(),
                     "fixed_version() should only be called for Cairo1 contracts."
                 );
-                cairo1_compiler_version()
+                CAIRO1_COMPILER_VERSION.to_string()
             }
         }
     }

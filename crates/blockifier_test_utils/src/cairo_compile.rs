@@ -6,7 +6,7 @@ use apollo_infra_utils::cairo0_compiler::{
     verify_cairo0_compiler_deps,
     STARKNET_COMPILE_DEPRECATED,
 };
-use apollo_infra_utils::cairo_compiler_version::cairo1_compiler_version;
+use apollo_infra_utils::cairo_compiler_version::CAIRO1_COMPILER_VERSION;
 use apollo_infra_utils::path::project_path;
 use tempfile::NamedTempFile;
 use tracing::info;
@@ -17,7 +17,7 @@ pub enum CompilationArtifacts {
 }
 
 pub fn cairo1_compiler_tag() -> String {
-    format!("v{}", cairo1_compiler_version())
+    format!("v{}", CAIRO1_COMPILER_VERSION)
 }
 
 /// Path to local compiler package directory, of the specified version.
