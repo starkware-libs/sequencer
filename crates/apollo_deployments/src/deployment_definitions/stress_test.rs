@@ -8,6 +8,7 @@ use crate::deployment::{
     ConfigOverride,
     Deployment,
     DeploymentConfigOverride,
+    DeploymentType,
 };
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
 use crate::service::{DeploymentName, ExternalSecret, IngressParams};
@@ -20,10 +21,10 @@ const SECRET_NAME_FORMAT: &str = "apollo-stresstest-dev-{}";
 
 pub(crate) fn stress_test_hybrid_deployments() -> Vec<Deployment> {
     vec![
-        stress_test_hybrid_deployment_node(0),
-        stress_test_hybrid_deployment_node(1),
-        stress_test_hybrid_deployment_node(2),
-        stress_test_hybrid_deployment_node(3),
+        stress_test_hybrid_deployment_node(0, DeploymentType::Bootstrap),
+        stress_test_hybrid_deployment_node(1, DeploymentType::Bootstrap),
+        stress_test_hybrid_deployment_node(2, DeploymentType::Bootstrap),
+        stress_test_hybrid_deployment_node(3, DeploymentType::Bootstrap),
     ]
 }
 
@@ -37,7 +38,7 @@ fn stress_test_deployment_config_override() -> DeploymentConfigOverride {
     )
 }
 
-fn stress_test_hybrid_deployment_node(id: usize) -> Deployment {
+fn stress_test_hybrid_deployment_node(id: usize, deployment_type: DeploymentType) -> Deployment {
     Deployment::new(
         ChainId::IntegrationSepolia,
         DeploymentName::HybridNode,
@@ -47,7 +48,7 @@ fn stress_test_hybrid_deployment_node(id: usize) -> Deployment {
         PathBuf::from(BASE_APP_CONFIG_PATH),
         ConfigOverride::new(
             stress_test_deployment_config_override(),
-            create_hybrid_instance_config_override(id, FIRST_NODE_NAMESPACE),
+            create_hybrid_instance_config_override(id, FIRST_NODE_NAMESPACE, deployment_type),
         ),
         IngressParams::new(
             STRESS_TEST_INGRESS_DOMAIN.to_string(),

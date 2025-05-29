@@ -8,6 +8,7 @@ use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_infra_utils::dumping::serialize_to_file_test;
 use apollo_node::config::component_config::ComponentConfig;
 use apollo_node::config::config_utils::config_to_preset;
+use apollo_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 use indexmap::IndexMap;
 use serde::Serialize;
 use serde_json::{json, to_value, Value};
@@ -297,9 +298,24 @@ impl InstanceConfigOverride {
     }
 }
 
+pub(crate) enum DeploymentType {
+    Bootstrap,
+    Operational,
+}
+
+impl DeploymentType {
+    fn validator_id_offset(&self) -> usize {
+        match self {
+            DeploymentType::Bootstrap => 1,
+            DeploymentType::Operational => DEFAULT_VALIDATOR_ID.try_into().unwrap(),
+        }
+    }
+}
+
 pub(crate) fn create_hybrid_instance_config_override(
     id: usize,
     namespace: &'static str,
+    deployment_type: DeploymentType,
 ) -> InstanceConfigOverride {
     assert!(id < MAX_NODE_ID, "Node id {} exceeds the number of nodes {}", id, MAX_NODE_ID);
 
@@ -324,7 +340,7 @@ pub(crate) fn create_hybrid_instance_config_override(
             "",
             true,
             get_secret_key(id),
-            get_validator_id(id),
+            get_validator_id(id, deployment_type),
         )
     } else {
         InstanceConfigOverride::new(
@@ -340,7 +356,7 @@ pub(crate) fn create_hybrid_instance_config_override(
             ),
             false,
             get_secret_key(id),
-            get_validator_id(id),
+            get_validator_id(id, deployment_type),
         )
     }
 }
@@ -352,9 +368,8 @@ fn get_secret_key(id: usize) -> String {
 // TODO(Tsabary): Return this back to observer mode and add a way to configure between observer and
 // non observer. Also change the mempool ttl to 100000 and startup_rewind_time_seconds to 28800 in
 // observer mode
-fn get_validator_id(id: usize) -> String {
-    // TODO(Tsabary): Make sure this works for larger ids by converting the id to hex string.
-    format!("0x{}", id + 1)
+fn get_validator_id(id: usize, deployment_type: DeploymentType) -> String {
+    format!("0x{:x}", id + deployment_type.validator_id_offset())
 }
 
 fn relative_up_path(from: &Path, to: &Path) -> PathBuf {
