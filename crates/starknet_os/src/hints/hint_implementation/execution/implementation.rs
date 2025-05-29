@@ -250,9 +250,10 @@ pub(crate) fn set_state_entry_to_account_contract_address<S: StateReader>(
 pub(crate) fn get_block_hash_contract_address_state_entry_and_set_new_state_entry<
     S: StateReader,
 >(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { vm, exec_scopes, constants, ap_tracking, ids_data, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let block_hash_contract_address = Const::BlockHashContractAddress.fetch(constants)?;
+    set_state_entry(block_hash_contract_address, vm, exec_scopes, ids_data, ap_tracking)
 }
 
 #[allow(clippy::result_large_err)]
