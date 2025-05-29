@@ -291,6 +291,7 @@ struct ProposalBuildArguments {
     builder_address: ContractAddress,
     cancel_token: CancellationToken,
     previous_block_info: Option<ConsensusBlockInfo>,
+    _proposal_round: Round,
 }
 
 struct ProposalValidateArguments {
@@ -371,6 +372,7 @@ impl ConsensusContext for SequencerConsensusContext {
             builder_address: self.config.builder_address,
             cancel_token,
             previous_block_info: self.previous_block_info.clone(),
+            _proposal_round: self.current_round,
         };
         let handle = tokio::spawn(
             async move {
