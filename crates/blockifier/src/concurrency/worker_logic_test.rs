@@ -782,10 +782,17 @@ fn test_worker_commit_phase(default_all_resource_bounds: ValidResourceBounds) {
     // Commit the third (and last) transaction.
     worker_executor.commit_while_possible();
 
-    // Verify the number of committed transactions is 3, the status of the last transaction is
-    // `Committed`, and the next task is `Done`.
+    // Verify the number of committed transactions is 3, and the status of the last transaction is
+    // `Committed`.
     assert_eq!(worker_executor.scheduler.get_n_committed_txs(), 3);
     assert_eq!(worker_executor.scheduler.get_tx_status(2), TransactionStatus::Committed);
+
+    // The next two tasks are `AskForTask` (advancing the validation_index), then `NoTaskAvailable`,
+    // until `halt` is called.
+    assert_eq!(worker_executor.scheduler.next_task(), Task::AskForTask);
+    assert_eq!(worker_executor.scheduler.next_task(), Task::AskForTask);
+    assert_eq!(worker_executor.scheduler.next_task(), Task::NoTaskAvailable);
+    worker_executor.scheduler.halt();
     assert_eq!(worker_executor.scheduler.next_task(), Task::Done);
 
     // Try to commit when all transactions are already committed.
