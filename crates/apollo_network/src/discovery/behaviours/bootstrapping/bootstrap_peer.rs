@@ -23,6 +23,11 @@ use crate::discovery::{RetryConfig, ToOtherBehaviourEvent};
 
 /// A stream that handles the bootstrapping with a bootstrap peer.
 /// This stream will automatically dial the bootstrap peer if not already connected.
+///
+/// This implementation assumes exclusivity of the bootstrap peer connection, meaning that
+/// only one instance of this stream will be active for a given bootstrap peer at a time.
+/// If multiple instances are created for the same bootstrap peer, they will interfere with each
+/// other.
 pub struct BootstrapPeerEventStream {
     dial_retry_config: RetryConfig,
     peer_address: Multiaddr,
