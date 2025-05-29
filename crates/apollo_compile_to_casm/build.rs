@@ -1,4 +1,5 @@
 use apollo_compilation_utils::build_utils::install_compiler_binary;
+use apollo_infra_utils::cairo_compiler_version::CAIRO1_COMPILER_VERSION;
 
 include!("src/constants.rs");
 
@@ -15,7 +16,7 @@ fn main() {
 /// Sierra to Casm. The binary is executed as a subprocess whenever Sierra compilation is required.
 fn install_starknet_sierra_compile() {
     let binary_name = CAIRO_LANG_BINARY_NAME;
-    let required_version = REQUIRED_CAIRO_LANG_VERSION;
+    let required_version = CAIRO1_COMPILER_VERSION;
 
     let cargo_install_args = &[binary_name, "--version", required_version];
     install_compiler_binary(binary_name, required_version, cargo_install_args, &out_dir());
