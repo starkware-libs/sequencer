@@ -173,6 +173,7 @@ define_string_enum! {
         (InitialGas),
         (InitialRoot),
         (IsLeaf),
+        (IsNUpdatesSmall),
         (IsSegmentUsed),
         (IsSierraGasMode),
         (IsUsedLeaf),
@@ -303,6 +304,7 @@ define_string_enum! {
             "starkware.starknet.core.os.state.aliases.MAX_NON_COMPRESSED_CONTRACT_ADDRESS"
         ),
         (MerkleHeight, "starkware.starknet.core.os.state.commitment.MERKLE_HEIGHT"),
+        (NUpdatesSmallPackingBound, "starkware.starknet.core.os.state.N_UPDATES_SMALL_PACKING_BOUND"),
         (StoredBlockHashBuffer, "starkware.starknet.core.os.constants.STORED_BLOCK_HASH_BUFFER"),
         (Validated, "starkware.starknet.core.os.constants.VALIDATED"),
     }

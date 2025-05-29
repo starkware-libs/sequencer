@@ -10,7 +10,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::HintArgs;
-use crate::hints::vars::{Ids, Scope};
+use crate::hints::vars::{Const, Ids, Scope};
 
 const MAX_PAGE_SIZE: usize = 3800;
 const OUTPUT_ATTRIBUTE_FACT_TOPOLOGY: &str = "gps_fact_topology";
@@ -139,7 +139,17 @@ pub(crate) fn set_compressed_start<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn set_n_updates_small<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let n_updates = get_integer_from_var_name(Ids::NUpdates.into(), vm, ids_data, ap_tracking)?;
+    let n_updates_small_packing_bounds =
+        Const::fetch(&Const::NUpdatesSmallPackingBound, constants)?;
+    insert_value_from_var_name(
+        Ids::IsNUpdatesSmall.into(),
+        Felt::from(&n_updates < n_updates_small_packing_bounds),
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    Ok(())
 }
