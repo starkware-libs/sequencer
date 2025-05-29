@@ -53,6 +53,7 @@ impl<S: StateReader> StatefulValidator<S> {
         Self { tx_executor }
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn perform_validations(&mut self, tx: AccountTransaction) -> StatefulValidatorResult<()> {
         // Deploy account transaction should be fully executed, since the constructor must run
         // before `__validate_deploy__`. The execution already includes all necessary validations,
@@ -82,11 +83,13 @@ impl<S: StateReader> StatefulValidator<S> {
         self.tx_executor.block_state.as_mut().expect(BLOCK_STATE_ACCESS_ERR)
     }
 
+    #[allow(clippy::result_large_err)]
     fn execute(&mut self, tx: AccountTransaction) -> StatefulValidatorResult<()> {
         self.tx_executor.execute(&Transaction::Account(tx))?;
         Ok(())
     }
 
+    #[allow(clippy::result_large_err)]
     fn validate(
         &mut self,
         tx: &AccountTransaction,
@@ -113,6 +116,7 @@ impl<S: StateReader> StatefulValidator<S> {
         Ok((validate_call_info, tx_receipt))
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn get_nonce(
         &mut self,
         account_address: ContractAddress,

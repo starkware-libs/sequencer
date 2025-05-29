@@ -149,6 +149,7 @@ define_string_enum! {
         (DaSize),
         (DaStart),
         (DataEnd),
+        (DataPtr),
         (DataStart),
         (DecompressedDst),
         (DictPtr),
@@ -212,6 +213,7 @@ define_string_enum! {
         (Request),
         (RequiredGas),
         (Res),
+        (Response),
         (Retdata),
         (RetdataSize),
         (SegmentLength),
@@ -247,6 +249,7 @@ define_string_enum! {
 }
 
 impl Ids {
+    #[allow(clippy::result_large_err)]
     pub fn fetch_as<T: TryFrom<Felt>>(
         &self,
         vm: &mut VirtualMachine,
@@ -311,6 +314,7 @@ impl Const {
         constants.get(identifier).ok_or(HintError::MissingConstant(Box::new(identifier)))
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn fetch_as<T: TryFrom<Felt>>(
         &self,
         constants: &HashMap<String, Felt>,
@@ -327,12 +331,14 @@ impl Const {
         })
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn get_alias_counter_storage_key(
         constants: &HashMap<String, Felt>,
     ) -> Result<StorageKey, OsHintError> {
         Self::AliasCounterStorageKey.fetch_as(constants)
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn get_alias_contract_address(
         constants: &HashMap<String, Felt>,
     ) -> Result<ContractAddress, OsHintError> {
@@ -346,6 +352,7 @@ define_string_enum! {
         (BigInt3, "starkware.starknet.core.os.data_availability.bls_field.BigInt3"),
         (BuiltinParamsPtr, "starkware.starknet.core.os.builtins.BuiltinParams*"),
         (BuiltinPointersPtr, "starkware.starknet.core.os.builtins.BuiltinPointers*"),
+        (CallContractResponse, "starkware.starknet.common.new_syscalls.CallContractResponse"),
         (CompiledClass, "starkware.starknet.core.os.contract_class.compiled_class.CompiledClass"),
         (
             CompiledClassEntryPoint,
@@ -355,6 +362,7 @@ define_string_enum! {
             CompiledClassFact,
             "starkware.starknet.core.os.contract_class.compiled_class.CompiledClassFact"
         ),
+        (DeployResponse, "starkware.starknet.common.new_syscalls.DeployResponse"),
         (
             DeprecatedCompiledClass,
             "starkware.starknet.core.os.contract_class.deprecated_compiled_class.\
@@ -395,9 +403,9 @@ define_string_enum! {
         (SpongeHashBuiltin, "starkware.cairo.common.sponge_as_hash.SpongeHashBuiltin"),
         (StateEntry, "starkware.starknet.core.os.state.commitment.StateEntry"),
         (StorageReadPtr, "starkware.starknet.common.syscalls.StorageRead*"),
-        (StorageReadRequestPtr, "starkware.starknet.common.new_syscalls.StorageReadRequest*"),
+        (StorageReadRequest, "starkware.starknet.common.new_syscalls.StorageReadRequest"),
         (StorageWritePtr, "starkware.starknet.common.syscalls.StorageWrite*"),
-        (StorageWriteRequestPtr, "starkware.starknet.common.new_syscalls.StorageWriteRequest*"),
+        (StorageWriteRequest, "starkware.starknet.common.new_syscalls.StorageWriteRequest"),
         (TxInfoPtr, "starkware.starknet.common.new_syscalls.TxInfo*"),
     }
 }

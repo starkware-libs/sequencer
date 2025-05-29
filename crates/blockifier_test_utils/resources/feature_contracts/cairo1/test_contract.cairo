@@ -71,8 +71,15 @@ mod TestContract {
     ) -> Span::<felt252> {
         syscalls::call_contract_syscall(contract_address, entry_point_selector, calldata.span())
             .unwrap_syscall()
-            .snapshot
-            .span()
+    }
+
+
+    #[external(v0)]
+    fn call_execute_directly(
+        ref self: ContractState, contract_address: ContractAddress, calldata: Array::<felt252>,
+    ) -> Span::<felt252> {
+        syscalls::call_contract_syscall(contract_address, selector!("__execute__"), calldata.span())
+            .unwrap_syscall()
     }
 
     #[external(v0)]
@@ -94,8 +101,8 @@ mod TestContract {
         )
             .unwrap_syscall();
         let mut res: Array::<felt252> = Default::default();
-        res.append_span(res_0.snapshot.span());
-        res.append_span(res_1.snapshot.span());
+        res.append_span(res_0);
+        res.append_span(res_1);
         res.span()
     }
 
@@ -230,8 +237,6 @@ mod TestContract {
     ) -> Span::<felt252> {
         starknet::library_call_syscall(class_hash, function_selector, calldata.span())
             .unwrap_syscall()
-            .snapshot
-            .span()
     }
 
     #[external(v0)]

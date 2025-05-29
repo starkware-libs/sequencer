@@ -11,6 +11,7 @@ use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::HintArgs;
 use crate::hints::vars::Ids;
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn remaining_gas_gt_max<S: StateReader>(
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -21,6 +22,7 @@ pub(crate) fn remaining_gas_gt_max<S: StateReader>(
     Ok(insert_value_into_ap(vm, remaining_gas_gt_max)?)
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn debug_expected_initial_gas<S: StateReader>(
     HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -47,6 +49,7 @@ pub(crate) fn debug_expected_initial_gas<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn is_sierra_gas_mode<S: StateReader>(
     HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {

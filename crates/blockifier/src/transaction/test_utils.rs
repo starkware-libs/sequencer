@@ -327,6 +327,7 @@ pub fn invoke_tx_with_default_flags(invoke_args: InvokeTxArgs) -> AccountTransac
     AccountTransaction::new_with_default_flags(tx)
 }
 
+#[allow(clippy::result_large_err)]
 pub fn run_invoke_tx(
     state: &mut CachedState<DictStateReader>,
     block_context: &BlockContext,

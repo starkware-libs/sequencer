@@ -1,6 +1,7 @@
+use std::future::Future;
+use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use futures::FutureExt;
 use libp2p::core::Endpoint;
 use libp2p::swarm::{
     dummy,
@@ -12,15 +13,14 @@ use libp2p::swarm::{
     ToSwarm,
 };
 use libp2p::{Multiaddr, PeerId};
-use tokio::time::{Duration, Instant};
+use tokio::time::{Duration, Instant, Sleep};
 
-use super::TimeWakerManager;
 use crate::discovery::ToOtherBehaviourEvent;
 
 pub struct KadRequestingBehaviour {
     heartbeat_interval: Duration,
     time_for_next_kad_query: Instant,
-    waker_manager: TimeWakerManager,
+    sleeper: Option<Pin<Box<Sleep>>>,
 }
 
 impl NetworkBehaviour for KadRequestingBehaviour {
@@ -62,28 +62,42 @@ impl NetworkBehaviour for KadRequestingBehaviour {
         cx: &mut Context<'_>,
     ) -> Poll<ToSwarm<Self::ToSwarm, <Self::ConnectionHandler as ConnectionHandler>::FromBehaviour>>
     {
-        // remember instant
         let now = Instant::now();
-
-        if self.time_for_next_kad_query <= now {
-            self.time_for_next_kad_query = now + self.heartbeat_interval;
-            return Poll::Ready(ToSwarm::GenerateEvent(ToOtherBehaviourEvent::RequestKadQuery(
-                libp2p::identity::PeerId::random(),
-            )));
+        if now >= self.time_for_next_kad_query {
+            // No need to deal with sleep.
+            return self.set_for_next_kad_query(now);
         }
+        if self.sleeper.is_none() {
+            self.sleeper = Some(Box::pin(tokio::time::sleep_until(self.time_for_next_kad_query)));
+        }
+        let sleeper =
+            self.sleeper.as_mut().expect("Sleeper cannot be None after being created above.");
 
-        self.waker_manager.wake_at(cx, self.time_for_next_kad_query);
-        let _ = self.waker_manager.poll_unpin(cx);
-        Poll::Pending
+        match sleeper.as_mut().poll(cx) {
+            Poll::Ready(()) => self.set_for_next_kad_query(now),
+            Poll::Pending => Poll::Pending,
+        }
     }
 }
 
 impl KadRequestingBehaviour {
     pub fn new(heartbeat_interval: Duration) -> Self {
-        Self {
-            heartbeat_interval,
-            time_for_next_kad_query: Instant::now(),
-            waker_manager: Default::default(),
-        }
+        Self { heartbeat_interval, time_for_next_kad_query: Instant::now(), sleeper: None }
+    }
+
+    fn set_for_next_kad_query(
+        &mut self,
+        now: Instant,
+    ) -> Poll<
+        ToSwarm<
+            ToOtherBehaviourEvent,
+            <dummy::ConnectionHandler as ConnectionHandler>::FromBehaviour,
+        >,
+    > {
+        self.time_for_next_kad_query = now + self.heartbeat_interval;
+        self.sleeper = Some(Box::pin(tokio::time::sleep_until(self.time_for_next_kad_query)));
+        Poll::Ready(ToSwarm::GenerateEvent(ToOtherBehaviourEvent::RequestKadQuery(
+            libp2p::identity::PeerId::random(),
+        )))
     }
 }

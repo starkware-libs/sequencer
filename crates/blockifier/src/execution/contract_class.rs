@@ -97,6 +97,7 @@ impl RunnableCompiledClass {
         }
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn get_visited_segments(
         &self,
         visited_pcs: &HashSet<usize>,
@@ -276,6 +277,7 @@ impl CompiledClassV1 {
 
     // Returns the set of segments that were visited according to the given visited PCs.
     // Each visited segment must have its starting PC visited, and is represented by it.
+    #[allow(clippy::result_large_err)]
     fn get_visited_segments(
         &self,
         visited_pcs: &HashSet<usize>,
@@ -342,6 +344,7 @@ pub fn estimate_casm_hash_computation_resources(
 // lengths.
 // Each visited segment must have its starting PC visited, and is represented by it.
 // visited_pcs should be given in reversed order, and is consumed by the function.
+#[allow(clippy::result_large_err)]
 fn get_visited_segments(
     segment_lengths: &NestedIntList,
     visited_pcs: &mut Vec<usize>,

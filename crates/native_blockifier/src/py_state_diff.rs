@@ -42,6 +42,7 @@ pub struct PyStateDiff {
 impl TryFrom<PyStateDiff> for StateDiff {
     type Error = NativeBlockifierError;
 
+    #[allow(clippy::result_large_err)]
     fn try_from(state_diff: PyStateDiff) -> NativeBlockifierResult<Self> {
         let mut deployed_contracts: IndexMap<ContractAddress, ClassHash> = IndexMap::new();
         for (address, class_hash) in state_diff.address_to_class_hash {

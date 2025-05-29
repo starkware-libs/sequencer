@@ -371,6 +371,7 @@ impl L1HandlerTransaction {
     }
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum Transaction {
     Account(AccountTransaction),

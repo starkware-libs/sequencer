@@ -24,6 +24,7 @@ pub struct StarknetOsRunnerOutput {
 }
 
 // Retrieve the output ptr data of a finalized run as a vec of felts.
+#[allow(clippy::result_large_err)]
 pub fn get_run_output(vm: &VirtualMachine) -> Result<Vec<Felt>, StarknetOsError> {
     let (output_base, output_size) = get_output_info(vm)?;
     get_raw_output(vm, output_base, output_size)
@@ -31,6 +32,7 @@ pub fn get_run_output(vm: &VirtualMachine) -> Result<Vec<Felt>, StarknetOsError>
 
 /// Gets the output base segment and the output size from the VM return values and the VM
 /// output builtin.
+#[allow(clippy::result_large_err)]
 fn get_output_info(vm: &VirtualMachine) -> Result<(usize, usize), StarknetOsError> {
     let output_base = vm
         .get_builtin_runners()
@@ -72,6 +74,7 @@ fn get_output_info(vm: &VirtualMachine) -> Result<(usize, usize), StarknetOsErro
 }
 
 /// Gets the OS output as an array of felts based on the output base and size.
+#[allow(clippy::result_large_err)]
 fn get_raw_output(
     vm: &VirtualMachine,
     output_base: usize,

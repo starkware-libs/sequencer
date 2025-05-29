@@ -19,6 +19,7 @@ macro_rules! define_hint_enum_base {
         }
 
         impl HintEnum for $enum_name {
+            #[allow(clippy::result_large_err)]
             fn from_str(hint_str: &str) -> Result<Self, OsHintError> {
                 match hint_str {
                     $($hint_str => Ok(Self::$hint_name),)+
@@ -42,6 +43,7 @@ macro_rules! define_hint_enum {
         $crate::define_hint_enum_base!($enum_name, $(($hint_name, $hint_str)),+);
 
         impl HintImplementation for $enum_name {
+            #[allow(clippy::result_large_err)]
             fn execute_hint<S: StateReader>(&self, hint_args: HintArgs<'_, '_, S>) -> OsHintResult {
                 match self {
                     $(Self::$hint_name => {
@@ -63,6 +65,7 @@ macro_rules! define_hint_extension_enum {
         $crate::define_hint_enum_base!($enum_name, $(($hint_name, $hint_str)),+);
 
         impl HintExtensionImplementation for $enum_name {
+            #[allow(clippy::result_large_err)]
             fn execute_hint_extensive<S: StateReader>(
                 &self,
                 hint_extension_args: HintArgs<'_, '_, S>,

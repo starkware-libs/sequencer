@@ -8,6 +8,7 @@ FROM ubuntu:24.04 AS base
 
 COPY scripts/install_build_tools.sh .
 COPY scripts/dependencies.sh .
+COPY scripts/requirements.txt .
 COPY rust-toolchain.toml .
 
 RUN apt update && apt -y install \
@@ -24,5 +25,11 @@ RUN ./install_build_tools.sh
 RUN rustup toolchain install
 RUN cargo install cargo-chef
 
+# Define python venv and install python packages.
+ENV VIRTUAL_ENV=/opt/sequencer_venv
+RUN python3 -m venv ${VIRTUAL_ENV}
+RUN ${VIRTUAL_ENV}/bin/pip install -r requirements.txt
+ENV PATH="${VIRTUAL_ENV}/bin:$PATH"
+
 # Cleanup.
-RUN rm -f install_build_tools.sh dependencies.sh
+RUN rm -f install_build_tools.sh dependencies.sh requirements.txt

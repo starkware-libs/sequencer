@@ -11,6 +11,16 @@ use crate::deployment::{
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
 use crate::service::{DeploymentName, IngressParams};
 
+const TESTING_INGRESS_DOMAIN: &str = "sw-dev.io";
+
+pub(crate) fn system_test_deployments() -> Vec<Deployment> {
+    vec![
+        system_test_distributed_deployment(),
+        system_test_hybrid_deployment(),
+        system_test_consolidated_deployment(),
+    ]
+}
+
 fn testing_deployment_config_override() -> DeploymentConfigOverride {
     DeploymentConfigOverride::new(
         "0x5FbDB2315678afecb367f032d93F642f64180aa3",
@@ -41,9 +51,7 @@ fn get_ingress_params() -> IngressParams {
     IngressParams::new(TESTING_INGRESS_DOMAIN.to_string(), None)
 }
 
-const TESTING_INGRESS_DOMAIN: &str = "sw-dev.io";
-
-pub(crate) fn system_test_distributed_deployment() -> Deployment {
+fn system_test_distributed_deployment() -> Deployment {
     Deployment::new(
         ChainId::IntegrationSepolia,
         DeploymentName::DistributedNode,
@@ -56,7 +64,7 @@ pub(crate) fn system_test_distributed_deployment() -> Deployment {
     )
 }
 
-pub(crate) fn system_test_hybrid_deployment() -> Deployment {
+fn system_test_hybrid_deployment() -> Deployment {
     Deployment::new(
         ChainId::IntegrationSepolia,
         DeploymentName::HybridNode,
@@ -69,7 +77,7 @@ pub(crate) fn system_test_hybrid_deployment() -> Deployment {
     )
 }
 
-pub(crate) fn system_test_consolidated_deployment() -> Deployment {
+fn system_test_consolidated_deployment() -> Deployment {
     Deployment::new(
         ChainId::IntegrationSepolia,
         DeploymentName::ConsolidatedNode,

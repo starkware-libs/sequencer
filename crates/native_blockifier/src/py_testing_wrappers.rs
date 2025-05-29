@@ -6,6 +6,7 @@ use pyo3::{pyfunction, PyResult};
 use crate::errors::NativeBlockifierResult;
 use crate::py_objects::PyExecutionResources;
 
+#[allow(clippy::result_large_err)]
 #[pyfunction]
 pub fn raise_error_for_testing() -> NativeBlockifierResult<()> {
     Err(TransactionExecutionError::TransactionFeeError(

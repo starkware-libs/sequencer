@@ -23,6 +23,7 @@ pub static DEFAULT_PRIME: LazyLock<BigInt> = LazyLock::new(|| {
 });
 
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::result_large_err)]
 pub(crate) fn test_cairo_function(
     runner_config: &EntryPointRunnerConfig,
     program_str: &str,

@@ -3,9 +3,14 @@ use std::collections::HashMap;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::get_ptr_from_var_name;
 use cairo_vm::hint_processor::hint_processor_definition::HintReference;
 use cairo_vm::serde::deserialize_program::ApTracking;
+use cairo_vm::types::errors::math_errors::MathError;
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::hint_errors::HintError;
+use cairo_vm::vm::errors::memory_errors::MemoryError;
+use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::vm_core::VirtualMachine;
+use num_bigint::{BigUint, TryFromBigIntError};
+use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
 
 use crate::execution::common_hints::HintExecutionResult;
@@ -50,6 +55,7 @@ use crate::execution::deprecated_syscalls::{
 use crate::execution::execution_utils::felt_from_ptr;
 
 pub trait DeprecatedSyscallExecutor {
+    #[allow(clippy::result_large_err)]
     fn read_next_syscall_selector(
         &mut self,
         vm: &mut VirtualMachine,
@@ -59,112 +65,131 @@ pub trait DeprecatedSyscallExecutor {
 
     fn increment_syscall_count(&mut self, selector: &DeprecatedSyscallSelector);
 
+    #[allow(clippy::result_large_err)]
     fn verify_syscall_ptr(&self, actual_ptr: Relocatable) -> DeprecatedSyscallResult<()>;
 
     fn get_mut_syscall_ptr(&mut self) -> &mut Relocatable;
 
+    #[allow(clippy::result_large_err)]
     fn call_contract(
         request: CallContractRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<CallContractResponse>;
 
+    #[allow(clippy::result_large_err)]
     fn delegate_call(
         request: DelegateCallRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<DelegateCallResponse>;
 
+    #[allow(clippy::result_large_err)]
     fn delegate_l1_handler(
         request: DelegateCallRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<DelegateCallResponse>;
 
+    #[allow(clippy::result_large_err)]
     fn deploy(
         request: DeployRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<DeployResponse>;
 
+    #[allow(clippy::result_large_err)]
     fn emit_event(
         request: EmitEventRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<EmitEventResponse>;
 
+    #[allow(clippy::result_large_err)]
     fn get_block_number(
         request: GetBlockNumberRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<GetBlockNumberResponse>;
 
+    #[allow(clippy::result_large_err)]
     fn get_block_timestamp(
         request: GetBlockTimestampRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<GetBlockTimestampResponse>;
 
+    #[allow(clippy::result_large_err)]
     fn get_caller_address(
         request: GetCallerAddressRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<GetCallerAddressResponse>;
 
+    #[allow(clippy::result_large_err)]
     fn get_contract_address(
         request: GetContractAddressRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<GetContractAddressResponse>;
 
+    #[allow(clippy::result_large_err)]
     fn get_sequencer_address(
         request: GetSequencerAddressRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<GetSequencerAddressResponse>;
 
+    #[allow(clippy::result_large_err)]
     fn get_tx_info(
         request: GetTxInfoRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<GetTxInfoResponse>;
 
+    #[allow(clippy::result_large_err)]
     fn get_tx_signature(
         request: GetTxSignatureRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<GetTxSignatureResponse>;
 
+    #[allow(clippy::result_large_err)]
     fn library_call(
         request: LibraryCallRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<LibraryCallResponse>;
 
+    #[allow(clippy::result_large_err)]
     fn library_call_l1_handler(
         request: LibraryCallRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<LibraryCallResponse>;
 
+    #[allow(clippy::result_large_err)]
     fn replace_class(
         request: ReplaceClassRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<ReplaceClassResponse>;
 
+    #[allow(clippy::result_large_err)]
     fn send_message_to_l1(
         request: SendMessageToL1Request,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<SendMessageToL1Response>;
 
+    #[allow(clippy::result_large_err)]
     fn storage_read(
         request: StorageReadRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<StorageReadResponse>;
 
+    #[allow(clippy::result_large_err)]
     fn storage_write(
         request: StorageWriteRequest,
         vm: &mut VirtualMachine,
@@ -292,4 +317,32 @@ pub fn execute_next_deprecated_syscall<T: DeprecatedSyscallExecutor>(
     deprecated_syscall_executor.increment_syscall_count(&selector);
 
     execute_deprecated_syscall_from_selector(deprecated_syscall_executor, vm, selector)
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum DeprecatedSyscallExecutorBaseError {
+    #[error(transparent)]
+    Hint(#[from] HintError),
+    #[error("Invalid syscall input: {input:?}; {info}")]
+    InvalidSyscallInput { input: Felt, info: String },
+    #[error(transparent)]
+    Math(#[from] MathError),
+    #[error(transparent)]
+    Memory(#[from] MemoryError),
+    #[error(transparent)]
+    StarknetApi(#[from] StarknetApiError),
+    #[error(transparent)]
+    FromBigUint(#[from] TryFromBigIntError<BigUint>),
+    #[error(transparent)]
+    VirtualMachine(#[from] VirtualMachineError),
+}
+
+pub type DeprecatedSyscallExecutorBaseResult<T> = Result<T, DeprecatedSyscallExecutorBaseError>;
+
+// Needed for custom hint implementations (in our case, syscall hints) which must comply with the
+// cairo-rs API.
+impl From<DeprecatedSyscallExecutorBaseError> for HintError {
+    fn from(error: DeprecatedSyscallExecutorBaseError) -> Self {
+        Self::Internal(VirtualMachineError::Other(error.into()))
+    }
 }

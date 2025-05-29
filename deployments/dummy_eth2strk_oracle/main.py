@@ -1,12 +1,27 @@
 #!/usr/bin/env python
+<<<<<<< HEAD
 
 import argparse
 from typing import Optional
 from constructs import Construct
+||||||| 92f8b4a29
+from constructs import Construct
+=======
+import argparse
+>>>>>>> origin/main-v0.14.0
 from cdk8s import App, Chart, Names, YamlOutputType
+from constructs import Construct
 from imports import k8s
 
+<<<<<<< HEAD
+||||||| 92f8b4a29
+
+SERVICE_NAME = "dummy-eth2strk-oracle"
+=======
+SERVICE_NAME = "dummy-eth2strk-oracle"
+>>>>>>> origin/main-v0.14.0
 SERVICE_PORT = 9000
+<<<<<<< HEAD
 IMAGE = "ghcr.io/starkware-libs/sequencer/dummy_eth2strk_oracle:latest"
 
 
@@ -36,9 +51,19 @@ def argument_parser():
     ), "--cluster and --ingress-domain are required if --create-ingress is used."
 
     return args
+||||||| 92f8b4a29
+CLUSTER = "sequencer-dev"
+NAMESPACE = "dummy-eth2strk-oracle"
+IMAGE = "us-central1-docker.pkg.dev/starkware-dev/sequencer/dummy_eth2strk_oracle:latest"
+=======
+CLUSTER = "sequencer-dev"
+DEFAULT_IMAGE = "us-central1-docker.pkg.dev/starkware-dev/sequencer/dummy_eth2strk_oracle:latest"
+DEFAULT_NAMESPACE = "dummy-eth2strk-oracle"
+>>>>>>> origin/main-v0.14.0
 
 
 class DummyEth2StrkOracle(Chart):
+<<<<<<< HEAD
     def __init__(
         self,
         scope: Construct,
@@ -48,6 +73,11 @@ class DummyEth2StrkOracle(Chart):
         cluster: Optional[str],
         domain: Optional[str],
     ):
+||||||| 92f8b4a29
+    def __init__(self, scope: Construct, id: str, namespace: str):
+=======
+    def __init__(self, scope: Construct, id: str, namespace: str, image: str):
+>>>>>>> origin/main-v0.14.0
         super().__init__(scope, id, disable_resource_name_hashes=True, namespace=namespace)
 
         self.label = {"app": Names.to_label_value(self, include_hash=False)}
@@ -90,7 +120,7 @@ class DummyEth2StrkOracle(Chart):
                         containers=[
                             k8s.Container(
                                 name=self.node.id,
-                                image=IMAGE,
+                                image=image,
                                 env=[k8s.EnvVar(name="RUST_LOG", value="DEBUG")],
                                 ports=[k8s.ContainerPort(container_port=SERVICE_PORT)],
                             )
@@ -135,10 +165,32 @@ class DummyEth2StrkOracle(Chart):
         )
 
 
+<<<<<<< HEAD
 def main():
     args = argument_parser()
     app = App(yaml_output_type=YamlOutputType.FOLDER_PER_CHART_FILE_PER_RESOURCE)
+||||||| 92f8b4a29
+app = App(yaml_output_type=YamlOutputType.FOLDER_PER_CHART_FILE_PER_RESOURCE)
+DummyEth2StrkOracle(scope=app, id=SERVICE_NAME, namespace=NAMESPACE)
+=======
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--image",
+        type=str,
+        default=DEFAULT_IMAGE,
+        help="Docker image to use (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--namespace",
+        type=str,
+        default=DEFAULT_NAMESPACE,
+        help="Kubernetes namespace to deploy into (default: %(default)s)",
+    )
+    args = parser.parse_args()
+>>>>>>> origin/main-v0.14.0
 
+<<<<<<< HEAD
     DummyEth2StrkOracle(
         scope=app,
         id="dummy-eth2strk-oracle",
@@ -153,3 +205,10 @@ def main():
 
 if __name__ == "__main__":
     main()
+||||||| 92f8b4a29
+app.synth()
+=======
+    app = App(yaml_output_type=YamlOutputType.FOLDER_PER_CHART_FILE_PER_RESOURCE)
+    DummyEth2StrkOracle(scope=app, id=SERVICE_NAME, namespace=args.namespace, image=args.image)
+    app.synth()
+>>>>>>> origin/main-v0.14.0

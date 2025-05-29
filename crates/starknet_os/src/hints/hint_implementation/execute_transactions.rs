@@ -15,6 +15,7 @@ use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::Ids;
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn set_sha256_segment_in_syscall_handler<S: StateReader>(
     HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -23,6 +24,7 @@ pub(crate) fn set_sha256_segment_in_syscall_handler<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn log_remaining_txs<S: StateReader>(
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -31,6 +33,7 @@ pub(crate) fn log_remaining_txs<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn fill_holes_in_rc96_segment<S: StateReader>(
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -50,6 +53,7 @@ pub(crate) fn fill_holes_in_rc96_segment<S: StateReader>(
 
 /// Assigns the class hash of the current transaction to the component hashes var.
 /// Assumes the current transaction is of type Declare.
+#[allow(clippy::result_large_err)]
 pub(crate) fn set_component_hashes<S: StateReader>(
     HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -79,10 +83,12 @@ pub(crate) fn set_component_hashes<S: StateReader>(
     )?)
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn sha2_finalize<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> OsHintResult {
     todo!()
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn segments_add_temp<S: StateReader>(
     HintArgs { vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -90,6 +96,7 @@ pub(crate) fn segments_add_temp<S: StateReader>(
     insert_nondet_hint_value(vm, AllHints::OsHint(OsHint::SegmentsAddTemp), temp_segment)
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn set_ap_to_actual_fee<S: StateReader>(
     HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -103,10 +110,12 @@ pub(crate) fn set_ap_to_actual_fee<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn skip_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> OsHintResult {
     todo!()
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn start_tx<S: StateReader>(
     HintArgs { hint_processor, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -115,6 +124,7 @@ pub(crate) fn start_tx<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn os_input_transactions<S: StateReader>(
     HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -122,6 +132,7 @@ pub(crate) fn os_input_transactions<S: StateReader>(
     insert_nondet_hint_value(vm, AllHints::OsHint(OsHint::OsInputTransactions), num_txns)
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn segments_add<S: StateReader>(
     HintArgs { vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {

@@ -59,7 +59,7 @@ jobs:
         uses: upsidr/merge-gatekeeper@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          timeout: 1800
+          timeout: 2100
           interval: 30
           ignored: "code-review/reviewable"
 

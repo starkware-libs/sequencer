@@ -40,7 +40,11 @@ use crate::execution::secp;
 use crate::execution::syscalls::common_syscall_logic::base_keccak;
 use crate::execution::syscalls::hint_processor::{SyscallExecutionError, OUT_OF_GAS_ERROR};
 use crate::execution::syscalls::syscall_base::SyscallHandlerBase;
-use crate::execution::syscalls::vm_syscall_utils::SyscallExecutorBaseError;
+use crate::execution::syscalls::vm_syscall_utils::{
+    SelfOrRevert,
+    SyscallExecutorBaseError,
+    TryExtractRevert,
+};
 use crate::state::state_api::State;
 use crate::transaction::objects::TransactionInfo;
 use crate::utils::u64_from_usize;
@@ -72,6 +76,7 @@ impl<'state> NativeSyscallHandler<'state> {
 
     /// Handles all gas-related logics and perform additional checks. In native,
     /// we need to explicitly call this method at the beginning of each syscall.
+    #[allow(clippy::result_large_err)]
     fn pre_execute_syscall(
         &mut self,
         remaining_gas: &mut u64,
@@ -127,9 +132,9 @@ impl<'state> NativeSyscallHandler<'state> {
             }
         }
 
-        match error {
-            SyscallExecutionError::Revert { error_data } => error_data,
-            error => {
+        match error.try_extract_revert() {
+            SelfOrRevert::Revert(error_data) => error_data,
+            SelfOrRevert::Original(error) => {
                 assert!(
                     self.unrecoverable_error.is_none(),
                     "Trying to set an unrecoverable error twice in Native Syscall Handler"
@@ -141,6 +146,7 @@ impl<'state> NativeSyscallHandler<'state> {
         }
     }
 
+    #[allow(clippy::result_large_err)]
     fn execute_inner_call(
         &mut self,
         entry_point: CallEntryPoint,
@@ -157,15 +163,16 @@ impl<'state> NativeSyscallHandler<'state> {
         let raw_data = self.base.execute_inner_call(entry_point, remaining_gas).map_err(|e| {
             self.handle_error(
                 remaining_gas,
-                match e {
-                    SyscallExecutionError::Revert { .. } => e,
-                    _ => error_wrapper_fn(
-                        e,
-                        class_hash,
-                        entry_point_clone.storage_address,
-                        entry_point_clone.entry_point_selector,
-                    ),
-                },
+                SyscallExecutionError::from_self_or_revert(e.try_extract_revert().map_original(
+                    |error| {
+                        error_wrapper_fn(
+                            error,
+                            class_hash,
+                            entry_point_clone.storage_address,
+                            entry_point_clone.entry_point_selector,
+                        )
+                    },
+                )),
             )
         })?;
         Ok(Retdata(raw_data))
@@ -201,6 +208,7 @@ impl<'state> NativeSyscallHandler<'state> {
         }
     }
 
+    #[allow(clippy::result_large_err)]
     fn get_tx_info_v2(&self) -> SyscallResult<TxV2Info> {
         let tx_info = &self.base.context.tx_context.tx_info;
         let native_tx_info = TxV2Info {
@@ -239,6 +247,7 @@ impl<'state> NativeSyscallHandler<'state> {
 }
 
 impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
+    #[allow(clippy::result_large_err)]
     fn get_block_hash(
         &mut self,
         block_number: u64,
@@ -255,6 +264,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         }
     }
 
+    #[allow(clippy::result_large_err)]
     fn get_execution_info(&mut self, remaining_gas: &mut u64) -> SyscallResult<ExecutionInfo> {
         self.pre_execute_syscall(
             remaining_gas,
@@ -270,6 +280,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         })
     }
 
+    #[allow(clippy::result_large_err)]
     fn get_class_hash_at(
         &mut self,
         contract_address: Felt,
@@ -289,6 +300,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         Ok(class_hash.0)
     }
 
+    #[allow(clippy::result_large_err)]
     fn get_execution_info_v2(&mut self, remaining_gas: &mut u64) -> SyscallResult<ExecutionInfoV2> {
         self.pre_execute_syscall(
             remaining_gas,
@@ -304,6 +316,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         })
     }
 
+    #[allow(clippy::result_large_err)]
     fn deploy(
         &mut self,
         class_hash: Felt,
@@ -334,6 +347,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
 
         Ok((Felt::from(deployed_contract_address), constructor_retdata))
     }
+    #[allow(clippy::result_large_err)]
     fn replace_class(&mut self, class_hash: Felt, remaining_gas: &mut u64) -> SyscallResult<()> {
         self.pre_execute_syscall(
             remaining_gas,
@@ -346,6 +360,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         Ok(())
     }
 
+    #[allow(clippy::result_large_err)]
     fn meta_tx_v0(
         &mut self,
         address: Felt,
@@ -378,6 +393,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         Ok(raw_data)
     }
 
+    #[allow(clippy::result_large_err)]
     fn library_call(
         &mut self,
         class_hash: Felt,
@@ -422,6 +438,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
             .0)
     }
 
+    #[allow(clippy::result_large_err)]
     fn call_contract(
         &mut self,
         address: Felt,
@@ -451,6 +468,10 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
             };
             return Err(self.handle_error(remaining_gas, err.into()));
         }
+        let selector = EntryPointSelector(entry_point_selector);
+        self.base
+            .maybe_block_direct_execute_call(selector)
+            .map_err(|e| self.handle_error(remaining_gas, e))?;
 
         let wrapper_calldata = Calldata(Arc::new(calldata.to_vec()));
 
@@ -458,7 +479,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
             class_hash: None,
             code_address: Some(contract_address),
             entry_point_type: EntryPointType::External,
-            entry_point_selector: EntryPointSelector(entry_point_selector),
+            entry_point_selector: selector,
             calldata: wrapper_calldata,
             storage_address: contract_address,
             caller_address: self.base.call.storage_address,
@@ -479,6 +500,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
             .0)
     }
 
+    #[allow(clippy::result_large_err)]
     fn storage_read(
         &mut self,
         address_domain: u32,
@@ -503,6 +525,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         Ok(value)
     }
 
+    #[allow(clippy::result_large_err)]
     fn storage_write(
         &mut self,
         address_domain: u32,
@@ -528,6 +551,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         Ok(())
     }
 
+    #[allow(clippy::result_large_err)]
     fn emit_event(
         &mut self,
         keys: &[Felt],
@@ -548,6 +572,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         Ok(())
     }
 
+    #[allow(clippy::result_large_err)]
     fn send_message_to_l1(
         &mut self,
         to_address: Felt,
@@ -566,6 +591,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         self.base.send_message_to_l1(message).map_err(|err| self.handle_error(remaining_gas, err))
     }
 
+    #[allow(clippy::result_large_err)]
     fn keccak(&mut self, input: &[u64], remaining_gas: &mut u64) -> SyscallResult<U256> {
         self.pre_execute_syscall(
             remaining_gas,
@@ -581,10 +607,11 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
                 hi: u128::from(state[2]) | (u128::from(state[3]) << 64),
                 lo: u128::from(state[0]) | (u128::from(state[1]) << 64),
             }),
-            Err(err) => Err(self.handle_error(remaining_gas, err)),
+            Err(err) => Err(self.handle_error(remaining_gas, err.into())),
         }
     }
 
+    #[allow(clippy::result_large_err)]
     fn secp256k1_new(
         &mut self,
         x: U256,
@@ -601,6 +628,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
             .map_err(|e| self.handle_error(remaining_gas, e))
     }
 
+    #[allow(clippy::result_large_err)]
     fn secp256k1_add(
         &mut self,
         p0: Secp256k1Point,
@@ -615,6 +643,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         Ok(Secp256Point::add(p0.into(), p1.into()).into())
     }
 
+    #[allow(clippy::result_large_err)]
     fn secp256k1_mul(
         &mut self,
         p: Secp256k1Point,
@@ -629,6 +658,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         Ok(Secp256Point::mul(p.into(), m).into())
     }
 
+    #[allow(clippy::result_large_err)]
     fn secp256k1_get_point_from_x(
         &mut self,
         x: U256,
@@ -645,6 +675,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
             .map_err(|e| self.handle_error(remaining_gas, e))
     }
 
+    #[allow(clippy::result_large_err)]
     fn secp256k1_get_xy(
         &mut self,
         p: Secp256k1Point,
@@ -658,6 +689,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         Ok((p.x, p.y))
     }
 
+    #[allow(clippy::result_large_err)]
     fn secp256r1_new(
         &mut self,
         x: U256,
@@ -674,6 +706,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
             .map_err(|err| self.handle_error(remaining_gas, err))
     }
 
+    #[allow(clippy::result_large_err)]
     fn secp256r1_add(
         &mut self,
         p0: Secp256r1Point,
@@ -687,6 +720,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         Ok(Secp256Point::add(p0.into(), p1.into()).into())
     }
 
+    #[allow(clippy::result_large_err)]
     fn secp256r1_mul(
         &mut self,
         p: Secp256r1Point,
@@ -701,6 +735,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         Ok(Secp256Point::mul(p.into(), m).into())
     }
 
+    #[allow(clippy::result_large_err)]
     fn secp256r1_get_point_from_x(
         &mut self,
         x: U256,
@@ -717,6 +752,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
             .map_err(|err| self.handle_error(remaining_gas, err))
     }
 
+    #[allow(clippy::result_large_err)]
     fn secp256r1_get_xy(
         &mut self,
         p: Secp256r1Point,
@@ -730,6 +766,7 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         Ok((p.x, p.y))
     }
 
+    #[allow(clippy::result_large_err)]
     fn sha256_process_block(
         &mut self,
         prev_state: &mut [u32; 8],
@@ -805,6 +842,7 @@ impl<Curve: SWCurveConfig> Secp256Point<Curve>
 where
     Curve::BaseField: PrimeField, // constraint for get_point_by_id
 {
+    #[allow(clippy::result_large_err)]
     fn wrap_secp_result<T>(
         result: Result<Option<T>, SyscallExecutionError>,
     ) -> Result<Option<Secp256Point<Curve>>, SyscallExecutionError>
@@ -823,11 +861,12 @@ where
     /// - Returns `Err` if either `x` or `y` is outside the modulus.
     /// - Returns `Ok(None)` if (x, y) are within the modulus but not on the curve.
     /// - Ok(Some(Point)) if (x,y) are on the curve.
+    #[allow(clippy::result_large_err)]
     fn new(x: U256, y: U256) -> Result<Option<Self>, SyscallExecutionError> {
         let x = u256_to_biguint(x);
         let y = u256_to_biguint(y);
 
-        Self::wrap_secp_result(secp::new_affine(x, y))
+        Self::wrap_secp_result(Ok(secp::new_affine(x, y)?))
     }
 
     fn add(p0: Self, p1: Self) -> Self {
@@ -840,10 +879,11 @@ where
         Secp256Point(result.into())
     }
 
+    #[allow(clippy::result_large_err)]
     fn get_point_from_x(x: U256, y_parity: bool) -> Result<Option<Self>, SyscallExecutionError> {
         let x = u256_to_biguint(x);
 
-        Self::wrap_secp_result(secp::get_point_from_x(x, y_parity))
+        Self::wrap_secp_result(Ok(secp::get_point_from_x(x, y_parity)?))
     }
 }
 

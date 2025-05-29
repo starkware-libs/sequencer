@@ -142,17 +142,16 @@ impl GetComponentConfigs for DistributedNodeServiceName {
 
 // TODO(Tsabary): per each service, update all values.
 impl ServiceNameInner for DistributedNodeServiceName {
-    // TODO(Tsabary/Idan): set the correct controller type for each service.
     fn get_controller(&self) -> Controller {
         match self {
             DistributedNodeServiceName::Batcher => Controller::StatefulSet,
             DistributedNodeServiceName::ClassManager => Controller::StatefulSet,
             DistributedNodeServiceName::ConsensusManager => Controller::StatefulSet,
-            DistributedNodeServiceName::HttpServer => Controller::StatefulSet,
-            DistributedNodeServiceName::Gateway => Controller::StatefulSet,
-            DistributedNodeServiceName::L1 => Controller::StatefulSet,
-            DistributedNodeServiceName::Mempool => Controller::StatefulSet,
-            DistributedNodeServiceName::SierraCompiler => Controller::StatefulSet,
+            DistributedNodeServiceName::HttpServer => Controller::Deployment,
+            DistributedNodeServiceName::Gateway => Controller::Deployment,
+            DistributedNodeServiceName::L1 => Controller::Deployment,
+            DistributedNodeServiceName::Mempool => Controller::Deployment,
+            DistributedNodeServiceName::SierraCompiler => Controller::Deployment,
             DistributedNodeServiceName::StateSync => Controller::StatefulSet,
         }
     }
@@ -176,16 +175,15 @@ impl ServiceNameInner for DistributedNodeServiceName {
             Environment::Testing => None,
             Environment::SepoliaIntegration
             | Environment::TestingEnvTwo
-            | Environment::TestingEnvThree => match self {
+            | Environment::TestingEnvThree
+            | Environment::StressTest => match self {
                 DistributedNodeServiceName::Batcher => Some(Toleration::ApolloCoreService),
                 DistributedNodeServiceName::ClassManager => Some(Toleration::ApolloGeneralService),
-                DistributedNodeServiceName::ConsensusManager => {
-                    Some(Toleration::ApolloGeneralService)
-                }
+                DistributedNodeServiceName::ConsensusManager => Some(Toleration::ApolloCoreService),
                 DistributedNodeServiceName::HttpServer => Some(Toleration::ApolloGeneralService),
                 DistributedNodeServiceName::Gateway => Some(Toleration::ApolloGeneralService),
                 DistributedNodeServiceName::L1 => Some(Toleration::ApolloGeneralService),
-                DistributedNodeServiceName::Mempool => Some(Toleration::ApolloGeneralService),
+                DistributedNodeServiceName::Mempool => Some(Toleration::ApolloCoreService),
                 DistributedNodeServiceName::SierraCompiler => {
                     Some(Toleration::ApolloGeneralService)
                 }
@@ -220,7 +218,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
             Environment::Testing => None,
             Environment::SepoliaIntegration
             | Environment::TestingEnvTwo
-            | Environment::TestingEnvThree => match self {
+            | Environment::TestingEnvThree
+            | Environment::StressTest => match self {
                 DistributedNodeServiceName::Batcher => Some(BATCHER_STORAGE),
                 DistributedNodeServiceName::ClassManager => Some(CLASS_MANAGER_STORAGE),
                 DistributedNodeServiceName::ConsensusManager => None,
@@ -241,6 +240,27 @@ impl ServiceNameInner for DistributedNodeServiceName {
 
     fn get_replicas(&self, _environment: &Environment) -> usize {
         1
+    }
+
+    fn get_anti_affinity(&self, environment: &Environment) -> bool {
+        match environment {
+            Environment::Testing => false,
+            Environment::SepoliaIntegration
+            | Environment::TestingEnvTwo
+            | Environment::TestingEnvThree
+            | Environment::StressTest => match self {
+                DistributedNodeServiceName::Batcher => true,
+                DistributedNodeServiceName::ClassManager => false,
+                DistributedNodeServiceName::ConsensusManager => false,
+                DistributedNodeServiceName::HttpServer => false,
+                DistributedNodeServiceName::Gateway => false,
+                DistributedNodeServiceName::L1 => false,
+                DistributedNodeServiceName::Mempool => false,
+                DistributedNodeServiceName::SierraCompiler => false,
+                DistributedNodeServiceName::StateSync => false,
+            },
+            _ => unimplemented!(),
+        }
     }
 }
 

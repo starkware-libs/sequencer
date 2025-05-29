@@ -12,8 +12,7 @@ use crate::execution::execution_utils::{
     write_u256,
 };
 use crate::execution::secp::new_affine;
-use crate::execution::syscalls::hint_processor::{felt_to_bool, SyscallExecutionError};
-use crate::execution::syscalls::syscall_base::SyscallResult;
+use crate::execution::syscalls::hint_processor::felt_to_bool;
 use crate::execution::syscalls::vm_syscall_utils::{
     SyscallBaseResult,
     SyscallExecutorBaseError,
@@ -38,7 +37,8 @@ where
         Self { points: Vec::default(), points_segment_base: None }
     }
 
-    pub fn secp_add(&mut self, request: SecpAddRequest) -> SyscallResult<SecpAddResponse> {
+    #[allow(clippy::result_large_err)]
+    pub fn secp_add(&mut self, request: SecpAddRequest) -> SyscallBaseResult<SecpAddResponse> {
         let lhs = self.get_point_by_ptr(request.lhs_ptr)?;
         let rhs = self.get_point_by_ptr(request.rhs_ptr)?;
         let result = *lhs + *rhs;
@@ -46,18 +46,20 @@ where
         Ok(SecpOpRespone { ec_point_ptr })
     }
 
-    pub fn secp_mul(&mut self, request: SecpMulRequest) -> SyscallResult<SecpMulResponse> {
+    #[allow(clippy::result_large_err)]
+    pub fn secp_mul(&mut self, request: SecpMulRequest) -> SyscallBaseResult<SecpMulResponse> {
         let ec_point = self.get_point_by_ptr(request.ec_point_ptr)?;
         let result = *ec_point * Curve::ScalarField::from(request.multiplier);
         let ec_point_ptr = self.allocate_point(result.into())?;
         Ok(SecpOpRespone { ec_point_ptr })
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn secp_get_point_from_x(
         &mut self,
         vm: &mut VirtualMachine,
         request: SecpGetPointFromXRequest,
-    ) -> SyscallResult<SecpGetPointFromXResponse> {
+    ) -> SyscallBaseResult<SecpGetPointFromXResponse> {
         self.conditionally_initialize_points_segment_base(vm);
         let affine = crate::execution::secp::get_point_from_x(request.x, request.y_parity)?;
         Ok(SecpGetPointFromXResponse {
@@ -68,17 +70,22 @@ where
         })
     }
 
-    pub fn secp_get_xy(&mut self, request: SecpGetXyRequest) -> SyscallResult<SecpGetXyResponse> {
+    #[allow(clippy::result_large_err)]
+    pub fn secp_get_xy(
+        &mut self,
+        request: SecpGetXyRequest,
+    ) -> SyscallBaseResult<SecpGetXyResponse> {
         let ec_point = self.get_point_by_ptr(request.ec_point_ptr)?;
 
         Ok(SecpGetXyResponse { x: ec_point.x.into(), y: ec_point.y.into() })
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn secp_new(
         &mut self,
         vm: &mut VirtualMachine,
         request: SecpNewRequest,
-    ) -> SyscallResult<SecpNewResponse> {
+    ) -> SyscallBaseResult<SecpNewResponse> {
         self.conditionally_initialize_points_segment_base(vm);
         let affine = new_affine::<Curve>(request.x, request.y)?;
 
@@ -90,10 +97,11 @@ where
         })
     }
 
+    #[allow(clippy::result_large_err)]
     fn allocate_point(
         &mut self,
         ec_point: short_weierstrass::Affine<Curve>,
-    ) -> SyscallResult<Relocatable> {
+    ) -> SyscallBaseResult<Relocatable> {
         let points = &mut self.points;
         let id = points.len();
         points.push(ec_point);
@@ -110,17 +118,16 @@ where
         self.points_segment_base.expect("Segments_base should be initialized at this point.")
     }
 
+    #[allow(clippy::result_large_err)]
     fn get_point_by_ptr(
         &self,
         ec_point_ptr: Relocatable,
-    ) -> SyscallResult<&short_weierstrass::Affine<Curve>> {
+    ) -> SyscallBaseResult<&short_weierstrass::Affine<Curve>> {
         let ec_point_id =
             (ec_point_ptr - self.get_initialized_segments_base())? / EC_POINT_SEGMENT_SIZE;
-        self.points.get(ec_point_id).ok_or_else(|| {
-            SyscallExecutionError::from(SyscallExecutorBaseError::InvalidSyscallInput {
-                input: ec_point_id.into(),
-                info: "Invalid Secp point ID".to_string(),
-            })
+        self.points.get(ec_point_id).ok_or_else(|| SyscallExecutorBaseError::InvalidSyscallInput {
+            input: ec_point_id.into(),
+            info: "Invalid Secp point ID".to_string(),
         })
     }
 }
@@ -146,6 +153,7 @@ pub struct SecpOptionalEcPointResponse {
 }
 
 impl SyscallResponse for SecpOptionalEcPointResponse {
+    #[allow(clippy::result_large_err)]
     fn write(self, vm: &mut VirtualMachine, ptr: &mut Relocatable) -> WriteResponseResult {
         match self.optional_ec_point_ptr {
             Some(ec_point_ptr) => {
@@ -164,6 +172,7 @@ impl SyscallResponse for SecpOptionalEcPointResponse {
 }
 
 impl SyscallResponse for SecpOpRespone {
+    #[allow(clippy::result_large_err)]
     fn write(self, vm: &mut VirtualMachine, ptr: &mut Relocatable) -> WriteResponseResult {
         write_maybe_relocatable(vm, ptr, self.ec_point_ptr)?;
         Ok(())
@@ -179,6 +188,7 @@ pub struct SecpAddRequest {
 }
 
 impl SyscallRequest for SecpAddRequest {
+    #[allow(clippy::result_large_err)]
     fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallBaseResult<SecpAddRequest> {
         Ok(SecpAddRequest {
             lhs_ptr: relocatable_from_ptr(vm, ptr)?,
@@ -200,6 +210,7 @@ pub struct SecpGetPointFromXRequest {
 }
 
 impl SyscallRequest for SecpGetPointFromXRequest {
+    #[allow(clippy::result_large_err)]
     fn read(
         vm: &VirtualMachine,
         ptr: &mut Relocatable,
@@ -221,6 +232,7 @@ pub struct SecpGetXyRequest {
 }
 
 impl SyscallRequest for SecpGetXyRequest {
+    #[allow(clippy::result_large_err)]
     fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallBaseResult<SecpGetXyRequest> {
         Ok(SecpGetXyRequest { ec_point_ptr: relocatable_from_ptr(vm, ptr)? })
     }
@@ -229,6 +241,7 @@ impl SyscallRequest for SecpGetXyRequest {
 pub type SecpGetXyResponse = EcPointCoordinates;
 
 impl SyscallResponse for SecpGetXyResponse {
+    #[allow(clippy::result_large_err)]
     fn write(self, vm: &mut VirtualMachine, ptr: &mut Relocatable) -> WriteResponseResult {
         write_u256(vm, ptr, self.x)?;
         write_u256(vm, ptr, self.y)?;
@@ -245,6 +258,7 @@ pub struct SecpMulRequest {
 }
 
 impl SyscallRequest for SecpMulRequest {
+    #[allow(clippy::result_large_err)]
     fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallBaseResult<SecpMulRequest> {
         let ec_point_ptr = relocatable_from_ptr(vm, ptr)?;
         let multiplier = SierraU256::from_memory(vm, ptr)?.to_biguint();
@@ -259,6 +273,7 @@ pub type SecpMulResponse = SecpOpRespone;
 pub type SecpNewRequest = EcPointCoordinates;
 
 impl SyscallRequest for SecpNewRequest {
+    #[allow(clippy::result_large_err)]
     fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallBaseResult<SecpNewRequest> {
         let x = SierraU256::from_memory(vm, ptr)?.to_biguint();
         let y = SierraU256::from_memory(vm, ptr)?.to_biguint();

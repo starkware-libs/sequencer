@@ -13,6 +13,7 @@ use crate::hints::error::{OsHintError, OsHintExtensionResult, OsHintResult};
 /// Hint enum maps between a (python) hint string in the cairo OS program under cairo-lang to a
 /// matching enum variant defined in the crate.
 pub trait HintEnum {
+    #[allow(clippy::result_large_err)]
     fn from_str(hint_str: &str) -> Result<Self, OsHintError>
     where
         Self: Sized;
@@ -31,6 +32,7 @@ pub struct HintArgs<'a, 'program, S: StateReader> {
 
 /// Executes the hint logic.
 pub trait HintImplementation {
+    #[allow(clippy::result_large_err)]
     fn execute_hint<S: StateReader>(&self, hint_args: HintArgs<'_, '_, S>) -> OsHintResult;
 }
 
@@ -38,6 +40,7 @@ pub trait HintImplementation {
 /// This behaviour achieves what the `vm_load_data` primitive does for cairo-lang and is needed to
 /// implement OS hints like `vm_load_program`.
 pub trait HintExtensionImplementation {
+    #[allow(clippy::result_large_err)]
     fn execute_hint_extensive<S: StateReader>(
         &self,
         hint_extension_args: HintArgs<'_, '_, S>,

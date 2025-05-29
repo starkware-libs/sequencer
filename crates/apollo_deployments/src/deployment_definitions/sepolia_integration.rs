@@ -4,12 +4,29 @@ use starknet_api::core::ChainId;
 
 use crate::deployment::{
     create_hybrid_instance_config_override,
+    format_node_id,
     ConfigOverride,
     Deployment,
     DeploymentConfigOverride,
 };
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
 use crate::service::{DeploymentName, ExternalSecret, IngressParams};
+
+const SEPOLIA_INTEGRATION_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str =
+    "integration-sepolia.starknet.io";
+const SEPOLIA_INTEGRATION_INGRESS_DOMAIN: &str = "starknet.io";
+const FIRST_NODE_NAMESPACE: &str = "apollo-sepolia-integration-0";
+const INSTANCE_NAME_FORMAT: &str = "integration_hybrid_node_{}";
+const SECRET_NAME_FORMAT: &str = "apollo-sepolia-integration-{}";
+
+pub(crate) fn sepolia_integration_hybrid_deployments() -> Vec<Deployment> {
+    vec![
+        sepolia_integration_hybrid_deployment_node(0),
+        sepolia_integration_hybrid_deployment_node(1),
+        sepolia_integration_hybrid_deployment_node(2),
+        sepolia_integration_hybrid_deployment_node(3),
+    ]
+}
 
 fn sepolia_integration_deployment_config_override() -> DeploymentConfigOverride {
     DeploymentConfigOverride::new(
@@ -21,30 +38,10 @@ fn sepolia_integration_deployment_config_override() -> DeploymentConfigOverride 
     )
 }
 
-const FIRST_NODE_NAMESPACE: &str = "apollo-sepolia-integration-0";
-
-fn sepolia_integration_node_0_config_override() -> ConfigOverride {
+fn sepolia_integration_config_override(id: usize) -> ConfigOverride {
     ConfigOverride::new(
         sepolia_integration_deployment_config_override(),
-        create_hybrid_instance_config_override(0, FIRST_NODE_NAMESPACE),
-    )
-}
-fn sepolia_integration_node_1_config_override() -> ConfigOverride {
-    ConfigOverride::new(
-        sepolia_integration_deployment_config_override(),
-        create_hybrid_instance_config_override(1, FIRST_NODE_NAMESPACE),
-    )
-}
-fn sepolia_integration_node_2_config_override() -> ConfigOverride {
-    ConfigOverride::new(
-        sepolia_integration_deployment_config_override(),
-        create_hybrid_instance_config_override(2, FIRST_NODE_NAMESPACE),
-    )
-}
-fn sepolia_integration_node_3_config_override() -> ConfigOverride {
-    ConfigOverride::new(
-        sepolia_integration_deployment_config_override(),
-        create_hybrid_instance_config_override(3, FIRST_NODE_NAMESPACE),
+        create_hybrid_instance_config_override(id, FIRST_NODE_NAMESPACE),
     )
 }
 
@@ -55,61 +52,15 @@ fn get_ingress_params() -> IngressParams {
     )
 }
 
-const SEPOLIA_INTEGRATION_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str =
-    "integration-sepolia.starknet.io";
-
-const SEPOLIA_INTEGRATION_INGRESS_DOMAIN: &str = "starknet.io";
-
-// Integration deployments
-
-pub(crate) fn sepolia_integration_hybrid_deployment_node_0() -> Deployment {
+fn sepolia_integration_hybrid_deployment_node(id: usize) -> Deployment {
     Deployment::new(
         ChainId::IntegrationSepolia,
         DeploymentName::HybridNode,
         Environment::SepoliaIntegration,
-        "integration_hybrid_node_0",
-        Some(ExternalSecret::new("apollo-sepolia-integration-0")),
+        &format_node_id(INSTANCE_NAME_FORMAT, id),
+        Some(ExternalSecret::new(format_node_id(SECRET_NAME_FORMAT, id))),
         PathBuf::from(BASE_APP_CONFIG_PATH),
-        sepolia_integration_node_0_config_override(),
-        get_ingress_params(),
-    )
-}
-
-pub(crate) fn sepolia_integration_hybrid_deployment_node_1() -> Deployment {
-    Deployment::new(
-        ChainId::IntegrationSepolia,
-        DeploymentName::HybridNode,
-        Environment::SepoliaIntegration,
-        "integration_hybrid_node_1",
-        Some(ExternalSecret::new("apollo-sepolia-integration-1")),
-        PathBuf::from(BASE_APP_CONFIG_PATH),
-        sepolia_integration_node_1_config_override(),
-        get_ingress_params(),
-    )
-}
-
-pub(crate) fn sepolia_integration_hybrid_deployment_node_2() -> Deployment {
-    Deployment::new(
-        ChainId::IntegrationSepolia,
-        DeploymentName::HybridNode,
-        Environment::SepoliaIntegration,
-        "integration_hybrid_node_2",
-        Some(ExternalSecret::new("apollo-sepolia-integration-2")),
-        PathBuf::from(BASE_APP_CONFIG_PATH),
-        sepolia_integration_node_2_config_override(),
-        get_ingress_params(),
-    )
-}
-
-pub(crate) fn sepolia_integration_hybrid_deployment_node_3() -> Deployment {
-    Deployment::new(
-        ChainId::IntegrationSepolia,
-        DeploymentName::HybridNode,
-        Environment::SepoliaIntegration,
-        "integration_hybrid_node_3",
-        Some(ExternalSecret::new("apollo-sepolia-integration-3")),
-        PathBuf::from(BASE_APP_CONFIG_PATH),
-        sepolia_integration_node_3_config_override(),
+        sepolia_integration_config_override(id),
         get_ingress_params(),
     )
 }

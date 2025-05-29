@@ -50,6 +50,7 @@ pub type Args = Vec<CairoArg>;
 pub const SEGMENT_ARENA_BUILTIN_SIZE: usize = 3;
 
 /// A wrapper for execute_entry_point_call that performs pre and post-processing.
+#[allow(clippy::result_large_err)]
 pub fn execute_entry_point_call_wrapper(
     mut call: ExecutableCallEntryPoint,
     compiled_class: RunnableCompiledClass,
@@ -109,6 +110,7 @@ pub fn execute_entry_point_call_wrapper(
 }
 
 /// Executes a specific call to a contract entry point and returns its output.
+#[allow(clippy::result_large_err)]
 pub fn execute_entry_point_call(
     call: ExecutableCallEntryPoint,
     compiled_class: RunnableCompiledClass,
@@ -296,6 +298,7 @@ impl ReadOnlySegments {
 
 /// Instantiates the given class and assigns it an address.
 /// Returns the call info of the deployed class' constructor execution.
+#[allow(clippy::result_large_err)]
 pub fn execute_deployment(
     state: &mut dyn State,
     context: &mut EntryPointExecutionContext,

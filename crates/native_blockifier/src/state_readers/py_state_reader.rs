@@ -134,6 +134,7 @@ pub struct VersionedPyRawClass {
 impl TryFrom<VersionedPyRawClass> for RunnableCompiledClass {
     type Error = NativeBlockifierError;
 
+    #[allow(clippy::result_large_err)]
     fn try_from(versioned_raw_compiled_class: VersionedPyRawClass) -> NativeBlockifierResult<Self> {
         let raw_compiled_class = versioned_raw_compiled_class.raw_compiled_class;
 

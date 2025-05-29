@@ -11,9 +11,9 @@ workspace = true
 
 
 [dependencies]
+apollo_config.workspace = true
 apollo_infra.workspace = true
 apollo_infra_utils.workspace = true
-apollo_monitoring_endpoint.workspace = true
 apollo_node.workspace = true
 indexmap.workspace = true
 serde.workspace = true
@@ -23,5 +23,6 @@ strum.workspace = true
 strum_macros.workspace = true
 
 [dev-dependencies]
+apollo_config.workspace = true
 apollo_infra_utils = { workspace = true, features = ["testing"] }
 apollo_node = { workspace = true, features = ["testing"] }

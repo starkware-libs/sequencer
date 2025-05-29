@@ -6,9 +6,10 @@
       "name": "Batcher",
       "controller": "StatefulSet",
       "config_paths": [
-        "batcher.json",
+        "../../../../base_app_config.json",
         "deployment_config_override.json",
-        "instance_config_override.json"
+        "instance_config_override.json",
+        "batcher.json"
       ],
       "ingress": null,
       "autoscale": false,
@@ -25,15 +26,17 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": null,
+      "anti_affinity": false
     },
     {
       "name": "ClassManager",
       "controller": "StatefulSet",
       "config_paths": [
-        "class_manager.json",
+        "../../../../base_app_config.json",
         "deployment_config_override.json",
-        "instance_config_override.json"
+        "instance_config_override.json",
+        "class_manager.json"
       ],
       "ingress": null,
       "autoscale": false,
@@ -50,15 +53,17 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": null,
+      "anti_affinity": false
     },
     {
       "name": "ConsensusManager",
       "controller": "StatefulSet",
       "config_paths": [
-        "consensus_manager.json",
+        "../../../../base_app_config.json",
         "deployment_config_override.json",
-        "instance_config_override.json"
+        "instance_config_override.json",
+        "consensus_manager.json"
       ],
       "ingress": null,
       "autoscale": false,
@@ -75,15 +80,17 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": null,
+      "anti_affinity": false
     },
     {
       "name": "HttpServer",
-      "controller": "StatefulSet",
+      "controller": "Deployment",
       "config_paths": [
-        "http_server.json",
+        "../../../../base_app_config.json",
         "deployment_config_override.json",
-        "instance_config_override.json"
+        "instance_config_override.json",
+        "http_server.json"
       ],
       "ingress": {
         "domain": "sw-dev.io",
@@ -111,15 +118,17 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": null,
+      "anti_affinity": false
     },
     {
       "name": "Gateway",
-      "controller": "StatefulSet",
+      "controller": "Deployment",
       "config_paths": [
-        "gateway.json",
+        "../../../../base_app_config.json",
         "deployment_config_override.json",
-        "instance_config_override.json"
+        "instance_config_override.json",
+        "gateway.json"
       ],
       "ingress": null,
       "autoscale": true,
@@ -136,15 +145,17 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": null,
+      "anti_affinity": false
     },
     {
       "name": "L1",
-      "controller": "StatefulSet",
+      "controller": "Deployment",
       "config_paths": [
-        "l1.json",
+        "../../../../base_app_config.json",
         "deployment_config_override.json",
-        "instance_config_override.json"
+        "instance_config_override.json",
+        "l1.json"
       ],
       "ingress": null,
       "autoscale": false,
@@ -161,15 +172,17 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": null,
+      "anti_affinity": false
     },
     {
       "name": "Mempool",
-      "controller": "StatefulSet",
+      "controller": "Deployment",
       "config_paths": [
-        "mempool.json",
+        "../../../../base_app_config.json",
         "deployment_config_override.json",
-        "instance_config_override.json"
+        "instance_config_override.json",
+        "mempool.json"
       ],
       "ingress": null,
       "autoscale": false,
@@ -186,15 +199,17 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": null,
+      "anti_affinity": false
     },
     {
       "name": "SierraCompiler",
-      "controller": "StatefulSet",
+      "controller": "Deployment",
       "config_paths": [
-        "sierra_compiler.json",
+        "../../../../base_app_config.json",
         "deployment_config_override.json",
-        "instance_config_override.json"
+        "instance_config_override.json",
+        "sierra_compiler.json"
       ],
       "ingress": null,
       "autoscale": true,
@@ -211,15 +226,17 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": null,
+      "anti_affinity": false
     },
     {
       "name": "StateSync",
       "controller": "StatefulSet",
       "config_paths": [
-        "state_sync.json",
+        "../../../../base_app_config.json",
         "deployment_config_override.json",
-        "instance_config_override.json"
+        "instance_config_override.json",
+        "state_sync.json"
       ],
       "ingress": null,
       "autoscale": false,
@@ -236,7 +253,8 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": null,
+      "anti_affinity": false
     }
   ]
 }

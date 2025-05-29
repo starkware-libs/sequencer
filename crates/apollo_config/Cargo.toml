@@ -9,7 +9,12 @@ description = "A library for handling node configuration."
 [dependencies]
 apollo_infra_utils = { workspace = true, optional = true }
 clap = { workspace = true, features = ["env", "string"] }
+<<<<<<< HEAD
 colored = { workspace = true, optional = true }
+||||||| 92f8b4a29
+=======
+const_format.workspace = true
+>>>>>>> origin/main-v0.14.0
 itertools.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }

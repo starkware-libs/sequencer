@@ -73,6 +73,7 @@ pub struct RawVersionedConstants {
     pub disable_cairo0_redeclaration: bool,
     pub enable_stateful_compression: bool,
     pub comprehensive_state_diff: bool,
+    pub block_direct_execute_call: bool,
     pub ignore_inner_event_resources: bool,
     pub disable_deploy_in_validation_mode: bool,
     pub enable_reverts: bool,
@@ -241,6 +242,7 @@ pub struct VersionedConstants {
     pub disable_cairo0_redeclaration: bool,
     pub enable_stateful_compression: bool,
     pub comprehensive_state_diff: bool,
+    pub block_direct_execute_call: bool,
     pub ignore_inner_event_resources: bool,
     pub disable_deploy_in_validation_mode: bool,
 
@@ -282,6 +284,7 @@ impl From<RawVersionedConstants> for VersionedConstants {
             disable_cairo0_redeclaration: raw_vc.disable_cairo0_redeclaration,
             enable_stateful_compression: raw_vc.enable_stateful_compression,
             comprehensive_state_diff: raw_vc.comprehensive_state_diff,
+            block_direct_execute_call: raw_vc.block_direct_execute_call,
             ignore_inner_event_resources: raw_vc.ignore_inner_event_resources,
             disable_deploy_in_validation_mode: raw_vc.disable_deploy_in_validation_mode,
             enable_reverts: raw_vc.enable_reverts,
@@ -796,6 +799,10 @@ impl SyscallGasCost {
         assert!(self.linear_factor == 0, "The syscall has a linear factor cost to be considered.");
         self.base
     }
+
+    pub fn linear_syscall_cost(&self) -> u64 {
+        self.linear_factor
+    }
 }
 
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
@@ -1073,29 +1080,125 @@ impl GasCosts {
 #[derive(Debug, Default, PartialEq)]
 pub struct OsConstants {
     pub gas_costs: GasCosts,
-    pub validate_rounding_consts: ValidateRoundingConsts,
-    pub os_contract_addresses: OsContractAddresses,
+
+    // Selectors.
+    pub constructor_entry_point_selector: EntryPointSelector,
+    pub default_entry_point_selector: EntryPointSelector,
+    pub execute_entry_point_selector: EntryPointSelector,
+    pub transfer_entry_point_selector: EntryPointSelector,
+    pub validate_declare_entry_point_selector: EntryPointSelector,
+    pub validate_deploy_entry_point_selector: EntryPointSelector,
+    pub validate_entry_point_selector: EntryPointSelector,
+
+    // Execution limits.
     pub validate_max_sierra_gas: GasAmount,
     pub execute_max_sierra_gas: GasAmount,
+
+    // Validation.
+    pub validate_rounding_consts: ValidateRoundingConsts,
+    pub validated: String,
+
+    // Error strings.
+    pub error_block_number_out_of_range: String,
+    pub error_invalid_input_len: String,
+    pub error_invalid_argument: String,
+    pub error_out_of_gas: String,
+    pub error_entry_point_failed: String,
+    pub error_entry_point_not_found: String,
+
+    // Resource bounds names.
+    pub l1_gas: String,
+    pub l2_gas: String,
+    pub l1_data_gas: String,
+
+    // Resource bounds indices.
+    pub l1_gas_index: usize,
+    pub l1_data_gas_index: usize,
+    pub l2_gas_index: usize,
+
+    // Initial costs.
+    pub entry_point_initial_budget: GasAmount,
+    pub default_initial_gas_cost: GasAmount,
+
+    // L1 handler.
+    pub l1_handler_version: u8,
+    pub l1_handler_max_amount_bounds: GasVector,
+
+    // Miscellaneous.
+    pub nop_entry_point_offset: i8,
+    pub os_contract_addresses: OsContractAddresses,
+    pub sierra_array_len_bound: u64,
+    pub stored_block_hash_buffer: u8,
+
+    // Entry point type identifiers (in the OS).
+    pub entry_point_type_constructor: u8,
+    pub entry_point_type_external: u8,
+    pub entry_point_type_l1_handler: u8,
+
+    // Deprecated contract logic support.
     pub v1_bound_accounts_cairo0: Vec<ClassHash>,
     pub v1_bound_accounts_cairo1: Vec<ClassHash>,
     pub v1_bound_accounts_max_tip: Tip,
-    pub l1_handler_max_amount_bounds: GasVector,
     pub data_gas_accounts: Vec<ClassHash>,
 }
 
 impl OsConstants {
     fn from_raw(raw_constants: &RawOsConstants, raw_resources: &RawOsResources) -> Self {
+        let gas_costs = GasCosts::from_raw(raw_constants, raw_resources);
+
+        // Preprocess inital budget costs.
+        let RawStepGasCost { step_gas_cost: entry_point_initial_budget_steps } =
+            raw_constants.entry_point_initial_budget;
+        let RawStepGasCost { step_gas_cost: default_initial_gas_cost_steps } =
+            raw_constants.default_initial_gas_cost;
+        let entry_point_initial_budget = entry_point_initial_budget_steps
+            .checked_factor_mul(gas_costs.base.step_gas_cost)
+            .expect("The entry point initial budget - in gas - should not overflow.");
+        let default_initial_gas_cost = default_initial_gas_cost_steps
+            .checked_factor_mul(gas_costs.base.step_gas_cost)
+            .expect("The default initial gas should not overflow.");
+
         Self {
-            gas_costs: GasCosts::from_raw(raw_constants, raw_resources),
-            validate_rounding_consts: raw_constants.validate_rounding_consts,
-            os_contract_addresses: raw_constants.os_contract_addresses,
+            gas_costs,
+            constructor_entry_point_selector: raw_constants.constructor_entry_point_selector,
+            default_entry_point_selector: raw_constants.default_entry_point_selector,
+            execute_entry_point_selector: raw_constants.execute_entry_point_selector,
+            transfer_entry_point_selector: raw_constants.transfer_entry_point_selector,
+            validate_declare_entry_point_selector: raw_constants
+                .validate_declare_entry_point_selector,
+            validate_deploy_entry_point_selector: raw_constants
+                .validate_deploy_entry_point_selector,
+            validate_entry_point_selector: raw_constants.validate_entry_point_selector,
             validate_max_sierra_gas: raw_constants.validate_max_sierra_gas,
             execute_max_sierra_gas: raw_constants.execute_max_sierra_gas,
+            validate_rounding_consts: raw_constants.validate_rounding_consts,
+            validated: raw_constants.validated.clone(),
+            error_block_number_out_of_range: raw_constants.error_block_number_out_of_range.clone(),
+            error_invalid_input_len: raw_constants.error_invalid_input_len.clone(),
+            error_invalid_argument: raw_constants.error_invalid_argument.clone(),
+            error_out_of_gas: raw_constants.error_out_of_gas.clone(),
+            error_entry_point_failed: raw_constants.error_entry_point_failed.clone(),
+            error_entry_point_not_found: raw_constants.error_entry_point_not_found.clone(),
+            l1_gas: raw_constants.l1_gas.clone(),
+            l2_gas: raw_constants.l2_gas.clone(),
+            l1_data_gas: raw_constants.l1_data_gas.clone(),
+            l1_gas_index: raw_constants.l1_gas_index,
+            l1_data_gas_index: raw_constants.l1_data_gas_index,
+            l2_gas_index: raw_constants.l2_gas_index,
+            entry_point_initial_budget,
+            default_initial_gas_cost,
+            l1_handler_version: raw_constants.l1_handler_version,
+            l1_handler_max_amount_bounds: raw_constants.l1_handler_max_amount_bounds,
+            nop_entry_point_offset: raw_constants.nop_entry_point_offset,
+            os_contract_addresses: raw_constants.os_contract_addresses,
+            sierra_array_len_bound: raw_constants.sierra_array_len_bound,
+            stored_block_hash_buffer: raw_constants.stored_block_hash_buffer,
+            entry_point_type_constructor: raw_constants.entry_point_type_constructor,
+            entry_point_type_external: raw_constants.entry_point_type_external,
+            entry_point_type_l1_handler: raw_constants.entry_point_type_l1_handler,
             v1_bound_accounts_cairo0: raw_constants.v1_bound_accounts_cairo0.clone(),
             v1_bound_accounts_cairo1: raw_constants.v1_bound_accounts_cairo1.clone(),
             v1_bound_accounts_max_tip: raw_constants.v1_bound_accounts_max_tip,
-            l1_handler_max_amount_bounds: raw_constants.l1_handler_max_amount_bounds,
             data_gas_accounts: raw_constants.data_gas_accounts.clone(),
         }
     }

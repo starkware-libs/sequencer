@@ -54,6 +54,7 @@ use crate::execution::syscalls::vm_syscall_utils::{
     exceeds_event_size_limit,
     SyscallBaseResult,
     SyscallExecutorBaseError,
+    TryExtractRevert,
 };
 use crate::state::state_api::State;
 use crate::transaction::account_transaction::is_cairo1;
@@ -115,6 +116,7 @@ impl<'state> SyscallHandlerBase<'state> {
         }
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn get_block_hash(&mut self, requested_block_number: u64) -> SyscallResult<Felt> {
         // Note: we take the actual block number (and not the rounded one for validate)
         // in any case; it is consistent with the OS implementation and safe (see `Validate` arm).
@@ -162,6 +164,7 @@ impl<'state> SyscallHandlerBase<'state> {
         Ok(block_hash)
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn storage_read(&mut self, key: StorageKey) -> SyscallResult<Felt> {
         self.storage_access_tracker.accessed_storage_keys.insert(key);
         let value = self.state.get_storage_at(self.call.storage_address, key)?;
@@ -169,6 +172,7 @@ impl<'state> SyscallHandlerBase<'state> {
         Ok(value)
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn storage_write(&mut self, key: StorageKey, value: Felt) -> SyscallResult<()> {
         let contract_address = self.call.storage_address;
 
@@ -185,6 +189,7 @@ impl<'state> SyscallHandlerBase<'state> {
         Ok(())
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn get_class_hash_at(
         &mut self,
         contract_address: ContractAddress,
@@ -237,6 +242,7 @@ impl<'state> SyscallHandlerBase<'state> {
             && self.context.tx_context.tx_info.version() == TransactionVersion::THREE
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn emit_event(&mut self, event: EventContent) -> SyscallResult<()> {
         exceeds_event_size_limit(
             self.context.versioned_constants(),
@@ -250,6 +256,7 @@ impl<'state> SyscallHandlerBase<'state> {
         Ok(())
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn meta_tx_v0(
         &mut self,
         contract_address: ContractAddress,
@@ -315,18 +322,18 @@ impl<'state> SyscallHandlerBase<'state> {
         });
 
         // No error should be propagated until we restore the old `tx_context`.
-        let result =
-            self.execute_inner_call(entry_point, remaining_gas).map_err(|error| match error {
-                SyscallExecutionError::Revert { .. } => error,
-                _ => {
+        let result = self.execute_inner_call(entry_point, remaining_gas).map_err(|error| {
+            SyscallExecutionError::from_self_or_revert(error.try_extract_revert().map_original(
+                |error| {
                     // TODO(lior): Change to meta-tx specific error.
                     error.as_call_contract_execution_error(
                         class_hash,
                         contract_address,
                         entry_point_selector,
                     )
-                }
-            });
+                },
+            ))
+        });
 
         // Restore the old `tx_context`.
         self.context.tx_context = old_tx_context;
@@ -334,6 +341,7 @@ impl<'state> SyscallHandlerBase<'state> {
         result
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn replace_class(&mut self, class_hash: ClassHash) -> SyscallResult<()> {
         // Ensure the class is declared (by reading it), and of type V1.
         let compiled_class = self.state.get_compiled_class(class_hash)?;
@@ -345,6 +353,7 @@ impl<'state> SyscallHandlerBase<'state> {
         Ok(())
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn deploy(
         &mut self,
         class_hash: ClassHash,
@@ -389,6 +398,7 @@ impl<'state> SyscallHandlerBase<'state> {
         Ok((deployed_contract_address, call_info))
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn send_message_to_l1(&mut self, message: MessageToL1) -> SyscallResult<()> {
         let ordered_message_to_l1 =
             OrderedL2ToL1Message { order: self.context.n_sent_messages_to_l1, message };
@@ -398,6 +408,7 @@ impl<'state> SyscallHandlerBase<'state> {
         Ok(())
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn execute_inner_call(
         &mut self,
         call: CallEntryPoint,
@@ -447,6 +458,23 @@ impl<'state> SyscallHandlerBase<'state> {
             .original_values = std::mem::take(&mut self.original_values);
     }
 
+    #[allow(clippy::result_large_err)]
+    pub(crate) fn maybe_block_direct_execute_call(
+        &mut self,
+        selector: EntryPointSelector,
+    ) -> SyscallResult<()> {
+        let versioned_constants = &self.context.tx_context.block_context.versioned_constants;
+        if versioned_constants.block_direct_execute_call
+            && selector == selector_from_name(EXECUTE_ENTRY_POINT_NAME)
+        {
+            return Err(SyscallExecutionError::Revert {
+                error_data: vec![Felt::from_hex(INVALID_ARGUMENT).unwrap()],
+            });
+        }
+        Ok(())
+    }
+
+    #[allow(clippy::result_large_err)]
     fn reject_syscall_in_validate_mode(&self, syscall_name: &str) -> SyscallBaseResult<()> {
         Err(SyscallExecutorBaseError::InvalidSyscallInExecutionMode {
             syscall_name: syscall_name.to_string(),

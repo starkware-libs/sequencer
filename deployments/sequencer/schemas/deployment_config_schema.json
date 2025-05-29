@@ -10,7 +10,7 @@
         "properties": {
           "name": { "type": "string" },
           "config_paths": {
-            "type": "array" ,
+            "type": "array",
             "minItems": 1,
             "items": {
               "type": "string"
@@ -38,10 +38,7 @@
                         "path": { "type": "string" },
                         "port": { "type": "integer" },
                         "backend": {
-                          "anyOf": [
-                            { "type": "null" },
-                            { "type": "string" }
-                          ]
+                          "anyOf": [{ "type": "null" }, { "type": "string" }]
                         }
                       },
                       "required": ["path", "port"]
@@ -58,6 +55,7 @@
           },
           "replicas": { "type": "integer", "minimum": 1 },
           "autoscale": { "type": "boolean" },
+          "anti_affinity": { "type": "boolean" },
           "toleration": {
             "anyOf": [{ "type": "string" }, { "type": "null" }]
           },
@@ -106,6 +104,7 @@
           "ingress",
           "replicas",
           "autoscale",
+          "anti_affinity",
           "toleration",
           "storage",
           "resources",

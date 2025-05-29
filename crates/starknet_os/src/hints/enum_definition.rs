@@ -255,6 +255,7 @@ macro_rules! all_hints_enum {
         }
 
         impl HintEnum for AllHints {
+            #[allow(clippy::result_large_err)]
             fn from_str(hint_str: &str) -> Result<Self, OsHintError> {
                 $(
                     if let Ok(hint) = $inner_enum::from_str(hint_str) {
@@ -1713,7 +1714,7 @@ memory[ap] = 1 if case != 'both' else 0"#
 initial_dict = {
     address: segments.gen_arg(
         (from_bytes(contract.contract_hash), segments.add(), contract.nonce))
-    for address, contract in block_input.contracts.items()
+    for address, contract in sorted(block_input.contracts.items())
 }"#
         }
     ),
@@ -1844,6 +1845,8 @@ define_hint_extension_enum!(
         indoc! {r#"
     from starkware.starknet.core.os.contract_class.compiled_class_hash import (
         create_bytecode_segment_structure,
+    )
+    from starkware.starknet.core.os.contract_class.compiled_class_hash_cairo_hints import (
         get_compiled_class_struct,
     )
 

@@ -1,4 +1,7 @@
-use blockifier::execution::deprecated_syscalls::deprecated_syscall_executor::DeprecatedSyscallExecutor;
+use blockifier::execution::deprecated_syscalls::deprecated_syscall_executor::{
+    DeprecatedSyscallExecutor,
+    DeprecatedSyscallExecutorBaseError,
+};
 use blockifier::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallExecutionError;
 use blockifier::execution::deprecated_syscalls::{
     CallContractRequest,
@@ -42,6 +45,12 @@ use cairo_vm::vm::vm_core::VirtualMachine;
 
 use super::snos_hint_processor::SnosHintProcessor;
 
+#[derive(Debug, thiserror::Error)]
+pub enum DeprecatedSnosSyscallError {
+    #[error(transparent)]
+    SyscallExecutorBase(#[from] DeprecatedSyscallExecutorBaseError),
+}
+
 #[allow(unused_variables)]
 impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
     fn increment_syscall_count(&mut self, selector: &DeprecatedSyscallSelector) {
@@ -52,6 +61,7 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
             .increment_call_count();
     }
 
+    #[allow(clippy::result_large_err)]
     fn verify_syscall_ptr(&self, actual_ptr: Relocatable) -> DeprecatedSyscallResult<()> {
         let expected_ptr = self
             .deprecated_syscall_hint_processor
@@ -73,6 +83,7 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
             .expect("Syscall pointer must be set when executing syscall.")
     }
 
+    #[allow(clippy::result_large_err)]
     fn call_contract(
         request: CallContractRequest,
         vm: &mut VirtualMachine,
@@ -81,6 +92,7 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         todo!()
     }
 
+    #[allow(clippy::result_large_err)]
     fn delegate_call(
         request: DelegateCallRequest,
         vm: &mut VirtualMachine,
@@ -89,6 +101,7 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         todo!()
     }
 
+    #[allow(clippy::result_large_err)]
     fn delegate_l1_handler(
         request: DelegateCallRequest,
         vm: &mut VirtualMachine,
@@ -97,6 +110,7 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         todo!()
     }
 
+    #[allow(clippy::result_large_err)]
     fn deploy(
         request: DeployRequest,
         vm: &mut VirtualMachine,
@@ -105,6 +119,7 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         todo!()
     }
 
+    #[allow(clippy::result_large_err)]
     fn emit_event(
         request: EmitEventRequest,
         vm: &mut VirtualMachine,
@@ -113,6 +128,7 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         Ok(EmitEventResponse {})
     }
 
+    #[allow(clippy::result_large_err)]
     fn get_block_number(
         request: GetBlockNumberRequest,
         vm: &mut VirtualMachine,
@@ -121,6 +137,7 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         todo!()
     }
 
+    #[allow(clippy::result_large_err)]
     fn get_block_timestamp(
         request: GetBlockTimestampRequest,
         vm: &mut VirtualMachine,
@@ -129,6 +146,7 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         todo!()
     }
 
+    #[allow(clippy::result_large_err)]
     fn get_caller_address(
         request: GetCallerAddressRequest,
         vm: &mut VirtualMachine,
@@ -150,6 +168,7 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         Ok(GetCallerAddressResponse { address: caller_address })
     }
 
+    #[allow(clippy::result_large_err)]
     fn get_contract_address(
         request: GetContractAddressRequest,
         vm: &mut VirtualMachine,
@@ -158,6 +177,7 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         todo!()
     }
 
+    #[allow(clippy::result_large_err)]
     fn get_sequencer_address(
         request: GetSequencerAddressRequest,
         vm: &mut VirtualMachine,
@@ -166,6 +186,7 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         todo!()
     }
 
+    #[allow(clippy::result_large_err)]
     fn get_tx_info(
         request: GetTxInfoRequest,
         vm: &mut VirtualMachine,
@@ -174,6 +195,7 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         todo!()
     }
 
+    #[allow(clippy::result_large_err)]
     fn get_tx_signature(
         request: GetTxSignatureRequest,
         vm: &mut VirtualMachine,
@@ -182,6 +204,7 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         todo!()
     }
 
+    #[allow(clippy::result_large_err)]
     fn library_call(
         request: LibraryCallRequest,
         vm: &mut VirtualMachine,
@@ -190,6 +213,7 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         todo!()
     }
 
+    #[allow(clippy::result_large_err)]
     fn library_call_l1_handler(
         request: LibraryCallRequest,
         vm: &mut VirtualMachine,
@@ -198,6 +222,7 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         todo!()
     }
 
+    #[allow(clippy::result_large_err)]
     fn replace_class(
         request: ReplaceClassRequest,
         vm: &mut VirtualMachine,
@@ -206,6 +231,7 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         todo!()
     }
 
+    #[allow(clippy::result_large_err)]
     fn send_message_to_l1(
         request: SendMessageToL1Request,
         vm: &mut VirtualMachine,
@@ -214,6 +240,7 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         todo!()
     }
 
+    #[allow(clippy::result_large_err)]
     fn storage_read(
         request: StorageReadRequest,
         vm: &mut VirtualMachine,
@@ -235,6 +262,7 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         Ok(StorageReadResponse { value })
     }
 
+    #[allow(clippy::result_large_err)]
     fn storage_write(
         request: StorageWriteRequest,
         vm: &mut VirtualMachine,

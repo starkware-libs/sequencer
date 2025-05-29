@@ -14,6 +14,7 @@ use crate::execution::native::syscall_handler::NativeSyscallHandler;
 use crate::state::state_api::State;
 
 // todo(rodrigo): add an `entry point not found` test for Native
+#[allow(clippy::result_large_err)]
 pub fn execute_entry_point_call(
     call: ExecutableCallEntryPoint,
     compiled_class: NativeCompiledClassV1,
@@ -67,6 +68,7 @@ pub fn execute_entry_point_call(
     create_callinfo(call_result, syscall_handler)
 }
 
+#[allow(clippy::result_large_err)]
 fn create_callinfo(
     call_result: ContractExecutionResult,
     syscall_handler: NativeSyscallHandler<'_>,

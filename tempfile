@@ -1,0 +1,13 @@
+3
+apollo_mempool_p2p_num_connected_peers{cluster="starknet-testnet", instance="sequencer-mempool-deployment-796cb74c69-b4mw4:8082", job="sequencer-mempool-pod-monitoring", location="us-central1", namespace="apollo-sepolia-integration-2", pod="sequencer-mempool-deployment-796cb74c69-b4mw4", project_id="starkware-starknet-testnet"}
+3
+apollo_mempool_p2p_num_connected_peers{cluster="starknet-testnet", instance="sequencer-mempool-deployment-796cb74c69-fp46k:8082", job="sequencer-mempool-pod-monitoring", location="us-central1", namespace="apollo-sepolia-integration-2", pod="sequencer-mempool-deployment-796cb74c69-fp46k", project_id="starkware-starknet-testnet"}
+3
+apollo_mempool_p2p_num_connected_peers{cluster="starknet-testnet", instance="sequencer-mempool-deployment-796cb74c69-fxz5j:8082", job="sequencer-mempool-pod-monitoring", location="us-central1", namespace="apollo-sepolia-integration-3", pod="sequencer-mempool-deployment-796cb74c69-fxz5j", project_id="starkware-starknet-testnet"}
+3
+apollo_mempool_p2p_num_connected_peers{cluster="starknet-testnet", instance="sequencer-mempool-deployment-796cb74c69-jd6nd:8082", job="sequencer-mempool-pod-monitoring", location="us-central1", namespace="apollo-sepolia-integration-1", pod="sequencer-mempool-deployment-796cb74c69-jd6nd", project_id="starkware-starknet-testnet"}
+3
+apollo_mempool_p2p_num_connected_peers{cluster="starknet-testnet", instance="sequencer-mempool-deployment-796cb74c69-n7pd4:8082", job="sequencer-mempool-pod-monitoring", location="us-central1", namespace="apollo-sepolia-integration-2", pod="sequencer-mempool-deployment-796cb74c69-n7pd4", project_id="starkware-starknet-testnet"}
+3
+apollo_mempool_p2p_num_connected_peers{cluster="starknet-testnet", instance="sequencer-mempool-deployment-796cb74c69-qtzjt:8082", job="sequencer-mempool-pod-monitoring", location="us-central1", namespace="apollo-sepolia-integration-3", pod="sequencer-mempool-deployment-796cb74c69-qtzjt", project_id="starkware-starknet-testnet"}
+3

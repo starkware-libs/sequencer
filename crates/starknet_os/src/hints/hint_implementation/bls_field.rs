@@ -12,6 +12,7 @@ use crate::vm_utils::get_address_of_nested_fields;
 ///
 /// * The limbs of value are in the range [0, BASE * 3).
 /// * value is in the range [0, 2 ** 256).
+#[allow(clippy::result_large_err)]
 pub(crate) fn compute_ids_low<S: StateReader>(
     HintArgs { hint_processor, vm, ap_tracking, ids_data, constants, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {

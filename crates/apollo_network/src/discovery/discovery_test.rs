@@ -7,6 +7,7 @@ use std::time::Duration;
 use assert_matches::assert_matches;
 use futures::{FutureExt, Stream, StreamExt};
 use libp2p::core::{ConnectedPoint, Endpoint};
+use libp2p::multihash::Multihash;
 use libp2p::swarm::behaviour::ConnectionEstablished;
 use libp2p::swarm::{
     ConnectionClosed,
@@ -95,12 +96,20 @@ async fn check_event_happens_after_given_duration(
 
 #[rstest::fixture]
 fn bootstrap_peer_id() -> PeerId {
-    PeerId::random()
+    let dummy_digest = vec![1; 32];
+    let peer_id = PeerId::from_multihash(Multihash::wrap(0x0, &dummy_digest).unwrap()).unwrap();
+    assert!(peer_id != dummy_local_peer_id());
+    peer_id
 }
 
 #[rstest::fixture]
 fn bootstrap_peer_address() -> Multiaddr {
     Multiaddr::empty()
+}
+
+fn dummy_local_peer_id() -> PeerId {
+    let dummy_digest = vec![0; 32];
+    PeerId::from_multihash(Multihash::wrap(0x0, &dummy_digest).unwrap()).unwrap()
 }
 
 #[rstest::rstest]
@@ -110,8 +119,11 @@ async fn discovery_redials_on_dial_failure(
     bootstrap_peer_id: PeerId,
     bootstrap_peer_address: Multiaddr,
 ) {
-    let mut behaviour =
-        Behaviour::new(config.clone(), vec![(bootstrap_peer_id, bootstrap_peer_address.clone())]);
+    let mut behaviour = Behaviour::new(
+        dummy_local_peer_id(),
+        config.clone(),
+        vec![(bootstrap_peer_id, bootstrap_peer_address.clone())],
+    );
 
     let event = timeout(TIMEOUT, behaviour.next()).await.unwrap().unwrap();
     assert_matches!(
@@ -146,8 +158,11 @@ async fn discovery_redials_when_all_connections_closed(
     bootstrap_peer_id: PeerId,
     bootstrap_peer_address: Multiaddr,
 ) {
-    let mut behaviour =
-        Behaviour::new(config.clone(), vec![(bootstrap_peer_id, bootstrap_peer_address.clone())]);
+    let mut behaviour = Behaviour::new(
+        dummy_local_peer_id(),
+        config.clone(),
+        vec![(bootstrap_peer_id, bootstrap_peer_address.clone())],
+    );
     connect_to_bootstrap_node(&mut behaviour, bootstrap_peer_id, bootstrap_peer_address.clone())
         .await;
 
@@ -178,8 +193,11 @@ async fn discovery_doesnt_redial_when_one_connection_closes(
     bootstrap_peer_id: PeerId,
     bootstrap_peer_address: Multiaddr,
 ) {
-    let mut behaviour =
-        Behaviour::new(config.clone(), vec![(bootstrap_peer_id, bootstrap_peer_address.clone())]);
+    let mut behaviour = Behaviour::new(
+        dummy_local_peer_id(),
+        config.clone(),
+        vec![(bootstrap_peer_id, bootstrap_peer_address.clone())],
+    );
     connect_to_bootstrap_node(&mut behaviour, bootstrap_peer_id, bootstrap_peer_address.clone())
         .await;
 
@@ -249,8 +267,11 @@ async fn discovery_sleeps_between_queries(
     bootstrap_peer_id: PeerId,
     bootstrap_peer_address: Multiaddr,
 ) {
-    let mut behaviour =
-        Behaviour::new(config.clone(), vec![(bootstrap_peer_id, bootstrap_peer_address.clone())]);
+    let mut behaviour = Behaviour::new(
+        dummy_local_peer_id(),
+        config.clone(),
+        vec![(bootstrap_peer_id, bootstrap_peer_address.clone())],
+    );
     connect_to_bootstrap_node(&mut behaviour, bootstrap_peer_id, bootstrap_peer_address).await;
 
     // Consume the initial query event.
@@ -271,8 +292,11 @@ async fn discovery_performs_queries_even_if_not_connected_to_bootstrap_peer(
     bootstrap_peer_id: PeerId,
     bootstrap_peer_address: Multiaddr,
 ) {
-    let mut behaviour =
-        Behaviour::new(config.clone(), vec![(bootstrap_peer_id, bootstrap_peer_address.clone())]);
+    let mut behaviour = Behaviour::new(
+        dummy_local_peer_id(),
+        config.clone(),
+        vec![(bootstrap_peer_id, bootstrap_peer_address.clone())],
+    );
 
     // Consume the initial dial and query events.
     timeout(TIMEOUT, behaviour.next()).await.unwrap();

@@ -12,6 +12,7 @@ use crate::hints::types::HintArgs;
 use crate::hints::vars::Ids;
 
 // TODO(Nimrod): Delete this hint (should be implemented in the VM).
+#[allow(clippy::result_large_err)]
 pub(crate) fn search_sorted_optimistic<S: StateReader>(
     HintArgs { ids_data, ap_tracking, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {

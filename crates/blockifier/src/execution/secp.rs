@@ -2,12 +2,14 @@ use ark_ec::short_weierstrass::{Affine, SWCurveConfig};
 use ark_ff::{BigInteger, PrimeField, Zero};
 use starknet_types_core::felt::Felt;
 
-use super::syscalls::hint_processor::{SyscallExecutionError, INVALID_ARGUMENT};
+use crate::execution::syscalls::hint_processor::INVALID_ARGUMENT;
+use crate::execution::syscalls::vm_syscall_utils::SyscallExecutorBaseError;
 
+#[allow(clippy::result_large_err)]
 pub fn get_point_from_x<Curve: SWCurveConfig>(
     x: num_bigint::BigUint,
     y_parity: bool,
-) -> Result<Option<Affine<Curve>>, SyscallExecutionError>
+) -> Result<Option<Affine<Curve>>, SyscallExecutorBaseError>
 where
     Curve::BaseField: PrimeField, // constraint for get_point_by_id
 {
@@ -25,10 +27,11 @@ where
     Ok(maybe_ec_point)
 }
 
+#[allow(clippy::result_large_err)]
 pub fn new_affine<Curve: SWCurveConfig>(
     x: num_bigint::BigUint,
     y: num_bigint::BigUint,
-) -> Result<Option<Affine<Curve>>, SyscallExecutionError>
+) -> Result<Option<Affine<Curve>>, SyscallExecutorBaseError>
 where
     Curve::BaseField: PrimeField, // constraint for get_point_by_id
 {
@@ -37,16 +40,17 @@ where
     Ok(maybe_affine(x.into(), y.into()))
 }
 
+#[allow(clippy::result_large_err)]
 fn modulus_bound_check<Curve: SWCurveConfig>(
     bounds: &[&num_bigint::BigUint],
-) -> Result<(), SyscallExecutionError>
+) -> Result<(), SyscallExecutorBaseError>
 where
     Curve::BaseField: PrimeField, // constraint for get_point_by_id
 {
     let modulus = Curve::BaseField::MODULUS.into();
 
     if bounds.iter().any(|p| **p >= modulus) {
-        return Err(SyscallExecutionError::Revert {
+        return Err(SyscallExecutorBaseError::Revert {
             error_data: vec![Felt::from_hex(INVALID_ARGUMENT).unwrap()],
         });
     }

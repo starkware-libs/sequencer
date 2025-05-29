@@ -1,23 +1,21 @@
 use starknet_types_core::felt::Felt;
 
-use crate::execution::syscalls::hint_processor::{
-    SyscallExecutionError,
-    INVALID_INPUT_LENGTH_ERROR,
-    OUT_OF_GAS_ERROR,
-};
-use crate::execution::syscalls::syscall_base::{SyscallResult, KECCAK_FULL_RATE_IN_WORDS};
+use crate::execution::syscalls::hint_processor::{INVALID_INPUT_LENGTH_ERROR, OUT_OF_GAS_ERROR};
+use crate::execution::syscalls::syscall_base::KECCAK_FULL_RATE_IN_WORDS;
+use crate::execution::syscalls::vm_syscall_utils::{SyscallBaseResult, SyscallExecutorBaseError};
 
+#[allow(clippy::result_large_err)]
 pub fn base_keccak(
     keccak_round_cost_base_syscall_cost: u64,
     input: &[u64],
     remaining_gas: &mut u64,
-) -> SyscallResult<([u64; 4], usize)> {
+) -> SyscallBaseResult<([u64; 4], usize)> {
     let input_length = input.len();
 
     let (n_rounds, remainder) = num_integer::div_rem(input_length, KECCAK_FULL_RATE_IN_WORDS);
 
     if remainder != 0 {
-        return Err(SyscallExecutionError::Revert {
+        return Err(SyscallExecutorBaseError::Revert {
             error_data: vec![
                 Felt::from_hex(INVALID_INPUT_LENGTH_ERROR)
                     .expect("Failed to parse INVALID_INPUT_LENGTH_ERROR hex string"),
@@ -33,7 +31,7 @@ pub fn base_keccak(
         let out_of_gas_error =
             Felt::from_hex(OUT_OF_GAS_ERROR).expect("Failed to parse OUT_OF_GAS_ERROR hex string");
 
-        return Err(SyscallExecutionError::Revert { error_data: vec![out_of_gas_error] });
+        return Err(SyscallExecutorBaseError::Revert { error_data: vec![out_of_gas_error] });
     }
     *remaining_gas -= gas_cost;
 

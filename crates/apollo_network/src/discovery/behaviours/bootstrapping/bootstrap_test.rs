@@ -40,6 +40,8 @@ const CONFIG: RetryConfig = RetryConfig {
     factor: 1,
 };
 
+const LOCAL_PEER_ID_INDEX: u8 = 0;
+
 impl Unpin for BootstrappingBehaviour {}
 
 impl Stream for BootstrappingBehaviour {
@@ -81,16 +83,18 @@ async fn assert_no_event_happens_before_duration(
     tokio::time::resume();
 }
 
+fn get_peer_id(peer_index: u8) -> PeerId {
+    let input_digest = vec![peer_index; 32];
+    PeerId::from_multihash(Multihash::wrap(0x0, &input_digest).unwrap()).unwrap()
+}
+
 /// Sample a random list of peers.
 fn get_peers(peer_count: usize) -> Vec<(PeerId, Multiaddr)> {
-    (0..peer_count)
+    let peer_start_index: usize = usize::from(LOCAL_PEER_ID_INDEX + 1);
+    (peer_start_index..peer_start_index + peer_count)
         .map(|i| {
-            let i: u8 = i.try_into().unwrap();
-            let input_digest = vec![i; 32];
-            (
-                PeerId::from_multihash(Multihash::wrap(0x0, &input_digest).unwrap()).unwrap(),
-                Multiaddr::empty(),
-            )
+            let peer_index = u8::try_from(i).expect("Number of peers too high");
+            (get_peer_id(peer_index), Multiaddr::empty())
         })
         .collect::<Vec<_>>()
 }
@@ -238,7 +242,11 @@ async fn make_and_connect_bootstrap_nodes(
     peer_count: usize,
 ) -> (Vec<(PeerId, Multiaddr)>, BootstrappingBehaviour) {
     let bootstrap_peers = get_peers(peer_count);
-    let mut behaviour = BootstrappingBehaviour::new(CONFIG, bootstrap_peers.clone());
+    let mut behaviour = BootstrappingBehaviour::new(
+        get_peer_id(LOCAL_PEER_ID_INDEX),
+        CONFIG,
+        bootstrap_peers.clone(),
+    );
     consume_dial_events(&mut behaviour, bootstrap_peers.clone()).await;
     assert_no_event(&mut behaviour);
     accept_all_dial_attempts(&mut behaviour, &bootstrap_peers, 0);
@@ -253,7 +261,11 @@ async fn bootstrapping_outputs_dial_request_per_peer_on_start(
     #[values(1, 2, 3, 4, 5, 6, 7)] peer_count: usize,
 ) {
     let bootstrap_peers = get_peers(peer_count);
-    let mut behaviour = BootstrappingBehaviour::new(CONFIG, bootstrap_peers.clone());
+    let mut behaviour = BootstrappingBehaviour::new(
+        get_peer_id(LOCAL_PEER_ID_INDEX),
+        CONFIG,
+        bootstrap_peers.clone(),
+    );
     consume_dial_events(&mut behaviour, bootstrap_peers.clone()).await;
     assert_no_event(&mut behaviour);
 }
@@ -262,7 +274,11 @@ async fn bootstrapping_outputs_dial_request_per_peer_on_start(
 #[tokio::test]
 async fn bootstrapping_redials_on_dial_failure(#[values(1, 2, 3, 4, 5, 6, 7)] peer_count: usize) {
     let bootstrap_peers = get_peers(peer_count);
-    let mut behaviour = BootstrappingBehaviour::new(CONFIG, bootstrap_peers.clone());
+    let mut behaviour = BootstrappingBehaviour::new(
+        get_peer_id(LOCAL_PEER_ID_INDEX),
+        CONFIG,
+        bootstrap_peers.clone(),
+    );
     consume_dial_events(&mut behaviour, bootstrap_peers.clone()).await;
 
     assert_no_event(&mut behaviour);
@@ -281,7 +297,11 @@ async fn bootstrapping_redials_in_accordance_with_strategy_on_dial_failure(
     const NUMBER_OF_DIAL_RETRIES: u32 = 10;
 
     let bootstrap_peers = get_peers(peer_count);
-    let mut behaviour = BootstrappingBehaviour::new(CONFIG, bootstrap_peers.clone());
+    let mut behaviour = BootstrappingBehaviour::new(
+        get_peer_id(LOCAL_PEER_ID_INDEX),
+        CONFIG,
+        bootstrap_peers.clone(),
+    );
     consume_dial_events(&mut behaviour, bootstrap_peers.clone()).await;
     assert_no_event(&mut behaviour);
 
@@ -325,7 +345,11 @@ async fn bootstrapping_redials_in_accordance_with_strategy_when_all_connections_
     const NUMBER_OF_DIAL_RETRIES: u32 = 10;
 
     let bootstrap_peers = get_peers(peer_count);
-    let mut behaviour = BootstrappingBehaviour::new(CONFIG, bootstrap_peers.clone());
+    let mut behaviour = BootstrappingBehaviour::new(
+        get_peer_id(LOCAL_PEER_ID_INDEX),
+        CONFIG,
+        bootstrap_peers.clone(),
+    );
     consume_dial_events(&mut behaviour, bootstrap_peers.clone()).await;
     assert_no_event(&mut behaviour);
 
@@ -373,4 +397,17 @@ async fn bootstrapping_does_not_redial_when_one_connection_closes(
 
     close_all_connections(&mut behaviour, &bootstrap_peers, 1);
     assert_no_event_happens_before_duration(&mut behaviour, BOOTSTRAP_DIAL_SLEEP_MAX * 2).await;
+}
+
+#[tokio::test]
+async fn does_not_dial_self() {
+    let local_peer_id = get_peer_id(LOCAL_PEER_ID_INDEX);
+    let remote_peer_id = get_peer_id(LOCAL_PEER_ID_INDEX + 1);
+    let bootstrap_peers =
+        vec![(local_peer_id, Multiaddr::empty()), (remote_peer_id, Multiaddr::empty())];
+
+    let mut behaviour = BootstrappingBehaviour::new(local_peer_id, CONFIG, bootstrap_peers.clone());
+    let expected_bootstrap_peers_to_be_dialed = vec![(remote_peer_id, Multiaddr::empty())];
+    consume_dial_events(&mut behaviour, expected_bootstrap_peers_to_be_dialed).await;
+    assert_no_event(&mut behaviour);
 }

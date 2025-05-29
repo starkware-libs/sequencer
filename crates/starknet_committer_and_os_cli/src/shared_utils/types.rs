@@ -48,6 +48,7 @@ pub(crate) trait PythonTestRunner: TryFrom<String> {
     type SpecificError: Debug;
 
     /// Returns the input string if it's `Some`, or an error if it's `None`.
+    #[allow(clippy::result_large_err)]
     fn non_optional_input(
         input: Option<&str>,
     ) -> Result<&str, PythonTestError<Self::SpecificError>> {

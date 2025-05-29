@@ -1,28 +1,27 @@
 #!/usr/bin/env python3
 
 import argparse
-import logging
-import colorlog
 import datetime
 import json
+import logging
 import os
-
 from typing import Optional
-from tenacity import retry, stop_after_attempt, wait_fixed, before_sleep_log
+
+import colorlog
+from grafana10_objects import (
+    alert_expression_model_object,
+    alert_query_model_object,
+    alert_query_object,
+    alert_rule_object,
+)
 from grafana_client import GrafanaApi
 from grafana_client.client import (
-    GrafanaException,
-    GrafanaClientError,
-    GrafanaServerError,
     GrafanaBadInputError,
+    GrafanaClientError,
+    GrafanaException,
+    GrafanaServerError,
 )
-
-from grafana10_objects import (
-    alert_rule_object,
-    alert_query_object,
-    alert_query_model_object,
-    alert_expression_model_object,
-)
+from tenacity import before_sleep_log, retry, stop_after_attempt, wait_fixed
 
 
 def setup_logger(debug: bool):

@@ -25,6 +25,7 @@ use crate::{
     SerializationType,
     SerializedContent,
     SerializedParam,
+    CONFIG_FILE_ARG_NAME,
     FIELD_SEPARATOR,
     IS_NONE_MARK,
 };
@@ -69,7 +70,7 @@ pub fn load_and_process_config<T: for<'a> Deserialize<'a>>(
         values_map = BTreeMap::new();
     }
     // If the config_file arg is given, updates the values map according to this files.
-    if let Some(custom_config_paths) = arg_matches.remove_many::<PathBuf>("config_file") {
+    if let Some(custom_config_paths) = arg_matches.remove_many::<PathBuf>(CONFIG_FILE_ARG_NAME) {
         update_config_map_by_custom_configs(&mut values_map, &types_map, custom_config_paths)?;
     };
     // Updates the values map according to the args.

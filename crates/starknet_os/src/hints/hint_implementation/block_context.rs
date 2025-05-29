@@ -12,6 +12,7 @@ use crate::hints::vars::Const;
 
 // Hint implementations.
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn block_number<S: StateReader>(
     HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -20,6 +21,7 @@ pub(crate) fn block_number<S: StateReader>(
     Ok(insert_value_into_ap(vm, Felt::from(block_number.0))?)
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn block_timestamp<S: StateReader>(
     HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -28,6 +30,7 @@ pub(crate) fn block_timestamp<S: StateReader>(
     Ok(insert_value_into_ap(vm, Felt::from(block_timestamp.0))?)
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn chain_id<S: StateReader>(
     HintArgs { vm, hint_processor, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -36,6 +39,7 @@ pub(crate) fn chain_id<S: StateReader>(
     Ok(insert_value_into_ap(vm, chain_id_as_felt)?)
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn fee_token_address<S: StateReader>(
     HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -43,6 +47,7 @@ pub(crate) fn fee_token_address<S: StateReader>(
     Ok(insert_value_into_ap(vm, strk_fee_token_address.0.key())?)
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn sequencer_address<S: StateReader>(
     HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -51,6 +56,7 @@ pub(crate) fn sequencer_address<S: StateReader>(
     Ok(insert_value_into_ap(vm, address.0.key())?)
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn get_block_mapping<S: StateReader>(
     HintArgs { ids_data, constants, vm, ap_tracking, exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -58,6 +64,7 @@ pub(crate) fn get_block_mapping<S: StateReader>(
     set_state_entry(block_hash_contract_address, vm, exec_scopes, ids_data, ap_tracking)
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn write_use_kzg_da_to_memory<S: StateReader>(
     HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
