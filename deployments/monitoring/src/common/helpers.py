@@ -102,5 +102,21 @@ def arg_parser() -> argparse.ArgumentParser:
         default="PBFA97CFB590B2093",
         help='Provide Prometheus datasource UID for the alerts. Default is "PBFA97CFB590B2093"',
     )
+    parser.add_argument(
+        "--namespace",
+        type=str,
+        help="Provide Kubernetes namespace to inject into alert expressions.",
+    )
+    parser.add_argument(
+        "--cluster",
+        type=str,
+        help="Provide Kubernetes cluster to inject into alert expressions.",
+    )
 
-    return parser.parse_args()
+    args = parser.parse_args()
+
+    assert not (
+        (args.namespace and not args.cluster) or (args.cluster and not args.namespace)
+    ), "If a namespace is provided, a cluster must also be provided, and vice versa."
+
+    return args

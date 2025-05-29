@@ -19,6 +19,7 @@ from grafana_client.client import (
     GrafanaException,
     GrafanaServerError,
 )
+from common import const
 from tenacity import before_sleep_log, retry, stop_after_attempt, wait_fixed
 
 
@@ -160,6 +161,17 @@ def update_alert_rule_group(
         raise
 
 
+def inject_expr_placeholders(expr: str, cluster: str, namespace: str) -> str:
+    return expr.replace(
+        const.ALERT_RULE_EXPRESSION_PLACEHOLDER,
+        '{{namespace="{0}", cluster="{1}"}}'.format(namespace, cluster),
+    )
+
+
+def remove_expr_placeholder(expr: str) -> str:
+    return expr.replace(const.ALERT_RULE_EXPRESSION_PLACEHOLDER, "")
+
+
 def alert_builder(args: argparse.Namespace):
     global logger
     logger = get_logger(name="alert_builder", debug=args.debug)
@@ -176,6 +188,12 @@ def alert_builder(args: argparse.Namespace):
     alerts = []
 
     for dev_alert in dev_alerts["alerts"]:
+        if args.namespace and args.cluster:
+            expr = inject_expr_placeholders(
+                expr=dev_alert["expr"], namespace=args.namespace, cluster=args.cluster
+            )
+        else:
+            expr = remove_expr_placeholder(expr=dev_alert["expr"])
         alerts.append(
             create_alert_rule(
                 name=dev_alert["name"],
@@ -184,7 +202,7 @@ def alert_builder(args: argparse.Namespace):
                 interval_sec=dev_alert["intervalSec"],
                 rule_group=dev_alert["ruleGroup"],
                 _for=dev_alert["for"],
-                expr=dev_alert["expr"],
+                expr=expr,
                 conditions=dev_alert["conditions"],
                 datasource_uid=args.datasource_uid,
             )
