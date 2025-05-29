@@ -356,6 +356,7 @@ impl ConsensusContext for SequencerConsensusContext {
                 self.config.l1_data_gas_price_multiplier_ppt,
                 1000,
             ),
+            l1_gas_tip_wei: GasPrice(self.config.l1_gas_tip_wei),
         };
         let args = ProposalBuildArguments {
             deps: self.deps.clone(),
@@ -762,6 +763,7 @@ impl SequencerConsensusContext {
     ) {
         let cancel_token = CancellationToken::new();
         let cancel_token_clone = cancel_token.clone();
+        let l1_gas_tip_wei = GasPrice(self.config.l1_gas_tip_wei);
         let valid_proposals = Arc::clone(&self.valid_proposals);
         let proposal_id = ProposalId(self.proposal_id);
         let previous_block_info = self.previous_block_info.clone();
@@ -776,6 +778,7 @@ impl SequencerConsensusContext {
                 self.config.l1_data_gas_price_multiplier_ppt,
                 1000,
             ),
+            l1_gas_tip_wei,
         };
 
         info!(?timeout, %proposal_id, %proposer, round=self.current_round, "Validating proposal.");
@@ -1013,7 +1016,6 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
     else {
         return;
     };
-
     if !is_block_info_valid(
         args.block_info_validation.clone(),
         block_info.clone(),
