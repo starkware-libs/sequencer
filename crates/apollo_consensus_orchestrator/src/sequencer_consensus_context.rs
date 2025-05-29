@@ -1,6 +1,7 @@
 //! Implementation of the ConsensusContext interface for running the sequencer.
 //!
 //! It connects to the Batcher who is responsible for building/validating blocks.
+//! Hello, this is a comment!
 #[cfg(test)]
 #[path = "sequencer_consensus_context_test.rs"]
 mod sequencer_consensus_context_test;
