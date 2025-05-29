@@ -8,11 +8,18 @@ use mockall::automock;
 use starknet_api::block::BlockNumber;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
+use tracing::info;
 
-use crate::pre_confirmed_cende_client::PreConfirmedCendeClientTrait;
+use crate::pre_confirmed_cende_client::{
+    PreConfirmedCendeClientError,
+    PreConfirmedCendeClientTrait,
+};
 
 #[derive(Debug, Error)]
-pub enum BlockWriterError {}
+pub enum BlockWriterError {
+    #[error(transparent)]
+    PreConfirmedCendeClientError(#[from] PreConfirmedCendeClientError),
+}
 
 pub type BlockWriterResult<T> = Result<T, BlockWriterError>;
 pub type PreConfirmedTxReceiver = tokio::sync::mpsc::UnboundedReceiver<Vec<TransactionHash>>;
@@ -28,11 +35,11 @@ pub trait PreConfirmedBlockWriterTrait: Send {
 }
 
 pub struct PreConfirmedBlockWriter {
-    _block_number: BlockNumber,
-    _proposal_round: Round,
-    _pre_confirmed_tx_receiver: PreConfirmedTxReceiver,
-    _executed_tx_receiver: ExecutedTxReceiver,
-    _cende_client: Arc<dyn PreConfirmedCendeClientTrait>,
+    block_number: BlockNumber,
+    proposal_round: Round,
+    pre_confirmed_tx_receiver: PreConfirmedTxReceiver,
+    executed_tx_receiver: ExecutedTxReceiver,
+    cende_client: Arc<dyn PreConfirmedCendeClientTrait>,
 }
 
 impl PreConfirmedBlockWriter {
@@ -44,11 +51,11 @@ impl PreConfirmedBlockWriter {
         cende_client: Arc<dyn PreConfirmedCendeClientTrait>,
     ) -> Self {
         Self {
-            _block_number: block_number,
-            _proposal_round: proposal_round,
-            _pre_confirmed_tx_receiver: pre_confirmed_tx_receiver,
-            _executed_tx_receiver: executed_tx_receiver,
-            _cende_client: cende_client,
+            block_number,
+            proposal_round,
+            pre_confirmed_tx_receiver,
+            executed_tx_receiver,
+            cende_client,
         }
     }
 }
@@ -56,7 +63,34 @@ impl PreConfirmedBlockWriter {
 #[async_trait]
 impl PreConfirmedBlockWriterTrait for PreConfirmedBlockWriter {
     async fn run(&mut self) -> BlockWriterResult<()> {
-        todo!("Implement block writing logic")
+        self.cende_client.send_start_new_round(self.block_number, self.proposal_round).await?;
+        loop {
+            tokio::select! {
+                msg = { self.pre_confirmed_tx_receiver.recv() } => {
+                    match msg {
+                        Some(txs) => self.cende_client
+                            .send_pre_confirmed_txs(self.block_number, self.proposal_round, txs)
+                            .await?,
+                        None => {
+                            info!("Pre confirmed tx channel closed");
+                            break;
+                        }
+                    }
+                }
+                msg = { self.executed_tx_receiver.recv() } => {
+                    match msg {
+                        Some(txs) => self.cende_client
+                            .send_executed_txs(self.block_number, self.proposal_round, txs)
+                            .await?,
+                        None => {
+                            info!("Executed tx channel closed");
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
     }
 }
 
