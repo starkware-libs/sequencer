@@ -1,3 +1,4 @@
+use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::execution::execution_utils::ReadOnlySegment;
 use blockifier::execution::syscalls::hint_processor::SyscallExecutionError;
@@ -206,7 +207,24 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<GetBlockHashResponse> {
-        todo!()
+        // TODO(Nimrod): Handle errors correctly.
+        let block_number = request.block_number;
+        let execution_helper = syscall_handler.get_mut_current_execution_helper().unwrap();
+        let diff = execution_helper.os_block_input.block_info.block_number.0 - block_number.0;
+        assert!(diff < STORED_BLOCK_HASH_BUFFER, "Block number out of range {diff}.");
+        let block_hash = execution_helper
+            .tx_execution_iter
+            .get_mut_tx_execution_info_ref()
+            .as_mut()
+            .unwrap()
+            .call_info_tracker
+            .as_mut()
+            .unwrap()
+            .execute_code_block_hash_read_iterator
+            .next()
+            .unwrap();
+
+        Ok(GetBlockHashResponse { block_hash: *block_hash })
     }
 
     #[allow(clippy::result_large_err)]
