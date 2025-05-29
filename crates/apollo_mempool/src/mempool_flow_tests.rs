@@ -347,3 +347,78 @@ fn mempool_state_retains_address_across_api_calls(mut mempool: Mempool) {
     // committed transactions. Mirroring this behavior may require a modification of this test.
     assert!(mempool.account_tx_in_pool_or_recent_block(account_address));
 }
+
+#[rstest]
+fn test_eviction_tracker(mut mempool: Mempool) {
+    // Account 0: Naive ready transaction.
+    let tx_ready_address_0 =
+        add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0);
+
+    // Account 1: Gap exists initially.
+    let tx_with_gap_address_1 =
+        add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 1, account_nonce: 0);
+
+    // Account 2: Gap exists initially.
+    let tx_with_gap_address_2 =
+        add_tx_input!(tx_hash: 3, address: "0x2", tx_nonce: 1, account_nonce: 0);
+
+    // Account 3: Submit nonce 0 and nonce 1 consecutively → should NOT be suspended
+    let tx_ready_address_3 =
+        add_tx_input!(tx_hash: 4, address: "0x3", tx_nonce: 0, account_nonce: 0);
+    let next_tx_ready_address_3 =
+        add_tx_input!(tx_hash: 5, address: "0x3", tx_nonce: 1, account_nonce: 0);
+
+    // Account 4: Has 2 transactions, first was rejected, second is suspended.
+    let tx_ready_address_4 =
+        add_tx_input!(tx_hash: 6, address: "0x4", tx_nonce: 0, account_nonce: 0);
+    let next_tx_ready_address_4 =
+        add_tx_input!(tx_hash: 7, address: "0x4", tx_nonce: 1, account_nonce: 0);
+
+    // Account 5: Has 2 transactions, first was ready, second is missing, third will make the
+    // account suspended when first is accepted.
+    let tx_ready_address_5 =
+        add_tx_input!(tx_hash: 8, address: "0x5", tx_nonce: 0, account_nonce: 0);
+    let tx_with_gap_address_5 =
+        add_tx_input!(tx_hash: 9, address: "0x5", tx_nonce: 3, account_nonce: 0);
+
+    for input in [
+        &tx_ready_address_0,
+        &tx_with_gap_address_1,
+        &tx_with_gap_address_2,
+        &tx_ready_address_3,
+        &next_tx_ready_address_3,
+        &tx_ready_address_4,
+        &next_tx_ready_address_4,
+        &tx_ready_address_5,
+        &tx_with_gap_address_5,
+    ] {
+        add_tx(&mut mempool, input);
+    }
+
+    let tracker = mempool.eviction_tracker();
+    assert!(tracker.contains(&tx_with_gap_address_1.tx.contract_address()));
+    assert!(tracker.contains(&tx_with_gap_address_2.tx.contract_address()));
+    assert!(!tracker.contains(&tx_ready_address_0.tx.contract_address()));
+    assert!(!tracker.contains(&tx_ready_address_3.tx.contract_address()));
+    assert!(!tracker.contains(&next_tx_ready_address_3.tx.contract_address()));
+    assert!(!tracker.contains(&tx_ready_address_4.tx.contract_address()));
+    assert!(!tracker.contains(&tx_ready_address_5.tx.contract_address()));
+
+    // Fill the gap for account 1 by adding tx with nonce 0
+    let tx_fills_gap_address_1 =
+        add_tx_input!(tx_hash: 10, address: "0x1", tx_nonce: 0, account_nonce: 0);
+    add_tx(&mut mempool, &tx_fills_gap_address_1);
+
+    let tracker = mempool.eviction_tracker();
+    assert!(!tracker.contains(&tx_with_gap_address_1.tx.contract_address()));
+    assert!(tracker.contains(&tx_with_gap_address_2.tx.contract_address()));
+
+    // Resolves gap for address 2
+    // Commits tx 0 of address 5 → leaves gap
+    // Rejects tx 0 of address 4 → creates gap
+    commit_block(&mut mempool, [("0x2", 1), ("0x5", 1)], [tx_ready_address_4.tx.tx_hash()]);
+    let tracker = mempool.eviction_tracker();
+    assert!(!tracker.contains(&tx_with_gap_address_2.tx.contract_address()));
+    assert!(tracker.contains(&next_tx_ready_address_4.tx.contract_address()));
+    assert!(tracker.contains(&tx_with_gap_address_5.tx.contract_address()));
+}

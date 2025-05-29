@@ -26,6 +26,7 @@ use starknet_api::{contract_address, declare_tx_args, nonce, tx_hash};
 
 use super::AddTransactionQueue;
 use crate::communication::MempoolCommunicationWrapper;
+use crate::eviction_tracker::EvictionTracker;
 use crate::mempool::{Mempool, MempoolConfig, MempoolContent, MempoolState, TransactionReference};
 use crate::metrics::register_metrics;
 use crate::test_utils::{
@@ -133,6 +134,7 @@ impl MempoolTestContentBuilder {
             delayed_declares: AddTransactionQueue::new(),
             tx_controller: TransactionController {
                 tx_pool: self.content.tx_pool.unwrap_or_default().into_values().collect(),
+                eviction_tracker: EvictionTracker::new(),
             },
             tx_queue: TransactionQueue::new(
                 self.content.priority_txs.unwrap_or_default(),
