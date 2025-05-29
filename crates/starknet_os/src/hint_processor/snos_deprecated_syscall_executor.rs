@@ -226,7 +226,12 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> Result<GetSequencerAddressResponse, Self::Error> {
-        todo!()
+        let sequencer_address = syscall_handler
+            .get_current_execution_helper()?
+            .os_block_input
+            .block_info
+            .sequencer_address;
+        Ok(GetSequencerAddressResponse { address: sequencer_address })
     }
 
     #[allow(clippy::result_large_err)]
