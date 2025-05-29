@@ -4,7 +4,7 @@
       "name": "consensus_block_number_stuck",
       "title": "Consensus block number stuck",
       "ruleGroup": "consensus",
-      "expr": "changes(consensus_block_number[10s])",
+      "expr": "changes(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10s])",
       "conditions": [
         {
           "evaluator": {
@@ -30,7 +30,7 @@
       "name": "gateway_add_tx_rate_drop",
       "title": "Gateway add_tx rate drop",
       "ruleGroup": "gateway",
-      "expr": "sum(rate(gateway_transactions_received[20m])) or vector(0)",
+      "expr": "sum(rate(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -56,7 +56,7 @@
       "name": "gateway_add_tx_latency_increase",
       "title": "Gateway avg add_tx latency increase",
       "ruleGroup": "gateway",
-      "expr": "sum(rate(gateway_add_tx_latency_sum[1m]))/sum(rate(gateway_add_tx_latency_count[1m]))",
+      "expr": "sum(rate(gateway_add_tx_latency{cluster=~\"$cluster\", namespace=~\"$namespace\"}_sum[1m]))/sum(rate(gateway_add_tx_latency{cluster=~\"$cluster\", namespace=~\"$namespace\"}_count[1m]))",
       "conditions": [
         {
           "evaluator": {
@@ -82,7 +82,7 @@
       "name": "mempool_add_tx_rate_drop",
       "title": "Mempool add_tx rate drop",
       "ruleGroup": "mempool",
-      "expr": "sum(rate(mempool_transactions_received[20m])) or vector(0)",
+      "expr": "sum(rate(mempool_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -108,7 +108,7 @@
       "name": "mempool_get_txs_size_drop",
       "title": "Mempool get_txs size drop",
       "ruleGroup": "mempool",
-      "expr": "avg_over_time(mempool_get_txs_size[20m])",
+      "expr": "avg_over_time(mempool_get_txs_size{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])",
       "conditions": [
         {
           "evaluator": {
@@ -134,7 +134,7 @@
       "name": "http_server_idle",
       "title": "http server idle",
       "ruleGroup": "http_server",
-      "expr": "rate(max(http_server_added_transactions_total)[60m:])",
+      "expr": "rate(max(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"})[60m:])",
       "conditions": [
         {
           "evaluator": {
@@ -160,7 +160,7 @@
       "name": "mempool_pool_size_increase",
       "title": "Mempool pool size increase",
       "ruleGroup": "mempool",
-      "expr": "mempool_pool_size",
+      "expr": "mempool_pool_size{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
       "conditions": [
         {
           "evaluator": {
@@ -186,7 +186,7 @@
       "name": "consensus_round_high_avg",
       "title": "Consensus round high average",
       "ruleGroup": "consensus",
-      "expr": "avg_over_time(consensus_round[10m])",
+      "expr": "avg_over_time(consensus_round{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])",
       "conditions": [
         {
           "evaluator": {
