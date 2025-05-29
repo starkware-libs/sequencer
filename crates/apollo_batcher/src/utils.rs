@@ -15,6 +15,7 @@ pub(crate) type ProposalResult<T> = Result<T, Arc<BlockBuilderError>>;
 pub(crate) struct ProposalTask {
     pub abort_signal_sender: tokio::sync::oneshot::Sender<()>,
     pub join_handle: tokio::task::JoinHandle<()>,
+    pub writer_join_handle: Option<tokio::task::JoinHandle<()>>,
 }
 
 pub(crate) fn deadline_as_instant(
