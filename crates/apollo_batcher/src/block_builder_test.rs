@@ -133,8 +133,8 @@ fn one_chunk_mock_executor(
     mock_transaction_executor
         .expect_add_txs_to_block()
         .times(1)
-        .withf(move |blockifier_input, _| compare_tx_hashes(&input_txs_cloned, blockifier_input))
-        .return_once(move |_, _| (0..block_size).map(|_| Ok(execution_info())).collect());
+        .withf(move |blockifier_input| compare_tx_hashes(&input_txs_cloned, blockifier_input))
+        .return_once(move |_| (0..block_size).map(|_| Ok(execution_info())).collect());
 
     let expected_block_artifacts =
         set_close_block_expectations(&mut mock_transaction_executor, block_size);
@@ -154,10 +154,8 @@ fn two_chunks_test_expectations() -> TestExpectations {
             .expect_add_txs_to_block()
             .times(1)
             .in_sequence(seq)
-            .withf(move |blockifier_input, _| compare_tx_hashes(&tx_chunk, blockifier_input))
-            .return_once(move |_, _| {
-                (0..TX_CHUNK_SIZE).map(move |_| Ok(execution_info())).collect()
-            });
+            .withf(move |blockifier_input| compare_tx_hashes(&tx_chunk, blockifier_input))
+            .return_once(move |_| (0..TX_CHUNK_SIZE).map(move |_| Ok(execution_info())).collect());
     };
 
     let mut seq = Sequence::new();
@@ -206,8 +204,8 @@ fn mock_transaction_executor_block_full(
     mock_transaction_executor
         .expect_add_txs_to_block()
         .times(1)
-        .withf(move |blockifier_input, _| compare_tx_hashes(&input_txs_cloned, blockifier_input))
-        .return_once(move |_, _| execution_results);
+        .withf(move |blockifier_input| compare_tx_hashes(&input_txs_cloned, blockifier_input))
+        .return_once(move |_| execution_results);
     mock_transaction_executor
 }
 
@@ -236,8 +234,8 @@ fn mock_transaction_executor_with_delay(
     mock_transaction_executor
         .expect_add_txs_to_block()
         .times(1)
-        .withf(move |blockifier_input, _| compare_tx_hashes(&input_txs_cloned, blockifier_input))
-        .return_once(move |_, _| {
+        .withf(move |blockifier_input| compare_tx_hashes(&input_txs_cloned, blockifier_input))
+        .return_once(move |_| {
             std::thread::sleep(std::time::Duration::from_secs(BLOCK_GENERATION_DEADLINE_SECS));
             (0..TX_CHUNK_SIZE).map(move |_| Ok(execution_info())).collect()
         });
@@ -272,8 +270,8 @@ fn stream_done_test_expectations() -> TestExpectations {
     mock_transaction_executor
         .expect_add_txs_to_block()
         .times(1)
-        .withf(move |blockifier_input, _| compare_tx_hashes(&input_txs_cloned, blockifier_input))
-        .return_once(move |_, _| (0..block_size).map(|_| Ok(execution_info())).collect());
+        .withf(move |blockifier_input| compare_tx_hashes(&input_txs_cloned, blockifier_input))
+        .return_once(move |_| (0..block_size).map(|_| Ok(execution_info())).collect());
 
     let expected_block_artifacts =
         set_close_block_expectations(&mut mock_transaction_executor, block_size);
@@ -302,7 +300,7 @@ fn transaction_failed_test_expectations() -> TestExpectations {
 
     let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
     let failed_tx_hashes_ref = failed_tx_hashes.clone();
-    let mocked_add_txs_response = move |txs: &[BlockifierTransaction], _| {
+    let mocked_add_txs_response = move |txs: &[BlockifierTransaction]| {
         txs.iter()
             .map(|tx| {
                 if (failed_tx_hashes_ref).contains(&BlockifierTransaction::tx_hash(tx)) {
@@ -635,7 +633,7 @@ async fn test_build_block_abort() {
     let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
     mock_transaction_executor
         .expect_add_txs_to_block()
-        .return_once(|_, _| (0..3).map(|_| Ok(execution_info())).collect());
+        .return_once(|_| (0..3).map(|_| Ok(execution_info())).collect());
     mock_transaction_executor.expect_close_block().times(0);
     mock_transaction_executor.expect_abort_block().times(1).return_once(|| ());
 
@@ -753,7 +751,7 @@ async fn failed_l1_handler_transaction_consumed() {
     let mock_tx_provider = mock_tx_provider_stream_done(l1_handler_tx.clone());
 
     let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
-    mock_transaction_executor.expect_add_txs_to_block().times(1).return_once(move |_, _| {
+    mock_transaction_executor.expect_add_txs_to_block().times(1).return_once(move |_| {
         vec![
             Err(TransactionExecutorError::StateError(StateError::OutOfRangeContractAddress)),
             Ok(execution_info()),
@@ -800,7 +798,7 @@ async fn partial_chunk_execution_without_fail_on_error_flag() {
     mock_transaction_executor
         .expect_add_txs_to_block()
         .times(1)
-        .return_once(move |_, _| executed_txs.iter().map(|_| Ok(execution_info())).collect());
+        .return_once(move |_| executed_txs.iter().map(|_| Ok(execution_info())).collect());
 
     let expected_block_artifacts =
         block_execution_artifacts(expected_execution_infos, Default::default(), Default::default());
@@ -843,7 +841,7 @@ async fn partial_chunk_execution_with_fail_on_error_flag() {
     mock_transaction_executor
         .expect_add_txs_to_block()
         .times(1)
-        .return_once(move |_, _| executed_txs.iter().map(|_| Ok(execution_info())).collect()); // We return only 2 txs, simulating a partial chunk execution.
+        .return_once(move |_| executed_txs.iter().map(|_| Ok(execution_info())).collect()); // We return only 2 txs, simulating a partial chunk execution.
     mock_transaction_executor.expect_close_block().times(0);
     mock_transaction_executor.expect_abort_block().times(1).return_once(|| ());
 

@@ -768,7 +768,7 @@ pub fn create_batcher(
         .expect("Failed to open batcher's storage");
 
     let execute_config = &config.block_builder_config.execute_config;
-    let worker_pool = Arc::new(WorkerPool::start(&execute_config.get_worker_pool_config()));
+    let worker_pool = Arc::new(WorkerPool::start(execute_config));
     let block_builder_factory = Box::new(BlockBuilderFactory {
         block_builder_config: config.block_builder_config.clone(),
         storage_reader: storage_reader.clone(),
