@@ -28,10 +28,6 @@ pub mod compile_test;
 
 pub type SierraCompilerResult<T> = Result<T, SierraCompilerError>;
 
-#[cfg(test)]
-#[path = "constants_test.rs"]
-pub mod constants_test;
-
 #[derive(Debug, Error)]
 pub enum SierraCompilerError {
     #[error(transparent)]

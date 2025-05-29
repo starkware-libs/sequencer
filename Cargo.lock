@@ -1319,7 +1319,6 @@ name = "apollo_infra_utils"
 version = "0.15.0-rc.0"
 dependencies = [
  "assert-json-diff",
- "cached",
  "colored 3.0.0",
  "nix 0.20.2",
  "num_enum",
