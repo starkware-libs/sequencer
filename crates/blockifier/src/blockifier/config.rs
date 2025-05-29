@@ -23,6 +23,13 @@ impl TransactionExecutorConfig {
             stack_size: DEFAULT_STACK_SIZE,
         }
     }
+
+    pub fn get_worker_pool_config(&self) -> WorkerPoolConfig {
+        WorkerPoolConfig {
+            n_workers: self.concurrency_config.n_workers,
+            stack_size: self.stack_size,
+        }
+    }
 }
 
 impl Default for TransactionExecutorConfig {
@@ -80,6 +87,43 @@ impl SerializeConfig for ConcurrencyConfig {
                 "chunk_size",
                 &self.chunk_size,
                 "The size of the transaction chunk executed in parallel.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct WorkerPoolConfig {
+    pub n_workers: usize,
+    pub stack_size: usize,
+}
+impl WorkerPoolConfig {
+    #[cfg(any(test, feature = "testing"))]
+    pub fn create_for_testing() -> Self {
+        Self { n_workers: 4, stack_size: DEFAULT_STACK_SIZE }
+    }
+}
+
+impl Default for WorkerPoolConfig {
+    fn default() -> Self {
+        Self { n_workers: 1, stack_size: DEFAULT_STACK_SIZE }
+    }
+}
+
+impl SerializeConfig for WorkerPoolConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_param(
+                "n_workers",
+                &self.n_workers,
+                "Number of parallel transaction execution workers.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "stack_size",
+                &self.stack_size,
+                "The thread stack size (proportional to the maximal gas of a transaction).",
                 ParamPrivacyInput::Public,
             ),
         ])
