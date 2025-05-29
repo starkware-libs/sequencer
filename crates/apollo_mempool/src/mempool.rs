@@ -361,7 +361,7 @@ impl Mempool {
         let tx_reference = TransactionReference::new(&tx);
 
         self.tx_pool_controller
-            .insert(tx)
+            .insert(tx, account_state.nonce)
             .expect("Duplicate transactions should cause an error during the validation stage.");
 
         let AccountState { address, nonce: incoming_account_nonce } = account_state;
@@ -412,7 +412,7 @@ impl Mempool {
                 assert!(self.tx_queue.remove(address), "Expected to remove address from queue.");
             }
 
-            // Remove from pool.
+            // Remove from controller.
             let n_removed_txs = self.tx_pool_controller.remove_up_to_nonce(address, next_nonce);
             metric_count_committed_txs(n_removed_txs);
 
@@ -659,6 +659,11 @@ impl Mempool {
             priority_txs: self.tx_queue.iter_over_ready_txs().cloned().collect(),
             pending_txs: self.tx_queue.pending_txs(),
         }
+    }
+
+    #[cfg(test)]
+    pub fn eviction_tracker(&self) -> &crate::eviction_tracker::EvictionTracker {
+        &self.tx_pool_controller.eviction_tracker
     }
 
     fn update_state_metrics(&self) {
