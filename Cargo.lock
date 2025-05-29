@@ -1176,6 +1176,7 @@ dependencies = [
  "apollo_infra",
  "apollo_infra_utils",
  "apollo_node",
+ "apollo_protobuf",
  "indexmap 2.9.0",
  "serde",
  "serde_json",
