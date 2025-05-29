@@ -35,28 +35,10 @@ fn testing_env_3_deployment_config_override() -> DeploymentConfigOverride {
     )
 }
 
-fn testing_env_3_node_0_config_override() -> ConfigOverride {
+fn testing_env_3_config_override(id: usize) -> ConfigOverride {
     ConfigOverride::new(
         testing_env_3_deployment_config_override(),
-        create_hybrid_instance_config_override(0, FIRST_NODE_NAMESPACE),
-    )
-}
-fn testing_env_3_node_1_config_override() -> ConfigOverride {
-    ConfigOverride::new(
-        testing_env_3_deployment_config_override(),
-        create_hybrid_instance_config_override(1, FIRST_NODE_NAMESPACE),
-    )
-}
-fn testing_env_3_node_2_config_override() -> ConfigOverride {
-    ConfigOverride::new(
-        testing_env_3_deployment_config_override(),
-        create_hybrid_instance_config_override(2, FIRST_NODE_NAMESPACE),
-    )
-}
-fn testing_env_3_node_3_config_override() -> ConfigOverride {
-    ConfigOverride::new(
-        testing_env_3_deployment_config_override(),
-        create_hybrid_instance_config_override(3, FIRST_NODE_NAMESPACE),
+        create_hybrid_instance_config_override(id, FIRST_NODE_NAMESPACE),
     )
 }
 
@@ -75,7 +57,7 @@ fn testing_env_3_hybrid_deployment_node_0() -> Deployment {
         "integration_hybrid_node_0",
         Some(ExternalSecret::new("sequencer-test-3-node-0")),
         PathBuf::from(BASE_APP_CONFIG_PATH),
-        testing_env_3_node_0_config_override(),
+        testing_env_3_config_override(0),
         get_ingress_params(),
     )
 }
@@ -88,7 +70,7 @@ fn testing_env_3_hybrid_deployment_node_1() -> Deployment {
         "integration_hybrid_node_1",
         Some(ExternalSecret::new("sequencer-test-3-node-1")),
         PathBuf::from(BASE_APP_CONFIG_PATH),
-        testing_env_3_node_1_config_override(),
+        testing_env_3_config_override(1),
         get_ingress_params(),
     )
 }
@@ -101,7 +83,7 @@ fn testing_env_3_hybrid_deployment_node_2() -> Deployment {
         "integration_hybrid_node_2",
         Some(ExternalSecret::new("sequencer-test-3-node-2")),
         PathBuf::from(BASE_APP_CONFIG_PATH),
-        testing_env_3_node_2_config_override(),
+        testing_env_3_config_override(2),
         get_ingress_params(),
     )
 }
@@ -114,7 +96,7 @@ fn testing_env_3_hybrid_deployment_node_3() -> Deployment {
         "integration_hybrid_node_3",
         Some(ExternalSecret::new("sequencer-test-3-node-3")),
         PathBuf::from(BASE_APP_CONFIG_PATH),
-        testing_env_3_node_3_config_override(),
+        testing_env_3_config_override(3),
         get_ingress_params(),
     )
 }
