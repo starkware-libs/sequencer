@@ -14,7 +14,7 @@ use libp2p::swarm::{
     ToSwarm,
 };
 use libp2p::{Multiaddr, PeerId};
-use tracing::info;
+use tracing::{info, warn};
 
 use crate::discovery::{RetryConfig, ToOtherBehaviourEvent};
 
@@ -79,6 +79,22 @@ impl BootstrappingBehaviour {
         bootstrap_dial_retry_config: RetryConfig,
         bootstrap_peers: Vec<(PeerId, Multiaddr)>,
     ) -> Self {
+        // check that IDs are unique
+        let unique_peer_ids: std::collections::HashSet<_> =
+            bootstrap_peers.iter().map(|(id, _)| id).collect();
+        assert!(
+            unique_peer_ids.len() == bootstrap_peers.len(),
+            "Bootstrap peer IDs must be unique, the id {} is repeated",
+            {
+                unique_peer_ids
+                    .iter()
+                    .find(|&&id| {
+                        bootstrap_peers.iter().filter(|(peer_id, _)| peer_id == id).count() > 1
+                    })
+                    .unwrap()
+            }
+        );
+
         let mut peers = SelectAll::new();
         for (bootstrap_peer_id, bootstrap_peer_address) in bootstrap_peers {
             if bootstrap_peer_id == local_peer_id {
@@ -93,6 +109,13 @@ impl BootstrappingBehaviour {
                 bootstrap_peer_address,
             ));
         }
+
+        if peers.is_empty() {
+            warn!("No bootstrap peers provided, bootstrapping will not be possible");
+        } else {
+            info!("Bootstrapping with {} bootstrap peers", peers.len());
+        }
+
         Self { peers }
     }
 }
