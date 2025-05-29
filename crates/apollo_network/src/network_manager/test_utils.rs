@@ -151,30 +151,39 @@ where
     Ok(TestSubscriberChannels { subscriber_channels, mock_network })
 }
 
-pub fn create_connected_network_configs(mut ports: Vec<u16>) -> Vec<NetworkConfig> {
-    let number_of_configs = ports.len();
-    let port0 = ports.remove(0);
+fn create_peer_private_key(peer_index: usize) -> [u8; 32] {
+    [u8::try_from(peer_index).expect("Too many nodes!") + 1; 32]
+}
 
-    let secret_key0 = [1u8; 32];
-    let public_key0 = Keypair::ed25519_from_bytes(secret_key0).unwrap().public();
-
-    let config0 =
-        NetworkConfig { port: port0, secret_key: Some(secret_key0.to_vec()), ..Default::default() };
-    let mut configs = Vec::with_capacity(number_of_configs);
-    configs.push(config0);
-    for port in ports.iter() {
-        configs.push(NetworkConfig {
-            port: *port,
-            bootstrap_peer_multiaddr: Some(vec![
-                Multiaddr::empty()
-                    .with(Protocol::Ip4(Ipv4Addr::LOCALHOST))
-                    .with(Protocol::Tcp(port0))
-                    .with(Protocol::P2p(PeerId::from_public_key(&public_key0))),
-            ]),
+pub fn create_connected_network_configs(ports: Vec<u16>) -> Vec<NetworkConfig> {
+    let number_of_nodes = ports.len();
+    let private_keys: Vec<_> = (0..number_of_nodes).map(create_peer_private_key).collect();
+    let public_keys: Vec<_> = private_keys
+        .iter()
+        .cloned()
+        .map(Keypair::ed25519_from_bytes)
+        .map(|key_pair_result| key_pair_result.unwrap().public())
+        .collect();
+    let nodes_addresses: Vec<_> = public_keys
+        .iter()
+        .zip(ports.iter())
+        .map(|(public_key, port)| {
+            Multiaddr::empty()
+                .with(Protocol::Ip4(Ipv4Addr::LOCALHOST))
+                .with(Protocol::Tcp(*port))
+                .with(Protocol::P2p(PeerId::from_public_key(public_key)))
+        })
+        .collect();
+    ports
+        .into_iter()
+        .zip(private_keys)
+        .map(|(port, private_key)| NetworkConfig {
+            port,
+            bootstrap_peer_multiaddr: Some(nodes_addresses.clone()),
+            secret_key: Some(private_key.to_vec()),
             ..Default::default()
-        });
-    }
-    configs
+        })
+        .collect()
 }
 
 pub fn network_config_into_broadcast_channels<T>(
