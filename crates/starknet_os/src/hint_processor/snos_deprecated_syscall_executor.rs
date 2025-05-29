@@ -41,10 +41,13 @@ use blockifier::state::state_api::StateReader;
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::vm_core::VirtualMachine;
 
-use super::snos_hint_processor::SnosHintProcessor;
+use crate::hint_processor::execution_helper::ExecutionHelperError;
+use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 
 #[derive(Debug, thiserror::Error)]
 pub enum DeprecatedSnosSyscallError {
+    #[error(transparent)]
+    ExecutionHelper(#[from] ExecutionHelperError),
     #[error(transparent)]
     SyscallExecutorBase(#[from] DeprecatedSyscallExecutorBaseError),
 }
@@ -143,7 +146,12 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> Result<GetBlockTimestampResponse, Self::Error> {
-        todo!()
+        let block_timestamp = syscall_handler
+            .get_current_execution_helper()?
+            .os_block_input
+            .block_info
+            .block_timestamp;
+        Ok(GetBlockTimestampResponse { block_timestamp })
     }
 
     #[allow(clippy::result_large_err)]
