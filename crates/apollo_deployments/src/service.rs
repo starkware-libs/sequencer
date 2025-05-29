@@ -116,12 +116,12 @@ impl IngressRule {
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct ExternalSecret {
-    gcsm_key: &'static str,
+    gcsm_key: String,
 }
 
 impl ExternalSecret {
-    pub fn new(gcsm_key: &'static str) -> Self {
-        Self { gcsm_key }
+    pub fn new(gcsm_key: impl ToString) -> Self {
+        Self { gcsm_key: gcsm_key.to_string() }
     }
 }
 
