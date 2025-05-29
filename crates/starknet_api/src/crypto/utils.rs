@@ -35,6 +35,10 @@ impl std::fmt::LowerHex for PublicKey {
     }
 }
 
+/// A private key.
+#[derive(Debug, Default, Copy, Clone, Eq, PartialEq, Hash, Deserialize, Serialize)]
+pub struct PrivateKey(pub Felt);
+
 /// A signature.
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq, Hash, Deserialize, Serialize)]
 pub struct Signature {

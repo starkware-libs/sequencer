@@ -6,14 +6,28 @@ use apollo_infra::impl_debug_for_infra_requests_and_responses;
 use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use starknet_api::crypto::utils::{Message, PublicKey, RawSignature};
+use starknet_api::crypto::utils::{Message, PrivateKey, PublicKey, RawSignature};
 use strum_macros::AsRefStr;
 use thiserror::Error;
 
+pub type KeyStoreResult<T> = Result<T, KeyStoreError>;
 pub type SignatureManagerResult<T> = Result<T, SignatureManagerError>;
 pub type SignatureManagerClientResult<T> = Result<T, SignatureManagerClientError>;
 
 pub type SharedSignatureManagerClient = Arc<dyn SignatureManagerClient>;
+
+/// A read-only keystore that contains exactly one key.
+#[async_trait]
+pub trait KeyStore {
+    /// Retrieve a reference to the contained private key.
+    async fn get_key(&self) -> KeyStoreResult<PrivateKey>;
+}
+
+#[derive(Clone, Debug, Error, Eq, PartialEq, Serialize, Deserialize)]
+pub enum KeyStoreError {
+    #[error("Failed to fetch key: {0}")]
+    Custom(String),
+}
 
 /// Serves as the signature manager's shared interface.
 /// Requires `Send + Sync` to allow transferring and sharing resources (inputs, futures) across
