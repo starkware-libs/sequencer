@@ -32,7 +32,7 @@ fn stress_test_deployment_config_override() -> DeploymentConfigOverride {
         "0x4fA369fEBf0C574ea05EC12bC0e1Bc9Cd461Dd0f",
         "SN_GOERLI",
         "0x497d1c054cec40f64454b45deecdc83e0c7f7b961c63531eae03748abd95350",
-        "http://feeder-gateway.starknet-0-14-0-stress-test/",
+        "https://feeder-gateway.starknet-0-14-0-stress-test:9713/",
         "0x4fa9355c504fa2de263bd7920644b5e48794fe1450ec2a6526518ad77d6a567",
     )
 }
