@@ -4,6 +4,7 @@ use starknet_api::core::ChainId;
 
 use crate::deployment::{
     create_hybrid_instance_config_override,
+    format_node_id,
     ConfigOverride,
     Deployment,
     DeploymentConfigOverride,
@@ -15,13 +16,15 @@ const TESTING_ENV_2_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str =
     "sn-test-sepolia-2-sepolia.gateway-proxy.sw-dev.io";
 const TESTING_ENV_2_INGRESS_DOMAIN: &str = "sw-dev.io";
 const FIRST_NODE_NAMESPACE: &str = "sequencer-test-sepolia-0";
+const INSTANCE_NAME_FORMAT: &str = "integration_hybrid_node_{}";
+const SECRET_NAME_FORMAT: &str = "sequencer-test-sepolia-{}";
 
 pub(crate) fn testing_env_2_hybrid_deployments() -> Vec<Deployment> {
     vec![
-        testing_env_2_hybrid_deployment_node_0(),
-        testing_env_2_hybrid_deployment_node_1(),
-        testing_env_2_hybrid_deployment_node_2(),
-        testing_env_2_hybrid_deployment_node_3(),
+        testing_env_2_hybrid_deployment_node(0),
+        testing_env_2_hybrid_deployment_node(1),
+        testing_env_2_hybrid_deployment_node(2),
+        testing_env_2_hybrid_deployment_node(3),
     ]
 }
 
@@ -49,54 +52,15 @@ fn get_ingress_params() -> IngressParams {
     )
 }
 
-fn testing_env_2_hybrid_deployment_node_0() -> Deployment {
+fn testing_env_2_hybrid_deployment_node(id: usize) -> Deployment {
     Deployment::new(
         ChainId::IntegrationSepolia,
         DeploymentName::HybridNode,
         Environment::TestingEnvTwo,
-        "integration_hybrid_node_0",
-        Some(ExternalSecret::new("sequencer-test-sepolia-0")),
+        &format_node_id(INSTANCE_NAME_FORMAT, id),
+        Some(ExternalSecret::new(format_node_id(SECRET_NAME_FORMAT, id))),
         PathBuf::from(BASE_APP_CONFIG_PATH),
-        testing_env_2_config_override(0),
-        get_ingress_params(),
-    )
-}
-
-fn testing_env_2_hybrid_deployment_node_1() -> Deployment {
-    Deployment::new(
-        ChainId::IntegrationSepolia,
-        DeploymentName::HybridNode,
-        Environment::TestingEnvTwo,
-        "integration_hybrid_node_1",
-        Some(ExternalSecret::new("sequencer-test-sepolia-1")),
-        PathBuf::from(BASE_APP_CONFIG_PATH),
-        testing_env_2_config_override(1),
-        get_ingress_params(),
-    )
-}
-
-fn testing_env_2_hybrid_deployment_node_2() -> Deployment {
-    Deployment::new(
-        ChainId::IntegrationSepolia,
-        DeploymentName::HybridNode,
-        Environment::TestingEnvTwo,
-        "integration_hybrid_node_2",
-        Some(ExternalSecret::new("sequencer-test-sepolia-2")),
-        PathBuf::from(BASE_APP_CONFIG_PATH),
-        testing_env_2_config_override(2),
-        get_ingress_params(),
-    )
-}
-
-fn testing_env_2_hybrid_deployment_node_3() -> Deployment {
-    Deployment::new(
-        ChainId::IntegrationSepolia,
-        DeploymentName::HybridNode,
-        Environment::TestingEnvTwo,
-        "integration_hybrid_node_3",
-        Some(ExternalSecret::new("sequencer-test-sepolia-3")),
-        PathBuf::from(BASE_APP_CONFIG_PATH),
-        testing_env_2_config_override(3),
+        testing_env_2_config_override(id),
         get_ingress_params(),
     )
 }
