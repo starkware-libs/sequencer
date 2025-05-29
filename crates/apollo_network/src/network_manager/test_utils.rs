@@ -9,7 +9,7 @@ use futures::stream::Map;
 use futures::{SinkExt, StreamExt};
 use libp2p::core::multiaddr::Protocol;
 use libp2p::gossipsub::SubscriptionError;
-use libp2p::identity::Keypair;
+use libp2p::identity::{Keypair, PublicKey};
 use libp2p::{Multiaddr, PeerId};
 
 use super::{
@@ -151,26 +151,34 @@ where
     Ok(TestSubscriberChannels { subscriber_channels, mock_network })
 }
 
-pub fn create_connected_network_configs(mut ports: Vec<u16>) -> Vec<NetworkConfig> {
-    let number_of_configs = ports.len();
-    let port0 = ports.remove(0);
+fn create_peer_keypair(peer_index: usize) -> ([u8; 32], PublicKey) {
+    let secret_key = [u8::try_from(peer_index).expect("Too many nodes!") + 1; 32];
+    (secret_key, Keypair::ed25519_from_bytes(secret_key).unwrap().public())
+}
 
-    let secret_key0 = [1u8; 32];
-    let public_key0 = Keypair::ed25519_from_bytes(secret_key0).unwrap().public();
+/// `ports` contains the ports of all the peers on the local host.
+pub fn create_connected_network_configs(ports: Vec<u16>) -> Vec<NetworkConfig> {
+    let number_of_nodes = ports.len();
 
-    let config0 =
-        NetworkConfig { port: port0, secret_key: Some(secret_key0.to_vec()), ..Default::default() };
-    let mut configs = Vec::with_capacity(number_of_configs);
-    configs.push(config0);
-    for port in ports.iter() {
+    let mut nodes_addresses = Vec::with_capacity(number_of_nodes);
+    let mut nodes_key_pairs = Vec::with_capacity(number_of_nodes);
+    for (i, port) in ports.iter().enumerate() {
+        nodes_key_pairs.push(create_peer_keypair(i));
+        let key_pair = nodes_key_pairs.last().expect("Vector cannot be empty");
+        nodes_addresses.push(
+            Multiaddr::empty()
+                .with(Protocol::Ip4(Ipv4Addr::LOCALHOST))
+                .with(Protocol::Tcp(*port))
+                .with(Protocol::P2p(PeerId::from_public_key(&key_pair.1))),
+        );
+    }
+
+    let mut configs = Vec::with_capacity(number_of_nodes);
+    for (index, port) in ports.iter().enumerate() {
         configs.push(NetworkConfig {
             port: *port,
-            bootstrap_peer_multiaddr: Some(vec![
-                Multiaddr::empty()
-                    .with(Protocol::Ip4(Ipv4Addr::LOCALHOST))
-                    .with(Protocol::Tcp(port0))
-                    .with(Protocol::P2p(PeerId::from_public_key(&public_key0))),
-            ]),
+            bootstrap_peer_multiaddr: Some(nodes_addresses.clone()),
+            secret_key: Some(nodes_key_pairs[index].0.to_vec()),
             ..Default::default()
         });
     }
