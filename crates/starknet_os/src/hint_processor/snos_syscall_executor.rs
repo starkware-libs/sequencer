@@ -1,6 +1,6 @@
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::execution::execution_utils::ReadOnlySegment;
-use blockifier::execution::syscalls::hint_processor::SyscallExecutionError;
+use blockifier::execution::syscalls::hint_processor::{SyscallExecutionError, INVALID_ARGUMENT};
 use blockifier::execution::syscalls::secp::SecpHintProcessor;
 use blockifier::execution::syscalls::syscall_base::SyscallResult;
 use blockifier::execution::syscalls::syscall_executor::SyscallExecutor;
@@ -41,17 +41,28 @@ use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::errors::hint_errors::HintError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::vm_core::VirtualMachine;
+use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::execution_resources::GasAmount;
+use starknet_api::transaction::constants::EXECUTE_ENTRY_POINT_NAME;
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::execution_helper::ExecutionHelperError;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
+use crate::hints::error::OsHintError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum SnosSyscallError {
     #[error(transparent)]
     SyscallExecutorBase(#[from] SyscallExecutorBaseError),
+    #[error(transparent)]
+    OsHint(#[from] OsHintError),
+    #[error(transparent)]
+    ExecutionHelper(#[from] ExecutionHelperError),
+    #[error("Syscall revert.")]
+    Revert { error_data: Vec<Felt> },
 }
+
+pub type SnosSyscallResult<T> = Result<T, SnosSyscallError>;
 
 // Needed for custom hint implementations (in our case, syscall hints) which must comply with the
 // cairo-rs API.
@@ -67,6 +78,11 @@ impl TryExtractRevert for SnosSyscallError {
             SnosSyscallError::SyscallExecutorBase(base_error) => {
                 base_error.try_extract_revert().map_original(Self::SyscallExecutorBase)
             }
+            SnosSyscallError::OsHint(os_hint_error) => SelfOrRevert::Original(os_hint_error.into()),
+            SnosSyscallError::ExecutionHelper(execution_helper_error) => {
+                SelfOrRevert::Original(execution_helper_error.into())
+            }
+            SnosSyscallError::Revert { error_data } => SelfOrRevert::Revert(error_data),
         }
     }
 
@@ -111,45 +127,15 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<CallContractResponse> {
+        if request.function_selector == selector_from_name(EXECUTE_ENTRY_POINT_NAME) {
+            return Err(SyscallExecutionError::Revert {
+                error_data: vec![Felt::from_hex(INVALID_ARGUMENT).unwrap()],
+            });
+        }
         // TODO(Tzahi): Change `expect`s to regular errors once the syscall trait has an associated
         // error type.
-        let call_tracker = syscall_handler
-            .execution_helpers_manager
-            .get_mut_current_execution_helper()
-            .expect("No current execution helper")
-            .tx_execution_iter
-            .get_mut_tx_execution_info_ref()
-            .expect("No current tx execution info")
-            .call_info_tracker
-            .as_mut()
-            .expect("No call info tracker found");
-
-        let next_call_execution = &call_tracker
-            .inner_calls_iterator
-            .next()
-            .ok_or(ExecutionHelperError::MissingCallInfo)
-            .expect("Missing call info")
-            .execution;
-
-        *remaining_gas -= next_call_execution.gas_consumed;
-        let ret_data = &next_call_execution.retdata.0;
-
-        if next_call_execution.failed {
-            return Err(SyscallExecutionError::Revert { error_data: ret_data.clone() });
-        };
-
-        let relocatable_ret_data: Vec<MaybeRelocatable> =
-            ret_data.iter().map(|&x| MaybeRelocatable::from(x)).collect();
-
-        let retdata_segment_start_ptr = vm.add_temporary_segment();
-        vm.load_data(retdata_segment_start_ptr, &relocatable_ret_data)?;
-
-        Ok(CallContractResponse {
-            segment: ReadOnlySegment {
-                start_ptr: retdata_segment_start_ptr,
-                length: relocatable_ret_data.len(),
-            },
-        })
+        Ok(call_contract_helper(vm, syscall_handler, remaining_gas)
+            .expect("Error calling contract."))
     }
 
     #[allow(clippy::result_large_err)]
@@ -317,4 +303,45 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
     fn versioned_constants(&self) -> &VersionedConstants {
         VersionedConstants::latest_constants()
     }
+}
+
+fn call_contract_helper(
+    vm: &mut VirtualMachine,
+    syscall_handler: &mut SnosHintProcessor<'_, impl StateReader>,
+    remaining_gas: &mut u64,
+) -> SnosSyscallResult<CallContractResponse> {
+    let call_tracker = syscall_handler
+        .execution_helpers_manager
+        .get_mut_current_execution_helper()?
+        .tx_execution_iter
+        .get_mut_tx_execution_info_ref()?
+        .call_info_tracker
+        .as_mut()
+        .ok_or(ExecutionHelperError::MissingCallInfo)?;
+
+    let next_call_execution = &call_tracker
+        .inner_calls_iterator
+        .next()
+        .ok_or(ExecutionHelperError::MissingCallInfo)?
+        .execution;
+
+    *remaining_gas -= next_call_execution.gas_consumed;
+    let ret_data = &next_call_execution.retdata.0;
+
+    if next_call_execution.failed {
+        return Err(SnosSyscallError::Revert { error_data: ret_data.clone() });
+    };
+
+    let relocatable_ret_data: Vec<MaybeRelocatable> =
+        ret_data.iter().map(|&x| MaybeRelocatable::from(x)).collect();
+
+    let retdata_segment_start_ptr = vm.add_temporary_segment();
+    vm.load_data(retdata_segment_start_ptr, &relocatable_ret_data).map_err(OsHintError::from)?;
+
+    Ok(CallContractResponse {
+        segment: ReadOnlySegment {
+            start_ptr: retdata_segment_start_ptr,
+            length: relocatable_ret_data.len(),
+        },
+    })
 }
