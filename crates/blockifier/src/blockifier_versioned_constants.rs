@@ -1098,6 +1098,7 @@ pub struct OsConstants {
     pub validated: String,
 
     // Error strings.
+    // TODO(Nimrod): Use these strings instead of the constants in `hint_processor.rs`.
     pub error_block_number_out_of_range: String,
     pub error_invalid_input_len: String,
     pub error_invalid_argument: String,
