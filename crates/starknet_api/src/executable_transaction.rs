@@ -399,4 +399,11 @@ impl Transaction {
             Self::L1Handler(l1_handler_tx) => l1_handler_tx.tx.version,
         }
     }
+
+    pub fn nonce(&self) -> Nonce {
+        match self {
+            Self::Account(account_tx) => account_tx.nonce(),
+            Self::L1Handler(l1_handler_tx) => l1_handler_tx.tx.nonce,
+        }
+    }
 }

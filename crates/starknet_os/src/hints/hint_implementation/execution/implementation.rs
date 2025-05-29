@@ -713,9 +713,16 @@ pub(crate) fn set_ap_to_tx_nonce<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn set_fp_plus_4_to_tx_nonce<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let nonce = hint_processor
+        .execution_helpers_manager
+        .get_current_execution_helper()?
+        .tx_tracker
+        .get_tx()?
+        .nonce();
+    insert_nondet_hint_value(vm, AllHints::OsHint(OsHint::SetFpPlus4ToTxNonce), nonce.0)?;
+    Ok(())
 }
 
 #[allow(clippy::result_large_err)]
