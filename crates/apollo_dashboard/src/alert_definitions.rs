@@ -6,6 +6,7 @@ use apollo_mempool::metrics::{
     MEMPOOL_POOL_SIZE,
     MEMPOOL_TRANSACTIONS_RECEIVED,
 };
+use apollo_state_sync_metrics::metrics::{CENTRAL_SYNC_CENTRAL_BLOCK_MARKER, STATE_SYNC_CLASS_MANAGER_MARKER};
 use const_format::formatcp;
 
 use crate::dashboard::{
@@ -123,6 +124,42 @@ const CONSENSUS_ROUND_HIGH_AVG: Alert = Alert {
     evaluation_interval_sec: 20,
 };
 
+const STATE_SYNC_LAG: Alert = Alert {
+    name: "state_sync_lag",
+    title: "State sync lag",
+    alert_group: AlertGroup::Sync,
+    expr: formatcp!(
+        "{} - {}",
+        CENTRAL_SYNC_CENTRAL_BLOCK_MARKER.get_name(),
+        STATE_SYNC_CLASS_MANAGER_MARKER.get_name()
+    ),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::GreaterThan,
+        comparison_value: 5.0, // Alert if lag is more than 5 blocks
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 60,
+};
+
+const STATE_SYNC_STUCK: Alert = Alert {
+    name: "state_sync_stuck",
+    title: "State sync stuck",
+    alert_group: AlertGroup::Sync,
+    expr: formatcp!(
+        "{} == {}",
+        STATE_SYNC_CLASS_MANAGER_MARKER.get_name(),
+        formatcp!("{} offset 1m", STATE_SYNC_CLASS_MANAGER_MARKER.get_name())
+    ),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::GreaterThan,
+        comparison_value: 0.0,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 60,
+};
+
 pub const SEQUENCER_ALERTS: Alerts = Alerts::new(&[
     GATEWAY_ADD_TX_RATE_DROP,
     GATEWAY_ADD_TX_LATENCY_INCREASE,
@@ -131,4 +168,6 @@ pub const SEQUENCER_ALERTS: Alerts = Alerts::new(&[
     HTTP_SERVER_IDLE,
     MEMPOOL_POOL_SIZE_INCREASE,
     CONSENSUS_ROUND_HIGH_AVG,
+    STATE_SYNC_LAG,
+    STATE_SYNC_STUCK,
 ]);
