@@ -1,6 +1,7 @@
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::execution::execution_utils::ReadOnlySegment;
+use blockifier::execution::syscalls::hint_processor::{ENTRYPOINT_FAILED_ERROR, INVALID_ARGUMENT};
 use blockifier::execution::syscalls::secp::SecpHintProcessor;
 use blockifier::execution::syscalls::syscall_executor::SyscallExecutor;
 use blockifier::execution::syscalls::vm_syscall_utils::{
@@ -38,9 +39,12 @@ use blockifier::execution::syscalls::vm_syscall_utils::{
 use blockifier::state::state_api::StateReader;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::errors::hint_errors::HintError;
+use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::vm_core::VirtualMachine;
+use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::execution_resources::GasAmount;
+use starknet_api::transaction::constants::EXECUTE_ENTRY_POINT_NAME;
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::execution_helper::ExecutionHelperError;
@@ -52,8 +56,14 @@ pub enum SnosSyscallError {
     #[error(transparent)]
     ExecutionHelper(#[from] ExecutionHelperError),
     #[error(transparent)]
+    Memory(#[from] MemoryError),
+    #[error("Syscall revert.")]
+    Revert { error_data: Vec<Felt> },
+    #[error(transparent)]
     SyscallExecutorBase(#[from] SyscallExecutorBaseError),
 }
+
+pub type SnosSyscallResult<T> = Result<T, SnosSyscallError>;
 
 // Needed for custom hint implementations (in our case, syscall hints) which must comply with the
 // cairo-rs API.
@@ -69,7 +79,8 @@ impl TryExtractRevert for SnosSyscallError {
             Self::SyscallExecutorBase(base_error) => {
                 base_error.try_extract_revert().map_original(Self::SyscallExecutorBase)
             }
-            Self::ExecutionHelper(_) => SelfOrRevert::Original(self),
+            Self::Memory(_) | Self::ExecutionHelper(_) => SelfOrRevert::Original(self),
+            Self::Revert { error_data } => SelfOrRevert::Revert(error_data),
         }
     }
 
@@ -114,17 +125,12 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> Result<CallContractResponse, Self::Error> {
-        let next_call_execution = syscall_handler.get_next_call_execution();
-        *remaining_gas -= next_call_execution.gas_consumed;
-
-        let ret_data = &next_call_execution.retdata.0;
-        if next_call_execution.failed {
-            return Err(SyscallExecutorBaseError::Revert { error_data: ret_data.clone() }.into());
-        };
-
-        Ok(CallContractResponse {
-            segment: write_to_temp_segment(ret_data, vm).map_err(SyscallExecutorBaseError::from)?,
-        })
+        if request.function_selector == selector_from_name(EXECUTE_ENTRY_POINT_NAME) {
+            return Err(Self::Error::Revert {
+                error_data: vec![Felt::from_hex_unchecked(INVALID_ARGUMENT)],
+            });
+        }
+        call_contract_helper(vm, syscall_handler, remaining_gas)
     }
 
     #[allow(clippy::result_large_err)]
@@ -311,4 +317,23 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
     fn versioned_constants(&self) -> &VersionedConstants {
         VersionedConstants::latest_constants()
     }
+}
+
+#[allow(clippy::result_large_err)]
+fn call_contract_helper(
+    vm: &mut VirtualMachine,
+    syscall_handler: &mut SnosHintProcessor<'_, impl StateReader>,
+    remaining_gas: &mut u64,
+) -> SnosSyscallResult<CallContractResponse> {
+    let next_call_execution = syscall_handler.get_next_call_execution();
+    *remaining_gas -= next_call_execution.gas_consumed;
+    let retdata = &next_call_execution.retdata.0;
+    let revert_error_code = Felt::from_hex_unchecked(ENTRYPOINT_FAILED_ERROR);
+    if next_call_execution.failed {
+        let mut retdata = retdata.clone();
+        retdata.push(revert_error_code);
+        return Err(SnosSyscallError::Revert { error_data: retdata });
+    };
+
+    Ok(CallContractResponse { segment: write_to_temp_segment(retdata, vm)? })
 }
