@@ -40,16 +40,16 @@ pub const DEPLOYMENTS: &[DeploymentFn] = &[
 #[derive(EnumString, Clone, Display, PartialEq, Debug)]
 #[strum(serialize_all = "snake_case")]
 pub enum Environment {
-    Testing,
+    Mainnet,
     SepoliaIntegration,
     SepoliaTestnet,
+    #[strum(serialize = "stress_test")]
+    StressTest,
+    Testing,
     #[strum(serialize = "testing_env_2")]
     TestingEnvTwo,
     #[strum(serialize = "testing_env_3")]
     TestingEnvThree,
-    #[strum(serialize = "stress_test")]
-    StressTest,
-    Mainnet,
 }
 
 impl Environment {
