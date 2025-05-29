@@ -566,6 +566,7 @@ async fn test_validate_block_with_error(
     #[case] expected_error: FailOnErrorCause,
 ) {
     mock_transaction_executor.expect_close_block().times(0);
+    mock_transaction_executor.expect_abort_block().times(1).return_once(|| ());
 
     let mock_tx_provider = mock_tx_provider_limited_calls(1, vec![input_txs]);
 
@@ -599,8 +600,12 @@ async fn test_validate_block_l1_handler_validation_error(#[case] status: Invalid
     });
 
     let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
+
+    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
+    mock_transaction_executor.expect_abort_block().times(1).return_once(|| ());
+
     let result = run_build_block(
-        MockTransactionExecutorTrait::new(),
+        mock_transaction_executor,
         tx_provider,
         None,
         true,
@@ -631,6 +636,7 @@ async fn test_build_block_abort() {
         .expect_add_txs_to_block()
         .return_once(|_, _| (0..3).map(|_| Ok(execution_info())).collect());
     mock_transaction_executor.expect_close_block().times(0);
+    mock_transaction_executor.expect_abort_block().times(1).return_once(|| ());
 
     let (output_tx_sender, mut output_tx_receiver) = output_channel();
     let (abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
@@ -664,6 +670,7 @@ async fn test_build_block_abort_immediately() {
     let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
     mock_transaction_executor.expect_add_txs_to_block().times(0);
     mock_transaction_executor.expect_close_block().times(0);
+    mock_transaction_executor.expect_abort_block().times(1).return_once(|| ());
 
     let (output_tx_sender, _output_tx_receiver) = output_channel();
     let (abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
@@ -836,6 +843,8 @@ async fn partial_chunk_execution_with_fail_on_error_flag() {
         .expect_add_txs_to_block()
         .times(1)
         .return_once(move |_, _| executed_txs.iter().map(|_| Ok(execution_info())).collect()); // We return only 2 txs, simulating a partial chunk execution.
+    mock_transaction_executor.expect_close_block().times(0);
+    mock_transaction_executor.expect_abort_block().times(1).return_once(|| ());
 
     let mock_tx_provider = mock_tx_provider_limited_calls(1, vec![input_txs.clone()]);
     let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
