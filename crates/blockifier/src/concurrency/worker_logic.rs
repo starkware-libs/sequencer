@@ -5,11 +5,17 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use crate::blockifier::transaction_executor::TransactionExecutorError;
+use dashmap::mapref::one::{Ref, RefMut};
+use dashmap::DashMap;
+
+use crate::blockifier::transaction_executor::{
+    TransactionExecutionOutput,
+    TransactionExecutorError,
+    TransactionExecutorResult,
+};
 use crate::bouncer::Bouncer;
 use crate::concurrency::fee_utils::complete_fee_transfer_flow;
-use crate::concurrency::scheduler::{Scheduler, Task};
-use crate::concurrency::utils::lock_mutex_in_array;
+use crate::concurrency::scheduler::{Scheduler, Task, TransactionStatus};
 use crate::concurrency::versioned_state::{
     ThreadSafeVersionedState,
     VersionedState,
@@ -68,11 +74,19 @@ impl ConcurrencyMetrics {
     }
 }
 
+#[derive(Debug, PartialEq)]
+enum CommitResult {
+    Success,
+    NoRoomInBlock,
+    ValidationFailed,
+}
+
 pub struct WorkerExecutor<S: StateReader> {
     pub scheduler: Scheduler,
     pub state: ThreadSafeVersionedState<S>,
-    pub chunk: Vec<Transaction>,
-    pub execution_outputs: Box<[Mutex<Option<ExecutionTaskOutput>>]>,
+    pub txs: DashMap<TxIndex, Arc<Transaction>>,
+    pub n_txs: Mutex<usize>,
+    pub execution_outputs: DashMap<TxIndex, ExecutionTaskOutput>,
     pub block_context: Arc<BlockContext>,
     pub bouncer: Arc<Mutex<Bouncer>>,
     pub execution_deadline: Option<Instant>,
@@ -82,56 +96,40 @@ pub struct WorkerExecutor<S: StateReader> {
 impl<S: StateReader> WorkerExecutor<S> {
     pub fn new(
         state: ThreadSafeVersionedState<S>,
-        chunk: Vec<Transaction>,
+        txs: Vec<Transaction>,
         block_context: Arc<BlockContext>,
         bouncer: Arc<Mutex<Bouncer>>,
+        execution_deadline: Option<Instant>,
     ) -> Self {
-        let scheduler = Scheduler::new(chunk.len());
-        let execution_outputs =
-            std::iter::repeat_with(|| Mutex::new(None)).take(chunk.len()).collect();
-        let metrics = ConcurrencyMetrics::default();
-
+        let n_txs = txs.len();
         WorkerExecutor {
-            scheduler,
+            scheduler: Scheduler::new(n_txs),
             state,
-            chunk,
-            execution_outputs,
+            txs: txs.into_iter().enumerate().map(|(i, tx)| (i, Arc::new(tx))).collect(),
+            n_txs: Mutex::new(n_txs),
+            execution_outputs: DashMap::new(),
             block_context,
             bouncer,
-            execution_deadline: None,
-            metrics,
+            execution_deadline,
+            metrics: ConcurrencyMetrics::default(),
         }
     }
 
     // TODO(barak, 01/08/2024): Remove the `new` method or move it to test utils.
     pub fn initialize(
         state: S,
-        chunk: Vec<Transaction>,
+        txs: Vec<Transaction>,
         block_context: Arc<BlockContext>,
         bouncer: Arc<Mutex<Bouncer>>,
         execution_deadline: Option<Instant>,
     ) -> Self {
         let versioned_state = VersionedState::new(state);
         let chunk_state = ThreadSafeVersionedState::new(versioned_state);
-        let scheduler = Scheduler::new(chunk.len());
-        let execution_outputs =
-            std::iter::repeat_with(|| Mutex::new(None)).take(chunk.len()).collect();
-        let metrics = ConcurrencyMetrics::default();
 
-        WorkerExecutor {
-            scheduler,
-            state: chunk_state,
-            chunk,
-            execution_outputs,
-            block_context,
-            bouncer,
-            execution_deadline,
-            metrics,
-        }
+        WorkerExecutor::new(chunk_state, txs, block_context, bouncer, execution_deadline)
     }
 
     pub fn run(&self) {
-        let mut task = Task::AskForTask;
         loop {
             if let Some(deadline) = self.execution_deadline {
                 if Instant::now() > deadline {
@@ -143,35 +141,74 @@ impl<S: StateReader> WorkerExecutor<S> {
             }
             self.commit_while_possible();
 
-            task = match task {
+            match self.scheduler.next_task() {
                 Task::ExecutionTask(tx_index) => {
                     self.execute(tx_index);
-                    Task::AskForTask
                 }
-                Task::ValidationTask(tx_index) => self.validate(tx_index).unwrap_or_else(|_| {
-                    assert!(self.scheduler.done());
-                    Task::Done
-                }),
+                Task::ValidationTask(tx_index) => {
+                    if self.validate(tx_index, false).is_err() {
+                        assert!(self.scheduler.done());
+                        break;
+                    }
+                }
                 Task::NoTaskAvailable => {
                     // There's no available task at the moment; sleep for a bit to save CPU power.
                     // (since busy-looping might damage performance when using hyper-threads).
                     thread::sleep(Duration::from_micros(1));
-                    Task::AskForTask
                 }
-                Task::AskForTask => self.scheduler.next_task(),
+                Task::AskForTask => continue,
                 Task::Done => break,
             };
         }
     }
 
+    /// Extracts the outputs of the committed transactions in the range [from_tx, to_tx).
+    /// Note that the number of transactions may be smaller than `to_tx - from_tx`, if the execution
+    /// was halted (due to time or full block).
+    pub fn extract_execution_outputs(
+        &self,
+        from_tx: usize,
+        to_tx: usize,
+    ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
+        let n_committed_txs = self.scheduler.get_n_committed_txs();
+        let actual_to_tx = std::cmp::min(n_committed_txs, to_tx);
+        (from_tx..actual_to_tx)
+            .map(|tx_index| {
+                let execution_output = self.extract_execution_output(tx_index);
+                execution_output
+                    .result
+                    .map(|tx_execution_info| (tx_execution_info, execution_output.state_diff))
+                    .map_err(TransactionExecutorError::from)
+            })
+            .collect()
+    }
+
+    /// Returns the transaction at the given index.
+    /// Panics if the transaction does not exist.
+    fn tx_at(&self, tx_index: TxIndex) -> Arc<Transaction> {
+        self.txs.get(&tx_index).expect("Transaction missing").value().clone()
+    }
+
+    fn get_n_txs(&self) -> usize {
+        *self.n_txs.lock().expect("Failed to lock n_txs")
+    }
+
     fn commit_while_possible(&self) {
         if let Some(mut tx_committer) = self.scheduler.try_enter_commit_phase() {
             while let Some(tx_index) = tx_committer.try_commit() {
-                let commit_succeeded = self.commit_tx(tx_index).unwrap_or_else(|_| {
+                let commit_result = self.commit_tx(tx_index).unwrap_or_else(|_| {
                     panic!("Commit transaction should not be called after clearing the state.");
                 });
-                if !commit_succeeded {
-                    tx_committer.halt_scheduler();
+                match commit_result {
+                    CommitResult::Success => {}
+                    CommitResult::NoRoomInBlock => {
+                        tx_committer.uncommit();
+                        self.scheduler.halt();
+                    }
+                    CommitResult::ValidationFailed => {
+                        tx_committer.uncommit();
+                        return;
+                    }
                 }
             }
         }
@@ -185,11 +222,11 @@ impl<S: StateReader> WorkerExecutor<S> {
 
     fn execute_tx(&self, tx_index: TxIndex) {
         let mut tx_versioned_state = self.state.pin_version(tx_index);
-        let tx = &self.chunk[tx_index];
         // TODO(Yoni): is it necessary to use a transactional state here?
         let mut transactional_state =
             TransactionalState::create_transactional(&mut tx_versioned_state);
         let concurrency_mode = true;
+        let tx = self.tx_at(tx_index);
         let execution_result =
             tx.execute_raw(&mut transactional_state, &self.block_context, concurrency_mode);
 
@@ -215,27 +252,38 @@ impl<S: StateReader> WorkerExecutor<S> {
                 result: execution_result,
             },
         };
-        let mut execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
-        *execution_output = Some(execution_output_inner);
+        self.execution_outputs.insert(tx_index, execution_output_inner);
     }
 
-    fn validate(&self, tx_index: TxIndex) -> Result<Task, VersionedStateError> {
+    /// Validates the transaction at the given index and returns whether the transaction is valid.
+    /// `commit_phase` should be `true` if the function is called during the commit phase.
+    fn validate(&self, tx_index: TxIndex, commit_phase: bool) -> Result<bool, VersionedStateError> {
         self.metrics.count_validate();
         let tx_versioned_state = self.state.pin_version(tx_index);
-        let execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
-        let execution_output = execution_output.as_ref().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR);
+        let Some(execution_output) = self.lock_execution_output_opt(tx_index) else {
+            // If the execution output is missing, it means that the transaction was already
+            // committed. This can happen if `commit_tx` precedes the `validation_index` run.
+            // In this case, treat it as valid.
+            assert!(!commit_phase, "Missing execution output in commit phase.");
+            let status = self.scheduler.get_tx_status(tx_index);
+            assert_eq!(
+                status,
+                TransactionStatus::Committed,
+                "Missing execution output with tx_status={status:?}",
+            );
+            return Ok(true);
+        };
         let reads = &execution_output.reads;
         let reads_valid = tx_versioned_state.validate_reads(reads)?;
 
-        let aborted = !reads_valid && self.scheduler.try_validation_abort(tx_index);
+        let aborted = !reads_valid && self.scheduler.try_validation_abort(tx_index, commit_phase);
         if aborted {
             self.metrics.count_abort();
             tx_versioned_state
                 .delete_writes(&execution_output.state_diff, &execution_output.contract_classes)?;
-            Ok(self.scheduler.finish_abort(tx_index))
-        } else {
-            Ok(Task::AskForTask)
+            self.scheduler.finish_abort(tx_index);
         }
+        Ok(reads_valid)
     }
 
     /// Commits a transaction. The commit process is as follows:
@@ -250,45 +298,21 @@ impl<S: StateReader> WorkerExecutor<S> {
     ///         - Else (no room), do not commit. The block should be closed without the transaction.
     ///     * Else (execution failed), commit the transaction without fixing the call info or
     ///       updating the sequencer balance.
-    fn commit_tx(&self, tx_index: TxIndex) -> Result<bool, VersionedStateError> {
-        let execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
-        let execution_output_ref = execution_output.as_ref().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR);
-        let reads = &execution_output_ref.reads;
-
-        let mut tx_versioned_state = self.state.pin_version(tx_index);
-        let reads_valid = tx_versioned_state.validate_reads(reads)?;
-
-        // First, re-validate the transaction.
-        if !reads_valid {
-            // Revalidate failed: re-execute the transaction.
+    fn commit_tx(&self, tx_index: TxIndex) -> Result<CommitResult, VersionedStateError> {
+        if !self.validate(tx_index, true)? {
             self.metrics.count_abort_in_commit();
-            tx_versioned_state.delete_writes(
-                &execution_output_ref.state_diff,
-                &execution_output_ref.contract_classes,
-            )?;
-            // Release the execution output lock as it is acquired in execution (avoid dead-lock).
-            drop(execution_output);
-
-            // TODO(Yoni): avoid re-executing in the commit phase.
-            self.execute_tx(tx_index);
-            self.scheduler.finish_execution_during_commit(tx_index);
-
-            let execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
-            let read_set = &execution_output.as_ref().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR).reads;
-            // Another validation after the re-execution for sanity check.
-            assert!(tx_versioned_state.validate_reads(read_set)?);
-        } else {
-            // Release the execution output lock, since it is has been released in the other flow.
-            drop(execution_output);
+            return Ok(CommitResult::ValidationFailed);
         }
 
         // Execution is final.
-        let mut execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
-        let execution_output = execution_output.as_mut().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR);
+        let mut tx_versioned_state = self.state.pin_version(tx_index);
+        let mut execution_output_refmut = self.lock_execution_output(tx_index);
+        let execution_output = execution_output_refmut.value_mut();
         let mut tx_state_changes_keys = execution_output.state_diff.keys();
 
         if let Ok(tx_execution_info) = execution_output.result.as_mut() {
-            let tx_context = self.block_context.to_tx_context(&self.chunk[tx_index]);
+            let tx = self.tx_at(tx_index);
+            let tx_context = self.block_context.to_tx_context(tx.as_ref());
             // Add the deleted sequencer balance key to the storage keys.
             let concurrency_mode = true;
             tx_state_changes_keys.update_sequencer_key_in_storage(
@@ -306,7 +330,7 @@ impl<S: StateReader> WorkerExecutor<S> {
             );
             if let Err(error) = bouncer_result {
                 match error {
-                    TransactionExecutorError::BlockFull => return Ok(false),
+                    TransactionExecutorError::BlockFull => return Ok(CommitResult::NoRoomInBlock),
                     _ => {
                         // TODO(Avi, 01/07/2024): Consider propagating the error.
                         panic!("Bouncer update failed. {error:?}: {error}");
@@ -318,18 +342,50 @@ impl<S: StateReader> WorkerExecutor<S> {
                 tx_execution_info,
                 &mut execution_output.state_diff,
                 &mut tx_versioned_state,
-                &self.chunk[tx_index],
+                tx.as_ref(),
             );
             // Optimization: changing the sequencer balance storage cell does not trigger
             // (re-)validation of the next transactions.
         }
 
-        Ok(true)
+        Ok(CommitResult::Success)
+    }
+
+    /// Locks the execution output for the given transaction index.
+    /// Panics if the execution output does not exist.
+    pub fn lock_execution_output(
+        &self,
+        tx_index: TxIndex,
+    ) -> RefMut<'_, TxIndex, ExecutionTaskOutput> {
+        self.execution_outputs.get_mut(&tx_index).expect(EXECUTION_OUTPUTS_UNWRAP_ERROR)
+    }
+
+    /// Locks the execution output for the given transaction index.
+    pub fn lock_execution_output_opt(
+        &self,
+        tx_index: TxIndex,
+    ) -> Option<Ref<'_, TxIndex, ExecutionTaskOutput>> {
+        self.execution_outputs.get(&tx_index)
+    }
+
+    /// Removes the execution output of the given transaction and returns it.
+    pub fn extract_execution_output(&self, tx_index: TxIndex) -> ExecutionTaskOutput {
+        self.execution_outputs.remove(&tx_index).expect(EXECUTION_OUTPUTS_UNWRAP_ERROR).1
     }
 }
 
 impl<U: UpdatableState> WorkerExecutor<U> {
     pub fn commit_chunk_and_recover_block_state(&self, n_committed_txs: usize) -> U {
+        let (abort_counter, abort_in_commit_counter, execute_counter, validate_counter) =
+            self.metrics.get_metrics();
+        let n_txs = self.get_n_txs();
+        log::debug!(
+            "Concurrent execution done. Number of transactions: {n_txs}; Committed chunk size: \
+             {n_committed_txs}; Execute counter: {execute_counter}; Validate counter: \
+             {validate_counter}; Abort counter: {abort_counter}; Abort in commit counter: \
+             {abort_in_commit_counter}"
+        );
+
         self.state.into_inner_state().commit_chunk_and_recover_block_state(n_committed_txs)
     }
 }

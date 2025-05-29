@@ -1,5 +1,6 @@
 use std::env;
 
+use apollo_config::CONFIG_FILE_ARG;
 use apollo_infra_utils::dumping::serialize_to_file_test;
 use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_node::config::component_execution_config::{
@@ -15,8 +16,7 @@ use crate::deployment_definitions::{Environment, DEPLOYMENTS};
 /// cargo run --bin deployment_generator -q
 #[test]
 fn deployment_files_are_up_to_date() {
-    for deployment_fn in DEPLOYMENTS {
-        let deployment = deployment_fn();
+    for deployment in DEPLOYMENTS.iter().flat_map(|f| f()) {
         serialize_to_file_test(
             &deployment,
             deployment.deployment_file_path().to_str().unwrap(),
@@ -30,13 +30,11 @@ fn deployment_files_are_up_to_date() {
 fn load_and_process_service_config_files() {
     env::set_current_dir(resolve_project_relative_path("").unwrap())
         .expect("Couldn't set working dir.");
-    for deployment_fn in DEPLOYMENTS {
-        let deployment = deployment_fn();
-        // TODO(Tsabary): "--config_file" should be a constant.
+    for deployment in DEPLOYMENTS.iter().flat_map(|f| f()) {
         for service_config_paths in deployment.get_config_file_paths().into_iter() {
             let config_file_args: Vec<String> = service_config_paths
                 .into_iter()
-                .flat_map(|path| vec!["--config_file".to_string(), path])
+                .flat_map(|path| vec![CONFIG_FILE_ARG.to_string(), path])
                 .collect();
 
             let mut config_load_command: Vec<String> = vec!["command_name_placeholder".to_string()];
@@ -51,8 +49,7 @@ fn load_and_process_service_config_files() {
 fn application_config_files_exist() {
     env::set_current_dir(resolve_project_relative_path("").unwrap())
         .expect("Couldn't set working dir.");
-    for deployment_fn in DEPLOYMENTS {
-        let deployment = deployment_fn();
+    for deployment in DEPLOYMENTS.iter().flat_map(|f| f()) {
         deployment.assert_application_configs_exist();
         deployment.test_dump_application_config_files();
     }
@@ -62,8 +59,7 @@ fn application_config_files_exist() {
 
 #[test]
 fn l1_components_state_consistency() {
-    for deployment_fn in DEPLOYMENTS {
-        let deployment = deployment_fn();
+    for deployment in DEPLOYMENTS.iter().flat_map(|f| f()) {
         let deployment_name = deployment.get_deployment_name();
         let component_configs = deployment_name.get_component_configs(None, &Environment::Testing);
 

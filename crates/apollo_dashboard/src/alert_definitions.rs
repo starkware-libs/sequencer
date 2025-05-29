@@ -1,4 +1,4 @@
-use apollo_consensus::metrics::CONSENSUS_ROUND;
+use apollo_consensus::metrics::{CONSENSUS_BLOCK_NUMBER, CONSENSUS_ROUND};
 use apollo_gateway::metrics::{GATEWAY_ADD_TX_LATENCY, GATEWAY_TRANSACTIONS_RECEIVED};
 use apollo_http_server::metrics::ADDED_TRANSACTIONS_TOTAL;
 use apollo_mempool::metrics::{
@@ -18,6 +18,20 @@ use crate::dashboard::{
 };
 
 pub const DEV_ALERTS_JSON_PATH: &str = "Monitoring/sequencer/dev_grafana_alerts.json";
+
+const CONSENSUS_BLOCK_NUMBER_STUCK: Alert = Alert {
+    name: "consensus_block_number_stuck",
+    title: "Consensus block number stuck",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!("changes({}[10s])", CONSENSUS_BLOCK_NUMBER.get_name()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::LessThan,
+        comparison_value: 1.0,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "10s",
+    evaluation_interval_sec: 10,
+};
 
 const GATEWAY_ADD_TX_RATE_DROP: Alert = Alert {
     name: "gateway_add_tx_rate_drop",
@@ -124,6 +138,7 @@ const CONSENSUS_ROUND_HIGH_AVG: Alert = Alert {
 };
 
 pub const SEQUENCER_ALERTS: Alerts = Alerts::new(&[
+    CONSENSUS_BLOCK_NUMBER_STUCK,
     GATEWAY_ADD_TX_RATE_DROP,
     GATEWAY_ADD_TX_LATENCY_INCREASE,
     MEMPOOL_ADD_TX_RATE_DROP,

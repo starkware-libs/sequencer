@@ -8,6 +8,7 @@ use blockifier::state::state_api::StateReader;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use cairo_vm::types::relocatable::Relocatable;
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
+use starknet_api::block::BlockHash;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::executable_transaction::{AccountTransaction, Transaction, TransactionType};
@@ -27,6 +28,7 @@ pub struct OsExecutionHelper<'a, S: StateReader> {
 }
 
 impl<'a, S: StateReader> OsExecutionHelper<'a, S> {
+    #[allow(clippy::result_large_err)]
     pub fn new(
         os_block_input: &'a OsBlockInput,
         state_reader: S,
@@ -42,6 +44,7 @@ impl<'a, S: StateReader> OsExecutionHelper<'a, S> {
         })
     }
 
+    #[allow(clippy::result_large_err)]
     fn initialize_cached_state(
         state_reader: S,
         state_input: CachedStateInput,
@@ -193,6 +196,7 @@ pub struct CallInfoTracker<'a> {
     pub inner_calls_iterator: Iter<'a, CallInfo>,
     pub execute_code_read_iterator: Iter<'a, Felt>,
     pub execute_code_class_hash_read_iterator: Iter<'a, ClassHash>,
+    pub execute_code_block_hash_read_iterator: Iter<'a, BlockHash>,
     pub execution_info_ptr: Relocatable,
     pub deprecated_tx_info_ptr: Relocatable,
 }
@@ -210,13 +214,17 @@ impl<'a> CallInfoTracker<'a> {
                     .inner_calls
                     .iter()
                     .filter(|inner| inner.call.entry_point_type == EntryPointType::Constructor)
-                    .map(|inner| inner.call.caller_address),
+                    .map(|inner| inner.call.storage_address),
             ),
             inner_calls_iterator: call_info.inner_calls.iter(),
             execute_code_read_iterator: call_info.storage_access_tracker.storage_read_values.iter(),
             execute_code_class_hash_read_iterator: call_info
                 .storage_access_tracker
                 .read_class_hash_values
+                .iter(),
+            execute_code_block_hash_read_iterator: call_info
+                .storage_access_tracker
+                .read_block_hash_values
                 .iter(),
             execution_info_ptr,
             deprecated_tx_info_ptr,
@@ -244,6 +252,11 @@ impl<'a> CallInfoTracker<'a> {
         check_exhausted(
             &mut self.execute_code_class_hash_read_iterator,
             "execute_code_class_hash_read_iterator",
+            &mut unexhausteds_iterators,
+        );
+        check_exhausted(
+            &mut self.execute_code_block_hash_read_iterator,
+            "execute_code_block_hash_read_iterator",
             &mut unexhausteds_iterators,
         );
 

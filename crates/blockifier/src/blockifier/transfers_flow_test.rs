@@ -13,7 +13,7 @@ use crate::test_utils::transfers_generator::{
 const TIME_FOR_ZERO_TXS: Duration = Duration::ZERO;
 const TIME_FOR_ALL_TXS: Duration = Duration::from_secs(100000000);
 
-const N_TXS: usize = 500;
+const N_TXS: usize = 200;
 
 #[rstest]
 #[case::cairo1(CairoVersion::Cairo1(RunnableCairo1::Casm))]
@@ -24,12 +24,13 @@ const N_TXS: usize = 500;
 pub fn transfers_flow_test(
     #[values(None, Some(TIME_FOR_ZERO_TXS), Some(TIME_FOR_ALL_TXS))] timeout: Option<Duration>,
     #[values(true, false)] concurrency_enabled: bool,
+    #[values(RecipientGeneratorType::DisjointFromSenders, RecipientGeneratorType::RoundRobin)]
+    recipient_generator_type: RecipientGeneratorType,
     #[case] cairo_version: CairoVersion,
 ) {
     let concurrency_config = ConcurrencyConfig::create_for_testing(concurrency_enabled);
     let transfers_generator_config = TransfersGeneratorConfig {
-        // TODO(Yoni): test scenarios with collisions.
-        recipient_generator_type: RecipientGeneratorType::DisjointFromSenders,
+        recipient_generator_type,
         concurrency_config,
         cairo_version,
         n_txs: N_TXS,

@@ -1,4 +1,5 @@
 use std::fmt::Display;
+use std::iter::once;
 use std::path::PathBuf;
 
 use apollo_node::config::component_config::ComponentConfig;
@@ -31,6 +32,7 @@ pub struct Service {
     external_secret: Option<ExternalSecret>,
     #[serde(skip_serializing)]
     environment: Environment,
+    anti_affinity: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
@@ -93,7 +95,8 @@ pub(crate) fn get_environment_ingress_internal(environment: &Environment) -> boo
         Environment::Testing => true,
         Environment::SepoliaIntegration
         | Environment::TestingEnvTwo
-        | Environment::TestingEnvThree => false,
+        | Environment::TestingEnvThree
+        | Environment::StressTest => false,
         _ => unimplemented!(),
     }
 }
@@ -113,12 +116,12 @@ impl IngressRule {
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct ExternalSecret {
-    gcsm_key: &'static str,
+    gcsm_key: String,
 }
 
 impl ExternalSecret {
-    pub fn new(gcsm_key: &'static str) -> Self {
-        Self { gcsm_key }
+    pub fn new(gcsm_key: impl ToString) -> Self {
+        Self { gcsm_key: gcsm_key.to_string() }
     }
 }
 
@@ -152,17 +155,18 @@ impl Service {
     pub fn new(
         service_name: ServiceName,
         external_secret: Option<ExternalSecret>,
-        mut additional_config_filenames: Vec<String>,
+        config_filenames: Vec<String>,
         ingress_params: IngressParams,
         // TODO(Tsabary): consider if including the environment is necessary.
         environment: Environment,
     ) -> Self {
         // Configs are loaded by order such that a config may override previous ones.
         // We first list the base config, and then follow with the overrides.
-        // TODO(Tsabary): the service override is currently engrained in the base config, need to
-        // resolve that.
-        let mut config_paths: Vec<String> = vec![service_name.get_config_file_path()];
-        config_paths.append(&mut additional_config_filenames);
+        let config_paths = config_filenames
+            .iter()
+            .cloned()
+            .chain(once(service_name.get_config_file_path()))
+            .collect();
 
         let controller = service_name.get_controller();
         let autoscale = service_name.get_autoscale();
@@ -171,6 +175,7 @@ impl Service {
         let storage = service_name.get_storage(&environment);
         let resources = service_name.get_resources(&environment);
         let replicas = service_name.get_replicas(&environment);
+        let anti_affinity = service_name.get_anti_affinity(&environment);
         Self {
             service_name,
             config_paths,
@@ -183,6 +188,7 @@ impl Service {
             resources,
             external_secret,
             environment,
+            anti_affinity,
         }
     }
 
@@ -265,6 +271,11 @@ impl ServiceName {
     pub fn get_replicas(&self, environment: &Environment) -> usize {
         self.as_inner().get_replicas(environment)
     }
+
+    pub fn get_anti_affinity(&self, environment: &Environment) -> bool {
+        // TODO(Tsabary): implement anti-affinity logic.
+        self.as_inner().get_anti_affinity(environment)
+    }
 }
 
 pub(crate) trait ServiceNameInner: Display {
@@ -285,6 +296,8 @@ pub(crate) trait ServiceNameInner: Display {
     fn get_resources(&self, environment: &Environment) -> Resources;
 
     fn get_replicas(&self, environment: &Environment) -> usize;
+
+    fn get_anti_affinity(&self, environment: &Environment) -> bool;
 }
 
 impl DeploymentName {
@@ -367,5 +380,8 @@ impl Serialize for ServiceName {
 #[serde(rename_all = "kebab-case")]
 pub enum Toleration {
     ApolloCoreService,
+    ApolloCoreServiceC2D16,
+    ApolloCoreServiceC2D32,
+    ApolloCoreServiceC2D56,
     ApolloGeneralService,
 }

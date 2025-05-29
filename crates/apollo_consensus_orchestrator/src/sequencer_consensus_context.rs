@@ -24,11 +24,7 @@ use apollo_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
-use apollo_class_manager_types::transaction_converter::{
-    TransactionConverter,
-    TransactionConverterTrait,
-};
-use apollo_class_manager_types::SharedClassManagerClient;
+use apollo_class_manager_types::transaction_converter::TransactionConverterTrait;
 use apollo_consensus::types::{
     ConsensusContext,
     ConsensusError,
@@ -49,7 +45,7 @@ use apollo_protobuf::consensus::{
     Vote,
     DEFAULT_VALIDATOR_ID,
 };
-use apollo_state_sync_types::communication::{SharedStateSyncClient, StateSyncClientError};
+use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use async_trait::async_trait;
 // TODO(Gilad): Define in consensus, either pass to blockifier as config or keep the dup.
@@ -94,7 +90,7 @@ use crate::metrics::{
     CONSENSUS_NUM_TXS_IN_PROPOSAL,
 };
 use crate::orchestrator_versioned_constants::VersionedConstants;
-use crate::utils::get_oracle_rate_and_prices;
+use crate::utils::{get_oracle_rate_and_prices, GasPriceParams};
 
 // Contains parameters required for validating block info.
 #[derive(Clone, Debug)]
@@ -126,7 +122,6 @@ enum BuildProposalError {
     StateSyncNotReady(String),
     #[error("EthToStrkOracle error: {0}")]
     EthToStrkOracle(#[from] EthToStrkOracleClientError),
-
     #[error("L1GasPriceProvider error: {0}")]
     L1GasPriceProvider(#[from] L1GasPriceClientError),
 }
@@ -152,13 +147,6 @@ pub trait Clock: Send + Sync {
 pub struct DefaultClock();
 impl Clock for DefaultClock {}
 
-// TODO(guy.f): Consider storing a ContextDeps struct instead of all the dependencies directly.
-//
-// pub struct SequencerConsensusContext {
-//   config: Config,
-//   clients: Clients,
-//   ...all the other fields remain flat
-// }
 type HeightToIdToContent = BTreeMap<
     BlockNumber,
     HashMap<
@@ -216,10 +204,7 @@ impl BuiltProposals {
 
 pub struct SequencerConsensusContext {
     config: ContextConfig,
-    // TODO(Shahak): change this into a dynamic TransactionConverterTrait.
-    transaction_converter: TransactionConverter,
-    state_sync_client: SharedStateSyncClient,
-    batcher: Arc<dyn BatcherClient>,
+    deps: SequencerConsensusContextDeps,
     validators: Vec<ValidatorId>,
     // Proposal building/validating returns immediately, leaving the actual processing to a spawned
     // task. The spawned task processes the proposal asynchronously and updates the
@@ -238,39 +223,32 @@ pub struct SequencerConsensusContext {
     active_proposal: Option<(CancellationToken, JoinHandle<()>)>,
     // Stores proposals for future rounds until the round is reached.
     queued_proposals: BTreeMap<Round, (ValidationParams, oneshot::Sender<ProposalCommitment>)>,
-    outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
-    // Used to broadcast votes to other consensus nodes.
-    vote_broadcast_client: BroadcastTopicClient<Vote>,
-    cende_ambassador: Arc<dyn CendeContext>,
-    eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
-    // The next block's l2 gas price, calculated based on EIP-1559, used for building and
-    // validating proposals.
-    l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     l2_gas_price: GasPrice,
     l1_da_mode: L1DataAvailabilityMode,
     // TODO(alonl): remove this field and use the one in the previous block info.
     last_block_timestamp: Option<u64>,
-    clock: Arc<dyn Clock>,
     previous_block_info: Option<ConsensusBlockInfo>,
 }
+
+#[derive(Clone)]
 pub struct SequencerConsensusContextDeps {
-    pub class_manager_client: SharedClassManagerClient,
-    pub state_sync_client: SharedStateSyncClient,
+    pub transaction_converter: Arc<dyn TransactionConverterTrait>,
+    pub state_sync_client: Arc<dyn StateSyncClient>,
     pub batcher: Arc<dyn BatcherClient>,
-    pub outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
-    pub vote_broadcast_client: BroadcastTopicClient<Vote>,
     pub cende_ambassador: Arc<dyn CendeContext>,
     pub eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
     pub l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     /// Use DefaultClock if you don't want to inject timestamps.
     pub clock: Arc<dyn Clock>,
+    // Used to initiate new outbound proposal streams.
+    pub outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
+    // Used to broadcast votes to other consensus nodes.
+    pub vote_broadcast_client: BroadcastTopicClient<Vote>,
 }
 
 impl SequencerConsensusContext {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(config: ContextConfig, context_deps: SequencerConsensusContextDeps) -> Self {
+    pub fn new(config: ContextConfig, deps: SequencerConsensusContextDeps) -> Self {
         register_metrics();
-        let chain_id = config.chain_id.clone();
         let num_validators = config.num_validators;
         let l1_da_mode = if config.l1_da_mode {
             L1DataAvailabilityMode::Blob
@@ -279,14 +257,7 @@ impl SequencerConsensusContext {
         };
         Self {
             config,
-            transaction_converter: TransactionConverter::new(
-                context_deps.class_manager_client,
-                chain_id,
-            ),
-            state_sync_client: context_deps.state_sync_client,
-            batcher: context_deps.batcher,
-            outbound_proposal_sender: context_deps.outbound_proposal_sender,
-            vote_broadcast_client: context_deps.vote_broadcast_client,
+            deps,
             // TODO(Matan): Set the actual validator IDs (contract addresses).
             validators: (0..num_validators)
                 .map(|i| ValidatorId::from(DEFAULT_VALIDATOR_ID + i))
@@ -297,64 +268,43 @@ impl SequencerConsensusContext {
             current_round: 0,
             active_proposal: None,
             queued_proposals: BTreeMap::new(),
-            cende_ambassador: context_deps.cende_ambassador,
-            eth_to_strk_oracle_client: context_deps.eth_to_strk_oracle_client,
-            l1_gas_price_provider: context_deps.l1_gas_price_provider,
             l2_gas_price: VersionedConstants::latest_constants().min_gas_price,
             l1_da_mode,
             last_block_timestamp: None,
-            clock: context_deps.clock,
             previous_block_info: None,
         }
     }
 }
 
 struct ProposalBuildArguments {
+    deps: SequencerConsensusContextDeps,
     batcher_timeout: Duration,
     proposal_init: ProposalInit,
     l1_da_mode: L1DataAvailabilityMode,
     proposal_sender: mpsc::Sender<ProposalPart>,
     fin_sender: oneshot::Sender<ProposalCommitment>,
-    batcher: Arc<dyn BatcherClient>,
-    eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
-    state_sync_client: SharedStateSyncClient,
-    l1_gas_price_provider_client: Arc<dyn L1GasPriceProviderClient>,
-    min_l1_gas_price_wei: GasPrice,
-    max_l1_gas_price_wei: GasPrice,
-    min_l1_data_gas_price_wei: GasPrice,
-    max_l1_data_gas_price_wei: GasPrice,
-    l1_data_gas_price_multiplier: Ratio<u128>,
+    gas_price_params: GasPriceParams,
     valid_proposals: Arc<Mutex<BuiltProposals>>,
     proposal_id: ProposalId,
     cende_write_success: AbortOnDropHandle<bool>,
     l2_gas_price: GasPrice,
-    transaction_converter: TransactionConverter,
     builder_address: ContractAddress,
     cancel_token: CancellationToken,
-    clock: Arc<dyn Clock>,
     previous_block_info: Option<ConsensusBlockInfo>,
+    _proposal_round: Round,
 }
 
 struct ProposalValidateArguments {
+    deps: SequencerConsensusContextDeps,
     block_info_validation: BlockInfoValidation,
     proposal_id: ProposalId,
-    batcher: Arc<dyn BatcherClient>,
-    eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
-    state_sync_client: SharedStateSyncClient,
-    l1_gas_price_provider_client: Arc<dyn L1GasPriceProviderClient>,
-    min_l1_gas_price_wei: GasPrice,
-    max_l1_gas_price_wei: GasPrice,
-    min_l1_data_gas_price_wei: GasPrice,
-    max_l1_data_gas_price_wei: GasPrice,
-    l1_data_gas_price_multiplier: Ratio<u128>,
     timeout: Duration,
     batcher_timeout_margin: Duration,
     valid_proposals: Arc<Mutex<BuiltProposals>>,
     content_receiver: mpsc::Receiver<ProposalPart>,
     fin_sender: oneshot::Sender<ProposalCommitment>,
+    gas_price_params: GasPriceParams,
     cancel_token: CancellationToken,
-    transaction_converter: TransactionConverter,
-    clock: Arc<dyn Clock>,
     previous_block_info: Option<ConsensusBlockInfo>,
 }
 
@@ -372,7 +322,7 @@ impl ConsensusContext for SequencerConsensusContext {
         // finality time. Use this option only for one special sequencer that is the same cluster as
         // the recorder.
         let cende_write_success = AbortOnDropHandle::new(
-            self.cende_ambassador.write_prev_height_blob(proposal_init.height),
+            self.deps.cende_ambassador.write_prev_height_blob(proposal_init.height),
         );
         // Handles interrupting an active proposal from a previous height/round
         self.set_height_and_round(proposal_init.height, proposal_init.round).await;
@@ -388,7 +338,8 @@ impl ConsensusContext for SequencerConsensusContext {
         assert!(timeout > self.config.build_proposal_margin_millis);
         let (proposal_sender, proposal_receiver) = mpsc::channel(self.config.proposal_buffer_size);
         let stream_id = HeightAndRound(proposal_init.height.0, proposal_init.round);
-        self.outbound_proposal_sender
+        self.deps
+            .outbound_proposal_sender
             .send((stream_id, proposal_receiver))
             .await
             .expect("Failed to send proposal receiver");
@@ -396,16 +347,7 @@ impl ConsensusContext for SequencerConsensusContext {
         info!(?proposal_init, ?timeout, %proposal_id, "Building proposal");
         let cancel_token = CancellationToken::new();
         let cancel_token_clone = cancel_token.clone();
-        let args = ProposalBuildArguments {
-            batcher_timeout: timeout - self.config.build_proposal_margin_millis,
-            proposal_init,
-            l1_da_mode: self.l1_da_mode,
-            proposal_sender,
-            fin_sender,
-            batcher: Arc::clone(&self.batcher),
-            eth_to_strk_oracle_client: Arc::clone(&self.eth_to_strk_oracle_client),
-            state_sync_client: self.state_sync_client.clone(),
-            l1_gas_price_provider_client: Arc::clone(&self.l1_gas_price_provider),
+        let gas_price_params = GasPriceParams {
             min_l1_gas_price_wei: GasPrice(self.config.min_l1_gas_price_wei),
             max_l1_gas_price_wei: GasPrice(self.config.max_l1_gas_price_wei),
             min_l1_data_gas_price_wei: GasPrice(self.config.min_l1_data_gas_price_wei),
@@ -414,15 +356,23 @@ impl ConsensusContext for SequencerConsensusContext {
                 self.config.l1_data_gas_price_multiplier_ppt,
                 1000,
             ),
+        };
+        let args = ProposalBuildArguments {
+            deps: self.deps.clone(),
+            batcher_timeout: timeout - self.config.build_proposal_margin_millis,
+            proposal_init,
+            l1_da_mode: self.l1_da_mode,
+            proposal_sender,
+            fin_sender,
+            gas_price_params,
             valid_proposals: Arc::clone(&self.valid_proposals),
             proposal_id,
             cende_write_success,
             l2_gas_price: self.l2_gas_price,
-            transaction_converter: self.transaction_converter.clone(),
             builder_address: self.config.builder_address,
             cancel_token,
-            clock: self.clock.clone(),
             previous_block_info: self.previous_block_info.clone(),
+            _proposal_round: self.current_round,
         };
         let handle = tokio::spawn(
             async move {
@@ -495,8 +445,8 @@ impl ConsensusContext for SequencerConsensusContext {
             .get_proposal(&height, &id)
             .clone();
 
-        let transaction_converter = self.transaction_converter.clone();
-        let mut outbound_proposal_sender = self.outbound_proposal_sender.clone();
+        let transaction_converter = self.deps.transaction_converter.clone();
+        let mut outbound_proposal_sender = self.deps.outbound_proposal_sender.clone();
         let channel_size = self.config.proposal_buffer_size;
         tokio::spawn(
             async move {
@@ -553,7 +503,7 @@ impl ConsensusContext for SequencerConsensusContext {
 
     async fn broadcast(&mut self, message: Vote) -> Result<(), ConsensusError> {
         trace!("Broadcasting message: {message:?}");
-        self.vote_broadcast_client.broadcast_message(message).await?;
+        self.deps.vote_broadcast_client.broadcast_message(message).await?;
         Ok(())
     }
 
@@ -584,6 +534,7 @@ impl ConsensusContext for SequencerConsensusContext {
         // TODO(dvir): return from the batcher's 'decision_reached' function the relevant data to
         // build a blob.
         let DecisionReachedResponse { state_diff, l2_gas_used, central_objects } = self
+            .deps
             .batcher
             .decision_reached(DecisionReachedInput { proposal_id })
             .await
@@ -647,7 +598,7 @@ impl ConsensusContext for SequencerConsensusContext {
             l1_transaction_hashes,
             block_header_without_hash,
         };
-        let state_sync_client = self.state_sync_client.clone();
+        let state_sync_client = self.deps.state_sync_client.clone();
         // `add_new_block` returns immediately, it doesn't wait for sync to fully process the block.
         state_sync_client.add_new_block(sync_block).await.expect("Failed to add new block.");
 
@@ -656,6 +607,7 @@ impl ConsensusContext for SequencerConsensusContext {
         // `prepare_blob_for_next_height` is called with the correct parameters.
         self.last_block_timestamp = Some(block_info.timestamp);
         let _ = self
+            .deps
             .cende_ambassador
             .prepare_blob_for_next_height(BlobParameters {
                 block_info: cende_block_info,
@@ -679,7 +631,7 @@ impl ConsensusContext for SequencerConsensusContext {
     }
 
     async fn try_sync(&mut self, height: BlockNumber) -> bool {
-        let sync_block = match self.state_sync_client.get_block(height).await {
+        let sync_block = match self.deps.state_sync_client.get_block(height).await {
             Err(e) => {
                 error!("Sync returned an error: {e:?}");
                 return false;
@@ -695,7 +647,7 @@ impl ConsensusContext for SequencerConsensusContext {
         // TODO(Asmaa): validate starknet_version and parent_hash when they are stored.
         let block_number = sync_block.block_header_without_hash.block_number;
         let timestamp = sync_block.block_header_without_hash.timestamp;
-        let now: u64 = self.clock.now_as_timestamp();
+        let now: u64 = self.deps.clock.now_as_timestamp();
         if !(block_number == height
             && timestamp.0 >= self.last_block_timestamp.unwrap_or(0)
             && timestamp.0 <= now + self.config.block_timestamp_window_seconds)
@@ -734,7 +686,7 @@ impl ConsensusContext for SequencerConsensusContext {
             eth_to_fri_rate,
         });
         self.interrupt_active_proposal().await;
-        self.batcher.add_sync_block(sync_block).await.unwrap();
+        self.deps.batcher.add_sync_block(sync_block).await.unwrap();
         true
     }
 
@@ -748,7 +700,8 @@ impl ConsensusContext for SequencerConsensusContext {
             // that consensus works on a given height until it is done (either a decision is reached
             // or sync causes us to move on) and then moves on to a different height, never to
             // return to the old height.
-            self.batcher
+            self.deps
+                .batcher
                 .start_height(StartHeightInput { height })
                 .await
                 .expect("Batcher should be ready to start the next height");
@@ -809,46 +762,36 @@ impl SequencerConsensusContext {
     ) {
         let cancel_token = CancellationToken::new();
         let cancel_token_clone = cancel_token.clone();
-        let batcher = Arc::clone(&self.batcher);
-        let eth_to_strk_oracle_client = self.eth_to_strk_oracle_client.clone();
-        let state_sync_client = self.state_sync_client.clone();
-        let l1_gas_price_provider_client = self.l1_gas_price_provider.clone();
-        let min_l1_gas_price_wei = GasPrice(self.config.min_l1_gas_price_wei);
-        let max_l1_gas_price_wei = GasPrice(self.config.max_l1_gas_price_wei);
-        let min_l1_data_gas_price_wei = GasPrice(self.config.min_l1_data_gas_price_wei);
-        let max_l1_data_gas_price_wei = GasPrice(self.config.max_l1_data_gas_price_wei);
-        let l1_data_gas_price_multiplier =
-            Ratio::new(self.config.l1_data_gas_price_multiplier_ppt, 1000);
-        let transaction_converter = self.transaction_converter.clone();
         let valid_proposals = Arc::clone(&self.valid_proposals);
         let proposal_id = ProposalId(self.proposal_id);
-        let clock = self.clock.clone();
         let previous_block_info = self.previous_block_info.clone();
         self.proposal_id += 1;
+        let deps = self.deps.clone();
+        let gas_price_params = GasPriceParams {
+            min_l1_gas_price_wei: GasPrice(self.config.min_l1_gas_price_wei),
+            max_l1_gas_price_wei: GasPrice(self.config.max_l1_gas_price_wei),
+            min_l1_data_gas_price_wei: GasPrice(self.config.min_l1_data_gas_price_wei),
+            max_l1_data_gas_price_wei: GasPrice(self.config.max_l1_data_gas_price_wei),
+            l1_data_gas_price_multiplier: Ratio::new(
+                self.config.l1_data_gas_price_multiplier_ppt,
+                1000,
+            ),
+        };
 
         info!(?timeout, %proposal_id, %proposer, round=self.current_round, "Validating proposal.");
         let handle = tokio::spawn(
             async move {
                 validate_proposal(ProposalValidateArguments {
+                    deps,
                     block_info_validation,
                     proposal_id,
-                    batcher,
-                    eth_to_strk_oracle_client,
-                    state_sync_client,
-                    l1_gas_price_provider_client,
-                    min_l1_gas_price_wei,
-                    max_l1_gas_price_wei,
-                    min_l1_data_gas_price_wei,
-                    max_l1_data_gas_price_wei,
-                    l1_data_gas_price_multiplier,
                     timeout,
                     batcher_timeout_margin,
                     valid_proposals,
                     content_receiver,
                     fin_sender,
+                    gas_price_params,
                     cancel_token: cancel_token_clone,
-                    transaction_converter,
-                    clock,
                     previous_block_info,
                 })
                 .await
@@ -889,10 +832,10 @@ async fn build_proposal(mut args: ProposalBuildArguments) {
 
     let Some((proposal_commitment, content)) = get_proposal_content(
         args.proposal_id,
-        args.batcher.as_ref(),
+        args.deps.batcher.as_ref(),
         args.proposal_sender,
         args.cende_write_success,
-        &args.transaction_converter,
+        args.deps.transaction_converter,
         args.cancel_token,
     )
     .await
@@ -919,22 +862,27 @@ async fn build_proposal(mut args: ProposalBuildArguments) {
 async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<ConsensusBlockInfo> {
     let batcher_timeout = chrono::Duration::from_std(args.batcher_timeout)
         .expect("Can't convert timeout to chrono::Duration");
-    let timestamp = args.clock.now_as_timestamp();
+    let timestamp = args.deps.clock.now_as_timestamp();
     let (eth_to_fri_rate, mut l1_prices) = get_oracle_rate_and_prices(
-        args.eth_to_strk_oracle_client.clone(),
-        args.l1_gas_price_provider_client.clone(),
+        args.deps.eth_to_strk_oracle_client.clone(),
+        args.deps.l1_gas_price_provider.clone(),
         timestamp,
         args.previous_block_info.as_ref(),
-        args.min_l1_gas_price_wei,
-        args.min_l1_data_gas_price_wei,
+        &args.gas_price_params,
     )
     .await;
-    l1_prices.base_fee_per_gas =
-        l1_prices.base_fee_per_gas.clamp(args.min_l1_gas_price_wei, args.max_l1_gas_price_wei);
+    l1_prices.base_fee_per_gas = l1_prices.base_fee_per_gas.clamp(
+        args.gas_price_params.min_l1_gas_price_wei,
+        args.gas_price_params.max_l1_gas_price_wei,
+    );
 
-    l1_prices.blob_fee =
-        GasPrice((args.l1_data_gas_price_multiplier * l1_prices.blob_fee.0).to_integer())
-            .clamp(args.min_l1_data_gas_price_wei, args.max_l1_data_gas_price_wei);
+    l1_prices.blob_fee = GasPrice(
+        (args.gas_price_params.l1_data_gas_price_multiplier * l1_prices.blob_fee.0).to_integer(),
+    )
+    .clamp(
+        args.gas_price_params.min_l1_data_gas_price_wei,
+        args.gas_price_params.max_l1_data_gas_price_wei,
+    );
 
     let block_info = ConsensusBlockInfo {
         height: args.proposal_init.height,
@@ -948,15 +896,15 @@ async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<Consens
     };
 
     let retrospective_block_hash =
-        retrospective_block_hash(args.state_sync_client.clone(), &block_info).await?;
+        retrospective_block_hash(args.deps.state_sync_client.clone(), &block_info).await?;
     let build_proposal_input = ProposeBlockInput {
         proposal_id: args.proposal_id,
-        deadline: args.clock.now() + batcher_timeout,
+        deadline: args.deps.clock.now() + batcher_timeout,
         retrospective_block_hash,
         block_info: convert_to_sn_api_block_info(&block_info),
     };
     debug!("Initiating build proposal: {build_proposal_input:?}");
-    args.batcher.propose_block(build_proposal_input).await?;
+    args.deps.batcher.propose_block(build_proposal_input).await?;
     Ok(block_info)
 }
 
@@ -968,7 +916,7 @@ async fn get_proposal_content(
     batcher: &dyn BatcherClient,
     mut proposal_sender: mpsc::Sender<ProposalPart>,
     cende_write_success: AbortOnDropHandle<bool>,
-    transaction_converter: &TransactionConverter,
+    transaction_converter: Arc<dyn TransactionConverterTrait>,
     cancel_token: CancellationToken,
 ) -> Option<(ProposalCommitment, Vec<Vec<InternalConsensusTransaction>>)> {
     let mut content = Vec::new();
@@ -1022,6 +970,9 @@ async fn get_proposal_content(
                 let proposal_commitment = BlockHash(id.state_diff_commitment.0.0);
                 let num_txs: usize = content.iter().map(|batch| batch.len()).sum();
                 info!(?proposal_commitment, num_txs = num_txs, "Finished building proposal",);
+                if num_txs == 0 {
+                    warn!("Built an empty proposal.");
+                }
 
                 // If the blob writing operation to Aerospike doesn't return a success status, we
                 // can't finish the proposal.
@@ -1043,8 +994,10 @@ async fn get_proposal_content(
                     }
                 }
 
+                let fin = ProposalFin { proposal_commitment };
+                info!("Sending fin={fin:?}");
                 proposal_sender
-                    .send(ProposalPart::Fin(ProposalFin { proposal_commitment }))
+                    .send(ProposalPart::Fin(fin))
                     .await
                     .expect("Failed to broadcast proposal fin");
                 return Some((proposal_commitment, content));
@@ -1055,7 +1008,7 @@ async fn get_proposal_content(
 
 async fn validate_proposal(mut args: ProposalValidateArguments) {
     let mut content = Vec::new();
-    let now = args.clock.now_at_tokio_instant();
+    let now = args.deps.clock.now_at_tokio_instant();
     let Some(deadline) = now.checked_add(args.timeout) else {
         warn!("Cannot calculate deadline. Timeout: {:?}, now: {:?}", args.timeout, now);
         return;
@@ -1071,20 +1024,14 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
     else {
         return;
     };
-    let min_max_prices = GasPriceParams {
-        min_l1_gas_price_wei: args.min_l1_gas_price_wei,
-        max_l1_gas_price_wei: args.max_l1_gas_price_wei,
-        min_l1_data_gas_price_wei: args.min_l1_data_gas_price_wei,
-        max_l1_data_gas_price_wei: args.max_l1_data_gas_price_wei,
-        l1_data_gas_price_multiplier: args.l1_data_gas_price_multiplier,
-    };
+
     if !is_block_info_valid(
         args.block_info_validation.clone(),
         block_info.clone(),
-        args.eth_to_strk_oracle_client,
-        args.clock.as_ref(),
-        args.l1_gas_price_provider_client,
-        min_max_prices,
+        args.deps.eth_to_strk_oracle_client,
+        args.deps.clock.as_ref(),
+        args.deps.l1_gas_price_provider,
+        &args.gas_price_params,
         args.previous_block_info.clone(),
     )
     .await
@@ -1092,12 +1039,12 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
         return;
     }
     if let Err(e) = initiate_validation(
-        args.batcher.as_ref(),
-        args.state_sync_client,
+        args.deps.batcher.as_ref(),
+        args.deps.state_sync_client,
         block_info.clone(),
         args.proposal_id,
         args.timeout + args.batcher_timeout_margin,
-        args.clock.as_ref(),
+        args.deps.clock.as_ref(),
     )
     .await
     {
@@ -1109,21 +1056,21 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
         tokio::select! {
             _ = args.cancel_token.cancelled() => {
                 warn!("Proposal interrupted during validation.");
-                batcher_abort_proposal(args.batcher.as_ref(), args.proposal_id).await;
+                batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await;
                 return;
             }
             _ = tokio::time::sleep_until(deadline) => {
                 warn!("Validation timed out.");
-                batcher_abort_proposal(args.batcher.as_ref(), args.proposal_id).await;
+                batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await;
                 return;
             }
             proposal_part = args.content_receiver.next() => {
                 match handle_proposal_part(
                     args.proposal_id,
-                    args.batcher.as_ref(),
+                    args.deps.batcher.as_ref(),
                     proposal_part,
                     &mut content,
-                    &args.transaction_converter,
+                    args.deps.transaction_converter.clone(),
                 ).await {
                     HandledProposalPart::Finished(built_block, received_fin) => {
                         break (built_block, received_fin);
@@ -1136,7 +1083,7 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
                     }
                     HandledProposalPart::Failed(fail_reason) => {
                         warn!("Failed to handle proposal part. {fail_reason}");
-                        batcher_abort_proposal(args.batcher.as_ref(), args.proposal_id).await;
+                        batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await;
                         return;
                     }
                 }
@@ -1171,14 +1118,6 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
     }
 }
 
-struct GasPriceParams {
-    min_l1_gas_price_wei: GasPrice,
-    max_l1_gas_price_wei: GasPrice,
-    max_l1_data_gas_price_wei: GasPrice,
-    min_l1_data_gas_price_wei: GasPrice,
-    l1_data_gas_price_multiplier: Ratio<u128>,
-}
-
 #[instrument(level = "warn", skip_all, fields(?block_info_validation, ?block_info_proposed))]
 async fn is_block_info_valid(
     block_info_validation: BlockInfoValidation,
@@ -1186,7 +1125,7 @@ async fn is_block_info_valid(
     eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
     clock: &dyn Clock,
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
-    gas_price_params: GasPriceParams,
+    gas_price_params: &GasPriceParams,
     previous_block_info: Option<ConsensusBlockInfo>,
 ) -> bool {
     let now: u64 = clock.now_as_timestamp();
@@ -1205,8 +1144,7 @@ async fn is_block_info_valid(
         l1_gas_price_provider,
         block_info_proposed.timestamp,
         previous_block_info.as_ref(),
-        gas_price_params.min_l1_gas_price_wei,
-        gas_price_params.min_l1_data_gas_price_wei,
+        gas_price_params,
     )
     .await;
     let l1_gas_price_margin_percent =
@@ -1303,7 +1241,7 @@ async fn await_second_proposal_part(
 
 async fn initiate_validation(
     batcher: &dyn BatcherClient,
-    state_sync_client: SharedStateSyncClient,
+    state_sync_client: Arc<dyn StateSyncClient>,
     block_info: ConsensusBlockInfo,
     proposal_id: ProposalId,
     timeout_plus_margin: Duration,
@@ -1332,11 +1270,12 @@ async fn handle_proposal_part(
     batcher: &dyn BatcherClient,
     proposal_part: Option<ProposalPart>,
     content: &mut Vec<Vec<InternalConsensusTransaction>>,
-    transaction_converter: &TransactionConverter,
+    transaction_converter: Arc<dyn TransactionConverterTrait>,
 ) -> HandledProposalPart {
     match proposal_part {
         None => HandledProposalPart::Failed("Failed to receive proposal content".to_string()),
-        Some(ProposalPart::Fin(ProposalFin { proposal_commitment: id })) => {
+        Some(ProposalPart::Fin(fin)) => {
+            info!("Received fin={fin:?}");
             // Output this along with the ID from batcher, to compare them.
             let input =
                 SendProposalContentInput { proposal_id, content: SendProposalContent::Finish };
@@ -1351,12 +1290,15 @@ async fn handle_proposal_part(
             let batcher_block_id = BlockHash(response_id.state_diff_commitment.0.0);
             let num_txs: usize = content.iter().map(|batch| batch.len()).sum();
             info!(
-                network_block_id = ?id,
+                network_block_id = ?fin.proposal_commitment,
                 ?batcher_block_id,
                 num_txs,
                 "Finished validating proposal."
             );
-            HandledProposalPart::Finished(batcher_block_id, ProposalFin { proposal_commitment: id })
+            if num_txs == 0 {
+                warn!("Validated an empty proposal.");
+            }
+            HandledProposalPart::Finished(batcher_block_id, fin)
         }
         Some(ProposalPart::Transactions(TransactionBatch { transactions: txs })) => {
             debug!("Received transaction batch with {} txs", txs.len());
@@ -1441,7 +1383,7 @@ fn convert_to_sn_api_block_info(block_info: &ConsensusBlockInfo) -> starknet_api
 }
 
 async fn retrospective_block_hash(
-    state_sync_client: SharedStateSyncClient,
+    state_sync_client: Arc<dyn StateSyncClient>,
     block_info: &ConsensusBlockInfo,
 ) -> ProposalResult<Option<BlockHashAndNumber>> {
     let retrospective_block_number = block_info.height.0.checked_sub(STORED_BLOCK_HASH_BUFFER);

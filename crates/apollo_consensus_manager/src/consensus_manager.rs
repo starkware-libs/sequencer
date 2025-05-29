@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 use apollo_batcher_types::batcher_types::RevertBlockInput;
 use apollo_batcher_types::communication::SharedBatcherClient;
+use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_consensus::stream_handler::StreamHandler;
 use apollo_consensus::types::ConsensusError;
@@ -146,22 +147,23 @@ impl ConsensusManager {
         let context = SequencerConsensusContext::new(
             self.config.context_config.clone(),
             SequencerConsensusContextDeps {
-                class_manager_client: Arc::clone(&self.class_manager_client),
+                transaction_converter: Arc::new(TransactionConverter::new(
+                    Arc::clone(&self.class_manager_client),
+                    self.config.context_config.chain_id.clone(),
+                )),
                 state_sync_client: Arc::clone(&self.state_sync_client),
                 batcher: Arc::clone(&self.batcher_client),
-                outbound_proposal_sender: outbound_internal_sender,
-                vote_broadcast_client: votes_broadcast_channels.broadcast_topic_client.clone(),
                 cende_ambassador: Arc::new(CendeAmbassador::new(
                     self.config.cende_config.clone(),
                     Arc::clone(&self.class_manager_client),
                 )),
                 eth_to_strk_oracle_client: Arc::new(EthToStrkOracleClient::new(
-                    self.config.eth_to_strk_oracle_config.base_url.clone(),
-                    self.config.eth_to_strk_oracle_config.headers.clone(),
-                    self.config.eth_to_strk_oracle_config.lag_interval_seconds,
+                    self.config.eth_to_strk_oracle_config.clone(),
                 )),
                 l1_gas_price_provider: self.l1_gas_price_provider.clone(),
                 clock: Arc::new(DefaultClock::default()),
+                outbound_proposal_sender: outbound_internal_sender,
+                vote_broadcast_client: votes_broadcast_channels.broadcast_topic_client.clone(),
             },
         );
 

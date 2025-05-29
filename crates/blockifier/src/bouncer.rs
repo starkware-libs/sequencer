@@ -70,6 +70,7 @@ impl BouncerConfig {
         self.block_max_capacity.has_room(weights)
     }
 
+    #[allow(clippy::result_large_err)]
     pub fn within_max_capacity_or_err(
         &self,
         weights: BouncerWeights,
@@ -279,6 +280,7 @@ impl Bouncer {
     }
 
     /// Updates the bouncer with a new transaction.
+    #[allow(clippy::result_large_err)]
     pub fn try_update<S: StateReader>(
         &mut self,
         state_reader: &S,
@@ -413,6 +415,7 @@ pub fn builtins_to_sierra_gas(
     GasAmount(total_gas)
 }
 
+#[allow(clippy::result_large_err)]
 pub fn get_tx_weights<S: StateReader>(
     state_reader: &S,
     executed_class_hashes: &HashSet<ClassHash>,
@@ -478,6 +481,7 @@ pub fn get_tx_weights<S: StateReader>(
 
 /// Returns a mapping from each class hash to its estimated Cairo resources for Casm hash
 /// computation (done by the OS).
+#[allow(clippy::result_large_err)]
 pub fn map_class_hash_to_casm_hash_computation_resources<S: StateReader>(
     state_reader: &S,
     executed_class_hashes: &HashSet<ClassHash>,
@@ -509,6 +513,7 @@ pub fn get_particia_update_resources(n_visited_storage_entries: usize) -> Execut
     }
 }
 
+#[allow(clippy::result_large_err)]
 pub fn verify_tx_weights_within_max_capacity<S: StateReader>(
     state_reader: &S,
     tx_execution_summary: &ExecutionSummary,
