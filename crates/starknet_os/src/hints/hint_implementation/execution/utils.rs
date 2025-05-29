@@ -10,7 +10,7 @@ use cairo_vm::hint_processor::hint_processor_definition::HintReference;
 use cairo_vm::hint_processor::hint_processor_utils::felt_to_usize;
 use cairo_vm::serde::deserialize_program::ApTracking;
 use cairo_vm::types::exec_scope::ExecutionScopes;
-use cairo_vm::types::relocatable::Relocatable;
+use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::executable_transaction::{AccountTransaction, Transaction};
 use starknet_api::transaction::fields::{
@@ -154,10 +154,25 @@ pub(crate) fn assert_retdata_as_expected<IG: IdentifierGetter>(
 
     let response_len = (response_end - response_start)?;
     let expected_retdata = vm.get_continuous_range(response_start, response_len)?;
+    let actual_retdata = extract_actual_retdata(vm, ids_data, ap_tracking)?;
+    compare_retdata(&actual_retdata, &expected_retdata)
+}
+
+pub(crate) fn extract_actual_retdata(
+    vm: &VirtualMachine,
+    ids_data: &HashMap<String, HintReference>,
+    ap_tracking: &ApTracking,
+) -> Result<Vec<MaybeRelocatable>, OsHintError> {
     let retdata_base = get_ptr_from_var_name(Ids::Retdata.into(), vm, ids_data, ap_tracking)?;
     let retdata_size =
         get_integer_from_var_name(Ids::RetdataSize.into(), vm, ids_data, ap_tracking)?;
-    let actual_retdata = vm.get_continuous_range(retdata_base, felt_to_usize(&retdata_size)?)?;
+    Ok(vm.get_continuous_range(retdata_base, felt_to_usize(&retdata_size)?)?)
+}
+
+pub(crate) fn compare_retdata(
+    actual_retdata: &Vec<MaybeRelocatable>,
+    expected_retdata: &Vec<MaybeRelocatable>,
+) -> OsHintResult {
     if actual_retdata != expected_retdata {
         return Err(OsHintError::AssertionFailed {
             message: format!(
