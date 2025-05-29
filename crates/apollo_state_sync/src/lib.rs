@@ -1,4 +1,6 @@
 pub mod config;
+#[cfg(test)]
+mod config_test;
 pub mod runner;
 #[cfg(test)]
 mod test;
