@@ -805,7 +805,7 @@ pub fn create_batcher(
         .expect("Failed to open batcher's storage");
 
     let execute_config = &config.block_builder_config.execute_config;
-    let worker_pool = Arc::new(WorkerPool::start(&execute_config.get_worker_pool_config()));
+    let worker_pool = Arc::new(WorkerPool::start(execute_config));
     let pre_confirmed_block_writer_factory =
         Box::new(PreConfirmedBlockWriterFactory { cende_client: pre_confirmed_cende_client });
     let block_builder_factory = Box::new(BlockBuilderFactory {
