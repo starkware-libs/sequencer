@@ -380,5 +380,8 @@ impl Serialize for ServiceName {
 #[serde(rename_all = "kebab-case")]
 pub enum Toleration {
     ApolloCoreService,
+    ApolloCoreServiceC2D16,
+    ApolloCoreServiceC2D32,
+    ApolloCoreServiceC2D56,
     ApolloGeneralService,
 }
