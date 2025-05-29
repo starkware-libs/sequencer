@@ -95,6 +95,26 @@ fn test_members_have_version_iff_they_are_for_publish() {
     );
 }
 
+/// `cargo publish -p X` fails if crate X's Cargo.toml lacks a `description` field.
+#[test]
+fn test_published_crates_have_description() {
+    let published_without_description = MEMBER_TOMLS
+        .iter()
+        .filter_map(|(member, toml)| {
+            if CRATES_FOR_PUBLISH.contains(member) && !toml.package.contains_key("description") {
+                Some(member.clone())
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+    assert!(
+        published_without_description.is_empty(),
+        "The following crates are intended for publishing but do not have a `description` field: \
+         {published_without_description:?}."
+    );
+}
+
 #[test]
 fn test_members_are_deps() {
     let member_tomls = ROOT_TOML.member_cargo_tomls();
