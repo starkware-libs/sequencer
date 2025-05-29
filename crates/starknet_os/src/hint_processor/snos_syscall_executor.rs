@@ -40,6 +40,7 @@ use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::errors::hint_errors::HintError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::vm_core::VirtualMachine;
+use starknet_api::core::ClassHash;
 use starknet_api::execution_resources::GasAmount;
 use starknet_types_core::felt::Felt;
 
@@ -235,7 +236,14 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> Result<GetClassHashAtResponse, Self::Error> {
-        todo!()
+        let class_hash = syscall_handler
+            .execution_helpers_manager
+            .get_mut_current_execution_helper()?
+            .tx_execution_iter
+            .get_mut_tx_execution_info_ref()?
+            .get_mut_call_info_tracker()?
+            .next_execute_code_class_hash_read()?;
+        Ok(*class_hash)
     }
 
     #[allow(clippy::result_large_err)]
