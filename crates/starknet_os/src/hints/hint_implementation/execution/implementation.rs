@@ -21,10 +21,12 @@ use starknet_api::transaction::fields::ValidResourceBounds;
 use starknet_api::transaction::{DeployAccountTransaction, TransactionVersion};
 use starknet_types_core::felt::Felt;
 
-use super::utils::assert_retdata_as_expected;
 use crate::hints::enum_definition::{AllHints, OsHint};
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::execution::utils::{
+    assert_retdata_as_expected,
+    compare_retdata,
+    extract_actual_retdata,
     get_account_deployment_data,
     get_calldata,
     set_state_entry,
@@ -33,7 +35,11 @@ use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
 use crate::syscall_handler_utils::SyscallHandlerType;
-use crate::vm_utils::{get_address_of_nested_fields, LoadCairoObject};
+use crate::vm_utils::{
+    get_address_of_nested_fields,
+    get_address_of_nested_fields_from_base_address,
+    LoadCairoObject,
+};
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn load_next_tx<S: StateReader>(
@@ -651,9 +657,27 @@ pub(crate) fn is_remaining_gas_lt_initial_budget<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn check_syscall_response<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let actual_retdata = extract_actual_retdata(vm, ids_data, ap_tracking)?;
+    let call_response_ptr =
+        get_ptr_from_var_name(Ids::CallResponse.into(), vm, ids_data, ap_tracking)?;
+    let retdata_size = vm.get_integer(get_address_of_nested_fields_from_base_address(
+        call_response_ptr,
+        CairoStruct::CallContractResponse,
+        vm,
+        &["retdata_size"],
+        hint_processor.os_program,
+    )?)?;
+    let retdata_base = vm.get_relocatable(get_address_of_nested_fields_from_base_address(
+        call_response_ptr,
+        CairoStruct::CallContractResponse,
+        vm,
+        &["retdata"],
+        hint_processor.os_program,
+    )?)?;
+    let expected_retdata = vm.get_continuous_range(retdata_base, felt_to_usize(&retdata_size)?)?;
+    compare_retdata(&actual_retdata, &expected_retdata)
 }
 
 #[allow(clippy::result_large_err)]
