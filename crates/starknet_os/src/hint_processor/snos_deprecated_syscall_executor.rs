@@ -154,7 +154,14 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> Result<DeployResponse, Self::Error> {
-        todo!()
+        let call_info_tracker = syscall_handler
+            .get_mut_current_execution_helper()?
+            .tx_execution_iter
+            .get_mut_tx_execution_info_ref()?
+            .get_mut_call_info_tracker()?;
+        call_info_tracker.next_inner_call()?;
+        let contract_address = call_info_tracker.next_deployed_contracts_iterator()?;
+        Ok(DeployResponse { contract_address })
     }
 
     #[allow(clippy::result_large_err)]
