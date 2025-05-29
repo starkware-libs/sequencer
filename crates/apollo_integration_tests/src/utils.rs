@@ -42,14 +42,9 @@ use axum::extract::Query;
 use axum::http::StatusCode;
 use axum::routing::{get, post};
 use axum::{Json, Router};
-#[cfg(not(feature = "cairo_native"))]
-use blockifier::blockifier::config::TransactionExecutorConfig;
+use blockifier::blockifier::config::WorkerPoolConfig;
 #[cfg(feature = "cairo_native")]
-use blockifier::blockifier::config::{
-    CairoNativeRunConfig,
-    ContractClassManagerConfig,
-    TransactionExecutorConfig,
-};
+use blockifier::blockifier::config::{CairoNativeRunConfig, ContractClassManagerConfig};
 use blockifier::bouncer::{BouncerConfig, BouncerWeights};
 use blockifier::context::ChainInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
@@ -549,7 +544,6 @@ pub fn create_batcher_config(
     block_max_capacity_sierra_gas: GasAmount,
 ) -> BatcherConfig {
     // TODO(Arni): Create BlockBuilderConfig create for testing method and use here.
-    let concurrency_enabled = true;
     BatcherConfig {
         storage: batcher_storage_config,
         block_builder_config: BlockBuilderConfig {
@@ -560,7 +554,7 @@ pub fn create_batcher_config(
                     ..Default::default()
                 },
             },
-            execute_config: TransactionExecutorConfig::create_for_testing(concurrency_enabled),
+            execute_config: WorkerPoolConfig::create_for_testing(),
             tx_chunk_size: 3,
             ..Default::default()
         },
