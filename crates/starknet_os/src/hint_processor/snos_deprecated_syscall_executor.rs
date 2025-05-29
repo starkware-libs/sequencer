@@ -137,7 +137,9 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> Result<GetBlockNumberResponse, Self::Error> {
-        todo!()
+        let block_number =
+            syscall_handler.get_current_execution_helper()?.os_block_input.block_info.block_number;
+        Ok(GetBlockNumberResponse { block_number })
     }
 
     #[allow(clippy::result_large_err)]
