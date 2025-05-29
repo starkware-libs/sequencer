@@ -75,7 +75,7 @@ impl TransactionManager {
         let mut committed: IndexMap<_, _> = committed_txs
             .iter()
             .copied()
-            .map(|tx_hash| (tx_hash, TransactionPayload::HashOnly))
+            .map(|tx_hash| (tx_hash, TransactionPayload::HashOnly(tx_hash)))
             .collect();
 
         // Iterate over the uncommitted transactions and check if they are committed or rejected.
@@ -154,16 +154,28 @@ impl TransactionManager {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TransactionPayload {
-    #[default]
-    HashOnly,
+    HashOnly(TransactionHash),
     Full(L1HandlerTransaction),
 }
 
 impl TransactionPayload {
     pub fn set(&mut self, tx: L1HandlerTransaction) {
         *self = tx.into();
+    }
+
+    pub fn tx_hash(&self) -> TransactionHash {
+        match self {
+            TransactionPayload::HashOnly(hash) => *hash,
+            TransactionPayload::Full(tx) => tx.tx_hash,
+        }
+    }
+}
+
+impl Default for TransactionPayload {
+    fn default() -> Self {
+        TransactionPayload::HashOnly(TransactionHash::default())
     }
 }
 
@@ -196,6 +208,14 @@ pub struct TransactionRecord {
 
 impl TransactionRecord {
     pub fn mark_committed(&mut self) {
+        // Can't return error because committing only part of a block leaves the provider in an
+        // undetermined state.
+        assert!(
+            !self.committed,
+            "L1 handler transaction {} committed twice, this may lead to l2 reorgs,",
+            self.tx.tx_hash()
+        );
+
         self.current_state = TransactionState::Committed;
         self.committed = true;
     }
