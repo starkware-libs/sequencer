@@ -1,5 +1,6 @@
 pub mod communication;
 pub mod config;
+pub(crate) mod eviction_tracker;
 pub mod mempool;
 pub mod metrics;
 pub(crate) mod suspended_transaction_pool;
