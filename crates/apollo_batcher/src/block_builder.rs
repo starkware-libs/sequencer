@@ -15,10 +15,10 @@ use apollo_infra_utils::tracing::LogCompatibleToStringExt;
 use apollo_state_reader::papyrus_state::{ClassReader, PapyrusReader};
 use apollo_storage::StorageReader;
 use async_trait::async_trait;
-use blockifier::blockifier::config::TransactionExecutorConfig;
+use blockifier::blockifier::concurrent_transaction_executor::ConcurrentTransactionExecutor;
+use blockifier::blockifier::config::WorkerPoolConfig;
 use blockifier::blockifier::transaction_executor::{
     BlockExecutionSummary,
-    TransactionExecutor,
     TransactionExecutorError as BlockifierTransactionExecutorError,
     TransactionExecutorResult,
 };
@@ -257,12 +257,11 @@ impl BlockBuilder {
                 executor_input_chunk.len()
             );
             let executor = self.executor.clone();
-            let block_deadline = self.execution_params.deadline;
             let results = tokio::task::spawn_blocking(move || {
                 executor
                     .try_lock() // Acquire the lock in a sync manner.
                     .expect("Only a single task should use the executor.")
-                    .add_txs_to_block(executor_input_chunk.as_slice(), block_deadline)
+                    .add_txs_to_block(executor_input_chunk.as_slice())
             })
             .await
             .expect("Failed to spawn blocking executor task.");
@@ -402,7 +401,7 @@ pub trait BlockBuilderFactoryTrait: Send + Sync {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct BlockBuilderConfig {
     pub chain_info: ChainInfo,
-    pub execute_config: TransactionExecutorConfig,
+    pub execute_config: WorkerPoolConfig,
     pub bouncer_config: BouncerConfig,
     pub tx_chunk_size: usize,
     pub tx_polling_interval_millis: u64,
@@ -414,7 +413,7 @@ impl Default for BlockBuilderConfig {
         Self {
             // TODO(AlonH): update the default values once the actual values are known.
             chain_info: ChainInfo::default(),
-            execute_config: TransactionExecutorConfig::default(),
+            execute_config: WorkerPoolConfig::default(),
             bouncer_config: BouncerConfig::default(),
             tx_chunk_size: 100,
             tx_polling_interval_millis: 100,
@@ -464,7 +463,10 @@ impl BlockBuilderFactory {
         &self,
         block_metadata: BlockMetadata,
         runtime: tokio::runtime::Handle,
-    ) -> BlockBuilderResult<TransactionExecutor<StateReaderAndContractManager<PapyrusReader>>> {
+        deadline: tokio::time::Instant,
+    ) -> BlockBuilderResult<
+        ConcurrentTransactionExecutor<StateReaderAndContractManager<PapyrusReader>>,
+    > {
         let height = block_metadata.block_info.block_number;
         let block_builder_config = self.block_builder_config.clone();
         let versioned_constants = VersionedConstants::get_versioned_constants(
@@ -485,12 +487,12 @@ impl BlockBuilderFactory {
             contract_class_manager: self.contract_class_manager.clone(),
         };
 
-        let executor = TransactionExecutor::pre_process_and_create_with_pool(
+        let executor = ConcurrentTransactionExecutor::start_block(
             state_reader,
             block_context,
             block_metadata.retrospective_block_hash,
-            block_builder_config.execute_config,
-            Some(self.worker_pool.clone()),
+            self.worker_pool.clone(),
+            Some(deadline.into()),
         )?;
 
         Ok(executor)
@@ -508,7 +510,11 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
         >,
         runtime: tokio::runtime::Handle,
     ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, AbortSignalSender)> {
-        let executor = self.preprocess_and_create_transaction_executor(block_metadata, runtime)?;
+        let executor = self.preprocess_and_create_transaction_executor(
+            block_metadata,
+            runtime,
+            execution_params.deadline,
+        )?;
         let (abort_signal_sender, abort_signal_receiver) = tokio::sync::oneshot::channel();
         let transaction_converter = TransactionConverter::new(
             self.class_manager_client.clone(),
