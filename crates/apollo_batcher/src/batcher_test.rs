@@ -90,6 +90,7 @@ fn proposal_commitment() -> ProposalCommitment {
 fn propose_block_input(proposal_id: ProposalId) -> ProposeBlockInput {
     ProposeBlockInput {
         proposal_id,
+        proposal_round: 0,
         retrospective_block_hash: None,
         deadline: chrono::Utc::now() + BLOCK_GENERATION_TIMEOUT,
         block_info: BlockInfo { block_number: INITIAL_HEIGHT, ..BlockInfo::create_for_testing() },
