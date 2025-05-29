@@ -236,7 +236,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> Result<LibraryCallResponse, Self::Error> {
-        todo!()
+        call_contract_helper(vm, syscall_handler, remaining_gas)
     }
 
     #[allow(clippy::result_large_err)]
