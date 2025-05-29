@@ -68,6 +68,11 @@ use crate::metrics::{
     STORAGE_HEIGHT,
     SYNCED_TRANSACTIONS,
 };
+use crate::pre_confirmed_block_writer::{
+    PreConfirmedBlockWriterFactory,
+    PreConfirmedBlockWriterFactoryTrait,
+};
+use crate::pre_confirmed_cende_client::PreConfirmedCendeClientTrait;
 use crate::transaction_provider::{ProposeTransactionProvider, ValidateTransactionProvider};
 use crate::utils::{
     deadline_as_instant,
@@ -91,6 +96,9 @@ pub struct Batcher {
     /// Used to create block builders.
     /// Using the factory pattern to allow for easier testing.
     block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
+
+    /// Used to create pre-confirmed block writers.
+    _pre_confirmed_block_writer_factory: Box<dyn PreConfirmedBlockWriterFactoryTrait>,
 
     /// The height that the batcher is currently working on.
     /// All proposals are considered to be at this height.
@@ -117,6 +125,7 @@ pub struct Batcher {
 }
 
 impl Batcher {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         config: BatcherConfig,
         storage_reader: Arc<dyn BatcherStorageReaderTrait>,
@@ -125,6 +134,7 @@ impl Batcher {
         mempool_client: SharedMempoolClient,
         transaction_converter: TransactionConverter,
         block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
+        pre_confirmed_block_writer_factory: Box<dyn PreConfirmedBlockWriterFactoryTrait>,
     ) -> Self {
         Self {
             config,
@@ -134,6 +144,7 @@ impl Batcher {
             mempool_client,
             transaction_converter,
             block_builder_factory,
+            _pre_confirmed_block_writer_factory: pre_confirmed_block_writer_factory,
             active_height: None,
             active_proposal: Arc::new(Mutex::new(None)),
             active_proposal_task: None,
@@ -763,6 +774,7 @@ pub fn create_batcher(
     mempool_client: SharedMempoolClient,
     l1_provider_client: SharedL1ProviderClient,
     class_manager_client: SharedClassManagerClient,
+    pre_confirmed_cende_client: Arc<dyn PreConfirmedCendeClientTrait>,
 ) -> Batcher {
     let (storage_reader, storage_writer) = apollo_storage::open_storage(config.storage.clone())
         .expect("Failed to open batcher's storage");
@@ -772,6 +784,8 @@ pub fn create_batcher(
         execute_config.stack_size,
         execute_config.concurrency_config.clone(),
     ));
+    let pre_confirmed_block_writer_factory =
+        Box::new(PreConfirmedBlockWriterFactory { cende_client: pre_confirmed_cende_client });
     let block_builder_factory = Box::new(BlockBuilderFactory {
         block_builder_config: config.block_builder_config.clone(),
         storage_reader: storage_reader.clone(),
@@ -794,6 +808,7 @@ pub fn create_batcher(
         mempool_client,
         transaction_converter,
         block_builder_factory,
+        pre_confirmed_block_writer_factory,
     )
 }
 
