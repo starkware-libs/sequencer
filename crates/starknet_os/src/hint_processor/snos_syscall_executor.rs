@@ -302,12 +302,17 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
 
     #[allow(clippy::result_large_err)]
     fn meta_tx_v0(
-        _request: MetaTxV0Request,
-        _vm: &mut VirtualMachine,
-        _syscall_handler: &mut Self,
-        _remaining_gas: &mut u64,
+        request: MetaTxV0Request,
+        vm: &mut VirtualMachine,
+        syscall_handler: &mut Self,
+        remaining_gas: &mut u64,
     ) -> Result<MetaTxV0Response, Self::Error> {
-        todo!()
+        if request.entry_point_selector != selector_from_name(EXECUTE_ENTRY_POINT_NAME) {
+            return Err(Self::Error::Revert {
+                error_data: vec![Felt::from_hex_unchecked(INVALID_ARGUMENT)],
+            });
+        }
+        call_contract_helper(vm, syscall_handler, remaining_gas)
     }
 
     #[allow(clippy::result_large_err)]
