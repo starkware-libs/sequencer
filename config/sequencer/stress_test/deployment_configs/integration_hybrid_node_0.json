@@ -22,8 +22,8 @@
           "memory": 4
         },
         "limits": {
-          "cpu": 7,
-          "memory": 14
+          "cpu": 25,
+          "memory": 215
         }
       },
       "external_secret": {
