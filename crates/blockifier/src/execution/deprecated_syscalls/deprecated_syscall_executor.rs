@@ -323,6 +323,8 @@ pub fn execute_next_deprecated_syscall<T: DeprecatedSyscallExecutor>(
 pub enum DeprecatedSyscallExecutorBaseError {
     #[error(transparent)]
     Hint(#[from] HintError),
+    #[error("Invalid syscall selector: {0:?}.")]
+    InvalidDeprecatedSyscallSelector(Felt),
     #[error("Invalid syscall input: {input:?}; {info}")]
     InvalidSyscallInput { input: Felt, info: String },
     #[error(transparent)]
