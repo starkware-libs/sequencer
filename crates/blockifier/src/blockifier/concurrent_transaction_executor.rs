@@ -1,4 +1,5 @@
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 use starknet_api::block::BlockHashAndNumber;
 
@@ -36,6 +37,7 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
         block_context: BlockContext,
         old_block_number_and_hash: Option<BlockHashAndNumber>,
         worker_pool: Arc<WorkerPool<CachedState<S>>>,
+        block_deadline: Option<Instant>,
     ) -> StateResult<Self> {
         let mut block_state = CachedState::new(initial_state_reader);
         pre_process_block(
@@ -51,7 +53,7 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
             vec![],
             block_context.into(),
             Mutex::new(Bouncer::new(bouncer_config)).into(),
-            None, // TODO(lior): Fix execution deadline.
+            block_deadline,
         ));
         worker_pool.run(worker_executor.clone());
 
@@ -87,6 +89,7 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
     /// Every block must be closed with either `close_block` or `abort_block`.
     #[allow(clippy::result_large_err)]
     pub fn close_block(&mut self) -> TransactionExecutorResult<BlockExecutionSummary> {
+        log::info!("Worker executor: Closing block.");
         let worker_executor = &self.worker_executor;
         worker_executor.scheduler.halt();
 
@@ -100,8 +103,9 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
         )
     }
 
-    /// Marks the block as aborted.
+    /// Halts the scheduler, to allow the worker threads to continue to the next block.
     pub fn abort_block(&mut self) {
+        log::info!("Worker executor: Aborting block.");
         self.worker_executor.scheduler.halt();
     }
 }
