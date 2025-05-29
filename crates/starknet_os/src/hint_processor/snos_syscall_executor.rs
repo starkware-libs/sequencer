@@ -1,7 +1,7 @@
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::execution::execution_utils::ReadOnlySegment;
-use blockifier::execution::syscalls::hint_processor::SyscallExecutionError;
+use blockifier::execution::syscalls::hint_processor::{SyscallExecutionError, INVALID_ARGUMENT};
 use blockifier::execution::syscalls::secp::SecpHintProcessor;
 use blockifier::execution::syscalls::syscall_base::SyscallResult;
 use blockifier::execution::syscalls::syscall_executor::SyscallExecutor;
@@ -40,19 +40,31 @@ use blockifier::execution::syscalls::vm_syscall_utils::{
 use blockifier::state::state_api::StateReader;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::errors::hint_errors::HintError;
+use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::vm_core::VirtualMachine;
+use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::execution_resources::GasAmount;
+use starknet_api::transaction::constants::EXECUTE_ENTRY_POINT_NAME;
 use starknet_types_core::felt::Felt;
 
+use super::execution_helper::ExecutionHelperError;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::vm_utils::write_to_temp_segment;
 
 #[derive(Debug, thiserror::Error)]
 pub enum SnosSyscallError {
     #[error(transparent)]
+    ExecutionHelper(#[from] ExecutionHelperError),
+    #[error(transparent)]
+    Memory(#[from] MemoryError),
+    #[error("Syscall revert.")]
+    Revert { error_data: Vec<Felt> },
+    #[error(transparent)]
     SyscallExecutorBase(#[from] SyscallExecutorBaseError),
 }
+
+pub type SnosSyscallResult<T> = Result<T, SnosSyscallError>;
 
 // Needed for custom hint implementations (in our case, syscall hints) which must comply with the
 // cairo-rs API.
@@ -68,6 +80,11 @@ impl TryExtractRevert for SnosSyscallError {
             SnosSyscallError::SyscallExecutorBase(base_error) => {
                 base_error.try_extract_revert().map_original(Self::SyscallExecutorBase)
             }
+            SnosSyscallError::Memory(os_hint_error) => SelfOrRevert::Original(os_hint_error.into()),
+            SnosSyscallError::ExecutionHelper(execution_helper_error) => {
+                SelfOrRevert::Original(execution_helper_error.into())
+            }
+            SnosSyscallError::Revert { error_data } => SelfOrRevert::Revert(error_data),
         }
     }
 
@@ -112,15 +129,13 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<CallContractResponse> {
-        let next_call_execution = syscall_handler.get_next_call_execution();
-        *remaining_gas -= next_call_execution.gas_consumed;
-
-        let ret_data = &next_call_execution.retdata.0;
-        if next_call_execution.failed {
-            return Err(SyscallExecutionError::Revert { error_data: ret_data.clone() });
-        };
-
-        Ok(CallContractResponse { segment: write_to_temp_segment(ret_data, vm)? })
+        if request.function_selector == selector_from_name(EXECUTE_ENTRY_POINT_NAME) {
+            return Err(SyscallExecutionError::Revert {
+                error_data: vec![Felt::from_hex(INVALID_ARGUMENT).unwrap()],
+            });
+        }
+        Ok(call_contract_helper(vm, syscall_handler, remaining_gas)
+            .unwrap_or_else(|err| panic!("Error calling contract: {err}")))
     }
 
     #[allow(clippy::result_large_err)]
@@ -305,4 +320,19 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
     fn versioned_constants(&self) -> &VersionedConstants {
         VersionedConstants::latest_constants()
     }
+}
+
+fn call_contract_helper(
+    vm: &mut VirtualMachine,
+    syscall_handler: &mut SnosHintProcessor<'_, impl StateReader>,
+    remaining_gas: &mut u64,
+) -> SnosSyscallResult<CallContractResponse> {
+    let next_call_execution = syscall_handler.get_next_call_execution();
+    *remaining_gas -= next_call_execution.gas_consumed;
+    let ret_data = &next_call_execution.retdata.0;
+    if next_call_execution.failed {
+        return Err(SnosSyscallError::Revert { error_data: ret_data.clone() });
+    };
+
+    Ok(CallContractResponse { segment: write_to_temp_segment(ret_data, vm)? })
 }
