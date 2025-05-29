@@ -7,14 +7,13 @@ license-file.workspace = true
 description = "Infrastructure utility."
 
 [features]
-testing = ["cached", "colored", "dep:assert-json-diff", "socket2", "tempfile", "toml"]
+testing = ["colored", "dep:assert-json-diff", "socket2", "tempfile"]
 
 [lints]
 workspace = true
 
 [dependencies]
 assert-json-diff = { workspace = true, optional = true }
-cached = { workspace = true, optional = true }
 colored = { workspace = true, optional = true }
 num_enum.workspace = true
 serde = { workspace = true, features = ["derive"] }
@@ -23,12 +22,10 @@ socket2 = { workspace = true, optional = true }
 tempfile = { workspace = true, optional = true }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["process", "rt", "time"] }
-toml = { workspace = true, optional = true }
 tracing.workspace = true
 
 [dev-dependencies]
 assert-json-diff.workspace = true
-cached.workspace = true
 colored.workspace = true
 nix.workspace = true
 pretty_assertions.workspace = true
