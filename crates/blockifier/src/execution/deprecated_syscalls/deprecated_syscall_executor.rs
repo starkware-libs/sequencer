@@ -321,6 +321,8 @@ pub fn execute_next_deprecated_syscall<T: DeprecatedSyscallExecutor>(
 
 #[derive(Debug, thiserror::Error)]
 pub enum DeprecatedSyscallExecutorBaseError {
+    #[error("Bad syscall_ptr; expected: {expected_ptr:?}, got: {actual_ptr:?}.")]
+    BadSyscallPointer { expected_ptr: Relocatable, actual_ptr: Relocatable },
     #[error(transparent)]
     Hint(#[from] HintError),
     #[error("Invalid syscall selector: {0:?}.")]
