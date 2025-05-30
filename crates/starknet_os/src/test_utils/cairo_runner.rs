@@ -505,21 +505,21 @@ fn get_return_values(
         debug!("Loading implicit return value {}. Value: {:?}", i, implicit_arg);
         match implicit_arg {
             ImplicitArg::Builtin(builtin) => {
+                let curr_builtin_runner = builtin_runner_iterator
+                    .next()
+                    .unwrap_or_else(|| panic!("No builtin runner found for builtin {builtin}."));
+                assert_eq!(
+                    vm.get_relocatable(current_address)?.segment_index,
+                    isize::try_from(curr_builtin_runner.base()).unwrap(),
+                    "Expected builtin runner segment index to match returned segment index."
+                );
                 match builtin {
-                    BuiltinName::output => push_program_output(
-                        builtin_runner_iterator.next().unwrap_or_else(|| {
-                            panic!("No builtin runner found for builtin {builtin}.")
-                        }),
-                        &mut implicit_return_values,
-                        vm,
-                    )?,
-                    _ => push_n_used_instances(
-                        builtin_runner_iterator.next().unwrap_or_else(|| {
-                            panic!("No builtin runner found for builtin {builtin}.")
-                        }),
-                        &mut implicit_return_values,
-                        vm,
-                    )?,
+                    BuiltinName::output => {
+                        push_program_output(curr_builtin_runner, &mut implicit_return_values, vm)?
+                    }
+                    _ => {
+                        push_n_used_instances(curr_builtin_runner, &mut implicit_return_values, vm)?
+                    }
                 }
                 current_address = (current_address + implicit_arg.memory_length())?;
             }
