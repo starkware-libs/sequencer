@@ -68,7 +68,12 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
         &mut self,
         txs: &[Transaction],
     ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
+        log::info!("Worker executor: Adding {} transactions to worker executor.", txs.len());
         let (from_tx, to_tx) = self.worker_executor.add_txs(txs);
+        log::info!(
+            "Worker executor: Waiting for completion {from_tx}..{to_tx} now: {:?}",
+            Instant::now()
+        );
         // TODO(lior): Remove this check once tx streaming is supported.
         assert_eq!(
             from_tx, self.n_output_txs,
@@ -77,8 +82,10 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
             self.n_output_txs
         );
         self.worker_executor.scheduler.wait_for_completion(to_tx);
+        log::info!("Worker executor: Waiting for completion done.");
         self.worker_pool.check_panic();
         let res = self.worker_executor.extract_execution_outputs(from_tx, to_tx);
+        log::info!("Worker executor: Extracted {} execution outputs.", res.len());
 
         self.n_output_txs += res.len();
         res
@@ -92,7 +99,7 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
         log::info!("Worker executor: Closing block.");
         let worker_executor = &self.worker_executor;
         worker_executor.scheduler.halt();
-
+        // TODO: Get n_committed_txs from the caller.
         let n_committed_txs = worker_executor.scheduler.get_n_committed_txs();
         let mut state_after_block =
             worker_executor.commit_chunk_and_recover_block_state(n_committed_txs);
