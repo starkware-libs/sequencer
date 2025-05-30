@@ -129,6 +129,7 @@ define_string_enum! {
         (BuiltinCosts),
         (BuiltinParams),
         (BuiltinPtrs),
+        (CallResponse),
         (ChildBit),
         (ClassHash),
         (ClassHashPtr),
