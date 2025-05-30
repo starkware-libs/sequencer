@@ -27,6 +27,8 @@ serde_json.workspace = true
 
 [dev-dependencies]
 apollo_infra_utils = { workspace = true, features = ["testing"] }
-blockifier.workspace = true
+blockifier = { workspace = true, features = ["testing"] }
 starknet-types-core.workspace = true
 starknet_api.workspace = true
+strum.workspace = true
+strum_macros.workspace = true
