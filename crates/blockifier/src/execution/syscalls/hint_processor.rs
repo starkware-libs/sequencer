@@ -13,7 +13,6 @@ use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::runners::cairo_runner::{ResourceTracker, RunResources};
 use cairo_vm::vm::vm_core::VirtualMachine;
-use num_traits::ToPrimitive;
 use starknet_api::block::BlockHash;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
@@ -70,8 +69,6 @@ use crate::execution::syscalls::vm_syscall_utils::{
     SelfOrRevert,
     SendMessageToL1Request,
     SendMessageToL1Response,
-    Sha256ProcessBlockRequest,
-    Sha256ProcessBlockResponse,
     StorageReadRequest,
     StorageReadResponse,
     StorageWriteRequest,
@@ -473,6 +470,14 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         self.gas_costs().syscalls.keccak_round.base_syscall_cost()
     }
 
+    fn get_sha256_segment_end_ptr(&mut self) -> Option<Relocatable> {
+        self.sha256_segment_end_ptr
+    }
+
+    fn set_sha256_segment_end_ptr(&mut self, segment_end_ptr: Option<Relocatable>) {
+        self.sha256_segment_end_ptr = segment_end_ptr;
+    }
+
     fn get_secpk1_hint_processor(&mut self) -> &mut SecpHintProcessor<ark_secp256k1::Config> {
         &mut self.secp256k1_hint_processor
     }
@@ -678,51 +683,6 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         let retdata_segment = create_retdata_segment(vm, syscall_handler, &raw_retdata)?;
 
         Ok(MetaTxV0Response { segment: retdata_segment })
-    }
-
-    #[allow(clippy::result_large_err)]
-    fn sha256_process_block(
-        request: Sha256ProcessBlockRequest,
-        vm: &mut VirtualMachine,
-        syscall_handler: &mut Self,
-        _remaining_gas: &mut u64,
-    ) -> SyscallResult<Sha256ProcessBlockResponse> {
-        const SHA256_BLOCK_SIZE: usize = 16;
-
-        let data = vm.get_integer_range(request.input_start, SHA256_BLOCK_SIZE)?;
-        const SHA256_STATE_SIZE: usize = 8;
-        let prev_state = vm.get_integer_range(request.state_ptr, SHA256_STATE_SIZE)?;
-
-        let data_as_bytes = sha2::digest::generic_array::GenericArray::from_exact_iter(
-            data.iter().flat_map(|felt| {
-                felt.to_bigint()
-                    .to_u32()
-                    .expect("libfunc should ensure the input is an [u32; 16].")
-                    .to_be_bytes()
-            }),
-        )
-        .expect(
-            "u32.to_be_bytes() returns 4 bytes, and data.len() == 16. So data contains 64 bytes.",
-        );
-
-        let mut state_as_words: [u32; SHA256_STATE_SIZE] = core::array::from_fn(|i| {
-            prev_state[i].to_bigint().to_u32().expect(
-                "libfunc only accepts SHA256StateHandle which can only be created from an \
-                 Array<u32>.",
-            )
-        });
-
-        sha2::compress256(&mut state_as_words, &[data_as_bytes]);
-
-        let segment = syscall_handler.sha256_segment_end_ptr.unwrap_or(vm.add_memory_segment());
-
-        let response = segment;
-        let data: Vec<MaybeRelocatable> =
-            state_as_words.iter().map(|&arg| MaybeRelocatable::from(Felt::from(arg))).collect();
-
-        syscall_handler.sha256_segment_end_ptr = Some(vm.load_data(segment, &data)?);
-
-        Ok(Sha256ProcessBlockResponse { state_ptr: response })
     }
 
     #[allow(clippy::result_large_err)]

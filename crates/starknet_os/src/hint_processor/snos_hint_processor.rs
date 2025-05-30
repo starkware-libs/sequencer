@@ -310,7 +310,7 @@ impl<S: StateReader> ResourceTracker for SnosHintProcessor<'_, S> {}
 
 pub struct SyscallHintProcessor {
     // Sha256 segments.
-    sha256_segment: Option<Relocatable>,
+    pub(crate) sha256_segment: Option<Relocatable>,
     syscall_ptr: Option<Relocatable>,
     pub(crate) syscall_usage: SyscallUsageMap,
 
