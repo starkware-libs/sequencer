@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::Instant;
 
 use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
@@ -31,7 +32,7 @@ struct TestData {
     max_n_events_in_block: usize,
 }
 
-fn get_test_data() -> TestData {
+fn get_test_data(block_deadline: Option<Instant>) -> TestData {
     let pool = Arc::new(WorkerPool::start(&WorkerPoolConfig::create_for_testing()));
 
     let max_n_events_in_block = 10;
@@ -50,7 +51,7 @@ fn get_test_data() -> TestData {
         block_context,
         block_number_hash_pair,
         pool.clone(),
-        None,
+        block_deadline,
     )
     .unwrap();
 
@@ -65,7 +66,7 @@ fn test_concurrent_transaction_executor() {
         account_address,
         contract_address,
         max_n_events_in_block,
-    } = get_test_data();
+    } = get_test_data(None);
 
     let txs0 = get_txs([
         emit_n_events_tx(1, account_address, contract_address, nonce!(0_u32)),
@@ -117,10 +118,29 @@ fn test_concurrent_transaction_executor() {
 
 #[rstest]
 fn test_concurrent_transaction_executor_abort() {
-    let TestData { pool, mut tx_executor, .. } = get_test_data();
+    let TestData { pool, mut tx_executor, .. } = get_test_data(None);
 
     // Not calling `abort_block` would cause the `join` below to hang.
     tx_executor.abort_block();
+
+    drop(tx_executor);
+    Arc::try_unwrap(pool).expect("More than one instance of worker pool exists").join();
+}
+
+#[rstest]
+fn test_concurrent_transaction_executor_deadline() {
+    let deadline = Instant::now();
+    let TestData { pool, mut tx_executor, account_address, contract_address, .. } =
+        get_test_data(Some(deadline));
+
+    let txs0 = get_txs([emit_n_events_tx(1, account_address, contract_address, nonce!(0_u32))]);
+
+    let results0 = tx_executor.add_txs_and_wait(&txs0);
+    // Expect no results since the deadline passed.
+    assert_eq!(results0.len(), 0);
+
+    let block_summary = tx_executor.close_block().unwrap();
+    assert!(block_summary.state_diff.address_to_nonce.get(&account_address).is_none());
 
     drop(tx_executor);
     Arc::try_unwrap(pool).expect("More than one instance of worker pool exists").join();
