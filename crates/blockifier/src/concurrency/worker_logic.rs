@@ -183,10 +183,15 @@ impl<S: StateReader> WorkerExecutor<S> {
     pub fn extract_execution_outputs(
         &self,
         from_tx: usize,
-        to_tx: usize,
+        // TODO: is to_tx needed?
+        to_tx: Option<usize>,
     ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
         let n_committed_txs = self.scheduler.get_n_committed_txs();
-        let actual_to_tx = std::cmp::min(n_committed_txs, to_tx);
+        let actual_to_tx = if let Some(to_tx) = to_tx {
+            std::cmp::min(n_committed_txs, to_tx)
+        } else {
+            n_committed_txs
+        };
         (from_tx..actual_to_tx)
             .map(|tx_index| {
                 let execution_output = self.extract_execution_output(tx_index);

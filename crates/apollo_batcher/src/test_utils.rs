@@ -81,16 +81,16 @@ pub fn test_txs(tx_hash_range: Range<usize>) -> Vec<InternalConsensusTransaction
         .collect()
 }
 
-pub fn test_l1_handler_txs(tx_hash_range: Range<usize>) -> Vec<InternalConsensusTransaction> {
-    tx_hash_range
-        .map(|i| {
-            InternalConsensusTransaction::L1Handler(executable_l1_handler_tx(L1HandlerTxArgs {
-                tx_hash: tx_hash!(i),
-                ..Default::default()
-            }))
-        })
-        .collect()
-}
+// pub fn test_l1_handler_txs(tx_hash_range: Range<usize>) -> Vec<InternalConsensusTransaction> {
+//     tx_hash_range
+//         .map(|i| {
+//             InternalConsensusTransaction::L1Handler(executable_l1_handler_tx(L1HandlerTxArgs {
+//                 tx_hash: tx_hash!(i),
+//                 ..Default::default()
+//             }))
+//         })
+//         .collect()
+// }
 
 // Create `execution_infos` with an indexed field to enable verification of the order.
 fn indexed_execution_infos() -> IndexMap<TransactionHash, TransactionExecutionInfo> {

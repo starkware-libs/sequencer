@@ -60,6 +60,29 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
         Ok(Self { worker_executor, worker_pool: worker_pool.clone(), n_output_txs: 0 })
     }
 
+    // TODO: doc
+    pub fn add_txs(
+        &mut self,
+        txs: &[Transaction],
+    ) {
+        log::info!("Worker executor: Adding {} transactions to worker executor.", txs.len());
+        let (from_tx, to_tx) = self.worker_executor.add_txs(txs);
+        log::info!(
+            "Worker executor: Waiting for completion {from_tx}..{to_tx} now: {:?}",
+            Instant::now()
+        );
+    }
+
+    // TODO: doc
+    pub fn get_processed_txs(
+        &mut self,
+    ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
+        let res = self.worker_executor.extract_execution_outputs(self.n_output_txs, None);
+        self.worker_pool.check_panic();
+        self.n_output_txs += res.len();
+        res
+    }
+
     /// Adds the given transactions to the block and waits for them to be executed.
     ///
     /// Returns the execution results. Note that the execution results may be incomplete
@@ -84,7 +107,7 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
         self.worker_executor.scheduler.wait_for_completion(to_tx);
         log::info!("Worker executor: Waiting for completion done.");
         self.worker_pool.check_panic();
-        let res = self.worker_executor.extract_execution_outputs(from_tx, to_tx);
+        let res = self.worker_executor.extract_execution_outputs(from_tx, Some(to_tx));
         log::info!("Worker executor: Extracted {} execution outputs.", res.len());
 
         self.n_output_txs += res.len();
