@@ -15,6 +15,9 @@ pub trait TransactionExecutorTrait: Send {
 
     fn get_processed_txs(&mut self) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>>;
 
+    /// Returns true if the block is full or the deadline is reached.
+    fn is_done(&self) -> bool;
+
     /// Finalizes the block creation and returns the commitment state diff, visited
     /// segments mapping and bouncer.
     ///
@@ -39,6 +42,10 @@ impl<S: StateReader + Send + Sync + 'static> TransactionExecutorTrait
             .into_iter()
             .map(|res| res.map(|(tx_execution_info, _state_diff)| tx_execution_info))
             .collect()
+    }
+
+    fn is_done(&self) -> bool {
+        ConcurrentTransactionExecutor::is_done(self)
     }
 
     /// Finalizes the block creation and returns the commitment state diff, visited

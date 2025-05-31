@@ -48,7 +48,7 @@ use tokio::sync::Mutex;
 use tracing::{debug, error, info, trace};
 
 use crate::block_builder::FailOnErrorCause::L1HandlerTransactionValidationFailed;
-// use crate::metrics::FULL_BLOCKS; // TODO
+use crate::metrics::FULL_BLOCKS;
 use crate::transaction_executor::TransactionExecutorTrait;
 use crate::transaction_provider::{NextTxs, TransactionProvider, TransactionProviderError};
 
@@ -214,6 +214,7 @@ impl BlockBuilder {
         // TODO(yael 6/10/2024): delete the timeout condition once the executor has a timeout
         let mut finished_adding_txs = false;
         while !(finished_adding_txs && self.n_processed_txs == self.block_txs.len()) {
+            // TODO: is this needed?
             if tokio::time::Instant::now() >= self.execution_params.deadline {
                 info!("Block builder deadline reached.");
                 if self.execution_params.fail_on_err {
@@ -226,7 +227,25 @@ impl BlockBuilder {
                 return Err(BlockBuilderError::Aborted);
             }
 
+            println!("handle_processed_txs"); // TODO
             self.handle_processed_txs().await?;
+
+            let is_done = self.executor
+                .try_lock() // Acquire the lock in a sync manner.
+                .expect("Only a single task should use the executor.")
+                .is_done();
+            println!("is_done {is_done}"); // TODO
+            if is_done {
+                info!("Block is full.");
+                if self.execution_params.fail_on_err {
+                    return Err(BlockBuilderError::FailOnError(FailOnErrorCause::BlockFull));
+                } else {
+                    // TODO: distinguish between full blocks and blocks that are full because of
+                    // the deadline.
+                    FULL_BLOCKS.increment(1);
+                }
+                break;
+            }
 
             if finished_adding_txs {
                 // Avoid busy wait while waiting for the executor to finish processing the
@@ -235,6 +254,7 @@ impl BlockBuilder {
             } else if self.add_new_txs().await? {
                 finished_adding_txs = true;
             }
+            println!("finished_adding_txs {finished_adding_txs}"); // TODO
         }
 
         info!(

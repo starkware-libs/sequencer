@@ -133,6 +133,12 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
         )
     }
 
+    /// Returns true if the scheduler was halted. This happens when the block is full or the
+    /// deadline is reached.
+    pub fn is_done(&self) -> bool {
+        self.worker_executor.scheduler.done()
+    }
+
     /// Marks the block as aborted.
     pub fn abort_block(&mut self) {
         log::info!("Worker executor: Aborting block.");
