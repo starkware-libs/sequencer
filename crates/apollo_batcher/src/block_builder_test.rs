@@ -123,18 +123,47 @@ fn one_chunk_test_expectations() -> TestExpectations {
     }
 }
 
+fn expect_add_txs_to_block(
+    mock_transaction_executor: &mut MockTransactionExecutorTrait,
+    seq: &mut Sequence,
+    input_txs: &[InternalConsensusTransaction],
+) {
+    let input_txs_cloned = input_txs.to_vec();
+    mock_transaction_executor
+        .expect_add_txs_to_block()
+        .times(1)
+        .in_sequence(seq)
+        .withf(move |blockifier_input| compare_tx_hashes(&input_txs_cloned, blockifier_input))
+        .return_const(());
+}
+
+fn expect_get_processed_txs(
+    mock_transaction_executor: &mut MockTransactionExecutorTrait,
+    seq: &mut Sequence,
+    n_txs: usize,
+) {
+    mock_transaction_executor
+        .expect_get_processed_txs()
+        .times(1)
+        .in_sequence(seq)
+        .return_once(move || (0..n_txs).map(|_| Ok(execution_info())).collect());
+}
+
+fn expect_get_processed_txs_end(mock_transaction_executor: &mut MockTransactionExecutorTrait) {
+    mock_transaction_executor.expect_get_processed_txs().returning(|| vec![]);
+}
+
 fn one_chunk_mock_executor(
     input_txs: &[InternalConsensusTransaction],
     block_size: usize,
 ) -> (MockTransactionExecutorTrait, BlockExecutionArtifacts) {
-    let input_txs_cloned = input_txs.to_vec();
     let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
+    let mut seq = Sequence::new();
 
-    mock_transaction_executor
-        .expect_add_txs_to_block()
-        .times(1)
-        .withf(move |blockifier_input| compare_tx_hashes(&input_txs_cloned, blockifier_input))
-        .return_once(move |_| (0..block_size).map(|_| Ok(execution_info())).collect());
+    expect_get_processed_txs(&mut mock_transaction_executor, &mut seq, 0);
+    expect_add_txs_to_block(&mut mock_transaction_executor, &mut seq, input_txs);
+    expect_get_processed_txs(&mut mock_transaction_executor, &mut seq, block_size);
+    expect_get_processed_txs_end(&mut mock_transaction_executor);
 
     let expected_block_artifacts =
         set_close_block_expectations(&mut mock_transaction_executor, block_size);
@@ -148,19 +177,14 @@ fn two_chunks_test_expectations() -> TestExpectations {
     let block_size = input_txs.len();
 
     let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
-    let mut mock_add_txs_to_block = |tx_chunk: Vec<InternalConsensusTransaction>,
-                                     seq: &mut Sequence| {
-        mock_transaction_executor
-            .expect_add_txs_to_block()
-            .times(1)
-            .in_sequence(seq)
-            .withf(move |blockifier_input| compare_tx_hashes(&tx_chunk, blockifier_input))
-            .return_once(move |_| (0..TX_CHUNK_SIZE).map(move |_| Ok(execution_info())).collect());
-    };
-
     let mut seq = Sequence::new();
-    mock_add_txs_to_block(first_chunk.clone(), &mut seq);
-    mock_add_txs_to_block(second_chunk.clone(), &mut seq);
+
+    expect_get_processed_txs(&mut mock_transaction_executor, &mut seq, 0);
+    expect_add_txs_to_block(&mut mock_transaction_executor, &mut seq, &first_chunk);
+    expect_get_processed_txs(&mut mock_transaction_executor, &mut seq, first_chunk.len());
+    expect_add_txs_to_block(&mut mock_transaction_executor, &mut seq, &second_chunk);
+    expect_get_processed_txs(&mut mock_transaction_executor, &mut seq, second_chunk.len());
+    expect_get_processed_txs_end(&mut mock_transaction_executor);
 
     let expected_block_artifacts =
         set_close_block_expectations(&mut mock_transaction_executor, block_size);
@@ -178,6 +202,7 @@ fn two_chunks_test_expectations() -> TestExpectations {
 
 fn empty_block_test_expectations() -> TestExpectations {
     let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
+    expect_get_processed_txs_end(&mut mock_transaction_executor);
     mock_transaction_executor.expect_add_txs_to_block().times(0);
 
     let expected_block_artifacts = set_close_block_expectations(&mut mock_transaction_executor, 0);
@@ -264,14 +289,15 @@ fn test_expectations_with_delay() -> TestExpectations {
 fn stream_done_test_expectations() -> TestExpectations {
     let input_txs = test_txs(0..2);
     let block_size = input_txs.len();
-    let input_txs_cloned = input_txs.clone();
     let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
+    let mut seq = Sequence::new();
 
-    mock_transaction_executor
-        .expect_add_txs_to_block()
-        .times(1)
-        .withf(move |blockifier_input| compare_tx_hashes(&input_txs_cloned, blockifier_input))
-        .return_once(move |_| (0..block_size).map(|_| Ok(execution_info())).collect());
+    expect_get_processed_txs(&mut mock_transaction_executor, &mut seq, 0);
+    expect_add_txs_to_block(&mut mock_transaction_executor, &mut seq, &input_txs);
+    expect_get_processed_txs(&mut mock_transaction_executor, &mut seq, block_size);
+
+    // No additional calls to get_processed_txs are expected.
+    mock_transaction_executor.expect_get_processed_txs().times(0);
 
     let expected_block_artifacts =
         set_close_block_expectations(&mut mock_transaction_executor, block_size);
