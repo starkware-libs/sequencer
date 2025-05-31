@@ -162,16 +162,36 @@ impl<S: StateReader> WorkerExecutor<S> {
         }
     }
 
+    pub fn add_txs(&self, txs: &[Transaction]) -> (TxIndex, TxIndex) {
+        let mut n_txs_lock = self.n_txs.lock().expect("Failed to lock n_txs");
+
+        let from_tx = *n_txs_lock;
+        let n_new_txs = txs.len();
+        for (i, tx) in txs.iter().enumerate() {
+            self.txs.insert(from_tx + i, Arc::new(tx.clone()));
+            // Notify the scheduler that a new transaction is available.
+            self.scheduler.new_tx(from_tx + i);
+        }
+        let to_tx = from_tx + n_new_txs;
+        *n_txs_lock = to_tx;
+        (from_tx, to_tx)
+    }
+
     /// Extracts the outputs of the committed transactions in the range [from_tx, to_tx).
     /// Note that the number of transactions may be smaller than `to_tx - from_tx`, if the execution
     /// was halted (due to time or full block).
     pub fn extract_execution_outputs(
         &self,
         from_tx: usize,
-        to_tx: usize,
+        // TODO: is to_tx needed?
+        to_tx: Option<usize>,
     ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
         let n_committed_txs = self.scheduler.get_n_committed_txs();
-        let actual_to_tx = std::cmp::min(n_committed_txs, to_tx);
+        let actual_to_tx = if let Some(to_tx) = to_tx {
+            std::cmp::min(n_committed_txs, to_tx)
+        } else {
+            n_committed_txs
+        };
         (from_tx..actual_to_tx)
             .map(|tx_index| {
                 let execution_output = self.extract_execution_output(tx_index);

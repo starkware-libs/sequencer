@@ -1,6 +1,6 @@
+use blockifier::blockifier::concurrent_transaction_executor::ConcurrentTransactionExecutor;
 use blockifier::blockifier::transaction_executor::{
     BlockExecutionSummary,
-    TransactionExecutor,
     TransactionExecutorResult,
 };
 use blockifier::state::state_api::StateReader;
@@ -8,15 +8,15 @@ use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 #[cfg(test)]
 use mockall::automock;
-use tokio::time::Instant;
 
 #[cfg_attr(test, automock)]
 pub trait TransactionExecutorTrait: Send {
-    fn add_txs_to_block(
-        &mut self,
-        txs: &[BlockifierTransaction],
-        block_timeout: Instant,
-    ) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>>;
+    fn add_txs_to_block(&mut self, txs: &[BlockifierTransaction]);
+
+    fn get_processed_txs(&mut self) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>>;
+
+    /// Returns true if the block is full or the deadline is reached.
+    fn is_done(&self) -> bool;
 
     /// Finalizes the block creation and returns the commitment state diff, visited
     /// segments mapping and bouncer.
@@ -29,26 +29,34 @@ pub trait TransactionExecutorTrait: Send {
     fn abort_block(&mut self);
 }
 
-impl<S: StateReader + Send + Sync + 'static> TransactionExecutorTrait for TransactionExecutor<S> {
+impl<S: StateReader + Send + Sync + 'static> TransactionExecutorTrait
+    for ConcurrentTransactionExecutor<S>
+{
     /// Adds the transactions to the generated block and returns the execution results.
-    fn add_txs_to_block(
-        &mut self,
-        txs: &[BlockifierTransaction],
-        block_timeout: Instant,
-    ) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>> {
-        self.execute_txs(txs, Some(block_timeout.into()))
+    fn add_txs_to_block(&mut self, txs: &[BlockifierTransaction]) {
+        self.add_txs(txs);
+    }
+
+    fn get_processed_txs(&mut self) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>> {
+        ConcurrentTransactionExecutor::get_processed_txs(self)
             .into_iter()
             .map(|res| res.map(|(tx_execution_info, _state_diff)| tx_execution_info))
             .collect()
+    }
+
+    fn is_done(&self) -> bool {
+        ConcurrentTransactionExecutor::is_done(self)
     }
 
     /// Finalizes the block creation and returns the commitment state diff, visited
     /// segments mapping and bouncer.
     #[allow(clippy::result_large_err)]
     fn close_block(&mut self) -> TransactionExecutorResult<BlockExecutionSummary> {
-        self.finalize()
+        ConcurrentTransactionExecutor::close_block(self)
     }
 
     /// Marks the block as aborted.
-    fn abort_block(&mut self) {}
+    fn abort_block(&mut self) {
+        ConcurrentTransactionExecutor::abort_block(self)
+    }
 }
