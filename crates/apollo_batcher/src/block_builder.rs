@@ -159,6 +159,8 @@ pub struct BlockBuilder {
     executed_tx_sender: Option<ExecutedTxSender>,
     abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
     transaction_converter: TransactionConverter,
+    execution_data: BlockTransactionExecutionData,
+    l2_gas_used: GasAmount,
 
     // Parameters to configure the block builder behavior.
     tx_chunk_size: usize,
@@ -191,6 +193,8 @@ impl BlockBuilder {
             executed_tx_sender,
             abort_signal_receiver,
             transaction_converter,
+            execution_data: BlockTransactionExecutionData::default(),
+            l2_gas_used: GasAmount::ZERO,
             tx_chunk_size,
             tx_polling_interval_millis,
             execution_params,
@@ -212,8 +216,6 @@ impl BlockBuilderTrait for BlockBuilder {
 impl BlockBuilder {
     async fn build_block_inner(&mut self) -> BlockBuilderResult<BlockExecutionArtifacts> {
         let mut block_is_full = false;
-        let mut l2_gas_used = GasAmount::ZERO;
-        let mut execution_data = BlockTransactionExecutionData::default();
         // TODO(yael 6/10/2024): delete the timeout condition once the executor has a timeout
         while !block_is_full {
             if tokio::time::Instant::now() >= self.execution_params.deadline {
@@ -227,97 +229,15 @@ impl BlockBuilder {
                 info!("Received abort signal. Aborting block builder.");
                 return Err(BlockBuilderError::Aborted);
             }
-            let next_txs = match self.tx_provider.get_txs(self.tx_chunk_size).await {
-                Err(e @ TransactionProviderError::L1HandlerTransactionValidationFailed { .. })
-                    if self.execution_params.fail_on_err =>
-                {
-                    return Err(BlockBuilderError::FailOnError(
-                        L1HandlerTransactionValidationFailed(e),
-                    ));
-                }
-                Err(err) => {
-                    error!("Failed to get transactions from the transaction provider: {:?}", err);
-                    return Err(err.into());
-                }
-                Ok(result) => result,
+
+            let Some((tx_chunk, results)) = self.execute_txs().await? else {
+                break;
             };
-            let next_tx_chunk = match next_txs {
-                NextTxs::Txs(txs) => txs,
-                NextTxs::End => break,
-            };
-            debug!("Got {} transactions from the transaction provider.", next_tx_chunk.len());
-            if next_tx_chunk.is_empty() {
-                tokio::time::sleep(tokio::time::Duration::from_millis(
-                    self.tx_polling_interval_millis,
-                ))
-                .await;
+            if tx_chunk.is_empty() {
                 continue;
             }
 
-            // Skip sending pre-confirmed transactions during validation flow.
-            // In validate flow pre_confirmed_tx_sender is None.
-            if let Some(pre_confirmed_tx_sender) = &self.pre_confirmed_tx_sender {
-                let tx_hashes: Vec<TransactionHash> =
-                    next_tx_chunk.iter().map(|tx| tx.tx_hash()).collect();
-                let num_txs = tx_hashes.len();
-
-                info!(
-                    "Attempting to send a pre confirmed transaction chunk with {num_txs} \
-                     transactions to the PreConfirmedBlockWriter.",
-                );
-
-                match pre_confirmed_tx_sender.send(tx_hashes) {
-                    Ok(_) => {
-                        info!(
-                            "Successfully sent a pre confirmed transaction chunk with {num_txs} \
-                             transactions to the PreConfirmedBlockWriter.",
-                        );
-                    }
-                    // We continue with block building even if sending pre-confirmed transactions to
-                    // the PreConfirmedBlockWriter fails because it is not critical for the block
-                    // building process.
-                    Err(err) => {
-                        error!(
-                            "Failed to send a pre confirmed transaction chunk with {num_txs} \
-                             transactions to the PreConfirmedBlockWriter: {:?}",
-                            err
-                        );
-                    }
-                }
-            }
-
-            let tx_convert_futures = next_tx_chunk.iter().map(|tx| async {
-                convert_to_executable_blockifier_tx(&self.transaction_converter, tx.clone()).await
-            });
-            let executor_input_chunk = futures::future::try_join_all(tx_convert_futures).await?;
-
-            // Execute the transactions on a separate thread pool to avoid blocking the executor
-            // while waiting on `block_on` calls.
-            debug!(
-                "Starting execution of a chunk with {} transactions.",
-                executor_input_chunk.len()
-            );
-            let executor = self.executor.clone();
-            let results = tokio::task::spawn_blocking(move || {
-                executor
-                    .try_lock() // Acquire the lock in a sync manner.
-                    .expect("Only a single task should use the executor.")
-                    .add_txs_to_block(executor_input_chunk.as_slice())
-            })
-            .await
-            .expect("Failed to spawn blocking executor task.");
-            debug!("Finished execution of transactions chunk.");
-            trace!("Transaction execution results: {:?}", results);
-            block_is_full = collect_execution_results_and_stream_txs(
-                next_tx_chunk,
-                results,
-                &mut l2_gas_used,
-                &mut execution_data,
-                &self.output_content_sender,
-                self.execution_params.fail_on_err,
-                &self.executed_tx_sender,
-            )
-            .await?;
+            block_is_full = self.handle_executed_txs(tx_chunk, results).await?;
         }
         let BlockExecutionSummary {
             state_diff,
@@ -326,13 +246,131 @@ impl BlockBuilder {
             casm_hash_computation_data,
         } = self.executor.lock().await.close_block()?;
         Ok(BlockExecutionArtifacts {
-            execution_data,
+            execution_data: std::mem::take(&mut self.execution_data),
             commitment_state_diff: state_diff,
             compressed_state_diff,
             bouncer_weights,
-            l2_gas_used,
+            l2_gas_used: self.l2_gas_used,
             casm_hash_computation_data,
         })
+    }
+
+    /// Adds new transactions (if there are any) from `tx_provider` to the executor.
+    ///
+    /// Returns `None` if the transaction input is exhausted, and the transactions otherwise.
+    async fn execute_txs(
+        &mut self,
+    ) -> BlockBuilderResult<
+        Option<(
+            Vec<InternalConsensusTransaction>,
+            Vec<TransactionExecutorResult<TransactionExecutionInfo>>,
+        )>,
+    > {
+        let next_txs = match self.tx_provider.get_txs(self.tx_chunk_size).await {
+            Err(e @ TransactionProviderError::L1HandlerTransactionValidationFailed { .. })
+                if self.execution_params.fail_on_err =>
+            {
+                return Err(BlockBuilderError::FailOnError(L1HandlerTransactionValidationFailed(
+                    e,
+                )));
+            }
+            Err(err) => {
+                error!("Failed to get transactions from the transaction provider: {:?}", err);
+                return Err(err.into());
+            }
+            Ok(result) => result,
+        };
+        let next_tx_chunk = match next_txs {
+            NextTxs::Txs(txs) => txs,
+            NextTxs::End => return Ok(None),
+        };
+        debug!("Got {} transactions from the transaction provider.", next_tx_chunk.len());
+        if next_tx_chunk.is_empty() {
+            self.sleep().await;
+            return Ok(Some((next_tx_chunk, vec![])));
+        }
+
+        self.send_pre_confirmed_txs(&next_tx_chunk).await;
+
+        let tx_convert_futures = next_tx_chunk.iter().map(|tx| async {
+            convert_to_executable_blockifier_tx(&self.transaction_converter, tx.clone()).await
+        });
+        let executor_input_chunk = futures::future::try_join_all(tx_convert_futures).await?;
+
+        // Execute the transactions on a separate thread pool to avoid blocking the executor
+        // while waiting on `block_on` calls.
+        debug!("Starting execution of a chunk with {} transactions.", executor_input_chunk.len());
+        let executor = self.executor.clone();
+        let results = tokio::task::spawn_blocking(move || {
+            executor
+                .try_lock() // Acquire the lock in a sync manner.
+                .expect("Only a single task should use the executor.")
+                .add_txs_to_block(executor_input_chunk.as_slice())
+        })
+        .await
+        .expect("Failed to spawn blocking executor task.");
+        debug!("Finished execution of transactions chunk.");
+
+        Ok(Some((next_tx_chunk, results)))
+    }
+
+    /// Handles the transactions that were processed so far by the executor.
+    async fn handle_executed_txs(
+        &mut self,
+        next_tx_chunk: Vec<InternalConsensusTransaction>,
+        results: Vec<TransactionExecutorResult<TransactionExecutionInfo>>,
+    ) -> BlockBuilderResult<bool> {
+        trace!("Transaction execution results: {:?}", results);
+        collect_execution_results_and_stream_txs(
+            next_tx_chunk,
+            results,
+            &mut self.l2_gas_used,
+            &mut self.execution_data,
+            &self.output_content_sender,
+            self.execution_params.fail_on_err,
+            &self.executed_tx_sender,
+        )
+        .await
+    }
+
+    async fn send_pre_confirmed_txs(&mut self, next_tx_chunk: &[InternalConsensusTransaction]) {
+        // Skip sending pre-confirmed transactions during validation flow.
+        // In validate flow pre_confirmed_tx_sender is None.
+        let Some(pre_confirmed_tx_sender) = &self.pre_confirmed_tx_sender else {
+            return;
+        };
+
+        let tx_hashes: Vec<TransactionHash> = next_tx_chunk.iter().map(|tx| tx.tx_hash()).collect();
+        let num_txs = tx_hashes.len();
+
+        info!(
+            "Attempting to send a pre confirmed transaction chunk with {num_txs} transactions to \
+             the PreConfirmedBlockWriter.",
+        );
+
+        match pre_confirmed_tx_sender.send(tx_hashes) {
+            Ok(_) => {
+                info!(
+                    "Successfully sent a pre confirmed transaction chunk with {num_txs} \
+                     transactions to the PreConfirmedBlockWriter.",
+                );
+            }
+            // We continue with block building even if sending pre-confirmed transactions to
+            // the PreConfirmedBlockWriter fails because it is not critical for the block
+            // building process.
+            Err(err) => {
+                error!(
+                    "Failed to send a pre confirmed transaction chunk with {num_txs} transactions \
+                     to the PreConfirmedBlockWriter: {:?}",
+                    err
+                );
+            }
+        }
+    }
+
+    async fn sleep(&mut self) {
+        tokio::time::sleep(tokio::time::Duration::from_millis(self.tx_polling_interval_millis))
+            .await;
     }
 }
 
