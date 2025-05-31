@@ -80,6 +80,10 @@ impl<S: StateReader + Send + 'static> WorkerPool<S> {
         // This is required since `wait_for_completion` can exit before the scheduler is done.
         worker_executor.scheduler.halt();
 
+        self.check_panic();
+    }
+
+    pub fn check_panic(&self) {
         if self.a_thread_panicked.load(Ordering::Acquire) {
             panic!("One of the threads panicked.");
         }
