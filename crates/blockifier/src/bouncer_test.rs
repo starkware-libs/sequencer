@@ -159,6 +159,7 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
         StateChangesKeys::create_for_testing(HashSet::from([contract_address!(1_u128)]));
 
     let mut updated_bouncer = initial_bouncer.clone();
+    // TODO(Meshi): Add real use case for marginal_casm_hashes_to_migrate.
     updated_bouncer.update(tx_weights, &execution_summary_to_update, &state_changes_keys_to_update);
 
     let mut expected_bouncer = initial_bouncer;
