@@ -1,13 +1,23 @@
 use blockifier::state::state_api::StateReader;
+use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::get_integer_from_var_name;
 
 use crate::hints::error::OsHintResult;
+use crate::hints::hint_implementation::execution::utils::set_state_entry;
 use crate::hints::types::HintArgs;
+use crate::hints::vars::{Ids, Scope};
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn prepare_state_entry_for_revert<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { ids_data, ap_tracking, vm, exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let contract_address =
+        get_integer_from_var_name(Ids::ContractAddress.into(), vm, ids_data, ap_tracking)?;
+    set_state_entry(&contract_address, vm, exec_scopes, ids_data, ap_tracking)?;
+
+    // Insert the contract address into the execution scopes instead of the entire storage.
+    // Later, we use this address to revert the state.
+    exec_scopes.insert_value(Scope::ContractAddressForRevert.into(), contract_address);
+    Ok(())
 }
 
 #[allow(clippy::result_large_err)]
