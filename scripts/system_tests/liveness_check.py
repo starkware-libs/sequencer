@@ -144,6 +144,9 @@ def main(
             relative_config_paths=config_paths,
         )
 
+        # Each sequencer is configured to use the same internal port - 8082,
+        # so we offset the local port to avoid conflicts when running multiple sequencers locally.
+        # This ensures unique local ports per instance.
         local_port = monitoring_port + i
         print(
             f"🚀 Starting port-forwarding for {service_name} on local port {local_port}..."
