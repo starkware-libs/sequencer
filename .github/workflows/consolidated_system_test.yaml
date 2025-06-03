@@ -32,7 +32,32 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  check-system-test-trigger:
+    runs-on: starkware-ubuntu-24.04-small
+    outputs:
+      should_run: ${{ steps.system_check.outputs.should_run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install -r scripts/requirements.txt
+
+      - name: Check for system-test-triggering changes
+        id: system_check
+        run: |
+          echo "Checking if any system-test-triggering crates were modified..."
+          should_run=$(python ./scripts/check_system_test_trigger.py --commit_id ${{ github.event.pull_request.base.sha }} | tail -n 1 | tr -d '\r\n')
+          echo "Captured output: $should_run"
+          echo "should_run=$should_run" >> $GITHUB_OUTPUT
+
   system_test:
+    needs: check-system-test-trigger
+    if: needs.check-system-test-trigger.outputs.should_run == 'true'
     runs-on: starkware-ubuntu-24.04-large
     steps:
       - name: Checkout repository
