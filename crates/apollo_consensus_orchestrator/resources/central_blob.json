@@ -1057,5 +1057,6 @@
       "0x3a59046762823dc87385eb5ac8a21f3f5bfe4274151c6eb633737656c209056": 1
     },
     "gas_without_casm_hash_computation": 3
-  }
+  },
+  "class_hashes_to_migrate": []
 }

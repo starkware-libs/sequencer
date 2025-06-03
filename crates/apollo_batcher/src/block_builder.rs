@@ -41,7 +41,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHashAndNumber, BlockInfo};
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
-use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
@@ -107,6 +107,7 @@ pub struct BlockExecutionArtifacts {
     pub l2_gas_used: GasAmount,
     pub casm_hash_computation_data_sierra_gas: CasmHashComputationData,
     pub casm_hash_computation_data_proving_gas: CasmHashComputationData,
+    pub class_hashes_to_migrate: HashSet<ClassHash>,
     // The number of transactions executed by the proposer out of the transactions that were sent.
     // This value includes rejected transactions.
     pub final_n_executed_txs: usize,
@@ -304,6 +305,7 @@ impl BlockBuilder {
             bouncer_weights,
             casm_hash_computation_data_sierra_gas,
             casm_hash_computation_data_proving_gas,
+            class_hashes_to_migrate,
         } = block_summary;
         let mut execution_data = std::mem::take(&mut self.execution_data);
         if let Some(final_n_executed_txs) = final_n_executed_txs {
@@ -323,6 +325,7 @@ impl BlockBuilder {
             l2_gas_used,
             casm_hash_computation_data_sierra_gas,
             casm_hash_computation_data_proving_gas,
+            class_hashes_to_migrate,
             final_n_executed_txs: final_n_executed_txs_nonopt,
         })
     }

@@ -602,6 +602,7 @@ impl Batcher {
                     .casm_hash_computation_data_sierra_gas,
                 casm_hash_computation_data_proving_gas: block_execution_artifacts
                     .casm_hash_computation_data_proving_gas,
+                class_hashes_to_migrate: block_execution_artifacts.class_hashes_to_migrate,
             },
         })
     }
