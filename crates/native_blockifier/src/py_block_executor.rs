@@ -45,6 +45,7 @@ use crate::storage::{
 };
 
 pub(crate) type RawTransactionExecutionResult = Vec<u8>;
+pub(crate) type ClassHashesForMigration = Vec<PyFelt>;
 const RESULT_SERIALIZE_ERR: &str = "Failed serializing execution info.";
 
 /// Return type for the finalize method containing state diffs, bouncer weights, and CASM hash
@@ -55,6 +56,7 @@ type FinalizeResult = (
     Py<PyBytes>,
     PyCasmHashComputationData,
     PyCasmHashComputationData,
+    ClassHashesForMigration,
 );
 
 #[cfg(test)]
@@ -225,12 +227,16 @@ impl PyBlockExecutor {
             bouncer_weights,
             casm_hash_computation_data_sierra_gas,
             casm_hash_computation_data_proving_gas,
+            class_hashes_for_migration,
         } = self.tx_executor().finalize()?;
         let py_state_diff = PyStateDiff::from(state_diff);
         let py_compressed_state_diff = compressed_state_diff.map(PyStateDiff::from);
         let py_casm_hash_computation_data_sierra_gas = casm_hash_computation_data_sierra_gas.into();
         let py_casm_hash_computation_data_proving_gas =
             casm_hash_computation_data_proving_gas.into();
+
+        let py_class_hashes_for_migration: Vec<PyFelt> =
+            class_hashes_for_migration.into_iter().map(|class_hash| PyFelt(class_hash.0)).collect();
 
         let serialized_block_weights =
             serde_json::to_vec(&bouncer_weights).expect("Failed serializing bouncer weights.");
@@ -245,6 +251,7 @@ impl PyBlockExecutor {
             raw_block_weights,
             py_casm_hash_computation_data_sierra_gas,
             py_casm_hash_computation_data_proving_gas,
+            py_class_hashes_for_migration,
         ))
     }
 

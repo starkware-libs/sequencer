@@ -2,7 +2,7 @@
 mod cende_test;
 mod central_objects;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::future::ready;
 use std::sync::Arc;
 
@@ -78,6 +78,7 @@ pub(crate) struct AerospikeBlob {
     compiled_classes: Vec<CentralCasmContractClassEntry>,
     casm_hash_computation_data_sierra_gas: CentralCasmHashComputationData,
     casm_hash_computation_data_proving_gas: CentralCasmHashComputationData,
+    class_hashes_for_migration: HashSet<ClassHash>,
 }
 
 #[cfg_attr(test, automock)]
@@ -294,6 +295,7 @@ pub struct BlobParameters {
     pub(crate) transactions: Vec<InternalConsensusTransaction>,
     pub(crate) casm_hash_computation_data_sierra_gas: CasmHashComputationData,
     pub(crate) casm_hash_computation_data_proving_gas: CasmHashComputationData,
+    pub(crate) class_hashes_for_migration: HashSet<ClassHash>,
     // TODO(dvir): consider passing the execution_infos from the batcher as a string that
     // serialized in the correct format from the batcher.
     pub(crate) execution_infos: Vec<TransactionExecutionInfo>,
@@ -339,6 +341,7 @@ impl AerospikeBlob {
                 .casm_hash_computation_data_sierra_gas,
             casm_hash_computation_data_proving_gas: blob_parameters
                 .casm_hash_computation_data_proving_gas,
+            class_hashes_for_migration: blob_parameters.class_hashes_for_migration,
         })
     }
 }

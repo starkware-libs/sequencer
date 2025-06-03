@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::ops::Range;
 
 use async_trait::async_trait;
@@ -146,6 +147,7 @@ impl BlockExecutionArtifacts {
             l2_gas_used: GasAmount::default(),
             casm_hash_computation_data_sierra_gas: CasmHashComputationData::empty(),
             casm_hash_computation_data_proving_gas: CasmHashComputationData::empty(),
+            class_hashes_for_migration: HashSet::default(),
             final_n_executed_txs: DUMMY_FINAL_N_EXECUTED_TXS,
         }
     }
