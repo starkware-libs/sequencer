@@ -12141,6 +12141,7 @@ dependencies = [
  "rstest",
  "serde",
  "serde_json",
+ "sha2",
  "sha3",
  "shared_execution_objects",
  "starknet-types-core",
