@@ -78,6 +78,7 @@ pub const UNDEPLOYED_ACCOUNT_ID: AccountId = 2;
 // with the set [TimeoutsConfig] .
 pub const TPS: u64 = 3;
 pub const N_TXS_IN_FIRST_BLOCK: usize = 2;
+pub const N_TXS_IN_NON_GENERIC_INVOKE_TXS: usize = 3;
 
 pub type CreateRpcTxsFn = fn(&mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction>;
 pub type CreateL1ToL2MessagesArgsFn =
@@ -435,6 +436,14 @@ pub fn create_invoke_txs(
     (0..n_txs)
         .map(|_| tx_generator.account_with_id_mut(account_id).generate_invoke_with_tip(1))
         .collect()
+}
+
+pub fn create_non_generic_invoke_txs(
+    tx_generator: &mut MultiAccountTransactionGenerator,
+    account_id: AccountId,
+) -> Vec<RpcTransaction> {
+    // Create L1 to L2 messages with non-generic invoke transactions.
+    tx_generator.account_with_id_mut(account_id).generate_all_library_call_invoke_txs(1)
 }
 
 pub fn create_l1_to_l2_messages_args(

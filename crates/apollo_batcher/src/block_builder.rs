@@ -509,7 +509,8 @@ async fn collect_execution_results_and_stream_txs(
             Ok((tx_execution_info, state_maps)) => {
                 if let Some(ref revert_error) = tx_execution_info.revert_error {
                     warn!(
-                        "Transaction {} is reverted while accepted. Revert Error: {:?}",
+                        "Transaction {} is reverted during execution while still accepted. Revert \
+                         Error: {:?}",
                         input_tx.tx_hash(),
                         revert_error,
                     );

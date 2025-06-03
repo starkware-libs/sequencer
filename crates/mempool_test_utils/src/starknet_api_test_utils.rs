@@ -6,7 +6,7 @@ use std::sync::LazyLock;
 use apollo_infra_utils::path::resolve_project_relative_path;
 use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
-use blockifier_test_utils::calldata::create_trivial_calldata;
+use blockifier_test_utils::calldata::{create_calldata, create_trivial_calldata};
 use blockifier_test_utils::contracts::FeatureContract;
 use papyrus_base_layer::ethereum_base_layer_contract::L1ToL2MessageArgs;
 use papyrus_base_layer::test_utils::DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;
@@ -25,6 +25,7 @@ use starknet_api::test_utils::{NonceManager, TEST_ERC20_CONTRACT_ADDRESS2};
 use starknet_api::transaction::constants::TRANSFER_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{
     AllResourceBounds,
+    Calldata,
     ContractAddressSalt,
     Fee,
     ResourceBounds,
@@ -430,6 +431,60 @@ impl AccountTransactionGenerator {
             calldata: create_trivial_calldata(self.test_contract_address()),
         );
         rpc_invoke_tx(invoke_args)
+    }
+
+    fn generate_invoke_tx_library_call(
+        &mut self,
+        tip: u64,
+        inner_fn_name: &str,
+        inner_fn_args: &[Felt],
+    ) -> RpcTransaction {
+        assert!(
+            self.is_deployed(),
+            "Cannot invoke on behalf of an undeployed account: the first transaction of every \
+             account must be a deploy account transaction."
+        );
+        let nonce = self.next_nonce();
+
+        let inner_calldata = Calldata(
+            [
+                vec![self.test_contract.get_class_hash().0, selector_from_name(inner_fn_name).0],
+                inner_fn_args.to_vec(),
+            ]
+            .concat()
+            .into(),
+        );
+
+        let invoke_args = invoke_tx_args!(
+            nonce,
+            tip: Tip(tip),
+            sender_address: self.sender_address(),
+            resource_bounds: test_valid_resource_bounds(),
+            calldata: create_calldata(self.test_contract_address(), "test_library_call", &inner_calldata.0),
+        );
+
+        rpc_invoke_tx(invoke_args)
+    }
+
+    pub fn generate_all_library_call_invoke_txs(&mut self, tip: u64) -> Vec<RpcTransaction> {
+        // Define the arguments for the library calls.
+        let test_storage_read_write_args = vec![
+            felt!(2_u8),     // number of arguments.
+            felt!(1948_u64), // key.
+            felt!(1967_u64), // value.
+        ];
+        let test_sha256_args = vec![felt!(0_u64)]; // No arguments for test_sha256.
+        let test_circuit_args = vec![felt!(0_u64)]; // No arguments for test_circuit.
+
+        // Generate the invoke transactions for each library call.
+        [
+            ("test_storage_read_write", test_storage_read_write_args),
+            ("test_sha256", test_sha256_args),
+            ("test_circuit", test_circuit_args),
+        ]
+        .iter()
+        .map(|(fn_name, fn_args)| self.generate_invoke_tx_library_call(tip, fn_name, fn_args))
+        .collect()
     }
 
     pub fn generate_executable_invoke(&mut self) -> AccountTransaction {
