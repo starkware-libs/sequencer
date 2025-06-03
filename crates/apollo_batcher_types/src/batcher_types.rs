@@ -30,6 +30,8 @@ use crate::errors::BatcherError;
 )]
 pub struct ProposalId(pub u64);
 
+pub type Round = u32;
+
 #[derive(Clone, Debug, Copy, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ProposalCommitment {
     pub state_diff_commitment: StateDiffCommitment,
@@ -41,6 +43,7 @@ pub struct ProposeBlockInput {
     pub deadline: chrono::DateTime<Utc>,
     pub retrospective_block_hash: Option<BlockHashAndNumber>,
     pub block_info: BlockInfo,
+    pub proposal_round: Round,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

@@ -1,8 +1,6 @@
 use std::collections::HashSet;
 
 use blake2s::encode_felts_to_u32s;
-// TODO(Amos): When available in the VM crate, use an existing set, instead of using each hint
-//   const explicitly.
 use cairo_vm::hint_processor::builtin_hint_processor::hint_code::HINT_CODES;
 use cairo_vm::hint_processor::builtin_hint_processor::kzg_da::WRITE_DIVMOD_SEGMENT;
 use cairo_vm::hint_processor::builtin_hint_processor::secp::cairo0_hints::CAIRO0_HINT_CODES;
@@ -44,6 +42,7 @@ impl TryFrom<String> for OsPythonTestRunner {
 
 impl PythonTestRunner for OsPythonTestRunner {
     type SpecificError = OsSpecificTestError;
+    #[allow(clippy::result_large_err)]
     async fn run(&self, input: Option<&str>) -> OsPythonTestResult {
         match self {
             Self::AliasesTest => aliases_test(Self::non_optional_input(input)?),
@@ -58,6 +57,7 @@ impl PythonTestRunner for OsPythonTestRunner {
     }
 }
 
+#[allow(clippy::result_large_err)]
 fn compare_os_hints(input: &str) -> OsPythonTestResult {
     let unfiltered_python_hints: HashSet<String> = serde_json::from_str(input)?;
 
@@ -85,6 +85,7 @@ fn compare_os_hints(input: &str) -> OsPythonTestResult {
 }
 
 /// Deserialize the input string into an `Input` struct.
+#[allow(clippy::result_large_err)]
 fn input_deserialization(input_str: &str) -> OsPythonTestResult {
     let input = serde_json::from_str::<Input>(input_str)?;
     validate_input(&input.os_hints.os_input);
@@ -92,50 +93,7 @@ fn input_deserialization(input_str: &str) -> OsPythonTestResult {
 }
 
 fn vm_hints() -> HashSet<&'static str> {
-    let mut vm_hints = HashSet::from([
-        // TODO(Amos): Use VM hints once they match the updated hints in the Python repo.
-        WRITE_DIVMOD_SEGMENT,
-        // This hint was modified to reflect changes in the Python repo.
-        r#"from starkware.cairo.common.cairo_secp.secp256r1_utils import SECP256R1_ALPHA, SECP256R1_P
-from starkware.cairo.common.cairo_secp.secp_utils import pack
-from starkware.python.math_utils import ec_double_slope
-
-# Compute the slope.
-x = pack(ids.point.x, PRIME)
-y = pack(ids.point.y, PRIME)
-value = slope = ec_double_slope(point=(x, y), alpha=SECP256R1_ALPHA, p=SECP256R1_P)"#,
-        // This hint was modified to reflect changes in the Python repo.
-        r#"from starkware.cairo.common.cairo_secp.secp256r1_utils import SECP256R1_P
-from starkware.cairo.common.cairo_secp.secp_utils import pack
-
-slope = pack(ids.slope, PRIME)
-x = pack(ids.point.x, PRIME)
-y = pack(ids.point.y, PRIME)
-
-value = new_x = (pow(slope, 2, SECP256R1_P) - 2 * x) % SECP256R1_P"#,
-        // This hint was modified to reflect changes in the Python repo.
-        r#"from starkware.cairo.common.cairo_secp.secp_utils import SECP256R1, pack
-from starkware.python.math_utils import y_squared_from_x
-
-y_square_int = y_squared_from_x(
-    x=pack(ids.x, PRIME),
-    alpha=SECP256R1.alpha,
-    beta=SECP256R1.beta,
-    field_prime=SECP256R1.prime,
-)
-
-# Note that (y_square_int ** ((SECP256R1.prime + 1) / 4)) ** 2 =
-#   = y_square_int ** ((SECP256R1.prime + 1) / 2) =
-#   = y_square_int ** ((SECP256R1.prime - 1) / 2 + 1) =
-#   = y_square_int * y_square_int ** ((SECP256R1.prime - 1) / 2) = y_square_int * {+/-}1.
-y = pow(y_square_int, (SECP256R1.prime + 1) // 4, SECP256R1.prime)
-
-# We need to decide whether to take y or prime - y.
-if ids.v % 2 == y % 2:
-    value = y
-else:
-    value = (-y) % SECP256R1.prime"#,
-    ]);
+    let mut vm_hints = HashSet::from([WRITE_DIVMOD_SEGMENT]);
     vm_hints.extend(HINT_CODES.values());
     vm_hints.extend(CAIRO0_HINT_CODES.values());
     vm_hints

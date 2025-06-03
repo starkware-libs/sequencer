@@ -5,7 +5,7 @@ use clap::{value_parser, Arg, ArgMatches, Command};
 use serde_json::{json, Value};
 
 use crate::loading::update_config_map;
-use crate::{ConfigError, ParamPath, SerializationType, SerializedParam};
+use crate::{ConfigError, ParamPath, SerializationType, SerializedParam, CONFIG_FILE_ARG_NAME};
 
 pub(crate) fn get_command_matches(
     config_map: &BTreeMap<ParamPath, SerializedParam>,
@@ -36,8 +36,8 @@ pub(crate) fn update_config_map_by_command_args(
 fn build_args_parser(config_map: &BTreeMap<ParamPath, SerializedParam>) -> Vec<Arg> {
     let mut args_parser = vec![
         // Custom_config_file_path.
-        Arg::new("config_file")
-            .long("config_file")
+        Arg::new(CONFIG_FILE_ARG_NAME)
+            .long(CONFIG_FILE_ARG_NAME)
             .short('f')
             .value_delimiter(',')
             .help("Optionally sets a config file to use")

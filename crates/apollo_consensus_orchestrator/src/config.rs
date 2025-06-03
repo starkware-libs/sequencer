@@ -50,6 +50,8 @@ pub struct ContextConfig {
     /// the blob's data being compressed. Can be used to raise the prices in case of blob
     /// under-utilization.
     pub l1_data_gas_price_multiplier_ppt: u128,
+    /// This additional gas is added to the L1 gas price.
+    pub l1_gas_tip_wei: u128,
 }
 
 impl SerializeConfig for ContextConfig {
@@ -137,6 +139,12 @@ impl SerializeConfig for ContextConfig {
                  enable fine-tuning of the price charged to end users.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "l1_gas_tip_wei",
+                &self.l1_gas_tip_wei,
+                "This additional gas is added to the L1 gas price.",
+                ParamPrivacyInput::Public,
+            ),
         ])
     }
 }
@@ -157,6 +165,7 @@ impl Default for ContextConfig {
             min_l1_data_gas_price_wei: 1,
             max_l1_data_gas_price_wei: ETH_FACTOR,
             l1_data_gas_price_multiplier_ppt: 135,
+            l1_gas_tip_wei: GWEI_FACTOR,
         }
     }
 }

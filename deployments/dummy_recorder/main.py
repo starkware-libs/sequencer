@@ -29,6 +29,12 @@ def argument_parser():
         type=str,
         help="Ingress domain. Required if --create-ingress is used.",
     )
+    parser.add_argument(
+        "--image",
+        required=False,
+        default=IMAGE,
+        help="Docker image to deploy. Defaults to the latest dummy recorder image."
+    )
 
     args = parser.parse_args()
     assert not args.create_ingress or (
@@ -45,6 +51,7 @@ class DummyRecorder(Chart):
         id: str,
         namespace: str,
         create_ingress: bool,
+        image: str,
         cluster: Optional[str],
         domain: Optional[str],
     ):
@@ -54,6 +61,7 @@ class DummyRecorder(Chart):
         self.cluster = cluster
         self.create_ingress = create_ingress
         self.domain = domain
+        self.image = image
 
         self._get_service()
         self._get_deployment()
@@ -90,7 +98,7 @@ class DummyRecorder(Chart):
                         containers=[
                             k8s.Container(
                                 name=self.node.id,
-                                image=IMAGE,
+                                image=self.image,
                                 env=[k8s.EnvVar(name="RUST_LOG", value="DEBUG")],
                                 ports=[k8s.ContainerPort(container_port=SERVICE_PORT)],
                             )
@@ -143,6 +151,7 @@ def main():
         scope=app,
         id="dummy-recorder",
         namespace=args.namespace,
+        image=args.image,
         cluster=args.cluster,
         domain=args.ingress_domain,
         create_ingress=args.create_ingress,

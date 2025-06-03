@@ -51,13 +51,8 @@ pub struct Cairo1FeatureContractMetadata {
     pub sierra_path: String,
 }
 
-// To fix Cairo0 feature contracts, first enter a python venv and install the requirements:
-// ```
-// python -m venv tmp_venv
-// . tmp_venv/bin/activate
-// pip install -r scripts/requirements.txt
-// ```
-// Then, run the FIX_COMMAND above.
+// To fix Cairo0 feature contracts, first enter a python venv and install the requirements (see
+// `ENTER_VENV_INSTRUCTIONS` for how to do this). Then, run the FIX_COMMAND above.
 
 // To fix Cairo1 feature contracts, first clone the Cairo repo and checkout the required tag.
 // The repo should be located next to the sequencer repo:

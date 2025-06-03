@@ -9,6 +9,7 @@ use super::objects::RevertError;
 use crate::context::BlockContext;
 use crate::execution::call_info::CallInfo;
 use crate::execution::entry_point::{EntryPointExecutionContext, SierraGasRevertTracker};
+use crate::execution::stack_trace::gen_tx_execution_error_trace;
 use crate::fee::fee_checks::FeeCheckReport;
 use crate::fee::receipt::TransactionReceipt;
 use crate::state::cached_state::TransactionalState;
@@ -52,6 +53,7 @@ impl TransactionInfoCreator for L1HandlerTransaction {
 }
 
 impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
+    #[allow(clippy::result_large_err)]
     fn execute_raw(
         &self,
         state: &mut TransactionalState<'_, U>,
@@ -69,10 +71,11 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
             limit_steps_by_resources,
             SierraGasRevertTracker::new(GasAmount(remaining_gas)),
         );
+        let l1_handler_payload_size = self.payload_size();
+
         let execution_result = self.run_execute(state, &mut context, &mut remaining_gas);
         match execution_result {
             Ok(execute_call_info) => {
-                let l1_handler_payload_size = self.payload_size();
                 let receipt = TransactionReceipt::from_l1_handler(
                     &tx_context,
                     l1_handler_payload_size,
@@ -107,14 +110,26 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
                         Ok(l1_handler_tx_execution_info(execute_call_info, receipt, None))
                     }
                     Err(fee_check_error) => {
-                        // TODO(Arni): Handle error in fee check report as revert.
-                        Err(fee_check_error)?
+                        let receipt = TransactionReceipt::reverted_l1_handler(
+                            &tx_context,
+                            l1_handler_payload_size,
+                        );
+                        Ok(l1_handler_tx_execution_info(
+                            None,
+                            receipt,
+                            Some(fee_check_error.into()),
+                        ))
                     }
                 }
             }
             Err(execution_error) => {
-                // TODO(Arni): handle error in execution as revert.
-                Err(execution_error)?
+                let receipt =
+                    TransactionReceipt::reverted_l1_handler(&tx_context, l1_handler_payload_size);
+                Ok(l1_handler_tx_execution_info(
+                    None,
+                    receipt,
+                    Some(gen_tx_execution_error_trace(&execution_error).into()),
+                ))
             }
         }
     }

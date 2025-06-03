@@ -2,17 +2,23 @@
 
 import argparse
 from typing import Optional
-from constructs import Construct
 from cdk8s import App, Chart, Names, YamlOutputType
+from constructs import Construct
 from imports import k8s
 
 SERVICE_PORT = 9000
-IMAGE = "ghcr.io/starkware-libs/sequencer/dummy_eth2strk_oracle:latest"
+DEFAULT_IMAGE = "us-central1-docker.pkg.dev/starkware-dev/sequencer/dummy_eth2strk_oracle:latest"
 
 
 def argument_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("--namespace", required=True, type=str, help="Kubernetes namespace.")
+    parser.add_argument(
+        "--image",
+        type=str,
+        default=DEFAULT_IMAGE,
+        help="Docker image to use (default: %(default)s)",
+    )
     parser.add_argument(
         "--create-ingress",
         default=False,
@@ -44,6 +50,7 @@ class DummyEth2StrkOracle(Chart):
         scope: Construct,
         id: str,
         namespace: str,
+        image: str,
         create_ingress: bool,
         cluster: Optional[str],
         domain: Optional[str],
@@ -54,6 +61,7 @@ class DummyEth2StrkOracle(Chart):
         self.cluster = cluster
         self.create_ingress = create_ingress
         self.domain = domain
+        self.image = image
 
         self._get_service()
         self._get_deployment()
@@ -90,7 +98,7 @@ class DummyEth2StrkOracle(Chart):
                         containers=[
                             k8s.Container(
                                 name=self.node.id,
-                                image=IMAGE,
+                                image=self.image,
                                 env=[k8s.EnvVar(name="RUST_LOG", value="DEBUG")],
                                 ports=[k8s.ContainerPort(container_port=SERVICE_PORT)],
                             )
@@ -143,6 +151,7 @@ def main():
         scope=app,
         id="dummy-eth2strk-oracle",
         namespace=args.namespace,
+        image=args.image,
         cluster=args.cluster,
         domain=args.ingress_domain,
         create_ingress=args.create_ingress,

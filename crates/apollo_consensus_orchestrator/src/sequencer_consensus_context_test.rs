@@ -19,6 +19,7 @@ use apollo_batcher_types::batcher_types::{
 use apollo_batcher_types::communication::{BatcherClientError, MockBatcherClient};
 use apollo_batcher_types::errors::BatcherError;
 use apollo_class_manager_types::transaction_converter::{
+    MockTransactionConverterTrait,
     TransactionConverter,
     TransactionConverterTrait,
 };
@@ -40,7 +41,7 @@ use apollo_network::network_manager::test_utils::{
     BroadcastNetworkMock,
     TestSubscriberChannels,
 };
-use apollo_network::network_manager::BroadcastTopicChannels;
+use apollo_network::network_manager::{BroadcastTopicChannels, BroadcastTopicClient};
 use apollo_protobuf::consensus::{
     ConsensusBlockInfo,
     HeightAndRound,
@@ -81,7 +82,7 @@ use crate::cende::MockCendeContext;
 use crate::config::ContextConfig;
 use crate::metrics::CONSENSUS_L2_GAS_PRICE;
 use crate::orchestrator_versioned_constants::VersionedConstants;
-use crate::sequencer_consensus_context::{MockClock, SequencerConsensusContext};
+use crate::sequencer_consensus_context::{Clock, MockClock, SequencerConsensusContext};
 
 const TIMEOUT: Duration = Duration::from_millis(1200);
 const CHANNEL_SIZE: usize = 5000;
@@ -110,6 +111,83 @@ static INTERNAL_TX_BATCH: LazyLock<Vec<InternalConsensusTransaction>> = LazyLock
         .collect()
 });
 
+struct TestDeps {
+    pub transaction_converter: MockTransactionConverterTrait,
+    pub state_sync_client: MockStateSyncClient,
+    pub batcher: MockBatcherClient,
+    pub cende_ambassador: MockCendeContext,
+    pub eth_to_strk_oracle_client: MockEthToStrkOracleClientTrait,
+    pub l1_gas_price_provider: MockL1GasPriceProviderClient,
+    pub clock: Arc<dyn Clock>,
+    pub outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
+    pub vote_broadcast_client: BroadcastTopicClient<Vote>,
+}
+
+impl From<TestDeps> for SequencerConsensusContextDeps {
+    fn from(deps: TestDeps) -> Self {
+        SequencerConsensusContextDeps {
+            transaction_converter: Arc::new(deps.transaction_converter),
+            state_sync_client: Arc::new(deps.state_sync_client),
+            batcher: Arc::new(deps.batcher),
+            cende_ambassador: Arc::new(deps.cende_ambassador),
+            eth_to_strk_oracle_client: Arc::new(deps.eth_to_strk_oracle_client),
+            l1_gas_price_provider: Arc::new(deps.l1_gas_price_provider),
+            clock: deps.clock,
+            outbound_proposal_sender: deps.outbound_proposal_sender,
+            vote_broadcast_client: deps.vote_broadcast_client,
+        }
+    }
+}
+
+impl TestDeps {
+    fn build_context(self) -> SequencerConsensusContext {
+        SequencerConsensusContext::new(
+            ContextConfig {
+                proposal_buffer_size: CHANNEL_SIZE,
+                num_validators: NUM_VALIDATORS,
+                chain_id: CHAIN_ID,
+                ..Default::default()
+            },
+            self.into(),
+        )
+    }
+}
+
+fn create_test_and_network_deps() -> (TestDeps, NetworkDependencies) {
+    let (outbound_proposal_sender, outbound_proposal_receiver) =
+        mpsc::channel::<(HeightAndRound, mpsc::Receiver<ProposalPart>)>(CHANNEL_SIZE);
+
+    let TestSubscriberChannels { mock_network: mock_vote_network, subscriber_channels } =
+        mock_register_broadcast_topic().expect("Failed to create mock network");
+    let BroadcastTopicChannels { broadcast_topic_client: votes_topic_client, .. } =
+        subscriber_channels;
+
+    let transaction_converter = MockTransactionConverterTrait::new();
+    let state_sync_client = MockStateSyncClient::new();
+    let batcher = MockBatcherClient::new();
+    let cende_ambassador = MockCendeContext::new();
+    let eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
+    let l1_gas_price_provider = MockL1GasPriceProviderClient::new();
+    let clock = Arc::new(DefaultClock::default());
+
+    let test_deps = TestDeps {
+        transaction_converter,
+        state_sync_client,
+        batcher,
+        cende_ambassador,
+        eth_to_strk_oracle_client,
+        l1_gas_price_provider,
+        clock,
+        outbound_proposal_sender,
+        vote_broadcast_client: votes_topic_client,
+    };
+
+    let network_deps =
+        NetworkDependencies { _vote_network: mock_vote_network, outbound_proposal_receiver };
+
+    (test_deps, network_deps)
+}
+
 fn generate_invoke_tx(nonce: u8) -> ConsensusTransaction {
     ConsensusTransaction::RpcTransaction(rpc_invoke_tx(InvokeTxArgs {
         nonce: Nonce(felt!(nonce)),
@@ -125,7 +203,7 @@ fn block_info(height: BlockNumber) -> ConsensusBlockInfo {
         builder: Default::default(),
         l1_da_mode: L1DataAvailabilityMode::Blob,
         l2_gas_price_fri: VersionedConstants::latest_constants().min_gas_price,
-        l1_gas_price_wei: GasPrice(TEMP_ETH_GAS_FEE_IN_WEI),
+        l1_gas_price_wei: GasPrice(TEMP_ETH_GAS_FEE_IN_WEI + context_config.l1_gas_tip_wei),
         l1_data_gas_price_wei: GasPrice(
             TEMP_ETH_BLOB_GAS_FEE_IN_WEI * context_config.l1_data_gas_price_multiplier_ppt / 1000,
         ),
@@ -148,15 +226,18 @@ fn default_context_dependencies() -> (SequencerConsensusContextDeps, NetworkDepe
         subscriber_channels;
 
     let sequencer_deps = SequencerConsensusContextDeps {
-        class_manager_client: Arc::new(EmptyClassManagerClient),
+        transaction_converter: Arc::new(TransactionConverter::new(
+            Arc::new(EmptyClassManagerClient),
+            CHAIN_ID,
+        )),
         state_sync_client: Arc::new(MockStateSyncClient::new()),
         batcher: Arc::new(MockBatcherClient::new()),
-        outbound_proposal_sender,
-        vote_broadcast_client: votes_topic_client,
         cende_ambassador: Arc::new(success_cende_ammbassador()),
         eth_to_strk_oracle_client: Arc::new(dummy_eth_to_strk_oracle_client()),
         l1_gas_price_provider: Arc::new(dummy_gas_price_provider()),
         clock: Arc::new(DefaultClock::default()),
+        outbound_proposal_sender,
+        vote_broadcast_client: votes_topic_client,
     };
 
     let network_dependencies =
@@ -320,15 +401,14 @@ async fn validate_proposal_success() {
 
 #[tokio::test]
 async fn dont_send_block_info() {
-    let mut batcher = MockBatcherClient::new();
-    batcher
+    let (mut deps, _network) = create_test_and_network_deps();
+
+    deps.batcher
         .expect_start_height()
         .times(1)
         .withf(|input| input.height == BlockNumber(0))
         .return_const(Ok(()));
-    let (default_deps, _network) = default_context_dependencies();
-    let context_deps = SequencerConsensusContextDeps { batcher: Arc::new(batcher), ..default_deps };
-    let mut context = setup_with_custom_mocks(context_deps);
+    let mut context = deps.build_context();
 
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
@@ -982,15 +1062,10 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
     };
 
     let previous_block_info = block_info(BlockNumber(0));
-    // The l1_data_gas_price the proposer sends contains a discount we need to adjust for here.
-    let ContextConfig { l1_data_gas_price_multiplier_ppt: default_data_gas_multiplier, .. } =
-        ContextConfig::default();
-    let expected_l1_data_gas_price =
-        GasPrice(previous_block_info.l1_data_gas_price_wei.0 * default_data_gas_multiplier / 1000);
 
     assert_eq!(info.eth_to_fri_rate, previous_block_info.eth_to_fri_rate);
     assert_eq!(info.l1_gas_price_wei, previous_block_info.l1_gas_price_wei);
-    assert_eq!(info.l1_data_gas_price_wei, expected_l1_data_gas_price);
+    assert_eq!(info.l1_data_gas_price_wei, previous_block_info.l1_data_gas_price_wei);
 
     assert_eq!(
         receiver.next().await.unwrap(),

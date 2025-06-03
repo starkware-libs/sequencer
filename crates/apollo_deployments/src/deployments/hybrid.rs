@@ -143,7 +143,14 @@ impl ServiceNameInner for HybridNodeServiceName {
                 HybridNodeServiceName::Core => Some(Toleration::ApolloCoreService),
                 HybridNodeServiceName::HttpServer => Some(Toleration::ApolloGeneralService),
                 HybridNodeServiceName::Gateway => Some(Toleration::ApolloGeneralService),
-                HybridNodeServiceName::Mempool => Some(Toleration::ApolloGeneralService),
+                HybridNodeServiceName::Mempool => Some(Toleration::ApolloCoreService),
+                HybridNodeServiceName::SierraCompiler => Some(Toleration::ApolloGeneralService),
+            },
+            Environment::StressTest => match self {
+                HybridNodeServiceName::Core => Some(Toleration::ApolloCoreService),
+                HybridNodeServiceName::HttpServer => Some(Toleration::ApolloGeneralService),
+                HybridNodeServiceName::Gateway => Some(Toleration::ApolloGeneralService),
+                HybridNodeServiceName::Mempool => Some(Toleration::ApolloCoreService),
                 HybridNodeServiceName::SierraCompiler => Some(Toleration::ApolloGeneralService),
             },
             _ => unimplemented!(),
@@ -171,7 +178,8 @@ impl ServiceNameInner for HybridNodeServiceName {
             Environment::Testing => None,
             Environment::SepoliaIntegration
             | Environment::TestingEnvTwo
-            | Environment::TestingEnvThree => match self {
+            | Environment::TestingEnvThree
+            | Environment::StressTest => match self {
                 HybridNodeServiceName::Core => Some(CORE_STORAGE),
                 HybridNodeServiceName::HttpServer => None,
                 HybridNodeServiceName::Gateway => None,
@@ -204,6 +212,23 @@ impl ServiceNameInner for HybridNodeServiceName {
                     Resources::new(Resource::new(1, 2), Resource::new(2, 4))
                 }
             },
+            Environment::StressTest => match self {
+                HybridNodeServiceName::Core => {
+                    Resources::new(Resource::new(2, 4), Resource::new(25, 215))
+                }
+                HybridNodeServiceName::HttpServer => {
+                    Resources::new(Resource::new(1, 2), Resource::new(4, 8))
+                }
+                HybridNodeServiceName::Gateway => {
+                    Resources::new(Resource::new(1, 2), Resource::new(2, 4))
+                }
+                HybridNodeServiceName::Mempool => {
+                    Resources::new(Resource::new(1, 2), Resource::new(2, 4))
+                }
+                HybridNodeServiceName::SierraCompiler => {
+                    Resources::new(Resource::new(1, 2), Resource::new(2, 4))
+                }
+            },
             _ => unimplemented!(),
         }
     }
@@ -213,12 +238,30 @@ impl ServiceNameInner for HybridNodeServiceName {
             Environment::Testing => 1,
             Environment::SepoliaIntegration
             | Environment::TestingEnvTwo
-            | Environment::TestingEnvThree => match self {
+            | Environment::TestingEnvThree
+            | Environment::StressTest => match self {
                 HybridNodeServiceName::Core => 1,
                 HybridNodeServiceName::HttpServer => 1,
                 HybridNodeServiceName::Gateway => 2,
                 HybridNodeServiceName::Mempool => 1,
                 HybridNodeServiceName::SierraCompiler => 2,
+            },
+            _ => unimplemented!(),
+        }
+    }
+
+    fn get_anti_affinity(&self, environment: &Environment) -> bool {
+        match environment {
+            Environment::Testing => false,
+            Environment::SepoliaIntegration
+            | Environment::TestingEnvTwo
+            | Environment::TestingEnvThree
+            | Environment::StressTest => match self {
+                HybridNodeServiceName::Core => true,
+                HybridNodeServiceName::HttpServer => false,
+                HybridNodeServiceName::Gateway => false,
+                HybridNodeServiceName::Mempool => false,
+                HybridNodeServiceName::SierraCompiler => false,
             },
             _ => unimplemented!(),
         }

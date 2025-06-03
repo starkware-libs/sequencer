@@ -7,18 +7,27 @@ use apollo_l1_gas_price_types::{
     DEFAULT_ETH_TO_FRI_RATE,
 };
 use apollo_protobuf::consensus::ConsensusBlockInfo;
+use num_rational::Ratio;
 use starknet_api::block::{BlockTimestamp, GasPrice};
 use tracing::{info, warn};
 
 use crate::metrics::CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR;
+
+pub(crate) struct GasPriceParams {
+    pub min_l1_gas_price_wei: GasPrice,
+    pub max_l1_gas_price_wei: GasPrice,
+    pub max_l1_data_gas_price_wei: GasPrice,
+    pub min_l1_data_gas_price_wei: GasPrice,
+    pub l1_data_gas_price_multiplier: Ratio<u128>,
+    pub l1_gas_tip_wei: GasPrice,
+}
 
 pub(crate) async fn get_oracle_rate_and_prices(
     eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
     l1_gas_price_provider_client: Arc<dyn L1GasPriceProviderClient>,
     timestamp: u64,
     previous_block_info: Option<&ConsensusBlockInfo>,
-    min_l1_gas_price: GasPrice,
-    min_l1_data_gas_price: GasPrice,
+    gas_price_params: &GasPriceParams,
 ) -> (u128, PriceInfo) {
     let (eth_to_strk_rate, price_info) = tokio::join!(
         eth_to_strk_oracle_client.eth_to_fri_rate(timestamp),
@@ -30,8 +39,9 @@ pub(crate) async fn get_oracle_rate_and_prices(
     }
 
     match (eth_to_strk_rate, price_info) {
-        (Ok(eth_to_strk_rate), Ok(price_info)) => {
+        (Ok(eth_to_strk_rate), Ok(mut price_info)) => {
             info!("eth_to_strk_rate: {eth_to_strk_rate}, l1 gas price: {price_info:?}");
+            apply_fee_transformations(&mut price_info, gas_price_params);
             return (eth_to_strk_rate, price_info);
         }
         err => {
@@ -59,12 +69,28 @@ pub(crate) async fn get_oracle_rate_and_prices(
     }
     warn!("No previous block info available, using default values");
     warn!(
-        "default eth_to_strk_rate: {DEFAULT_ETH_TO_FRI_RATE}, default (min) l1 gas price: \
-         {min_l1_gas_price:?}"
+        "default eth_to_strk_rate: {DEFAULT_ETH_TO_FRI_RATE}, default (min) l1 gas price: {:?}, \
+         default (min) l1 data gas price: {:?}",
+        gas_price_params.min_l1_gas_price_wei, gas_price_params.min_l1_data_gas_price_wei
     );
 
     (
         DEFAULT_ETH_TO_FRI_RATE,
-        PriceInfo { base_fee_per_gas: min_l1_gas_price, blob_fee: min_l1_data_gas_price },
+        PriceInfo {
+            base_fee_per_gas: gas_price_params.min_l1_gas_price_wei,
+            blob_fee: gas_price_params.min_l1_data_gas_price_wei,
+        },
     )
+}
+
+fn apply_fee_transformations(price_info: &mut PriceInfo, gas_price_params: &GasPriceParams) {
+    price_info.base_fee_per_gas = price_info
+        .base_fee_per_gas
+        .saturating_add(gas_price_params.l1_gas_tip_wei)
+        .clamp(gas_price_params.min_l1_gas_price_wei, gas_price_params.max_l1_gas_price_wei);
+
+    price_info.blob_fee = GasPrice(
+        (gas_price_params.l1_data_gas_price_multiplier * price_info.blob_fee.0).to_integer(),
+    )
+    .clamp(gas_price_params.min_l1_data_gas_price_wei, gas_price_params.max_l1_data_gas_price_wei);
 }

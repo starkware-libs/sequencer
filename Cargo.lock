@@ -1015,6 +1015,7 @@ dependencies = [
  "assert_matches",
  "clap",
  "colored 3.0.0",
+ "const_format",
  "itertools 0.12.1",
  "lazy_static",
  "serde",
@@ -1171,9 +1172,9 @@ dependencies = [
 name = "apollo_deployments"
 version = "0.0.0"
 dependencies = [
+ "apollo_config",
  "apollo_infra",
  "apollo_infra_utils",
- "apollo_monitoring_endpoint",
  "apollo_node",
  "indexmap 2.9.0",
  "serde",
@@ -1318,7 +1319,6 @@ name = "apollo_infra_utils"
 version = "0.0.0"
 dependencies = [
  "assert-json-diff",
- "cached",
  "colored 3.0.0",
  "nix 0.20.2",
  "num_enum",
@@ -1327,6 +1327,8 @@ dependencies = [
  "serde",
  "serde_json",
  "socket2 0.5.8",
+ "tempfile",
+ "thiserror 1.0.69",
  "tokio",
  "toml",
  "tracing",
@@ -1410,6 +1412,7 @@ dependencies = [
  "apollo_l1_gas_price_types",
  "apollo_metrics",
  "async-trait",
+ "futures",
  "lru 0.12.5",
  "mockall",
  "mockito 1.6.1",
@@ -1654,6 +1657,7 @@ dependencies = [
  "unsigned-varint 0.8.0",
  "validator",
  "void",
+ "waker-fn",
 ]
 
 [[package]]
@@ -1948,7 +1952,13 @@ name = "apollo_starknet_os_program"
 version = "0.0.0"
 dependencies = [
  "apollo_infra_utils",
+ "blockifier",
+ "cairo-vm",
+ "serde",
  "serde_json",
+ "starknet-types-core",
+ "starknet_api",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -4089,9 +4099,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-vm"
-version = "2.0.1"
+version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a01805fcadbebfbfd1e176bc58e6b1be26362792bb008efe59aae9df0bba60a1"
+checksum = "1d2a2f6d93aa279509d396d6f5c1992fa63d7d32c2b8d61ffa3398617c2cd0cd"
 dependencies = [
  "anyhow",
  "bincode 2.0.0-rc.3",
@@ -4115,7 +4125,7 @@ dependencies = [
  "sha3",
  "starknet-crypto",
  "starknet-types-core",
- "thiserror-no-std",
+ "thiserror 2.0.12",
  "zip",
 ]
 
@@ -12163,6 +12173,7 @@ dependencies = [
  "async-recursion",
  "derive_more 0.99.18",
  "ethnum",
+ "num-bigint 0.4.6",
  "pretty_assertions",
  "rand 0.8.5",
  "rstest",
@@ -12608,26 +12619,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.100",
-]
-
-[[package]]
-name = "thiserror-impl-no-std"
-version = "2.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "58e6318948b519ba6dc2b442a6d0b904ebfb8d411a3ad3e07843615a72249758"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
-name = "thiserror-no-std"
-version = "2.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a3ad459d94dd517257cc96add8a43190ee620011bb6e6cdc82dafd97dfafafea"
-dependencies = [
- "thiserror-impl-no-std",
 ]
 
 [[package]]
