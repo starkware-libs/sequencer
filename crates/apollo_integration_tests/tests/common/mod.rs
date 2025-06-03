@@ -157,3 +157,21 @@ pub fn test_single_tx(tx_hashes: &[TransactionHash]) -> Vec<TransactionHash> {
     assert_eq!(tx_hashes.len(), 1, "Expected a single transaction");
     tx_hashes.to_vec()
 }
+
+/// Generic transaction hash validation function that verifies the expected number of transactions
+/// were processed and returns all hashes for further verification.
+pub fn validate_tx_count(
+    tx_hashes: &[TransactionHash],
+    expected_count: usize,
+    test_name: &str,
+) -> Vec<TransactionHash> {
+    assert_eq!(
+        tx_hashes.len(),
+        expected_count,
+        "Expected {} transactions for {}, but found {} transactions",
+        expected_count,
+        test_name,
+        tx_hashes.len()
+    );
+    tx_hashes.to_vec()
+}
