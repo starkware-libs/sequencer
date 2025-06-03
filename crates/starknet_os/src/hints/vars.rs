@@ -242,6 +242,7 @@ define_string_enum! {
         (StateChanges),
         (StateEntry),
         (StateUpdatesStart),
+        (StorageKey),
         (SyscallPtr),
         (TransactionHash),
         (TxInfo),
