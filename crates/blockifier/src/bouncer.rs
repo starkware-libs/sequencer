@@ -5,7 +5,7 @@ use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde::{Deserialize, Serialize};
-use starknet_api::core::ClassHash;
+use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::execution_resources::GasAmount;
 
 use crate::blockifier::transaction_executor::{
@@ -246,6 +246,7 @@ pub struct Bouncer {
     pub visited_storage_entries: HashSet<StorageEntry>,
     pub state_changes_keys: StateChangesKeys,
     pub casm_hash_computation_data: CasmHashComputationData,
+    pub migrated_class_hash_to_casm_hash: HashMap<ClassHash, CompiledClassHash>,
 
     pub bouncer_config: BouncerConfig,
     accumulated_weights: BouncerWeights,
@@ -259,6 +260,7 @@ impl Bouncer {
     pub fn empty() -> Self {
         Bouncer {
             visited_storage_entries: HashSet::default(),
+            migrated_class_hash_to_casm_hash: HashMap::default(),
             state_changes_keys: StateChangesKeys::default(),
             bouncer_config: BouncerConfig::empty(),
             accumulated_weights: BouncerWeights::empty(),
