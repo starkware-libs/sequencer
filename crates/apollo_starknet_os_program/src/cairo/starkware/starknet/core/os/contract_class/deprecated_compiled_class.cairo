@@ -186,7 +186,7 @@ func deprecated_load_compiled_class_facts_inner{pedersen_ptr: HashBuiltin*, rang
 
     // Fetch contract data form hints.
     %{
-        from starkware.starknet.core.os.contract_class.deprecated_class_hash import (
+        from starkware.starknet.core.os.contract_class.deprecated_class_hash_cairo_utils import (
             get_deprecated_contract_class_struct,
         )
 
