@@ -188,6 +188,15 @@ impl<'a> TransactionExecutionIter<'a> {
     ) -> Result<&mut TransactionExecutionInfoReference<'a>, ExecutionHelperError> {
         self.tx_execution_info_ref.as_mut().ok_or(ExecutionHelperError::MissingTxExecutionInfo)
     }
+
+    pub fn skip_tx(&mut self) -> Result<(), ExecutionHelperError> {
+        // The transaction type determines in which order the inner calls were executed.
+        // Since the transaction is skipped, the transaction's type doesn't matter.
+        let dummy_tx_type = TransactionType::Declare;
+        self.start_tx(dummy_tx_type)?;
+        self.end_tx()?;
+        Ok(())
+    }
 }
 
 pub struct CallInfoTracker<'a> {

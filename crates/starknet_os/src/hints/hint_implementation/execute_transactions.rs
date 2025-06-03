@@ -111,8 +111,10 @@ pub(crate) fn set_ap_to_actual_fee<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn skip_tx<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> OsHintResult {
-    todo!()
+pub(crate) fn skip_tx<S: StateReader>(
+    HintArgs { hint_processor, .. }: HintArgs<'_, '_, S>,
+) -> OsHintResult {
+    Ok(hint_processor.get_mut_current_execution_helper()?.tx_execution_iter.skip_tx()?)
 }
 
 #[allow(clippy::result_large_err)]
