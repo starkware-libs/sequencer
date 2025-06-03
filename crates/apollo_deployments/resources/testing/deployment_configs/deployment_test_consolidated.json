@@ -13,7 +13,7 @@
       "ingress": null,
       "autoscale": false,
       "replicas": 1,
-      "storage": null,
+      "storage": 1,
       "toleration": null,
       "resources": {
         "requests": {

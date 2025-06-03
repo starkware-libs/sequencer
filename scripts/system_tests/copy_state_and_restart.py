@@ -1,7 +1,10 @@
+#!/bin/env python3
+
 import json
+import os
 import subprocess
 import sys
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 from kubernetes import config
 
 
@@ -20,8 +23,33 @@ def load_services(deployment_config_path: str) -> List[Tuple[str, str]]:
     ]
 
 
+def list_all_files(data_dir: str) -> None:
+    print(f"📂 Listing all files in {data_dir}...")
+    for root, _, files in os.walk(data_dir):
+        for file in files:
+            file_path = os.path.join(root, file)
+            print(f"📄 {file_path}")
+
+def summarize_directory(path: str) -> None:
+    print(f"📂 Listing and summarizing all files in {path}...")
+    total_size = 0
+    file_count = 0
+    size_map = {}
+    for root, _, files in os.walk(path):
+        for file in files:
+            file_path = os.path.join(root, file)
+            size = os.path.getsize(file_path)
+            rel_path = os.path.relpath(file_path, path)
+            print(f"  - {file_path} ({size} bytes)")
+            size_map[rel_path] = size
+            total_size += size
+            file_count += 1
+    print(f"📦 Total files: {file_count}, Total size: {total_size} bytes\n")
+    return size_map
+
+
 def copy_state(pod_name: str, data_dir: str) -> None:
-    print(f"📥 Copying state data to {pod_name}...")
+    print(f"📥 Copying state data to pod {pod_name}...")
     try:
         run(
             [
@@ -34,6 +62,34 @@ def copy_state(pod_name: str, data_dir: str) -> None:
         )
     except subprocess.CalledProcessError as e:
         print(f"❌ Failed to copy state to pod {pod_name}: {e}")
+        run(["kubectl", "describe", "pod", pod_name], check=False)
+        sys.exit(1)
+
+def copy_state_tar(pod_name: str, data_dir: str) -> None:
+    print(f"📥 Copying state data to pod {pod_name} using tar workaround...")
+    try:
+        tar_send = subprocess.Popen(
+            ["tar", "cf", "-", "-C", data_dir, "."],
+            stdout=subprocess.PIPE,
+        )
+
+        kubectl_exec = subprocess.Popen(
+            ["kubectl", "exec", "-i", pod_name, "--", "tar", "xf", "-", "-C", "/data"],
+            stdin=tar_send.stdout,
+        )
+
+        tar_send.stdout.close()
+        tar_send.wait()
+        kubectl_exec.wait()
+
+        if tar_send.returncode != 0 or kubectl_exec.returncode != 0:
+            raise subprocess.CalledProcessError(
+                returncode=kubectl_exec.returncode or tar_send.returncode,
+                cmd="tar | kubectl exec tar"
+            )
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Tar-based copy failed: {e}")
+        run(["kubectl", "describe", "pod", pod_name], check=False)
         sys.exit(1)
 
 
@@ -77,17 +133,75 @@ def build_resource_name(service_name: str, controller: str) -> str:
     return f"sequencer-{service_name.lower()}-{controller.lower()}"
 
 
-def main(deployment_config_path: str, data_dir: str) -> None:
+def validate_remote_data(pod_name: str, local_file_sizes: Dict[str, int]) -> None:
+    print(f"🔍 Validating /data in pod {pod_name}...")
+    try:
+        result = run(
+            [
+                "kubectl",
+                "exec",
+                pod_name,
+                "--",
+                "find",
+                "/data",
+                "-type",
+                "f",
+                "-exec",
+                "stat",
+                "-c",
+                "%s %n",
+                "{}",
+                "+",
+            ],
+            capture_output=True,
+        )
+        output = result.stdout.strip()
+        if not output:
+            print(f"❌ /data is empty in pod {pod_name}")
+            run(["kubectl", "describe", "pod", pod_name], check=False)
+            sys.exit(1)
 
+        mismatches = []
+        total_remote_size = 0
+        print(f"📦 Remote /data contents:")
+        for line in output.splitlines():
+            size_str, path = line.split(" ", 1)
+            size = int(size_str)
+            rel_path = path.replace("/data/", "")
+            total_remote_size += size
+            print(f"  - {path} ({size} bytes)")
+
+            if rel_path in local_file_sizes:
+                if local_file_sizes[rel_path] != size:
+                    mismatches.append((rel_path, local_file_sizes[rel_path], size))
+            else:
+                print(f"⚠️ Extra file on pod: {rel_path}")
+
+        print(f"\n📏 Total remote data size: {total_remote_size} bytes")
+
+        if mismatches:
+            print("❌ File size mismatches found:")
+            for path, local_size, remote_size in mismatches:
+                print(
+                    f"  - {path}: local={local_size} bytes, remote={remote_size} bytes"
+                )
+            run(["kubectl", "describe", "pod", pod_name], check=False)
+            sys.exit(1)
+
+        print("✅ Remote data validated successfully.")
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Failed to validate remote data in pod {pod_name}: {e}")
+        run(["kubectl", "describe", "pod", pod_name], check=False)
+        sys.exit(1)
+
+
+def main(deployment_config_path: str, data_dir: str) -> None:
     config.load_kube_config()
     services: List[Tuple[str, str]] = load_services(deployment_config_path)
 
-    resources_to_wait_for: List[Tuple[str, str]] = []
+    resources_to_wait_for: List[Tuple[str, str, str]] = []
+    local_file_sizes = summarize_directory(data_dir)
 
-    # Reverse the service order so the batcher (which must restart last in the distributed flow) is
-    #  handled after the others.
-    # TODO(Nadin): Investigate why a specific restart order is needed and whether it can be enforced
-    #  explicitly instead of relying on reversed().
     for service_name, controller in reversed(services):
         service_name_lower = service_name.lower()
         controller_lower = controller.lower()
@@ -119,19 +233,20 @@ def main(deployment_config_path: str, data_dir: str) -> None:
             print(f"❌ No pod found for {service_name}. Aborting!")
             sys.exit(1)
 
-        print(f"{service_name} pod found - {pod_name}")
+        print(f"✅ Pod found: {pod_name}")
 
-        copy_state(pod_name=pod_name, data_dir=data_dir)
+        copy_state_tar(pod_name=pod_name, data_dir=data_dir)
         delete_pod(pod_name=pod_name)
-
-        resources_to_wait_for.append((controller_lower, resource_name))
+        resources_to_wait_for.append((controller_lower, resource_name, pod_name))
 
     print("\n⏳ Waiting for all resources to become ready...\n")
-    for controller, resource_name in resources_to_wait_for:
+
+    for controller, resource_name, pod_name in resources_to_wait_for:
         wait_for_resource(controller=controller, name=resource_name)
         print(f"✅ {controller}/{resource_name} is ready!")
+        validate_remote_data(pod_name, local_file_sizes)
 
-    print("\n✅ All services are ready!")
+    print("\n✅ All services are ready and state has been validated!")
 
 
 if __name__ == "__main__":
