@@ -107,6 +107,7 @@ fn test_block_weights_has_room_n_txs(
         contract_address!(0_u128),
     ])),
     bouncer_config: BouncerConfig::empty(),
+    migrated_class_hash_to_casm_hash: HashMap::default(),
     accumulated_weights: BouncerWeights {
         l1_gas: 10,
         message_segment_length: 10,
