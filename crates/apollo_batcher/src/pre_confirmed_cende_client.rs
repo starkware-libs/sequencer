@@ -1,9 +1,14 @@
+use std::collections::BTreeMap;
+
 use apollo_batcher_types::batcher_types::Round;
+use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
 use blockifier::fee::receipt::TransactionReceipt;
 use starknet_api::block::BlockNumber;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
+use url::Url;
 
 #[derive(Clone, Debug, Error)]
 pub enum PreConfirmedCendeClientError {}
@@ -38,6 +43,31 @@ pub trait PreConfirmedCendeClientTrait: Send + Sync {
         proposal_round: Round,
         executed_txs: Vec<(TransactionHash, TransactionReceipt)>,
     ) -> PreConfirmedCendeClientResult<()>;
+}
+
+pub struct PreConfirmedCendeConfig {
+    pub recorder_url: Url,
+}
+
+impl Default for PreConfirmedCendeConfig {
+    fn default() -> Self {
+        Self {
+            recorder_url: "https://recorder_url"
+                .parse()
+                .expect("recorder_url must be a valid Recorder URL"),
+        }
+    }
+}
+
+impl SerializeConfig for PreConfirmedCendeConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from([ser_param(
+            "recorder_url",
+            &self.recorder_url,
+            "The URL of the Pythonic cende_recorder",
+            ParamPrivacyInput::Private,
+        )])
+    }
 }
 
 // TODO(noamsp): Remove this empty client once the Cende client is implemented.
