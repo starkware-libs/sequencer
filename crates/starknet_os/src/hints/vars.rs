@@ -100,6 +100,8 @@ define_string_enum! {
         (RightChild),
         (SyscallHandlerType),
         (UseKzgDa),
+        (Y),
+        (YSquareInt),
     }
 }
 
@@ -177,6 +179,7 @@ define_string_enum! {
         (InitialRoot),
         (IsLeaf),
         (IsNUpdatesSmall),
+        (IsOnCurve),
         (IsSegmentUsed),
         (IsSierraGasMode),
         (IsUsedLeaf),
