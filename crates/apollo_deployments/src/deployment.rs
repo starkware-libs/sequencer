@@ -27,6 +27,12 @@ const INSTANCE_FILE_NAME: &str = "instance_config_override.json";
 
 const MAX_NODE_ID: usize = 9; // Currently supporting up to 9 nodes, to avoid more complicated string manipulations.
 
+const BOOTSTRAP_L1_SCRAPER_CONFIG_STARTUP_REWIND_TIME_SECONDS: u64 = 28800; // 8 hours
+const BOOTSTRAP_MEMPOOL_CONFIG_TRANSACTION_TTL: u64 = 100_000; // 100k seconds ~ 27.7 hours
+
+const OPERATIONAL_L1_SCRAPER_CONFIG_STARTUP_REWIND_TIME_SECONDS: u64 = 3600; // 1 hour
+const OPERATIONAL_MEMPOOL_CONFIG_TRANSACTION_TTL: u64 = 300; // 300 seconds ~ 5 minutes
+
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Deployment {
     chain_id: ChainId,
@@ -274,9 +280,13 @@ pub struct InstanceConfigOverride {
     #[serde(rename = "mempool_p2p_config.network_config.secret_key")]
     mempool_secret_key: String,
     validator_id: String,
+    #[serde(flatten)]
+    deployment_type_config_override: DeploymentTypeConfigOverride,
 }
 
 impl InstanceConfigOverride {
+    // TODO(Tsabary): reduce number of args.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         consensus_bootstrap_peer_multiaddr: impl ToString,
         consensus_bootstrap_peer_multiaddr_is_none: bool,
@@ -285,6 +295,7 @@ impl InstanceConfigOverride {
         mempool_bootstrap_peer_multiaddr_is_none: bool,
         mempool_secret_key: impl ToString,
         validator_id: impl ToString,
+        deployment_type_config_override: DeploymentTypeConfigOverride,
     ) -> Self {
         Self {
             consensus_bootstrap_peer_multiaddr: consensus_bootstrap_peer_multiaddr.to_string(),
@@ -294,6 +305,7 @@ impl InstanceConfigOverride {
             mempool_bootstrap_peer_multiaddr_is_none,
             mempool_secret_key: mempool_secret_key.to_string(),
             validator_id: validator_id.to_string(),
+            deployment_type_config_override,
         }
     }
 }
@@ -309,6 +321,36 @@ impl DeploymentType {
             DeploymentType::Bootstrap => 1,
             DeploymentType::Operational => DEFAULT_VALIDATOR_ID.try_into().unwrap(),
         }
+    }
+
+    pub(crate) fn get_deployment_type_config_override(&self) -> DeploymentTypeConfigOverride {
+        match self {
+            DeploymentType::Bootstrap => DeploymentTypeConfigOverride::new(
+                BOOTSTRAP_L1_SCRAPER_CONFIG_STARTUP_REWIND_TIME_SECONDS,
+                BOOTSTRAP_MEMPOOL_CONFIG_TRANSACTION_TTL,
+            ),
+            DeploymentType::Operational => DeploymentTypeConfigOverride::new(
+                OPERATIONAL_L1_SCRAPER_CONFIG_STARTUP_REWIND_TIME_SECONDS,
+                OPERATIONAL_MEMPOOL_CONFIG_TRANSACTION_TTL,
+            ),
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct DeploymentTypeConfigOverride {
+    #[serde(rename = "l1_scraper_config.startup_rewind_time_seconds")]
+    l1_scraper_config_startup_rewind_time_seconds: u64,
+    #[serde(rename = "mempool_config.transaction_ttl")]
+    mempool_config_transaction_ttl: u64,
+}
+
+impl DeploymentTypeConfigOverride {
+    pub fn new(
+        l1_scraper_config_startup_rewind_time_seconds: u64,
+        mempool_config_transaction_ttl: u64,
+    ) -> Self {
+        Self { l1_scraper_config_startup_rewind_time_seconds, mempool_config_transaction_ttl }
     }
 }
 
@@ -332,6 +374,8 @@ pub(crate) fn create_hybrid_instance_config_override(
     const MEMPOOL_SERVICE_NAME: &str = "sequencer-mempool-service";
     const MEMPOOL_SERVICE_PORT: u16 = 53200;
 
+    let deployment_type_config_override = deployment_type.get_deployment_type_config_override();
+
     if id == 0 {
         InstanceConfigOverride::new(
             "",
@@ -341,6 +385,7 @@ pub(crate) fn create_hybrid_instance_config_override(
             true,
             get_secret_key(id),
             get_validator_id(id, deployment_type),
+            deployment_type_config_override,
         )
     } else {
         InstanceConfigOverride::new(
@@ -357,6 +402,7 @@ pub(crate) fn create_hybrid_instance_config_override(
             false,
             get_secret_key(id),
             get_validator_id(id, deployment_type),
+            deployment_type_config_override,
         )
     }
 }
@@ -365,9 +411,6 @@ fn get_secret_key(id: usize) -> String {
     format!("0x010101010101010101010101010101010101010101010101010101010101010{}", id + 1)
 }
 
-// TODO(Tsabary): Return this back to observer mode and add a way to configure between observer and
-// non observer. Also change the mempool ttl to 100000 and startup_rewind_time_seconds to 28800 in
-// observer mode
 fn get_validator_id(id: usize, deployment_type: DeploymentType) -> String {
     format!("0x{:x}", id + deployment_type.validator_id_offset())
 }
