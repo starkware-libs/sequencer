@@ -102,6 +102,20 @@ const CONSENSUS_VOTES_NUM_SENT_MESSAGES_ALERT: Alert = Alert {
     evaluation_interval_sec: 20,
 };
 
+const CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS_STUCK: Alert = Alert {
+    name: "consensus_decisions_reached_by_consensus_stuck",
+    title: "Consensus decisions reached by consensus stuck",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!("changes({}[2m])", CONSENSUS_BLOCK_NUMBER.get_name_with_filter()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::LessThan,
+        comparison_value: 1.0,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "2m",
+    evaluation_interval_sec: 20,
+};
+
 const GATEWAY_ADD_TX_RATE_DROP: Alert = Alert {
     name: "gateway_add_tx_rate_drop",
     title: "Gateway add_tx rate drop",
@@ -220,6 +234,7 @@ pub const SEQUENCER_ALERTS: Alerts = Alerts::new(&[
     CONSENSUS_BUILD_PROPOSAL_FAILED_ALERT,
     CONSENSUS_VALIDATE_PROPOSAL_FAILED_ALERT,
     CONSENSUS_VOTES_NUM_SENT_MESSAGES_ALERT,
+    CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS_STUCK,
     GATEWAY_ADD_TX_RATE_DROP,
     GATEWAY_ADD_TX_LATENCY_INCREASE,
     MEMPOOL_ADD_TX_RATE_DROP,
