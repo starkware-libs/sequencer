@@ -232,6 +232,7 @@ jobs:
           check_interval_sec: 5
           check_timeout_sec: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.liveness_test_duration_sec || 10 }}
         run: |
+          # TODO(Nadin): Calculate config_dir dynamically in liveness_check.py based on deployment_config_path
           pipenv run python ./scripts/system_tests/liveness_check.py \
             --deployment-config-path ${{ env.deployment_config_path }} \
             --config-dir ${{ env.config_dir }} \
