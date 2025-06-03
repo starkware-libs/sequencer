@@ -18,8 +18,7 @@ from imports.dashboards.co.starkware.grafana import (
     SharedGrafanaDashboardSpec,
 )
 from services.config import GrafanaAlertRuleGroupConfig, GrafanaDashboardConfig
-from services.helpers import sanitize_name
-from services.monitoring import GrafanaDashboard
+from services.helpers import sanitize_name, generate_random_hash
 
 
 class MonitoringApp(Construct):
@@ -116,9 +115,12 @@ class GrafanaAlertRuleGroupApp(MonitoringApp):
             return None
 
     def _get_shared_grafana_alert_rule_group_rules(self, rule: Dict[str, Any]):
+        title = f'{self.namespace}-{rule["title"].replace(" ", "_").lower()}'
+        uid = generate_random_hash(length=30, from_string=title)
+
         return SharedGrafanaAlertRuleGroupSpecRules(
-            uid=rule["name"],
-            title=f'sequencer-{self.namespace}-{rule["title"]}',
+            uid=uid,
+            title=title,
             condition=rule["condition"],
             for_=rule["for"],
             annotations=rule["annotations"],
