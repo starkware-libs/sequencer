@@ -16,12 +16,17 @@ use starknet_api::{calldata, felt, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 
 use crate::blockifier::config::{ConcurrencyConfig, TransactionExecutorConfig};
-use crate::blockifier::transaction_executor::{TransactionExecutor, DEFAULT_STACK_SIZE};
+use crate::blockifier::transaction_executor::{
+    BlockExecutionSummary,
+    TransactionExecutor,
+    DEFAULT_STACK_SIZE,
+};
 use crate::context::{BlockContext, ChainInfo};
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{RunnableCairo1, BALANCE, MAX_FEE};
 use crate::transaction::account_transaction::AccountTransaction;
+use crate::transaction::objects::TransactionExecutionInfo;
 use crate::transaction::transaction_execution::Transaction;
 const N_ACCOUNTS: u16 = 10000;
 const N_TXS: usize = 1000;
@@ -61,6 +66,7 @@ impl Default for TransfersGeneratorConfig {
     }
 }
 
+#[derive(Clone, Copy)]
 pub enum RecipientGeneratorType {
     Random,
     RoundRobin,
@@ -76,6 +82,8 @@ pub struct TransfersGenerator {
     random_recipient_generator: Option<StdRng>,
     recipient_addresses: Option<Vec<ContractAddress>>,
     config: TransfersGeneratorConfig,
+    // Execution infos of transactions that were executed during the lifetime of this generator.
+    collected_execution_infos: Vec<TransactionExecutionInfo>,
 }
 
 impl TransfersGenerator {
@@ -123,7 +131,14 @@ impl TransfersGenerator {
             random_recipient_generator,
             recipient_addresses,
             config,
+            collected_execution_infos: vec![],
         }
+    }
+
+    /// Finalizes the transaction executor and returns the ongoing transaction execution infos
+    /// and the block execution summary.
+    pub fn finalize(mut self) -> (Vec<TransactionExecutionInfo>, BlockExecutionSummary) {
+        (self.collected_execution_infos, self.executor.finalize().unwrap())
     }
 
     pub fn get_next_recipient(&mut self) -> ContractAddress {
@@ -161,8 +176,11 @@ impl TransfersGenerator {
         let results = self.executor.execute_txs(&txs, execution_deadline);
         let n_results = results.len();
         for result in results {
-            assert!(!result.unwrap().0.is_reverted());
+            let execution_info = result.unwrap().0;
+            assert!(!execution_info.is_reverted());
+            self.collected_execution_infos.push(execution_info);
         }
+
         n_results
         // TODO(Avi, 01/06/2024): Run the same transactions concurrently on a new state and compare
         // the state diffs.
