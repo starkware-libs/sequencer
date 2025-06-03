@@ -211,7 +211,9 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<GetContractAddressResponse> {
-        todo!()
+        Ok(GetContractAddressResponse {
+            address: syscall_handler.get_call_entry_point()?.storage_address,
+        })
     }
 
     #[allow(clippy::result_large_err)]
