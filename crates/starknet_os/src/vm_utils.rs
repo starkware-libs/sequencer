@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use blockifier::execution::execution_utils::ReadOnlySegment;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::get_relocatable_from_var_name;
 use cairo_vm::hint_processor::hint_processor_definition::HintReference;
 use cairo_vm::serde::deserialize_program::{ApTracking, Identifier, Member};
@@ -267,4 +268,15 @@ pub(crate) fn get_size_of_cairo_struct<IG: IdentifierGetter>(
     let base_struct = identifier_getter.get_identifier(cairo_type_str)?;
 
     base_struct.size.ok_or_else(|| VmUtilsError::IdentifierHasNoSize(Box::new(base_struct.clone())))
+}
+
+/// Write the given data to a temporary segment in the VM. Returns the written data segment.
+pub(crate) fn write_to_temp_segment(
+    data: &[Felt],
+    vm: &mut VirtualMachine,
+) -> Result<ReadOnlySegment, MemoryError> {
+    let relocatable_data: Vec<_> = data.iter().map(MaybeRelocatable::from).collect();
+    let segment_start_ptr = vm.add_temporary_segment();
+    vm.load_data(segment_start_ptr, &relocatable_data)?;
+    Ok(ReadOnlySegment { start_ptr: segment_start_ptr, length: relocatable_data.len() })
 }
