@@ -101,6 +101,11 @@ pub trait State: StateReader {
         class_hash: ClassHash,
         compiled_class_hash: CompiledClassHash,
     ) -> StateResult<()>;
+
+    fn get_blake_class_hash(&self, _class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+        // Remove default implementation once the function is implemented.
+        Ok(CompiledClassHash::default())
+    }
 }
 
 /// A class defining the API for updating a state with transactions writes.
