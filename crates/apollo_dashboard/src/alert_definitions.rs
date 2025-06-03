@@ -1,6 +1,7 @@
 use apollo_consensus::metrics::{
     CONSENSUS_BLOCK_NUMBER,
     CONSENSUS_BUILD_PROPOSAL_FAILED,
+    CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS,
     CONSENSUS_PROPOSALS_INVALID,
     CONSENSUS_ROUND,
 };
@@ -81,6 +82,24 @@ const CONSENSUS_VOTES_NUM_SENT_MESSAGES_ALERT: Alert = Alert {
     conditions: &[AlertCondition {
         comparison_op: AlertComparisonOp::LessThan,
         comparison_value: 100.0 / 3600.0, // 100 per hour
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 20,
+    severity: AlertSeverity::WorkingHours,
+};
+
+const CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS_STUCK: Alert = Alert {
+    name: "consensus_decisions_reached_by_consensus_stuck",
+    title: "Consensus decisions reached by consensus stuck",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!(
+        "rate({}[20m])",
+        CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS.get_name_with_filter()
+    ),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::LessThan,
+        comparison_value: 1.0,
         logical_op: AlertLogicalOp::And,
     }],
     pending_duration: "1m",
@@ -210,6 +229,7 @@ pub const SEQUENCER_ALERTS: Alerts = Alerts::new(&[
     CONSENSUS_BUILD_PROPOSAL_FAILED_ALERT,
     CONSENSUS_VALIDATE_PROPOSAL_FAILED_ALERT,
     CONSENSUS_VOTES_NUM_SENT_MESSAGES_ALERT,
+    CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS_STUCK,
     GATEWAY_ADD_TX_RATE_DROP,
     GATEWAY_ADD_TX_LATENCY_INCREASE,
     MEMPOOL_ADD_TX_RATE_DROP,
