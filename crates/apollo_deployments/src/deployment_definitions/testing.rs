@@ -6,6 +6,7 @@ use crate::deployment::{
     ConfigOverride,
     Deployment,
     DeploymentConfigOverride,
+    DeploymentType,
     InstanceConfigOverride,
 };
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
@@ -36,8 +37,10 @@ fn testing_instance_config_override() -> InstanceConfigOverride {
         "",
         true,
         "0x0101010101010101010101010101010101010101010101010101010101010101",
+        DeploymentType::Operational.l1_scraper_config_startup_rewind_time_seconds(),
         "",
         true,
+        DeploymentType::Operational.mempool_config_transaction_ttl(),
         "0x0101010101010101010101010101010101010101010101010101010101010101",
         "0x64",
     )

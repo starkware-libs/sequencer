@@ -27,6 +27,12 @@ const INSTANCE_FILE_NAME: &str = "instance_config_override.json";
 
 const MAX_NODE_ID: usize = 9; // Currently supporting up to 9 nodes, to avoid more complicated string manipulations.
 
+const BOOTSTRAP_L1_SCRAPER_CONFIG_STARTUP_REWIND_TIME_SECONDS: u64 = 28800; // 8 hours
+const BOOTSTRAP_MEMPOOL_CONFIG_TRANSACTION_TTL: u64 = 100_000; // 100k seconds ~ 27.7 hours
+
+const OPERATIONAL_L1_SCRAPER_CONFIG_STARTUP_REWIND_TIME_SECONDS: u64 = 3600; // 1 hour
+const OPERATIONAL_MEMPOOL_CONFIG_TRANSACTION_TTL: u64 = 300; // 300 seconds ~ 5 minutes
+
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Deployment {
     chain_id: ChainId,
@@ -266,10 +272,14 @@ pub struct InstanceConfigOverride {
     // TODO(Tsabary): network secret keys should be defined as secrets.
     #[serde(rename = "consensus_manager_config.network_config.secret_key")]
     consensus_secret_key: String,
+    #[serde(rename = "l1_scraper_config.startup_rewind_time_seconds")]
+    l1_scraper_config_startup_rewind_time_seconds: u64,
     #[serde(rename = "mempool_p2p_config.network_config.bootstrap_peer_multiaddr")]
     mempool_bootstrap_peer_multiaddr: String,
     #[serde(rename = "mempool_p2p_config.network_config.bootstrap_peer_multiaddr.#is_none")]
     mempool_bootstrap_peer_multiaddr_is_none: bool,
+    #[serde(rename = "mempool_config.transaction_ttl")]
+    mempool_config_transaction_ttl: u64,
     // TODO(Tsabary): network secret keys should be defined as secrets.
     #[serde(rename = "mempool_p2p_config.network_config.secret_key")]
     mempool_secret_key: String,
@@ -277,12 +287,16 @@ pub struct InstanceConfigOverride {
 }
 
 impl InstanceConfigOverride {
+    // TODO(Tsabary): reduce number of args.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         consensus_bootstrap_peer_multiaddr: impl ToString,
         consensus_bootstrap_peer_multiaddr_is_none: bool,
         consensus_secret_key: impl ToString,
+        l1_scraper_config_startup_rewind_time_seconds: u64,
         mempool_bootstrap_peer_multiaddr: impl ToString,
         mempool_bootstrap_peer_multiaddr_is_none: bool,
+        mempool_config_transaction_ttl: u64,
         mempool_secret_key: impl ToString,
         validator_id: impl ToString,
     ) -> Self {
@@ -290,8 +304,10 @@ impl InstanceConfigOverride {
             consensus_bootstrap_peer_multiaddr: consensus_bootstrap_peer_multiaddr.to_string(),
             consensus_bootstrap_peer_multiaddr_is_none,
             consensus_secret_key: consensus_secret_key.to_string(),
+            l1_scraper_config_startup_rewind_time_seconds,
             mempool_bootstrap_peer_multiaddr: mempool_bootstrap_peer_multiaddr.to_string(),
             mempool_bootstrap_peer_multiaddr_is_none,
+            mempool_config_transaction_ttl,
             mempool_secret_key: mempool_secret_key.to_string(),
             validator_id: validator_id.to_string(),
         }
@@ -308,6 +324,22 @@ impl DeploymentType {
         match self {
             DeploymentType::Bootstrap => 1,
             DeploymentType::Operational => DEFAULT_VALIDATOR_ID.try_into().unwrap(),
+        }
+    }
+
+    pub(crate) fn l1_scraper_config_startup_rewind_time_seconds(&self) -> u64 {
+        match self {
+            DeploymentType::Bootstrap => BOOTSTRAP_L1_SCRAPER_CONFIG_STARTUP_REWIND_TIME_SECONDS,
+            DeploymentType::Operational => {
+                OPERATIONAL_L1_SCRAPER_CONFIG_STARTUP_REWIND_TIME_SECONDS
+            }
+        }
+    }
+
+    pub(crate) fn mempool_config_transaction_ttl(&self) -> u64 {
+        match self {
+            DeploymentType::Bootstrap => BOOTSTRAP_MEMPOOL_CONFIG_TRANSACTION_TTL,
+            DeploymentType::Operational => OPERATIONAL_MEMPOOL_CONFIG_TRANSACTION_TTL,
         }
     }
 }
@@ -332,13 +364,19 @@ pub(crate) fn create_hybrid_instance_config_override(
     const MEMPOOL_SERVICE_NAME: &str = "sequencer-mempool-service";
     const MEMPOOL_SERVICE_PORT: u16 = 53200;
 
+    let l1_scraper_config_startup_rewind_time_seconds =
+        deployment_type.l1_scraper_config_startup_rewind_time_seconds();
+    let mempool_config_transaction_ttl = deployment_type.mempool_config_transaction_ttl();
+
     if id == 0 {
         InstanceConfigOverride::new(
             "",
             true,
             get_secret_key(id),
+            l1_scraper_config_startup_rewind_time_seconds,
             "",
             true,
+            mempool_config_transaction_ttl,
             get_secret_key(id),
             get_validator_id(id, deployment_type),
         )
@@ -350,11 +388,13 @@ pub(crate) fn create_hybrid_instance_config_override(
             ),
             false,
             get_secret_key(id),
+            l1_scraper_config_startup_rewind_time_seconds,
             format!(
                 "/dns/{}.{}.svc.cluster.local/tcp/{}/p2p/{}",
                 MEMPOOL_SERVICE_NAME, namespace, MEMPOOL_SERVICE_PORT, FIRST_NODE_ADDRESS
             ),
             false,
+            mempool_config_transaction_ttl,
             get_secret_key(id),
             get_validator_id(id, deployment_type),
         )
@@ -365,9 +405,6 @@ fn get_secret_key(id: usize) -> String {
     format!("0x010101010101010101010101010101010101010101010101010101010101010{}", id + 1)
 }
 
-// TODO(Tsabary): Return this back to observer mode and add a way to configure between observer and
-// non observer. Also change the mempool ttl to 100000 and startup_rewind_time_seconds to 28800 in
-// observer mode
 fn get_validator_id(id: usize, deployment_type: DeploymentType) -> String {
     format!("0x{:x}", id + deployment_type.validator_id_offset())
 }
