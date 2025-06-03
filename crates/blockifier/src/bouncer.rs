@@ -20,7 +20,7 @@ use crate::state::cached_state::{StateChangesKeys, StorageEntry};
 use crate::state::state_api::StateReader;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionResult};
-use crate::utils::{u64_from_usize, usize_from_u64};
+use crate::utils::{should_migrate, u64_from_usize, usize_from_u64};
 
 #[cfg(test)]
 #[path = "bouncer_test.rs"]
@@ -237,6 +237,7 @@ impl CasmHashComputationData {
 pub struct TxWeights {
     pub bouncer_weights: BouncerWeights,
     pub casm_hash_computation_data: CasmHashComputationData,
+    pub class_hashes_to_gas_for_migration: HashMap<ClassHash, GasAmount>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -247,6 +248,7 @@ pub struct Bouncer {
     pub visited_storage_entries: HashSet<StorageEntry>,
     pub state_changes_keys: StateChangesKeys,
     pub casm_hash_computation_data: CasmHashComputationData,
+    pub class_hashes_to_gas_for_migration: HashMap<ClassHash, GasAmount>,
 
     pub bouncer_config: BouncerConfig,
     accumulated_weights: BouncerWeights,
@@ -260,6 +262,7 @@ impl Bouncer {
     pub fn empty() -> Self {
         Bouncer {
             visited_storage_entries: HashSet::default(),
+            class_hashes_to_gas_for_migration: HashMap::default(),
             state_changes_keys: StateChangesKeys::default(),
             bouncer_config: BouncerConfig::empty(),
             accumulated_weights: BouncerWeights::empty(),
@@ -293,11 +296,12 @@ impl Bouncer {
         // rather than the cumulative state attributes.
         let marginal_state_changes_keys =
             tx_state_changes_keys.difference(&self.state_changes_keys);
-        let marginal_executed_class_hashes = tx_execution_summary
+        let marginal_executed_class_hashes: HashSet<ClassHash> = tx_execution_summary
             .executed_class_hashes
             .difference(&self.get_executed_class_hashes())
             .cloned()
             .collect();
+
         let n_marginal_visited_storage_entries = tx_execution_summary
             .visited_storage_entries
             .difference(&self.visited_storage_entries)
@@ -353,6 +357,7 @@ impl Bouncer {
         // Note: cancelling writes (0 -> 1 -> 0) will not be removed, but it's fine since fee was
         // charged for them.
         self.state_changes_keys.extend(state_changes_keys);
+        self.class_hashes_to_gas_for_migration.extend(tx_weights.class_hashes_to_gas_for_migration);
     }
 
     #[cfg(test)]
@@ -467,6 +472,17 @@ pub fn get_tx_weights<S: StateReader>(
             .collect(),
         sierra_gas_without_casm_hash_computation,
     };
+    let class_hashes_to_gas_for_migration: HashMap<ClassHash, GasAmount> = executed_class_hashes
+        .iter()
+        .filter_map(|&class_hash| {
+            if should_migrate(state_reader, class_hash) {
+                // TODO(Meshi): Put the right gas amount once its calculation is implemented.
+                Some((class_hash, GasAmount::ZERO))
+            } else {
+                None
+            }
+        })
+        .collect();
     let bouncer_weights = BouncerWeights {
         l1_gas: message_starknet_l1gas,
         message_segment_length: message_resources.message_segment_length,
@@ -476,7 +492,7 @@ pub fn get_tx_weights<S: StateReader>(
         n_txs: 1,
     };
 
-    Ok(TxWeights { bouncer_weights, casm_hash_computation_data })
+    Ok(TxWeights { bouncer_weights, casm_hash_computation_data, class_hashes_to_gas_for_migration })
 }
 
 /// Returns a mapping from each class hash to its estimated Cairo resources for Casm hash

@@ -42,7 +42,10 @@ pub trait StateReader {
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass>;
 
     /// Returns the compiled class hash of the given class hash.
-    fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash>;
+    // TODO(Meshi): Remove default implementation.
+    fn get_compiled_class_hash(&self, _class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+        Ok(CompiledClassHash::default())
+    }
 
     /// Returns the storage value representing the balance (in fee token) at the given address.
     // TODO(Dori, 1/7/2023): When a standard representation for large integers is set, change the
@@ -101,6 +104,11 @@ pub trait State: StateReader {
         class_hash: ClassHash,
         compiled_class_hash: CompiledClassHash,
     ) -> StateResult<()>;
+
+    fn get_blake_class_hash(&self, _class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+        // Remove default implementation once the function is implemented.
+        Ok(CompiledClassHash::default())
+    }
 }
 
 /// A class defining the API for updating a state with transactions writes.
