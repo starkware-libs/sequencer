@@ -55,7 +55,7 @@ use crate::hints::hint_implementation::deprecated_compiled_class::implementation
     load_deprecated_class_inner,
 };
 use crate::hints::hint_implementation::execute_syscalls::is_block_number_in_block_hash_buffer;
-use crate::hints::hint_implementation::execute_transactions::{
+use crate::hints::hint_implementation::execute_transactions::implementation::{
     fill_holes_in_rc96_segment,
     log_remaining_txs,
     os_input_transactions,
