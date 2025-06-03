@@ -44,6 +44,12 @@ pub trait StateReader {
     /// Returns the compiled class hash of the given class hash.
     fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash>;
 
+    // Returns the compiled class hash v2 of the given class hash.
+    fn get_compiled_class_hash_v2(&self, _class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+        // TODO(Meshi): Remove default implementation once the function is implemented.
+        Ok(CompiledClassHash::default())
+    }
+
     /// Returns the storage value representing the balance (in fee token) at the given address.
     // TODO(Dori, 1/7/2023): When a standard representation for large integers is set, change the
     //    return type to that.
