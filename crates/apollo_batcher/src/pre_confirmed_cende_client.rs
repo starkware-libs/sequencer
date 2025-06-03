@@ -5,6 +5,7 @@ use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
 use blockifier::fee::receipt::TransactionReceipt;
+use reqwest::Client;
 use starknet_api::block::BlockNumber;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
@@ -43,6 +44,37 @@ pub trait PreConfirmedCendeClientTrait: Send + Sync {
         proposal_round: Round,
         executed_txs: Vec<(TransactionHash, TransactionReceipt)>,
     ) -> PreConfirmedCendeClientResult<()>;
+}
+
+pub struct PreConfirmedCendeClient {
+    _send_start_new_round_url: Url,
+    _send_pre_confirmed_txs_url: Url,
+    _send_executed_txs_url: Url,
+    _client: Client,
+}
+
+pub const RECORDER_START_NEW_ROUND_PATH: &str = "/cende_recorder/start_new_round";
+pub const RECORDER_PRE_CONFIRMED_TXS_PATH: &str = "/cende_recorder/pre_confirmed_txs";
+pub const RECORDER_EXECUTED_TXS_PATH: &str = "/cende_recorder/executed_txs";
+
+impl PreConfirmedCendeClient {
+    pub fn new(config: PreConfirmedCendeConfig) -> Self {
+        Self {
+            _send_start_new_round_url: config
+                .recorder_url
+                .join(RECORDER_START_NEW_ROUND_PATH)
+                .expect("Failed to join `RECORDER_START_NEW_ROUND_PATH` with the Recorder URL"),
+            _send_pre_confirmed_txs_url: config
+                .recorder_url
+                .join(RECORDER_PRE_CONFIRMED_TXS_PATH)
+                .expect("Failed to join `RECORDER_PRE_CONFIRMED_TXS_PATH` with the Recorder URL"),
+            _send_executed_txs_url: config
+                .recorder_url
+                .join(RECORDER_EXECUTED_TXS_PATH)
+                .expect("Failed to join `RECORDER_EXECUTED_TXS_PATH` with the Recorder URL"),
+            _client: Client::new(),
+        }
+    }
 }
 
 pub struct PreConfirmedCendeConfig {
