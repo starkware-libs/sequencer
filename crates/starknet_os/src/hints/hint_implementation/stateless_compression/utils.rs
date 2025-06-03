@@ -47,6 +47,7 @@ impl BitLength {
         max(MAX_N_BITS / self.n_bits(), 1)
     }
 
+    #[allow(clippy::result_large_err)]
     pub(crate) fn min_bit_length(n_bits: usize) -> Result<Self, OsHintError> {
         match n_bits {
             _ if n_bits <= 15 => Ok(Self::Bits15),
@@ -99,6 +100,7 @@ pub(crate) type BucketElement125 = BitsArray<125>;
 pub(crate) type BucketElement252 = Felt;
 
 /// Returns an error in case the length is not guaranteed to fit in Felt (more than 251 bits).
+#[allow(clippy::result_large_err)]
 pub(crate) fn felt_from_bits_le(bits: &[bool]) -> Result<Felt, OsHintError> {
     if bits.len() > MAX_N_BITS {
         return Err(OsHintError::StatelessCompressionOverflow {

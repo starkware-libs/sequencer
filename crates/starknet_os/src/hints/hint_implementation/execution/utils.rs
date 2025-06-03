@@ -2,10 +2,12 @@ use std::collections::HashMap;
 
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
+    get_integer_from_var_name,
     get_ptr_from_var_name,
     insert_value_from_var_name,
 };
 use cairo_vm::hint_processor::hint_processor_definition::HintReference;
+use cairo_vm::hint_processor::hint_processor_utils::felt_to_usize;
 use cairo_vm::serde::deserialize_program::ApTracking;
 use cairo_vm::types::exec_scope::ExecutionScopes;
 use cairo_vm::types::relocatable::Relocatable;
@@ -25,6 +27,7 @@ use crate::hint_processor::execution_helper::OsExecutionHelper;
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::vars::{CairoStruct, Ids};
 use crate::vm_utils::{
+    get_address_of_nested_fields_from_base_address,
     insert_values_to_fields,
     CairoSized,
     IdentifierGetter,
@@ -76,6 +79,7 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for ValidResourceBounds {
     }
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn get_account_deployment_data<S: StateReader>(
     execution_helper: &OsExecutionHelper<'_, S>,
 ) -> Result<AccountDeploymentData, OsHintError> {
@@ -87,6 +91,7 @@ pub(crate) fn get_account_deployment_data<S: StateReader>(
     }
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn get_calldata<'a, S: StateReader>(
     execution_helper: &OsExecutionHelper<'a, S>,
 ) -> Result<&'a Calldata, OsHintError> {
@@ -102,6 +107,7 @@ pub(crate) fn get_calldata<'a, S: StateReader>(
     }
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn set_state_entry<'a>(
     key: &Felt,
     vm: &'a mut VirtualMachine,
@@ -116,5 +122,48 @@ pub(crate) fn set_state_entry<'a>(
     let state_entry =
         dict_manager_borrowed.get_tracker_mut(state_changes_ptr)?.get_value(&key.into())?;
     insert_value_from_var_name(Ids::StateEntry.into(), state_entry, vm, ids_data, ap_tracking)?;
+    Ok(())
+}
+
+#[allow(clippy::result_large_err)]
+pub(crate) fn assert_retdata_as_expected<IG: IdentifierGetter>(
+    retdata_start_field_name: &str,
+    retdata_end_field_name: &str,
+    response_type: CairoStruct,
+    vm: &VirtualMachine,
+    ap_tracking: &ApTracking,
+    ids_data: &HashMap<String, HintReference>,
+    identifier_getter: &IG,
+) -> OsHintResult {
+    let response_ptr = get_ptr_from_var_name(Ids::Response.into(), vm, ids_data, ap_tracking)?;
+    let response_start = vm.get_relocatable(get_address_of_nested_fields_from_base_address(
+        response_ptr,
+        response_type,
+        vm,
+        &[retdata_start_field_name],
+        identifier_getter,
+    )?)?;
+
+    let response_end = vm.get_relocatable(get_address_of_nested_fields_from_base_address(
+        response_ptr,
+        response_type,
+        vm,
+        &[retdata_end_field_name],
+        identifier_getter,
+    )?)?;
+
+    let response_len = (response_end - response_start)?;
+    let expected_retdata = vm.get_continuous_range(response_start, response_len)?;
+    let retdata_base = get_ptr_from_var_name(Ids::Retdata.into(), vm, ids_data, ap_tracking)?;
+    let retdata_size =
+        get_integer_from_var_name(Ids::RetdataSize.into(), vm, ids_data, ap_tracking)?;
+    let actual_retdata = vm.get_continuous_range(retdata_base, felt_to_usize(&retdata_size)?)?;
+    if actual_retdata != expected_retdata {
+        return Err(OsHintError::AssertionFailed {
+            message: format!(
+                "Return value mismatch; expected={expected_retdata:?}, actual={actual_retdata:?}."
+            ),
+        });
+    }
     Ok(())
 }

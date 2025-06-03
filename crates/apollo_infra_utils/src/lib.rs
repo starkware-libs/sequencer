@@ -1,4 +1,4 @@
-#[cfg(any(feature = "testing", test))]
+pub mod cairo0_compiler;
 pub mod cairo_compiler_version;
 pub mod command;
 pub mod dumping;

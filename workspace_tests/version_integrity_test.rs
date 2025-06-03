@@ -11,11 +11,11 @@ use toml_test_utils::{
 };
 
 const PARENT_BRANCH: &str = include_str!("../scripts/parent_branch.txt");
-const MAIN_PARENT_BRANCH: &str = "main";
+const MAIN_BRANCH: &str = "main";
 const EXPECTED_MAIN_VERSION: &str = "0.0.0";
 
 static ROOT_CRATES_FOR_PUBLISH: LazyLock<HashSet<&str>> =
-    LazyLock::new(|| HashSet::from(["blockifier"]));
+    LazyLock::new(|| HashSet::from(["blockifier", "apollo_starknet_os_program"]));
 static CRATES_FOR_PUBLISH: LazyLock<HashSet<String>> = LazyLock::new(|| {
     let publish_deps: HashSet<String> = ROOT_CRATES_FOR_PUBLISH
         .iter()
@@ -92,6 +92,26 @@ fn test_members_have_version_iff_they_are_for_publish() {
         "The following crates are missing a version field in the workspace Cargo.toml: \
          {published_crates_without_version:#?}.\nThe following crates have a version field but \
          are not intended for publishing: {unpublished_crates_with_version:#?}."
+    );
+}
+
+/// `cargo publish -p X` fails if crate X's Cargo.toml lacks a `description` field.
+#[test]
+fn test_published_crates_have_description() {
+    let published_without_description = MEMBER_TOMLS
+        .iter()
+        .filter_map(|(member, toml)| {
+            if CRATES_FOR_PUBLISH.contains(member) && !toml.package.contains_key("description") {
+                Some(member.clone())
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+    assert!(
+        published_without_description.is_empty(),
+        "The following crates are intended for publishing but do not have a `description` field: \
+         {published_without_description:?}."
     );
 }
 
@@ -224,12 +244,12 @@ fn test_no_features_in_workspace() {
 
 #[test]
 fn test_main_branch_is_versionless() {
-    if PARENT_BRANCH.trim() == MAIN_PARENT_BRANCH {
+    if PARENT_BRANCH.trim() == MAIN_BRANCH {
         let workspace_version = ROOT_TOML.workspace_version();
         assert_eq!(
             workspace_version, EXPECTED_MAIN_VERSION,
             "The workspace version should be '{EXPECTED_MAIN_VERSION}' when the parent branch is \
-             '{MAIN_PARENT_BRANCH}'; found {workspace_version}.",
+             '{MAIN_BRANCH}'; found {workspace_version}.",
         );
     }
 }

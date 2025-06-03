@@ -121,9 +121,14 @@ impl RetryConfig {
 }
 
 impl Behaviour {
-    pub fn new(config: DiscoveryConfig, bootstrap_peers: Vec<(PeerId, Multiaddr)>) -> Self {
+    pub fn new(
+        local_peer_id: PeerId,
+        config: DiscoveryConfig,
+        bootstrap_peers: Vec<(PeerId, Multiaddr)>,
+    ) -> Self {
         Self {
             boot_strapping: BootstrappingBehaviour::new(
+                local_peer_id,
                 config.bootstrap_dial_retry_config,
                 bootstrap_peers,
             ),

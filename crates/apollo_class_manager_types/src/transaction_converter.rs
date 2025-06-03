@@ -42,7 +42,7 @@ pub type TransactionConverterResult<T> = Result<T, TransactionConverterError>;
 
 #[cfg_attr(any(test, feature = "testing"), automock)]
 #[async_trait]
-pub trait TransactionConverterTrait {
+pub trait TransactionConverterTrait: Send + Sync {
     async fn convert_internal_consensus_tx_to_consensus_tx(
         &self,
         tx: InternalConsensusTransaction,

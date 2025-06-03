@@ -68,6 +68,8 @@ pub struct TransactionExecutor<S: StateReader> {
     // committing the chunk. The block state is wrapped with an Option<_> to allow setting it to
     // `None` while it is moved to the worker executor.
     pub block_state: Option<CachedState<S>>,
+
+    pub worker_pool: Option<Arc<WorkerPool<CachedState<S>>>>,
 }
 
 impl<S: StateReader> TransactionExecutor<S> {
@@ -78,6 +80,23 @@ impl<S: StateReader> TransactionExecutor<S> {
         old_block_number_and_hash: Option<BlockHashAndNumber>,
         config: TransactionExecutorConfig,
     ) -> StateResult<Self> {
+        Self::pre_process_and_create_with_pool(
+            initial_state_reader,
+            block_context,
+            old_block_number_and_hash,
+            config,
+            None,
+        )
+    }
+
+    /// Performs pre-processing required for block building before creating the executor.
+    pub fn pre_process_and_create_with_pool(
+        initial_state_reader: S,
+        block_context: BlockContext,
+        old_block_number_and_hash: Option<BlockHashAndNumber>,
+        config: TransactionExecutorConfig,
+        worker_pool: Option<Arc<WorkerPool<CachedState<S>>>>,
+    ) -> StateResult<Self> {
         let mut block_state = CachedState::new(initial_state_reader);
         pre_process_block(
             &mut block_state,
@@ -85,7 +104,7 @@ impl<S: StateReader> TransactionExecutor<S> {
             block_context.block_info().block_number,
             &block_context.versioned_constants.os_constants,
         )?;
-        Ok(Self::new(block_state, block_context, config))
+        Ok(Self::new_with_pool(block_state, block_context, config, worker_pool))
     }
 
     // TODO(Yoni): consider making this c-tor private.
@@ -93,6 +112,15 @@ impl<S: StateReader> TransactionExecutor<S> {
         block_state: CachedState<S>,
         block_context: BlockContext,
         config: TransactionExecutorConfig,
+    ) -> Self {
+        Self::new_with_pool(block_state, block_context, config, None)
+    }
+
+    fn new_with_pool(
+        block_state: CachedState<S>,
+        block_context: BlockContext,
+        config: TransactionExecutorConfig,
+        worker_pool: Option<Arc<WorkerPool<CachedState<S>>>>,
     ) -> Self {
         let bouncer_config = block_context.bouncer_config.clone();
         // Note: the state might not be empty even at this point; it is the creator's
@@ -102,12 +130,14 @@ impl<S: StateReader> TransactionExecutor<S> {
             bouncer: Mutex::new(Bouncer::new(bouncer_config)).into(),
             config,
             block_state: Some(block_state),
+            worker_pool,
         }
     }
 
     /// Executes the given transaction on the state maintained by the executor.
     /// Returns the execution result (info or error) if there is room for the transaction;
     /// Otherwise, returns BlockFull error.
+    #[allow(clippy::result_large_err)]
     pub fn execute(
         &mut self,
         tx: &Transaction,
@@ -168,15 +198,18 @@ impl<S: StateReader> TransactionExecutor<S> {
 
     /// Returns the state diff and the block weights.
     // TODO(Aner): Consume "self", i.e., remove the reference, after removing the native blockifier.
+    #[allow(clippy::result_large_err)]
     pub fn finalize(&mut self) -> TransactionExecutorResult<BlockExecutionSummary> {
         self.internal_finalize()
     }
 
     #[cfg(feature = "reexecution")]
+    #[allow(clippy::result_large_err)]
     pub fn non_consuming_finalize(&mut self) -> TransactionExecutorResult<BlockExecutionSummary> {
         self.internal_finalize()
     }
 
+    #[allow(clippy::result_large_err)]
     fn internal_finalize(&mut self) -> TransactionExecutorResult<BlockExecutionSummary> {
         log::debug!(
             "Final block weights: {:?}.",
@@ -310,7 +343,6 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
         S: 'static,
     {
         let block_state = self.block_state.take().expect("The block state should be `Some`.");
-        let chunk_size = chunk.len();
 
         let worker_executor = Arc::new(WorkerExecutor::initialize(
             block_state,
@@ -323,33 +355,18 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
             execution_deadline,
         ));
 
-        let worker_pool =
-            WorkerPool::start(self.config.stack_size, self.config.concurrency_config.clone());
-        worker_pool.run(worker_executor.clone());
-        worker_pool.join();
-
-        let n_committed_txs = worker_executor.scheduler.get_n_committed_txs();
-        let (abort_counter, abort_in_commit_counter, execute_counter, validate_counter) =
-            worker_executor.metrics.get_metrics();
-        log::debug!(
-            "Concurrent execution done. Initial chunk size: {chunk_size}; Committed chunk size: \
-             {n_committed_txs}; Execute counter: {execute_counter}; Validate counter: \
-             {validate_counter}; Abort counter: {abort_counter}; Abort in commit counter: \
-             {abort_in_commit_counter}"
-        );
-        let mut tx_execution_results = Vec::new();
-        for execution_output in worker_executor.execution_outputs.iter().take(n_committed_txs) {
-            let locked_execution_output = execution_output
-                .lock()
-                .expect("Failed to lock execution output.")
-                .take()
-                .expect("Output must be ready.");
-            let tx_execution_output = locked_execution_output
-                .result
-                .map(|tx_execution_info| (tx_execution_info, locked_execution_output.state_diff))
-                .map_err(TransactionExecutorError::from);
-            tx_execution_results.push(tx_execution_output);
+        if let Some(worker_pool) = &mut self.worker_pool {
+            worker_pool.run_and_wait(worker_executor.clone(), chunk.len());
+        } else {
+            // If a pool is not given, create a new pool and wait for it to finish.
+            let worker_pool =
+                WorkerPool::start(self.config.stack_size, self.config.concurrency_config.clone());
+            worker_pool.run_and_wait(worker_executor.clone(), chunk.len());
+            worker_pool.join();
         }
+
+        let tx_execution_results = worker_executor.extract_execution_outputs(0, chunk.len());
+        let n_committed_txs = tx_execution_results.len();
 
         let block_state_after_commit =
             worker_executor.commit_chunk_and_recover_block_state(n_committed_txs);

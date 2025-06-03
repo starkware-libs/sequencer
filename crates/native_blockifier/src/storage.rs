@@ -39,6 +39,7 @@ pub struct PapyrusStorage {
 }
 
 impl PapyrusStorage {
+    #[allow(clippy::result_large_err)]
     pub fn new(config: StorageConfig) -> NativeBlockifierResult<PapyrusStorage> {
         log::debug!("Initializing Blockifier storage...");
         let db_config = apollo_storage::db::DbConfig {
@@ -86,16 +87,19 @@ impl PapyrusStorage {
 
 impl Storage for PapyrusStorage {
     /// Returns the next block number, for which state diff was not yet appended.
+    #[allow(clippy::result_large_err)]
     fn get_state_marker(&self) -> NativeBlockifierResult<u64> {
         let block_number = self.reader().begin_ro_txn()?.get_state_marker()?;
         Ok(block_number.0)
     }
 
+    #[allow(clippy::result_large_err)]
     fn get_header_marker(&self) -> NativeBlockifierResult<u64> {
         let block_number = self.reader().begin_ro_txn()?.get_header_marker()?;
         Ok(block_number.0)
     }
 
+    #[allow(clippy::result_large_err)]
     fn get_block_id(&self, block_number: u64) -> NativeBlockifierResult<Option<Vec<u8>>> {
         let block_number = BlockNumber(block_number);
         let block_hash = self
@@ -106,6 +110,7 @@ impl Storage for PapyrusStorage {
         Ok(block_hash)
     }
 
+    #[allow(clippy::result_large_err)]
     fn revert_block(&mut self, block_number: u64) -> NativeBlockifierResult<()> {
         log::debug!("Reverting state diff for {block_number:?}.");
         let block_number = BlockNumber(block_number);
@@ -118,6 +123,7 @@ impl Storage for PapyrusStorage {
     }
 
     // TODO(Gilad): Refactor.
+    #[allow(clippy::result_large_err)]
     fn append_block(
         &mut self,
         block_id: u64,
@@ -274,11 +280,16 @@ impl StorageConfig {
 }
 
 pub trait Storage {
+    #[allow(clippy::result_large_err)]
     fn get_state_marker(&self) -> NativeBlockifierResult<u64>;
+    #[allow(clippy::result_large_err)]
     fn get_header_marker(&self) -> NativeBlockifierResult<u64>;
+    #[allow(clippy::result_large_err)]
     fn get_block_id(&self, block_number: u64) -> NativeBlockifierResult<Option<Vec<u8>>>;
 
+    #[allow(clippy::result_large_err)]
     fn revert_block(&mut self, block_number: u64) -> NativeBlockifierResult<()>;
+    #[allow(clippy::result_large_err)]
     fn append_block(
         &mut self,
         block_id: u64,

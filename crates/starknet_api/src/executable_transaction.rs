@@ -371,6 +371,7 @@ impl L1HandlerTransaction {
     }
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum Transaction {
     Account(AccountTransaction),
@@ -396,6 +397,13 @@ impl Transaction {
         match self {
             Self::Account(account_tx) => account_tx.version(),
             Self::L1Handler(l1_handler_tx) => l1_handler_tx.tx.version,
+        }
+    }
+
+    pub fn nonce(&self) -> Nonce {
+        match self {
+            Self::Account(account_tx) => account_tx.nonce(),
+            Self::L1Handler(l1_handler_tx) => l1_handler_tx.tx.nonce,
         }
     }
 }

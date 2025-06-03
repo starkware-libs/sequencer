@@ -30,6 +30,7 @@ use crate::vm_utils::{
     LoadCairoObject,
 };
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn assign_bytecode_segments<S: StateReader>(
     HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -45,6 +46,7 @@ pub(crate) fn assign_bytecode_segments<S: StateReader>(
     }
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn assert_end_of_bytecode_segments<S: StateReader>(
     HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -58,6 +60,7 @@ pub(crate) fn assert_end_of_bytecode_segments<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn bytecode_segment_structure<S: StateReader>(
     HintArgs { hint_processor, exec_scopes, ids_data, ap_tracking, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -80,23 +83,32 @@ pub(crate) fn bytecode_segment_structure<S: StateReader>(
         .ok_or_else(|| OsHintError::MissingBytecodeSegmentStructure(class_hash))?;
 
     // TODO(Nimrod): See if we can avoid the clone here.
+    // We don't insert the `is_segment_used_callback` as a scope var as we use VM::is_accessed for
+    // that.
     let new_scope = HashMap::from([(
         Scope::BytecodeSegmentStructure.into(),
         any_box!(bytecode_segment_structure.clone()),
     )]);
-    // TODO(Nimrod): support is_segment_used_callback.
     exec_scopes.enter_scope(new_scope);
 
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn delete_memory_data<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { vm, ap_tracking, ids_data, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    // TODO(Yoni): Assert that the address was not accessed before.
-    todo!()
+    let data_ptr = get_ptr_from_var_name(Ids::DataPtr.into(), vm, ids_data, ap_tracking)?;
+    if vm.is_accessed(&data_ptr)? {
+        return Err(OsHintError::AssertionFailed {
+            message: format!("The segment {} is skipped but was accessed.", data_ptr),
+        });
+    }
+    vm.delete_unaccessed(data_ptr)?;
+    Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn is_leaf<S: StateReader>(
     HintArgs { vm, exec_scopes, ap_tracking, ids_data, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -112,6 +124,7 @@ pub(crate) fn is_leaf<S: StateReader>(
     )?)
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn iter_current_segment_info<S: StateReader>(
     HintArgs { exec_scopes, vm, ap_tracking, ids_data, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -121,8 +134,21 @@ pub(crate) fn iter_current_segment_info<S: StateReader>(
         .next()
         .ok_or(OsHintError::EndOfIterator { item_type: "Bytecode segments".to_string() })?;
 
-    // TODO(Nimrod): Get from VM::is_accessed after we upgrade the VM.
-    let is_used = true;
+    let data_ptr = get_ptr_from_var_name(Ids::DataPtr.into(), vm, ids_data, ap_tracking)?;
+    let is_used = vm.is_accessed(&data_ptr)?;
+    if !is_used {
+        for i in 0..current_segment_info.length() {
+            let pc = (data_ptr + i)?;
+            if vm.is_accessed(&pc)? {
+                return Err(OsHintError::AssertionFailed {
+                    message: format!(
+                        "PC {} was visited, but the beginning of the segment ({}) was not",
+                        pc.offset, data_ptr.offset
+                    ),
+                });
+            }
+        }
+    }
 
     insert_value_from_var_name(
         Ids::IsSegmentUsed.into(),
@@ -154,6 +180,7 @@ pub(crate) fn iter_current_segment_info<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn load_class<S: StateReader>(
     HintArgs { exec_scopes, ids_data, ap_tracking, vm, hint_processor, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -181,6 +208,7 @@ pub(crate) fn load_class<S: StateReader>(
     Ok(())
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn set_ap_to_segment_hash<S: StateReader>(
     HintArgs { exec_scopes, vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -190,6 +218,7 @@ pub(crate) fn set_ap_to_segment_hash<S: StateReader>(
     Ok(insert_value_into_ap(vm, bytecode_segment_structure.hash().0)?)
 }
 
+#[allow(clippy::result_large_err)]
 pub(crate) fn validate_compiled_class_facts_post_execution<S: StateReader>(
     HintArgs { hint_processor, exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
@@ -204,8 +233,6 @@ pub(crate) fn validate_compiled_class_facts_post_execution<S: StateReader>(
         );
     }
     // No need for is_segment_used callback: use the VM's `MemoryCell::is_accessed`.
-    // TODO(Dori): upgrade the VM to a version including the `is_accessed` API, as added
-    //   [here](https://github.com/lambdaclass/cairo-vm/pull/2024).
     exec_scopes.enter_scope(HashMap::from([(
         Scope::BytecodeSegmentStructures.into(),
         any_box!(bytecode_segment_structures),
@@ -214,6 +241,7 @@ pub(crate) fn validate_compiled_class_facts_post_execution<S: StateReader>(
 }
 
 // Hint extensions.
+#[allow(clippy::result_large_err)]
 pub(crate) fn load_class_inner<S: StateReader>(
     HintArgs { hint_processor, constants, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintExtensionResult {

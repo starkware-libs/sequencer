@@ -14,8 +14,19 @@ dump_source_files = []
 workspace = true
 
 [dependencies]
+apollo_infra_utils.workspace = true
+cairo-vm.workspace = true
+serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
+starknet-types-core.workspace = true
+thiserror.workspace = true
 
 [build-dependencies]
 apollo_infra_utils.workspace = true
 serde_json.workspace = true
+
+[dev-dependencies]
+apollo_infra_utils = { workspace = true, features = ["testing"] }
+blockifier.workspace = true
+starknet-types-core.workspace = true
+starknet_api.workspace = true

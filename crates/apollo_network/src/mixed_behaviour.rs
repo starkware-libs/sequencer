@@ -80,6 +80,7 @@ impl MixedBehaviour {
             discovery: bootstrap_peers_multiaddrs
                 .map(|bootstrap_peer_multiaddr| {
                     discovery::Behaviour::new(
+                        local_peer_id,
                         discovery_config,
                         bootstrap_peer_multiaddr
                             .iter()

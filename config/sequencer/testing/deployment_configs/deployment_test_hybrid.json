@@ -6,9 +6,10 @@
       "name": "Core",
       "controller": "StatefulSet",
       "config_paths": [
-        "core.json",
+        "../../../../base_app_config.json",
         "deployment_config_override.json",
-        "instance_config_override.json"
+        "instance_config_override.json",
+        "core.json"
       ],
       "ingress": null,
       "autoscale": false,
@@ -25,15 +26,17 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": null,
+      "anti_affinity": false
     },
     {
       "name": "HttpServer",
       "controller": "Deployment",
       "config_paths": [
-        "http_server.json",
+        "../../../../base_app_config.json",
         "deployment_config_override.json",
-        "instance_config_override.json"
+        "instance_config_override.json",
+        "http_server.json"
       ],
       "ingress": {
         "domain": "sw-dev.io",
@@ -61,15 +64,17 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": null,
+      "anti_affinity": false
     },
     {
       "name": "Gateway",
       "controller": "Deployment",
       "config_paths": [
-        "gateway.json",
+        "../../../../base_app_config.json",
         "deployment_config_override.json",
-        "instance_config_override.json"
+        "instance_config_override.json",
+        "gateway.json"
       ],
       "ingress": null,
       "autoscale": true,
@@ -86,15 +91,17 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": null,
+      "anti_affinity": false
     },
     {
       "name": "Mempool",
       "controller": "Deployment",
       "config_paths": [
-        "mempool.json",
+        "../../../../base_app_config.json",
         "deployment_config_override.json",
-        "instance_config_override.json"
+        "instance_config_override.json",
+        "mempool.json"
       ],
       "ingress": null,
       "autoscale": false,
@@ -111,15 +118,17 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": null,
+      "anti_affinity": false
     },
     {
       "name": "SierraCompiler",
       "controller": "Deployment",
       "config_paths": [
-        "sierra_compiler.json",
+        "../../../../base_app_config.json",
         "deployment_config_override.json",
-        "instance_config_override.json"
+        "instance_config_override.json",
+        "sierra_compiler.json"
       ],
       "ingress": null,
       "autoscale": true,
@@ -136,7 +145,8 @@
           "memory": 8
         }
       },
-      "external_secret": null
+      "external_secret": null,
+      "anti_affinity": false
     }
   ]
 }

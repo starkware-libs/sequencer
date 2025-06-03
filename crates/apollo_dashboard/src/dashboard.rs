@@ -91,13 +91,7 @@ pub struct Row {
 }
 
 impl Row {
-    pub const fn new(
-        name: &'static str,
-        description: &'static str,
-        panels: &'static [Panel],
-    ) -> Self {
-        // TODO(Tsabary): remove description.
-        let _ = description;
+    pub const fn new(name: &'static str, panels: &'static [Panel]) -> Self {
         Self { name, panels }
     }
 }
@@ -121,9 +115,7 @@ pub struct Dashboard {
 }
 
 impl Dashboard {
-    pub const fn new(name: &'static str, description: &'static str, rows: &'static [Row]) -> Self {
-        // TODO(Tsabary): remove description.
-        let _ = description;
+    pub const fn new(name: &'static str, rows: &'static [Row]) -> Self {
         Self { name, rows }
     }
 }
@@ -213,10 +205,10 @@ impl Serialize for AlertCondition {
 #[serde(rename_all = "snake_case")]
 pub enum AlertGroup {
     Batcher,
+    Consensus,
     Gateway,
     HttpServer,
     Mempool,
-    Consensus,
 }
 
 /// Describes the properties of an alert defined in grafana.
