@@ -21,17 +21,19 @@ pub const DEV_ALERTS_JSON_PATH: &str = "Monitoring/sequencer/dev_grafana_alerts.
 // TODO(Tsabary): remove the following constant, and create relevant "_sum" and "_count" metric fns.
 const FILTER_STR: &str = "{cluster=~\"$cluster\", namespace=~\"$namespace\"}";
 
+// Within 30s the metrics should be updated at least twice.
+// If in one of those times the block number is not updated, fire an alert.
 const CONSENSUS_BLOCK_NUMBER_STUCK: Alert = Alert {
     name: "consensus_block_number_stuck",
     title: "Consensus block number stuck",
     alert_group: AlertGroup::Consensus,
-    expr: formatcp!("changes({}[10s])", CONSENSUS_BLOCK_NUMBER.get_name_with_filter()),
+    expr: formatcp!("changes({}[30s])", CONSENSUS_BLOCK_NUMBER.get_name_with_filter()),
     conditions: &[AlertCondition {
         comparison_op: AlertComparisonOp::LessThan,
-        comparison_value: 1.0,
+        comparison_value: 2.0,
         logical_op: AlertLogicalOp::And,
     }],
-    pending_duration: "10s",
+    pending_duration: "1s",
     evaluation_interval_sec: 10,
 };
 
