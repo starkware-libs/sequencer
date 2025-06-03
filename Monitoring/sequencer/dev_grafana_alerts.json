@@ -181,6 +181,58 @@
       ],
       "for": "1m",
       "intervalSec": 20
+    },
+    {
+      "name": "state_sync_lag",
+      "title": "State sync lag",
+      "ruleGroup": "sync",
+      "expr": "apollo_central_sync_central_block_marker - apollo_state_sync_class_manager_marker",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              5.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "1m",
+      "intervalSec": 60
+    },
+    {
+      "name": "state_sync_stuck",
+      "title": "State sync stuck",
+      "ruleGroup": "sync",
+      "expr": "apollo_state_sync_class_manager_marker == apollo_state_sync_class_manager_marker offset 1m",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "1m",
+      "intervalSec": 60
     }
   ]
 }

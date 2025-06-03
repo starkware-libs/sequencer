@@ -38,6 +38,7 @@ pub fn register_metrics<Mode: TransactionKind>(txn: &StorageTxn<'_, Mode>) {
     STATE_SYNC_COMPILED_CLASS_MARKER.register();
     STATE_SYNC_PROCESSED_TRANSACTIONS.register();
     STATE_SYNC_REVERTED_TRANSACTIONS.register();
+    CENTRAL_SYNC_CENTRAL_BLOCK_MARKER.register();
     update_marker_metrics(txn);
     reconstruct_processed_transactions_metric(txn);
 }
@@ -53,6 +54,9 @@ pub fn update_marker_metrics<Mode: TransactionKind>(txn: &StorageTxn<'_, Mode>) 
     );
     STATE_SYNC_COMPILED_CLASS_MARKER
         .set_lossy(txn.get_compiled_class_marker().expect("Should have a compiled class marker").0);
+    // TODO(Shahak): Initiate the central block marker to the correct first block number that
+    // doesn't exist yet.
+    CENTRAL_SYNC_CENTRAL_BLOCK_MARKER.set_lossy(BlockNumber::default().unchecked_next().0);
 }
 
 fn reconstruct_processed_transactions_metric(txn: &StorageTxn<'_, impl TransactionKind>) {
