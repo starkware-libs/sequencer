@@ -111,6 +111,7 @@ use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_proc_macros::latency_histogram;
 use body::events::EventIndex;
+use body::BodyStorageReader;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use db::db_stats::{DbTableStats, DbWholeStats};
 use db::serialization::{Key, NoVersionValueWrapper, ValueSerde, VersionZeroWrapper};
@@ -131,6 +132,7 @@ use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContract
 use starknet_api::state::{SierraContractClass, StateNumber, StorageKey, ThinStateDiff};
 use starknet_api::transaction::{Transaction, TransactionHash, TransactionOutput};
 use starknet_types_core::felt::Felt;
+use state::StateStorageReader;
 use tracing::{debug, info, warn};
 use validator::Validate;
 use version::{StorageVersionError, Version};
@@ -230,7 +232,7 @@ fn set_version_if_needed(
     reader: StorageReader,
     mut writer: StorageWriter,
 ) -> StorageResult<StorageWriter> {
-    let Some(existing_storage_version) = get_storage_version(reader)? else {
+    let Some(existing_storage_version) = get_storage_version(reader.clone())? else {
         // Initialize the storage version.
         writer.begin_rw_txn()?.set_state_version(&STORAGE_VERSION_STATE)?.commit()?;
         // If in full-archive mode, also set the block version.
@@ -243,6 +245,10 @@ fn set_version_if_needed(
         );
         return Ok(writer);
     };
+    println!(
+        "BBBBBBB state marker = {}",
+        reader.begin_ro_txn().unwrap().get_state_marker().unwrap()
+    );
     debug!("Existing storage state: {:?}", existing_storage_version);
     // Handle the case where the storage scope has changed.
     match existing_storage_version {
@@ -340,6 +346,16 @@ fn get_storage_version(reader: StorageReader) -> StorageResult<Option<StorageVer
             err
         })?;
     let current_storage_version_blocks = reader.begin_ro_txn()?.get_blocks_version()?;
+    println!(
+        "CCCCCCC state marker = {}, body marker = {}",
+        reader.begin_ro_txn().unwrap().get_state_marker().unwrap(),
+        reader.begin_ro_txn().unwrap().get_body_marker().unwrap()
+    );
+    debug!(
+        "Current storage version state: {:?}, blocks: {:?}",
+        current_storage_version_state, current_storage_version_blocks
+    );
+
     let Some(current_storage_version_state) = current_storage_version_state else {
         return Ok(None);
     };

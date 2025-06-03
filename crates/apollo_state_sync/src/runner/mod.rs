@@ -42,6 +42,7 @@ use apollo_state_sync_metrics::metrics::{
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::body::BodyStorageReader;
 use apollo_storage::header::HeaderStorageReader;
+use apollo_storage::state::StateStorageReader;
 use apollo_storage::{open_storage, StorageConfig, StorageReader, StorageWriter};
 use async_trait::async_trait;
 use futures::channel::mpsc::Receiver;
@@ -108,6 +109,11 @@ impl StateSyncResources {
         let (storage_reader, storage_writer) =
             open_storage(storage_config.clone()).expect("StateSyncRunner failed opening storage");
         let shared_highest_block = Arc::new(RwLock::new(None));
+        println!(
+            "AAAAAAAA state marker = {}, body marker = {}",
+            storage_reader.begin_ro_txn().unwrap().get_state_marker().unwrap(),
+            storage_reader.begin_ro_txn().unwrap().get_body_marker().unwrap()
+        );
         let pending_data = Arc::new(RwLock::new(PendingData {
             // The pending data might change later to DeprecatedPendingBlock, depending on the
             // response from the feeder gateway.

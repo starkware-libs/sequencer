@@ -163,6 +163,8 @@ pub async fn make_block_history_on_anvil(
     let provider = base_layer.contract.provider();
     let mut prev_block_number =
         usize::try_from(provider.get_block_number().await.unwrap()).unwrap();
+
+    debug!("*********");
     for _ in 0..num_blocks {
         let tx = TransactionRequest::default()
             .with_from(sender_address)
@@ -170,17 +172,22 @@ pub async fn make_block_history_on_anvil(
             .with_value(U256::from(100));
         let pending =
             provider.send_transaction(tx).await.expect("Could not post transaction to base layer");
+
         let receipt: alloy::rpc::types::TransactionReceipt = pending
             .get_receipt()
             .await
             .expect("Could not get receipt for transaction to base layer");
+
         debug!(
             "Added L1 transaction to L1 block: {} with gas price: {}, blob price: {}",
             receipt.block_number.unwrap(),
             receipt.effective_gas_price,
             receipt.blob_gas_price.unwrap()
         );
-        // Make sure the transactions trigger creation of new blocks.
+        let block_n =
+            provider.get_block_number().await.expect("Could not get block number from base layer");
+        print!("block_number is: {}, ", block_n);
+
         let new_block_number = usize::try_from(receipt.block_number.unwrap()).unwrap();
         assert!(new_block_number > prev_block_number);
         prev_block_number = new_block_number;

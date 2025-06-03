@@ -95,6 +95,32 @@ fn get_ports(args: &Args) -> (u16, u16) {
     }
 }
 
+// async fn initialize_anvil_state(sender_address: Address, receiver_address: Address) {
+//     info!(
+//         "Initializing Anvil state with sender: {} and receiver: {}",
+//         sender_address, receiver_address
+//     );
+//     let starknet_contract_address: EthereumContractAddress =
+//         "0x4737c0c1B4D5b1A687B42610DdabEE781152359c".parse().expect("Invalid address");
+//     let base_layer_config = EthereumBaseLayerConfig {
+//         node_url: Url::parse("http://localhost:8545").expect("Failed to parse Anvil URL"),
+//         starknet_contract_address,
+//         prague_blob_gas_calc: true,
+//         ..Default::default()
+//     };
+//     deploy_starknet_l1_contract(base_layer_config.clone()).await;
+
+//     let num_blocks_needed_on_l1 = 310;
+
+//     make_block_history_on_anvil(
+//         sender_address,
+//         receiver_address,
+//         base_layer_config.clone(),
+//         num_blocks_needed_on_l1,
+//     )
+//     .await;
+// }
+
 async fn run_simulation(
     sequencer_simulator: &SequencerSimulator,
     tx_generator: &mut MultiAccountTransactionGenerator,
