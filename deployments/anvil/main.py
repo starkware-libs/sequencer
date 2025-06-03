@@ -1,13 +1,7 @@
 #!/usr/bin/env python
-<<<<<<< HEAD
 
 import argparse
 from typing import Optional
-from constructs import Construct
-||||||| 92f8b4a29
-from constructs import Construct
-=======
->>>>>>> origin/main-v0.14.0
 from cdk8s import App, Chart, Names, YamlOutputType
 from constructs import Construct
 from imports import k8s
