@@ -126,6 +126,20 @@ def main(deployment_config_path: str, data_dir: str) -> None:
     for controller, resource_name in resources_to_wait_for:
         wait_for_resource(controller=controller, name=resource_name)
         print(f"✅ {controller}/{resource_name} is ready!")
+        try:
+            result = run(
+                ["kubectl", "exec", pod_name, "--", "ls", "-la", "/data"],
+                capture_output=True,
+            )
+            if not result.stdout.strip():
+                print(f"❌ Verification failed: /data is empty in pod {pod_name}")
+                sys.exit(1)
+            else:
+                print(f"✅ Verification successful: /data in pod {pod_name} contains files:")
+                print(result.stdout)
+        except subprocess.CalledProcessError as e:
+            print(f"❌ Failed to verify copied data in pod {pod_name}: {e}")
+            sys.exit(1)
 
     print("\n✅ All services are ready!")
 
