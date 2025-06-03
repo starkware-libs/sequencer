@@ -57,6 +57,8 @@ impl PythonTestRunner for OsPythonTestRunner {
     }
 }
 
+// TODO(Dori): Delete this test, in favor of the `test_all_hints_are_known` in the `starknet_os`
+//   crate.
 #[allow(clippy::result_large_err)]
 fn compare_os_hints(input: &str) -> OsPythonTestResult {
     let unfiltered_python_hints: HashSet<String> = serde_json::from_str(input)?;

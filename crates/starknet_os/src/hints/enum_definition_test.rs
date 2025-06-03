@@ -1,10 +1,37 @@
 use std::collections::HashSet;
 
+use apollo_starknet_os_program::{AGGREGATOR_PROGRAM, OS_PROGRAM};
 use blockifier::execution::hint_code::SYSCALL_HINTS;
+use cairo_vm::hint_processor::builtin_hint_processor::hint_code::HINT_CODES;
+use cairo_vm::hint_processor::builtin_hint_processor::kzg_da::WRITE_DIVMOD_SEGMENT;
+use cairo_vm::hint_processor::builtin_hint_processor::secp::cairo0_hints::CAIRO0_HINT_CODES;
+use cairo_vm::types::program::Program;
 use strum::IntoEnumIterator;
 
 use crate::hints::enum_definition::{AllHints, DeprecatedSyscallHint};
 use crate::hints::types::HintEnum;
+
+fn vm_hints() -> HashSet<&'static str> {
+    let mut vm_hints = HashSet::from([WRITE_DIVMOD_SEGMENT]);
+    vm_hints.extend(HINT_CODES.values());
+    vm_hints.extend(CAIRO0_HINT_CODES.values());
+    vm_hints
+}
+
+fn unknown_hints_for_program(program: &Program, filter: &HashSet<&str>) -> HashSet<String> {
+    program
+        .shared_program_data
+        .hints_collection
+        .iter_hints()
+        .map(|hint| hint.code.clone())
+        .filter(|hint_str| !filter.contains(hint_str.as_str()))
+        .filter_map(
+            |hint_str| {
+                if AllHints::from_str(&hint_str).is_err() { Some(hint_str) } else { None }
+            },
+        )
+        .collect()
+}
 
 #[test]
 fn test_hint_strings_are_unique() {
@@ -32,5 +59,19 @@ fn test_syscall_compatibility_with_blockifier() {
         "The syscall hints in the 'blockifier' do not match the syscall hints in 'starknet_os'.
         If this is intentional, please update the 'starknet_os' hints and add a todo to update 
         the implementation."
+    );
+}
+
+#[test]
+fn test_all_hints_are_known() {
+    let vm_hints = vm_hints();
+    let unknown_os_hints = unknown_hints_for_program(&OS_PROGRAM, &vm_hints);
+    let unknown_aggregator_hints = unknown_hints_for_program(&AGGREGATOR_PROGRAM, &vm_hints);
+    let unknown_hints: HashSet<String> =
+        unknown_os_hints.union(&unknown_aggregator_hints).cloned().collect();
+
+    assert!(
+        unknown_hints.is_empty(),
+        "The following hints are not known in 'starknet_os': {unknown_hints:#?}."
     );
 }
