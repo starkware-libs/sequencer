@@ -7,7 +7,7 @@ use starknet_api::core::ContractAddress;
 use starknet_api::nonce;
 
 use crate::blockifier::concurrent_transaction_executor::ConcurrentTransactionExecutor;
-use crate::blockifier::config::TransactionExecutorConfig;
+use crate::blockifier::config::WorkerPoolConfig;
 use crate::blockifier::transaction_executor::TransactionExecutorError;
 use crate::concurrency::worker_pool::WorkerPool;
 use crate::context::BlockContext;
@@ -32,8 +32,7 @@ struct TestData {
 }
 
 fn get_test_data() -> TestData {
-    let config = TransactionExecutorConfig::create_for_testing(true);
-    let pool = Arc::new(WorkerPool::start(config.stack_size, config.concurrency_config.clone()));
+    let pool = Arc::new(WorkerPool::start(&WorkerPoolConfig::create_for_testing()));
 
     let max_n_events_in_block = 10;
     let block_context = BlockContext::create_for_bouncer_testing(max_n_events_in_block);

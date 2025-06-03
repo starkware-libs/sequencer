@@ -2,7 +2,7 @@ use std::panic;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Arc};
 
-use crate::blockifier::config::ConcurrencyConfig;
+use crate::blockifier::config::WorkerPoolConfig;
 use crate::concurrency::utils::AbortIfPanic;
 use crate::concurrency::worker_logic::WorkerExecutor;
 use crate::concurrency::TxIndex;
@@ -25,16 +25,18 @@ pub struct WorkerPool<S: StateReader> {
 
 impl<S: StateReader + Send + 'static> WorkerPool<S> {
     /// Creates a new WorkerPool with the given stack size and concurrency configuration.
-    pub fn start(stack_size: usize, concurrency_config: ConcurrencyConfig) -> Self {
+    pub fn start(config: &WorkerPoolConfig) -> Self {
         // Initialize the channels.
         let a_thread_panicked = Arc::new(AtomicBool::new(false));
         let mut senders = Vec::<mpsc::Sender<Option<Arc<WorkerExecutor<S>>>>>::new();
         let mut receivers = Vec::<mpsc::Receiver<Option<Arc<WorkerExecutor<S>>>>>::new();
-        for _ in 0..concurrency_config.n_workers {
+        for _ in 0..config.n_workers {
             let (sender, receiver) = mpsc::channel();
             senders.push(sender);
             receivers.push(receiver);
         }
+
+        let stack_size = config.stack_size;
 
         // Run the threads.
         let handlers = receivers
