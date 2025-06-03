@@ -5,11 +5,13 @@ use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
 use blockifier::fee::receipt::TransactionReceipt;
+use reqwest::Client;
 use starknet_api::block::BlockNumber;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
 use url::Url;
 
+// TODO(noamsp): rename PreConfirmed.. to Preconfirmed.. throughout the codebase.
 #[derive(Clone, Debug, Error)]
 pub enum PreConfirmedCendeClientError {}
 
@@ -43,6 +45,44 @@ pub trait PreConfirmedCendeClientTrait: Send + Sync {
         proposal_round: Round,
         executed_txs: Vec<(TransactionHash, TransactionReceipt)>,
     ) -> PreConfirmedCendeClientResult<()>;
+}
+
+pub struct PreConfirmedCendeClient {
+    _start_new_round_url: Url,
+    _write_pre_confirmed_txs_url: Url,
+    _write_executed_txs_url: Url,
+    _client: Client,
+}
+
+// The endpoints for the Cende recorder.
+pub const RECORDER_START_NEW_ROUND_PATH: &str = "/cende_recorder/start_new_round";
+pub const RECORDER_WRITE_PRE_CONFIRMED_TXS_PATH: &str = "/cende_recorder/write_pre_confirmed_txs";
+pub const RECORDER_WRITE_EXECUTED_TXS_PATH: &str = "/cende_recorder/write_executed_txs";
+
+impl PreConfirmedCendeClient {
+    pub fn new(config: PreConfirmedCendeConfig) -> Result<Self, PreConfirmedCendeClientError> {
+        let recorder_url = config.recorder_url;
+
+        Ok(Self {
+            _start_new_round_url: Self::construct_endpoint_url(
+                recorder_url.clone(),
+                RECORDER_START_NEW_ROUND_PATH,
+            ),
+            _write_pre_confirmed_txs_url: Self::construct_endpoint_url(
+                recorder_url.clone(),
+                RECORDER_WRITE_PRE_CONFIRMED_TXS_PATH,
+            ),
+            _write_executed_txs_url: Self::construct_endpoint_url(
+                recorder_url,
+                RECORDER_WRITE_EXECUTED_TXS_PATH,
+            ),
+            _client: Client::new(),
+        })
+    }
+
+    fn construct_endpoint_url(recorder_url: Url, endpoint: &str) -> Url {
+        recorder_url.join(endpoint).expect("Failed to construct URL")
+    }
 }
 
 pub struct PreConfirmedCendeConfig {
