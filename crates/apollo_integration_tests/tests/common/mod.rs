@@ -151,3 +151,16 @@ pub fn test_single_tx(tx_hashes: &[TransactionHash]) -> Vec<TransactionHash> {
     assert_eq!(tx_hashes.len(), 1, "Expected a single transaction");
     tx_hashes.to_vec()
 }
+
+#[track_caller]
+pub fn validate_tx_count(
+    tx_hashes: &[TransactionHash],
+    expected_count: usize,
+) -> Vec<TransactionHash> {
+    let tx_hashes_len = tx_hashes.len();
+    assert_eq!(
+        tx_hashes_len, expected_count,
+        "Expected {expected_count} txs, but found {tx_hashes_len} txs.",
+    );
+    tx_hashes.to_vec()
+}
