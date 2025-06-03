@@ -367,13 +367,12 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
             worker_pool.run_and_wait(worker_executor.clone(), chunk.len());
         } else {
             // If a pool is not given, create a new pool and wait for it to finish.
-            let worker_pool =
-                WorkerPool::start(self.config.stack_size, self.config.concurrency_config.clone());
+            let worker_pool = WorkerPool::start(&self.config.get_worker_pool_config());
             worker_pool.run_and_wait(worker_executor.clone(), chunk.len());
             worker_pool.join();
         }
 
-        let tx_execution_results = worker_executor.extract_execution_outputs(0, chunk.len());
+        let tx_execution_results = worker_executor.extract_execution_outputs(0, Some(chunk.len()));
         let n_committed_txs = tx_execution_results.len();
 
         let block_state_after_commit =

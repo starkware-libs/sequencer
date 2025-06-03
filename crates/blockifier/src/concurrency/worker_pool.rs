@@ -2,7 +2,7 @@ use std::panic;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Arc};
 
-use crate::blockifier::config::ConcurrencyConfig;
+use crate::blockifier::config::WorkerPoolConfig;
 use crate::concurrency::utils::AbortIfPanic;
 use crate::concurrency::worker_logic::WorkerExecutor;
 use crate::concurrency::TxIndex;
@@ -25,21 +25,24 @@ pub struct WorkerPool<S: StateReader> {
 
 impl<S: StateReader + Send + 'static> WorkerPool<S> {
     /// Creates a new WorkerPool with the given stack size and concurrency configuration.
-    pub fn start(stack_size: usize, concurrency_config: ConcurrencyConfig) -> Self {
+    pub fn start(config: &WorkerPoolConfig) -> Self {
         // Initialize the channels.
         let a_thread_panicked = Arc::new(AtomicBool::new(false));
         let mut senders = Vec::<mpsc::Sender<Option<Arc<WorkerExecutor<S>>>>>::new();
         let mut receivers = Vec::<mpsc::Receiver<Option<Arc<WorkerExecutor<S>>>>>::new();
-        for _ in 0..concurrency_config.n_workers {
+        for _ in 0..config.n_workers {
             let (sender, receiver) = mpsc::channel();
             senders.push(sender);
             receivers.push(receiver);
         }
 
+        let stack_size = config.stack_size;
+
         // Run the threads.
         let handlers = receivers
             .into_iter()
-            .map(|receiver| {
+            .enumerate()
+            .map(|(thread_id, receiver)| {
                 let mut thread_builder = std::thread::Builder::new();
                 // When running Cairo natively, the real stack is used and could get overflowed
                 // (unlike the VM where the stack is simulated in the heap as a memory segment).
@@ -54,8 +57,11 @@ impl<S: StateReader + Send + 'static> WorkerPool<S> {
                 // The gas upper bound is MAX_POSSIBLE_SIERRA_GAS, and sequencers must not raise it
                 // without adjusting the stack size.
                 thread_builder = thread_builder.stack_size(stack_size);
-                let worker_thread =
-                    WorkerThread { a_thread_panicked: a_thread_panicked.clone(), receiver };
+                let worker_thread = WorkerThread {
+                    a_thread_panicked: a_thread_panicked.clone(),
+                    receiver,
+                    thread_id,
+                };
                 thread_builder
                     .spawn(move || worker_thread.run_thread())
                     .expect("Failed to spawn thread.")
@@ -80,6 +86,10 @@ impl<S: StateReader + Send + 'static> WorkerPool<S> {
         // This is required since `wait_for_completion` can exit before the scheduler is done.
         worker_executor.scheduler.halt();
 
+        self.check_panic();
+    }
+
+    pub fn check_panic(&self) {
         if self.a_thread_panicked.load(Ordering::Acquire) {
             panic!("One of the threads panicked.");
         }
@@ -99,15 +109,20 @@ impl<S: StateReader + Send + 'static> WorkerPool<S> {
 struct WorkerThread<S: StateReader> {
     a_thread_panicked: Arc<AtomicBool>,
     receiver: mpsc::Receiver<Option<Arc<WorkerExecutor<S>>>>,
+    thread_id: usize,
 }
 
 impl<S: StateReader> WorkerThread<S> {
     /// Fetches worker executors from the channel, until None is received.
     fn run_thread(&self) {
+        let mut i = 0;
         while let Some(worker_executor) =
             self.receiver.recv().expect("Failed to receive worker executor.")
         {
+            log::info!("Worker pool (thread {}) starting worker #{}", self.thread_id, i);
             self._run_executor(&*worker_executor);
+            log::info!("Worker pool (thread {}) worker done #{}", self.thread_id, i);
+            i += 1;
         }
     }
 

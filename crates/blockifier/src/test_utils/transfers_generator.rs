@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use blockifier_test_utils::cairo_versions::CairoVersion;
@@ -15,14 +16,22 @@ use starknet_api::transaction::TransactionVersion;
 use starknet_api::{calldata, felt, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 
+use crate::blockifier::concurrent_transaction_executor::ConcurrentTransactionExecutor;
 use crate::blockifier::config::{ConcurrencyConfig, TransactionExecutorConfig};
-use crate::blockifier::transaction_executor::{TransactionExecutor, DEFAULT_STACK_SIZE};
+use crate::blockifier::transaction_executor::{
+    TransactionExecutor,
+    TransactionExecutorError,
+    DEFAULT_STACK_SIZE,
+};
+use crate::concurrency::worker_pool::WorkerPool;
 use crate::context::{BlockContext, ChainInfo};
-use crate::test_utils::dict_state_reader::DictStateReader;
+use crate::state::cached_state::StateMaps;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{RunnableCairo1, BALANCE, MAX_FEE};
+use crate::test_utils::{maybe_dummy_block_hash_and_number, RunnableCairo1, BALANCE, MAX_FEE};
 use crate::transaction::account_transaction::AccountTransaction;
+use crate::transaction::objects::TransactionExecutionInfo;
 use crate::transaction::transaction_execution::Transaction;
+
 const N_ACCOUNTS: u16 = 10000;
 const N_TXS: usize = 1000;
 const RANDOMIZATION_SEED: u64 = 0;
@@ -68,9 +77,10 @@ pub enum RecipientGeneratorType {
 }
 
 pub struct TransfersGenerator {
+    account_contract: FeatureContract,
     account_addresses: Vec<ContractAddress>,
+    block_context: BlockContext,
     chain_info: ChainInfo,
-    executor: TransactionExecutor<DictStateReader>,
     nonce_manager: NonceManager,
     sender_index: usize,
     random_recipient_generator: Option<StdRng>,
@@ -83,13 +93,7 @@ impl TransfersGenerator {
         let account_contract = FeatureContract::AccountWithoutValidations(config.cairo_version);
         let block_context = BlockContext::create_for_account_testing();
         let chain_info = block_context.chain_info().clone();
-        let state =
-            test_state(&chain_info, config.balance, &[(account_contract, config.n_accounts)]);
-        let executor_config = TransactionExecutorConfig {
-            concurrency_config: config.concurrency_config.clone(),
-            stack_size: config.stack_size,
-        };
-        let executor = TransactionExecutor::new(state, block_context, executor_config);
+
         let account_addresses = (0..config.n_accounts)
             .map(|instance_id| account_contract.get_instance_address(instance_id))
             .collect::<Vec<_>>();
@@ -115,9 +119,10 @@ impl TransfersGenerator {
             }
         };
         Self {
+            account_contract,
             account_addresses,
+            block_context,
             chain_info,
-            executor,
             nonce_manager,
             sender_index: 0,
             random_recipient_generator,
@@ -144,6 +149,55 @@ impl TransfersGenerator {
         }
     }
 
+    fn _run_txs(
+        &self,
+        txs: Vec<Transaction>,
+        execution_deadline: Option<Instant>,
+    ) -> Vec<Result<(TransactionExecutionInfo, StateMaps), TransactionExecutorError>> {
+        let state = test_state(
+            &self.chain_info,
+            self.config.balance,
+            &[(self.account_contract, self.config.n_accounts)],
+        );
+        let executor_config = TransactionExecutorConfig {
+            concurrency_config: self.config.concurrency_config.clone(),
+            stack_size: self.config.stack_size,
+        };
+
+        if executor_config.concurrency_config.enabled {
+            let worker_pool =
+                Arc::new(WorkerPool::start(&executor_config.get_worker_pool_config()));
+
+            let block_number_hash_pair =
+                maybe_dummy_block_hash_and_number(self.block_context.block_info().block_number);
+            let mut executor = ConcurrentTransactionExecutor::start_block(
+                state,
+                self.block_context.clone(),
+                block_number_hash_pair,
+                worker_pool.clone(),
+                execution_deadline,
+            )
+            .unwrap();
+
+            let results = executor.add_txs_and_wait(&txs);
+
+            // We don't need the block result.
+            executor.abort_block();
+
+            // TODO: Wait for completion.
+            drop(executor);
+            Arc::try_unwrap(worker_pool)
+                .expect("More than one instance of worker pool exists")
+                .join();
+
+            results
+        } else {
+            let mut executor =
+                TransactionExecutor::new(state, self.block_context.clone(), executor_config);
+            executor.execute_txs(&txs, execution_deadline)
+        }
+    }
+
     /// Generates and executes transfer transactions.
     /// Returns the number of transactions executed.
     pub fn execute_transfers(&mut self, timeout: Option<Duration>) -> usize {
@@ -158,7 +212,7 @@ impl TransfersGenerator {
             txs.push(Transaction::Account(account_tx));
         }
         let execution_deadline = timeout.map(|timeout| Instant::now() + timeout);
-        let results = self.executor.execute_txs(&txs, execution_deadline);
+        let results = self._run_txs(txs, execution_deadline);
         let n_results = results.len();
         for result in results {
             assert!(!result.unwrap().0.is_reverted());
