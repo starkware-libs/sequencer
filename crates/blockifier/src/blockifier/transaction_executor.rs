@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::mem;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Instant;
@@ -6,6 +7,7 @@ use apollo_infra_utils::tracing::LogCompatibleToStringExt;
 use itertools::FoldWhile::{Continue, Done};
 use itertools::Itertools;
 use starknet_api::block::BlockHashAndNumber;
+use starknet_api::core::{ClassHash, CompiledClassHash};
 use thiserror::Error;
 
 use crate::blockifier::block::pre_process_block;
@@ -16,7 +18,7 @@ use crate::concurrency::worker_pool::WorkerPool;
 use crate::context::BlockContext;
 use crate::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps, TransactionalState};
 use crate::state::errors::StateError;
-use crate::state::state_api::{StateReader, StateResult};
+use crate::state::state_api::{State, StateReader, StateResult};
 use crate::state::stateful_compression::{allocate_aliases_in_storage, compress, CompressionError};
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::TransactionExecutionInfo;
@@ -241,7 +243,11 @@ pub(crate) fn finalize_block<S: StateReader>(
     if block_context.versioned_constants.enable_stateful_compression {
         allocate_aliases_in_storage(block_state, alias_contract_address)?;
     }
-    let state_diff = block_state.to_state_diff()?.state_maps;
+    let mut state_diff = block_state.to_state_diff()?.state_maps;
+    state_diff
+        .compiled_class_hashes
+        .extend(get_class_hash_to_casm_hash_for_migration(bouncer, block_state));
+
     let compressed_state_diff = if block_context.versioned_constants.enable_stateful_compression {
         Some(compress(&state_diff, block_state, alias_contract_address)?.into())
     } else {
@@ -257,6 +263,22 @@ pub(crate) fn finalize_block<S: StateReader>(
     })
 }
 
+fn get_class_hash_to_casm_hash_for_migration<S: StateReader>(
+    bouncer: &Arc<Mutex<Bouncer>>,
+    block_state: &mut CachedState<S>,
+) -> HashMap<ClassHash, CompiledClassHash> {
+    lock_bouncer(bouncer)
+        .casm_hash_computation_data
+        .class_hashes_for_migration
+        .iter()
+        .map(|&class_hash| {
+            (
+                class_hash,
+                block_state.get_blake_class_hash(class_hash).expect("Failed to get class hash."),
+            )
+        })
+        .collect()
+}
 impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
     /// Executes the given transactions on the state maintained by the executor.
     ///
