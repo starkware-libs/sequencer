@@ -5,6 +5,7 @@ use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
 use blockifier::fee::receipt::TransactionReceipt;
+use reqwest::Client;
 use starknet_api::block::BlockNumber;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
@@ -45,6 +46,44 @@ pub trait PreConfirmedCendeClientTrait: Send + Sync {
     ) -> PreConfirmedCendeClientResult<()>;
 }
 
+pub struct PreConfirmedCendeClient {
+    // We store the URLs as strings to avoid unnecessary cloning of the Url object.
+    _start_new_round_url: String,
+    _write_pre_confirmed_txs_url: String,
+    _write_executed_txs_url: String,
+    _client: Client,
+}
+
+// The endpoints for the Cende recorder.
+pub const RECORDER_START_NEW_ROUND_PATH: &str = "/cende_recorder/start_new_round";
+pub const RECORDER_WRITE_PRE_CONFIRMED_TXS_PATH: &str = "/cende_recorder/write_pre_confirmed_txs";
+pub const RECORDER_WRITE_EXECUTED_TXS_PATH: &str = "/cende_recorder/write_executed_txs";
+
+impl PreConfirmedCendeClient {
+    pub fn new(config: PreConfirmedCendeConfig) -> Result<Self, PreConfirmedCendeClientError> {
+        Ok(Self {
+            _start_new_round_url: Self::construct_endpoint_url(
+                config.clone(),
+                RECORDER_START_NEW_ROUND_PATH,
+            ),
+            _write_pre_confirmed_txs_url: Self::construct_endpoint_url(
+                config.clone(),
+                RECORDER_WRITE_PRE_CONFIRMED_TXS_PATH,
+            ),
+            _write_executed_txs_url: Self::construct_endpoint_url(
+                config,
+                RECORDER_WRITE_EXECUTED_TXS_PATH,
+            ),
+            _client: Client::new(),
+        })
+    }
+
+    fn construct_endpoint_url(config: PreConfirmedCendeConfig, endpoint: &str) -> String {
+        config.recorder_url.join(endpoint).expect("Failed to construct URL").to_string()
+    }
+}
+
+#[derive(Clone)]
 pub struct PreConfirmedCendeConfig {
     pub recorder_url: Url,
 }
