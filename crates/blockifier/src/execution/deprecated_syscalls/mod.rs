@@ -181,7 +181,7 @@ impl SyscallResponse for EmptyResponse {
 
 #[derive(Debug)]
 pub struct SingleSegmentResponse {
-    segment: ReadOnlySegment,
+    pub segment: ReadOnlySegment,
 }
 
 impl SyscallResponse for SingleSegmentResponse {
