@@ -1,4 +1,4 @@
-use blockifier::state::state_api::StateReader;
+use blockifier::state::state_api::{State, StateReader};
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
     insert_value_into_ap,
@@ -43,9 +43,16 @@ pub(crate) fn read_storage_key_for_revert<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn write_storage_key_for_revert<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    HintArgs { exec_scopes, hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    todo!()
+    let contract_address: &ContractAddress =
+        exec_scopes.get_ref(Scope::ContractAddressForRevert.into())?;
+    let storage_key: StorageKey =
+        get_integer_from_var_name(Ids::StorageKey.into(), vm, ids_data, ap_tracking)?.try_into()?;
+    let value = get_integer_from_var_name(Ids::Value.into(), vm, ids_data, ap_tracking)?;
+    let execution_helper = hint_processor.get_mut_current_execution_helper()?;
+    execution_helper.cached_state.set_storage_at(*contract_address, storage_key, value)?;
+    Ok(())
 }
 
 #[allow(clippy::result_large_err)]
