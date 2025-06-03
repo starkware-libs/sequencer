@@ -101,6 +101,12 @@ pub trait State: StateReader {
         class_hash: ClassHash,
         compiled_class_hash: CompiledClassHash,
     ) -> StateResult<()>;
+
+    // Returns compiled class hash for migration to a new hash function.
+    fn get_compiled_class_hash_v2(&self, _class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+        // TODO(Meshi): Remove default implementation once the function is implemented.
+        Ok(CompiledClassHash::default())
+    }
 }
 
 /// A class defining the API for updating a state with transactions writes.
