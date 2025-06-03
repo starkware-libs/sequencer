@@ -395,7 +395,7 @@ impl AccountTransactionGenerator {
         self.nonce_manager.borrow().get(self.sender_address()) != nonce!(0)
     }
 
-    fn generate_generic_rpc_invoke_tx(
+    pub fn generate_generic_rpc_invoke_tx(
         &mut self,
         tip: u64,
         fn_name: &str,
