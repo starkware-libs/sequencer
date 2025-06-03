@@ -110,6 +110,35 @@ impl SerializeConfig for PreConfirmedCendeConfig {
     }
 }
 
+#[async_trait]
+impl PreConfirmedCendeClientTrait for PreConfirmedCendeClient {
+    async fn send_start_new_round(
+        &self,
+        _block_number: BlockNumber,
+        _proposal_round: Round,
+    ) -> PreConfirmedCendeClientResult<()> {
+        todo!()
+    }
+
+    async fn send_pre_confirmed_txs(
+        &self,
+        _block_number: BlockNumber,
+        _proposal_round: Round,
+        _pre_confirmed_txs: Vec<TransactionHash>,
+    ) -> PreConfirmedCendeClientResult<()> {
+        todo!()
+    }
+
+    async fn send_executed_txs(
+        &self,
+        _block_number: BlockNumber,
+        _proposal_round: Round,
+        _executed_txs: Vec<(TransactionHash, TransactionReceipt)>,
+    ) -> PreConfirmedCendeClientResult<()> {
+        todo!()
+    }
+}
+
 // TODO(noamsp): Remove this empty client once the Cende client is implemented.
 pub struct EmptyPreConfirmedCendeClient;
 
