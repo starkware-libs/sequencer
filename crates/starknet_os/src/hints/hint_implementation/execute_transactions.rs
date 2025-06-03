@@ -5,7 +5,9 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     insert_value_from_var_name,
     insert_value_into_ap,
 };
+use cairo_vm::hint_processor::hint_processor_utils::felt_to_usize;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
+use num_traits::ToPrimitive;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_types_core::felt::Felt;
 
@@ -13,7 +15,11 @@ use crate::hints::enum_definition::{AllHints, OsHint};
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;
-use crate::hints::vars::Ids;
+use crate::hints::vars::{Const, Ids};
+
+const IV: [u32; 8] = [
+    0x6A09E667, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A, 0x510E527F, 0x9B05688C, 0x1F83D9AB, 0x5BE0CD19,
+];
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn set_sha256_segment_in_syscall_handler<S: StateReader>(
@@ -84,10 +90,37 @@ pub(crate) fn set_component_hashes<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn sha2_finalize<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> OsHintResult {
-    todo!()
-}
+pub(crate) fn sha2_finalize<S: StateReader>(
+    HintArgs { constants, ids_data, ap_tracking, vm, .. }: HintArgs<'_, '_, S>,
+) -> OsHintResult {
+    let batch_size = Const::ShaBatchSize.fetch(constants)?.to_bigint();
+    let n = get_integer_from_var_name(Ids::N.into(), vm, ids_data, ap_tracking)?.to_bigint();
+    let number_of_missing_blocks = (-n) % batch_size;
+    assert!(number_of_missing_blocks >= 0.into() && number_of_missing_blocks < 20.into());
+    let sha256_input_chunk_size_felts =
+        felt_to_usize(Const::Sha256InputChunkSize.fetch(constants)?)?;
+    assert!((0..100).contains(&sha256_input_chunk_size_felts));
+    let message = vec![0_u32; sha256_input_chunk_size_felts];
+    let flat_message = sha2::digest::generic_array::GenericArray::from_exact_iter(
+        message.iter().flat_map(|v| v.to_be_bytes()),
+    )
+    .expect("Failed to create a dummy message for sha2_finalize.");
+    let mut initial_state = IV;
+    sha2::compress256(&mut initial_state, &[flat_message]);
+    let padding_to_repeat: Vec<u32> =
+        [message, IV.to_vec(), initial_state.to_vec()].into_iter().flatten().collect();
 
+    let mut padding = vec![];
+    for _ in 0..number_of_missing_blocks
+        .to_u32()
+        .expect("Failed to convert number of missing blocks to u32.")
+    {
+        padding.extend(padding_to_repeat.iter().map(|x| MaybeRelocatable::from(Felt::from(*x))));
+    }
+    let sha_ptr_end = get_ptr_from_var_name(Ids::Sha256PtrEnd.into(), vm, ids_data, ap_tracking)?;
+    vm.load_data(sha_ptr_end, &padding)?;
+    Ok(())
+}
 #[allow(clippy::result_large_err)]
 pub(crate) fn segments_add_temp<S: StateReader>(
     HintArgs { vm, .. }: HintArgs<'_, '_, S>,
