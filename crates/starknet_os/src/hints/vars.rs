@@ -86,6 +86,7 @@ define_string_enum! {
         (CompiledClass),
         (CompiledClassFacts),
         (CompiledClassHash),
+        (ContractAddressForRevert),
         (Descend),
         (DescentMap),
         (DictManager),
