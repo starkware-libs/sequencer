@@ -107,6 +107,7 @@ fn test_block_weights_has_room_n_txs(
         contract_address!(0_u128),
     ])),
     bouncer_config: BouncerConfig::empty(),
+    migrated_class_hash_to_casm_hash: HashMap::default(),
     accumulated_weights: BouncerWeights {
         l1_gas: 10,
         message_segment_length: 10,
@@ -157,7 +158,14 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
         StateChangesKeys::create_for_testing(HashSet::from([contract_address!(1_u128)]));
 
     let mut updated_bouncer = initial_bouncer.clone();
-    updated_bouncer.update(tx_weights, &execution_summary_to_update, &state_changes_keys_to_update);
+    // TODO(Meshi): Add real use case for marginal_casm_hashes_to_migrate.
+    let marginal_casm_hashes_to_migrate = HashMap::default();
+    updated_bouncer.update(
+        tx_weights,
+        &execution_summary_to_update,
+        &state_changes_keys_to_update,
+        &marginal_casm_hashes_to_migrate,
+    );
 
     let mut expected_bouncer = initial_bouncer;
     expected_bouncer

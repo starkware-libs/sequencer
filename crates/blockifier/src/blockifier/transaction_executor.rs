@@ -225,7 +225,10 @@ impl<S: StateReader> TransactionExecutor<S> {
         if self.block_context.versioned_constants.enable_stateful_compression {
             allocate_aliases_in_storage(block_state, alias_contract_address)?;
         }
-        let state_diff = block_state.to_state_diff()?.state_maps;
+        let mut state_diff = block_state.to_state_diff()?.state_maps;
+        state_diff
+            .compiled_class_hashes
+            .extend(lock_bouncer(&mut self.bouncer).migrated_class_hash_to_casm_hash.clone());
         let compressed_state_diff =
             if self.block_context.versioned_constants.enable_stateful_compression {
                 Some(compress(&state_diff, block_state, alias_contract_address)?.into())

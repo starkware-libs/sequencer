@@ -42,7 +42,10 @@ pub trait StateReader {
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass>;
 
     /// Returns the compiled class hash of the given class hash.
-    fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash>;
+    // TODO(Meshi): Remove default implementation.
+    fn get_compiled_class_hash(&self, _class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+        Ok(CompiledClassHash::default())
+    }
 
     /// Returns the storage value representing the balance (in fee token) at the given address.
     // TODO(Dori, 1/7/2023): When a standard representation for large integers is set, change the

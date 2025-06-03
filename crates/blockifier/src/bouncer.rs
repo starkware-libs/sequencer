@@ -5,7 +5,7 @@ use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde::{Deserialize, Serialize};
-use starknet_api::core::ClassHash;
+use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::execution_resources::GasAmount;
 
 use crate::blockifier::transaction_executor::{
@@ -20,7 +20,7 @@ use crate::state::cached_state::{StateChangesKeys, StorageEntry};
 use crate::state::state_api::StateReader;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionResult};
-use crate::utils::{u64_from_usize, usize_from_u64};
+use crate::utils::{should_migrate, u64_from_usize, usize_from_u64};
 
 #[cfg(test)]
 #[path = "bouncer_test.rs"]
@@ -247,6 +247,7 @@ pub struct Bouncer {
     pub visited_storage_entries: HashSet<StorageEntry>,
     pub state_changes_keys: StateChangesKeys,
     pub casm_hash_computation_data: CasmHashComputationData,
+    pub migrated_class_hash_to_casm_hash: HashMap<ClassHash, CompiledClassHash>,
 
     pub bouncer_config: BouncerConfig,
     accumulated_weights: BouncerWeights,
@@ -260,6 +261,7 @@ impl Bouncer {
     pub fn empty() -> Self {
         Bouncer {
             visited_storage_entries: HashSet::default(),
+            migrated_class_hash_to_casm_hash: HashMap::default(),
             state_changes_keys: StateChangesKeys::default(),
             bouncer_config: BouncerConfig::empty(),
             accumulated_weights: BouncerWeights::empty(),
@@ -293,11 +295,29 @@ impl Bouncer {
         // rather than the cumulative state attributes.
         let marginal_state_changes_keys =
             tx_state_changes_keys.difference(&self.state_changes_keys);
-        let marginal_executed_class_hashes = tx_execution_summary
+        let marginal_executed_class_hashes: HashSet<ClassHash> = tx_execution_summary
             .executed_class_hashes
             .difference(&self.get_executed_class_hashes())
             .cloned()
             .collect();
+
+        let marginal_casm_hashes_to_migrate: HashMap<_, _> = marginal_executed_class_hashes
+            .iter()
+            .filter(|&class_hash| {
+                !self.migrated_class_hash_to_casm_hash.contains_key(class_hash)
+                    && should_migrate(state_reader, *class_hash)
+            })
+            .map(|class_hash| {
+                (
+                    *class_hash,
+                    // TODO(Meshi): Change it to get blake casm hash when its implemented.
+                    state_reader
+                        .get_compiled_class_hash(*class_hash)
+                        .expect("Failed to get compiled class hash"),
+                )
+            })
+            .collect();
+
         let n_marginal_visited_storage_entries = tx_execution_summary
             .visited_storage_entries
             .difference(&self.visited_storage_entries)
@@ -330,7 +350,12 @@ impl Bouncer {
             Err(TransactionExecutorError::BlockFull)?
         }
 
-        self.update(tx_weights, tx_execution_summary, &marginal_state_changes_keys);
+        self.update(
+            tx_weights,
+            tx_execution_summary,
+            &marginal_state_changes_keys,
+            &marginal_casm_hashes_to_migrate,
+        );
 
         Ok(())
     }
@@ -340,6 +365,7 @@ impl Bouncer {
         tx_weights: TxWeights,
         tx_execution_summary: &ExecutionSummary,
         state_changes_keys: &StateChangesKeys,
+        marginal_casm_hashes_to_migrate: &HashMap<ClassHash, CompiledClassHash>,
     ) {
         let bouncer_weights = &tx_weights.bouncer_weights;
         let err_msg = format!(
@@ -353,6 +379,7 @@ impl Bouncer {
         // Note: cancelling writes (0 -> 1 -> 0) will not be removed, but it's fine since fee was
         // charged for them.
         self.state_changes_keys.extend(state_changes_keys);
+        self.migrated_class_hash_to_casm_hash.extend(marginal_casm_hashes_to_migrate);
     }
 
     #[cfg(test)]
