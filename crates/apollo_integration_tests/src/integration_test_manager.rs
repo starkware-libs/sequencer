@@ -34,6 +34,7 @@ use papyrus_base_layer::test_utils::{
     ethereum_base_layer_config_for_anvil,
     make_block_history_on_anvil,
     spawn_anvil_and_deploy_starknet_l1_contract,
+    DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX,
 };
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, Nonce};
@@ -280,8 +281,15 @@ impl IntegrationTestManager {
             .number_of_blocks_for_mean
             .try_into()
             .unwrap();
-        make_block_history_on_anvil(&anvil, base_layer_config.clone(), num_blocks_needed_on_l1)
-            .await;
+        let sender_address = anvil.addresses()[DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX];
+        let receiver_address = anvil.addresses()[DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX + 1];
+        make_block_history_on_anvil(
+            base_layer_config.clone(),
+            sender_address,
+            receiver_address,
+            num_blocks_needed_on_l1,
+        )
+        .await;
 
         let idle_nodes = create_map(sequencers_setup, |node| node.get_node_index());
         let running_nodes = HashMap::new();
