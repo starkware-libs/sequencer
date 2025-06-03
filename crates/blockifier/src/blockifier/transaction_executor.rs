@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex};
 use itertools::FoldWhile::{Continue, Done};
 use itertools::Itertools;
 use starknet_api::block::BlockHashAndNumber;
+use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
 
 use crate::blockifier::block::pre_process_block;
@@ -27,7 +28,7 @@ pub mod transaction_executor_test;
 pub const BLOCK_STATE_ACCESS_ERR: &str = "Error: The block state should be `Some`.";
 pub const DEFAULT_STACK_SIZE: usize = 60 * 1024 * 1024;
 
-pub type TransactionExecutionOutput = (TransactionExecutionInfo, StateMaps);
+pub type TransactionExecutionOutput = (TransactionHash, TransactionExecutionInfo, StateMaps);
 
 #[derive(Debug, Error)]
 pub enum TransactionExecutorError {
@@ -104,7 +105,7 @@ impl<S: StateReader> TransactionExecutor<S> {
     /// Otherwise, returns BlockFull error.
     pub fn execute(
         &mut self,
-        tx: &Transaction,
+        (hash, tx): &(TransactionHash, Transaction),
     ) -> TransactionExecutorResult<TransactionExecutionOutput> {
         let mut transactional_state = TransactionalState::create_transactional(
             self.block_state.as_mut().expect(BLOCK_STATE_ACCESS_ERR),
@@ -127,7 +128,7 @@ impl<S: StateReader> TransactionExecutor<S> {
                 )?;
                 transactional_state.commit();
 
-                Ok((tx_execution_info, state_diff))
+                Ok((*hash, tx_execution_info, state_diff))
             }
             Err(error) => {
                 transactional_state.abort();
@@ -138,13 +139,13 @@ impl<S: StateReader> TransactionExecutor<S> {
 
     fn execute_txs_sequentially_inner(
         &mut self,
-        txs: &[Transaction],
+        txs: &[(TransactionHash, Transaction)],
     ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
         let mut results = Vec::new();
         for tx in txs {
             match self.execute(tx) {
-                Ok((tx_execution_info, state_diff)) => {
-                    results.push(Ok((tx_execution_info, state_diff)))
+                Ok((hash, tx_execution_info, state_diff)) => {
+                    results.push(Ok((hash, tx_execution_info, state_diff)))
                 }
                 Err(TransactionExecutorError::BlockFull) => break,
                 Err(error) => results.push(Err(error)),
@@ -197,7 +198,7 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
     /// results.
     pub fn execute_txs(
         &mut self,
-        txs: &[Transaction],
+        txs: &[(TransactionHash, Transaction)],
     ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
         if !self.config.concurrency_config.enabled {
             log::debug!("Executing transactions sequentially.");
@@ -236,7 +237,7 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
 
     fn execute_txs_sequentially(
         &mut self,
-        txs: &[Transaction],
+        txs: &[(TransactionHash, Transaction)],
     ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
         #[cfg(not(feature = "cairo_native"))]
         return self.execute_txs_sequentially_inner(txs);
@@ -269,7 +270,7 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
 
     fn execute_chunk(
         &mut self,
-        chunk: &[Transaction],
+        chunk: &[(TransactionHash, Transaction)],
     ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
         use crate::concurrency::utils::AbortIfPanic;
 
@@ -340,7 +341,7 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
                 .expect("Output must be ready.");
             let tx_execution_output = locked_execution_output
                 .result
-                .map(|tx_execution_info| (tx_execution_info, locked_execution_output.state_diff))
+                .map(|tx_execution_info| (locked_execution_output.tx_hash, tx_execution_info, locked_execution_output.state_diff))
                 .map_err(TransactionExecutorError::from);
             tx_execution_results.push(tx_execution_output);
         }

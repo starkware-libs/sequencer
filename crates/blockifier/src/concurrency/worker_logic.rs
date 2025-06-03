@@ -4,14 +4,16 @@ use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
 
+use starknet_api::transaction::TransactionHash;
+
 use super::versioned_state::VersionedState;
 use crate::blockifier::transaction_executor::TransactionExecutorError;
 use crate::bouncer::Bouncer;
+use crate::concurrency::TxIndex;
 use crate::concurrency::fee_utils::complete_fee_transfer_flow;
 use crate::concurrency::scheduler::{Scheduler, Task};
 use crate::concurrency::utils::lock_mutex_in_array;
 use crate::concurrency::versioned_state::ThreadSafeVersionedState;
-use crate::concurrency::TxIndex;
 use crate::context::BlockContext;
 use crate::state::cached_state::{ContractClassMapping, StateMaps, TransactionalState};
 use crate::state::state_api::{StateReader, UpdatableState};
@@ -27,6 +29,7 @@ const EXECUTION_OUTPUTS_UNWRAP_ERROR: &str = "Execution task outputs should not 
 
 #[derive(Debug)]
 pub struct ExecutionTaskOutput {
+    pub tx_hash: TransactionHash,
     pub reads: StateMaps,
     pub state_diff: StateMaps,
     pub contract_classes: ContractClassMapping,
@@ -36,7 +39,7 @@ pub struct ExecutionTaskOutput {
 pub struct WorkerExecutor<'a, S: StateReader> {
     pub scheduler: Scheduler,
     pub state: ThreadSafeVersionedState<S>,
-    pub chunk: &'a [Transaction],
+    pub chunk: &'a [(TransactionHash, Transaction)],
     pub execution_outputs: Box<[Mutex<Option<ExecutionTaskOutput>>]>,
     pub block_context: &'a BlockContext,
     pub bouncer: Mutex<&'a mut Bouncer>,
@@ -44,7 +47,7 @@ pub struct WorkerExecutor<'a, S: StateReader> {
 impl<'a, S: StateReader> WorkerExecutor<'a, S> {
     pub fn new(
         state: ThreadSafeVersionedState<S>,
-        chunk: &'a [Transaction],
+        chunk: &'a [(TransactionHash, Transaction)],
         block_context: &'a BlockContext,
         bouncer: Mutex<&'a mut Bouncer>,
     ) -> Self {
@@ -58,7 +61,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
     // TODO(barak, 01/08/2024): Remove the `new` method or move it to test utils.
     pub fn initialize(
         state: S,
-        chunk: &'a [Transaction],
+        chunk: &'a [(TransactionHash, Transaction)],
         block_context: &'a BlockContext,
         bouncer: Mutex<&'a mut Bouncer>,
     ) -> Self {
@@ -118,7 +121,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
 
     fn execute_tx(&self, tx_index: TxIndex) {
         let mut tx_versioned_state = self.state.pin_version(tx_index);
-        let tx = &self.chunk[tx_index];
+        let (hash, tx) = &self.chunk[tx_index];
         // TODO(Yoni): is it necessary to use a transactional state here?
         let mut transactional_state =
             TransactionalState::create_transactional(&mut tx_versioned_state);
@@ -134,6 +137,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
                 let contract_classes = transactional_state.class_hash_to_class.take();
                 tx_versioned_state.apply_writes(&state_diff, &contract_classes);
                 ExecutionTaskOutput {
+                    tx_hash: *hash,
                     reads: tx_reads_writes.initial_reads,
                     state_diff,
                     contract_classes,
@@ -141,6 +145,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
                 }
             }
             Err(_) => ExecutionTaskOutput {
+                tx_hash: *hash,
                 reads: transactional_state.cache.take().initial_reads,
                 // Failed transaction - ignore the writes.
                 state_diff: StateMaps::default(),
@@ -217,7 +222,8 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
         let mut tx_state_changes_keys = execution_output.state_diff.keys();
 
         if let Ok(tx_execution_info) = execution_output.result.as_mut() {
-            let tx_context = self.block_context.to_tx_context(&self.chunk[tx_index]);
+            let (_, tx) = &self.chunk[tx_index];
+            let tx_context = self.block_context.to_tx_context(tx);
             // Add the deleted sequencer balance key to the storage keys.
             let concurrency_mode = true;
             tx_state_changes_keys.update_sequencer_key_in_storage(

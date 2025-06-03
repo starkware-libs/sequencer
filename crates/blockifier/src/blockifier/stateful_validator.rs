@@ -84,7 +84,7 @@ impl<S: StateReader> StatefulValidator<S> {
     }
 
     fn execute(&mut self, tx: AccountTransaction) -> StatefulValidatorResult<()> {
-        self.tx_executor.execute(&Transaction::Account(tx))?;
+        self.tx_executor.execute(&(tx.tx.tx_hash(), Transaction::Account(tx)))?;
         Ok(())
     }
 
