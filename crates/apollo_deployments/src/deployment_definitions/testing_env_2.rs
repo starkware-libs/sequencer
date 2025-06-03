@@ -38,20 +38,6 @@ fn testing_env_2_deployment_config_override() -> DeploymentConfigOverride {
     )
 }
 
-fn testing_env_2_config_override(id: usize) -> ConfigOverride {
-    ConfigOverride::new(
-        testing_env_2_deployment_config_override(),
-        create_hybrid_instance_config_override(id, FIRST_NODE_NAMESPACE),
-    )
-}
-
-fn get_ingress_params() -> IngressParams {
-    IngressParams::new(
-        TESTING_ENV_2_INGRESS_DOMAIN.to_string(),
-        Some(vec![TESTING_ENV_2_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
-    )
-}
-
 fn testing_env_2_hybrid_deployment_node(id: usize) -> Deployment {
     Deployment::new(
         ChainId::IntegrationSepolia,
@@ -60,7 +46,13 @@ fn testing_env_2_hybrid_deployment_node(id: usize) -> Deployment {
         &format_node_id(INSTANCE_NAME_FORMAT, id),
         Some(ExternalSecret::new(format_node_id(SECRET_NAME_FORMAT, id))),
         PathBuf::from(BASE_APP_CONFIG_PATH),
-        testing_env_2_config_override(id),
-        get_ingress_params(),
+        ConfigOverride::new(
+            testing_env_2_deployment_config_override(),
+            create_hybrid_instance_config_override(id, FIRST_NODE_NAMESPACE),
+        ),
+        IngressParams::new(
+            TESTING_ENV_2_INGRESS_DOMAIN.to_string(),
+            Some(vec![TESTING_ENV_2_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
+        ),
     )
 }
