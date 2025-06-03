@@ -5,7 +5,9 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     insert_value_from_var_name,
     insert_value_into_ap,
 };
+use cairo_vm::hint_processor::hint_processor_utils::felt_to_usize;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
+use num_traits::ToPrimitive;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_types_core::felt::Felt;
 
@@ -13,7 +15,12 @@ use crate::hints::enum_definition::{AllHints, OsHint};
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;
-use crate::hints::vars::Ids;
+use crate::hints::vars::{Const, Ids};
+
+// TODO(Nimrod): Use the IV defined in the VM once it's public.
+const IV: [u32; 8] = [
+    0x6A09E667, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A, 0x510E527F, 0x9B05688C, 0x1F83D9AB, 0x5BE0CD19,
+];
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn set_sha256_segment_in_syscall_handler<S: StateReader>(
@@ -84,8 +91,32 @@ pub(crate) fn set_component_hashes<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn sha2_finalize<S: StateReader>(HintArgs { .. }: HintArgs<'_, '_, S>) -> OsHintResult {
-    todo!()
+pub(crate) fn sha2_finalize<S: StateReader>(
+    HintArgs { constants, ids_data, ap_tracking, vm, .. }: HintArgs<'_, '_, S>,
+) -> OsHintResult {
+    let batch_size = &Const::ShaBatchSize.fetch(constants)?.to_bigint();
+    let n = &get_integer_from_var_name(Ids::N.into(), vm, ids_data, ap_tracking)?.to_bigint();
+    // Calculate the modulus operation, not the remainder.
+    let number_of_missing_blocks = ((((-n) % batch_size) + batch_size) % batch_size)
+        .to_u32()
+        .expect("Failed to convert number of missing blocks to u32.");
+    assert!(
+        (0..20).contains(&number_of_missing_blocks),
+        "number_of_missing_blocks: {number_of_missing_blocks} is expected to be in the range [0, \
+         20). Got n: {n} and batch size: {batch_size}."
+    );
+    let sha256_input_chunk_size_felts =
+        felt_to_usize(Const::Sha256InputChunkSize.fetch(constants)?)?;
+    assert!(
+        (0..100).contains(&sha256_input_chunk_size_felts),
+        "sha256_input_chunk_size_felts: {sha256_input_chunk_size_felts} is expected to be in the \
+         range [0, 100)."
+    );
+    let padding = calculate_padding(sha256_input_chunk_size_felts, number_of_missing_blocks);
+
+    let sha_ptr_end = get_ptr_from_var_name(Ids::Sha256PtrEnd.into(), vm, ids_data, ap_tracking)?;
+    vm.load_data(sha_ptr_end, &padding)?;
+    Ok(())
 }
 
 #[allow(clippy::result_large_err)]
@@ -140,4 +171,63 @@ pub(crate) fn segments_add<S: StateReader>(
 ) -> OsHintResult {
     let segment = vm.add_memory_segment();
     Ok(insert_value_into_ap(vm, segment)?)
+}
+
+fn calculate_padding(
+    sha256_input_chunk_size_felts: usize,
+    number_of_missing_blocks: u32,
+) -> Vec<MaybeRelocatable> {
+    let message = vec![0_u32; sha256_input_chunk_size_felts];
+    let flat_message = sha2::digest::generic_array::GenericArray::from_exact_iter(
+        message.iter().flat_map(|v| v.to_be_bytes()),
+    )
+    .expect("Failed to create a dummy message for sha2_finalize.");
+    let mut initial_state = IV;
+    sha2::compress256(&mut initial_state, &[flat_message]);
+    let padding_to_repeat: Vec<u32> =
+        [message, IV.to_vec(), initial_state.to_vec()].into_iter().flatten().collect();
+
+    let mut padding = vec![];
+    let padding_extension =
+        padding_to_repeat.iter().map(|x| MaybeRelocatable::from(Felt::from(*x)));
+    for _ in 0..number_of_missing_blocks {
+        padding.extend(padding_extension.clone());
+    }
+    padding
+}
+
+#[cfg(test)]
+mod tests {
+    use cairo_vm::types::relocatable::MaybeRelocatable;
+    use rstest::rstest;
+    use starknet_types_core::felt::Felt;
+
+    use super::calculate_padding;
+
+    #[rstest]
+    #[case(3)]
+    #[case(1)]
+
+    fn test_calculate_padding(#[case] number_of_missing_blocks: u32) {
+        // The expected padding is independent of the number of missing blocks.
+        let expected_single_padding: [u32; 32] = [
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1779033703, 3144134277, 1013904242,
+            2773480762, 1359893119, 2600822924, 528734635, 1541459225, 3663108286, 398046313,
+            1647531929, 2006957770, 2363872401, 3235013187, 3137272298, 406301144,
+        ];
+        let sha256_input_chunk_size_felts = 16;
+        let padding = calculate_padding(sha256_input_chunk_size_felts, number_of_missing_blocks);
+        let number_of_missing_blocks = usize::try_from(number_of_missing_blocks).unwrap();
+        assert!(padding.len() % number_of_missing_blocks == 0);
+        let single_padding_size = padding.len() / number_of_missing_blocks;
+        assert_eq!(single_padding_size, expected_single_padding.len());
+
+        // Cast to MaybeRelocatable.
+        let expected_single_padding: Vec<MaybeRelocatable> = expected_single_padding
+            .iter()
+            .map(|x| MaybeRelocatable::from(Felt::from(*x)))
+            .collect();
+        let actual_single_padding = &padding[..single_padding_size];
+        assert_eq!(actual_single_padding, &expected_single_padding);
+    }
 }
