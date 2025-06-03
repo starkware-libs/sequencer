@@ -134,6 +134,8 @@ pub fn get_integration_test_storage(
                 custom_storage_exec_paths
                     .get_state_sync_exec_path()
                     .join(STATE_SYNC_DB_PATH_SUFFIX);
+            let s_s = storage_config.state_sync_storage_config.db_config.path_prefix.clone();
+            print!("storage_config.state_sync_storage_config.db_config.path_prefix is {:?}", s_s);
             storage_config
                 .class_manager_storage_config
                 .class_hash_storage_config

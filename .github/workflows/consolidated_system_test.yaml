@@ -230,7 +230,7 @@ jobs:
           kubectl wait --namespace ${{ env.namespace }} --for=condition=Ready -l app=anvil pod --timeout 60s
           echo "🚀 Anvil deployed successfully."
 
-          echo "🔍 Extracting Anvil addresses from logs."
+          echo "🔍 Extracting Anvil addresses from logs"
 
           ANVIL_POD=$(kubectl get pods -n "${{ env.namespace }}" -l app=anvil -o jsonpath="{.items[0].metadata.name}")
           ANVIL_LOGS=$(kubectl logs -n "${{ env.namespace }}" "$ANVIL_POD")
@@ -317,7 +317,87 @@ jobs:
             --interval ${{ env.check_interval_sec }}
 
       - name: Copy state and restart pod
-        run: pipenv run python ./scripts/system_tests/copy_state_and_restart.py --deployment_config_path ${{ env.deployment_config_path }} --data-dir "./output/data/node_0"
+        run: pipenv run python ./scripts/system_tests/copy_state_and_restart.py --deployment_config_path ${{ env.deployment_config_path }} --data-dir "./output/data/node_0/executable_0"
+
+      # - name: Get Sequencer config metadata
+      #   id: config_metadata
+      #   run: |
+      #     monitoring_endpoint_port=$(jq '."monitoring_endpoint_config.port"' ${{ env.application_config_path }})
+      #     http_server_port=$(jq '."http_server_config.port"' ${{ env.application_config_path }})
+      #     echo "monitoring_endpoint_port=$monitoring_endpoint_port" | tee -a $GITHUB_OUTPUT
+      #     echo "http_server_port=$http_server_port" | tee -a $GITHUB_OUTPUT
+
+      # - name: Get Sequencer image PR origin git short hash
+      #   continue-on-error: true
+      #   id: sequencer_image
+      #   run: |
+      #     images=$(curl -s -X GET \
+      #     -H "Authorization: bearer ${{ secrets.GH_PAT }}" \
+      #     -H "Accept: application/vnd.github+json" \
+      #     -H "X-GitHub-Api-Version: 2022-11-28" \
+      #     "https://api.github.com/orgs/starkware-libs/packages/container/sequencer%2Fsequencer/versions?per_page=100")
+
+      #     sequencer_dev_image=$(echo "$images" | jq -c -r '.[] | select(.metadata.container.tags | index("dev"))')
+      #     git_hash=$(echo "$sequencer_dev_image" | jq -r '.metadata.container.tags[] | select(test("^dev-main-"))' | cut -d '-' -f 3)
+
+      #     echo $"sequencer_dev_image"
+      #     echo "Sequencer latest dev image details:"
+      #     echo "$sequencer_dev_image"
+      #     echo "---------------------------------------------------------"
+      #     echo "The Sequencer image was built from git short hash: $git_hash"
+
+      #     echo "git_hash=$git_hash" | tee -a $GITHUB_OUTPUT
+
+      - name: Port-forward Anvil pod to localhost:8545
+        run: |
+          echo "🔌 Setting up port-forward to Anvil..."
+
+          ANVIL_POD=$(kubectl get pods -n anvil -l app=anvil -o jsonpath="{.items[0].metadata.name}")
+          echo "🌐 Found Anvil pod: $ANVIL_POD"
+
+          # Start port-forwarding in background and keep it running
+          kubectl port-forward -n anvil "$ANVIL_POD" 8545:8545 &
+          echo "⏳ Waiting a few seconds to ensure port-forward is established..."
+          sleep 2
+
+      # - name: Sleep for 5 minutes
+      #   run: sleep 300
+
+      - name: Verify service connectivity
+        run: |
+          set -e
+
+          echo "🔗 Checking connectivity to Anvil..."
+          curl -v http://anvil-service.anvil.svc.cluster.local:8545 || echo "❌ Failed to reach Anvil"
+
+          echo "🔗 Checking connectivity to Eth2Strk Oracle..."
+          curl -v "http://dummy-eth2strk-oracle-service.dummy-eth2strk-oracle.svc.cluster.local/eth_to_strk_oracle?timestamp=$(date +%s)" || echo "❌ Failed to reach Eth2Strk Oracle"
+
+          echo "🔗 Checking connectivity to Dummy Recorder..."
+          curl -v http://dummy-recorder-service.dummy-recorder.svc.cluster.local || echo "❌ Failed to reach Dummy Recorder"
+
+      - name: Send transactions test
+        run: pipenv run python ./scripts/system_tests/sequencer_simulator.py --deployment_config_path ${{ env.deployment_config_path }} --config_dir "${{ env.config_dir }}" --node_type "consolidated" --sender_address "${{ env.SENDER_ADDRESS }}" --receiver_address "${{ env.RECEIVER_ADDRESS }}"
+
+      - name: Get detailed pod logs (first 3000 lines)
+        if: always()
+        run: |
+          echo "📥 Getting pod logs and descriptions from namespace: $namespace"
+
+          kubectl get pods -n "$namespace"
+          kubectl describe pvc sequencer-node-data -n "$namespace"
+
+          for pod in $(kubectl get pods -n "$namespace" -o jsonpath='{.items[*].metadata.name}'); do
+            echo "----------------------------------------------"
+            echo "🔹 Logs for pod: $pod (first 3000 lines)"
+            kubectl logs -n "$namespace" "$pod" | head -n 300 || echo "⚠️ Failed to get logs for $pod"
+
+            echo ""
+            echo "📄 Description for pod: $pod"
+            kubectl describe pod -n "$namespace" "$pod" || echo "⚠️ Failed to describe pod $pod"
+            echo "---------------------------------------------"
+            echo ""
+          done
 
       - name: Get container logs
         if: always()
@@ -326,6 +406,8 @@ jobs:
 
           # List all pods in the namespace
           kubectl get pods -n "$namespace"
+
+          kubectl describe pvc sequencer-node-data -n "$namespace"
 
           # For each pod, get logs and description
           for pod in $(kubectl get pods -n "$namespace" -o jsonpath='{.items[*].metadata.name}'); do

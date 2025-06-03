@@ -1,5 +1,6 @@
 use std::fs::read_to_string;
 
+use alloy::primitives::{Address as EthereumContractAddress, Address};
 use apollo_infra::trace_util::configure_tracing;
 use apollo_integration_tests::integration_test_manager::{HTTP_PORT_ARG, MONITORING_PORT_ARG};
 use apollo_integration_tests::sequencer_simulator_utils::SequencerSimulator;
@@ -12,9 +13,12 @@ use apollo_integration_tests::utils::{
 };
 use clap::Parser;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
+use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
+use papyrus_base_layer::test_utils::{deploy_starknet_l1_contract, make_block_history_on_anvil};
 use serde_json::Value;
 use tokio::time::{sleep, Duration};
 use tracing::info;
+use url::Url;
 
 fn read_ports_from_file(path: &str) -> (u16, u16) {
     // Read the file content
@@ -55,6 +59,32 @@ fn get_ports(args: &Args) -> (u16, u16) {
             "Either supply both --http-port and --monitoring-port, or use --simulator-ports-path."
         ),
     }
+}
+
+async fn initialize_anvil_state(sender_address: Address, receiver_address: Address) {
+    info!(
+        "Initializing Anvil state with sender: {} and receiver: {}",
+        sender_address, receiver_address
+    );
+    let starknet_contract_address: EthereumContractAddress =
+        "0x4737c0c1B4D5b1A687B42610DdabEE781152359c".parse().expect("Invalid address");
+    let base_layer_config = EthereumBaseLayerConfig {
+        node_url: Url::parse("http://localhost:8545").expect("Failed to parse Anvil URL"),
+        starknet_contract_address,
+        prague_blob_gas_calc: true,
+        ..Default::default()
+    };
+    deploy_starknet_l1_contract(base_layer_config.clone()).await;
+
+    let num_blocks_needed_on_l1 = 310;
+
+    make_block_history_on_anvil(
+        sender_address,
+        receiver_address,
+        base_layer_config.clone(),
+        num_blocks_needed_on_l1,
+    )
+    .await;
 }
 
 async fn run_simulation(
@@ -109,6 +139,12 @@ struct Args {
 
     #[arg(long, help = "Run the simulator in an infinite loop")]
     run_forever: bool,
+
+    #[arg(long, help = "Anvil sender address (0x...)")]
+    sender_address: String,
+
+    #[arg(long, help = "Anvil receiver address (0x...)")]
+    receiver_address: String,
 }
 
 #[tokio::main]
@@ -116,6 +152,11 @@ async fn main() -> anyhow::Result<()> {
     configure_tracing().await;
 
     let args = Args::parse();
+
+    let sender_address = args.sender_address.parse::<Address>()?;
+    let receiver_address = args.receiver_address.parse::<Address>()?;
+
+    initialize_anvil_state(sender_address, receiver_address).await;
 
     let mut tx_generator = create_integration_test_tx_generator();
 
