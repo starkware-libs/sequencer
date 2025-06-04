@@ -167,16 +167,20 @@ impl From<TransactionManagerContent> for TransactionManager {
         let committed: IndexMap<_, _> = mem::take(&mut content.committed).unwrap_or_default();
 
         let uncommitted = txs.into();
-        let rejected = rejected.into();
 
-        let mut committed_records = IndexMap::with_capacity(committed.len());
+        let mut processed_records = IndexMap::with_capacity(rejected.len() + committed.len());
+        for rejected_tx in rejected {
+            let mut record = TransactionRecord::from(rejected_tx);
+            record.mark_rejected();
+            assert_eq!(processed_records.insert(record.tx.tx_hash(), record), None);
+        }
         for (tx_hash, payload) in committed {
             let mut record = TransactionRecord::from(payload);
             record.mark_committed();
-            assert_eq!(committed_records.insert(tx_hash, record), None);
+            assert_eq!(processed_records.insert(tx_hash, record), None);
         }
 
-        TransactionManager::create_for_testing(uncommitted, rejected, committed_records)
+        TransactionManager::create_for_testing(uncommitted, processed_records)
     }
 }
 
