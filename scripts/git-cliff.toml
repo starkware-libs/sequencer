@@ -1,0 +1,25 @@
+[changelog]
+body = """
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | upper_first }}
+{% for commit in commits %}
+- {{ commit.scope }}: {{ commit.message }}
+{% endfor %}
+{% endfor %}
+"""
+footer = ""
+group_by = "scope" # group commits by type if available
+header = "## Changelog"
+sort_commits = true
+version_header = "## [{{ version }}] - {{ timestamp | date(format=\"%Y-%m-%d\") }}\n"
+
+[git]
+conventional_commits = true
+
+[[git.commit_parsers]]
+# Custom regex to match both formats
+# Matches:
+# - type(scope): description
+# - scope: description (no type)
+message = '^((?P<type>\w+)\((?P<scope1>[\w/-]+)\)|(?P<scope2>[\w/-]+)): (?P<message>.+)$'
+replace_scope = '\g<scope1>\g<scope2>'
