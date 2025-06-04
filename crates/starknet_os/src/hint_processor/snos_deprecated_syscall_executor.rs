@@ -37,6 +37,7 @@ use blockifier::execution::deprecated_syscalls::{
     StorageWriteRequest,
     StorageWriteResponse,
 };
+use blockifier::execution::entry_point::CallEntryPoint;
 use blockifier::state::state_api::StateReader;
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
@@ -95,6 +96,11 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
             .expect("Tx execution info must be set when executing syscall.")
             .get_mut_call_info_tracker()
             .expect("Call info tracker must be set when executing syscall.")
+    }
+
+    #[allow(clippy::result_large_err)]
+    fn get_call_entry_point(&mut self) -> &CallEntryPoint {
+        &self.get_mut_call_info_tracker().call_info.call
     }
 }
 
@@ -206,20 +212,9 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> Result<GetCallerAddressResponse, Self::Error> {
-        // TODO(Nimrod): Don't unwrap here, use the error handling mechanism.
-        let execution_helper = syscall_handler.get_mut_current_execution_helper().unwrap();
-        let caller_address = execution_helper
-            .tx_execution_iter
-            .tx_execution_info_ref
-            .as_ref()
-            .unwrap()
-            .call_info_tracker
-            .as_ref()
-            .unwrap()
-            .call_info
-            .call
-            .caller_address;
-        Ok(GetCallerAddressResponse { address: caller_address })
+        Ok(GetCallerAddressResponse {
+            address: syscall_handler.get_call_entry_point().caller_address,
+        })
     }
 
     #[allow(clippy::result_large_err)]
