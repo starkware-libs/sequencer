@@ -505,21 +505,27 @@ fn get_return_values(
         debug!("Loading implicit return value {}. Value: {:?}", i, implicit_arg);
         match implicit_arg {
             ImplicitArg::Builtin(builtin) => {
+                let curr_builtin_runner = builtin_runner_iterator
+                    .next()
+                    .unwrap_or_else(|| panic!("No builtin runner found for builtin {builtin}."));
+                // Sanity check.
+                let builtin_runner_segment_index =
+                    isize::try_from(curr_builtin_runner.base()).unwrap();
+                let return_value_segment_index = vm.get_relocatable(current_address)?.segment_index;
+                assert_eq!(
+                    builtin_runner_segment_index, return_value_segment_index,
+                    "Builtin runner segment index {} doesn't match return value's segment index \
+                     {}.",
+                    builtin_runner_segment_index, return_value_segment_index
+                );
+
                 match builtin {
-                    BuiltinName::output => push_program_output(
-                        builtin_runner_iterator.next().unwrap_or_else(|| {
-                            panic!("No builtin runner found for builtin {builtin}.")
-                        }),
-                        &mut implicit_return_values,
-                        vm,
-                    )?,
-                    _ => push_n_used_instances(
-                        builtin_runner_iterator.next().unwrap_or_else(|| {
-                            panic!("No builtin runner found for builtin {builtin}.")
-                        }),
-                        &mut implicit_return_values,
-                        vm,
-                    )?,
+                    BuiltinName::output => {
+                        push_program_output(curr_builtin_runner, &mut implicit_return_values, vm)?
+                    }
+                    _ => {
+                        push_n_used_instances(curr_builtin_runner, &mut implicit_return_values, vm)?
+                    }
                 }
                 current_address = (current_address + implicit_arg.memory_length())?;
             }

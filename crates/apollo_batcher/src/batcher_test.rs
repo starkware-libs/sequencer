@@ -68,6 +68,7 @@ use crate::metrics::{
     STORAGE_HEIGHT,
     SYNCED_TRANSACTIONS,
 };
+use crate::pre_confirmed_block_writer::MockPreConfirmedBlockWriterFactoryTrait;
 use crate::test_utils::{
     test_txs,
     verify_indexed_execution_infos,
@@ -112,6 +113,7 @@ struct MockDependencies {
     mempool_client: MockMempoolClient,
     l1_provider_client: MockL1ProviderClient,
     block_builder_factory: MockBlockBuilderFactoryTrait,
+    pre_confirmed_block_writer_factory: MockPreConfirmedBlockWriterFactoryTrait,
     class_manager_client: SharedClassManagerClient,
 }
 
@@ -132,6 +134,7 @@ impl Default for MockDependencies {
             .with(eq(CommitBlockArgs::default()))
             .returning(|_| Ok(()));
         let block_builder_factory = MockBlockBuilderFactoryTrait::new();
+        let pre_confirmed_block_writer_factory = MockPreConfirmedBlockWriterFactoryTrait::new();
 
         Self {
             storage_reader,
@@ -139,6 +142,7 @@ impl Default for MockDependencies {
             l1_provider_client: MockL1ProviderClient::new(),
             mempool_client,
             block_builder_factory,
+            pre_confirmed_block_writer_factory,
             // TODO(noamsp): use MockClassManagerClient
             class_manager_client: Arc::new(EmptyClassManagerClient),
         }
@@ -157,6 +161,7 @@ async fn create_batcher(mock_dependencies: MockDependencies) -> Batcher {
             CHAIN_ID_FOR_TESTS.clone(),
         ),
         Box::new(mock_dependencies.block_builder_factory),
+        Box::new(mock_dependencies.pre_confirmed_block_writer_factory),
     );
     // Call post-creation functionality (e.g., metrics registration).
     batcher.start().await;

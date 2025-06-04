@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 #[cfg(feature = "testing")]
 use std::collections::HashSet;
 
+use blockifier::execution::call_info::CallExecution;
 use blockifier::execution::syscalls::secp::SecpHintProcessor;
 use blockifier::execution::syscalls::vm_syscall_utils::{execute_next_syscall, SyscallUsageMap};
 use blockifier::state::state_api::StateReader;
@@ -199,6 +200,28 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
     pub fn n_blocks(&self) -> usize {
         // Each execution helper corresponds to a block.
         self.execution_helpers_manager.n_helpers()
+    }
+
+    pub fn get_next_call_execution(&mut self) -> &CallExecution {
+        // TODO(Tzahi): Change `expect`s to regular errors once the syscall trait has an associated
+        // error type.
+        let call_tracker = self
+            .execution_helpers_manager
+            .get_mut_current_execution_helper()
+            .expect("No current execution helper")
+            .tx_execution_iter
+            .get_mut_tx_execution_info_ref()
+            .expect("No current tx execution info")
+            .call_info_tracker
+            .as_mut()
+            .expect("No call info tracker found");
+
+        &call_tracker
+            .inner_calls_iterator
+            .next()
+            .ok_or(ExecutionHelperError::MissingCallInfo)
+            .expect("Missing call info")
+            .execution
     }
 }
 

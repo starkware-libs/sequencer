@@ -8,6 +8,7 @@ use crate::deployment::{
     ConfigOverride,
     Deployment,
     DeploymentConfigOverride,
+    DeploymentType,
 };
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
 use crate::service::{DeploymentName, ExternalSecret, IngressParams};
@@ -20,10 +21,10 @@ const SECRET_NAME_FORMAT: &str = "apollo-stresstest-dev-{}";
 
 pub(crate) fn stress_test_hybrid_deployments() -> Vec<Deployment> {
     vec![
-        stress_test_hybrid_deployment_node(0),
-        stress_test_hybrid_deployment_node(1),
-        stress_test_hybrid_deployment_node(2),
-        stress_test_hybrid_deployment_node(3),
+        stress_test_hybrid_deployment_node(0, DeploymentType::Bootstrap),
+        stress_test_hybrid_deployment_node(1, DeploymentType::Bootstrap),
+        stress_test_hybrid_deployment_node(2, DeploymentType::Bootstrap),
+        stress_test_hybrid_deployment_node(3, DeploymentType::Bootstrap),
     ]
 }
 
@@ -37,21 +38,7 @@ fn stress_test_deployment_config_override() -> DeploymentConfigOverride {
     )
 }
 
-fn stress_test_config_override(id: usize) -> ConfigOverride {
-    ConfigOverride::new(
-        stress_test_deployment_config_override(),
-        create_hybrid_instance_config_override(id, FIRST_NODE_NAMESPACE),
-    )
-}
-
-fn get_ingress_params() -> IngressParams {
-    IngressParams::new(
-        STRESS_TEST_INGRESS_DOMAIN.to_string(),
-        Some(vec![STRESS_TEST_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
-    )
-}
-
-fn stress_test_hybrid_deployment_node(id: usize) -> Deployment {
+fn stress_test_hybrid_deployment_node(id: usize, deployment_type: DeploymentType) -> Deployment {
     Deployment::new(
         ChainId::IntegrationSepolia,
         DeploymentName::HybridNode,
@@ -59,7 +46,13 @@ fn stress_test_hybrid_deployment_node(id: usize) -> Deployment {
         &format_node_id(INSTANCE_NAME_FORMAT, id),
         Some(ExternalSecret::new(format_node_id(SECRET_NAME_FORMAT, id))),
         PathBuf::from(BASE_APP_CONFIG_PATH),
-        stress_test_config_override(id),
-        get_ingress_params(),
+        ConfigOverride::new(
+            stress_test_deployment_config_override(),
+            create_hybrid_instance_config_override(id, FIRST_NODE_NAMESPACE, deployment_type),
+        ),
+        IngressParams::new(
+            STRESS_TEST_INGRESS_DOMAIN.to_string(),
+            Some(vec![STRESS_TEST_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
+        ),
     )
 }

@@ -10,7 +10,7 @@ fn compile_program(path_to_main_file: PathBuf) -> Vec<u8> {
             panic!(
                 "Failed to verify correct cairo0 package installation. Please make sure you do \
                  not have a conflicting installation in your {}/bin directory.\nOriginal error: \
-                 {error:?}.",
+                 {error}.",
                 std::env::var("CARGO_HOME").unwrap_or("${CARGO_HOME}".to_string())
             )
         }

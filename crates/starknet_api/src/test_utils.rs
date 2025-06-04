@@ -174,6 +174,7 @@ impl BlockInfo {
             block_timestamp: BlockTimestamp(CURRENT_BLOCK_TIMESTAMP),
             sequencer_address: contract_address!(TEST_SEQUENCER_ADDRESS),
             gas_prices: DEFAULT_GAS_PRICES,
+            // TODO(Yoni): change to true.
             use_kzg_da: false,
         }
     }
