@@ -58,7 +58,7 @@ pub trait PreConfirmedCendeClientTrait: Send + Sync {
 
 pub struct PreConfirmedCendeClient {
     start_new_round_url: Url,
-    _write_pre_confirmed_txs_url: Url,
+    write_pre_confirmed_txs_url: Url,
     _write_executed_txs_url: Url,
     client: Client,
 }
@@ -77,7 +77,7 @@ impl PreConfirmedCendeClient {
                 recorder_url.clone(),
                 RECORDER_START_NEW_ROUND_PATH,
             ),
-            _write_pre_confirmed_txs_url: Self::construct_endpoint_url(
+            write_pre_confirmed_txs_url: Self::construct_endpoint_url(
                 recorder_url.clone(),
                 RECORDER_WRITE_PRE_CONFIRMED_TXS_PATH,
             ),
@@ -189,11 +189,42 @@ impl PreConfirmedCendeClientTrait for PreConfirmedCendeClient {
 
     async fn send_pre_confirmed_txs(
         &self,
-        _block_number: BlockNumber,
-        _proposal_round: Round,
-        _pre_confirmed_txs: Vec<TransactionHash>,
+        block_number: BlockNumber,
+        proposal_round: Round,
+        pre_confirmed_txs: Vec<TransactionHash>,
     ) -> PreConfirmedCendeClientResult<()> {
-        todo!()
+        let transactions: IndexMap<TransactionHash, PreConfirmedTransactionData> =
+            pre_confirmed_txs
+                .into_iter()
+                .map(|tx_hash| {
+                    (
+                        tx_hash,
+                        PreConfirmedTransactionData {
+                            block_number,
+                            proposal_round,
+                            transaction_receipt: None,
+                        },
+                    )
+                })
+                .collect();
+
+        let num_txs = transactions.len();
+        let write_pre_confirmed_txs_args =
+            AerospikePreConfirmedTxs { block_number, proposal_round, transactions };
+
+        let request_builder = self
+            .client
+            .post(self.write_pre_confirmed_txs_url.clone())
+            .json(&write_pre_confirmed_txs_args);
+
+        self.send_request(
+            "write_pre_confirmed_txs",
+            block_number,
+            proposal_round,
+            &format!(", num_txs: {}", num_txs),
+            request_builder,
+        )
+        .await
     }
 
     async fn send_executed_txs(
