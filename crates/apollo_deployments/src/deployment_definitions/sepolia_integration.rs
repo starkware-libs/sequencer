@@ -13,6 +13,7 @@ use crate::deployment::{
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
 use crate::service::{DeploymentName, ExternalSecret, IngressParams};
 
+const SEPOLIA_INTEGRATION_NODE_IDS: [usize; 4] = [0, 1, 2, 3];
 const SEPOLIA_INTEGRATION_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str =
     "integration-sepolia.starknet.io";
 const SEPOLIA_INTEGRATION_INGRESS_DOMAIN: &str = "starknet.io";
@@ -21,12 +22,9 @@ const INSTANCE_NAME_FORMAT: &str = "integration_hybrid_node_{}";
 const SECRET_NAME_FORMAT: &str = "apollo-sepolia-integration-{}";
 
 pub(crate) fn sepolia_integration_hybrid_deployments() -> Vec<Deployment> {
-    vec![
-        sepolia_integration_hybrid_deployment_node(0, DeploymentType::Operational),
-        sepolia_integration_hybrid_deployment_node(1, DeploymentType::Operational),
-        sepolia_integration_hybrid_deployment_node(2, DeploymentType::Operational),
-        sepolia_integration_hybrid_deployment_node(3, DeploymentType::Operational),
-    ]
+    SEPOLIA_INTEGRATION_NODE_IDS
+        .map(|i| sepolia_integration_hybrid_deployment_node(i, DeploymentType::Operational))
+        .to_vec()
 }
 
 fn sepolia_integration_deployment_config_override() -> DeploymentConfigOverride {
