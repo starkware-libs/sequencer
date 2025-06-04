@@ -2,6 +2,7 @@ use apollo_batcher::metrics::{BATCHED_TRANSACTIONS, LAST_BATCHED_BLOCK};
 use apollo_consensus::metrics::{
     CONSENSUS_BLOCK_NUMBER,
     CONSENSUS_BUILD_PROPOSAL_FAILED,
+    CONSENSUS_INBOUND_STREAM_EVICTED,
     CONSENSUS_PROPOSALS_INVALID,
     CONSENSUS_ROUND,
 };
@@ -88,6 +89,21 @@ const CONSENSUS_VOTES_NUM_SENT_MESSAGES_ALERT: Alert = Alert {
     conditions: &[AlertCondition {
         comparison_op: AlertComparisonOp::LessThan,
         comparison_value: 100.0 / 3600.0, // 100 per hour
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 20,
+    severity: AlertSeverity::WorkingHours,
+};
+
+const CONSENSUS_INBOUND_STREAM_EVICTED_ALERT: Alert = Alert {
+    name: "consensus_inbound_stream_evicted",
+    title: "Consensus inbound stream evicted",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!("rate({}[1h])", CONSENSUS_INBOUND_STREAM_EVICTED.get_name_with_filter()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::GreaterThan,
+        comparison_value: 5.0 / 3600.0, // 5 per hour
         logical_op: AlertLogicalOp::And,
     }],
     pending_duration: "1m",
@@ -296,6 +312,7 @@ pub const SEQUENCER_ALERTS: Alerts = Alerts::new(&[
     CONSENSUS_BUILD_PROPOSAL_FAILED_ALERT,
     CONSENSUS_VALIDATE_PROPOSAL_FAILED_ALERT,
     CONSENSUS_VOTES_NUM_SENT_MESSAGES_ALERT,
+    CONSENSUS_INBOUND_STREAM_EVICTED_ALERT,
     GATEWAY_ADD_TX_RATE_DROP,
     GATEWAY_ADD_TX_LATENCY_INCREASE,
     MEMPOOL_ADD_TX_RATE_DROP,
