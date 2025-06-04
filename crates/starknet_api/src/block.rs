@@ -542,6 +542,15 @@ impl GasPrices {
 )]
 pub struct BlockTimestamp(pub u64);
 
+impl BlockTimestamp {
+    pub fn saturating_sub(self, rhs: Self) -> Self {
+        Self(self.0.saturating_sub(rhs.0))
+    }
+    pub fn saturating_sub_seconds(self, rhs: u64) -> Self {
+        Self(self.0.saturating_sub(rhs))
+    }
+}
+
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct BlockInfo {
     pub block_number: BlockNumber,

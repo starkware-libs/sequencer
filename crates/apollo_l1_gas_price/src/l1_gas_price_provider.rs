@@ -118,11 +118,9 @@ impl L1GasPriceProvider {
 
     pub fn get_price_info(&self, timestamp: BlockTimestamp) -> L1GasPriceProviderResult<PriceInfo> {
         // This index is for the last block in the mean (inclusive).
-        let index_last_timestamp_rev = self
-            .price_samples_by_block
-            .iter()
-            .rev()
-            .position(|data| data.timestamp.0 <= timestamp.0 - self.config.lag_margin_seconds);
+        let index_last_timestamp_rev = self.price_samples_by_block.iter().rev().position(|data| {
+            data.timestamp <= timestamp.saturating_sub_seconds(self.config.lag_margin_seconds)
+        });
 
         // Could not find a block with the requested timestamp and lag.
         let Some(last_index_rev) = index_last_timestamp_rev else {
