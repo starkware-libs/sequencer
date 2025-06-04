@@ -5,15 +5,22 @@ use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
 use blockifier::fee::receipt::TransactionReceipt;
-use reqwest::Client;
+use reqwest::{Client, RequestBuilder};
 use starknet_api::block::BlockNumber;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
+use tracing::{error, info, warn};
 use url::Url;
 
 // TODO(noamsp): rename PreConfirmed.. to Preconfirmed.. throughout the codebase.
-#[derive(Clone, Debug, Error)]
-pub enum PreConfirmedCendeClientError {}
+#[derive(Debug, Error)]
+// TODO(noamsp): add block number/round mismatch and handle it in the client implementation.
+pub enum PreConfirmedCendeClientError {
+    #[error(transparent)]
+    RequestError(#[from] reqwest::Error),
+    #[error("CendeRecorder returned an error: {0}")]
+    CendeRecorderError(String),
+}
 
 pub type PreConfirmedCendeClientResult<T> = Result<T, PreConfirmedCendeClientError>;
 
@@ -82,6 +89,40 @@ impl PreConfirmedCendeClient {
 
     fn construct_endpoint_url(recorder_url: Url, endpoint: &str) -> Url {
         recorder_url.join(endpoint).expect("Failed to construct URL")
+    }
+
+    // TODO(noamsp): remove this allow once
+    #[allow(dead_code)]
+    async fn send_request(
+        &self,
+        request: &'static str,
+        block_number: BlockNumber,
+        proposal_round: Round,
+        additional_log_info: &str,
+        request_builder: RequestBuilder,
+    ) -> PreConfirmedCendeClientResult<()> {
+        info!(
+            "Sending {request} request to Cende recorder. block_number: {block_number}, round: \
+             {proposal_round}{additional_log_info}",
+        );
+
+        let response = request_builder.send().await?;
+
+        let response_status = response.status();
+        if response_status.is_success() {
+            info!(
+                "{request} request succeeded. block_number: {block_number}, round: \
+                 {proposal_round}{additional_log_info}"
+            );
+            Ok(())
+        } else {
+            let error_msg = format!(
+                "{request} request failed. block_number: {block_number}, round: \
+                 {proposal_round}{additional_log_info}, status: {response_status}"
+            );
+            warn!("{error_msg}");
+            Err(PreConfirmedCendeClientError::CendeRecorderError(error_msg))
+        }
     }
 }
 
