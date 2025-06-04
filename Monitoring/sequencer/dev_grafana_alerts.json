@@ -157,6 +157,32 @@
       "intervalSec": 20
     },
     {
+      "name": "consensus_inbound_stream_evicted",
+      "title": "Consensus inbound stream evicted",
+      "ruleGroup": "consensus",
+      "expr": "rate(consensus_inbound_stream_evicted{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.006944444444444444
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "1m",
+      "intervalSec": 20
+    },
+    {
       "name": "gateway_add_tx_rate_drop",
       "title": "Gateway add_tx rate drop",
       "ruleGroup": "gateway",
