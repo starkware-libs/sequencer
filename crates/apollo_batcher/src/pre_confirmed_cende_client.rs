@@ -5,6 +5,7 @@ use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
 use blockifier::fee::receipt::TransactionReceipt;
+use indexmap::IndexMap;
 use reqwest::Client;
 use serde::Serialize;
 use starknet_api::block::BlockNumber;
@@ -152,6 +153,25 @@ impl SerializeConfig for PreConfirmedCendeConfig {
             ParamPrivacyInput::Private,
         )])
     }
+}
+
+#[derive(Serialize)]
+pub struct AerospikeStartNewRound {
+    block_number: BlockNumber,
+    proposal_round: Round,
+}
+
+#[derive(Serialize)]
+pub struct PreConfirmedTransactionData {
+    block_number: BlockNumber,
+    proposal_round: Round,
+    transaction_receipt: Option<TransactionReceipt>,
+}
+
+#[derive(Serialize)]
+#[serde(transparent)]
+pub struct AerospikePreConfirmedTxs {
+    transactions: IndexMap<TransactionHash, PreConfirmedTransactionData>,
 }
 
 #[async_trait]
