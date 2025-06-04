@@ -81,9 +81,6 @@ class DeploymentConfig(Config):
             file_path=self.deployment_config_file_path, file_description="Deployment config"
         )
 
-    def get_chain_id(self) -> str | None:
-        return self._deployment_config_data.get("chain_id")
-
     def get_application_config_subdir(self) -> str | None:
         return self._deployment_config_data.get("application_config_subdir")
 

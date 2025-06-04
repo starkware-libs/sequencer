@@ -1,7 +1,5 @@
 use std::path::PathBuf;
 
-use starknet_api::core::ChainId;
-
 use crate::deployment::{
     create_hybrid_instance_config_override,
     format_node_id,
@@ -42,7 +40,6 @@ fn sepolia_integration_hybrid_deployment_node(
     deployment_type: DeploymentType,
 ) -> Deployment {
     Deployment::new(
-        ChainId::IntegrationSepolia,
         DeploymentName::HybridNode,
         Environment::SepoliaIntegration,
         &format_node_id(INSTANCE_NAME_FORMAT, id),

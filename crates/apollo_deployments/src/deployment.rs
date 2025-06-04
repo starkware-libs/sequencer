@@ -12,7 +12,6 @@ use apollo_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 use indexmap::IndexMap;
 use serde::Serialize;
 use serde_json::{json, to_value, Value};
-use starknet_api::core::ChainId;
 
 use crate::deployment_definitions::{Environment, CONFIG_BASE_DIR};
 use crate::service::{DeploymentName, ExternalSecret, IngressParams, Service, ServiceName};
@@ -35,7 +34,6 @@ const OPERATIONAL_MEMPOOL_CONFIG_TRANSACTION_TTL: u64 = 300; // 300 seconds ~ 5 
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Deployment {
-    chain_id: ChainId,
     application_config_subdir: PathBuf,
     #[serde(skip_serializing)]
     deployment_name: DeploymentName,
@@ -52,7 +50,6 @@ pub struct Deployment {
 #[allow(clippy::too_many_arguments)]
 impl Deployment {
     pub fn new(
-        chain_id: ChainId,
         deployment_name: DeploymentName,
         environment: Environment,
         instance_name: &str,
@@ -93,7 +90,6 @@ impl Deployment {
             })
             .collect();
         Self {
-            chain_id,
             application_config_subdir,
             deployment_name,
             environment,
