@@ -190,6 +190,33 @@
       "severity": "p4"
     },
     {
+      "name": "cende_write_blob_failure",
+      "title": "Cende write blob failure",
+      "ruleGroup": "consensus",
+      "expr": "rate(cende_write_blob_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "1m",
+      "intervalSec": 20,
+      "severity": "p4"
+    },
+    {
       "name": "gateway_add_tx_rate_drop",
       "title": "Gateway add_tx rate drop",
       "ruleGroup": "gateway",
