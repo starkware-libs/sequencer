@@ -10,6 +10,7 @@ use apollo_consensus_manager::metrics::CONSENSUS_VOTES_NUM_SENT_MESSAGES;
 use apollo_consensus_orchestrator::metrics::{
     CENDE_WRITE_BLOB_FAILURE,
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY,
+    CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR,
 };
 use apollo_gateway::metrics::{GATEWAY_ADD_TX_LATENCY, GATEWAY_TRANSACTIONS_RECEIVED};
 use apollo_http_server::metrics::ADDED_TRANSACTIONS_TOTAL;
@@ -160,6 +161,21 @@ const CENDE_WRITE_BLOB_FAILURE_ALERT: Alert = Alert {
     conditions: &[AlertCondition {
         comparison_op: AlertComparisonOp::GreaterThan,
         comparison_value: 0.0,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 20,
+    severity: AlertSeverity::WorkingHours,
+};
+
+const CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR_RATE: Alert = Alert {
+    name: "consensus_l1_gas_price_provider_error_rate",
+    title: "Consensus L1 gas price provider error rate",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!("rate({}[1h])", CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR.get_name_with_filter()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::GreaterThan,
+        comparison_value: 5.0 / 3600.0, // 5 per hour
         logical_op: AlertLogicalOp::And,
     }],
     pending_duration: "1m",
@@ -342,6 +358,7 @@ pub const SEQUENCER_ALERTS: Alerts = Alerts::new(&[
     CONSENSUS_INBOUND_STREAM_EVICTED_ALERT,
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY_TOO_HIGH,
     CENDE_WRITE_BLOB_FAILURE_ALERT,
+    CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR_RATE,
     GATEWAY_ADD_TX_RATE_DROP,
     GATEWAY_ADD_TX_LATENCY_INCREASE,
     MEMPOOL_ADD_TX_RATE_DROP,
