@@ -53,7 +53,7 @@ pub trait PreConfirmedCendeClientTrait: Send + Sync {
 
 pub struct PreConfirmedCendeClient {
     start_new_round_url: Url,
-    _write_pre_confirmed_txs_url: Url,
+    write_pre_confirmed_txs_url: Url,
     _write_executed_txs_url: Url,
     client: Client,
 }
@@ -72,7 +72,7 @@ impl PreConfirmedCendeClient {
                 recorder_url.clone(),
                 RECORDER_START_NEW_ROUND_PATH,
             ),
-            _write_pre_confirmed_txs_url: Self::construct_endpoint_url(
+            write_pre_confirmed_txs_url: Self::construct_endpoint_url(
                 recorder_url.clone(),
                 RECORDER_WRITE_PRE_CONFIRMED_TXS_PATH,
             ),
@@ -197,9 +197,19 @@ impl PreConfirmedCendeClientTrait for PreConfirmedCendeClient {
 
     async fn write_pre_confirmed_txs(
         &self,
-        _pre_confirmed_txs: AerospikePreConfirmedTxs,
+        pre_confirmed_txs: AerospikePreConfirmedTxs,
     ) -> PreConfirmedCendeClientResult<()> {
-        todo!()
+        let request_builder =
+            self.client.post(self.write_pre_confirmed_txs_url.clone()).json(&pre_confirmed_txs);
+
+        self.send_request(
+            request_builder,
+            pre_confirmed_txs.block_number,
+            pre_confirmed_txs.proposal_round,
+            "write_pre_confirmed_txs",
+            &format!(", num_txs: {}", pre_confirmed_txs.transactions.len()),
+        )
+        .await
     }
 
     async fn write_executed_txs(
