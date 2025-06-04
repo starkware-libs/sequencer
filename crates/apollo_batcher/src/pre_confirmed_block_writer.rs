@@ -1,10 +1,14 @@
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use apollo_batcher_types::batcher_types::Round;
+use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
 use blockifier::fee::receipt::TransactionReceipt;
 #[cfg(test)]
 use mockall::automock;
+use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
@@ -23,15 +27,14 @@ pub enum BlockWriterError {
 
 pub type BlockWriterResult<T> = Result<T, BlockWriterError>;
 
-pub type PreConfirmedTxReceiver = tokio::sync::mpsc::UnboundedReceiver<Vec<TransactionHash>>;
-pub type PreConfirmedTxSender = tokio::sync::mpsc::UnboundedSender<Vec<TransactionHash>>;
+pub type PreConfirmedTxReceiver = tokio::sync::mpsc::Receiver<Vec<TransactionHash>>;
+pub type PreConfirmedTxSender = tokio::sync::mpsc::Sender<Vec<TransactionHash>>;
 
 // TODO(noamsp): Change TransactionReceipt to TransactionExecutionInfo and translate into the
 // receipt type that FGW uses.
 pub type ExecutedTxReceiver =
-    tokio::sync::mpsc::UnboundedReceiver<Vec<(TransactionHash, TransactionReceipt)>>;
-pub type ExecutedTxSender =
-    tokio::sync::mpsc::UnboundedSender<Vec<(TransactionHash, TransactionReceipt)>>;
+    tokio::sync::mpsc::Receiver<Vec<(TransactionHash, TransactionReceipt)>>;
+pub type ExecutedTxSender = tokio::sync::mpsc::Sender<Vec<(TransactionHash, TransactionReceipt)>>;
 
 /// Coordinates the flow of pre-confirmed transaction data during block proposal.
 /// Listens for transaction updates from the block builder via dedicated channels and utilizes a
@@ -113,6 +116,7 @@ pub trait PreConfirmedBlockWriterFactoryTrait: Send + Sync {
 }
 
 pub struct PreConfirmedBlockWriterFactory {
+    pub channel_capacity: usize,
     pub cende_client: Arc<dyn PreConfirmedCendeClientTrait>,
 }
 
@@ -124,10 +128,10 @@ impl PreConfirmedBlockWriterFactoryTrait for PreConfirmedBlockWriterFactory {
     ) -> (Box<dyn PreConfirmedBlockWriterTrait>, PreConfirmedTxSender, ExecutedTxSender) {
         // Initialize channels for communication between the pre confirmed block writer and the
         // block builder.
-        // TODO(noamsp): Use bounded channels instead of unbounded channels.
-        let (executed_tx_sender, executed_tx_receiver) = tokio::sync::mpsc::unbounded_channel();
+        let (executed_tx_sender, executed_tx_receiver) =
+            tokio::sync::mpsc::channel(self.channel_capacity);
         let (pre_confirmed_tx_sender, pre_confirmed_tx_receiver) =
-            tokio::sync::mpsc::unbounded_channel();
+            tokio::sync::mpsc::channel(self.channel_capacity);
 
         let cende_client = self.cende_client.clone();
 
@@ -139,5 +143,30 @@ impl PreConfirmedBlockWriterFactoryTrait for PreConfirmedBlockWriterFactory {
             cende_client,
         ));
         (pre_confirmed_block_writer, pre_confirmed_tx_sender, executed_tx_sender)
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct PreConfirmedBlockWriterConfig {
+    pub channel_capacity: usize,
+}
+
+pub const DEFAULT_CHANNEL_CAPACITY: usize = 1000;
+
+impl Default for PreConfirmedBlockWriterConfig {
+    fn default() -> Self {
+        Self { channel_capacity: DEFAULT_CHANNEL_CAPACITY }
+    }
+}
+
+impl SerializeConfig for PreConfirmedBlockWriterConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from([ser_param(
+            "channel_capacity",
+            &self.channel_capacity,
+            "Capacity of the channels for communication between the pre confirmed block writer \
+             and the block builder.",
+            ParamPrivacyInput::Public,
+        )])
     }
 }

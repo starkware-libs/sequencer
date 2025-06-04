@@ -204,6 +204,11 @@
     "privacy": "Public",
     "value": 100
   },
+  "batcher_config.pre_confirmed_block_writer_config.channel_capacity": {
+    "description": "Capacity of the channels for communication between the pre confirmed block writer and the block builder.",
+    "privacy": "Public",
+    "value": 1000
+  },
   "batcher_config.storage.db_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
     "pointer_target": "chain_id",
