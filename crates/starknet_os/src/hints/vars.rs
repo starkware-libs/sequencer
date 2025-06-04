@@ -376,6 +376,7 @@ define_string_enum! {
             "starkware.starknet.core.os.contract_class.deprecated_compiled_class.\
             DeprecatedCompiledClass"
         ),
+        (DeprecatedCallContractResponse, "starkware.starknet.common.syscalls.CallContractResponse"),
         (
             DeprecatedCompiledClassFactPtr,
             "starkware.starknet.core.os.contract_class.deprecated_compiled_class.\
