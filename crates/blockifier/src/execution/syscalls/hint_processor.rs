@@ -470,12 +470,12 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         self.gas_costs().syscalls.keccak_round.base_syscall_cost()
     }
 
-    fn get_sha256_segment_end_ptr(&self) -> Option<Relocatable> {
-        self.sha256_segment_end_ptr
+    fn get_sha256_segment_end_ptr(&self, vm: &mut VirtualMachine) -> Relocatable {
+        self.sha256_segment_end_ptr.unwrap_or(vm.add_memory_segment())
     }
 
-    fn set_sha256_segment_end_ptr(&mut self, segment_end_ptr: Option<Relocatable>) {
-        self.sha256_segment_end_ptr = segment_end_ptr;
+    fn set_sha256_segment_end_ptr(&mut self, segment_end_ptr: Relocatable) {
+        self.sha256_segment_end_ptr = Some(segment_end_ptr);
     }
 
     fn get_secpk1_hint_processor(&mut self) -> &mut SecpHintProcessor<ark_secp256k1::Config> {

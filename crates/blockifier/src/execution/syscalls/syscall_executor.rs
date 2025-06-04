@@ -1,6 +1,7 @@
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_traits::ToPrimitive;
+use sha2::digest::generic_array::GenericArray;
 use starknet_api::execution_resources::GasAmount;
 use starknet_types_core::felt::Felt;
 
@@ -68,9 +69,9 @@ pub trait SyscallExecutor {
     // TODO(Aner): replace function with inline after implementing fn get_gas_costs.
     fn get_keccak_round_cost_base_syscall_cost(&self) -> u64;
 
-    fn get_sha256_segment_end_ptr(&self) -> Option<Relocatable>;
+    fn get_sha256_segment_end_ptr(&self, vm: &mut VirtualMachine) -> Relocatable;
 
-    fn set_sha256_segment_end_ptr(&mut self, segment_end_ptr: Option<Relocatable>);
+    fn set_sha256_segment_end_ptr(&mut self, segment_end_ptr: Relocatable);
 
     fn get_secpk1_hint_processor(&mut self) -> &mut SecpHintProcessor<ark_secp256k1::Config>;
 
@@ -216,17 +217,19 @@ pub trait SyscallExecutor {
         const SHA256_STATE_SIZE: usize = 8;
         let prev_state = vm.get_integer_range(request.state_ptr, SHA256_STATE_SIZE)?;
 
-        let data_as_bytes = sha2::digest::generic_array::GenericArray::from_exact_iter(
-            data.iter().flat_map(|felt| {
-                felt.to_bigint()
-                    .to_u32()
-                    .expect("libfunc should ensure the input is an [u32; 16].")
-                    .to_be_bytes()
-            }),
-        )
-        .expect(
-            "u32.to_be_bytes() returns 4 bytes, and data.len() == 16. So data contains 64 bytes.",
-        );
+        let data_as_bytes: GenericArray<u8, sha2::digest::consts::U64> =
+            sha2::digest::generic_array::GenericArray::from_exact_iter(data.iter().flat_map(
+                |felt| {
+                    felt.to_bigint()
+                        .to_u32()
+                        .expect("libfunc should ensure the input is an [u32; 16].")
+                        .to_be_bytes()
+                },
+            ))
+            .expect(
+                "u32.to_be_bytes() returns 4 bytes, and data.len() == 16. So data contains 64 \
+                 bytes.",
+            );
 
         let mut state_as_words: [u32; SHA256_STATE_SIZE] = core::array::from_fn(|i| {
             prev_state[i].to_bigint().to_u32().expect(
@@ -237,14 +240,13 @@ pub trait SyscallExecutor {
 
         sha2::compress256(&mut state_as_words, &[data_as_bytes]);
 
-        let segment =
-            syscall_handler.get_sha256_segment_end_ptr().unwrap_or(vm.add_memory_segment());
+        let segment = syscall_handler.get_sha256_segment_end_ptr(vm);
 
         let response = segment;
         let data: Vec<MaybeRelocatable> =
             state_as_words.iter().map(|&arg| MaybeRelocatable::from(Felt::from(arg))).collect();
 
-        syscall_handler.set_sha256_segment_end_ptr(Some(vm.load_data(segment, &data)?));
+        syscall_handler.set_sha256_segment_end_ptr(vm.load_data(segment, &data)?);
 
         Ok(Sha256ProcessBlockResponse { state_ptr: response })
     }
