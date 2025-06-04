@@ -38,14 +38,14 @@ pub trait PreConfirmedCendeClientTrait: Send + Sync {
 
     /// Notifies the Cende recorder about transactions that are pending execution, providing their
     /// hashes.
-    async fn send_pre_confirmed_txs(
+    async fn write_pre_confirmed_txs(
         &self,
         pre_confirmed_txs: AerospikePreConfirmedTxs,
     ) -> PreConfirmedCendeClientResult<()>;
 
     /// Notifies the Cende recorder about transactions that were executed successfully, providing
     /// their hashes and receipts.
-    async fn send_executed_txs(
+    async fn write_executed_txs(
         &self,
         executed_txs: AerospikePreConfirmedTxs,
     ) -> PreConfirmedCendeClientResult<()>;
@@ -187,14 +187,14 @@ impl PreConfirmedCendeClientTrait for PreConfirmedCendeClient {
         todo!()
     }
 
-    async fn send_pre_confirmed_txs(
+    async fn write_pre_confirmed_txs(
         &self,
         _pre_confirmed_txs: AerospikePreConfirmedTxs,
     ) -> PreConfirmedCendeClientResult<()> {
         todo!()
     }
 
-    async fn send_executed_txs(
+    async fn write_executed_txs(
         &self,
         _executed_txs: AerospikePreConfirmedTxs,
     ) -> PreConfirmedCendeClientResult<()> {
@@ -214,14 +214,14 @@ impl PreConfirmedCendeClientTrait for EmptyPreConfirmedCendeClient {
         Ok(())
     }
 
-    async fn send_pre_confirmed_txs(
+    async fn write_pre_confirmed_txs(
         &self,
         _pre_confirmed_txs: AerospikePreConfirmedTxs,
     ) -> PreConfirmedCendeClientResult<()> {
         Ok(())
     }
 
-    async fn send_executed_txs(
+    async fn write_executed_txs(
         &self,
         _executed_txs: AerospikePreConfirmedTxs,
     ) -> PreConfirmedCendeClientResult<()> {
