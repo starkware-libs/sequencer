@@ -52,10 +52,10 @@ pub trait PreConfirmedCendeClientTrait: Send + Sync {
 }
 
 pub struct PreConfirmedCendeClient {
-    _start_new_round_url: Url,
+    start_new_round_url: Url,
     _write_pre_confirmed_txs_url: Url,
     _write_executed_txs_url: Url,
-    _client: Client,
+    client: Client,
 }
 
 // The endpoints for the Cende recorder.
@@ -68,7 +68,7 @@ impl PreConfirmedCendeClient {
         let recorder_url = config.recorder_url;
 
         Ok(Self {
-            _start_new_round_url: Self::construct_endpoint_url(
+            start_new_round_url: Self::construct_endpoint_url(
                 recorder_url.clone(),
                 RECORDER_START_NEW_ROUND_PATH,
             ),
@@ -80,7 +80,7 @@ impl PreConfirmedCendeClient {
                 recorder_url,
                 RECORDER_WRITE_EXECUTED_TXS_PATH,
             ),
-            _client: Client::new(),
+            client: Client::new(),
         })
     }
 
@@ -88,8 +88,6 @@ impl PreConfirmedCendeClient {
         recorder_url.join(endpoint).expect("Failed to construct URL")
     }
 
-    // TODO(noamsp): remove this allow once the client is implemented.
-    #[allow(dead_code)]
     async fn send_request(
         &self,
         request_builder: RequestBuilder,
@@ -174,9 +172,19 @@ pub struct AerospikePreConfirmedTxs {
 impl PreConfirmedCendeClientTrait for PreConfirmedCendeClient {
     async fn send_start_new_round(
         &self,
-        _start_new_round: AerospikeStartNewRound,
+        start_new_round: AerospikeStartNewRound,
     ) -> PreConfirmedCendeClientResult<()> {
-        todo!()
+        let request_builder =
+            self.client.post(self.start_new_round_url.clone()).json(&start_new_round);
+
+        self.send_request(
+            request_builder,
+            start_new_round.block_number,
+            start_new_round.proposal_round,
+            "start_new_round",
+            "",
+        )
+        .await
     }
 
     async fn write_pre_confirmed_txs(
