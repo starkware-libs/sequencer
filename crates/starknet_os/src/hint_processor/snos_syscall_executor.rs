@@ -84,12 +84,14 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         todo!()
     }
 
-    fn get_sha256_segment_end_ptr(&self) -> Option<Relocatable> {
-        self.syscall_hint_processor.sha256_segment
+    fn get_sha256_segment_end_ptr(&self, _vm: &mut VirtualMachine) -> Relocatable {
+        self.syscall_hint_processor
+            .sha256_segment_end_ptr
+            .expect("SHA256 segment must be set in OS.")
     }
 
-    fn set_sha256_segment_end_ptr(&mut self, segment_end_ptr: Option<Relocatable>) {
-        self.syscall_hint_processor.sha256_segment = segment_end_ptr;
+    fn set_sha256_segment_end_ptr(&mut self, sha256_segment_end_ptr: Relocatable) {
+        self.syscall_hint_processor.sha256_segment_end_ptr = Some(sha256_segment_end_ptr);
     }
 
     fn get_secpk1_hint_processor(&mut self) -> &mut SecpHintProcessor<ark_secp256k1::Config> {
