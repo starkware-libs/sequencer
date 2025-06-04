@@ -264,7 +264,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<SendMessageToL1Response> {
-        todo!()
+        Ok(SendMessageToL1Response {})
     }
 
     #[allow(clippy::result_large_err)]
