@@ -32,6 +32,7 @@
   "batcher_config.input_stream_content_buffer_size": 4000,
   "batcher_config.max_l1_handler_txs_per_block_proposal": 200,
   "batcher_config.outstream_content_buffer_size": 64,
+  "batcher_config.pre_confirmed_block_writer_channel_capacity": 1000,
   "batcher_config.storage.db_config.enforce_file_exists": false,
   "batcher_config.storage.db_config.growth_step": 67108864,
   "batcher_config.storage.db_config.max_size": 1099511627776,

@@ -23,15 +23,14 @@ pub enum BlockWriterError {
 
 pub type BlockWriterResult<T> = Result<T, BlockWriterError>;
 
-pub type PreConfirmedTxReceiver = tokio::sync::mpsc::UnboundedReceiver<Vec<TransactionHash>>;
-pub type PreConfirmedTxSender = tokio::sync::mpsc::UnboundedSender<Vec<TransactionHash>>;
+pub type PreConfirmedTxReceiver = tokio::sync::mpsc::Receiver<Vec<TransactionHash>>;
+pub type PreConfirmedTxSender = tokio::sync::mpsc::Sender<Vec<TransactionHash>>;
 
 // TODO(noamsp): Change TransactionReceipt to TransactionExecutionInfo and translate into the
 // receipt type that FGW uses.
 pub type ExecutedTxReceiver =
-    tokio::sync::mpsc::UnboundedReceiver<Vec<(TransactionHash, TransactionReceipt)>>;
-pub type ExecutedTxSender =
-    tokio::sync::mpsc::UnboundedSender<Vec<(TransactionHash, TransactionReceipt)>>;
+    tokio::sync::mpsc::Receiver<Vec<(TransactionHash, TransactionReceipt)>>;
+pub type ExecutedTxSender = tokio::sync::mpsc::Sender<Vec<(TransactionHash, TransactionReceipt)>>;
 
 /// Coordinates the flow of pre-confirmed transaction data during block proposal.
 /// Listens for transaction updates from the block builder via dedicated channels and utilizes a
@@ -113,6 +112,7 @@ pub trait PreConfirmedBlockWriterFactoryTrait: Send + Sync {
 }
 
 pub struct PreConfirmedBlockWriterFactory {
+    pub channel_capacity: usize,
     pub cende_client: Arc<dyn PreConfirmedCendeClientTrait>,
 }
 
@@ -124,10 +124,10 @@ impl PreConfirmedBlockWriterFactoryTrait for PreConfirmedBlockWriterFactory {
     ) -> (Box<dyn PreConfirmedBlockWriterTrait>, PreConfirmedTxSender, ExecutedTxSender) {
         // Initialize channels for communication between the pre confirmed block writer and the
         // block builder.
-        // TODO(noamsp): Use bounded channels instead of unbounded channels.
-        let (executed_tx_sender, executed_tx_receiver) = tokio::sync::mpsc::unbounded_channel();
+        let (executed_tx_sender, executed_tx_receiver) =
+            tokio::sync::mpsc::channel(self.channel_capacity);
         let (pre_confirmed_tx_sender, pre_confirmed_tx_receiver) =
-            tokio::sync::mpsc::unbounded_channel();
+            tokio::sync::mpsc::channel(self.channel_capacity);
 
         let cende_client = self.cende_client.clone();
 
