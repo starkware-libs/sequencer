@@ -33,26 +33,21 @@ pub trait PreConfirmedCendeClientTrait: Send + Sync {
     /// Notifies the Cende recorder about the start of a new proposal round.
     async fn send_start_new_round(
         &self,
-        block_number: BlockNumber,
-        proposal_round: Round,
+        start_new_round: AerospikeStartNewRound,
     ) -> PreConfirmedCendeClientResult<()>;
 
     /// Notifies the Cende recorder about transactions that are pending execution, providing their
     /// hashes.
     async fn send_pre_confirmed_txs(
         &self,
-        block_number: BlockNumber,
-        proposal_round: Round,
-        pre_confirmed_txs: Vec<TransactionHash>,
+        pre_confirmed_txs: AerospikePreConfirmedTxs,
     ) -> PreConfirmedCendeClientResult<()>;
 
     /// Notifies the Cende recorder about transactions that were executed successfully, providing
     /// their hashes and receipts.
     async fn send_executed_txs(
         &self,
-        block_number: BlockNumber,
-        proposal_round: Round,
-        executed_txs: Vec<(TransactionHash, TransactionReceipt)>,
+        executed_txs: AerospikePreConfirmedTxs,
     ) -> PreConfirmedCendeClientResult<()>;
 }
 
@@ -187,26 +182,21 @@ pub struct CendeExecutedTxs {
 impl PreConfirmedCendeClientTrait for PreConfirmedCendeClient {
     async fn send_start_new_round(
         &self,
-        _block_number: BlockNumber,
-        _proposal_round: Round,
+        _start_new_round: AerospikeStartNewRound,
     ) -> PreConfirmedCendeClientResult<()> {
         todo!()
     }
 
     async fn send_pre_confirmed_txs(
         &self,
-        _block_number: BlockNumber,
-        _proposal_round: Round,
-        _pre_confirmed_txs: Vec<TransactionHash>,
+        _pre_confirmed_txs: AerospikePreConfirmedTxs,
     ) -> PreConfirmedCendeClientResult<()> {
         todo!()
     }
 
     async fn send_executed_txs(
         &self,
-        _block_number: BlockNumber,
-        _proposal_round: Round,
-        _executed_txs: Vec<(TransactionHash, TransactionReceipt)>,
+        _executed_txs: AerospikePreConfirmedTxs,
     ) -> PreConfirmedCendeClientResult<()> {
         todo!()
     }
@@ -219,26 +209,21 @@ pub struct EmptyPreConfirmedCendeClient;
 impl PreConfirmedCendeClientTrait for EmptyPreConfirmedCendeClient {
     async fn send_start_new_round(
         &self,
-        _block_number: BlockNumber,
-        _proposal_round: Round,
+        _start_new_round: AerospikeStartNewRound,
     ) -> PreConfirmedCendeClientResult<()> {
         Ok(())
     }
 
     async fn send_pre_confirmed_txs(
         &self,
-        _block_number: BlockNumber,
-        _proposal_round: Round,
-        _pre_confirmed_txs: Vec<TransactionHash>,
+        _pre_confirmed_txs: AerospikePreConfirmedTxs,
     ) -> PreConfirmedCendeClientResult<()> {
         Ok(())
     }
 
     async fn send_executed_txs(
         &self,
-        _block_number: BlockNumber,
-        _proposal_round: Round,
-        _executed_txs: Vec<(TransactionHash, TransactionReceipt)>,
+        _executed_txs: AerospikePreConfirmedTxs,
     ) -> PreConfirmedCendeClientResult<()> {
         Ok(())
     }
