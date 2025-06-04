@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use apollo_l1_provider_types::{InvalidValidationStatus, ValidationStatus};
 use indexmap::IndexMap;
 use starknet_api::executable_transaction::L1HandlerTransaction;
@@ -9,9 +7,9 @@ use crate::soft_delete_index_map::SoftDeleteIndexMap;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct TransactionManager {
-    pub uncommitted: SoftDeleteIndexMap,
-    pub rejected: SoftDeleteIndexMap,
-    pub committed: HashSet<TransactionHash>,
+    uncommitted: SoftDeleteIndexMap,
+    rejected: SoftDeleteIndexMap,
+    committed: IndexMap<TransactionHash, TransactionPayload>,
 }
 
 impl TransactionManager {
@@ -33,7 +31,7 @@ impl TransactionManager {
     }
 
     pub fn validate_tx(&mut self, tx_hash: TransactionHash) -> ValidationStatus {
-        if self.committed.contains(&tx_hash) {
+        if self.is_committed(tx_hash) {
             return ValidationStatus::Invalid(InvalidValidationStatus::AlreadyIncludedOnL2);
         }
 
@@ -70,13 +68,20 @@ impl TransactionManager {
 
         let mut uncommitted = IndexMap::new();
         let mut rejected = IndexMap::new();
+        let mut committed: IndexMap<_, _> = committed_txs
+            .iter()
+            .copied()
+            .map(|tx_hash| (tx_hash, TransactionPayload::HashOnly))
+            .collect();
 
         // Iterate over the uncommitted transactions and check if they are committed or rejected.
         for (hash, entry) in self.uncommitted.txs.drain(..) {
             // Each rejected transaction is added to the rejected pool.
             if rejected_txs.contains(&hash) {
                 rejected.insert(hash, entry);
-            } else if !committed_txs.contains(&hash) {
+            } else if committed.contains_key(&hash) {
+                committed.get_mut(&hash).unwrap().set(entry.tx);
+            } else {
                 // If a transaction is not committed or rejected, it is added back to the
                 // uncommitted pool.
                 uncommitted.insert(hash, entry);
@@ -90,20 +95,74 @@ impl TransactionManager {
 
         // Add all committed tx hashes to the committed buffer, regardless of if they're known or
         // not, in case we haven't scraped them yet and another node did.
-        self.committed.extend(committed_txs)
+        self.committed.extend(committed)
     }
 
     /// Adds a transaction to the transaction manager, return true if the transaction was
-    /// successfully added. If the transaction is occupied or already committed, it will not be
-    /// added, and false will be returned.
+    /// successfully added. If the transaction is occupied or already had its hash stored as
+    /// committed, it will not be added, and false will be returned.
+    // Note: if only the committed hash was known, the transaction will "fill in the blank" in the
+    // committed txs storage, to account for commit-before-add tx scenario.
     pub fn add_tx(&mut self, tx: L1HandlerTransaction) -> bool {
-        if self.committed.contains(&tx.tx_hash) || self.rejected.txs.contains_key(&tx.tx_hash) {
+        if let Some(entry) = self.committed.get_mut(&tx.tx_hash) {
+            entry.set(tx);
             return false;
         }
+
+        if self.rejected.txs.contains_key(&tx.tx_hash) {
+            return false;
+        }
+
         self.uncommitted.insert(tx)
     }
 
-    pub fn committed_includes(&self, tx_hashes: &[TransactionHash]) -> bool {
-        tx_hashes.iter().all(|tx| self.committed.contains(tx))
+    pub fn is_committed(&self, tx_hash: TransactionHash) -> bool {
+        self.committed.contains_key(&tx_hash)
     }
+
+    pub(crate) fn snapshot(&self) -> TransactionManagerSnapshot {
+        TransactionManagerSnapshot {
+            uncommitted: self.uncommitted.txs.keys().copied().collect(),
+            uncommitted_staged: self.uncommitted.staged_txs.iter().copied().collect(),
+            rejected: self.rejected.txs.keys().copied().collect(),
+            rejected_staged: self.rejected.staged_txs.iter().copied().collect(),
+            committed: self.committed.keys().copied().collect(),
+        }
+    }
+
+    #[cfg(any(feature = "testing", test))]
+    pub fn create_for_testing(
+        uncommitted: SoftDeleteIndexMap,
+        rejected: SoftDeleteIndexMap,
+        committed: IndexMap<TransactionHash, TransactionPayload>,
+    ) -> Self {
+        Self { uncommitted, rejected, committed }
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub enum TransactionPayload {
+    #[default]
+    HashOnly,
+    Full(L1HandlerTransaction),
+}
+
+impl TransactionPayload {
+    pub fn set(&mut self, tx: L1HandlerTransaction) {
+        *self = tx.into();
+    }
+}
+
+impl From<L1HandlerTransaction> for TransactionPayload {
+    fn from(tx: L1HandlerTransaction) -> Self {
+        TransactionPayload::Full(tx)
+    }
+}
+
+pub(crate) struct TransactionManagerSnapshot {
+    pub uncommitted: Vec<TransactionHash>,
+    pub uncommitted_staged: Vec<TransactionHash>,
+    pub rejected: Vec<TransactionHash>,
+    pub rejected_staged: Vec<TransactionHash>,
+    pub committed: Vec<TransactionHash>,
 }

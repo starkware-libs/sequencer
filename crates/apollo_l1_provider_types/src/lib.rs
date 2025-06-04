@@ -1,6 +1,5 @@
 pub mod errors;
 
-use std::collections::HashSet;
 use std::fmt::Display;
 use std::sync::Arc;
 
@@ -9,6 +8,7 @@ use apollo_infra::component_definitions::ComponentClient;
 use apollo_infra::impl_debug_for_infra_requests_and_responses;
 use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
+use indexmap::IndexSet;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use papyrus_base_layer::{EventData, L1Event};
@@ -47,8 +47,8 @@ pub enum InvalidValidationStatus {
 pub enum L1ProviderRequest {
     AddEvents(Vec<Event>),
     CommitBlock {
-        l1_handler_tx_hashes: Vec<TransactionHash>,
-        rejected_tx_hashes: HashSet<TransactionHash>,
+        l1_handler_tx_hashes: IndexSet<TransactionHash>,
+        rejected_tx_hashes: IndexSet<TransactionHash>,
         height: BlockNumber,
     },
     GetTransactions {
@@ -105,8 +105,8 @@ pub trait L1ProviderClient: Send + Sync {
 
     async fn commit_block(
         &self,
-        l1_handler_consumed_tx_hashes: Vec<TransactionHash>,
-        l1_handler_rejected_tx_hashes: HashSet<TransactionHash>,
+        l1_handler_consumed_tx_hashes: IndexSet<TransactionHash>,
+        l1_handler_rejected_tx_hashes: IndexSet<TransactionHash>,
         height: BlockNumber,
     ) -> L1ProviderClientResult<()>;
 
@@ -169,8 +169,8 @@ where
 
     async fn commit_block(
         &self,
-        l1_handler_tx_hashes: Vec<TransactionHash>,
-        rejected_tx_hashes: HashSet<TransactionHash>,
+        l1_handler_tx_hashes: IndexSet<TransactionHash>,
+        rejected_tx_hashes: IndexSet<TransactionHash>,
         height: BlockNumber,
     ) -> L1ProviderClientResult<()> {
         let request =

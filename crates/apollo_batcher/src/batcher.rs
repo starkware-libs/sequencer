@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use apollo_batcher_types::batcher_types::{
@@ -568,7 +568,7 @@ impl Batcher {
         state_diff: ThinStateDiff,
         address_to_nonce: HashMap<ContractAddress, Nonce>,
         consumed_l1_handler_tx_hashes: IndexSet<TransactionHash>,
-        rejected_tx_hashes: HashSet<TransactionHash>,
+        rejected_tx_hashes: IndexSet<TransactionHash>,
     ) -> BatcherResult<()> {
         info!(
             "Committing block at height {} and notifying mempool & L1 event provider of the block.",
@@ -591,11 +591,7 @@ impl Batcher {
 
         let l1_provider_result = self
             .l1_provider_client
-            .commit_block(
-                consumed_l1_handler_tx_hashes.iter().copied().collect(),
-                rejected_l1_handler_tx_hashes,
-                height,
-            )
+            .commit_block(consumed_l1_handler_tx_hashes, rejected_l1_handler_tx_hashes, height)
             .await;
 
         // Return error if the commit to the L1 provider failed.

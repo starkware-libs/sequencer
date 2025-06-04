@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -7,6 +6,7 @@ use apollo_batcher_types::batcher_types::GetHeightResponse;
 use apollo_batcher_types::communication::SharedBatcherClient;
 use apollo_l1_provider_types::SharedL1ProviderClient;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
+use indexmap::IndexSet;
 use starknet_api::block::BlockNumber;
 use starknet_api::transaction::TransactionHash;
 use tokio::sync::OnceCell;
@@ -71,7 +71,7 @@ impl Bootstrapper {
 
     pub fn add_commit_block_to_backlog(
         &mut self,
-        committed_txs: &[TransactionHash],
+        committed_txs: IndexSet<TransactionHash>,
         height: BlockNumber,
     ) {
         assert!(
@@ -82,7 +82,7 @@ impl Bootstrapper {
         );
 
         self.commit_block_backlog
-            .push(CommitBlockBacklog { height, committed_txs: committed_txs.to_vec() });
+            .push(CommitBlockBacklog { height, committed_txs: committed_txs.clone() });
     }
 
     /// Spawns async task that produces and sends commit block messages to the provider, according
@@ -190,8 +190,15 @@ async fn l2_sync_task(
 
         match block {
             Ok(Some(block)) => {
+                // No rejected txs in sync blocks.
+                let l1_handler_rejected_tx_hashes = Default::default();
+
                 l1_provider_client
-                    .commit_block(block.l1_transaction_hashes, HashSet::new(), current_height)
+                    .commit_block(
+                        block.l1_transaction_hashes.into_iter().collect(),
+                        l1_handler_rejected_tx_hashes,
+                        current_height,
+                    )
                     .await
                     .unwrap();
                 current_height = current_height.unchecked_next();
@@ -204,7 +211,7 @@ async fn l2_sync_task(
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct CommitBlockBacklog {
     pub height: BlockNumber,
-    pub committed_txs: Vec<TransactionHash>,
+    pub committed_txs: IndexSet<TransactionHash>,
 }
 
 #[derive(Clone, Debug, Default)]

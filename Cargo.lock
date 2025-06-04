@@ -1397,6 +1397,13 @@ dependencies = [
 [[package]]
 name = "apollo_l1_endpoint_monitor"
 version = "0.15.0-rc.2"
+dependencies = [
+ "alloy",
+ "serde",
+ "thiserror 1.0.69",
+ "tracing",
+ "url",
+]
 
 [[package]]
 name = "apollo_l1_gas_price"
@@ -1479,6 +1486,7 @@ dependencies = [
  "apollo_infra",
  "apollo_proc_macros",
  "async-trait",
+ "indexmap 2.9.0",
  "mockall",
  "papyrus_base_layer",
  "serde",
@@ -1569,6 +1577,7 @@ dependencies = [
  "apollo_network_types",
  "apollo_proc_macros",
  "async-trait",
+ "indexmap 2.9.0",
  "mockall",
  "serde",
  "starknet_api",

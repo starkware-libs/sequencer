@@ -1,5 +1,4 @@
 use std::cmp::Ordering::{Equal, Greater, Less};
-use std::collections::HashSet;
 use std::sync::Arc;
 
 use apollo_batcher_types::communication::SharedBatcherClient;
@@ -14,6 +13,7 @@ use apollo_l1_provider_types::{
     ValidationStatus,
 };
 use apollo_state_sync_types::communication::SharedStateSyncClient;
+use indexmap::IndexSet;
 use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -119,8 +119,8 @@ impl L1Provider {
     #[instrument(skip(self), err)]
     pub fn commit_block(
         &mut self,
-        committed_txs: &[TransactionHash],
-        rejected_txs: &HashSet<TransactionHash>,
+        committed_txs: IndexSet<TransactionHash>,
+        rejected_txs: IndexSet<TransactionHash>,
         height: BlockNumber,
     ) -> L1ProviderResult<()> {
         if self.state.is_bootstrapping() {
@@ -138,14 +138,20 @@ impl L1Provider {
     /// Try to apply commit_block backlog, and if all caught up, drop bootstrapping state.
     fn bootstrap(
         &mut self,
-        committed_txs: &[TransactionHash],
+        committed_txs: IndexSet<TransactionHash>,
         new_height: BlockNumber,
     ) -> L1ProviderResult<()> {
         let current_height = self.current_height;
         match new_height.cmp(&current_height) {
             // This is likely a bug in the batcher/sync, it should never be _behind_ the provider.
             Less => {
-                if self.tx_manager.committed_includes(committed_txs) {
+                let diff_from_already_committed: Vec<_> = committed_txs
+                    .iter()
+                    .copied()
+                    .filter(|&tx_hash| !self.tx_manager.is_committed(tx_hash))
+                    .collect();
+
+                if diff_from_already_committed.is_empty() {
                     error!(
                         "Duplicate commit block: commit block for {new_height:?} already \
                          received, and all committed transaction hashes already known to be \
@@ -155,12 +161,10 @@ impl L1Provider {
                 } else {
                     // This is either a configuration error or a bug in the
                     // batcher/sync/bootstrapper.
-                    let committed_txs_diff: HashSet<_> = committed_txs.iter().copied().collect();
-                    let committed_txs_diff =
-                        committed_txs_diff.difference(&self.tx_manager.committed);
                     error!(
                         "Duplicate commit block: commit block for {new_height:?} already \
-                         received, with DIFFERENT transaction_hashes: {committed_txs_diff:?}"
+                         received, with DIFFERENT transaction_hashes: \
+                         {diff_from_already_committed:?}"
                     );
                     Err(L1ProviderError::UnexpectedHeight {
                         expected_height: current_height,
@@ -168,7 +172,7 @@ impl L1Provider {
                     })?
                 }
             }
-            Equal => self.apply_commit_block(committed_txs, &HashSet::new()),
+            Equal => self.apply_commit_block(committed_txs, Default::default()),
             // We're still syncing, backlog it, it'll get applied later.
             Greater => {
                 self.state
@@ -201,7 +205,7 @@ impl L1Provider {
                 backlog.iter().map(|commit_block| commit_block.height).collect::<Vec<_>>()
             );
             for commit_block in backlog {
-                self.apply_commit_block(&commit_block.committed_txs, &HashSet::new());
+                self.apply_commit_block(commit_block.committed_txs, Default::default());
             }
 
             // Drops bootstrapper and all of its assets.
@@ -250,8 +254,8 @@ impl L1Provider {
 
     fn apply_commit_block(
         &mut self,
-        consumed_txs: &[TransactionHash],
-        rejected_txs: &HashSet<TransactionHash>,
+        consumed_txs: IndexSet<TransactionHash>,
+        rejected_txs: IndexSet<TransactionHash>,
     ) {
         let (rejected_and_consumed, committed_txs): (Vec<_>, Vec<_>) =
             consumed_txs.iter().copied().partition(|tx| rejected_txs.contains(tx));
@@ -261,24 +265,13 @@ impl L1Provider {
     }
 
     pub fn get_l1_provider_snapshot(&self) -> L1ProviderResult<L1ProviderSnapshot> {
+        let txs_snapshot = self.tx_manager.snapshot();
         Ok(L1ProviderSnapshot {
-            uncommitted_transactions: self.tx_manager.uncommitted.txs.keys().copied().collect(),
-            uncommitted_staged_transactions: self
-                .tx_manager
-                .uncommitted
-                .staged_txs
-                .iter()
-                .cloned()
-                .collect(),
-            rejected_transactions: self.tx_manager.rejected.txs.keys().copied().collect(),
-            rejected_staged_transactions: self
-                .tx_manager
-                .rejected
-                .staged_txs
-                .iter()
-                .cloned()
-                .collect(),
-            committed_transactions: self.tx_manager.committed.iter().cloned().collect(),
+            uncommitted_transactions: txs_snapshot.uncommitted,
+            uncommitted_staged_transactions: txs_snapshot.uncommitted_staged,
+            rejected_transactions: txs_snapshot.rejected,
+            rejected_staged_transactions: txs_snapshot.rejected_staged,
+            committed_transactions: txs_snapshot.committed,
             l1_provider_state: self.state.as_str().to_string(),
             current_height: self.current_height,
         })

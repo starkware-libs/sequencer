@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -11,6 +11,7 @@ use apollo_l1_provider_types::{Event, L1ProviderClient, MockL1ProviderClient};
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use assert_matches::assert_matches;
+use indexmap::IndexSet;
 use itertools::Itertools;
 use papyrus_base_layer::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
@@ -29,10 +30,15 @@ use starknet_api::core::{EntryPointSelector, Nonce};
 use starknet_api::executable_transaction::L1HandlerTransaction as ExecutableL1HandlerTransaction;
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::fields::{Calldata, Fee};
-use starknet_api::transaction::{L1HandlerTransaction, TransactionHasher, TransactionVersion};
+use starknet_api::transaction::{
+    L1HandlerTransaction,
+    TransactionHash,
+    TransactionHasher,
+    TransactionVersion,
+};
 
 use crate::bootstrapper::Bootstrapper;
-use crate::l1_provider::L1ProviderBuilder;
+use crate::l1_provider::{L1Provider, L1ProviderBuilder};
 use crate::l1_scraper::{L1Scraper, L1ScraperConfig, L1ScraperError};
 use crate::test_utils::FakeL1ProviderClient;
 use crate::{event_identifiers_to_track, L1ProviderConfig};
@@ -43,6 +49,27 @@ pub fn in_ci() -> bool {
 
 const fn height_add(block_number: BlockNumber, k: u64) -> BlockNumber {
     BlockNumber(block_number.0 + k)
+}
+
+// Can't mock clients in runtime (mockall not applicable), hence mocking sender and receiver.
+async fn send_commit_block(
+    l1_provider_client: &FakeL1ProviderClient,
+    committed: &[TransactionHash],
+    height: BlockNumber,
+) {
+    l1_provider_client
+        .commit_block((committed).iter().copied().collect(), [].into(), height)
+        .await
+        .unwrap();
+}
+
+// Can't mock clients in runtime (mockall not applicable), hence mocking sender and receiver.
+fn receive_commit_block(
+    l1_provider: &mut L1Provider,
+    committed: &IndexSet<TransactionHash>,
+    height: BlockNumber,
+) {
+    l1_provider.commit_block(committed.iter().copied().collect(), [].into(), height).unwrap();
 }
 
 // TODO(Gilad): Replace EthereumBaseLayerContract with a mock that has a provider initialized with
@@ -208,15 +235,10 @@ async fn bootstrap_e2e() {
 
     // **Commit** 2 blocks past catchup height, should be received after the previous sync.
     let no_txs_committed = vec![]; // Not testing txs in this test.
-    l1_provider_client
-        .commit_block(no_txs_committed.clone(), HashSet::new(), height_add(CATCH_UP_HEIGHT, 1))
-        .await
-        .unwrap();
+
+    send_commit_block(&l1_provider_client, &no_txs_committed, height_add(CATCH_UP_HEIGHT, 1)).await;
     tokio::time::sleep(config.startup_sync_sleep_retry_interval_seconds).await;
-    l1_provider_client
-        .commit_block(no_txs_committed, HashSet::new(), height_add(CATCH_UP_HEIGHT, 2))
-        .await
-        .unwrap();
+    send_commit_block(&l1_provider_client, &no_txs_committed, height_add(CATCH_UP_HEIGHT, 2)).await;
     tokio::time::sleep(config.startup_sync_sleep_retry_interval_seconds).await;
 
     // Feed sync task the remaining blocks, will be received after the commits above.
@@ -247,39 +269,29 @@ async fn bootstrap_e2e() {
 
     // Apply height 2.
     let next_block = commit_blocks.next().unwrap();
-    l1_provider
-        .commit_block(&next_block.committed_txs, &HashSet::new(), next_block.height)
-        .unwrap();
+    receive_commit_block(&mut l1_provider, &next_block.committed_txs, next_block.height);
     assert_eq!(l1_provider.current_height, BlockNumber(3));
 
     // Backlog height 5.
     let next_block = commit_blocks.next().unwrap();
-    l1_provider
-        .commit_block(&next_block.committed_txs, &HashSet::new(), next_block.height)
-        .unwrap();
+    receive_commit_block(&mut l1_provider, &next_block.committed_txs, next_block.height);
     // Assert that this didn't affect height; this commit block is too high so is backlogged.
     assert_eq!(l1_provider.current_height, BlockNumber(3));
 
     // Backlog height 6.
     let next_block = commit_blocks.next().unwrap();
-    l1_provider
-        .commit_block(&next_block.committed_txs, &HashSet::new(), next_block.height)
-        .unwrap();
+    receive_commit_block(&mut l1_provider, &next_block.committed_txs, next_block.height);
     // Assert backlogged, like height 5.
     assert_eq!(l1_provider.current_height, BlockNumber(3));
 
     // Apply height 3
     let next_block = commit_blocks.next().unwrap();
-    l1_provider
-        .commit_block(&next_block.committed_txs, &HashSet::new(), next_block.height)
-        .unwrap();
+    receive_commit_block(&mut l1_provider, &next_block.committed_txs, next_block.height);
     assert_eq!(l1_provider.current_height, BlockNumber(4));
 
     // Apply height 4 ==> this triggers committing the backlogged heights 5 and 6.
     let next_block = commit_blocks.next().unwrap();
-    l1_provider
-        .commit_block(&next_block.committed_txs, &HashSet::new(), next_block.height)
-        .unwrap();
+    receive_commit_block(&mut l1_provider, &next_block.committed_txs, next_block.height);
     assert_eq!(l1_provider.current_height, BlockNumber(7));
 
     // Assert that the bootstrapper has been dropped.
@@ -329,14 +341,8 @@ async fn bootstrap_delayed_batcher_and_sync_state_with_trivial_catch_up() {
     // is a trivial catchup scenario (nothing to catch up).
     // This checks that the trivial catch_up_height doesn't mess up this flow.
     let no_txs_committed = []; // Not testing txs in this test.
-    l1_provider_client
-        .commit_block(no_txs_committed.to_vec(), HashSet::new(), STARTUP_HEIGHT)
-        .await
-        .unwrap();
-    l1_provider_client
-        .commit_block(no_txs_committed.to_vec(), HashSet::new(), height_add(STARTUP_HEIGHT, 1))
-        .await
-        .unwrap();
+    send_commit_block(&l1_provider_client, &no_txs_committed, STARTUP_HEIGHT).await;
+    send_commit_block(&l1_provider_client, &no_txs_committed, height_add(STARTUP_HEIGHT, 1)).await;
 
     // Forward all messages buffered in the client to the provider.
     l1_provider_client.flush_messages(&mut l1_provider).await;
@@ -356,7 +362,7 @@ async fn bootstrap_delayed_batcher_and_sync_state_with_trivial_catch_up() {
     assert_eq!(l1_provider.current_height, start_height_plus_2);
     // Finally, commit a new block to trigger the bootstrapping check, should switch to steady
     // state.
-    l1_provider.commit_block(&no_txs_committed, &HashSet::new(), start_height_plus_2).unwrap();
+    receive_commit_block(&mut l1_provider, &no_txs_committed.into(), start_height_plus_2);
     assert_eq!(l1_provider.current_height, height_add(start_height_plus_2, 1));
     // The new commit block triggered the catch-up check, which ended the bootstrapping phase.
     assert!(!l1_provider.state.is_bootstrapping());
@@ -412,15 +418,10 @@ async fn bootstrap_delayed_sync_state_with_sync_behind_batcher() {
     // Sleeps are sprinkled in to give the async task time to get the batcher height and have a
     // couple shots at attempting to get the sync blocks (see DEBUG log).
     let no_txs_committed = []; // Not testing txs in this test.
-    l1_provider_client
-        .commit_block(no_txs_committed.to_vec(), HashSet::new(), batcher_height)
-        .await
-        .unwrap();
+    send_commit_block(&l1_provider_client, &no_txs_committed, batcher_height).await;
     tokio::time::sleep(config.startup_sync_sleep_retry_interval_seconds).await;
-    l1_provider_client
-        .commit_block(no_txs_committed.to_vec(), HashSet::new(), batcher_height.unchecked_next())
-        .await
-        .unwrap();
+    send_commit_block(&l1_provider_client, &no_txs_committed, batcher_height.unchecked_next())
+        .await;
 
     // Forward all messages buffered in the client to the provider.
     l1_provider_client.flush_messages(&mut l1_provider).await;
@@ -481,9 +482,7 @@ async fn test_stuck_sync() {
     l1_provider.initialize(Default::default()).await.unwrap();
 
     for i in 0..=(Bootstrapper::MAX_HEALTH_CHECK_FAILURES + 1) {
-        l1_provider
-            .commit_block(&[], &HashSet::new(), height_add(STARTUP_HEIGHT, i.into()))
-            .unwrap();
+        receive_commit_block(&mut l1_provider, &[].into(), height_add(STARTUP_HEIGHT, i.into()));
         tokio::time::sleep(config.startup_sync_sleep_retry_interval_seconds).await;
     }
 }
