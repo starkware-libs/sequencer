@@ -94,15 +94,31 @@ impl<T: Clone> std::ops::Deref for RingBuffer<T> {
 pub struct L1GasPriceProvider {
     config: L1GasPriceProviderConfig,
     price_samples_by_block: RingBuffer<GasPriceData>,
+    // If received data before initialization, it means the scraper has restarted.
+    was_initialized: bool,
 }
 
 impl L1GasPriceProvider {
     pub fn new(config: L1GasPriceProviderConfig) -> Self {
         let storage_limit = config.storage_limit;
-        Self { config, price_samples_by_block: RingBuffer::new(storage_limit) }
+        Self {
+            config,
+            price_samples_by_block: RingBuffer::new(storage_limit),
+            was_initialized: false,
+        }
+    }
+
+    pub fn initialize(&mut self) -> L1GasPriceProviderResult<()> {
+        info!("Initializing L1GasPriceProvider with config: {:?}", self.config);
+        self.price_samples_by_block = RingBuffer::new(self.config.storage_limit);
+        self.was_initialized = true;
+        Ok(())
     }
 
     pub fn add_price_info(&mut self, new_data: GasPriceData) -> L1GasPriceProviderResult<()> {
+        if !self.was_initialized {
+            return Err(L1GasPriceProviderError::NotInitializedError);
+        }
         if let Some(data) = self.price_samples_by_block.back() {
             if new_data.block_number != data.block_number + 1 {
                 return Err(L1GasPriceProviderError::UnexpectedBlockNumberError {

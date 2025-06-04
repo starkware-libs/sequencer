@@ -10,6 +10,8 @@ pub enum L1GasPriceProviderError {
     MissingDataError { timestamp: u64, lag: u64 },
     #[error("Insufficient block price history: expected at least {expected}, found only {found}")]
     InsufficientHistoryError { expected: usize, found: usize },
+    #[error("Price Provider is not initialized")]
+    NotInitializedError,
 }
 
 #[derive(Clone, Debug, Error)]

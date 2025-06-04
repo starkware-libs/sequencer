@@ -58,6 +58,7 @@ impl<'a> Sum<&'a Self> for PriceInfo {
 
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum L1GasPriceRequest {
+    Initialize,
     GetGasPrice(BlockTimestamp),
     AddGasPrice(GasPriceData),
 }
@@ -65,6 +66,7 @@ impl_debug_for_infra_requests_and_responses!(L1GasPriceRequest);
 
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum L1GasPriceResponse {
+    Initialize(L1GasPriceProviderResult<()>),
     GetGasPrice(L1GasPriceProviderResult<PriceInfo>),
     AddGasPrice(L1GasPriceProviderResult<()>),
 }
@@ -75,6 +77,8 @@ impl_debug_for_infra_requests_and_responses!(L1GasPriceResponse);
 #[cfg_attr(any(feature = "testing", test), automock)]
 #[async_trait]
 pub trait L1GasPriceProviderClient: Send + Sync {
+    async fn initialize(&self) -> L1GasPriceProviderClientResult<()>;
+
     async fn add_price_info(&self, new_data: GasPriceData) -> L1GasPriceProviderClientResult<()>;
 
     async fn get_price_info(
@@ -95,6 +99,17 @@ impl<ComponentClientType> L1GasPriceProviderClient for ComponentClientType
 where
     ComponentClientType: Send + Sync + ComponentClient<L1GasPriceRequest, L1GasPriceResponse>,
 {
+    #[instrument(skip(self))]
+    async fn initialize(&self) -> L1GasPriceProviderClientResult<()> {
+        let request = L1GasPriceRequest::Initialize;
+        handle_all_response_variants!(
+            L1GasPriceResponse,
+            Initialize,
+            L1GasPriceClientError,
+            L1GasPriceProviderError,
+            Direct
+        )
+    }
     #[instrument(skip(self))]
     async fn add_price_info(&self, new_data: GasPriceData) -> L1GasPriceProviderClientResult<()> {
         let request = L1GasPriceRequest::AddGasPrice(new_data);
