@@ -17,6 +17,7 @@ pub struct BatcherConfig {
     pub outstream_content_buffer_size: usize,
     pub input_stream_content_buffer_size: usize,
     pub block_builder_config: BlockBuilderConfig,
+    pub pre_confirmed_block_writer_channel_capacity: usize,
     pub contract_class_manager_config: ContractClassManagerConfig,
     pub max_l1_handler_txs_per_block_proposal: usize,
     pub pre_confirmed_cende_config: PreConfirmedCendeConfig,
@@ -43,6 +44,13 @@ impl SerializeConfig for BatcherConfig {
                 "max_l1_handler_txs_per_block_proposal",
                 &self.max_l1_handler_txs_per_block_proposal,
                 "The maximum number of L1 handler transactions to include in a block proposal.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "pre_confirmed_block_writer_channel_capacity",
+                &self.pre_confirmed_block_writer_channel_capacity,
+                "Capacity of the channels for communication between the pre confirmed block \
+                 writer and the block builder.",
                 ParamPrivacyInput::Public,
             ),
         ]);
@@ -79,6 +87,7 @@ impl Default for BatcherConfig {
             outstream_content_buffer_size: 100,
             input_stream_content_buffer_size: 400,
             block_builder_config: BlockBuilderConfig::default(),
+            pre_confirmed_block_writer_channel_capacity: 1000,
             contract_class_manager_config: ContractClassManagerConfig::default(),
             max_l1_handler_txs_per_block_proposal: 3,
             pre_confirmed_cende_config: PreConfirmedCendeConfig::default(),

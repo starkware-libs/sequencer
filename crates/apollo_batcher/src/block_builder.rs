@@ -266,7 +266,7 @@ impl BlockBuilder {
                      transactions to the PreConfirmedBlockWriter.",
                 );
 
-                match pre_confirmed_tx_sender.send(tx_hashes) {
+                match pre_confirmed_tx_sender.try_send(tx_hashes) {
                     Ok(_) => {
                         info!(
                             "Successfully sent a pre confirmed transaction chunk with {num_txs} \
@@ -435,7 +435,7 @@ async fn collect_execution_results_and_stream_txs(
              PreConfirmedBlockWriter."
         );
 
-        match executed_tx_sender.send(executed_txs) {
+        match executed_tx_sender.try_send(executed_txs) {
             Ok(_) => {
                 info!(
                     "Successfully sent receipts for {num_executed_txs} executed transactions to \
