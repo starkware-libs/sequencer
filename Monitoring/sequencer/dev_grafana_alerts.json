@@ -4,12 +4,12 @@
       "name": "consensus_block_number_stuck",
       "title": "Consensus block number stuck",
       "ruleGroup": "consensus",
-      "expr": "changes(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10s])",
+      "expr": "changes(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[30s])",
       "conditions": [
         {
           "evaluator": {
             "params": [
-              1.0
+              2.0
             ],
             "type": "lt"
           },
@@ -23,7 +23,7 @@
           "type": "query"
         }
       ],
-      "for": "10s",
+      "for": "1s",
       "intervalSec": 10
     },
     {
