@@ -38,6 +38,7 @@ use blockifier::execution::deprecated_syscalls::{
     StorageWriteRequest,
     StorageWriteResponse,
 };
+use blockifier::execution::entry_point::CallEntryPoint;
 use blockifier::state::state_api::StateReader;
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::vm_core::VirtualMachine;
@@ -79,6 +80,22 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
         };
 
         Ok(CallContractResponse { segment: write_to_temp_segment(ret_data, vm)? })
+    }
+
+    #[allow(clippy::result_large_err)]
+    fn get_call_entry_point(&mut self) -> DeprecatedSyscallResult<&CallEntryPoint> {
+        Ok(&self
+            .get_mut_current_execution_helper()
+            .expect("Execution helper must be set when executing syscall.")
+            .tx_execution_iter
+            .tx_execution_info_ref
+            .as_mut()
+            .expect("Tx execution info must be set when executing syscall.")
+            .call_info_tracker
+            .as_mut()
+            .expect("Call info tracker must be set when executing syscall.")
+            .call_info
+            .call)
     }
 }
 
@@ -183,20 +200,9 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<GetCallerAddressResponse> {
-        // TODO(Nimrod): Don't unwrap here, use the error handling mechanism.
-        let execution_helper = syscall_handler.get_mut_current_execution_helper().unwrap();
-        let caller_address = execution_helper
-            .tx_execution_iter
-            .tx_execution_info_ref
-            .as_ref()
-            .unwrap()
-            .call_info_tracker
-            .as_ref()
-            .unwrap()
-            .call_info
-            .call
-            .caller_address;
-        Ok(GetCallerAddressResponse { address: caller_address })
+        Ok(GetCallerAddressResponse {
+            address: syscall_handler.get_call_entry_point()?.caller_address,
+        })
     }
 
     #[allow(clippy::result_large_err)]
