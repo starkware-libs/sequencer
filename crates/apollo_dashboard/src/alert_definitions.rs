@@ -7,6 +7,7 @@ use apollo_consensus::metrics::{
     CONSENSUS_ROUND,
 };
 use apollo_consensus_manager::metrics::CONSENSUS_VOTES_NUM_SENT_MESSAGES;
+use apollo_consensus_orchestrator::metrics::CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY;
 use apollo_gateway::metrics::{GATEWAY_ADD_TX_LATENCY, GATEWAY_TRANSACTIONS_RECEIVED};
 use apollo_http_server::metrics::ADDED_TRANSACTIONS_TOTAL;
 use apollo_mempool::metrics::{
@@ -116,6 +117,25 @@ const CONSENSUS_INBOUND_STREAM_EVICTED_ALERT: Alert = Alert {
     conditions: &[AlertCondition {
         comparison_op: AlertComparisonOp::GreaterThan,
         comparison_value: 5.0 / 3600.0, // 25 per hour
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 20,
+    severity: AlertSeverity::WorkingHours,
+};
+
+const CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY_TOO_HIGH: Alert = Alert {
+    name: "cende_write_prev_height_blob_latency_too_high",
+    title: "Cende write prev height blob latency too high",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!(
+        "avg_over_time({}[20m])",
+        CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_name_with_filter()
+    ),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::GreaterThan,
+        // This is 50% of the proposal timeout.
+        comparison_value: 1.5,
         logical_op: AlertLogicalOp::And,
     }],
     pending_duration: "1m",
@@ -247,6 +267,7 @@ pub const SEQUENCER_ALERTS: Alerts = Alerts::new(&[
     CONSENSUS_VOTES_NUM_SENT_MESSAGES_ALERT,
     CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS_STUCK,
     CONSENSUS_INBOUND_STREAM_EVICTED_ALERT,
+    CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY_TOO_HIGH,
     GATEWAY_ADD_TX_RATE_DROP,
     GATEWAY_ADD_TX_LATENCY_INCREASE,
     MEMPOOL_ADD_TX_RATE_DROP,
