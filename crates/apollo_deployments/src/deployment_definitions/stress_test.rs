@@ -13,6 +13,7 @@ use crate::deployment::{
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
 use crate::service::{DeploymentName, ExternalSecret, IngressParams};
 
+const STRESS_TEST_NODE_IDS: [usize; 4] = [0, 1, 2, 3];
 const STRESS_TEST_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str = "apollo-stresstest-dev.sw-dev.io";
 const STRESS_TEST_INGRESS_DOMAIN: &str = "sw-dev.io";
 const FIRST_NODE_NAMESPACE: &str = "apollo-stresstest-dev-0";
@@ -20,12 +21,9 @@ const INSTANCE_NAME_FORMAT: &str = "integration_hybrid_node_{}";
 const SECRET_NAME_FORMAT: &str = "apollo-stresstest-dev-{}";
 
 pub(crate) fn stress_test_hybrid_deployments() -> Vec<Deployment> {
-    vec![
-        stress_test_hybrid_deployment_node(0, DeploymentType::Bootstrap),
-        stress_test_hybrid_deployment_node(1, DeploymentType::Bootstrap),
-        stress_test_hybrid_deployment_node(2, DeploymentType::Bootstrap),
-        stress_test_hybrid_deployment_node(3, DeploymentType::Bootstrap),
-    ]
+    STRESS_TEST_NODE_IDS
+        .map(|i| stress_test_hybrid_deployment_node(i, DeploymentType::Bootstrap))
+        .to_vec()
 }
 
 fn stress_test_deployment_config_override() -> DeploymentConfigOverride {
