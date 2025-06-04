@@ -61,7 +61,7 @@ pub enum CallRequest {
     LibraryCallL1Handler(LibraryCallRequest),
 }
 
-impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
+impl<S: StateReader> SnosHintProcessor<'_, S> {
     #[allow(clippy::result_large_err)]
     fn _call_contract(
         request: CallRequest,
