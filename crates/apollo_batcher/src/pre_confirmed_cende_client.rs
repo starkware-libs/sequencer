@@ -33,28 +33,28 @@ pub trait PreConfirmedCendeClientTrait: Send + Sync {
     /// Notifies the Cende recorder about the start of a new proposal round.
     async fn send_start_new_round(
         &self,
-        start_new_round: AerospikeStartNewRound,
+        start_new_round: CendeStartNewRound,
     ) -> PreConfirmedCendeClientResult<()>;
 
     /// Notifies the Cende recorder about transactions that are pending execution, providing their
     /// hashes.
     async fn write_pre_confirmed_txs(
         &self,
-        pre_confirmed_txs: AerospikePreConfirmedTxs,
+        pre_confirmed_txs: CendePreConfirmedTxs,
     ) -> PreConfirmedCendeClientResult<()>;
 
     /// Notifies the Cende recorder about transactions that were executed successfully, providing
     /// their hashes and receipts.
     async fn write_executed_txs(
         &self,
-        executed_txs: AerospikePreConfirmedTxs,
+        executed_txs: CendeExecutedTxs,
     ) -> PreConfirmedCendeClientResult<()>;
 }
 
 pub struct PreConfirmedCendeClient {
     start_new_round_url: Url,
     write_pre_confirmed_txs_url: Url,
-    _write_executed_txs_url: Url,
+    write_executed_txs_url: Url,
     client: Client,
 }
 
@@ -76,7 +76,7 @@ impl PreConfirmedCendeClient {
                 recorder_url.clone(),
                 RECORDER_WRITE_PRE_CONFIRMED_TXS_PATH,
             ),
-            _write_executed_txs_url: Self::construct_endpoint_url(
+            write_executed_txs_url: Self::construct_endpoint_url(
                 recorder_url,
                 RECORDER_WRITE_EXECUTED_TXS_PATH,
             ),
@@ -92,13 +92,13 @@ impl PreConfirmedCendeClient {
         &self,
         request_builder: RequestBuilder,
         block_number: BlockNumber,
-        proposal_round: Round,
+        round: Round,
         request_name: &'static str,
         additional_log_info: &str,
     ) -> PreConfirmedCendeClientResult<()> {
         info!(
             "Sending {request_name} request to Cende recorder. block_number: {block_number}, \
-             round: {proposal_round}{additional_log_info}",
+             round: {round}{additional_log_info}",
         );
 
         let response = request_builder.send().await?;
@@ -107,13 +107,13 @@ impl PreConfirmedCendeClient {
         if response_status.is_success() {
             info!(
                 "{request_name} request succeeded. block_number: {block_number}, round: \
-                 {proposal_round}{additional_log_info}"
+                 {round}{additional_log_info}"
             );
             Ok(())
         } else {
             let error_msg = format!(
                 "{request_name} request failed. block_number: {block_number}, round: \
-                 {proposal_round}{additional_log_info}, status: {response_status}"
+                 {round}{additional_log_info}, status: {response_status}"
             );
             warn!("{error_msg}");
             Err(PreConfirmedCendeClientError::CendeRecorderError(error_msg))
@@ -180,7 +180,7 @@ pub struct CendeExecutedTxs {
 impl PreConfirmedCendeClientTrait for PreConfirmedCendeClient {
     async fn send_start_new_round(
         &self,
-        start_new_round: AerospikeStartNewRound,
+        start_new_round: CendeStartNewRound,
     ) -> PreConfirmedCendeClientResult<()> {
         let request_builder =
             self.client.post(self.start_new_round_url.clone()).json(&start_new_round);
@@ -188,7 +188,7 @@ impl PreConfirmedCendeClientTrait for PreConfirmedCendeClient {
         self.send_request(
             request_builder,
             start_new_round.block_number,
-            start_new_round.proposal_round,
+            start_new_round.round,
             "start_new_round",
             "",
         )
@@ -197,7 +197,7 @@ impl PreConfirmedCendeClientTrait for PreConfirmedCendeClient {
 
     async fn write_pre_confirmed_txs(
         &self,
-        pre_confirmed_txs: AerospikePreConfirmedTxs,
+        pre_confirmed_txs: CendePreConfirmedTxs,
     ) -> PreConfirmedCendeClientResult<()> {
         let request_builder =
             self.client.post(self.write_pre_confirmed_txs_url.clone()).json(&pre_confirmed_txs);
@@ -205,18 +205,28 @@ impl PreConfirmedCendeClientTrait for PreConfirmedCendeClient {
         self.send_request(
             request_builder,
             pre_confirmed_txs.block_number,
-            pre_confirmed_txs.proposal_round,
+            pre_confirmed_txs.round,
             "write_pre_confirmed_txs",
-            &format!(", num_txs: {}", pre_confirmed_txs.transactions.len()),
+            &format!(", num_txs: {}", pre_confirmed_txs.pre_confirmed_txs.len()),
         )
         .await
     }
 
     async fn write_executed_txs(
         &self,
-        _executed_txs: AerospikePreConfirmedTxs,
+        executed_txs: CendeExecutedTxs,
     ) -> PreConfirmedCendeClientResult<()> {
-        todo!()
+        let request_builder =
+            self.client.post(self.write_executed_txs_url.clone()).json(&executed_txs);
+
+        self.send_request(
+            request_builder,
+            executed_txs.block_number,
+            executed_txs.round,
+            "write_executed_txs",
+            &format!(", num_txs: {}", executed_txs.executed_txs.len()),
+        )
+        .await
     }
 }
 
@@ -227,21 +237,21 @@ pub struct EmptyPreConfirmedCendeClient;
 impl PreConfirmedCendeClientTrait for EmptyPreConfirmedCendeClient {
     async fn send_start_new_round(
         &self,
-        _start_new_round: AerospikeStartNewRound,
+        _start_new_round: CendeStartNewRound,
     ) -> PreConfirmedCendeClientResult<()> {
         Ok(())
     }
 
     async fn write_pre_confirmed_txs(
         &self,
-        _pre_confirmed_txs: AerospikePreConfirmedTxs,
+        _pre_confirmed_txs: CendePreConfirmedTxs,
     ) -> PreConfirmedCendeClientResult<()> {
         Ok(())
     }
 
     async fn write_executed_txs(
         &self,
-        _executed_txs: AerospikePreConfirmedTxs,
+        _executed_txs: CendeExecutedTxs,
     ) -> PreConfirmedCendeClientResult<()> {
         Ok(())
     }
