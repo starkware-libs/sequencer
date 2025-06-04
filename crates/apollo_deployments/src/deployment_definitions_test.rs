@@ -55,8 +55,6 @@ fn application_config_files_exist() {
     }
 }
 
-// TODO(Tsabary): add a sanity test that the chain id matches the value in the config.
-
 #[test]
 fn l1_components_state_consistency() {
     for deployment in DEPLOYMENTS.iter().flat_map(|f| f()) {

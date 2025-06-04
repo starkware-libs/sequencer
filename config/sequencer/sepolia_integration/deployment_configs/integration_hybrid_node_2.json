@@ -1,5 +1,4 @@
 {
-  "chain_id": "SN_INTEGRATION_SEPOLIA",
   "application_config_subdir": "config/sequencer/sepolia_integration/app_configs/hybrid/integration_hybrid_node_2/",
   "services": [
     {

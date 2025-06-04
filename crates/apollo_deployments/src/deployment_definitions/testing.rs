@@ -1,7 +1,5 @@
 use std::path::PathBuf;
 
-use starknet_api::core::ChainId;
-
 use crate::deployment::{
     ConfigOverride,
     Deployment,
@@ -55,7 +53,6 @@ fn get_ingress_params() -> IngressParams {
 
 fn system_test_distributed_deployment() -> Deployment {
     Deployment::new(
-        ChainId::IntegrationSepolia,
         DeploymentName::DistributedNode,
         Environment::Testing,
         "deployment_test_distributed",
@@ -68,7 +65,6 @@ fn system_test_distributed_deployment() -> Deployment {
 
 fn system_test_hybrid_deployment() -> Deployment {
     Deployment::new(
-        ChainId::IntegrationSepolia,
         DeploymentName::HybridNode,
         Environment::Testing,
         "deployment_test_hybrid",
@@ -81,7 +77,6 @@ fn system_test_hybrid_deployment() -> Deployment {
 
 fn system_test_consolidated_deployment() -> Deployment {
     Deployment::new(
-        ChainId::IntegrationSepolia,
         DeploymentName::ConsolidatedNode,
         Environment::Testing,
         "deployment_test_consolidated",
