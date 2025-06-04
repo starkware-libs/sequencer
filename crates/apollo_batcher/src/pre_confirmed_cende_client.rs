@@ -57,10 +57,10 @@ pub trait PreConfirmedCendeClientTrait: Send + Sync {
 
 pub struct PreConfirmedCendeClient {
     // We store the URLs as strings to avoid unnecessary cloning of the Url object.
-    _start_new_round_url: String,
+    start_new_round_url: String,
     _write_pre_confirmed_txs_url: String,
     _write_executed_txs_url: String,
-    _client: Client,
+    client: Client,
 }
 
 // The endpoints for the Cende recorder.
@@ -71,7 +71,7 @@ pub const RECORDER_WRITE_EXECUTED_TXS_PATH: &str = "/cende_recorder/write_execut
 impl PreConfirmedCendeClient {
     pub fn new(config: PreConfirmedCendeConfig) -> Result<Self, PreConfirmedCendeClientError> {
         Ok(Self {
-            _start_new_round_url: Self::construct_endpoint_url(
+            start_new_round_url: Self::construct_endpoint_url(
                 config.clone(),
                 RECORDER_START_NEW_ROUND_PATH,
             ),
@@ -83,7 +83,7 @@ impl PreConfirmedCendeClient {
                 config,
                 RECORDER_WRITE_EXECUTED_TXS_PATH,
             ),
-            _client: Client::new(),
+            client: Client::new(),
         })
     }
 
@@ -91,8 +91,6 @@ impl PreConfirmedCendeClient {
         config.recorder_url.join(endpoint).expect("Failed to construct URL").to_string()
     }
 
-    // TODO(noamsp): remove this allow once
-    #[allow(dead_code)]
     async fn send_request<T: Serialize>(
         &self,
         request: &'static str,
@@ -109,7 +107,7 @@ impl PreConfirmedCendeClient {
              {proposal_round}{num_txs_str}",
         );
 
-        let response = self._client.post(url).json(data).send().await?;
+        let response = self.client.post(url).json(data).send().await?;
 
         if response.status().is_success() {
             info!(
@@ -178,10 +176,20 @@ pub struct AerospikePreConfirmedTxs {
 impl PreConfirmedCendeClientTrait for PreConfirmedCendeClient {
     async fn send_start_new_round(
         &self,
-        _block_number: BlockNumber,
-        _proposal_round: Round,
+        block_number: BlockNumber,
+        proposal_round: Round,
     ) -> PreConfirmedCendeClientResult<()> {
-        todo!()
+        let start_new_round_args = AerospikeStartNewRound { block_number, proposal_round };
+
+        self.send_request(
+            "start_new_round",
+            block_number,
+            proposal_round,
+            None,
+            &start_new_round_args,
+            &self.start_new_round_url,
+        )
+        .await
     }
 
     async fn send_pre_confirmed_txs(
