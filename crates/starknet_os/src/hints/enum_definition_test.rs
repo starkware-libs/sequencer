@@ -3,11 +3,15 @@ use std::sync::LazyLock;
 
 use apollo_starknet_os_program::{AGGREGATOR_PROGRAM, OS_PROGRAM};
 use blockifier::execution::deprecated_syscalls::DeprecatedSyscallSelector;
+use blockifier::execution::execution_utils::sn_api_to_cairo_vm_program;
 use blockifier::execution::hint_code::SYSCALL_HINTS;
+use blockifier_test_utils::cairo_versions::CairoVersion;
+use blockifier_test_utils::contracts::FeatureContract;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_code::HINT_CODES;
 use cairo_vm::hint_processor::builtin_hint_processor::kzg_da::WRITE_DIVMOD_SEGMENT;
 use cairo_vm::hint_processor::builtin_hint_processor::secp::cairo0_hints::CAIRO0_HINT_CODES;
 use cairo_vm::types::program::Program;
+use starknet_api::deprecated_contract_class::ContractClass;
 use strum::IntoEnumIterator;
 
 use crate::hints::enum_definition::{AllHints, DeprecatedSyscallHint};
@@ -179,4 +183,29 @@ fn test_deprecated_syscall_hint_consistency() {
          syscall hints. Converted selectors: {converted_selectors:#?}, hints: \
          {deprecated_syscall_hints:#?}"
     );
+}
+
+/// Tests that the deprecated syscall hint strings match the strings in compiled Cairo0 contracts.
+#[test]
+fn test_deprecated_syscall_hint_strings() {
+    let test_contract: ContractClass =
+        serde_json::from_str(&FeatureContract::TestContract(CairoVersion::Cairo0).get_raw_class())
+            .unwrap();
+    let test_program = sn_api_to_cairo_vm_program(test_contract.program).unwrap();
+    let test_program_hints = program_hints(&test_program);
+    for hint in DeprecatedSyscallHint::iter() {
+        if matches!(
+            hint,
+            DeprecatedSyscallHint::DelegateCall | DeprecatedSyscallHint::DelegateL1Handler
+        ) {
+            // TODO(Dori): Test these as well; they are not available in the latest cairo-lang and
+            //   cannot currently be tested.
+            continue;
+        }
+        let hint_str = hint.to_str();
+        assert!(
+            test_program_hints.contains(hint_str),
+            "The deprecated syscall hint '{hint_str}' is not present in the test contract hints."
+        );
+    }
 }
