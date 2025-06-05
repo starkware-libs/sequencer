@@ -164,10 +164,18 @@ pub(crate) fn extract_actual_retdata(
     ids_data: &HashMap<String, HintReference>,
     ap_tracking: &ApTracking,
 ) -> Result<Vec<MaybeRelocatable>, OsHintError> {
+    let retdata_size = felt_to_usize(&get_integer_from_var_name(
+        Ids::RetdataSize.into(),
+        vm,
+        ids_data,
+        ap_tracking,
+    )?)?;
+    if retdata_size == 0 {
+        // Note that retdata type is not defined if retdata_size is 0.
+        return Ok(vec![]);
+    }
     let retdata_base = get_ptr_from_var_name(Ids::Retdata.into(), vm, ids_data, ap_tracking)?;
-    let retdata_size =
-        get_integer_from_var_name(Ids::RetdataSize.into(), vm, ids_data, ap_tracking)?;
-    Ok(vm.get_continuous_range(retdata_base, felt_to_usize(&retdata_size)?)?)
+    Ok(vm.get_continuous_range(retdata_base, retdata_size)?)
 }
 
 #[allow(clippy::result_large_err)]
