@@ -19,6 +19,7 @@ use apollo_consensus::metrics::{
     CONSENSUS_PROPOSALS_VALID_INIT,
     CONSENSUS_REPROPOSALS,
     CONSENSUS_ROUND,
+    CONSENSUS_ROUND_ABOVE_ZERO,
     CONSENSUS_TIMEOUTS,
     LABEL_NAME_TIMEOUT_REASON,
 };
@@ -56,6 +57,8 @@ pub(crate) const PANEL_CONSENSUS_ROUND_AVG: Panel = Panel::new(
     formatcp!("avg_over_time({}[10m])", CONSENSUS_ROUND.get_name_with_filter()),
     PanelType::Graph,
 );
+pub(crate) const PANEL_CONSENSUS_ROUND_ABOVE_ZERO: Panel =
+    Panel::from_counter(CONSENSUS_ROUND_ABOVE_ZERO, PanelType::Graph);
 pub(crate) const PANEL_CONSENSUS_MAX_CACHED_BLOCK_NUMBER: Panel =
     Panel::from_gauge(CONSENSUS_MAX_CACHED_BLOCK_NUMBER, PanelType::Graph);
 pub(crate) const PANEL_CONSENSUS_CACHED_VOTES: Panel =
