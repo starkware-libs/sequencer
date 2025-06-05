@@ -106,7 +106,7 @@ pub(crate) struct StarknetClientTransactionReceipt {
     transaction_index: TransactionOffsetInBlock,
     transaction_hash: TransactionHash,
     #[serde(default)]
-    l1_to_l2_consumed_message: L1ToL2Message,
+    l1_to_l2_consumed_message: Option<L1ToL2Message>,
     l2_to_l1_messages: Vec<L2ToL1Message>,
     events: Vec<Event>,
     #[serde(default)]
@@ -141,6 +141,8 @@ impl
         Self {
             transaction_index: TransactionOffsetInBlock(tx_index),
             transaction_hash: tx_hash,
+            // TODO(Arni): Fill this up. This is relevant only for L1 handler transactions.
+            l1_to_l2_consumed_message: None,
             ..Default::default()
         }
     }
