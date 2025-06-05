@@ -17,6 +17,7 @@ use crate::metrics::{
     CONSENSUS_HELD_LOCKS,
     CONSENSUS_NEW_VALUE_LOCKS,
     CONSENSUS_ROUND,
+    CONSENSUS_ROUND_ABOVE_ZERO,
     CONSENSUS_TIMEOUTS,
     LABEL_NAME_TIMEOUT_REASON,
 };
@@ -364,6 +365,10 @@ impl StateMachine {
         LeaderFn: Fn(Round) -> ValidatorId,
     {
         CONSENSUS_ROUND.set(round);
+        // Count how many times consensus advanced above round 0.
+        if round == 1 {
+            CONSENSUS_ROUND_ABOVE_ZERO.increment(1);
+        }
         if self.locked_value_round.is_some() {
             CONSENSUS_HELD_LOCKS.increment(1);
         }
