@@ -6,9 +6,9 @@
       "name": "Node",
       "controller": "StatefulSet",
       "config_paths": [
-        "../../../../base_app_config.json",
-        "deployment_config_override.json",
-        "instance_config_override.json",
+        "testing/app_configs/consolidated/deployment_test_consolidatedbase_app_config.json",
+        "testing/app_configs/consolidated/deployment_test_consolidateddeployment_config_override.json",
+        "testing/app_configs/consolidated/deployment_test_consolidatedinstance_config_override.json",
         "node.json"
       ],
       "ingress": null,
