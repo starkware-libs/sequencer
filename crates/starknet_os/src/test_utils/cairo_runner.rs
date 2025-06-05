@@ -605,7 +605,7 @@ pub fn run_cairo_0_entry_point(
     )
     .unwrap();
     for (key, value) in hint_locals.into_iter() {
-        cairo_runner.exec_scopes.insert_value(&key, value);
+        cairo_runner.exec_scopes.insert_box(&key, value);
     }
     let allow_missing_builtins = false;
     cairo_runner.initialize_builtins(allow_missing_builtins).unwrap();
