@@ -74,7 +74,6 @@ impl<'a, S: StateReader> ExecutionHelpersManager<'a, S> {
             .expect("Current execution helper index is out of bounds."))
     }
 
-    #[allow(dead_code)]
     /// Increments the current helper index.
     pub fn increment_current_helper_index(&mut self) {
         self.current_index = match self.current_index {
