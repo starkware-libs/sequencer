@@ -1896,6 +1896,8 @@ name = "apollo_signature_manager"
 version = "0.0.0"
 dependencies = [
  "apollo_signature_manager_types",
+ "blake2s",
+ "starknet-core",
  "starknet_api",
 ]
 
