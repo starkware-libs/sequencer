@@ -10,6 +10,7 @@ use apollo_integration_tests::utils::{
     ACCOUNT_ID_0,
     N_TXS_IN_FIRST_BLOCK,
 };
+use blockifier::metrics::NATIVE_COMPILATION_ERROR;
 use clap::Parser;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use serde_json::Value;
@@ -67,6 +68,7 @@ async fn run_simulation(
 
     let mut i = 1;
     loop {
+        NATIVE_COMPILATION_ERROR.increment(1);
         sequencer_simulator
             .send_txs(
                 tx_generator,
