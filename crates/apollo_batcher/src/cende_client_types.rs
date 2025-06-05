@@ -2,6 +2,7 @@
 //! StarknetClient.
 use std::collections::HashMap;
 
+use blockifier::execution::call_info::OrderedEvent;
 // TODO(noamsp): find a way to share the TransactionReceipt from apollo_starknet_client and
 // remove this module.
 use blockifier::transaction::objects::TransactionExecutionInfo;
@@ -135,6 +136,7 @@ impl
         (tx_hash, tx_index, tx_execution_info): (TransactionHash, usize, &TransactionExecutionInfo),
     ) -> Self {
         let l2_to_l1_messages = get_l2_to_l1_messages(tx_execution_info);
+        let events = get_events_from_execution_info(tx_execution_info);
 
         // TODO(Arni): I assume this is not the correct way to fill this field.
         let revert_error =
@@ -146,6 +148,7 @@ impl
             // TODO(Arni): Fill this up. This is relevant only for L1 handler transactions.
             l1_to_l2_consumed_message: None,
             l2_to_l1_messages,
+            events,
             revert_error,
             ..Default::default()
         }
@@ -170,4 +173,34 @@ fn get_l2_to_l1_messages(execution_info: &TransactionExecutionInfo) -> Vec<L2ToL
     }
 
     l2_to_l1_messages
+}
+
+fn get_events_from_execution_info(execution_info: &TransactionExecutionInfo) -> Vec<Event> {
+    let call_info = if let Some(ref call_info) = execution_info.execute_call_info {
+        call_info
+    } else {
+        return vec![];
+    };
+
+    // Collect all the events from the call infos, along with their order.
+    let mut accumulated_sortable_events = vec![];
+    for call_info in call_info.iter() {
+        let sortable_events = call_info
+            .execution
+            .events
+            .iter()
+            .map(|orderable_event| (call_info.call.caller_address, orderable_event));
+        accumulated_sortable_events.extend(sortable_events);
+    }
+    // Sort the events by their order.
+    accumulated_sortable_events.sort_by_key(|(_, OrderedEvent { order, .. })| *order);
+
+    // Convert the sorted events into the StarknetClient Event type.
+    accumulated_sortable_events
+        .iter()
+        .map(|(from_address, OrderedEvent { event, .. })| Event {
+            from_address: *from_address,
+            content: event.clone(),
+        })
+        .collect()
 }
