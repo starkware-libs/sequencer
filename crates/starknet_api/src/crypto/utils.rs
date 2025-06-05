@@ -8,6 +8,7 @@ mod crypto_test;
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Pedersen, Poseidon, StarkHash as CoreStarkHash};
+use thiserror::Error;
 
 use crate::hash::StarkHash;
 
@@ -133,3 +134,23 @@ pub struct Message(pub Vec<Felt>);
 /// propagating generic signature types.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct RawSignature(pub Vec<Felt>);
+
+#[derive(Clone, Debug, Error, Serialize, Deserialize, Eq, PartialEq)]
+pub enum SignatureConversionError {
+    #[error("expected a 2-element signature, but got length {0}")]
+    InvalidLength(usize),
+}
+
+impl TryFrom<RawSignature> for starknet_crypto::Signature {
+    type Error = SignatureConversionError;
+
+    fn try_from(signature: RawSignature) -> Result<Self, Self::Error> {
+        let signature_length = signature.0.len();
+        let [r, s]: [Felt; 2] = signature
+            .0
+            .try_into()
+            .map_err(|_| SignatureConversionError::InvalidLength(signature_length))?;
+
+        Ok(starknet_crypto::Signature { r, s })
+    }
+}
