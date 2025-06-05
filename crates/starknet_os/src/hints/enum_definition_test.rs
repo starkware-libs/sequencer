@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::sync::LazyLock;
 
 use apollo_starknet_os_program::{AGGREGATOR_PROGRAM, OS_PROGRAM};
+use blockifier::execution::deprecated_syscalls::DeprecatedSyscallSelector;
 use blockifier::execution::hint_code::SYSCALL_HINTS;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_code::HINT_CODES;
 use cairo_vm::hint_processor::builtin_hint_processor::kzg_da::WRITE_DIVMOD_SEGMENT;
@@ -18,6 +19,35 @@ static VM_HINTS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
     vm_hints.extend(CAIRO0_HINT_CODES.values());
     vm_hints
 });
+
+/// This conversion is only required for testing consistency.
+impl TryFrom<DeprecatedSyscallSelector> for DeprecatedSyscallHint {
+    type Error = String;
+
+    fn try_from(selector: DeprecatedSyscallSelector) -> Result<Self, Self::Error> {
+        match selector {
+            DeprecatedSyscallSelector::CallContract => Ok(Self::CallContract),
+            DeprecatedSyscallSelector::DelegateCall => Ok(Self::DelegateCall),
+            DeprecatedSyscallSelector::DelegateL1Handler => Ok(Self::DelegateL1Handler),
+            DeprecatedSyscallSelector::Deploy => Ok(Self::Deploy),
+            DeprecatedSyscallSelector::EmitEvent => Ok(Self::EmitEvent),
+            DeprecatedSyscallSelector::GetBlockNumber => Ok(Self::GetBlockNumber),
+            DeprecatedSyscallSelector::GetBlockTimestamp => Ok(Self::GetBlockTimestamp),
+            DeprecatedSyscallSelector::GetCallerAddress => Ok(Self::GetCallerAddress),
+            DeprecatedSyscallSelector::GetContractAddress => Ok(Self::GetContractAddress),
+            DeprecatedSyscallSelector::GetSequencerAddress => Ok(Self::GetSequencerAddress),
+            DeprecatedSyscallSelector::GetTxInfo => Ok(Self::GetTxInfo),
+            DeprecatedSyscallSelector::GetTxSignature => Ok(Self::GetTxSignature),
+            DeprecatedSyscallSelector::LibraryCall => Ok(Self::LibraryCall),
+            DeprecatedSyscallSelector::LibraryCallL1Handler => Ok(Self::LibraryCallL1Handler),
+            DeprecatedSyscallSelector::ReplaceClass => Ok(Self::ReplaceClass),
+            DeprecatedSyscallSelector::SendMessageToL1 => Ok(Self::SendMessageToL1),
+            DeprecatedSyscallSelector::StorageRead => Ok(Self::StorageRead),
+            DeprecatedSyscallSelector::StorageWrite => Ok(Self::StorageWrite),
+            _ => Err(format!("Non-deprecated syscall selector: {selector:?}.")),
+        }
+    }
+}
 
 fn program_hints(program: &Program) -> HashSet<String> {
     program
@@ -93,5 +123,60 @@ fn test_all_hints_are_used() {
         redundant_hints.is_empty(),
         "The following hints are not used in the OS or Aggregator programs: {redundant_hints:#?}. \
          Please remove them from the enum definition."
+    );
+}
+
+/// Tests that the set of deprecated syscall hints is consistent with the enum of deprecated
+/// syscalls.
+#[test]
+fn test_deprecated_syscall_hint_consistency() {
+    let deprecated_syscall_hints: Vec<DeprecatedSyscallHint> =
+        DeprecatedSyscallHint::iter().collect();
+    let deprecated_syscall_selectors: Vec<DeprecatedSyscallSelector> =
+        DeprecatedSyscallSelector::iter()
+            .filter(|selector| {
+                !matches!(
+                    selector,
+                    // As the new and deprecated syscall selector enums are the same enum,
+                    // explicitly filter out all "new" syscalls that are not supported in Cairo0.
+                    DeprecatedSyscallSelector::GetBlockHash
+                        | DeprecatedSyscallSelector::GetClassHashAt
+                        | DeprecatedSyscallSelector::GetExecutionInfo
+                        | DeprecatedSyscallSelector::Keccak
+                        | DeprecatedSyscallSelector::KeccakRound
+                        | DeprecatedSyscallSelector::Sha256ProcessBlock
+                        | DeprecatedSyscallSelector::MetaTxV0
+                        | DeprecatedSyscallSelector::Secp256k1Add
+                        | DeprecatedSyscallSelector::Secp256k1GetPointFromX
+                        | DeprecatedSyscallSelector::Secp256k1GetXy
+                        | DeprecatedSyscallSelector::Secp256k1Mul
+                        | DeprecatedSyscallSelector::Secp256k1New
+                        | DeprecatedSyscallSelector::Secp256r1Add
+                        | DeprecatedSyscallSelector::Secp256r1GetPointFromX
+                        | DeprecatedSyscallSelector::Secp256r1GetXy
+                        | DeprecatedSyscallSelector::Secp256r1Mul
+                        | DeprecatedSyscallSelector::Secp256r1New
+                )
+            })
+            .collect();
+
+    assert_eq!(
+        deprecated_syscall_selectors.len(),
+        deprecated_syscall_hints.len(),
+        "The number of deprecated syscall selectors does not match the number of deprecated \
+         syscall hints. Selectors: {deprecated_syscall_selectors:#?}, hints: \
+         {deprecated_syscall_hints:#?}",
+    );
+
+    let converted_selectors: HashSet<DeprecatedSyscallHint> = deprecated_syscall_selectors
+        .iter()
+        .map(|selector| DeprecatedSyscallHint::try_from(*selector).unwrap())
+        .collect();
+    assert_eq!(
+        converted_selectors,
+        deprecated_syscall_hints.iter().cloned().collect(),
+        "The deprecated syscall selectors, converted to hints, do not match the deprecated \
+         syscall hints. Converted selectors: {converted_selectors:#?}, hints: \
+         {deprecated_syscall_hints:#?}"
     );
 }
