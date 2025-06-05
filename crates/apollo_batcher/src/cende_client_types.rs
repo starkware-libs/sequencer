@@ -18,10 +18,10 @@ use starknet_api::transaction::{
 };
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
-struct L1ToL2Nonce(pub StarkHash);
+pub struct L1ToL2Nonce(pub StarkHash);
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
-struct L1ToL2Message {
+pub struct L1ToL2Message {
     pub from_address: EthAddress,
     pub to_address: ContractAddress,
     pub selector: EntryPointSelector,
@@ -31,7 +31,7 @@ struct L1ToL2Message {
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
-struct L2ToL1Message {
+pub struct L2ToL1Message {
     pub from_address: ContractAddress,
     pub to_address: EthAddress,
     pub payload: L2ToL1Payload,
@@ -39,7 +39,7 @@ struct L2ToL1Message {
 
 // Note: the serialization is different from the one in starknet_api.
 #[derive(Hash, Debug, Deserialize, Serialize, Clone, Eq, PartialEq)]
-enum Builtin {
+pub enum Builtin {
     #[serde(rename = "range_check_builtin")]
     RangeCheck,
     #[serde(rename = "pedersen_builtin")]
@@ -70,7 +70,7 @@ enum Builtin {
 /// The execution resources used by a transaction.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
-struct ExecutionResources {
+pub struct ExecutionResources {
     // Note: in starknet_api this field is named `steps`
     pub n_steps: u64,
     pub builtin_instance_counter: HashMap<Builtin, u64>,
@@ -90,7 +90,7 @@ struct ExecutionResources {
 
 /// Transaction execution status.
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, Default)]
-enum TransactionExecutionStatus {
+pub enum TransactionExecutionStatus {
     #[serde(rename = "SUCCEEDED")]
     #[default]
     Succeeded,
@@ -100,22 +100,22 @@ enum TransactionExecutionStatus {
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct StarknetClientTransactionReceipt {
-    transaction_index: TransactionOffsetInBlock,
-    transaction_hash: TransactionHash,
+pub struct StarknetClientTransactionReceipt {
+    pub transaction_index: TransactionOffsetInBlock,
+    pub transaction_hash: TransactionHash,
     #[serde(default)]
-    l1_to_l2_consumed_message: L1ToL2Message,
-    l2_to_l1_messages: Vec<L2ToL1Message>,
-    events: Vec<Event>,
+    pub l1_to_l2_consumed_message: L1ToL2Message,
+    pub l2_to_l1_messages: Vec<L2ToL1Message>,
+    pub events: Vec<Event>,
     #[serde(default)]
-    execution_resources: ExecutionResources,
-    actual_fee: Fee,
+    pub execution_resources: ExecutionResources,
+    pub actual_fee: Fee,
     // TODO(Yair): Check if we can remove the serde(default).
     #[serde(default)]
-    execution_status: TransactionExecutionStatus,
+    pub execution_status: TransactionExecutionStatus,
     // Note that in starknet_api this field is named `revert_reason`.
     // Assumption: if the transaction execution status is Succeeded, then revert_error is None, and
     // if the transaction execution status is Reverted, then revert_error is Some.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    revert_error: Option<String>,
+    pub revert_error: Option<String>,
 }

@@ -4,7 +4,6 @@ use apollo_batcher_types::batcher_types::Round;
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
-use blockifier::fee::receipt::TransactionReceipt;
 use indexmap::IndexMap;
 use reqwest::{Client, RequestBuilder};
 use serde::Serialize;
@@ -13,6 +12,8 @@ use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
 use tracing::{error, info, warn};
 use url::Url;
+
+use crate::cende_client_types::StarknetClientTransactionReceipt;
 
 // TODO(noamsp): rename PreConfirmed.. to Preconfirmed.. throughout the codebase.
 #[derive(Debug, Error)]
@@ -148,32 +149,32 @@ impl SerializeConfig for PreConfirmedCendeConfig {
 
 #[derive(Serialize)]
 pub struct CendeStartNewRound {
-    block_number: BlockNumber,
-    round: Round,
+    pub block_number: BlockNumber,
+    pub round: Round,
 }
 
 // This data type is used to hold the data for both the pre-confirmed and executed transactions.
 #[derive(Serialize)]
 pub struct PreConfirmedTransactionData {
-    block_number: BlockNumber,
-    round: Round,
-    transaction_receipt: Option<TransactionReceipt>,
+    pub block_number: BlockNumber,
+    pub round: Round,
+    pub transaction_receipt: Option<StarknetClientTransactionReceipt>,
 }
 
 /// Invariant: all PreConfirmedTransactionData entries have block_number and proposal_round values
 /// that match the corresponding values on this struct.
 #[derive(Serialize)]
 pub struct CendePreConfirmedTxs {
-    block_number: BlockNumber,
-    round: Round,
-    pre_confirmed_txs: IndexMap<TransactionHash, PreConfirmedTransactionData>,
+    pub block_number: BlockNumber,
+    pub round: Round,
+    pub pre_confirmed_txs: IndexMap<TransactionHash, PreConfirmedTransactionData>,
 }
 
 #[derive(Serialize)]
 pub struct CendeExecutedTxs {
-    block_number: BlockNumber,
-    round: Round,
-    executed_txs: IndexMap<TransactionHash, PreConfirmedTransactionData>,
+    pub block_number: BlockNumber,
+    pub round: Round,
+    pub executed_txs: IndexMap<TransactionHash, PreConfirmedTransactionData>,
 }
 
 #[async_trait]
