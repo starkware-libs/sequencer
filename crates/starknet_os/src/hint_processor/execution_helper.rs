@@ -212,7 +212,7 @@ pub struct CallInfoTracker<'a> {
 
 macro_rules! next_iterator_method {
     ($fn_name:ident, $field:ident, $return_type:ty) => {
-        pub fn $fn_name(&mut self) -> Result<&$return_type, ExecutionHelperError> {
+        pub fn $fn_name(&mut self) -> Result<$return_type, ExecutionHelperError> {
             self.$field.next().ok_or(ExecutionHelperError::EndOfIterator {
                 item_type: stringify!($field).to_string(),
             })
@@ -287,16 +287,22 @@ impl<'a> CallInfoTracker<'a> {
         Ok(())
     }
 
-    next_iterator_method!(next_execute_code_read, execute_code_read_iterator, Felt);
+    next_iterator_method!(next_execute_code_read, execute_code_read_iterator, &Felt);
     next_iterator_method!(
         next_execute_code_class_hash_read,
         execute_code_class_hash_read_iterator,
-        ClassHash
+        &ClassHash
     );
     next_iterator_method!(
         next_execute_code_block_hash_read,
         execute_code_block_hash_read_iterator,
-        BlockHash
+        &BlockHash
+    );
+    next_iterator_method!(next_inner_call, inner_calls_iterator, &CallInfo);
+    next_iterator_method!(
+        next_deployed_contracts_iterator,
+        deployed_contracts_iterator,
+        ContractAddress
     );
 }
 
