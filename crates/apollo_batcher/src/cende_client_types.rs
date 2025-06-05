@@ -132,17 +132,18 @@ impl
     )> for StarknetClientTransactionReceipt
 {
     fn from(
-        (tx_hash, tx_index, _tx_execution_info): (
-            TransactionHash,
-            usize,
-            &TransactionExecutionInfo,
-        ),
+        (tx_hash, tx_index, tx_execution_info): (TransactionHash, usize, &TransactionExecutionInfo),
     ) -> Self {
+        // TODO(Arni): I assume this is not the correct way to fill this field.
+        let revert_error =
+            tx_execution_info.revert_error.as_ref().map(|revert_error| revert_error.to_string());
+
         Self {
             transaction_index: TransactionOffsetInBlock(tx_index),
             transaction_hash: tx_hash,
             // TODO(Arni): Fill this up. This is relevant only for L1 handler transactions.
             l1_to_l2_consumed_message: None,
+            revert_error,
             ..Default::default()
         }
     }
