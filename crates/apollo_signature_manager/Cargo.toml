@@ -7,7 +7,9 @@ license.workspace = true
 
 [dependencies]
 apollo_signature_manager_types.workspace = true
+blake2s.workspace = true
 starknet_api.workspace = true
+starknet-core.workspace = true
 
 [lints]
 workspace = true
