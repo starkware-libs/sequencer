@@ -14,6 +14,8 @@ const HISTOGRAM_TEST_METRIC: MetricHistogram = MetricHistogram::new(
     MetricScope::Infra,
     "histogram_test_metric",
     "histogram_test_metric_filter",
+    "histogram_test_metric_sum_filter",
+    "histogram_test_metric__count_filter",
     "Histogram test metrics",
 );
 
