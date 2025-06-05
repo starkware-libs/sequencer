@@ -283,7 +283,7 @@ pub(crate) fn check_is_deprecated<S: StateReader>(
 
     exec_scopes.insert_value(
         Scope::IsDeprecated.into(),
-        Felt::from(hint_processor.deprecated_compiled_classes.contains_key(&class_hash)),
+        Felt::from(hint_processor.deprecated_class_hashes.contains(&class_hash)),
     );
 
     Ok(())

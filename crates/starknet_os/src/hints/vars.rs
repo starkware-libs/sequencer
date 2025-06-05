@@ -84,7 +84,6 @@ define_string_enum! {
         (BytecodeSegmentStructures),
         (Case),
         (CompiledClass),
-        (CompiledClassFacts),
         (CompiledClassHash),
         (ContractAddressForRevert),
         (Descend),
