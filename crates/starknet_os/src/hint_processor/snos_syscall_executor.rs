@@ -134,27 +134,20 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> Result<DeployResponse, Self::Error> {
-        // TODO(Nimrod): Handle errors correctly.
         let call_info_tracker = syscall_handler
             .execution_helpers_manager
-            .get_mut_current_execution_helper()
-            .unwrap()
+            .get_mut_current_execution_helper()?
             .tx_execution_iter
-            .tx_execution_info_ref
-            .as_mut()
-            .unwrap()
-            .call_info_tracker
-            .as_mut()
-            .unwrap();
+            .get_mut_tx_execution_info_ref()?
+            .get_mut_call_info_tracker()?;
 
-        let deployed_contract_address =
-            call_info_tracker.deployed_contracts_iterator.next().unwrap();
-        let execution = &call_info_tracker.inner_calls_iterator.next().unwrap().execution;
+        let deployed_contract_address = call_info_tracker.next_deployed_contracts_iterator()?;
+        let execution = &call_info_tracker.next_inner_call()?.execution;
 
         *remaining_gas -= execution.gas_consumed;
         let retdata: Vec<_> = execution.retdata.0.iter().map(MaybeRelocatable::from).collect();
         let retdata_base = vm.add_temporary_segment();
-        vm.load_data(retdata_base, &retdata).unwrap();
+        vm.load_data(retdata_base, &retdata).map_err(SyscallExecutorBaseError::from)?;
         if execution.failed {
             return Err(Self::Error::from(SyscallExecutorBaseError::Revert {
                 error_data: execution.retdata.0.clone(),
