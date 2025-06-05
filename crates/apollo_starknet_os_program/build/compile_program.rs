@@ -35,6 +35,17 @@ pub async fn compile_and_output_program(
     });
 }
 
+#[cfg(feature = "test_programs")]
+pub async fn compile_test_contracts(out_dir: PathBuf) {
+    let mut task_set = tokio::task::JoinSet::new();
+    task_set.spawn(compile_and_output_program(
+        out_dir,
+        "starkware/starknet/core/os/state/aliases_test.cairo",
+        "aliases_test",
+    ));
+    task_set.join_all().await;
+}
+
 fn cairo_root_path() -> PathBuf {
     PathBuf::from(compile_time_cargo_manifest_dir!()).join("src/cairo")
 }
