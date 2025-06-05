@@ -76,7 +76,6 @@ impl TryExtractRevert for SnosSyscallError {
     }
 }
 
-#[allow(unused_variables)]
 impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
     type Error = SnosSyscallError;
 

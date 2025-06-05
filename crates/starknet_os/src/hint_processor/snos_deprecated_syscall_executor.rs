@@ -98,7 +98,6 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
     }
 }
 
-#[allow(unused_variables)]
 impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
     type Error = DeprecatedSnosSyscallError;
 
