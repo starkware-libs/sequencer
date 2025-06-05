@@ -9,6 +9,7 @@ pub mod config;
 pub mod metrics;
 pub mod pre_confirmed_block_writer;
 pub mod pre_confirmed_cende_client;
+pub mod starknet_client_types;
 #[cfg(test)]
 mod test_utils;
 mod transaction_executor;
