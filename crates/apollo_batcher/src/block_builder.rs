@@ -48,6 +48,7 @@ use tokio::sync::Mutex;
 use tracing::{debug, error, info, trace};
 
 use crate::block_builder::FailOnErrorCause::L1HandlerTransactionValidationFailed;
+use crate::cende_client_types::StarknetClientTransactionReceipt;
 use crate::metrics::FULL_BLOCKS;
 use crate::pre_confirmed_block_writer::{ExecutedTxSender, PreConfirmedTxSender};
 use crate::transaction_executor::TransactionExecutorTrait;
@@ -155,7 +156,7 @@ pub struct BlockBuilder {
     output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>>,
     // The senders are utilized only during block proposal and not during block validation.
     pre_confirmed_tx_sender: Option<PreConfirmedTxSender>,
-    _executed_tx_sender: Option<ExecutedTxSender>,
+    executed_tx_sender: Option<ExecutedTxSender>,
     abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
     transaction_converter: TransactionConverter,
 
@@ -187,7 +188,7 @@ impl BlockBuilder {
             tx_provider,
             output_content_sender,
             pre_confirmed_tx_sender,
-            _executed_tx_sender: executed_tx_sender,
+            executed_tx_sender,
             abort_signal_receiver,
             transaction_converter,
             tx_chunk_size,
@@ -314,6 +315,7 @@ impl BlockBuilder {
                 &mut execution_data,
                 &self.output_content_sender,
                 self.execution_params.fail_on_err,
+                &self.executed_tx_sender,
             )
             .await?;
         }
@@ -353,6 +355,7 @@ async fn collect_execution_results_and_stream_txs(
         tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
     >,
     fail_on_err: bool,
+    executed_tx_sender: &Option<ExecutedTxSender>,
 ) -> BlockBuilderResult<bool> {
     assert!(
         results.len() <= tx_chunk.len(),
@@ -370,6 +373,10 @@ async fn collect_execution_results_and_stream_txs(
             block_is_full = true;
         }
     }
+
+    // Collect executed transactions hashes and their receipts
+    let mut executed_txs = Vec::new();
+
     for (input_tx, result) in tx_chunk.into_iter().zip(results.into_iter()) {
         let tx_hash = input_tx.tx_hash();
 
@@ -384,7 +391,17 @@ async fn collect_execution_results_and_stream_txs(
                     .checked_add(tx_execution_info.receipt.gas.l2_gas)
                     .expect("Total L2 gas overflow.");
 
-                execution_data.execution_infos.insert(tx_hash, tx_execution_info);
+                // We put dummy index for now because we need to infer the index from execution
+                // infos.
+                let mut starknet_client_tx_receipt =
+                    StarknetClientTransactionReceipt::from((tx_hash, 0, &tx_execution_info));
+
+                let (tx_index, _) =
+                    execution_data.execution_infos.insert_full(tx_hash, tx_execution_info);
+
+                starknet_client_tx_receipt.transaction_index =
+                    starknet_api::transaction::TransactionOffsetInBlock(tx_index);
+                executed_txs.push((tx_hash, starknet_client_tx_receipt));
 
                 if let Some(output_content_sender) = output_content_sender {
                     output_content_sender.send(input_tx)?;
@@ -407,6 +424,37 @@ async fn collect_execution_results_and_stream_txs(
             }
         }
     }
+
+    // Skip sending executed transaction hashes and receipts during validation flow.
+    // In validate flow executed_tx_sender is None.
+    if let Some(executed_tx_sender) = executed_tx_sender {
+        let num_executed_txs = executed_txs.len();
+
+        info!(
+            "Sending receipts for {num_executed_txs} transactions that have been executed to the \
+             PreConfirmedBlockWriter."
+        );
+
+        match executed_tx_sender.send(executed_txs) {
+            Ok(_) => {
+                info!(
+                    "Successfully sent receipts for {num_executed_txs} executed transactions to \
+                     the PreConfirmedBlockWriter."
+                );
+            }
+            // We continue with block building even if sending transaction hashes and receipts to
+            // The PreConfirmedBlockWriter fails because it is not critical for the block
+            // building process.
+            Err(e) => {
+                error!(
+                    "Failed to send receipts for {num_executed_txs} executed transactions to the \
+                     PreConfirmedBlockWriter: {:?}",
+                    e
+                );
+            }
+        }
+    }
+
     Ok(block_is_full)
 }
 
