@@ -6,7 +6,6 @@ use apollo_mempool::metrics::{
     MEMPOOL_POOL_SIZE,
     MEMPOOL_TRANSACTIONS_RECEIVED,
 };
-use apollo_metrics::metric_label_filter;
 use const_format::formatcp;
 
 use crate::dashboard::{
@@ -19,8 +18,6 @@ use crate::dashboard::{
 };
 
 pub const DEV_ALERTS_JSON_PATH: &str = "Monitoring/sequencer/dev_grafana_alerts.json";
-// TODO(Tsabary): remove the following constant, and create relevant "_sum" and "_count" metric fns.
-const FILTER_STR: &str = metric_label_filter!();
 
 // Within 30s the metrics should be updated at least twice.
 // If in one of those times the block number is not updated, fire an alert.
@@ -60,11 +57,9 @@ const GATEWAY_ADD_TX_LATENCY_INCREASE: Alert = Alert {
     title: "Gateway avg add_tx latency increase",
     alert_group: AlertGroup::Gateway,
     expr: formatcp!(
-        "sum(rate({}_sum{}[1m]))/sum(rate({}_count{}[1m]))",
-        GATEWAY_ADD_TX_LATENCY.get_name(),
-        FILTER_STR,
-        GATEWAY_ADD_TX_LATENCY.get_name(),
-        FILTER_STR
+        "sum(rate({}[1m]))/sum(rate({}[1m]))",
+        GATEWAY_ADD_TX_LATENCY.get_name_sum_with_filter(),
+        GATEWAY_ADD_TX_LATENCY.get_name_count_with_filter(),
     ),
     conditions: &[AlertCondition {
         comparison_op: AlertComparisonOp::GreaterThan,

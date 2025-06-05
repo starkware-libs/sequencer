@@ -19,14 +19,14 @@ macro_rules! metric_label_filter {
 macro_rules! define_metrics {
     (
         $(
-            $scope:ident => {
+            $scope:ident => { // Metric scope, e.g., Infra, Sequencer, etc.
                 $(
-                    $type:ident {
-                        $name:ident,
-                        $key:expr,
-                        $desc:expr
-                        $(, init = $init:expr)?
-                        $(, labels = $labels:expr)?
+                    $type:ident { // Metric type, e.g., MetricCounter, MetricGauge, etc.
+                        $name:ident, // Metric name, e.g., MEMPOOL_TRANSACTIONS_COMMITTED
+                        $key:expr, // Metric key, e.g., "mempool_txs_committed"
+                        $desc:expr // Metric description, e.g., "The number of transactions that were committed to block"
+                        $(, init = $init:expr)? // Optional initialization value for counters and gauges
+                        $(, labels = $labels:expr)? // Optional labels for labeled metrics
                     }
                 ),*
                 $(,)?
@@ -37,8 +37,7 @@ macro_rules! define_metrics {
         $(
             $(
                 $crate::define_metrics!(@define_single
-                    $scope, $type, $name, $key, $desc
-                    $(, init = $init)? $(, labels = $labels)?
+                    $scope, $type, $name, $key, $desc $(, init = $init)? $(, labels = $labels)?
                 );
             )*
         )*
@@ -64,6 +63,8 @@ macro_rules! define_metrics {
                 $crate::metrics::MetricScope::$scope,
                 $key,
                 concat!($key, $crate::metric_label_filter!()),
+                concat!($key, "_sum", $crate::metric_label_filter!()),
+                concat!($key, "_count", $crate::metric_label_filter!()),
                 $desc
                 $(, $init)?
                 $(, $labels)?
@@ -71,7 +72,7 @@ macro_rules! define_metrics {
         }
     };
 
-
+    // TODO(Tsabary): add a similar support for LabeledMetricHistogram.
 
     // Fallback: all others (MetricCounter, MetricGauge, etc.)
     (@define_single $scope:ident, $type:ident, $name:ident, $key:expr, $desc:expr
