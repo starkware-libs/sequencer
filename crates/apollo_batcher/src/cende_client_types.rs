@@ -134,6 +134,8 @@ impl
     fn from(
         (tx_hash, tx_index, tx_execution_info): (TransactionHash, usize, &TransactionExecutionInfo),
     ) -> Self {
+        let l2_to_l1_messages = get_l2_to_l1_messages(tx_execution_info);
+
         // TODO(Arni): I assume this is not the correct way to fill this field.
         let revert_error =
             tx_execution_info.revert_error.as_ref().map(|revert_error| revert_error.to_string());
@@ -143,8 +145,29 @@ impl
             transaction_hash: tx_hash,
             // TODO(Arni): Fill this up. This is relevant only for L1 handler transactions.
             l1_to_l2_consumed_message: None,
+            l2_to_l1_messages,
             revert_error,
             ..Default::default()
         }
     }
+}
+
+fn get_l2_to_l1_messages(execution_info: &TransactionExecutionInfo) -> Vec<L2ToL1Message> {
+    // TODO(Arni): Fix this call. The iterator returns all the call infos in the order: `validate`,
+    // `execute`, `fee_transfer`. For `deploy_account` transactions, the order is `execute`,
+    // `validate`, `fee_transfer`.
+    let call_info_iterator = execution_info.non_optional_call_infos();
+
+    let mut l2_to_l1_messages = vec![];
+    for call in call_info_iterator {
+        let messages =
+            call.execution.l2_to_l1_messages.iter().map(|l2_to_l1_message| L2ToL1Message {
+                from_address: call.call.caller_address,
+                to_address: l2_to_l1_message.message.to_address,
+                payload: l2_to_l1_message.message.payload.clone(),
+            });
+        l2_to_l1_messages.extend(messages);
+    }
+
+    l2_to_l1_messages
 }
