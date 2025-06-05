@@ -130,13 +130,16 @@ enum BuildProposalError {
 // a common mod that can be used across crates.
 #[cfg_attr(any(test, feature = "testing"), automock)]
 pub trait Clock: Send + Sync {
+    /// Human readable representation of unix time (uses duration from epoch under the hood).
+    // Note: chrono is used here since it wraps unix time and allows it to be printed in datetime
+    // format, since it is otherwise not human readable.
     fn now(&self) -> chrono::DateTime<chrono::Utc> {
         chrono::Utc::now()
     }
 
     /// Seconds from epoch.
     fn unix_now(&self) -> u64 {
-        self.now().timestamp().try_into().expect("Failed to convert timestamp to u64")
+        self.now().timestamp().try_into().expect("We shouldn't have dates before the unix epoch")
     }
 
     fn now_at_tokio_instant(&self) -> tokio::time::Instant {
