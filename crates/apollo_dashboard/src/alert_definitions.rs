@@ -6,6 +6,7 @@ use apollo_mempool::metrics::{
     MEMPOOL_POOL_SIZE,
     MEMPOOL_TRANSACTIONS_RECEIVED,
 };
+use apollo_metrics::metric_label_filter;
 use const_format::formatcp;
 
 use crate::dashboard::{
@@ -19,7 +20,7 @@ use crate::dashboard::{
 
 pub const DEV_ALERTS_JSON_PATH: &str = "Monitoring/sequencer/dev_grafana_alerts.json";
 // TODO(Tsabary): remove the following constant, and create relevant "_sum" and "_count" metric fns.
-const FILTER_STR: &str = "{cluster=~\"$cluster\", namespace=~\"$namespace\"}";
+const FILTER_STR: &str = metric_label_filter!();
 
 // Within 30s the metrics should be updated at least twice.
 // If in one of those times the block number is not updated, fire an alert.
