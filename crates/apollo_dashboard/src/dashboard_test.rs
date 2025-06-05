@@ -1,6 +1,6 @@
 use apollo_infra_utils::test_utils::assert_json_eq;
 
-use crate::dashboard::{Alert, AlertComparisonOp, AlertCondition, AlertGroup, AlertLogicalOp};
+use crate::alerts::{Alert, AlertComparisonOp, AlertCondition, AlertGroup, AlertLogicalOp};
 
 #[test]
 fn serialize_alert() {
