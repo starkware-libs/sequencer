@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use apollo_batcher_types::batcher_types::Round;
 use async_trait::async_trait;
-use blockifier::fee::receipt::TransactionReceipt;
 #[cfg(test)]
 use mockall::automock;
 use starknet_api::block::BlockNumber;
@@ -10,9 +9,14 @@ use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
 use tracing::info;
 
+use crate::cende_client_types::StarknetClientTransactionReceipt;
 use crate::pre_confirmed_cende_client::{
+    CendeExecutedTxs,
+    CendePreConfirmedTxs,
+    CendeStartNewRound,
     PreConfirmedCendeClientError,
     PreConfirmedCendeClientTrait,
+    PreConfirmedTransactionData,
 };
 
 #[derive(Debug, Error)]
@@ -27,9 +31,9 @@ pub type PreConfirmedTxReceiver = tokio::sync::mpsc::UnboundedReceiver<Vec<Trans
 pub type PreConfirmedTxSender = tokio::sync::mpsc::UnboundedSender<Vec<TransactionHash>>;
 
 pub type ExecutedTxReceiver =
-    tokio::sync::mpsc::UnboundedReceiver<Vec<(TransactionHash, TransactionReceipt)>>;
+    tokio::sync::mpsc::UnboundedReceiver<Vec<(TransactionHash, StarknetClientTransactionReceipt)>>;
 pub type ExecutedTxSender =
-    tokio::sync::mpsc::UnboundedSender<Vec<(TransactionHash, TransactionReceipt)>>;
+    tokio::sync::mpsc::UnboundedSender<Vec<(TransactionHash, StarknetClientTransactionReceipt)>>;
 
 /// Coordinates the flow of pre-confirmed transaction data during block proposal.
 /// Listens for transaction updates from the block builder via dedicated channels and utilizes a
@@ -69,14 +73,27 @@ impl PreConfirmedBlockWriter {
 #[async_trait]
 impl PreConfirmedBlockWriterTrait for PreConfirmedBlockWriter {
     async fn run(&mut self) -> BlockWriterResult<()> {
-        self.cende_client.send_start_new_round(self.block_number, self.proposal_round).await?;
+        self.cende_client
+            .send_start_new_round(CendeStartNewRound {
+                block_number: self.block_number,
+                round: self.proposal_round,
+            })
+            .await?;
         loop {
             // TODO(noamsp): Manage the sending process independently so it doesn't block the loop.
             tokio::select! {
                 msg = { self.executed_tx_receiver.recv() } => {
                     match msg {
                         Some(txs) => self.cende_client
-                            .send_executed_txs(self.block_number, self.proposal_round, txs)
+                            .write_executed_txs(CendeExecutedTxs {
+                                block_number: self.block_number,
+                                round: self.proposal_round,
+                                executed_txs: txs.into_iter().map(|(tx_hash, tx_receipt)| (tx_hash, PreConfirmedTransactionData {
+                                    block_number: self.block_number,
+                                    round: self.proposal_round,
+                                    transaction_receipt: Some(tx_receipt),
+                                })).collect(),
+                            })
                             .await?,
                         None => {
                             info!("Executed tx channel closed");
@@ -87,7 +104,15 @@ impl PreConfirmedBlockWriterTrait for PreConfirmedBlockWriter {
                 msg = { self.pre_confirmed_tx_receiver.recv() } => {
                     match msg {
                         Some(txs) => self.cende_client
-                            .send_pre_confirmed_txs(self.block_number, self.proposal_round, txs)
+                            .write_pre_confirmed_txs(CendePreConfirmedTxs {
+                                block_number: self.block_number,
+                                round: self.proposal_round,
+                                pre_confirmed_txs: txs.into_iter().map(|tx_hash| (tx_hash, PreConfirmedTransactionData {
+                                    block_number: self.block_number,
+                                    round: self.proposal_round,
+                                    transaction_receipt: None,
+                                })).collect(),
+                            })
                             .await?,
                         None => {
                             info!("Pre confirmed tx channel closed");

@@ -4,7 +4,6 @@ use apollo_batcher_types::batcher_types::Round;
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
-use blockifier::fee::receipt::TransactionReceipt;
 use indexmap::IndexMap;
 use reqwest::{Client, RequestBuilder};
 use serde::Serialize;
@@ -13,6 +12,8 @@ use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
 use tracing::{error, info, warn};
 use url::Url;
+
+use crate::cende_client_types::StarknetClientTransactionReceipt;
 
 // TODO(noamsp): rename PreConfirmed.. to Preconfirmed.. throughout the codebase.
 #[derive(Debug, Error)]
@@ -33,34 +34,29 @@ pub trait PreConfirmedCendeClientTrait: Send + Sync {
     /// Notifies the Cende recorder about the start of a new proposal round.
     async fn send_start_new_round(
         &self,
-        block_number: BlockNumber,
-        proposal_round: Round,
+        start_new_round: CendeStartNewRound,
     ) -> PreConfirmedCendeClientResult<()>;
 
     /// Notifies the Cende recorder about transactions that are pending execution, providing their
     /// hashes.
-    async fn send_pre_confirmed_txs(
+    async fn write_pre_confirmed_txs(
         &self,
-        block_number: BlockNumber,
-        proposal_round: Round,
-        pre_confirmed_txs: Vec<TransactionHash>,
+        pre_confirmed_txs: CendePreConfirmedTxs,
     ) -> PreConfirmedCendeClientResult<()>;
 
     /// Notifies the Cende recorder about transactions that were executed successfully, providing
     /// their hashes and receipts.
-    async fn send_executed_txs(
+    async fn write_executed_txs(
         &self,
-        block_number: BlockNumber,
-        proposal_round: Round,
-        executed_txs: Vec<(TransactionHash, TransactionReceipt)>,
+        executed_txs: CendeExecutedTxs,
     ) -> PreConfirmedCendeClientResult<()>;
 }
 
 pub struct PreConfirmedCendeClient {
-    _start_new_round_url: Url,
-    _write_pre_confirmed_txs_url: Url,
-    _write_executed_txs_url: Url,
-    _client: Client,
+    start_new_round_url: Url,
+    write_pre_confirmed_txs_url: Url,
+    write_executed_txs_url: Url,
+    client: Client,
 }
 
 // The endpoints for the Cende recorder.
@@ -73,19 +69,19 @@ impl PreConfirmedCendeClient {
         let recorder_url = config.recorder_url;
 
         Ok(Self {
-            _start_new_round_url: Self::construct_endpoint_url(
+            start_new_round_url: Self::construct_endpoint_url(
                 recorder_url.clone(),
                 RECORDER_START_NEW_ROUND_PATH,
             ),
-            _write_pre_confirmed_txs_url: Self::construct_endpoint_url(
+            write_pre_confirmed_txs_url: Self::construct_endpoint_url(
                 recorder_url.clone(),
                 RECORDER_WRITE_PRE_CONFIRMED_TXS_PATH,
             ),
-            _write_executed_txs_url: Self::construct_endpoint_url(
+            write_executed_txs_url: Self::construct_endpoint_url(
                 recorder_url,
                 RECORDER_WRITE_EXECUTED_TXS_PATH,
             ),
-            _client: Client::new(),
+            client: Client::new(),
         })
     }
 
@@ -93,19 +89,17 @@ impl PreConfirmedCendeClient {
         recorder_url.join(endpoint).expect("Failed to construct URL")
     }
 
-    // TODO(noamsp): remove this allow once the client is implemented.
-    #[allow(dead_code)]
     async fn send_request(
         &self,
         request_builder: RequestBuilder,
         block_number: BlockNumber,
-        proposal_round: Round,
+        round: Round,
         request_name: &'static str,
         additional_log_info: &str,
     ) -> PreConfirmedCendeClientResult<()> {
         info!(
             "Sending {request_name} request to Cende recorder. block_number: {block_number}, \
-             round: {proposal_round}{additional_log_info}",
+             round: {round}{additional_log_info}",
         );
 
         let response = request_builder.send().await?;
@@ -114,13 +108,13 @@ impl PreConfirmedCendeClient {
         if response_status.is_success() {
             info!(
                 "{request_name} request succeeded. block_number: {block_number}, round: \
-                 {proposal_round}{additional_log_info}"
+                 {round}{additional_log_info}"
             );
             Ok(())
         } else {
             let error_msg = format!(
                 "{request_name} request failed. block_number: {block_number}, round: \
-                 {proposal_round}{additional_log_info}, status: {response_status}"
+                 {round}{additional_log_info}, status: {response_status}"
             );
             warn!("{error_msg}");
             Err(PreConfirmedCendeClientError::CendeRecorderError(error_msg))
@@ -155,60 +149,85 @@ impl SerializeConfig for PreConfirmedCendeConfig {
 
 #[derive(Serialize)]
 pub struct CendeStartNewRound {
-    block_number: BlockNumber,
-    round: Round,
+    pub block_number: BlockNumber,
+    pub round: Round,
 }
 
 // This data type is used to hold the data for both the pre-confirmed and executed transactions.
 #[derive(Serialize)]
 pub struct PreConfirmedTransactionData {
-    block_number: BlockNumber,
-    round: Round,
-    transaction_receipt: Option<TransactionReceipt>,
+    pub block_number: BlockNumber,
+    pub round: Round,
+    pub transaction_receipt: Option<StarknetClientTransactionReceipt>,
 }
 
 /// Invariant: all PreConfirmedTransactionData entries have block_number and proposal_round values
 /// that match the corresponding values on this struct.
 #[derive(Serialize)]
 pub struct CendePreConfirmedTxs {
-    block_number: BlockNumber,
-    round: Round,
-    pre_confirmed_txs: IndexMap<TransactionHash, PreConfirmedTransactionData>,
+    pub block_number: BlockNumber,
+    pub round: Round,
+    pub pre_confirmed_txs: IndexMap<TransactionHash, PreConfirmedTransactionData>,
 }
 
 #[derive(Serialize)]
 pub struct CendeExecutedTxs {
-    block_number: BlockNumber,
-    round: Round,
-    executed_txs: IndexMap<TransactionHash, PreConfirmedTransactionData>,
+    pub block_number: BlockNumber,
+    pub round: Round,
+    pub executed_txs: IndexMap<TransactionHash, PreConfirmedTransactionData>,
 }
 
 #[async_trait]
 impl PreConfirmedCendeClientTrait for PreConfirmedCendeClient {
     async fn send_start_new_round(
         &self,
-        _block_number: BlockNumber,
-        _proposal_round: Round,
+        start_new_round: CendeStartNewRound,
     ) -> PreConfirmedCendeClientResult<()> {
-        todo!()
+        let request_builder =
+            self.client.post(self.start_new_round_url.clone()).json(&start_new_round);
+
+        self.send_request(
+            request_builder,
+            start_new_round.block_number,
+            start_new_round.round,
+            "start_new_round",
+            "",
+        )
+        .await
     }
 
-    async fn send_pre_confirmed_txs(
+    async fn write_pre_confirmed_txs(
         &self,
-        _block_number: BlockNumber,
-        _proposal_round: Round,
-        _pre_confirmed_txs: Vec<TransactionHash>,
+        pre_confirmed_txs: CendePreConfirmedTxs,
     ) -> PreConfirmedCendeClientResult<()> {
-        todo!()
+        let request_builder =
+            self.client.post(self.write_pre_confirmed_txs_url.clone()).json(&pre_confirmed_txs);
+
+        self.send_request(
+            request_builder,
+            pre_confirmed_txs.block_number,
+            pre_confirmed_txs.round,
+            "write_pre_confirmed_txs",
+            &format!(", num_txs: {}", pre_confirmed_txs.pre_confirmed_txs.len()),
+        )
+        .await
     }
 
-    async fn send_executed_txs(
+    async fn write_executed_txs(
         &self,
-        _block_number: BlockNumber,
-        _proposal_round: Round,
-        _executed_txs: Vec<(TransactionHash, TransactionReceipt)>,
+        executed_txs: CendeExecutedTxs,
     ) -> PreConfirmedCendeClientResult<()> {
-        todo!()
+        let request_builder =
+            self.client.post(self.write_executed_txs_url.clone()).json(&executed_txs);
+
+        self.send_request(
+            request_builder,
+            executed_txs.block_number,
+            executed_txs.round,
+            "write_executed_txs",
+            &format!(", num_txs: {}", executed_txs.executed_txs.len()),
+        )
+        .await
     }
 }
 
@@ -219,26 +238,21 @@ pub struct EmptyPreConfirmedCendeClient;
 impl PreConfirmedCendeClientTrait for EmptyPreConfirmedCendeClient {
     async fn send_start_new_round(
         &self,
-        _block_number: BlockNumber,
-        _proposal_round: Round,
+        _start_new_round: CendeStartNewRound,
     ) -> PreConfirmedCendeClientResult<()> {
         Ok(())
     }
 
-    async fn send_pre_confirmed_txs(
+    async fn write_pre_confirmed_txs(
         &self,
-        _block_number: BlockNumber,
-        _proposal_round: Round,
-        _pre_confirmed_txs: Vec<TransactionHash>,
+        _pre_confirmed_txs: CendePreConfirmedTxs,
     ) -> PreConfirmedCendeClientResult<()> {
         Ok(())
     }
 
-    async fn send_executed_txs(
+    async fn write_executed_txs(
         &self,
-        _block_number: BlockNumber,
-        _proposal_round: Round,
-        _executed_txs: Vec<(TransactionHash, TransactionReceipt)>,
+        _executed_txs: CendeExecutedTxs,
     ) -> PreConfirmedCendeClientResult<()> {
         Ok(())
     }
