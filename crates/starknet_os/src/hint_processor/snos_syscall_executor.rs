@@ -183,19 +183,15 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> Result<GetBlockHashResponse, Self::Error> {
-        // TODO(Nimrod): Handle errors correctly.
         let block_number = request.block_number;
         let execution_helper = syscall_handler.get_mut_current_execution_helper().unwrap();
         let diff = execution_helper.os_block_input.block_info.block_number.0 - block_number.0;
         assert!(diff < STORED_BLOCK_HASH_BUFFER, "Block number out of range {diff}.");
         let block_hash = execution_helper
             .tx_execution_iter
-            .get_mut_tx_execution_info_ref()
-            .unwrap()
-            .get_mut_call_info_tracker()
-            .unwrap()
-            .next_execute_code_block_hash_read()
-            .unwrap();
+            .get_mut_tx_execution_info_ref()?
+            .get_mut_call_info_tracker()?
+            .next_execute_code_block_hash_read()?;
 
         Ok(GetBlockHashResponse { block_hash: *block_hash })
     }
@@ -277,20 +273,13 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> Result<StorageReadResponse, Self::Error> {
-        // TODO(Tzahi): Change `expect`s to regular errors once the syscall trait has an associated
-        // error type.
         assert_eq!(request.address_domain, Felt::ZERO);
         let value = *syscall_handler
-            .get_mut_current_execution_helper()
-            .expect("No current execution helper")
+            .get_mut_current_execution_helper()?
             .tx_execution_iter
-            .get_mut_tx_execution_info_ref()
-            .expect("No current tx execution info")
-            .get_mut_call_info_tracker()
-            .expect("No call info tracker found")
-            .execute_code_read_iterator
-            .next()
-            .expect("Missing hint for read_storage");
+            .get_mut_tx_execution_info_ref()?
+            .get_mut_call_info_tracker()?
+            .next_execute_code_read()?;
 
         Ok(StorageReadResponse { value })
     }
