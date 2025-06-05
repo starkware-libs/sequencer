@@ -6,7 +6,13 @@ use apollo_infra::impl_debug_for_infra_requests_and_responses;
 use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use starknet_api::crypto::utils::{Message, PrivateKey, PublicKey, RawSignature};
+use starknet_api::crypto::utils::{
+    Message,
+    PrivateKey,
+    PublicKey,
+    RawSignature,
+    SignatureConversionError,
+};
 use strum_macros::AsRefStr;
 use thiserror::Error;
 
@@ -48,6 +54,10 @@ pub trait SignatureManagerClient: Send + Sync {
 pub enum SignatureManagerError {
     #[error("Internal client error: {0}")]
     Client(String),
+    #[error(transparent)]
+    SignatureConversion(#[from] SignatureConversionError),
+    #[error("Failed to verify: {0}")]
+    Verify(String),
 }
 
 #[derive(Clone, Debug, Error)]
