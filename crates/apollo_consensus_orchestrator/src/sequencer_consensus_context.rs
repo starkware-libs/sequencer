@@ -134,7 +134,8 @@ pub trait Clock: Send + Sync {
         chrono::Utc::now()
     }
 
-    fn now_as_timestamp(&self) -> u64 {
+    /// Seconds from epoch.
+    fn unix_now(&self) -> u64 {
         self.now().timestamp().try_into().expect("Failed to convert timestamp to u64")
     }
 
@@ -645,7 +646,7 @@ impl ConsensusContext for SequencerConsensusContext {
         let timestamp = sync_block.block_header_without_hash.timestamp;
         let last_block_timestamp =
             self.previous_block_info.as_ref().map_or(0, |info| info.timestamp);
-        let now: u64 = self.deps.clock.now_as_timestamp();
+        let now: u64 = self.deps.clock.unix_now();
         if !(block_number == height
             && timestamp.0 >= last_block_timestamp
             && timestamp.0 <= now + self.config.block_timestamp_window_seconds)
@@ -860,7 +861,7 @@ async fn build_proposal(mut args: ProposalBuildArguments) {
 async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<ConsensusBlockInfo> {
     let batcher_timeout = chrono::Duration::from_std(args.batcher_timeout)
         .expect("Can't convert timeout to chrono::Duration");
-    let timestamp = args.deps.clock.now_as_timestamp();
+    let timestamp = args.deps.clock.unix_now();
     let (eth_to_fri_rate, l1_prices) = get_oracle_rate_and_prices(
         args.deps.eth_to_strk_oracle_client.clone(),
         args.deps.l1_gas_price_provider.clone(),
@@ -1112,7 +1113,7 @@ async fn is_block_info_valid(
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     gas_price_params: &GasPriceParams,
 ) -> bool {
-    let now: u64 = clock.now_as_timestamp();
+    let now: u64 = clock.unix_now();
     let last_block_timestamp =
         block_info_validation.previous_block_info.as_ref().map_or(0, |info| info.timestamp);
     if !(block_info_proposed.height == block_info_validation.height
